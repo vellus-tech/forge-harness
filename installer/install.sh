@@ -90,8 +90,8 @@ if [ -d "$TARGET/.github" ] || [ -d "$TARGET/.git" ]; then
   fi
 fi
 
-# 7. adapters
-SYNC_ARGS=(--adapter claude)
+# 7. adapters (all declared — agent-agnostic by default, §15)
+SYNC_ARGS=(--adapter all)
 [ "$NO_SYMLINK" -eq 1 ] && SYNC_ARGS+=(--copy-links)
 (cd "$TARGET" && bash .forge/scripts/sync-adapters.sh "${SYNC_ARGS[@]}")
 

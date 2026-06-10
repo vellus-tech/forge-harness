@@ -5,6 +5,13 @@ harness:
   template_version: "0.1.0-dev"
   adapters:
     - claude
+    - agents-skills
+    - qwen
+    - forge-cli
+    - codex
+    - gemini
+    - kiro
+    - cursor
 specs:
   root: .forge/specs
   active: .forge/specs/active

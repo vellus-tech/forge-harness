@@ -89,8 +89,11 @@ check_harness() {
   if [ "$orphans" -eq 0 ]; then ok "harness: sem placeholders <PROJECT_*> órfãos"
   else miss "harness: $orphans arquivo(s) com placeholders <PROJECT_*> não preenchidos"; MISSING_DIAG=1; fi
 
-  lock="$ROOT/.forge/adapters/claude.lock.yaml"
-  if [ -f "$lock" ]; then
+  locks_found=0
+  for lock in "$ROOT"/.forge/adapters/*.lock.yaml; do
+    [ -f "$lock" ] || continue
+    locks_found=$((locks_found + 1))
+    aname="$(basename "$lock" .lock.yaml)"
     drift=0
     while read -r dest hash; do
       [ -n "$dest" ] || continue
@@ -105,10 +108,11 @@ check_harness() {
     done <<EOF_LOCK
 $(awk '/^  - dest: /{d=$3} /^    sha256: /{print d" "$2}' "$lock")
 EOF_LOCK
-    if [ "$drift" -eq 0 ]; then ok "harness: adapter claude sem drift (lockfile íntegro)"
-    else miss "harness: $drift alvo(s) do adapter claude com drift (rode .forge/scripts/sync-adapters.sh)"; MISSING_DIAG=1; fi
-  else
-    info "harness: claude.lock.yaml ausente (rode .forge/scripts/sync-adapters.sh)"
+    if [ "$drift" -eq 0 ]; then ok "harness: adapter $aname sem drift (lockfile íntegro)"
+    else miss "harness: $drift alvo(s) do adapter $aname com drift (rode .forge/scripts/sync-adapters.sh)"; MISSING_DIAG=1; fi
+  done
+  if [ "$locks_found" -eq 0 ]; then
+    info "harness: nenhum lockfile de adapter (rode .forge/scripts/sync-adapters.sh)"
   fi
   echo
 }

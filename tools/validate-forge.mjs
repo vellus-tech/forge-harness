@@ -41,10 +41,17 @@ check('FORGE.md frontmatter vs forgeFrontmatter', withDefs(core.$defs.forgeFront
 const validateAdapter = ajv.compile(adapterCap);
 console.log('OK adapter-capability.schema.json compiles');
 
-const claudeYaml = parse(read('template/.forge/adapters/claude.yaml'));
-if (!validateAdapter(claudeYaml)) {
-  console.error('FAIL adapters/claude.yaml vs adapter-capability schema');
-  console.error(JSON.stringify(validateAdapter.errors, null, 2));
-  process.exit(1);
+const { readdirSync } = await import('node:fs');
+const adaptersDir = resolve(root, 'template/.forge/adapters');
+const decls = readdirSync(adaptersDir)
+  .filter((f) => f.endsWith('.yaml') && !f.endsWith('.lock.yaml'))
+  .sort();
+for (const decl of decls) {
+  const data = parse(read(`template/.forge/adapters/${decl}`));
+  if (!validateAdapter(data)) {
+    console.error(`FAIL adapters/${decl} vs adapter-capability schema`);
+    console.error(JSON.stringify(validateAdapter.errors, null, 2));
+    process.exit(1);
+  }
 }
-console.log('OK adapters/claude.yaml vs adapter-capability schema');
+console.log(`OK ${decls.length} adapter declarations vs adapter-capability schema (${decls.map((d) => d.replace('.yaml', '')).join(', ')})`);

@@ -1,6 +1,6 @@
 # .forge/ — Forge Project Harness
 
-Agent-agnostic project harness. **This tree is the only source of truth**; `.claude/`, `.codex/`,
+Agent-agnostic project harness. **This tree is the only source of truth**; `.forge/`, `.codex/`,
 `.agents/`, `.kiro/` and friends are generated adapters (`forge sync-adapters`) — never edit them
 by hand. `AGENTS.md` at the repo root is the generated canonical interface; `CLAUDE.md`/`QWEN.md`/
 `GEMINI.md` symlink to it.

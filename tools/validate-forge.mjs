@@ -38,5 +38,13 @@ const fmMatch = md.match(/^---\n([\s\S]*?)\n---/);
 if (!fmMatch) { console.error('FAIL FORGE.md has no YAML frontmatter'); process.exit(1); }
 check('FORGE.md frontmatter vs forgeFrontmatter', withDefs(core.$defs.forgeFrontmatter), parse(fmMatch[1]));
 
-ajv.compile(adapterCap);
+const validateAdapter = ajv.compile(adapterCap);
 console.log('OK adapter-capability.schema.json compiles');
+
+const claudeYaml = parse(read('template/.forge/adapters/claude.yaml'));
+if (!validateAdapter(claudeYaml)) {
+  console.error('FAIL adapters/claude.yaml vs adapter-capability schema');
+  console.error(JSON.stringify(validateAdapter.errors, null, 2));
+  process.exit(1);
+}
+console.log('OK adapters/claude.yaml vs adapter-capability schema');

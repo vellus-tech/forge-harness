@@ -1,0 +1,28 @@
+# Claude Code adapter declaration (§10.6). Generated targets are NEVER edited by hand —
+# edit .forge/** and re-run `sync-adapters.sh`. Drift detected via claude.lock.yaml.
+adapter: claude
+generates:
+  - .claude/commands/forge/        # /forge:* namespaced commands (from .forge/commands/**)
+  - .claude/commands/              # deprecated alias wrappers (contract C1; removed in W8.3)
+  - .claude/agents/                # 1:1 projection of .forge/agents/**
+  - .claude/skills/                # 1:1 projection of .forge/skills/**
+  - .claude/settings.json          # PreToolUse wiring -> $CLAUDE_PROJECT_DIR/.forge/hooks/... (C5)
+  - AGENTS.md                      # operational projection of .forge/FORGE.md (§7.2, header §7.4)
+  - CLAUDE.md                      # symlink -> AGENTS.md (copy fallback)
+  - QWEN.md                        # symlink -> AGENTS.md
+  - GEMINI.md                      # symlink -> AGENTS.md
+supports:
+  symlink: true
+  slash_commands: true
+  skills: true
+  hooks: true
+smoke_tests:
+  - name: commands-visible
+    command: "test -d .claude/commands/forge && ls .claude/commands/forge/*.md >/dev/null"
+  - name: agents-present
+    command: "ls .claude/agents/*/*.md >/dev/null"
+  - name: settings-wires-forge-hook
+    command: "grep -q '.forge/hooks/pre-tool-use/enforce-worktree-location.sh' .claude/settings.json"
+  - name: agents-md-projection
+    command: "head -1 AGENTS.md | grep -q 'Generated from .forge/FORGE.md'"
+loss_warnings: []

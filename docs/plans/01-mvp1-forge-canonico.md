@@ -155,6 +155,8 @@ Estabelecer o `.forge/` canônico com adapter Claude de compatibilidade total, `
 
 - `runners.yaml` permanece stub até W5.2 (L2).
 - `/forge:dev` entregue mínimo; completado na W5.1.
+- **DEBT-W1.1-XML (registrada na execução):** 13 arquivos legados (10 agents, 2 commands, 1 SKILL.md) têm `description` com tags XML (`<example>`), violando o spec Agent Skills (§19.4) mas congelados pelo contrato C2/C4 (mudar description = mudar triggering). `validate-frontmatter.sh` trata como WARN por default (`--strict-xml` disponível). Sanear no MVP5 (`/forge:skill optimize` mede impacto antes/depois) ou em decisão explícita; migrar para o ledger (`/forge:defer`) quando ele existir (W5.1).
+- **Observação W1.1:** harmonização da nomenclatura de worktree (`<escopo>-<desc>` da rule git-worktree vs `<change-id>` da §20.4) adiada para o MVP2, quando change-id passa a existir; na W1.1 apenas os paths mudaram (contrato preservado). `doctor.sh` confirmado sem mudança de `ROOT` (mesma profundidade `.forge/scripts/` vs `.claude/scripts/`). `settings.json` e `README.md` raiz do `.claude/` intencionalmente não migrados (o primeiro é gerado pelo adapter na W1.2; o segundo foi substituído pelo `.forge/README.md` da W1.0).
 
 ## Controle de versão do documento
 

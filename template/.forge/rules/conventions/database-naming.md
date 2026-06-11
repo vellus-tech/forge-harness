@@ -135,8 +135,11 @@ migrationBuilder.AddColumn<bool>(
 
 ## Multi-tenancy
 
-- `tenant_id` é **obrigatório** em todas as tabelas de dados de negócio
-- Isolamento via coluna, não via schema separado nem RLS (conforme ADR de multi-tenancy)
+- `tenant_id` é **obrigatório** em todas as tabelas de dados de negócio (naming: ver acima).
+- A **estratégia de isolamento** (coluna, EF Global Query Filter, RLS) é decidida pela governança de
+  dados, não por esta rule de naming: ver `.forge/rules/data/data-config-sql.md` (SQL) e a matriz
+  transversal em `.forge/rules/data/data-governance.md`. Esta rule cobre apenas **nomenclatura**;
+  quando houver divergência sobre isolamento, a decisão de governança/ADR vence (FORGE.md §2.1).
 
 ---
 

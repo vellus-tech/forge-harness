@@ -176,7 +176,7 @@ Dependências cruzadas relevantes: W5.2 (eval harness) depende também de W1.4 (
 | [04-mvp4-brownfield-graph.md](04-mvp4-brownfield-graph.md) | Fase 6 (MVP4) + C4 | W4.0–W4.3 |
 | [05-mvp5-devloop-quality.md](05-mvp5-devloop-quality.md) | Fase 7 (MVP5) + itens v3 | W5.0–W5.3 |
 | [06-qualidade-piloto-rollout.md](06-qualidade-piloto-rollout.md) | Fase 8 + release | W8.0–W8.3 |
-| [guardrail-governanca-dados.md](guardrail-governanca-dados.md) | Guardrail de conflito de fontes (G1–G4) + fonte da verdade de dados — **change derivado de piloto, fila pós-MVP4** | GW.1–GW.3 |
+| [guardrail-governanca-dados.md](guardrail-governanca-dados.md) | Guardrail de conflito de fontes (G1–G4) + fonte da verdade de dados — **CONCLUÍDO 2026-06-11** (gates gw1/gw2/gw3) | GW.1–GW.3 |
 
 > Os planos `0N` cobrem os MVPs originais. `guardrail-governanca-dados.md` é um change adicional originado no piloto azim-crm (achado 2026-06-11), registrado na fila para execução após o MVP4.
 

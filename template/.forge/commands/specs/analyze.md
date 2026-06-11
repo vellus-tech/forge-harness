@@ -43,6 +43,14 @@ Todo achado de tipo `conflict` que seja **arquitetural relevante** (isolamento d
 
 **Efeito determinista:** enquanto `analysis.md` tiver um BLOCKER (ou `Status: FAIL`), `spec-transition.sh` **recusa** a transição para `implementing` — `/forge:implement` fica travado. Para destravar: resolva o conflito (aplicar a fonte de maior autoridade, ou abrir/atualizar ADR via `/forge:adr`, escalando no HITL) e **re-rode `/forge:analyze`** para regenerar um `analysis.md` limpo.
 
+**Checagem determinista de governança de dados (G4):** rode também
+
+```bash
+bash .forge/scripts/check-data-governance.sh <change-id>
+```
+
+Ele flagra divergências literais vs a matriz transversal (`.forge/rules/data/data-governance.md`) — ex.: um módulo declarando "RLS opcional"/"sem RLS" para tabela multi-tenant de domínio, ou cache sem namespace de tenant. Qualquer `CONFLICT` retornado é um achado **BLOCKER** de tipo `conflict` no `analysis.md` (decisão transversal tem dono único — `conflict-handling.md` G4).
+
 ## Regras
 
 - **Não corrija nada** neste comando — achados são insumo; correções acontecem nos comandos de fase (ou via Review no gate correspondente).

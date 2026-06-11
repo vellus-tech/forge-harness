@@ -4,7 +4,7 @@
 |---|---|
 | **Versão** | 1.0 |
 | **Data** | 2026-06-11 |
-| **Status** | Registrado na fila — implementar **após o MVP4** (decisão HITL 2026-06-11) |
+| **Status** | **Implementado (2026-06-11)** — GW.1/GW.2/GW.3 entregues e mergeadas em `develop`. Gates gw1/gw2/gw3 verdes. |
 | **Origem** | Achado do piloto azim-crm: conflito arquitetural detectado mas não-bloqueante |
 | **Escopo aprovado** | G1–G4 completo (HITL) |
 | **Vira change** | `forge-conflict-guardrails` (spec lifecycle) quando chegar a vez |
@@ -99,6 +99,13 @@ Sugestão de waves do change `forge-conflict-guardrails` (type: feature, scale 3
 - **GW.1 — Precedência + bloqueio (G1, G2):** rule `conflict-handling.md`; bloco de precedência no `FORGE.md`/`constitution`; reforço no `/forge:analyze` e propagação da regra de bloqueio aos spec/architecture agents. Gate: fixture com rule↔ADR em conflito → `/forge:analyze` retorna BLOCKER e trava `implement`.
 - **GW.2 — Rules ancoradas + drift (G3):** frontmatter `based_on` + validador de ancoragem (§19). Gate: rule apontando ADR inexistente/não-accepted → FAIL nomeando a rule.
 - **GW.3 — Fonte da verdade de dados (G4 + §4):** ADR de governança de dados + as 3 rules de store + matriz transversal; validador de DDD/módulo estendido (DD local não contradiz decisão global). Saneia a `database-naming.md` em drift. Gate: módulo com mecanismo de isolamento divergente do store → CONFLICT bloqueante.
+
+## 5.1 Resultado da implementação (2026-06-11)
+
+- **GW.1 (G1+G2):** precedência de fontes no `FORGE.md` §2.1 + constitution princípio 11; rule `conventions/conflict-handling.md`; **enforcement determinista** — `spec-transition.sh` recusa `implementing` enquanto `analysis.md` tiver BLOCKER aberto/Status FAIL; `/forge:analyze` reforçado (conflito = BLOCKER, nunca rebaixar); regra de bloqueio propagada (agents/README + run-spec-pipeline). Gate `gw1`.
+- **GW.2 (G3):** `validate-rules.{mjs,sh}` — rule com `based_on:[ADR-NNNN]` deve apontar para ADR existente e `accepted`, senão drift; integrado ao `validate-harness`/doctor; convenção no `rules/README`. Corrigido de quebra um bug latente que **eu** introduzira na W3.1 (description obrigatória batia nas 24 rules `title`-only — agora description só é exigida quando não há `title`). Gate `gw2`.
+- **GW.3 (G4 + §4):** 4 rules em `rules/data/` (matriz `data-governance` + `data-config-sql`/`data-transactional-nosql`/`data-cache` com a decisão SQL canônica do incidente); `database-naming.md` **saneada** (não afirma mais "sem RLS conforme ADR"); `check-data-governance.{mjs,sh}` flagra o anti-padrão literal ("RLS opcional"/"sem RLS"/cache sem namespace de tenant) como CONFLICT; ADR template `templates/product/adr-data-governance.md`. Gate `gw3` (8 passos, incluindo o anti-padrão literal do incidente num change real).
+- **Contrato v1.2:** cláusula C3 tornada aditiva (`>= 27` rules no modo generated); rules 27 → 32.
 
 ## 6. Relação com o saneamento de rules já pendente
 

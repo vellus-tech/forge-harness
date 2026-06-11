@@ -14,7 +14,7 @@ tools:
   - mcp__atlassian__transitionJiraIssue
   - mcp__atlassian__addCommentToJiraIssue
   - mcp__atlassian__getTransitionsForJiraIssue
-model: claude-opus-4-7
+model: opus
 ---
 
 # Deploy Orchestrator
@@ -280,7 +280,7 @@ Commit + push para main.
 Para cada `task_id` da onda (extraído do tracker):
 
 ```
-1. Buscar issue: JQL "labels = task:T-031 AND status = 'In Review'"
+1. Buscar issue: JQL "labels = task:TASK-31 AND status = 'In Review'"
 2. Pegar transition para "Done" via getTransitionsForJiraIssue
 3. transitionJiraIssue → "Done"
 4. addCommentToJiraIssue:
@@ -373,6 +373,5 @@ Documente o rollback no `PROGRESS-TRACKING.md`:
 - `.forge/rules/architecture/docker-multi-arch.md`
 - `.forge/rules/architecture/docker-image-security.md`
 - `.forge/rules/architecture/security-and-compliance.md`
-- `docs/product/adr/0022-supply-chain-security.md`
-- `docs/product/adr/0036-multi-arch-container-images.md`
+- ADRs de plataforma em `docs/product/adr/` (ex.: supply-chain security, imagens multi-arch), quando existirem
 - `platform/helm/<modulo>/` (charts do projeto)

@@ -34,7 +34,7 @@ BRANCH=$(git branch --show-current)
 git rev-parse --show-superproject-working-tree 2>/dev/null
 ```
 
-**Se `GIT_DIR != GIT_COMMON` (e não for submódulo):** você já está em um worktree vinculado. Pule para o Passo 3 (Setup do projeto). **Não** crie outro worktree.
+**Se `GIT_DIR != GIT_COMMON` (e não for submódulo):** você já está em um worktree vinculado. Pule para o Passo 2 (Setup do projeto). **Não** crie outro worktree.
 
 Reporte com o estado da branch:
 - Numa branch: "Já estou em workspace isolado em `<path>`, na branch `<nome>`."
@@ -46,7 +46,7 @@ O usuário já indicou a preferência de worktree nas instruções (`AGENTS.md`/
 
 > "Quer que eu prepare um worktree isolado? Ele protege a sua branch atual de qualquer alteração."
 
-Honre qualquer preferência já declarada sem perguntar. Se o usuário recusar, trabalhe no local e pule para o Passo 3.
+Honre qualquer preferência já declarada sem perguntar. Se o usuário recusar, trabalhe no local e pule para o Passo 2.
 
 ---
 
@@ -56,7 +56,7 @@ Honre qualquer preferência já declarada sem perguntar. Se o usuário recusar, 
 
 ### 1a. Ferramenta de worktree nativa (preferível)
 
-O usuário pediu um workspace isolado (consentimento no Passo 0). Você já tem uma forma nativa de criar um worktree? Pode ser uma tool com nome como `EnterWorktree`/`WorktreeCreate`, um comando `/worktree`, ou uma flag `--worktree`. **Se tiver, use-a e pule para o Passo 3.**
+O usuário pediu um workspace isolado (consentimento no Passo 0). Você já tem uma forma nativa de criar um worktree? Pode ser uma tool com nome como `EnterWorktree`/`WorktreeCreate`, um comando `/worktree`, ou uma flag `--worktree`. **Se tiver, use-a e pule para o Passo 2.**
 
 Ferramentas nativas cuidam de posicionamento de diretório, criação de branch e limpeza automaticamente — e neste projeto já posicionam os worktrees sob `.forge/worktrees/`, exatamente a localização canônica da rule. Usar `git worktree add` quando existe uma tool nativa cria estado fantasma que o harness não enxerga nem gerencia.
 
@@ -95,7 +95,7 @@ cd .forge/worktrees/<escopo>-<descricao>
 
 ---
 
-## Passo 3 — Setup do projeto
+## Passo 2 — Setup do projeto
 
 Detecte a stack automaticamente e rode o setup apropriado:
 
@@ -121,7 +121,7 @@ Se nenhum desses marcadores existir, pule a instalação de dependências.
 
 ---
 
-## Passo 4 — Verificar baseline limpo
+## Passo 3 — Verificar baseline limpo
 
 Rode os testes para garantir que o workspace começa limpo:
 

@@ -7,7 +7,7 @@ tools:
   - Glob
   - Grep
   - Bash
-model: claude-opus-4-7
+model: opus
 ---
 
 # Logic Reviewer

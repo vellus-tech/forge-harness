@@ -63,12 +63,13 @@ fi
 cp -R "$SOURCE" "$TARGET/.forge"
 find "$TARGET/.forge" -name '.DS_Store' -delete 2>/dev/null || true
 
-# 3. placeholders (UPPERCASE only) across the installed tree
-SLUG="$SLUG" NAME="$NAME" DESC="$DESC" find "$TARGET/.forge" -type f \( -name '*.md' -o -name '*.yaml' -o -name '*.yml' \) -exec \
+# 3. placeholders (UPPERCASE only) across the installed tree — EXCEPT .forge/templates/,
+# whose files are templates for future artifacts and must keep their placeholders
+SLUG="$SLUG" NAME="$NAME" DESC="$DESC" find "$TARGET/.forge" -type f \( -name '*.md' -o -name '*.yaml' -o -name '*.yml' \) ! -path '*/templates/*' -exec \
   perl -pi -e 's/<PROJECT_SLUG>/$ENV{SLUG}/g; s/<PROJECT_NAME>/$ENV{NAME}/g; s/<PROJECT_DESCRIPTION>/$ENV{DESC}/g; s/<INSTALLED_AT>/installed/g' {} +
 
 # grep exits 1 on no-match; with pipefail that would kill the assignment — tolerate it
-orphans=$(grep -rl '<PROJECT_[A-Z_]*>' "$TARGET/.forge" 2>/dev/null | wc -l | tr -d ' ' || true)
+orphans=$(grep -rl '<PROJECT_[A-Z_]*>' "$TARGET/.forge" 2>/dev/null | grep -v '/templates/' | wc -l | tr -d ' ' || true)
 [ "$orphans" -eq 0 ] || { echo "FAIL ($orphans files still carry <PROJECT_*> placeholders)"; exit 1; }
 
 # 4. gitignore patch (idempotent via markers)

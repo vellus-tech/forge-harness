@@ -8,7 +8,7 @@ tools:
   - Edit
   - Glob
   - Grep
-model: claude-opus-4-7
+model: opus
 ---
 
 # Autor de ADRs
@@ -63,4 +63,4 @@ Um bom ADR é como uma ata de reunião de alto nível: captura o contexto, as fo
 
 - Quando a decisão envolve conformidade PCI DSS 4.0.1, LGPD ou regulações financeiras → envolver compliance/security
 - Quando afeta contratos publicados (APIs, eventos) → envolver consumidores
-- Quando há conflito genuíno entre opções sem consenso claro → escalar para tech leads / @MiltonSilvaJr
+- Quando há conflito genuíno entre opções sem consenso claro → escalar para os tech leads do projeto

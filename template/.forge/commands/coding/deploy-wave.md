@@ -115,7 +115,6 @@ Em caso de falha:
 - `.forge/agents/coding/deploy-orchestrator.md` (agent invocado)
 - `.forge/rules/architecture/docker-multi-arch.md`
 - `.forge/rules/architecture/docker-image-security.md` (zero tolerance CVE)
-- `docs/product/adr/0022-supply-chain-security.md`
-- `docs/product/adr/0036-multi-arch-container-images.md`
+- ADRs de plataforma em `docs/product/adr/` (ex.: supply-chain security, imagens multi-arch), quando existirem
 - `platform/helm/<modulo>/` (charts)
 - `.github/workflows/build-image.yml` (build CI)

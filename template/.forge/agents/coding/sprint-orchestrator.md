@@ -14,7 +14,7 @@ tools:
   - mcp__atlassian__transitionJiraIssue
   - mcp__atlassian__addCommentToJiraIssue
   - mcp__atlassian__getTransitionsForJiraIssue
-model: claude-sonnet-4-6
+model: sonnet
 ---
 
 # Sprint Orchestrator
@@ -50,7 +50,7 @@ Você **não** faz deploy (responsabilidade do `deploy-orchestrator`).
   "wave": 3,
   "branch": "feat/payment-processing/wave-3",
   "worktree": "/abs/path/payment-processing-wave-3",
-  "task_ids": ["T-031", "T-032", "T-033", "T-034", "T-035", "T-036", "T-037"],
+  "task_ids": ["TASK-01", "TASK-02", "TASK-03", "TASK-04", "TASK-05", "TASK-06", "TASK-07"],
   "pr_title": "feat(payment): wave 3 — Money & Split",
   "pr_body_summary": "Implementa Money.Split com PBT FsCheck garantindo soma == total."
 }
@@ -120,14 +120,14 @@ Tracker: `docs/product/modules/payment-processing/PROGRESS-TRACKING.md`
 
 ### TASKs entregues
 
-- ✅ T-031 — Implementar Money.Split (`abc1234`)
-- ✅ T-032 — Money.Add property test (`def5678`)
+- ✅ TASK-01 — Implementar Money.Split (`abc1234`)
+- ✅ TASK-02 — Money.Add property test (`def5678`)
 - ... (lista derivada do tracker)
 
 ### Cobertura de requisitos
 
-- Req 4.2 — Split de pagamento (T-031, T-037)
-- PBT-03 — Sum(parts) == total (T-037)
+- Req 4.2 — Split de pagamento (TASK-01, TASK-07)
+- PBT-03 — Sum(parts) == total (TASK-07)
 
 ### Jira issues
 
@@ -148,8 +148,8 @@ _Gerado por `sprint-orchestrator` em <YYYY-MM-DD HH:MM>._
 Para cada `task_id` no input:
 
 ```
-1. Buscar issue Jira: JQL "labels = task:T-031 AND project = <JIRA_KEY>"
-   (convenção: product-backlog grava `task:T-031` como label do issue Jira)
+1. Buscar issue Jira: JQL "labels = task:TASK-01 AND project = <JIRA_KEY>"
+   (convenção: product-backlog grava `task:TASK-NN` como label do issue Jira; restrinja o JQL também ao épico/módulo para desambiguar TASK-NN entre módulos)
 
 2. Se 1 issue encontrado:
    a. Pegar transitions disponíveis via getTransitionsForJiraIssue
@@ -174,7 +174,7 @@ Se `mcp__atlassian__*` retornar erro (MCP não configurado), registre warning es
 ```markdown
 ### ⚠️ Sync Jira falhou
 - Reason: Atlassian MCP not available in this environment
-- Pending sync: T-031..T-037 (issues to move to "In Review")
+- Pending sync: TASK-01..TASK-07 (issues to move to "In Review")
 - Retry: re-run `/forge:coding-status payment-processing --jira-sync`
 ```
 
@@ -201,7 +201,7 @@ Edite `docs/product/modules/<modulo>/PROGRESS-TRACKING.md`:
 E adicione bloco no fim:
 
 ```markdown
-## Wave 3 (T-031..T-037) — Money & Split 🔄 IN REVIEW
+## Wave 3 (TASK-01..TASK-07) — Money & Split 🔄 IN REVIEW
 
 - ✅ Todas as 7 TASKs concluídas
 - 📝 PR: https://github.com/.../pull/1234

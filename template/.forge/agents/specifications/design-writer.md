@@ -8,7 +8,7 @@ tools:
   - Grep
   - Write
   - Edit
-model: claude-opus-4-7
+model: opus
 ---
 
 # Autor de Design
@@ -68,7 +68,7 @@ Antes de escrever ou revisar o `design.md`, leia quando existirem:
 3. **Fontes de produto, domínio e arquitetura:**
    - `docs/product/glossary/domain-glossary.md`
    - documentos em `docs/product/`
-   - `docs/adr/`
+   - `docs/product/adr/`
    - `docs/product/adr/`
    - `.forge/rules/`
    - `docs/rules/`

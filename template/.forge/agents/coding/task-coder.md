@@ -9,7 +9,8 @@ tools:
   - Bash
   - Write
   - Edit
-model: claude-opus-4-7
+  - Agent
+model: opus
 ---
 
 # Task Coder
@@ -294,21 +295,24 @@ LAST_SHA=$(git rev-parse HEAD)
 COMMIT_MSG=$(git log -1 --format=%s)
 
 # Validar formato do commit message
-echo "$COMMIT_MSG" | grep -qE "^(feat|fix|refactor|test|chore|docs|style|perf|build|ci|revert)\([a-z-]+\): T-[0-9]+ — " \
+echo "$COMMIT_MSG" | grep -qE "^(feat|fix|refactor|test|chore|docs|style|perf|build|ci|revert)\([a-z-]+\): TASK-[0-9]+ — " \
   || { echo "Commit message inválido: $COMMIT_MSG"; mark_failed; }
 
 # Build + test locais (cheap gate)
-case "$STACK" in
+case "$DOMINANT_STACK" in
   dotnet)
     dotnet build --nologo --verbosity quiet 2>&1 | tail -20
     dotnet test --no-build --nologo --verbosity quiet 2>&1 | tail -10
     ;;
-  node)
+  frontend)
     npm run typecheck 2>&1 | tail -5
     npm test 2>&1 | tail -10
     ;;
-  gradle)
+  android)
     ./gradlew --no-daemon assembleDebug testDebugUnitTest 2>&1 | tail -10
+    ;;
+  none)
+    : # sem stack dominante detectada — sem gate de build local
     ;;
 esac
 

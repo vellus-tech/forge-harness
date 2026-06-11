@@ -8,7 +8,7 @@ tools:
   - Edit
   - Glob
   - Grep
-model: claude-opus-4-7
+model: opus
 ---
 
 # PRD Validator

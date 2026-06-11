@@ -7,7 +7,7 @@ tools:
   - Glob
   - Grep
   - Bash
-model: claude-opus-4-7
+model: opus
 ---
 
 # Security Reviewer
@@ -92,7 +92,7 @@ Verificar (conforme `jwt-authentication.md`):
 - `ValidateLifetime: true` → ausência = BLOCKER
 - `ClockSkew = TimeSpan.Zero` → diferente = HIGH (com justificativa em ADR pode ser OK)
 - `EnvironmentName == "Test"` fallback presente em build de produção → BLOCKER
-- Chave privada RSA fora do `auth-service` → BLOCKER
+- Chave privada RSA fora do serviço emissor de tokens (ex.: `auth-service`) → BLOCKER
 
 ### 4. mTLS entre serviços internos
 
@@ -115,10 +115,10 @@ Para endpoints novos com `[Authorize]`:
 - Verifica permissão hardcoded sem usar claims do JWT → HIGH
 - Endpoint admin sem RBAC explícito → BLOCKER
 
-Verifique se `LoadPermissionsAsync()` é chamado no fluxo de login (`jwt-permissions.md`):
+Se o projeto possui rule de permissões JWT (ex.: `jwt-permissions.md`), verifique se o símbolo que carrega permissões é chamado no fluxo de login. Identifique no repositório o serviço de autenticação e os símbolos reais; exemplo do projeto de referência (adapte símbolos e path antes de executar):
 
 ```bash
-grep -rE "LoadPermissionsAsync|role\.Permissions" services/auth-service/src/
+grep -rE "LoadPermissionsAsync|role\.Permissions" services/<auth-service>/src/
 ```
 
 Ausência em fluxo de login → BLOCKER (frontend não vai funcionar).
@@ -140,8 +140,10 @@ Endpoints de login/recuperação:
 
 ### 8. CDE (Cardholder Data Environment) — PCI DSS
 
+> Aplicável apenas a projetos no escopo PCI — pule esta seção se o produto não processa dados de cartão.
+
 Se algum arquivo do diff toca:
-- `services/payment*/`, `services/token-vault*/`, `services/cde-*/`
+- os serviços do escopo PCI do projeto (ex. de padrões: `services/payment*/`, `services/token-vault*/`, `services/cde-*/` — adapte aos nomes reais do repositório)
 - ou qualquer arquivo que manipula PAN, CVV, track data
 
 Verificar:
@@ -214,7 +216,7 @@ IDs com prefixo `SEC-NNN`.
 - Aprovar PR com qualquer secret detectado (regex match em diff)
 - Aprovar PII em log mesmo "em dev"
 - Aceitar fallback de chave de teste em build de produção
-- Pular análise de CDE quando diff toca payment/token-vault
+- Pular análise de CDE quando o diff toca serviços do escopo PCI
 - Sinalizar lógica de negócio (não é seu escopo)
 - Sinalizar Docker base image (→ platform-reviewer)
 

@@ -51,7 +51,7 @@ Cada módulo em `docs/product/modules/<modulo>/` mantém um tracker `PROGRESS-TR
 
 1. Ler em paralelo:
    - `docs/product/glossary/domain-glossary.md`
-   - `docs/adr/README.md`
+   - `docs/product/adr/README.md`
    - `.forge/rules/conventions/document-versioning.md`
 
 2. Listar com Glob:

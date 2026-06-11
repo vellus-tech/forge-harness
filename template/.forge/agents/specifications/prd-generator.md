@@ -8,7 +8,7 @@ tools:
   - Edit
   - Glob
   - Grep
-model: claude-sonnet-4-6
+model: sonnet
 ---
 
 # PRD Generator
@@ -824,7 +824,7 @@ O produto deve estar aderente a:
    - Jornadas, entrevistas e discovery notes fornecidas pelo usuário
    - Documentos existentes em `docs/product/prd/`, `docs/product/glossary/`, `docs/spec/`
    - PRDs anteriores ou em rascunho
-   - ADRs já aceitos em `docs/adr/`
+   - ADRs já aceitos em `docs/product/adr/`
    - Rules transversais em `.forge/rules/`
 
 2. **Mapeamento dos insumos para o template:**
@@ -847,7 +847,7 @@ O produto deve estar aderente a:
 5. **Encaminhamento para documentos filhos:**
    - Cada RF deve indicar o `frd.md` (ou `FRD-XX.md`) que o detalhará
    - Cada RNF deve indicar o `nfrd.md` correspondente
-   - Decisões arquiteturais relevantes devem virar entradas em `docs/adr/` (use o agente `adr-writer`)
+   - Decisões arquiteturais relevantes devem virar entradas em `docs/product/adr/` (use o agente `adr-writer`)
    - Detalhes técnicos devem ser endereçados ao `TRD.md`
    - Fluxos de UX devem ser endereçados ao `UXD.md`
 

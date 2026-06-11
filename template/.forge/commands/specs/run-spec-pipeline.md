@@ -42,7 +42,7 @@ docs/product/
 └── backlog/                        ⚠️ vazio até HITL aprovar
 ```
 
-Discovery vai em `discovery-notes.md` na raiz do workspace.
+Discovery vai em `docs/discovery/discovery-notes.md` (um `discovery-notes.md` legado na raiz é lido como fallback).
 
 ⚠️ **NUNCA** use `.kiro/specs/` ou `docs/specs/`. Caminho canônico é `docs/product/modules/<modulo>/`. Se encontrar referências antigas, purgar via sed antes de iniciar pipeline.
 
@@ -109,7 +109,7 @@ Fase 8 — product-backlog + sincronização Jira (executada em /run-backlog sep
 5. `ls docs/product/ 2>/dev/null` — detectar baseline existente (Brownfield vs Greenfield)
 6. `grep -rln -E "\.kiro/specs|docs/specs" .forge/ docs/ 2>/dev/null` — purgar referências antigas se encontrar
 
-Se workspace tem 152MB+ de material untracked (PDFs/manuais de fornecedor), NÃO faça `git add -A`. Stage apenas `.forge/`, `docs/product/`, `discovery-notes.md`.
+Se workspace tem 152MB+ de material untracked (PDFs/manuais de fornecedor), NÃO faça `git add -A`. Stage apenas `.forge/`, `docs/product/`, `docs/discovery/`.
 
 ---
 

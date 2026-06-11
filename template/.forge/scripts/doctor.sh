@@ -127,6 +127,23 @@ EOF_LOCK
   if [ "$locks_found" -eq 0 ]; then
     info "harness: nenhum lockfile de adapter (rode .forge/scripts/sync-adapters.sh)"
   fi
+
+  # graph staleness (§25): if a graph exists and tracked graphed files changed
+  # since the last build, warn (informational — never load-bearing).
+  if [ -f "$ROOT/.forge/graph/graph.json" ]; then
+    if git -C "$ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+      changed="$(git -C "$ROOT" status --porcelain 2>/dev/null | sed 's/^...//' || true)"
+      stale=0
+      while read -r f; do
+        [ -n "$f" ] || continue
+        grep -q "\"id\": \"$f\"" "$ROOT/.forge/graph/graph.json" 2>/dev/null && stale=$((stale + 1))
+      done <<EOF_CHG
+$changed
+EOF_CHG
+      if [ "$stale" -gt 0 ]; then info "harness: grafo possivelmente desatualizado ($stale arquivo(s) grafado(s) mudaram — rode /forge:graph update)"
+      else ok "harness: grafo de código atualizado"; fi
+    fi
+  fi
   echo
 }
 check_harness

@@ -19,6 +19,10 @@ fi
 if ! bash "$SCRIPT_DIR/smoke-adapters.sh" >>"$LOG" 2>&1; then
   fail=1; reason="${reason:+$reason; }adapter smokes failed"
 fi
+# G3 (GW.2): rules anchored to ADRs must not be in drift
+if ! bash "$SCRIPT_DIR/validate-rules.sh" >>"$LOG" 2>&1; then
+  fail=1; reason="${reason:+$reason; }rule-vs-ADR drift detected"
+fi
 
 if [ "$fail" -eq 0 ]; then
   echo "OK harness"

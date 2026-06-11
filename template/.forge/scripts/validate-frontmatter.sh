@@ -48,13 +48,16 @@ check_file() {
   fm="$(frontmatter "$f")"
   name="$(printf '%s\n' "$fm" | field_block name | head -1)"
   desc="$(printf '%s\n' "$fm" | field_block description | tr '\n' ' ')"
+  title="$(printf '%s\n' "$fm" | field_block title | head -1)"
 
   if [ "$is_skill" -eq 1 ] && [ -z "$name" ]; then
     echo "VIOLATION $f: missing name"; fail=$((fail + 1))
   fi
-  # any frontmattered file (agent/skill/command) needs a description — without it
-  # the runtime cannot decide when to trigger it (Agent Skills spec / W3.1)
-  if [ -z "$desc" ]; then
+  # agents/skills/commands are triggered by `description` and must declare it
+  # (Agent Skills spec / W3.1). Rules use a different frontmatter schema
+  # (`title:`/`applies_to:`/`priority:`) — they are read as context, not
+  # triggered, so `title` without `description` is valid.
+  if [ -z "$desc" ] && [ -z "$title" ]; then
     echo "VIOLATION $f: missing description"; fail=$((fail + 1))
   fi
   if [ -n "$name" ]; then

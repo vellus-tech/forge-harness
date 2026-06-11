@@ -2,6 +2,16 @@
 
 Diretrizes obrigatórias que todo agente de IA deve seguir ao contribuir com `<project_name>`. Todo rule é um contrato do time — não uma sugestão.
 
+## Ancoragem em ADR (`based_on`) — guardrail G3
+
+Uma rule que **codifica uma decisão arquitetural** deve declarar no frontmatter o ADR que a fundamenta:
+
+```yaml
+based_on: [ADR-0007]   # esta rule deriva desta decisão aceita
+```
+
+`bash .forge/scripts/validate-rules.sh` (e o `validate-harness`/`doctor`) flagra **drift**: rule cujo `based_on` aponta para um ADR inexistente no baseline ou cujo status não é `accepted`. Isso impede o cenário do incidente do piloto — uma rule que dizia seguir um ADR mas codificava a decisão oposta. Rules sem `based_on` (ou `based_on: []`) são convenções não atreladas a uma decisão específica — válidas, apenas não verificadas contra ADR. O mecanismo é **opt-in por projeto**: o template não traz ADRs (são decisões do projeto, criadas por `/forge:adr`), então as rules do template usam `based_on: []`. Precedência quando rule e ADR divergem: o ADR vence (FORGE.md §2.1; `conventions/conflict-handling.md`).
+
 ## Como Usar
 
 Antes de qualquer modificação, leia os rules das categorias aplicáveis à sua tarefa:

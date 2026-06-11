@@ -185,3 +185,17 @@ EOF
   [ "$status" -eq 0 ]; [[ "$output" == *"WARN"*"500"* ]]
   rm -rf "$F"
 }
+
+@test "19.4 rule schema: title sem description é válido (rules ≠ agents); template/.forge/rules limpo" {
+  # rules use title/applies_to/priority — not triggered by description
+  F="$(mktemp -d /tmp/forge-w31r.XXXXXX)"
+  mkdir -p "$F/rules"
+  printf -- '---\ntitle: Uma Rule\napplies_to:\n  - all\npriority: high\n---\n# corpo\n' > "$F/rules/sample.md"
+  run bash "$T/.forge/scripts/validate-frontmatter.sh" "$F/rules"
+  [ "$status" -eq 0 ]
+  rm -rf "$F"
+  # the shipped rules tree must pass too (regression: W3.1 made description
+  # mandatory and would have flagged the 24 title-only rules)
+  run bash "$T/.forge/scripts/validate-frontmatter.sh" "$T/.forge/rules"
+  [ "$status" -eq 0 ]
+}

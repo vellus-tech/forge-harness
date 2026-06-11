@@ -15,7 +15,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+ROOT="${FORGE_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 
 ID="${1:-}"; TARGET="${2:-}"; REASON=""
 [ $# -ge 2 ] || { echo "FAIL (usage: spec-transition.sh <change-id> <new-status> [--reason ...])"; exit 2; }

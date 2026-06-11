@@ -1,0 +1,13 @@
+approvals:
+  - gate: implementation_verified
+    decision: approve
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-06-11T10:21:40-03:00"
+    commit: "f2f3e3e"
+    scope: "verification via gates w20/w32"
+  - gate: human_archive_approval
+    decision: approve
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-06-11T10:21:40-03:00"
+    commit: "f2f3e3e"
+    notes: "dogfooding aprovado na execucao autonoma do MVP3 (plano 03, verificacao E2E)"

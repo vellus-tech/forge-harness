@@ -12,7 +12,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+ROOT="${FORGE_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 
 ID="${1:-}"
 [ -n "$ID" ] || { echo "FAIL (usage: spec-verify.sh <change-id>)"; exit 2; }
@@ -40,6 +40,7 @@ fi
 
 # ── checks from FORGE.md runtime: block ──────────────────────────────────────
 get_runtime() { # get_runtime <key> — value of "  <key>:" inside the runtime: block
+  [ -f "$ROOT/.forge/FORGE.md" ] || return 0
   awk -v key="$1" '
     /^runtime:/ { inb=1; next }
     inb && /^[^ ]/ { inb=0 }

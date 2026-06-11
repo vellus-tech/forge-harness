@@ -21,34 +21,38 @@ export function parseYamlSubset(text) {
   const doc = {};
   const frames = [{ indent: -1, obj: doc }];
   let lastKey = null, lastKeyOwner = null, lastKeyIndent = -1;
-  let listCtx = null; // { dashIndent, arr }
+  const listStack = []; // [{ dashIndent, arr }] — supports returning to an outer list after nested ones
 
   for (const rawLine of lines) {
     const indent = rawLine.length - rawLine.trimStart().length;
     const line = rawLine.trim();
 
     if (line === '-' || line.startsWith('- ')) {
-      if (!listCtx || indent !== listCtx.dashIndent) {
+      while (listStack.length && indent < listStack[listStack.length - 1].dashIndent) listStack.pop();
+      let ctx = listStack.length && listStack[listStack.length - 1].dashIndent === indent
+        ? listStack[listStack.length - 1] : null;
+      if (!ctx) {
         if (lastKey === null || indent <= lastKeyIndent) throw new Error(`stray list item: "${line}"`);
         if (!Array.isArray(lastKeyOwner[lastKey])) lastKeyOwner[lastKey] = [];
-        listCtx = { dashIndent: indent, arr: lastKeyOwner[lastKey] };
+        ctx = { dashIndent: indent, arr: lastKeyOwner[lastKey] };
+        listStack.push(ctx);
       }
       const rest = line === '-' ? '' : line.slice(2);
       const m = rest.match(/^([A-Za-z0-9_]+):(.*)$/);
       if (m) {
         const item = {};
         item[m[1]] = parseScalar(m[2]);
-        listCtx.arr.push(item);
+        ctx.arr.push(item);
         while (frames.length > 1 && indent <= frames[frames.length - 1].indent) frames.pop();
         frames.push({ indent, obj: item });
         lastKey = m[1]; lastKeyOwner = item; lastKeyIndent = indent;
       } else {
-        listCtx.arr.push(parseScalar(rest));
+        ctx.arr.push(parseScalar(rest));
       }
       continue;
     }
 
-    if (listCtx && indent <= listCtx.dashIndent) listCtx = null;
+    while (listStack.length && indent <= listStack[listStack.length - 1].dashIndent) listStack.pop();
     while (frames.length > 1 && indent <= frames[frames.length - 1].indent) frames.pop();
     const container = frames[frames.length - 1].obj;
 

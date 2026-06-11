@@ -98,6 +98,13 @@ Implementar a operação central do Forge: o **baseline de produto** (`.forge/pr
 - Fixture brownfield com `docs/product/` legado: ingestão preserva o original e popula `product/current/`.
 - Dogfooding: arquivar o primeiro sub-change real do próprio workspace (ex.: um change pequeno de documentação) para exercitar o fluxo fora de fixture.
 
+## Notas de execução (2026-06-11 — MVP3 code-complete)
+
+- **Reescrita semântica das refs `docs/product` remanescentes (W3.3) ADIADA** com decisão registrada: (a) o piloto azim-crm usa ativamente o pipeline scale-4 sobre `docs/product` — reescrever os 35 agents agora quebraria o piloto; (b) é trabalho semântico caso a caso que merece revisão humana (mesmo padrão da revisão W1.5); (c) o dual-read exige baseline populado, que só agora começa a existir. O gate da W3.3 (round-trip do publish íntegro) foi entregue; a reescrita vira sub-wave própria (sugerida: W3.3b com HITL) antes do MVP5. Mitigação já ativa: `validate-archive` flagra qualquer edição manual em `docs/product` pós-publish.
+- **Decisões de implementação:** remove = remoção física + note no history (não tombstone); semver bump por capability (remove: major; add: minor; modify/contract: patch; capability nova nasce 0.1.0 sem bump); `add_contract` exige capability+requirement_id para apply determinista; approvals.schema v2 aceita a forma legada §10.10 via oneOf (exemplo canônico do doc valida).
+- **Descobertas do dogfooding real** (change `baseline-spec-lifecycle` arquivado no workspace — baseline ganhou a capability `spec-lifecycle` com REQ-SLC-001/002): bug do parser yaml-lite com retorno a lista externa após listas aninhadas (corrigido com pilha de listas); `FORGE_ROOT` padronizado em TODOS os scripts de spec (dados no root alvo; templates/config na instalação); guards para FORGE.md/CHANGELOG ausentes (baseline criado on-demand).
+- **validate-frontmatter endurecido:** `description` obrigatória em todo arquivo com frontmatter (era só skills).
+
 ## Controle de versão do documento
 
 - Milton Silva - 2026-06-10 - Versão 1.0: plano inicial do MVP3.

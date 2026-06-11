@@ -53,6 +53,7 @@ INDEX="$ROOT/.forge/specs/archived/index.yaml"
 } >> "$INDEX"
 
 CHG="$ROOT/.forge/product/current/CHANGELOG.md"
+[ -f "$CHG" ] || printf '# Product Baseline — CHANGELOG\n\n> One entry per archived change (newest first). Maintained by `/forge:archive` — do not edit by hand.\n' > "$CHG"
 CAPS_TOUCHED="$(awk -F': ' '$1~/^ *capability$/{print $2}' "$DEST/spec-delta.yaml" 2>/dev/null | sort -u | tr '\n' ' ' | sed 's/ $//')"
 OPS_COUNT="$(grep -c '^  - op: ' "$DEST/spec-delta.yaml" 2>/dev/null || echo 0)"
 TMP="$(mktemp)"

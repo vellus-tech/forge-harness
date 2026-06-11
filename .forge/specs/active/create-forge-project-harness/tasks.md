@@ -28,10 +28,10 @@
 
 ## Wave 3 — MVP3: Baseline + archive (Fase 5)
 
-- [ ] TASK-15 — W3.0 schemas delta/baseline/traceability/state-machine + product/current (depende: TASK-13)
-- [ ] TASK-16 — W3.1 validadores §19.1–19.4 completos (depende: TASK-15)
-- [ ] TASK-17 — W3.2 archive E2E (pré-flight → dry-run → apply → move → index) (depende: TASK-16)
-- [ ] TASK-18 — W3.3 publish-docs + adr new + constitution + backlog (depende: TASK-15)
+- [X] TASK-15 — W3.0 schemas delta/baseline/traceability/state-machine + product/current (depende: TASK-13)
+- [X] TASK-16 — W3.1 validadores §19.1–19.4 completos (depende: TASK-15)
+- [X] TASK-17 — W3.2 archive E2E (pré-flight → dry-run → apply → move → index) (depende: TASK-16)
+- [X] TASK-18 — W3.3 publish-docs + adr new + constitution + backlog (depende: TASK-15)
 
 ## Wave 4 — MVP4: Brownfield graph (Fase 6)
 

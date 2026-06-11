@@ -1,0 +1,9 @@
+verification:
+  commit: "f2f3e3e"
+  verified_at: "2026-06-11T10:22:35-03:00"
+  checks:
+    - name: none
+      command: "(no checks declared in FORGE.md runtime)"
+      status: skipped
+  evidence:
+    - verification.md

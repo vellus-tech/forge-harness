@@ -11,6 +11,8 @@ arguments:
 
 Cria um novo Registro de Decisão Arquitetural (ADR) com numeração sequencial automática.
 
+> **Baseline disponível (MVP3+):** se `.forge/product/current/adr/` existir neste repo, ADRs novos pertencem ao **baseline** — siga `/forge:adr new` (este comando permanece para repos no layout legado `docs/product/adr/`; lá, `docs/product/` vira publicação gerada após a adoção do baseline).
+
 ## Passos a Executar
 
 1. **Determinar próximo número**

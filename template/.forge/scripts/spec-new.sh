@@ -14,8 +14,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-TPL="$ROOT/.forge/templates"
+ROOT="${FORGE_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
+TPL="$(cd "$SCRIPT_DIR/.." && pwd)/templates"   # templates ship with the installation, not the data root
 ACTIVE="$ROOT/.forge/specs/active"
 
 ID="${1:-}"; shift || true

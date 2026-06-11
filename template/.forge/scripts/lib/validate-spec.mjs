@@ -1,91 +1,26 @@
 #!/usr/bin/env node
-// forge validate spec — minimal version (W2.0/W2.1; full version arrives in W3.1).
+// forge validate spec — full version (§19.2, W3.1).
 // Zero-dependency (Node >= 20). Validates ONE active change folder:
-//   1. manifest.yaml parses (supported subset) and conforms to the rules of
+//   1. manifest.yaml parses (yaml-lite subset) and conforms to the rules of
 //      spec-manifest.schema.json, re-implemented deterministically here.
 //   2. artifacts required by type/scale/status exist (doc §10.3 + §12).
 //   3. approvals.yaml (when present) conforms to approvals.schema.json rules
-//      (§12.1: non-approve requires reason; supersede names successor; iteration 1..3).
+//      (§12.1 decision form + legacy §10.10 form).
 //   4. status=verified requires verification.yaml (§12).
+//   5. §19.2 content rules: mandatory headings per artifact, no orphan
+//      <CHANGE_*> placeholders, no bare NEEDS CLARIFICATION from
+//      requirements-ready on (backtick-quoted mentions are instructional),
+//      traceability.yaml coherence, spec-delta.yaml structural rules.
 // Output: single line "OK <id>" (exit 0) or "FAIL (<reasons>)" (exit 1). Usage:
 //   node validate-spec.mjs <path-to-change-dir>
-//
-// YAML subset accepted (the format emitted by the forge scripts): 2-space
-// indentation, `key: value` scalars, nested maps (one level), `key: []` inline
-// empty lists, `- scalar` items, and `- key: value` object-list items with
-// continuation lines. No inline maps, no multiline strings, no anchors.
 import { readFileSync, existsSync } from 'node:fs';
 import { join, basename, resolve } from 'node:path';
+import { parseYamlSubset } from './yaml-lite.mjs';
 
 const dir = process.argv[2];
 if (!dir) { console.log('FAIL (usage: validate-spec.mjs <change-dir>)'); process.exit(1); }
 const root = resolve(dir);
 const errors = [];
-
-// ── tiny YAML subset parser ──────────────────────────────────────────────────
-function parseScalar(raw) {
-  const s = raw.trim();
-  if (s === '' || s === 'null' || s === '~') return null;
-  if (s === '[]') return [];
-  if (s === 'true') return true;
-  if (s === 'false') return false;
-  if (/^-?[0-9]+$/.test(s)) return parseInt(s, 10);
-  if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) return s.slice(1, -1);
-  return s;
-}
-
-function parseYamlSubset(text) {
-  const lines = text.split('\n').map((l) => l.replace(/\t/g, '  '))
-    .filter((l) => l.trim() && !l.trim().startsWith('#'));
-  const doc = {};
-  const frames = [{ indent: -1, obj: doc }];
-  let lastKey = null, lastKeyOwner = null, lastKeyIndent = -1;
-  let listCtx = null; // { dashIndent, arr }
-
-  for (const rawLine of lines) {
-    const indent = rawLine.length - rawLine.trimStart().length;
-    const line = rawLine.trim();
-
-    if (line === '-' || line.startsWith('- ')) {
-      if (!listCtx || indent !== listCtx.dashIndent) {
-        if (lastKey === null || indent <= lastKeyIndent) throw new Error(`stray list item: "${line}"`);
-        if (!Array.isArray(lastKeyOwner[lastKey])) lastKeyOwner[lastKey] = [];
-        listCtx = { dashIndent: indent, arr: lastKeyOwner[lastKey] };
-      }
-      const rest = line === '-' ? '' : line.slice(2);
-      const m = rest.match(/^([A-Za-z0-9_]+):(.*)$/);
-      if (m) {
-        // object item: "- key: value" — continuation lines (deeper indent) extend it
-        const item = {};
-        item[m[1]] = parseScalar(m[2]);
-        listCtx.arr.push(item);
-        while (frames.length > 1 && indent <= frames[frames.length - 1].indent) frames.pop();
-        frames.push({ indent, obj: item });
-        lastKey = m[1]; lastKeyOwner = item; lastKeyIndent = indent;
-      } else {
-        listCtx.arr.push(parseScalar(rest));
-      }
-      continue;
-    }
-
-    if (listCtx && indent <= listCtx.dashIndent) listCtx = null;
-    while (frames.length > 1 && indent <= frames[frames.length - 1].indent) frames.pop();
-    const container = frames[frames.length - 1].obj;
-
-    const m = line.match(/^([A-Za-z0-9_]+):(.*)$/);
-    if (!m) throw new Error(`unparseable line: "${line}"`);
-    const [, key, rest] = m;
-
-    if (rest.trim() === '') {
-      container[key] = {}; // provisional: becomes [] if "- " items follow
-      frames.push({ indent, obj: container[key] });
-    } else {
-      container[key] = parseScalar(rest);
-    }
-    lastKey = key; lastKeyOwner = container; lastKeyIndent = indent;
-  }
-  return doc;
-}
 
 // ── load manifest ────────────────────────────────────────────────────────────
 const manifestPath = join(root, 'manifest.yaml');
@@ -187,6 +122,84 @@ if (existsSync(approvalsPath)) {
         errors.push(`${at}: iteration must be 1..3 (loop §14.6)`);
     });
   }
+}
+
+// ── §19.2 full rules (W3.1): placeholders, clarifications, headings ─────────
+const readIf = (f) => (has(f) ? readFileSync(join(root, f), 'utf8') : null);
+const MD_ARTIFACTS = ['proposal.md', 'requirements.md', 'bugfix.md', 'refactor.md', 'design.md', 'tasks.md', 'analysis.md', 'verification.md'];
+
+for (const f of MD_ARTIFACTS) {
+  const text = readIf(f);
+  if (!text) continue;
+  const orphan = text.match(/<CHANGE_[A-Z_]+>/);
+  if (orphan) errors.push(`${f}: orphan template placeholder ${orphan[0]}`);
+  // real NEEDS CLARIFICATION markers block requirements-ready+ (§12). Convention:
+  // real markers are bare; instructional mentions are backtick-quoted.
+  if (reached('requirements-ready')) {
+    const bare = text.split('\n').some((l) => l.includes('NEEDS CLARIFICATION') && !l.includes('`NEEDS CLARIFICATION`'));
+    if (bare) errors.push(`${f}: unresolved NEEDS CLARIFICATION (blocks requirements-ready+ — run /forge:clarify)`);
+  }
+}
+
+const headingRules = [
+  ['proposal.md', /^## 1\./m, 'section "## 1." (why)'],
+  ['proposal.md', /^## 2\./m, 'section "## 2." (what changes)'],
+  ['bugfix.md', /comportamento atual/i, 'current-behavior section'],
+  ['bugfix.md', /root cause/i, 'root-cause section'],
+  ['refactor.md', /invariantes/i, 'invariants section'],
+];
+for (const [f, re, what] of headingRules) {
+  const text = readIf(f);
+  if (text && !re.test(text)) errors.push(`${f}: missing ${what}`);
+}
+if (reached('requirements-ready') && man.type !== 'bugfix' && man.type !== 'refactor' && scale >= 1) {
+  const text = readIf('requirements.md');
+  if (text && !/^## REQ-/m.test(text)) errors.push('requirements.md: no "## REQ-" entries');
+  if (text && !/critérios de aceite/i.test(text)) errors.push('requirements.md: no acceptance criteria (testability — §19.2)');
+}
+if (reached('tasks-ready')) {
+  const text = readIf('tasks.md');
+  if (text && !/^\s*- \[( |-|X|!)\] TASK-[0-9]+/m.test(text)) errors.push('tasks.md: no TASK-NN entries');
+}
+
+// ── traceability.yaml coherence (§19.2) ─────────────────────────────────────
+if (has('traceability.yaml')) {
+  try {
+    const tr = parseYamlSubset(readFileSync(join(root, 'traceability.yaml'), 'utf8'));
+    const list = Array.isArray(tr.traceability) ? tr.traceability : null;
+    if (!list) errors.push('traceability.yaml: top-level "traceability" list missing');
+    else {
+      const reqText = readIf(reqArtifact) || '';
+      const tasksText = readIf('tasks.md') || '';
+      list.forEach((t, i) => {
+        if (!t.requirement_id) { errors.push(`traceability[${i}]: requirement_id missing`); return; }
+        if (reqText && !reqText.includes(String(t.requirement_id)))
+          errors.push(`traceability[${i}]: ${t.requirement_id} not found in ${reqArtifact}`);
+        const tasks = Array.isArray(t.tasks) ? t.tasks : [];
+        if (!tasks.length) errors.push(`traceability[${i}]: ${t.requirement_id} has no tasks`);
+        for (const tk of tasks)
+          if (tasksText && !tasksText.includes(String(tk))) errors.push(`traceability[${i}]: ${tk} not found in tasks.md`);
+      });
+    }
+  } catch (e) { errors.push(`traceability.yaml: ${e.message}`); }
+}
+
+// ── spec-delta.yaml structural rules (§19.2 — mirror of spec-delta.schema) ──
+if (has('spec-delta.yaml')) {
+  try {
+    const sd = parseYamlSubset(readFileSync(join(root, 'spec-delta.yaml'), 'utf8'));
+    const ops = Array.isArray(sd.operations) ? sd.operations : null;
+    if (!ops || !ops.length) errors.push('spec-delta.yaml: operations list missing/empty');
+    else ops.forEach((o, i) => {
+      const at = `spec-delta operations[${i}]`;
+      const OPS = ['add_requirement', 'modify_requirement', 'remove_requirement', 'add_contract'];
+      if (!OPS.includes(o.op)) { errors.push(`${at}: op invalid: ${o.op}`); return; }
+      if (o.op !== 'add_contract' && (!o.capability || !o.requirement_id))
+        errors.push(`${at}: capability/requirement_id missing`);
+      if (o.op === 'remove_requirement' && !o.reason) errors.push(`${at}: remove requires reason`);
+      if (o.op === 'add_contract' && (!o.contract_type || !o.path)) errors.push(`${at}: contract_type/path missing`);
+    });
+  } catch (e) { errors.push(`spec-delta.yaml: ${e.message}`); }
 }
 
 // ── verdict ──────────────────────────────────────────────────────────────────

@@ -52,6 +52,11 @@ check_file() {
   if [ "$is_skill" -eq 1 ] && [ -z "$name" ]; then
     echo "VIOLATION $f: missing name"; fail=$((fail + 1))
   fi
+  # any frontmattered file (agent/skill/command) needs a description — without it
+  # the runtime cannot decide when to trigger it (Agent Skills spec / W3.1)
+  if [ -z "$desc" ]; then
+    echo "VIOLATION $f: missing description"; fail=$((fail + 1))
+  fi
   if [ -n "$name" ]; then
     if [ "${#name}" -gt 64 ]; then
       echo "VIOLATION $f: name exceeds 64 chars (${#name})"; fail=$((fail + 1))

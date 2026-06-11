@@ -1,0 +1,7 @@
+approvals:
+  - gate: tasks_review
+    approved_by: milton
+    approved_at: "2026-06-09T18:00:00-03:00"
+    commit: "abc1234"
+    scope: "tasks.md for all Tier 1 modules"
+    notes: "Aprovado para desenvolvimento"

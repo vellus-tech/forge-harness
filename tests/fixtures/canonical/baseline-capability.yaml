@@ -1,0 +1,19 @@
+capability_id: tokenization
+version: 1.2.0
+status: current
+requirements:
+  - id: REQ-TOK-001
+    title: Tokenize card PAN
+    normative: SHALL
+    scenarios:
+      - id: SCN-TOK-001-A
+        given: "A valid PAN from an enrolled issuer"
+        when: "The tokenization request is approved"
+        then: "The system returns a network token without exposing PAN"
+    contracts:
+      - contracts/tokenization.openapi.yaml#/paths/~1tokens/post
+    tests:
+      - tests/tokenization/tokenize-card.spec.ts
+history:
+  - change_id: add-card-tokenization
+    archived_at: "2026-06-09"

@@ -9,10 +9,28 @@
   "properties": {
     "approvals": {
       "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["gate", "decision", "decided_by", "decided_at"],
+      "items": { "oneOf": [{ "$ref": "#/$defs/decisionEntry" }, { "$ref": "#/$defs/legacyEntry" }] }
+    }
+  },
+  "$defs": {
+    "legacyEntry": {
+      "description": "Legacy §10.10 form (plain approval record). New entries should use the §12.1 decision form.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gate", "approved_by", "approved_at"],
+      "properties": {
+        "gate": { "type": "string", "minLength": 3 },
+        "approved_by": { "type": "string", "minLength": 1 },
+        "approved_at": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}" },
+        "commit": { "type": "string" },
+        "scope": { "type": "string" },
+        "notes": { "type": "string" }
+      }
+    },
+    "decisionEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gate", "decision", "decided_by", "decided_at"],
         "properties": {
           "gate": {
             "enum": ["requirements_reviewed", "design_reviewed", "tasks_reviewed", "implementation_verified", "human_archive_approval", "close"]
@@ -40,4 +58,3 @@
       }
     }
   }
-}

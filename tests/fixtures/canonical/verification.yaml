@@ -1,0 +1,12 @@
+verification:
+  commit: "abc1234"
+  checks:
+    - name: test
+      command: "npm test"
+      status: passed
+    - name: typecheck
+      command: "npm run typecheck"
+      status: passed
+  evidence:
+    - verification.md
+    - evidence/test-output.txt

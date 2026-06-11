@@ -170,6 +170,11 @@ if (existsSync(approvalsPath)) {
     else list.forEach((e, i) => {
       const at = `approvals[${i}]`;
       if (!e || typeof e !== 'object') { errors.push(`${at}: not an object`); return; }
+      if (e.approved_by && e.approved_at && e.decision === undefined) {
+        // legacy §10.10 form (plain approval record) — gate is free-form here
+        if (!e.gate) errors.push(`${at}: gate missing (legacy form)`);
+        return;
+      }
       if (!APPROVAL_GATES.includes(e.gate)) errors.push(`${at}: gate invalid: ${e.gate}`);
       if (!DECISIONS.includes(e.decision)) errors.push(`${at}: decision invalid: ${e.decision}`);
       if (!e.decided_by) errors.push(`${at}: decided_by missing`);

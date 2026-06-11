@@ -68,3 +68,18 @@ if (!validateSpecManifest(dogfood)) {
   process.exit(1);
 }
 console.log('OK dogfooding manifest (create-forge-project-harness) vs spec-manifest schema');
+
+// W3.0 — baseline schemas compile; canonical state machine definition conforms
+for (const s of ['spec-delta', 'baseline-capability', 'traceability', 'archive-state-machine', 'approvals', 'verification', 'graph-manifest']) {
+  ajv.compile(JSON.parse(read(`template/.forge/schemas/${s}.schema.json`)));
+  console.log(`OK ${s}.schema.json compiles`);
+}
+const smSchema = JSON.parse(read('template/.forge/schemas/archive-state-machine.schema.json'));
+const smData = parse(read('template/.forge/schemas/archive-state-machine.yaml'));
+const vsm = ajv.compile(smSchema);
+if (!vsm(smData)) {
+  console.error('FAIL archive-state-machine.yaml vs schema');
+  console.error(JSON.stringify(vsm.errors, null, 2));
+  process.exit(1);
+}
+console.log('OK archive-state-machine.yaml (canonical definition) vs schema');

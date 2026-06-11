@@ -1,0 +1,17 @@
+operations:
+  - op: add_requirement
+    capability: tokenization
+    requirement_id: REQ-TOK-001
+    content_ref: requirements.md#req-tok-001
+  - op: modify_requirement
+    capability: card-issuing
+    requirement_id: REQ-CARD-014
+    full_replacement_ref: requirements.md#req-card-014
+  - op: remove_requirement
+    capability: legacy-export
+    requirement_id: REQ-LEG-003
+    reason: "Replaced by v2 export"
+    migration: "Use REQ-EXP-011"
+  - op: add_contract
+    contract_type: openapi
+    path: contracts/tokenization.openapi.yaml

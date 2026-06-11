@@ -35,7 +35,7 @@
 
 ## Wave 4 — MVP4: Brownfield graph (Fase 6)
 
-- [ ] TASK-19 — W4.0 spike Graphify vs subset local → ADR (depende: TASK-13)
+- [X] TASK-19 — W4.0 spike Graphify vs subset local → ADR (depende: TASK-13)
 - [ ] TASK-20 — W4.1 graph build + validate + update incremental (depende: TASK-19)
 - [ ] TASK-21 — W4.2 graph query + impact + onboard (depende: TASK-20)
 - [ ] TASK-22 — W4.3 c4 + overview.html + skill c4-render (depende: TASK-20)

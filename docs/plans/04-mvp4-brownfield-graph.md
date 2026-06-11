@@ -32,7 +32,7 @@ Tornar o Forge eficaz em repos legados e grandes: grafo de código persistente e
   - **ADR no próprio workspace** (usando `/forge:adr new` do MVP3 — dogfooding) com a decisão.
   - Recomendação default a validar no spike: **subset local** — AST determinista (tree-sitter ou compilador da stack) para nodes/edges; LLM apenas para semântica (summaries, intenção), conforme §16.2; evita a dependência Python que o doc rejeita no Spec Kit.
 - **Depende de:** W3.2 e W3.3 (usa `/forge:adr new`)
-- **Gate:** ADR aprovado (**HITL**).
+- **Gate:** ADR aprovado (**HITL**). ✅ **CONCLUÍDA (2026-06-11):** spike com protótipo de evidência (`docs/plans/spikes/w40-graph-engine-spike.md`); decisão HITL = **Opção C — subset local nativo (default, zero-dep) + tree-sitter WASM opt-in** já no MVP4 (não adiada para v0.2). ADR `0001-graph-engine` registrado no baseline do workspace (dogfooding do `/forge:adr`). **Consequência para a W4.1:** dois caminhos de extração (extractor nativo por linguagem + camada AST `web-tree-sitter` opt-in), ambos sob a mesma suíte de `forge validate graph` (§19.5); grammars WASM são dependência opcional do alvo, baixadas sob demanda e fora do commit (§20).
 
 ### W4.1 — Graph build + validação determinística
 

@@ -23,3 +23,9 @@
    recorded with author, timestamp and reason in `approvals.yaml`.
 10. **Agent-agnostic by construction.** `.forge/` is the only source; every tool consumes
     generated adapters. Switching LLM/agent must never break the flow.
+11. **One source of truth, with a known precedence.** When sources contradict, authority order
+    decides: constitution > baseline (ADRs/capabilities) > rules > context/defaults (FORGE.md §2.1).
+    A relevant architectural conflict is **blocking** — the agent stops and escalates to the human
+    gate; it never "registers and proceeds", and never silently picks the lower source. Decisions
+    that bind all bounded contexts (e.g. multi-tenant isolation) have a single owner, not a per-module
+    choice.

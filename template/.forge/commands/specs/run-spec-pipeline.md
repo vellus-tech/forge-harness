@@ -23,6 +23,8 @@ Pipeline autônomo de especificação ponta-a-ponta. Para no `tasks.md` de cada 
 
 > **Regra inviolável:** documentos gerados por IA SEMPRE saem em status `Rascunho para revisão`. Promoção para `Aprovado para desenvolvimento` é decisão humana. Pipeline NÃO toca Jira sem aprovação humana dos tasks.md.
 
+> **Conflito de fontes é bloqueante (`conflict-handling.md` G1):** se durante o pipeline dois módulos divergirem numa decisão transversal (ex.: isolamento multi-tenant), ou uma rule contradisser um ADR aceito, **PARE** — não "registre e siga para tasks". Resolva pela precedência (FORGE.md §2.1: ADR vence rule em drift) e escale via HITL. Seguir com a inconsistência aberta é o anti-padrão que originou este guardrail.
+
 ---
 
 ## Change ativo (scale 4) — operação dentro do change

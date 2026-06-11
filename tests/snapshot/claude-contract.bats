@@ -115,9 +115,13 @@ PYEOF
 
 # ── C3 — rules ───────────────────────────────────────────────────────────────
 
-@test "C3: exactly 27 rule files (README excluded)" {
+@test "C3: rule count (source: exactly 27; generated: >= 27 — additions allowed, contract v1.2)" {
   count=$(find "$RULES_DIR" -name '*.md' ! -name 'README.md' | wc -l | tr -d ' ')
-  [ "$count" -eq 27 ]
+  if [ "$MODE" = "generated" ]; then
+    [ "$count" -ge 27 ]
+  else
+    [ "$count" -eq 27 ]
+  fi
 }
 
 @test "C3: no stale .claude/ refs in canonical rules (generated mode only)" {

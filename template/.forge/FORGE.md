@@ -59,6 +59,22 @@ in [`constitution.md`](./constitution.md).
   3: + analyze + story sharding · 4: + FRD/NFRD/TRD/DDD + explicit regulatory approval.
   Choosing below the suggested risk level records skipped phases + justification in the manifest.
 
+## 2.1 Source-of-truth precedence (authority order)
+
+When two sources contradict each other, the **higher-authority** source wins; the lower one is
+**drift to fix**, not a valid alternative. Order, highest first:
+
+1. **`constitution.md`** — non-negotiable principles.
+2. **Baseline** — accepted **ADRs** and `product/current/capabilities/` (the law in force).
+3. **Rules** — `.forge/rules/**` (conventions derived from decisions; a rule that codifies an
+   architectural decision must declare its `based_on:` ADR).
+4. **`context.md` / defaults** — durable stack/convention context.
+
+An agent **never silently picks** a lower source over a higher one, and **never guesses** the
+precedence. If a rule contradicts an accepted ADR, the ADR governs and the rule is reported as
+drift (see `.forge/rules/conventions/conflict-handling.md`). A relevant architectural conflict is
+**blocking** — stop and escalate via the human gate; do not "register and proceed".
+
 ## 3. How to work
 
 1. **Read specs first.** Active change: `.forge/specs/active/<change-id>/`. Current truth:

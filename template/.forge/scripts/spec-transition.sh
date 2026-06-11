@@ -57,6 +57,19 @@ else
   [ "$TARGET" = "$next" ] || { echo "FAIL (invalid transition $CURRENT -> $TARGET; next allowed for scale $SCALE: $next)"; exit 1; }
 fi
 
+# G1 guardrail (conflict-handling): a relevant conflict blocks implementation.
+# If analysis.md exists and is not clear, refuse the transition to implementing.
+# "Clear" = Status line is PASS AND there is no BLOCKER row. Re-run /forge:analyze
+# after resolving the conflict to regenerate a clean analysis.md.
+if [ "$TARGET" = "implementing" ] && [ -f "$DIR/analysis.md" ]; then
+  blockers="$(grep -cE '\| *BLOCKER *\|' "$DIR/analysis.md" || true)"
+  status_fail="$(grep -cE '^## *Status:.*FAIL' "$DIR/analysis.md" || true)"
+  if [ "$blockers" -gt 0 ] || [ "$status_fail" -gt 0 ]; then
+    echo "FAIL (analysis.md has $blockers BLOCKER finding(s) / status FAIL — resolve the conflict and re-run /forge:analyze before implementing; conflict-handling.md G1)"
+    exit 1
+  fi
+fi
+
 TODAY="$(date +%F)"
 cp "$MAN" "$MAN.bak"
 perl -pi -e "s/^status: .*/status: $TARGET/; s/^updated_at: .*/updated_at: \"$TODAY\"/" "$MAN"

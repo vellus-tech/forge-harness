@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Versão** | 1.1 |
+| **Versão** | 1.2 |
 | **Data** | 2026-06-10 |
 | **Status** | Aprovado |
 | **Wave** | W0.3 (docs/plans/01-mvp1-forge-canonico.md) |
@@ -33,7 +33,7 @@ Os 35 agents permanecem disponíveis com o mesmo conteúdo funcional, por catego
 
 ### C3 — Rules (27 + README)
 
-As 27 rules permanecem disponíveis, por categoria: architecture (12), conventions (9), domain (3), testing (2), frontend (1). Referências internas entre rules/agents são reescritas de forma consistente (gate grep-negativo da W1.1).
+As 27 rules permanecem disponíveis, por categoria: architecture (12), conventions (9), domain (3), testing (2), frontend (1). Referências internas entre rules/agents são reescritas de forma consistente (gate grep-negativo da W1.1). **Cláusula aditiva (v1.2):** como C1/C2/C4, o adapter gerado pode conter rules NOVAS do Forge (contagem `>= 27` no modo generated; primeiras adições: `conventions/conflict-handling.md` na GW.1, e as rules de governança de dados na GW.3). O snapshot (source) permanece exatamente 27, e as 27 rules legadas são exigidas em ambos os modos.
 
 ### C4 — Skills (4)
 
@@ -87,4 +87,5 @@ O `.gitignore` instalado continua cobrindo settings locais, cache e worktrees (p
 
 - Milton Silva - 2026-06-10 - Versão 1.0: contrato inicial derivado do snapshot congelado (W0.2) e da leitura de doctor.sh/settings.json/AGENTS.md.
 - Milton Silva - 2026-06-11 - Versão 1.1: cláusulas C2/C4 tornadas aditivas no modo generated (>= 35 agents / >= 4 skills), espelhando C1 — o contrato garante preservação do legado, não congela crescimento do Forge. Motivada pela skill `gate-runner` (W2.2).
+- Milton Silva - 2026-06-11 - Versão 1.2: cláusula C3 tornada aditiva no modo generated (>= 27 rules), espelhando C1/C2/C4. Motivada pelo guardrail de conflito de fontes (rule `conflict-handling.md`, GW.1) e pelas rules de governança de dados (GW.3).
 - Milton Silva - 2026-06-10 - Gate W0.3 decidido: **Approve** (HITL via AskUserQuestion; bats 13/13 verde contra o snapshot). Status → Aprovado.

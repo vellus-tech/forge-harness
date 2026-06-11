@@ -16,6 +16,8 @@ Loop autônomo de especificação de módulos deste projeto, guiado por Progress
 
 ## Convenção de Tracker
 
+> **Change ativo (scale 4):** se existir um change ativo com `scale: 4` (`.forge/specs/active/<change-id>/manifest.yaml`), os módulos desta execução vivem em `.forge/specs/active/<change-id>/product/modules/<modulo>/` — declare o path-base no payload de cada agent e **verifique após cada módulo** se o artefato não caiu em `docs/product/` (se caiu, mova para o change e registre o desvio em uma linha). `docs/product/` segue como estado vigente de leitura até o archive (MVP3). Sem change ativo scale 4, use o caminho legado abaixo.
+
 Cada módulo em `docs/product/modules/<modulo>/` mantém um tracker `PROGRESS-TRACKING.md` (ou `tasks.progress.md`) com a convenção idempotente do projeto:
 
 - `[ ]` — não iniciado

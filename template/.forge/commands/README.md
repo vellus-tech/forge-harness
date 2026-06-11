@@ -10,7 +10,7 @@ No Claude Code, digite `/` seguido do nome do command. Argumentos são passados 
 
 | Command | Argumentos | Descrição |
 |---|---|---|
-| `/forge:new-adr` | `<title>` | Cria novo ADR com numeração sequencial em `docs/adr/` |
+| `/forge:new-adr` | `<title>` | Cria novo ADR com numeração sequencial em `docs/product/adr/` |
 | `/forge:scaffold-tdd` | `<test-name>` | Gera esqueleto de teste xUnit Red-Green-Refactor com AAA |
 | `/forge:update-changelog` | `<component> <type> <description>` | Atualiza CHANGELOG seguindo Keep a Changelog |
 | `/forge:specs-loop` | `[--skip-approved]` | Loop autônomo de especificação de módulos em `docs/product/modules/`, orquestrando os 3 agents (`requirements-writer`, `design-writer`, `tasks-writer`); idempotente |

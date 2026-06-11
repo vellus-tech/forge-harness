@@ -8,7 +8,7 @@ tools:
   - Edit
   - Glob
   - Grep
-model: claude-sonnet-4-6
+model: sonnet
 ---
 
 # FRD/NFRD Validator
@@ -873,6 +873,16 @@ Quando aplicável:
 - Complementar critérios de aceite
 - Complementar métricas não funcionais
 - Submeter nova versão para validação
+
+---
+
+## 18. ADRs Sugeridos
+
+Preencher quando a validação sugerir ADRs (§11); caso contrário, registrar "Nenhum ADR sugerido nesta validação."
+
+| ID sugerido | Título proposto | Origem (FIND/VAL) | Severidade | Justificativa breve |
+|---|---|---|---|---|
+| ADR-NNNN |  |  |  |  |
 ```
 
 ---

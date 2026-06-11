@@ -1,7 +1,7 @@
 # Context — <PROJECT_NAME>
 
 > Durable stack/user/convention context (Layer 1). Keeps `FORGE.md` focused on governance.
-> Inspired by the USER/RULES layer separation (LionClaw); aligned with Spec Kit's constitution
+> Inspired by USER/RULES layer separation patterns; aligned with Spec Kit's constitution
 > and OpenSpec's project.md. Mutable assistant memory is intentionally NOT a Forge concept —
 > durable state lives in the spec lifecycle and manifests.
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deterministic frontmatter validator (§19.4 — ported from LionClaw's validate-frontmatter.sh,
+# Deterministic frontmatter validator (§19.4 — ported from an internal frontmatter validator,
 # anticipated to W1.1 per docs/plans/01 v1.1; W3.1 consolidates it into the validator suite).
 # Limits from the open Agent Skills spec:
 #   - SKILL.md: frontmatter REQUIRED; name ≤ 64 chars, lowercase+hyphens; description ≤ 1024

@@ -6,7 +6,7 @@ tools:
   - Read
   - Grep
   - Glob
-model: claude-opus-4-7
+model: opus
 ---
 
 # Revisor de Código .NET

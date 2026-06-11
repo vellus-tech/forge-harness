@@ -8,7 +8,7 @@ tools:
   - Grep
   - Write
   - Edit
-model: claude-opus-4-7
+model: opus
 ---
 
 # Autor de Requirements

@@ -21,7 +21,9 @@ tree_hash() {
 echo "[1] greenfield install (sem git)"
 "$WS/installer/install.sh" --target "$T1" --slug fixture-app --name "Fixture App" --desc "Fixture do gate W1.3" >/dev/null
 [ -f "$T1/.forge/FORGE.md" ]
-[ "$(grep -rl '<PROJECT_[A-Z_]*>' "$T1/.forge" | wc -l | tr -d ' ')" -eq 0 ]
+# .forge/templates/ keeps placeholders by design (they are templates for future artifacts)
+[ "$(grep -rl '<PROJECT_[A-Z_]*>' "$T1/.forge" | grep -v '/templates/' | wc -l | tr -d ' ')" -eq 0 ]
+grep -q '<PROJECT_SLUG>' "$T1/.forge/templates/FORGE.md"
 # default install = claude only: AGENTS.md (core) + CLAUDE.md; NO QWEN/GEMINI/.agents/.cursor/.kiro
 [ -f "$T1/AGENTS.md" ] && [ -L "$T1/CLAUDE.md" ]
 [ ! -e "$T1/QWEN.md" ] && [ ! -e "$T1/GEMINI.md" ]

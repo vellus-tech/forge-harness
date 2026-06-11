@@ -78,15 +78,15 @@ Executa uma onda de TASKs de um módulo deste projeto, sob o tracker em `docs/pr
 📋 Onda 3 — Money & Split (7 TASKs)
 🌿 Worktree: ../payment-processing-wave-3 (feat/payment-processing/wave-3)
 
-⚙️  T-031 — Implementar Money.Split [backend-dotnet]
+⚙️  TASK-31 — Implementar Money.Split [backend-dotnet]
     ✅ commit abc1234 — build OK, tests OK
 
-⚙️  T-032 — Money.Add property test [backend-dotnet]
+⚙️  TASK-32 — Money.Add property test [backend-dotnet]
     ✅ commit def5678 — build OK, tests OK
 
 ...
 
-⚙️  T-037 — Money.Split PBT FsCheck [backend-dotnet]
+⚙️  TASK-37 — Money.Split PBT FsCheck [backend-dotnet]
     ✅ commit xyz9012 — build OK, tests OK
 
 🎯 Onda 3 fechada (7/7 ✅) — invocando sprint-orchestrator
@@ -102,7 +102,7 @@ Executa uma onda de TASKs de um módulo deste projeto, sob o tracker em `docs/pr
 Em caso de falha:
 
 ```
-⚙️  T-034 — Money.Split [backend-dotnet]
+⚙️  TASK-34 — Money.Split [backend-dotnet]
     ❌ FALHOU: dotnet build retornou 3 errors (CS0103)
     📌 HALT da onda — tracker atualizado com bloco "Última falha"
 

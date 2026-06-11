@@ -7,7 +7,7 @@ tools:
   - Glob
   - Grep
   - Bash
-model: claude-haiku-4-5
+model: haiku
 ---
 
 # Quality Reviewer
@@ -70,7 +70,7 @@ Para arquivos adicionados:
 - `.cs` em PascalCase → diferente = HIGH
 - `.ts/.tsx`: kebab-case ou camelCase consistente com vizinhos → inconsistência = MEDIUM
 - ADR seguindo `NNNN-titulo-em-kebab-case.md` → diferente = HIGH
-- `.kiro/` ou `docs/spec/` (caminhos legados/errados) sendo criados → BLOCKER
+- Estruturas de spec fora do padrão (ex.: `.kiro/`, `docs/spec/`) sendo criadas → BLOCKER
 
 ### 3. Identifiers em inglês
 

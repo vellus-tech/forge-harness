@@ -9,7 +9,7 @@ tools:
   - Bash
   - Write
   - Edit
-model: claude-opus-4-7
+model: opus
 ---
 
 # Code Evaluator
@@ -66,7 +66,7 @@ Antes de qualquer review, leia (somente leitura — nunca edite estes arquivos):
 - `docs/product/adr/` (lista de ADRs, foco nos referenciados pelo diff)
 - `docs/product/glossary/domain-glossary.md`
 - `.forge/rules/conventions/`, `.forge/rules/architecture/`, `.forge/rules/domain/`, `.forge/rules/testing/`
-- `docs/product/modules/<modulo>/` ou `docs/product/modules/<modulo>/` quando o diff toca um módulo com spec aprovada
+- `docs/product/modules/<modulo>/` quando o diff toca um módulo com spec aprovada
 
 Gere um `context_summary.md` mental (não escreva em disco) com:
 

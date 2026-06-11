@@ -8,7 +8,7 @@ tools:
   - Edit
   - Glob
   - Grep
-model: claude-sonnet-4-6
+model: sonnet
 ---
 
 # Domain Driven Design Architect
@@ -235,10 +235,13 @@ Criar uma pasta para cada bounded context candidato:
 docs/product/ddd/bounded-contexts/[nome-do-bounded-context]/README.md
 ```
 
-Criar ou atualizar o Context Map:
+Criar ou atualizar o Context Map (quatro artefatos — ver Passo 12):
 
 ```text
 docs/product/ddd/context-map/README.md
+docs/product/ddd/context-map/relations.md
+docs/product/ddd/context-map/patterns.md
+docs/product/ddd/context-map/diagram.md
 ```
 
 ---
@@ -783,39 +786,54 @@ Regras:
 
 ## Passo 12 - Context Map
 
-Criar ou atualizar:
+Criar ou atualizar os **quatro artefatos** do Context Map — este é o contrato consumido por `ddd-validator`, `module-generator` e `module-validator`; nenhum dos quatro pode faltar:
 
 ```text
 docs/product/ddd/context-map/README.md
+docs/product/ddd/context-map/relations.md
+docs/product/ddd/context-map/patterns.md
+docs/product/ddd/context-map/diagram.md
 ```
 
-Template:
+Template de `README.md` (visão geral + índice):
 
 ```markdown
 # Context Map
 ## 1. Visão Geral
 Descrever como os bounded contexts se relacionam.
-## 2. Mapa de Relações
+## 2. Artefatos
+- [Relações](./relations.md)
+- [Padrões](./patterns.md)
+- [Diagrama](./diagram.md)
+## 3. Pontos a Validar
+- Ponto 1
+- Ponto 2
+```
+
+Template de `relations.md`:
+
+```markdown
+# Relações entre Bounded Contexts
 | Origem | Destino | Tipo de Relação | Padrão DDD | Contrato | Observações |
 |---|---|---|---|---|---|
 | Payment Processing | Ledger | Publica evento para | Published Language | PaymentAuthorized | Ledger consome eventos financeiros |
-## 3. Padrões Utilizados
+```
+
+Template de `patterns.md`:
+
+```markdown
+# Padrões Estratégicos Utilizados
 | Padrão DDD | Onde é usado | Justificativa |
 |---|---|---|
 | Anti-Corruption Layer | Payment Processing → PSP Externo | Protege o modelo interno contra contratos externos |
-## 4. Diagrama Mermaid
 ```
+
+Template de `diagram.md` — título `# Diagrama do Context Map` seguido de um bloco Mermaid (sem pontos em labels):
 
 ```mermaid
 flowchart LR
     PaymentProcessing[Payment Processing] -->|Published Language| Ledger[Ledger]
     PaymentProcessing -->|Anti Corruption Layer| ExternalPSP[External PSP]
-```
-
-```markdown
-## 5. Pontos a Validar
-- Ponto 1
-- Ponto 2
 ```
 
 Padrões permitidos:
@@ -1161,6 +1179,9 @@ E também a tabela de **artefatos estruturais obrigatórios**:
 | `docs/product/ddd/subdomains/generic/` (dir) | Sim | Sim/Não |
 | `docs/product/ddd/bounded-contexts/` (dir) | Sim | Sim/Não |
 | `docs/product/ddd/context-map/README.md` | Sim | Sim/Não |
+| `docs/product/ddd/context-map/relations.md` | Sim | Sim/Não |
+| `docs/product/ddd/context-map/patterns.md` | Sim | Sim/Não |
+| `docs/product/ddd/context-map/diagram.md` | Sim | Sim/Não |
 | `docs/product/ddd/diagrams/c4-level-1-system-context.md` | Sim | Sim/Não |
 | `docs/product/ddd/diagrams/c4-level-2-containers.md` | Sim | Sim/Não |
 | `docs/product/ddd/diagrams/c4-level-3-components.md` | Sim | Sim/Não |

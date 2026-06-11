@@ -26,8 +26,8 @@ tools:
   - mcp__atlassian__search
   - mcp__atlassian__fetch
   - mcp__context7__resolve-library-id
-  - mcp__context7__query-docs
-model: claude-sonnet-4-6
+  - mcp__context7__get-library-docs
+model: sonnet
 ---
 
 # Product Backlog Agent
@@ -102,7 +102,7 @@ Evite:
 
 ## 4. Princípios de planejamento de sprints
 
-Inspirados no Harness Planner do LionClaw, adaptados para Scrum + Jira + nosso pipeline:
+Adaptados para Scrum + Jira + nosso pipeline:
 
 ### 4.1 Entregáveis detalhados, implementação livre
 
@@ -443,7 +443,7 @@ Para retomar a execução, leia §1 (estado), §2 (sync pendente), §3 (último 
 1. Para cada módulo:
    - Crie épico (EP-NNN) em `product-backlog.md`
    - Para cada RF em `requirements.md`: crie user story (US-NNN)
-   - Para cada TASK em `tasks.md` que não tem valor direto ao usuário: crie task (T-NNN-K) sob a story relacionada
+   - Para cada TASK em `tasks.md` que não tem valor direto ao usuário: crie task Jira sob a story relacionada, com label `task:TASK-NN` referenciando a TASK de origem no `tasks.md` (label consumida por `sprint-orchestrator`/`deploy-orchestrator`)
 2. Estime story points (Fibonacci) com base em complexidade declarada nos requisitos/tasks
 3. Registre tudo em `product-backlog.md`
 
@@ -497,7 +497,7 @@ Use Context7 quando tiver dúvida sobre:
 - Configuração de board kanban via API
 - Custom field IDs para Story Points / Epic Name
 
-Sequência: `mcp__context7__resolve-library-id` (lib: "jira" ou "atlassian-jira-cloud-rest-api") → `mcp__context7__query-docs` com a pergunta específica.
+Sequência: `mcp__context7__resolve-library-id` (lib: "jira" ou "atlassian-jira-cloud-rest-api") → `mcp__context7__get-library-docs` com a pergunta específica.
 
 **Não** consulte Context7 para conceitos triviais (criar issue, comentário) — use direto os tools `mcp__atlassian__*`.
 

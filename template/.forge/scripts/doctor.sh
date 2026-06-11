@@ -98,7 +98,7 @@ check_harness() {
   if [ "$leaks" -eq 0 ]; then ok "harness: fonte canônica sem refs .claude/"
   else miss "harness: $leaks arquivo(s) da fonte canônica com refs .claude/"; MISSING_DIAG=1; fi
 
-  orphans="$(grep -rl '<PROJECT_[A-Z_]*>' "$ROOT/.forge" 2>/dev/null | wc -l | tr -d ' ')"
+  orphans="$(grep -rl '<PROJECT_[A-Z_]*>' "$ROOT/.forge" 2>/dev/null | grep -v '/templates/' | wc -l | tr -d ' ')"
   if [ "$orphans" -eq 0 ]; then ok "harness: sem placeholders <PROJECT_*> órfãos"
   else miss "harness: $orphans arquivo(s) com placeholders <PROJECT_*> não preenchidos"; MISSING_DIAG=1; fi
 

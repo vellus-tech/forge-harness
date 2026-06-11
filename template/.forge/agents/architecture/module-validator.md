@@ -8,7 +8,7 @@ tools:
   - Edit
   - Glob
   - Grep
-model: claude-sonnet-4-6
+model: sonnet
 ---
 
 # Module Validator
@@ -200,7 +200,7 @@ Execute na ordem. Não pule passos.
 - Stack declarada no módulo bate com TRD (linguagem, framework, banco)?
 
 **Achado típico:**
-- `MOD-DEP-TRD-001 [Alta]` — Módulo `cde-token-vault` não declara deployable; TRD lista `token-vault-service`
+- `MOD-DEP-TRD-001 [Alta]` — Módulo `billing-engine` não declara deployable; TRD lista `billing-service`
 - `MOD-DEP-TRD-002 [Média]` — Deployable `reconciliation-worker` no TRD sem módulo correspondente
 
 ---

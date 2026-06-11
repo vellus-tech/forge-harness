@@ -25,7 +25,7 @@ Coding Status — ${project_name} (2026-05-10 23:55)
 | Módulo                 | Waves | Concluídas | Em progresso | Bloqueado | PR ativo |
 |------------------------|-------|------------|--------------|-----------|----------|
 | payment-processing     | 4     | 2 ✅       | 1 🔄         | 0 ⚠️       | #1234    |
-| token-vault            | 3     | 3 ✅       | 0            | 0         | -        |
+| billing-engine         | 3     | 3 ✅       | 0            | 0         | -        |
 | transaction-processing | 5     | 4 ✅       | 0            | 1 ⚠️       | -        |
 | device-management      | 3     | 0          | 1 🔄         | 0         | -        |
 
@@ -47,21 +47,21 @@ Coding Status — payment-processing (2026-05-10 23:55)
 Status: Wave 3 em revisão; Wave 4 pendente
 
 ╔═══════════════════════════════════════════════════════════════╗
-║  Wave 1 — Domain bootstrap            ✅ DONE   (T-001..008)  ║
-║  Wave 2 — Money & arithmetic          ✅ DONE   (T-009..030)  ║
-║  Wave 3 — Money & Split               🔄 REVIEW (T-031..037)  ║
+║  Wave 1 — Domain bootstrap            ✅ DONE   (TASK-01..08) ║
+║  Wave 2 — Money & arithmetic          ✅ DONE   (TASK-09..30) ║
+║  Wave 3 — Money & Split               🔄 REVIEW (TASK-31..37) ║
 ║  Wave 4 — Payment aggregate           ⏳ PENDING                ║
 ╚═══════════════════════════════════════════════════════════════╝
 
 Wave 3 — Money & Split
 
-- [X] T-031 — Money.Of factory                      [backend-dotnet]  abc1234
-- [X] T-032 — Money.Add property test               [backend-dotnet]  def5678
-- [X] T-033 — Money.Subtract property test          [backend-dotnet]  ghi9012
-- [X] T-034 — Money.Split                           [backend-dotnet]  jkl3456
-- [X] T-035 — Money.CalculateFee                    [backend-dotnet]  mno7890
-- [X] T-036 — Repository<Money> tests               [backend-dotnet]  pqr1234
-- [X] T-037 — Money.Split PBT FsCheck               [backend-dotnet]  stu5678
+- [X] TASK-31 — Money.Of factory                    [backend-dotnet]  abc1234
+- [X] TASK-32 — Money.Add property test             [backend-dotnet]  def5678
+- [X] TASK-33 — Money.Subtract property test        [backend-dotnet]  ghi9012
+- [X] TASK-34 — Money.Split                         [backend-dotnet]  jkl3456
+- [X] TASK-35 — Money.CalculateFee                  [backend-dotnet]  mno7890
+- [X] TASK-36 — Repository<Money> tests             [backend-dotnet]  pqr1234
+- [X] TASK-37 — Money.Split PBT FsCheck             [backend-dotnet]  stu5678
 
 PR: https://github.com/${repo_slug}/pull/1234
    Status: code-evaluator REJECTED (round 2/3, 1 BLOCKER SEC-001)
@@ -90,10 +90,10 @@ Cruza o tracker local com o Jira via MCP atlassian e reporta divergências:
 
 Sincronizando com Jira via MCP atlassian...
 
-✅ <JIRA_KEY>-450 (T-031): tracker=[X] · Jira=In Review · sincronizado
-✅ <JIRA_KEY>-451 (T-032): tracker=[X] · Jira=In Review · sincronizado
+✅ <JIRA_KEY>-450 (TASK-31): tracker=[X] · Jira=In Review · sincronizado
+✅ <JIRA_KEY>-451 (TASK-32): tracker=[X] · Jira=In Review · sincronizado
 ...
-⚠️ <JIRA_KEY>-456 (T-037): tracker=[X] · Jira=Done · divergência (Jira já em Done? deploy prd?)
+⚠️ <JIRA_KEY>-456 (TASK-37): tracker=[X] · Jira=Done · divergência (Jira já em Done? deploy prd?)
 
 7/7 issues encontradas no Jira.
 1 divergência detectada — investigue manualmente.

@@ -6,7 +6,7 @@ tools:
   - Read
   - Glob
   - Grep
-model: claude-sonnet-4-6
+model: sonnet
 ---
 
 # Validador de Tasks
@@ -49,7 +49,7 @@ Antes de validar, leia quando existirem:
 
 4. **Fontes de arquitetura, engenharia e processo:**
    - `docs/product/glossary/domain-glossary.md`
-   - `docs/adr/`
+   - `docs/product/adr/`
    - `docs/product/adr/`
    - `.forge/rules/`
    - `docs/rules/`

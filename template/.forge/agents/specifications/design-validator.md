@@ -6,7 +6,7 @@ tools:
   - Read
   - Glob
   - Grep
-model: claude-sonnet-4-6
+model: sonnet
 ---
 
 # Validador de Design
@@ -50,7 +50,7 @@ Antes de validar, leia quando existirem:
 4. **Fontes de arquitetura, domínio e produto:**
    - `docs/product/glossary/domain-glossary.md`
    - documentos em `docs/product/`
-   - `docs/adr/`
+   - `docs/product/adr/`
    - `docs/product/adr/`
    - `.forge/rules/`
    - `docs/rules/`

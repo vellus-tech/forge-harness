@@ -8,7 +8,7 @@ tools:
   - Grep
   - Write
   - Edit
-model: claude-sonnet-4-6
+model: sonnet
 ---
 
 # Autor de Tasks
@@ -61,7 +61,7 @@ Antes de escrever ou revisar o `tasks.md`, leia quando existirem:
 
 3. **Fontes de arquitetura, engenharia e processo:**
    - `docs/product/glossary/domain-glossary.md`
-   - `docs/adr/`
+   - `docs/product/adr/`
    - `docs/product/adr/`
    - `.forge/rules/`
    - `docs/rules/`

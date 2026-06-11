@@ -6,7 +6,7 @@ tools:
   - Read
   - Glob
   - Grep
-model: claude-haiku-4-5
+model: haiku
 ---
 
 # Validador de Requirements

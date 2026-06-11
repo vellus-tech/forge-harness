@@ -7,7 +7,7 @@ tools:
   - Glob
   - Grep
   - Bash
-model: claude-sonnet-4-6
+model: sonnet
 ---
 
 # Arch Reviewer

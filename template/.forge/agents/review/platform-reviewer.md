@@ -7,7 +7,7 @@ tools:
   - Glob
   - Grep
   - Bash
-model: claude-sonnet-4-6
+model: sonnet
 ---
 
 # Platform Reviewer
@@ -190,5 +190,4 @@ IDs com prefixo `PLAT-NNN`.
 - `.forge/rules/architecture/docker-image-security.md`
 - `.forge/rules/architecture/observability.md`
 - `.forge/rules/conventions/docker-naming.md`
-- `docs/product/adr/0022-supply-chain-security.md`
-- `docs/product/adr/0036-multi-arch-container-images.md`
+- ADRs de plataforma em `docs/product/adr/` (ex.: supply-chain security, imagens multi-arch), quando existirem

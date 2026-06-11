@@ -34,7 +34,7 @@ Se o link não vier, **peça-o** antes de começar.
 - **Brownfield-safe.** Se `packages/*` ou os docs já existem, **compare com o handoff e complete só o que falta** — nunca sobrescreva o que já está coerente. (Caso comum: os tokens já existem e batem com o handoff; nesse caso só adicione blocos/telas/docs ausentes.)
 - **Stack fixa:** **CSS Modules + tokens** (CSS custom properties). **Sem Tailwind, sem Radix, sem CSS-in-JS.** `forwardRef` + helper `cn()` (clsx). Imports com extensão `.js` (NodeNext).
 - **Idioma:** copy de UI em **pt-BR**, identificadores em **inglês**.
-- **Nunca trabalhar no `master`.**
+- **Nunca trabalhar no `main`.**
 
 ## Passo a passo
 
@@ -75,7 +75,7 @@ Estrutura típica:
 - Slug do escopo npm `@<slug>` — leia do bloco YAML do `AGENTS.md` (`project_name`) ou pergunte.
 - Monorepo JS: confirme `package.json` raiz (`type: module`, `workspaces: ["packages/*"]`) + `pnpm-workspace.yaml` (`packages/*`). Se não existir, crie.
 - Toolchain: pnpm (preferido). `.nvmrc`/engines Node ≥ 22.
-- **Branch:** `git switch -c feat/design-system/<slug>-ui-kit` (carrega mudanças não-commitadas). Nunca o `master`.
+- **Branch:** `git switch -c feat/design-system/<slug>-ui-kit` (carrega mudanças não-commitadas). Nunca o `main`.
 
 ### 4. `packages/design-tokens`
 
@@ -117,7 +117,7 @@ pnpm --filter @<slug>/ui-components add -D \
 
 ### 8. `docs/product/design-system/`
 
-Quatro arquivos com **cabeçalho versionado** (Versão SemVer / Data / Status / Histórico de Versões — ver `conventions/document-versioning.md`):
+Quatro arquivos com **cabeçalho versionado** (Versão SemVer / Data / Status / Histórico de Versões — ver `.forge/rules/conventions/document-versioning.md`):
 
 - **`tokens.md`** — espelho legível de `tokens.css` (brand, neutros, semânticas, surface/fg, tipografia, spacing 4-pt, raios, sombras, motion). "O pacote vence em caso de divergência."
 - **`design-system.md`** (mestre) — princípios; voz/marca derivadas do handoff; 3 camadas; fundamentos visuais; regras absolutas; **stack (CSS Modules + tokens; deixar explícito que NÃO usa Tailwind/Radix)**; modo dark **descrito com honestidade** (se o `tokens.css` não tem camada dark, dizer isso); instalação; template de componente; comandos Storybook; checklist de PR; anti-patterns.
@@ -153,7 +153,7 @@ Atualize `CHANGELOG.md` (`Adicionado`). Reporte no chat: pacotes criados, nº de
 
 ## Proibições
 
-- Trabalhar no `master`.
+- Trabalhar no `main`.
 - Tailwind / Radix / CSS-in-JS (a stack é CSS Modules + tokens).
 - Hardcode de cor/spacing em `.module.css` (sempre `var(--…)`).
 - Hardcodar uma marca específica na skill — derive tudo do handoff.

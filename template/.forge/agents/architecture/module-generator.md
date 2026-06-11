@@ -8,7 +8,7 @@ tools:
   - Edit
   - Glob
   - Grep
-model: claude-sonnet-4-6
+model: sonnet
 ---
 
 # Module Generator

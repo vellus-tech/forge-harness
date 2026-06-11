@@ -90,6 +90,14 @@ Tornar o Forge eficaz em repos legados e grandes: grafo de código persistente e
 - A escolha da engine (W4.0) pode reduzir ou ampliar o esforço da W4.1; se o spike indicar integração Graphify viável sem Python no projeto-alvo, reavaliar.
 - `c4`/`overview.html` são desacopláveis: se o cronograma apertar, podem ir para v0.2 sem quebrar DoD dos MVPs 1–3 (risco registrado no master plan).
 
+## Notas de execução (2026-06-11 — MVP4 code-complete)
+
+- **Engine:** subset local nativo (zero-dep), conforme ADR 0001 (decisão revista para Opção B). Tree-sitter permanece como evolução v0.2 acionável por piloto.
+- **W4.1:** `graph build` extrai nodes (lang/loc/**fingerprint estrutural**/layer) + edges (imports JS/TS resolvidos; `using`→namespace C#; Go/Python best-effort). O fingerprint estrutural normaliza comentários/whitespace/**reflow de linha** (colapso total de whitespace) — comprovado no gate que mudança cosmética não altera o fingerprint nem o summary cacheado (**zero tokens**); mudança estrutural altera. `validate-graph` §19.5 completo; `graph.sh query|path` para lookup barato. Agents `file-analyzer`/`architecture-analyzer`/`graph-reviewer`; doctor avisa staleness. Contagem de agents 35→38 (cláusula aditiva C2 v1.1).
+- **W4.2:** `impact` por alcançabilidade **reversa** no grafo (dependentes transitivos), com seeds de `--files`/`--diff`/`--change`. **Fechado o passo 7 da §13.2** que ficara pendente na W3.2: `validate-archive` exige `impact.json` fresco (fingerprint do grafo batendo) quando o change toca código e há grafo — ausente/stale ⇒ archive FAIL. `baseline extract` gera capability stubs por boundary (`services/<nome>`→capability), parte determinista; requirements ficam para curadoria. `onboard` via `architecture-analyzer`.
+- **W4.3:** `c4` gera C1/C2/C3 (Mermaid, derivados do grafo) + `overview.html` (C4 + capabilities do baseline + changes ativos), determinista e zero-token. Convenção de labels (sem pontos, sem em-dash) garantida por sanitização e gate grep-negativo. Skill `c4-render`. `overview.html` usa Mermaid via CDN (artefato de visualização fora do commit).
+- **Decisão de design:** `baseline extract` deriva capability do **segundo segmento** sob boundary roots (`services/billing`→`billing`); em projetos em camadas (`src/domain`) isso pega a camada — aceitável para v0 (stub revisável), ótimo para o layout `services/<nome>` de Milton.
+
 ## Controle de versão do documento
 
 - Milton Silva - 2026-06-10 - Versão 1.0: plano inicial do MVP4.

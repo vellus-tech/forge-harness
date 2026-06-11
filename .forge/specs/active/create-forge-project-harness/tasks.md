@@ -22,9 +22,9 @@
 ## Wave 2 — MVP2: Spec lifecycle (Fase 4)
 
 - [X] TASK-11 — W2.0 spec-manifest.schema + templates spec/bugfix/refactor + /forge:spec new + validate-spec mínimo + dogfooding
-- [ ] TASK-12 — W2.1 pipeline SDD com loops builder→validator + gates HITL (depende: TASK-11)
-- [ ] TASK-13 — W2.2 implement + verify + close + state machine mínima + gate-runner v0 (depende: TASK-12)
-- [ ] TASK-14 — W2.3 /forge:discover lite → graph/manifest.json (depende: TASK-11)
+- [X] TASK-12 — W2.1 pipeline SDD com loops builder→validator + gates HITL (depende: TASK-11)
+- [X] TASK-13 — W2.2 implement + verify + close + state machine mínima + gate-runner v0 (depende: TASK-12)
+- [X] TASK-14 — W2.3 /forge:discover lite → graph/manifest.json (depende: TASK-11)
 
 ## Wave 3 — MVP3: Baseline + archive (Fase 5)
 

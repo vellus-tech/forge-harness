@@ -91,6 +91,7 @@ Implementar o ciclo de vida de specs change-based: criação de change ativo com
 - O fim natural do ciclo (`archive`) só existe no MVP3; até lá, changes do dogfooding param em `verified`.
 - `tasks.md` do change de dogfooding espelha as waves deste plano até `waves.json` existir (W5.1).
 - Fixtures mínimas `feature-only` e `brownfield` **nascem neste MVP** (primeiros usos nos gates W2.x); consolidação final na W8.0.
+- **Notas de execução (2026-06-11, MVP2 code-complete):** (1) os **validators do loop builder→validator foram embutidos nos commands** `/forge:requirements` e `/forge:design` (subagent independente com prompt embutido) em vez de virarem agents novos — preserva a contagem do contrato C2 no MVP2; promoção a agents dedicados pode ocorrer na W3.3 se o piloto justificar. (2) A skill `gate-runner` (v0, §17.5) motivou o **contrato v1.1**: cláusulas C2/C4 aditivas no modo generated (`>= 35`/`>= 4`), espelhando C1. (3) `/forge:discover` ganhou sincronia opcional com o `FORGE.md runtime:` (preenche stack/comandos detectados mediante aprovação — cobre a etapa 6 do init em brownfield). (4) A validação **semântica** dos loops (qualidade de PASS/FAIL dos validators, ≤3 iterações na prática) fica para o piloto real (azim-crm) — os gates w21/w22 cobrem toda a camada determinista (state machine, approvals, verify, close, isolamento). (5) Timeout portátil via `perl alarm` (macOS sem `timeout`); expansão `${arr[@]+...}` para bash 3.2.
 
 ## Controle de versão do documento
 

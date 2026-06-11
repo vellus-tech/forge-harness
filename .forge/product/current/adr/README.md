@@ -5,4 +5,4 @@
 
 | Nº | Título | Status | Data |
 |---|---|---|---|
-| [0001](./0001-graph-engine.md) | Engine do grafo de código: subset local nativo + tree-sitter opt-in | accepted | 2026-06-11 |
+| [0001](./0001-graph-engine.md) | Engine do grafo de código: subset local nativo (zero-dep) | accepted | 2026-06-11 |

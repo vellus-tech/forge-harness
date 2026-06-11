@@ -1,4 +1,4 @@
-# 0001. Engine do grafo de código: subset local nativo + tree-sitter opt-in
+# 0001. Engine do grafo de código: subset local nativo (zero-dep)
 
 - **Status:** accepted
 - **Data:** 2026-06-11
@@ -20,20 +20,25 @@ O MVP4 introduz a Understanding Layer (§16): um grafo de código persistente e 
 
 1. **Graphify (Python)** — pronta, multi-linguagem, mas exige Python no alvo (viola zero-dep).
 2. **Subset local nativo (Node, zero-dep)** — extractors deterministas por linguagem; LLM só para semântica.
-3. **Subset local nativo + tree-sitter (WASM) opt-in** — (2) como default, com camada AST opcional via `web-tree-sitter` (WASM puro, sem `node-gyp`) já disponível no MVP4.
+3. **Subset local nativo + tree-sitter (WASM) opt-in** — (2) como default, com camada AST opcional via `web-tree-sitter` (WASM puro, sem `node-gyp`) já no MVP4.
 
 Spike com protótipo executado (`docs/plans/spikes/w40-graph-engine-spike.md`): extractor zero-dep de imports JS/TS produziu o grafo real do workspace de forma determinista (hash estável), 0,07 s, sem dependência — provando a viabilidade da camada nativa.
 
 ## Decisão
 
-**Opção 3** — subset local nativo como engine **default** (zero-dep, cobre o caso comum sem instalar nada) **mais** uma camada AST **opt-in** via `web-tree-sitter` (WASM) disponível desde o MVP4 para projetos que aceitem a dependência opcional em troca de precisão de AST real.
+**Opção 2 — subset local nativo (Node, zero-dep) como engine única no v0.1.** A prova de conceito confirmou comportamento determinístico e fiel para a extração estrutural sem AST externo, sem Python e sem dependência alguma no alvo. Mantém o princípio zero-dep **puro** em todo o caminho — sem dois modos de extração para manter — e reusa o padrão já consolidado do `discover-lite` (detecção de stack, fingerprints sha256, manifest) e dos validadores.
 
-Racional: preserva o princípio zero-dep no caminho default (nada quebra para quem não opta), e ainda assim entrega AST real onde a precisão importa, sem `node-gyp` (WASM não compila nativo). Graphify descartada por violar o zero-dep; a camada AST entra como tree-sitter (não Python).
+**tree-sitter (Opção 3) fica registrado como evolução v0.2**, acionada **somente se** os pilotos (Fase 8) mostrarem que a heurística nativa perde precisão relevante em alguma linguagem — aí entra como camada AST opt-in via `web-tree-sitter` (WASM, sem `node-gyp`), nunca via Python. **Graphify (Opção 1) descartada** por violar o zero-dep.
 
 ## Consequências
 
-- **Positivas:** default sem dependência (privacidade, zero tokens para estrutura, coerência com `discover-lite`/validadores); AST real disponível quando desejado; schema de nodes/edges sob nosso controle (§16.3); cache incremental por fingerprint sha256.
-- **Negativas/débitos:** dois caminhos de extração para manter (nativo + tree-sitter) na W4.1 — maior superfície; `web-tree-sitter` + grammars WASM (C#/Go/TS/Kotlin) viram dependência opcional do alvo, com seu próprio versionamento e tamanho (alguns MB por grammar, baixados sob demanda, fora do commit — §20). A validação determinística do grafo (§19.5) deve cobrir ambos os caminhos com a mesma suíte.
+- **Positivas:** caminho único, sem dependência (privacidade, zero tokens para estrutura, coerência com `discover-lite`/validadores); schema de nodes/edges sob nosso controle (§16.3); cache incremental por fingerprint sha256; superfície de manutenção mínima na W4.1 (um extractor por linguagem, sem bindings WASM).
+- **Negativas/débitos:** precisão é heurística, não AST completo — mitigada por `forge validate graph` (§19.5), que flagra cobertura insuficiente, e pela porta de saída explícita para tree-sitter na v0.2 se um piloto exigir.
+
+## Histórico de revisão da decisão
+
+- **2026-06-11 (inicial):** gate HITL escolheu a Opção 3 (nativo default + tree-sitter WASM opt-in já no MVP4).
+- **2026-06-11 (revisão, mesma sessão, antes de qualquer implementação da W4.1):** com o protótipo confirmando comportamento determinístico e satisfatório da camada nativa pura, a decisão foi revista para a **Opção 2** (subset local nativo, tree-sitter adiado para v0.2). Como nada havia sido construído sobre a decisão anterior, o ADR foi atualizado in-place em vez de superseded.
 
 ## Links
 

@@ -4,7 +4,7 @@
 |---|---|
 | **Versão** | 1.0 |
 | **Data** | 2026-06-11 |
-| **Status** | Decidido (HITL 2026-06-11) — **Opção C**: subset local nativo (default) + tree-sitter WASM opt-in. ADR `0001-graph-engine` no baseline. |
+| **Status** | Decidido (HITL 2026-06-11) — **Opção B**: subset local nativo (zero-dep). Tree-sitter como evolução v0.2. ADR `0001-graph-engine` no baseline. |
 | **Wave** | W4.0 (docs/plans/04-mvp4-brownfield-graph.md) |
 | **Critérios** | §22.7 + §16.2 do doc de projeto |
 | **Decisão registrada em** | ADR no baseline do workspace (`/forge:adr new`) após aprovação |
@@ -83,9 +83,10 @@ As 3 edges são **exatamente** as dependências reais (os três módulos que imp
 
 ## Decisão final (HITL 2026-06-11)
 
-**Opção C — subset local nativo (default) + tree-sitter WASM opt-in**, já no MVP4. Milton optou por antecipar a camada AST real (tree-sitter, não Python) em vez de adiá-la para v0.2: o default permanece zero-dep, e a precisão de AST fica disponível desde já para quem habilitar. Registrado no ADR `0001-graph-engine` do baseline. Impacto na W4.1: dois caminhos de extração (nativo + tree-sitter WASM) sob a mesma suíte de validação determinística (§19.5); `web-tree-sitter` + grammars viram dependência **opcional** do alvo (fora do commit).
+**Opção B — subset local nativo (zero-dep) como engine única no v0.1.** A decisão passou por uma revisão na mesma sessão: o gate HITL inicial escolheu a Opção C (nativo + tree-sitter opt-in já no MVP4); ao confirmar que o **protótipo da camada nativa pura** se comportou de forma determinística e satisfatória, Milton reviu a decisão para a Opção B — recomendação original do spike —, mantendo o princípio zero-dep **puro** e adiando tree-sitter para v0.2 (acionável só se um piloto da Fase 8 exigir precisão de AST). Como nada havia sido construído sobre a decisão anterior, o ADR `0001-graph-engine` foi atualizado in-place (com histórico de revisão). Impacto na W4.1: **um único caminho de extração** (nativo por linguagem), sob a suíte de validação determinística (§19.5) — sem dependência opcional no alvo.
 
 ## Controle de versão do documento
 
 - Milton Silva - 2026-06-11 - Versão 1.0: spike comparativo com protótipo de evidência; recomendação Opção B (subset local nativo), tree-sitter como evolução v0.2.
-- Milton Silva - 2026-06-11 - Versão 1.1: decisão HITL — **Opção C** (nativo default + tree-sitter WASM opt-in no MVP4). ADR `0001-graph-engine`.
+- Milton Silva - 2026-06-11 - Versão 1.1: decisão HITL inicial — Opção C (nativo + tree-sitter opt-in no MVP4).
+- Milton Silva - 2026-06-11 - Versão 1.2: **revisão da decisão** após o protótipo confirmar determinismo satisfatório — volta à **Opção B** (subset local nativo, tree-sitter como v0.2). ADR `0001-graph-engine` atualizado.

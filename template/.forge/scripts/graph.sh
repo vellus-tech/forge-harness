@@ -52,6 +52,9 @@ case "$cmd" in
     node "$SCRIPT_DIR/lib/graph-deps.mjs" "$ROOT" "$@" ;;
   symbols)
     node "$SCRIPT_DIR/lib/graph-symbols.mjs" "$ROOT" ;;
+  mdl)
+    [ -f "$GRAPH" ] || { echo "FAIL (no graph — run: graph.sh build)"; exit 1; }
+    node "$SCRIPT_DIR/lib/mdl-gen.mjs" "$ROOT" "$@" ;;
   *)
-    echo "FAIL (usage: graph.sh build|update|validate|query <term>|path <a> <b>|deps [--module <m>] [--by-project] [--json]|symbols)"; exit 1 ;;
+    echo "FAIL (usage: graph.sh build|update|validate|query <term>|path <a> <b>|deps [--module <m>] [--by-project] [--json]|symbols|mdl [--service <s>])"; exit 1 ;;
 esac

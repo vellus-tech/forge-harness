@@ -47,6 +47,9 @@ case "$cmd" in
         for(const n of (adj.get(last)||[]))if(!seen.has(n)){seen.add(n);q.push([...p,n]);}}
       console.log("NO PATH (no resolved import chain "+a+" -> "+b+")");
     ' "$GRAPH" "$a" "$b" ;;
+  deps)
+    [ -f "$GRAPH" ] || { echo "FAIL (no graph — run: graph.sh build)"; exit 1; }
+    node "$SCRIPT_DIR/lib/graph-deps.mjs" "$ROOT" "$@" ;;
   *)
-    echo "FAIL (usage: graph.sh build|update|validate|query <term>|path <a> <b>)"; exit 1 ;;
+    echo "FAIL (usage: graph.sh build|update|validate|query <term>|path <a> <b>|deps [--module <m>] [--json])"; exit 1 ;;
 esac

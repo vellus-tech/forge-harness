@@ -30,11 +30,30 @@ function writeDiagram(base, title, mermaid) {
   writeFileSync(join(c4Dir, `${base}.md`), md);
 }
 
-const BOUNDARY_ROOTS = ['src', 'services', 'apps', 'packages', 'modules', 'libs'];
+const BOUNDARY_ROOTS = ['src', 'services', 'apps', 'packages', 'modules', 'libs', 'backend', 'frontend'];
 function boundaryOf(id) {
   const p = id.split('/');
   if (BOUNDARY_ROOTS.includes(p[0]) && p.length > 1) return `${p[0]}/${p[1]}`;
   return p.length > 1 ? p[0] : '(root)';
+}
+
+// cor por camada (absorvido do Understand-Anything) — classDef Mermaid por layer.
+const layerOf = new Map(g.nodes.map((n) => [n.id, n.layer || 'unknown']));
+const LAYER_STYLE = {
+  api: 'fill:#e3f2fd,stroke:#1565c0,color:#0d47a1',
+  application: 'fill:#fff3e0,stroke:#ef6c00,color:#e65100',
+  domain: 'fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20',
+  infrastructure: 'fill:#f3e5f5,stroke:#7b1fa2,color:#4a148c',
+  contracts: 'fill:#e0f7fa,stroke:#00838f,color:#006064',
+  test: 'fill:#eceff1,stroke:#546e7a,color:#263238',
+  config: 'fill:#fffde7,stroke:#f9a825,color:#f57f17',
+  unknown: 'fill:#fafafa,stroke:#bdbdbd,color:#616161',
+};
+const classDefs = () => Object.entries(LAYER_STYLE).map(([l, s]) => `  classDef ${l} ${s};`);
+function dominantLayer(ids) {
+  const c = {};
+  for (const id of ids) { const l = layerOf.get(id) || 'unknown'; c[l] = (c[l] || 0) + 1; }
+  return Object.entries(c).sort((a, b) => b[1] - a[1])[0]?.[0] || 'unknown';
 }
 
 // project name from FORGE.md frontmatter (display), fallback to dir name
@@ -56,15 +75,15 @@ if (externals.size) {
 writeDiagram('c1-context', 'C1 — Contexto do Sistema', c1.join('\n'));
 
 // ── C2 container ──────────────────────────────────────────────────────────────
-const containers = new Map(); // boundary -> {files}
+const containers = new Map(); // boundary -> [ids]
 for (const n of g.nodes) {
   const b = boundaryOf(n.id);
-  if (!containers.has(b)) containers.set(b, 0);
-  containers.set(b, containers.get(b) + 1);
+  if (!containers.has(b)) containers.set(b, []);
+  containers.get(b).push(n.id);
 }
 const idOf = new Map([...containers.keys()].sort().map((b, i) => [b, `c${i}`]));
 const c2 = ['flowchart TD'];
-for (const [b, count] of [...containers.entries()].sort()) c2.push(`  ${idOf.get(b)}["${san(b)} (${count})"]`);
+for (const [b, ids] of [...containers.entries()].sort()) c2.push(`  ${idOf.get(b)}["${san(b)} (${ids.length})"]:::${dominantLayer(ids)}`);
 const seenRel = new Set();
 for (const e of g.edges) {
   if (!e.resolved) continue;
@@ -75,7 +94,8 @@ for (const e of g.edges) {
   seenRel.add(key);
   c2.push(`  ${idOf.get(ba)} --> ${idOf.get(bb)}`);
 }
-writeDiagram('c2-container', 'C2 — Containers', c2.join('\n'));
+c2.push(...classDefs());
+writeDiagram('c2-container', 'C2 — Containers (cor = camada dominante)', c2.join('\n'));
 
 // ── C3 component (per multi-file boundary) ───────────────────────────────────
 const byBoundary = new Map();
@@ -90,12 +110,13 @@ for (const [b, files] of [...byBoundary.entries()].sort()) {
   const slug = b.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase();
   const nid = new Map(files.sort().map((f, i) => [f, `f${i}`]));
   const lines = ['flowchart TD', `  %% component view: ${san(b)}`];
-  for (const f of files.sort()) lines.push(`  ${nid.get(f)}["${san(f.split('/').pop())}"]`);
+  for (const f of files.sort()) lines.push(`  ${nid.get(f)}["${san(f.split('/').pop())}"]:::${layerOf.get(f) || 'unknown'}`);
   for (const e of g.edges) {
     if (!e.resolved) continue;
     if (nid.has(e.from) && nid.has(e.to)) lines.push(`  ${nid.get(e.from)} --> ${nid.get(e.to)}`);
   }
-  writeDiagram(`c3-component-${slug}`, `C3 — Componentes: ${san(b)}`, lines.join('\n'));
+  lines.push(...classDefs());
+  writeDiagram(`c3-component-${slug}`, `C3 — Componentes: ${san(b)} (cor = camada)`, lines.join('\n'));
   c3count++;
 }
 

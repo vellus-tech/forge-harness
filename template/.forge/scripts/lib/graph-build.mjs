@@ -63,11 +63,19 @@ function structuralFingerprint(src) {
 function layerOf(id) {
   const p = id.toLowerCase();
   if (/(^|\/)(tests?|__tests__|spec)(\/|$)|\.(spec|test|tests)\.|\.tests?(\/|$)/.test(p)) return 'test';
-  if (/(^|\/)(api|controllers?|presentation|web|pages|routes|endpoints?|middlewares?|filters|attributes)(\/|$)|\.(api|web|host|gateway|bff|presentation)(\/|$)/.test(p)) return 'api';
-  if (/(^|\/)(application|usecases?|handlers?|services?|commands?|queries|behaviors?)(\/|$)|\.(application|usecases?|worker)(\/|$)/.test(p)) return 'application';
-  if (/(^|\/)(domain|entities|core|model|aggregates?|valueobjects?|events?)(\/|$)|\.(domain|core)(\/|$)/.test(p)) return 'domain';
-  if (/(^|\/)(infrastructure|persistence|repositories|data|adapters?|migrations?)(\/|$)|\.(infrastructure|infra|persistence|messaging|caching|observability|errorhandling|data)(\/|$)/.test(p)) return 'infrastructure';
-  if (/(^|\/)(contracts?|dtos?|schemas?)(\/|$)|\.(contracts?|dtos?)(\/|$)/.test(p)) return 'contracts';
+  // .NET project-suffix is AUTHORITATIVE: the whole project is one layer, regardless of
+  // inner folder names (Collatra.X.Infrastructure/Services/ is infrastructure, not application).
+  if (/\.(api|web|host|gateway|bff|presentation)(\/|$)/.test(p)) return 'api';
+  if (/\.(application|usecases?|worker)(\/|$)/.test(p)) return 'application';
+  if (/\.(domain|core)(\/|$)/.test(p)) return 'domain';
+  if (/\.(infrastructure|infra|persistence|messaging|caching|observability|errorhandling)(\/|$)/.test(p)) return 'infrastructure';
+  if (/\.(contracts?|dtos?)(\/|$)/.test(p)) return 'contracts';
+  // folder conventions (non-.NET, or projects without a layer suffix)
+  if (/(^|\/)(api|controllers?|presentation|web|pages|routes|endpoints?|middlewares?|filters|attributes)(\/|$)/.test(p)) return 'api';
+  if (/(^|\/)(application|usecases?|handlers?|services?|commands?|queries|behaviors?)(\/|$)/.test(p)) return 'application';
+  if (/(^|\/)(domain|entities|core|model|aggregates?|valueobjects?|events?)(\/|$)/.test(p)) return 'domain';
+  if (/(^|\/)(infrastructure|persistence|repositories|data|adapters?|migrations?)(\/|$)/.test(p)) return 'infrastructure';
+  if (/(^|\/)(contracts?|dtos?|schemas?)(\/|$)/.test(p)) return 'contracts';
   if (/\.(config|json|ya?ml)$|(^|\/)config(\/|$)/.test(p)) return 'config';
   return 'unknown';
 }

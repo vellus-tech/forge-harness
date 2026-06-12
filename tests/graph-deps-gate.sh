@@ -66,4 +66,40 @@ node "$LIB" "$T" --json | grep -q '^OK module-deps.json'
 node -e 'const d=JSON.parse(require("fs").readFileSync("'"$T"'/.forge/graph/module-deps.json","utf8")); if(!Array.isArray(d.edges)||!Array.isArray(d.cycles)) throw new Error("schema");'
 echo "OK [4]"
 
+echo "[5] violação de camada (domain->infrastructure)"
+cat > "$T/.forge/graph/graph.json" <<'JSON'
+{ "schema":"graph/v0",
+  "nodes":[
+    {"id":"src/app/Foo.cs","layer":"domain"},
+    {"id":"src/app/Bar.cs","layer":"infrastructure"},
+    {"id":"src/app/Api.cs","layer":"api"}
+  ],
+  "edges":[
+    {"from":"src/app/Foo.cs","to":"src/app/Bar.cs","resolved":true},
+    {"from":"src/app/Api.cs","to":"src/app/Foo.cs","resolved":true}
+  ]
+}
+JSON
+v="$(node "$LIB" "$T")"
+echo "$v" | grep -qi 'Violações de camada'
+echo "$v" | grep -q 'domain→infrastructure: 1'
+# api->domain é permitido (não vira violação)
+! echo "$v" | grep -q 'api→domain'
+echo "OK [5]"
+
+echo "[6] --by-project usa o diretório do projeto .NET"
+cat > "$T/.forge/graph/graph.json" <<'JSON'
+{ "schema":"graph/v0",
+  "nodes":[
+    {"id":"backend/svc/src/App.Api/X.cs","layer":"api"},
+    {"id":"backend/svc/src/App.Domain/Y.cs","layer":"domain"}
+  ],
+  "edges":[{"from":"backend/svc/src/App.Api/X.cs","to":"backend/svc/src/App.Domain/Y.cs","resolved":true}]
+}
+JSON
+p="$(node "$LIB" "$T" --by-project)"
+echo "$p" | grep -q 'backend/svc/src/App.Api'
+echo "$p" | grep -q 'App.Domain (1)'
+echo "OK [6]"
+
 echo "OK"

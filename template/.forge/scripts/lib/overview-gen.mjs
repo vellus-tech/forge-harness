@@ -52,7 +52,36 @@ const changes = existsSync(activeDir) ? readdirSync(activeDir, { withFileTypes: 
 }) : [];
 
 const mermaidBlock = (title, code) => code ? `<h3>${esc(title)}</h3>\n<pre class="mermaid">\n${esc(code)}</pre>` : '';
-const c3blocks = c3files.map((f) => mermaidBlock(f.replace('c3-component-', 'C3 · ').replace('.md', ''), readMermaid(f))).join('\n');
+// C3 sections wrapped for client-side filtering (search by boundary name).
+const c3blocks = c3files.map((f) => {
+  const name = f.replace('c3-component-', '').replace('.md', '');
+  return `<section class="c3" data-name="${esc(name)}">${mermaidBlock('C3 · ' + name, readMermaid(f))}</section>`;
+}).join('\n');
+
+// module dependency analysis (graph deps --json) — deps/cycles/layer violations
+let mdeps = null;
+try { const p = join(root, '.forge/graph/module-deps.json'); if (existsSync(p)) mdeps = JSON.parse(readFileSync(p, 'utf8')); } catch { /* optional */ }
+
+// domain view (light): map each capability to boundaries whose name matches it.
+const boundaries = mdeps ? mdeps.modules : [];
+const domainRows = caps.map((c) => {
+  const key = c.name.toLowerCase().replace(/[^a-z0-9]+/g, '');
+  const matched = boundaries.filter((b) => b.toLowerCase().replace(/[^a-z0-9]+/g, '').includes(key) || key.includes(b.split('/').pop().toLowerCase().replace(/[^a-z0-9]+/g, ''))).slice(0, 4);
+  return { cap: c.name, modules: matched };
+});
+
+const LAYER_COLORS = { api: '#e3f2fd', application: '#fff3e0', domain: '#e8f5e9', infrastructure: '#f3e5f5', contracts: '#e0f7fa', test: '#eceff1', config: '#fffde7', unknown: '#fafafa' };
+const legend = Object.entries(LAYER_COLORS).map(([l, c]) => `<span class="lg" style="background:${c}">${l}</span>`).join(' ');
+
+const depsTop = mdeps ? mdeps.edges.slice().sort((a, b) => b.count - a.count).slice(0, 20) : [];
+const archSection = mdeps ? `
+<h2>Dependências entre módulos <span class="muted">(${mdeps.granularity})</span></h2>
+<p>${mdeps.modules.length} módulos · ${mdeps.edges.length} dependências · <b>${mdeps.cycles.length}</b> ciclo(s) · <b>${mdeps.layer_violations.length}</b> violação(ões) de camada</p>
+${mdeps.cycles.length ? `<h3>⚠ Ciclos (smell)</h3><ul>${mdeps.cycles.slice(0, 12).map((c) => `<li>${esc(c.join(' → '))}</li>`).join('')}</ul>` : '<p class="muted">Sem ciclos entre módulos ✓</p>'}
+${Object.keys(mdeps.layer_violations_by_pair || {}).length ? `<h3>⚠ Violações de camada (clean architecture)</h3><ul>${Object.entries(mdeps.layer_violations_by_pair).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<li>${esc(k)}: ${n}</li>`).join('')}</ul>` : '<p class="muted">Sem violações de camada ✓</p>'}
+<h3>Top dependências (fan-out)</h3>
+<table><tr><th>de</th><th>para</th><th>arestas</th></tr>${depsTop.map((e) => `<tr><td>${esc(e.from)}</td><td>${esc(e.to)}</td><td>${e.count}</td></tr>`).join('')}</table>
+` : '<h2>Dependências entre módulos</h2><p class="muted">Rode <code>/forge:graph deps --json</code> para popular esta seção.</p>';
 
 const html = `<!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="utf-8"><title>Forge overview</title>
@@ -63,14 +92,24 @@ const html = `<!DOCTYPE html>
  th{background:#f4f4f8}.pre{background:#f7f7fb;padding:1rem;border-radius:6px;overflow:auto}
  pre.mermaid{background:#f7f7fb;padding:1rem;border-radius:6px}
  .muted{color:#888}
+ .lg{display:inline-block;padding:.1rem .5rem;border-radius:4px;border:1px solid #ccc;margin:.1rem;font-size:12px}
+ #q{padding:.4rem .6rem;width:280px;border:1px solid #ccc;border-radius:6px;margin:.5rem 0}
+ section.c3.hidden{display:none}
 </style></head><body>
 <h1>Forge — overview</h1>
 <p class="muted">Mapa navegável gerado por <code>/forge:c4</code> (determinista, engine nativo). Artefato de visualização — não editar à mão.</p>
+<p><b>Camadas:</b> ${legend}</p>
 
-<h2>C4 — Arquitetura</h2>
+<h2>C4 — Arquitetura <span class="muted">(cor = camada)</span></h2>
 ${mermaidBlock('C1 · System Context', c1) || '<p class="muted">C1 indisponível (rode /forge:graph build + /forge:c4).</p>'}
 ${mermaidBlock('C2 · Container', c2)}
+<p><input id="q" type="search" placeholder="filtrar visões C3 por módulo…"></p>
 ${c3blocks || '<p class="muted">Sem visões de componente (nenhum boundary com 2+ arquivos).</p>'}
+
+${archSection}
+
+<h2>Domínio ↔ Código <span class="muted">(capability → módulos)</span></h2>
+${domainRows.length ? `<table><tr><th>Capability</th><th>Módulos relacionados</th></tr>${domainRows.map((d) => `<tr><td>${esc(d.cap)}</td><td>${d.modules.length ? esc(d.modules.join(', ')) : '<span class="muted">sem correspondência por nome</span>'}</td></tr>`).join('')}</table>` : '<p class="muted">Baseline sem capabilities para mapear.</p>'}
 
 <h2>Baseline — Capabilities (${caps.length})</h2>
 ${caps.length ? `<table><tr><th>Capability</th><th>Versão</th><th>Requisitos</th></tr>${caps.map((c) => `<tr><td>${esc(c.name)}</td><td>${esc(c.version)}</td><td>${c.reqs}</td></tr>`).join('')}</table>` : '<p class="muted">Baseline vazio (nenhuma capability — /forge:baseline extract ou archive de changes).</p>'}
@@ -81,6 +120,16 @@ ${changes.length ? `<table><tr><th>Change</th><th>Status</th><th>Scale</th><th>P
 <script type="module">
  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
  mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+</script>
+<script>
+ // busca/filtro client-side das visões C3 por nome de módulo
+ const q = document.getElementById('q');
+ if (q) q.addEventListener('input', () => {
+   const t = q.value.trim().toLowerCase();
+   document.querySelectorAll('section.c3').forEach((s) => {
+     s.classList.toggle('hidden', t && !s.dataset.name.toLowerCase().includes(t));
+   });
+ });
 </script>
 </body></html>
 `;

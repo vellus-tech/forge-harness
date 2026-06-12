@@ -6,6 +6,8 @@
 .forge/graph/graph.json
 .forge/graph/report.md
 .forge/graph/cache/fingerprints.json
+.forge/graph/symbols.json
+.forge/graph/module-deps.json
 .forge/**/tmp/
 .forge/**/logs/
 .forge/**/cost*.json

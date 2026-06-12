@@ -3,7 +3,7 @@
 #   [1] c4.sh gera c1-context, c2-container e ao menos um c3-component na fixture
 #   [2] overview.html existe e renderiza os 3 níveis C4 + capabilities + change ativo
 #   [3] gate grep-negativo: nenhum ponto nem em-dash dentro de labels Mermaid
-#   [4] determinismo: 2 execuções geram .mmd idênticos
+#   [4] determinismo: 2 execuções geram .md idênticos
 #   [5] arquivos com nomes contendo pontos (money.ts) viram labels sanitizados
 #   [6] c3 stale é removido quando o boundary deixa de existir
 set -euo pipefail
@@ -24,9 +24,9 @@ FORGE_ROOT="$T" bash "$S/graph.sh" build >/dev/null
 
 echo "[1] geração dos 3 níveis"
 FORGE_ROOT="$T" bash "$S/c4.sh" >/dev/null
-[ -f "$C4/c1-context.mmd" ] && [ -f "$C4/c2-container.mmd" ]
-ls "$C4"/c3-component-*.mmd >/dev/null
-grep -q '^flowchart' "$C4/c2-container.mmd"
+[ -f "$C4/c1-context.md" ] && [ -f "$C4/c2-container.md" ]
+ls "$C4"/c3-component-*.md >/dev/null
+grep -q '^flowchart' "$C4/c2-container.md"
 echo "OK [1]"
 
 echo "[2] overview.html com os 3 níveis + seções"
@@ -40,14 +40,14 @@ grep -q 'class="mermaid"' "$T/.forge/graph/overview.html"
 echo "OK [2]"
 
 echo "[3] grep-negativo: pontos/em-dash em labels Mermaid"
-viol="$(grep -hoE '\["[^"]*"\]' "$C4"/*.mmd | grep -E '\.|—|–' || true)"
+viol="$(grep -hoE '\["[^"]*"\]' "$C4"/*.md | grep -E '\.|—|–' || true)"
 [ -z "$viol" ] || { echo "VIOLAÇÃO de label: $viol"; exit 1; }
 echo "OK [3] (labels limpos)"
 
 echo "[4] determinismo"
-h1="$(cat "$C4"/*.mmd | shasum -a 256)"
+h1="$(cat "$C4"/*.md | shasum -a 256)"
 FORGE_ROOT="$T" bash "$S/c4.sh" >/dev/null
-h2="$(cat "$C4"/*.mmd | shasum -a 256)"
+h2="$(cat "$C4"/*.md | shasum -a 256)"
 [ "$h1" = "$h2" ]
 echo "OK [4]"
 
@@ -56,11 +56,11 @@ grep -rq 'money ts' "$C4"/ && ! grep -rEq '\["[^"]*money\.ts[^"]*"\]' "$C4"/
 echo "OK [5]"
 
 echo "[6] c3 stale removido quando boundary some"
-[ -f "$C4/c3-component-services-billing.mmd" ]
+[ -f "$C4/c3-component-services-billing.md" ]
 rm -rf "$T/services"
 FORGE_ROOT="$T" bash "$S/graph.sh" build >/dev/null
 FORGE_ROOT="$T" bash "$S/c4.sh" >/dev/null
-[ ! -e "$C4/c3-component-services-billing.mmd" ]
+[ ! -e "$C4/c3-component-services-billing.md" ]
 echo "OK [6]"
 
 echo "OK"

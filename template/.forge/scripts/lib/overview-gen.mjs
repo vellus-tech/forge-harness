@@ -13,10 +13,18 @@ const root = resolve(process.argv[2] || '.');
 const c4Dir = join(root, '.forge/graph/c4');
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-function readMmd(name) { const p = join(c4Dir, name); return existsSync(p) ? readFileSync(p, 'utf8') : null; }
-const c1 = readMmd('c1-context.mmd');
-const c2 = readMmd('c2-container.mmd');
-const c3files = existsSync(c4Dir) ? readdirSync(c4Dir).filter((f) => f.startsWith('c3-component-')).sort() : [];
+// C4 diagrams are Markdown (.md) wrapping a ```mermaid block — extract the raw Mermaid
+// for the HTML <pre class="mermaid"> embed (falls back to the whole file if no fence).
+function readMermaid(name) {
+  const p = join(c4Dir, name);
+  if (!existsSync(p)) return null;
+  const t = readFileSync(p, 'utf8');
+  const m = t.match(/```mermaid\n([\s\S]*?)```/);
+  return m ? m[1].replace(/\s+$/, '') : t;
+}
+const c1 = readMermaid('c1-context.md');
+const c2 = readMermaid('c2-container.md');
+const c3files = existsSync(c4Dir) ? readdirSync(c4Dir).filter((f) => f.startsWith('c3-component-') && f.endsWith('.md')).sort() : [];
 
 // baseline capabilities
 const capsDir = join(root, '.forge/product/current/capabilities');
@@ -44,7 +52,7 @@ const changes = existsSync(activeDir) ? readdirSync(activeDir, { withFileTypes: 
 }) : [];
 
 const mermaidBlock = (title, code) => code ? `<h3>${esc(title)}</h3>\n<pre class="mermaid">\n${esc(code)}</pre>` : '';
-const c3blocks = c3files.map((f) => mermaidBlock(f.replace('c3-component-', 'C3 · ').replace('.mmd', ''), readMmd(f))).join('\n');
+const c3blocks = c3files.map((f) => mermaidBlock(f.replace('c3-component-', 'C3 · ').replace('.md', ''), readMermaid(f))).join('\n');
 
 const html = `<!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="utf-8"><title>Forge overview</title>

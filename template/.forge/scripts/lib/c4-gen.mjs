@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 // forge c4 generate (§16.5, W4.3). Zero-dependency. Derives C4 Mermaid diagrams
-// from the code graph (deterministic, zero tokens beyond curation):
-//   c1-context.mmd   — system + grouped external dependencies
-//   c2-container.mmd  — boundaries (services/packages/apps/src groups) + relations
-//   c3-component-<module>.mmd — files within each multi-file boundary + internal edges
+// from the code graph (deterministic, zero tokens beyond curation). Output is Markdown
+// (.md) wrapping a ```mermaid fenced block, so it renders in any Markdown previewer
+// (VS Code, GitHub) instead of showing raw Mermaid like a bare .mmd:
+//   c1-context.md   — system + grouped external dependencies
+//   c2-container.md  — boundaries (services/packages/apps/src groups) + relations
+//   c3-component-<module>.md — files within each multi-file boundary + internal edges
 // Convention (§16.5): NO dots and NO em-dash inside Mermaid labels — sanitized here.
 // Usage: c4-gen.mjs <forge-root>
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
@@ -18,6 +20,15 @@ mkdirSync(c4Dir, { recursive: true });
 
 // label sanitizer: strip dots and em/en-dash from label text (Mermaid convention)
 const san = (s) => String(s).replace(/[—–]/g, '-').replace(/\./g, ' ').replace(/\s+/g, ' ').trim();
+
+// Write a diagram as Markdown with a fenced ```mermaid block (human-renderable).
+function writeDiagram(base, title, mermaid) {
+  const md = `# ${title}\n\n` +
+    '> Gerado por `/forge:c4` a partir do code graph. Renderiza como diagrama em qualquer\n' +
+    '> previewer de Markdown com suporte a Mermaid (VS Code, GitHub).\n\n' +
+    '```mermaid\n' + mermaid + '\n```\n';
+  writeFileSync(join(c4Dir, `${base}.md`), md);
+}
 
 const BOUNDARY_ROOTS = ['src', 'services', 'apps', 'packages', 'modules', 'libs'];
 function boundaryOf(id) {
@@ -42,7 +53,7 @@ const c1 = ['flowchart TD', `  sys["${san(system)}"]`];
 if (externals.size) {
   c1.push('  ext["External dependencies"]', '  sys --> ext');
 }
-writeFileSync(join(c4Dir, 'c1-context.mmd'), c1.join('\n') + '\n');
+writeDiagram('c1-context', 'C1 — Contexto do Sistema', c1.join('\n'));
 
 // ── C2 container ──────────────────────────────────────────────────────────────
 const containers = new Map(); // boundary -> {files}
@@ -64,7 +75,7 @@ for (const e of g.edges) {
   seenRel.add(key);
   c2.push(`  ${idOf.get(ba)} --> ${idOf.get(bb)}`);
 }
-writeFileSync(join(c4Dir, 'c2-container.mmd'), c2.join('\n') + '\n');
+writeDiagram('c2-container', 'C2 — Containers', c2.join('\n'));
 
 // ── C3 component (per multi-file boundary) ───────────────────────────────────
 const byBoundary = new Map();
@@ -84,15 +95,17 @@ for (const [b, files] of [...byBoundary.entries()].sort()) {
     if (!e.resolved) continue;
     if (nid.has(e.from) && nid.has(e.to)) lines.push(`  ${nid.get(e.from)} --> ${nid.get(e.to)}`);
   }
-  writeFileSync(join(c4Dir, `c3-component-${slug}.mmd`), lines.join('\n') + '\n');
+  writeDiagram(`c3-component-${slug}`, `C3 — Componentes: ${san(b)}`, lines.join('\n'));
   c3count++;
 }
 
-// clean stale c3 files from previous runs that no longer correspond to a boundary
+// clean stale c3 files from previous runs that no longer correspond to a boundary,
+// plus any legacy .mmd files from versions that emitted bare Mermaid.
 const wanted = new Set([...byBoundary.entries()].filter(([, f]) => f.length >= 2)
-  .map(([b]) => `c3-component-${b.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase()}.mmd`));
+  .map(([b]) => `c3-component-${b.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase()}.md`));
 for (const f of readdirSync(c4Dir)) {
-  if (f.startsWith('c3-component-') && !wanted.has(f)) rmSync(join(c4Dir, f));
+  if (f.endsWith('.mmd')) { rmSync(join(c4Dir, f)); continue; }
+  if (f.startsWith('c3-component-') && f.endsWith('.md') && !wanted.has(f)) rmSync(join(c4Dir, f));
 }
 
 console.log(`OK c4: c1-context, c2-container (${containers.size} containers), ${c3count} component view(s)`);

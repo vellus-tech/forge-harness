@@ -6,6 +6,9 @@ e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+### Added
+- `/forge:infra-diagram` — scaffold de diagram-as-code (mingrammer/diagrams) a partir do docker-compose: ícones reais, clusters por tipo, base para diagramas de infra e PCI DSS.
+
 ## [0.1.0-rc1] — 2026-06-12
 
 Primeiro release candidate. Harness Spec-Driven Development completo (MVP1–MVP5) +

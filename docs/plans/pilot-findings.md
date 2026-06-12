@@ -15,9 +15,19 @@ Ciclo completo verde (init→…→archive); baseline ganhou `document-validatio
 | F3 | — | Scaffolding de teste TS (`@types/node`, `node --test <glob>`) — escolha do autor do change, não do harness. | **Won't-fix** (fora de escopo). |
 | F4 | — | Editar `FORGE.md` exige `sync-adapters`. | **By design** (§15). |
 
-## Piloto brownfield W8.2 — azim-crm (.NET)
+## Piloto brownfield W8.2 — azim-crm (2026-06-12)
 
-(em andamento)
+azim-crm revelou-se um **repositório de especificação de produto SEM código** (só `docs/product/`
+com 144 arquivos: prd/frd-nfrd/ddd/trd/adr/glossary/**modules**/backlog/data-model). Logo, valida o
+**caminho de ingestão brownfield**, não o de código (graph/impact/bugfix são N/A sem código).
+
+**Feito (autônomo, branch `feature/forge-update-w8.2`):**
+1. Atualização limpa do `.forge` de ~MVP4-quebrado → template atual (MVP5/W8.0); doctor limpo;
+   3 adapters (claude/codex/qwen). Hand-edits do projeto já eram upstream. Snapshot recuperável.
+2. `ingest-legacy.sh`: 57 arquivos → baseline (`product/current/`), **fidelidade byte-a-byte** e
+   **`docs/product` original byte-idêntico** (perda zero — gate "baseline sem perda" ✓).
+
+**N/A para este repo:** `discover/graph/baseline-extract/impact/bugfix` exigem código.
 
 ### Análise do estado (read-only, 2026-06-12) — NÃO mutado
 
@@ -42,3 +52,8 @@ o baseline (que está vazio). Mais barato e seguro que completar um estado parci
 |----|-----------|--------|---------|
 | W2-A | HIGH | Não há `forge update` que preserve estado — só `install --force` (backup+overwrite total). Atualizar um projeto onboarded exige migração manual. | **Change candidato** (relevante para W8.3 rollout): script `forge update` que troca a maquinaria preservando FORGE.md/forge.yaml/product/specs/custom + re-sync. |
 | W2-B | MEDIUM | Migração manual parcial deixou fonte canônica com refs `.claude/` → doctor pega, mas não há fluxo guiado de migração. | Coberto por W2-A (o `forge update` evita o estado parcial). |
+
+| ID | Severidade | Achado | Triagem |
+|----|-----------|--------|---------|
+| W2-C | MEDIUM | `ingest-legacy` cobre só 6 categorias canônicas (prd/frd-nfrd/ddd/trd/adr/glossary). Conteúdo rico fora delas — `modules/`(66), `backlog/`(18), `data-model/`, spec top-level — **não é ingerido nem reportado** (silencioso). Viola "no silent caps" (§17.6). | **Change candidato:** `ingest-legacy` deve **avisar** quais dirs de `docs/product/` ficaram fora do baseline (e talvez um bucket `modules/` ou mapa para capabilities). |
+| W2-D | LOW | `modules/` (requirements por módulo) vira baseline só via extração semântica de capabilities (change a change), inexistente para projetos sem código que entram via specs. | **Backlog:** caminho de extração de capabilities a partir de `docs/product/modules/` no onboard, não só via `/forge:archive`. |

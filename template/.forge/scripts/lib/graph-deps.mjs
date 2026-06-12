@@ -26,8 +26,10 @@ const BOUNDARY_ROOTS = new Set(['src', 'services', 'apps', 'packages', 'modules'
 function boundaryOf(id) {
   const p = id.split('/');
   if (byProject) {
-    // diretório de projeto .NET: segmento PascalCase com ponto (Collatra.Billing.Api)
-    const idx = p.findIndex((seg) => /^[A-Z][A-Za-z0-9]*(\.[A-Za-z0-9]+)+$/.test(seg));
+    // diretório de projeto .NET: segmento DotPascalCase (Collatra.Billing.Api) — TODAS as
+    // partes capitalizadas (exclui arquivos como App.tsx, cujo .tsx é minúsculo) e nunca o
+    // último segmento (o filename).
+    const idx = p.slice(0, -1).findIndex((seg) => /^[A-Z][A-Za-z0-9]*(\.[A-Z][A-Za-z0-9]*)+$/.test(seg));
     if (idx >= 0) return p.slice(0, idx + 1).join('/');
   }
   if (BOUNDARY_ROOTS.has(p[0]) && p.length > 1) return `${p[0]}/${p[1]}`;

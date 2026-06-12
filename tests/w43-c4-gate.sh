@@ -63,4 +63,24 @@ FORGE_ROOT="$T" bash "$S/c4.sh" >/dev/null
 [ ! -e "$C4/c3-component-services-billing.md" ]
 echo "OK [6]"
 
+echo "[7] C3 grande é AGREGADO por submódulo (equilíbrio: renderável + completo)"
+T2="$(mktemp -d /tmp/forge-w43cap.XXXXXX)"
+mkdir -p "$T2/.forge/graph"
+node -e '
+  const n=[],e=[];
+  const subs=["App.Api","App.Application","App.Domain"];
+  for(let i=0;i<60;i++){const s=subs[i%3];n.push({id:`services/big/src/${s}/f${i}.cs`,layer:"application"});}
+  for(let i=0;i<20;i++){e.push({from:`services/big/src/App.Api/f${i*3}.cs`,to:`services/big/src/App.Application/f${i*3+1}.cs`,resolved:true});}
+  require("fs").writeFileSync(process.argv[1],JSON.stringify({schema:"graph/v0",nodes:n,edges:e}));
+' "$T2/.forge/graph/graph.json"
+FORGE_ROOT="$T2" node "$S/lib/c4-gen.mjs" "$T2" >/dev/null
+BIG="$T2/.forge/graph/c4/c3-component-services-big.md"
+[ -f "$BIG" ]
+cnt="$(grep -cE '^[[:space:]]+g[0-9]+\["' "$BIG")"
+[ "$cnt" -le 50 ] && [ "$cnt" -ge 2 ]
+grep -q 'agregado' "$BIG"
+grep -q '60 arquivos' "$BIG"
+rm -rf "$T2"
+echo "OK [7] (agregado em $cnt submódulos)"
+
 echo "OK"

@@ -18,8 +18,26 @@ const g = JSON.parse(readFileSync(graphPath, 'utf8'));
 const c4Dir = join(root, '.forge/graph/c4');
 mkdirSync(c4Dir, { recursive: true });
 
-// label sanitizer: strip dots and em/en-dash from label text (Mermaid convention)
-const san = (s) => String(s).replace(/[—–]/g, '-').replace(/\./g, ' ').replace(/\s+/g, ' ').trim();
+// label sanitizer: remove caracteres que quebram o parser do Mermaid em labels
+// (pontos, travessões, parênteses/colchetes/chaves, aspas, #, <, >, |, ;, :, &, backtick).
+const san = (s) => String(s)
+  .replace(/[—–]/g, '-')
+  .replace(/[.()[\]{}<>"'`#|;:&]/g, ' ')
+  .replace(/\s+/g, ' ').trim();
+
+// Equilíbrio para grafos grandes (limite Mermaid maxEdges/maxTextSize + legibilidade):
+// boundary pequeno → C3 por arquivo (detalhe); boundary grande → C3 AGREGADO por
+// submódulo (renderável E completo — nenhum arquivo some, só sobe de abstração).
+const C3_MAX_NODES = 50;
+// submódulo de um arquivo dentro de um boundary: o projeto .NET (DotPascalCase) se houver,
+// senão até 2 níveis de diretório abaixo do boundary.
+function subGroup(id, boundary) {
+  const rest = id.slice(boundary.length + 1).split('/');
+  const dirs = rest.slice(0, -1); // exclui o filename
+  const idx = dirs.findIndex((s) => /^[A-Z][A-Za-z0-9]*(\.[A-Z][A-Za-z0-9]*)+$/.test(s));
+  const take = idx >= 0 ? dirs.slice(0, idx + 1) : dirs.slice(0, 2);
+  return take.length ? `${boundary}/${take.join('/')}` : boundary;
+}
 
 // Write a diagram as Markdown with a fenced ```mermaid block (human-renderable).
 function writeDiagram(base, title, mermaid) {
@@ -105,18 +123,41 @@ for (const n of g.nodes) {
   byBoundary.get(b).push(n.id);
 }
 let c3count = 0;
-for (const [b, files] of [...byBoundary.entries()].sort()) {
-  if (files.length < 2) continue;
+for (const [b, allFiles] of [...byBoundary.entries()].sort()) {
+  if (allFiles.length < 2) continue;
   const slug = b.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase();
-  const nid = new Map(files.sort().map((f, i) => [f, `f${i}`]));
-  const lines = ['flowchart TD', `  %% component view: ${san(b)}`];
-  for (const f of files.sort()) lines.push(`  ${nid.get(f)}["${san(f.split('/').pop())}"]:::${layerOf.get(f) || 'unknown'}`);
-  for (const e of g.edges) {
-    if (!e.resolved) continue;
-    if (nid.has(e.from) && nid.has(e.to)) lines.push(`  ${nid.get(e.from)} --> ${nid.get(e.to)}`);
+  let title, lines;
+  if (allFiles.length <= C3_MAX_NODES) {
+    // pequeno → detalhe por arquivo
+    const inset = new Set(allFiles);
+    const nid = new Map([...allFiles].sort().map((f, i) => [f, `f${i}`]));
+    title = `C3 — Componentes: ${san(b)} (cor = camada)`;
+    lines = ['flowchart TD', `  %% component view: ${san(b)}`];
+    for (const f of [...allFiles].sort()) lines.push(`  ${nid.get(f)}["${san(f.split('/').pop())}"]:::${layerOf.get(f) || 'unknown'}`);
+    for (const e of g.edges) {
+      if (!e.resolved) continue;
+      if (inset.has(e.from) && inset.has(e.to)) lines.push(`  ${nid.get(e.from)} --> ${nid.get(e.to)}`);
+    }
+  } else {
+    // grande → agregado por submódulo (renderável + completo; nenhum arquivo some)
+    const groupOf = new Map(allFiles.map((f) => [f, subGroup(f, b)]));
+    const groups = [...new Set(groupOf.values())].sort();
+    const gid = new Map(groups.map((gp, i) => [gp, `g${i}`]));
+    const gfiles = new Map(groups.map((gp) => [gp, allFiles.filter((f) => groupOf.get(f) === gp)]));
+    const gedge = new Map();
+    for (const e of g.edges) {
+      if (!e.resolved) continue;
+      const ga = groupOf.get(e.from), gb = groupOf.get(e.to);
+      if (!ga || !gb || ga === gb) continue;
+      gedge.set(`${ga}>${gb}`, (gedge.get(`${ga}>${gb}`) || 0) + 1);
+    }
+    title = `C3 — Componentes: ${san(b)} (agregado: ${groups.length} submódulos · ${allFiles.length} arquivos; cor = camada)`;
+    lines = ['flowchart TD', `  %% component view (aggregated): ${san(b)}`];
+    for (const gp of groups) lines.push(`  ${gid.get(gp)}["${san(gp.slice(b.length + 1) || gp)} (${gfiles.get(gp).length})"]:::${dominantLayer(gfiles.get(gp))}`);
+    for (const k of [...gedge.keys()].sort()) { const [a, c] = k.split('>'); lines.push(`  ${gid.get(a)} --> ${gid.get(c)}`); }
   }
   lines.push(...classDefs());
-  writeDiagram(`c3-component-${slug}`, `C3 — Componentes: ${san(b)} (cor = camada)`, lines.join('\n'));
+  writeDiagram(`c3-component-${slug}`, title, lines.join('\n'));
   c3count++;
 }
 

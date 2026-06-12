@@ -119,7 +119,8 @@ ${changes.length ? `<table><tr><th>Change</th><th>Status</th><th>Scale</th><th>P
 
 <script type="module">
  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
- mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+ // limites elevados: diagramas C3 podem ter muitos nós/arestas (default maxEdges=500).
+ mermaid.initialize({ startOnLoad: true, theme: 'neutral', maxEdges: 5000, maxTextSize: 2000000, securityLevel: 'loose' });
 </script>
 <script>
  // busca/filtro client-side das visões C3 por nome de módulo

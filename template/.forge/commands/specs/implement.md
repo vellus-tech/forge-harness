@@ -14,6 +14,23 @@ Argumentos: `$ARGUMENTS` (change-id opcional; sem argumento, use o único change
 3. **Scale ≥ 3:** trabalhe em worktree dedicado — carregue a skill `using-git-worktrees` (localização canônica `.forge/worktrees/<change-id>`).
 4. Primeira execução: `bash .forge/scripts/spec-transition.sh <change-id> implementing`.
 
+## Modo story-by-story (quando `dev_loop.sharded: true`)
+
+Se o manifest declarar `dev_loop.sharded: true`, substitua o loop por TASK pelo fluxo de stories:
+
+1. Leia `stories/` do change e ordene topologicamente pelo `depends_on` das stories.
+2. Para a primeira story com `status: todo` cujas dependências estejam `done`:
+   a. Marque `status: in_progress` no frontmatter da story.
+   b. Execute o **Loop de execução por TASK** abaixo, mas somente para as tasks listadas **nessa story**.
+   c. Ao completar todas as tasks da story:
+      - Rode `/forge:verify` (ou `bash .forge/scripts/spec-verify.sh <change-id> --story STORY-NN`) como checkpoint da story.
+      - Se verify passar: marque `status: done` na story e emita **uma linha** de progresso.
+      - Se verify falhar: marque `status: blocked`, reporte o achado e **pare** — humano decide.
+3. Repita para a próxima story elegível (respeite `depends_on`).
+4. Quando todas as stories estiverem `done`: prossiga para Encerramento abaixo.
+
+> Nunca implemente tasks de uma story cujas dependencies (`depends_on`) ainda não estejam `done`.
+
 ## Loop de execução (por TASK, na ordem das waves)
 
 Para cada task `[ ]` cuja(s) dependência(s) estejam `[X]`:

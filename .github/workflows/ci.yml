@@ -1,0 +1,20 @@
+name: ci
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install bats
+        run: sudo apt-get update && sudo apt-get install -y bats
+      - name: Install dev deps (ajv for schema parity)
+        run: npm ci || npm install
+      - name: Run full gate suite
+        run: bash tests/run-all.sh

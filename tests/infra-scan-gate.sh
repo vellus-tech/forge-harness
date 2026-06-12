@@ -55,4 +55,14 @@ if command -v python3 >/dev/null 2>&1; then
 fi
 echo "OK [3]"
 
+echo "[4] versão editável Mermaid (infra.md)"
+MD="$T/out/infra.md"
+[ -f "$MD" ]
+grep -q '```mermaid' "$MD"
+grep -q 'flowchart' "$MD"
+grep -q 'subgraph' "$MD"
+grep -q 'classDef' "$MD"
+grep -q 'draw.io' "$MD"
+echo "OK [4]"
+
 echo "OK"

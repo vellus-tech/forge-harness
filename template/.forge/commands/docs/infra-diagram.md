@@ -1,5 +1,5 @@
 ---
-description: Gera um scaffold de diagrama de infraestrutura como código (mingrammer/diagrams) a partir do docker-compose detectado — ícones reais (Kong/Istio/Postgres/Redis/…), clusters por tipo. Scaffold para refino humano (rede/PCI não vêm do compose). Requer graphviz + pip install diagrams para renderizar.
+description: Gera scaffold de diagrama de infraestrutura a partir do docker-compose — em dois formatos: infra.py (render com ícones, mingrammer/diagrams) e infra.md (Mermaid EDITÁVEL: VS Code/Mermaid Live/draw.io). Clusters por tipo, ícones reais. Scaffold para refino humano (rede/PCI não vêm do compose).
 argument-hint: "[--out <dir>]"
 ---
 
@@ -13,8 +13,8 @@ Argumentos: `$ARGUMENTS` (`--out <dir>`, default `docs/diagrams`).
    ```bash
    bash .forge/scripts/infra-scan.sh --out docs/diagrams
    ```
-   Cria `docs/diagrams/infra.py` com os serviços do compose classificados por ícone
-   (gateway/serviço/dados/observabilidade) e arestas iniciais.
+   Cria DOIS artefatos: `infra.py` (render polido com ícones via Graphviz) e `infra.md`
+   (**Mermaid editável** — VS Code/Mermaid Live, ou importe no draw.io p/ edição visual).
 
 2. **Refine à mão** — o compose não tem topologia de rede, zonas de confiança nem escopo de
    compliance. Ajuste arestas, adicione `Cluster`s de zona (DMZ/CDE/interno) e rótulos.

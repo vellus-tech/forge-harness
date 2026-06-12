@@ -108,4 +108,34 @@ if (svc.length && data.length) for (const d of data) out += `    [${svc.join(', 
 
 mkdirSync(outDir, { recursive: true });
 writeFileSync(join(outDir, 'infra.py'), out);
-console.log(`OK ${join(outDir, 'infra.py')} (${nodes.length} serviços: ${GROUPS.map(([g, t]) => `${byG(g).length} ${g}`).filter((s) => !s.startsWith('0')).join(', ')})`);
+
+// ── versão EDITÁVEL em Mermaid (texto; edita em VS Code / Mermaid Live; o draw.io
+// importa Mermaid p/ edição visual). Cilindro p/ dados, retângulo p/ o resto; cor por grupo.
+const GSTYLE = {
+  edge: 'fill:#f3e5f5,stroke:#7b1fa2', svc: 'fill:#e3f2fd,stroke:#1565c0',
+  data: 'fill:#e0f7fa,stroke:#00838f', ai: 'fill:#fff3e0,stroke:#ef6c00',
+  obs: 'fill:#eceff1,stroke:#546e7a',
+};
+const mid = (s) => 'm_' + py(s).slice(3);
+const mer = ['flowchart LR', '  users(["Usuário"])'];
+for (const [g, title] of GROUPS) {
+  const gn = nodes.filter((n) => n.group === g);
+  if (!gn.length) continue;
+  mer.push(`  subgraph ${g.toUpperCase()}["${title}"]`);
+  for (const n of gn) mer.push(`    ${mid(n.name)}${g === 'data' ? `[("${n.label}")]` : `["${n.label}"]`}`);
+  mer.push('  end');
+}
+if (edge.length) mer.push(`  users -->|HTTPS| ${mid(nodes.find((n) => n.group === 'edge').name)}`);
+const e0 = nodes.find((n) => n.group === 'edge');
+for (const n of nodes.filter((x) => x.group === 'svc')) if (e0) mer.push(`  ${mid(e0.name)} --> ${mid(n.name)}`);
+for (const d of nodes.filter((x) => x.group === 'data')) for (const s of nodes.filter((x) => x.group === 'svc')) mer.push(`  ${mid(s.name)} -.-> ${mid(d.name)}`);
+for (const [g, st] of Object.entries(GSTYLE)) mer.push(`  classDef ${g} ${st};`);
+for (const n of nodes) mer.push(`  class ${mid(n.name)} ${n.group};`);
+const md = `# ${projName} — Infraestrutura (editável)\n\n` +
+  '> Scaffold Mermaid gerado por `/forge:infra-diagram`. **Editável**: VS Code (preview), Mermaid\n' +
+  '> Live Editor, ou importe no **draw.io** (Inserir → Mermaid) para editar visualmente com ícones.\n' +
+  '> Refine à mão: rede, zonas de confiança e escopo de compliance não vêm do compose.\n\n' +
+  '```mermaid\n' + mer.join('\n') + '\n```\n';
+writeFileSync(join(outDir, 'infra.md'), md);
+
+console.log(`OK ${join(outDir, 'infra.py')} + infra.md (editável) (${nodes.length} serviços: ${GROUPS.map(([g, t]) => `${byG(g).length} ${g}`).filter((s) => !s.startsWith('0')).join(', ')})`);

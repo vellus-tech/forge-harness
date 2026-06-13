@@ -6,7 +6,7 @@
 
 [![CI](https://github.com/MiltonSilvaJr/forge-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/MiltonSilvaJr/forge-harness/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-[![Version](https://img.shields.io/badge/version-v0.1.0--rc1-blue.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v0.1.0--rc2-blue.svg)](./CHANGELOG.md)
 [![Gates](https://img.shields.io/badge/gates-29%20passing-brightgreen.svg)](./tests)
 [![Runtime](https://img.shields.io/badge/runtime-zero--dependency-success.svg)](#)
 [![Node](https://img.shields.io/badge/node-%E2%89%A520-339933.svg)](#)

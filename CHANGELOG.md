@@ -6,6 +6,8 @@ e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+## [0.1.0-rc2] — 2026-06-13
+
 ### Added
 - **Instalação via `npx forge-harness init`** — bin `bin/forge.mjs` (zero-dep, cross-platform) porta o `installer/install.sh`; o template viaja no tarball, dispensando `git clone`. Interativo por padrão, ou por flags (`--target/--name/--slug/--desc/--adapters/--yes`). Novo gate `npx-pack-gate.sh` valida o conteúdo do tarball + paridade com o `install.sh` (29 gates).
 - `package.json` pronto para publicação: `bin`, `files` (allowlist), `engines.node >=20`, `license: MIT`, `repository`/`homepage`/`bugs`.
@@ -39,5 +41,6 @@ consolidação (Fase 8) + code graph com insights de arquitetura.
 - Toda a camada Quality (eval/meta) é **opt-in** (`quality.evals_enabled: false` por default).
 - Pendente para v0.1.0 final: teste manual em Claude Code real (contrato C10) + remoção dos wrappers deprecados.
 
-[Unreleased]: https://github.com/MiltonSilvaJr/forge-harness/compare/v0.1.0-rc1...HEAD
+[Unreleased]: https://github.com/MiltonSilvaJr/forge-harness/compare/v0.1.0-rc2...HEAD
+[0.1.0-rc2]: https://github.com/MiltonSilvaJr/forge-harness/compare/v0.1.0-rc1...v0.1.0-rc2
 [0.1.0-rc1]: https://github.com/MiltonSilvaJr/forge-harness/releases/tag/v0.1.0-rc1

@@ -11,6 +11,7 @@
 // Zero-dep. Uso: mermaid-to-drawio.mjs <arquivo.md|.mmd> [--out <arquivo.drawio>]
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 const inFile = process.argv[2];
 if (!inFile || !existsSync(inFile)) { console.error('Uso: mermaid-to-drawio.mjs <arquivo.md|.mmd> [--out <drawio>]'); process.exit(1); }
@@ -130,34 +131,7 @@ for (const n of nodes.values()) {
   const c = nodeClass.get(n.id); if (c && classDef.has(c)) { const s = classDef.get(c); n.fill = s.fill; n.stroke = s.stroke; n.dash = s.dash; }
 }
 
-// 3. layout (recursivo, geometria relativa em containers) -------------------
-const NW = 200, NH = 56, GAP = 16, HEADER = 34, PAD = 18;
-function sizeOfNode() { return { w: NW, h: NH }; }
-function layoutContainer(cid) {
-  const c = containers.get(cid);
-  // filhos diretos: nós cujo container === cid (na ordem de `order`/declaração) + containers filhos
-  const childNodes = [...nodes.values()].filter((n) => n.container === cid);
-  const childConts = c.children.filter((ch) => ch.kind === 'container').map((ch) => ch.id);
-  let y = HEADER, maxw = NW;
-  const placed = [];
-  for (const n of childNodes) { const s = sizeOfNode(); placed.push({ type: 'node', id: n.id, x: PAD, y, w: s.w, h: s.h }); y += s.h + GAP; maxw = Math.max(maxw, s.w); }
-  for (const cc of childConts) { const s = layoutContainer(cc); placed.push({ type: 'container', id: cc, x: PAD, y, w: s.w, h: s.h }); y += s.h + GAP; maxw = Math.max(maxw, s.w); }
-  c._placed = placed; c._w = maxw + 2 * PAD; c._h = y + PAD - GAP;
-  return { w: c._w, h: c._h };
-}
-// nível topo: containers + nós sem container, em linha (LR) ou coluna (TB)
-const topItems = order.filter((o) => (o.kind === 'container') || (o.kind === 'node' && nodes.get(o.id) && nodes.get(o.id).container == null));
-for (const it of topItems) if (it.kind === 'container') layoutContainer(it.id);
-const horiz = direction === 'LR' || direction === 'RL';
-let cx = 40, cy = 40; const topPos = new Map();
-for (const it of topItems) {
-  const w = it.kind === 'container' ? containers.get(it.id)._w : NW;
-  const h = it.kind === 'container' ? containers.get(it.id)._h : NH;
-  topPos.set(it.id, { x: cx, y: cy, w, h });
-  if (horiz) { cx += w + 60; } else { cy += h + 50; }
-}
-
-// 4. emit mxGraph XML -------------------------------------------------------
+// 3. layout — Graphviz (dot) para posicionamento limpo, com fallback zero-dep (colunas).
 const esc = (s) => { let r = String(s).split(/<br\s*\/?>/i).join('@@BR@@'); r = r.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\x22/g, '&quot;'); return r.split('@@BR@@').join('&lt;br&gt;'); };
 const nodeStyle = (n) => {
   const fill = n.fill || '#ffffff', stroke = n.stroke || '#333333';
@@ -168,26 +142,89 @@ const nodeStyle = (n) => {
   if (n.shape === 'rhombus') return `rhombus;${base}`;
   return `rounded=1;arcSize=8;${base}`;
 };
-const cells = ['<mxCell id="0"/>', '<mxCell id="1" parent="0"/>'];
-function emitContainer(cid, parent) {
-  const c = containers.get(cid); const pos = parent ? null : topPos.get(cid);
-  const geo = parent ? c._relGeo : { x: pos.x, y: pos.y, w: c._w, h: c._h };
-  const style = `rounded=1;arcSize=4;whiteSpace=wrap;html=1;fillColor=#fbfbfb;strokeColor=${c.stroke};verticalAlign=top;fontStyle=1;container=1;collapsible=0;`;
-  cells.push(`<mxCell id="c_${c.id}" value="${esc(c.title)}" style="${style}" vertex="1" parent="${parent ? `c_${parent}` : '1'}"><mxGeometry x="${geo.x}" y="${geo.y}" width="${geo.w}" height="${geo.h}" as="geometry"/></mxCell>`);
-  for (const ch of c._placed) {
-    if (ch.type === 'node') {
-      const n = nodes.get(ch.id);
-      cells.push(`<mxCell id="n_${n.id}" value="${esc(n.label)}" style="${nodeStyle(n)}" vertex="1" parent="c_${c.id}"><mxGeometry x="${ch.x}" y="${ch.y}" width="${ch.w}" height="${ch.h}" as="geometry"/></mxCell>`);
-    } else {
-      containers.get(ch.id)._relGeo = { x: ch.x, y: ch.y, w: ch.w, h: ch.h };
-      emitContainer(ch.id, c.id);
+const r2 = (v) => Math.round(v * 10) / 10;
+const NW = 200, NH = 56, GAP = 18, HEADER = 34, PAD = 18;
+
+function graphvizLayout() {
+  const rankdir = (direction === 'LR' || direction === 'RL') ? 'LR' : 'TB';
+  const q = (s) => '"' + String(s).replace(/"/g, '\\"') + '"';
+  const one = (s) => String(s).replace(/<br\s*\/?>/gi, ' ').replace(/\s+/g, ' ').trim();
+  let dot = `digraph G {\n  rankdir=${rankdir};\n  graph [nodesep=0.6,ranksep=1.0,fontsize=12];\n  node [shape=box,fixedsize=true,width=2.0,height=0.7,fontsize=11];\n  edge [fontsize=10];\n`;
+  const done = new Set();
+  const emitC = (cid, ind) => {
+    const c = containers.get(cid);
+    dot += `${ind}subgraph "cluster_${cid}" {\n${ind}  label=${q(c.title)};\n`;
+    for (const n of nodes.values()) if (n.container === cid) { dot += `${ind}  ${q(n.id)} [label=${q(one(n.label || n.id))}];\n`; done.add(n.id); }
+    for (const ch of c.children) if (ch.kind === 'container') emitC(ch.id, ind + '  ');
+    dot += `${ind}}\n`;
+  };
+  for (const o of order) if (o.kind === 'container') emitC(o.id, '  ');
+  for (const n of nodes.values()) if (!done.has(n.id)) dot += `  ${q(n.id)} [label=${q(one(n.label || n.id))}];\n`;
+  edges.forEach((e) => { if (nodes.has(e.from) && nodes.has(e.to)) dot += `  ${q(e.from)} -> ${q(e.to)}${e.label ? ` [label=${q(one(e.label))}]` : ''};\n`; });
+  dot += '}\n';
+  let out;
+  try { out = execFileSync('dot', ['-Tjson'], { input: dot, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }); } catch { return null; }
+  let j; try { j = JSON.parse(out); } catch { return null; }
+  const bb = (j.bb || '0,0,1000,1000').split(',').map(Number); const Hpt = bb[3];
+  const abs = new Map();
+  for (const o of (j.objects || [])) {
+    if (typeof o.name === 'string' && o.name.startsWith('cluster_')) {
+      const b = (o.bb || '0,0,0,0').split(',').map(Number);
+      abs.set('c_' + o.name.slice(8), { x: b[0], y: Hpt - b[3], w: b[2] - b[0], h: b[3] - b[1] });
+    } else if (o.pos) {
+      const [x, y] = o.pos.split(',').map(Number);
+      const w = (parseFloat(o.width) || 2) * 72, h = (parseFloat(o.height) || 0.7) * 72;
+      abs.set('n_' + o.name, { x: x - w / 2, y: (Hpt - y) - h / 2, w, h });
     }
   }
+  for (const n of nodes.values()) if (!abs.has('n_' + n.id)) return null;
+  return abs;
 }
-for (const it of topItems) {
-  if (it.kind === 'container') emitContainer(it.id, null);
-  else { const n = nodes.get(it.id); const p = topPos.get(it.id); cells.push(`<mxCell id="n_${n.id}" value="${esc(n.label)}" style="${nodeStyle(n)}" vertex="1" parent="1"><mxGeometry x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}" as="geometry"/></mxCell>`); }
+
+function columnLayout() {
+  const abs = new Map();
+  function size(cid) {
+    const c = containers.get(cid);
+    const cn = [...nodes.values()].filter((n) => n.container === cid);
+    const cc = c.children.filter((ch) => ch.kind === 'container').map((ch) => ch.id);
+    let y = HEADER, maxw = NW; const rel = [];
+    for (const n of cn) { rel.push({ t: 'n', id: n.id, x: PAD, y, w: NW, h: NH }); y += NH + GAP; }
+    for (const k of cc) { const s = size(k); rel.push({ t: 'c', id: k, x: PAD, y, w: s.w, h: s.h }); y += s.h + GAP; maxw = Math.max(maxw, s.w); }
+    c._rel = rel; c._w = Math.max(maxw, NW) + 2 * PAD; c._h = y + PAD - GAP; return { w: c._w, h: c._h };
+  }
+  const top = order.filter((o) => o.kind === 'container' || (o.kind === 'node' && nodes.get(o.id) && nodes.get(o.id).container == null));
+  for (const it of top) if (it.kind === 'container') size(it.id);
+  const horiz = direction === 'LR' || direction === 'RL';
+  let cx = 40, cy = 40;
+  const place = (cid, ox, oy) => { const c = containers.get(cid); abs.set('c_' + cid, { x: ox, y: oy, w: c._w, h: c._h }); for (const r of c._rel) { if (r.t === 'n') abs.set('n_' + r.id, { x: ox + r.x, y: oy + r.y, w: r.w, h: r.h }); else place(r.id, ox + r.x, oy + r.y); } };
+  for (const it of top) { const w = it.kind === 'container' ? containers.get(it.id)._w : NW; const h = it.kind === 'container' ? containers.get(it.id)._h : NH; if (it.kind === 'container') place(it.id, cx, cy); else abs.set('n_' + it.id, { x: cx, y: cy, w: NW, h: NH }); if (horiz) cx += w + 60; else cy += h + 50; }
+  return abs;
 }
+
+const gv = graphvizLayout();
+const absGeo = gv || columnLayout();
+const layoutEngine = gv ? 'graphviz' : 'colunas';
+
+// 4. emit mxGraph (geometria relativa ao container pai)
+const cells = ['<mxCell id="0"/>', '<mxCell id="1" parent="0"/>'];
+const relGeo = (id, parentCell) => { const a = absGeo.get(id); if (!a) return null; if (!parentCell || parentCell === '1') return a; const p = absGeo.get(parentCell); return p ? { x: a.x - p.x, y: a.y - p.y, w: a.w, h: a.h } : a; };
+const emittedC = new Set();
+function emitCont(cid) {
+  if (emittedC.has(cid)) return; const c = containers.get(cid);
+  if (c.parent && !emittedC.has(c.parent)) emitCont(c.parent);
+  const parentCell = c.parent ? `c_${c.parent}` : '1';
+  const g = relGeo('c_' + cid, parentCell) || { x: 0, y: 0, w: 220, h: 120 };
+  const style = `rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#fbfbfb;strokeColor=${c.stroke};verticalAlign=top;fontStyle=1;container=1;collapsible=0;`;
+  cells.push(`<mxCell id="c_${cid}" value="${esc(c.title)}" style="${style}" vertex="1" parent="${parentCell}"><mxGeometry x="${r2(g.x)}" y="${r2(g.y)}" width="${r2(g.w)}" height="${r2(g.h)}" as="geometry"/></mxCell>`);
+  emittedC.add(cid);
+}
+for (const cid of containers.keys()) emitCont(cid);
+for (const n of nodes.values()) {
+  const parentCell = n.container ? `c_${n.container}` : '1';
+  const g = relGeo('n_' + n.id, parentCell); if (!g) continue;
+  cells.push(`<mxCell id="n_${n.id}" value="${esc(n.label)}" style="${nodeStyle(n)}" vertex="1" parent="${parentCell}"><mxGeometry x="${r2(g.x)}" y="${r2(g.y)}" width="${r2(g.w)}" height="${r2(g.h)}" as="geometry"/></mxCell>`);
+}
+
 edges.forEach((e, i) => {
   if (!nodes.has(e.from) || !nodes.has(e.to)) return;
   const ls = linkStyles[i] || {};
@@ -203,4 +240,4 @@ const xml = `<mxfile host="forge" type="device"><diagram id="forge-diagram" name
 ${cells.join('\n')}
 </root></mxGraphModel></diagram></mxfile>\n`;
 writeFileSync(resolve(outFile), xml);
-console.log(`OK ${outFile} (${nodes.size} nós, ${containers.size} grupos, ${edges.length} arestas)`);
+console.log(`OK ${outFile} (${nodes.size} nós, ${containers.size} grupos, ${edges.length} arestas; layout: ${layoutEngine})`);

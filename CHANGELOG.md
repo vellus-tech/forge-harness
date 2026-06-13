@@ -7,6 +7,7 @@ e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 ## [Unreleased]
 
 ### Added
+- `mermaid-to-drawio` usa Graphviz (`dot`) para layout limpo do `.drawio` (fallback colunas zero-dep).
 - `/forge:mermaid-to-drawio` — converte Mermaid (flowchart) em `.drawio` (mxGraph) editável visualmente no draw.io; `/forge:infra-diagram` agora emite os três formatos (`.py`, `.md`, `.drawio`).
 
 ### Fixed

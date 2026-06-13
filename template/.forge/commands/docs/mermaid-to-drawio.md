@@ -17,5 +17,5 @@ bash .forge/scripts/mermaid-to-drawio.sh docs/diagrams/editable/infra.md
 - Suporta o subconjunto de flowchart usado pelos diagramas do Forge: shapes (`["..."]`,
   `(["..."])`, `[("...")]`, `{{"..."}}`), subgraphs aninhados (→ containers), edges
   `-->`/`-.->`/`==>` com rótulos, grupos `&`, cadeias, `classDef`/`class`, `linkStyle`.
-- O layout inicial é em colunas por cluster — refine no draw.io (`Arranjar → Layout`) se quiser.
+- O layout usa **Graphviz `dot`** quando disponível (posicionamento limpo, sem sobreposição); sem o `dot`, cai para um layout simples em colunas. Em ambos os casos, refine no draw.io.
 - Determinista, zero-dep. O `.drawio` é XML versionável (diff revisável em PR).

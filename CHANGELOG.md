@@ -6,6 +6,8 @@ e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+## [0.1.0-rc4] — 2026-06-15
+
 ### Added
 - `/forge:design-system` — slash command que é o ponto de entrada explícito para a skill `design-system-creator` (instala o Storybook, cria os assets de design system e desenvolve as UIs a partir de um handoff do Claude Design), com pré-checagem de stack (monorepo pnpm + React + CSS Modules).
 
@@ -49,7 +51,8 @@ consolidação (Fase 8) + code graph com insights de arquitetura.
 - Toda a camada Quality (eval/meta) é **opt-in** (`quality.evals_enabled: false` por default).
 - Pendente para v0.1.0 final: teste manual em Claude Code real (contrato C10) + remoção dos wrappers deprecados.
 
-[Unreleased]: https://github.com/MiltonSilvaJr/forge-harness/compare/v0.1.0-rc3...HEAD
+[Unreleased]: https://github.com/MiltonSilvaJr/forge-harness/compare/v0.1.0-rc4...HEAD
+[0.1.0-rc4]: https://github.com/MiltonSilvaJr/forge-harness/compare/v0.1.0-rc3...v0.1.0-rc4
 [0.1.0-rc3]: https://github.com/MiltonSilvaJr/forge-harness/compare/v0.1.0-rc2...v0.1.0-rc3
 [0.1.0-rc2]: https://github.com/MiltonSilvaJr/forge-harness/compare/v0.1.0-rc1...v0.1.0-rc2
 [0.1.0-rc1]: https://github.com/MiltonSilvaJr/forge-harness/releases/tag/v0.1.0-rc1

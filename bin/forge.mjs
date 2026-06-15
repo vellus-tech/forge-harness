@@ -212,7 +212,8 @@ async function main() {
   console.log('Próximos passos:');
   if (target !== process.cwd()) console.log(`  cd ${target}`);
   console.log('  bash .forge/scripts/doctor.sh        # detecta a stack + diagnostica o ambiente');
-  console.log('  # depois: abra seu agente (Claude Code/Codex/…) e rode /forge:init ou /forge:spec-new\n');
+  console.log('  # no seu agente (Claude Code/Codex/…): /forge:status  e  /forge:spec new');
+  console.log('  # codebase existente? peça ao agente para preencher o bloco runtime: do .forge/FORGE.md\n');
 }
 
 main().catch((e) => fail(e?.message || String(e), 1));

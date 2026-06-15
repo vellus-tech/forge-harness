@@ -6,7 +6,7 @@
 
 [![CI](https://github.com/MiltonSilvaJr/forge-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/MiltonSilvaJr/forge-harness/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-[![Version](https://img.shields.io/badge/version-v0.1.0--rc2-blue.svg)](./CHANGELOG.md)
+[![npm](https://img.shields.io/npm/v/forge-harness?color=blue&label=npm)](https://www.npmjs.com/package/forge-harness)
 [![Gates](https://img.shields.io/badge/gates-29%20passing-brightgreen.svg)](./tests)
 [![Runtime](https://img.shields.io/badge/runtime-zero--dependency-success.svg)](#)
 [![Node](https://img.shields.io/badge/node-%E2%89%A520-339933.svg)](#)
@@ -44,6 +44,8 @@ runtime e sem gastar tokens onde não precisa.
 - **PoC notação MDL 2.0** ([mdlmodel.com](https://mdlmodel.com)) gerada a partir do code graph.
 
 ## 🚀 Quickstart
+
+Publicado no npm: **[`forge-harness`](https://www.npmjs.com/package/forge-harness)** — instale com um comando, sem clonar nada:
 
 ```bash
 # no diretório do seu projeto (greenfield ou existente) — interativo, zero-install

@@ -6,6 +6,11 @@ e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+## [0.1.0-rc5] — 2026-06-15
+
+### Added
+- `init --force` agora **protege trabalho de produto**: se o `.forge` existente tem specs (ativos/arquivados) ou docs de produto (ADRs etc.), pede confirmação explícita (interativo) ou **bloqueia com exit 3** (não-interativo, ex.: CI) em vez de sobrescrever. Novo flag `--force-content` para sobrescrever mesmo assim (ainda faz backup em `.forge.bak-N`). Template fresh/greenfield não é afetado. Gate `npx-pack-gate.sh` cobre os três cenários.
+
 ## [0.1.0-rc4] — 2026-06-15
 
 ### Added
@@ -51,7 +56,8 @@ consolidação (Fase 8) + code graph com insights de arquitetura.
 - Toda a camada Quality (eval/meta) é **opt-in** (`quality.evals_enabled: false` por default).
 - Pendente para v0.1.0 final: teste manual em Claude Code real (contrato C10) + remoção dos wrappers deprecados.
 
-[Unreleased]: https://github.com/MiltonSilvaJr/forge-harness/compare/v0.1.0-rc4...HEAD
+[Unreleased]: https://github.com/MiltonSilvaJr/forge-harness/compare/v0.1.0-rc5...HEAD
+[0.1.0-rc5]: https://github.com/MiltonSilvaJr/forge-harness/compare/v0.1.0-rc4...v0.1.0-rc5
 [0.1.0-rc4]: https://github.com/MiltonSilvaJr/forge-harness/compare/v0.1.0-rc3...v0.1.0-rc4
 [0.1.0-rc3]: https://github.com/MiltonSilvaJr/forge-harness/compare/v0.1.0-rc2...v0.1.0-rc3
 [0.1.0-rc2]: https://github.com/MiltonSilvaJr/forge-harness/compare/v0.1.0-rc1...v0.1.0-rc2

@@ -44,7 +44,7 @@ const pkgVersion = () => {
 
 // ── arg parsing ────────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
-const flags = { force: false, noSymlink: false, yes: false, help: false, version: false };
+const flags = { force: false, forceContent: false, noSymlink: false, yes: false, help: false, version: false };
 const vals = { target: '', source: '', slug: '', name: '', desc: '', adapters: '' };
 let cmd = '';
 for (let i = 0; i < argv.length; i++) {
@@ -52,6 +52,7 @@ for (let i = 0; i < argv.length; i++) {
   switch (a) {
     case 'init': cmd = 'init'; break;
     case '--force': flags.force = true; break;
+    case '--force-content': flags.force = true; flags.forceContent = true; break;
     case '--no-symlink': flags.noSymlink = true; break;
     case '-y': case '--yes': flags.yes = true; break;
     case '-h': case '--help': flags.help = true; break;
@@ -85,7 +86,10 @@ Opções:
   --desc <texto>        descrição em 1 linha
   --adapters <lista>    adapters a instalar, separados por vírgula (padrão: claude)
                         disponíveis: ${ADAPTERS.join(', ')}
-  --force               se .forge já existe, faz backup (.forge.bak-N) e sobrescreve
+  --force               se .forge já existe, faz backup (.forge.bak-N) e sobrescreve.
+                        Se houver trabalho de produto (specs/ADRs/docs), pede confirmação
+                        (interativo) ou bloqueia (não-interativo) — prefira o update cirúrgico
+  --force-content       sobrescreve mesmo com trabalho de produto presente (ainda faz backup)
   --no-symlink          materializa CLAUDE/QWEN/GEMINI.md como cópias (sem symlink)
   -y, --yes             não-interativo: usa os padrões derivados sem perguntar
   -h, --help            mostra esta ajuda
@@ -97,6 +101,34 @@ function fail(msg, code = 1) { console.error(`FAIL (${msg})`); process.exit(code
 function slugify(s) {
   return String(s).toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '')
     .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');  // strip combining marks, then kebab
+}
+
+// Detect human product work that --force would bury in a backup: active/archived specs and
+// product docs (ADRs, capabilities, PRDs…). A fresh template has none of this — specs/active and
+// specs/archived hold only .gitkeep, and product/ ships just CHANGELOG.md — so plain
+// template/greenfield re-installs read as empty and are never blocked.
+function scanProductContent(forge) {
+  const subdirs = (d) => {
+    try { return readdirSync(d, { withFileTypes: true }).filter((e) => e.isDirectory()).length; }
+    catch { return 0; }
+  };
+  const countMdExcept = (dir, except) => {
+    let n = 0;
+    const walk = (d) => {
+      let es; try { es = readdirSync(d, { withFileTypes: true }); } catch { return; }
+      for (const e of es) {
+        const p = join(d, e.name);
+        if (e.isDirectory()) walk(p);
+        else if (e.name.endsWith('.md') && !except.includes(e.name)) n++;
+      }
+    };
+    walk(dir);
+    return n;
+  };
+  const specsActive = subdirs(join(forge, 'specs', 'active'));
+  const specsArchived = subdirs(join(forge, 'specs', 'archived'));
+  const productDocs = countMdExcept(join(forge, 'product'), ['CHANGELOG.md']);  // template ships only CHANGELOG.md
+  return { specsActive, specsArchived, productDocs, total: specsActive + specsArchived + productDocs };
 }
 
 async function main() {
@@ -111,8 +143,39 @@ async function main() {
   mkdirSync(target, { recursive: true });
   const baseSlug = slugify(basename(target)) || 'projeto';
 
-  // gather identity — interactive when TTY and not --yes, else derive defaults
+  const forge = join(target, '.forge');
   const interactive = !flags.yes && process.stdin.isTTY && process.stdout.isTTY;
+
+  // 1. overwrite guard — never clobber an existing .forge without --force, and never let --force
+  // silently bury real product work. A fresh template scans as empty, so greenfield/template
+  // re-installs are unaffected; a project with specs/ADRs/docs requires explicit confirmation.
+  if (existsSync(forge)) {
+    if (!flags.force) fail(`.forge já existe em ${target} — re-execute com --force para backup e sobrescrita`, 3);
+    const work = scanProductContent(forge);
+    if (work.total > 0 && !flags.forceContent) {
+      const parts = [
+        work.specsActive && `${work.specsActive} spec(s) ativo(s)`,
+        work.specsArchived && `${work.specsArchived} spec(s) arquivado(s)`,
+        work.productDocs && `${work.productDocs} doc(s) de produto`,
+      ].filter(Boolean).join(', ');
+      console.error(`\n⚠️  O .forge em ${target} contém trabalho de produto (${parts}).`);
+      console.error('   --force moveria tudo para .forge.bak-N e instalaria o template limpo por cima.');
+      console.error('   Para ATUALIZAR preservando seu conteúdo, prefira o update cirúrgico:');
+      console.error('   copie só o que mudou e rode .forge/scripts/sync-adapters.sh (sem --force).\n');
+      if (!interactive)
+        fail('sobrescrita bloqueada para proteger conteúdo de produto — reexecute com --force-content para confirmar (ainda faz backup)', 3);
+      const rl = createInterface({ input: process.stdin, output: process.stdout });
+      const ans = (await rl.question(`   Para sobrescrever mesmo assim, digite "${baseSlug}" (ENTER aborta): `)).trim();
+      rl.close();
+      if (ans !== baseSlug) fail('sobrescrita cancelada — nada foi alterado', 3);
+    }
+    let n = 1; while (existsSync(`${forge}.bak-${n}`)) n++;
+    renameSync(forge, `${forge}.bak-${n}`);
+    const preserved = work.total > 0 ? ` (${work.total} item(ns) de produto preservados no backup)` : '';
+    console.log(`backup: .forge anterior movido para .forge.bak-${n}${preserved}`);
+  }
+
+  // 2. gather identity — interactive when TTY and not --yes, else derive defaults
   let { name, slug, desc, adapters } = vals;
   if (interactive && (!name || !slug || !desc || !adapters)) {
     const rl = createInterface({ input: process.stdin, output: process.stdout });
@@ -133,16 +196,6 @@ async function main() {
   // validate adapter names early (sync-adapters would also reject, but a clear message is kinder)
   const unknown = adapters.split(',').filter((a) => !ADAPTERS.includes(a));
   if (unknown.length) fail(`adapter(s) desconhecido(s): ${unknown.join(', ')} — válidos: ${ADAPTERS.join(', ')}`, 2);
-
-  const forge = join(target, '.forge');
-
-  // 1. overwrite guard — never clobber an existing .forge without --force
-  if (existsSync(forge)) {
-    if (!flags.force) fail(`.forge já existe em ${target} — re-execute com --force para backup e sobrescrita`, 3);
-    let n = 1; while (existsSync(`${forge}.bak-${n}`)) n++;
-    renameSync(forge, `${forge}.bak-${n}`);
-    console.log(`backup: .forge anterior movido para .forge.bak-${n}`);
-  }
 
   // 2. install canonical tree (skip macOS cruft on the way in)
   const src = vals.source ? resolve(vals.source) : TEMPLATE_FORGE;

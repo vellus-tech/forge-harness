@@ -1,6 +1,6 @@
 {
   "name": "forge-harness",
-  "version": "0.1.0-rc4",
+  "version": "0.1.0-rc5",
   "description": "Spec-Driven Development harness: single source of truth in .forge/, multi-agent adapters (Claude/Codex/Cursor/Gemini/…), native code graph and deterministic validators. Zero runtime deps.",
   "type": "commonjs",
   "bin": {

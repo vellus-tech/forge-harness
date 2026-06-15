@@ -78,4 +78,24 @@ set -e
 [ "$rc" -eq 3 ] || { echo "FAIL (overwrite guard: esperado exit 3, veio $rc)"; cat "$T/guard.log"; exit 1; }
 echo "OK [4]"
 
+echo "[5] --force protege trabalho de produto (specs/ADRs) e --force-content libera"
+# template fresh: --force re-instala sem bloquear
+node "$BIN" init --target "$T/proj" --slug gate-proj --name "Gate Proj" --desc x --force --yes >"$T/f1.log" 2>&1 \
+  || { echo "FAIL (--force bloqueou um .forge SEM conteúdo de produto)"; cat "$T/f1.log"; exit 1; }
+# adiciona um ADR → vira conteúdo de produto
+mkdir -p "$T/proj/.forge/product/current/adr"
+printf '# ADR 0001\nteste\n' > "$T/proj/.forge/product/current/adr/0001-x.md"
+set +e
+node "$BIN" init --target "$T/proj" --slug gate-proj --name "Gate Proj" --desc x --force --yes >"$T/f2.log" 2>&1
+rc=$?
+set -e
+[ "$rc" -eq 3 ] || { echo "FAIL (--force devia BLOQUEAR com conteúdo de produto, veio exit $rc)"; cat "$T/f2.log"; exit 1; }
+[ -f "$T/proj/.forge/product/current/adr/0001-x.md" ] || { echo "FAIL (ADR foi sobrescrito apesar do bloqueio)"; exit 1; }
+grep -qi 'trabalho de produto' "$T/f2.log" || { echo "FAIL (sem aviso de trabalho de produto)"; exit 1; }
+# --force-content libera (e faz backup)
+node "$BIN" init --target "$T/proj" --slug gate-proj --name "Gate Proj" --desc x --force-content --yes >"$T/f3.log" 2>&1 \
+  || { echo "FAIL (--force-content devia sobrescrever)"; cat "$T/f3.log"; exit 1; }
+ls -d "$T/proj"/.forge.bak-* >/dev/null 2>&1 || { echo "FAIL (--force-content não criou backup)"; exit 1; }
+echo "OK [5]"
+
 echo "OK"

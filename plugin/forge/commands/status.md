@@ -4,6 +4,9 @@ description: Mostra o estado do harness Forge - specs ativas, baseline, graph e 
 
 # /forge:status
 
+> **Pré-checagem (repo sem Forge).** Se `.forge/forge.yaml` **não existe** no diretório atual, este repositório ainda não tem o engine Forge. **Não tente ler arquivos de estado.** Responda exatamente isto e pare:
+> *"Este repositório não tem o engine Forge (`.forge/` ausente). Os comandos `/forge:*` são globais (plugin), mas o estado vive no `.forge/` de cada projeto. Rode `npx forge-harness@latest init` na raiz e depois `/forge:status` de novo."*
+
 Responda em poucas linhas, lendo APENAS arquivos de estado (nunca releia artefatos inteiros):
 
 1. **Harness:** `.forge/forge.yaml` existe? `template_version`, adapters instalados, e resultado-resumo do último doctor se disponível.

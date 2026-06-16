@@ -4,6 +4,9 @@ description: Valida o harness Forge e a tooling do projeto (stacks, adapters, sy
 
 # /forge:doctor
 
+> **Pré-checagem (repo sem Forge).** Se `.forge/forge.yaml` **não existe** no diretório atual, este repositório ainda não tem o engine Forge — o `.forge/scripts/doctor.sh` nem está presente. **Não tente rodar scripts.** Responda exatamente isto e pare:
+> *"Este repositório não tem o engine Forge (`.forge/` ausente). Os comandos `/forge:*` aparecem em todo projeto (o plugin é global), mas precisam do engine por projeto. Rode `npx forge-harness@latest init` na raiz e depois `/forge:doctor` de novo. (Não existe `/forge:init` por design — o bootstrap é uma operação do instalador.)"*
+
 Execute o validador determinista e reporte o resultado de forma compacta:
 
 1. Rode `bash .forge/scripts/doctor.sh --report` (saída completa em `/tmp/forge-doctor.log` se longa; leia só o necessário).

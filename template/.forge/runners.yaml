@@ -1,6 +1,6 @@
 # runners.yaml — configuração do eval harness (§10.9, Layer 5).
 # Toda a camada Quality é opt-in: quality.evals_enabled deve ser true em FORGE.md
-# para que os comandos /forge:skill eval|optimize operem.
+# para que os comandos /forge:skill-lifecycle eval|optimize operem.
 # Runners degradam graciosamente para serial quando parallel: false.
 version: 1
 default_runner: claude-code
@@ -28,7 +28,7 @@ runners:
 
   forge-cli:
     kind: forge
-    # Executa o harness interno: /forge:skill eval como runner
+    # Executa o harness interno: /forge:skill-lifecycle eval como runner
     command: "bash"
     args: [".forge/scripts/run-eval.sh", "{prompt}"]
     captures: [tokens, duration_ms, output, gates]

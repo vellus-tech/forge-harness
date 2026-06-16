@@ -1,7 +1,7 @@
 ---
 name: eval-grader
 description: |
-  Aciona pelo /forge:skill eval após o eval-executor produzir results.json. Para cada caso de teste, avalia se o output (baseline e variant) atende cada expectativa. Produz grading.json conforme grading.schema.json — expectations com text/passed/evidence obrigatórios.
+  Aciona pelo /forge:skill-lifecycle eval após o eval-executor produzir results.json. Para cada caso de teste, avalia se o output (baseline e variant) atende cada expectativa. Produz grading.json conforme grading.schema.json — expectations com text/passed/evidence obrigatórios.
 tools:
   - Read
   - Write

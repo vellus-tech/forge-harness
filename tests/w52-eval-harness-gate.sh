@@ -47,8 +47,8 @@ for a in executor grader comparator analyzer; do
 done
 echo "OK [3]"
 
-echo "[4] /forge:skill com create|eval|optimize + opt-in"
-CMD="$T/.forge/commands/skills/skill.md"
+echo "[4] /forge:skill-lifecycle com create|eval|optimize + opt-in"
+CMD="$T/.forge/commands/skills/skill-lifecycle.md"
 [ -f "$CMD" ]
 head -1 "$CMD" | grep -q '^---'
 grep -q 'description:' "$CMD"

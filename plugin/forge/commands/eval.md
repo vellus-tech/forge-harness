@@ -9,7 +9,7 @@ Argumentos: `$ARGUMENTS` (`harness` + nome do caso + flags).
 
 > **Opt-in.** Só opera com `quality.evals_enabled: true` em `.forge/FORGE.md`. Senão, pare: `Quality layer desabilitada — ative quality.evals_enabled em FORGE.md (§17.9).`
 
-Diferença para `/forge:skill eval`: aqui o artefato sob teste é **do próprio Forge** (template/command/rule), e o sinal de qualidade é o **relatório do validador** (`[MISS]`/`[CONFLICT]`/`[CLARIFY]`), não expectations escritas à mão. Transforma a evolução do harness de opinião em evidência.
+Diferença para `/forge:skill-lifecycle eval`: aqui o artefato sob teste é **do próprio Forge** (template/command/rule), e o sinal de qualidade é o **relatório do validador** (`[MISS]`/`[CONFLICT]`/`[CLARIFY]`), não expectations escritas à mão. Transforma a evolução do harness de opinião em evidência.
 
 A estatística (mean±stddev, deltas) sai de scripts deterministas — o modelo nunca decide o veredito "no olho" (§10.11).
 

@@ -3,7 +3,7 @@ description: Cria, avalia (A/B) e otimiza skills do harness. create (entrevista 
 argument-hint: "create|eval|optimize <skill-name> [--runner claude-code] [--iterations N]"
 ---
 
-# /forge:skill — ciclo de vida de skills (§17.8)
+# /forge:skill-lifecycle — ciclo de vida de skills (§17.8)
 
 Argumentos: `$ARGUMENTS` (subcomando + nome da skill + flags).
 
@@ -26,7 +26,7 @@ Entrevista de intenção curta e gera `SKILL.md` com frontmatter validado.
    ```bash
    bash .forge/scripts/validate-frontmatter.sh .forge/skills/<skill-name>/SKILL.md
    ```
-4. Sugira criar `evals.json` (casos de teste) para poder rodar `/forge:skill eval` depois.
+4. Sugira criar `evals.json` (casos de teste) para poder rodar `/forge:skill-lifecycle eval` depois.
 
 ---
 

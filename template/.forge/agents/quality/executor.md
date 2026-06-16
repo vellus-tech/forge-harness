@@ -1,7 +1,7 @@
 ---
 name: eval-executor
 description: |
-  Aciona pelo /forge:skill eval para executar os casos de teste de um eval A/B. Invoca o runner configurado (runners.yaml) para cada caso — primeiro sem a skill (baseline), depois com a skill (variant). Captura output, tokens e duração. Escreve results.json no workspace do eval. Não grade — apenas executa e registra.
+  Aciona pelo /forge:skill-lifecycle eval para executar os casos de teste de um eval A/B. Invoca o runner configurado (runners.yaml) para cada caso — primeiro sem a skill (baseline), depois com a skill (variant). Captura output, tokens e duração. Escreve results.json no workspace do eval. Não grade — apenas executa e registra.
 tools:
   - Read
   - Bash

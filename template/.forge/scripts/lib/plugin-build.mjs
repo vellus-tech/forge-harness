@@ -26,6 +26,11 @@ const PLUGIN_DESCRIPTION =
   'Forge Project Harness — slash commands /forge:* (SDD spec lifecycle, waves, code graph, ' +
   'docs/ADRs, harness). O engine .forge/ por projeto vem do instalador (npx forge-harness init).';
 
+// Nomes que o Claude Code reserva: um comando chamado exatamente assim, dentro de um plugin,
+// COLIDE com a infra de skills e faz o plugin INTEIRO não carregar (silenciosamente — o CLI até
+// lista o comando, mas a sessão não expõe nenhum /forge:*). Descoberto por bissecção com `skill`.
+const RESERVED_COMMAND_NAMES = new Set(['skill']);
+
 // ── coleta (I/O) ─────────────────────────────────────────────────────────────
 // Lê todos os comandos .md de commandsDir (recursivo), exceto README.md, e os achata.
 export function collectCommands(commandsDir) {
@@ -65,6 +70,12 @@ export function planForgePlugin({ commands, version, name = 'forge' }) {
   for (const c of commands.slice().sort((a, b) => a.name.localeCompare(b.name))) {
     if (seen.has(c.name)) {
       throw new Error(`colisão de comando '${c.name}' (${c.src ?? '?'} vs ${seen.get(c.name)})`);
+    }
+    const bare = c.name.replace(/\.md$/, '');
+    if (RESERVED_COMMAND_NAMES.has(bare)) {
+      throw new Error(
+        `comando '${bare}' usa um nome reservado pelo Claude Code (${c.src ?? c.name}) — ` +
+        `derrubaria o carregamento do plugin inteiro. Renomeie (ex.: '${bare}-lifecycle').`);
     }
     seen.set(c.name, c.src ?? c.name);
     files.push({ rel: `commands/${c.name}`, content: c.content });

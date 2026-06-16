@@ -1,7 +1,7 @@
 ---
 name: eval-comparator
 description: |
-  Aciona pelo /forge:skill eval quando se quer um julgamento A/B cego (blind). Recebe dois outputs anonimizados (A e B) por caso de teste — sem saber qual é baseline e qual é variant — e decide qual atende melhor as expectativas, ou empate. Escreve comparison.json. Anti-viés: a desanonimização só é feita pelo chamador depois do veredito.
+  Aciona pelo /forge:skill-lifecycle eval quando se quer um julgamento A/B cego (blind). Recebe dois outputs anonimizados (A e B) por caso de teste — sem saber qual é baseline e qual é variant — e decide qual atende melhor as expectativas, ou empate. Escreve comparison.json. Anti-viés: a desanonimização só é feita pelo chamador depois do veredito.
 tools:
   - Read
   - Write

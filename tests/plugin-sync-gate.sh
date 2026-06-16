@@ -38,6 +38,14 @@ PLG_N="$(find plugin/forge/commands -name '*.md' | wc -l | tr -d ' ')"
 [ "$SRC_N" = "$PLG_N" ] || { echo "FAIL: $SRC_N comandos na fonte, $PLG_N no plugin (colisão de basename?)"; exit 1; }
 echo "OK [3] ($PLG_N comandos)"
 
+# Nome reservado pelo Claude Code: um comando 'skill' (exato) num plugin derruba o carregamento
+# inteiro silenciosamente. plugin-build.mjs já aborta, mas guardamos aqui com mensagem clara.
+echo "[3b] nenhum comando usa nome reservado (ex.: skill)"
+if find plugin/forge/commands template/.forge/commands -name 'skill.md' | grep -q .; then
+  echo "FAIL: existe um comando 'skill' — renomeie (ex.: skill-lifecycle); 'skill' colide com a infra de skills do Claude Code"; exit 1
+fi
+echo "OK [3b]"
+
 echo "[4] validação de manifesto (se claude disponível)"
 if command -v claude >/dev/null 2>&1; then
   claude plugin validate . --strict >/dev/null 2>&1 || { echo "FAIL: marketplace/plugin inválido (claude plugin validate . --strict)"; exit 1; }

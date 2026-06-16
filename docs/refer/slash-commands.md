@@ -151,9 +151,9 @@ _Scaffolding de testes._
 
 ## Skills
 
-_Ponto de entrada para skills._
+_Ciclo de vida de skills (create/eval/optimize)._
 
 | Command | Argumentos | Descrição |
 |---|---|---|
-| `/forge:skill` | `create\|eval\|optimize <skill-name> [--runner claude-code] [--iterations N]` | Cria, avalia (A/B) e otimiza skills do harness. |
+| `/forge:skill-lifecycle` | `create\|eval\|optimize <skill-name> [--runner claude-code] [--iterations N]` | Cria, avalia (A/B) e otimiza skills do harness. |
 

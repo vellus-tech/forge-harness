@@ -1,0 +1,15 @@
+{
+  "name": "forge-harness",
+  "description": "Marketplace do Forge Project Harness — distribui o plugin `forge` com os slash commands /forge:* (SDD, waves, code graph, docs, manutenção do harness).",
+  "owner": {
+    "name": "Milton Antonio da Silva Jr"
+  },
+  "plugins": [
+    {
+      "name": "forge",
+      "source": "./plugin/forge",
+      "description": "Slash commands /forge:* do Forge Project Harness — SDD spec lifecycle, waves, code graph, docs/ADRs e manutenção do harness. O engine .forge/ por projeto vem de `npx forge-harness init`.",
+      "version": "0.1.0-rc5"
+    }
+  ]
+}

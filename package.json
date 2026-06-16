@@ -17,7 +17,8 @@
     "node": ">=20"
   },
   "scripts": {
-    "test": "bash tests/run-all.sh"
+    "test": "bash tests/run-all.sh",
+    "build:plugin": "node template/.forge/scripts/lib/plugin-build.mjs --commands template/.forge/commands --out plugin/forge --version $npm_package_version"
   },
   "keywords": [
     "spec-driven-development",

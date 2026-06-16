@@ -150,6 +150,11 @@ function makeLock() {
   };
   return api;
 }
+function readLockDests(name) {
+  const p = join(ADAPTERS_DIR, `${name}.lock.yaml`);
+  if (!existsSync(p)) return [];
+  return [...readFileSync(p, 'utf8').matchAll(/^ {2}- dest: (.*)$/gm)].map((m) => m[1]);
+}
 function writeLock(name, lock) {
   lock.entries.sort((a, b) => a.dest.localeCompare(b.dest));
   const out = [
@@ -167,12 +172,6 @@ function writeLock(name, lock) {
 const commandFiles = () =>
   walk(join(FORGE, 'commands')).filter((f) => f.endsWith('.md') && basename(f) !== 'README.md');
 const skillFiles = () => walk(join(FORGE, 'skills'));
-
-// Wrappers exist ONLY for the 8 legacy commands of contract clause C1.
-const LEGACY_COMMANDS = new Set([
-  'run-spec-pipeline', 'specs-loop', 'coding-loop', 'coding-status',
-  'deploy-wave', 'new-adr', 'update-changelog', 'scaffold-tdd',
-]);
 
 function emitAgentsCommands(lock) {
   for (const src of commandFiles()) lock.emit(join(ROOT, '.agents/commands/forge', basename(src)), readFileSync(src, 'utf8'), src);
@@ -192,22 +191,11 @@ function generateCore(lock) {
 // ── adapter generators ───────────────────────────────────────────────────────
 const GENERATORS = {
   claude(lock) {
-    for (const src of commandFiles()) {
-      const name = basename(src, '.md');
-      lock.emit(join(ROOT, '.claude/commands/forge', `${name}.md`), readFileSync(src, 'utf8'), src);
-      if (!LEGACY_COMMANDS.has(name)) continue;
-      const wrapper = `---
-description: "[DEPRECATED] Alias de /forge:${name} mantido pelo contrato de compatibilidade (C1); remocao prevista na W8.3. Prefira /forge:${name}."
----
-
-Este comando foi renomeado para \`/forge:${name}\`.
-
-Execute exatamente as instrucoes de \`.claude/commands/forge/${name}.md\` com os mesmos argumentos recebidos ($ARGUMENTS), sem alterar o comportamento. Ao concluir, informe ao usuario que este alias sera removido e que o nome atual e \`/forge:${name}\`.
-`;
-      lock.emit(join(ROOT, '.claude/commands', `${name}.md`), wrapper, src);
-    }
-    // commands/README.md is NOT projected: Claude Code registers every .md under
-    // commands/ as a slash command, so a README there becomes a phantom /forge:README.
+    // Slash commands /forge:* NÃO são projetados em .claude/commands/ (contract C1, revisado): o
+    // Claude Code (>= 2.x) descontinuou o namespace via subdiretório ali — comandos soltos viram
+    // /<arquivo>, sem o prefixo `forge:`. Os /forge:* canônicos passam a vir de um PLUGIN
+    // (name: forge), instalado por `npx forge-harness install-plugin` (auto no init) ou pelo
+    // marketplace git. Gerador: template/.forge/scripts/lib/plugin-build.mjs.
     for (const tree of ['agents', 'skills']) {
       for (const src of walk(join(FORGE, tree))) {
         lock.emit(join(ROOT, '.claude', tree, relative(join(FORGE, tree), src)), readFileSync(src, 'utf8'), src);
@@ -276,12 +264,27 @@ function reconcile(activeNames) {
   writeLock('core', coreLock);
 
   const activeDests = new Set(coreLock.entries.map((e) => e.dest));
+  const prevDestsByAdapter = new Map();   // lockfile dests BEFORE regeneration (for stale prune)
   for (const name of active) {
+    prevDestsByAdapter.set(name, readLockDests(name));
     const lock = makeLock();
     GENERATORS[name](lock);
     writeLock(name, lock);
     lock.entries.forEach((e) => activeDests.add(e.dest));
     console.log(`OK ${name} adapter synced (${lock.entries.length} targets)`);
+  }
+
+  // prune STALE dests of still-active adapters: paths an adapter emitted before but no longer does
+  // (e.g. .claude/commands/forge/* after C1 moved /forge:* to the plugin). Remove only if no active
+  // adapter/core now owns the path. Keeps upgrades clean without a manual sweep; idempotent (a fresh
+  // tree has no prior lockfile, so nothing to prune, and a second run finds nothing stale).
+  let prunedStale = 0;
+  for (const name of active) {
+    for (const dest of prevDestsByAdapter.get(name) || []) {
+      if (activeDests.has(dest)) continue;
+      const abs = join(ROOT, dest);
+      if (exists(abs)) { try { unlinkSync(abs); prunedStale++; } catch { /* already gone */ } }
+    }
   }
 
   // prune deactivated adapters: remove their dests not owned by any active adapter/core
@@ -302,7 +305,8 @@ function reconcile(activeNames) {
   }
   for (const dir of ['.claude', '.agents', '.cursor', '.kiro']) removeEmptyDirs(join(ROOT, dir));
 
-  console.log(`OK reconcile complete: ${active.length} active [${active.join(', ')}]${pruned ? `, ${pruned} files pruned` : ''}`);
+  const totalPruned = pruned + prunedStale;
+  console.log(`OK reconcile complete: ${active.length} active [${active.join(', ')}]${totalPruned ? `, ${totalPruned} files pruned` : ''}`);
 }
 
 // ── entry ────────────────────────────────────────────────────────────────────

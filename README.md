@@ -7,7 +7,7 @@
 [![CI](https://github.com/MiltonSilvaJr/forge-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/MiltonSilvaJr/forge-harness/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![npm](https://img.shields.io/npm/v/forge-harness?color=blue&label=npm)](https://www.npmjs.com/package/forge-harness)
-[![Gates](https://img.shields.io/badge/gates-29%20passing-brightgreen.svg)](./tests)
+[![Gates](https://img.shields.io/badge/gates-30%20passing-brightgreen.svg)](./tests)
 [![Runtime](https://img.shields.io/badge/runtime-zero--dependency-success.svg)](#)
 [![Node](https://img.shields.io/badge/node-%E2%89%A520-339933.svg)](#)
 [![Adapters](https://img.shields.io/badge/adapters-claude%20%C2%B7%20codex%20%C2%B7%20cursor%20%C2%B7%20%2B5-8A2BE2.svg)](#adapters-multi-agente)
@@ -70,6 +70,28 @@ agente(s) ativo(s). Por padrão instala apenas o adapter **claude**; adicione ou
 `npx` baixa o pacote (o template viaja dentro dele), roda uma vez e sai; nada de `node_modules` no
 seu projeto.
 
+### 🔌 Slash commands `/forge:*` (plugin do Claude Code)
+
+O `.forge/` por projeto traz o **engine**; os **slash commands** `/forge:*` são entregues por um
+**plugin** do Claude Code — porque o Claude Code (≥ 2.x) reserva o namespace `:` para plugins
+(comandos soltos em `.claude/commands/` viram só `/<nome>`, sem o prefixo `forge:`). **O `init` já
+auto-instala o plugin** (global, vale para todos os seus projetos) quando o adapter claude está ativo;
+depois é só `/reload-plugins` (ou nova sessão) e os 47 comandos `/forge:*` aparecem.
+
+Para (re)instalar/atualizar o plugin manualmente, há duas vias:
+
+```bash
+# A) via npx — (re)gera o plugin em ~/.claude/skills/forge (o que o init faz por baixo)
+npx forge-harness@latest install-plugin
+
+# B) via marketplace git — versionado, atualizável por git (dentro do Claude Code)
+/plugin marketplace add MiltonSilvaJr/forge-harness
+/plugin install forge@forge-harness
+```
+
+Pule a auto-instalação com `init --no-plugin`. Para projetos com comandos custom, regenere o plugin a
+partir do `.forge/` local com `/forge:build-plugin`.
+
 <details>
 <summary>Alternativa: instalação por clone (offline / sem npm)</summary>
 
@@ -92,6 +114,11 @@ spec new ─▶ clarify ─▶ requirements ─▶ design ─▶ tasks ─▶ im
 
 Cada transição é registrada por scripts deterministas; os gates humanos (`approve`/`review`/`reject`/
 `block`) ficam em `approvals.yaml`. Em `scale` baixo, fases são puláveis (Quick Plan) com justificativa.
+
+> 📖 **Relação completa dos 47 slash commands** (`/forge:*`), por grupo e com argumentos:
+> [`docs/refer/slash-commands.md`](./docs/refer/slash-commands.md). Os comandos são
+> entregues por um **plugin** do Claude Code — gere/instale com `/forge:build-plugin`
+> (ou `bash .forge/scripts/build-plugin.sh`).
 
 ## 🕸️ Code graph & arquitetura
 
@@ -121,14 +148,14 @@ Trocar/adicionar um agente reconcilia o workspace (gera os ausentes, poda os rem
 template/.forge/        # o harness instalável (fonte única)
 ├── FORGE.md            # governança + frontmatter de runtime
 ├── agents/  (43)       # subagentes por categoria (specifications, architecture, review, …)
-├── commands/ (43)      # comandos /forge:* (specs, waves, graph, quality, …)
+├── commands/ (47)      # comandos /forge:* (specs, waves, graph, quality, …) — relação completa em docs/refer/slash-commands.md
 ├── skills/   (9)       # skills especialistas (gate-runner, story-context, …)
 ├── rules/   (33)       # convenções (arquitetura, domínio, testing, …)
 ├── schemas/ (17)       # JSON Schemas (manifest, spec-delta, grading, graph, …)
 └── scripts/ (46)       # engine determinista (graph, archive, sync-adapters, hooks, …)
 bin/forge.mjs           # CLI do npx (forge-harness init) — porta cross-platform do install.sh
 installer/              # install.sh + gitignore.patch + delegação global do /init-project
-tests/                  # 29 gates deterministas + run-all.sh
+tests/                  # 30 gates deterministas + run-all.sh
 docs/                   # planos (MVP1–5, Fase 8) + referência do harness
 snapshot/               # snapshot congelado do adapter Claude (contrato de compatibilidade)
 ```
@@ -136,7 +163,7 @@ snapshot/               # snapshot congelado do adapter Claude (contrato de comp
 ## ✅ Testes
 
 ```bash
-bash tests/run-all.sh          # roda os 29 gates + suítes bats; saída agregada
+bash tests/run-all.sh          # roda os 30 gates + suítes bats; saída agregada
 ```
 
 Cada wave de desenvolvimento entrega seu gate junto (shift-left). O contrato do adapter Claude

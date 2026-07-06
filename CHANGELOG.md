@@ -6,6 +6,9 @@ e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+### Added
+- **Integração com o draw.io MCP para elaboração e manutenção de diagramas.** Nova rule `conventions/diagram-tooling.md` define a política em camadas: fonte textual versionada (Mermaid/`infra.py`) como verdade, draw.io como camada de elaboração/edição visual, e ordem de preferência de tooling — MCP `drawio` (`open_drawio_mermaid`/`open_drawio_xml`/`open_drawio_csv`) → plugin Claude Code `drawio@drawio` (`.drawio` nativos + export PNG/SVG/PDF com `--embed-diagram`) → fallback determinista `mermaid-to-drawio.sh` (canônico em CI/offline). Os comandos `/forge:mermaid-to-drawio`, `/forge:infra-diagram` e `/forge:c4` referenciam o caminho MCP (incl. `search_shapes` para shapes reais e nota de data residency para diagramas PCI); convenção registrada no `context.md`.
+
 ## [0.1.0-rc7] — 2026-06-16
 
 ### Changed

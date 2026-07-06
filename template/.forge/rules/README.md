@@ -23,7 +23,7 @@ Antes de qualquer modificação, leia os rules das categorias aplicáveis à sua
 
 ## Catálogo
 
-### `conventions/` (9 arquivos)
+### `conventions/` (10 arquivos)
 
 | Arquivo | Descrição | Prioridade |
 |---|---|---|
@@ -36,6 +36,7 @@ Antes de qualquer modificação, leia os rules das categorias aplicáveis à sua
 | [docker-naming.md](./conventions/docker-naming.md) | Nomenclatura de imagens Docker | Média |
 | [document-versioning.md](./conventions/document-versioning.md) | Versionamento SemVer de documentos vivos | Média |
 | [no-summary-files.md](./conventions/no-summary-files.md) | Proibição de arquivos de resumo | Baixa |
+| [diagram-tooling.md](./conventions/diagram-tooling.md) | Elaboração/manutenção de diagramas via draw.io MCP + fallback determinista | Média |
 
 ### `architecture/` (12 arquivos)
 

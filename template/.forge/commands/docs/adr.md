@@ -15,6 +15,19 @@ Argumentos: `$ARGUMENTS` (`new <título>`; sem título, pergunte em uma linha).
 4. **Índice:** crie/atualize `.forge/product/current/adr/README.md` (tabela Nº/Título/Status/Data).
 5. **Publicação:** lembre que o ADR aparece em `docs/product/adr/` no próximo `/forge:publish-docs`.
 
+## Conflito no índice (README/index)
+
+O índice de ADRs (`.forge/product/current/adr/README.md`) é **append-only por natureza** —
+cada branch só adiciona linhas novas. Em conflito de merge nesse arquivo:
+
+1. **Nunca `git checkout --ours`/`--theirs` cego.** Isso descarta ADRs de um dos lados
+   silenciosamente.
+2. A resolução correta é **união das entradas**: mantenha as linhas de ambos os lados da tabela.
+3. **Reordene por número** após unir (a ordem cronológica de merge não é a ordem numérica).
+4. **Re-valide a numeração sequencial** — se dois branches criaram `0007-*` de forma independente,
+   renumere o mais recente (por data de commit) para o próximo número livre e ajuste o nome do
+   arquivo + referências (Links) que apontem para ele.
+
 ## Regras
 
 - ADRs do baseline nunca são editados para mudar decisão — supersede com um novo ADR (status `superseded by NNNN` no antigo).

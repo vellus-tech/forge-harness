@@ -34,6 +34,12 @@ Executa uma onda de TASKs de um módulo deste projeto, sob o tracker em `docs/pr
 2. Working tree do repositório principal limpo (sem mudanças não-commitadas em `main`).
 3. Branch `main` sincronizada com `origin/main`.
 4. (Recomendado) Issues Jira já criados pelo `product-backlog` agent para a sprint atual.
+5. **Retomada após subagentes interrompidos/mortos:** antes de redistribuir tasks de uma onda já
+   em progresso, rode `bash .forge/scripts/worktree-reconcile.sh` — script determinista, sem LLM,
+   que lista branch/ahead-behind/status/último commit de cada worktree. Marque o tracker
+   (`[ ]/[-]/[X]/[!]`) conforme o estado **REAL** relatado pelo script, não conforme a última
+   entrada escrita antes do subagente cair — um `[-]` sem commit correspondente no worktree
+   volta para `[ ]`; um worktree com commit válido mas tracker desatualizado vira `[X]`.
 
 ## Fluxo
 
@@ -111,6 +117,7 @@ Em caso de falha:
 
 ## Referências
 
+- `.forge/scripts/worktree-reconcile.sh` (reconciliação determinista pré-redistribuição)
 - `.forge/agents/coding/task-coder.md` (agent invocado)
 - `.forge/agents/coding/sprint-orchestrator.md` (etapa seguinte)
 - `.forge/commands/coding/deploy-wave.md` (deploy após merge)

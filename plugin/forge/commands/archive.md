@@ -33,6 +33,14 @@ O script roda: pré-flight §13.1 → dry-run em memória (falha = **nada** é g
 
 2-3 linhas: capabilities atualizadas (+versões), pasta de histórico, entrada do CHANGELOG. Ofereça `/forge:publish-docs` para refletir o baseline em `docs/product/` (publicação gerada — §8.2).
 
+## Conflito no índice (README/index)
+
+`archived/index.yaml` (e qualquer ADR README tocado pelo delta) é **append-only por natureza** —
+em conflito de merge, a resolução correta é **união das entradas** dos dois lados (nunca
+`git checkout --ours`/`--theirs` cego, que descarta entradas de um dos lados silenciosamente),
+seguida de reordenação por número/data e revalidação de que a numeração/sequência ficou
+consistente. Ver detalhamento em `.forge/commands/docs/adr.md`.
+
 ## Pós-archive (procedimentos formais — §12)
 
 - **reopened:** divergência/regressão descoberta → exige motivo, baseline afetado e **nova spec corretiva** (ou rollback). Registre a decisão em `approvals.yaml` da pasta arquivada e abra o change corretivo.

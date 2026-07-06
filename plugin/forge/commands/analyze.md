@@ -18,6 +18,7 @@ Leia TODOS os artefatos do change + `.forge/constitution.md` + `.forge/rules/` a
 3. **Drift:** afirmações no design que contradizem o repo real (paths/contratos citados existem?); `affected_paths`/`affected_capabilities` do manifest coerentes com as tasks.
 4. **Fases puladas:** se o scale exige fase ausente, confira `quick_plan` (enabled + justificativa) — ausente → achado bloqueante.
 5. **Riscos operacionais:** tasks sem critério de verificação; dependências externas sem fallback; ausência de tasks de teste para REQs críticos.
+6. **Cobertura de superfície (gate pré-marco):** cruze a tabela "Checklist de cobertura de superfície" do `requirements.md` (`template/.forge/templates/spec/requirements.md`) contra design/tasks — todo parâmetro/config/flag exposto tem tela/endpoint/CLI mapeado E task que o implementa; toda linha `NEEDS CLARIFICATION` na tabela é achado **BLOCKER** de tipo `coverage`. Isso é o que impede a lacuna clássica de "parâmetro implementado sem superfície de acesso" descoberta só depois do marco.
 
 ## Saída
 
@@ -56,3 +57,7 @@ Ele flagra divergências literais vs a matriz transversal (`.forge/rules/data/da
 - **Não corrija nada** neste comando — achados são insumo; correções acontecem nos comandos de fase (ou via Review no gate correspondente).
 - Sem transição de estado (analyze é checkpoint, não fase).
 - Conflito relevante **nunca** é rebaixado para HIGH para "destravar" — isso é o anti-padrão que originou o guardrail.
+- **Gate de marco:** nenhum módulo/change é declarado concluído (marco) sem um `/forge:analyze`
+  **verde** (Status: PASS, sem BLOCKER) cruzando requirements×design×tasks — incluindo a
+  cobertura de superfície do item 6. "Concluído" dito em chat sem esse `analysis.md` limpo não
+  vale; re-rode `/forge:analyze` após qualquer correção antes de fechar o marco.

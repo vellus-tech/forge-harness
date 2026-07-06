@@ -1,6 +1,6 @@
 # Relação de Slash Commands — Forge Harness
 
-> Catálogo gerado a partir dos frontmatters em `template/.forge/commands/`. **47 commands** em 9 grupos.
+> Catálogo gerado a partir dos frontmatters em `template/.forge/commands/`. **49 commands** em 10 grupos.
 
 Os `/forge:*` são entregues por um **plugin** do Claude Code (gerado de `.forge/commands/**` por `/forge:build-plugin` ou `bash .forge/scripts/build-plugin.sh`). O Claude Code (>= 2.x) reserva o namespace `:` para plugins — por isso os comandos vivem num plugin `name: forge`, não em `.claude/commands/`. O engine que eles chamam (`.forge/scripts/...`) vem do `.forge/` por projeto (instalado via `npx forge-harness init`).
 
@@ -15,7 +15,8 @@ No Claude Code digite `/` e o nome do command; argumentos vão na mesma linha. E
 - [Waves — Planejamento incremental](#waves) — 5 commands
 - [Graph — Knowledge graph & brownfield](#graph) — 8 commands
 - [Docs — Documentação & ADRs](#docs) — 8 commands
-- [Harness — Manutenção do Forge](#harness) — 6 commands
+- [Git — Fluxo de entrega](#git) — 1 commands
+- [Harness — Manutenção do Forge](#harness) — 7 commands
 - [Quality — Avaliação](#quality) — 1 commands
 - [Testing — TDD](#testing) — 1 commands
 - [Skills](#skills) — 1 commands
@@ -67,7 +68,7 @@ _Planejamento e execução por ondas, deferrals e progresso._
 | Command | Argumentos | Descrição |
 |---|---|---|
 | `/forge:defer` | `[<change-id>] --reason \"<motivo>\" [--blocks \"<item,...>\"]` | Registra uma pendência no ledger do change ativo (§17.4). |
-| `/forge:dev` | `up\|sync\|smoke [--env <dev\|test>]` | Ambiente de desenvolvimento local — up (sobe stack), sync (migrations + seeds), smoke (validação pré-PR). |
+| `/forge:dev` | `up\|sync\|smoke\|rebuild [--env <dev\|test>] [--clean-branches]` | Ambiente de desenvolvimento local — up (sobe stack), sync (migrations + seeds), smoke (validação pré-PR), rebuild (derruba + rebuild --no-cache + cleanup opcional). |
 | `/forge:progress` | `[<change-id>]` | Mini-report curto do progresso do change ativo (§17.3). |
 | `/forge:resolve-deferrals` | `[<change-id>] <deferral-id> resolve\|test [--note \"<resolução>\"]` | Marca deferrals do change como resolved (e depois tested). |
 | `/forge:wave` | `plan\|open\|close\|status [<change-id>] [<wave-id>]` | Gerencia o plano de waves do change ativo — plan (deriva waves das stories), open (abre wave respeitando deps), close (fecha com gate), status (one-line). |
@@ -109,11 +110,22 @@ _ADRs, changelog, backlog, diagramas de infra e publicação de docs._
 | `/forge:update-changelog` | `[component] [type] [description]` | Atualiza o CHANGELOG.md de um componente seguindo o formato Keep a Changelog. |
 
 
+<a id="git"></a>
+
+## Git — Fluxo de entrega
+
+_Ship end-to-end: commit, PR, revisão e merge num comando._
+
+| Command | Argumentos | Descrição |
+|---|---|---|
+| `/forge:ship` | `[--no-review]` | Fluxo completo commit -> PR -> revisao -> merge em develop -> cleanup, num unico comando. Gate humano do §20.4 e satisfeito pela invocacao explicita de /forge:ship. |
+
+
 <a id="harness"></a>
 
 ## Harness — Manutenção do Forge
 
-_Doctor, status, sync de adapters, build do plugin, PR e promoção de staging._
+_Doctor, status, resume, sync de adapters, build do plugin, PR e promoção de staging._
 
 | Command | Argumentos | Descrição |
 |---|---|---|
@@ -121,6 +133,7 @@ _Doctor, status, sync de adapters, build do plugin, PR e promoção de staging._
 | `/forge:doctor` | — | Valida o harness Forge e a tooling do projeto (stacks, adapters, symlinks, drift de lockfile, placeholders orfaos). |
 | `/forge:prepare-pr` | — | Prepara a descricao de um PR da branch de trabalho para develop a partir dos artefatos da mudanca. |
 | `/forge:promote-staging` | — | Direcionador de promocao develop para staging (decisao humana). |
+| `/forge:resume` | `[<change-id>]` | Emite o mandato de retomada de sessao (estado do change ativo + regras operacionais fixas) sem o usuario ter que reescreve-lo. |
 | `/forge:status` | — | Mostra o estado do harness Forge - specs ativas, baseline, graph e adapters - em formato curto. |
 | `/forge:sync-adapters` | — | Regenera os adapters (.claude, AGENTS.md, symlinks) a partir da fonte canonica .forge. |
 

@@ -36,6 +36,9 @@ runtime e sem gastar tokens onde não precisa.
 - **Code graph nativo** (zero-dep, zero tokens): dependências entre módulos, **violações de camada**
   (clean architecture), **ciclos**, símbolo-nível com herança, diagramas **C4** coloridos e **overview
   HTML interativo**.
+- **Diagramas com duas camadas** (`rules/conventions/diagram-tooling.md`): fonte textual versionável
+  (Mermaid/`infra.py`) + edição visual via **MCP draw.io** quando disponível (`/forge:mermaid-to-drawio`,
+  `open_drawio_mermaid`) — a fonte textual permanece a verdade; o `.drawio` é o handoff editável.
 - **Eval harness opt-in:** avaliação A/B quantitativa de skills/commands/templates + **meta-avaliação do
   próprio harness** (evolução por evidência, não opinião).
 - **Sessões longas:** story sharding, waves, ledger de deferrals e disciplina de contexto.
@@ -76,7 +79,7 @@ O `.forge/` por projeto traz o **engine**; os **slash commands** `/forge:*` são
 **plugin** do Claude Code — porque o Claude Code (≥ 2.x) reserva o namespace `:` para plugins
 (comandos soltos em `.claude/commands/` viram só `/<nome>`, sem o prefixo `forge:`). **O `init` já
 auto-instala o plugin** (global, vale para todos os seus projetos) quando o adapter claude está ativo;
-depois é só `/reload-plugins` (ou nova sessão) e os 47 comandos `/forge:*` aparecem.
+depois é só `/reload-plugins` (ou nova sessão) e os 49 comandos `/forge:*` aparecem.
 
 Para (re)instalar/atualizar o plugin manualmente, há duas vias:
 
@@ -90,7 +93,10 @@ npx forge-harness@latest install-plugin
 ```
 
 Pule a auto-instalação com `init --no-plugin`. Para projetos com comandos custom, regenere o plugin a
-partir do `.forge/` local com `/forge:build-plugin`.
+partir do `.forge/` local com `/forge:build-plugin`. Se o plugin ficar desabilitado/ausente
+silenciosamente (sintoma clássico: colar o corpo dos comandos como texto porque `/forge:*` some),
+`bash .forge/scripts/doctor.sh` detecta isso (best-effort, quando a CLI `claude` está disponível) e
+sugere `npx forge-harness install-plugin`.
 
 <details>
 <summary>Alternativa: instalação por clone (offline / sem npm)</summary>
@@ -115,10 +121,15 @@ spec new ─▶ clarify ─▶ requirements ─▶ design ─▶ tasks ─▶ im
 Cada transição é registrada por scripts deterministas; os gates humanos (`approve`/`review`/`reject`/
 `block`) ficam em `approvals.yaml`. Em `scale` baixo, fases são puláveis (Quick Plan) com justificativa.
 
-> 📖 **Relação completa dos 47 slash commands** (`/forge:*`), por grupo e com argumentos:
+> 📖 **Relação completa dos 49 slash commands** (`/forge:*`), por grupo e com argumentos:
 > [`docs/refer/slash-commands.md`](./docs/refer/slash-commands.md). Os comandos são
 > entregues por um **plugin** do Claude Code — gere/instale com `/forge:build-plugin`
 > (ou `bash .forge/scripts/build-plugin.sh`).
+>
+> Dois comandos novos endereçam fricção recorrente de sessão: **`/forge:ship`** (commit → PR →
+> revisão → merge em `develop` → cleanup num único comando — o comando em si é o gate humano) e
+> **`/forge:resume`** (emite o mandato de retomada da sessão: estado do change ativo + regras
+> operacionais fixas, sem reescrevê-las à mão).
 
 ## 🕸️ Code graph & arquitetura
 
@@ -148,11 +159,11 @@ Trocar/adicionar um agente reconcilia o workspace (gera os ausentes, poda os rem
 template/.forge/        # o harness instalável (fonte única)
 ├── FORGE.md            # governança + frontmatter de runtime
 ├── agents/  (43)       # subagentes por categoria (specifications, architecture, review, …)
-├── commands/ (47)      # comandos /forge:* (specs, waves, graph, quality, …) — relação completa em docs/refer/slash-commands.md
+├── commands/ (49)      # comandos /forge:* (specs, waves, graph, quality, git, …) — relação completa em docs/refer/slash-commands.md
 ├── skills/   (9)       # skills especialistas (gate-runner, story-context, …)
 ├── rules/   (33)       # convenções (arquitetura, domínio, testing, …)
 ├── schemas/ (17)       # JSON Schemas (manifest, spec-delta, grading, graph, …)
-└── scripts/ (46)       # engine determinista (graph, archive, sync-adapters, hooks, …)
+└── scripts/ (47)       # engine determinista (graph, archive, sync-adapters, worktree-reconcile, hooks, …)
 bin/forge.mjs           # CLI do npx (forge-harness init) — porta cross-platform do install.sh
 installer/              # install.sh + gitignore.patch + delegação global do /init-project
 tests/                  # 30 gates deterministas + run-all.sh
@@ -189,6 +200,10 @@ plugin do Claude Code. Ver [CHANGELOG](./CHANGELOG.md).
 2. `bash tests/run-all.sh` deve passar 100% antes do merge.
 3. Convenções em `template/.forge/rules/`; documentos em **pt-BR**, identificadores em inglês.
 4. Sem co-autoria de IA em mensagens de commit/PR.
+5. Fluxo recomendado de fechamento: **`/forge:ship`** (commit → PR → revisão → merge → cleanup) em
+   vez de repetir o protocolo manualmente. Após um subagente cair no meio de uma onda, rode
+   `bash .forge/scripts/worktree-reconcile.sh` antes de redistribuir tasks — ele mostra o estado
+   real (branch/ahead-behind/status/último commit) de cada worktree.
 
 ## 📄 Licença
 

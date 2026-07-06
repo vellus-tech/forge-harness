@@ -6,6 +6,10 @@ Subagents especializados por domínio ou função. Use o agent correto para o co
 
 Em Claude Code, subagents são invocados automaticamente quando o contexto da tarefa corresponde à descrição do agent, ou manualmente via `@<nome-do-agent>`.
 
+## Regra transversal — disciplina de ferramenta (agents que escrevem código/arquivos)
+
+Todo agent com `Write`/`Edit` no `tools:` do front-matter carrega a seção **"Disciplina de ferramenta"** (idêntica, 4-6 linhas) logo no início do corpo: (a) sempre `Read` no arquivo imediatamente antes de `Edit`/`Write` — o estado "já li" não sobrevive a compactação de contexto nem a um subagente novo; (b) nunca rodar `docker build`/`docker compose up --build` — devolver ao orquestrador pedindo o build em background; (c) autoverificar com build/teste real antes de retornar. Ao criar um novo agent com essas ferramentas, copie a seção de um agent existente (ex.: `engineering/frontend-engineer.md`) em vez de reescrever.
+
 ## Regra transversal — conflito de fontes é bloqueante (todos os agents)
 
 Vale para **todos** os agents (specification, architecture, review, coding, engineering): ao detectar um **conflito arquitetural relevante** entre fontes normativas (rule↔ADR, módulo↔módulo, change↔baseline), **pare e sinalize** — não "registre e siga". Resolva pela ordem de autoridade (`constitution > baseline/ADRs > rules > context`, FORGE.md §2.1) e escale via HITL quando a decisão for humana. Detalhe e exemplos em `.forge/rules/conventions/conflict-handling.md`. Esta é a mesma disciplina que os agents de engineering já adotam ("Pare e sinalize em conflito explícito"), agora obrigatória em todo o catálogo.

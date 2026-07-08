@@ -11,8 +11,8 @@
 
 ## Wave 2 — Comando + plugin
 
-- [ ] TASK-04 — Comando `harness/handoff.md` (frontmatter + protocolo híbrido: script → delta narrativo) (rastreia: REQ-01; paths: `template/.forge/commands/harness/handoff.md`; depende: TASK-02)
-- [ ] TASK-05 — `npm run build:plugin` + bump de contagem em `docs/refer/slash-commands.md`; `plugin-sync-gate` verde (rastreia: REQ-07; paths: `plugin/forge/**`, `docs/refer/slash-commands.md`; depende: TASK-04)
+- [X] TASK-04 — Comando `harness/handoff.md` (frontmatter + protocolo híbrido: script → delta narrativo) (rastreia: REQ-01; paths: `template/.forge/commands/harness/handoff.md`; depende: TASK-02)
+- [X] TASK-05 — `npm run build:plugin` + bump de contagem em `docs/refer/slash-commands.md`; `plugin-sync-gate` verde (rastreia: REQ-07; paths: `plugin/forge/**`, `docs/refer/slash-commands.md`; depende: TASK-04)
 
 ## Wave 3 — Integração resume + descoberta
 

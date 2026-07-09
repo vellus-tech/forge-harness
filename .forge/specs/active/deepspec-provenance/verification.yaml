@@ -1,0 +1,24 @@
+verification:
+  commit: "6454285537aa43e382c88f8cd4006ac980b741d5"
+  verified_at: "2026-07-09T15:41:58-03:00"
+  checks:
+    - name: npm-test-full-suite
+      command: "npm test"
+      status: passed
+    - name: w90-run-manifest-gate
+      command: "bash tests/w90-run-manifest-gate.sh"
+      status: passed
+    - name: w91-stage-contract-gate
+      command: "bash tests/w91-stage-contract-gate.sh"
+      status: passed
+    - name: w92-benchmark-registry-gate
+      command: "bash tests/w92-benchmark-registry-gate.sh"
+      status: passed
+    - name: w93-profiles-budget-gate
+      command: "bash tests/w93-profiles-budget-gate.sh"
+      status: passed
+    - name: validate-spec
+      command: "FORGE_ROOT=$(pwd) bash template/.forge/scripts/validate-spec.sh deepspec-provenance"
+      status: passed
+  evidence:
+    - verification.md

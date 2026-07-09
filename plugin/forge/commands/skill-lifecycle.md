@@ -11,6 +11,14 @@ Argumentos: `$ARGUMENTS` (subcomando + nome da skill + flags).
 
 Toda estatística é feita por scripts deterministas (`eval-aggregate.sh`, `eval-holdout.sh`) — o modelo nunca recalcula médias nem decide o vencedor "no olho" (§10.11).
 
+Antes de `eval` ou `optimize`, emita o budget preflight:
+
+```bash
+bash .forge/scripts/budget-preflight.sh --stage skill-lifecycle-eval --profile standard --outputs aggregate.json
+```
+
+O agregador determinístico grava `aggregate.json` e `evidence/runs/*/run-manifest.json`; a ausência desses arquivos bloqueia o contrato `skill-lifecycle-eval`.
+
 ---
 
 ## create

@@ -24,10 +24,14 @@ Só prossiga com **Approve** (o pré-flight verifica o gate no manifest).
 ## 3. Execução (determinista)
 
 ```bash
+bash .forge/scripts/budget-preflight.sh --stage archive --change <change-id> --outputs product/current/CHANGELOG.md,evidence/runs
+```
+
+```bash
 bash .forge/scripts/archive-spec.sh <change-id>
 ```
 
-O script roda: pré-flight §13.1 → dry-run em memória (falha = **nada** é gravado) → apply atômico em `product/current/capabilities/**` → metadata + move para `specs/archived/YYYY-MM-DD-<change-id>/` → `archived/index.yaml` + `product/current/CHANGELOG.md`.
+O script roda: pré-flight §13.1 → dry-run em memória (falha = **nada** é gravado) → apply atômico em `product/current/capabilities/**` → metadata + move para `specs/archived/YYYY-MM-DD-<change-id>/` → `archived/index.yaml` + `product/current/CHANGELOG.md` + `run-manifest/v1` dentro da pasta arquivada.
 
 ## 4. Relatório e publicação
 

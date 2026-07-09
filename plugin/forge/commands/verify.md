@@ -1,5 +1,5 @@
 ---
-description: Checkpoint review guiado do change implementado — confere REQ a REQ contra o código, roda os checks do FORGE.md via script, grava verification.md + verification.yaml e (após HITL) transiciona para verified.
+description: Checkpoint review guiado do change implementado — confere REQ a REQ contra o código, roda os checks do FORGE.md via script, grava verification.md + verification.yaml + run-manifest/v1 e (após HITL) transiciona para verified.
 argument-hint: "[<change-id>]"
 ---
 
@@ -12,10 +12,14 @@ Pré-condição: status `implemented` (tasks 100% `[X]`). Em `implementing`, a m
 ## 1. Metade determinista (script)
 
 ```bash
+bash .forge/scripts/budget-preflight.sh --stage verify --change <change-id> --outputs verification.yaml,evidence/runs
+```
+
+```bash
 bash .forge/scripts/spec-verify.sh <change-id>
 ```
 
-O script confere tasks completas, roda os checks do `FORGE.md runtime:` (test/typecheck/lint, timeout 300s, logs em `/tmp/forge-verify-*`) e grava `verification.yaml` (§10.10). `FAIL` → corrija e re-rode antes de prosseguir (leia só o `tail -20` dos logs).
+O script confere tasks completas, roda os checks do `FORGE.md runtime:` (test/typecheck/lint, timeout 300s, logs em `/tmp/forge-verify-*`) e grava `verification.yaml` (§10.10) + `evidence/runs/*/run-manifest.json`. `FAIL` → corrija e re-rode antes de prosseguir (leia só o `tail -20` dos logs).
 
 ## 2. Checkpoint review guiado (sua parte)
 

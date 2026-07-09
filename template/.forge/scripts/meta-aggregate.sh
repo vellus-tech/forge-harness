@@ -101,3 +101,24 @@ console.log(
   `[with n=${w.n}, without n=${wo.n}]`
 );
 NODEEOF
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="${FORGE_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
+case_rel="$case_dir"
+case "$case_rel" in
+  "$ROOT"/*) case_rel="${case_rel#"$ROOT"/}" ;;
+esac
+bash "$SCRIPT_DIR/run-manifest.sh" write \
+  --stage eval \
+  --dir "$case_rel" \
+  --status passed \
+  --inputs "case.json,runs" \
+  --outputs "meta-aggregate.json" \
+  --command "meta-aggregate::meta-aggregate.sh $case_dir::passed" \
+  --runner local \
+  --profile standard \
+  --budget-class high \
+  --expected-runs 1 \
+  --estimated-timeout-s 300 \
+  --uses-llm false \
+  --uses-subagent false >/dev/null

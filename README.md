@@ -77,7 +77,7 @@ seu projeto.
 
 Quando sair uma versão nova, **não** use `init --force` (ele move o `.forge/` inteiro para backup e
 reinstala do zero). Use o **update cirúrgico**, que faz overlay aditivo da maquinaria
-(commands/agents/hooks/scripts/schemas/rules/templates) **preservando** suas `specs/`, o baseline
+(commands/agents/contracts/hooks/scripts/schemas/rules/templates) **preservando** suas `specs/`, o baseline
 `product/current/` e a config do `forge.yaml`:
 
 ```bash
@@ -178,14 +178,15 @@ Trocar/adicionar um agente reconcilia o workspace (gera os ausentes, poda os rem
 template/.forge/        # o harness instalável (fonte única)
 ├── FORGE.md            # governança + frontmatter de runtime
 ├── agents/  (43)       # subagentes por categoria (specifications, architecture, review, …)
-├── commands/ (50)      # comandos /forge:* (specs, waves, graph, quality, git, …) — relação completa em docs/refer/slash-commands.md
+├── commands/ (51)      # comandos /forge:* (specs, waves, graph, quality, git, …) — relação completa em docs/refer/slash-commands.md
+├── contracts/ (5)      # contratos de I/O por estágio (verify, archive, eval, …)
 ├── skills/   (9)       # skills especialistas (gate-runner, story-context, …)
 ├── rules/   (33)       # convenções (arquitetura, domínio, testing, …)
-├── schemas/ (17)       # JSON Schemas (manifest, spec-delta, grading, graph, …)
-└── scripts/ (47)       # engine determinista (graph, archive, sync-adapters, worktree-reconcile, hooks, …)
+├── schemas/ (19)       # JSON Schemas (manifest, run-manifest, benchmark, graph, …)
+└── scripts/ (63)       # engine determinista (graph, archive, eval, provenance, hooks, …)
 bin/forge.mjs           # CLI do npx (forge-harness init) — porta cross-platform do install.sh
 installer/              # install.sh + gitignore.patch + delegação global do /init-project
-tests/                  # 30 gates deterministas + run-all.sh
+tests/                  # gates deterministas + run-all.sh
 docs/                   # planos (MVP1–5, Fase 8) + referência do harness
 snapshot/               # snapshot congelado do adapter Claude (contrato de compatibilidade)
 ```
@@ -193,7 +194,7 @@ snapshot/               # snapshot congelado do adapter Claude (contrato de comp
 ## ✅ Testes
 
 ```bash
-bash tests/run-all.sh          # roda os 30 gates + suítes bats; saída agregada
+bash tests/run-all.sh          # roda os gates + suítes bats; saída agregada
 ```
 
 Cada wave de desenvolvimento entrega seu gate junto (shift-left). O contrato do adapter Claude

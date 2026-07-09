@@ -116,6 +116,13 @@ function readActive() {
   if (!m) return ['claude'];
   return m[1].split('\n').map((l) => l.replace(/^ {4}- /, '').trim()).filter(Boolean);
 }
+function readHandoffAuto() {
+  try {
+    const y = readFileSync(FORGE_YAML, 'utf8');
+    const m = y.match(/^handoff:\n(?:[ ].*\n)*?[ ]+auto:[ ]*(true|false)/m);
+    return m ? m[1] === 'true' : false;
+  } catch { return false; }
+}
 function writeActive(names) {
   let y = readFileSync(FORGE_YAML, 'utf8');
   const block = '  adapters:\n' + names.map((n) => `    - ${n}`).join('\n') + '\n';
@@ -201,9 +208,12 @@ const GENERATORS = {
         lock.emit(join(ROOT, '.claude', tree, relative(join(FORGE, tree), src)), readFileSync(src, 'utf8'), src);
       }
     }
-    lock.emit(join(ROOT, '.claude/settings.json'), JSON.stringify({
-      hooks: { PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command: '$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/enforce-worktree-location.sh' }] }] },
-    }, null, 2) + '\n');
+    const hooks = { PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command: '$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/enforce-worktree-location.sh' }] }] };
+    if (readHandoffAuto()) {
+      hooks.SessionStart = [{ hooks: [{ type: 'command', command: '$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-start.sh' }] }];
+      hooks.SessionEnd = [{ hooks: [{ type: 'command', command: '$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-end.sh' }] }];
+    }
+    lock.emit(join(ROOT, '.claude/settings.json'), JSON.stringify({ hooks }, null, 2) + '\n');
     lock.linkToAgentsMd('CLAUDE.md');
   },
   codex(_lock) { /* consumes the canonical AGENTS.md (core) — no extra target (§15) */ },

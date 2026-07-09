@@ -127,6 +127,13 @@
             "require_traceability_before_archive": { "type": "boolean" },
             "require_human_approval_before_archive": { "type": "boolean" }
           }
+        },
+        "handoff": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "auto": { "type": "boolean" }
+          }
         }
       }
     }

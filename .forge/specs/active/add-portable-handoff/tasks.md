@@ -21,16 +21,16 @@
 
 ## Wave 4 — Gate de pre-push
 
-- [ ] TASK-08 — `check-docs-reviewed.sh`: classificador user-facing + exigência README+CHANGELOG (rastreia: REQ-06; paths: `template/.forge/hooks/git/lib/check-docs-reviewed.sh`; depende: —)
-- [ ] TASK-09 — Wire do helper no fim de `hooks/git/pre-push` (rastreia: REQ-06; paths: `template/.forge/hooks/git/pre-push`; depende: TASK-08)
-- [ ] TASK-10 — Gate `tests/w41-docs-review-gate.sh`: user-facing sem docs falha; docs-only passa; com docs passa (rastreia: REQ-06, REQ-07; paths: `tests/w41-docs-review-gate.sh`; depende: TASK-08)
+- [X] TASK-08 — `check-docs-reviewed.sh`: classificador user-facing + exigência README+CHANGELOG (rastreia: REQ-06; paths: `template/.forge/hooks/git/lib/check-docs-reviewed.sh`; depende: —)
+- [X] TASK-09 — Wire do helper no fim de `hooks/git/pre-push` (rastreia: REQ-06; paths: `template/.forge/hooks/git/pre-push`; depende: TASK-08)
+- [X] TASK-10 — Gate `tests/w41-docs-review-gate.sh`: user-facing sem docs falha; docs-only passa; com docs passa (rastreia: REQ-06, REQ-07; paths: `tests/w41-docs-review-gate.sh`; depende: TASK-08)
 
 ## Wave 5 — Automação opt-in
 
-- [ ] TASK-11 — Hooks `session/on-session-{start,end}.sh` (rule-based) (rastreia: REQ-05; paths: `template/.forge/hooks/session/*.sh`; depende: TASK-02)
-- [ ] TASK-12 — Flag `handoff.auto: false` em `forge.yaml` + template (rastreia: REQ-05; paths: `forge.yaml`, `template/.forge/forge.yaml`; depende: —)
-- [ ] TASK-13 — `GENERATORS.claude`: emissão condicional de SessionStart/End quando `handoff.auto` (rastreia: REQ-05; paths: `template/.forge/scripts/lib/sync-adapters.mjs`; depende: TASK-11, TASK-12)
-- [ ] TASK-14 — Atualizar C5 (`claude-contract.bats`) p/ baseline + modo auto; smoke test `adapters/claude.yaml` (rastreia: REQ-05, REQ-07; paths: `tests/snapshot/claude-contract.bats`, `template/.forge/adapters/claude.yaml`; depende: TASK-13)
+- [X] TASK-11 — Hooks `session/on-session-{start,end}.sh` (rule-based) (rastreia: REQ-05; paths: `template/.forge/hooks/session/*.sh`; depende: TASK-02)
+- [X] TASK-12 — Flag `handoff.auto: false` em `forge.yaml` + template (rastreia: REQ-05; paths: `forge.yaml`, `template/.forge/forge.yaml`; depende: —)
+- [X] TASK-13 — `GENERATORS.claude`: emissão condicional de SessionStart/End quando `handoff.auto` (rastreia: REQ-05; paths: `template/.forge/scripts/lib/sync-adapters.mjs`; depende: TASK-11, TASK-12)
+- [X] TASK-14 — Atualizar C5 (`claude-contract.bats`) p/ baseline + modo auto; smoke test `adapters/claude.yaml` (rastreia: REQ-05, REQ-07; paths: `tests/snapshot/claude-contract.bats`, `template/.forge/adapters/claude.yaml`; depende: TASK-13)
 
 ## Wave 6 — Docs (exercita o gate novo)
 

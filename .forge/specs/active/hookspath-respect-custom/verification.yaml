@@ -1,0 +1,28 @@
+verification:
+  commit: "9982e5976cea2f0ede2bad4673a78d0e20001ff3"
+  verified_at: "2026-07-09T19:23:15Z"
+  checks:
+    - name: "gate dedicado (5 casos da matriz do bugfix)"
+      command: "bash tests/w94-hookspath-preserve-gate.sh"
+      status: passed
+    - name: "caminho feliz de init não regrediu (§3)"
+      command: "bash tests/w13-init-gate.sh"
+      status: passed
+    - name: "caminho feliz de update não regrediu (§3)"
+      command: "bash tests/w63-forge-update-gate.sh"
+      status: passed
+    - name: "suíte consolidada (run-all)"
+      command: "npm test"
+      status: passed
+    - name: "nenhum terceiro writer de core.hooksPath (só init/update/install.sh corrigidos)"
+      command: "grep -rn 'core.hooksPath' . --exclude-dir=node_modules --exclude-dir=.git"
+      status: passed
+    - name: "validação estrutural do change"
+      command: "FORGE_ROOT=$(pwd) bash template/.forge/scripts/validate-spec.sh hookspath-respect-custom"
+      status: passed
+  evidence:
+    - "tests/w94-hookspath-preserve-gate.sh — [1] init preserva .githooks + emite nota; [2] init em repo limpo seta .forge/hooks/git; [3] update preserva .githooks; [4] install.sh preserva (paridade bash); [5] idempotência .forge/hooks/git = no-op sem nota. PASS."
+    - "npm test — PASS=41 FAIL=0 SKIP=0 (72s), incluindo w94/w13/w63."
+    - "bin/forge.mjs:126-141 wireHooksPath; chamado em init (:304) e update (:437). installer/install.sh:85-99 lógica bash equivalente."
+    - "grep core.hooksPath — apenas bin/forge.mjs, installer/install.sh e tests/w13/w94 escrevem/checam; template/.forge/scripts não escreve; demais ocorrências são docs/specs. Sem gap."
+    - "verification.md — tabela §2/§3/§5 do bugfix.md vs status com path:linha."

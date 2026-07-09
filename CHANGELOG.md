@@ -6,6 +6,11 @@ e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+## [0.1.0-rc12] — 2026-07-09
+
+### Fixed
+- **`core.hooksPath` sobrescrevia silenciosamente um valor customizado pré-existente.** `npx forge-harness init`/`update` e `installer/install.sh` passam a checar o valor atual antes de escrever: ausente/default → seta `.forge/hooks/git` (comportamento preservado); já correto → no-op; customizado para outro valor → **preservado**, com nota informativa. `core.hooksPath` vive em `.git/config`, compartilhado entre worktrees sem `extensions.worktreeConfig` — achado real ao propagar `forge update` em `axis-go-cloud` (2×): um `core.hooksPath = .githooks` intencional foi apagado silenciosamente, vazando para o checkout principal.
+
 ## [0.1.0-rc11] — 2026-07-09
 
 ### Added
@@ -108,7 +113,8 @@ consolidação (Fase 8) + code graph com insights de arquitetura.
 - Toda a camada Quality (eval/meta) é **opt-in** (`quality.evals_enabled: false` por default).
 - Pendente para v0.1.0 final: teste manual em Claude Code real (contrato C10) + remoção dos wrappers deprecados.
 
-[Unreleased]: https://github.com/vellus-tech/forge-harness/compare/v0.1.0-rc11...HEAD
+[Unreleased]: https://github.com/vellus-tech/forge-harness/compare/v0.1.0-rc12...HEAD
+[0.1.0-rc12]: https://github.com/vellus-tech/forge-harness/compare/v0.1.0-rc11...v0.1.0-rc12
 [0.1.0-rc11]: https://github.com/vellus-tech/forge-harness/compare/v0.1.0-rc10...v0.1.0-rc11
 [0.1.0-rc10]: https://github.com/vellus-tech/forge-harness/compare/v0.1.0-rc9...v0.1.0-rc10
 [0.1.0-rc9]: https://github.com/vellus-tech/forge-harness/compare/v0.1.0-rc8...v0.1.0-rc9

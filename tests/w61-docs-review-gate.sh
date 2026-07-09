@@ -5,6 +5,8 @@
 #   [2] range user-facing com README.md e CHANGELOG.md tocados → exit 0
 #   [3] range docs-only (só docs/x.md ou só README) → exit 0
 #   [4] range chore-only sem fonte → exit 0
+#   [5] range só .forge/** (ex.: `forge update` sincronizando maquinaria) → exit 0, mesmo
+#       tocando .sh/.mjs — não é código do projeto, é maquinaria sincronizada do harness
 set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -76,5 +78,18 @@ git -C "$T" commit -qm "chore: adiciona gitignore"
 sha4="$(git -C "$T" rev-parse HEAD)"
 run_gate "$sha4"
 echo "OK [4]"
+
+echo "[5] só .forge/** (chore de harness update) → exit 0 mesmo tocando .sh/.mjs"
+git -C "$T" checkout -q main 2>/dev/null || git -C "$T" checkout -q master
+git -C "$T" checkout -q -b case5
+mkdir -p "$T/.forge/scripts/lib" "$T/.forge/hooks/git"
+echo "#!/usr/bin/env bash" > "$T/.forge/scripts/doctor.sh"
+echo "export const x = 1;" > "$T/.forge/scripts/lib/foo.mjs"
+echo "#!/usr/bin/env bash" > "$T/.forge/hooks/git/pre-push"
+git -C "$T" add -A
+git -C "$T" commit -qm "chore(forge): atualiza harness para 0.1.0-rcN"
+sha5="$(git -C "$T" rev-parse HEAD)"
+run_gate "$sha5"
+echo "OK [5]"
 
 echo "OK"

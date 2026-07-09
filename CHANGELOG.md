@@ -6,6 +6,12 @@ e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+## [0.1.0-rc11] — 2026-07-09
+
+### Added
+- **Proveniência de execução inspirada no DeepSpec.** Novo `run-manifest/v1` registra stage, runner, orçamento, inputs/outputs com hashes e proveniência Git segura (branch, SHA, dirty files, diff stat e hash do diff — sem diff bruto, testado com segredo real injetado no diff). `spec-verify` e `archive-spec` gravam evidência em `evidence/runs/*/run-manifest.json` de forma **bloqueante por contrato** (nunca por falha de I/O da própria gravação); `meta-aggregate` e `eval-aggregate` gravam de forma best-effort.
+- **Contratos de I/O por estágio + benchmark registry.** Nova árvore `.forge/contracts/stages/*.yaml` (verify, archive, eval, run-spec-pipeline, skill-lifecycle-eval), validador determinístico `validate-stage-contract.sh`, schemas `run-manifest`/`benchmark-case`, `budget-preflight.sh` (perfis `standard/quick/regulated/brownfield-heavy` com precedência flag > manifest.yaml > forge.yaml > default; `--set key.path=value` restrito a eval/benchmark), e `/forge:eval benchmark <case|suite>` com cinco casos canônicos pequenos (`greenfield-small`, `brownfield-bugfix`, `refactor-invariant`, `docs-only`, `multi-module-scale3`). `npx forge-harness update` passa a sincronizar também `.forge/contracts/`.
+
 ## [0.1.0-rc10] — 2026-07-09
 
 ### Fixed
@@ -102,7 +108,8 @@ consolidação (Fase 8) + code graph com insights de arquitetura.
 - Toda a camada Quality (eval/meta) é **opt-in** (`quality.evals_enabled: false` por default).
 - Pendente para v0.1.0 final: teste manual em Claude Code real (contrato C10) + remoção dos wrappers deprecados.
 
-[Unreleased]: https://github.com/vellus-tech/forge-harness/compare/v0.1.0-rc10...HEAD
+[Unreleased]: https://github.com/vellus-tech/forge-harness/compare/v0.1.0-rc11...HEAD
+[0.1.0-rc11]: https://github.com/vellus-tech/forge-harness/compare/v0.1.0-rc10...v0.1.0-rc11
 [0.1.0-rc10]: https://github.com/vellus-tech/forge-harness/compare/v0.1.0-rc9...v0.1.0-rc10
 [0.1.0-rc9]: https://github.com/vellus-tech/forge-harness/compare/v0.1.0-rc8...v0.1.0-rc9
 [0.1.0-rc8]: https://github.com/vellus-tech/forge-harness/compare/v0.1.0-rc7...v0.1.0-rc8

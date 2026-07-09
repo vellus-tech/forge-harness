@@ -1,0 +1,12 @@
+stage: verify
+required_inputs:
+  - manifest.yaml
+  - tasks.md
+  - traceability.yaml?
+required_outputs:
+  - verification.yaml
+  - evidence/runs/*/run-manifest.json
+validators:
+  - validate-spec
+budget_class: medium
+evidence_required: true

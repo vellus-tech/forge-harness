@@ -148,7 +148,7 @@ _Execução de evals de qualidade._
 
 | Command | Argumentos | Descrição |
 |---|---|---|
-| `/forge:eval` | `harness <case-name> [--artifact requirements] [--runs N]` | Meta-avaliação do próprio harness (§18) — mede com números se um template/command/rule do Forge melhora os artefatos gerados, antes de propagá-lo ao time. |
+| `/forge:eval` | `harness <case-name> [--artifact requirements] [--runs N] \| benchmark <case\|suite> [--runner stub] [--runs N] [--set key=value]` | Meta-avaliação do próprio harness (§18) e benchmark registry canônico — mede com números se um template/command/rule do Forge melhora os artefatos gerados. |
 
 
 <a id="testing"></a>
@@ -171,4 +171,3 @@ _Ciclo de vida de skills (create/eval/optimize)._
 | Command | Argumentos | Descrição |
 |---|---|---|
 | `/forge:skill-lifecycle` | `create\|eval\|optimize <skill-name> [--runner claude-code] [--iterations N]` | Cria, avalia (A/B) e otimiza skills do harness. |
-

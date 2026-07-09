@@ -23,6 +23,9 @@ fi
 if ! bash "$SCRIPT_DIR/validate-rules.sh" >>"$LOG" 2>&1; then
   fail=1; reason="${reason:+$reason; }rule-vs-ADR drift detected"
 fi
+if ! bash "$SCRIPT_DIR/validate-stage-contract.sh" validate-contracts >>"$LOG" 2>&1; then
+  fail=1; reason="${reason:+$reason; }stage contracts invalid"
+fi
 
 if [ "$fail" -eq 0 ]; then
   echo "OK harness"

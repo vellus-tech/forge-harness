@@ -14,6 +14,8 @@ interpretive. Validated in the workspace with ajv; in target projects via `lib/v
 | `traceability.schema.json` | `traceability.yaml` | MVP3 (W3.0) |
 | `archive-state-machine.schema.json` | lifecycle states/transitions (incl. `rejected` — gap L3) | MVP3 (W3.0) |
 | `grading.schema.json` | eval harness grader output | MVP5 (W5.2) |
+| `run-manifest.schema.json` | execution evidence (`run-manifest/v1`) | W9.0 |
+| `benchmark-case.schema.json` | canonical eval benchmark cases | W9.2 |
 
 **Consolidation decision (W1.0, plan review):** the project doc tree (§8) lists both
 `adapter.schema.json` and `adapter-capability.schema.json` (§10.6) — a redundancy in the doc.

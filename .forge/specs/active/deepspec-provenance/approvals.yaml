@@ -1,0 +1,19 @@
+approvals:
+  - gate: requirements_reviewed
+    decision: approve
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-07-09T15:38:26-03:00"
+    iteration: 1
+    commit: "6f5367c"
+  - gate: design_reviewed
+    decision: approve
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-07-09T15:38:26-03:00"
+    iteration: 1
+    commit: "6f5367c"
+  - gate: tasks_reviewed
+    decision: approve
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-07-09T15:38:26-03:00"
+    iteration: 1
+    commit: "6f5367c"

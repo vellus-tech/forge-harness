@@ -6,6 +6,12 @@ e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+## [0.1.0-rc10] — 2026-07-09
+
+### Fixed
+- **Gate de pre-push (`check-docs-reviewed.sh`) tratava maquinaria do harness como código do produto.** Um commit `chore(forge): atualiza harness` (via `npx forge-harness update`) tocando `.forge/**` passava a exigir README/CHANGELOG do projeto consumidor sem necessidade — achado ao propagar o rc9 para projetos reais. Excluídos da classificação user-facing: `.forge/**`, `.claude/**`, `.agents/**`, `.cursor/**`, `.kiro/**`, `AGENTS.md`, `CLAUDE.md`, `QWEN.md`, `GEMINI.md`. Refino de classificação, não válvula de escape — código real do produto continua exigindo docs.
+- **`doctor` — guard de refs `.claude/` agora exclui também `hooks/`** (mesma categoria de `adapters/`/`scripts/`, já excluídos): scripts de hook legitimamente referenciam o diretório gerado `.claude/`.
+
 ## [0.1.0-rc9] — 2026-07-09
 
 ### Added
@@ -96,7 +102,8 @@ consolidação (Fase 8) + code graph com insights de arquitetura.
 - Toda a camada Quality (eval/meta) é **opt-in** (`quality.evals_enabled: false` por default).
 - Pendente para v0.1.0 final: teste manual em Claude Code real (contrato C10) + remoção dos wrappers deprecados.
 
-[Unreleased]: https://github.com/vellus-tech/forge-harness/compare/v0.1.0-rc9...HEAD
+[Unreleased]: https://github.com/vellus-tech/forge-harness/compare/v0.1.0-rc10...HEAD
+[0.1.0-rc10]: https://github.com/vellus-tech/forge-harness/compare/v0.1.0-rc9...v0.1.0-rc10
 [0.1.0-rc9]: https://github.com/vellus-tech/forge-harness/compare/v0.1.0-rc8...v0.1.0-rc9
 [0.1.0-rc8]: https://github.com/vellus-tech/forge-harness/compare/v0.1.0-rc7...v0.1.0-rc8
 [0.1.0-rc7]: https://github.com/vellus-tech/forge-harness/compare/v0.1.0-rc6...v0.1.0-rc7

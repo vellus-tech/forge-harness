@@ -92,12 +92,12 @@ check_harness() {
   check_link gemini GEMINI.md
 
   # the leak check guards MIGRATED CONTENT (agents/rules/skills + the 8 legacy commands);
-  # the machinery (adapters/, scripts/) and the harness meta-commands legitimately name the
-  # generated .claude/ dir, so they are excluded. USER DATA dirs are also excluded: their content
-  # is authored by the user (spec text may quote the generated dir; deploy files under worktrees may
-  # carry the app's own PROJECT-style tokens) and is not the canonical harness source.
+  # the machinery (adapters/, scripts/, hooks/) and the harness meta-commands legitimately name
+  # the generated .claude/ dir, so they are excluded. USER DATA dirs are also excluded: their
+  # content is authored by the user (spec text may quote the generated dir; deploy files under
+  # worktrees may carry the app's own PROJECT-style tokens) and is not the canonical harness source.
   USER_DATA='/(specs|worktrees|product|evals|custom)/'
-  leaks="$(grep -rl '\.claude/' "$ROOT/.forge" 2>/dev/null | grep -vE "/(adapters|scripts)/|/commands/harness/|$USER_DATA" | wc -l | tr -d ' ')"
+  leaks="$(grep -rl '\.claude/' "$ROOT/.forge" 2>/dev/null | grep -vE "/(adapters|scripts|hooks)/|/commands/harness/|$USER_DATA" | wc -l | tr -d ' ')"
   if [ "$leaks" -eq 0 ]; then ok "harness: fonte canônica sem refs .claude/"
   else miss "harness: $leaks arquivo(s) da fonte canônica com refs .claude/"; MISSING_DIAG=1; fi
 

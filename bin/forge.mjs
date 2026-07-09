@@ -117,6 +117,29 @@ Opções:
 Interativo quando há TTY e faltam dados; caso contrário usa os padrões.`;
 
 function fail(msg, code = 1) { console.error(`FAIL (${msg})`); process.exit(code); }
+
+// Wires core.hooksPath to .forge/hooks/git — used by both init and update. Never overwrites a
+// custom, non-Forge hooksPath the project already had: core.hooksPath lives in .git/config, which
+// is shared across all worktrees of a repo (unless extensions.worktreeConfig is on), so silently
+// stomping it from a linked worktree (e.g. `forge update` run inside .forge/worktrees/<id>/) would
+// disable the project's own hooks everywhere, including its main checkout, without any warning.
+function wireHooksPath(target) {
+  let isRepo = false;
+  try { execFileSync('git', ['-C', target, 'rev-parse', '--git-dir'], { stdio: 'ignore' }); isRepo = true; } catch { /* not a repo */ }
+  if (!isRepo) { console.log("git: não é um repositório — hooks não configurados (rode 'git init' + doctor depois)"); return; }
+  let cur = '';
+  try { cur = execFileSync('git', ['-C', target, 'config', '--get', 'core.hooksPath'], { encoding: 'utf8' }).trim(); } catch { /* unset */ }
+  if (cur === '.forge/hooks/git') return; // already correct, no-op
+  if (cur) {
+    console.log(`git: core.hooksPath já customizado para '${cur}' — preservado (não sobrescrito).`);
+    console.log(`  Os hooks do Forge (.forge/hooks/git/*) não estão ativos; encadeie-os no seu hook`);
+    console.log('  customizado se quiser o gate de pre-push de docs e o guard de pre-commit de worktree.');
+    return;
+  }
+  execFileSync('git', ['-C', target, 'config', 'core.hooksPath', '.forge/hooks/git'], { stdio: 'ignore' });
+  console.log('git: core.hooksPath -> .forge/hooks/git');
+}
+
 // Recursively collect every file path under dir (used by init's placeholder pass and update's overlay).
 function walk(dir, acc = []) {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
@@ -278,17 +301,7 @@ async function updateHarness() {
   const giCur = existsSync(gi) ? readFileSync(gi, 'utf8') : '';
   if (!giCur.includes(GI_MARKER)) { appendFileSync(gi, readFileSync(GITIGNORE_PATCH, 'utf8')); console.log('gitignore: bloco forge adicionado'); }
 
-  // core.hooksPath (corrige projetos que apontam para .git/hooks)
-  let isRepo = false;
-  try { execFileSync('git', ['-C', target, 'rev-parse', '--git-dir'], { stdio: 'ignore' }); isRepo = true; } catch { /* not a repo */ }
-  if (isRepo) {
-    let cur = '';
-    try { cur = execFileSync('git', ['-C', target, 'config', '--get', 'core.hooksPath'], { encoding: 'utf8' }).trim(); } catch { /* unset */ }
-    if (cur !== '.forge/hooks/git') {
-      execFileSync('git', ['-C', target, 'config', 'core.hooksPath', '.forge/hooks/git'], { stdio: 'ignore' });
-      console.log(`git: core.hooksPath -> .forge/hooks/git${cur ? ` (era ${cur})` : ''}`);
-    }
-  }
+  wireHooksPath(target);
 
   // reconcilia adapters ativos (sem --set: preserva a lista do projeto)
   const syncMjs = join(forge, 'scripts', 'lib', 'sync-adapters.mjs');
@@ -421,14 +434,7 @@ async function main() {
   }
 
   // 5. git hooks path (only when the target is a git repo)
-  let isRepo = false;
-  try { execFileSync('git', ['-C', target, 'rev-parse', '--git-dir'], { stdio: 'ignore' }); isRepo = true; } catch { /* not a repo */ }
-  if (isRepo) {
-    execFileSync('git', ['-C', target, 'config', 'core.hooksPath', '.forge/hooks/git'], { stdio: 'ignore' });
-    console.log('git: core.hooksPath -> .forge/hooks/git');
-  } else {
-    console.log("git: não é um repositório — hooks não configurados (rode 'git init' + doctor depois)");
-  }
+  wireHooksPath(target);
 
   // 6. CI workflow (§20.2) — only for repos using the GitHub Actions layout
   if (existsSync(join(target, '.github')) || existsSync(join(target, '.git'))) {

@@ -79,10 +79,21 @@ if ! grep -q '# >>> forge (managed) >>>' "$GI" 2>/dev/null; then
   echo "gitignore: forge block appended"
 fi
 
-# 5. git hooks path (only when target is a git repo)
+# 5. git hooks path (only when target is a git repo) — never overwrite a custom, non-Forge
+# hooksPath: it lives in .git/config, shared across worktrees, so stomping it here could silently
+# disable the project's own hooks everywhere (including its main checkout).
 if git -C "$TARGET" rev-parse --git-dir >/dev/null 2>&1; then
-  git -C "$TARGET" config core.hooksPath .forge/hooks/git
-  echo "git: core.hooksPath -> .forge/hooks/git"
+  CUR_HOOKS_PATH="$(git -C "$TARGET" config --get core.hooksPath || true)"
+  if [ "$CUR_HOOKS_PATH" = ".forge/hooks/git" ]; then
+    : # already correct, no-op
+  elif [ -n "$CUR_HOOKS_PATH" ]; then
+    echo "git: core.hooksPath já customizado para '$CUR_HOOKS_PATH' — preservado (não sobrescrito)."
+    echo "  Os hooks do Forge (.forge/hooks/git/*) não estão ativos; encadeie-os no seu hook"
+    echo "  customizado se quiser o gate de pre-push de docs e o guard de pre-commit de worktree."
+  else
+    git -C "$TARGET" config core.hooksPath .forge/hooks/git
+    echo "git: core.hooksPath -> .forge/hooks/git"
+  fi
 else
   echo "git: not a repository — hooks not configured (run 'git init' + re-run doctor)"
 fi

@@ -61,6 +61,10 @@ _docs_is_user_facing() {  # _docs_is_user_facing <base> <local_sha>
       # Lockfiles gerados nunca são mudança user-facing (bump de deps não pede README/CHANGELOG).
       # Isto é refino de classificação, não válvula de escape: código-fonte real continua exigindo docs.
       package-lock.json|pnpm-lock.yaml|yarn.lock|*.lock) continue ;;
+      # Maquinaria do harness (sincronizada por `forge update`/sync-adapters), não código do
+      # projeto: um commit `chore(forge): atualiza harness` não deve exigir README/CHANGELOG do
+      # produto — a governança dessas mudanças é o próprio release do forge-harness, não este repo.
+      .forge/*|.claude/*|.agents/*|.cursor/*|.kiro/*|AGENTS.md|CLAUDE.md|QWEN.md|GEMINI.md) continue ;;
     esac
     return 0
   done < <(git -C "$REPO" diff --name-only "$range" 2>/dev/null)

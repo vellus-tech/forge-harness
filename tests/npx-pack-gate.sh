@@ -7,6 +7,9 @@
 #       CLAUDE.md (symlink) + adapter claude; doctor sai 0 (harness íntegro, lockfile sem drift)
 #   [3] paridade: o .forge gerado pelo bin é idêntico ao do installer/install.sh (porta fiel)
 #   [4] --version casa com package.json; guard de sobrescrita (.forge existente sem --force → exit 3)
+#   [5] --force protege trabalho de produto (specs/ADRs) e --force-content libera
+#   [6] `forge update` no TARBALL empacotado: overlay aditivo preserva spec + bump de
+#       template_version, doctor sai limpo
 set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -100,5 +103,34 @@ node "$BIN" init --target "$T/proj" --slug gate-proj --name "Gate Proj" --desc x
   || { echo "FAIL (--force-content devia sobrescrever)"; cat "$T/f3.log"; exit 1; }
 ls -d "$T/proj"/.forge.bak-* >/dev/null 2>&1 || { echo "FAIL (--force-content não criou backup)"; exit 1; }
 echo "OK [5]"
+
+echo "[6] forge update no tarball empacotado (não no repo)"
+mkdir -p "$T/tarball-extract"
+tarball_name="$(npm pack --pack-destination "$T/tarball-extract" --json 2>/dev/null | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>process.stdout.write(JSON.parse(d)[0].filename))")"
+tar -xzf "$T/tarball-extract/$tarball_name" -C "$T/tarball-extract"
+TBIN="$T/tarball-extract/package/bin/forge.mjs"
+[ -f "$TBIN" ] || { echo "FAIL (bin/forge.mjs ausente no tarball extraído)"; exit 1; }
+
+mkdir -p "$T/proj-update"; ( cd "$T/proj-update" && git init -q )
+node "$TBIN" init --target "$T/proj-update" --name "Gate Update" --slug gate-update --desc "gate update" --adapters claude --no-plugin --yes >"$T/upd-init.log" 2>&1 \
+  || { echo "FAIL (init via tarball falhou)"; cat "$T/upd-init.log"; exit 1; }
+
+mkdir -p "$T/proj-update/.forge/specs/active/demo"
+printf 'id: demo\nscale: 2\n' > "$T/proj-update/.forge/specs/active/demo/manifest.yaml"
+SHA_BEFORE="$(shasum -a 256 "$T/proj-update/.forge/specs/active/demo/manifest.yaml" | cut -d' ' -f1)"
+perl -0pi -e 's/template_version: "[^"]*"/template_version: "0.0.1-old"/' "$T/proj-update/.forge/forge.yaml"
+
+node "$TBIN" update --target "$T/proj-update" --no-plugin >"$T/upd-update.log" 2>&1 \
+  || { echo "FAIL (update via tarball falhou)"; cat "$T/upd-update.log"; exit 1; }
+
+[ "$(shasum -a 256 "$T/proj-update/.forge/specs/active/demo/manifest.yaml" | cut -d' ' -f1)" = "$SHA_BEFORE" ] \
+  || { echo "FAIL (spec não preservada pelo update via tarball)"; exit 1; }
+pv="$(node -e "process.stdout.write(JSON.parse(require('node:fs').readFileSync(process.argv[1],'utf8')).version)" "$WS/package.json")"
+grep -q "template_version: \"$pv\"" "$T/proj-update/.forge/forge.yaml" \
+  || { echo "FAIL (template_version não bateu com package.json via tarball)"; exit 1; }
+bash "$T/proj-update/.forge/scripts/doctor.sh" --report >"$T/upd-doctor.log" 2>&1 \
+  || { echo "FAIL (doctor reportou problema pós-update via tarball)"; cat "$T/upd-doctor.log"; exit 1; }
+grep -qi 'sem drift' "$T/upd-doctor.log" || { echo "FAIL (doctor não validou lockfile pós-update via tarball)"; exit 1; }
+echo "OK [6] (update via tarball preserva spec, bump de versão, doctor limpo)"
 
 echo "OK"

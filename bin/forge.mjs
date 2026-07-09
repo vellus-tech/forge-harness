@@ -22,7 +22,7 @@
 // the derived defaults without prompting. Exit codes: 0 ok · 2 usage · 3 .forge already exists.
 import {
   cpSync, existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync,
-  statSync, renameSync, appendFileSync,
+  renameSync, appendFileSync,
 } from 'node:fs';
 import { join, resolve, dirname, basename, relative, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -45,14 +45,17 @@ const pkgVersion = () => {
 
 // ── arg parsing ────────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
-const flags = { force: false, forceContent: false, noSymlink: false, noPlugin: false, yes: false, help: false, version: false };
+const flags = { force: false, forceContent: false, noSymlink: false, noPlugin: false, yes: false, help: false, version: false, dryRun: false, noBackup: false };
 const vals = { target: '', source: '', slug: '', name: '', desc: '', adapters: '', out: '' };
 let cmd = '';
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
   switch (a) {
     case 'init': cmd = 'init'; break;
+    case 'update': cmd = 'update'; break;
     case 'install-plugin': cmd = 'install-plugin'; break;
+    case '--dry-run': flags.dryRun = true; break;              // update: mostra o que mudaria, sem escrever
+    case '--no-backup': flags.noBackup = true; break;          // update: não cria .forge.bak-N
     case '--out': vals.out = argv[++i] ?? ''; break;            // install-plugin: destino do plugin
     case '--force': flags.force = true; break;
     case '--force-content': flags.force = true; flags.forceContent = true; break;
@@ -78,6 +81,7 @@ const HELP = `forge-harness ${pkgVersion()} — Spec-Driven Development harness
 
 Uso:
   npx forge-harness init [opções]
+  npx forge-harness update [--dry-run] [--no-backup] [--no-plugin] [--target <dir>]
   npx forge-harness install-plugin [--out <dir>]
 
 Instala o harness Forge (.forge/) no projeto-alvo: fonte única projetada para
@@ -103,7 +107,9 @@ Opções:
                         (interativo) ou bloqueia (não-interativo) — prefira o update cirúrgico
   --force-content       sobrescreve mesmo com trabalho de produto presente (ainda faz backup)
   --no-symlink          materializa CLAUDE/QWEN/GEMINI.md como cópias (sem symlink)
-  --no-plugin           (init) não auto-instala o plugin /forge:* (faça depois com install-plugin)
+  --no-plugin           (init/update) não auto-instala o plugin /forge:*
+  --dry-run             (update) lista o que mudaria sem escrever nada
+  --no-backup           (update) não cria .forge.bak-N (o .forge já é versionado em git)
   -y, --yes             não-interativo: usa os padrões derivados sem perguntar
   -h, --help            mostra esta ajuda
   -v, --version         mostra a versão
@@ -111,6 +117,14 @@ Opções:
 Interativo quando há TTY e faltam dados; caso contrário usa os padrões.`;
 
 function fail(msg, code = 1) { console.error(`FAIL (${msg})`); process.exit(code); }
+// Recursively collect every file path under dir (used by init's placeholder pass and update's overlay).
+function walk(dir, acc = []) {
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const p = join(dir, e.name);
+    if (e.isDirectory()) walk(p, acc); else acc.push(p);
+  }
+  return acc;
+}
 function slugify(s) {
   return String(s).toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '')
     .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');  // strip combining marks, then kebab
@@ -156,12 +170,156 @@ async function installPlugin(out) {
   return { dest, version, count: files.length - 1 };
 }
 
+// Diretórios de MAQUINARIA — substituíveis pelo template novo (overlay aditivo). Nenhum carrega
+// placeholder <PROJECT_*> (verificado). Fora desta lista, tudo é dado do projeto e é preservado:
+// specs/ product/ custom/ evals/ graph/ worktrees/ runners.yaml FORGE.md constitution.md context.md.
+const MACHINERY_DIRS = ['agents', 'commands', 'hooks', 'schemas', 'scripts', 'skills', 'templates', 'rules'];
+
+// Recolhe os arquivos que o overlay tocaria (maquinaria), como pares [rel, srcAbs].
+function machineryFiles(src) {
+  const out = [];
+  for (const d of MACHINERY_DIRS) {
+    const base = join(src, d);
+    if (!existsSync(base)) continue;
+    for (const f of walk(base)) {
+      if (basename(f) === '.DS_Store') continue;
+      out.push([relative(src, f), f]);
+    }
+  }
+  // adapters: só as declarações *.yaml, nunca os *.lock.yaml (regenerados por sync-adapters)
+  const adaptersDir = join(src, 'adapters');
+  if (existsSync(adaptersDir)) {
+    for (const e of readdirSync(adaptersDir)) {
+      if (e.endsWith('.yaml') && !e.endsWith('.lock.yaml')) out.push([join('adapters', e), join(adaptersDir, e)]);
+    }
+  }
+  const readme = join(src, 'README.md');
+  if (existsSync(readme)) out.push(['README.md', readme]);
+  return out;
+}
+
+// Só o campo harness.template_version é atualizado no forge.yaml — adapters e flags ficam intactos.
+function bumpTemplateVersion(forge, version) {
+  const p = join(forge, 'forge.yaml');
+  if (!existsSync(p)) return false;
+  const cur = readFileSync(p, 'utf8');
+  let next;
+  if (/^(\s*)template_version:.*$/m.test(cur)) {
+    next = cur.replace(/^(\s*)template_version:.*$/m, `$1template_version: "${version}"`);
+  } else if (/^harness:\s*$/m.test(cur)) {
+    next = cur.replace(/^(harness:\s*\n)/m, `$1  template_version: "${version}"\n`);
+  } else {
+    return false;
+  }
+  if (next !== cur) writeFileSync(p, next);
+  return next !== cur;
+}
+
+async function updateHarness() {
+  const target = resolve(vals.target || process.cwd());
+  const forge = join(target, '.forge');
+  if (!existsSync(join(forge, 'forge.yaml')))
+    fail(`.forge não encontrado em ${target} — use \`npx forge-harness init\` para instalar`, 3);
+
+  const src = vals.source ? resolve(vals.source) : TEMPLATE_FORGE;
+  const version = pkgVersion();
+  const files = machineryFiles(src);
+
+  // dry-run: lista o que mudaria (conteúdo diferente ou arquivo novo), sem escrever nada.
+  if (flags.dryRun) {
+    const changes = [];
+    for (const [rel, srcAbs] of files) {
+      const dst = join(forge, rel);
+      if (!existsSync(dst)) changes.push(`+ ${rel}`);
+      else if (readFileSync(srcAbs, 'utf8') !== readFileSync(dst, 'utf8')) changes.push(`~ ${rel}`);
+    }
+    const fy = join(forge, 'forge.yaml');
+    if (existsSync(fy) && !new RegExp(`template_version:\\s*"?${version}"?`).test(readFileSync(fy, 'utf8')))
+      changes.push('~ forge.yaml (template_version)');
+    console.log(`forge update — dry-run (${target})`);
+    console.log(changes.length ? changes.sort().join('\n') : '(nada a atualizar — já na versão do template)');
+    console.log(`\n${changes.length} mudança(s) de arquivo. Rode sem --dry-run para aplicar.`);
+    console.log('(a aplicação também reconcilia adapters/plugin/hooksPath/.gitignore — não previstos acima)');
+    return;
+  }
+
+  const work = scanProductContent(forge);
+
+  // backup por CÓPIA (o update edita in place; não move como o init --force). Pulável com --no-backup.
+  if (!flags.noBackup) {
+    let n = 1; while (existsSync(`${forge}.bak-${n}`)) n++;
+    cpSync(forge, `${forge}.bak-${n}`, { recursive: true, filter: (p) => basename(p) !== '.DS_Store' });
+    console.log(`backup: .forge copiado para .forge.bak-${n}`);
+  }
+
+  // overlay aditivo: sobrescreve mesmos paths, adiciona novos, NUNCA deleta extras do projeto.
+  let written = 0;
+  for (const [rel, srcAbs] of files) {
+    const dst = join(forge, rel);
+    mkdirSync(dirname(dst), { recursive: true });
+    cpSync(srcAbs, dst);
+    written++;
+  }
+  console.log(`maquinaria: ${written} arquivo(s) de template aplicados (overlay aditivo)`);
+
+  // orphan-check defensivo: nenhum arquivo de maquinaria deve conter <PROJECT_*> após overlay
+  const isTemplated = (f) => /\.(md|ya?ml)$/.test(f);
+  const underTemplates = (f) => relative(forge, f).split(sep).includes('templates');
+  const orphans = files
+    .map(([rel]) => join(forge, rel))
+    .filter((f) => isTemplated(f) && !underTemplates(f) && /<PROJECT_[A-Z_]*>/.test(readFileSync(f, 'utf8')));
+  if (orphans.length) fail(`${orphans.length} arquivo(s) de maquinaria com placeholders <PROJECT_*> — template inválido?`, 1);
+
+  // forge.yaml: só template_version
+  if (bumpTemplateVersion(forge, version)) console.log(`forge.yaml: template_version -> ${version}`);
+
+  // gitignore managed block (idempotente)
+  const gi = join(target, '.gitignore');
+  const giCur = existsSync(gi) ? readFileSync(gi, 'utf8') : '';
+  if (!giCur.includes(GI_MARKER)) { appendFileSync(gi, readFileSync(GITIGNORE_PATCH, 'utf8')); console.log('gitignore: bloco forge adicionado'); }
+
+  // core.hooksPath (corrige projetos que apontam para .git/hooks)
+  let isRepo = false;
+  try { execFileSync('git', ['-C', target, 'rev-parse', '--git-dir'], { stdio: 'ignore' }); isRepo = true; } catch { /* not a repo */ }
+  if (isRepo) {
+    let cur = '';
+    try { cur = execFileSync('git', ['-C', target, 'config', '--get', 'core.hooksPath'], { encoding: 'utf8' }).trim(); } catch { /* unset */ }
+    if (cur !== '.forge/hooks/git') {
+      execFileSync('git', ['-C', target, 'config', 'core.hooksPath', '.forge/hooks/git'], { stdio: 'ignore' });
+      console.log(`git: core.hooksPath -> .forge/hooks/git${cur ? ` (era ${cur})` : ''}`);
+    }
+  }
+
+  // reconcilia adapters ativos (sem --set: preserva a lista do projeto)
+  const syncMjs = join(forge, 'scripts', 'lib', 'sync-adapters.mjs');
+  execFileSync(process.execPath, [syncMjs, '--root', target, '--adapter', 'all'], { stdio: 'inherit' });
+
+  // plugin global /forge:* (idempotente) quando claude ativo e não --no-plugin
+  const activeAdapters = (readFileSync(join(forge, 'forge.yaml'), 'utf8').match(/^ {4}- (.+)$/gm) || []).map((l) => l.replace(/^ {4}- /, '').trim());
+  if (activeAdapters.includes('claude') && !flags.noPlugin) {
+    try { const r = await installPlugin(''); console.log(`plugin: 'forge' v${r.version} → ${r.dest} (${r.count} comandos /forge:*)`); }
+    catch (e) { console.log(`plugin: não instalado (${e?.message || e})`); }
+  }
+
+  // post-check
+  try { execFileSync('bash', [join(forge, 'scripts', 'doctor.sh'), '--report'], { stdio: 'inherit' }); } catch { /* doctor exit 1 = diag ausente, não-fatal aqui */ }
+
+  const preserved = work.total > 0 ? `${work.specsActive} spec(s) ativo(s), ${work.specsArchived} arquivado(s), ${work.productDocs} doc(s) de produto preservados` : 'sem trabalho de produto a preservar';
+  console.log(`\n✔ Forge atualizado em ${target} (template v${version})`);
+  console.log(`  ${preserved}`);
+  if (!flags.noBackup) console.log('  backup em .forge.bak-N (remova quando validar; o .forge é versionado em git)');
+}
+
 async function main() {
   if (flags.version) { console.log(pkgVersion()); return; }
-  if (flags.help || (cmd && cmd !== 'init' && cmd !== 'install-plugin')) { console.log(HELP); return; }
+  if (flags.help || (cmd && cmd !== 'init' && cmd !== 'update' && cmd !== 'install-plugin')) { console.log(HELP); return; }
 
   if (!existsSync(join(TEMPLATE_FORGE, 'FORGE.md')))
     fail(`template não encontrado em ${TEMPLATE_FORGE} (pacote corrompido?)`, 1);
+
+  // update — atualização cirúrgica do harness num projeto que já tem .forge/ (overlay aditivo da
+  // maquinaria; preserva specs/product/config). O oposto do init: exige .forge existente.
+  if (cmd === 'update') { await updateHarness(); return; }
 
   // install-plugin — instala o plugin global, independente de um projeto-alvo.
   if (cmd === 'install-plugin') {
@@ -244,13 +402,6 @@ async function main() {
   ];
   const isTemplated = (f) => /\.(md|ya?ml)$/.test(f);
   const underTemplates = (f) => relative(forge, f).split(sep).includes('templates');
-  const walk = (dir, acc = []) => {
-    for (const e of readdirSync(dir, { withFileTypes: true })) {
-      const p = join(dir, e.name);
-      if (e.isDirectory()) walk(p, acc); else acc.push(p);
-    }
-    return acc;
-  };
   for (const f of walk(forge)) {
     if (!isTemplated(f) || underTemplates(f)) continue;
     const before = readFileSync(f, 'utf8');

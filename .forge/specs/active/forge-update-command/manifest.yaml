@@ -1,0 +1,42 @@
+id: forge-update-command
+type: feature
+mode: brownfield
+rigor: spec-anchored
+scale: 3
+status: verified
+created_at: "2026-07-09"
+updated_at: "2026-07-09"
+owner: "milton"
+parent:
+  baseline: .forge/product/current
+affected_capabilities:
+  - forge-harness-template
+affected_paths:
+  - bin/forge.mjs
+  - template/.forge/commands/
+  - template/.forge/scripts/doctor.sh
+  - tests/
+  - docs/
+  - plugin/forge/
+  - README.md
+  - CHANGELOG.md
+dependencies:
+  specs: []
+  code: []
+gates:
+  requirements_reviewed: true
+  design_reviewed: true
+  tasks_reviewed: true
+  implementation_verified: true
+  human_archive_approval: false
+dev_loop:
+  sharded: false
+  stories_path: stories/
+  epic_context_compiled: false
+quick_plan:
+  enabled: false
+  skipped_phases: []
+  justification:
+archive:
+  eligible: false
+  reason: "tasks not implemented"

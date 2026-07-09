@@ -6,6 +6,12 @@ e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+### Added
+- **`npx forge-harness update` / `/forge:upgrade`** — atualização cirúrgica do harness num projeto que já tem `.forge/`. Faz overlay **aditivo** da maquinaria (`agents/ commands/ hooks/ schemas/ scripts/ skills/ templates/ rules/`, `adapters/*.yaml` sem locks, `README.md`) — sobrescreve/adiciona, nunca deleta — e **preserva** os dados do projeto: `specs/`, `product/current/` (baseline), `custom/`, `evals/`, `runners.yaml`, `constitution.md`, `context.md`, `FORGE.md`, e todo o `forge.yaml` exceto `harness.template_version`. Inclui `--dry-run` (lista mudanças sem escrever), backup `.forge.bak-N` (opt-out via `--no-backup`), reconciliação de adapters ativos (`sync-adapters --adapter all`), correção do `core.hooksPath`, re-materialização do plugin e `doctor` como post-check. Substitui o antigo caminho destrutivo (`init --force` movia o `.forge/` inteiro para backup). O slash `/forge:upgrade` tem nome próprio para não colidir com `/forge:update` (grafo de código).
+
+### Fixed
+- **`doctor` — falso-positivo nas varreduras de "refs `.claude/`" e placeholders `<PROJECT_*>`.** Os guards varriam `.forge/**` inteiro, incluindo `specs/`, `worktrees/`, `product/`, `evals/` e `custom/` — conteúdo autorado pelo usuário (texto de spec pode citar `.claude/`; arquivos de deploy em worktrees carregam tokens do próprio app). Agora esses diretórios de dado são excluídos; só a maquinaria canônica é varrida.
+
 ## [0.1.0-rc8] — 2026-07-09
 
 ### Added

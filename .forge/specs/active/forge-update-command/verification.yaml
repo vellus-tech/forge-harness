@@ -1,0 +1,30 @@
+verification:
+  commit: "ab0c6952b149880de162d80d3763368a8c7dc666"
+  verified_at: "2026-07-09T14:02:09Z"
+  checks:
+    - name: "suite consolidada (run-all)"
+      command: "npm test"
+      status: passed
+    - name: "gate unitário do update"
+      command: "bash tests/w63-forge-update-gate.sh"
+      status: passed
+    - name: "cobertura por tarball empacotado (seção 6)"
+      command: "bash tests/npx-pack-gate.sh"
+      status: passed
+    - name: "sincronia do plugin /forge:* (upgrade incluído)"
+      command: "bash tests/plugin-sync-gate.sh"
+      status: passed
+    - name: "validação estrutural do change"
+      command: "FORGE_ROOT=$(pwd) bash template/.forge/scripts/validate-spec.sh forge-update-command"
+      status: passed
+    - name: "idempotência do update (2º dry-run = 0 mudanças)"
+      command: "node bin/forge.mjs init … && node bin/forge.mjs update … && node bin/forge.mjs update --dry-run …"
+      status: passed
+    - name: "zero-dep (só node builtins)"
+      command: "grep -nE \"^import .* from ['\\\"]\" bin/forge.mjs | grep -vE 'node:'"
+      status: passed
+  evidence:
+    - "tests/w63-forge-update-gate.sh — [0] guarda exit 3, [3] dry-run não escreve, [4a-c] specs/ADR/runners byte-idênticos + template_version + adapters, [d] órfão preservado, [e] maquinaria nova, [f] backup/--no-backup, [g] doctor sem falso-positivo, [5] idempotência"
+    - "tests/npx-pack-gate.sh [6] — init+update via tarball preserva spec, bump de versão, doctor limpo"
+    - "npm test — PASS=36 FAIL=0 SKIP=0"
+    - "verification.md — tabela REQ-a-REQ com path:linha"

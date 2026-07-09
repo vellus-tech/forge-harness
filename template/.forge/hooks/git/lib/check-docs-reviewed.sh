@@ -22,7 +22,9 @@ _docs_resolve_base() {  # _docs_resolve_base <local_sha> <remote_sha>
   default_ref="$(git -C "$REPO" symbolic-ref --quiet refs/remotes/origin/HEAD 2>/dev/null || true)"
   default_ref="${default_ref#refs/remotes/}"
 
-  for candidate in "$default_ref" "origin/develop" "origin/main"; do
+  # develop-first: a org trabalha sobre develop; origin/HEAD do GitHub costuma apontar main,
+  # o que alargaria o range no primeiro push de uma branch nova.
+  for candidate in "origin/develop" "$default_ref" "origin/main"; do
     [ -n "$candidate" ] || continue
     if base="$(git -C "$REPO" merge-base "$local_sha" "$candidate" 2>/dev/null)" && [ -n "$base" ]; then
       printf '%s\n' "$base"
@@ -56,6 +58,9 @@ _docs_is_user_facing() {  # _docs_is_user_facing <base> <local_sha>
       docs/*) continue ;;
       .gitignore|LICENSE) continue ;;
       *.yml|*.yaml) continue ;;
+      # Lockfiles gerados nunca são mudança user-facing (bump de deps não pede README/CHANGELOG).
+      # Isto é refino de classificação, não válvula de escape: código-fonte real continua exigindo docs.
+      package-lock.json|pnpm-lock.yaml|yarn.lock|*.lock) continue ;;
     esac
     return 0
   done < <(git -C "$REPO" diff --name-only "$range" 2>/dev/null)

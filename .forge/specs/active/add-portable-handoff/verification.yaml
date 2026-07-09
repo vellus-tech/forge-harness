@@ -3,13 +3,13 @@ verification:
   verified_at: "2026-07-09T09:10:00-03:00"
   checks:
     - name: "w40 handoff-gen deterministic core (REQ-01/02, NFR-02)"
-      command: "bash tests/w40-handoff-gen-gate.sh"
+      command: "bash tests/w60-handoff-gen-gate.sh"
       status: passed
     - name: "w41 docs-review pre-push hard gate (REQ-06)"
-      command: "bash tests/w41-docs-review-gate.sh"
+      command: "bash tests/w61-docs-review-gate.sh"
       status: passed
     - name: "w42 session hooks opt-in / C5 regression (REQ-05, REQ-07)"
-      command: "bash tests/w42-handoff-hook-gate.sh"
+      command: "bash tests/w62-handoff-hook-gate.sh"
       status: passed
     - name: "full suite (35 gates + 2 bats incl. claude-contract C5, plugin-sync-gate)"
       command: "npm test"
@@ -22,6 +22,6 @@ verification:
       status: passed
   evidence:
     - ".forge/specs/active/add-portable-handoff/verification.md"
-    - "tests/w40-handoff-gen-gate.sh"
-    - "tests/w41-docs-review-gate.sh"
-    - "tests/w42-handoff-hook-gate.sh"
+    - "tests/w60-handoff-gen-gate.sh"
+    - "tests/w61-docs-review-gate.sh"
+    - "tests/w62-handoff-hook-gate.sh"

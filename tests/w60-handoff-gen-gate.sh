@@ -68,4 +68,4 @@ FORGE_ROOT="$T" bash "$GEN" demo-change >/dev/null
 grep -q 'Foco: terminar a wave 2' "$H"
 echo "OK [4]"
 
-echo "PASS w40-handoff-gen-gate"
+echo "PASS w60-handoff-gen-gate"

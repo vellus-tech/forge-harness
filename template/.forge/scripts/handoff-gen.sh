@@ -18,7 +18,8 @@ ACTIVE="$ROOT/.forge/specs/active"
 
 ID="${1:-}"
 if [ -z "$ID" ]; then
-  count=$(find "$ACTIVE" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
+  count=$(find "$ACTIVE" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | wc -l | tr -d ' ' || true)
+  [ -n "$count" ] || count=0
   if [ "$count" = "1" ]; then
     ID="$(basename "$(find "$ACTIVE" -maxdepth 1 -mindepth 1 -type d)")"
   elif [ "$count" = "0" ]; then

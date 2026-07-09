@@ -7,7 +7,7 @@
 
 - [X] TASK-01 — Template `handoff/HANDOFF.md` com 5 seções + regras fixas (rastreia: REQ-01; paths: `template/.forge/templates/handoff/HANDOFF.md`; depende: —)
 - [X] TASK-02 — `handoff-gen.sh`: lê manifest/progress/deferrals/runtime/git via yaml-lite; emite seções 1-3,5 + marcador do delta; relocável por FORGE_ROOT (rastreia: REQ-02; paths: `template/.forge/scripts/handoff-gen.sh`; depende: TASK-01)
-- [X] TASK-03 — Gate unitário do gerador: determinismo (2 execuções → diff vazio) + degradação sem FORGE.md (rastreia: REQ-02, NFR-02; paths: `tests/w40-handoff-gen-gate.sh`; depende: TASK-02)
+- [X] TASK-03 — Gate unitário do gerador: determinismo (2 execuções → diff vazio) + degradação sem FORGE.md (rastreia: REQ-02, NFR-02; paths: `tests/w60-handoff-gen-gate.sh`; depende: TASK-02)
 
 ## Wave 2 — Comando + plugin
 
@@ -23,7 +23,7 @@
 
 - [X] TASK-08 — `check-docs-reviewed.sh`: classificador user-facing + exigência README+CHANGELOG (rastreia: REQ-06; paths: `template/.forge/hooks/git/lib/check-docs-reviewed.sh`; depende: —)
 - [X] TASK-09 — Wire do helper no fim de `hooks/git/pre-push` (rastreia: REQ-06; paths: `template/.forge/hooks/git/pre-push`; depende: TASK-08)
-- [X] TASK-10 — Gate `tests/w41-docs-review-gate.sh`: user-facing sem docs falha; docs-only passa; com docs passa (rastreia: REQ-06, REQ-07; paths: `tests/w41-docs-review-gate.sh`; depende: TASK-08)
+- [X] TASK-10 — Gate `tests/w61-docs-review-gate.sh`: user-facing sem docs falha; docs-only passa; com docs passa (rastreia: REQ-06, REQ-07; paths: `tests/w61-docs-review-gate.sh`; depende: TASK-08)
 
 ## Wave 5 — Automação opt-in
 

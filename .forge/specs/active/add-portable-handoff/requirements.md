@@ -76,7 +76,7 @@
 - **Quando** `npm test` roda, **o sistema deve** passar, incluindo o gate novo do classificador de docs,
   o `C5` atualizado e o `plugin-sync-gate` (plugin byte-idêntico após `build:plugin`).
 - **Critérios de aceite:**
-  - [ ] `tests/w##-docs-review-gate.sh`: user-facing sem docs falha; docs-only passa; com docs passa.
+  - [ ] `tests/w61-docs-review-gate.sh`: user-facing sem docs falha; docs-only passa; com docs passa.
   - [ ] `C5` aceita baseline (1 comando wired) e o modo `handoff.auto` (+2 Session hooks).
   - [ ] `plugin/forge/**` regenerado por `npm run build:plugin` e commitado; `plugin-sync-gate` verde.
   - [ ] `docs/refer/slash-commands.md` com a contagem de comandos atualizada (+1).

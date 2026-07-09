@@ -73,6 +73,21 @@ agente(s) ativo(s). Por padrão instala apenas o adapter **claude**; adicione ou
 `npx` baixa o pacote (o template viaja dentro dele), roda uma vez e sai; nada de `node_modules` no
 seu projeto.
 
+### ⬆️ Atualizar o harness (`update`)
+
+Quando sair uma versão nova, **não** use `init --force` (ele move o `.forge/` inteiro para backup e
+reinstala do zero). Use o **update cirúrgico**, que faz overlay aditivo da maquinaria
+(commands/agents/hooks/scripts/schemas/rules/templates) **preservando** suas `specs/`, o baseline
+`product/current/` e a config do `forge.yaml`:
+
+```bash
+npx forge-harness@latest update --dry-run   # mostra o que mudaria
+npx forge-harness@latest update             # aplica (cria .forge.bak-N; --no-backup para pular)
+```
+
+Dentro do Claude Code, o mesmo via `/forge:upgrade`. Órfãos (arquivos que o template removeu entre
+versões) não são deletados; customize rules em `custom/rules/**`, nunca editando `rules/*` in-place.
+
 ### 🔌 Slash commands `/forge:*` (plugin do Claude Code)
 
 O `.forge/` por projeto traz o **engine**; os **slash commands** `/forge:*` são entregues por um

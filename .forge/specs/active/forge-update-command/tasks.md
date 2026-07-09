@@ -11,7 +11,7 @@
 
 ## Wave 2 — Slash + doctor fix
 
-- [ ] TASK-05 — Comando `harness/upgrade.md` + rebuild plugin + contagem 50→51 em `slash-commands.md` (rastreia: REQ-07; paths: `template/.forge/commands/harness/upgrade.md`, `plugin/forge/**`, `docs/refer/slash-commands.md`; depende: TASK-03)
+- [X] TASK-05 — Comando `harness/upgrade.md` + rebuild plugin + contagem 50→51 em `slash-commands.md` (rastreia: REQ-07; paths: `template/.forge/commands/harness/upgrade.md`, `plugin/forge/**`, `docs/refer/slash-commands.md`; depende: TASK-03)
 - [X] TASK-06 — Doctor: excluir `specs|worktrees|product|evals|custom` das varreduras de refs `.claude/` e placeholders (rastreia: REQ-08; paths: `template/.forge/scripts/doctor.sh`; depende: —)
 
 ## Wave 3 — Testes
@@ -21,7 +21,7 @@
 
 ## Wave 4 — Docs
 
-- [ ] TASK-09 — `README.md` (uso do `update`) + `CHANGELOG.md [Unreleased]` (Added update/upgrade; Fixed doctor) (rastreia: REQ-09; paths: `README.md`, `CHANGELOG.md`; depende: TASK-05, TASK-08)
+- [X] TASK-09 — `README.md` (uso do `update`) + `CHANGELOG.md [Unreleased]` (Added update/upgrade; Fixed doctor) (rastreia: REQ-09; paths: `README.md`, `CHANGELOG.md`; depende: TASK-05, TASK-08)
 
 ## Rastreabilidade
 

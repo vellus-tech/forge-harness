@@ -5,6 +5,20 @@
 set -u
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+
+# Consume stdin (git feeds "<local ref> <local sha> <remote ref> <remote sha>" lines)
+# before anything else touches it, and run the docs-reviewed gate. This check is
+# independent of .forge/FORGE.md — it applies to any repo using this hook.
+INPUT="$(cat)"
+DOCS_LIB="$ROOT/.forge/hooks/git/lib/check-docs-reviewed.sh"
+if [ -f "$DOCS_LIB" ]; then
+  # shellcheck disable=SC1090
+  . "$DOCS_LIB"
+  if ! printf '%s\n' "$INPUT" | REPO="$ROOT" check_docs_reviewed; then
+    exit 1
+  fi
+fi
+
 FORGE_MD="$ROOT/.forge/FORGE.md"
 [ -f "$FORGE_MD" ] || { echo "pre-push OK (sem harness)"; exit 0; }
 

@@ -34,7 +34,7 @@
 
 ## Wave 6 — Docs (exercita o gate novo)
 
-- [ ] TASK-15 — `README.md` + `CHANGELOG.md [Unreleased]` documentando handoff + gate; contagem final de comandos (rastreia: REQ-07; paths: `README.md`, `CHANGELOG.md`; depende: TASK-05, TASK-14)
+- [X] TASK-15 — `README.md` + `CHANGELOG.md [Unreleased]` documentando handoff + gate; contagem final de comandos (rastreia: REQ-07; paths: `README.md`, `CHANGELOG.md`; depende: TASK-05, TASK-14)
 
 ## Rastreabilidade
 

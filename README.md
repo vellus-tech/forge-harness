@@ -79,7 +79,7 @@ O `.forge/` por projeto traz o **engine**; os **slash commands** `/forge:*` são
 **plugin** do Claude Code — porque o Claude Code (≥ 2.x) reserva o namespace `:` para plugins
 (comandos soltos em `.claude/commands/` viram só `/<nome>`, sem o prefixo `forge:`). **O `init` já
 auto-instala o plugin** (global, vale para todos os seus projetos) quando o adapter claude está ativo;
-depois é só `/reload-plugins` (ou nova sessão) e os 49 comandos `/forge:*` aparecem.
+depois é só `/reload-plugins` (ou nova sessão) e os 50 comandos `/forge:*` aparecem.
 
 Para (re)instalar/atualizar o plugin manualmente, há duas vias:
 
@@ -121,15 +121,19 @@ spec new ─▶ clarify ─▶ requirements ─▶ design ─▶ tasks ─▶ im
 Cada transição é registrada por scripts deterministas; os gates humanos (`approve`/`review`/`reject`/
 `block`) ficam em `approvals.yaml`. Em `scale` baixo, fases são puláveis (Quick Plan) com justificativa.
 
-> 📖 **Relação completa dos 49 slash commands** (`/forge:*`), por grupo e com argumentos:
+> 📖 **Relação completa dos 50 slash commands** (`/forge:*`), por grupo e com argumentos:
 > [`docs/refer/slash-commands.md`](./docs/refer/slash-commands.md). Os comandos são
 > entregues por um **plugin** do Claude Code — gere/instale com `/forge:build-plugin`
 > (ou `bash .forge/scripts/build-plugin.sh`).
 >
-> Dois comandos novos endereçam fricção recorrente de sessão: **`/forge:ship`** (commit → PR →
-> revisão → merge em `develop` → cleanup num único comando — o comando em si é o gate humano) e
+> Comandos novos endereçam fricção recorrente de sessão: **`/forge:ship`** (commit → PR →
+> revisão → merge em `develop` → cleanup num único comando — o comando em si é o gate humano),
 > **`/forge:resume`** (emite o mandato de retomada da sessão: estado do change ativo + regras
-> operacionais fixas, sem reescrevê-las à mão).
+> operacionais fixas, sem reescrevê-las à mão) e **`/forge:handoff`** (gera `.forge/HANDOFF.md`,
+> um handoff **portátil e agente-agnóstico** — Codex, Cursor, Gemini — com núcleo determinístico
+> via script e só um delta narrativo curto escrito pelo modelo; o `/forge:resume` já ingere esse
+> delta quando existe. Automação é opt-in via `handoff.auto` no `forge.yaml`, que liga hooks
+> SessionStart/SessionEnd no adapter Claude).
 
 ## 🕸️ Code graph & arquitetura
 
@@ -159,7 +163,7 @@ Trocar/adicionar um agente reconcilia o workspace (gera os ausentes, poda os rem
 template/.forge/        # o harness instalável (fonte única)
 ├── FORGE.md            # governança + frontmatter de runtime
 ├── agents/  (43)       # subagentes por categoria (specifications, architecture, review, …)
-├── commands/ (49)      # comandos /forge:* (specs, waves, graph, quality, git, …) — relação completa em docs/refer/slash-commands.md
+├── commands/ (50)      # comandos /forge:* (specs, waves, graph, quality, git, …) — relação completa em docs/refer/slash-commands.md
 ├── skills/   (9)       # skills especialistas (gate-runner, story-context, …)
 ├── rules/   (33)       # convenções (arquitetura, domínio, testing, …)
 ├── schemas/ (17)       # JSON Schemas (manifest, spec-delta, grading, graph, …)
@@ -204,6 +208,10 @@ plugin do Claude Code. Ver [CHANGELOG](./CHANGELOG.md).
    vez de repetir o protocolo manualmente. Após um subagente cair no meio de uma onda, rode
    `bash .forge/scripts/worktree-reconcile.sh` antes de redistribuir tasks — ele mostra o estado
    real (branch/ahead-behind/status/último commit) de cada worktree.
+6. **Gate de pre-push exige README/CHANGELOG revisados em mudanças user-facing.** Push com commit
+   `feat`/`fix`/`perf` ou qualquer arquivo de código-fonte no diff é bloqueado (sem válvula de
+   escape) se `README.md` e `CHANGELOG.md` não estiverem no diff do push — mantém a documentação
+   sincronizada com o comportamento observável do harness.
 
 ## 📄 Licença
 

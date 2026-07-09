@@ -238,7 +238,8 @@ async function updateHarness() {
       changes.push('~ forge.yaml (template_version)');
     console.log(`forge update — dry-run (${target})`);
     console.log(changes.length ? changes.sort().join('\n') : '(nada a atualizar — já na versão do template)');
-    console.log(`\n${changes.length} mudança(s). Rode sem --dry-run para aplicar.`);
+    console.log(`\n${changes.length} mudança(s) de arquivo. Rode sem --dry-run para aplicar.`);
+    console.log('(a aplicação também reconcilia adapters/plugin/hooksPath/.gitignore — não previstos acima)');
     return;
   }
 

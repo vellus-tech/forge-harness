@@ -6,6 +6,8 @@ e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+## [0.1.0-rc8] — 2026-07-09
+
 ### Added
 - **Integração com o draw.io MCP para elaboração e manutenção de diagramas.** Nova rule `conventions/diagram-tooling.md` define a política em camadas: fonte textual versionada (Mermaid/`infra.py`) como verdade, draw.io como camada de elaboração/edição visual, e ordem de preferência de tooling — MCP `drawio` (`open_drawio_mermaid`/`open_drawio_xml`/`open_drawio_csv`) → plugin Claude Code `drawio@drawio` (`.drawio` nativos + export PNG/SVG/PDF com `--embed-diagram`) → fallback determinista `mermaid-to-drawio.sh` (canônico em CI/offline). Os comandos `/forge:mermaid-to-drawio`, `/forge:infra-diagram` e `/forge:c4` referenciam o caminho MCP (incl. `search_shapes` para shapes reais e nota de data residency para diagramas PCI); convenção registrada no `context.md`.
 - **`/forge:ship`** — comando novo que costura commit → PR → revisão → merge em `develop` → cleanup num único fluxo, reaproveitando o protocolo de descrição do `/forge:prepare-pr`. O próprio comando é o gate humano (§20.4): cada etapa só roda porque o usuário o invocou explicitamente. Alvo do PR é sempre `develop` (convenção vellus-tech).
@@ -86,7 +88,8 @@ consolidação (Fase 8) + code graph com insights de arquitetura.
 - Toda a camada Quality (eval/meta) é **opt-in** (`quality.evals_enabled: false` por default).
 - Pendente para v0.1.0 final: teste manual em Claude Code real (contrato C10) + remoção dos wrappers deprecados.
 
-[Unreleased]: https://github.com/vellus-tech/forge-harness/compare/v0.1.0-rc7...HEAD
+[Unreleased]: https://github.com/vellus-tech/forge-harness/compare/v0.1.0-rc8...HEAD
+[0.1.0-rc8]: https://github.com/vellus-tech/forge-harness/compare/v0.1.0-rc7...v0.1.0-rc8
 [0.1.0-rc7]: https://github.com/vellus-tech/forge-harness/compare/v0.1.0-rc6...v0.1.0-rc7
 [0.1.0-rc6]: https://github.com/vellus-tech/forge-harness/compare/v0.1.0-rc5...v0.1.0-rc6
 [0.1.0-rc5]: https://github.com/vellus-tech/forge-harness/compare/v0.1.0-rc4...v0.1.0-rc5

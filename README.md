@@ -186,8 +186,9 @@ Cada wave de desenvolvimento entrega seu gate junto (shift-left). O contrato do 
 
 ## 🗺️ Status & roadmap
 
-`v0.1.0-rc5` — MVP1–MVP5 completos + consolidação (Fase 8) + code graph + entrega dos `/forge:*` via
-plugin do Claude Code. Ver [CHANGELOG](./CHANGELOG.md).
+`v0.1.0-rc8` — MVP1–MVP5 completos + consolidação (Fase 8) + code graph + entrega dos `/forge:*` via
+plugin do Claude Code + workflow-hardening + `/forge:handoff` portátil e gate de docs no pre-push. Ver
+[CHANGELOG](./CHANGELOG.md).
 
 - [x] Núcleo canônico, multi-adapter, ciclo SDD, validadores
 - [x] Baseline/archive, code graph + insights de arquitetura, eval harness opt-in

@@ -6,6 +6,8 @@ e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+## [0.1.0-rc9] — 2026-07-09
+
 ### Added
 - **`npx forge-harness update` / `/forge:upgrade`** — atualização cirúrgica do harness num projeto que já tem `.forge/`. Faz overlay **aditivo** da maquinaria (`agents/ commands/ hooks/ schemas/ scripts/ skills/ templates/ rules/`, `adapters/*.yaml` sem locks, `README.md`) — sobrescreve/adiciona, nunca deleta — e **preserva** os dados do projeto: `specs/`, `product/current/` (baseline), `custom/`, `evals/`, `runners.yaml`, `constitution.md`, `context.md`, `FORGE.md`, e todo o `forge.yaml` exceto `harness.template_version`. Inclui `--dry-run` (lista mudanças sem escrever), backup `.forge.bak-N` (opt-out via `--no-backup`), reconciliação de adapters ativos (`sync-adapters --adapter all`), correção do `core.hooksPath`, re-materialização do plugin e `doctor` como post-check. Substitui o antigo caminho destrutivo (`init --force` movia o `.forge/` inteiro para backup). O slash `/forge:upgrade` tem nome próprio para não colidir com `/forge:update` (grafo de código).
 
@@ -94,7 +96,8 @@ consolidação (Fase 8) + code graph com insights de arquitetura.
 - Toda a camada Quality (eval/meta) é **opt-in** (`quality.evals_enabled: false` por default).
 - Pendente para v0.1.0 final: teste manual em Claude Code real (contrato C10) + remoção dos wrappers deprecados.
 
-[Unreleased]: https://github.com/vellus-tech/forge-harness/compare/v0.1.0-rc8...HEAD
+[Unreleased]: https://github.com/vellus-tech/forge-harness/compare/v0.1.0-rc9...HEAD
+[0.1.0-rc9]: https://github.com/vellus-tech/forge-harness/compare/v0.1.0-rc8...v0.1.0-rc9
 [0.1.0-rc8]: https://github.com/vellus-tech/forge-harness/compare/v0.1.0-rc7...v0.1.0-rc8
 [0.1.0-rc7]: https://github.com/vellus-tech/forge-harness/compare/v0.1.0-rc6...v0.1.0-rc7
 [0.1.0-rc6]: https://github.com/vellus-tech/forge-harness/compare/v0.1.0-rc5...v0.1.0-rc6

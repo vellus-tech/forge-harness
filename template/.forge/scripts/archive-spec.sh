@@ -18,6 +18,8 @@ ID="${1:-}"
 [ -n "$ID" ] || { echo "FAIL (usage: archive-spec.sh <change-id>)"; exit 2; }
 DIR="$ROOT/.forge/specs/active/$ID"
 [ -d "$DIR" ] || { echo "FAIL (no active change: $ID)"; exit 1; }
+STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+bash "$SCRIPT_DIR/budget-preflight.sh" --stage archive --change "$ID" --outputs "product/current/CHANGELOG.md,evidence/runs/*/run-manifest.json" || true
 
 echo "[1/6] pre-flight (§13.1)"
 FORGE_ROOT="$ROOT" bash "$SCRIPT_DIR/validate-archive.sh" --path "$DIR" || exit 1
@@ -63,5 +65,26 @@ TMP="$(mktemp)"
     "$TODAY" "$ID" "${CAPS_TOUCHED:-—}" "$OPS_COUNT" "$TODAY" "$ID"
   tail -n +4 "$CHG"
 } > "$TMP" && mv "$TMP" "$CHG"
+
+ARCHIVE_DIR=".forge/specs/archived/$TODAY-$ID"
+bash "$SCRIPT_DIR/run-manifest.sh" write \
+  --stage archive \
+  --dir "$ARCHIVE_DIR" \
+  --status passed \
+  --started-at "$STARTED_AT" \
+  --inputs "manifest.yaml,tasks.md,verification.yaml,spec-delta.yaml,impact.json" \
+  --outputs "manifest.yaml,evidence/runs" \
+  --command "archive-spec::archive-spec.sh $ID::passed" \
+  --runner local \
+  --profile standard \
+  --budget-class medium \
+  --expected-runs 1 \
+  --estimated-timeout-s 300 \
+  --uses-llm false \
+  --uses-subagent false >/dev/null
+if ! contract_out="$(bash "$SCRIPT_DIR/validate-stage-contract.sh" check --stage archive --dir "$ARCHIVE_DIR" 2>&1)"; then
+  echo "FAIL (stage contract invalid: $contract_out)"
+  exit 1
+fi
 
 echo "OK $ID archived -> .forge/specs/archived/$TODAY-$ID (baseline updated)"

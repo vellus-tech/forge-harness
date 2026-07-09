@@ -19,6 +19,8 @@ ID="${1:-}"
 DIR="$ROOT/.forge/specs/active/$ID"
 MAN="$DIR/manifest.yaml"
 [ -f "$MAN" ] || { echo "FAIL (no active change: $ID)"; exit 1; }
+STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+bash "$SCRIPT_DIR/budget-preflight.sh" --stage verify --change "$ID" --outputs "verification.yaml,evidence/runs/*/run-manifest.json" || true
 
 STATUS="$(awk -F': ' '$1=="status"{print $2; exit}' "$MAN")"
 case "$STATUS" in implementing|implemented) ;; *) echo "FAIL (status '$STATUS' — verify runs on implementing|implemented)"; exit 1 ;; esac
@@ -82,6 +84,28 @@ AT="$(date +%Y-%m-%dT%H:%M:%S%z | sed 's/\([0-9][0-9]\)$/:\1/')"
   printf '  evidence:\n'
   printf '    - verification.md\n'
 } > "$DIR/verification.yaml"
+
+RM_STATUS="passed"
+[ "$fail" -eq 0 ] || RM_STATUS="failed"
+bash "$SCRIPT_DIR/run-manifest.sh" write \
+  --stage verify \
+  --change "$ID" \
+  --status "$RM_STATUS" \
+  --started-at "$STARTED_AT" \
+  --inputs "manifest.yaml,tasks.md,traceability.yaml" \
+  --outputs "verification.yaml" \
+  --command "spec-verify::spec-verify.sh $ID::$RM_STATUS" \
+  --runner local \
+  --profile standard \
+  --budget-class medium \
+  --expected-runs 1 \
+  --estimated-timeout-s 300 \
+  --uses-llm false \
+  --uses-subagent false >/dev/null
+if ! contract_out="$(bash "$SCRIPT_DIR/validate-stage-contract.sh" check --stage verify --change "$ID" 2>&1)"; then
+  echo "FAIL (stage contract invalid: $contract_out)"
+  exit 1
+fi
 
 if [ "$fail" -eq 0 ]; then
   echo "OK $ID (verification.yaml written)"

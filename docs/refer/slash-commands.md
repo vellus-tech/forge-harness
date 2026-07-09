@@ -1,6 +1,6 @@
 # Relação de Slash Commands — Forge Harness
 
-> Catálogo gerado a partir dos frontmatters em `template/.forge/commands/`. **49 commands** em 10 grupos.
+> Catálogo gerado a partir dos frontmatters em `template/.forge/commands/`. **50 commands** em 10 grupos.
 
 Os `/forge:*` são entregues por um **plugin** do Claude Code (gerado de `.forge/commands/**` por `/forge:build-plugin` ou `bash .forge/scripts/build-plugin.sh`). O Claude Code (>= 2.x) reserva o namespace `:` para plugins — por isso os comandos vivem num plugin `name: forge`, não em `.claude/commands/`. O engine que eles chamam (`.forge/scripts/...`) vem do `.forge/` por projeto (instalado via `npx forge-harness init`).
 
@@ -16,7 +16,7 @@ No Claude Code digite `/` e o nome do command; argumentos vão na mesma linha. E
 - [Graph — Knowledge graph & brownfield](#graph) — 8 commands
 - [Docs — Documentação & ADRs](#docs) — 8 commands
 - [Git — Fluxo de entrega](#git) — 1 commands
-- [Harness — Manutenção do Forge](#harness) — 7 commands
+- [Harness — Manutenção do Forge](#harness) — 8 commands
 - [Quality — Avaliação](#quality) — 1 commands
 - [Testing — TDD](#testing) — 1 commands
 - [Skills](#skills) — 1 commands
@@ -131,6 +131,7 @@ _Doctor, status, resume, sync de adapters, build do plugin, PR e promoção de s
 |---|---|---|
 | `/forge:build-plugin` | `[--out <dir>] [--version <x>]` | Gera/atualiza o plugin Claude Code "forge" (slash commands /forge:*) a partir de .forge/commands/**. |
 | `/forge:doctor` | — | Valida o harness Forge e a tooling do projeto (stacks, adapters, symlinks, drift de lockfile, placeholders orfaos). |
+| `/forge:handoff` | `[<change-id>]` | Gera um handoff portátil e agente-agnóstico em .forge/HANDOFF.md a partir do estado do change ativo — para passar contexto entre sessões ou entre code agents. |
 | `/forge:prepare-pr` | — | Prepara a descricao de um PR da branch de trabalho para develop a partir dos artefatos da mudanca. |
 | `/forge:promote-staging` | — | Direcionador de promocao develop para staging (decisao humana). |
 | `/forge:resume` | `[<change-id>]` | Emite o mandato de retomada de sessao (estado do change ativo + regras operacionais fixas) sem o usuario ter que reescreve-lo. |

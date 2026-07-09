@@ -24,7 +24,10 @@ Leia **apenas** arquivos de estado, na mesma disciplina de custo do `/forge:stat
 3. `.forge/specs/active/<change-id>/progress.json` — wave atual, contagem de stories/tasks
    (mesmos campos que `/forge:progress` reporta).
 4. `.forge/specs/active/<change-id>/deferrals.json` — deferrals `open` (bloqueiam `/forge:close`).
-5. Se nenhum change ativo existir: diga isso em uma linha e pule para as regras fixas.
+5. `.forge/HANDOFF.md` (se existir) — leia **apenas** a seção `## 4. Delta narrativo` (entre os
+   marcadores `FORGE:NARRATIVE-DELTA`) e incorpore-a ao mandato. Ausência do arquivo = comportamento
+   inalterado (nenhuma regressão).
+6. Se nenhum change ativo existir: diga isso em uma linha e pule para as regras fixas.
 
 ## Saída (≤30 linhas)
 
@@ -37,6 +40,7 @@ Deferrals abertos: <IDs, ou "nenhum">
 Runtime: <stack> · test=<cmd> · typecheck=<cmd> · lint=<cmd>
 
 Próximo passo lógico: <uma linha objetiva>
+Handoff: <resumo do delta narrativo de .forge/HANDOFF.md, ou "sem handoff">
 
 --- Regras fixas desta sessão ---
 1. Subagente SEMPRE com `model` explícito: haiku (bite-sized/paralelizar),

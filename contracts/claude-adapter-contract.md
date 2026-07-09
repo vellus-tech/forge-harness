@@ -25,7 +25,9 @@ Os 8 commands continuam invocáveis com o mesmo comportamento:
 
 `run-spec-pipeline`, `specs-loop`, `coding-loop`, `coding-status`, `deploy-wave`, `new-adr`, `update-changelog`, `scaffold-tdd`.
 
-No adapter gerado, os commands passam ao namespace `/forge:*` (ex.: `/forge:run-spec-pipeline`); **wrappers temporários com os nomes antigos** são gerados com aviso de deprecação (remoção apenas na W8.3, após os pilotos).
+No adapter gerado, os commands são invocáveis no namespace `/forge:*` (ex.: `/forge:run-spec-pipeline`).
+
+**Revisão (v1.3) — origem dos `/forge:*` mudou de `.claude/commands/` para um PLUGIN.** A premissa original (um `.md` em `.claude/commands/forge/<nome>.md` vira `/forge:<nome>`) **deixou de valer**: o Claude Code (>= 2.x) descontinuou o namespace via subdiretório em `.claude/commands/` — o `:` passou a ser exclusivo de plugins. Por isso o adapter gerado **não projeta mais `.claude/commands/`** (nem os wrappers de alias legados). Os `/forge:*` passam a vir de um **plugin** `forge` (manifesto `name: forge`), gerado da MESMA fonte `.forge/commands/**` por `template/.forge/scripts/lib/plugin-build.mjs` e instalado por `npx forge-harness install-plugin` (auto no `init` quando o adapter claude está ativo) ou pelo marketplace git (`.claude-plugin/marketplace.json`). A preservação do legado (os 8 commands continuam existindo e invocáveis como `/forge:*`) é mantida **no plugin**; o snapshot (source) preserva os 8 `.claude/commands/` legados apenas como referência histórica congelada. Validação: `tests/plugin-sync-gate.sh` (sincronia + cobertura sem colisão) e `claude-contract.bats` (generated mode afirma a ausência de `.claude/commands/`).
 
 ### C2 — Agents (35 + README)
 
@@ -65,7 +67,7 @@ O `.gitignore` instalado continua cobrindo settings locais, cache e worktrees (p
 
 ### C10 — Teste real obrigatório (processual)
 
-**Nenhuma fonte `.claude` legada é removida ou considerada substituída** antes de um teste manual em Claude Code real num projeto-alvo inicializado: commands visíveis e executáveis (namespace novo + wrappers), agents/skills carregados, worktree-guard bloqueando worktree fora do padrão, doctor com exit codes corretos. (DoD do MVP1.)
+**Nenhuma fonte `.claude` legada é removida ou considerada substituída** antes de um teste manual em Claude Code real num projeto-alvo inicializado: commands `/forge:*` visíveis e executáveis (via plugin `forge`), agents/skills carregados, worktree-guard bloqueando worktree fora do padrão, doctor com exit codes corretos. (DoD do MVP1.)
 
 ---
 
@@ -88,4 +90,5 @@ O `.gitignore` instalado continua cobrindo settings locais, cache e worktrees (p
 - Milton Silva - 2026-06-10 - Versão 1.0: contrato inicial derivado do snapshot congelado (W0.2) e da leitura de doctor.sh/settings.json/AGENTS.md.
 - Milton Silva - 2026-06-11 - Versão 1.1: cláusulas C2/C4 tornadas aditivas no modo generated (>= 35 agents / >= 4 skills), espelhando C1 — o contrato garante preservação do legado, não congela crescimento do Forge. Motivada pela skill `gate-runner` (W2.2).
 - Milton Silva - 2026-06-11 - Versão 1.2: cláusula C3 tornada aditiva no modo generated (>= 27 rules), espelhando C1/C2/C4. Motivada pelo guardrail de conflito de fontes (rule `conflict-handling.md`, GW.1) e pelas rules de governança de dados (GW.3).
+- Milton Silva - 2026-06-16 - Versão 1.3: C1 revisada — origem dos `/forge:*` migrou de `.claude/commands/` para um **plugin** `forge`. O Claude Code (>= 2.x) descontinuou o namespace via subdiretório em `.claude/commands/` (o `:` virou exclusivo de plugins), invalidando a premissa original. O adapter gerado deixa de projetar `.claude/commands/` e os wrappers de alias; o plugin (gerado da mesma fonte `.forge/commands/**`) entrega os comandos, instalado via `npx forge-harness install-plugin` (auto no init) ou marketplace git. Snapshot (source) mantém os 8 commands legados como referência histórica.
 - Milton Silva - 2026-06-10 - Gate W0.3 decidido: **Approve** (HITL via AskUserQuestion; bats 13/13 verde contra o snapshot). Status → Aprovado.

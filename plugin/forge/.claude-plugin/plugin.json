@@ -1,0 +1,9 @@
+{
+  "name": "forge",
+  "description": "Forge Project Harness — slash commands /forge:* (SDD spec lifecycle, waves, code graph, docs/ADRs, harness). O engine .forge/ por projeto vem do instalador (npx forge-harness init).",
+  "version": "0.1.0-rc8",
+  "author": {
+    "name": "Milton Antonio da Silva Jr"
+  },
+  "homepage": "https://github.com/vellus-tech/forge-harness"
+}

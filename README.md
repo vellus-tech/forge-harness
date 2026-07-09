@@ -4,10 +4,10 @@
 
 **Spec-Driven Development como fonte única — multi-agente, determinista e com code graph nativo.**
 
-[![CI](https://github.com/MiltonSilvaJr/forge-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/MiltonSilvaJr/forge-harness/actions/workflows/ci.yml)
+[![CI](https://github.com/vellus-tech/forge-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/vellus-tech/forge-harness/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![npm](https://img.shields.io/npm/v/forge-harness?color=blue&label=npm)](https://www.npmjs.com/package/forge-harness)
-[![Gates](https://img.shields.io/badge/gates-29%20passing-brightgreen.svg)](./tests)
+[![Gates](https://img.shields.io/badge/gates-30%20passing-brightgreen.svg)](./tests)
 [![Runtime](https://img.shields.io/badge/runtime-zero--dependency-success.svg)](#)
 [![Node](https://img.shields.io/badge/node-%E2%89%A520-339933.svg)](#)
 [![Adapters](https://img.shields.io/badge/adapters-claude%20%C2%B7%20codex%20%C2%B7%20cursor%20%C2%B7%20%2B5-8A2BE2.svg)](#adapters-multi-agente)
@@ -36,6 +36,9 @@ runtime e sem gastar tokens onde não precisa.
 - **Code graph nativo** (zero-dep, zero tokens): dependências entre módulos, **violações de camada**
   (clean architecture), **ciclos**, símbolo-nível com herança, diagramas **C4** coloridos e **overview
   HTML interativo**.
+- **Diagramas com duas camadas** (`rules/conventions/diagram-tooling.md`): fonte textual versionável
+  (Mermaid/`infra.py`) + edição visual via **MCP draw.io** quando disponível (`/forge:mermaid-to-drawio`,
+  `open_drawio_mermaid`) — a fonte textual permanece a verdade; o `.drawio` é o handoff editável.
 - **Eval harness opt-in:** avaliação A/B quantitativa de skills/commands/templates + **meta-avaliação do
   próprio harness** (evolução por evidência, não opinião).
 - **Sessões longas:** story sharding, waves, ledger de deferrals e disciplina de contexto.
@@ -70,11 +73,36 @@ agente(s) ativo(s). Por padrão instala apenas o adapter **claude**; adicione ou
 `npx` baixa o pacote (o template viaja dentro dele), roda uma vez e sai; nada de `node_modules` no
 seu projeto.
 
+### 🔌 Slash commands `/forge:*` (plugin do Claude Code)
+
+O `.forge/` por projeto traz o **engine**; os **slash commands** `/forge:*` são entregues por um
+**plugin** do Claude Code — porque o Claude Code (≥ 2.x) reserva o namespace `:` para plugins
+(comandos soltos em `.claude/commands/` viram só `/<nome>`, sem o prefixo `forge:`). **O `init` já
+auto-instala o plugin** (global, vale para todos os seus projetos) quando o adapter claude está ativo;
+depois é só `/reload-plugins` (ou nova sessão) e os 50 comandos `/forge:*` aparecem.
+
+Para (re)instalar/atualizar o plugin manualmente, há duas vias:
+
+```bash
+# A) via npx — (re)gera o plugin em ~/.claude/skills/forge (o que o init faz por baixo)
+npx forge-harness@latest install-plugin
+
+# B) via marketplace git — versionado, atualizável por git (dentro do Claude Code)
+/plugin marketplace add vellus-tech/forge-harness
+/plugin install forge@forge-harness
+```
+
+Pule a auto-instalação com `init --no-plugin`. Para projetos com comandos custom, regenere o plugin a
+partir do `.forge/` local com `/forge:build-plugin`. Se o plugin ficar desabilitado/ausente
+silenciosamente (sintoma clássico: colar o corpo dos comandos como texto porque `/forge:*` some),
+`bash .forge/scripts/doctor.sh` detecta isso (best-effort, quando a CLI `claude` está disponível) e
+sugere `npx forge-harness install-plugin`.
+
 <details>
 <summary>Alternativa: instalação por clone (offline / sem npm)</summary>
 
 ```bash
-git clone https://github.com/MiltonSilvaJr/forge-harness.git
+git clone https://github.com/vellus-tech/forge-harness.git
 forge-harness/installer/install.sh --target /caminho/do/seu-projeto \
   --name "Seu Projeto" --slug seu-projeto --desc "Descrição em 1 linha"
 ```
@@ -92,6 +120,20 @@ spec new ─▶ clarify ─▶ requirements ─▶ design ─▶ tasks ─▶ im
 
 Cada transição é registrada por scripts deterministas; os gates humanos (`approve`/`review`/`reject`/
 `block`) ficam em `approvals.yaml`. Em `scale` baixo, fases são puláveis (Quick Plan) com justificativa.
+
+> 📖 **Relação completa dos 50 slash commands** (`/forge:*`), por grupo e com argumentos:
+> [`docs/refer/slash-commands.md`](./docs/refer/slash-commands.md). Os comandos são
+> entregues por um **plugin** do Claude Code — gere/instale com `/forge:build-plugin`
+> (ou `bash .forge/scripts/build-plugin.sh`).
+>
+> Comandos novos endereçam fricção recorrente de sessão: **`/forge:ship`** (commit → PR →
+> revisão → merge em `develop` → cleanup num único comando — o comando em si é o gate humano),
+> **`/forge:resume`** (emite o mandato de retomada da sessão: estado do change ativo + regras
+> operacionais fixas, sem reescrevê-las à mão) e **`/forge:handoff`** (gera `.forge/HANDOFF.md`,
+> um handoff **portátil e agente-agnóstico** — Codex, Cursor, Gemini — com núcleo determinístico
+> via script e só um delta narrativo curto escrito pelo modelo; o `/forge:resume` já ingere esse
+> delta quando existe. Automação é opt-in via `handoff.auto` no `forge.yaml`, que liga hooks
+> SessionStart/SessionEnd no adapter Claude).
 
 ## 🕸️ Code graph & arquitetura
 
@@ -121,14 +163,14 @@ Trocar/adicionar um agente reconcilia o workspace (gera os ausentes, poda os rem
 template/.forge/        # o harness instalável (fonte única)
 ├── FORGE.md            # governança + frontmatter de runtime
 ├── agents/  (43)       # subagentes por categoria (specifications, architecture, review, …)
-├── commands/ (43)      # comandos /forge:* (specs, waves, graph, quality, …)
+├── commands/ (50)      # comandos /forge:* (specs, waves, graph, quality, git, …) — relação completa em docs/refer/slash-commands.md
 ├── skills/   (9)       # skills especialistas (gate-runner, story-context, …)
 ├── rules/   (33)       # convenções (arquitetura, domínio, testing, …)
 ├── schemas/ (17)       # JSON Schemas (manifest, spec-delta, grading, graph, …)
-└── scripts/ (46)       # engine determinista (graph, archive, sync-adapters, hooks, …)
+└── scripts/ (47)       # engine determinista (graph, archive, sync-adapters, worktree-reconcile, hooks, …)
 bin/forge.mjs           # CLI do npx (forge-harness init) — porta cross-platform do install.sh
 installer/              # install.sh + gitignore.patch + delegação global do /init-project
-tests/                  # 29 gates deterministas + run-all.sh
+tests/                  # 30 gates deterministas + run-all.sh
 docs/                   # planos (MVP1–5, Fase 8) + referência do harness
 snapshot/               # snapshot congelado do adapter Claude (contrato de compatibilidade)
 ```
@@ -136,7 +178,7 @@ snapshot/               # snapshot congelado do adapter Claude (contrato de comp
 ## ✅ Testes
 
 ```bash
-bash tests/run-all.sh          # roda os 29 gates + suítes bats; saída agregada
+bash tests/run-all.sh          # roda os 30 gates + suítes bats; saída agregada
 ```
 
 Cada wave de desenvolvimento entrega seu gate junto (shift-left). O contrato do adapter Claude
@@ -144,20 +186,33 @@ Cada wave de desenvolvimento entrega seu gate junto (shift-left). O contrato do 
 
 ## 🗺️ Status & roadmap
 
-`v0.1.0-rc1` — MVP1–MVP5 completos + consolidação (Fase 8) + code graph. Ver [CHANGELOG](./CHANGELOG.md).
+`v0.1.0-rc8` — MVP1–MVP5 completos + consolidação (Fase 8) + code graph + entrega dos `/forge:*` via
+plugin do Claude Code + workflow-hardening + `/forge:handoff` portátil e gate de docs no pre-push. Ver
+[CHANGELOG](./CHANGELOG.md).
 
 - [x] Núcleo canônico, multi-adapter, ciclo SDD, validadores
 - [x] Baseline/archive, code graph + insights de arquitetura, eval harness opt-in
 - [x] `/init-project` global delegando ao Forge
-- [ ] Teste manual em Claude Code real (contrato C10) + remoção dos wrappers deprecados → **v0.1.0**
+- [x] Slash commands `/forge:*` via **plugin** (npx + marketplace git); adapter claude deixa de
+  projetar `.claude/commands/` (contrato C1 v1.3)
+- [ ] Teste manual em Claude Code real (contrato C10) → **v0.1.0**
 - [ ] Renderer MDL nativo (PoC atual aproxima via Mermaid)
 
 ## 🤝 Contribuindo
 
-1. Branch a partir de `develop` (`feature/<wave>`); todo trabalho entra com **gate verde**.
+1. **Branch a partir de `develop`** (`feature/<wave>`); todo PR mira **`develop`** (branch padrão e de
+   integração). `main` é a branch estável/de release. Todo trabalho entra com **gate verde**.
 2. `bash tests/run-all.sh` deve passar 100% antes do merge.
 3. Convenções em `template/.forge/rules/`; documentos em **pt-BR**, identificadores em inglês.
 4. Sem co-autoria de IA em mensagens de commit/PR.
+5. Fluxo recomendado de fechamento: **`/forge:ship`** (commit → PR → revisão → merge → cleanup) em
+   vez de repetir o protocolo manualmente. Após um subagente cair no meio de uma onda, rode
+   `bash .forge/scripts/worktree-reconcile.sh` antes de redistribuir tasks — ele mostra o estado
+   real (branch/ahead-behind/status/último commit) de cada worktree.
+6. **Gate de pre-push exige README/CHANGELOG revisados em mudanças user-facing.** Push com commit
+   `feat`/`fix`/`perf` ou qualquer arquivo de código-fonte no diff é bloqueado (sem válvula de
+   escape) se `README.md` e `CHANGELOG.md` não estiverem no diff do push — mantém a documentação
+   sincronizada com o comportamento observável do harness.
 
 ## 📄 Licença
 

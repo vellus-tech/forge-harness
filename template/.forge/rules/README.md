@@ -23,11 +23,13 @@ Antes de qualquer modificação, leia os rules das categorias aplicáveis à sua
 
 ## Catálogo
 
-### `conventions/` (9 arquivos)
+### `conventions/` (12 arquivos)
 
 | Arquivo | Descrição | Prioridade |
 |---|---|---|
 | [language-policy.md](./conventions/language-policy.md) | Idioma de código vs. documentação | Alta |
+| [conflict-handling.md](./conventions/conflict-handling.md) | Conflito entre fontes normativas é bloqueante — escala via HITL; precedência FORGE.md §2.1 (guardrails G1/G2) | Alta |
+| [session-discipline.md](./conventions/session-discipline.md) | Disciplina de sessão longa / autopilot (§17.6) | Alta |
 | [naming.md](./conventions/naming.md) | Convenções de nomenclatura por tipo de artefato | Alta |
 | [conventional-commits.md](./conventions/conventional-commits.md) | Padrão de mensagens de commit + scopes | Alta |
 | [lsp-impact-analysis.md](./conventions/lsp-impact-analysis.md) | Análise de impacto antes de editar (LSP/grep + diagnóstico por stack) | Alta |
@@ -36,6 +38,7 @@ Antes de qualquer modificação, leia os rules das categorias aplicáveis à sua
 | [docker-naming.md](./conventions/docker-naming.md) | Nomenclatura de imagens Docker | Média |
 | [document-versioning.md](./conventions/document-versioning.md) | Versionamento SemVer de documentos vivos | Média |
 | [no-summary-files.md](./conventions/no-summary-files.md) | Proibição de arquivos de resumo | Baixa |
+| [diagram-tooling.md](./conventions/diagram-tooling.md) | Elaboração/manutenção de diagramas via draw.io MCP + fallback determinista | Média |
 
 ### `architecture/` (12 arquivos)
 

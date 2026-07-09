@@ -28,6 +28,9 @@ service definition).
 - Field names in stories/models always in English; metrics referenced generically
   ("Métricas", not "Métricas Prometheus").
 - No dots inside Mermaid diagram labels; no em-dash in labels.
+- Diagrams: Mermaid text is the versioned source of truth; elaboration and visual maintenance
+  go through the draw.io MCP (`drawio` server / `/drawio:drawio` plugin) when available, with
+  the deterministic converter as the CI/offline fallback (`rules/conventions/diagram-tooling.md`).
 - Money stored as integer cents; monetary rounding follows NBR 5891 (round half to even).
 - Multi-tenant isolation via `tenant_id` column (not schema, not RLS) where the platform
   convention applies.

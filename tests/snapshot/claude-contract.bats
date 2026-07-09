@@ -32,41 +32,37 @@ setup() {
   CLAUDE_DIR="$TARGET/.claude"
 }
 
-# ── C1 — commands ────────────────────────────────────────────────────────────
+# ── C1 — commands (revisado) ─────────────────────────────────────────────────
+# Os slash commands /forge:* NÃO são mais projetados em .claude/commands/: o Claude Code (>= 2.x)
+# descontinuou o namespace via subdiretório ali. Eles vêm de um PLUGIN (name: forge) — gerado por
+# template/.forge/scripts/lib/plugin-build.mjs, validado por tests/plugin-sync-gate.sh. O snapshot
+# (source) preserva os 8 commands legados como referência histórica (estado congelado W0.3).
 
-@test "C1: command count (source: exactly 8; generated: >= 8 — additions allowed)" {
+@test "C1: source snapshot keeps its 8 frozen commands (historical reference)" {
+  [ "$MODE" = "source" ] || skip "generated mode no longer projects .claude/commands/ (C1 → plugin)"
   count=$(find "$CMDS_DIR" -name '*.md' ! -name 'README.md' | wc -l | tr -d ' ')
-  if [ "$MODE" = "generated" ]; then
-    [ "$count" -ge 8 ]
-  else
-    [ "$count" -eq 8 ]
-  fi
-}
-
-@test "C1: the 8 contract command names all exist" {
+  [ "$count" -eq 8 ]
   for cmd in run-spec-pipeline specs-loop coding-loop coding-status deploy-wave new-adr update-changelog scaffold-tdd; do
-    found=$(find "$CMDS_DIR" -name "${cmd}.md" | wc -l | tr -d ' ')
-    [ "$found" -eq 1 ]
+    [ "$(find "$CMDS_DIR" -name "${cmd}.md" | wc -l | tr -d ' ')" -eq 1 ]
   done
 }
 
-@test "C1: commands README is not projected — would register a phantom /forge:README (generated mode only)" {
-  [ "$MODE" = "generated" ] || skip "source snapshot legitimately keeps its README"
-  [ ! -e "$CMDS_DIR/README.md" ]
-  [ ! -e "$WRAPPERS_DIR/README.md" ]
+@test "C1: generated mode does NOT project .claude/commands/ — /forge:* come from the plugin" {
+  [ "$MODE" = "generated" ] || skip "source snapshot legitimately keeps .claude/commands/"
+  [ ! -e "$TARGET/.claude/commands" ]
 }
 
-@test "C1/C2/C4: command/agent/skill frontmatter is YAML-parseable with description (generated mode only)" {
+@test "C2/C4: agent & skill frontmatter is YAML-parseable with description (generated mode only)" {
   [ "$MODE" = "generated" ] || skip "legacy snapshot frontmatters are frozen by contract"
   command -v python3 >/dev/null || skip "python3 unavailable"
-  python3 - "$CMDS_DIR" "$CLAUDE_DIR/agents" "$CLAUDE_DIR/skills" <<'PYEOF'
+  python3 - "$CLAUDE_DIR/agents" "$CLAUDE_DIR/skills" <<'PYEOF'
 import sys, re, pathlib
 try:
     import yaml
 except ImportError:
     sys.exit(0)
-# Valida que TODO frontmatter de command/agent/skill projetado parseia como YAML e tem
-# description — pega quebradores comuns (": " mapping, "&" anchor) que impedem o carregamento.
+# Valida que TODO frontmatter de agent/skill projetado parseia como YAML e tem description —
+# pega quebradores comuns (": " mapping, "&" anchor) que impedem o carregamento.
 bad = []
 for d in sys.argv[1:]:
     for f in pathlib.Path(d).rglob('*.md'):
@@ -85,17 +81,6 @@ for d in sys.argv[1:]:
 if bad:
     print('\n'.join(bad)); sys.exit(1)
 PYEOF
-}
-
-@test "C1: deprecated alias wrappers exist for EXACTLY the 8 legacy commands (generated mode only)" {
-  [ "$MODE" = "generated" ] || skip "source mode has no wrappers"
-  for cmd in run-spec-pipeline specs-loop coding-loop coding-status deploy-wave new-adr update-changelog scaffold-tdd; do
-    [ -f "$WRAPPERS_DIR/${cmd}.md" ]
-    grep -q "DEPRECATED" "$WRAPPERS_DIR/${cmd}.md"
-    grep -q "/forge:${cmd}" "$WRAPPERS_DIR/${cmd}.md"
-  done
-  wrapper_count=$(find "$WRAPPERS_DIR" -maxdepth 1 -name '*.md' ! -name 'README.md' | wc -l | tr -d ' ')
-  [ "$wrapper_count" -eq 8 ]
 }
 
 # ── C2 — agents ──────────────────────────────────────────────────────────────

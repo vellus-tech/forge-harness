@@ -23,3 +23,7 @@ quality:
   require_tests_before_archive: true
   require_traceability_before_archive: true
   require_human_approval_before_archive: true
+handoff:
+  # Quando true, sync-adapters liga hooks SessionStart/SessionEnd no settings.json do adapter
+  # ativo: regeneram e injetam o .forge/HANDOFF.md automaticamente (rule-based, sem LLM). Default off.
+  auto: false

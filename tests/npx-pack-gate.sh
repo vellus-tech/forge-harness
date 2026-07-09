@@ -46,13 +46,16 @@ echo "OK [1]"
 
 echo "[2] init materializa .forge + adapters; doctor verde"
 mkdir -p "$T/proj"; ( cd "$T/proj" && git init -q )
-node "$BIN" init --target "$T/proj" --name "Gate Proj" --slug gate-proj --desc "gate e2e" --adapters claude --yes >"$T/init.log" 2>&1
+node "$BIN" init --target "$T/proj" --name "Gate Proj" --slug gate-proj --desc "gate e2e" --adapters claude --no-plugin --yes >"$T/init.log" 2>&1
 [ -f "$T/proj/.forge/FORGE.md" ] || { echo "FAIL (.forge/FORGE.md não criado)"; cat "$T/init.log"; exit 1; }
 orphans="$(grep -rl '<PROJECT_[A-Z_]*>' "$T/proj/.forge" 2>/dev/null | grep -v '/templates/' | wc -l | tr -d ' ' || true)"
 [ "$orphans" -eq 0 ] || { echo "FAIL ($orphans placeholders <PROJECT_*> órfãos)"; exit 1; }
 [ -f "$T/proj/AGENTS.md" ] || { echo "FAIL (AGENTS.md ausente)"; exit 1; }
 [ -L "$T/proj/CLAUDE.md" ] || { echo "FAIL (CLAUDE.md não é symlink)"; exit 1; }
-[ -d "$T/proj/.claude/commands/forge" ] || { echo "FAIL (adapter claude não materializado)"; exit 1; }
+# slash commands /forge:* vêm do plugin (não de .claude/commands/ — contract C1); o adapter claude
+# materializa agents/skills/settings. Valida que o adapter saiu E que commands NÃO foi projetado.
+[ -d "$T/proj/.claude/agents" ] || { echo "FAIL (adapter claude não materializado)"; exit 1; }
+[ ! -e "$T/proj/.claude/commands" ] || { echo "FAIL (.claude/commands não deveria mais ser gerado — C1)"; exit 1; }
 grep -q 'forge (managed)' "$T/proj/.gitignore" || { echo "FAIL (bloco forge ausente no .gitignore)"; exit 1; }
 if ! bash "$T/proj/.forge/scripts/doctor.sh" >"$T/doctor.log" 2>&1; then
   echo "FAIL (doctor reportou problema no harness)"; sed 's/^/    /' "$T/doctor.log"; exit 1

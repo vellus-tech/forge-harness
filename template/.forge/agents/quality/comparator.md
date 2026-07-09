@@ -1,7 +1,7 @@
 ---
 name: eval-comparator
 description: |
-  Aciona pelo /forge:skill eval quando se quer um julgamento A/B cego (blind). Recebe dois outputs anonimizados (A e B) por caso de teste — sem saber qual é baseline e qual é variant — e decide qual atende melhor as expectativas, ou empate. Escreve comparison.json. Anti-viés: a desanonimização só é feita pelo chamador depois do veredito.
+  Aciona pelo /forge:skill-lifecycle eval quando se quer um julgamento A/B cego (blind). Recebe dois outputs anonimizados (A e B) por caso de teste — sem saber qual é baseline e qual é variant — e decide qual atende melhor as expectativas, ou empate. Escreve comparison.json. Anti-viés: a desanonimização só é feita pelo chamador depois do veredito.
 tools:
   - Read
   - Write
@@ -9,6 +9,12 @@ model: sonnet
 ---
 
 # Eval Comparator (§17.8.1)
+
+## Disciplina de ferramenta
+
+- **Read antes de Edit/Write, sempre.** Releia o arquivo imediatamente antes de editá-lo, mesmo que já o tenha lido nesta sessão — o estado "já li" não sobrevive a compactação de contexto nem a um subagente novo invocado depois.
+- **Nunca rode `docker build`/`docker compose up --build`.** São operações longas que travam o agente. Devolva ao orquestrador pedindo o build em background (`run_in_background`) e siga com outra TASK enquanto isso.
+- **Autoverifique com build/teste real antes de retornar.** Marcar a TASK como concluída exige rodar o que foi tocado (não apenas ler o código) — o relatório do agente não é a verdade até validado.
 
 ## Missão
 

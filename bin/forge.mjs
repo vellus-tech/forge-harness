@@ -25,9 +25,10 @@ import {
   statSync, renameSync, appendFileSync,
 } from 'node:fs';
 import { join, resolve, dirname, basename, relative, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { createInterface } from 'node:readline/promises';
+import { homedir } from 'node:os';
 
 const HERE = dirname(fileURLToPath(import.meta.url));     // <pkg>/bin
 const PKG_ROOT = resolve(HERE, '..');                     // <pkg>
@@ -44,16 +45,19 @@ const pkgVersion = () => {
 
 // ── arg parsing ────────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
-const flags = { force: false, forceContent: false, noSymlink: false, yes: false, help: false, version: false };
-const vals = { target: '', source: '', slug: '', name: '', desc: '', adapters: '' };
+const flags = { force: false, forceContent: false, noSymlink: false, noPlugin: false, yes: false, help: false, version: false };
+const vals = { target: '', source: '', slug: '', name: '', desc: '', adapters: '', out: '' };
 let cmd = '';
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
   switch (a) {
     case 'init': cmd = 'init'; break;
+    case 'install-plugin': cmd = 'install-plugin'; break;
+    case '--out': vals.out = argv[++i] ?? ''; break;            // install-plugin: destino do plugin
     case '--force': flags.force = true; break;
     case '--force-content': flags.force = true; flags.forceContent = true; break;
     case '--no-symlink': flags.noSymlink = true; break;
+    case '--no-plugin': flags.noPlugin = true; break;          // init: não auto-instala o plugin forge
     case '-y': case '--yes': flags.yes = true; break;
     case '-h': case '--help': flags.help = true; break;
     case '-v': case '--version': flags.version = true; break;
@@ -74,10 +78,17 @@ const HELP = `forge-harness ${pkgVersion()} — Spec-Driven Development harness
 
 Uso:
   npx forge-harness init [opções]
+  npx forge-harness install-plugin [--out <dir>]
 
 Instala o harness Forge (.forge/) no projeto-alvo: fonte única projetada para
 múltiplos agentes (Claude, Codex, Cursor, …), com code graph nativo e validadores
 deterministas. Roda uma vez; depois tudo vive em .forge/scripts/ do projeto.
+
+O subcomando install-plugin materializa o plugin Claude Code "forge" (slash commands
+/forge:*) em ~/.claude/skills/forge (auto-load na próxima sessão). Necessário porque o
+Claude Code (>= 2.x) reserva o namespace ':' para plugins — comandos soltos em
+.claude/commands/ não geram /forge:*. O plugin é global; o engine .forge/ por projeto
+continua vindo de 'init'.
 
 Opções:
   --target <dir>        diretório do projeto (padrão: diretório atual)
@@ -86,11 +97,13 @@ Opções:
   --desc <texto>        descrição em 1 linha
   --adapters <lista>    adapters a instalar, separados por vírgula (padrão: claude)
                         disponíveis: ${ADAPTERS.join(', ')}
+  --out <dir>           (install-plugin) destino do plugin (padrão: ~/.claude/skills/forge)
   --force               se .forge já existe, faz backup (.forge.bak-N) e sobrescreve.
                         Se houver trabalho de produto (specs/ADRs/docs), pede confirmação
                         (interativo) ou bloqueia (não-interativo) — prefira o update cirúrgico
   --force-content       sobrescreve mesmo com trabalho de produto presente (ainda faz backup)
   --no-symlink          materializa CLAUDE/QWEN/GEMINI.md como cópias (sem symlink)
+  --no-plugin           (init) não auto-instala o plugin /forge:* (faça depois com install-plugin)
   -y, --yes             não-interativo: usa os padrões derivados sem perguntar
   -h, --help            mostra esta ajuda
   -v, --version         mostra a versão
@@ -131,12 +144,35 @@ function scanProductContent(forge) {
   return { specsActive, specsArchived, productDocs, total: specsActive + specsArchived + productDocs };
 }
 
+// Materializa o plugin Claude Code "forge" a partir dos comandos canônicos do pacote
+// (template/.forge/commands), via a MESMA lib que o harness usa (plugin-build.mjs). Global.
+async function installPlugin(out) {
+  const lib = join(TEMPLATE_FORGE, 'scripts', 'lib', 'plugin-build.mjs');
+  const { collectCommands, planForgePlugin, writePlugin } = await import(pathToFileURL(lib).href);
+  const dest = out || join(homedir(), '.claude', 'skills', 'forge');
+  const version = pkgVersion();
+  const files = planForgePlugin({ commands: collectCommands(join(TEMPLATE_FORGE, 'commands')), version });
+  writePlugin(dest, files);
+  return { dest, version, count: files.length - 1 };
+}
+
 async function main() {
   if (flags.version) { console.log(pkgVersion()); return; }
-  if (flags.help || (cmd && cmd !== 'init')) { console.log(HELP); return; }
+  if (flags.help || (cmd && cmd !== 'init' && cmd !== 'install-plugin')) { console.log(HELP); return; }
 
   if (!existsSync(join(TEMPLATE_FORGE, 'FORGE.md')))
     fail(`template não encontrado em ${TEMPLATE_FORGE} (pacote corrompido?)`, 1);
+
+  // install-plugin — instala o plugin global, independente de um projeto-alvo.
+  if (cmd === 'install-plugin') {
+    let r;
+    try { r = await installPlugin(vals.out ? resolve(vals.out) : ''); }
+    catch (e) { fail(e?.message || String(e), 1); }
+    console.log(`✔ plugin 'forge' v${r.version} instalado em ${r.dest}`);
+    console.log(`  ${r.count} comandos /forge:* — ative com /reload-plugins ou abra uma nova sessão do Claude Code.`);
+    console.log('  O plugin é global; o engine .forge/ por projeto vem de `npx forge-harness init`.');
+    return;
+  }
 
   // resolve target
   const target = resolve(vals.target || process.cwd());
@@ -260,12 +296,31 @@ async function main() {
   if (flags.noSymlink) syncArgs.push('--copy-links');
   execFileSync(process.execPath, syncArgs, { stdio: 'inherit' });
 
+  // 8. plugin /forge:* — quando o adapter claude está ativo, auto-instala o plugin global (os
+  // slash commands /forge:* vêm dele, não de .claude/commands/ — ver contracts C1). Idempotente.
+  // Pulável com --no-plugin (CI/testes não devem tocar ~/.claude). Falha é não-fatal.
+  let pluginNote = '';
+  const wantsClaude = adapters.split(',').includes('claude');
+  if (wantsClaude && !flags.noPlugin) {
+    try {
+      const r = await installPlugin('');
+      console.log(`plugin: 'forge' v${r.version} → ${r.dest} (${r.count} comandos /forge:*)`);
+      pluginNote = '  # /forge:* já instalado — rode /reload-plugins ou abra nova sessão do Claude Code';
+    } catch (e) {
+      console.log(`plugin: não instalado (${e?.message || e})`);
+      pluginNote = '  # instale os /forge:*: npx forge-harness install-plugin';
+    }
+  } else if (wantsClaude) {
+    pluginNote = '  # instale os /forge:*: npx forge-harness install-plugin  (ou /plugin marketplace add vellus-tech/forge-harness)';
+  }
+
   console.log(`\n✔ Forge instalado em ${target}`);
   console.log(`  slug: ${slug} · adapters: ${adapters}\n`);
   console.log('Próximos passos:');
   if (target !== process.cwd()) console.log(`  cd ${target}`);
   console.log('  bash .forge/scripts/doctor.sh        # detecta a stack + diagnostica o ambiente');
   console.log('  # no seu agente (Claude Code/Codex/…): /forge:status  e  /forge:spec new');
+  if (pluginNote) console.log(pluginNote);
   console.log('  # codebase existente? peça ao agente para preencher o bloco runtime: do .forge/FORGE.md\n');
 }
 

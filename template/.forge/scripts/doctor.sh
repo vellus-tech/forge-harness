@@ -144,6 +144,31 @@ EOF_CHG
       else ok "harness: grafo de código atualizado"; fi
     fi
   fi
+
+  # plugin /forge:* instalado no Claude Code (best-effort; puramente informativo — NUNCA
+  # contribui para MISSING_DIAG/exit 1). Sintoma real que motivou o check: usuário colando o
+  # CORPO dos comandos como texto porque /forge:* silenciosamente não existia (plugin nunca
+  # instalado, ou desabilitado) — e isso é estado GLOBAL do Claude Code do operador, não do
+  # projeto, então não pode reprovar doctor/CI (a mesma máquina roda doctor contra fixtures de
+  # teste que nada têm a ver com o plugin global instalado).
+  if have claude; then
+    plugin_ok=0
+    if claude plugin list 2>/dev/null | grep -qi 'forge'; then
+      plugin_ok=1
+    elif [ -d "$HOME/.claude/plugins" ] && grep -rlq '"forge@' "$HOME/.claude/plugins" 2>/dev/null; then
+      plugin_ok=1
+    elif [ -f "$HOME/.claude/settings.json" ] && grep -q '"forge@' "$HOME/.claude/settings.json" 2>/dev/null; then
+      plugin_ok=1
+    fi
+    if [ "$plugin_ok" -eq 1 ]; then
+      ok "harness: plugin /forge:* instalado no Claude Code"
+    else
+      info "harness: plugin /forge:* não detectado no Claude Code (verificação global, best-effort)"
+      hint "instale/repare com: npx forge-harness install-plugin"
+    fi
+  else
+    info "harness: CLI 'claude' não encontrada — check de plugin /forge:* pulado (best-effort)"
+  fi
   echo
 }
 check_harness

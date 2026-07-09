@@ -42,9 +42,9 @@ o modelo nunca decide isso "no olho" (§10.11).
 
 ## Comandos
 
-- `/forge:skill create` — entrevista → SKILL.md validado.
-- `/forge:skill eval` — A/B with-skill vs baseline → grading → agregação.
-- `/forge:skill optimize` — holdout train/test da description (anti-overfitting).
+- `/forge:skill-lifecycle create` — entrevista → SKILL.md validado.
+- `/forge:skill-lifecycle eval` — A/B with-skill vs baseline → grading → agregação.
+- `/forge:skill-lifecycle optimize` — holdout train/test da description (anti-overfitting).
 
 ## Custo
 

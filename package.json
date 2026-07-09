@@ -1,6 +1,6 @@
 {
   "name": "forge-harness",
-  "version": "0.1.0-rc5",
+  "version": "0.1.0-rc8",
   "description": "Spec-Driven Development harness: single source of truth in .forge/, multi-agent adapters (Claude/Codex/Cursor/Gemini/…), native code graph and deterministic validators. Zero runtime deps.",
   "type": "commonjs",
   "bin": {
@@ -17,7 +17,8 @@
     "node": ">=20"
   },
   "scripts": {
-    "test": "bash tests/run-all.sh"
+    "test": "bash tests/run-all.sh",
+    "build:plugin": "node template/.forge/scripts/lib/plugin-build.mjs --commands template/.forge/commands --out plugin/forge --version $npm_package_version"
   },
   "keywords": [
     "spec-driven-development",
@@ -33,11 +34,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/MiltonSilvaJr/forge-harness.git"
+    "url": "git+https://github.com/vellus-tech/forge-harness.git"
   },
-  "homepage": "https://github.com/MiltonSilvaJr/forge-harness#readme",
+  "homepage": "https://github.com/vellus-tech/forge-harness#readme",
   "bugs": {
-    "url": "https://github.com/MiltonSilvaJr/forge-harness/issues"
+    "url": "https://github.com/vellus-tech/forge-harness/issues"
   },
   "author": "Milton Antonio da Silva Jr <milton@vellus.tech>",
   "license": "MIT",

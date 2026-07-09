@@ -123,6 +123,8 @@ iter_rel="$iter_dir"
 case "$iter_rel" in
   "$ROOT"/*) iter_rel="${iter_rel#"$ROOT"/}" ;;
 esac
+# REQ-06: best-effort here, not blocking — aggregate.json is already written above; a failure
+# recording evidence must not fail a skill-lifecycle eval that otherwise succeeded.
 bash "$SCRIPT_DIR/run-manifest.sh" write \
   --stage skill-lifecycle-eval \
   --dir "$iter_rel" \
@@ -136,4 +138,4 @@ bash "$SCRIPT_DIR/run-manifest.sh" write \
   --expected-runs 1 \
   --estimated-timeout-s 300 \
   --uses-llm false \
-  --uses-subagent false >/dev/null
+  --uses-subagent false >/dev/null || true

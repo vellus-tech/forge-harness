@@ -108,6 +108,8 @@ case_rel="$case_dir"
 case "$case_rel" in
   "$ROOT"/*) case_rel="${case_rel#"$ROOT"/}" ;;
 esac
+# REQ-06: best-effort here, not blocking — meta-aggregate.json is already written above; a
+# failure recording evidence must not fail an eval that otherwise succeeded.
 bash "$SCRIPT_DIR/run-manifest.sh" write \
   --stage eval \
   --dir "$case_rel" \
@@ -121,4 +123,4 @@ bash "$SCRIPT_DIR/run-manifest.sh" write \
   --expected-runs 1 \
   --estimated-timeout-s 300 \
   --uses-llm false \
-  --uses-subagent false >/dev/null
+  --uses-subagent false >/dev/null || true

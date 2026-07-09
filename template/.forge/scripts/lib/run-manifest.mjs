@@ -34,9 +34,11 @@ function sha256File(p) {
   return createHash('sha256').update(readFileSync(p)).digest('hex');
 }
 
-function git(root, args) {
-  try { return execFileSync('git', ['-C', root, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 15000 }).trim(); }
-  catch { return null; }
+function git(root, args, { trim = true } = {}) {
+  try {
+    const out = execFileSync('git', ['-C', root, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 15000 });
+    return trim ? out.trim() : out;
+  } catch { return null; }
 }
 
 function gitProvenance(root) {
@@ -52,7 +54,10 @@ function gitProvenance(root) {
       diff_sha256: null,
     };
   }
-  const porcelain = git(root, ['status', '--porcelain']) || '';
+  // untrimmed: porcelain status lines carry meaningful leading whitespace (e.g. " M app.txt")
+  // that an outer .trim() would eat from the FIRST line only, corrupting its filename (slice(3)
+  // would then drop 3 chars of the name itself instead of the 2-char status + separator).
+  const porcelain = git(root, ['status', '--porcelain'], { trim: false }) || '';
   const changedFiles = porcelain.split('\n').filter(Boolean).map((l) => l.slice(3).trim()).sort();
   const unstaged = git(root, ['diff', '--stat']) || '';
   const staged = git(root, ['diff', '--cached', '--stat']) || '';

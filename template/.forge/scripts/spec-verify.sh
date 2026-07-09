@@ -87,6 +87,9 @@ AT="$(date +%Y-%m-%dT%H:%M:%S%z | sed 's/\([0-9][0-9]\)$/:\1/')"
 
 RM_STATUS="passed"
 [ "$fail" -eq 0 ] || RM_STATUS="failed"
+# Evidence write is advisory, never blocking: REQ-05 blocks on an INCOMPLETE CONTRACT, not on I/O
+# failure writing the manifest itself (disk-full/permission writing run-manifest.json must not
+# abort a verify whose verification.yaml was already written successfully above).
 bash "$SCRIPT_DIR/run-manifest.sh" write \
   --stage verify \
   --change "$ID" \
@@ -101,7 +104,7 @@ bash "$SCRIPT_DIR/run-manifest.sh" write \
   --expected-runs 1 \
   --estimated-timeout-s 300 \
   --uses-llm false \
-  --uses-subagent false >/dev/null
+  --uses-subagent false >/dev/null || true
 if ! contract_out="$(bash "$SCRIPT_DIR/validate-stage-contract.sh" check --stage verify --change "$ID" 2>&1)"; then
   echo "FAIL (stage contract invalid: $contract_out)"
   exit 1

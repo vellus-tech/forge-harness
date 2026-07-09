@@ -16,8 +16,8 @@
 
 ## Wave 3 — Testes
 
-- [ ] TASK-07 — Gate `tests/w63-forge-update-gate.sh`: preservação (a–d), órfão (e), dry-run (f), doctor (g), idempotência (rastreia: REQ-09, NFR-02; paths: `tests/w63-forge-update-gate.sh`; depende: TASK-04)
-- [ ] TASK-08 — Seção `[6]` no `tests/npx-pack-gate.sh`: init+update do tarball preserva produto + atualiza maquinaria + doctor verde (rastreia: REQ-09; paths: `tests/npx-pack-gate.sh`; depende: TASK-04)
+- [X] TASK-07 — Gate `tests/w63-forge-update-gate.sh`: preservação (a–d), órfão (e), dry-run (f), doctor (g), idempotência (rastreia: REQ-09, NFR-02; paths: `tests/w63-forge-update-gate.sh`; depende: TASK-04)
+- [X] TASK-08 — Seção `[6]` no `tests/npx-pack-gate.sh`: init+update do tarball preserva produto + atualiza maquinaria + doctor verde (rastreia: REQ-09; paths: `tests/npx-pack-gate.sh`; depende: TASK-04)
 
 ## Wave 4 — Docs
 

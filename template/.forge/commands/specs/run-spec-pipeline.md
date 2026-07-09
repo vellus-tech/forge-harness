@@ -31,6 +31,14 @@ Pipeline autônomo de especificação ponta-a-ponta. Para no `tasks.md` de cada 
 
 Se existir um change ativo em `.forge/specs/active/<change-id>/` com `scale: 4` no manifest, o pipeline amplo opera **dentro do change**, não mais em `docs/product/` direto:
 
+Antes de uma rodada longa, emita o budget preflight:
+
+```bash
+bash .forge/scripts/budget-preflight.sh --stage run-spec-pipeline --change <change-id> --profile regulated --outputs proposal.md,requirements.md,design.md,tasks.md
+```
+
+Ao concluir uma rodada automatizada dentro de um change ativo, grave `run-manifest/v1` em `evidence/runs/*/run-manifest.json`.
+
 1. Os artefatos desta execução vão para `.forge/specs/active/<change-id>/product/` (mesma subestrutura: `prd/`, `frd-nfrd/`, `ddd/`, `trd/`, `modules/`...). Ao invocar cada agent, **declare explicitamente no payload** o path-base do change como destino de escrita.
 2. **Verificação pós-fase (obrigatória):** os agents legados têm `docs/product/` arraigado — após cada fase, confira onde o artefato foi gravado; se caiu em `docs/product/`, **mova** para o path do change e registre o desvio em uma linha. (Os agents passam a operar o baseline corretamente no MVP3.)
 3. `docs/product/` permanece como **estado vigente para leitura** (baseline provisório até o MVP3); a incorporação dos artefatos do change ao baseline acontece via `/forge:archive` (MVP3) — nunca manualmente.

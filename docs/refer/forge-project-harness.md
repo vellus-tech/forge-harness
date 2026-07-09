@@ -1316,6 +1316,17 @@ A description de uma skill é o que decide se ela dispara. O `/forge:skill optim
 └── meta/                            # meta-avaliação do harness
 ```
 
+#### 17.8.5 Proveniência, contratos e benchmarks canônicos (aprendizado DeepSpec)
+
+O DeepSpec não é um harness SDD; é uma pipeline de treino/avaliação. O que o Forge absorve dele é disciplina operacional:
+
+- **`run-manifest/v1`** registra stage, runner, orçamento, comandos, inputs/outputs com hashes e proveniência Git segura (branch, SHA, dirty files, diff stat e hash do diff). O diff bruto nunca é persistido.
+- **Contratos de estágio** em `.forge/contracts/stages/*.yaml` declaram inputs, outputs, validadores, classe de orçamento e se evidência é obrigatória.
+- **Benchmark registry** em `.forge/evals/benchmarks/` mantém casos canônicos pequenos para comparar mudanças do harness entre versões.
+- **Budget preflight** emite uma linha antes de rodadas caras: perfil, runner, runs, timeout estimado, outputs esperados e uso de LLM/subagente.
+
+Esses artefatos reforçam auditabilidade sem criar uma metodologia paralela: `spec`, `verify`, `archive` e `eval` continuam sendo o ciclo principal.
+
 ### 17.9 Princípio de cautela
 
 O eval rigoroso é caro (tokens e tempo). Por isso é **opt-in** e nunca default. O default permanece `spec-anchored` com Quick Plan para casos simples. O plano v1 já alertava contra "acumular processo demais" — a v2 preserva esse alerta tratando toda a Camada 5 como capacidade avançada, não obrigatória.

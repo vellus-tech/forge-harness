@@ -67,6 +67,10 @@ declare -a MAP=(
   "shard:w50-story-shard-gate.sh"
   "eval smoke estrutural:w52-eval-harness-gate.sh"
   "smoke de todos adapters:w14-adapters-gate.sh"
+  "run manifest:w90-run-manifest-gate.sh"
+  "stage contracts:w91-stage-contract-gate.sh"
+  "benchmark registry:w92-benchmark-registry-gate.sh"
+  "profiles budget:w93-profiles-budget-gate.sh"
 )
 for entry in "${MAP[@]}"; do
   gate="${entry##*:}"

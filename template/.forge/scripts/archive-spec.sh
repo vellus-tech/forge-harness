@@ -18,6 +18,8 @@ ID="${1:-}"
 [ -n "$ID" ] || { echo "FAIL (usage: archive-spec.sh <change-id>)"; exit 2; }
 DIR="$ROOT/.forge/specs/active/$ID"
 [ -d "$DIR" ] || { echo "FAIL (no active change: $ID)"; exit 1; }
+STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+bash "$SCRIPT_DIR/budget-preflight.sh" --stage archive --change "$ID" --outputs "product/current/CHANGELOG.md,evidence/runs/*/run-manifest.json" || true
 
 echo "[1/6] pre-flight (§13.1)"
 FORGE_ROOT="$ROOT" bash "$SCRIPT_DIR/validate-archive.sh" --path "$DIR" || exit 1
@@ -63,5 +65,35 @@ TMP="$(mktemp)"
     "$TODAY" "$ID" "${CAPS_TOUCHED:-—}" "$OPS_COUNT" "$TODAY" "$ID"
   tail -n +4 "$CHG"
 } > "$TMP" && mv "$TMP" "$CHG"
+
+ARCHIVE_DIR=".forge/specs/archived/$TODAY-$ID"
+# Evidence write is advisory here, never blocking: by this point the baseline mutation (step
+# [3/6]) and the move to archived/ (step [5/6]) already happened — they're the actual archive
+# operation, already validated by the pre-flight (§13.1) before any mutation started. A disk-full
+# or permission failure writing run-manifest.json must not abort with the change half-moved.
+bash "$SCRIPT_DIR/run-manifest.sh" write \
+  --stage archive \
+  --dir "$ARCHIVE_DIR" \
+  --status passed \
+  --started-at "$STARTED_AT" \
+  --inputs "manifest.yaml,tasks.md,verification.yaml,spec-delta.yaml,impact.json" \
+  --outputs "manifest.yaml,evidence/runs" \
+  --command "archive-spec::archive-spec.sh $ID::passed" \
+  --runner local \
+  --profile standard \
+  --budget-class medium \
+  --expected-runs 1 \
+  --estimated-timeout-s 300 \
+  --uses-llm false \
+  --uses-subagent false >/dev/null || true
+# Post-hoc completeness audit, not a gate: the contract here can only check artifacts that exist
+# AFTER the archive (manifest status, evidence/runs) — it cannot run before the mutation without
+# redefining what it validates. Aborting on failure at this point would leave the change moved to
+# archived/ with the baseline already updated but the script exiting non-zero — a worse, half-done
+# state than a logged completeness warning. Real preconditions are enforced earlier by
+# validate-archive.sh (step [1/6], before any mutation).
+if ! contract_out="$(bash "$SCRIPT_DIR/validate-stage-contract.sh" check --stage archive --dir "$ARCHIVE_DIR" 2>&1)"; then
+  echo "WARN (stage contract incomplete post-archive: $contract_out)"
+fi
 
 echo "OK $ID archived -> .forge/specs/archived/$TODAY-$ID (baseline updated)"

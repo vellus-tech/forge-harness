@@ -173,7 +173,7 @@ async function installPlugin(out) {
 // Diretórios de MAQUINARIA — substituíveis pelo template novo (overlay aditivo). Nenhum carrega
 // placeholder <PROJECT_*> (verificado). Fora desta lista, tudo é dado do projeto e é preservado:
 // specs/ product/ custom/ evals/ graph/ worktrees/ runners.yaml FORGE.md constitution.md context.md.
-const MACHINERY_DIRS = ['agents', 'commands', 'hooks', 'schemas', 'scripts', 'skills', 'templates', 'rules'];
+const MACHINERY_DIRS = ['agents', 'commands', 'contracts', 'hooks', 'schemas', 'scripts', 'skills', 'templates', 'rules'];
 
 // Recolhe os arquivos que o overlay tocaria (maquinaria), como pares [rel, srcAbs].
 function machineryFiles(src) {

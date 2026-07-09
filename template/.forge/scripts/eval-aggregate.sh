@@ -116,3 +116,26 @@ console.log(
   `dur Δ${sign(out.delta.duration_ms)}ms; tokens Δ${out.delta.tokens == null ? 'n/a' : sign(out.delta.tokens)}`
 );
 NODEEOF
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="${FORGE_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
+iter_rel="$iter_dir"
+case "$iter_rel" in
+  "$ROOT"/*) iter_rel="${iter_rel#"$ROOT"/}" ;;
+esac
+# REQ-06: best-effort here, not blocking — aggregate.json is already written above; a failure
+# recording evidence must not fail a skill-lifecycle eval that otherwise succeeded.
+bash "$SCRIPT_DIR/run-manifest.sh" write \
+  --stage skill-lifecycle-eval \
+  --dir "$iter_rel" \
+  --status passed \
+  --inputs "." \
+  --outputs "aggregate.json" \
+  --command "eval-aggregate::eval-aggregate.sh $iter_dir::passed" \
+  --runner local \
+  --profile standard \
+  --budget-class high \
+  --expected-runs 1 \
+  --estimated-timeout-s 300 \
+  --uses-llm false \
+  --uses-subagent false >/dev/null || true

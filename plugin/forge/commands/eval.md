@@ -1,17 +1,25 @@
 ---
-description: Meta-avaliação do próprio harness (§18) — mede com números se um template/command/rule do Forge melhora os artefatos gerados, antes de propagá-lo ao time. Caso canônico — /forge:requirements com vs sem o template de requirements, contando [MISS] e [CONFLICT] do validador. Opt-in (quality.evals_enabled).
-argument-hint: "harness <case-name> [--artifact requirements] [--runs N]"
+description: Meta-avaliação do próprio harness (§18) e benchmark registry canônico — mede com números se um template/command/rule do Forge melhora os artefatos gerados, antes de propagá-lo ao time. Modos: harness <case> e benchmark <case|suite>. Opt-in (quality.evals_enabled).
+argument-hint: "harness <case-name> [--artifact requirements] [--runs N] | benchmark <case|suite> [--runner stub] [--runs N] [--set key=value]"
 ---
 
 # /forge:eval — meta-avaliação do harness (§18)
 
-Argumentos: `$ARGUMENTS` (`harness` + nome do caso + flags).
+Argumentos: `$ARGUMENTS` (`harness` ou `benchmark` + nome do caso/suite + flags).
 
 > **Opt-in.** Só opera com `quality.evals_enabled: true` em `.forge/FORGE.md`. Senão, pare: `Quality layer desabilitada — ative quality.evals_enabled em FORGE.md (§17.9).`
 
 Diferença para `/forge:skill-lifecycle eval`: aqui o artefato sob teste é **do próprio Forge** (template/command/rule), e o sinal de qualidade é o **relatório do validador** (`[MISS]`/`[CONFLICT]`/`[CLARIFY]`), não expectations escritas à mão. Transforma a evolução do harness de opinião em evidência.
 
 A estatística (mean±stddev, deltas) sai de scripts deterministas — o modelo nunca decide o veredito "no olho" (§10.11).
+
+Antes de rodadas caras, emita o budget preflight:
+
+```bash
+bash .forge/scripts/budget-preflight.sh --stage eval --profile standard --outputs aggregate.json
+```
+
+Toda execução concluída grava `run-manifest/v1` em `evidence/runs/*/run-manifest.json` (proveniência segura: hashes e metadados, nunca diff bruto).
 
 ---
 
@@ -71,11 +79,32 @@ Interpretação: delta de MISS/CONFLICT **negativo** = o template reduz achados 
 
 ---
 
+## benchmark — registry canônico
+
+Executa casos versionados pequenos em `.forge/evals/benchmarks/<case>/case.json`, reutilizando `eval-aggregate.sh` e `grading.schema.json`.
+
+Casos iniciais: `greenfield-small`, `brownfield-bugfix`, `refactor-invariant`, `docs-only`, `multi-module-scale3` e `suite`.
+
+```bash
+bash .forge/scripts/benchmark-eval.sh greenfield-small --runner stub --runs 1
+bash .forge/scripts/benchmark-eval.sh suite --runner stub --runs 1
+```
+
+Overrides pontuais seguem o estilo DeepSpec apenas neste modo:
+
+```bash
+bash .forge/scripts/benchmark-eval.sh greenfield-small --set runs=2 --set runner=stub
+```
+
+---
+
 ## Regras
 
 - `quality.evals_enabled: false` ⇒ não roda (opt-in, §17.9).
 - Os dois braços usam a **mesma** proposal e o **mesmo** validador — só varia a presença do template (variável isolada).
 - Contagem e agregação saem dos scripts; o modelo só gera artefato e roda o validador.
 - `meta-aggregate.json` sempre validado contra `schemas/meta-eval.schema.json`.
+- Benchmark cases sempre validam contra `schemas/benchmark-case.schema.json`.
+- Run manifests sempre validam contra `schemas/run-manifest.schema.json` e nunca gravam diff bruto.
 - Poucos runs por braço nesta fase (2–3) — o objetivo é provar o mecanismo, não otimizar o template.
 - Output bruto em `/tmp`; nos artefatos só o relatório e os counts. No chat, só o resumo de uma linha.

@@ -16,11 +16,12 @@ by hand. `AGENTS.md` at the repo root is the generated canonical interface; `CLA
 | `specs/archived/` | 2 | finished changes (history; `index.yaml`) |
 | `product/current/` | 2 | verified baseline (capabilities with stable IDs) — only `/forge:archive` writes here |
 | `commands/` / `agents/` / `skills/` | 3 Execution Harness | operational flow (projected into adapters) |
+| `contracts/stages/` | 3 | stage I/O contracts for verify/archive/eval evidence |
 | `hooks/` / `scripts/` | 3 | git+harness hooks, deterministic validators and gates |
 | `worktrees/<change-id>/` | 3 | per-change git worktrees (local only, never committed) |
 | `graph/` | 4 Understanding | code graph, impact, onboarding, C4 + overview.html |
 | `templates/` | 5 Dev Loop | spec/bugfix/refactor/story/product/adapter templates |
-| `evals/` + `runners.yaml` | 5 Quality | opt-in quantitative eval harness (A/B, grading, meta) |
+| `evals/` + `runners.yaml` | 5 Quality | opt-in quantitative eval harness (A/B, grading, meta, benchmarks) |
 | `custom/` | — | repo-local overrides (take precedence; no fork) |
 | `schemas/` | — | JSON Schemas that make lifecycle operations deterministic |
 

@@ -16,8 +16,8 @@
 
 ## Wave 3 — Integração resume + descoberta
 
-- [ ] TASK-06 — `resume.md`: ingerir seção Delta narrativo de `.forge/HANDOFF.md` se existir (guard: ausência = intacto) (rastreia: REQ-03; paths: `template/.forge/commands/harness/resume.md`; depende: TASK-01)
-- [ ] TASK-07 — Ponteiro `.forge/HANDOFF.md` no `GENERATORS.agents` do `sync-adapters.mjs` (rastreia: REQ-04; paths: `template/.forge/scripts/lib/sync-adapters.mjs`; depende: —)
+- [X] TASK-06 — `resume.md`: ingerir seção Delta narrativo de `.forge/HANDOFF.md` se existir (guard: ausência = intacto) (rastreia: REQ-03; paths: `template/.forge/commands/harness/resume.md`; depende: TASK-01)
+- [X] TASK-07 — Ponteiro `.forge/HANDOFF.md` no `GENERATORS.agents` do `sync-adapters.mjs` (rastreia: REQ-04; paths: `template/.forge/scripts/lib/sync-adapters.mjs`; depende: —)
 
 ## Wave 4 — Gate de pre-push
 

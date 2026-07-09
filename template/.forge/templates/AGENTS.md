@@ -20,6 +20,10 @@ issuer: {{ISSUER}}
 >
 > Operational interface for AI coding agents (AGENTS.md standard). The rich governance source is
 > `.forge/FORGE.md`; the spec lifecycle lives under `.forge/specs/` and `.forge/product/current/`.
+>
+> **Sessão nova / troca de agente?** Se existir `.forge/HANDOFF.md`, leia-o primeiro — é o handoff
+> portátil (estado + regras + delta narrativo) gerado por `/forge:handoff`. No Claude Code, rode
+> `/forge:resume`.
 
 ## Setup, run, test
 

@@ -7,8 +7,8 @@
 
 ## 1. Header
 
-- **Change:** `add-portable-handoff` · type `feature` · scale `3` · fase `implementing`
-- **Branch:** `feat/portable-handoff` · HEAD `22f3248` (2026-07-06T14:00:38-03:00)
+- **Change:** `add-portable-handoff` · type `feature` · scale `3` · fase `implemented`
+- **Branch:** `feat/portable-handoff` · HEAD `7858850` (2026-07-09T09:04:00-03:00)
 
 ## 2. Estado
 

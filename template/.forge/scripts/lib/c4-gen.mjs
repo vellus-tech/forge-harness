@@ -13,7 +13,7 @@ import { join, resolve } from 'node:path';
 
 const root = resolve(process.argv[2] || '.');
 const graphPath = join(root, '.forge/graph/graph.json');
-if (!existsSync(graphPath)) { console.log('FAIL (no graph — run /forge:graph build first)'); process.exit(1); }
+if (!existsSync(graphPath)) { console.log('FAIL (no graph — run /forge:codegraph first)'); process.exit(1); }
 const g = JSON.parse(readFileSync(graphPath, 'utf8'));
 const c4Dir = join(root, '.forge/graph/c4');
 mkdirSync(c4Dir, { recursive: true });

@@ -1,6 +1,6 @@
 ---
-description: Encerra um change SEM atualizar o baseline — abandoned/rejected (antes de implementing) ou superseded (de qualquer estado). Move a pasta para specs/archived/ com registro auditável do motivo.
-argument-hint: "<change-id> [--reason abandoned|rejected|superseded]"
+description: Encerra o rastreamento de um change SEM atualizar o baseline — abandoned/rejected (antes de implementing), superseded (de qualquer estado, com sucessor) ou delivered-externally (de qualquer estado, quando a obra foi entregue fora do pipeline, ex.: PR direto). Move a pasta para specs/archived/ com registro auditável do motivo.
+argument-hint: "<change-id> [--reason abandoned|rejected|superseded|delivered-externally]"
 ---
 
 # /forge:close — encerramento sem baseline
@@ -13,8 +13,9 @@ Argumentos: `$ARGUMENTS`.
 - **reason** ausente → pergunte com as opções:
   - **Abandoned** — não será implementado (só vale antes de `implementing`);
   - **Rejected** — revisado e recusado (idem);
-  - **Superseded** — substituído por outro change (vale de qualquer estado; peça o id substituto).
-- **Motivo por escrito é obrigatório** (§12.1) — peça uma frase objetiva; ela vira o registro auditável.
+  - **Superseded** — substituído por outro change (vale de qualquer estado; peça o id substituto);
+  - **Delivered-externally** — a obra **foi entregue**, mas fora do pipeline de spec (ex.: PR direto que nunca percorreu requirements→design→tasks→verify). Terminal *positivo*, de qualquer estado: o `status` fica honesto (`delivered-externally`), não `abandoned`. Baseline intocado pela máquina de spec (a entrega está no código real); reconcilie `product/current` à parte se precisar. Peça a evidência (ex.: link do PR) — ela vai na `--note` auditável.
+- **Motivo por escrito é obrigatório** (§12.1) — peça uma frase objetiva; ela vira o registro auditável. Para `delivered-externally`, inclua a evidência da entrega (PR/commit).
 
 Confirme em 2-3 linhas o efeito antes de executar: a pasta sai de `active/`, vai para `archived/YYYY-MM-DD-<id>/` com `archive.kind: closed_without_baseline_update`, e **nada fora dela é alterado** (baseline intocado — §13).
 
@@ -24,7 +25,7 @@ Confirme em 2-3 linhas o efeito antes de executar: a pasta sai de `active/`, vai
 bash .forge/scripts/spec-close.sh <change-id> --reason <reason> --note "<motivo>" [--superseded-by <id>]
 ```
 
-O script valida as regras de estado (abandoned/rejected só pré-`implementing`; de `implementing` em diante, ou o ciclo termina ou o change é superseded), registra a decisão em `approvals.yaml` (gate `close`) e move a pasta.
+O script valida as regras de estado (abandoned/rejected só pré-`implementing`; de `implementing` em diante, ou o ciclo termina, ou o change é superseded, ou foi delivered-externally), registra a decisão em `approvals.yaml` (gate `close`) e move a pasta.
 
 ## 3. Relatório
 

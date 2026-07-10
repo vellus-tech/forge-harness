@@ -20,7 +20,7 @@ const graphPath = opt('--graph');
 const filesArg = opt('--files');
 const changeDir = opt('--change');
 
-if (!graphPath || !existsSync(graphPath)) { console.log('FAIL (graph.json not found — run /forge:graph build)'); process.exit(1); }
+if (!graphPath || !existsSync(graphPath)) { console.log('FAIL (graph.json not found — run /forge:codegraph)'); process.exit(1); }
 const g = JSON.parse(readFileSync(graphPath, 'utf8'));
 
 // graph fingerprint: stable hash of all node fingerprints (detects staleness)

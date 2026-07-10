@@ -15,7 +15,7 @@ import { resolve, join } from 'node:path';
 import { execSync } from 'node:child_process';
 
 const graphPath = process.argv[2];
-if (!graphPath || !existsSync(graphPath)) { console.log(`FAIL (graph.json not found: ${graphPath || '(none)'} — run /forge:graph build)`); process.exit(1); }
+if (!graphPath || !existsSync(graphPath)) { console.log(`FAIL (graph.json not found: ${graphPath || '(none)'} — run /forge:codegraph)`); process.exit(1); }
 const root = process.argv[3] ? resolve(process.argv[3]) : null;
 const errors = [];
 const warnings = [];

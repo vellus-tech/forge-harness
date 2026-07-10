@@ -5,7 +5,7 @@ argument-hint: "[<módulo ou capability>]"
 
 # /forge:onboard — tour de arquitetura
 
-Pré-requisito: `/forge:graph build` (e baseline, se existir).
+Pré-requisito: `/forge:codegraph` (e baseline, se existir).
 
 ## Protocolo
 

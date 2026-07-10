@@ -843,7 +843,7 @@ Repo existente, legado, fork, produto em produção.
 ```text
 /forge:init --mode brownfield
 /forge:discover
-/forge:graph build
+/forge:codegraph
 /forge:onboard
 /forge:baseline extract
 /forge:spec new <change>
@@ -1038,7 +1038,7 @@ Namespace `/forge:*`. Os comandos vivem em `.forge/commands/**` e são projetado
 | Comando | Objetivo |
 |---|---|
 | `/forge:discover` | inventário determinístico do repo |
-| `/forge:graph build` | cria ou reconstrói o grafo |
+| `/forge:codegraph` | cria ou reconstrói o grafo |
 | `/forge:graph query` | responde com base no grafo |
 | `/forge:impact` | análise de impacto de uma spec ou diff |
 | `/forge:onboard` | gera mapa de arquitetura/domínio para novos agentes/humanos |

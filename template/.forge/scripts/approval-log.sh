@@ -7,7 +7,7 @@
 #                   [--notes "<text>"] [--superseded-by <id>]
 # gates:     requirements_reviewed | design_reviewed | tasks_reviewed |
 #            implementation_verified | human_archive_approval | close
-# decisions: approve | review | reject | supersede | abandon | block
+# decisions: approve | review | reject | supersede | abandon | block | deliver-external
 # Rules (§12.1): every decision except approve REQUIRES --reason;
 #                supersede also requires --superseded-by; iteration is 1..3.
 # Output: "OK <id>: <gate> = <decision>" or "FAIL (...)".
@@ -35,7 +35,7 @@ MAN="$DIR/manifest.yaml"
 [ -f "$MAN" ] || { echo "FAIL (no active change: $ID)"; exit 1; }
 
 case "$GATE" in requirements_reviewed|design_reviewed|tasks_reviewed|implementation_verified|human_archive_approval|close) ;; *) echo "FAIL (--gate invalid: '$GATE')"; exit 2 ;; esac
-case "$DECISION" in approve|review|reject|supersede|abandon|block) ;; *) echo "FAIL (--decision invalid: '$DECISION')"; exit 2 ;; esac
+case "$DECISION" in approve|review|reject|supersede|abandon|block|deliver-external) ;; *) echo "FAIL (--decision invalid: '$DECISION')"; exit 2 ;; esac
 if [ "$DECISION" != "approve" ] && [ -z "$REASON" ]; then
   echo "FAIL (every decision except approve requires --reason — §12.1)"; exit 2
 fi

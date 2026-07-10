@@ -43,6 +43,9 @@ states:
   - name: superseded
     kind: terminal
     requires: "replaced by another spec/change"
+  - name: delivered-externally
+    kind: terminal
+    requires: "work shipped outside the spec pipeline (e.g. direct PR); recorded with evidence in the note, baseline untouched by the pipeline"
   - name: reopened
     kind: lateral
     requires: "reason + affected baseline + corrective spec or rollback"
@@ -70,6 +73,7 @@ transitions:
   - { from: design-ready, to: rejected, via: close, requires_reason: true }
   - { from: tasks-ready, to: rejected, via: close, requires_reason: true }
   - { from: any, to: superseded, via: close, requires_reason: true }
+  - { from: any, to: delivered-externally, via: close, requires_reason: true }
   # laterals
   - { from: any, to: blocked, via: spec-transition, requires_reason: true }
   - { from: blocked, to: any, via: spec-transition, requires_reason: true }

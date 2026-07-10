@@ -281,6 +281,7 @@ Via Agent tool, com payload estruturado:
     "docs/product/modules/payment-processing/requirements.md",
     "docs/product/modules/payment-processing/design.md",
     "docs/product/glossary/domain-glossary.md",
+    ".forge/rules/conventions/code-style.md",
     ".forge/rules/domain/money-as-cents.md",
     ".forge/rules/domain/nbr-5891-rounding.md"
   ],

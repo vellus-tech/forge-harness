@@ -33,7 +33,9 @@ fm_field() {  # fm_field <key> — value of "  <key>:" inside the runtime: block
 run_check() {  # run_check <label> <cmd>
   local label="$1" cmd="$2" log
   [ -n "$cmd" ] || { echo "pre-push: $label não definido — skip"; return 0; }
-  log="$(mktemp /tmp/forge-prepush-XXXXXX.log)"
+  # NB: o template do mktemp precisa TERMINAR nos X (BSD/macOS falha com sufixo após o X, ex.:
+  # `-XXXXXX.log`). Sem sufixo de extensão — é um arquivo de log temporário efêmero.
+  log="$(mktemp "${TMPDIR:-/tmp}/forge-prepush-XXXXXX")"
   if (cd "$ROOT" && eval "$cmd") >"$log" 2>&1; then
     echo "pre-push: $label OK"
   else

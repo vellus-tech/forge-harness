@@ -1,0 +1,16 @@
+# removed-files.txt — tombstones de maquinaria do Forge harness.
+#
+# Paths (relativos a .forge/) que o template REMOVEU ou RENOMEOU entre versões. O `forge update`
+# deleta CADA um destes do consumidor, se existir — fechando o buraco do overlay puramente aditivo
+# (que nunca apagava, deixando slash commands/agents/rules stale sobreviverem após um rename).
+#
+# Contrato de segurança (imposto pelo gate w63-forge-update-gate):
+#   - Um path aqui NUNCA pode existir no template atual. Se existir, o overlay o escreveria e a
+#     tombstone o apagaria em seguida — o gate falha para impedir isso.
+#   - A deleção é curada (só esta lista), NÃO "tudo que não está no template" — um consumidor pode
+#     ter commands/agents/rules autorais sob .forge/, e apagá-los seria perda de trabalho.
+#
+# Um path por linha; `#` inicia comentário; linhas em branco são ignoradas.
+
+# rc13: /forge:build renomeado para /forge:codegraph (commands/graph/build.md -> codegraph.md)
+commands/graph/build.md

@@ -6,6 +6,15 @@ e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+## [0.1.0-rc13] — 2026-07-10
+
+### Added
+- **Estado terminal `delivered-externally` no `/forge:close`.** Fecha a lacuna de uma spec cuja obra foi **entregue fora do pipeline** (ex.: PR direto que nunca percorreu requirements→design→tasks→verify): antes, os únicos terminais eram `abandoned`/`rejected` (pré-`implementing`, significam *não entregue*), `superseded` (exige sucessor) e `archived` (exige o pipeline completo + toca o baseline). Forçava mapear entrega real para `abandoned` — auditicamente falso, já que o que uma auditoria varre é o `status:` no topo do manifest. O novo terminal é *positivo* e vale de **qualquer** estado (como `superseded`): `status: delivered-externally`, `archive.kind: closed_without_baseline_update` (a entrega está no código real, não em deltas do pipeline), decisão `deliver-external` no `approvals.yaml`, `--note` obrigatória carregando a evidência (link do PR). Baseline intocado pela máquina de spec — reconciliar `product/current` é passo separado. Superfície: `spec-close.sh`, `approval-log.sh`, `validate-spec.mjs`, `approvals.schema.json`, `spec-manifest.schema.json`, `archive-state-machine.yaml`, comando `close.md` e gate `w22` (caso `[5b]`).
+- **Convenção `conventions/code-style.md`** — nova rule que governa a **forma interna** do código que cada TASK produz, fechando a lacuna entre "task bem decomposta" e "código bem escrito": early return / guard clauses, aninhamento ≤3, uma função–uma responsabilidade–um nível de abstração, sem literais mágicos, assinaturas enxutas (sem flag booleana), tratamento de erro fail-fast (nunca engolir; exceção de domínio × `Result`), imutabilidade/pureza por padrão, comentar o "porquê", regra de três (contra abstração prematura) e fronteira defensiva × núcleo confiável. Escopo é estilo — imutabilidade de domínio e validação por camada continuam deferidas a `architecture/ddd.md` e `architecture/clean-architecture.md` por link, sem re-derivar. Enforcement por checklist de revisão + linter da stack quando configurado (smell, **não** novo gate bloqueante de CI). Fiada em todo o fluxo: `tasks-writer` (§1.11, herdada por todo `tasks.md` gerado, + anti-patterns), os 4 engineering agents (leem antes de codificar), `quality-reviewer` (dono do checklist) e `task-coder` (contexto passado aos specialists).
+
+### Changed
+- **Slash command `/forge:build` renomeado para `/forge:codegraph`.** O comando constrói o grafo de código; o nome antigo era ambíguo (colidia conceitualmente com `/forge:build-plugin` e não dizia o quê construía). Todas as referências funcionais (`/forge:graph build` em commands, agents, skills e mensagens de erro dos scripts) e a documentação canônica (`docs/refer/slash-commands.md`) foram atualizadas; o engine (`.forge/scripts/graph.sh build`) permanece inalterado. Plugin regenerado.
+
 ## [0.1.0-rc12] — 2026-07-09
 
 ### Fixed

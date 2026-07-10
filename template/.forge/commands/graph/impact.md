@@ -5,7 +5,7 @@ argument-hint: "--change <id> | --diff [<base>] | --files a,b,c"
 
 # /forge:impact — análise de impacto
 
-Pré-requisito: grafo construído (`/forge:graph build`); rode `/forge:graph update` antes se tocou código.
+Pré-requisito: grafo construído (`/forge:codegraph`); rode `/forge:graph update` antes se tocou código.
 
 ## Execução
 

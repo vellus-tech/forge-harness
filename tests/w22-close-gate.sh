@@ -6,6 +6,8 @@
 #   [3] close abandoned from tasks-ready → archived/YYYY-MM-DD-<id>, audited
 #   [4] close abandoned/rejected from implementing → refused (§10.7 + L3)
 #   [5] close superseded from verified → allowed (any-state close)
+#   [5b] close delivered-externally from implementing → allowed (positive terminal,
+#        any-state, honest status; not 'abandoned'); baseline untouched
 #   [6] close touches nothing outside .forge/specs/**
 #   [7] compatibility contract (source mode) still green after C2/C4 v1.1
 set -euo pipefail
@@ -78,6 +80,17 @@ echo "[5] close superseded de verified"
 [ -d "$T/.forge/specs/archived/$(date +%F)-chg-f" ]
 grep -q 'superseded_by: chg-novo' "$T/.forge/specs/archived/$(date +%F)-chg-f/approvals.yaml"
 echo "OK [5]"
+
+echo "[5b] close delivered-externally de implementing → permitido (terminal positivo, qualquer estado)"
+# chg-h está em implementing (o [4] recusou abandoned/rejected e o deixou ativo).
+(cd "$T" && bash "$CL" chg-h --reason delivered-externally --note "entregue e verificado via PR #72; obra feita fora do pipeline" >/dev/null)
+ARCH_DE="$T/.forge/specs/archived/$(date +%F)-chg-h"
+[ -d "$ARCH_DE" ] && [ ! -e "$T/.forge/specs/active/chg-h" ] || { echo "delivered-externally não arquivou chg-h!"; exit 1; }
+grep -q '^status: delivered-externally$' "$ARCH_DE/manifest.yaml" || { echo "status não é delivered-externally!"; exit 1; }
+grep -q '^  kind: closed_without_baseline_update$' "$ARCH_DE/manifest.yaml" || { echo "kind errado!"; exit 1; }
+grep -q 'decision: deliver-external' "$ARCH_DE/approvals.yaml" || { echo "decisão não registrada!"; exit 1; }
+grep -q 'PR #72' "$ARCH_DE/approvals.yaml" || { echo "evidência (nota) não registrada!"; exit 1; }
+echo "OK [5b]"
 
 echo "[6] close não tocou nada fora de .forge/specs"
 [ "$(hash_outside_specs)" = "$H_BEFORE" ]

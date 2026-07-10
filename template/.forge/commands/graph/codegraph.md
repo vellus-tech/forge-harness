@@ -3,7 +3,7 @@ description: Constrói o grafo de código persistente (.forge/graph/graph.json) 
 argument-hint: ""
 ---
 
-# /forge:graph build — construir o grafo de código
+# /forge:codegraph — construir o grafo de código
 
 Engine: subset local nativo (ADR `0001-graph-engine`) — extração estrutural determinista, zero dependência, zero tokens.
 

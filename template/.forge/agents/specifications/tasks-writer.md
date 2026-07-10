@@ -325,6 +325,10 @@ TASK-NN — <título>        ← unidade atômica de invocação do task-coder
 
 Documentos no formato anti-pattern são considerados **legados** e devem ser reespecificados antes do uso real pelo `task-coder`.
 
+### 1.11 Estilo de código
+
+A implementação de cada TASK segue `.forge/rules/conventions/code-style.md` — early return / guard clauses, aninhamento ≤3, uma função uma responsabilidade, sem literais mágicos, assinaturas enxutas, tratamento de erro fail-fast (nunca engolir), imutabilidade por padrão e comentar o "porquê". Bite-sized é a granularidade da TASK; code-style é a granularidade da função.
+
 ````
 
 ---
@@ -720,6 +724,7 @@ Se o README não existir, recomende sua criação.
 - Matriz de rastreabilidade incompleta
 - Tasks virando design técnico tardio
 - Tasks virando código ou pseudocódigo excessivo
+- Subtask de implementação que ignora `code-style.md` (aninhamento profundo / sem early return, função fazendo mais de uma coisa, erro engolido)
 
 ---
 

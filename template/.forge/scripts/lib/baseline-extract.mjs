@@ -16,7 +16,7 @@ const dryRun = process.argv.includes('--dry-run');
 const graphPath = join(root, '.forge/graph/graph.json');
 const capsDir = join(root, '.forge/product/current/capabilities');
 
-if (!existsSync(graphPath)) { console.log('FAIL (no graph — run /forge:graph build first)'); process.exit(1); }
+if (!existsSync(graphPath)) { console.log('FAIL (no graph — run /forge:codegraph first)'); process.exit(1); }
 const g = JSON.parse(readFileSync(graphPath, 'utf8'));
 
 const BOUNDARY_ROOTS = ['src', 'services', 'apps', 'packages', 'modules', 'libs'];

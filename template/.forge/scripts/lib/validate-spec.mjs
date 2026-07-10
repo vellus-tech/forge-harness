@@ -35,7 +35,7 @@ const MODES = ['greenfield', 'brownfield', 'feature-only'];
 const RIGORS = ['spec-anchored', 'spec-first', 'spec-as-source'];
 const STATUSES = ['idea', 'proposed', 'requirements-ready', 'design-ready', 'tasks-ready',
   'implementing', 'implemented', 'verified', 'archived',
-  'blocked', 'abandoned', 'rejected', 'superseded', 'reopened', 'rolled-back'];
+  'blocked', 'abandoned', 'rejected', 'superseded', 'delivered-externally', 'reopened', 'rolled-back'];
 const GATE_KEYS = ['requirements_reviewed', 'design_reviewed', 'tasks_reviewed',
   'implementation_verified', 'human_archive_approval'];
 const DATE_RE = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
@@ -99,7 +99,7 @@ if (existsSync(approvalsPath)) {
   catch (e) { errors.push(`approvals.yaml: ${e.message}`); ap = null; }
   if (ap) {
     const APPROVAL_GATES = [...GATE_KEYS, 'close'];
-    const DECISIONS = ['approve', 'review', 'reject', 'supersede', 'abandon', 'block'];
+    const DECISIONS = ['approve', 'review', 'reject', 'supersede', 'abandon', 'block', 'deliver-external'];
     const list = Array.isArray(ap.approvals) ? ap.approvals : null;
     if (!list) errors.push('approvals.yaml: top-level "approvals" list missing');
     else list.forEach((e, i) => {

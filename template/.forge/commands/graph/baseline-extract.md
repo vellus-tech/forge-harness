@@ -5,7 +5,7 @@ argument-hint: "[--dry-run]"
 
 # /forge:baseline extract — baseline inicial (brownfield)
 
-Pré-requisito: `/forge:graph build`; idealmente após `/forge:discover` e `/forge:onboard`.
+Pré-requisito: `/forge:codegraph`; idealmente após `/forge:discover` e `/forge:onboard`.
 
 ## Execução
 

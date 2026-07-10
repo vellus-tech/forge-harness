@@ -5,7 +5,7 @@ argument-hint: "<termo> | path <de> <para>"
 
 # /forge:graph query — consulta ao grafo
 
-Pré-requisito: `/forge:graph build`.
+Pré-requisito: `/forge:codegraph`.
 
 ```bash
 bash .forge/scripts/graph.sh query <termo>        # nodes/edges que casam com o termo

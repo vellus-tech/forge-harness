@@ -27,5 +27,5 @@ bash .forge/scripts/sync-adapters.sh --adapter all   # reflete no AGENTS.md
 
 ## Regras
 
-- Não construa grafo, não leia conteúdo de código além dos manifestos — isto é o inventário barato; `/forge:graph build` (MVP4) faz o resto.
+- Não construa grafo, não leia conteúdo de código além dos manifestos — isto é o inventário barato; `/forge:codegraph` (MVP4) faz o resto.
 - Re-execução é idempotente (sobrescreve o manifest com estado fresco).

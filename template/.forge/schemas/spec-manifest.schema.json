@@ -16,7 +16,7 @@
       "enum": [
         "idea", "proposed", "requirements-ready", "design-ready", "tasks-ready",
         "implementing", "implemented", "verified", "archived",
-        "blocked", "abandoned", "rejected", "superseded", "reopened", "rolled-back"
+        "blocked", "abandoned", "rejected", "superseded", "delivered-externally", "reopened", "rolled-back"
       ]
     },
     "created_at": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },

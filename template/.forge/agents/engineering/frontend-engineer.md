@@ -133,7 +133,7 @@ Antes de qualquer alteração, leia os arquivos relevantes, quando existirem:
 12. `docs/product/adr/`
 13. `docs/architecture/`
 14. `docs/rules/`
-15. `.forge/rules/`
+15. `.forge/rules/` (em especial `conventions/code-style.md` — leia antes de codificar: early return, aninhamento, responsabilidade única, erro fail-fast, imutabilidade)
 16. `.forge/context.md` (contexto durável: projeto, arquitetura, estrutura do repositório, constraints, padrões de código, testes, segurança e documentação)
 25. design system, tokens, Storybook ou biblioteca de componentes existente
 

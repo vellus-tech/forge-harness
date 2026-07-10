@@ -108,6 +108,7 @@ Skills de design **não fazem parte deste template** — alguns workspaces as in
 
 - Se houver skill de design aplicável (refinamento visual, layout, minimalismo, vídeo etc.), carregue a mais relevante pela tool de skills do harness e siga suas instruções.
 - Se nenhuma estiver disponível, siga a §13 (Design, UI e consistência visual) e o design system do projeto. Na ausência de design system, a skill `design-system-creator` (esta sim parte do template) pode criá-lo mediante aprovação do usuário.
+- **Antes de declarar UI concluída, rode a skill `frontend-ui-review`** (gates determinísticos A1-A5: token fantasma, cor hardcoded, fallback literal, controle nativo, cobertura). O A1 (scan de token fantasma) e o teste no tema **dark** são o piso — light esconde, dark revela. Convenções em `rules/frontend/design-system.md` (regras 10-12: sem token fantasma, sem fallback literal, controle nativo domado).
 
 Não implemente UI visualmente pobre: na ausência de skills de design, os critérios da §13 são o piso de qualidade.
 
@@ -133,7 +134,7 @@ Antes de qualquer alteração, leia os arquivos relevantes, quando existirem:
 12. `docs/product/adr/`
 13. `docs/architecture/`
 14. `docs/rules/`
-15. `.forge/rules/`
+15. `.forge/rules/` (em especial `conventions/code-style.md` — leia antes de codificar: early return, aninhamento, responsabilidade única, erro fail-fast, imutabilidade)
 16. `.forge/context.md` (contexto durável: projeto, arquitetura, estrutura do repositório, constraints, padrões de código, testes, segurança e documentação)
 25. design system, tokens, Storybook ou biblioteca de componentes existente
 

@@ -843,7 +843,7 @@ Repo existente, legado, fork, produto em produção.
 ```text
 /forge:init --mode brownfield
 /forge:discover
-/forge:graph build
+/forge:codegraph
 /forge:onboard
 /forge:baseline extract
 /forge:spec new <change>
@@ -965,6 +965,25 @@ approvals:
     iteration: 2
 ```
 
+### 12.2 Modo autônomo (YOLO)
+
+`forge.yaml > autonomy.mode` escolhe como os gates de §12.1 são decididos. Em `hitl` (default) cada gate para para um humano via `AskUserQuestion`. Em `yolo` (opt-in explícito, ou `--yolo` numa invocação) o gate é decidido por um subagente **Opus effort high** — o agent `yolo-gate` — que analisa o artefato com rigor adversarial, emite uma das decisões canônicas de §12.1 e a registra via `approval-log.sh --autonomous`.
+
+Duas invariantes tornam o yolo seguro em domínio regulado:
+
+1. **Honestidade de auditoria** — a decisão autônoma grava `autonomous: true` e `decided_by: "forge-yolo (opus, high)"`, nunca um nome humano. Todo approve autônomo carrega o `reason` (a análise) — o script recusa approve autônomo sem motivo. Uma auditoria filtra `autonomous: true` e revisa exatamente o que a máquina liberou.
+2. **Yolo decide gates, não mascara falhas** — falha de execução (`[!]`, teste vermelho, `BLOCKER`/`Status: FAIL`) e conflito de fontes normativas (G1) **continuam parando**; não existe "aprovar por cima". Um `review` autônomo alimenta o loop §14.6 até 3 iterações e então escala ao humano.
+
+**Hard-stops** (`forge.yaml > autonomy`): `human_hard_stops` (default `human_archive_approval`) mantém a mutação de baseline sob aprovação humana mesmo em yolo (§13.1, domínio regulado); `irreversible_hard_stops` (deploy prd, promote-staging, remoção de adapter, branch cleanup) nunca são auto-aprovados. Merge para `develop` é yolo-able; deploy de produção não. Contrato completo: `rules/conventions/autonomy-yolo.md`.
+
+```yaml
+autonomy:
+  mode: yolo               # hitl (default) | yolo
+  gate_agent: { model: opus, effort: high }
+  human_hard_stops: [human_archive_approval]
+  irreversible_hard_stops: [deploy_prd, promote_staging, adapter_removal, branch_cleanup]
+```
+
 ---
 
 ## 13. Política de Archive
@@ -1038,7 +1057,7 @@ Namespace `/forge:*`. Os comandos vivem em `.forge/commands/**` e são projetado
 | Comando | Objetivo |
 |---|---|
 | `/forge:discover` | inventário determinístico do repo |
-| `/forge:graph build` | cria ou reconstrói o grafo |
+| `/forge:codegraph` | cria ou reconstrói o grafo |
 | `/forge:graph query` | responde com base no grafo |
 | `/forge:impact` | análise de impacto de uma spec ou diff |
 | `/forge:onboard` | gera mapa de arquitetura/domínio para novos agentes/humanos |

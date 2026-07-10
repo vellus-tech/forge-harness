@@ -49,3 +49,7 @@ consistente. Ver detalhamento em `.forge/commands/docs/adr.md`.
 
 - **reopened:** divergência/regressão descoberta → exige motivo, baseline afetado e **nova spec corretiva** (ou rollback). Registre a decisão em `approvals.yaml` da pasta arquivada e abra o change corretivo.
 - **rolled-back:** reversão formal → aplicar o delta inverso via novo change (`modify`/`remove` espelhados), arquivá-lo, e marcar o original como `rolled-back` com entrada no CHANGELOG. Nunca editar o baseline à mão.
+
+## Modo autônomo (--yolo)
+
+O gate `human_archive_approval` está em `autonomy.human_hard_stops` por default — **mesmo em yolo permanece humano** (mutação de baseline; §13.1 exige aprovação humana explícita em domínio regulado/financeiro). Só é auto-decidido pelo `yolo-gate` se você remover o hard-stop no `forge.yaml`, assumindo o risco de auditoria. Ver `.forge/rules/conventions/autonomy-yolo.md`.

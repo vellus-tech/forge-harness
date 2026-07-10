@@ -1,6 +1,6 @@
 ---
 name: graph-reviewer
-description: Gate opcional de qualidade do grafo em repos brownfield grandes (§16.4) — audita cobertura, summaries ausentes/fracos, nós órfãos suspeitos e edges não resolvidos relevantes, recomendando rebuild/curadoria antes de confiar no grafo para impact/onboard. Aciona após /forge:graph build em brownfield, antes de usar o grafo como pré-flight.
+description: Gate opcional de qualidade do grafo em repos brownfield grandes (§16.4) — audita cobertura, summaries ausentes/fracos, nós órfãos suspeitos e edges não resolvidos relevantes, recomendando rebuild/curadoria antes de confiar no grafo para impact/onboard. Aciona após /forge:codegraph em brownfield, antes de usar o grafo como pré-flight.
 tools:
   - Read
   - Bash

@@ -37,7 +37,7 @@ Você **não** revisa: lógica/edge cases (→ logic), Clean Arch/DDD (→ arch)
 ```yaml
 branch, base, diff_sha
 context_summary:
-  Rules: naming.md, language-policy.md, conventional-commits.md, no-summary-files.md, quality-gates.md, tdd.md
+  Rules: naming.md, code-style.md, language-policy.md, conventional-commits.md, no-summary-files.md, quality-gates.md, tdd.md
 verify_diff_claims_output
 ```
 
@@ -219,6 +219,7 @@ IDs com prefixo `QLT-NNN`.
 ## Referências
 
 - `.forge/rules/conventions/naming.md`
+- `.forge/rules/conventions/code-style.md`
 - `.forge/rules/conventions/language-policy.md`
 - `.forge/rules/conventions/conventional-commits.md`
 - `.forge/rules/conventions/database-naming.md`

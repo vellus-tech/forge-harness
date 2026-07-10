@@ -1,6 +1,6 @@
 ---
 name: file-analyzer
-description: Analisa um arquivo de código e produz um summary semântico conciso (papel, responsabilidades, dependências-chave) para enriquecer um nó do grafo. Aciona durante /forge:graph build/update quando há nós com summary stale, ou sob demanda no /forge:onboard. Estrutura determinista (nodes/edges) já vem do extractor — este agente só preenche a semântica.
+description: Analisa um arquivo de código e produz um summary semântico conciso (papel, responsabilidades, dependências-chave) para enriquecer um nó do grafo. Aciona durante a construção/atualização do grafo (/forge:codegraph, /forge:graph update) quando há nós com summary stale, ou sob demanda no /forge:onboard. Estrutura determinista (nodes/edges) já vem do extractor — este agente só preenche a semântica.
 tools:
   - Read
   - Grep

@@ -113,3 +113,12 @@ relative path (no fork needed). `forge doctor` flags orphan overrides as drift.
 | 3 Execution Harness | `commands/`, `agents/`, `skills/`, `hooks/`, `scripts/`, `worktrees/` | operation |
 | 4 Understanding | `graph/` | brownfield map, impact, C4 |
 | 5 Dev Loop & Quality | `templates/story/`, `evals/`, `runners.yaml` | long-running + quantitative quality (opt-in) |
+
+## 7. Autonomy (HITL vs YOLO)
+
+`forge.yaml > autonomy.mode` controls how HITL gates (§12.1) are decided. `hitl` (default) stops for a
+human via `AskUserQuestion`. `yolo` delegates each approval gate to an Opus-effort-high subagent
+(`yolo-gate`), recorded in `approvals.yaml` with `autonomous: true` — never disguised as human.
+Execution failures (`[!]`, blockers, source conflicts) still stop; `human_hard_stops` (default
+`human_archive_approval`) and `irreversible_hard_stops` (prod deploy, promote-staging, adapter removal,
+branch cleanup) stay human even in yolo. Full contract: `rules/conventions/autonomy-yolo.md`.

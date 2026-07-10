@@ -35,7 +35,7 @@
           "gate": {
             "enum": ["requirements_reviewed", "design_reviewed", "tasks_reviewed", "implementation_verified", "human_archive_approval", "close"]
           },
-          "decision": { "enum": ["approve", "review", "reject", "supersede", "abandon", "block"] },
+          "decision": { "enum": ["approve", "review", "reject", "supersede", "abandon", "block", "deliver-external"] },
           "reason": { "type": "string", "minLength": 3 },
           "decided_by": { "type": "string", "minLength": 1 },
           "decided_at": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}" },
@@ -43,11 +43,16 @@
           "commit": { "type": "string" },
           "scope": { "type": "string" },
           "notes": { "type": "string" },
-          "superseded_by": { "type": "string" }
+          "superseded_by": { "type": "string" },
+          "autonomous": { "type": "boolean", "description": "true = decisão tomada por subagente Opus no modo yolo (§12.2), não por humano. decided_by carrega a identidade do decisor autônomo." }
         },
         "allOf": [
           {
             "if": { "properties": { "decision": { "not": { "const": "approve" } } } },
+            "then": { "required": ["reason"], "properties": { "reason": { "type": "string", "minLength": 3 } } }
+          },
+          {
+            "if": { "required": ["autonomous"], "properties": { "autonomous": { "const": true } } },
             "then": { "required": ["reason"], "properties": { "reason": { "type": "string", "minLength": 3 } } }
           },
           {

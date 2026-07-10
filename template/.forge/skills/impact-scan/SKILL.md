@@ -11,7 +11,7 @@ Skill de análise de impacto — wrapper do script determinista `lib/impact-scan
 
 ### Quando usar
 
-- Obrigatória: scale ≥ 3 + change toca código + grafo construído (`/forge:graph build` já rodado).
+- Obrigatória: scale ≥ 3 + change toca código + grafo construído (`/forge:codegraph` já rodado).
 - Recomendada: antes de qualquer deploy em change que altere contratos/interfaces.
 
 ### Execução
@@ -45,6 +45,6 @@ O `validate-archive` (pré-flight §13.2) verifica que `impact.json.graph_finger
 
 ## Regras
 
-- Se o grafo não existir: informe que `/forge:graph build` precisa ser rodado primeiro.
+- Se o grafo não existir: informe que `/forge:codegraph` precisa ser rodado primeiro.
 - Não reconstrua o grafo nesta skill — apenas consuma-o.
 - Output bruto em `/tmp/impact-scan.log`; reporte apenas o summary no chat (§17.6).

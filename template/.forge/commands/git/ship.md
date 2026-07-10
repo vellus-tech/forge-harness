@@ -96,3 +96,7 @@ revisão corrigidos (se houver), e confirmação de que `develop` está atualiza
   torna `/forge:ship` seguro para ser um comando único em vez de um checklist manual.
 - `--no-review` só pula o passo 7-8 quando o usuário já revisou manualmente nesta mesma sessão;
   não assuma isso por padrão.
+
+## Modo autônomo (--yolo)
+
+`--yolo` (ou `autonomy.mode: yolo`) delega a decisão de revisão/merge ao agent `yolo-gate` (Opus, effort high), que analisa o diff e decide seguir ou segurar. `ship` **não** é um gate de lifecycle de spec (não há entrada em `approvals.yaml` para ele) — a decisão autônoma é o próprio prosseguir com o merge, não um registro em approvals. Merge para `develop` **é** yolo-able (integração contínua de baixo custo). **`promote_staging` e `deploy_prd` são `irreversible_hard_stops`** — permanecem humanos mesmo em yolo. Achados de revisão ainda precisam ser corrigidos/deferidos antes do merge (yolo não faz merge com finding aberto). Ver `.forge/rules/conventions/autonomy-yolo.md`.

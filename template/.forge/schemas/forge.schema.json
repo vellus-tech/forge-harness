@@ -134,6 +134,29 @@
           "properties": {
             "auto": { "type": "boolean" }
           }
+        },
+        "autonomy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mode": { "enum": ["hitl", "yolo"] },
+            "gate_agent": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "model": { "type": "string" },
+                "effort": { "enum": ["low", "medium", "high"] }
+              }
+            },
+            "human_hard_stops": {
+              "type": "array",
+              "items": { "enum": ["requirements_reviewed", "design_reviewed", "tasks_reviewed", "implementation_verified", "human_archive_approval", "close"] }
+            },
+            "irreversible_hard_stops": {
+              "type": "array",
+              "items": { "enum": ["deploy_prd", "promote_staging", "adapter_removal", "branch_cleanup"] }
+            }
+          }
         }
       }
     }

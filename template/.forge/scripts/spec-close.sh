@@ -3,9 +3,16 @@
 # moves the folder to .forge/specs/archived/YYYY-MM-DD-<id>/ with
 # archive.kind: closed_without_baseline_update.
 # Rules (§10.7 + plan L3):
-#   --reason abandoned|rejected : only from idea|proposed|requirements-ready|
-#                                 design-ready|tasks-ready (pre-implementing)
-#   --reason superseded         : from any state; requires --superseded-by <id>
+#   --reason abandoned|rejected     : only from idea|proposed|requirements-ready|
+#                                     design-ready|tasks-ready (pre-implementing)
+#   --reason superseded             : from any state; requires --superseded-by <id>
+#   --reason delivered-externally   : from any state — the work SHIPPED outside the
+#                                     spec pipeline (e.g. a direct PR). Positive terminal:
+#                                     status is honest ("delivered"), not "abandoned".
+#                                     Baseline untouched by the pipeline (the delivery is
+#                                     in the real codebase); reconcile product/current
+#                                     separately if needed. The mandatory --note carries
+#                                     the evidence (e.g. the PR link).
 # A close decision is always logged in approvals.yaml (gate: close) with the
 # mandatory --note as its reason (§12.1).
 # The script touches NOTHING outside the change folder.
@@ -28,22 +35,24 @@ esac; done
 DIR="$ROOT/.forge/specs/active/$ID"
 MAN="$DIR/manifest.yaml"
 [ -f "$MAN" ] || { echo "FAIL (no active change: $ID)"; exit 1; }
-case "$REASON" in abandoned|rejected|superseded) ;; *) echo "FAIL (--reason must be abandoned|rejected|superseded, got: '$REASON')"; exit 2 ;; esac
+case "$REASON" in abandoned|rejected|superseded|delivered-externally) ;; *) echo "FAIL (--reason must be abandoned|rejected|superseded|delivered-externally, got: '$REASON')"; exit 2 ;; esac
 [ -n "$NOTE" ] || { echo "FAIL (--note is mandatory — every close records a reason, §12.1)"; exit 2; }
 if [ "$REASON" = "superseded" ] && [ -z "$SUPERSEDED_BY" ]; then
   echo "FAIL (superseded requires --superseded-by <change-id>)"; exit 2
 fi
 
 STATUS="$(awk -F': ' '$1=="status"{print $2; exit}' "$MAN")"
-if [ "$REASON" != "superseded" ]; then
+# abandoned/rejected are pre-implementing only; superseded and delivered-externally
+# are any-state terminals (a change can be superseded, or shipped out-of-band, at any point).
+if [ "$REASON" != "superseded" ] && [ "$REASON" != "delivered-externally" ]; then
   case "$STATUS" in
     idea|proposed|requirements-ready|design-ready|tasks-ready) ;;
-    *) echo "FAIL ($REASON only applies before implementing — status is '$STATUS'; from implementing onward use superseded or finish the cycle)"; exit 1 ;;
+    *) echo "FAIL ($REASON only applies before implementing — status is '$STATUS'; from implementing onward use superseded, delivered-externally, or finish the cycle)"; exit 1 ;;
   esac
 fi
 
 # decision log (gate: close)
-case "$REASON" in abandoned) DEC="abandon" ;; rejected) DEC="reject" ;; superseded) DEC="supersede" ;; esac
+case "$REASON" in abandoned) DEC="abandon" ;; rejected) DEC="reject" ;; superseded) DEC="supersede" ;; delivered-externally) DEC="deliver-external" ;; esac
 # ${arr[@]+...} guard: empty array + set -u explodes on macOS bash 3.2
 extra=()
 [ -n "$SUPERSEDED_BY" ] && extra=(--superseded-by "$SUPERSEDED_BY")

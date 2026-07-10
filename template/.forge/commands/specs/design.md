@@ -49,3 +49,7 @@ bash .forge/scripts/approval-log.sh <change-id> --gate design_reviewed --decisio
 - **Approve** → `bash .forge/scripts/spec-transition.sh <change-id> design-ready`; próximo: `/forge:tasks`.
 - **Review** → motivo vira instrução; volte ao passo 1.
 - **Reject**/**Block** → registre e pare (close/blocked conforme o caso).
+
+## Modo autônomo (--yolo)
+
+Se `autonomy.mode: yolo` (`forge.yaml`) ou `--yolo` na invocação, este gate não para no `AskUserQuestion`: invoque o agent `yolo-gate` (model **opus**, effort **high**) sobre o artefato — ele analisa, decide (approve/review/reject/block) e registra em `approvals.yaml` com `autonomous: true` via `approval-log.sh --autonomous`. `review` autônomo alimenta o loop até 3 iterações e então escala ao humano. Falhas de execução e conflitos de fontes continuam parando (não são gates). Ver `.forge/rules/conventions/autonomy-yolo.md`.

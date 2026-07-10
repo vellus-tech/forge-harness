@@ -10,7 +10,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="${FORGE_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 GRAPH="$ROOT/.forge/graph/graph.json"
 command -v node >/dev/null 2>&1 || { echo "FAIL (node >= 20 required)"; exit 1; }
-[ -f "$GRAPH" ] || { echo "FAIL (no graph — run: /forge:graph build)"; exit 1; }
+[ -f "$GRAPH" ] || { echo "FAIL (no graph — run: /forge:codegraph)"; exit 1; }
 
 case "${1:-}" in
   --change) node "$SCRIPT_DIR/lib/impact-scan.mjs" --graph "$GRAPH" --change "$ROOT/.forge/specs/active/${2:?--change requires id}" ;;

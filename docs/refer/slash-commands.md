@@ -83,7 +83,7 @@ _Descoberta, build, query e impacto sobre o grafo de conhecimento do repo._
 | Command | Argumentos | Descrição |
 |---|---|---|
 | `/forge:baseline-extract` | `[--dry-run]` | Extrai capabilities-stub para um baseline vazio a partir dos boundaries do grafo de código (fluxo brownfield) — a parte determinista; requirements ficam para curadoria semântica ou para o archive d… |
-| `/forge:build` | — | Constrói o grafo de código persistente (.forge/graph/graph.json) com o engine nativo zero-dep — nodes (arquivos/camadas) + edges (imports/refs) deterministas. |
+| `/forge:codegraph` | — | Constrói o grafo de código persistente (.forge/graph/graph.json) com o engine nativo zero-dep — nodes (arquivos/camadas) + edges (imports/refs) deterministas. |
 | `/forge:c4` | — | Gera os diagramas C4 (Context/Container/Component em Mermaid) e o overview.html navegável — C4 + capabilities do baseline + estado dos changes ativos. |
 | `/forge:discover` | — | Inventário determinístico do repositório (modo lite, §16.1) — stack, comandos run/test/build, estrutura, boundaries, mudanças e fingerprints — gravado em .forge/graph/manifest.json. |
 | `/forge:impact` | `--change <id> \| --diff [<base>] \| --files a,b,c` | Análise de impacto de uma spec ou diff sobre o grafo de código — quais arquivos dependem (transitivamente) do que mudou. |

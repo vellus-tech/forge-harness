@@ -101,7 +101,7 @@ const html = `<!DOCTYPE html>
 <p><b>Camadas:</b> ${legend}</p>
 
 <h2>C4 — Arquitetura <span class="muted">(cor = camada)</span></h2>
-${mermaidBlock('C1 · System Context', c1) || '<p class="muted">C1 indisponível (rode /forge:graph build + /forge:c4).</p>'}
+${mermaidBlock('C1 · System Context', c1) || '<p class="muted">C1 indisponível (rode /forge:codegraph + /forge:c4).</p>'}
 ${mermaidBlock('C2 · Container', c2)}
 <p><input id="q" type="search" placeholder="filtrar visões C3 por módulo…"></p>
 ${c3blocks || '<p class="muted">Sem visões de componente (nenhum boundary com 2+ arquivos).</p>'}

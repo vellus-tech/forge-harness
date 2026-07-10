@@ -57,3 +57,7 @@ bash .forge/scripts/approval-log.sh <change-id> --gate requirements_reviewed --d
 - Pré-condição: status `proposed` (ou `requirements-ready` para refinamento — sem nova transição).
 - A transição falha se restar `NEEDS CLARIFICATION`? O validador estrutural não checa conteúdo no MVP2 — é SUA responsabilidade não aprovar com pendências abertas.
 - Toda decisão que não seja Approve exige motivo (o script recusa sem `--reason`).
+
+## Modo autônomo (--yolo)
+
+Se `autonomy.mode: yolo` (`forge.yaml`) ou `--yolo` na invocação, este gate não para no `AskUserQuestion`: invoque o agent `yolo-gate` (model **opus**, effort **high**) sobre o artefato — ele analisa, decide (approve/review/reject/block) e registra em `approvals.yaml` com `autonomous: true` via `approval-log.sh --autonomous`. `review` autônomo alimenta o loop até 3 iterações e então escala ao humano. Falhas de execução e conflitos de fontes continuam parando (não são gates). Ver `.forge/rules/conventions/autonomy-yolo.md`.

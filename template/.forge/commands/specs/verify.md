@@ -53,3 +53,7 @@ bash .forge/scripts/approval-log.sh <change-id> --gate implementation_verified -
 - **Approve** → `bash .forge/scripts/spec-transition.sh <change-id> verified`. Informe o fim de ciclo atual: o archive (`/forge:archive`, aplica deltas ao baseline) chega no MVP3 — até lá o change permanece `verified`, ou encerra via `/forge:close --reason superseded`.
 - **Review** → corrija conforme o motivo (pode reabrir `/forge:implement` para tasks novas) e re-rode este comando.
 - **Reject**/**Block** → registre e pare.
+
+## Modo autônomo (--yolo)
+
+Se `autonomy.mode: yolo` (`forge.yaml`) ou `--yolo` na invocação, este gate não para no `AskUserQuestion`: invoque o agent `yolo-gate` (model **opus**, effort **high**) sobre `verification.md`/`verification.yaml` — ele confere REQ a REQ contra o código, decide (approve/review/reject/block) e registra em `approvals.yaml` com `autonomous: true` via `approval-log.sh --autonomous`. Falhas de execução continuam parando (não são gates). Ver `.forge/rules/conventions/autonomy-yolo.md`.

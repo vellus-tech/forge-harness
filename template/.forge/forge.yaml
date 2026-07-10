@@ -27,3 +27,27 @@ handoff:
   # Quando true, sync-adapters liga hooks SessionStart/SessionEnd no settings.json do adapter
   # ativo: regeneram e injetam o .forge/HANDOFF.md automaticamente (rule-based, sem LLM). Default off.
   auto: false
+autonomy:
+  # Modo de decisão nos gates HITL (§12.1). Ver rules/conventions/autonomy-yolo.md.
+  #   hitl (default): gates de aprovação param para decisão humana via AskUserQuestion.
+  #   yolo: gates de aprovação são decididos por um subagente Opus effort high (agent
+  #         yolo-gate), registrados em approvals.yaml com autonomous:true — NUNCA mascarados
+  #         como decisão humana. Falhas de execução ([!], blockers, conflito de fontes) NÃO
+  #         são gates: continuam parando (yolo decide gates, não mascara falhas).
+  mode: hitl
+  # Decisor autônomo dos gates (alto critério por design).
+  gate_agent:
+    model: opus
+    effort: high
+  # Gates de APROVAÇÃO que permanecem humanos mesmo em yolo (domínio regulado/financeiro —
+  # §12.1/§13.1 exigem aprovação humana explícita p/ mutação de baseline). Esvazie ([]) para
+  # yolo total desassistido, assumindo o risco de auditoria.
+  human_hard_stops:
+    - human_archive_approval
+  # Ações IRREVERSÍVEIS de alto risco nunca auto-aprovadas em yolo (produção/dados),
+  # independentemente de mode. Continuam exigindo confirmação humana explícita.
+  irreversible_hard_stops:
+    - deploy_prd
+    - promote_staging
+    - adapter_removal
+    - branch_cleanup

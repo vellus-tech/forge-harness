@@ -118,6 +118,10 @@ if (existsSync(approvalsPath)) {
         errors.push(`${at}: decision "${e.decision}" requires reason (§12.1)`);
       if (e.decision === 'supersede' && !e.superseded_by)
         errors.push(`${at}: supersede requires superseded_by`);
+      if (e.autonomous !== undefined && typeof e.autonomous !== 'boolean')
+        errors.push(`${at}: autonomous must be a boolean`);
+      if (e.autonomous === true && !(typeof e.reason === 'string' && e.reason.trim().length >= 3))
+        errors.push(`${at}: autonomous decision requires reason (§12.2 — a máquina sempre registra a análise)`);
       if (e.iteration !== undefined && e.iteration !== null && (!Number.isInteger(e.iteration) || e.iteration < 1 || e.iteration > 3))
         errors.push(`${at}: iteration must be 1..3 (loop §14.6)`);
     });

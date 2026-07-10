@@ -23,12 +23,13 @@ Antes de qualquer modificação, leia os rules das categorias aplicáveis à sua
 
 ## Catálogo
 
-### `conventions/` (13 arquivos)
+### `conventions/` (14 arquivos)
 
 | Arquivo | Descrição | Prioridade |
 |---|---|---|
 | [language-policy.md](./conventions/language-policy.md) | Idioma de código vs. documentação | Alta |
 | [code-style.md](./conventions/code-style.md) | Forma interna do código — early return, aninhamento, responsabilidade única, erro, imutabilidade, comentários | Alta |
+| [autonomy-yolo.md](./conventions/autonomy-yolo.md) | Modo HITL (default) vs YOLO — gates decididos por agente Opus com registro auditável (autonomous:true), hard-stops de domínio regulado, yolo decide gates mas não mascara falhas | Alta |
 | [conflict-handling.md](./conventions/conflict-handling.md) | Conflito entre fontes normativas é bloqueante — escala via HITL; precedência FORGE.md §2.1 (guardrails G1/G2) | Alta |
 | [session-discipline.md](./conventions/session-discipline.md) | Disciplina de sessão longa / autopilot (§17.6) | Alta |
 | [naming.md](./conventions/naming.md) | Convenções de nomenclatura por tipo de artefato | Alta |

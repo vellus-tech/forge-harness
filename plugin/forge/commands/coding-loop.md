@@ -124,3 +124,8 @@ Em caso de falha:
 - `.forge/commands/coding/coding-status.md` (resumo do progresso)
 - `.forge/rules/conventions/git-worktree.md`
 - `.forge/rules/conventions/conventional-commits.md`
+- `.forge/rules/conventions/autonomy-yolo.md`
+
+## Modo autônomo (--yolo)
+
+Com `--yolo` ou `autonomy.mode: yolo`, o loop de codificação segue autônomo dentro da onda como já faz — mas o **HALT em TASK `[!]` permanece**: uma falha de execução não é um gate, e yolo não a mascara (Early Exit). O que o yolo delega é o gate de aprovação seguinte (verify), ao agent `yolo-gate` (Opus, effort high), com registro `autonomous: true`. Ver `.forge/rules/conventions/autonomy-yolo.md`.

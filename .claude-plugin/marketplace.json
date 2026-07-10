@@ -9,7 +9,7 @@
       "name": "forge",
       "source": "./plugin/forge",
       "description": "Slash commands /forge:* do Forge Project Harness — SDD spec lifecycle, waves, code graph, docs/ADRs e manutenção do harness. O engine .forge/ por projeto vem de `npx forge-harness init`.",
-      "version": "0.1.0-rc14"
+      "version": "0.1.0-rc15"
     }
   ]
 }

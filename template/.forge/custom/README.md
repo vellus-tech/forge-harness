@@ -6,8 +6,15 @@ Override any template-provided file by recreating its **relative path** under th
 - `custom/rules/conventions/naming.md` overrides `.forge/rules/conventions/naming.md`
 - `custom/templates/spec/requirements.md` overrides the spec template
 
-Resolution order: `custom/` first, then the installed template file. Commands, agents and
-`sync-adapters` resolve through this order; adapters are regenerated when an override changes.
+Resolution order (intended): `custom/` first, then the installed template file.
+
+> **Status (rc15):** a resolução automática por `custom/` **ainda não está implementada** —
+> `sync-adapters`/`plugin-build` descobrem commands/agents/rules varrendo `.forge/` diretamente, sem
+> empilhar `custom/`. Até isso existir, um override/adição autoral precisa viver em `.forge/` (ex.:
+> `.forge/commands/meu.md`). O `forge update` **preserva** esses arquivos: a remoção de órfãos é
+> curada por `installer/removed-files.txt` (só o que o template sabidamente renomeou/removeu), nunca
+> "tudo que não está no template". Use `custom/` para guardar a intenção do override, mas saiba que
+> ele não é resolvido em runtime hoje.
 
 Rules:
 1. Never edit installed template files in place — override here instead, so template upgrades

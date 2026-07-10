@@ -22,7 +22,7 @@
 // the derived defaults without prompting. Exit codes: 0 ok · 2 usage · 3 .forge already exists.
 import {
   cpSync, existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync,
-  renameSync, appendFileSync,
+  renameSync, appendFileSync, rmSync,
 } from 'node:fs';
 import { join, resolve, dirname, basename, relative, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -34,6 +34,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));     // <pkg>/bin
 const PKG_ROOT = resolve(HERE, '..');                     // <pkg>
 const TEMPLATE_FORGE = join(PKG_ROOT, 'template', '.forge');
 const GITIGNORE_PATCH = join(PKG_ROOT, 'installer', 'gitignore.patch');
+const REMOVED_MANIFEST = join(PKG_ROOT, 'installer', 'removed-files.txt');
 const STAGING_YML = join(PKG_ROOT, 'template', 'github', 'workflows', 'staging.yml');
 const GI_MARKER = '# >>> forge (managed) >>>';
 const ADAPTERS = ['claude', 'codex', 'gemini', 'qwen', 'cursor', 'kiro', 'forge-cli', 'agents-skills'];
@@ -238,6 +239,76 @@ function bumpTemplateVersion(forge, version) {
   return next !== cur;
 }
 
+// Tombstones: paths de maquinaria (relativos a .forge/) que o template REMOVEU ou RENOMEOU entre
+// versões — lidos de installer/removed-files.txt (versionado junto com o bin/template). O overlay
+// aditivo nunca deletava, então um arquivo renomeado sobrevivia como órfão (ex.: commands/graph/
+// build.md mantendo o slash command stale /forge:build após virar /forge:codegraph). A deleção é
+// dirigida por ESTA lista curada — nunca por "tudo que não está no template", porque um consumidor
+// pode legitimamente ter commands/agents/rules autorais sob .forge/ (a resolução via custom/ não é
+// implementada hoje). Assim a remoção é cirúrgica e NUNCA apaga trabalho do consumidor. Invariante
+// (imposta pelo gate w63): nenhum path aqui pode existir no template atual — senão o overlay o
+// escreveria e a tombstone o apagaria em seguida.
+function tombstonedPaths() {
+  if (!existsSync(REMOVED_MANIFEST)) return [];
+  return readFileSync(REMOVED_MANIFEST, 'utf8')
+    .split('\n').map((l) => l.replace(/#.*$/, '').trim()).filter(Boolean);
+}
+
+// Tombstones que de fato existem no consumidor (candidatos reais a remoção neste update).
+function orphansToPrune(forge) {
+  return tombstonedPaths().filter((rel) => existsSync(join(forge, rel))).sort();
+}
+
+// Divide um forge.yaml em blocos por chave de topo (linha `chave:` na coluna 0). O bloco carrega a
+// linha da chave + toda a continuação indentada/comentada até a próxima chave de topo.
+function topLevelYamlBlocks(text) {
+  const blocks = new Map();
+  let key = null, buf = [];
+  const flush = () => { if (key !== null) blocks.set(key, buf.join('\n')); };
+  for (const line of text.split('\n')) {
+    const m = /^([A-Za-z_][A-Za-z0-9_]*):/.exec(line);
+    if (m) { flush(); key = m[1]; buf = [line]; }
+    else if (key !== null) buf.push(line);
+  }
+  flush();
+  return blocks;
+}
+
+// Chaves de topo do forge.yaml do template ausentes no do projeto (só seções inteiras novas, ex.:
+// `autonomy:` de uma versão nova). Um bloco com QUALQUER placeholder UPPERCASE (`<PROJECT_*>`,
+// `<INSTALLED_AT>`, …) não é mesclado — o update não conhece slug/nome para resolver, então não
+// injeta token cru no YAML; entra em `skipped` para o chamador avisar (não some em silêncio).
+function newForgeKeys(src, forge) {
+  const dstPath = join(forge, 'forge.yaml');
+  const srcPath = join(src, 'forge.yaml');
+  if (!existsSync(dstPath) || !existsSync(srcPath)) return { blocks: new Map(), keys: [], skipped: [] };
+  const dstKeys = new Set(topLevelYamlBlocks(readFileSync(dstPath, 'utf8')).keys());
+  const srcBlocks = topLevelYamlBlocks(readFileSync(srcPath, 'utf8'));
+  const keys = [], skipped = [];
+  for (const key of srcBlocks.keys()) {
+    if (dstKeys.has(key)) continue;
+    if (/<[A-Z][A-Z0-9_]*>/.test(srcBlocks.get(key))) { skipped.push(key); continue; }
+    keys.push(key);
+  }
+  return { blocks: srcBlocks, keys, skipped };
+}
+
+// Merge ADITIVO das chaves de topo novas do template para o forge.yaml do projeto: acrescenta os
+// blocos inteiros que faltam, preservando byte-a-byte tudo que o projeto já tinha. NÃO toca chaves
+// existentes nem sub-chaves (limite honesto: só seções de topo ausentes — o caso comum de feature
+// nova). Retorna { added, skipped } — added mescladas, skipped puladas por placeholder (o chamador avisa).
+function mergeNewForgeKeys(src, forge) {
+  const { blocks, keys, skipped } = newForgeKeys(src, forge);
+  if (keys.length) {
+    const dstPath = join(forge, 'forge.yaml');
+    const dstText = readFileSync(dstPath, 'utf8');
+    let next = dstText.endsWith('\n') ? dstText : `${dstText}\n`;
+    next += `${keys.map((k) => blocks.get(k).replace(/\n+$/, '')).join('\n')}\n`;
+    writeFileSync(dstPath, next);
+  }
+  return { added: keys, skipped };
+}
+
 async function updateHarness() {
   const target = resolve(vals.target || process.cwd());
   const forge = join(target, '.forge');
@@ -259,6 +330,10 @@ async function updateHarness() {
     const fy = join(forge, 'forge.yaml');
     if (existsSync(fy) && !new RegExp(`template_version:\\s*"?${version}"?`).test(readFileSync(fy, 'utf8')))
       changes.push('~ forge.yaml (template_version)');
+    for (const rel of orphansToPrune(forge)) changes.push(`- ${rel} (órfão — removido/renomeado no template)`);
+    const nk = newForgeKeys(src, forge);
+    for (const key of nk.keys) changes.push(`~ forge.yaml (+ ${key}: bloco novo)`);
+    for (const key of nk.skipped) changes.push(`! forge.yaml (${key}: seção nova exige preenchimento manual — não mesclada)`);
     console.log(`forge update — dry-run (${target})`);
     console.log(changes.length ? changes.sort().join('\n') : '(nada a atualizar — já na versão do template)');
     console.log(`\n${changes.length} mudança(s) de arquivo. Rode sem --dry-run para aplicar.`);
@@ -269,9 +344,14 @@ async function updateHarness() {
   const work = scanProductContent(forge);
 
   // backup por CÓPIA (o update edita in place; não move como o init --force). Pulável com --no-backup.
+  // Exclui worktrees/ (working trees de git worktrees linkados — potencialmente enormes e com ponteiros
+  // gitdir que quebram numa cópia) além do cruft do macOS.
   if (!flags.noBackup) {
     let n = 1; while (existsSync(`${forge}.bak-${n}`)) n++;
-    cpSync(forge, `${forge}.bak-${n}`, { recursive: true, filter: (p) => basename(p) !== '.DS_Store' });
+    cpSync(forge, `${forge}.bak-${n}`, {
+      recursive: true,
+      filter: (p) => basename(p) !== '.DS_Store' && !relative(forge, p).split(sep).includes('worktrees'),
+    });
     console.log(`backup: .forge copiado para .forge.bak-${n}`);
   }
 
@@ -293,8 +373,28 @@ async function updateHarness() {
     .filter((f) => isTemplated(f) && !underTemplates(f) && /<PROJECT_[A-Z_]*>/.test(readFileSync(f, 'utf8')));
   if (orphans.length) fail(`${orphans.length} arquivo(s) de maquinaria com placeholders <PROJECT_*> — template inválido?`, 1);
 
-  // forge.yaml: só template_version
+  // reconciliação de órfãos por TOMBSTONE: remove só os paths que o template sabidamente removeu/
+  // renomeou (installer/removed-files.txt) e que existem no consumidor. Fecha o buraco do overlay
+  // aditivo — ex.: /forge:build stale sobrevivia após o rename para /forge:codegraph — SEM apagar
+  // commands/agents/rules autorais do consumidor (a deleção é curada, não "tudo fora do template").
+  // Cada remoção é listada; o backup .forge.bak-N cobre.
+  const stale = orphansToPrune(forge);
+  for (const rel of stale) {
+    rmSync(join(forge, rel), { force: true });
+    // limpa o dir se ficou vazio (ex.: um grupo de comandos inteiro removido)
+    const dir = dirname(join(forge, rel));
+    try { if (existsSync(dir) && readdirSync(dir).length === 0) rmSync(dir, { recursive: true, force: true }); } catch { /* best-effort */ }
+  }
+  if (stale.length) {
+    console.log(`órfãos: ${stale.length} arquivo(s) de maquinaria removido(s) (renomeados/removidos do template):`);
+    for (const rel of stale) console.log(`  - ${rel}`);
+  }
+
+  // forge.yaml: template_version + merge aditivo de chaves de topo novas do template (ex.: autonomy:)
   if (bumpTemplateVersion(forge, version)) console.log(`forge.yaml: template_version -> ${version}`);
+  const { added, skipped } = mergeNewForgeKeys(src, forge);
+  if (added.length) console.log(`forge.yaml: ${added.length} chave(s) de topo nova(s) do template mescladas: ${added.join(', ')}`);
+  for (const key of skipped) console.log(`forge.yaml: seção nova '${key}:' NÃO mesclada (contém placeholder — exige preenchimento manual); revise o template`);
 
   // gitignore managed block (idempotente)
   const gi = join(target, '.gitignore');

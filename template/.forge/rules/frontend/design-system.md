@@ -32,6 +32,9 @@ A plataforma é **white-label parametrizável**: **cor primária e logo são tem
 7. **Focus visível, sempre.** Ring 3px da cor de marca (`rgba` ~10%), com offset. **Nunca** remover `:focus-visible`.
 8. **Superfícies planas e limpas.** Sem gradientes, sem aurora, sem glassmorphism. Sombras suaves (`--shadow-xs`…`--shadow-2xl`), sem sombra colorida.
 9. **Logo via componente configurável.** Use o componente de logo do design system (default <project_display>, sobrescrevível por tenant). Proibido embutir SVG/PNG de logo fixo em telas.
+10. **Token fantasma é proibido.** Todo `var(--x)` deve referenciar um token **definido** na fonte de tokens. Um `var(--surface-1)` cujo `--surface-1` nunca foi definido "funciona" em light por acaso e vira buraco no dark — é o defeito de despadronização mais caro e mais invisível. Gate determinístico (diferença de conjuntos referenciados − definidos) na skill `frontend-ui-review` (A1); deve virar CI gate.
+11. **Sem fallback literal em `var()`.** Referencie o token **nu**: `var(--surface-1)`, nunca `var(--surface-1, #fff)`. O fallback literal ou é morto (token existe) ou mascara um contrato quebrado (token fantasma) — nos dois casos transforma "contrato violado" em "funciona na minha máquina". Que quebre em dev e force a correção na origem (definir o token), não o remendo no ponto de uso.
+12. **Controle nativo do browser é domado ou encapsulado.** `<input type="file|color|date|range">`, `<select>` etc. têm chrome próprio (`::file-selector-button`, `::-webkit-color-swatch`, `::-webkit-slider-thumb`) que o CSS comum não alcança — `border:none` no input não toca o pseudo-elemento interno. Todo controle nativo é ponto de fuga do DS até ser explicitamente estilizado nos pseudo-elementos **ou** encapsulado num componente do DS.
 
 ## Storybook é a documentação viva
 
@@ -77,6 +80,10 @@ Coverage de frontend (`features/`): linha 80%, branch 75% (ver `testing/quality-
 | Componente sem teste de a11y | Bloqueia merge |
 | `// @ts-ignore` em código novo | Investigar o tipo correto |
 | Gradiente/aurora/glassmorphism | Fora da linguagem visual <project_display> |
+| `var(--x)` referenciando token nunca definido (token fantasma) | "Funciona" em light, buraco no dark — defina o token ou remova a referência |
+| `var(--token, #hex)` com fallback literal | Mascara contrato quebrado — referencie o token nu; que quebre em dev |
+| Controle nativo (`<input type="file/color/date">`, `<select>`) sem estilizar pseudo-elemento nem encapsular | Chrome do SO vaza do design system |
+| Dado cru (GUID/enum) exibido na tela como identificador | Geralmente falta de rótulo humano no backend — resolver na fonte, não com CSS |
 
 ## Cross-refs
 
@@ -86,3 +93,4 @@ Coverage de frontend (`features/`): linha 80%, branch 75% (ver `testing/quality-
 - [`docs/product/uxd/README.md`](../../../docs/product/uxd/README.md) — UXD (binding ao design system)
 - ADR-0011 (contrast gate da tematização), RF-14 / DEC-037 (white-label parametrizável), NFR-Usab.08
 - [`.forge/rules/conventions/naming.md`](../conventions/naming.md), [`.forge/rules/conventions/language-policy.md`](../conventions/language-policy.md), [`.forge/rules/testing/quality-gates.md`](../testing/quality-gates.md), [`.forge/rules/testing/tdd.md`](../testing/tdd.md)
+- Skill `frontend-ui-review` — auditoria de despadronização (token fantasma, cor hardcoded, controle nativo, dark mode) com gates determinísticos; é o lado de review destas convenções (regras 10-12)

@@ -96,3 +96,7 @@ Para cada módulo (ordem do tracker):
 
 - Se o loop falhar no meio, o item permanece `[-]` no tracker
 - Próxima execução de `/forge:specs-loop` retoma desse ponto (idempotente)
+
+## Modo autônomo (--yolo)
+
+Com `--yolo` ou `autonomy.mode: yolo`, o loop não pausa para aprovar a árvore de execução nem cada `requirements.md`: o agent `yolo-gate` (Opus, effort high) decide cada gate e **auto-promove** o artefato de "Rascunho para revisão" para aprovado, registrando `autonomous: true`. Sem yolo, o `--skip-approved` apenas pula a pausa mas mantém os docs em rascunho — o yolo, ao contrário, decide de fato. Falhas continuam parando. Ver `.forge/rules/conventions/autonomy-yolo.md`.

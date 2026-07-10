@@ -43,11 +43,16 @@
           "commit": { "type": "string" },
           "scope": { "type": "string" },
           "notes": { "type": "string" },
-          "superseded_by": { "type": "string" }
+          "superseded_by": { "type": "string" },
+          "autonomous": { "type": "boolean", "description": "true = decisão tomada por subagente Opus no modo yolo (§12.2), não por humano. decided_by carrega a identidade do decisor autônomo." }
         },
         "allOf": [
           {
             "if": { "properties": { "decision": { "not": { "const": "approve" } } } },
+            "then": { "required": ["reason"], "properties": { "reason": { "type": "string", "minLength": 3 } } }
+          },
+          {
+            "if": { "required": ["autonomous"], "properties": { "autonomous": { "const": true } } },
             "then": { "required": ["reason"], "properties": { "reason": { "type": "string", "minLength": 3 } } }
           },
           {

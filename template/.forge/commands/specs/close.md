@@ -30,3 +30,7 @@ O script valida as regras de estado (abandoned/rejected só pré-`implementing`;
 ## 3. Relatório
 
 Uma linha: destino em `archived/`, reason, e — se superseded — o change substituto. Se o usuário esperava aplicar as mudanças ao produto: explique que isso é o `/forge:archive` (MVP3), não o close.
+
+## Modo autônomo (--yolo)
+
+Em yolo, a disposição de close (abandoned/rejected/superseded/delivered-externally) e seu motivo são decididos pelo agent `yolo-gate` (Opus, effort high) e registrados com `autonomous: true`. Se a evidência for ambígua (ex.: escolher entre superseded e delivered-externally sem sinal claro), o `yolo-gate` escala ao humano em vez de chutar. Ver `.forge/rules/conventions/autonomy-yolo.md`.

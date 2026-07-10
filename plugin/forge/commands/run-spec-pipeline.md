@@ -208,3 +208,7 @@ Pipeline NÃO tocará o Jira sem sua aprovação explícita.
 - Rule de naming kebab-case: `.forge/rules/conventions/naming.md`
 - Skill complementar: `/specs:specs-loop` (loop por módulo com HITL no requirements antes do design)
 - Comando complementar pós-HITL: `/run-backlog` (a definir — popula backlog + Jira após aprovação humana dos tasks.md)
+
+## Modo autônomo (--yolo)
+
+Com `--yolo` ou `autonomy.mode: yolo`, o pipeline **não para** no HITL declarado (validação humana dos `tasks.md`): cada gate de aprovação de spec (requirements/design/tasks/verify) é delegado ao agent `yolo-gate` (Opus, effort high), que decide e registra `autonomous: true` em `approvals.yaml`. **O gate humano do `/forge:backlog` (§14.4) não é auto-decidido por default** — o pipeline autônomo entrega os `tasks.md` aprovados e ainda para antes de popular backlog/Jira, salvo você fiar o backlog no yolo explicitamente. Hard-stops (`human_archive_approval`, deploy prd) seguem humanos e são **impostos deterministicamente** pelo `approval-log.sh`; **falhas de execução (`[!]`, blockers, conflito de fontes — guardrail G1) continuam parando** — yolo decide gates, não mascara falhas. Ver `.forge/rules/conventions/autonomy-yolo.md`.

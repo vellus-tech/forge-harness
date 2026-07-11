@@ -21,8 +21,11 @@ SN="$T/.forge/scripts/spec-new.sh"; TR="$T/.forge/scripts/spec-transition.sh"
 AL="$T/.forge/scripts/approval-log.sh"; VS="$T/.forge/scripts/validate-spec.sh"
 VF="$T/.forge/scripts/spec-verify.sh"; CL="$T/.forge/scripts/spec-close.sh"
 
+# close touches nothing outside .forge/specs/** EXCEPT the durable ledger (.forge/ledger/**),
+# where it harvests open/wont-fix deferrals + findings before moving the change folder
+# (non-blocking, by design — see ledger-consultation.md). The ledger is the one sanctioned target.
 hash_outside_specs() {
-  (cd "$T" && find . -type f ! -path './.forge/specs/*' ! -name '.DS_Store' -print0 | LC_ALL=C sort -z \
+  (cd "$T" && find . -type f ! -path './.forge/specs/*' ! -path './.forge/ledger/*' ! -name '.DS_Store' -print0 | LC_ALL=C sort -z \
     | xargs -0 shasum -a 256 | shasum -a 256 | cut -d' ' -f1)
 }
 
@@ -92,7 +95,7 @@ grep -q 'decision: deliver-external' "$ARCH_DE/approvals.yaml" || { echo "decis�
 grep -q 'PR #72' "$ARCH_DE/approvals.yaml" || { echo "evidência (nota) não registrada!"; exit 1; }
 echo "OK [5b]"
 
-echo "[6] close não tocou nada fora de .forge/specs"
+echo "[6] close não tocou nada fora de .forge/specs (exceto o harvest do ledger, .forge/ledger/**)"
 [ "$(hash_outside_specs)" = "$H_BEFORE" ]
 echo "OK [6]"
 

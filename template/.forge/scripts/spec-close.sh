@@ -15,7 +15,9 @@
 #                                     the evidence (e.g. the PR link).
 # A close decision is always logged in approvals.yaml (gate: close) with the
 # mandatory --note as its reason (§12.1).
-# The script touches NOTHING outside the change folder.
+# The script touches nothing outside the change folder EXCEPT the durable ledger
+# (.forge/ledger/): it harvests open/wont-fix deferrals + findings there before the move
+# (non-blocking — the change's discoveries survive; see ledger-consultation.md).
 # Usage: spec-close.sh <change-id> --reason <r> --note "<text>" [--superseded-by <id>]
 set -euo pipefail
 
@@ -64,6 +66,11 @@ NOTE_ESC="$(printf '%s' "$NOTE" | sed 's/"/\\"/g')"
 perl -pi -e "s/^status: .*/status: $REASON/; s/^updated_at: .*/updated_at: \"$TODAY\"/" "$MAN"
 grep -q '^  kind: ' "$MAN" || perl -pi -e "s/^archive:$/archive:\n  kind: closed_without_baseline_update/" "$MAN"
 REASON_ESC="$NOTE_ESC" perl -pi -e 's/^  reason: .*/  reason: "$ENV{REASON_ESC}"/' "$MAN"
+
+# Ledger harvest (best-effort, NÃO-BLOQUEANTE): antes de mover a pasta (o dado morre), colhe
+# deferrals open/wont-fix + findings MEDIUM/LOW para o ledger durável de projeto. Ver
+# rules/conventions/ledger-consultation.md. Falha aqui nunca aborta o close.
+FORGE_ROOT="$ROOT" bash "$SCRIPT_DIR/ledger-ops.sh" harvest "$ID" --origin close || echo "WARN: ledger harvest falhou (não-bloqueante)"
 
 DEST="$ROOT/.forge/specs/archived/$TODAY-$ID"
 [ ! -e "$DEST" ] || { echo "FAIL (archive destination already exists: $DEST)"; exit 1; }

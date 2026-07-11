@@ -71,6 +71,23 @@ REASON_ESC="$NOTE_ESC" perl -pi -e 's/^  reason: .*/  reason: "$ENV{REASON_ESC}"
 # deferrals open/wont-fix + findings MEDIUM/LOW para o ledger durável de projeto. Ver
 # rules/conventions/ledger-consultation.md. Falha aqui nunca aborta o close.
 FORGE_ROOT="$ROOT" bash "$SCRIPT_DIR/ledger-ops.sh" harvest "$ID" --origin close || echo "WARN: ledger harvest falhou (não-bloqueante)"
+# Fecha o ciclo do item de origem (--from-ledger), se houver, conforme o motivo do close:
+#   abandoned/rejected -> REABRE (open): não foi entregue, volta ao roadmap ativo.
+#   delivered-externally -> resolved: entregue fora do pipeline.
+#   superseded -> mantém promoted: o change sucessor carrega o item.
+LEDGER_ORIGIN="$(grep -E '^ledger_origin:' "$MAN" 2>/dev/null | sed 's/^ledger_origin:[[:space:]]*//' || true)"
+if [ -n "$LEDGER_ORIGIN" ]; then
+  case "$REASON" in
+    abandoned|rejected)
+      FORGE_ROOT="$ROOT" bash "$SCRIPT_DIR/ledger-ops.sh" update "$LEDGER_ORIGIN" --status open >/dev/null 2>&1 \
+        && echo "ledger: $LEDGER_ORIGIN -> open (reaberto — change $ID $REASON)" || echo "WARN: ledger reopen de $LEDGER_ORIGIN falhou (não-bloqueante)" ;;
+    delivered-externally)
+      FORGE_ROOT="$ROOT" bash "$SCRIPT_DIR/ledger-ops.sh" resolve "$LEDGER_ORIGIN" --note "entregue externamente via $ID" >/dev/null 2>&1 \
+        && echo "ledger: $LEDGER_ORIGIN -> resolved (entregue externamente via $ID)" || echo "WARN: ledger resolve de $LEDGER_ORIGIN falhou (não-bloqueante)" ;;
+    superseded)
+      echo "ledger: $LEDGER_ORIGIN permanece promoted (sucessor ${SUPERSEDED_BY:-?} carrega o item)" ;;
+  esac
+fi
 
 DEST="$ROOT/.forge/specs/archived/$TODAY-$ID"
 [ ! -e "$DEST" ] || { echo "FAIL (archive destination already exists: $DEST)"; exit 1; }

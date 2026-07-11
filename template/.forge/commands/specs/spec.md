@@ -33,7 +33,7 @@ Se o usuário escolher um scale **abaixo** do que o risco aparente sugere, avise
 ### 2. Criação (determinista)
 
 ```bash
-bash .forge/scripts/spec-new.sh <change-id> --type <type> --scale <scale>
+bash .forge/scripts/spec-new.sh <change-id> --type <type> --scale <scale> [--from-ledger LDG-NNNN]
 ```
 
 O script é a única fonte de criação — **não** crie a estrutura manualmente. Ele:
@@ -41,6 +41,14 @@ O script é a única fonte de criação — **não** crie a estrutura manualment
 - instala os templates das fases exigidas pelo type/scale;
 - gera o `manifest.yaml` (§10.2) com `status: proposed`;
 - auto-valida com `validate-spec.sh` e faz rollback se inválido.
+
+**`--from-ledger LDG-NNNN`** (opt-in): quando este change nasce de um item do ledger durável,
+passe o id da entrada. O script grava `ledger_origin` no manifest e marca a entrada como
+`promoted` (link bidirecional). Isso **fecha o ciclo automaticamente**: no `/forge:archive` a
+entrada vira `resolved` (entregue ao baseline); no `/forge:close` por `abandoned`/`rejected` ela é
+**reaberta** (`open`, volta ao roadmap); por `delivered-externally` vira `resolved`. Se você puxou
+um item do ledger para virar trabalho, use este flag — é o que mantém o roadmap honesto sem depender
+de memória (ver `rules/conventions/ledger-consultation.md`).
 
 ### 3. Validação e relatório
 

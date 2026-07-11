@@ -148,6 +148,23 @@ EOF_CHG
     fi
   fi
 
+  # ledger advisory (§ ledger-consultation): informativo, NUNCA load-bearing. Resume o estado e
+  # sinaliza itens 'promoted' cujo change de destino sumiu sem baixa (promovido-e-abandonado antes
+  # do fechamento automático existir, ou elo quebrado) — candidatos a reabrir/resolver à mão.
+  if [ -f "$ROOT/.forge/ledger/ledger.json" ]; then
+    orphans="$(node -e '
+      const fs=require("fs"), root=process.argv[1];
+      const d=JSON.parse(fs.readFileSync(root+"/.forge/ledger/ledger.json","utf8"));
+      const active=new Set(); const archived=new Set();
+      try{ for(const n of fs.readdirSync(root+"/.forge/specs/active")) active.add(n);}catch{}
+      try{ for(const n of fs.readdirSync(root+"/.forge/specs/archived")) archived.add(n.replace(/^\d{4}-\d{2}-\d{2}-/,""));}catch{}
+      const orph=(d.entries||[]).filter(e=>e.status==="promoted" && e.links && e.links.promoted_to && !active.has(e.links.promoted_to) && !archived.has(e.links.promoted_to));
+      process.stdout.write(orph.map(e=>e.id).join(", "));
+    ' "$ROOT" 2>/dev/null || true)"
+    if [ -n "$orphans" ]; then info "harness: ledger — item(ns) promoted com change de destino ausente: $orphans (reabra ou resolva via /forge:ledger)"
+    else ok "harness: ledger sem itens promovidos órfãos"; fi
+  fi
+
   # plugin /forge:* instalado no Claude Code (best-effort; puramente informativo — NUNCA
   # contribui para MISSING_DIAG/exit 1). Sintoma real que motivou o check: usuário colando o
   # CORPO dos comandos como texto porque /forge:* silenciosamente não existia (plugin nunca

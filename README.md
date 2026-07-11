@@ -156,6 +156,9 @@ Cada transição é registrada por scripts deterministas; os gates humanos (`app
 > deferrals e findings antes de a pasta do change sumir — nada se perde mesmo sem pedir) e por
 > curadoria manual. `/forge:resume`/`/forge:status` o consultam ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`); surfacing opt-in via `ledger.auto` no `forge.yaml`.
+> Ciclo fechado: `/forge:spec new --from-ledger LDG-NNNN` promove o item e grava o elo no manifest —
+> o archive então dá baixa (`resolved`) e o close por abandono o reabre (`open`), sem depender de
+> memória.
 
 ## 🕸️ Code graph & arquitetura
 

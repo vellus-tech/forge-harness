@@ -27,10 +27,20 @@ não feito". Operado por `/forge:ledger` (script `ledger-ops.sh`); ver o comando
    maior prioridade do ledger, para que o "Próximo passo lógico" reflita tanto o change em curso
    quanto o roadmap durável.
 
-3. **Promoção a change** — quando uma entrada do ledger vira trabalho ativo, abra o change
-   (`/forge:spec new`) e ligue-a com `/forge:ledger promote <LDG-NNNN> --to <change-id>` (marca
-   `status: promoted`, registra `links.promoted_to`). Assim o ledger não re-sugere o que já virou
-   change.
+3. **Promoção a change (elo bidirecional, ciclo fechado)** — quando uma entrada do ledger vira
+   trabalho ativo, abra o change **declarando o elo**: `/forge:spec new <id> --type … --from-ledger
+   <LDG-NNNN>`. Isso marca a entrada `promoted` (some da lista ativa, não é re-sugerida) **e** grava
+   `ledger_origin` no manifest, o que fecha o ciclo **automaticamente e sem depender de memória**:
+   - `/forge:archive` → entrada vira `resolved` (entregue ao baseline);
+   - `/forge:close --reason abandoned|rejected` → entrada **reaberta** (`open`, volta ao roadmap —
+     não foi entregue);
+   - `/forge:close --reason delivered-externally` → `resolved`;
+   - `superseded` → permanece `promoted` (o sucessor carrega o item).
+
+   Se o change já foi criado sem o flag, ligue manualmente com `/forge:ledger promote <LDG-NNNN>
+   --to <change-id>` (mas aí a baixa/reabertura no fim vira manual — prefira `--from-ledger`). Para
+   marcar "comecei a mexer" sem abrir change ainda: `/forge:ledger update <LDG-NNNN> --status
+   in-progress`. O `/forge:doctor` sinaliza itens `promoted` cujo change de destino sumiu sem baixa.
 
 4. **Semeadura** — o ledger pode **nascer** com o plano do projeto: módulos, features e decisões de
    arquitetura previstos entram como entradas `roadmap`/`feature-idea` (`/forge:ledger add`). Num

@@ -94,7 +94,7 @@ O `.forge/` por projeto traz o **engine**; os **slash commands** `/forge:*` são
 **plugin** do Claude Code — porque o Claude Code (≥ 2.x) reserva o namespace `:` para plugins
 (comandos soltos em `.claude/commands/` viram só `/<nome>`, sem o prefixo `forge:`). **O `init` já
 auto-instala o plugin** (global, vale para todos os seus projetos) quando o adapter claude está ativo;
-depois é só `/reload-plugins` (ou nova sessão) e os 50 comandos `/forge:*` aparecem.
+depois é só `/reload-plugins` (ou nova sessão) e os 52 comandos `/forge:*` aparecem.
 
 Para (re)instalar/atualizar o plugin manualmente, há duas vias:
 
@@ -149,6 +149,13 @@ Cada transição é registrada por scripts deterministas; os gates humanos (`app
 > via script e só um delta narrativo curto escrito pelo modelo; o `/forge:resume` já ingere esse
 > delta quando existe. Automação é opt-in via `handoff.auto` no `forge.yaml`, que liga hooks
 > SessionStart/SessionEnd no adapter Claude).
+>
+> **`/forge:ledger`** mantém o **ledger durável de projeto** (`.forge/ledger/LEDGER.md`) — roadmap,
+> dívida técnica, bugs conhecidos, follow-ups e ideias que **sobrevivem entre changes**, num store
+> estruturado e **não-bloqueante**. Alimentado por captura automática (o `close`/`archive` colhem
+> deferrals e findings antes de a pasta do change sumir — nada se perde mesmo sem pedir) e por
+> curadoria manual. `/forge:resume`/`/forge:status` o consultam ao sugerir o próximo trabalho
+> (`rules/conventions/ledger-consultation.md`); surfacing opt-in via `ledger.auto` no `forge.yaml`.
 
 ## 🕸️ Code graph & arquitetura
 
@@ -178,7 +185,7 @@ Trocar/adicionar um agente reconcilia o workspace (gera os ausentes, poda os rem
 template/.forge/        # o harness instalável (fonte única)
 ├── FORGE.md            # governança + frontmatter de runtime
 ├── agents/  (43)       # subagentes por categoria (specifications, architecture, review, …)
-├── commands/ (51)      # comandos /forge:* (specs, waves, graph, quality, git, …) — relação completa em docs/refer/slash-commands.md
+├── commands/ (52)      # comandos /forge:* (specs, waves, graph, quality, git, …) — relação completa em docs/refer/slash-commands.md
 ├── contracts/ (5)      # contratos de I/O por estágio (verify, archive, eval, …)
 ├── skills/   (9)       # skills especialistas (gate-runner, story-context, …)
 ├── rules/   (33)       # convenções (arquitetura, domínio, testing, …)

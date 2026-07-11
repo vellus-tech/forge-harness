@@ -39,6 +39,12 @@ perl -pi -e "s/^status: .*/status: archived/; s/^updated_at: .*/updated_at: \"$T
 grep -q '^  kind: ' "$MAN" || perl -pi -e "s/^archive:$/archive:\n  kind: baseline_update/" "$MAN"
 perl -pi -e 's/^  eligible: .*/  eligible: true/' "$MAN"
 perl -pi -e "s/^  reason: .*/  reason: \"deltas applied to baseline on $TODAY\"/" "$MAN"
+echo "[5.5/6] ledger harvest (deferrals/findings -> ledger durável, não-bloqueante)"
+# Antes de mover a pasta (o dado do change morre), colhe deferrals open/wont-fix + findings
+# MEDIUM/LOW do analysis.md + desvios do verification.md para .forge/ledger/. Idempotente
+# (dedup_key) e best-effort — falha aqui nunca aborta o archive.
+FORGE_ROOT="$ROOT" bash "$SCRIPT_DIR/ledger-ops.sh" harvest "$ID" --origin archive || echo "WARN: ledger harvest falhou (não-bloqueante)"
+
 DEST="$ROOT/.forge/specs/archived/$TODAY-$ID"
 [ ! -e "$DEST" ] || { echo "FAIL (archive destination already exists: $DEST)"; exit 1; }
 mkdir -p "$ROOT/.forge/specs/archived"

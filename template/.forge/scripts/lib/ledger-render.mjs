@@ -59,8 +59,13 @@ function renderEntry(entry) {
   const from = src.change_id ? ` · via \`${src.change_id}\`${src.ref ? `#${src.ref}` : ''}` : '';
   let line = `- **${entry.id}** [${entry.status}]${tag(entry)} — ${entry.title}${from}`;
   if (entry.detail) line += `\n  ${entry.detail.replace(/\n+/g, ' ').trim()}`;
+  // Só mostra o elo de promoção enquanto ele vale: um item reaberto (close abandoned/rejected volta
+  // a 'open') mantém promoted_to como histórico, mas renderizá-lo confundiria ("promovido para" um
+  // change abandonado). Mostra apenas em promoted/resolved.
   const promotedTo = entry.links && entry.links.promoted_to;
-  if (promotedTo) line += `\n  → promovido para \`${promotedTo}\``;
+  if (promotedTo && (entry.status === 'promoted' || entry.status === 'resolved')) {
+    line += `\n  → promovido para \`${promotedTo}\``;
+  }
   return line;
 }
 

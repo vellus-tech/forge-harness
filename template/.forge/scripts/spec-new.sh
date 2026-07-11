@@ -19,7 +19,7 @@ TPL="$(cd "$SCRIPT_DIR/.." && pwd)/templates"   # templates ship with the instal
 ACTIVE="$ROOT/.forge/specs/active"
 
 ID="${1:-}"; shift || true
-TYPE=""; SCALE="2"; RIGOR="spec-anchored"; MODE=""; OWNER=""
+TYPE=""; SCALE="2"; RIGOR="spec-anchored"; MODE=""; OWNER=""; FROM_LEDGER=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --type)  TYPE="${2:-}"; shift 2 ;;
@@ -27,6 +27,7 @@ while [ $# -gt 0 ]; do
     --rigor) RIGOR="${2:-}"; shift 2 ;;
     --mode)  MODE="${2:-}"; shift 2 ;;
     --owner) OWNER="${2:-}"; shift 2 ;;
+    --from-ledger) FROM_LEDGER="${2:-}"; shift 2 ;;
     *) echo "FAIL (unknown argument: $1)"; exit 2 ;;
   esac
 done
@@ -47,6 +48,7 @@ if [ -z "$MODE" ]; then
   esac
 fi
 case "$MODE" in greenfield|brownfield|feature-only) ;; *) echo "FAIL (--mode invalid: $MODE)"; exit 2 ;; esac
+if [ -n "$FROM_LEDGER" ]; then echo "$FROM_LEDGER" | grep -Eq '^LDG-[0-9]{4}$' || { echo "FAIL (--from-ledger deve ser LDG-NNNN, got: '$FROM_LEDGER')"; exit 2; }; fi
 
 [ -n "$OWNER" ] || OWNER="$(git config user.name 2>/dev/null || true)"
 [ -n "$OWNER" ] || OWNER="$(id -un)"
@@ -111,7 +113,22 @@ archive:
   reason: "tasks not implemented"
 EOF
 
+# ── ledger origin (opt-in): stamp the manifest so archive/close can close the loop ───────────
+if [ -n "$FROM_LEDGER" ]; then
+  LEDGER_ORIGIN="$FROM_LEDGER" perl -pi -e 's/^(owner: .*)$/$1\nledger_origin: $ENV{LEDGER_ORIGIN}/' "$DEST/manifest.yaml"
+fi
+
 # ── self-validate; roll back on failure ──────────────────────────────────────
 out="$(bash "$SCRIPT_DIR/validate-spec.sh" --path "$DEST")" || { rm -rf "$DEST"; echo "FAIL (generated change failed validation: $out)"; exit 1; }
+
+# ── promote the originating ledger entry (best-effort — the change already exists; a broken
+#    ledger link must not roll it back). Marks status: promoted + links.promoted_to = <id>. ──
+if [ -n "$FROM_LEDGER" ] && [ -x "$SCRIPT_DIR/ledger-ops.sh" ]; then
+  if FORGE_ROOT="$ROOT" bash "$SCRIPT_DIR/ledger-ops.sh" promote "$FROM_LEDGER" --to "$ID" >/dev/null 2>&1; then
+    echo "  ledger: $FROM_LEDGER -> promoted (change $ID)"
+  else
+    echo "  WARN: ledger promote de $FROM_LEDGER falhou (entrada inexistente?) — change criado, elo não registrado"
+  fi
+fi
 
 echo "OK .forge/specs/active/$ID"

@@ -44,6 +44,13 @@ echo "[5.5/6] ledger harvest (deferrals/findings -> ledger durável, não-bloque
 # MEDIUM/LOW do analysis.md + desvios do verification.md para .forge/ledger/. Idempotente
 # (dedup_key) e best-effort — falha aqui nunca aborta o archive.
 FORGE_ROOT="$ROOT" bash "$SCRIPT_DIR/ledger-ops.sh" harvest "$ID" --origin archive || echo "WARN: ledger harvest falhou (não-bloqueante)"
+# Fecha o ciclo: se este change nasceu de um item do ledger (--from-ledger), marca-o resolved
+# (entregue ao baseline). Best-effort — nunca aborta o archive.
+LEDGER_ORIGIN="$(grep -E '^ledger_origin:' "$MAN" 2>/dev/null | sed 's/^ledger_origin:[[:space:]]*//' || true)"
+if [ -n "$LEDGER_ORIGIN" ]; then
+  FORGE_ROOT="$ROOT" bash "$SCRIPT_DIR/ledger-ops.sh" resolve "$LEDGER_ORIGIN" --note "entregue ao baseline via $ID (archived $TODAY)" >/dev/null 2>&1 \
+    && echo "ledger: $LEDGER_ORIGIN -> resolved (entregue via $ID)" || echo "WARN: ledger resolve de $LEDGER_ORIGIN falhou (não-bloqueante)"
+fi
 
 DEST="$ROOT/.forge/specs/archived/$TODAY-$ID"
 [ ! -e "$DEST" ] || { echo "FAIL (archive destination already exists: $DEST)"; exit 1; }

@@ -32,6 +32,9 @@ mk_verified() { # mk_verified <id>  — drive a scale-0 change to verified with 
 
 echo "[1] cenário canônico §8.1 (add-card-tokenization / REQ-TOK-001)"
 mk_verified add-card-tokenization
+# ledger round-trip: este change nasce de um item do ledger — archive deve marcá-lo resolved.
+FORGE_ROOT="$T" bash "$S/ledger-ops.sh" add --type roadmap --title "tokenização de cartão" >/dev/null
+perl -pi -e 's/^(owner: .*)$/$1\nledger_origin: LDG-0001/' "$T/.forge/specs/active/add-card-tokenization/manifest.yaml"
 cat > "$T/.forge/specs/active/add-card-tokenization/spec-delta.yaml" <<'EOF'
 operations:
   - op: add_requirement
@@ -62,7 +65,10 @@ grep -q 'change_id: add-card-tokenization' "$CAP"
 grep -q 'add-card-tokenization' "$T/.forge/specs/archived/index.yaml"
 grep -q "## $TODAY — add-card-tokenization" "$T/.forge/product/current/CHANGELOG.md"
 node "$WS/tools/validate-yaml.mjs" "$WS/template/.forge/schemas/baseline-capability.schema.json" "$CAP" >/dev/null
-echo "OK [1]"
+# ciclo fechado: o item de origem do ledger foi marcado resolved pelo archive
+node -e 'const d=require(process.argv[1]);const e=d.entries.find(x=>x.id==="LDG-0001");process.exit(e&&e.status==="resolved"?0:1)' "$T/.forge/ledger/ledger.json" \
+  || { echo "FAIL: LDG-0001 não foi resolved pelo archive"; exit 1; }
+echo "OK [1] (+ ledger_origin -> resolved)"
 
 echo "[2] archive com task aberta → FAIL claro"
 mk_verified chg-open

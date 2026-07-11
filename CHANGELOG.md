@@ -6,6 +6,14 @@ e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+## [0.1.0-rc17] — 2026-07-11
+
+### Added
+- **Controle de ciclo do ledger (item → change → baixa), fechando a lacuna do rc16.** No rc16 a promoção de um item do ledger a um change era **procedural** (a rule pedia `/forge:ledger promote`, mas nada garantia) — e havia dois buracos de ida-e-volta: promover-e-abandonar (item sumia do roadmap sem entrega) e entregar-sem-baixa (change arquivado deixava o item `promoted` para sempre). Agora o elo é **declarado uma vez e o resto é automático**: `/forge:spec new <id> --from-ledger LDG-NNNN` marca a entrada `promoted` **e** grava `ledger_origin` no manifest; a partir daí `spec-close.sh`/`archive-spec.sh` fecham o ciclo deterministicamente antes do `mv` — **archive → `resolved`** (entregue ao baseline), **close abandoned/rejected → reaberto `open`** (volta ao roadmap), **close delivered-externally → `resolved`**, **superseded → permanece `promoted`** (o sucessor carrega). É a mesma filosofia inescapável da captura: uma vez declarado o elo, a baixa não depende de memória. Rede de segurança **advisory** (não-bloqueante) no `/forge:doctor`: sinaliza itens `promoted` cujo change de destino sumiu sem baixa. Superfície: `spec-new.sh` (+`--from-ledger`), `spec-manifest.schema.json` (`ledger_origin` opcional), `archive-spec.sh`, `spec-close.sh`, `doctor.sh`, comando `spec.md`, rule `ledger-consultation.md §3`, novo gate `w98-ledger-roundtrip-gate` + asserção no `w32`.
+
+### Fixed
+- **`LEDGER.md` não renderiza mais "→ promovido para" em item reaberto** (revisão adversarial, LOW): um item que volta a `open` por `close abandoned/rejected` mantém `promoted_to` como histórico, mas exibi-lo confundia (apontava um change abandonado). O render só mostra o elo em `promoted`/`resolved`.
+
 ## [0.1.0-rc16] — 2026-07-11
 
 ### Added

@@ -156,6 +156,9 @@ Cada transição é registrada por scripts deterministas; os gates humanos (`app
 > deferrals e findings antes de a pasta do change sumir — nada se perde mesmo sem pedir) e por
 > curadoria manual. `/forge:resume`/`/forge:status` o consultam ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`); surfacing opt-in via `ledger.auto` no `forge.yaml`.
+> Ciclo fechado: `/forge:spec new --from-ledger LDG-NNNN` promove o item e grava o elo no manifest —
+> o archive então dá baixa (`resolved`) e o close por abandono o reabre (`open`), sem depender de
+> memória.
 
 ## 🕸️ Code graph & arquitetura
 
@@ -209,7 +212,7 @@ Cada wave de desenvolvimento entrega seu gate junto (shift-left). O contrato do 
 
 ## 🗺️ Status & roadmap
 
-`v0.1.0-rc16` — MVP1–MVP5 completos + consolidação (Fase 8) + code graph + entrega dos `/forge:*` via
+`v0.1.0-rc17` — MVP1–MVP5 completos + consolidação (Fase 8) + code graph + entrega dos `/forge:*` via
 plugin do Claude Code + workflow-hardening + `/forge:handoff` portátil e gate de docs no pre-push +
 **ledger durável de projeto** (`/forge:ledger`, com captura automática de findings no close/archive).
 Ver [CHANGELOG](./CHANGELOG.md).

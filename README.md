@@ -212,7 +212,7 @@ Cada wave de desenvolvimento entrega seu gate junto (shift-left). O contrato do 
 
 ## 🗺️ Status & roadmap
 
-`v0.1.0-rc16` — MVP1–MVP5 completos + consolidação (Fase 8) + code graph + entrega dos `/forge:*` via
+`v0.1.0-rc17` — MVP1–MVP5 completos + consolidação (Fase 8) + code graph + entrega dos `/forge:*` via
 plugin do Claude Code + workflow-hardening + `/forge:handoff` portátil e gate de docs no pre-push +
 **ledger durável de projeto** (`/forge:ledger`, com captura automática de findings no close/archive).
 Ver [CHANGELOG](./CHANGELOG.md).

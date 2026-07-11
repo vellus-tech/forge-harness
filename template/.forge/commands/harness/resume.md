@@ -24,10 +24,15 @@ Leia **apenas** arquivos de estado, na mesma disciplina de custo do `/forge:stat
 3. `.forge/specs/active/<change-id>/progress.json` — wave atual, contagem de stories/tasks
    (mesmos campos que `/forge:progress` reporta).
 4. `.forge/specs/active/<change-id>/deferrals.json` — deferrals `open` (bloqueiam `/forge:close`).
-5. `.forge/HANDOFF.md` (se existir) — leia **apenas** a seção `## 4. Delta narrativo` (entre os
+5. **Ledger durável** — `bash .forge/scripts/ledger-ops.sh list --status open --by-priority --top 5`
+   (ou leia o topo de `.forge/ledger/LEDGER.md`). São os itens de roadmap/dívida/bugs/ideias que
+   sobrevivem entre changes; alimentam o "Próximo passo lógico" abaixo. Ver
+   `rules/conventions/ledger-consultation.md`. Ausência = sem itens (nenhuma regressão).
+6. `.forge/HANDOFF.md` (se existir) — leia **apenas** a seção `## 4. Delta narrativo` (entre os
    marcadores `FORGE:NARRATIVE-DELTA`) e incorpore-a ao mandato. Ausência do arquivo = comportamento
    inalterado (nenhuma regressão).
-6. Se nenhum change ativo existir: diga isso em uma linha e pule para as regras fixas.
+7. Se nenhum change ativo existir: diga isso em uma linha, mostre os top itens do ledger (§5) como
+   candidatos ao próximo trabalho, e siga para as regras fixas.
 
 ## Saída (≤30 linhas)
 
@@ -38,8 +43,9 @@ Fase: <status do manifest> · Wave: <N> (<open|closed>)
 Stories: X/Y done · Tasks: X/Y done
 Deferrals abertos: <IDs, ou "nenhum">
 Runtime: <stack> · test=<cmd> · typecheck=<cmd> · lint=<cmd>
+Ledger: <N open — top: LDG-NNNN título, ...; ou "vazio">
 
-Próximo passo lógico: <uma linha objetiva>
+Próximo passo lógico: <uma linha objetiva — considere o change ativo E os top itens do ledger>
 Handoff: <resumo do delta narrativo de .forge/HANDOFF.md, ou "sem handoff">
 
 --- Regras fixas desta sessão ---

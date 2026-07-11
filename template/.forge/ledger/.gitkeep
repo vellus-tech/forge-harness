@@ -1,0 +1,3 @@
+# .forge/ledger/ — dados duráveis do ledger de projeto (ledger.json + LEDGER.md).
+# NÃO é machinery (fora de MACHINERY_DIRS) — o `forge update` preserva esta pasta byte-a-byte,
+# como specs/ e graph/. ledger.json/LEDGER.md nascem no primeiro /forge:ledger (lazy-init).

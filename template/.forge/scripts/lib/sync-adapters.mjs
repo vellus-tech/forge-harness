@@ -123,6 +123,13 @@ function readHandoffAuto() {
     return m ? m[1] === 'true' : false;
   } catch { return false; }
 }
+function readLedgerAuto() {
+  try {
+    const y = readFileSync(FORGE_YAML, 'utf8');
+    const m = y.match(/^ledger:\n(?:[ ].*\n)*?[ ]+auto:[ ]*(true|false)/m);
+    return m ? m[1] === 'true' : false;
+  } catch { return false; }
+}
 function writeActive(names) {
   let y = readFileSync(FORGE_YAML, 'utf8');
   const block = '  adapters:\n' + names.map((n) => `    - ${n}`).join('\n') + '\n';
@@ -209,8 +216,14 @@ const GENERATORS = {
       }
     }
     const hooks = { PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command: '$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/enforce-worktree-location.sh' }] }] };
-    if (readHandoffAuto()) {
+    const handoffAuto = readHandoffAuto();
+    const ledgerAuto = readLedgerAuto();
+    // SessionStart injeta o handoff e/ou os itens do ledger (o hook decide o quê por forge.yaml).
+    if (handoffAuto || ledgerAuto) {
       hooks.SessionStart = [{ hooks: [{ type: 'command', command: '$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-start.sh' }] }];
+    }
+    // SessionEnd só regenera o scaffold do handoff (o ledger é regenerado a cada mutação).
+    if (handoffAuto) {
       hooks.SessionEnd = [{ hooks: [{ type: 'command', command: '$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-end.sh' }] }];
     }
     lock.emit(join(ROOT, '.claude/settings.json'), JSON.stringify({ hooks }, null, 2) + '\n');

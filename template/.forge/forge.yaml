@@ -27,6 +27,13 @@ handoff:
   # Quando true, sync-adapters liga hooks SessionStart/SessionEnd no settings.json do adapter
   # ativo: regeneram e injetam o .forge/HANDOFF.md automaticamente (rule-based, sem LLM). Default off.
   auto: false
+ledger:
+  # Ledger durável de projeto (roadmap & dívida técnica) em .forge/ledger/. Store NÃO-BLOQUEANTE de
+  # trabalho conhecido que sobrevive entre changes; alimentado por captura automática (harvest de
+  # deferrals/findings no close/archive) + /forge:ledger. Ver rules/conventions/ledger-consultation.md.
+  # Quando true, o hook SessionStart também lista os itens open de maior prioridade (rule-based, sem
+  # LLM), como o handoff.auto. A captura automática no close/archive independe deste flag. Default off.
+  auto: false
 autonomy:
   # Modo de decisão nos gates HITL (§12.1). Ver rules/conventions/autonomy-yolo.md.
   #   hitl (default): gates de aprovação param para decisão humana via AskUserQuestion.

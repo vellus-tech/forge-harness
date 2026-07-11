@@ -135,6 +135,13 @@
             "auto": { "type": "boolean" }
           }
         },
+        "ledger": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "auto": { "type": "boolean" }
+          }
+        },
         "autonomy": {
           "type": "object",
           "additionalProperties": false,

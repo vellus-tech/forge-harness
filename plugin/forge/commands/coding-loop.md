@@ -60,6 +60,9 @@ Executa uma onda de TASKs de um módulo deste projeto, sob o tracker em `docs/pr
    - `git push` da branch
    - `gh pr create` com label `auto-review` (gatilha `code-evaluator` no CI)
    - Mover issues Jira para `In Review` via MCP atlassian
+   - **Avançar o status SDD do change** (`spec-advance-module.sh <modulo> implementing`/`implemented`)
+     — vínculo determinista módulo→change para o manifest não congelar em `tasks-ready`; no-op se
+     o módulo não tiver change SDD mapeável
    - Atualizar `PROGRESS-TRACKING.md` no `main`
 5. **Onda falhou (algum `[!]`)** → bloco "Última falha" preenchido no tracker com sintoma + próxima ação humana. Operador resolve e re-invoca.
 
@@ -118,6 +121,7 @@ Em caso de falha:
 ## Referências
 
 - `.forge/scripts/worktree-reconcile.sh` (reconciliação determinista pré-redistribuição)
+- `.forge/scripts/spec-advance-module.sh` (vínculo módulo→change: avança o status SDD ao fechar ondas)
 - `.forge/agents/coding/task-coder.md` (agent invocado)
 - `.forge/agents/coding/sprint-orchestrator.md` (etapa seguinte)
 - `.forge/commands/coding/deploy-wave.md` (deploy após merge)

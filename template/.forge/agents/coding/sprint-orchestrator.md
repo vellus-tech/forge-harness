@@ -225,6 +225,34 @@ git commit -m "docs(specs): payment-processing wave 3 — aguardando review"
 git push origin main
 ```
 
+### Fase 4.5 — Avançar o status SDD do change (vínculo lifecycle)
+
+O caminho module-based opera sobre `PROGRESS-TRACKING.md`/Jira e **não** toca
+`.forge/specs/active/<id>/manifest.yaml` — sem este passo, um change congela em `tasks-ready`
+mesmo com 100% das TASKs done e PR aberto. Chame o script determinista (zero-LLM, idempotente,
+degradação graciosa — **nunca** falha a onda):
+
+```bash
+cd "$MAIN_REPO_PATH"
+# 1ª onda de qualquer módulo abre a implementação:
+bash .forge/scripts/spec-advance-module.sh "$MODULE" implementing || true
+
+# módulo com TODAS as TASKs [X] no tracker → implemented (aguardando /forge:verify).
+# Bracket expressions portáveis (BSD/macOS): dash literal no FIM (`[ !-]`, nunca `[ \-!]`,
+# que no BSD grep vira range inválido) e `[[:space:]]` em vez de `\s`.
+TRK="docs/product/modules/$MODULE/PROGRESS-TRACKING.md"
+if ! grep -qE '^[[:space:]]*[-*]?[[:space:]]*\[[ !-]\]' "$TRK" \
+   && grep -qE '^[[:space:]]*[-*]?[[:space:]]*\[[xX]\]' "$TRK"; then
+  bash .forge/scripts/spec-advance-module.sh "$MODULE" implemented || true
+fi
+```
+
+O script mapeia módulo→change por `affected_paths`/id; se o vínculo não existir (change não criado
+via SDD para este módulo), faz no-op com log e segue — não é erro. O avanço a `verified` e o
+`/forge:archive` permanecem gates HITL humanos (fora deste agente). Se o `spec-transition` recusar
+(ex.: `analysis.md` com BLOCKER), o script degrada a SKIP e o loop segue — o `/forge:doctor`/`status`
+sinalizam o órfão para reconciliação.
+
 ### Fase 5 — Output ao operador
 
 ```json

@@ -83,6 +83,21 @@ Argumentos: `$ARGUMENTS` (`--no-review` pula o passo de revisão automatizada qu
     (`git worktree remove ...`) — o hook `post-merge` já tenta isso automaticamente; confirme que
     rodou.
 
+## Fechar o loop de lifecycle (pós-merge)
+
+12. **Se o merge fechou um change SDD**, o status dele não avança sozinho — reconcilie. Rode
+    `node .forge/scripts/lib/orphan-changes.mjs .` (determinista, zero-LLM; pule se ausente) e, para
+    o change correspondente a esta branch, **ofereça em uma linha** (nunca execute automaticamente —
+    a incorporação ao baseline é decisão humana):
+    - `verified` → `/forge:archive <id>` (incorpora ao baseline; o gate `human_archive_approval`
+      permanece HITL humano — domínio financeiro).
+    - `implemented` → `/forge:verify` antes do archive.
+    - `tasks-ready`/`implementing` com TASKs 100% → `bash .forge/scripts/spec-transition.sh <id>
+      implementing` / `... implemented` para destravar, depois `/forge:verify`.
+
+    Não pule etapas da chain do `spec-transition.sh` nem arquive fora do `/forge:archive`. Se o
+    change não for mapeável à branch (sem órfão correspondente), não invente — apenas siga.
+
 ## Resumo final
 
 Reporte em poucas linhas: branch shippada, número/link do PR, gates que passaram, achados de

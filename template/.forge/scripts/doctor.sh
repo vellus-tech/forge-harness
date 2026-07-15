@@ -165,6 +165,29 @@ EOF_CHG
     else ok "harness: ledger sem itens promovidos órfãos"; fi
   fi
 
+  # changes órfãos (§ lifecycle-reconcile): change implementado/mergeado cujo manifest nunca
+  # acompanhou — verified parado sem /forge:archive, ou TASKs 100% com status ainda
+  # tasks-ready/implementing. Detector determinista (zero-LLM). Informativo, NUNCA load-bearing
+  # (marcador `·`, jamais `✗`/exit 1) — é estado de fluxo do operador, não drift do harness.
+  if [ -d "$ROOT/.forge/specs/active" ] && command -v node >/dev/null 2>&1 \
+     && [ -f "$ROOT/.forge/scripts/lib/orphan-changes.mjs" ]; then
+    orphan_lines="$(node "$ROOT/.forge/scripts/lib/orphan-changes.mjs" "$ROOT" --lines 2>/dev/null || true)"
+    if [ -n "$orphan_lines" ]; then
+      while IFS="$(printf '\t')" read -r bucket oid ostatus; do
+        [ -n "$oid" ] || continue
+        if [ "$bucket" = "merged_unarchived" ]; then
+          info "harness: change '$oid' ($ostatus) mergeado/verificado sem baixa — /forge:archive (ou /forge:verify)"
+        else
+          info "harness: change '$oid' com TASKs 100% mas status '$ostatus' — avance (spec-transition.sh $oid implementing/implemented) e /forge:verify"
+        fi
+      done <<EOF_ORPHAN
+$orphan_lines
+EOF_ORPHAN
+    else
+      ok "harness: sem changes órfãos (lifecycle SDD reconciliado)"
+    fi
+  fi
+
   # plugin /forge:* instalado no Claude Code (best-effort; puramente informativo — NUNCA
   # contribui para MISSING_DIAG/exit 1). Sintoma real que motivou o check: usuário colando o
   # CORPO dos comandos como texto porque /forge:* silenciosamente não existia (plugin nunca

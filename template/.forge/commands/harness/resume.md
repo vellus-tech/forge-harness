@@ -31,8 +31,16 @@ Leia **apenas** arquivos de estado, na mesma disciplina de custo do `/forge:stat
 6. `.forge/HANDOFF.md` (se existir) — leia **apenas** a seção `## 4. Delta narrativo` (entre os
    marcadores `FORGE:NARRATIVE-DELTA`) e incorpore-a ao mandato. Ausência do arquivo = comportamento
    inalterado (nenhuma regressão).
-7. Se nenhum change ativo existir: diga isso em uma linha, mostre os top itens do ledger (§5) como
-   candidatos ao próximo trabalho, e siga para as regras fixas.
+7. **Changes órfãos (reconciliação):** `node .forge/scripts/lib/orphan-changes.mjs .` (JSON
+   determinista, zero-LLM; pule se node/script ausente). Um `merged_unarchived` (verified ou
+   branch mergeada) é forte candidato ao **próximo passo lógico** — `/forge:archive <id>` (verified)
+   ou `/forge:verify` (implemented/mergeado) —, à frente de abrir trabalho novo. Um
+   `done_not_advanced` (TASKs 100%, status defasado em `tasks-ready`/`implementing`) precisa
+   **avançar a chain primeiro** (`spec-transition.sh <id> implementing`/`implemented`) e só então
+   `/forge:verify` — `/forge:verify` sozinho falharia a pré-condição de `implemented`.
+   Sem órfãos = nada a acrescentar (zero regressão).
+8. Se nenhum change ativo existir: diga isso em uma linha, mostre os top itens do ledger (§5) e os
+   órfãos do passo 7 como candidatos ao próximo trabalho, e siga para as regras fixas.
 
 ## Saída (≤30 linhas)
 
@@ -45,7 +53,8 @@ Deferrals abertos: <IDs, ou "nenhum">
 Runtime: <stack> · test=<cmd> · typecheck=<cmd> · lint=<cmd>
 Ledger: <N open — top: LDG-NNNN título, ...; ou "vazio">
 
-Próximo passo lógico: <uma linha objetiva — considere o change ativo E os top itens do ledger>
+Órfãos: <IDs merged_unarchived/done_not_advanced do passo 7, ou "nenhum">
+Próximo passo lógico: <uma linha objetiva — considere o change ativo, os órfãos E os top itens do ledger>
 Handoff: <resumo do delta narrativo de .forge/HANDOFF.md, ou "sem handoff">
 
 --- Regras fixas desta sessão ---

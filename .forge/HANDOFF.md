@@ -34,8 +34,26 @@
 ## 4. Delta narrativo
 
 <!-- FORGE:NARRATIVE-DELTA:START -->
-_(A preencher: o que mudou desde o último handoff, foco atual, decisões/perguntas abertas, próximo
-passo lógico, gotchas. Rule-based/hook deixa esta seção como está; `/forge:handoff` a preenche.)_
+**Release 0.1.0-rc18 publicado (2026-07-15).** Entregou a **reconciliação de lifecycle** — detecção
+determinística de change SDD órfão (implementado/mergeado com manifest defasado): detector
+`template/.forge/scripts/lib/orphan-changes.mjs` (buckets `merged_unarchived`/`done_not_advanced`),
+surface em `/forge:status`·`/forge:doctor`·`/forge:resume`, `/forge:ship` fechando o loop pós-merge,
+e o caminho module-based avançando status via `template/.forge/scripts/spec-advance-module.sh`
+(chamado pelo `sprint-orchestrator`). Novo gate `w99` (8 casos); suíte **46/46**. PR #14→develop,
+release commit direto em develop, tag `v0.1.0-rc18`, develop→main `--no-ff`, `latest` no npm.
+
+**Foco/próximo passo:** propagar rc18 aos 4 projetos ativos (collatra, axis-go-cloud, azim-crm,
+axis-fare-validator) — **ainda não feito** (não pedido nesta sessão), via a cadência de worktree
+limpa + `node bin/forge.mjs update --no-plugin` documentada em `[[project-npm-published]]`.
+
+**Gotcha (recorrente):** o token npm do 1Password (`item Npmjs` › `notesPlain`) tem rótulo textual
+antes do `npm_…` — extrair com `grep -oE 'npm_[A-Za-z0-9]+'`, **nunca** `tr -d` a nota inteira
+(quebra a auth: E401/E404).
+
+**Estado do harness:** 4 changes ainda em `specs/active/` no status `verified`
+(`add-portable-handoff`, `deepspec-provenance`, `forge-update-command`, `hookspath-respect-custom`)
+— são exatamente `merged_unarchived` para o novo detector (dogfood do gap); pendente `/forge:archive`
+de cada quando fizer sentido incorporá-los ao baseline.
 <!-- FORGE:NARRATIVE-DELTA:END -->
 
 ## 5. Como retomar

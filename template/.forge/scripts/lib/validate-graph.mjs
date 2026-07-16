@@ -11,7 +11,7 @@
 // Output: "OK graph (N nodes, M edges; W warnings)" or "FAIL (<reasons>)".
 // Usage: validate-graph.mjs <graph.json> [<repo-root>]
 import { readFileSync, existsSync } from 'node:fs';
-import { resolve, join } from 'node:path';
+import { resolve } from 'node:path';
 import { execSync } from 'node:child_process';
 
 const graphPath = process.argv[2];
@@ -28,7 +28,10 @@ if (!Array.isArray(g.nodes)) errors.push('nodes must be an array');
 if (!Array.isArray(g.edges)) errors.push('edges must be an array');
 if (errors.length) { console.log(`FAIL (${errors.join('; ')})`); process.exit(1); }
 
-const LANGS = new Set(['js', 'ts', 'csharp', 'go', 'python', 'kotlin', 'other']);
+const LANGS = new Set(['js', 'ts', 'csharp', 'go', 'python', 'kotlin', 'java', 'other']);
+// languages the native extractor produces graph nodes for — every LANGS value except the
+// 'other' catch-all. Derived (not re-typed) so it never drifts from the enum above.
+const EXTRACTOR_SUPPORTED = new Set([...LANGS].filter((l) => l !== 'other'));
 const LAYERS = new Set(['api', 'application', 'domain', 'infrastructure', 'contracts', 'test', 'config', 'unknown']);
 const ids = new Set();
 const dup = new Set();
@@ -75,6 +78,30 @@ if (root) {
       if (stale.length) warnings.push(`${stale.length} graphed file(s) changed since build (graph may be stale — /forge:graph update)`);
     }
   } catch { /* git unavailable — skip */ }
+}
+
+// language coverage (§19.5 — issue #18): a graph with 2 nodes over a repo of 259 .java
+// files is worse than useless — it reads as "OK" while every downstream consumer
+// (c4/onboard/impact) has no real input. graph-build records the repo's source-file
+// census in stats (same walk that builds nodes — no re-walk here). For EACH census
+// language with zero graph nodes: a SUPPORTED language is a real build/drift bug (FAIL);
+// the DOMINANT unsupported language means the graph is not representative (WARN). A
+// non-dominant unsupported language (e.g. a few vendored native files) is ignored — it
+// is not noise worth blocking on. Older graphs without a census skip this rule.
+if (g.stats && g.stats.census && typeof g.stats.census === 'object') {
+  const census = g.stats.census;
+  const ranked = Object.entries(census).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  const domLang = ranked.length ? ranked[0][0] : null;
+  const nodesByLang = {};
+  for (const n of g.nodes) nodesByLang[n.lang] = (nodesByLang[n.lang] || 0) + 1;
+  for (const [lang, count] of ranked) {
+    if ((nodesByLang[lang] || 0) > 0) continue;
+    if (EXTRACTOR_SUPPORTED.has(lang)) {
+      errors.push(`language '${lang}' (${count} file(s)) has 0 nodes in the graph, but the extractor supports it — graph build is broken or stale (coverage rule §19.5)`);
+    } else if (lang === domLang) {
+      warnings.push(`dominant language '${lang}' (${count} file(s)) is not covered by the native extractor — the graph is NOT representative of this repo; impact/c4/onboard run on empty input (ADR 0001 v0.2 tree-sitter, issue #18)`);
+    }
+  }
 }
 
 if (errors.length) { console.log(`FAIL (${errors.join('; ')})`); process.exit(1); }

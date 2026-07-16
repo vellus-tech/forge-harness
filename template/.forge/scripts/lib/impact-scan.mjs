@@ -80,4 +80,21 @@ const result = {
 if (outFile) writeFileSync(outFile, JSON.stringify(result, null, 2) + '\n');
 console.log(`OK impact: ${seedNodes.size} seed(s) -> ${impactedList.length} impacted`);
 for (const p of impactedList) console.log(`  ${p}`);
-if (seeds.length && seedNodes.size === 0) { console.log('FAIL (no seed matched a graph node — paths outside the graph or graph stale)'); process.exit(1); }
+if (seeds.length && seedNodes.size === 0) {
+  // Distinguish a seed whose LANGUAGE the extractor does not cover (empty impact is
+  // expected, not a stale/wrong graph) from a seed that is genuinely outside the graph.
+  // The archive pre-flight records the real reason instead of rubber-stamping empty impact (issue #18).
+  // extOf reads the extension from the BASENAME only, so a dotted directory (docs/v1.2/README)
+  // never yields a bogus ".2/README" pseudo-extension.
+  const extOf = (p) => { const b = p.slice(p.lastIndexOf('/') + 1); const i = b.lastIndexOf('.'); return i > 0 ? b.slice(i) : ''; };
+  const graphExts = new Set(g.nodes.map((n) => extOf(n.id)));
+  const SUPPORTED_EXT = new Set(['.js', '.mjs', '.cjs', '.jsx', '.ts', '.tsx', '.cs', '.go', '.py', '.kt', '.kts', '.java']);
+  const seedExts = [...new Set(seeds.map(extOf).filter(Boolean))];
+  const unsupported = seedExts.filter((e) => !SUPPORTED_EXT.has(e) && !graphExts.has(e));
+  if (unsupported.length) {
+    console.log(`FAIL (no seed matched a graph node — seed language(s) ${unsupported.join(', ')} not covered by the native extractor; graph cannot analyze impact for these files, ADR 0001 v0.2 / issue #18)`);
+  } else {
+    console.log('FAIL (no seed matched a graph node — paths outside the graph or graph stale)');
+  }
+  process.exit(1);
+}

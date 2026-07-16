@@ -12,7 +12,7 @@
 // Output: "OK impact: N seed(s) -> M impacted" + impacted list, or "FAIL (...)".
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { createHash } from 'node:crypto';
+import { graphFingerprint as computeGraphFingerprint } from './impact-freshness.mjs';
 
 const args = process.argv.slice(2);
 const opt = (k) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : null; };
@@ -23,8 +23,9 @@ const changeDir = opt('--change');
 if (!graphPath || !existsSync(graphPath)) { console.log('FAIL (graph.json not found — run /forge:codegraph)'); process.exit(1); }
 const g = JSON.parse(readFileSync(graphPath, 'utf8'));
 
-// graph fingerprint: stable hash of all node fingerprints (detects staleness)
-const graphFingerprint = createHash('sha256').update(g.nodes.map((n) => n.id + ':' + n.fingerprint).sort().join('\n')).digest('hex');
+// graph fingerprint: stable hash of all node fingerprints (detects staleness).
+// Fórmula única em impact-freshness.mjs — consumida também pelo gate e pelo auto-recovery.
+const graphFingerprint = computeGraphFingerprint(g);
 
 // seeds
 let seeds = [];

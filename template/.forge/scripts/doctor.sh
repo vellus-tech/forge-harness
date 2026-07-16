@@ -188,6 +188,26 @@ EOF_ORPHAN
     fi
   fi
 
+  # drift de pipeline (§10.4): change verified SEM spec-delta.yaml autorado (ausente ou ainda
+  # com placeholders de scaffold/template). A fase verify passou a gerar o esqueleto e autorar
+  # os payloads — verified sem delta é retrabalho garantido na sessão de archive. Informativo
+  # (`·`) como os demais checks de estado de fluxo do operador — o enforcement duro fica no
+  # pré-flight do archive (validate-archive recusa placeholders).
+  if [ -d "$ROOT/.forge/specs/active" ]; then
+    for chdir in "$ROOT"/.forge/specs/active/*/; do
+      [ -f "$chdir/manifest.yaml" ] || continue
+      chstatus="$(awk -F': ' '$1=="status"{print $2; exit}' "$chdir/manifest.yaml")"
+      [ "$chstatus" = "verified" ] || continue
+      chid="$(basename "$chdir")"
+      if [ ! -f "$chdir/spec-delta.yaml" ]; then
+        info "harness: drift — change '$chid' verified sem spec-delta.yaml (gere na fase verify: /forge:verify §2.5, ou autore à mão antes do /forge:archive)"
+      # cópia bash de SCAFFOLD_MARKERS_RE (canônico: lib/scaffold-markers.mjs) — manter em sincronia
+      elif grep -qE '<scaffold:|<capability-kebab>|REQ-XXX-' "$chdir/spec-delta.yaml"; then
+        info "harness: drift — change '$chid' verified com spec-delta.yaml ainda em placeholder (preencha os payloads — /forge:verify §2.5; o archive recusa scaffold)"
+      fi
+    done
+  fi
+
   # plugin /forge:* instalado no Claude Code (best-effort; puramente informativo — NUNCA
   # contribui para MISSING_DIAG/exit 1). Sintoma real que motivou o check: usuário colando o
   # CORPO dos comandos como texto porque /forge:* silenciosamente não existia (plugin nunca

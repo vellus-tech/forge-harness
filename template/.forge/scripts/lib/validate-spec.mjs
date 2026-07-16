@@ -16,6 +16,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { join, basename, resolve } from 'node:path';
 import { parseYamlSubset } from './yaml-lite.mjs';
+import { hasScaffoldMarkers } from './scaffold-markers.mjs';
 
 const dir = process.argv[2];
 if (!dir) { console.log('FAIL (usage: validate-spec.mjs <change-dir>)'); process.exit(1); }
@@ -190,6 +191,11 @@ if (has('traceability.yaml')) {
 
 // ── spec-delta.yaml structural rules (§19.2 — mirror of spec-delta.schema) ──
 if (has('spec-delta.yaml')) {
+  // de verified em diante o delta precisa estar AUTORADO: esqueleto/placeholder de scaffold
+  // reprova aqui (é o comando que o /forge:verify §2.5 manda rodar após a autoria), não só
+  // no pré-flight do archive sessões depois. Antes de verified o esqueleto é estado legítimo.
+  if (reached('verified') && hasScaffoldMarkers(readFileSync(join(root, 'spec-delta.yaml'), 'utf8')))
+    errors.push('spec-delta.yaml still has scaffold/template placeholders (blocks verified — fill the payloads in /forge:verify §2.5, or remove the file if the change does not alter the baseline)');
   try {
     const sd = parseYamlSubset(readFileSync(join(root, 'spec-delta.yaml'), 'utf8'));
     const ops = Array.isArray(sd.operations) ? sd.operations : null;

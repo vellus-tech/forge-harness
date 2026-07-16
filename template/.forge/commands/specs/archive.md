@@ -9,7 +9,7 @@ Argumentos: `$ARGUMENTS` (change-id obrigatório; liste os ativos `verified` se 
 
 ## 1. Preparação do delta
 
-Pré-condição: status `verified`. Confira se `spec-delta.yaml` existe e carrega o **payload estruturado** (`requirement:` na forma da capability) em toda op `add/modify` — sem ele o apply determinista recusa. Se faltar, construa-o agora a partir do artefato de requirements (id/title/normative/scenarios/contracts/tests) e valide com `bash .forge/scripts/validate-spec.sh <change-id>`.
+Pré-condição: status `verified`. Desde a fase verify o `spec-delta.yaml` **já deve existir autorado** (esqueleto gerado por `spec-delta-scaffold.mjs` + payloads preenchidos no `/forge:verify` §2.5) — aqui só confira que carrega o **payload estruturado** (`requirement:` na forma da capability) em toda op `add/modify` e que não restou marcador `<scaffold: ...>` (o pré-flight recusa placeholders). Fallback para change legado (verified antes dessa fase existir): construa o delta agora a partir do artefato de requirements (id/title/normative/scenarios/contracts/tests) e valide com `bash .forge/scripts/validate-spec.sh <change-id>`.
 
 ## 2. Gate HITL — `human_archive_approval` (§12.1)
 
@@ -31,7 +31,7 @@ bash .forge/scripts/budget-preflight.sh --stage archive --change <change-id> --o
 bash .forge/scripts/archive-spec.sh <change-id>
 ```
 
-O script roda: pré-flight §13.1 → dry-run em memória (falha = **nada** é gravado) → apply atômico em `product/current/capabilities/**` → metadata + move para `specs/archived/YYYY-MM-DD-<change-id>/` → `archived/index.yaml` + `product/current/CHANGELOG.md` + `run-manifest/v1` dentro da pasta arquivada.
+O script roda: **auto-recuperação de impact stale** (se o change toca código e o `impact.json` está ausente/defasado vs o grafo atual — merge posterior ao último `/forge:impact` —, re-executa deterministicamente `graph.sh update` → `impact.sh --change <id>` e loga o que re-rodou; divergência real ainda reprova) → pré-flight §13.1 → dry-run em memória (falha = **nada** é gravado) → apply atômico em `product/current/capabilities/**` → metadata + move para `specs/archived/YYYY-MM-DD-<change-id>/` → `archived/index.yaml` + `product/current/CHANGELOG.md` + `run-manifest/v1` dentro da pasta arquivada.
 
 ## 4. Relatório e publicação
 

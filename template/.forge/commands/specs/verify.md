@@ -42,9 +42,20 @@ Grave `verification.md` no change:
 ## Desvios e observações
 ```
 
+## 2.5. Spec delta — autoria com o contexto quente (§10.4)
+
+O script da etapa 1 já gerou um **esqueleto** de `spec-delta.yaml` (determinista: REQ-NN do artefato de requirements + `affected_capabilities` do manifest; nunca sobrescreve delta já autorado). Sua parte é preencher os payloads **agora** — você acabou de conferir requirements × código REQ a REQ, e o delta é subproduto direto dessa conferência (deixá-lo para a sessão de archive obriga alguém a reconstruir tudo frio):
+
+- confirme a `op` de cada entrada (`add_requirement` vs `modify_requirement` — modify é **substituição integral**, nunca patch parcial) e a `capability` alvo;
+- substitua todo marcador `<scaffold: ...>` por conteúdo real: `scenarios` given/when/then observáveis, `tests` com os paths dos testes que acabou de conferir, `contracts` quando houver;
+- valide: `bash .forge/scripts/validate-spec.sh <change-id>`;
+- commite o `spec-delta.yaml` junto com `verification.md`/`verification.yaml`.
+
+Marcadores `<scaffold: ...>` remanescentes **bloqueiam a transição para `verified`** (o `validate-spec` reprova a partir desse status) e o pré-flight do archive — o gate `human_archive_approval` continua lá; o que muda é que a *autoria* do delta acontece aqui. Se o change não altera o baseline (raro — ex.: bugfix puramente comportamental já coberto pela spec), remova o arquivo e registre o porquê em `verification.md`.
+
 ## 3. Gate HITL — `implementation_verified` (§12.1)
 
-`AskUserQuestion` (resumo 2-3 linhas: resultado, checks, desvios): **Approve** / **Review** / **Reject** / **Block**.
+`AskUserQuestion` (resumo 2-3 linhas: resultado, checks, desvios, delta pronto?): **Approve** / **Review** / **Reject** / **Block**.
 
 ```bash
 bash .forge/scripts/approval-log.sh <change-id> --gate implementation_verified --decision <decision> [--reason "<motivo>"] --scope "verification.md"

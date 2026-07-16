@@ -68,6 +68,19 @@ for check in test typecheck lint; do
 done
 [ -n "$CHECKS_YAML" ] || echo "  (no checks declared in FORGE.md runtime: — skipping check phase)"
 
+# ── spec-delta.yaml (§10.4): esqueleto nasce AQUI, não no improviso do archive ──
+# Determinista e best-effort: gera/atualiza o scaffold a partir dos REQ-NN + manifest
+# (nunca sobrescreve um delta já autorado). A autoria semântica é do /forge:verify
+# (verify.md §2.5) — marcadores <scaffold: ...> bloqueiam o pré-flight do archive.
+if command -v node >/dev/null 2>&1 && [ -f "$SCRIPT_DIR/lib/spec-delta-scaffold.mjs" ]; then
+  scaffold_out="$(node "$SCRIPT_DIR/lib/spec-delta-scaffold.mjs" "$DIR" "$ROOT" 2>&1 || true)"
+  echo "  spec-delta: $scaffold_out"
+  # cópia bash de SCAFFOLD_MARKERS_RE (canônico: lib/scaffold-markers.mjs) — manter em sincronia
+  if [ -f "$DIR/spec-delta.yaml" ] && grep -qE '<scaffold:|<capability-kebab>|REQ-XXX-' "$DIR/spec-delta.yaml"; then
+    echo "  WARN: spec-delta.yaml ainda tem placeholders de scaffold — preencha os payloads na fase verify (verify.md §2.5) antes do archive"
+  fi
+fi
+
 # ── verification.yaml (§10.10) ───────────────────────────────────────────────
 COMMIT="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo "unversioned")"
 AT="$(date +%Y-%m-%dT%H:%M:%S%z | sed 's/\([0-9][0-9]\)$/:\1/')"

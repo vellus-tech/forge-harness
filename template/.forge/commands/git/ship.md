@@ -90,7 +90,10 @@ Argumentos: `$ARGUMENTS` (`--no-review` pula o passo de revisão automatizada qu
     o change correspondente a esta branch, **ofereça em uma linha** (nunca execute automaticamente —
     a incorporação ao baseline é decisão humana):
     - `verified` → `/forge:archive <id>` (incorpora ao baseline; o gate `human_archive_approval`
-      permanece HITL humano — domínio financeiro).
+      permanece HITL humano — domínio financeiro). O archive roda fim a fim na hora: o
+      `spec-delta.yaml` já nasceu autorado na fase verify (§2.5) e o pré-flight auto-recupera
+      `impact.json` stale (o merge que acabou de acontecer mudou o grafo — o script re-roda
+      `graph update` → `impact --change` sozinho).
     - `implemented` → `/forge:verify` antes do archive.
     - `tasks-ready`/`implementing` com TASKs 100% → `bash .forge/scripts/spec-transition.sh <id>
       implementing` / `... implemented` para destravar, depois `/forge:verify`.

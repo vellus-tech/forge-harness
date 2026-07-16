@@ -34,6 +34,12 @@ if (man.status !== 'verified') errors.push(`status must be verified (got: ${man.
 // spec-delta with deterministic payloads
 if (!has('spec-delta.yaml')) errors.push('spec-delta.yaml missing (nothing to apply — §13.1)');
 else {
+  // guard de scaffold: um esqueleto gerado (spec-delta-scaffold.mjs na fase verify) ou o
+  // placeholder do template do spec-new nunca podem chegar ao baseline — o conteúdo passa
+  // na validação estrutural, mas é texto de preenchimento, não spec.
+  const raw = readFileSync(join(root, 'spec-delta.yaml'), 'utf8');
+  if (/<scaffold:|<capability-kebab>|REQ-XXX-/.test(raw))
+    errors.push('spec-delta.yaml still has scaffold/template placeholders — fill the payloads in /forge:verify (§2.5) before archiving');
   try {
     const sd = load('spec-delta.yaml');
     const ops = Array.isArray(sd.operations) ? sd.operations : [];

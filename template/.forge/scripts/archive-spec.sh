@@ -21,6 +21,33 @@ DIR="$ROOT/.forge/specs/active/$ID"
 STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 bash "$SCRIPT_DIR/budget-preflight.sh" --stage archive --change "$ID" --outputs "product/current/CHANGELOG.md,evidence/runs/*/run-manifest.json" || true
 
+# [0/6] impact freshness — auto-recuperação determinista. O merge na integração depois do
+# último /forge:impact muda o grafo e faria o pré-flight falhar com "impact.json is stale";
+# a recuperação era sempre o mesmo runbook manual (graph update → impact --change → re-rodar).
+# Executa exatamente essa sequência aqui, só quando o change toca código e há grafo, e só se
+# o impact.json está ausente/stale (fingerprint ≠ grafo atual). Divergência real (impact que
+# continua inválido após o refresh) ainda reprova no pré-flight [1/6].
+AFFECTED_PATHS="$(awk '/^affected_paths: *\[/{exit} /^affected_paths:/{g=1;next} g&&/^  - /{print;next} g{exit}' "$DIR/manifest.yaml")"
+if [ -n "$AFFECTED_PATHS" ] && [ -f "$ROOT/.forge/graph/graph.json" ] && command -v node >/dev/null 2>&1; then
+  IMPACT_FRESH="$(node -e '
+    const { readFileSync, existsSync } = require("fs");
+    const { createHash } = require("crypto");
+    const [graphPath, impactPath] = process.argv.slice(1);
+    try {
+      if (!existsSync(impactPath)) { console.log("missing"); process.exit(0); }
+      const g = JSON.parse(readFileSync(graphPath, "utf8"));
+      const gfp = createHash("sha256").update(g.nodes.map((n) => n.id + ":" + n.fingerprint).sort().join("\n")).digest("hex");
+      const imp = JSON.parse(readFileSync(impactPath, "utf8"));
+      console.log(imp.graph_fingerprint === gfp ? "fresh" : "stale");
+    } catch { console.log("stale"); }
+  ' "$ROOT/.forge/graph/graph.json" "$DIR/impact.json" 2>/dev/null || echo fresh)"
+  if [ "$IMPACT_FRESH" != "fresh" ]; then
+    echo "[0/6] impact refresh (impact.json $IMPACT_FRESH — auto-recovery: graph update → impact --change $ID)"
+    FORGE_ROOT="$ROOT" bash "$SCRIPT_DIR/graph.sh" update || echo "  WARN: graph update falhou — pré-flight decide"
+    FORGE_ROOT="$ROOT" bash "$SCRIPT_DIR/impact.sh" --change "$ID" || echo "  WARN: impact refresh falhou — pré-flight decide"
+  fi
+fi
+
 echo "[1/6] pre-flight (§13.1)"
 FORGE_ROOT="$ROOT" bash "$SCRIPT_DIR/validate-archive.sh" --path "$DIR" || exit 1
 

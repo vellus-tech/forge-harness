@@ -51,7 +51,7 @@ O script da etapa 1 já gerou um **esqueleto** de `spec-delta.yaml` (determinist
 - valide: `bash .forge/scripts/validate-spec.sh <change-id>`;
 - commite o `spec-delta.yaml` junto com `verification.md`/`verification.yaml`.
 
-Marcadores `<scaffold: ...>` remanescentes **bloqueiam o pré-flight do archive** — o gate `human_archive_approval` continua lá; o que muda é que a *autoria* do delta acontece aqui. Se o change não altera o baseline (raro — ex.: bugfix puramente comportamental já coberto pela spec), remova o arquivo e registre o porquê em `verification.md`.
+Marcadores `<scaffold: ...>` remanescentes **bloqueiam a transição para `verified`** (o `validate-spec` reprova a partir desse status) e o pré-flight do archive — o gate `human_archive_approval` continua lá; o que muda é que a *autoria* do delta acontece aqui. Se o change não altera o baseline (raro — ex.: bugfix puramente comportamental já coberto pela spec), remova o arquivo e registre o porquê em `verification.md`.
 
 ## 3. Gate HITL — `implementation_verified` (§12.1)
 

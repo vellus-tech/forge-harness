@@ -17,6 +17,8 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { parseYamlSubset } from './yaml-lite.mjs';
+import { hasScaffoldMarkers } from './scaffold-markers.mjs';
+import { impactStatus } from './impact-freshness.mjs';
 
 const dir = process.argv[2];
 if (!dir) { console.log('FAIL (usage: validate-archive.mjs <change-dir> [<forge-root>])'); process.exit(1); }
@@ -38,7 +40,7 @@ else {
   // placeholder do template do spec-new nunca podem chegar ao baseline — o conteúdo passa
   // na validação estrutural, mas é texto de preenchimento, não spec.
   const raw = readFileSync(join(root, 'spec-delta.yaml'), 'utf8');
-  if (/<scaffold:|<capability-kebab>|REQ-XXX-/.test(raw))
+  if (hasScaffoldMarkers(raw))
     errors.push('spec-delta.yaml still has scaffold/template placeholders — fill the payloads in /forge:verify (§2.5) before archiving');
   try {
     const sd = load('spec-delta.yaml');
@@ -75,23 +77,16 @@ if (has('tasks.md')) {
 
 // impact freshness (§13.2 step 7, W4.2): if the change declares code affected_paths
 // AND a graph exists, an up-to-date impact.json is required (run /forge:impact).
-const graphPath = join(forgeRoot, '.forge/graph/graph.json');
-const manText = existsSync(join(root, 'manifest.yaml')) ? readFileSync(join(root, 'manifest.yaml'), 'utf8') : '';
-const apMatch = manText.match(/^affected_paths:\n((?:\s*-\s.*\n?)*)/m);
-const affectedCode = apMatch && apMatch[1].trim()
-  ? apMatch[1].split('\n').map((l) => l.replace(/^\s*-\s*/, '').trim()).filter(Boolean) : [];
-if (affectedCode.length && existsSync(graphPath)) {
-  if (!has('impact.json')) {
+// Julgamento único em impact-freshness.mjs (mesma lógica do auto-recovery [0/6] do archive).
+switch (impactStatus(root, forgeRoot)) {
+  case 'missing':
     errors.push('impact.json missing — change touches code and a graph exists (run /forge:impact --change <id> before archive, §13.2)');
-  } else {
-    try {
-      const g = JSON.parse(readFileSync(graphPath, 'utf8'));
-      const gfp = createHash('sha256').update(g.nodes.map((n) => n.id + ':' + n.fingerprint).sort().join('\n')).digest('hex');
-      const imp = JSON.parse(readFileSync(join(root, 'impact.json'), 'utf8'));
-      if (imp.graph_fingerprint !== gfp)
-        errors.push('impact.json is stale vs current graph (re-run /forge:impact --change <id> after /forge:graph update)');
-    } catch (e) { errors.push(`impact.json: ${e.message}`); }
-  }
+    break;
+  case 'stale':
+    errors.push('impact.json is stale vs current graph (re-run /forge:impact --change <id> after /forge:graph update)');
+    break;
+  default: // fresh | not-applicable
+    break;
 }
 
 // published docs integrity (round-trip with publish-docs)

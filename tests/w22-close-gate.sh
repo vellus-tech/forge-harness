@@ -45,6 +45,9 @@ perl -pi -e 's/^(\s*)- \[ \] /$1- [X] /' "$T/.forge/specs/active/chg-f/tasks.md"
 [ -f "$T/.forge/specs/active/chg-f/verification.yaml" ]
 node "$WS/tools/validate-yaml.mjs" "$WS/template/.forge/schemas/verification.schema.json" "$T/.forge/specs/active/chg-f/verification.yaml" >/dev/null
 (cd "$T" && bash "$AL" chg-f --gate implementation_verified --decision approve --scope "verification.md" >/dev/null)
+# fixture sintético sem delta real: o esqueleto em placeholder bloqueia verified (W100);
+# o fluxo documentado para change que não altera o baseline é remover o arquivo (§2.5).
+rm -f "$T/.forge/specs/active/chg-f/spec-delta.yaml"
 (cd "$T" && bash "$TR" chg-f verified >/dev/null)
 (cd "$T" && bash "$VS" chg-f >/dev/null)
 echo "OK [1]"

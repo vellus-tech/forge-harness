@@ -26,7 +26,8 @@
 // Saída: "OK ..." (gerado) | "SKIP (...)" (nada a fazer) | "FAIL (...)" (uso incorreto).
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join, resolve, basename } from 'node:path';
-import { parseYamlSubset } from './yaml-lite.mjs';
+import { parseYamlSubset, yamlQuote as q } from './yaml-lite.mjs';
+import { TEMPLATE_PRISTINE_RE } from './scaffold-markers.mjs';
 
 const changeDir = process.argv[2];
 const forgeRoot = process.argv[3];
@@ -36,12 +37,12 @@ const root = resolve(forgeRoot);
 const changeId = basename(dir);
 const deltaPath = join(dir, 'spec-delta.yaml');
 
-// nunca sobrescrever autoria real — só arquivo ausente ou placeholder pristino do template
-const PRISTINE = /(<capability-kebab>|REQ-XXX-)/;
-if (existsSync(deltaPath) && !PRISTINE.test(readFileSync(deltaPath, 'utf8'))) {
-  console.log('SKIP (spec-delta.yaml já autorado — não sobrescrevo)');
-  process.exit(0);
-}
+// nunca sobrescrever autoria real — só arquivo ausente ou placeholder pristino do template.
+// Um delta já GERADO (com marcadores `<scaffold: ...>`) não é pristino: pode carregar
+// preenchimento humano parcial, e regenerar descartaria essa autoria — daí o SKIP, com
+// aviso de cobertura quando requirements.md ganhou REQ novo depois da geração.
+let skipReason = null;
+if (existsSync(deltaPath) && !TEMPLATE_PRISTINE_RE.test(readFileSync(deltaPath, 'utf8'))) skipReason = 'já gerado/autorado — não sobrescrevo';
 
 let man = {};
 try { man = parseYamlSubset(readFileSync(join(dir, 'manifest.yaml'), 'utf8')); }
@@ -51,7 +52,9 @@ const REQ_ARTIFACT = { bugfix: 'bugfix.md', refactor: 'refactor.md' };
 const reqFile = REQ_ARTIFACT[man.type] || 'requirements.md';
 const reqPath = join(dir, reqFile);
 if (!existsSync(reqPath)) {
-  console.log(`SKIP (${reqFile} ausente — autore spec-delta.yaml à mão se o change altera o baseline)`);
+  console.log(skipReason
+    ? `SKIP (spec-delta.yaml ${skipReason})`
+    : `SKIP (${reqFile} ausente — autore spec-delta.yaml à mão se o change altera o baseline)`);
   process.exit(0);
 }
 const reqText = readFileSync(reqPath, 'utf8');
@@ -62,8 +65,22 @@ for (const m of reqText.matchAll(/^## (REQ-[A-Za-z0-9-]+)\s+—\s+(.+?)\s*$/gm))
   if (m[2].includes('<')) continue;
   reqs.push({ localId: m[1], title: m[2], at: m.index });
 }
-if (!reqs.length) {
+if (!reqs.length && !skipReason) {
   console.log(`SKIP (nenhum "## REQ-NN — título" extraível de ${reqFile} — autore spec-delta.yaml à mão se o change altera o baseline)`);
+  process.exit(0);
+}
+
+// delta já gerado/autorado: não reescreve, mas confere COBERTURA — REQ adicionado ao
+// requirements depois da geração (clarify pós-verify, edição manual) sem op correspondente
+// no delta passaria despercebido até (nunca) chegar ao baseline.
+if (skipReason) {
+  const deltaText = readFileSync(deltaPath, 'utf8');
+  const uncovered = reqs
+    .filter((r) => !deltaText.includes(`#${r.localId.toLowerCase()}`) && !new RegExp(`REQ-[A-Z0-9]+-0*${(r.localId.match(/([0-9]+)$/) || [, '0'])[1]}\\b`).test(deltaText))
+    .map((r) => r.localId);
+  console.log(`SKIP (spec-delta.yaml ${skipReason})`);
+  if (uncovered.length)
+    console.log(`WARN: REQ sem op correspondente no spec-delta.yaml: ${uncovered.join(', ')} — adicione as ops à mão (o scaffold não reescreve delta autorado)`);
   process.exit(0);
 }
 
@@ -90,7 +107,6 @@ function scenarioFor(req, next) {
   };
 }
 
-const q = (s) => `"${String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 const L = [];
 L.push('# Spec delta — GERADO por spec-delta-scaffold.mjs na fase verify (§10.4).');
 L.push('# Preencha os payloads (given/when/then reais, tests, op add vs modify) ANTES do');
@@ -100,7 +116,10 @@ if (capsDeclared.length > 1)
   L.push(`# affected_capabilities adicionais (redistribua ops se necessário): ${capsDeclared.slice(1).join(', ')}`);
 L.push('operations:');
 reqs.forEach((r, i) => {
-  const nn = (r.localId.match(/([0-9]+)$/) || [, String(i + 1).padStart(2, '0')])[1];
+  // 3 dígitos, convenção do baseline (REQ-XXX-001 no template e nas capabilities existentes)
+  // — sem o padding, REQ-CT-01 nunca casaria com um id: REQ-CT-001 já publicado e a
+  // sugestão add vs modify erraria sempre para modify.
+  const nn = String(parseInt((r.localId.match(/([0-9]+)$/) || [, String(i + 1)])[1], 10)).padStart(3, '0');
   const rid = `REQ-${prefix}-${nn}`;
   const op = baselineText.includes(`id: ${rid}`) ? 'modify_requirement' : 'add_requirement';
   const scn = scenarioFor(r, reqs[i + 1]);

@@ -14,7 +14,7 @@
 // Output: one line per capability + final "OK ..." / "FAIL (...)".
 import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync } from 'node:fs';
 import { join, resolve, basename } from 'node:path';
-import { parseYamlSubset } from './yaml-lite.mjs';
+import { parseYamlSubset, yamlQuote as q } from './yaml-lite.mjs';
 
 const changeDir = process.argv[2];
 const forgeRoot = process.argv[3];
@@ -120,7 +120,6 @@ for (const [id, cap] of caps) {
 }
 
 // ── emit ─────────────────────────────────────────────────────────────────────
-const q = (s) => `"${String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 function capToYaml(d) {
   const L = [];
   L.push(`capability_id: ${d.capability_id}`);

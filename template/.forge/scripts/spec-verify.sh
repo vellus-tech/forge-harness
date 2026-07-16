@@ -75,6 +75,7 @@ done
 if command -v node >/dev/null 2>&1 && [ -f "$SCRIPT_DIR/lib/spec-delta-scaffold.mjs" ]; then
   scaffold_out="$(node "$SCRIPT_DIR/lib/spec-delta-scaffold.mjs" "$DIR" "$ROOT" 2>&1 || true)"
   echo "  spec-delta: $scaffold_out"
+  # cópia bash de SCAFFOLD_MARKERS_RE (canônico: lib/scaffold-markers.mjs) — manter em sincronia
   if [ -f "$DIR/spec-delta.yaml" ] && grep -qE '<scaffold:|<capability-kebab>|REQ-XXX-' "$DIR/spec-delta.yaml"; then
     echo "  WARN: spec-delta.yaml ainda tem placeholders de scaffold — preencha os payloads na fase verify (verify.md §2.5) antes do archive"
   fi

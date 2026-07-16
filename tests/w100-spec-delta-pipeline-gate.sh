@@ -64,6 +64,9 @@ FORGE_ROOT="$T" bash "$SN" chg-tok --type feature --scale 1 >/dev/null
 [ -f "$T/.forge/specs/active/chg-tok/spec-delta.yaml" ] || { echo "FAIL: spec-new não instalou spec-delta.yaml"; exit 1; }
 grep -q 'REQ-XXX-001' "$T/.forge/specs/active/chg-tok/spec-delta.yaml" || { echo "FAIL: esqueleto sem placeholder de template"; exit 1; }
 FORGE_ROOT="$T" bash "$VS" --path "$T/.forge/specs/active/chg-tok" >/dev/null || { echo "FAIL: change novo com esqueleto não valida"; exit 1; }
+# scale 0 não tem artefato de requirements → sem esqueleto (fluxo manual permanece)
+FORGE_ROOT="$T" bash "$SN" chg-s0 --type feature --scale 0 >/dev/null
+[ ! -f "$T/.forge/specs/active/chg-s0/spec-delta.yaml" ] || { echo "FAIL: scale 0 não deveria receber esqueleto"; exit 1; }
 echo "OK [1]"
 
 echo "[2] scaffold gera ops dos REQ-NN e não sobrescreve delta autorado"
@@ -73,7 +76,7 @@ out="$(node "$SC" "$T/.forge/specs/active/chg-tok" "$T")"
 echo "$out" | grep -q '^OK' || { echo "FAIL: scaffold não gerou ($out)"; exit 1; }
 D="$T/.forge/specs/active/chg-tok/spec-delta.yaml"
 grep -q 'capability: card-tokenization' "$D" || { echo "FAIL: capability não derivada do manifest"; exit 1; }
-grep -q 'requirement_id: REQ-CT-01' "$D" || { echo "FAIL: requirement_id não derivado (REQ-CT-01)"; exit 1; }
+grep -q 'requirement_id: REQ-CT-001' "$D" || { echo "FAIL: requirement_id não derivado com padding de 3 dígitos (REQ-CT-001)"; exit 1; }
 grep -q 'when: "o portador submete o PAN no checkout"' "$D" || { echo "FAIL: when não extraído do requirements.md"; exit 1; }
 grep -q '<scaffold:' "$D" || { echo "FAIL: given deveria ficar marcado <scaffold:>"; exit 1; }
 FORGE_ROOT="$T" bash "$VS" --path "$T/.forge/specs/active/chg-tok" >/dev/null || { echo "FAIL: delta scaffolded não passa validate-spec"; exit 1; }
@@ -82,6 +85,18 @@ perl -pi -e 's/<scaffold: precondição — preencher na fase verify>/portador a
 before="$(shasum "$D")"
 node "$SC" "$T/.forge/specs/active/chg-tok" "$T" | grep -q '^SKIP' || { echo "FAIL: scaffold sobrescreveu delta autorado"; exit 1; }
 [ "$before" = "$(shasum "$D")" ] || { echo "FAIL: conteúdo autorado foi alterado"; exit 1; }
+# REQ novo adicionado DEPOIS da geração → SKIP com aviso de cobertura (nunca reescreve)
+cat >> "$T/.forge/specs/active/chg-tok/requirements.md" <<'EOF'
+
+## REQ-03 — Expirar token após uso
+
+- **Quando** o token é usado numa autorização, **o sistema deve** invalidá-lo imediatamente.
+- **Critérios de aceite:**
+  - [ ] segunda tentativa com o mesmo token falha
+EOF
+out="$(node "$SC" "$T/.forge/specs/active/chg-tok" "$T")"
+echo "$out" | grep -q '^SKIP' || { echo "FAIL: scaffold reescreveu delta com REQ novo"; exit 1; }
+echo "$out" | grep -q 'WARN: REQ sem op correspondente.*REQ-03' || { echo "FAIL: cobertura de REQ-03 não avisada ($out)"; exit 1; }
 echo "OK [2]"
 
 echo "[3] spec-verify integra o scaffold e avisa placeholder remanescente"
@@ -96,15 +111,23 @@ echo "$out" | grep -q 'WARN: spec-delta.yaml ainda tem placeholders' || { echo "
 [ -f "$T/.forge/specs/active/chg-ver/verification.yaml" ] || { echo "FAIL: verification.yaml não escrito"; exit 1; }
 echo "OK [3]"
 
-echo "[4] validate-archive recusa scaffold; aceita delta preenchido"
+echo "[4] scaffold bloqueia verified (validate-spec) e o archive (validate-archive)"
 FORGE_ROOT="$T" bash "$ST" chg-ver implemented >/dev/null
-FORGE_ROOT="$T" bash "$ST" chg-ver verified >/dev/null
+# transição a verified com delta ainda em scaffold → FAIL (validate-spec estrito de verified em diante)
+set +e
+out="$(FORGE_ROOT="$T" bash "$ST" chg-ver verified 2>&1)"; rc=$?
+set -e
+[ "$rc" -ne 0 ] && echo "$out" | grep -q 'scaffold/template placeholders' || { echo "FAIL: transição a verified aceitou delta em scaffold ($out)"; exit 1; }
+perl -pi -e 's/<scaffold: precondição — preencher na fase verify>/portador autenticado na sessão de checkout/g' "$T/.forge/specs/active/chg-ver/spec-delta.yaml"
+FORGE_ROOT="$T" bash "$ST" chg-ver verified >/dev/null || { echo "FAIL: verified recusado com delta preenchido"; exit 1; }
 perl -pi -e 's/^  human_archive_approval: false/  human_archive_approval: true/' "$T/.forge/specs/active/chg-ver/manifest.yaml"
+# pré-flight do archive recusa marcador reintroduzido; aceita ao removê-lo
+printf '# <scaffold: reintroduzido para o teste>\n' >> "$T/.forge/specs/active/chg-ver/spec-delta.yaml"
 set +e
 out="$(node "$VA" "$T/.forge/specs/active/chg-ver" "$T" 2>&1)"; rc=$?
 set -e
 [ "$rc" -ne 0 ] && echo "$out" | grep -q 'scaffold/template placeholders' || { echo "FAIL: pré-flight aceitou delta com scaffold ($out)"; exit 1; }
-perl -pi -e 's/<scaffold: precondição — preencher na fase verify>/portador autenticado na sessão de checkout/g' "$T/.forge/specs/active/chg-ver/spec-delta.yaml"
+perl -ni -e 'print unless /<scaffold: reintroduzido/' "$T/.forge/specs/active/chg-ver/spec-delta.yaml"
 node "$VA" "$T/.forge/specs/active/chg-ver" "$T" >/dev/null || { echo "FAIL: pré-flight recusou delta preenchido"; node "$VA" "$T/.forge/specs/active/chg-ver" "$T"; exit 1; }
 echo "OK [4]"
 

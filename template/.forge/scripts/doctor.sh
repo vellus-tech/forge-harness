@@ -201,6 +201,7 @@ EOF_ORPHAN
       chid="$(basename "$chdir")"
       if [ ! -f "$chdir/spec-delta.yaml" ]; then
         info "harness: drift — change '$chid' verified sem spec-delta.yaml (gere na fase verify: /forge:verify §2.5, ou autore à mão antes do /forge:archive)"
+      # cópia bash de SCAFFOLD_MARKERS_RE (canônico: lib/scaffold-markers.mjs) — manter em sincronia
       elif grep -qE '<scaffold:|<capability-kebab>|REQ-XXX-' "$chdir/spec-delta.yaml"; then
         info "harness: drift — change '$chid' verified com spec-delta.yaml ainda em placeholder (preencha os payloads — /forge:verify §2.5; o archive recusa scaffold)"
       fi

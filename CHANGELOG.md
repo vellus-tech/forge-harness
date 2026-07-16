@@ -6,6 +6,11 @@ e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+## [0.1.0-rc20] — 2026-07-16
+
+### Fixed
+- **`forge update` não sobrescreve mais customizações locais em `rules/`, `agents/` e `skills/` (issue #16).** Na propagação do rc19, o overlay reverteu diretivas de owner em rules/agents de dois consumidores reais (NBR 5891, observability/OTel, platform-reviewer) e um fix local de script — detectado só por diff manual. Esses diretórios agora são **enriquecíveis**: a sobrescrita é decidida por arquivo contra um lock de template (`.forge/cache/machinery.lock`, sha256 dos arquivos do TEMPLATE na última aplicação, escrito a cada update): dst ausente → escreve; dst == template novo → no-op; dst == template anterior (lock) → upgrade limpo; **qualquer outro caso → preserva e reporta** (`= <rel>` no relatório e no `--dry-run`). Sem lock (consumidor pré-rc20) o fallback é conservador: divergiu → preserva. Maquinaria própria (`scripts/`, `commands/`, …) continua overwrite, mas drift local detectado pelo lock vira `WARN` explícito (fix em maquinaria deve ser upstream). Arquivos preservados ficam fora do orphan-check de placeholders (conteúdo é do consumidor). A mesma invariante vale para as **tombstones**: path enriquecível listado em `removed-files.txt` só é deletado se o arquivo local for o template intocado (hash == lock); customização é mantida com aviso. Lock ilegível gera `WARN` (fallback conservador); `--source` fica anotado no header do lock. Novo gate `w101-update-preserve-gate` (6 cenários).
+
 ## [0.1.0-rc19] — 2026-07-16
 
 ### Fixed

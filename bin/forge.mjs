@@ -25,6 +25,7 @@ import {
   renameSync, appendFileSync, rmSync,
 } from 'node:fs';
 import { join, resolve, dirname, basename, relative, sep } from 'node:path';
+import { createHash } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { createInterface } from 'node:readline/promises';
@@ -34,7 +35,8 @@ const HERE = dirname(fileURLToPath(import.meta.url));     // <pkg>/bin
 const PKG_ROOT = resolve(HERE, '..');                     // <pkg>
 const TEMPLATE_FORGE = join(PKG_ROOT, 'template', '.forge');
 const GITIGNORE_PATCH = join(PKG_ROOT, 'installer', 'gitignore.patch');
-const REMOVED_MANIFEST = join(PKG_ROOT, 'installer', 'removed-files.txt');
+// FORGE_REMOVED_MANIFEST: override para os gates de teste injetarem tombstones sintéticas.
+const REMOVED_MANIFEST = process.env.FORGE_REMOVED_MANIFEST || join(PKG_ROOT, 'installer', 'removed-files.txt');
 const STAGING_YML = join(PKG_ROOT, 'template', 'github', 'workflows', 'staging.yml');
 const GI_MARKER = '# >>> forge (managed) >>>';
 const ADAPTERS = ['claude', 'codex', 'gemini', 'qwen', 'cursor', 'kiro', 'forge-cli', 'agents-skills'];
@@ -222,6 +224,55 @@ function machineryFiles(src) {
   return out;
 }
 
+// Diretórios ENRIQUECÍVEIS — maquinaria que projetos legitimamente customizam (diretivas de owner
+// em rules/, gates extras em agents de review, skills locais). O overlay NÃO os sobrescreve às
+// cegas (issue #16: o update reverteu diretivas de owner em rules/agents de dois consumidores).
+// Decisão por arquivo, via lock de template (.forge/cache/machinery.lock — hash do TEMPLATE da
+// última aplicação, não do arquivo local):
+//   dst ausente ................................. escreve (arquivo novo)
+//   dst == template novo ........................ no-op (já atualizado)
+//   dst == hash do template ANTERIOR (lock) ..... escreve (upgrade limpo — nunca foi customizado)
+//   qualquer outro caso ......................... PRESERVA e reporta (customização local)
+// Sem lock (consumidor pré-rc20), o fallback é conservador: divergiu do template novo → preserva.
+const ENRICHABLE_DIRS = ['agents', 'rules', 'skills'];
+const isEnrichable = (rel) => ENRICHABLE_DIRS.includes(rel.split(sep)[0]);
+
+const sha256File = (p) => createHash('sha256').update(readFileSync(p)).digest('hex');
+
+// Lock de maquinaria: registra o sha256 dos arquivos do TEMPLATE na versão aplicada por último —
+// é a referência que permite distinguir "consumidor nunca tocou" (upgrade limpo) de "customização
+// local" (preservar). Escrito pelo update a cada aplicação; formato: "<sha256>  <rel>" por linha.
+function readMachineryLock(forge) {
+  const p = join(forge, 'cache', 'machinery.lock');
+  if (!existsSync(p)) return null;
+  const map = new Map();
+  let invalid = 0;
+  for (const line of readFileSync(p, 'utf8').split('\n')) {
+    if (!line.trim() || line.startsWith('#')) continue;
+    const m = /^([0-9a-f]{64})  (.+)$/.exec(line);
+    if (m) map.set(m[2], m[1]); else invalid++;
+  }
+  // linha ilegível = entrada perdida = fallback conservador (preserva) para aquele path — seguro,
+  // mas o operador precisa saber que a integridade do lock está comprometida (escrita truncada?).
+  if (invalid) console.log(`WARN: machinery.lock com ${invalid} linha(s) ilegível(is) — entradas perdidas caem no fallback conservador (preservar); o lock é reescrito ao fim deste update`);
+  return map;
+}
+// O lock cobre TODA a maquinaria (não só ENRICHABLE_DIRS) de propósito: as entradas enriquecíveis
+// decidem preservar-vs-sobrescrever, e as demais alimentam o WARN de drift local em scripts/
+// commands. Estreitar o escopo "para enxugar o lock" quebraria o segundo uso em silêncio.
+function writeMachineryLock(forge, files, version, sourceNote) {
+  const lines = files
+    .map(([rel, srcAbs]) => [rel, sha256File(srcAbs)])
+    .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+    .map(([rel, hash]) => `${hash}  ${rel}`);
+  mkdirSync(join(forge, 'cache'), { recursive: true });
+  writeFileSync(join(forge, 'cache', 'machinery.lock'),
+    `# forge machinery.lock — sha256 dos arquivos do template v${version} (última aplicação).\n`
+    + '# Referência do update para preservar customizações locais em rules/agents/skills — não edite.\n'
+    + (sourceNote ? `# ATENÇÃO: aplicado de --source ${sourceNote} (não o template publicado desta versão).\n` : '')
+    + lines.join('\n') + '\n');
+}
+
 // Só o campo harness.template_version é atualizado no forge.yaml — adapters e flags ficam intactos.
 function bumpTemplateVersion(forge, version) {
   const p = join(forge, 'forge.yaml');
@@ -322,10 +373,14 @@ async function updateHarness() {
   // dry-run: lista o que mudaria (conteúdo diferente ou arquivo novo), sem escrever nada.
   if (flags.dryRun) {
     const changes = [];
+    const lockDry = readMachineryLock(forge);
     for (const [rel, srcAbs] of files) {
       const dst = join(forge, rel);
       if (!existsSync(dst)) changes.push(`+ ${rel}`);
-      else if (readFileSync(srcAbs, 'utf8') !== readFileSync(dst, 'utf8')) changes.push(`~ ${rel}`);
+      else if (readFileSync(srcAbs, 'utf8') !== readFileSync(dst, 'utf8')) {
+        const custom = isEnrichable(rel) && !(lockDry && lockDry.get(rel) === sha256File(dst));
+        changes.push(custom ? `= ${rel} (preservado — customização local)` : `~ ${rel}`);
+      }
     }
     const fy = join(forge, 'forge.yaml');
     if (existsSync(fy) && !new RegExp(`template_version:\\s*"?${version}"?`).test(readFileSync(fy, 'utf8')))
@@ -356,19 +411,46 @@ async function updateHarness() {
   }
 
   // overlay aditivo: sobrescreve mesmos paths, adiciona novos, NUNCA deleta extras do projeto.
+  // Em ENRICHABLE_DIRS a sobrescrita é condicionada ao lock de template (ver comentário da
+  // constante — issue #16): customização local é preservada e reportada, nunca revertida.
+  const oldLock = readMachineryLock(forge);
   let written = 0;
+  const preservedFiles = [];
+  const driftWarned = [];
   for (const [rel, srcAbs] of files) {
     const dst = join(forge, rel);
+    if (existsSync(dst)) {
+      const dstHash = sha256File(dst);
+      const newHash = sha256File(srcAbs);
+      if (isEnrichable(rel) && dstHash !== newHash && !(oldLock && oldLock.get(rel) === dstHash)) {
+        preservedFiles.push(rel);
+        continue;
+      }
+      // maquinaria própria (scripts/commands/...): sobrescreve, mas fix local vira aviso — o
+      // fluxo certo para fix em maquinaria é upstream no template; o backup .forge.bak-N cobre.
+      if (!isEnrichable(rel) && oldLock && oldLock.has(rel) && dstHash !== oldLock.get(rel) && dstHash !== newHash)
+        driftWarned.push(rel);
+    }
     mkdirSync(dirname(dst), { recursive: true });
     cpSync(srcAbs, dst);
     written++;
   }
   console.log(`maquinaria: ${written} arquivo(s) de template aplicados (overlay aditivo)`);
+  if (preservedFiles.length) {
+    console.log(`preservados: ${preservedFiles.length} arquivo(s) com customização local NÃO sobrescritos:`);
+    for (const rel of preservedFiles.sort()) console.log(`  = ${rel}`);
+    console.log('  (se o template também mudou nesses paths, reconcilie à mão — diff contra .forge.bak-N)');
+  }
+  for (const rel of driftWarned.sort())
+    console.log(`WARN: drift local em ${rel} sobrescrito pelo template (fix local em maquinaria? faça upstream; backup em .forge.bak-N)`);
+  writeMachineryLock(forge, files, version, vals.source ? src : '');
 
   // orphan-check defensivo: nenhum arquivo de maquinaria deve conter <PROJECT_*> após overlay
   const isTemplated = (f) => /\.(md|ya?ml)$/.test(f);
   const underTemplates = (f) => relative(forge, f).split(sep).includes('templates');
+  const preservedSet = new Set(preservedFiles);
   const orphans = files
+    .filter(([rel]) => !preservedSet.has(rel)) // conteúdo preservado é do consumidor, não do template
     .map(([rel]) => join(forge, rel))
     .filter((f) => isTemplated(f) && !underTemplates(f) && /<PROJECT_[A-Z_]*>/.test(readFileSync(f, 'utf8')));
   if (orphans.length) fail(`${orphans.length} arquivo(s) de maquinaria com placeholders <PROJECT_*> — template inválido?`, 1);
@@ -378,8 +460,17 @@ async function updateHarness() {
   // aditivo — ex.: /forge:build stale sobrevivia após o rename para /forge:codegraph — SEM apagar
   // commands/agents/rules autorais do consumidor (a deleção é curada, não "tudo fora do template").
   // Cada remoção é listada; o backup .forge.bak-N cobre.
-  const stale = orphansToPrune(forge);
-  for (const rel of stale) {
+  // A mesma invariante do overlay vale aqui (revisão do PR #17): tombstone em path ENRIQUECÍVEL
+  // só deleta se o arquivo local é o template intocado (hash == lock da última aplicação);
+  // customização local é mantida com aviso — remover diretiva de owner é decisão humana.
+  const stale = [];
+  const keptTombstones = [];
+  for (const rel of orphansToPrune(forge)) {
+    if (isEnrichable(rel) && !(oldLock && oldLock.get(rel) === sha256File(join(forge, rel)))) {
+      keptTombstones.push(rel);
+      continue;
+    }
+    stale.push(rel);
     rmSync(join(forge, rel), { force: true });
     // limpa o dir se ficou vazio (ex.: um grupo de comandos inteiro removido)
     const dir = dirname(join(forge, rel));
@@ -389,6 +480,8 @@ async function updateHarness() {
     console.log(`órfãos: ${stale.length} arquivo(s) de maquinaria removido(s) (renomeados/removidos do template):`);
     for (const rel of stale) console.log(`  - ${rel}`);
   }
+  for (const rel of keptTombstones.sort())
+    console.log(`= ${rel} (tombstone pulado — customização local; o template removeu este path, remova à mão se não precisar mais)`);
 
   // forge.yaml: template_version + merge aditivo de chaves de topo novas do template (ex.: autonomy:)
   if (bumpTemplateVersion(forge, version)) console.log(`forge.yaml: template_version -> ${version}`);

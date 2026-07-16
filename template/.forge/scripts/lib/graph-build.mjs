@@ -24,10 +24,22 @@ const SKIP_DIRS = new Set([
   '.next', 'vendor', 'storybook-static', 'wwwroot', '_archive', 'TestResults',
   '.vs', '.idea', '.venv', '__pycache__', '.turbo', '.cache',
 ]);
-const LANG = { '.js': 'js', '.mjs': 'js', '.cjs': 'js', '.jsx': 'js', '.ts': 'ts', '.tsx': 'ts', '.cs': 'csharp', '.go': 'go', '.py': 'python', '.kt': 'kotlin', '.kts': 'kotlin' };
+const LANG = { '.js': 'js', '.mjs': 'js', '.cjs': 'js', '.jsx': 'js', '.ts': 'ts', '.tsx': 'ts', '.cs': 'csharp', '.go': 'go', '.py': 'python', '.kt': 'kotlin', '.kts': 'kotlin', '.java': 'java' };
+// Broader census map for the coverage rule (§19.5): every programming language worth
+// counting, INCLUDING ones the extractor does not model (swift/rust/…), so `validate
+// graph` can name a dominant language that has no nodes (issue #18). Header-only C/C++
+// extensions (.h/.hpp) are deliberately excluded: they are ambiguous (C vs C++) and are
+// the dominant source of vendored/NDK noise that would falsely outrank real app code.
+// Computed in the SAME walk that builds nodes, so validate never re-walks the tree.
+const CENSUS_EXT = {
+  ...LANG,
+  '.swift': 'swift', '.rb': 'ruby', '.rs': 'rust', '.php': 'php', '.scala': 'scala',
+  '.dart': 'dart', '.cpp': 'cpp', '.cc': 'cpp', '.cxx': 'cpp', '.c': 'c', '.m': 'objc', '.mm': 'objc',
+};
 // Minified/generated files are not source — skip even when they carry a source extension (G2).
 const SKIP_FILE = /\.min\.(js|css)$|\.bundle\.js$/;
 
+const census = {}; // census-lang -> file count (walk-populated, persisted in stats)
 function walk(dir, acc = []) {
   let entries;
   try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return acc; }
@@ -35,7 +47,12 @@ function walk(dir, acc = []) {
     if (e.name.startsWith('.') && e.name !== '.') continue;
     const p = join(dir, e.name);
     if (e.isDirectory()) { if (!SKIP_DIRS.has(e.name)) walk(p, acc); }
-    else if (LANG[extname(e.name)] && !SKIP_FILE.test(e.name)) acc.push(p);
+    else if (!SKIP_FILE.test(e.name)) {
+      const ext = extname(e.name);
+      const cl = CENSUS_EXT[ext];
+      if (cl) census[cl] = (census[cl] || 0) + 1;
+      if (LANG[ext]) acc.push(p);
+    }
   }
   return acc;
 }
@@ -70,11 +87,17 @@ function layerOf(id) {
   if (/\.(domain|core)(\/|$)/.test(p)) return 'domain';
   if (/\.(infrastructure|infra|persistence|messaging|caching|observability|errorhandling)(\/|$)/.test(p)) return 'infrastructure';
   if (/\.(contracts?|dtos?)(\/|$)/.test(p)) return 'contracts';
-  // folder conventions (non-.NET, or projects without a layer suffix)
-  if (/(^|\/)(api|controllers?|presentation|web|pages|routes|endpoints?|middlewares?|filters|attributes)(\/|$)/.test(p)) return 'api';
-  if (/(^|\/)(application|usecases?|handlers?|services?|commands?|queries|behaviors?)(\/|$)/.test(p)) return 'application';
-  if (/(^|\/)(domain|entities|core|model|aggregates?|valueobjects?|events?)(\/|$)/.test(p)) return 'domain';
-  if (/(^|\/)(infrastructure|persistence|repositories|data|adapters?|migrations?)(\/|$)/.test(p)) return 'infrastructure';
+  // folder conventions (non-.NET, or projects without a layer suffix). The
+  // presentation/api and infrastructure sets also carry Android/mobile idioms
+  // (ui/, viewmodel/, screens/, activities & fragments as presentation; network/,
+  // datasource/, remote/, retrofit/ as infrastructure) — the dominant brownfield
+  // profile the Understanding Layer (§16) targets (issue #18). Generic words that
+  // collide with legitimate non-Android domains are deliberately excluded: `compose`
+  // (Docker Compose), `room`/`dao` (chat/booking Room entities, web3 DAO), `local`.
+  if (/(^|\/)(api|controllers?|presentation|web|pages|routes|endpoints?|middlewares?|filters|attributes|ui|views?|viewmodels?|screens?|activity|activities|fragments?|widgets?)(\/|$)/.test(p)) return 'api';
+  if (/(^|\/)(application|usecases?|interactors?|handlers?|services?|commands?|queries|behaviors?)(\/|$)/.test(p)) return 'application';
+  if (/(^|\/)(domain|entities|core|model|models|aggregates?|valueobjects?|events?)(\/|$)/.test(p)) return 'domain';
+  if (/(^|\/)(infrastructure|persistence|repositories|repository|data|datasources?|adapters?|migrations?|network|remote|retrofit)(\/|$)/.test(p)) return 'infrastructure';
   if (/(^|\/)(contracts?|dtos?|schemas?)(\/|$)/.test(p)) return 'contracts';
   if (/\.(config|json|ya?ml)$|(^|\/)config(\/|$)/.test(p)) return 'config';
   return 'unknown';
@@ -86,6 +109,30 @@ const CS_USING = /^\s*using\s+(?:static\s+)?([A-Za-z_][\w.]*)\s*;/gm;
 const CS_NAMESPACE = /^\s*namespace\s+([A-Za-z_][\w.]*)/gm;
 const GO_IMPORT = /(?:^\s*import\s+"([^"]+)"|^\s*"([^"]+)"\s*$)/gm;
 const PY_IMPORT = /^\s*(?:from\s+([.\w]+)\s+import|import\s+([.\w]+))/gm;
+// JVM (Java/Kotlin): package=directory convention makes import→file resolution
+// deterministic (issue #18). Both capture only the fully-qualified spec and stop at the
+// first space/`;`/comment, so a Kotlin alias (`import a.b.C as D`), a stray semicolon or a
+// trailing `// comment` never breaks the match. Both support wildcard (`import a.b.*`).
+// Static/nested member imports (`import static a.b.C.m`, Kotlin `import a.b.C.*` for an
+// object) resolve by stripping trailing member segments until a declared type matches.
+// The wildcard is `\*?` (not `(?:\.\*)?`) because `[\w.]*` already consumes the dot before
+// `*`; anchoring the star separately avoids the greedy class swallowing it (there is no
+// trailing `;` to force backtracking now that the match is not end-anchored).
+const JAVA_IMPORT = /^\s*import\s+(?:static\s+)?([A-Za-z_][\w.]*\*?)/gm;
+const KOTLIN_IMPORT = /^\s*import\s+([A-Za-z_][\w.]*\*?)/gm;
+const JVM_PACKAGE = /^\s*package\s+([A-Za-z_][\w.]*)/m;
+// top-level type declarations. `enum class X` (Kotlin) needs the optional `class` between
+// `enum` and the name — otherwise the name is misparsed as the literal word "class".
+// Java `enum X` (no `class`), `object`/`record`, and Java `@interface` are covered too.
+const JVM_TYPE = /\b(?:class|interface|record|object)\s+([A-Za-z_]\w*)|\benum\s+(?:class\s+)?([A-Za-z_]\w*)|@interface\s+([A-Za-z_]\w*)/g;
+// Kotlin top-level declarations (fun/val/const val/typealias) — column-0 anchored so
+// indented class members are not indexed. Optional receiver (`fun String.trimAll`) and
+// generics are skipped; the trailing identifier is the importable name.
+const KT_TOPLEVEL = /^(?:(?:public|internal|private|expect|actual|external|inline|suspend|tailrec|operator|infix|annotation)\s+)*(?:fun|val|var|typealias|const\s+val)\s+(?:<[^>]*>\s*)?(?:[A-Za-z_][\w.<>?, ]*\.)?([A-Za-z_]\w*)/gm;
+// strip block and line comments before scanning declarations, so a Javadoc/KDoc comment
+// that merely mentions a type name does not register a phantom declaration (a comment
+// `// see record UserPayload` must not make this file "declare" UserPayload).
+const stripComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
 
 function resolveJsTarget(fromFile, spec, fileSet) {
   if (!spec.startsWith('.')) return null; // external dep
@@ -114,6 +161,55 @@ for (const f of files) {
   }
 }
 
+// JVM (Java/Kotlin): index fully-qualified type name -> declaring file(s), plus
+// package -> files (for wildcard imports). Two keys per declared type: pkg.TypeName
+// (authoritative — handles multiple types per file and Kotlin's filename≠class case)
+// and pkg.FileBasename (fallback, Java's one-public-class-per-file convention).
+const jvmDeclToFiles = new Map();   // "com.foo.Bar" -> [files]
+const jvmPkgToFiles = new Map();    // "com.foo" -> [files]
+const addTo = (map, key, f) => { if (!map.has(key)) map.set(key, []); if (!map.get(key).includes(f)) map.get(key).push(f); };
+for (const f of files) {
+  const lang = LANG[extname(f)];
+  if (lang !== 'java' && lang !== 'kotlin') continue;
+  const raw = read(f);
+  const pm = raw.match(JVM_PACKAGE);
+  if (!pm) continue; // no package → cannot resolve by convention (e.g. default package)
+  const pkg = pm[1];
+  const src = stripComments(raw);
+  addTo(jvmPkgToFiles, pkg, f);
+  const base = f.split('/').pop().replace(/\.[^.]+$/, '');
+  addTo(jvmDeclToFiles, `${pkg}.${base}`, f);
+  for (const m of src.matchAll(JVM_TYPE)) {
+    const name = m[1] || m[2] || m[3];
+    if (name) addTo(jvmDeclToFiles, `${pkg}.${name}`, f);
+  }
+  // Kotlin top-level fun/val/typealias are importable by name but are not types;
+  // index them so `import pkg.trimAll` resolves to the declaring file.
+  if (lang === 'kotlin') {
+    for (const m of src.matchAll(KT_TOPLEVEL)) {
+      if (m[1]) addTo(jvmDeclToFiles, `${pkg}.${m[1]}`, f);
+    }
+  }
+}
+
+// Resolve a JVM import spec to internal declaring file(s). A wildcard is either a package
+// wildcard (`pkg.*` → every file in the package) or an object/class member wildcard
+// (Kotlin `pkg.Obj.*` → the file declaring Obj); try both. A non-wildcard spec strips
+// trailing member/nested segments until a declared type matches. Returns [] for external
+// deps (androidx.*, java.util.*, …), which — like C# — produce no edge.
+function resolveJvmTargets(spec) {
+  if (spec.endsWith('.*')) {
+    const base = spec.slice(0, -2);
+    return jvmPkgToFiles.get(base) || jvmDeclToFiles.get(base) || [];
+  }
+  let s = spec;
+  while (s.includes('.')) {
+    if (jvmDeclToFiles.has(s)) return jvmDeclToFiles.get(s);
+    s = s.slice(0, s.lastIndexOf('.'));
+  }
+  return [];
+}
+
 for (const f of files) {
   const src = read(f);
   const lang = LANG[extname(f)];
@@ -140,6 +236,18 @@ for (const f of files) {
       const spec = m[1] || m[2];
       if (spec && spec.startsWith('.')) edges.push({ from: id, to: spec, kind: 'import', resolved: false });
     }
+  } else if (lang === 'java' || lang === 'kotlin') {
+    const re = lang === 'java' ? JAVA_IMPORT : KOTLIN_IMPORT;
+    const seen = new Set();
+    for (const m of src.matchAll(re)) {
+      for (const t of resolveJvmTargets(m[1])) {
+        if (t === f) continue;
+        const to = relative(root, t);
+        if (seen.has(to)) continue; // dedup wildcard fan-in from the same file
+        seen.add(to);
+        edges.push({ from: id, to, kind: 'import', resolved: true });
+      }
+    }
   }
 }
 
@@ -157,12 +265,13 @@ nodes.sort((a, b) => a.id.localeCompare(b.id));
 edges.sort((a, b) => (a.from + a.to + a.kind).localeCompare(b.from + b.to + b.kind));
 
 const langs = [...new Set(nodes.map((n) => n.lang))].sort();
+const censusSorted = Object.fromEntries(Object.entries(census).sort((a, b) => a[0].localeCompare(b[0])));
 const graph = {
   schema: 'graph/v0',
   generated_at: new Date().toISOString(),
   engine: 'native',
   root,
-  stats: { nodes: nodes.length, edges: edges.length, languages: langs, summaries_stale: summariesStale },
+  stats: { nodes: nodes.length, edges: edges.length, languages: langs, summaries_stale: summariesStale, census: censusSorted },
   nodes,
   edges,
 };

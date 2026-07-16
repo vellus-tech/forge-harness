@@ -14,7 +14,7 @@ import { join, resolve, extname, relative } from 'node:path';
 const root = resolve(process.argv[2] || '.');
 const graphPath = join(root, '.forge/graph/graph.json');
 const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'out', 'bin', 'obj', '.forge', 'coverage', '.next', 'vendor', 'storybook-static', 'wwwroot', '_archive', 'TestResults', '.vs', '.idea', '.venv', '__pycache__', '.turbo', '.cache']);
-const LANG = { '.cs': 'csharp', '.ts': 'ts', '.tsx': 'ts', '.js': 'js', '.jsx': 'js', '.mjs': 'js', '.cjs': 'js', '.py': 'python' };
+const LANG = { '.cs': 'csharp', '.ts': 'ts', '.tsx': 'ts', '.js': 'js', '.jsx': 'js', '.mjs': 'js', '.cjs': 'js', '.py': 'python', '.java': 'jvm', '.kt': 'jvm', '.kts': 'jvm' };
 const SKIP_FILE = /\.min\.(js|css)$|\.bundle\.js$/;
 
 // reaproveita as camadas já calculadas no graph.json quando existir
@@ -38,6 +38,11 @@ const DECL = {
   ts: /\b(class|interface|enum)\s+([A-Za-z_]\w*)(?:\s*<[^>]*>)?(?:\s+extends\s+([A-Za-z_][\w.<>]*))?|\b(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_]\w*)/g,
   js: /\b(class)\s+([A-Za-z_]\w*)(?:\s+extends\s+([A-Za-z_][\w.]*))?|\b(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_]\w*)/g,
   python: /\b(class)\s+([A-Za-z_]\w*)\s*(?:\(\s*([A-Za-z_][\w., ]*)\))?|\bdef\s+([A-Za-z_]\w*)/g,
+  // Java/Kotlin: type keyword + name + optional inheritance base (extends/implements/`:`).
+  // `(?:class\s+)?` absorbs the `class` of Kotlin's `enum class X`, so the name is X, not
+  // the literal word "class". Base capture stops before '(' so a Kotlin superclass
+  // constructor call (Bar()) yields Bar.
+  jvm: /\b(class|interface|record|object|enum)\s+(?:class\s+)?([A-Za-z_]\w*)(?:\s*<[^>]*>)?(?:\s*(?::|extends|implements)\s+([A-Za-z_][\w.<>, ]*))?/g,
 };
 
 const files = walk(root);

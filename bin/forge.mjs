@@ -35,7 +35,8 @@ const HERE = dirname(fileURLToPath(import.meta.url));     // <pkg>/bin
 const PKG_ROOT = resolve(HERE, '..');                     // <pkg>
 const TEMPLATE_FORGE = join(PKG_ROOT, 'template', '.forge');
 const GITIGNORE_PATCH = join(PKG_ROOT, 'installer', 'gitignore.patch');
-const REMOVED_MANIFEST = join(PKG_ROOT, 'installer', 'removed-files.txt');
+// FORGE_REMOVED_MANIFEST: override para os gates de teste injetarem tombstones sintéticas.
+const REMOVED_MANIFEST = process.env.FORGE_REMOVED_MANIFEST || join(PKG_ROOT, 'installer', 'removed-files.txt');
 const STAGING_YML = join(PKG_ROOT, 'template', 'github', 'workflows', 'staging.yml');
 const GI_MARKER = '# >>> forge (managed) >>>';
 const ADAPTERS = ['claude', 'codex', 'gemini', 'qwen', 'cursor', 'kiro', 'forge-cli', 'agents-skills'];
@@ -245,13 +246,21 @@ function readMachineryLock(forge) {
   const p = join(forge, 'cache', 'machinery.lock');
   if (!existsSync(p)) return null;
   const map = new Map();
+  let invalid = 0;
   for (const line of readFileSync(p, 'utf8').split('\n')) {
+    if (!line.trim() || line.startsWith('#')) continue;
     const m = /^([0-9a-f]{64})  (.+)$/.exec(line);
-    if (m) map.set(m[2], m[1]);
+    if (m) map.set(m[2], m[1]); else invalid++;
   }
+  // linha ilegível = entrada perdida = fallback conservador (preserva) para aquele path — seguro,
+  // mas o operador precisa saber que a integridade do lock está comprometida (escrita truncada?).
+  if (invalid) console.log(`WARN: machinery.lock com ${invalid} linha(s) ilegível(is) — entradas perdidas caem no fallback conservador (preservar); o lock é reescrito ao fim deste update`);
   return map;
 }
-function writeMachineryLock(forge, files, version) {
+// O lock cobre TODA a maquinaria (não só ENRICHABLE_DIRS) de propósito: as entradas enriquecíveis
+// decidem preservar-vs-sobrescrever, e as demais alimentam o WARN de drift local em scripts/
+// commands. Estreitar o escopo "para enxugar o lock" quebraria o segundo uso em silêncio.
+function writeMachineryLock(forge, files, version, sourceNote) {
   const lines = files
     .map(([rel, srcAbs]) => [rel, sha256File(srcAbs)])
     .sort((a, b) => (a[0] < b[0] ? -1 : 1))
@@ -260,6 +269,7 @@ function writeMachineryLock(forge, files, version) {
   writeFileSync(join(forge, 'cache', 'machinery.lock'),
     `# forge machinery.lock — sha256 dos arquivos do template v${version} (última aplicação).\n`
     + '# Referência do update para preservar customizações locais em rules/agents/skills — não edite.\n'
+    + (sourceNote ? `# ATENÇÃO: aplicado de --source ${sourceNote} (não o template publicado desta versão).\n` : '')
     + lines.join('\n') + '\n');
 }
 
@@ -433,7 +443,7 @@ async function updateHarness() {
   }
   for (const rel of driftWarned.sort())
     console.log(`WARN: drift local em ${rel} sobrescrito pelo template (fix local em maquinaria? faça upstream; backup em .forge.bak-N)`);
-  writeMachineryLock(forge, files, version);
+  writeMachineryLock(forge, files, version, vals.source ? src : '');
 
   // orphan-check defensivo: nenhum arquivo de maquinaria deve conter <PROJECT_*> após overlay
   const isTemplated = (f) => /\.(md|ya?ml)$/.test(f);
@@ -450,8 +460,17 @@ async function updateHarness() {
   // aditivo — ex.: /forge:build stale sobrevivia após o rename para /forge:codegraph — SEM apagar
   // commands/agents/rules autorais do consumidor (a deleção é curada, não "tudo fora do template").
   // Cada remoção é listada; o backup .forge.bak-N cobre.
-  const stale = orphansToPrune(forge);
-  for (const rel of stale) {
+  // A mesma invariante do overlay vale aqui (revisão do PR #17): tombstone em path ENRIQUECÍVEL
+  // só deleta se o arquivo local é o template intocado (hash == lock da última aplicação);
+  // customização local é mantida com aviso — remover diretiva de owner é decisão humana.
+  const stale = [];
+  const keptTombstones = [];
+  for (const rel of orphansToPrune(forge)) {
+    if (isEnrichable(rel) && !(oldLock && oldLock.get(rel) === sha256File(join(forge, rel)))) {
+      keptTombstones.push(rel);
+      continue;
+    }
+    stale.push(rel);
     rmSync(join(forge, rel), { force: true });
     // limpa o dir se ficou vazio (ex.: um grupo de comandos inteiro removido)
     const dir = dirname(join(forge, rel));
@@ -461,6 +480,8 @@ async function updateHarness() {
     console.log(`órfãos: ${stale.length} arquivo(s) de maquinaria removido(s) (renomeados/removidos do template):`);
     for (const rel of stale) console.log(`  - ${rel}`);
   }
+  for (const rel of keptTombstones.sort())
+    console.log(`= ${rel} (tombstone pulado — customização local; o template removeu este path, remova à mão se não precisar mais)`);
 
   // forge.yaml: template_version + merge aditivo de chaves de topo novas do template (ex.: autonomy:)
   if (bumpTemplateVersion(forge, version)) console.log(`forge.yaml: template_version -> ${version}`);

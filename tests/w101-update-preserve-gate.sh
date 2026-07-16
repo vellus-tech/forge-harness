@@ -75,4 +75,21 @@ echo "$out" | grep -q "= $RULE_REL (preservado — customização local)" \
 [ "$(shasum -a 256 "$T/$RULE" | cut -d' ' -f1)" = "$SHA_CUSTOM" ] || { echo "FAIL [5]: dry-run escreveu"; exit 1; }
 echo "OK [5]"
 
+echo "[6] tombstone respeita customização enriquecível (deleta só template intocado)"
+# fonte v3 SEM as duas rules (removidas do template) + manifest sintético de tombstones
+SRC3="$T/src3"; cp -R "$SRC2" "$SRC3"
+rm -f "$SRC3/rules/architecture/clean-architecture.md" "$SRC3/rules/architecture/ddd.md"
+cat > "$T/tombstones.txt" <<'EOF'
+rules/architecture/clean-architecture.md
+rules/architecture/ddd.md
+EOF
+FORGE_REMOVED_MANIFEST="$T/tombstones.txt" node "$WS/bin/forge.mjs" update --target "$T" --no-plugin --no-backup --source "$SRC3" >"$T/up6.log" 2>&1 \
+  || { echo "FAIL (update 6 falhou)"; cat "$T/up6.log"; exit 1; }
+# customizada → mantida, com aviso; intocada (hash == lock) → removida
+[ -f "$T/$RULE" ] || { echo "FAIL [6]: tombstone deletou rule CUSTOMIZADA (invariante do overlay violada)"; exit 1; }
+[ "$(shasum -a 256 "$T/$RULE" | cut -d' ' -f1)" = "$SHA_CUSTOM" ] || { echo "FAIL [6]: rule customizada alterada"; exit 1; }
+grep -q "= $RULE_REL (tombstone pulado" "$T/up6.log" || { echo "FAIL [6]: tombstone pulado sem aviso"; grep -i tombstone "$T/up6.log"; exit 1; }
+[ ! -f "$T/.forge/rules/architecture/ddd.md" ] || { echo "FAIL [6]: tombstone não removeu rule intocada (template intacto deveria sair)"; exit 1; }
+echo "OK [6]"
+
 echo "PASS w101-update-preserve-gate"

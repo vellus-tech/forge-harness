@@ -19,7 +19,8 @@
         "nodes": { "type": "integer", "minimum": 0 },
         "edges": { "type": "integer", "minimum": 0 },
         "languages": { "type": "array", "items": { "type": "string" } },
-        "summaries_stale": { "type": "integer", "minimum": 0 }
+        "summaries_stale": { "type": "integer", "minimum": 0 },
+        "census": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } }
       }
     },
     "nodes": {
@@ -30,7 +31,7 @@
         "required": ["id", "lang", "loc", "fingerprint", "layer"],
         "properties": {
           "id": { "type": "string", "minLength": 1 },
-          "lang": { "enum": ["js", "ts", "csharp", "go", "python", "kotlin", "other"] },
+          "lang": { "enum": ["js", "ts", "csharp", "go", "python", "kotlin", "java", "other"] },
           "loc": { "type": "integer", "minimum": 0 },
           "fingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
           "layer": { "enum": ["api", "application", "domain", "infrastructure", "contracts", "test", "config", "unknown"] },

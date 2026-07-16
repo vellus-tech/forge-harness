@@ -3,6 +3,12 @@
 // 2-space indentation, `key: value` scalars, nested maps, `key: []` inline empty
 // lists, `- scalar` items and `- key: value` object-list items with continuation
 // lines. No inline maps, no multiline strings, no anchors.
+// Escapa um escalar para emissão como string YAML entre aspas duplas — contraparte de
+// emissão do subset acima, compartilhada pelos emissores (delta-apply, spec-delta-scaffold).
+export function yamlQuote(s) {
+  return `"${String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+}
+
 export function parseScalar(raw) {
   const s = raw.trim();
   if (s === '' || s === 'null' || s === '~') return null;

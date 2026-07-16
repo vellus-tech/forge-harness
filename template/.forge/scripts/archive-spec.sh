@@ -21,6 +21,23 @@ DIR="$ROOT/.forge/specs/active/$ID"
 STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 bash "$SCRIPT_DIR/budget-preflight.sh" --stage archive --change "$ID" --outputs "product/current/CHANGELOG.md,evidence/runs/*/run-manifest.json" || true
 
+# [0/6] impact freshness — auto-recuperação determinista. O merge na integração depois do
+# último /forge:impact muda o grafo e faria o pré-flight falhar com "impact.json is stale";
+# a recuperação era sempre o mesmo runbook manual (graph update → impact --change → re-rodar).
+# Executa exatamente essa sequência aqui, só quando o change toca código e há grafo, e só se
+# o impact.json está ausente/stale (fingerprint ≠ grafo atual). Divergência real (impact que
+# continua inválido após o refresh) ainda reprova no pré-flight [1/6].
+if command -v node >/dev/null 2>&1; then
+  # julgamento único de frescor (mesma lib que o pré-flight [1/6] consome) — 'not-applicable'
+  # cobre change sem affected_paths de código ou repo sem grafo.
+  IMPACT_STATUS="$(node "$SCRIPT_DIR/lib/impact-freshness.mjs" "$DIR" "$ROOT" 2>/dev/null || echo not-applicable)"
+  if [ "$IMPACT_STATUS" = "missing" ] || [ "$IMPACT_STATUS" = "stale" ]; then
+    echo "[0/6] impact refresh (impact.json $IMPACT_STATUS — auto-recovery: graph update → impact --change $ID)"
+    FORGE_ROOT="$ROOT" bash "$SCRIPT_DIR/graph.sh" update || echo "  WARN: graph update falhou — pré-flight decide"
+    FORGE_ROOT="$ROOT" bash "$SCRIPT_DIR/impact.sh" --change "$ID" || echo "  WARN: impact refresh falhou — pré-flight decide"
+  fi
+fi
+
 echo "[1/6] pre-flight (§13.1)"
 FORGE_ROOT="$ROOT" bash "$SCRIPT_DIR/validate-archive.sh" --path "$DIR" || exit 1
 

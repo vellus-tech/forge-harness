@@ -75,6 +75,12 @@ case "$TYPE" in
 esac
 if [ "$SCALE" -ge 2 ] && [ "$TYPE" != "bugfix" ]; then fill "$TPL/spec/design.md" "$DEST/design.md"; fi
 fill "$TPL/spec/tasks.md" "$DEST/tasks.md"
+# spec-delta nasce visível como pendência desde o scaffold (§10.4): o esqueleto de template
+# é substituído deterministicamente na fase verify (spec-delta-scaffold.mjs) e os payloads
+# são autorados no /forge:verify §2.5 — placeholders bloqueiam verified e o archive.
+# Só a partir de scale 1: em scale 0 não há artefato de requirements para derivar o delta,
+# e o esqueleto viraria bloqueio sem matéria-prima — o fluxo manual continua válido lá.
+[ "$SCALE" -ge 1 ] && fill "$TPL/spec/spec-delta.yaml" "$DEST/spec-delta.yaml"
 
 # ── manifest (doc §10.2) ──────────────────────────────────────────────────────
 cat > "$DEST/manifest.yaml" <<EOF

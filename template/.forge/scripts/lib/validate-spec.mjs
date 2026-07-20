@@ -202,12 +202,13 @@ if (has('spec-delta.yaml')) {
     if (!ops || !ops.length) errors.push('spec-delta.yaml: operations list missing/empty');
     else ops.forEach((o, i) => {
       const at = `spec-delta operations[${i}]`;
-      const OPS = ['add_requirement', 'modify_requirement', 'remove_requirement', 'add_contract'];
+      const OPS = ['add_requirement', 'modify_requirement', 'remove_requirement', 'add_contract', 'remove_capability'];
       if (!OPS.includes(o.op)) { errors.push(`${at}: op invalid: ${o.op}`); return; }
-      if (o.op !== 'add_contract' && (!o.capability || !o.requirement_id))
+      if (o.op !== 'add_contract' && o.op !== 'remove_capability' && (!o.capability || !o.requirement_id))
         errors.push(`${at}: capability/requirement_id missing`);
       if (o.op === 'remove_requirement' && !o.reason) errors.push(`${at}: remove requires reason`);
       if (o.op === 'add_contract' && (!o.contract_type || !o.path)) errors.push(`${at}: contract_type/path missing`);
+      if (o.op === 'remove_capability' && (!o.capability || !o.reason)) errors.push(`${at}: capability/reason missing`);
     });
   } catch (e) { errors.push(`spec-delta.yaml: ${e.message}`); }
 }

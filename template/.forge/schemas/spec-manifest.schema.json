@@ -89,7 +89,11 @@
       "properties": {
         "eligible": { "type": "boolean" },
         "reason": { "type": ["string", "null"] },
-        "kind": { "enum": ["baseline_update", "closed_without_baseline_update"] }
+        "kind": { "enum": ["baseline_update", "closed_without_baseline_update"] },
+        "baseline_delta": {
+          "enum": ["applied", "none"],
+          "description": "Whether /forge:archive applies a spec-delta.yaml to the baseline. 'none' sanctions a verified change (pure refactor) that does not alter the baseline: spec-delta.yaml must be absent. Omitted keeps current default behavior ('applied' — spec-delta.yaml required)."
+        }
       }
     }
   }

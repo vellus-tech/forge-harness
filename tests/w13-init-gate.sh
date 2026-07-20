@@ -66,4 +66,15 @@ out="$(git -C "$T2" -c user.name=fixture -c user.email=fixture@test commit -q -m
 git -C "$T2" log --oneline -1 >/dev/null
 echo "OK [6] (hooks ativos, commit passou pelo pre-commit)"
 
+echo "[7] brownfield: bloco Forge não duplica padrão já presente no .gitignore (issue #21)"
+T3="$(mktemp -d /tmp/forge-w13c.XXXXXX)"
+git -C "$T3" init -q -b main
+printf '.DS_Store\nnode_modules/\n' > "$T3/.gitignore"      # upstream já ignora .DS_Store
+"$WS/installer/install.sh" --target "$T3" --slug fixture-bf --name "Fixture BF" --desc "brownfield dedup" >/dev/null
+[ "$(grep -cxF '.DS_Store' "$T3/.gitignore")" -eq 1 ] || { echo "FAIL [7] (.DS_Store duplicado)"; grep -nF '.DS_Store' "$T3/.gitignore"; rm -rf "$T3"; exit 1; }
+grep -q '>>> forge (managed) >>>' "$T3/.gitignore"          # bloco Forge aplicado
+grep -qF '.forge/worktrees/' "$T3/.gitignore"               # padrão novo (ausente no upstream) entrou
+rm -rf "$T3"
+echo "OK [7] (dedup por padrão, bloco Forge idempotente)"
+
 echo "OK"

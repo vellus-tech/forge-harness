@@ -3,6 +3,8 @@
 #   [1] schema JSON válido e manifesto direto valida contra schema
 #   [2] proveniência Git registra metadados seguros sem diff bruto
 #   [3] spec-verify grava run-manifest no change ativo
+#   [4] gate declarado em runtime.gates (REQ-15/TASK-17, design.md §2.6) roda via spec-verify
+#       e aparece como check em verification.yaml
 set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -54,5 +56,22 @@ VRM="$(find "$T/.forge/specs/active/rm-evidence/evidence/runs" -name run-manifes
 node "$WS/tools/validate-yaml.mjs" "$WS/template/.forge/schemas/run-manifest.schema.json" "$VRM" >/dev/null
 node -e "const m=require('$VRM'); if (m.stage !== 'verify' || m.status !== 'passed') throw new Error('verify manifest mismatch')"
 echo "OK [3]"
+
+echo "[4] gate declarado em runtime.gates roda via spec-verify e aparece no verification.yaml"
+(cd "$T" && bash "$S/spec-new.sh" rm-gates --type feature --scale 0 >/dev/null
+          bash "$S/spec-transition.sh" rm-gates tasks-ready >/dev/null
+          bash "$S/spec-transition.sh" rm-gates implementing >/dev/null)
+perl -pi -e 's/^(\s*)- \[ \] /$1- [X] /' "$T/.forge/specs/active/rm-gates/tasks.md"
+(cd "$T" && bash "$S/spec-transition.sh" rm-gates implemented >/dev/null)
+# runtime.gates: CSV escalar numa única linha (nunca block-sequence — get_runtime/fm_field só
+# leem "key: value"); substitui a linha "  gates:" vazia herdada do template.
+perl -pi -e 's/^  gates:[ \t]*$/  gates: check-data-governance/' "$T/.forge/FORGE.md"
+grep -qE '^  gates: check-data-governance$' "$T/.forge/FORGE.md"
+FORGE_ROOT="$T" bash "$S/spec-verify.sh" rm-gates >/dev/null
+VY="$T/.forge/specs/active/rm-gates/verification.yaml"
+[ -f "$VY" ]
+grep -qE '^\s*- name: check-data-governance$' "$VY"
+grep -qE '^\s*status: passed$' "$VY"
+echo "OK [4]"
 
 echo "OK"

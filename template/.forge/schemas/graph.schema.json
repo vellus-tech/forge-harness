@@ -35,7 +35,8 @@
           "loc": { "type": "integer", "minimum": 0 },
           "fingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
           "layer": { "enum": ["api", "application", "domain", "infrastructure", "contracts", "test", "config", "unknown"] },
-          "summary": { "type": ["string", "null"] }
+          "summary": { "type": ["string", "null"] },
+          "roles": { "type": "array", "items": { "type": "string" } }
         }
       }
     },
@@ -51,6 +52,14 @@
           "kind": { "enum": ["import", "reference", "namespace"] },
           "resolved": { "type": "boolean" }
         }
+      }
+    },
+    "governance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "authz": { "type": "object" },
+        "observability": { "type": "object" }
       }
     }
   }

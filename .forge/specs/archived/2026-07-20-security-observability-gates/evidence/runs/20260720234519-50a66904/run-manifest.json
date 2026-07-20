@@ -1,0 +1,143 @@
+{
+  "schema": "run-manifest/v1",
+  "run_id": "20260720234519-50a66904",
+  "stage": "archive",
+  "status": "passed",
+  "started_at": "2026-07-20T23:45:18Z",
+  "finished_at": "2026-07-20T23:45:19.492Z",
+  "duration_ms": 1492,
+  "git": {
+    "repo": true,
+    "branch": "develop",
+    "head_sha": "8a3eb847a7a96832a7fe4309595da284f2131ad8",
+    "dirty": true,
+    "changed_files": [
+      ".forge/HANDOFF.md",
+      ".forge/contracts",
+      ".forge/ledger/",
+      ".forge/product/current/CHANGELOG.md",
+      ".forge/product/current/adr/0002-authz-observability-substrate.md",
+      ".forge/product/current/adr/README.md",
+      ".forge/product/current/capabilities/forge-harness-template/",
+      ".forge/specs/archived/2026-07-20-security-observability-gates/",
+      ".forge/specs/archived/index.yaml",
+      "CHANGELOG.md",
+      "template/.forge/FORGE.md",
+      "template/.forge/constitution.md",
+      "template/.forge/hooks/git/pre-push",
+      "template/.forge/rules/README.md",
+      "template/.forge/rules/architecture/authz-pdp-pep.md",
+      "template/.forge/rules/architecture/jwt-permissions.md",
+      "template/.forge/rules/architecture/observability.md",
+      "template/.forge/rules/architecture/pii-pci-classification.md",
+      "template/.forge/schemas/alerts-as-code.schema.json",
+      "template/.forge/schemas/authz-map.schema.json",
+      "template/.forge/schemas/data-classification.schema.json",
+      "template/.forge/schemas/forge.schema.json",
+      "template/.forge/schemas/graph.schema.json",
+      "template/.forge/schemas/spec-manifest.schema.json",
+      "template/.forge/scripts/check-authz.sh",
+      "template/.forge/scripts/check-observability.sh",
+      "template/.forge/scripts/lib/check-authz.mjs",
+      "template/.forge/scripts/lib/check-data-governance.mjs",
+      "template/.forge/scripts/lib/check-observability.mjs",
+      "template/.forge/scripts/lib/gate-mode.mjs",
+      "template/.forge/scripts/lib/graph-build.mjs",
+      "template/.forge/scripts/lib/graph-govern.mjs",
+      "template/.forge/scripts/lib/source-scan.mjs",
+      "template/.forge/scripts/lib/validate-spec.mjs",
+      "template/.forge/scripts/lib/yaml-lite.mjs",
+      "template/.forge/scripts/spec-verify.sh",
+      "template/.forge/templates/FORGE.md",
+      "template/.forge/templates/spec/requirements.md",
+      "tests/check-authz-gate.sh",
+      "tests/check-observability-gate.sh",
+      "tests/fixtures/authz/",
+      "tests/fixtures/data-governance/",
+      "tests/fixtures/governance-schemas/",
+      "tests/fixtures/observability/",
+      "tests/gate-mode-gate.sh",
+      "tests/graph-govern-gate.sh",
+      "tests/req12-pii-log-gate.sh",
+      "tests/req13-affects-surfaces-gate.sh",
+      "tests/w20-spec-gate.sh",
+      "tests/w30-schemas-gate.sh",
+      "tests/w41-graph-gate.sh",
+      "tests/w90-run-manifest-gate.sh",
+      "tests/yaml-lite-gate.sh"
+    ],
+    "diff_stat": ".forge/HANDOFF.md                                  |  12 +--\n .forge/product/current/CHANGELOG.md                |   6 ++\n .forge/product/current/adr/README.md               |   1 +\n .forge/specs/archived/index.yaml                   |   4 +\n CHANGELOG.md                                       |  14 +++\n template/.forge/FORGE.md                           |   1 +\n template/.forge/constitution.md                    |  11 +-\n template/.forge/hooks/git/pre-push                 |  21 ++++\n template/.forge/rules/README.md                    |   8 +-\n .../.forge/rules/architecture/jwt-permissions.md   |  15 ++-\n .../.forge/rules/architecture/observability.md     |  56 ++++++++++-\n template/.forge/schemas/forge.schema.json          |  23 ++++-\n template/.forge/schemas/graph.schema.json          |  11 +-\n template/.forge/schemas/spec-manifest.schema.json  |   5 +\n .../.forge/scripts/lib/check-data-governance.mjs   | 112 ++++++++++++++++-----\n template/.forge/scripts/lib/graph-build.mjs        |  60 ++++++++++-\n template/.forge/scripts/lib/validate-spec.mjs      |  40 ++++++++\n template/.forge/scripts/lib/yaml-lite.mjs          |  19 +++-\n template/.forge/scripts/spec-verify.sh             |  19 ++++\n template/.forge/templates/FORGE.md                 |   1 +\n template/.forge/templates/spec/requirements.md     |  41 ++++++++\n tests/w20-spec-gate.sh                             |  75 ++++++++++++++\n tests/w30-schemas-gate.sh                          |  16 +++\n tests/w41-graph-gate.sh                            |  61 +++++++++++\n tests/w90-run-manifest-gate.sh                     |  19 ++++\n 25 files changed, 605 insertions(+), 46 deletions(-)",
+    "diff_sha256": "4bab2cba457855d2226ea2cbdb1507672e494779d8748eb702c57f5f1d54d9df"
+  },
+  "inputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "82bacbaf65f17b27aedf1dd3e783fe7701ce1eb4c02b85153a414db80e55d82b",
+      "bytes": 977,
+      "kind": "file"
+    },
+    {
+      "path": "tasks.md",
+      "exists": true,
+      "sha256": "a10f9b05ff36efc030de1015540bf4e3b8095c0e92b6239479ddd9e6424c3b56",
+      "bytes": 9213,
+      "kind": "file"
+    },
+    {
+      "path": "verification.yaml",
+      "exists": true,
+      "sha256": "6895f1c8c0993d20834a6a2baa6f7ea9cc74c207e31f21ded3232c963dd088a2",
+      "bytes": 899,
+      "kind": "file"
+    },
+    {
+      "path": "spec-delta.yaml",
+      "exists": true,
+      "sha256": "ffee0e31ca0d19bdc3f0a411932d77913aac88e13bc5c0e5a0c336ce79be08a5",
+      "bytes": 16930,
+      "kind": "file"
+    },
+    {
+      "path": "impact.json",
+      "exists": false,
+      "sha256": null,
+      "bytes": null
+    }
+  ],
+  "commands": [
+    {
+      "name": "archive-spec",
+      "command": "archive-spec.sh security-observability-gates",
+      "status": "passed"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "82bacbaf65f17b27aedf1dd3e783fe7701ce1eb4c02b85153a414db80e55d82b",
+      "bytes": 977,
+      "kind": "file"
+    },
+    {
+      "path": "evidence/runs",
+      "exists": true,
+      "sha256": "a44c052eaacddbe1ea7d7b87716c7bf4a8197ee511d25445f0206ed976ac1844",
+      "bytes": null,
+      "kind": "directory"
+    }
+  ],
+  "runner": {
+    "name": "local",
+    "profile": "standard"
+  },
+  "budgets": {
+    "profile": "standard",
+    "budget_class": "medium",
+    "expected_runs": 1,
+    "estimated_timeout_s": 300,
+    "uses_llm": false,
+    "uses_subagent": false
+  }
+}

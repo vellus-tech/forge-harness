@@ -34,6 +34,11 @@
     },
     "affected_capabilities": { "type": "array", "items": { "type": "string" } },
     "affected_paths": { "type": "array", "items": { "type": "string" } },
+    "affects_surfaces": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Superfícies que o change toca (ex.: \"api\", \"data\") — gatilho declarativo de proporcionalidade (REQ-13/NFR-03) para as seções condicionais de requirements.md (§2.5). Opcional; ausente ⇒ change trivial ⇒ nenhuma seção adicional exigida."
+    },
     "dependencies": {
       "type": "object",
       "additionalProperties": false,

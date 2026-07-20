@@ -42,18 +42,20 @@ Antes de qualquer modificação, leia os rules das categorias aplicáveis à sua
 | [no-summary-files.md](./conventions/no-summary-files.md) | Proibição de arquivos de resumo | Baixa |
 | [diagram-tooling.md](./conventions/diagram-tooling.md) | Elaboração/manutenção de diagramas via draw.io MCP + fallback determinista | Média |
 
-### `architecture/` (12 arquivos)
+### `architecture/` (14 arquivos)
 
 | Arquivo | Descrição | Prioridade |
 |---|---|---|
 | [clean-architecture.md](./architecture/clean-architecture.md) | Camadas, dependências, anti-patterns | Alta |
 | [ddd.md](./architecture/ddd.md) | Entidades, value objects, agregados, eventos | Alta |
 | [api-and-contracts.md](./architecture/api-and-contracts.md) | Contract-first, versioning, error envelope | Alta |
-| [observability.md](./architecture/observability.md) | OTel, logs, métricas, traces | Alta |
+| [observability.md](./architecture/observability.md) | OTel, logs, métricas, traces, golden signals + alerts-as-code, stack OSS OTel Collector→Tempo/Loki/Prometheus/Grafana (Jaeger como alternativa compatível via OTLP) | Alta |
 | [security-and-secrets.md](./architecture/security-and-secrets.md) | Gerenciamento de secrets | Alta |
 | [security-and-compliance.md](./architecture/security-and-compliance.md) | LGPD, PCI DSS, vulnerabilidades | Alta |
+| [authz-pdp-pep.md](./architecture/authz-pdp-pep.md) | PDP/PEP, OPA/Rego (OpenFGA runner-up ReBAC), deny-by-default, fail-closed — decisão de referência ADR-0002 do harness; o projeto adotante ancora via `based_on` num ADR próprio | Alta |
+| [pii-pci-classification.md](./architecture/pii-pci-classification.md) | Classificação de dados como código, mascaramento em log, fronteira de tokenização, mapa controle→PCI DSS 4.0.1 (Req 3/4/7/8/10) — fronteira Req 7 (aqui) vs Req 8 (auth-service, fora de escopo) | Alta |
 | [jwt-authentication.md](./architecture/jwt-authentication.md) | JWT como mecanismo de auth | Média |
-| [jwt-permissions.md](./architecture/jwt-permissions.md) | Modelo de permissões em JWT | Média |
+| [jwt-permissions.md](./architecture/jwt-permissions.md) | Modelo de permissões em JWT — claims como insumo do PEP | Média |
 | [mtls-internal-services.md](./architecture/mtls-internal-services.md) | mTLS entre serviços internos | Média |
 | [internal-grpc-communication.md](./architecture/internal-grpc-communication.md) | gRPC por padrão na comunicação síncrona interna | Média |
 | [docker-image-security.md](./architecture/docker-image-security.md) | Hardening de imagens | Alta |

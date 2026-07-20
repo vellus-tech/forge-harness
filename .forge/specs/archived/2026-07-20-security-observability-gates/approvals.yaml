@@ -1,0 +1,43 @@
+approvals:
+  - gate: requirements_reviewed
+    decision: approve
+    autonomous: true
+    reason: "yolo-gate (opus): sem NEEDS CLARIFICATION; REQ-01..17 continua e toda testavel por fixture/script; proposal §2 integralmente coberta e §3 respeitado com fronteira harness×consumidor explicita; conflitos das 3 iteracoes (warn universal, rebaixavel×inegociavel, audit declarativo, ref audit-immutability) resolvidos."
+    decided_by: "forge-yolo (opus, high)"
+    decided_at: "2026-07-20T18:09:12-03:00"
+    iteration: 3
+    commit: "8a3eb84"
+    scope: "requirements.md"
+  - gate: design_reviewed
+    decision: approve
+    autonomous: true
+    reason: "yolo-gate (opus): amostragem adversarial confirmou todas as afirmacoes centrais sobre o codigo (yaml-lite sem strip de comentario, forge.schema additionalProperties false, pre-push sem loop, collect filtra .md, spec-verify linha 65); REQ-01..17+NFR cobertos em §7, contratos aditivos e riscos com deteccao, sem afirmacao falsa. Iteracoes 1-2 (forge.schema esquecido, parser×dialeto, pre-push, numero 13) corrigidas."
+    decided_by: "forge-yolo (opus, high)"
+    decided_at: "2026-07-20T18:31:43-03:00"
+    iteration: 2
+    commit: "8a3eb84"
+    scope: "design.md"
+  - gate: tasks_reviewed
+    decision: approve
+    autonomous: true
+    reason: "yolo-gate (opus): defeito da iteracao 1 (deps intra-wave) corrigido — 6 waves topologicas sem dep intra-wave, DoD explicito nas 18 tasks; rastreabilidade REQ-01..17+NFR correta apos renumeracao, cobertura de design completa, ADR (T05) antes das rules (T10/11)."
+    decided_by: "forge-yolo (opus, high)"
+    decided_at: "2026-07-20T18:38:24-03:00"
+    iteration: 2
+    commit: "8a3eb84"
+    scope: "tasks.md"
+  - gate: implementation_verified
+    decision: approve
+    autonomous: true
+    reason: "yolo-gate (opus): inegociaveis REQ-05 (check-authz.mjs:65-70) e REQ-12 (check-data-governance.mjs:110) provados sempre enforceable e bloqueando sob mode:warn (gates check-authz/req12/gate-mode rodados OK); REQ-16 modo warn correto; spec-delta sem scaffold, 17 ops coerentes; run-all 56/0. 4 desvios sao registro documentado, nao erro. Caveat FORGE.md-ausente do dogfood coberto por run-all + stage-contract OK."
+    decided_by: "forge-yolo (opus, high)"
+    decided_at: "2026-07-20T20:40:27-03:00"
+    commit: "8a3eb84"
+    scope: "verification.md"
+  - gate: human_archive_approval
+    decision: approve
+    reason: "Aprovado por Milton (gate humano §13.1). Dry-run OK: 17 add_requirement na capability forge-harness-template."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-07-20T20:45:18-03:00"
+    commit: "8a3eb84"
+    scope: "spec-delta.yaml"

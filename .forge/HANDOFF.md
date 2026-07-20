@@ -1,14 +1,14 @@
-# Handoff — add-portable-handoff
+# Handoff — security-observability-gates
 
 > Artefato de passagem de contexto entre sessões e entre code agents (Codex ↔ Claude Code ↔ …).
 > Gerado por `/forge:handoff` (ou pelo hook opt-in de sessão). Seções 1-3 e 5 são determinísticas
 > (montadas a partir do estado do change); a seção 4 é o único texto narrativo. **Não é fonte da
-> verdade** — o estado canônico vive em `.forge/specs/active/add-portable-handoff/`.
+> verdade** — o estado canônico vive em `.forge/specs/active/security-observability-gates/`.
 
 ## 1. Header
 
-- **Change:** `add-portable-handoff` · type `feature` · scale `3` · fase `implemented`
-- **Branch:** `feat/portable-handoff` · HEAD `7858850` (2026-07-09T09:04:00-03:00)
+- **Change:** `security-observability-gates` · type `feature` · scale `3` · fase `implementing`
+- **Branch:** `develop` · HEAD `8a3eb84` (2026-07-20T11:07:37-03:00)
 
 ## 2. Estado
 
@@ -58,7 +58,7 @@ de cada quando fizer sentido incorporá-los ao baseline.
 
 ## 5. Como retomar
 
-- **Claude Code:** rode `/forge:resume add-portable-handoff` (lê o estado + ingere esta seção 4).
+- **Claude Code:** rode `/forge:resume security-observability-gates` (lê o estado + ingere esta seção 4).
 - **Outro agente (Codex/Cursor/Gemini):** leia este arquivo inteiro; o estado detalhado está em
-  `.forge/specs/active/add-portable-handoff/` (`manifest.yaml`, `progress.json`, `deferrals.json`,
+  `.forge/specs/active/security-observability-gates/` (`manifest.yaml`, `progress.json`, `deferrals.json`,
   `tasks.md`). Siga as regras da seção 3.

@@ -1,0 +1,52 @@
+{
+  "entries": [
+    {
+      "id": "LDG-0001",
+      "type": "follow-up",
+      "title": "Runtime cross-repo da capability authz/observability (PEP libs Go/Kotlin/TS, repo de política OPA, wrappers OTel, authz-console UI)",
+      "detail": "",
+      "severity": null,
+      "priority": null,
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-07-20T11:07:37-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0001"
+    },
+    {
+      "id": "LDG-0002",
+      "type": "follow-up",
+      "title": "Piloto do gate authz/observability no axis-go-cloud (provar gate quebrando o build ao adicionar rota sem PEP)",
+      "detail": "",
+      "severity": null,
+      "priority": null,
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-07-20T11:07:37-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0002"
+    }
+  ]
+}

@@ -3,3 +3,7 @@ archived:
     archived_at: "2026-06-11"
     kind: baseline_update
     path: 2026-06-11-baseline-spec-lifecycle
+  - change_id: security-observability-gates
+    archived_at: "2026-07-20"
+    kind: baseline_update
+    path: 2026-07-20-security-observability-gates

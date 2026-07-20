@@ -78,30 +78,38 @@ function splitList(value) {
   return String(value).split(',').map((s) => s.trim()).filter(Boolean);
 }
 
-function walkFiles(root, rel, acc = []) {
-  const abs = join(root, rel);
+function walkFiles(absDir, rel = '', acc = []) {
+  const abs = rel ? join(absDir, rel) : absDir;
   if (!existsSync(abs)) return acc;
   const st = statSync(abs);
   if (st.isFile()) acc.push(rel);
   else if (st.isDirectory()) {
     for (const e of readdirSync(abs, { withFileTypes: true })) {
-      walkFiles(root, join(rel, e.name), acc);
+      walkFiles(absDir, rel ? join(rel, e.name) : e.name, acc);
     }
   }
   return acc;
 }
 
-function artifact(root, relPath) {
-  const normalized = relPath.replace(/^\.\//, '');
-  const abs = resolve(root, normalized);
+// Records inputs/outputs relative to `base` (the change/run dir the manifest itself lives
+// under — see baseDir/manifestPath), not relative to `root`. The manifest is always written
+// inside `base` (evidence/runs/<runId>/run-manifest.json), so when the whole `base` folder
+// moves atomically as one unit (e.g. archive-spec.sh moving specs/active/<id> to
+// specs/archived/<date>-<id>), a path recorded relative to `base` still resolves correctly
+// after the move — only paths anchored to `root` (which encode the now-stale specs/active/<id>
+// segment) would break. `root` is still used as the containment boundary: an input/output that
+// resolves outside the repo is recorded as missing rather than followed.
+function artifact(root, base, relPath) {
+  const normalized = String(relPath).replace(/^\.\//, '');
+  const abs = resolve(base, normalized);
   const inside = !relative(root, abs).startsWith('..');
   if (!inside) return { path: normalized, exists: false, sha256: null, bytes: null };
   if (!existsSync(abs)) return { path: normalized, exists: false, sha256: null, bytes: null };
   const st = statSync(abs);
   if (st.isDirectory()) {
-    const files = walkFiles(root, normalized).sort();
+    const files = walkFiles(abs).sort();
     const digest = createHash('sha256');
-    for (const f of files) digest.update(`${f}:${sha256File(join(root, f))}\n`);
+    for (const f of files) digest.update(`${f}:${sha256File(join(abs, f))}\n`);
     return { path: normalized, exists: true, sha256: digest.digest('hex'), bytes: null, kind: 'directory' };
   }
   return { path: normalized, exists: true, sha256: sha256File(abs), bytes: st.size, kind: 'file' };
@@ -167,7 +175,6 @@ function write(opts) {
   const finishedAt = opts.finished_at || new Date().toISOString();
   const durationMs = Math.max(0, Date.parse(finishedAt) - Date.parse(startedAt));
   const base = baseDir(root, opts);
-  const relFromBase = (p) => relative(root, resolve(base, p)).replace(/\\/g, '/');
   const manifest = {
     schema: 'run-manifest/v1',
     run_id: runId,
@@ -177,9 +184,9 @@ function write(opts) {
     finished_at: finishedAt,
     duration_ms: Number(opts.duration_ms || durationMs || 0),
     git: gitProvenance(root),
-    inputs: splitList(opts.inputs).map((p) => artifact(root, relFromBase(p))),
+    inputs: splitList(opts.inputs).map((p) => artifact(root, base, p)),
     commands: opts.commands.map(parseCommand),
-    outputs: splitList(opts.outputs).map((p) => artifact(root, relFromBase(p))),
+    outputs: splitList(opts.outputs).map((p) => artifact(root, base, p)),
     runner: {
       name: opts.runner || 'local',
       profile: opts.profile || 'standard',

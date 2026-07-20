@@ -77,6 +77,47 @@ node -e 'const d=require(process.argv[1]);const e=d.entries.find(x=>x.id==="LDG-
   || { echo "FAIL: LDG-0001 não foi resolved pelo archive"; exit 1; }
 echo "OK [1] (+ ledger_origin -> resolved)"
 
+echo "[1b] evidência do verify sobrevive ao move do archive (issue #22 §3)"
+# mk_verified roda spec-verify.sh ANTES do archive, gravando run-manifest/v1 com paths de
+# input/output enquanto o change ainda está em specs/active/<id>. O archive move a pasta
+# inteira para specs/archived/<data>-<id>/ — os paths gravados precisam sobreviver ao move
+# (i.e. não podem embutir o segmento specs/active/<id> que deixa de existir).
+ARCHIVED_DIR="$T/.forge/specs/archived/$TODAY-add-card-tokenization"
+VRM="$(find "$ARCHIVED_DIR/evidence/runs" -name run-manifest.json -exec grep -l '"stage": "verify"' {} \; | head -1)"
+[ -n "$VRM" ] && [ -f "$VRM" ]
+node -e '
+  const fs = require("fs");
+  const path = require("path");
+  const crypto = require("crypto");
+  const [, manifestPath, changeDir] = process.argv;
+  const m = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  const sha256File = (p) => crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex");
+  let failures = [];
+  for (const list of [m.inputs, m.outputs]) {
+    for (const a of list) {
+      // regra 1: o path gravado não pode carregar o segmento specs/active|archived/<id> que o
+      // archive move — senão ele não sobrevive ao move (a causa raiz do bug §3).
+      if (a.path.includes("specs/active/") || a.path.includes("specs/archived/")) {
+        failures.push(`path embeds a moved segment: ${a.path}`);
+        continue;
+      }
+      if (!a.exists) continue; // artefato ausente na origem (ex.: traceability.yaml) — nada a resolver
+      // regra 2: resolvido contra a pasta arquivada (o novo lar do change), o path deve apontar
+      // para um arquivo real.
+      const abs = path.resolve(changeDir, a.path);
+      if (!fs.existsSync(abs)) { failures.push(`path does not resolve after archive move: ${a.path} -> ${abs}`); continue; }
+      // regra 3: para artefatos que o archive não reescreve (manifest.yaml É reescrito no passo
+      // [5/6] — status/updated_at — antes do move; isso é uma mutação legítima do archive, não
+      // uma quebra de path), o hash gravado no verify deve bater byte a byte com o arquivo movido.
+      if (a.path === "manifest.yaml") continue;
+      const h = sha256File(abs);
+      if (h !== a.sha256) failures.push(`hash mismatch after move: ${a.path} recorded=${a.sha256} actual=${h}`);
+    }
+  }
+  if (failures.length) { console.log("FAIL:\n  " + failures.join("\n  ")); process.exit(1); }
+' "$VRM" "$ARCHIVED_DIR"
+echo "OK [1b]"
+
 echo "[2] archive com task aberta → FAIL claro"
 mk_verified chg-open
 cp "$T/.forge/specs/archived/$TODAY-add-card-tokenization/spec-delta.yaml" "$T/.forge/specs/active/chg-open/spec-delta.yaml" 2>/dev/null || cp /dev/null /dev/null

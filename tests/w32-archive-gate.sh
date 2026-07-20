@@ -9,6 +9,8 @@
 #   [4] modify = FULL REPLACEMENT (old scenarios gone) + patch bump
 #   [5] remove → requirement gone + history note + major bump
 #   [6] ingest-legacy preserves the original docs/product and refuses a second run
+#   [7] archive.baseline_delta: none (verified refactor, no spec-delta.yaml) — dry-run/apply
+#       skipped, baseline untouched, folder still moves and index/CHANGELOG still update
 set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -167,5 +169,26 @@ set -e
 [ "$rc" -eq 3 ]
 rm -rf "$T2"
 echo "OK [6]"
+
+echo "[7] archive.baseline_delta: none (refactor sem delta de baseline) → OK sem spec-delta.yaml, baseline intacto"
+mk_verified chg-no-delta
+CHG_DIR="$T/.forge/specs/active/chg-no-delta"
+[ ! -f "$CHG_DIR/spec-delta.yaml" ]   # scale 0 nunca gera spec-delta (nem scaffold) — pré-condição do cenário
+perl -pi -e "s/^archive:\$/archive:\n  baseline_delta: none/" "$CHG_DIR/manifest.yaml"
+grep -q '^  baseline_delta: none$' "$CHG_DIR/manifest.yaml"
+CAP_BEFORE="$(shasum -a 256 "$CAP" | awk '{print $1}')"
+out="$(FORGE_ROOT="$T" bash "$S/archive-spec.sh" chg-no-delta)"
+echo "$out" | grep -q '\[2/6\] delta dry-run: SKIP (baseline_delta: none)'
+echo "$out" | grep -q '\[3/6\] delta apply: SKIP (baseline_delta: none)'
+echo "$out" | grep -q 'no baseline delta'
+[ -d "$T/.forge/specs/archived/$TODAY-chg-no-delta" ]
+[ ! -e "$CHG_DIR" ]                   # change movido
+[ ! -f "$T/.forge/specs/archived/$TODAY-chg-no-delta/spec-delta.yaml" ]
+CAP_AFTER="$(shasum -a 256 "$CAP" | awk '{print $1}')"
+[ "$CAP_BEFORE" = "$CAP_AFTER" ]      # baseline não muda (nada aplicado)
+grep -q 'chg-no-delta' "$T/.forge/specs/archived/index.yaml"
+grep -q "## $TODAY — chg-no-delta" "$T/.forge/product/current/CHANGELOG.md"
+grep -qF -- '- **Capabilities:** — (refactor sem delta de baseline)' "$T/.forge/product/current/CHANGELOG.md"
+echo "OK [7]"
 
 echo "OK"

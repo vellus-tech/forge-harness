@@ -6,7 +6,9 @@
 //      specific conditions:
 //   2. status == verified
 //   3. spec-delta.yaml present + structurally valid + apply payloads present
-//      (add/modify ops carry the structured `requirement` for deterministic apply)
+//      (add/modify ops carry the structured `requirement` for deterministic apply);
+//      exception: manifest.archive.baseline_delta: none sanctions a verified change
+//      that does not alter the baseline — spec-delta.yaml must then be absent
 //   4. verification.yaml present (checks recorded; no failed check)
 //   5. approvals: manifest gates.human_archive_approval == true
 //   6. tasks 100% done
@@ -33,9 +35,18 @@ try { man = load('manifest.yaml'); } catch (e) { console.log(`FAIL (manifest.yam
 
 if (man.status !== 'verified') errors.push(`status must be verified (got: ${man.status}) — finish /forge:verify first`);
 
-// spec-delta with deterministic payloads
-if (!has('spec-delta.yaml')) errors.push('spec-delta.yaml missing (nothing to apply — §13.1)');
-else {
+// spec-delta with deterministic payloads. archive.baseline_delta: none (manifest.yaml) is the
+// sanctioned escape hatch for a verified change that does not touch the baseline (pure
+// refactor) — validate-spec already rejects a spec-delta.yaml with empty operations and
+// suggests removing the file, so its absence here must be a declared, legitimate path, not a
+// silent gap. Without the flag, behavior is unchanged: spec-delta.yaml is required.
+const baselineDeltaNone = !!(man.archive && man.archive.baseline_delta === 'none');
+if (!has('spec-delta.yaml')) {
+  if (!baselineDeltaNone)
+    errors.push('spec-delta.yaml missing (nothing to apply — §13.1; set archive.baseline_delta: none in manifest.yaml if this change does not alter the baseline)');
+} else if (baselineDeltaNone) {
+  errors.push('manifest declares baseline_delta: none but spec-delta.yaml exists — remove one');
+} else {
   // guard de scaffold: um esqueleto gerado (spec-delta-scaffold.mjs na fase verify) ou o
   // placeholder do template do spec-new nunca podem chegar ao baseline — o conteúdo passa
   // na validação estrutural, mas é texto de preenchimento, não spec.

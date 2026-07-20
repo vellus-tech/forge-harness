@@ -14,7 +14,7 @@
         "type": "object",
         "required": ["op"],
         "properties": {
-          "op": { "enum": ["add_requirement", "modify_requirement", "remove_requirement", "add_contract"] }
+          "op": { "enum": ["add_requirement", "modify_requirement", "remove_requirement", "add_contract", "remove_capability"] }
         },
         "allOf": [
           {
@@ -69,6 +69,19 @@
                 "path": { "type": "string" },
                 "capability": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
                 "requirement_id": { "type": "string", "pattern": "^REQ-[A-Z0-9]+-[0-9]+$" }
+              },
+              "additionalProperties": false
+            }
+          },
+          {
+            "if": { "properties": { "op": { "const": "remove_capability" } } },
+            "then": {
+              "required": ["capability", "reason"],
+              "properties": {
+                "op": true,
+                "capability": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+                "reason": { "type": "string", "minLength": 3 },
+                "force": { "type": "boolean" }
               },
               "additionalProperties": false
             }

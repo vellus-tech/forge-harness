@@ -4,15 +4,23 @@
 //   - loads target capabilities (creates new ones for add on missing capability)
 //   - applies ops IN MEMORY: add_requirement, modify_requirement (FULL
 //     REPLACEMENT of the requirement object — never a merge), remove_requirement
-//     (physical removal + history note), add_contract (appends to requirement)
+//     (physical removal + history note), add_contract (appends to requirement),
+//     remove_capability (physical removal of the whole capability directory —
+//     for empty/seed capabilities by default; requirements:[] is the safety
+//     rail, `force: true` is required to remove a capability that still has
+//     requirements, so a verified spec is never dropped by accident)
 //   - validates every resulting capability against the baseline-capability rules
 //   - --dry-run: prints the plan, writes NOTHING
 //   - apply: write-temp + atomic rename per capability + history append +
 //     semver bump (remove: major; add: minor; modify/contract: patch — the
-//     highest applicable bump wins, once per capability per archive)
+//     highest applicable bump wins, once per capability per archive);
+//     remove_capability has no surviving capability to version — it deletes the
+//     directory outright (recorded in the change's spec-delta.yaml, which the
+//     archive script folds into product/current/CHANGELOG.md — capability id +
+//     op count already, generically, for every op type)
 // Usage: delta-apply.mjs <change-dir> <forge-root> [--dry-run]
 // Output: one line per capability + final "OK ..." / "FAIL (...)".
-import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync, rmSync } from 'node:fs';
 import { join, resolve, basename } from 'node:path';
 import { parseYamlSubset, yamlQuote as q } from './yaml-lite.mjs';
 
@@ -48,6 +56,7 @@ function capOf(id) {
 const errors = [];
 const BUMP = { patch: 1, minor: 2, major: 3 };
 const summary = [];
+const removals = new Map(); // capId -> { reason, requirementCount }
 
 for (const [i, o] of ops.entries()) {
   const at = `operations[${i}]`;
@@ -85,10 +94,34 @@ for (const [i, o] of ops.entries()) {
     if (!req.contracts.includes(o.path)) req.contracts.push(o.path);
     cap.bump = Math.max(cap.bump, BUMP.patch);
     summary.push(`contract ${o.path} -> ${o.capability}/${o.requirement_id}`);
+  } else if (o.op === 'remove_capability') {
+    const capId = String(o.capability || '');
+    if (!/^[a-z0-9][a-z0-9-]*$/.test(capId)) { errors.push(`${at}: capability id invalid: ${o.capability}`); continue; }
+    if (!o.reason) { errors.push(`${at}: remove_capability requires reason`); continue; }
+    const capFile = join(CAPS, capId, 'spec.yaml');
+    if (!existsSync(capFile)) { errors.push(`${at}: capability ${capId} not found (nothing to remove)`); continue; }
+    let existing;
+    try { existing = parseYamlSubset(readFileSync(capFile, 'utf8')); }
+    catch (e) { errors.push(`${at}: capability ${capId} spec.yaml unreadable: ${e.message}`); continue; }
+    const reqCount = Array.isArray(existing.requirements) ? existing.requirements.length : 0;
+    // safety rail: only empty/seed capabilities (requirements: []) are removable by default —
+    // a capability that already carries verified requirements needs explicit `force: true`,
+    // so a spec is never dropped from the baseline by accident.
+    if (reqCount > 0 && o.force !== true) {
+      errors.push(`${at}: capability ${capId} has ${reqCount} requirement(s) — pass force: true to remove a non-empty capability`);
+      continue;
+    }
+    removals.set(capId, { reason: o.reason, requirementCount: reqCount });
+    summary.push(`remove capability ${capId}`);
   } else {
     errors.push(`${at}: op invalid: ${o.op}`);
   }
 }
+
+// a capability cannot be both modified/added-to and removed by the same delta —
+// the ops would contradict each other about whether the directory survives.
+for (const id of removals.keys())
+  if (caps.has(id)) errors.push(`operations: capability ${id} is both modified and removed in the same delta`);
 
 // ── validate resulting capabilities (mirror of baseline-capability.schema) ──
 const NORM = ['SHALL', 'SHALL NOT', 'SHOULD', 'SHOULD NOT', 'MAY'];
@@ -154,7 +187,7 @@ function capToYaml(d) {
 
 if (dryRun) {
   for (const s of summary) console.log(`  plan: ${s}`);
-  console.log(`OK dry-run (${caps.size} capability(ies) would change; nothing written)`);
+  console.log(`OK dry-run (${caps.size + removals.size} capability(ies) would change; nothing written)`);
   process.exit(0);
 }
 
@@ -166,4 +199,11 @@ for (const [id, cap] of caps) {
   renameSync(tmp, join(capDir, 'spec.yaml'));
   console.log(`  applied: ${id} v${cap.data.version}${cap.isNew ? ' (new)' : ''}`);
 }
-console.log(`OK applied (${caps.size} capability(ies))`);
+for (const [id, r] of removals) {
+  const capDir = join(CAPS, id);
+  // capDir is always CAPS/<id> with <id> pattern-validated above — recursive removal never
+  // reaches outside .forge/product/current/capabilities.
+  rmSync(capDir, { recursive: true, force: true });
+  console.log(`  removed: ${id} (${r.reason})`);
+}
+console.log(`OK applied (${caps.size + removals.size} capability(ies))`);

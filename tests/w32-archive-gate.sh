@@ -9,6 +9,13 @@
 #   [4] modify = FULL REPLACEMENT (old scenarios gone) + patch bump
 #   [5] remove → requirement gone + history note + major bump
 #   [6] ingest-legacy preserves the original docs/product and refuses a second run
+#   [7] archive.baseline_delta: none (verified refactor, no spec-delta.yaml) — dry-run/apply
+#       skipped, baseline untouched, folder still moves and index/CHANGELOG still update
+#   [8] remove_capability: seed capability (requirements: []) is removed whole
+#       (physical directory gone, dry-run plan + apply confirmation, CHANGELOG entry)
+#   [9] remove_capability of a capability that does not exist → FAIL clear message
+#   [10] remove_capability of a non-empty capability without force → FAIL clear
+#       message, nothing removed; with force: true → removed
 set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -69,6 +76,47 @@ node "$WS/tools/validate-yaml.mjs" "$WS/template/.forge/schemas/baseline-capabil
 node -e 'const d=require(process.argv[1]);const e=d.entries.find(x=>x.id==="LDG-0001");process.exit(e&&e.status==="resolved"?0:1)' "$T/.forge/ledger/ledger.json" \
   || { echo "FAIL: LDG-0001 não foi resolved pelo archive"; exit 1; }
 echo "OK [1] (+ ledger_origin -> resolved)"
+
+echo "[1b] evidência do verify sobrevive ao move do archive (issue #22 §3)"
+# mk_verified roda spec-verify.sh ANTES do archive, gravando run-manifest/v1 com paths de
+# input/output enquanto o change ainda está em specs/active/<id>. O archive move a pasta
+# inteira para specs/archived/<data>-<id>/ — os paths gravados precisam sobreviver ao move
+# (i.e. não podem embutir o segmento specs/active/<id> que deixa de existir).
+ARCHIVED_DIR="$T/.forge/specs/archived/$TODAY-add-card-tokenization"
+VRM="$(find "$ARCHIVED_DIR/evidence/runs" -name run-manifest.json -exec grep -l '"stage": "verify"' {} \; | head -1)"
+[ -n "$VRM" ] && [ -f "$VRM" ]
+node -e '
+  const fs = require("fs");
+  const path = require("path");
+  const crypto = require("crypto");
+  const [, manifestPath, changeDir] = process.argv;
+  const m = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  const sha256File = (p) => crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex");
+  let failures = [];
+  for (const list of [m.inputs, m.outputs]) {
+    for (const a of list) {
+      // regra 1: o path gravado não pode carregar o segmento specs/active|archived/<id> que o
+      // archive move — senão ele não sobrevive ao move (a causa raiz do bug §3).
+      if (a.path.includes("specs/active/") || a.path.includes("specs/archived/")) {
+        failures.push(`path embeds a moved segment: ${a.path}`);
+        continue;
+      }
+      if (!a.exists) continue; // artefato ausente na origem (ex.: traceability.yaml) — nada a resolver
+      // regra 2: resolvido contra a pasta arquivada (o novo lar do change), o path deve apontar
+      // para um arquivo real.
+      const abs = path.resolve(changeDir, a.path);
+      if (!fs.existsSync(abs)) { failures.push(`path does not resolve after archive move: ${a.path} -> ${abs}`); continue; }
+      // regra 3: para artefatos que o archive não reescreve (manifest.yaml É reescrito no passo
+      // [5/6] — status/updated_at — antes do move; isso é uma mutação legítima do archive, não
+      // uma quebra de path), o hash gravado no verify deve bater byte a byte com o arquivo movido.
+      if (a.path === "manifest.yaml") continue;
+      const h = sha256File(abs);
+      if (h !== a.sha256) failures.push(`hash mismatch after move: ${a.path} recorded=${a.sha256} actual=${h}`);
+    }
+  }
+  if (failures.length) { console.log("FAIL:\n  " + failures.join("\n  ")); process.exit(1); }
+' "$VRM" "$ARCHIVED_DIR"
+echo "OK [1b]"
 
 echo "[2] archive com task aberta → FAIL claro"
 mk_verified chg-open
@@ -167,5 +215,108 @@ set -e
 [ "$rc" -eq 3 ]
 rm -rf "$T2"
 echo "OK [6]"
+
+echo "[7] archive.baseline_delta: none (refactor sem delta de baseline) → OK sem spec-delta.yaml, baseline intacto"
+mk_verified chg-no-delta
+CHG_DIR="$T/.forge/specs/active/chg-no-delta"
+[ ! -f "$CHG_DIR/spec-delta.yaml" ]   # scale 0 nunca gera spec-delta (nem scaffold) — pré-condição do cenário
+perl -pi -e "s/^archive:\$/archive:\n  baseline_delta: none/" "$CHG_DIR/manifest.yaml"
+grep -q '^  baseline_delta: none$' "$CHG_DIR/manifest.yaml"
+CAP_BEFORE="$(shasum -a 256 "$CAP" | awk '{print $1}')"
+out="$(FORGE_ROOT="$T" bash "$S/archive-spec.sh" chg-no-delta)"
+echo "$out" | grep -q '\[2/6\] delta dry-run: SKIP (baseline_delta: none)'
+echo "$out" | grep -q '\[3/6\] delta apply: SKIP (baseline_delta: none)'
+echo "$out" | grep -q 'no baseline delta'
+[ -d "$T/.forge/specs/archived/$TODAY-chg-no-delta" ]
+[ ! -e "$CHG_DIR" ]                   # change movido
+[ ! -f "$T/.forge/specs/archived/$TODAY-chg-no-delta/spec-delta.yaml" ]
+CAP_AFTER="$(shasum -a 256 "$CAP" | awk '{print $1}')"
+[ "$CAP_BEFORE" = "$CAP_AFTER" ]      # baseline não muda (nada aplicado)
+grep -q 'chg-no-delta' "$T/.forge/specs/archived/index.yaml"
+grep -q "## $TODAY — chg-no-delta" "$T/.forge/product/current/CHANGELOG.md"
+grep -qF -- '- **Capabilities:** — (refactor sem delta de baseline)' "$T/.forge/product/current/CHANGELOG.md"
+echo "OK [7]"
+
+echo "[8] remove_capability — seed capability (requirements: []), sem force"
+CAPDIR_SEED="$T/.forge/product/current/capabilities/legacy-stub"
+mkdir -p "$CAPDIR_SEED"
+cat > "$CAPDIR_SEED/spec.yaml" <<'EOF'
+capability_id: legacy-stub
+version: 0.1.0
+status: current
+requirements: []
+history: []
+EOF
+mk_verified chg-remove-cap-seed
+cat > "$T/.forge/specs/active/chg-remove-cap-seed/spec-delta.yaml" <<'EOF'
+operations:
+  - op: remove_capability
+    capability: legacy-stub
+    reason: "seed capability-stub from baseline-extract; curated out, never verified"
+EOF
+out="$(FORGE_ROOT="$T" bash "$S/archive-spec.sh" chg-remove-cap-seed 2>&1)"
+echo "$out" | grep -q 'plan: remove capability legacy-stub'
+echo "$out" | grep -q 'removed: legacy-stub'
+[ ! -d "$CAPDIR_SEED" ]
+[ -d "$T/.forge/specs/archived/$TODAY-chg-remove-cap-seed" ]
+grep -q "## $TODAY — chg-remove-cap-seed" "$T/.forge/product/current/CHANGELOG.md"
+grep -q 'legacy-stub' "$T/.forge/product/current/CHANGELOG.md"
+echo "OK [8]"
+
+echo "[9] remove_capability — capability inexistente -> FAIL claro"
+mk_verified chg-remove-cap-missing
+cat > "$T/.forge/specs/active/chg-remove-cap-missing/spec-delta.yaml" <<'EOF'
+operations:
+  - op: remove_capability
+    capability: ghost-capability
+    reason: "does not exist — must fail loudly, not silently no-op"
+EOF
+set +e
+out="$(FORGE_ROOT="$T" bash "$S/archive-spec.sh" chg-remove-cap-missing 2>&1)"; rc=$?
+set -e
+[ "$rc" -ne 0 ]
+echo "$out" | grep -q 'ghost-capability'
+echo "$out" | grep -qi 'not found'
+[ -d "$T/.forge/specs/active/chg-remove-cap-missing" ]   # change não foi movido
+echo "OK [9]"
+
+echo "[10] remove_capability — com requirements sem force -> FAIL; com force: true -> remove"
+CAPDIR_REQ="$T/.forge/product/current/capabilities/with-reqs-cap"
+mkdir -p "$CAPDIR_REQ"
+cat > "$CAPDIR_REQ/spec.yaml" <<'EOF'
+capability_id: with-reqs-cap
+version: 1.0.0
+status: current
+requirements:
+  - id: REQ-WRC-001
+    title: Some verified requirement
+    normative: SHALL
+history: []
+EOF
+mk_verified chg-remove-cap-guarded
+cat > "$T/.forge/specs/active/chg-remove-cap-guarded/spec-delta.yaml" <<'EOF'
+operations:
+  - op: remove_capability
+    capability: with-reqs-cap
+    reason: "attempt without force — must be rejected"
+EOF
+set +e
+out="$(FORGE_ROOT="$T" bash "$S/archive-spec.sh" chg-remove-cap-guarded 2>&1)"; rc=$?
+set -e
+[ "$rc" -ne 0 ]
+echo "$out" | grep -q 'force: true'
+[ -d "$CAPDIR_REQ" ]   # nada removido — o guard-rail bloqueou antes de escrever
+
+mk_verified chg-remove-cap-forced
+cat > "$T/.forge/specs/active/chg-remove-cap-forced/spec-delta.yaml" <<'EOF'
+operations:
+  - op: remove_capability
+    capability: with-reqs-cap
+    reason: "curation decision — superseded, explicit force required and given"
+    force: true
+EOF
+FORGE_ROOT="$T" bash "$S/archive-spec.sh" chg-remove-cap-forced >/dev/null
+[ ! -d "$CAPDIR_REQ" ]
+echo "OK [10]"
 
 echo "OK"

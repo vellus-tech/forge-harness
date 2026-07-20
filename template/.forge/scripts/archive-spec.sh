@@ -2,8 +2,10 @@
 # forge archive (§13.2, W3.2) — incorporates a VERIFIED change into the baseline
 # and moves the folder to history:
 #   1. pre-flight §13.1 (validate-archive: §19.2 spec rules + archive conditions)
-#   2. delta dry-run (in memory; resulting baseline validated; nothing written)
-#   3. delta apply (write-temp + atomic rename per capability)
+#   2. delta dry-run (in memory; resulting baseline validated; nothing written) —
+#      skipped when manifest.archive.baseline_delta: none (verified refactor, no
+#      spec-delta.yaml; sanctioned by the pre-flight in step 1)
+#   3. delta apply (write-temp + atomic rename per capability) — skipped for the same reason
 #   4. aggregated PRD/FRD/NFRD/TRD/DDD views: skipped in v1 (note printed)
 #   5. archive metadata in the manifest (status archived, kind baseline_update)
 #   6. move to .forge/specs/archived/YYYY-MM-DD-<id>/
@@ -41,11 +43,21 @@ fi
 echo "[1/6] pre-flight (§13.1)"
 FORGE_ROOT="$ROOT" bash "$SCRIPT_DIR/validate-archive.sh" --path "$DIR" || exit 1
 
-echo "[2/6] delta dry-run"
-node "$SCRIPT_DIR/lib/delta-apply.mjs" "$DIR" "$ROOT" --dry-run || exit 1
+# spec-delta.yaml legitimately absent (manifest.archive.baseline_delta: none, already
+# validated in the pre-flight [1/6]): a verified pure refactor has nothing to dry-run or
+# apply — skip both delta-apply.mjs passes instead of failing on a missing file.
+if [ -f "$DIR/spec-delta.yaml" ]; then
+  HAS_DELTA=1
+  echo "[2/6] delta dry-run"
+  node "$SCRIPT_DIR/lib/delta-apply.mjs" "$DIR" "$ROOT" --dry-run || exit 1
 
-echo "[3/6] delta apply"
-node "$SCRIPT_DIR/lib/delta-apply.mjs" "$DIR" "$ROOT" || exit 1
+  echo "[3/6] delta apply"
+  node "$SCRIPT_DIR/lib/delta-apply.mjs" "$DIR" "$ROOT" || exit 1
+else
+  HAS_DELTA=0
+  echo "[2/6] delta dry-run: SKIP (baseline_delta: none)"
+  echo "[3/6] delta apply: SKIP (baseline_delta: none)"
+fi
 
 echo "[4/6] aggregated views: skipped (v1 — capabilities are the primary merge; PRD/FRD/TRD/DDD aggregation arrives with real content)"
 
@@ -55,7 +67,11 @@ MAN="$DIR/manifest.yaml"
 perl -pi -e "s/^status: .*/status: archived/; s/^updated_at: .*/updated_at: \"$TODAY\"/" "$MAN"
 grep -q '^  kind: ' "$MAN" || perl -pi -e "s/^archive:$/archive:\n  kind: baseline_update/" "$MAN"
 perl -pi -e 's/^  eligible: .*/  eligible: true/' "$MAN"
-perl -pi -e "s/^  reason: .*/  reason: \"deltas applied to baseline on $TODAY\"/" "$MAN"
+if [ "$HAS_DELTA" -eq 1 ]; then
+  perl -pi -e "s/^  reason: .*/  reason: \"deltas applied to baseline on $TODAY\"/" "$MAN"
+else
+  perl -pi -e "s/^  reason: .*/  reason: \"verified refactor, no baseline delta ($TODAY)\"/" "$MAN"
+fi
 echo "[5.5/6] ledger harvest (deferrals/findings -> ledger durável, não-bloqueante)"
 # Antes de mover a pasta (o dado do change morre), colhe deferrals open/wont-fix + findings
 # MEDIUM/LOW do analysis.md + desvios do verification.md para .forge/ledger/. Idempotente
@@ -86,13 +102,23 @@ INDEX="$ROOT/.forge/specs/archived/index.yaml"
 
 CHG="$ROOT/.forge/product/current/CHANGELOG.md"
 [ -f "$CHG" ] || printf '# Product Baseline — CHANGELOG\n\n> One entry per archived change (newest first). Maintained by `/forge:archive` — do not edit by hand.\n' > "$CHG"
-CAPS_TOUCHED="$(awk -F': ' '$1~/^ *capability$/{print $2}' "$DEST/spec-delta.yaml" 2>/dev/null | sort -u | tr '\n' ' ' | sed 's/ $//')"
-OPS_COUNT="$(grep -c '^  - op: ' "$DEST/spec-delta.yaml" 2>/dev/null || echo 0)"
+# pipefail-safe: spec-delta.yaml is legitimately absent for a baseline_delta: none archive
+# (steps [2/6]/[3/6] skipped above) — awk/grep on a missing file would abort the script under
+# set -euo pipefail, so short-circuit on HAS_DELTA instead of computing over a nonexistent file.
+if [ "$HAS_DELTA" -eq 1 ]; then
+  CAPS_TOUCHED="$(awk -F': ' '$1~/^ *capability$/{print $2}' "$DEST/spec-delta.yaml" | sort -u | tr '\n' ' ' | sed 's/ $//')"
+  OPS_COUNT="$(grep -c '^  - op: ' "$DEST/spec-delta.yaml" || echo 0)"
+  CAPS_LABEL="${CAPS_TOUCHED:-—}"
+else
+  CAPS_TOUCHED=""
+  OPS_COUNT=0
+  CAPS_LABEL="— (refactor sem delta de baseline)"
+fi
 TMP="$(mktemp)"
 {
   head -3 "$CHG"
   printf '\n## %s — %s\n\n- **Capabilities:** %s\n- **Operações:** %s\n- **Pasta:** `.forge/specs/archived/%s-%s/`\n' \
-    "$TODAY" "$ID" "${CAPS_TOUCHED:-—}" "$OPS_COUNT" "$TODAY" "$ID"
+    "$TODAY" "$ID" "$CAPS_LABEL" "$OPS_COUNT" "$TODAY" "$ID"
   tail -n +4 "$CHG"
 } > "$TMP" && mv "$TMP" "$CHG"
 
@@ -126,4 +152,8 @@ if ! contract_out="$(bash "$SCRIPT_DIR/validate-stage-contract.sh" check --stage
   echo "WARN (stage contract incomplete post-archive: $contract_out)"
 fi
 
-echo "OK $ID archived -> .forge/specs/archived/$TODAY-$ID (baseline updated)"
+if [ "$HAS_DELTA" -eq 1 ]; then
+  echo "OK $ID archived -> .forge/specs/archived/$TODAY-$ID (baseline updated)"
+else
+  echo "OK $ID archived -> .forge/specs/archived/$TODAY-$ID (no baseline delta — verified refactor)"
+fi

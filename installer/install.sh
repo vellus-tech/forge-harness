@@ -72,11 +72,28 @@ SLUG="$SLUG" NAME="$NAME" DESC="$DESC" find "$TARGET/.forge" -type f \( -name '*
 orphans=$(grep -rl '<PROJECT_[A-Z_]*>' "$TARGET/.forge" 2>/dev/null | grep -v '/templates/' | wc -l | tr -d ' ' || true)
 [ "$orphans" -eq 0 ] || { echo "FAIL ($orphans files still carry <PROJECT_*> placeholders)"; exit 1; }
 
-# 4. gitignore patch (idempotent via markers)
+# 4. gitignore patch (idempotent via markers + dedup por padrão)
+# Só acrescenta padrões ainda AUSENTES no alvo: um repo brownfield que já lista .DS_Store
+# (ou qualquer padrão do bloco) não deve ganhar entrada duplicada. Comentários, marcadores e
+# linhas em branco do bloco são preservados; linhas de padrão já presentes verbatim são omitidas.
 GI="$TARGET/.gitignore"
 if ! grep -q '# >>> forge (managed) >>>' "$GI" 2>/dev/null; then
-  cat "$SCRIPT_DIR/gitignore.patch" >> "$GI"
-  echo "gitignore: forge block appended"
+  touch "$GI"
+  EXISTING="$(mktemp)"; BLOCK="$(mktemp)"
+  grep -v '^[[:space:]]*#' "$GI" | sed 's/[[:space:]]*$//' | grep -v '^[[:space:]]*$' | sort -u > "$EXISTING" || true
+  while IFS= read -r line || [ -n "$line" ]; do
+    trimmed="${line%"${line##*[![:space:]]}"}"   # rstrip
+    if printf '%s' "$trimmed" | grep -qE '^[[:space:]]*(#|$)'; then
+      printf '%s\n' "$line" >> "$BLOCK"           # comentário/marcador/branco: preserva
+    elif grep -qxF "$trimmed" "$EXISTING"; then
+      :                                            # padrão já existe no alvo: pula (dedup)
+    else
+      printf '%s\n' "$line" >> "$BLOCK"
+    fi
+  done < "$SCRIPT_DIR/gitignore.patch"
+  cat "$BLOCK" >> "$GI"
+  rm -f "$EXISTING" "$BLOCK"
+  echo "gitignore: forge block appended (dedup)"
 fi
 
 # 5. git hooks path (only when target is a git repo) — never overwrite a custom, non-Forge

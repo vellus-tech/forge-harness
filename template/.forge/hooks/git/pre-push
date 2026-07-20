@@ -30,9 +30,25 @@ fm_field() {  # fm_field <key> — value of "  <key>:" inside the runtime: block
   ' "$FORGE_MD"
 }
 
+gate_deps_ready() {  # gate_deps_ready <cmd> — false quando o gate depende de deps Node ainda não instaladas
+  # Um gate JS (pnpm/npm/npx/yarn) num clone recém-feito falha porque `node_modules` não existe —
+  # isso não é um erro de código, é infra ausente (§20.4). Degradar com elegância: avisar + pular,
+  # deixando o typecheck pesado para /forge:verify. Toolchains não-JS seguem inalterados.
+  case "$1" in
+    *pnpm*|*npm*|*npx*|*yarn*)
+      [ -d "$ROOT/node_modules" ] && return 0
+      return 1 ;;
+  esac
+  return 0
+}
+
 run_check() {  # run_check <label> <cmd>
   local label="$1" cmd="$2" log
   [ -n "$cmd" ] || { echo "pre-push: $label não definido — skip"; return 0; }
+  if ! gate_deps_ready "$cmd"; then
+    echo "pre-push: $label PULADO — node_modules/ ausente (rode 'pnpm install' ou deixe para /forge:verify)"
+    return 0
+  fi
   # NB: o template do mktemp precisa TERMINAR nos X (BSD/macOS falha com sufixo após o X, ex.:
   # `-XXXXXX.log`). Sem sufixo de extensão — é um arquivo de log temporário efêmero.
   log="$(mktemp "${TMPDIR:-/tmp}/forge-prepush-XXXXXX")"

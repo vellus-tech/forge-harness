@@ -17,7 +17,11 @@
 6. **Financial correctness** (when the domain applies): money as integer cents, NBR 5891 rounding,
    append-only audit. Regulated flows (PCI DSS, fintech) require explicit human approval at
    archive time.
-7. **Security by default.** No secrets in code, repos or images; least privilege; auditability.
+7. **Security by default.** No secrets in code, repos or images; least privilege; auditability;
+   security by default. Projects that opt into the `authz` and `pii-pci` rule packs (see
+   `rules/architecture/authz-pdp-pep.md` and `rules/architecture/pii-pci-classification.md`) inherit
+   their specific clauses — PDP, deny-by-default, fail-closed, no PII/PAN in logs — as binding
+   contracts in the project's local constitution; these are not universal invariants of the harness.
 8. **Human commits only.** No AI co-authorship trailers in commits or PRs. Conventional Commits.
 9. **Decisions are recorded.** Architectural decisions become ADRs; human gate decisions are
    recorded with author, timestamp and reason in `approvals.yaml`.

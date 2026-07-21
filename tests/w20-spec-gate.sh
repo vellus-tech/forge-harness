@@ -72,6 +72,16 @@ corrupt 's/^  enabled: false$/  enabled: true/' 'quick_plan'
 corrupt 's/^id: feat-x$/id: outro-id/' 'folder name'
 echo "OK [4]"
 
+echo "[4b] affects_surfaces (REQ-13/NFR-03/§2.5): manifest com e sem o campo validam"
+d="$T/.forge/specs/active/feat-x"
+[ "$(cd "$T" && bash "$VALIDATE" feat-x)" = "OK feat-x" ] || { echo "esperava OK sem affects_surfaces"; exit 1; }
+cp "$d/manifest.yaml" "$d/manifest.yaml.bak"
+printf 'affects_surfaces:\n  - api\n  - data\n' >> "$d/manifest.yaml"
+out="$(cd "$T" && bash "$VALIDATE" feat-x)"
+mv "$d/manifest.yaml.bak" "$d/manifest.yaml"
+[ "$out" = "OK feat-x" ] || { echo "esperava OK com affects_surfaces: [api, data] — obteve: $out"; exit 1; }
+echo "OK [4b]"
+
 echo "[5] paridade ajv (workspace)"
 node "$WS/tools/validate-forge.mjs" >/dev/null
 echo "OK [5]"
@@ -79,5 +89,70 @@ echo "OK [5]"
 echo "[6] dogfooding valida"
 bash "$WS/template/.forge/scripts/validate-spec.sh" --path "$WS/.forge/specs/active/create-forge-project-harness" >/dev/null
 echo "OK [6]"
+
+echo "[7] FORGE.md com blocos authz:/observability: + gates: em runtime: valida contra forgeFrontmatter (REQ-11/§2.3/§4)"
+cat > "$T/fm-governance.yaml" <<'EOF'
+forge_version: 1
+project:
+  name: acme
+  display: Acme
+sdd:
+  default_mode: brownfield
+  default_rigor: spec-anchored
+  default_scale: 2
+  archive_policy: after_verified_implementation
+  human_gate_required: true
+runtime:
+  primary_stack:
+  package_manager:
+  run:
+  test:
+  typecheck:
+  lint:
+  gates: check-authz,check-observability,check-data-governance
+authz:
+  pep_paths:
+    - services/*/internal/authz
+    - packages/pep
+  policy_dir: policy
+  allowlist:
+    - services/health
+    - services/metrics
+  mode: warn
+  policy_coverage_threshold: 0.8
+observability:
+  wrapper_paths:
+    - packages/otel
+    - services/*/observability
+  allowlist:
+    - services/health
+  mode: warn
+integrations:
+  jira:
+  github:
+  graph:
+    enabled: true
+    path: .forge/graph/graph.json
+quality:
+  evals_enabled: false
+  runners_config: .forge/runners.yaml
+EOF
+(cd "$WS" && node -e '
+const { readFileSync } = require("node:fs");
+const { parse } = require("yaml");
+const Ajv2020 = require("ajv/dist/2020.js");
+const [schemaPath, dataPath] = process.argv.slice(1);
+const core = JSON.parse(readFileSync(schemaPath, "utf8"));
+const data = parse(readFileSync(dataPath, "utf8"));
+const schema = { ...core.$defs.forgeFrontmatter, $defs: { nullableString: core.$defs.nullableString } };
+const ajv = new Ajv2020.default({ allErrors: true, strict: true, allowUnionTypes: true });
+const validate = ajv.compile(schema);
+if (!validate(data)) {
+  console.error(JSON.stringify(validate.errors, null, 2));
+  process.exit(1);
+}
+console.log("OK forgeFrontmatter + authz/observability/gates");
+' "$WS/template/.forge/schemas/forge.schema.json" "$T/fm-governance.yaml") >/dev/null
+echo "OK [7]"
 
 echo "OK"

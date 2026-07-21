@@ -1,0 +1,15 @@
+{
+  "schema": "graph/v0",
+  "nodes": [
+    { "id": "services/orders/api/handler.go", "layer": "api" },
+    { "id": "services/orders/api/refund.go", "layer": "api" }
+  ],
+  "edges": [],
+  "governance": {
+    "observability": {
+      "wrapper_paths": ["packages/otel"],
+      "allowlist": [],
+      "mode": "enforce"
+    }
+  }
+}

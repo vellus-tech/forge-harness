@@ -21,6 +21,7 @@ runtime:
   test:
   typecheck:
   lint:
+  gates:
 integrations:
   jira:
   github:

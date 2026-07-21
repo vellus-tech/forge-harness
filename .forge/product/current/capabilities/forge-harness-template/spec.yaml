@@ -1,0 +1,197 @@
+capability_id: forge-harness-template
+version: 0.1.0
+status: current
+requirements:
+  - id: REQ-FHT-001
+    title: "Invariantes de segurança e observabilidade na constitution"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-001-A
+        given: "o item 7 (Security by default) da constitution.md mantém apenas o princípio universal (no secrets, least privilege, auditability, security by default) e substitui as cinco cláusulas específicas por uma remissão aos rule-packs opt-in authz e pii-pci, que carregam PDP, deny-by-default/fail-closed e zero PII/PAN em log via authz-pdp-pep.md e pii-pci-classification.md (marcadas pack/opt_in: true no frontmatter)"
+        when: "validate-rules.sh roda após a emenda"
+        then: "retorna sem acusar drift (rules ancoradas/não ancoradas inalteradas) e a constitution não afirma mais as cláusulas específicas como invariantes universais do harness — elas só valem como contrato obrigatório nos projetos que ativam os packs authz/pii-pci, na constitution local do projeto"
+    tests:
+      - template/.forge/scripts/validate-rules.sh
+  - id: REQ-FHT-002
+    title: "Rule-pack authz-pdp-pep"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-002-A
+        given: "a rule rules/architecture/authz-pdp-pep.md existe com frontmatter padrão e based_on: [] (convenção G3), o padrão PDP/PEP, OPA/Rego recomendado (OpenFGA runner-up ReBAC), deny-by-default/fail-closed e a nota de que claims JWT são insumo, nunca decisão"
+        when: "validate-rules.sh roda e rules/README.md é conferido"
+        then: "validate-rules.sh não acusa drift, a rule está indexada em rules/README.md, e jwt-permissions.md foi atualizada para deixar claro que claims são insumo do PEP"
+    tests:
+      - template/.forge/scripts/validate-rules.sh
+  - id: REQ-FHT-003
+    title: "Rule-pack pii-pci-classification"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-003-A
+        given: "a rule rules/architecture/pii-pci-classification.md existe com o mapa controle→PCI DSS 4.0.1 (Req 3/4/7/8/10), a fronteira explícita Req 7 (nesta capability) vs Req 8 (auth-service), e referência a domain/audit-immutability.md"
+        when: "validate-rules.sh roda e rules/README.md é conferido"
+        then: "validate-rules.sh não acusa drift e a rule está indexada em rules/README.md com a fronteira Req 7/Req 8 documentada em prosa"
+    tests:
+      - template/.forge/scripts/validate-rules.sh
+  - id: REQ-FHT-004
+    title: "Extensão da rule de observabilidade (inclui alerts-as-code)"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-004-A
+        given: "rules/architecture/observability.md estendida com a seção \\\"Golden Signals e Alerts-as-Code\\\" (alertas como código versionado, schema alerts-as-code) e a stack OSS OTel Collector→Tempo/Loki/Prometheus/Grafana (Jaeger como alternativa compatível via OTLP)"
+        when: "validate-rules.sh roda sobre a rule estendida"
+        then: "não acusa drift e não há regressão nas seções pré-existentes (Correlation ID, Métricas, Logs, Traces, Audit Trail)"
+    tests:
+      - template/.forge/scripts/validate-rules.sh
+  - id: REQ-FHT-005
+    title: "Gate check-authz: deny-by-default"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-005-A
+        given: "um arquivo .rego sem \\\"default allow := false\\\", ou contendo \\\"default allow := true\\\", ou com \\\"allow\\\" incondicional"
+        when: "check-authz.sh roda sobre o diretório da política, mesmo com mode:warn declarado em governance.authz"
+        then: "sai CONFLICT nomeando o arquivo com exit≠0 (achado sempre enforceable:true, ignora o mode); um pacote deny-by-default correto aprova (OK check-authz, exit 0)"
+    tests:
+      - tests/check-authz-gate.sh
+  - id: REQ-FHT-006
+    title: "Gate check-authz: nenhuma decisão imperativa fora do PEP"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-006-A
+        given: "código Go/Kotlin/TS com hasRole(...)/user.role==.../claims[\\\"permissions\\\"]/decorator de role (@RolesAllowed etc.) fora do(s) pep_paths declarado(s) em governance.authz"
+        when: "check-authz.sh roda em mode:enforce"
+        then: "sai CONFLICT nomeando o arquivo e o anti-padrão; em mode:warn a mesma ocorrência vira WARN sem bloquear (exit 0); a mesma ocorrência dentro do diretório do PEP declarado passa (OK check-authz)"
+    tests:
+      - tests/check-authz-gate.sh
+  - id: REQ-FHT-007
+    title: "Gate check-authz: cobertura de teste de política"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-007-A
+        given: "authz.policy_coverage_threshold declarado no graph.json e um relatório --coverage-report com coverage abaixo do threshold"
+        when: "check-authz.sh roda com --coverage-report apontando para o relatório"
+        then: "sai CONFLICT indicando cobertura×threshold (ex.: 0.42 < 0.9); sem policy_coverage_threshold declarado, o mesmo relatório não gera finding (no-op, sem falso-positivo)"
+    tests:
+      - tests/check-authz-gate.sh
+  - id: REQ-FHT-008
+    title: "Gate de grafo: rota sem caminho ao PEP"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-008-A
+        given: "um graph.json com node layer:api fora da allowlist sem edge resolved:true (direto ou transitivo) até um node roles:[\\\"pep\\\"]"
+        when: "check-authz.sh roda (delega a graph-govern.mjs:checkRole)"
+        then: "sai CONFLICT nomeando o node da rota em mode:enforce e WARN em mode:warn; uma rota presente na allowlist é isenta mesmo sem caminho ao PEP"
+    tests:
+      - tests/check-authz-gate.sh
+      - tests/graph-govern-gate.sh
+  - id: REQ-FHT-009
+    title: "Gate check-observability: boundary não instrumentado e logger cru"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-009-A
+        given: "um node layer:api sem edge resolved até um node roles:[\\\"otel-wrapper\\\"] declarado (REQ-09a), e/ou uso de fmt.Println/console.log/print( em código de serviço fora do wrapper_paths declarado (REQ-09b)"
+        when: "check-observability.sh roda"
+        then: "sai CONFLICT nomeando o boundary sem caminho ao wrapper (REQ-09a) e/ou o arquivo com logger cru citando a chamada crua (REQ-09b) em mode:enforce; com o wrapper alcançável e logger estruturado, os dois sub-checks passam sem finding"
+    tests:
+      - tests/check-observability-gate.sh
+      - tests/graph-govern-gate.sh
+  - id: REQ-FHT-010
+    title: "Gate check-observability: alerts-as-code por serviço"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-010-A
+        given: "um serviço com boundary declarado (node layer:api fora da allowlist de governance.observability) sem nenhum artefato .json que valide contra alerts-as-code.schema.json com o campo service correspondente"
+        when: "check-observability.sh roda"
+        then: "sai CONFLICT nomeando o serviço (ex.: \\\"services/orders\\\") sem artefato alerts-as-code válido; com um artefato válido cobrindo o mesmo service, o sub-check passa sem finding"
+    contracts:
+      - template/.forge/schemas/alerts-as-code.schema.json
+    tests:
+      - tests/check-observability-gate.sh
+  - id: REQ-FHT-011
+    title: "Blocos declarativos authz/observability no FORGE.md + extensão do code-graph"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-011-A
+        given: "o frontmatter do FORGE.md declara os blocos authz: (pep_paths, allowlist, mode, policy_coverage_threshold) e observability: (wrapper_paths, allowlist, mode), em block-sequence, com ou sem comentário final de linha"
+        when: "graph-build.mjs constrói o graph.json a partir do FORGE.md"
+        then: "os nodes cujo id casa um glob de pep_paths/wrapper_paths ganham roles:[\\\"pep\\\"]/roles:[\\\"otel-wrapper\\\"], o graph.json emite governance.authz/governance.observability, e o FORGE.md valida contra forge.schema.json (authz/observability como objetos opcionais, runtime.gates como string opcional); ausência dos blocos ⇒ governance ausente no graph.json ⇒ REQ-06/07/08/09/10 em no-op"
+    contracts:
+      - template/.forge/schemas/graph.schema.json
+      - template/.forge/schemas/forge.schema.json
+    tests:
+      - tests/w20-spec-gate.sh
+      - tests/w41-graph-gate.sh
+      - tests/yaml-lite-gate.sh
+  - id: REQ-FHT-012
+    title: "Extensão do check-data-governance: PII/PAN em log e classificação obrigatória"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-012-A
+        given: "código com PAN (13-19 dígitos)/CPF/e-mail dentro de uma chamada log.*(...)/logger.*(...) sem mascaramento (REQ-12a), ou um campo marcado // forge:sensitive-field=\\\"x\\\" sem entrada correspondente em data-classification.json (REQ-12b)"
+        when: "check-data-governance.mjs roda sobre o código, mesmo sem nenhum bloco de mode declarado no FORGE.md"
+        then: "sai CONFLICT nomeando o arquivo:linha e citando REQ-12a/REQ-12b (achado sempre enforceable:true, nunca rebaixável); o mesmo dado mascarado ou o campo com classificação correspondente aprova (OK data-governance), e gw3-data-governance-gate.sh [1]-[8] permanece verde (retrocompat .md, NFR-04)"
+    contracts:
+      - template/.forge/schemas/data-classification.schema.json
+    tests:
+      - tests/req12-pii-log-gate.sh
+      - tests/gw3-data-governance-gate.sh
+  - id: REQ-FHT-013
+    title: "Seções obrigatórias no template de requirements/NFRD"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-013-A
+        given: "um change cujo manifest.yaml declara affects_surfaces: [api] e o requirements.md ainda tem os placeholders vazios do mapa endpoint→ação→recurso→policy e do mapa de eventos auditáveis"
+        when: "validate-spec.mjs roda"
+        then: "reprova citando explicitamente os dois mapas ausentes (\\\"missing endpoint→ação→recurso→policy map\\\"/\\\"missing auditable events map\\\"); com os mapas preenchidos, o mesmo change valida (OK); um change sem affects_surfaces (trivial) valida sem exigir nenhuma das quatro seções (proporcionalidade, NFR-03)"
+    tests:
+      - tests/req13-affects-surfaces-gate.sh
+  - id: REQ-FHT-014
+    title: "Schemas authz-map, data-classification, alerts-as-code"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-014-A
+        given: "um fixture válido e um fixture inválido para cada um dos três schemas (ex.: authz-map com um endpoint sem negative_contract_test)"
+        when: "os fixtures são validados contra authz-map.schema.json/data-classification.schema.json/alerts-as-code.schema.json"
+        then: "o fixture válido aprova e o inválido reprova nos três schemas; especificamente, authz-map reprova todo endpoint que não declare negative_contract_test.unauthenticated_401/forbidden_403"
+    contracts:
+      - template/.forge/schemas/authz-map.schema.json
+      - template/.forge/schemas/data-classification.schema.json
+      - template/.forge/schemas/alerts-as-code.schema.json
+    tests:
+      - tests/w30-schemas-gate.sh
+  - id: REQ-FHT-015
+    title: "Gates integrados a verify, pre-push e CI"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-015-A
+        given: "FORGE.md com runtime.gates: check-authz,check-observability,check-data-governance (CSV escalar)"
+        when: "spec-verify.sh roda sobre um change ativo, ou o hook pre-push executa antes de um git push"
+        then: "cada gate listado roda via run_check (bash <gate>.sh <id> / --path), o resultado (passed/failed) entra em CHECKS_YAML/verification.yaml e, por consequência, no run-manifest.json; um gate declarado cujo script não existe no disco emite apenas um WARN e não quebra o restante do verify/push"
+    tests:
+      - tests/w90-run-manifest-gate.sh
+      - tests/run-all.sh
+  - id: REQ-FHT-016
+    title: "Modo warn + allowlist para brownfield (gates de adoção)"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-016-A
+        given: "um achado rebaixável (enforceable:false) dos gates de adoção REQ-06/07/08/09/10 sob governance.<authz|observability>.mode: warn, e um achado inegociável (REQ-05/REQ-12a, enforceable:true) sob o mesmo mode:warn"
+        when: "gate-mode.mjs:applyMode processa os achados"
+        then: "o achado rebaixável vira WARN e não bloqueia (exit 0); o achado inegociável continua CONFLICT e bloqueia (exit≠0) mesmo em mode:warn; sob mode:enforce ambos bloqueiam; um bloco de governance ausente ou com mode inválido resolve para o default seguro warn (não trava brownfield sem PEP/wrapper declarado)"
+    tests:
+      - tests/gate-mode-gate.sh
+      - tests/check-authz-gate.sh
+      - tests/check-observability-gate.sh
+  - id: REQ-FHT-017
+    title: "Plugin regenerado e ADR de decisão"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-017-A
+        given: "as rules authz-pdp-pep.md/pii-pci-classification.md novas, a extensão de observability.md, e o ADR de substrato registrado no baseline"
+        when: "npm run build:plugin roda e tests/run-all.sh completo é executado"
+        then: "build:plugin sai OK sem erro (diff vazio em plugin/forge/** é o resultado esperado quando nenhum comando novo foi adicionado — plugin empacota só template/.forge/commands/**, não rules); o ADR 0002-authz-observability-substrate.md existe em .forge/product/current/adr/ indexado em README.md; CHANGELOG.md tem a entrada do change em [Unreleased]; tests/run-all.sh permanece 100% verde (PASS=56 FAIL=0)"
+    tests:
+      - tests/run-all.sh
+      - tests/plugin-sync-gate.sh
+history:
+  - change_id: security-observability-gates
+    archived_at: "2026-07-20"

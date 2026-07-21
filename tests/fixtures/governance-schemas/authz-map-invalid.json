@@ -1,0 +1,9 @@
+[
+  {
+    "method": "GET",
+    "path": "/accounts/{id}",
+    "action": "read",
+    "resource": "account",
+    "policy": "policies/account_read.rego"
+  }
+]

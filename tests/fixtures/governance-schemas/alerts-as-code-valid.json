@@ -1,0 +1,17 @@
+{
+  "service": "payments-api",
+  "alerts": [
+    {
+      "name": "PaymentsAPIHighErrorRate",
+      "expr": "sum(rate(http_requests_total{service=\"payments-api\",code=~\"5..\"}[5m])) / sum(rate(http_requests_total{service=\"payments-api\"}[5m])) > 0.02",
+      "severity": "critical",
+      "for": "5m"
+    },
+    {
+      "name": "PaymentsAPIHighLatency",
+      "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{service=\"payments-api\"}[5m])) by (le)) > 1",
+      "severity": "warning",
+      "for": "10m"
+    }
+  ]
+}

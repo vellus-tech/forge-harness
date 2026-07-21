@@ -63,4 +63,25 @@ run_check() {  # run_check <label> <cmd>
 
 run_check "typecheck" "$(fm_field typecheck)"
 run_check "test" "$(fm_field test)"
+
+# ── gates declared in FORGE.md runtime: gates (REQ-15/TASK-17, design.md §2.6) ──
+# CSV escalar numa única linha (ex.: "gates: check-authz,check-observability,check-data-governance"),
+# lida por fm_field (mesmo awk de typecheck/test) + split por vírgula. Ausência de "gates:" ⇒
+# nada roda (compat). Cada gate roda sobre o repo inteiro (--path) e respeita seu próprio
+# mode: warn|enforce internamente — os warn reportam sem bloquear o push.
+GATES_CSV="$(fm_field gates)"
+if [ -n "$GATES_CSV" ]; then
+  IFS=',' read -ra _forge_gates <<< "$GATES_CSV"
+  for gate in "${_forge_gates[@]}"; do
+    gate="$(printf '%s' "$gate" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+    [ -n "$gate" ] || continue
+    gate_script="$ROOT/.forge/scripts/${gate}.sh"
+    if [ -f "$gate_script" ]; then
+      run_check "$gate" "bash '$gate_script' --path '$ROOT'"
+    else
+      echo "pre-push: gate '$gate' declarado em runtime.gates mas $gate_script não existe — skip"
+    fi
+  done
+fi
+
 echo "pre-push OK"

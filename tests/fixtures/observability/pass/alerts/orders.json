@@ -1,0 +1,17 @@
+{
+  "service": "services/orders",
+  "alerts": [
+    {
+      "name": "orders-latency-p99",
+      "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{service=\"orders\"}[5m])) by (le)) > 0.5",
+      "severity": "warning",
+      "for": "5m"
+    },
+    {
+      "name": "orders-error-rate",
+      "expr": "sum(rate(http_requests_total{service=\"orders\",status=~\"5..\"}[5m])) / sum(rate(http_requests_total{service=\"orders\"}[5m])) > 0.05",
+      "severity": "critical",
+      "for": "5m"
+    }
+  ]
+}

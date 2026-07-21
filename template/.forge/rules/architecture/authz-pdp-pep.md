@@ -6,6 +6,8 @@ applies_to:
 priority: high
 last_reviewed: 2026-07-20
 based_on: []
+pack: authz
+opt_in: true
 ---
 
 # Autorização — PDP/PEP, deny-by-default, fail-closed

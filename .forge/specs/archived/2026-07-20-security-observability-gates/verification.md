@@ -13,7 +13,7 @@ harness que o design já reconhecia).
 
 | REQ | Implementado em | Verificado por | Status |
 |---|---|---|---|
-| REQ-01 | `template/.forge/constitution.md` item 7 "Security by default" — 5 cláusulas (a)-(e) + nota da tríade | `validate-rules.sh` (0 anchored, 39 unanchored — sem drift); inspeção manual do texto | OK |
+| REQ-01 | `template/.forge/constitution.md` item 7 "Security by default" — princípio universal + remissão aos rule-packs opt-in `authz`/`pii-pci` (ver desvio 5) | `validate-rules.sh` (sem drift); inspeção manual do texto | OK |
 | REQ-02 | `template/.forge/rules/architecture/authz-pdp-pep.md` (PDP/PEP, OPA/Rego, OpenFGA runner-up, deny-by-default, fail-closed, claims=insumo) + `jwt-permissions.md` atualizada | `validate-rules.sh`; indexação em `rules/README.md:55` | OK |
 | REQ-03 | `template/.forge/rules/architecture/pii-pci-classification.md` (mapa controle→PCI 3/4/7/8/10; fronteira Req 7 vs Req 8; referencia `domain/audit-immutability.md`) | `validate-rules.sh`; indexação em `rules/README.md:56` | OK |
 | REQ-04 | `template/.forge/rules/architecture/observability.md` estendida (golden signals + alerts-as-code + stack OTel Collector→Tempo/Loki/Prometheus/Grafana, Jaeger como alternativa) | `validate-rules.sh`; indexação em `rules/README.md:52` | OK |
@@ -54,4 +54,6 @@ harness que o design já reconhecia).
 
 4. **ADR-0002, seção "Links", menciona `based_on: [ADR-0002]` para as rules novas** — mas as rules shipadas usam `based_on: []` por design (convenção G3, confirmada pelo próprio REQ-02 AC). É uma imprecisão textual pontual dentro do ADR (a nota de contexto do ADR fala do estado futuro do projeto adotante, não do template), não uma inconsistência de comportamento — `validate-rules.sh` não acusa drift porque `based_on: []` é o valor correto para uma rule shipada pelo template.
 
-Nenhum dos quatro itens acima é bloqueante: são registros de decisão/redação, não falhas de comportamento observável.
+5. **REQ-01 reconciliado pré-merge (2026-07-20) — cláusulas específicas deixam de ser invariante universal.** A verificação original acima aprovou a redação com as cinco cláusulas (a)-(e) na constitution como invariante de todo projeto instalador do harness. Decisão do Milton, pré-merge da branch: tornar as cláusulas específicas (PDP, deny-by-default, fail-closed, no-PII-in-log) **opt-in por família de projeto**, não obrigatórias por default (ex.: `axis-fare-validator` não deve herdar a obrigatoriedade que faz sentido para `axis-go-cloud`). `constitution.md` item 7 foi reescrito para o princípio genérico + remissão aos rule-packs `authz`/`pii-pci` (marcados `pack:`/`opt_in: true` no frontmatter de `authz-pdp-pep.md`/`pii-pci-classification.md`); `rules/README.md` documenta o mecanismo. `tests/run-all.sh` recontado 100% verde após a mudança. Requirements/spec.yaml do baseline foram atualizados em conjunto para não afirmar mais a obrigatoriedade universal. A maquinaria de ativação dos packs (installer materializando só os ativos) fica para um change futuro.
+
+Nenhum dos cinco itens acima é bloqueante: são registros de decisão/redação, não falhas de comportamento observável.

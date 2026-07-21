@@ -7,9 +7,9 @@ requirements:
     normative: "SHALL"
     scenarios:
       - id: SCN-FHT-001-A
-        given: "o item 7 \\\"Security by default\\\" da constitution.md é emendado com as cinco cláusulas invariantes (PDP, deny-by-default/fail-closed, auditabilidade append-only, zero PII/PAN em log, boundary instrumentado) e a nota da tríade gate-estático+teste-de-contrato-negativo+decision-log"
+        given: "o item 7 (Security by default) da constitution.md mantém apenas o princípio universal (no secrets, least privilege, auditability, security by default) e substitui as cinco cláusulas específicas por uma remissão aos rule-packs opt-in authz e pii-pci, que carregam PDP, deny-by-default/fail-closed e zero PII/PAN em log via authz-pdp-pep.md e pii-pci-classification.md (marcadas pack/opt_in: true no frontmatter)"
         when: "validate-rules.sh roda após a emenda"
-        then: "retorna sem acusar drift (rules ancoradas/não ancoradas inalteradas) e a constitution contém as cinco cláusulas (a)-(e) ancoradas no item 7, cada uma referenciando a rule que a impõe"
+        then: "retorna sem acusar drift (rules ancoradas/não ancoradas inalteradas) e a constitution não afirma mais as cláusulas específicas como invariantes universais do harness — elas só valem como contrato obrigatório nos projetos que ativam os packs authz/pii-pci, na constitution local do projeto"
     tests:
       - template/.forge/scripts/validate-rules.sh
   - id: REQ-FHT-002

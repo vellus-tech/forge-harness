@@ -6,6 +6,8 @@ applies_to:
 priority: high
 last_reviewed: 2026-07-20
 based_on: []
+pack: pii-pci
+opt_in: true
 ---
 
 # Classificação PII/PCI — dados como código, mascaramento, fronteira PCI DSS 4.0.1

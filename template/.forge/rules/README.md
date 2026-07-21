@@ -12,6 +12,8 @@ based_on: [ADR-0007]   # esta rule deriva desta decisão aceita
 
 `bash .forge/scripts/validate-rules.sh` (e o `validate-harness`/`doctor`) flagra **drift**: rule cujo `based_on` aponta para um ADR inexistente no baseline ou cujo status não é `accepted`. Isso impede o cenário do incidente do piloto — uma rule que dizia seguir um ADR mas codificava a decisão oposta. Rules sem `based_on` (ou `based_on: []`) são convenções não atreladas a uma decisão específica — válidas, apenas não verificadas contra ADR. O mecanismo é **opt-in por projeto**: o template não traz ADRs (são decisões do projeto, criadas por `/forge:adr`), então as rules do template usam `based_on: []`. Precedência quando rule e ADR divergem: o ADR vence (FORGE.md §2.1; `conventions/conflict-handling.md`).
 
+Separadamente, uma rule pode declarar `pack: <nome>` + `opt_in: true` no frontmatter — isso marca que ela pertence a um rule-pack opcional (ex.: `authz`, `pii-pci`), não à constitution universal. Uma rule com esses campos só vale como contrato obrigatório nos projetos que ativam o pack correspondente; nos demais, é referência disponível, não gate imposto.
+
 ## Como Usar
 
 Antes de qualquer modificação, leia os rules das categorias aplicáveis à sua tarefa:
@@ -52,8 +54,8 @@ Antes de qualquer modificação, leia os rules das categorias aplicáveis à sua
 | [observability.md](./architecture/observability.md) | OTel, logs, métricas, traces, golden signals + alerts-as-code, stack OSS OTel Collector→Tempo/Loki/Prometheus/Grafana (Jaeger como alternativa compatível via OTLP) | Alta |
 | [security-and-secrets.md](./architecture/security-and-secrets.md) | Gerenciamento de secrets | Alta |
 | [security-and-compliance.md](./architecture/security-and-compliance.md) | LGPD, PCI DSS, vulnerabilidades | Alta |
-| [authz-pdp-pep.md](./architecture/authz-pdp-pep.md) | PDP/PEP, OPA/Rego (OpenFGA runner-up ReBAC), deny-by-default, fail-closed — decisão de referência ADR-0002 do harness; o projeto adotante ancora via `based_on` num ADR próprio | Alta |
-| [pii-pci-classification.md](./architecture/pii-pci-classification.md) | Classificação de dados como código, mascaramento em log, fronteira de tokenização, mapa controle→PCI DSS 4.0.1 (Req 3/4/7/8/10) — fronteira Req 7 (aqui) vs Req 8 (auth-service, fora de escopo) | Alta |
+| [authz-pdp-pep.md](./architecture/authz-pdp-pep.md) | PDP/PEP, OPA/Rego (OpenFGA runner-up ReBAC), deny-by-default, fail-closed — decisão de referência ADR-0002 do harness; o projeto adotante ancora via `based_on` num ADR próprio. **Pack opt-in** (`pack: authz`) — só é contrato obrigatório nos projetos que ativam o pack | Alta |
+| [pii-pci-classification.md](./architecture/pii-pci-classification.md) | Classificação de dados como código, mascaramento em log, fronteira de tokenização, mapa controle→PCI DSS 4.0.1 (Req 3/4/7/8/10) — fronteira Req 7 (aqui) vs Req 8 (auth-service, fora de escopo). **Pack opt-in** (`pack: pii-pci`) — só é contrato obrigatório nos projetos que ativam o pack | Alta |
 | [jwt-authentication.md](./architecture/jwt-authentication.md) | JWT como mecanismo de auth | Média |
 | [jwt-permissions.md](./architecture/jwt-permissions.md) | Modelo de permissões em JWT — claims como insumo do PEP | Média |
 | [mtls-internal-services.md](./architecture/mtls-internal-services.md) | mTLS entre serviços internos | Média |

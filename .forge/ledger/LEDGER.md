@@ -9,11 +9,11 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**2 itens ativos** · follow-up 2
+**3 itens ativos** · roadmap 1 · follow-up 2
 
 ## Roadmap
 
-_(nenhum)_
+- **LDG-0003** [open] — Maquinaria de capability packs no harness (forge.yaml packs:, installer materializa só packs ativos)
 
 ## Ideias de feature
 

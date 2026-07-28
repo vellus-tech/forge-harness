@@ -45,7 +45,28 @@
             "run": { "$ref": "#/$defs/nullableString" },
             "test": { "$ref": "#/$defs/nullableString" },
             "typecheck": { "$ref": "#/$defs/nullableString" },
-            "lint": { "$ref": "#/$defs/nullableString" }
+            "lint": { "$ref": "#/$defs/nullableString" },
+            "gates": { "$ref": "#/$defs/nullableString" }
+          }
+        },
+        "authz": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "pep_paths": { "type": "array", "items": { "type": "string" } },
+            "policy_dir": { "$ref": "#/$defs/nullableString" },
+            "allowlist": { "type": "array", "items": { "type": "string" } },
+            "mode": { "enum": ["warn", "enforce"] },
+            "policy_coverage_threshold": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "observability": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "wrapper_paths": { "type": "array", "items": { "type": "string" } },
+            "allowlist": { "type": "array", "items": { "type": "string" } },
+            "mode": { "enum": ["warn", "enforce"] }
           }
         },
         "integrations": {

@@ -11,6 +11,7 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync } from 'node:fs';
 import { join, resolve, relative, extname, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
+import { parseYamlSubset } from './yaml-lite.mjs';
 
 const root = resolve(process.argv[2] || '.');
 const outArg = process.argv.indexOf('--out');
@@ -38,6 +39,52 @@ const CENSUS_EXT = {
 };
 // Minified/generated files are not source — skip even when they carry a source extension (G2).
 const SKIP_FILE = /\.min\.(js|css)$|\.bundle\.js$/;
+
+// ── governance: authz:/observability: blocks from FORGE.md frontmatter (§2.3) ──
+// Zero-dep, same yaml-lite parser validate-spec.mjs already uses — no second YAML
+// dialect (NFR-01). Absence of FORGE.md, or of the blocks themselves, is a no-op:
+// governanceBlocks stays {} and no node gets tagged, no `governance` is emitted
+// (REQ-11 AC — never a false positive). This never touches the awk parsers of
+// spec-verify.sh/pre-push, which only read `runtime:`.
+function readGovernanceBlocks(repoRoot) {
+  const forgeMdPath = join(repoRoot, '.forge', 'FORGE.md');
+  if (!existsSync(forgeMdPath)) return {};
+  try {
+    const text = readFileSync(forgeMdPath, 'utf8');
+    const m = text.match(/^---\n([\s\S]*?)\n---/);
+    if (!m) return {};
+    const fm = parseYamlSubset(m[1]);
+    const out = {};
+    if (fm.authz && typeof fm.authz === 'object' && !Array.isArray(fm.authz)) out.authz = fm.authz;
+    if (fm.observability && typeof fm.observability === 'object' && !Array.isArray(fm.observability)) out.observability = fm.observability;
+    return out;
+  } catch { return {}; } // malformed frontmatter → no-op, never a false positive
+}
+
+// glob → RegExp: `*` matches within one path segment (never `/`). The pattern
+// matches the declared directory/file itself AND everything under it, since
+// pep_paths/wrapper_paths name directories (e.g. "packages/pep") that own many
+// source files, or occasionally a single file.
+function globToRegExp(glob) {
+  const escaped = String(glob).split('/')
+    .map((seg) => seg.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*'))
+    .join('/');
+  return new RegExp(`^${escaped}(?:/.*)?$`);
+}
+
+const governanceBlocks = readGovernanceBlocks(root);
+const pepPatterns = (governanceBlocks.authz && Array.isArray(governanceBlocks.authz.pep_paths)
+  ? governanceBlocks.authz.pep_paths : []).map(globToRegExp);
+const wrapperPatterns = (governanceBlocks.observability && Array.isArray(governanceBlocks.observability.wrapper_paths)
+  ? governanceBlocks.observability.wrapper_paths : []).map(globToRegExp);
+// roles: ["pep"] / ["otel-wrapper"] tag nodes whose id matches a declared glob —
+// consumed by lib/graph-govern.mjs (TASK-12) for reachability from layer:api.
+function rolesFor(id) {
+  const roles = [];
+  if (pepPatterns.some((re) => re.test(id))) roles.push('pep');
+  if (wrapperPatterns.some((re) => re.test(id))) roles.push('otel-wrapper');
+  return roles;
+}
 
 const census = {}; // census-lang -> file count (walk-populated, persisted in stats)
 function walk(dir, acc = []) {
@@ -214,7 +261,10 @@ for (const f of files) {
   const src = read(f);
   const lang = LANG[extname(f)];
   const id = relative(root, f);
-  nodes.push({ id, lang, loc: src.split('\n').length, fingerprint: structuralFingerprint(src), layer: layerOf(id), summary: null });
+  const node = { id, lang, loc: src.split('\n').length, fingerprint: structuralFingerprint(src), layer: layerOf(id), summary: null };
+  const roles = rolesFor(id);
+  if (roles.length) node.roles = roles;
+  nodes.push(node);
 
   if (lang === 'js' || lang === 'ts') {
     for (const m of src.matchAll(JS_IMPORT)) {
@@ -275,6 +325,14 @@ const graph = {
   nodes,
   edges,
 };
+// governance: only emitted when the FORGE.md frontmatter declared authz:/observability:
+// (§2.3). Absence ⇒ key absent ⇒ downstream gates (graph-govern.mjs) see no governance
+// and stay a no-op — never a false positive (REQ-11 AC).
+if (governanceBlocks.authz || governanceBlocks.observability) {
+  graph.governance = {};
+  if (governanceBlocks.authz) graph.governance.authz = governanceBlocks.authz;
+  if (governanceBlocks.observability) graph.governance.observability = governanceBlocks.observability;
+}
 
 mkdirSync(cacheDir, { recursive: true });
 writeFileSync(join(outDir, 'graph.json'), JSON.stringify(graph, null, 2) + '\n');

@@ -1,0 +1,17 @@
+verification:
+  commit: "8a3eb84"
+  verified_at: "2026-07-20T20:26:49-03:00"
+  checks:
+    - name: npm-test-full-suite
+      command: "npm test (tests/run-all.sh)"
+      status: passed
+      detail: "PASS=56 FAIL=0 SKIP=0 — rodado ao fechar cada wave (6x), sempre verde"
+    - name: new-gates
+      command: "check-authz-gate, check-observability-gate, req12-pii-log-gate, graph-govern-gate, gate-mode-gate, req13-affects-surfaces-gate, yaml-lite-gate"
+      status: passed
+    - name: retrocompat
+      command: "gw3-data-governance-gate, w20-spec-gate, w30-schemas, w41-graph, gw2-rules-anchor, w90-run-manifest, plugin-sync"
+      status: passed
+  note: "spec-verify pulou a fase de checks por não haver FORGE.md na raiz do dogfood; a evidência real é o run-all completo (npm test) acima, no molde do change deepspec-provenance. Stage-contract verify: OK."
+  evidence:
+    - verification.md

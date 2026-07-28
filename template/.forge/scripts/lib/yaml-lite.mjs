@@ -9,8 +9,25 @@ export function yamlQuote(s) {
   return `"${String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 }
 
+// Remove um comentário final de linha (" #…") de um escalar já trimado, respeitando
+// aspas simples/duplas — só corta quando o "#" é precedido por espaço FORA de aspas.
+// Não mexe em "#" colado ao início do valor (ex.: "#fff", "#tag" sem espaço antes),
+// nem em "#" dentro de string entre aspas (ex.: "a # b").
+function stripTrailingComment(s) {
+  let inSingle = false, inDouble = false;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (c === '"' && !inSingle) { inDouble = !inDouble; continue; }
+    if (c === "'" && !inDouble) { inSingle = !inSingle; continue; }
+    if (c === '#' && !inSingle && !inDouble && i > 0 && s[i - 1] === ' ') {
+      return s.slice(0, i - 1).trimEnd();
+    }
+  }
+  return s;
+}
+
 export function parseScalar(raw) {
-  const s = raw.trim();
+  const s = stripTrailingComment(raw.trim()).trim();
   if (s === '' || s === 'null' || s === '~') return null;
   if (s === '[]') return [];
   if (s === '{}') return {};

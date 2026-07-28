@@ -57,6 +57,15 @@ for (const k of ['created_at', 'updated_at'])
 if (man.gates && typeof man.gates === 'object' && !Array.isArray(man.gates))
   for (const g of GATE_KEYS)
     if (typeof man.gates[g] !== 'boolean') errors.push(`gates.${g} must be boolean`);
+// affects_surfaces (REQ-13/NFR-03/§2.5): campo opcional, array de string (ex.: "api", "data").
+// Gatilho declarativo de proporcionalidade — consumido pela regra condicional da TASK-09,
+// não por este validador. Ausente é válido (change trivial não exige seções novas).
+if (man.affects_surfaces !== undefined && man.affects_surfaces !== null) {
+  if (!Array.isArray(man.affects_surfaces)) errors.push('affects_surfaces must be an array of strings');
+  else man.affects_surfaces.forEach((s, i) => {
+    if (typeof s !== 'string') errors.push(`affects_surfaces[${i}] must be a string`);
+  });
+}
 
 if (man.quick_plan && man.quick_plan.enabled === true) {
   const sp = man.quick_plan.skipped_phases;
@@ -146,6 +155,23 @@ for (const f of MD_ARTIFACTS) {
   }
 }
 
+// ── helpers for REQ-13/NFR-03 (§2.5): mapas obrigatórios de requirements.md ──
+// Extrai o corpo de uma seção "## <heading>" até o próximo "## " (ou fim do arquivo).
+function sectionBody(text, headingRe) {
+  const m = headingRe.exec(text);
+  if (!m) return null;
+  const rest = text.slice(m.index + m[0].length);
+  const nextIdx = rest.search(/^##\s/m);
+  return nextIdx === -1 ? rest : rest.slice(0, nextIdx);
+}
+// Uma seção "preenchida" tem ao menos uma linha de tabela (fora do header/separador) sem
+// placeholder "<...>" — distingue o esqueleto do template (reprova) de uma tabela real (passa).
+function hasFilledTableRow(body) {
+  if (!body) return false;
+  const rows = body.split('\n').filter((l) => /^\s*\|/.test(l) && !/^\s*\|[\s:|-]+\|\s*$/.test(l));
+  return rows.slice(1).some((r) => r.trim().length > 0 && !/<[^<>]*>/.test(r));
+}
+
 const headingRules = [
   ['proposal.md', /^## 1\./m, 'section "## 1." (why)'],
   ['proposal.md', /^## 2\./m, 'section "## 2." (what changes)'],
@@ -161,6 +187,20 @@ if (reached('requirements-ready') && man.type !== 'bugfix' && man.type !== 'refa
   const text = readIf('requirements.md');
   if (text && !/^## REQ-/m.test(text)) errors.push('requirements.md: no "## REQ-" entries');
   if (text && !/critérios de aceite/i.test(text)) errors.push('requirements.md: no acceptance criteria (testability — §19.2)');
+}
+// REQ-13/NFR-03 (§2.5): change cujo manifest declara affects_surfaces incluindo "api" exige,
+// em requirements.md, o mapa endpoint→ação→recurso→policy e o mapa de eventos auditáveis
+// preenchidos. Proporcionalidade: affects_surfaces ausente (ou sem "api") não exige nada aqui —
+// mesma guarda de reached('requirements-ready')/tipo/scale do bloco de REQ- acima.
+if (reached('requirements-ready') && man.type !== 'bugfix' && man.type !== 'refactor' && scale >= 1
+  && Array.isArray(man.affects_surfaces) && man.affects_surfaces.includes('api')) {
+  const text = readIf(reqArtifact) || '';
+  const endpointBody = sectionBody(text, /^##\s*Mapa endpoint.*policy\s*$/im);
+  const auditBody = sectionBody(text, /^##\s*Mapa de eventos audit[áa]veis\s*$/im);
+  if (!hasFilledTableRow(endpointBody))
+    errors.push(`${reqArtifact}: missing endpoint→ação→recurso→policy map (required — affects_surfaces includes "api", REQ-13)`);
+  if (!hasFilledTableRow(auditBody))
+    errors.push(`${reqArtifact}: missing auditable events map (required — affects_surfaces includes "api", REQ-13)`);
 }
 if (reached('tasks-ready')) {
   const text = readIf('tasks.md');

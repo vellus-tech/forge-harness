@@ -66,6 +66,25 @@ for check in test typecheck lint; do
   cmd="$(get_runtime "$check" || true)"
   [ -n "$cmd" ] && run_check "$check" "$cmd"
 done
+
+# ── gates declared in FORGE.md runtime: gates (REQ-15/TASK-17, design.md §2.6) ──
+# CSV escalar numa única linha, ex.: "gates: check-authz,check-observability,check-data-governance"
+# (nunca block-sequence — get_runtime só lê "key: value" de uma linha). Ausência de
+# "gates:" ⇒ nada roda (compat retroativa, no-op por padrão).
+GATES_CSV="$(get_runtime "gates" || true)"
+if [ -n "$GATES_CSV" ]; then
+  IFS=',' read -ra _forge_gates <<< "$GATES_CSV"
+  for gate in "${_forge_gates[@]}"; do
+    gate="$(printf '%s' "$gate" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+    [ -n "$gate" ] || continue
+    gate_script="$SCRIPT_DIR/${gate}.sh"
+    if [ -f "$gate_script" ]; then
+      run_check "$gate" "bash '$gate_script' '$ID'"
+    else
+      echo "  WARN: gate '$gate' declarado em runtime.gates mas $gate_script não existe — skip"
+    fi
+  done
+fi
 [ -n "$CHECKS_YAML" ] || echo "  (no checks declared in FORGE.md runtime: — skipping check phase)"
 
 # ── spec-delta.yaml (§10.4): esqueleto nasce AQUI, não no improviso do archive ──

@@ -8,6 +8,9 @@
 #   [5] mudança ESTRUTURAL (novo import) altera o fingerprint e o grafo
 #   [6] validate detecta grafo corrompido (edge resolvido órfão; id duplicado)
 #   [7] query e path funcionam sobre o grafo
+#   [8] FORGE.md sem blocos authz:/observability: → sem `governance` no graph.json (no-op)
+#   [9] FORGE.md COM blocos authz:/observability: → nodes taggeados com `roles`
+#       (pep/otel-wrapper por glob) + `governance` materializado no graph.json (TASK-07)
 set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -115,5 +118,63 @@ echo "[7] query + path"
 FORGE_ROOT="$T" bash "$G" query money | grep -q 'src/domain/money.ts'
 FORGE_ROOT="$T" bash "$G" path src/api/handler.ts src/domain/money.ts | grep -q 'PATH:'
 echo "OK [7]"
+
+echo "[8] sem blocos authz:/observability: no FORGE.md → sem governance (no-op)"
+node -e '
+const g=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));
+process.exit(("governance" in g) ? 1 : 0);
+' "$T/.forge/graph/graph.json"
+echo "OK [8]"
+
+echo "[9] FORGE.md COM authz:/observability: → roles taggeados + governance materializado"
+mkdir -p "$T/packages/pep" "$T/packages/otel" "$T/services/health"
+cat > "$T/packages/pep/check.ts" <<'EOF'
+export function check() { return true; }
+EOF
+cat > "$T/packages/otel/wrap.ts" <<'EOF'
+export function wrap() { return true; }
+EOF
+cat > "$T/services/health/index.ts" <<'EOF'
+export const health = () => 'ok';
+EOF
+node -e '
+const fs = require("fs");
+const p = process.argv[1];
+let text = fs.readFileSync(p, "utf8");
+const insert = [
+  "authz:",
+  "  pep_paths:",
+  "    - packages/pep",
+  "  policy_dir: policy",
+  "  allowlist:",
+  "    - services/health",
+  "  mode: warn",
+  "observability:",
+  "  wrapper_paths:",
+  "    - packages/otel",
+  "  allowlist:",
+  "    - services/health",
+  "  mode: warn",
+  "",
+].join("\n");
+const idx = text.indexOf("---\n", 4); // start of the SECOND "---" (closes the frontmatter)
+text = text.slice(0, idx) + insert + text.slice(idx);
+fs.writeFileSync(p, text);
+' "$T/.forge/FORGE.md"
+FORGE_ROOT="$T" bash "$G" build >/dev/null
+node "$WS/tools/validate-yaml.mjs" "$SCHEMA" "$T/.forge/graph/graph.json" >/dev/null
+node -e '
+const g=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));
+const pep = g.nodes.find(n=>n.id==="packages/pep/check.ts");
+const wrap = g.nodes.find(n=>n.id==="packages/otel/wrap.ts");
+const health = g.nodes.find(n=>n.id==="services/health/index.ts");
+const ok = pep && Array.isArray(pep.roles) && pep.roles.includes("pep")
+  && wrap && Array.isArray(wrap.roles) && wrap.roles.includes("otel-wrapper")
+  && (!health || !health.roles) // allowlist não taggeia — só afeta os gates, não o grafo
+  && g.governance && g.governance.authz && g.governance.authz.pep_paths.includes("packages/pep")
+  && g.governance.observability && g.governance.observability.wrapper_paths.includes("packages/otel");
+process.exit(ok ? 0 : 1);
+' "$T/.forge/graph/graph.json"
+echo "OK [9]"
 
 echo "OK"

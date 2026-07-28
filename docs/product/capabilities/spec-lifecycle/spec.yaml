@@ -1,0 +1,27 @@
+capability_id: spec-lifecycle
+version: 0.1.0
+status: current
+requirements:
+  - id: REQ-SLC-001
+    title: "Create schema-valid active changes"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-SLC-001-A
+        given: "An installed Forge harness with templates"
+        when: "spec-new runs with a valid type and scale"
+        then: "The change folder validates against spec-manifest.schema.json"
+    tests:
+      - tests/w20-spec-gate.sh
+  - id: REQ-SLC-002
+    title: "Archive applies deltas deterministically"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-SLC-002-A
+        given: "A verified change with a structured spec-delta"
+        when: "archive-spec runs"
+        then: "The baseline gains the requirement via atomic full-replacement apply and a failed dry-run writes nothing"
+    tests:
+      - tests/w32-archive-gate.sh
+history:
+  - change_id: baseline-spec-lifecycle
+    archived_at: "2026-06-11"

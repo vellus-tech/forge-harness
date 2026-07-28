@@ -1,0 +1,17 @@
+{
+  "cardholder_name": {
+    "classification": "pii",
+    "masking": "partial_last4",
+    "tokenization_boundary": false
+  },
+  "pan": {
+    "classification": "pan",
+    "masking": "full",
+    "tokenization_boundary": true
+  },
+  "email": {
+    "classification": "pii",
+    "masking": "partial_domain",
+    "tokenization_boundary": false
+  }
+}

@@ -4,10 +4,23 @@ applies_to:
   - backend
   - frontend
 priority: high
-last_reviewed: 2026-05-08
+last_reviewed: 2026-07-20
 ---
 
 # Permissões JWT — Checklist e Lição Aprendida
+
+## Claims são insumo do PEP, nunca o mecanismo de decisão
+
+A claim `permissions` do JWT é **dado de contexto** — o PEP a extrai e repassa ao PDP como parte do
+`input` da avaliação de autorização; ela **não é** o veredito. Ver `authz-pdp-pep.md` para o padrão
+completo (PDP/PEP, deny-by-default, fail-closed). Duas consequências práticas para este checklist:
+
+- Checar a claim diretamente no handler/componente (`if claims.permissions.includes(...)`) para
+  decidir acesso é o mesmo anti-padrão de decisão imperativa fora do PDP — mesmo quando a claim
+  está corretamente populada. A claim alimenta o PDP; quem decide é a política.
+- Claim `permissions` ausente/vazia (o problema descrito abaixo) é uma falha de **insumo**: o PEP
+  fica sem contexto suficiente para montar a decisão e deve falhar fechado (deny), nunca degradar
+  para uma checagem alternativa ad hoc no código de negócio.
 
 ## Problema Recorrente
 

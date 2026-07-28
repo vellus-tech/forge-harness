@@ -9,3 +9,6 @@ tmp/
 *.log
 tests/**/output/
 tests/**/*.actual
+
+# Forge cache local (locks, estado efêmero)
+.forge/cache/

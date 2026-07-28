@@ -1,11 +1,11 @@
 ---
-description: Fluxo completo commit -> PR -> revisao -> merge em develop -> cleanup, num unico comando. Gate humano do §20.4 e satisfeito pela invocacao explicita de /forge:ship.
-argument-hint: "[--no-review]"
+description: Fluxo completo commit -> PR -> revisão por stack → merge em develop → cleanup, num único comando. Exige code-evaluator APPROVED para o SHA atual e confirmação humana antes do merge.
+argument-hint: ""
 ---
 
 # /forge:ship — commit, PR, revisão e merge num comando
 
-Argumentos: `$ARGUMENTS` (`--no-review` pula o passo de revisão automatizada quando já foi feita manualmente; use com parcimônia).
+Argumentos: nenhum.
 
 > **Este comando É o gate humano (§20.4).** O protocolo `/forge:prepare-pr` existe para
 > apresentar a descrição do PR e aguardar aprovação explícita porque, historicamente, abrir PR
@@ -58,19 +58,16 @@ Argumentos: `$ARGUMENTS` (`--no-review` pula o passo de revisão automatizada qu
 
 ## Revisão
 
-7. Rode a revisão do diff **antes do merge**:
-   - Se a skill `code-review` estiver disponível neste ambiente, invoque-a sobre o diff da
-     branch (`--effort medium` é o padrão razoável; suba para `high` em mudanças arquiteturais).
-   - Sem a skill disponível, aplique o mesmo padrão manualmente (bugs de correção +
-     simplificação/reuso), documentando os achados no chat.
-8. **Todo achado precisa ser corrigido (ou explicitamente descartado com justificativa) antes do
+7. Rode o `code-evaluator` canônico sobre `base=develop` e `diff_sha=$(git rev-parse HEAD)` antes do merge. Ele executa gates determinísticos e seleciona os reviewers transversais e de stack aplicáveis ao diff (C#/.NET, Node, Java, Python). Um veredito só vale para esse SHA: se qualquer correção alterar o diff, reexecute o evaluator.
+8. **Só prossiga com `APPROVED` ou `APPROVED_WITH_COMMENTS` sem findings BLOCKER/HIGH abertos.** Se o ambiente não puder executar o `code-evaluator`, não substitua por revisão manual e não faça merge; registre a indisponibilidade como bloqueio para o humano decidir.
+9. **Todo achado precisa ser corrigido (ou explicitamente descartado com justificativa) antes do
    merge.** Não faça merge com findings abertos "para depois" — se for genuinamente fora de
    escopo, registre um deferral (`/forge:defer`) em vez de ignorar silenciosamente.
-9. Se corrigiu algo no passo 8, commit adicional + `git push` (atualiza o PR automaticamente).
+10. Se corrigiu algo no passo 9, commit adicional + `git push` (atualiza o PR automaticamente) e volte ao passo 7.
 
 ## Merge + cleanup
 
-10. Após revisão limpa, confirme com o usuário em uma linha (a menos que ele já tenha
+11. Após revisão limpa, confirme com o usuário em uma linha (a menos que ele já tenha
     pré-aprovado o fluxo completo desta sessão) e então:
 
     ```bash
@@ -79,13 +76,13 @@ Argumentos: `$ARGUMENTS` (`--no-review` pula o passo de revisão automatizada qu
     git pull
     ```
 
-11. Se havia um worktree dedicado para esta branch (`.forge/worktrees/<...>`), remova-o
+12. Se havia um worktree dedicado para esta branch (`.forge/worktrees/<...>`), remova-o
     (`git worktree remove ...`) — o hook `post-merge` já tenta isso automaticamente; confirme que
     rodou.
 
 ## Fechar o loop de lifecycle (pós-merge)
 
-12. **Se o merge fechou um change SDD**, o status dele não avança sozinho — reconcilie. Rode
+13. **Se o merge fechou um change SDD**, o status dele não avança sozinho — reconcilie. Rode
     `node .forge/scripts/lib/orphan-changes.mjs .` (determinista, zero-LLM; pule se ausente) e, para
     o change correspondente a esta branch, **ofereça em uma linha** (nunca execute automaticamente —
     a incorporação ao baseline é decisão humana):
@@ -110,10 +107,9 @@ revisão corrigidos (se houver), e confirmação de que `develop` está atualiza
 
 - Sem co-autoria de IA em nenhum commit ou PR (título/corpo) — constitution #8.
 - Alvo do PR é sempre `develop` (§20.1) — nunca `main`.
-- Não pule o passo de testes/gates (3) nem o de revisão (7-8) "para ganhar tempo" — são o que
+- Não pule o passo de testes/gates (3) nem o de avaliação canônica (7-10) "para ganhar tempo" — são o que
   torna `/forge:ship` seguro para ser um comando único em vez de um checklist manual.
-- `--no-review` só pula o passo 7-8 quando o usuário já revisou manualmente nesta mesma sessão;
-  não assuma isso por padrão.
+- Não há flag para pular o `code-evaluator`; revisão manual é complemento, não substituto.
 
 ## Modo autônomo (--yolo)
 

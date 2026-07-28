@@ -181,6 +181,25 @@ node -e "
 "
 echo "OK [7]"
 
+echo "[7b] eval-holdout.sh: split estratificado de triggering"
+STRAT="$ITER/candidates-stratified.json"
+cat > "$STRAT" <<'EOF'
+{
+  "skill": "fixture",
+  "cases": [
+    {"id":"P-01","trigger_expected":true}, {"id":"P-02","trigger_expected":true},
+    {"id":"N-01","trigger_expected":false}, {"id":"N-02","trigger_expected":false}
+  ],
+  "candidates": [{"id":"c0","description":"x","scores":{"P-01":1,"P-02":1,"N-01":1,"N-02":1}}]
+}
+EOF
+bash "$T/.forge/scripts/eval-holdout.sh" "$STRAT" >/dev/null
+node -e '
+const h=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));
+if(h.split.stratified_by!=="trigger_expected" || h.split.train.length!==2 || h.split.test.length!==2) process.exit(1);
+' "$ITER/holdout.json"
+echo "OK [7b]"
+
 echo "[8] holdout recusa description > 1024 chars"
 BIG="$ITER/candidates-big.json"
 node -e "

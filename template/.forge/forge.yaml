@@ -16,6 +16,10 @@ specs:
 graph:
   enabled: true
   root: .forge/graph
+capabilities:
+  # Packs opt-in por stack. O código/ADRs do projeto sempre vencem o pack; o doctor apenas sugere.
+  # Ex.: backend-dotnet-relational,backend-node-postgres
+  active: []
 quality:
   enabled: false
   evals_root: .forge/evals

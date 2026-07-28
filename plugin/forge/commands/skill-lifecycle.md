@@ -76,15 +76,16 @@ Reporte no chat **apenas** a linha do `aggregate.json` + o `verdict`/recomendaç
 Otimiza a **description** (o gatilho da skill) por holdout, anti-overfitting.
 
 1. Gere candidatas de description (variações de fraseado/cobertura), respeitando **≤1024 chars**.
-2. Pontue cada candidata em todos os casos (reuso do executor+grader por candidata).
-3. Seleção determinista por holdout:
+2. Inclua casos positivos (`trigger_expected: true`) e negativos (`false`) no `evals.json`; execute cada candidata em repetições suficientes para expor variância. O resultado de triggering por repetição usa `eval-trigger-metrics.sh`, que mede precision, recall e F1 sem julgamento do modelo.
+3. Pontue cada candidata em todos os casos (reuso do executor+grader por candidata). Quando houver `train` e `test`, mantenha a proporção de positivos/negativos nos dois conjuntos; não selecione por F1 de treino.
+4. Seleção determinista por holdout:
    ```bash
    bash .forge/scripts/eval-holdout.sh .forge/evals/skills/<skill>/workspace/iteration-N/candidates.json
    ```
    - split 60/40 (train/test) determinista por ordenação dos ids;
    - **vencedora escolhida pela pontuação de TESTE**, nunca de treino;
    - `holdout.json` reporta `train_score` e `test_score` de cada candidata.
-4. Aplique a description vencedora ao `SKILL.md` **só** se `test_score` superar a atual; senão, mantenha e avise.
+5. Aplique a description vencedora ao `SKILL.md` **só** se o score de teste e as métricas de triggering não regredirem em relação à atual; senão, mantenha e avise.
 
 Reporte train e test scores **separados** e qual venceu — a transparência do holdout é a feature (§17.8.3).
 

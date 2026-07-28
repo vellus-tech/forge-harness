@@ -19,7 +19,9 @@ mk_change() {
   local id="$1"
   (cd "$T" && bash "$SPEC_NEW" "$id" --type feature --scale 2 >/dev/null)
   # avança o manifest para requirements-ready — só ali a regra da TASK-09 é avaliada.
-  sed -i '' 's/^status: proposed$/status: requirements-ready/' "$T/.forge/specs/active/$id/manifest.yaml"
+  # sed -i.bak: idioma portável BSD/GNU do repo (sed -i '' quebra no runner Linux do CI)
+  sed -i.bak 's/^status: proposed$/status: requirements-ready/' "$T/.forge/specs/active/$id/manifest.yaml"
+  rm -f "$T/.forge/specs/active/$id/manifest.yaml.bak"
 }
 
 echo "[1] affects_surfaces: [api] + mapas vazios (esqueleto do template) → FAIL"

@@ -17,3 +17,5 @@ O conjunto de testes é definido pelo risco e pela superfície alterada, não po
 - Tela orientada a dados: loading, sucesso, vazio e erro, além da interação/validação do formulário quando existir.
 
 Mocks substituem fronteiras que o teste não controla, como gateway externo, relógio ou fila. Não usar mock para transformar banco, domínio ou contrato interno em um teste verde sem valor. Se a infraestrutura não puder rodar, registrar explicitamente a evidência pendente; nunca declarar esse nível de teste aprovado.
+
+Em change de tipo `bugfix`, este contrato é complementado por [`regression-red-first.md`](./regression-red-first.md): o teste de reprodução precisa ter sido observado falhando na árvore pré-correção, com evidência replicável.

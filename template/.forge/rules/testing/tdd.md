@@ -3,7 +3,7 @@ title: Test-Driven Development (TDD)
 applies_to:
   - all
 priority: high
-last_reviewed: 2026-05-08
+last_reviewed: 2026-07-28
 ---
 
 # Test-Driven Development (TDD)
@@ -122,6 +122,7 @@ public void Split_Calculates()
 
 ## Referências
 
+- [Red-first em correção de defeito](./regression-red-first.md) — o mesmo ciclo aplicado a bugfix, onde o Red precisa ser observado e replicável, não presumido.
 - [Money como centavos](../domain/money-as-cents.md)
 - [NBR 5891](../domain/nbr-5891-rounding.md)
 - Test-Driven Development — Kent Beck

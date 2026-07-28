@@ -1,0 +1,18 @@
+{
+  "schema": "red-evidence/v1",
+  "change_id": "<CHANGE_ID>",
+  "status": "pending",
+  "test_path": null,
+  "test_id": null,
+  "command": null,
+  "base_commit": null,
+  "failure_pattern": null,
+  "excerpt": null,
+  "excerpt_sha256": null,
+  "classification": null,
+  "reproduces": "bugfix.md §1",
+  "fix_files": [],
+  "waiver": null,
+  "recorded_at": null,
+  "replayed_at": null
+}

@@ -7,3 +7,4 @@
 |---|---|---|---|
 | [0001](./0001-graph-engine.md) | Engine do grafo de código: subset local nativo (zero-dep) | accepted | 2026-06-11 |
 | [0002](./0002-authz-observability-substrate.md) | Substrato de autorização e observabilidade: OPA/Rego + stack OSS OTel | accepted | 2026-07-20 |
+| [0003](./0003-red-first-regression-evidence.md) | Red-first em bugfix: evidência declarada + replay determinista | accepted | 2026-07-28 |

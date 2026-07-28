@@ -27,7 +27,8 @@
    recorded with author, timestamp and reason in `approvals.yaml`.
 10. **Agent-agnostic by construction.** `.forge/` is the only source; every tool consumes
     generated adapters. Switching LLM/agent must never break the flow.
-11. **One source of truth, with a known precedence.** When sources contradict, authority order
+11. **Defect fixes start from an observed Red.** A regression test for a `bugfix` change is written before the fix and is *seen* failing on the pre-fix tree, for a behavioural reason — never a build error. The observation is recorded as replayable evidence, not asserted in a checkbox; a test that was never red proves nothing about the defect. Where a Red is genuinely impossible, the reason is waived explicitly and the debt is registered (see `rules/testing/regression-red-first.md`).
+12. **One source of truth, with a known precedence.** When sources contradict, authority order
     decides: constitution > baseline (ADRs/capabilities) > rules > context/defaults (FORGE.md §2.1).
     A relevant architectural conflict is **blocking** — the agent stops and escalates to the human
     gate; it never "registers and proceeds", and never silently picks the lower source. Decisions

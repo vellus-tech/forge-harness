@@ -20,12 +20,14 @@ Antes de qualquer modificação, leia os rules das categorias aplicáveis à sua
 
 1. `conventions/` — leia sempre, independente do tipo de mudança
 2. `architecture/` — leia para mudanças em código backend
-3. `domain/` — leia para qualquer código que toca valores monetários ou auditoria
-4. `testing/` — leia antes de escrever qualquer teste
+3. `data/` — leia para qualquer mudança que toca persistência, cache ou schema
+4. `domain/` — leia para qualquer código que toca valores monetários ou auditoria
+5. `testing/` — leia antes de escrever qualquer teste
+6. `frontend/` — leia para mudanças em UI
 
 ## Catálogo
 
-### `conventions/` (14 arquivos)
+### `conventions/` (15 arquivos)
 
 | Arquivo | Descrição | Prioridade |
 |---|---|---|
@@ -34,6 +36,7 @@ Antes de qualquer modificação, leia os rules das categorias aplicáveis à sua
 | [autonomy-yolo.md](./conventions/autonomy-yolo.md) | Modo HITL (default) vs YOLO — gates decididos por agente Opus com registro auditável (autonomous:true), hard-stops de domínio regulado, yolo decide gates mas não mascara falhas | Alta |
 | [conflict-handling.md](./conventions/conflict-handling.md) | Conflito entre fontes normativas é bloqueante — escala via HITL; precedência FORGE.md §2.1 (guardrails G1/G2) | Alta |
 | [session-discipline.md](./conventions/session-discipline.md) | Disciplina de sessão longa / autopilot (§17.6) | Alta |
+| [ledger-consultation.md](./conventions/ledger-consultation.md) | Consulta ao ledger durável — o que fazer a seguir nasce do `LEDGER.md` (roadmap & dívida técnica) | Alta |
 | [naming.md](./conventions/naming.md) | Convenções de nomenclatura por tipo de artefato | Alta |
 | [conventional-commits.md](./conventions/conventional-commits.md) | Padrão de mensagens de commit + scopes | Alta |
 | [lsp-impact-analysis.md](./conventions/lsp-impact-analysis.md) | Análise de impacto antes de editar (LSP/grep + diagnóstico por stack) | Alta |
@@ -63,6 +66,16 @@ Antes de qualquer modificação, leia os rules das categorias aplicáveis à sua
 | [docker-image-security.md](./architecture/docker-image-security.md) | Hardening de imagens | Alta |
 | [docker-multi-arch.md](./architecture/docker-multi-arch.md) | Multi-arch (amd64 + arm64/Graviton) | Média |
 
+### `data/` (5 arquivos)
+
+| Arquivo | Descrição | Prioridade |
+|---|---|---|
+| [data-governance.md](./data/data-governance.md) | Fonte única da decisão de tratamento de dados + matriz transversal por tipo de store (guardrail G4) | Alta |
+| [data-config-sql.md](./data/data-config-sql.md) | Dados em SQL (PostgreSQL) — configuração, parâmetros e relacional com integridade referencial forte | Alta |
+| [data-transactional-nosql.md](./data/data-transactional-nosql.md) | Dados em NoSQL (MongoDB) — transacional, eventos, alto volume e schema flexível | Alta |
+| [data-cache.md](./data/data-cache.md) | Cache (Redis/Memcache) — efêmero e voltado a performance, nunca fonte da verdade | Alta |
+| [schema-evolution.md](./data/schema-evolution.md) | Evolução segura de schema — alteração classificada como compatível, expandida ou excepcional | Alta |
+
 ### `domain/` (3 arquivos)
 
 | Arquivo | Descrição | Prioridade |
@@ -77,11 +90,13 @@ Antes de qualquer modificação, leia os rules das categorias aplicáveis à sua
 |---|---|---|
 | [design-system.md](./frontend/design-system.md) | Tokens, componentes, Storybook, a11y, naming e anti-patterns do design system <project_display> (white-label parametrizável) | Alta |
 
-### `testing/` (2 arquivos)
+### `testing/` (4 arquivos)
 
 | Arquivo | Descrição | Prioridade |
 |---|---|---|
 | [tdd.md](./testing/tdd.md) | Ciclo Red-Green-Refactor | Alta |
+| [regression-red-first.md](./testing/regression-red-first.md) | Red-first em correção de defeito — Red observado e replicável antes da correção, com waivers tipados; decisão de referência ADR-0003 do harness | Alta |
+| [change-test-contract.md](./testing/change-test-contract.md) | Contrato mínimo de testes por mudança — conjunto definido por risco e superfície alterada, não por meta de cobertura | Alta |
 | [quality-gates.md](./testing/quality-gates.md) | Gates de qualidade e cobertura | Alta |
 
 ## Como Adicionar um Novo Rule

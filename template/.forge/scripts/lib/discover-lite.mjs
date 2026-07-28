@@ -56,6 +56,12 @@ if (has('pyproject.toml') || has('requirements.txt')) {
   fp('pyproject.toml'); fp('requirements.txt');
   commands.test = commands.test || 'pytest';
 }
+if (has('pom.xml') || has('src/main/java')) {
+  stack.push('java');
+  fp('pom.xml');
+  commands.test = commands.test || (has('pom.xml') ? 'mvn test' : './gradlew test');
+  commands.build = commands.build || (has('pom.xml') ? 'mvn package' : './gradlew build');
+}
 if (has('build.gradle') || has('build.gradle.kts') || has('settings.gradle') || has('settings.gradle.kts')) {
   stack.push('kotlin-android');
   fp('build.gradle'); fp('build.gradle.kts'); fp('settings.gradle'); fp('settings.gradle.kts');

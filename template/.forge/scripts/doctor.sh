@@ -241,6 +241,7 @@ DETECTED=""
 [ -n "$(find_marker '*.sln')$(find_marker '*.csproj')" ] && DETECTED="$DETECTED dotnet"
 { [ -f package.json ] || [ -f tsconfig.json ] || [ -n "$(find_marker tsconfig.json)" ]; } && DETECTED="$DETECTED node"
 { [ -f pyproject.toml ] || [ -f requirements.txt ] || [ -f setup.py ]; } && DETECTED="$DETECTED python"
+[ -n "$(find_marker 'pom.xml')$(find_marker '*.java')" ] && DETECTED="$DETECTED java"
 [ -n "$(find_marker 'build.gradle')$(find_marker 'build.gradle.kts')" ] && DETECTED="$DETECTED kotlin"
 
 if [ -z "$DETECTED" ]; then
@@ -255,6 +256,27 @@ fi
 
 echo "Stacks detectadas:${DETECTED}"
 echo "Modo: $( [ "$INSTALL" -eq 1 ] && echo 'reportar + instalar (--install)' || echo 'somente reportar' )"
+echo
+
+# Capability packs são sugestão explícita, nunca ativação automática. A ativação é uma decisão
+# de arquitetura registrada no forge.yaml e os packs só orientam a área onde são aplicáveis.
+suggest_pack() {
+  local pack="$1"
+  if grep -Eq "^[[:space:]]*active:.*${pack}" "$ROOT/.forge/forge.yaml" 2>/dev/null; then
+    ok "capability pack ativo: $pack"
+  elif [ -f "$ROOT/.forge/capabilities/$pack/PROFILE.md" ]; then
+    info "capability pack sugerido: $pack (opt-in)"
+    hint "registre em .forge/forge.yaml: capabilities.active: [$pack]"
+  fi
+}
+for stack in $DETECTED; do
+  case "$stack" in
+    dotnet) suggest_pack backend-dotnet-relational ;;
+    node) suggest_pack backend-node-postgres ;;
+    java) suggest_pack backend-java-relational ;;
+    python) suggest_pack backend-python-relational ;;
+  esac
+done
 echo
 
 # try_install <descrição> <comando-de-instalação...>
@@ -328,6 +350,20 @@ check_python() {
   else info "lsp: pyright/python-lsp-server ausente (opcional)"; fi
 }
 
+# ── Java ──────────────────────────────────────────────────────────────────────
+check_java() {
+  echo "Java"
+  if have java && { have mvn || [ -x ./mvnw ] || have gradle || [ -x ./gradlew ]; }; then
+    ok "diagnóstico: Java + build tool disponíveis"
+  else
+    miss "diagnóstico: Java ou Maven/Gradle ausente (load-bearing — build/test)"
+    MISSING_DIAG=1
+    hint "instale JDK LTS e use mvnw/gradlew do projeto quando disponíveis"
+  fi
+  if have java-language-server || have jdtls; then ok "lsp: java-language-server/jdtls presente"
+  else info "lsp: java-language-server/jdtls ausente (opcional)"; fi
+}
+
 # ── Kotlin / JVM ───────────────────────────────────────────────────────────────
 check_kotlin() {
   echo "Kotlin / JVM"
@@ -355,6 +391,7 @@ for stack in $DETECTED; do
     dotnet) check_dotnet ;;
     node)   check_node ;;
     python) check_python ;;
+    java)   check_java ;;
     kotlin) check_kotlin ;;
   esac
   echo

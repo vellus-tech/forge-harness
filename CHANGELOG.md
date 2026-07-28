@@ -6,6 +6,19 @@ e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+## [0.1.0-rc23] — 2026-07-22
+
+### Added
+
+- **Capability packs opt-in por stack.** Novo catálogo em `.forge/capabilities/` com perfis para C#/.NET relacional, Node/Postgres, Java relacional e Python relacional. O `doctor` sugere o perfil detectado sem ativá-lo; a ativação é explícita em `forge.yaml`, e ADRs, baseline, customizações e código brownfield continuam tendo precedência. Novas rules transversais cobrem evolução de schema por expand → migrate/backfill → contract e o contrato mínimo de testes por mudança.
+- **Review por linguagem no `code-evaluator`.** Além dos cinco reviewers transversais, o evaluator seleciona reviewers .NET, Node/TypeScript, Java e Python conforme o diff/runtime; em monorepo chama os especialistas necessários por área. `/forge:ship` exige veredito do evaluator para o SHA atual antes de merge e não oferece bypass de revisão.
+- **Métricas de triggering de skills.** `eval-trigger-metrics.sh` mede precision, recall e F1 para casos positivos/negativos; o holdout aceita split estratificado por `trigger_expected`, reduzindo a chance de otimizar uma description apenas para a classe majoritária.
+
+### Fixed
+
+- **Adapter `agents-skills` deixou de assumir quatro skills.** O smoke compara a projeção `.agents/skills/` com o inventário real de `.forge/skills/`, permitindo evolução do catálogo sem falso negativo na instalação.
+- **`forge.schema.json` passou a declarar a seção `capabilities`.** O manifesto é `additionalProperties: false`, então a chave nova no `forge.yaml` reprovava na paridade ajv do `w20-spec-gate`. Toda seção de config precisa nascer declarada no schema.
+
 ## [0.1.0-rc22] — 2026-07-20
 
 Lote de fricção descoberta ao adotar o harness em repositórios brownfield reais (.NET, Android/pnpm-electron): duas correções de instalação/push e as três lacunas de archive/verify consolidadas do issue #22. Todas com contorno em produção antes de subir upstream; adotáveis via `/forge:upgrade`.

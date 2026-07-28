@@ -116,6 +116,16 @@
             "root": { "type": "string" }
           }
         },
+        "capabilities": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "active": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        },
         "quality": {
           "type": "object",
           "additionalProperties": false,

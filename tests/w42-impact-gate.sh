@@ -25,9 +25,9 @@ FORGE_ROOT="$T" bash "$S/graph.sh" build >/dev/null
 
 echo "[1] impact transitivo exato (semente = money)"
 out="$(FORGE_ROOT="$T" bash "$S/impact.sh" --files src/domain/money.ts)"
-echo "$out" | grep -q 'src/domain/money.ts'
-echo "$out" | grep -q 'src/application/pay.ts'
-echo "$out" | grep -q 'src/api/handler.ts'
+grep -q 'src/domain/money.ts' <<<"$out" || { echo "FAIL [1]: money.ts ausente do impacto — saída: $out"; exit 1; }
+grep -q 'src/application/pay.ts' <<<"$out" || { echo "FAIL [1]: pay.ts ausente do impacto — saída: $out"; exit 1; }
+grep -q 'src/api/handler.ts' <<<"$out" || { echo "FAIL [1]: handler.ts ausente do impacto — saída: $out"; exit 1; }
 # exatamente 3 impactados, nem mais nem menos
 n="$(echo "$out" | grep -c '^  src/')"
 [ "$n" -eq 3 ]
@@ -37,12 +37,13 @@ echo "[2] folha vs raiz"
 # raiz (handler) não é dependência de ninguém → só ela impactada
 out="$(FORGE_ROOT="$T" bash "$S/impact.sh" --files src/api/handler.ts)"
 n="$(echo "$out" | grep -c '^  src/')"
-[ "$n" -eq 1 ] && echo "$out" | grep -q 'src/api/handler.ts'
+[ "$n" -eq 1 ] || { echo "FAIL [2]: esperado 1 impactado, veio $n — saída: $out"; exit 1; }
+grep -q 'src/api/handler.ts' <<<"$out" || { echo "FAIL [2]: o único impactado não é handler.ts — saída: $out"; exit 1; }
 echo "OK [2]"
 
 echo "[3] baseline extract por boundary (services/<nome> -> capability)"
 out="$(FORGE_ROOT="$T" bash "$S/baseline-extract.sh" --dry-run)"
-echo "$out" | grep -q 'billing'   # services/billing vira capability candidata 'billing'
+grep -q 'billing' <<<"$out" || { echo "FAIL [3]: services/billing não virou capability candidata — saída: $out"; exit 1; }
 FORGE_ROOT="$T" bash "$S/baseline-extract.sh" >/dev/null
 [ -f "$T/.forge/product/current/capabilities/billing/spec.yaml" ]
 node "$WS/tools/validate-yaml.mjs" "$WS/template/.forge/schemas/baseline-capability.schema.json" "$T/.forge/product/current/capabilities/billing/spec.yaml" >/dev/null
@@ -76,7 +77,8 @@ EOF
 set +e
 out="$(FORGE_ROOT="$T" bash "$S/validate-archive.sh" feat-impact 2>&1)"; rc=$?
 set -e
-[ "$rc" -ne 0 ] && echo "$out" | grep -q 'impact.json missing'
+[ "$rc" -ne 0 ] || { echo "FAIL [4]: validate-archive deveria reprovar sem impact.json, mas passou (rc=$rc) — saída: $out"; exit 1; }
+grep -q 'impact.json missing' <<<"$out" || { echo "FAIL [4]: reprovou por outro motivo que não impact.json missing — saída: $out"; exit 1; }
 echo "OK [4]"
 
 echo "[5] impact --change grava impact.json → archive passa o pre-flight de impacto"
@@ -93,7 +95,8 @@ FORGE_ROOT="$T" bash "$S/graph.sh" update >/dev/null   # fingerprint muda
 set +e
 out="$(FORGE_ROOT="$T" bash "$S/validate-archive.sh" feat-impact 2>&1)"; rc=$?
 set -e
-[ "$rc" -ne 0 ] && echo "$out" | grep -q 'stale'
+[ "$rc" -ne 0 ] || { echo "FAIL [6]: validate-archive deveria reprovar com impact.json stale, mas passou (rc=$rc) — saída: $out"; exit 1; }
+grep -q 'stale' <<<"$out" || { echo "FAIL [6]: reprovou por outro motivo que não staleness — saída: $out"; exit 1; }
 echo "OK [6]"
 
 echo "OK"

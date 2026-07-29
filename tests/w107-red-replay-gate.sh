@@ -297,8 +297,8 @@ set +e
 out="$(cd "$T" && printf '%s\n' "$FEED8B" | bash .forge/hooks/git/pre-push origin "file://$T" 2>&1)"; rc=$?
 set -e
 [ "$rc" -ne 0 ] || { echo "FAIL [8b]: pre-push deveria bloquear (bugfix ativo sem evidência nenhuma) ($out)"; exit 1; }
-echo "$out" | grep -qi "red-first" || { echo "FAIL [8b]: pre-push não citou red-first ($out)"; exit 1; }
-echo "$out" | grep -q "bug-8b-sem-evidencia" || { echo "FAIL [8b]: pre-push não citou o change sem evidência ($out)"; exit 1; }
+grep -qi "red-first" <<<"$out" || { echo "FAIL [8b]: pre-push não citou red-first ($out)"; exit 1; }
+grep -q "bug-8b-sem-evidencia" <<<"$out" || { echo "FAIL [8b]: pre-push não citou o change sem evidência ($out)"; exit 1; }
 echo "OK [8b]"
 
 echo "[9] FORJA — status:'observed' hand-forjado (campos internamente consistentes, teste FICTÍCIO que nunca teve Red) — check-red-first sozinho ACEITA (limite aceito, Onda E), mas o GATE REAL (validate-spec, que chama 'ensure' incondicionalmente) reprova ao reexecutar o teste declarado de verdade"

@@ -37,11 +37,11 @@ listing="$(bash "$RA" --list)"
 # todo *-gate.sh aparece na listagem
 for g in "$WS"/tests/*-gate.sh; do
   base="$(basename "$g")"
-  echo "$listing" | grep -q "$base"
+  grep -q "$base" <<<"$listing" || { echo "FAIL [3]: gate $base não aparece no --list do run-all"; exit 1; }
 done
 # bats suites listadas
-echo "$listing" | grep -q 'validators.bats'
-echo "$listing" | grep -q 'claude-contract.bats'
+grep -q 'validators.bats' <<<"$listing" || { echo "FAIL [3]: validators.bats não aparece no --list"; exit 1; }
+grep -q 'claude-contract.bats' <<<"$listing" || { echo "FAIL [3]: claude-contract.bats não aparece no --list"; exit 1; }
 echo "OK [3]"
 
 echo "[4] run-all não chama a si mesmo (sem recursão)"

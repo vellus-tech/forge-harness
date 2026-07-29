@@ -29,6 +29,16 @@ export const TRANSPORT_KINDS = ['manual', 'fs', 'git', 'gh'];
 // Campos de transporte reconhecidos, na ordem de emissão. `kind` sempre primeiro.
 const TRANSPORT_FIELDS = ['kind', 'path', 'remote', 'branch'];
 
+// Caminho local do repositório de cada participante, usado só pelo /forge:ask-peer (consulta
+// síncrona). É informação de MÁQUINA, não do canal: o mesmo participante fica em diretórios
+// diferentes em cada estação, e por isso nunca viaja numa mensagem — quem não tiver o peer
+// clonado simplesmente não usa o atalho síncrono e segue pelo fluxo assíncrono.
+export function getPeerPath(doc, channel, participant) {
+  const ch = doc.channels && doc.channels[channel];
+  if (!ch || !ch.peers) return null;
+  return ch.peers[participant] || null;
+}
+
 export function readConfig(file) {
   if (!existsSync(file)) return { self: {}, channels: {} };
   const doc = parseYamlSubset(readFileSync(file, 'utf8'));
@@ -49,6 +59,10 @@ export function writeConfig(file, doc) {
         const v = ch.transport[f];
         if (v !== undefined && v !== null && v !== '') lines.push(`      ${f}: ${yamlQuote(v)}`);
       }
+    }
+    if (ch.peers && Object.keys(ch.peers).length) {
+      lines.push('    peers:');
+      for (const p of Object.keys(ch.peers).sort()) lines.push(`      ${p}: ${yamlQuote(ch.peers[p])}`);
     }
   }
   const text = lines.join('\n') + '\n';

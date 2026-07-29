@@ -5,7 +5,20 @@
   "description": "Envelope de uma mensagem do subsistema liaison (canal de mensagens ORDENADAS entre agentes de repositórios distintos). Store: um JSONL append-only POR REMETENTE — cada mensagem é uma linha em .forge/liaison/<channel>/log/<sender>.jsonl, escrita SÓ pelo dono desse arquivo. Thread é campo (thread_id), não arquivo. Lamport é por thread, não por canal. Ordem dentro da thread: (lamport, sender, seq). Reimplementado à mão em lib/liaison-merge.mjs::validateEnvelope (sem ajv em runtime).",
   "type": "object",
   "additionalProperties": false,
-  "required": ["msg_id", "channel", "thread_id", "sender", "seq", "lamport", "kind", "requires_ack", "subject", "created_at", "content_sha", "trust"],
+  "required": [
+    "msg_id",
+    "channel",
+    "thread_id",
+    "sender",
+    "seq",
+    "lamport",
+    "kind",
+    "requires_ack",
+    "subject",
+    "created_at",
+    "content_sha",
+    "trust"
+  ],
   "properties": {
     "msg_id": {
       "type": "string",
@@ -36,10 +49,21 @@
       "description": "Relógio de Lamport POR THREAD (não por canal). Ordem dentro da thread: (lamport, sender, seq). Entre threads não há ordem definida."
     },
     "kind": {
-      "enum": ["note", "question", "answer", "contract-change", "ack", "thread-open", "join"]
+      "enum": [
+        "note",
+        "question",
+        "answer",
+        "contract-change",
+        "ack",
+        "thread-open",
+        "join"
+      ]
     },
     "in_reply_to": {
-      "type": ["string", "null"],
+      "type": [
+        "string",
+        "null"
+      ],
       "description": "msg_id da mensagem respondida (ex.: ack aponta para a mensagem confirmada)."
     },
     "requires_ack": {
@@ -65,14 +89,32 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "change_id": { "type": ["string", "null"] },
-        "contract_files": { "type": "array", "items": { "type": "string" } },
-        "commit": { "type": ["string", "null"] }
+        "change_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "contract_files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "commit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
       }
     },
     "participants": {
       "type": "array",
-      "items": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9._-]*$"
+      },
       "minItems": 1,
       "description": "Só em kind=thread-open: composição inicial da thread (deve incluir o sender). kind=join não usa este campo — quem entra é o próprio sender da mensagem join."
     },
@@ -86,18 +128,58 @@
       "description": "sha256 hex do envelope canônico (chaves ordenadas) MENOS content_sha e MENOS trust. Confere integridade e detecta duplicata (msg_id repetido com content_sha igual = no-op; diferente = conflito)."
     },
     "trust": {
-      "enum": ["self", "untrusted-peer"],
+      "enum": [
+        "self",
+        "untrusted-peer"
+      ],
       "description": "Carimbado no IMPORT — NUNCA pelo remetente. self = escrita local própria; untrusted-peer = tudo que chegou de fora, mesmo depois de passar nas validações de import."
+    },
+    "authored_by": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+      "description": "Autoria REAL do conteúdo, quando ele veio de outro repositório (caso do /forge:ask-peer). O `sender` continua sendo o repositório que escreveu a linha — é o invariante de um escritor por arquivo, sem o qual o merge deixa de ser livre de conflito. Presença de authored_by força trust: untrusted-peer."
+    },
+    "via": {
+      "type": "string",
+      "enum": [
+        "ask-peer"
+      ],
+      "description": "Como o conteúdo de terceiro chegou até aqui. Registrado para que a procedência seja auditável no log, e não inferida."
     }
   },
   "allOf": [
     {
-      "if": { "properties": { "kind": { "const": "thread-open" } } },
-      "then": { "required": ["participants"] }
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "thread-open"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "participants"
+        ]
+      }
     },
     {
-      "if": { "properties": { "kind": { "enum": ["ack", "answer"] } } },
-      "then": { "properties": { "requires_ack": { "const": false } } }
+      "if": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "ack",
+              "answer"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "requires_ack": {
+            "const": false
+          }
+        }
+      }
     }
   ]
 }

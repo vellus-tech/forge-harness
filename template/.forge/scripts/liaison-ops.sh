@@ -403,7 +403,7 @@ send)
   self="$(_read_self)"
   [ -n "$self" ] || { echo "FAIL: self não configurado (rode 'open' primeiro)" >&2; exit 1; }
 
-  thread_id=""; kind=""; subject=""; body=""; body_file=""; requires_ack="false"
+  thread_id=""; kind=""; subject=""; body=""; body_file=""; requires_ack="false"; authored_by=""; via=""
   in_reply_to=""; change=""; contract_files=""; commit=""
   while [ $# -gt 0 ]; do case "$1" in
     --thread) thread_id="$2"; shift 2 ;;
@@ -416,8 +416,18 @@ send)
     --change) change="$2"; shift 2 ;;
     --contract-files) contract_files="$2"; shift 2 ;;
     --commit) commit="$2"; shift 2 ;;
+    --authored-by) authored_by="$2"; shift 2 ;;
+    --via) via="$2"; shift 2 ;;
     *) shift ;;
   esac; done
+  # authored_by registra a autoria REAL quando o conteúdo veio de outro repositório (o caso do
+  # /forge:ask-peer). O sender continua sendo este repositório — é o invariante de um escritor por
+  # arquivo que torna o merge livre de conflito; gravar no log alheio faria o log dele divergir do
+  # nosso e o import do outro lado reprovaria por reescrita de história.
+  if [ -n "${authored_by:-}" ]; then
+    self_local="$(_read_self)"
+    [ "$authored_by" != "$self_local" ] || { echo "FAIL: --authored-by igual ao self ($self_local) — omita a flag" >&2; exit 1; }
+  fi
   [ -n "$thread_id" ] || { echo "FAIL: --thread obrigatório" >&2; exit 1; }
   [ -n "$kind" ] || { echo "FAIL: --kind obrigatório (note|question|answer|contract-change)" >&2; exit 1; }
   case "$kind" in
@@ -480,13 +490,14 @@ NODEEOF
 
   IFS=',' read -ra cfiles <<< "${contract_files:-}"
   out="$(node - "$LIBDIR" "$ch_dir" "$self" "$channel" "$thread_id" "$kind" "$subject" "$body" "$body_ref" \
-    "$requires_ack" "${in_reply_to:-}" "${change:-}" "${cfiles[*]:-}" "${commit:-}" "$(_git_date)" <<'NODEEOF'
+    "$requires_ack" "${in_reply_to:-}" "${change:-}" "${cfiles[*]:-}" "${commit:-}" "$(_git_date)" \
+    "${authored_by:-}" "${via:-}" <<'NODEEOF'
 const { readFileSync, writeFileSync, readdirSync, existsSync, renameSync } = require('fs');
 const { join } = require('path');
 const { pathToFileURL } = require('url');
 (async () => {
   const [, , lib, chDir, self, channel, threadId, kind, subject, body, bodyRef,
-    requiresAck, inReplyTo, change, cfilesRaw, commit, now] = process.argv;
+    requiresAck, inReplyTo, change, cfilesRaw, commit, now, authoredBy, via] = process.argv;
   const M = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
   const logDir = join(chDir, 'log');
   const files = existsSync(logDir) ? readdirSync(logDir).filter((f) => f.endsWith('.jsonl')) : [];
@@ -509,7 +520,12 @@ const { pathToFileURL } = require('url');
     kind, in_reply_to: inReplyTo || null, requires_ack: requiresAck === 'true',
     subject, ...(body ? { body } : {}), ...(bodyRef ? { body_ref: bodyRef } : {}),
     refs: { change_id: change || null, contract_files: cfiles, commit: commit || null },
-    created_at: now, trust: 'self',
+    ...(authoredBy ? { authored_by: authoredBy } : {}),
+    ...(via ? { via } : {}),
+    created_at: now,
+    // Conteúdo cuja autoria é de outro repositório NUNCA é 'self', mesmo tendo sido escrito no
+    // nosso arquivo: quem lê precisa saber que a procedência é externa antes de agir sobre ele.
+    trust: authoredBy ? 'untrusted-peer' : 'self',
   };
   msg.content_sha = M.computeContentSha(msg);
   const errs = M.validateEnvelope(msg);
@@ -535,8 +551,17 @@ ack)
   [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado" >&2; exit 1; }
   self="$(_read_self)"
   [ -n "$self" ] || { echo "FAIL: self não configurado" >&2; exit 1; }
-  subject=""
-  while [ $# -gt 0 ]; do case "$1" in --subject) subject="$2"; shift 2 ;; *) shift ;; esac; done
+  subject=""; reason=""
+  while [ $# -gt 0 ]; do case "$1" in
+    --subject) subject="$2"; shift 2 ;;
+    --reason) reason="$2"; shift 2 ;;
+    *) shift ;;
+  esac; done
+  case "${reason:-}" in
+    ''|wont-adopt|acknowledged) ;;
+    *) echo "FAIL: --reason inválido '$reason' (use wont-adopt | acknowledged)" >&2; exit 1 ;;
+  esac
+  [ -n "$subject" ] || [ -z "$reason" ] || subject="ack ($reason)"
 
   out="$(node - "$LIBDIR" "$ch_dir" "$self" "$channel" "$msg_id" "$subject" "$(_git_date)" <<'NODEEOF'
 const { readFileSync, writeFileSync, readdirSync, existsSync, renameSync } = require('fs');
@@ -580,7 +605,22 @@ const { pathToFileURL } = require('url');
 NODEEOF
 )"
   _render "$channel"
-  echo "OK ack — $out confirma $msg_id"
+  # `wont-adopt` acka E registra dívida: a recusa vira item durável no ledger em vez de silêncio.
+  # Silêncio é exatamente o que produz drift de contrato — o outro lado não distingue "não vi" de
+  # "vi e decidi não adotar", e a decisão some com a sessão. Com o item no ledger, a recusa fica
+  # atribuível, consultável e reaparece no planejamento.
+  if [ "${reason:-}" = "wont-adopt" ]; then
+    ledger_ops="$SCRIPT_DIR/ledger-ops.sh"
+    if [ -f "$ledger_ops" ]; then
+      FORGE_ROOT="$ROOT" bash "$ledger_ops" add --type tech-debt --priority P2 \
+        --title "Contract-change recusado no liaison: $msg_id" \
+        --body "Este repositório ackou $msg_id (canal $channel) com --reason wont-adopt: reconheceu a mudança de contrato e decidiu NÃO adotá-la. A divergência resultante é conhecida e assumida, não acidental. Reabra quando a adoção entrar em roadmap, ou feche registrando por que a divergência é permanente." >/dev/null \
+        || echo "WARN: ack gravado, mas o registro no ledger falhou — registre a dívida à mão" >&2
+    else
+      echo "WARN: ledger-ops.sh ausente — a recusa não foi registrada como dívida" >&2
+    fi
+  fi
+  echo "OK ack — $out confirma $msg_id${reason:+ (motivo: $reason)}"
   ;;
 
 # ---------------------------------------------------------------------------------------------
@@ -793,6 +833,59 @@ import)
   [ -d "$from_dir/log" ] || { echo "FAIL: '$from_dir/log' não encontrado" >&2; exit 1; }
   [ -n "$(_read_self)" ] || { echo "FAIL: self não configurado" >&2; exit 1; }
   _apply_bundle "$channel" "$from_dir" "import"
+  ;;
+
+# ---------------------------------------------------------------------------------------------
+# peer — caminho LOCAL do repositório de um participante, para o atalho síncrono /forge:ask-peer.
+# Fica no liaison.yaml e não numa mensagem porque é informação de máquina: o mesmo participante
+# mora em diretórios diferentes em cada estação. Quem não tem o peer clonado não usa o atalho.
+peer)
+  sub="${1:-}"; shift || true
+  channel="${1:-}"; shift || true
+  participant="${1:-}"; shift || true
+  [ "$sub" = "set" ] || { echo "FAIL: uso: peer set <channel> <participante> --path <dir>" >&2; exit 1; }
+  [ -n "$channel" ] && [ -n "$participant" ] || { echo "FAIL: <channel> e <participante> obrigatórios" >&2; exit 1; }
+  peer_path=""
+  while [ $# -gt 0 ]; do case "$1" in --path) peer_path="$2"; shift 2 ;; *) shift ;; esac; done
+  [ -n "$peer_path" ] || { echo "FAIL: --path obrigatório" >&2; exit 1; }
+  node - "$LIBDIR" "$CONFIG" "$channel" "$participant" "$peer_path" <<'NODEEOF'
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, cfg, channel, participant, path] = process.argv;
+  const C = await import(pathToFileURL(join(lib, 'liaison-config.mjs')).href);
+  const doc = C.readConfig(cfg);
+  if (!doc.channels[channel]) { console.error(`canal '${channel}' não registrado — rode 'open' primeiro`); process.exit(1); }
+  if (!C.ID_RE.test(participant)) { console.error(`participante inválido: ${participant}`); process.exit(1); }
+  if (!doc.channels[channel].peers) doc.channels[channel].peers = {};
+  doc.channels[channel].peers[participant] = path;
+  C.writeConfig(cfg, doc);
+})();
+NODEEOF
+  echo "OK peer set — $participant → $peer_path (canal $channel)"
+  ;;
+
+peer-path)
+  channel="${1:-}"; shift || true
+  participant="${1:-}"; shift || true
+  [ -n "$channel" ] && [ -n "$participant" ] || { echo "FAIL: uso: peer-path <channel> <participante>" >&2; exit 1; }
+  out="$(node - "$LIBDIR" "$CONFIG" "$channel" "$participant" <<'NODEEOF'
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, cfg, channel, participant] = process.argv;
+  const C = await import(pathToFileURL(join(lib, 'liaison-config.mjs')).href);
+  const p = C.getPeerPath(C.readConfig(cfg), channel, participant);
+  if (!p) {
+    console.error(`caminho local de '${participant}' não configurado no canal '${channel}' — rode: liaison-ops.sh peer set ${channel} ${participant} --path <dir>`);
+    console.error('(sem ele, o atalho síncrono /forge:ask-peer não se aplica; use o fluxo assíncrono)');
+    process.exit(1);
+  }
+  process.stdout.write(p);
+})();
+NODEEOF
+)" || exit 1
+  printf '%s\n' "$out"
   ;;
 
 # ---------------------------------------------------------------------------------------------

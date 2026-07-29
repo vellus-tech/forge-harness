@@ -43,6 +43,16 @@ fi
 echo "[1/6] pre-flight (§13.1)"
 FORGE_ROOT="$ROOT" bash "$SCRIPT_DIR/validate-archive.sh" --path "$DIR" || exit 1
 
+# liaison acks (rule conventions/liaison-protocol.md): incorporar um change ao baseline com um
+# contract-change inbound ainda pendente de ack é justamente como o drift entra — o baseline passa
+# a afirmar algo que o outro repositório não confirmou. Só cobra os acks DESTE repositório, e só em
+# enforce:block; em warn apenas avisa. `spec-close.sh` deliberadamente NÃO consulta este check:
+# fechar um change (abandoned/superseded/delivered-externally) não afirma nada sobre contrato, e
+# travar o encerramento por ack de peer deixaria changes zumbis presos no ativo.
+if [ -f "$SCRIPT_DIR/check-liaison-acks.sh" ]; then
+  FORGE_ROOT="$ROOT" bash "$SCRIPT_DIR/check-liaison-acks.sh" || exit 1
+fi
+
 # red-first (rule testing/regression-red-first.md): redundante com o bloqueio já feito por
 # validate-spec.mjs na transição para verified (chamado acima), mas roda de novo aqui como
 # defesa em profundidade — um manifest editado à mão para 'verified' sem passar pela

@@ -57,6 +57,17 @@ $INPUT
 EOF_AI
 fi
 
+# liaison acks (rule conventions/liaison-protocol.md) — cobra só os acks que ESTE repositório deve.
+# Roda antes do gate de FORGE.md porque não depende dele: um repositório pode ter canal de liaison
+# sem ter o bloco runtime configurado, e a cobrança de contrato vale igual.
+ACKS="$ROOT/.forge/scripts/check-liaison-acks.sh"
+if [ -f "$ACKS" ]; then
+  if ! FORGE_ROOT="$ROOT" bash "$ACKS"; then
+    echo "pre-push BLOQUEADO: liaison — ack pendente (rule conventions/liaison-protocol.md)" >&2
+    exit 1
+  fi
+fi
+
 FORGE_MD="$ROOT/.forge/FORGE.md"
 [ -f "$FORGE_MD" ] || { echo "pre-push OK (sem harness)"; exit 0; }
 

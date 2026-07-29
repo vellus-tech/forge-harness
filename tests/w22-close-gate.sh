@@ -14,7 +14,12 @@ set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 T="$(mktemp -d /tmp/forge-w22.XXXXXX)"
-trap 'rm -rf "$T"' EXIT
+# Diretório de log por execução: path fixo em /tmp é sobrescrito pela próxima rodada, e a
+# evidência da falha some justamente quando alguém vai investigá-la.
+LOGDIR="$(mktemp -d "$T-logs.XXXXXX")"
+# UM único trap: em bash o segundo `trap ... EXIT` substitui o primeiro, e o fixture ficaria sem
+# limpeza — foi assim que 125 diretórios vazaram para /tmp antes de alguém notar.
+trap 'rm -rf "$T" "$LOGDIR"' EXIT
 
 cp -R "$WS/template/.forge" "$T/.forge"
 SN="$T/.forge/scripts/spec-new.sh"; TR="$T/.forge/scripts/spec-transition.sh"
@@ -55,12 +60,12 @@ echo "OK [1]"
 echo "[2] verify recusa estados pré-implementing"
 # Encadeado em subshell com `&&` sob `set -e`, um passo que falhe mata o gate SEM mensagem — o
 # sintoma vira "parou no [2]" e não se sabe qual dos três comandos caiu (classe LDG-0006).
-(cd "$T" && bash "$SN" chg-g --type feature --scale 1 >/tmp/w22-sn.log 2>&1) \
-  || { echo "FAIL [2]: spec-new falhou"; tail -5 /tmp/w22-sn.log; exit 1; }
-(cd "$T" && bash "$TR" chg-g requirements-ready >/tmp/w22-tr1.log 2>&1) \
-  || { echo "FAIL [2]: transição para requirements-ready falhou"; tail -5 /tmp/w22-tr1.log; exit 1; }
-(cd "$T" && bash "$TR" chg-g tasks-ready >/tmp/w22-tr2.log 2>&1) \
-  || { echo "FAIL [2]: transição para tasks-ready falhou"; tail -5 /tmp/w22-tr2.log; exit 1; }
+(cd "$T" && bash "$SN" chg-g --type feature --scale 1 >$LOGDIR/sn.log 2>&1) \
+  || { echo "FAIL [2]: spec-new falhou"; tail -5 $LOGDIR/sn.log; exit 1; }
+(cd "$T" && bash "$TR" chg-g requirements-ready >$LOGDIR/tr1.log 2>&1) \
+  || { echo "FAIL [2]: transição para requirements-ready falhou"; tail -5 $LOGDIR/tr1.log; exit 1; }
+(cd "$T" && bash "$TR" chg-g tasks-ready >$LOGDIR/tr2.log 2>&1) \
+  || { echo "FAIL [2]: transição para tasks-ready falhou"; tail -5 $LOGDIR/tr2.log; exit 1; }
 set +e
 (cd "$T" && bash "$VF" chg-g) >/dev/null 2>&1; [ $? -ne 0 ] || { echo "verify aceitou tasks-ready!"; exit 1; }
 set -e

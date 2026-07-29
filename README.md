@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🔨 Forge Project Harness
+<img src="docs/assets/banner.png" alt="Forge Harness — Spec-Driven Development como fonte única: determinista, multi-agente, code graph nativo" width="900">
+
+# Forge Project Harness
 
 **Spec-Driven Development como fonte única — multi-agente, determinista e com code graph nativo.**
 

@@ -61,7 +61,7 @@ export function parseYamlSubset(text) {
         listStack.push(ctx);
       }
       const rest = line === '-' ? '' : line.slice(2);
-      const m = rest.match(/^([A-Za-z0-9_]+):(.*)$/);
+      const m = rest.match(/^([A-Za-z0-9_-]+):(.*)$/);
       if (m) {
         const item = {};
         item[m[1]] = parseScalar(m[2]);
@@ -79,7 +79,7 @@ export function parseYamlSubset(text) {
     while (frames.length > 1 && indent <= frames[frames.length - 1].indent) frames.pop();
     const container = frames[frames.length - 1].obj;
 
-    const m = line.match(/^([A-Za-z0-9_]+):(.*)$/);
+    const m = line.match(/^([A-Za-z0-9_-]+):(.*)$/);
     if (!m) throw new Error(`unparseable line: "${line}"`);
     const [, key, rest] = m;
 

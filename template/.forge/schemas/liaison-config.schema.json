@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forge/schemas/liaison-config.schema.json",
+  "title": "liaison.yaml — identidade local e registro de canais do subsistema liaison",
+  "description": "Config em .forge/liaison/liaison.yaml. self.id é a identidade fixa desta réplica (repositório) dentro do liaison; channels registra, por canal, o conjunto de participantes conhecidos (quem tem um log/<sender>.jsonl esperado). NÃO define composição de thread — isso é mensagem (kind: thread-open/join), não configuração. .forge/liaison/ vive FORA de MACHINERY_DIRS: é dado durável, preservado byte-a-byte pelo `forge update`.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["self", "channels"],
+  "properties": {
+    "self": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "description": "Identidade desta réplica, fixa desde a primeira `liaison-ops.sh open`. Usada como sender em toda mensagem escrita localmente."
+        }
+      }
+    },
+    "channels": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyNames": { "pattern": "^[a-z0-9][a-z0-9-]*$" },
+      "patternProperties": {
+        "^[a-z0-9][a-z0-9-]*$": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["participants"],
+          "properties": {
+            "participants": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+              "description": "Participantes conhecidos do CANAL (repositórios que têm log/<sender>.jsonl esperado). Confina quem o import aceita como sender legítimo — não confunde com a lista de participantes de uma thread individual, que vive nas mensagens thread-open/join."
+            }
+          }
+        }
+      }
+    }
+  }
+}

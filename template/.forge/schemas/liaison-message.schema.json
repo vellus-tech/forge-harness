@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forge/schemas/liaison-message.schema.json",
+  "title": "liaison message — uma linha de <channel>/log/<sender>.jsonl",
+  "description": "Envelope de uma mensagem do subsistema liaison (canal de mensagens ORDENADAS entre agentes de repositórios distintos). Store: um JSONL append-only POR REMETENTE — cada mensagem é uma linha em .forge/liaison/<channel>/log/<sender>.jsonl, escrita SÓ pelo dono desse arquivo. Thread é campo (thread_id), não arquivo. Lamport é por thread, não por canal. Ordem dentro da thread: (lamport, sender, seq). Reimplementado à mão em lib/liaison-merge.mjs::validateEnvelope (sem ajv em runtime).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["msg_id", "channel", "thread_id", "sender", "seq", "lamport", "kind", "requires_ack", "subject", "created_at", "content_sha", "trust"],
+  "properties": {
+    "msg_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]*-[0-9]{4}$",
+      "description": "`<sender>-<seq:4>`, ex.: axis-go-cloud-0001. Único dentro do canal."
+    },
+    "channel": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "thread_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "sender": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+      "description": "Identidade do remetente (self.id de algum participante). Conferido no import contra o nome do arquivo em que a mensagem chegou (log/<X>.jsonl só pode conter sender: X) — mata spoofing."
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotônico e sem buracos POR REMETENTE — detector de mensagem perdida."
+    },
+    "lamport": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Relógio de Lamport POR THREAD (não por canal). Ordem dentro da thread: (lamport, sender, seq). Entre threads não há ordem definida."
+    },
+    "kind": {
+      "enum": ["note", "question", "answer", "contract-change", "ack", "thread-open", "join"]
+    },
+    "in_reply_to": {
+      "type": ["string", "null"],
+      "description": "msg_id da mensagem respondida (ex.: ack aponta para a mensagem confirmada)."
+    },
+    "requires_ack": {
+      "type": "boolean",
+      "description": "Proibido (deve ser false) em kind=ack e kind=answer — trava anti-eco (uma resposta/ack não pode por sua vez exigir ack)."
+    },
+    "subject": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "body": {
+      "type": "string",
+      "maxLength": 2048,
+      "description": "Corpo inline, ≤2 KB. Mutuamente exclusivo com body_ref — exatamente um dos dois é obrigatório."
+    },
+    "body_ref": {
+      "type": "string",
+      "pattern": "^blobs/[A-Za-z0-9._-]+$",
+      "description": "Referência a <channel>/blobs/<arquivo> para corpos grandes (≤64 KB). Padrão sem separador de diretório além do prefixo fixo blobs/ — recusa path traversal por construção."
+    },
+    "refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "change_id": { "type": ["string", "null"] },
+        "contract_files": { "type": "array", "items": { "type": "string" } },
+        "commit": { "type": ["string", "null"] }
+      }
+    },
+    "participants": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+      "minItems": 1,
+      "description": "Só em kind=thread-open: composição inicial da thread (deve incluir o sender). kind=join não usa este campo — quem entra é o próprio sender da mensagem join."
+    },
+    "created_at": {
+      "type": "string",
+      "description": "Data do commit HEAD (git log -1 --format=%cI) no momento do envio — NUNCA usado para ordenar (ordem é lamport/sender/seq)."
+    },
+    "content_sha": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "sha256 hex do envelope canônico (chaves ordenadas) MENOS content_sha e MENOS trust. Confere integridade e detecta duplicata (msg_id repetido com content_sha igual = no-op; diferente = conflito)."
+    },
+    "trust": {
+      "enum": ["self", "untrusted-peer"],
+      "description": "Carimbado no IMPORT — NUNCA pelo remetente. self = escrita local própria; untrusted-peer = tudo que chegou de fora, mesmo depois de passar nas validações de import."
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "kind": { "const": "thread-open" } } },
+      "then": { "required": ["participants"] }
+    },
+    {
+      "if": { "properties": { "kind": { "enum": ["ack", "answer"] } } },
+      "then": { "properties": { "requires_ack": { "const": false } } }
+    }
+  ]
+}

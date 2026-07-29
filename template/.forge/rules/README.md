@@ -14,6 +14,8 @@ based_on: [ADR-0007]   # esta rule deriva desta decisão aceita
 
 Separadamente, uma rule pode declarar `pack: <nome>` + `opt_in: true` no frontmatter — isso marca que ela pertence a um rule-pack opcional (ex.: `authz`, `pii-pci`), não à constitution universal. Uma rule com esses campos só vale como contrato obrigatório nos projetos que ativam o pack correspondente; nos demais, é referência disponível, não gate imposto.
 
+Esse `pack:` **não** é o capability pack de `capabilities.active` no `forge.yaml`, apesar do nome comum. Capability pack é perfil de **stack** (como escrever código em .NET relacional, Node/Postgres, etc.) e vive em `.forge/capabilities/`; `pack:` aqui é rule-pack de **domínio** (autorização, PII/PCI) e vale onde o domínio se aplica, independentemente da stack. Ativar um não ativa o outro. A chave de ativação de rule-packs ainda não existe — até existir, `pack:` é sinalização documental (item `LDG-0003` no ledger do harness).
+
 ## Como Usar
 
 Antes de qualquer modificação, leia os rules das categorias aplicáveis à sua tarefa:

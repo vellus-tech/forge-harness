@@ -17,6 +17,8 @@ interpretive. Validated in the workspace with ajv; in target projects via `lib/v
 | `run-manifest.schema.json` | execution evidence (`run-manifest/v1`) | W9.0 |
 | `benchmark-case.schema.json` | canonical eval benchmark cases | W9.2 |
 | `red-evidence.schema.json` | observed-Red evidence for `type: bugfix` changes (`evidence/red/*.json`) | W10.x |
+| `liaison-message.schema.json` | one line of `.forge/liaison/<channel>/log/<sender>.jsonl` | liaison Onda 1 |
+| `liaison-config.schema.json` | `.forge/liaison/liaison.yaml` (self, canais, participantes) | liaison Onda 1 |
 
 **Consolidation decision (W1.0, plan review):** the project doc tree (§8) lists both
 `adapter.schema.json` and `adapter-capability.schema.json` (§10.6) — a redundancy in the doc.

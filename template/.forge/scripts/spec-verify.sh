@@ -24,6 +24,7 @@ bash "$SCRIPT_DIR/budget-preflight.sh" --stage verify --change "$ID" --outputs "
 
 STATUS="$(awk -F': ' '$1=="status"{print $2; exit}' "$MAN")"
 case "$STATUS" in implementing|implemented) ;; *) echo "FAIL (status '$STATUS' — verify runs on implementing|implemented)"; exit 1 ;; esac
+TYPE="$(awk -F': ' '$1=="type"{print $2; exit}' "$MAN")"
 
 fail=0
 notes=""
@@ -100,6 +101,49 @@ if command -v node >/dev/null 2>&1 && [ -f "$SCRIPT_DIR/lib/spec-delta-scaffold.
   fi
 fi
 
+# ── red-first (rule testing/regression-red-first.md) — replay real, não presumido ──────────
+# Só para type:bugfix. A prova mora na EXECUÇÃO, não no artefato: `red-evidence.sh ensure` roda
+# SEMPRE, sem atalho por campo algum do JSON. Duas heurísticas anteriores foram removidas por
+# serem circulares — ler replayed_at/replay_head do próprio artefato, e consultar um cache local
+# cuja chave o autor também computa (ver ADR-0003, adendas 1 e 2). Evidência waived não dispara
+# execução: é política própria, não observação de Red pendente.
+# Teto de tempo próprio (perl alarm, defesa em profundidade — Furo 3): o motor JS já limita cada
+# execução de teste a --timeout segundos, mas isso não impede /forge:verify de pendurar se o
+# próprio processo node travar por outro motivo (lock de worktree, etc.).
+RED_FIRST_YAML=""
+if [ "$TYPE" = "bugfix" ]; then
+  RED_JSON="$DIR/evidence/red/red-evidence.json"
+  if [ -f "$RED_JSON" ] && [ -f "$SCRIPT_DIR/red-evidence.sh" ]; then
+    _redfirst_status() { node -e "try{const d=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'));process.stdout.write(d.status||'')}catch{process.stdout.write('')}" "$RED_JSON"; }
+    if perl -e 'alarm 600; exec @ARGV' -- bash -c "FORGE_ROOT='$ROOT' bash '$SCRIPT_DIR/red-evidence.sh' ensure '$ID'" >"/tmp/forge-verify-$ID-red-replay.log" 2>&1; then :; fi
+    echo "  red-first ensure: log em /tmp/forge-verify-$ID-red-replay.log"
+    red_status="$(_redfirst_status)"
+    if [ "$red_status" != "observed" ] && [ "$red_status" != "waived" ]; then
+      fail=1
+      notes="${notes:+$notes; }red-first: evidência não resolvida (status: ${red_status:-desconhecido}) — rode /forge:red replay ou /forge:red waive"
+    fi
+    # item 4 (Onda D) — o rc do check ESTÁTICO (que corrobora 'observed' contra o cache local e
+    # reaplica a política do waiver) precisa PROPAGAR: um achado bloqueante do red-first reprova
+    # o verify (rule: "não rebaixáveis por modo de operação, nem em yolo"). O `|| true` antigo
+    # descartava o rc e deixava o CONFLICT gravado só como texto informativo em verification.yaml
+    # — o verify saía OK mesmo com a forja sentada no red_first.findings.
+    red_check_rc=0
+    red_check_out="$(FORGE_ROOT="$ROOT" bash "$SCRIPT_DIR/check-red-first.sh" check "$ID" 2>&1)" || red_check_rc=$?
+    if [ "$red_check_rc" -ne 0 ]; then
+      fail=1
+      notes="${notes:+$notes; }red-first: check-red-first reprovou — $red_check_out"
+    fi
+    RED_FIRST_YAML="$(node -e "
+      const status = process.argv[1] || 'pending';
+      const raw = process.argv[2] || '';
+      const findings = raw.split('\n').map((s) => s.trim()).filter(Boolean);
+      const lines = ['  red_first:', '    status: ' + status, '    evidence_path: \"evidence/red/red-evidence.json\"', '    findings:'];
+      for (const f of findings) lines.push('      - ' + JSON.stringify(f));
+      process.stdout.write(lines.join('\n') + '\n');
+    " "${red_status:-pending}" "$red_check_out")"
+  fi
+fi
+
 # ── verification.yaml (§10.10) ───────────────────────────────────────────────
 COMMIT="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo "unversioned")"
 AT="$(date +%Y-%m-%dT%H:%M:%S%z | sed 's/\([0-9][0-9]\)$/:\1/')"
@@ -115,6 +159,7 @@ AT="$(date +%Y-%m-%dT%H:%M:%S%z | sed 's/\([0-9][0-9]\)$/:\1/')"
   fi
   printf '  evidence:\n'
   printf '    - verification.md\n'
+  [ -z "$RED_FIRST_YAML" ] || printf '%s' "$RED_FIRST_YAML"
 } > "$DIR/verification.yaml"
 
 RM_STATUS="passed"

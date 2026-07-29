@@ -37,6 +37,7 @@ Para cada task `[ ]` cuja(s) dependência(s) estejam `[X]`:
 
 1. Marque `[-]` no `tasks.md` do change.
 2. Implemente **somente** o escopo da task (paths declarados; TDD-first quando há lógica verificável; rules do projeto em `.forge/rules/` valem integralmente).
+   - **`type: bugfix`, task do Red (rastreia bugfix.md §5):** o DoD desta task **não é suíte verde** — é a evidência gravada. Rode `/forge:red record` (declara test_path/command/fix_files/failure_pattern) e depois `/forge:red replay` (`bash .forge/scripts/red-evidence.sh replay <change-id>`) até o resultado ser `OK replay` (status `observed`) ou, quando o Red for genuinamente inviável, `/forge:red waive --reason <motivo>`. `FAIL replay` ou `NOT-POSSIBLE` sem waiver **não fecha a task** — não marque `[X]` com a evidência em `pending`.
 3. **Gates baratos** (skill `gate-runner`): parseabilidade dos arquivos gerados, grep negativo (sem `TODO`/`FIXME`/`not implemented` residuais, sem debug), anti-empty; rode build/teste da stack quando declarados no `FORGE.md runtime:`. Uma linha por gate; output bruto em `/tmp`.
 4. Commit atômico: `<type>(<scope>): TASK-NN — <título conciso>`. **Nunca** co-autoria de IA (constitution). Não faça push — quem publica é o operador ou o fluxo orquestrador.
 5. Marque `[X]` e emita **uma linha** de progresso (`TASK-NN ✓ <título> (<sha curto>)`) — sem resumos entre tasks (§17.6).

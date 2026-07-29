@@ -16,6 +16,10 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="${FORGE_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
+# Ver comentário em validate-spec.sh: a transição para verified aciona o red-first pelo validador,
+# que resolve o replay via FORGE_ROOT. Sem export, a transição documentada em verify.md pularia o
+# replay em silêncio — o pré-requisito falta e o gate se desliga, em vez de reprovar.
+export FORGE_ROOT="$ROOT"
 
 ID="${1:-}"; TARGET="${2:-}"; REASON=""
 [ $# -ge 2 ] || { echo "FAIL (usage: spec-transition.sh <change-id> <new-status> [--reason ...])"; exit 2; }

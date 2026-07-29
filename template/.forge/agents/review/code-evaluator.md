@@ -125,6 +125,18 @@ Verifica se os arquivos/funções/símbolos mencionados existem de fato:
 
 Se houver claim sem evidência → finding `CLAIM-001` severidade `HIGH`. Não bloqueia automaticamente, mas é input para reviewers.
 
+#### 1.3 `check-red-first` (rule `testing/regression-red-first.md`) — só quando o diff pertence a um change `type: bugfix`
+
+Cheap gate determinístico, sem LLM — roda **antes** de qualquer reviewer, no mesmo espírito do 1.1/1.2 (economia de tokens: um bugfix sem Red observado não deveria custar um fan-out de 5+ reviewers Opus/Sonnet):
+
+```bash
+git -C "$ROOT" rev-parse --show-toplevel >/dev/null 2>&1 || exit 0   # sem harness Forge — no-op
+CH="$(basename "$(dirname "$(git -C "$ROOT" diff --name-only "$base..HEAD" -- '.forge/specs/active/*/manifest.yaml' | head -1)")")"
+[ -n "$CH" ] && bash .forge/scripts/check-red-first.sh check "$CH"
+```
+
+Se o diff tocar um change ativo `type: bugfix` e a evidência não estiver `observed`/`waived` → finding `RED-001` severidade `BLOCKER` ("Red-first: evidência ausente/pendente — rode `/forge:red replay` ou `/forge:red waive`"), pule reviewers e vá direto para Fase 5 com `REJECTED` — mesmo tratamento de 1.1/1.2. Isto é **só o check estático** (Onda B) — nunca roda o replay real aqui (caro; é responsabilidade de `/forge:red replay`/`/forge:verify`, já executado antes do `code-evaluator` entrar em cena).
+
 ---
 
 ### Fase 2 — Fan-out paralelo para reviewers transversais e de stack

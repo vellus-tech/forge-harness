@@ -10,9 +10,15 @@
   "excerpt": null,
   "excerpt_sha256": null,
   "classification": null,
+  "base_result": null,
+  "base_strategy": null,
+  "revert_patch": null,
+  "replay_head": null,
+  "setup_command": null,
   "reproduces": "bugfix.md §1",
   "fix_files": [],
   "waiver": null,
   "recorded_at": null,
-  "replayed_at": null
+  "replayed_at": null,
+  "waived_at": null
 }

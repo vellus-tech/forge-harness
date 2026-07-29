@@ -9,10 +9,12 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**3 itens ativos** · roadmap 1 · follow-up 2
+**4 itens ativos** · roadmap 2 · follow-up 2
 
 ## Roadmap
 
+- **LDG-0004** [open] (P2) — Red-first: mover a execução do replay para CI (fecha cache e parte do comando arbitrário)
+  A norma testing/regression-red-first.md (ADR 0003) é calibrada para descuido, não para autor adversarial: comando declarado arbitrário, defeito introduzido no próprio PR, e waiver externamente inverificável continuam abertos porque a evidência é produzida inteiramente pela parte sendo verificada, num ambiente que ela controla. Rodar o replay (red-evidence.sh ensure/replay) num runner de CI que o autor não controla fecharia o vetor do comando arbitrário (o CI define o ambiente, não o autor) e eliminaria de vez a tentação de reintroduzir um cache local (o CI não precisa de atalho de custo entre execuções isoladas). Não fecha o vetor de defeito-introduzido-no-próprio-PR nem o de waiver inverificável — esses exigem revisão humana, não infraestrutura.
 - **LDG-0003** [open] — Maquinaria de capability packs no harness (forge.yaml packs:, installer materializa só packs ativos)
 
 ## Ideias de feature

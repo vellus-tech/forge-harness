@@ -27,7 +27,17 @@
             }
           }
         },
-        "evidence": { "type": "array", "items": { "type": "string" } }
+        "evidence": { "type": "array", "items": { "type": "string" } },
+        "red_first": {
+          "description": "Resumo do protocolo Red-first (rule testing/regression-red-first.md) no momento da verificação — só populado para change type:bugfix; ausente/null para os demais tipos.",
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "status": { "enum": ["not-applicable", "pending", "observed", "waived", "not-possible"] },
+            "evidence_path": { "type": ["string", "null"] },
+            "findings": { "type": "array", "items": { "type": "string" } }
+          }
+        }
       }
     }
   }

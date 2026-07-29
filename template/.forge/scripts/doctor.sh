@@ -208,6 +208,33 @@ EOF_ORPHAN
     done
   fi
 
+  # red-first (rule testing/regression-red-first.md): change type:bugfix ativo cuja evidência
+  # de Red ainda não está observed/waived. Advisory puro, igual ao bloco do ledger acima —
+  # NUNCA seta MISSING_DIAG (o enforcement real e bloqueante é o validate-spec.mjs na
+  # transição para verified, e o check-red-first.sh no pré-flight do archive).
+  if [ -d "$ROOT/.forge/specs/active" ] && command -v node >/dev/null 2>&1 \
+     && [ -f "$ROOT/.forge/scripts/lib/check-red-first.mjs" ]; then
+    red_pending=""
+    for chdir in "$ROOT"/.forge/specs/active/*/; do
+      [ -f "$chdir/manifest.yaml" ] || continue
+      chtype="$(awk -F': ' '$1=="type"{print $2; exit}' "$chdir/manifest.yaml")"
+      [ "$chtype" = "bugfix" ] || continue
+      chid="$(basename "$chdir")"
+      st="$(FORGE_ROOT="$ROOT" node "$ROOT/.forge/scripts/lib/check-red-first.mjs" status "$chdir" 2>/dev/null || echo "")"
+      case "$st" in
+        OK*) ;;
+        "") ;;
+        *) red_pending="${red_pending:+$red_pending, }$chid ($st)" ;;
+      esac
+    done
+    if [ -n "$red_pending" ]; then
+      info "harness: red-first — evidência pendente: $red_pending"
+      hint "grave a observação (/forge:red record) ou dispense (check-red-first.sh waive <id> --reason <r>)"
+    else
+      ok "harness: red-first sem evidência pendente"
+    fi
+  fi
+
   # plugin /forge:* instalado no Claude Code (best-effort; puramente informativo — NUNCA
   # contribui para MISSING_DIAG/exit 1). Sintoma real que motivou o check: usuário colando o
   # CORPO dos comandos como texto porque /forge:* silenciosamente não existia (plugin nunca

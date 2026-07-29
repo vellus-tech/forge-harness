@@ -29,7 +29,10 @@ Argumentos: nenhum.
 3. **Testes/gates do FORGE.md.** Rode os comandos declarados em `runtime:` (test/typecheck/lint)
    do `.forge/FORGE.md` (ou `AGENTS.md` gerado) mais os gates deterministas relevantes
    (`.forge/scripts/validate-*.sh`, `npm test`/equivalente do stack). **Falha aqui interrompe o
-   comando** — corrija antes de continuar; não shippe quebrado.
+   comando** — corrija antes de continuar; não shippe quebrado. Se a branch corresponde a um
+   change `type: bugfix`, confira `bash .forge/scripts/check-red-first.sh check <change-id>`
+   (rule `testing/regression-red-first.md`) — evidência de Red não resolvida também interrompe
+   o comando aqui, antes do commit.
 
 ## Commit(s)
 

@@ -15,8 +15,11 @@
 //   node validate-spec.mjs <path-to-change-dir>
 import { readFileSync, existsSync } from 'node:fs';
 import { join, basename, resolve } from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { parseYamlSubset } from './yaml-lite.mjs';
 import { hasScaffoldMarkers } from './scaffold-markers.mjs';
+import { evaluateRedFirst } from './check-red-first.mjs';
+import { applyMode } from './gate-mode.mjs';
 
 const dir = process.argv[2];
 if (!dir) { console.log('FAIL (usage: validate-spec.mjs <change-dir>)'); process.exit(1); }
@@ -100,6 +103,38 @@ if (reached('tasks-ready')) {
 }
 if (reached('verified') && !has('verification.yaml'))
   errors.push('verification.yaml missing (status verified requires recorded evidence — §12)');
+
+// ── red-first (rule testing/regression-red-first.md, itens 1-4 — bloqueiam, não rebaixáveis) ──
+// change type:bugfix só alcança verified com Red observado (por replay real) ou dispensado
+// (waived, com a política dos quatro motivos reaplicada a cada checagem) — espelha o precedente
+// hasScaffoldMarkers acima: reprova aqui em vez de deixar o gap chegar ao archive.
+//
+// Onda E (decisão do orquestrador) — sem cache local, a única forma não-circular de confirmar
+// 'observed' na transição para verified é executar o replay de VERDADE, agora, e deixar o
+// resultado real sobrescrever o artefato (inclusive uma evidência forjada à mão) ANTES de
+// avaliar. `red-evidence.sh ensure` roda incondicionalmente aqui — não porque confiamos no
+// status já escrito, mas justamente para não precisar confiar: evaluateRedFirst(), logo abaixo,
+// lê o que ESTA chamada acabou de gravar, não o que estava lá antes. Só dispara quando a
+// transição sob validação é para 'verified' ou além (reached('verified')) — no resto do ciclo de
+// vida (idea..implemented) valida sem custo de execução, como sempre. best-effort (nunca lança) —
+// evaluateRedFirst decide com o que sobrar, inclusive se ensure falhar ao rodar.
+if (reached('verified') && man.type === 'bugfix') {
+  const ensureScript = join(process.env.FORGE_ROOT || root, '.forge/scripts/red-evidence.sh');
+  if (existsSync(ensureScript) && man.id) {
+    try {
+      execFileSync('bash', [ensureScript, 'ensure', String(man.id)], {
+        cwd: process.env.FORGE_ROOT || root,
+        env: { ...process.env, FORGE_ROOT: process.env.FORGE_ROOT || root },
+        stdio: 'ignore',
+      });
+    } catch { /* best-effort — evaluateRedFirst abaixo decide com o estado que resultou */ }
+  }
+  const redFirst = evaluateRedFirst(root);
+  if (redFirst.applicable) {
+    const applied = applyMode(redFirst.findings, {});
+    for (const f of applied.blocking) errors.push(f.msg); // já referencia a rule no próprio texto
+  }
+}
 
 // ── approvals.yaml rules (§12.1 — mirror of approvals.schema.json) ──────────
 const approvalsPath = join(root, 'approvals.yaml');

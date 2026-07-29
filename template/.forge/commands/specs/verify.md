@@ -21,6 +21,8 @@ bash .forge/scripts/spec-verify.sh <change-id>
 
 O script confere tasks completas, roda os checks do `FORGE.md runtime:` (test/typecheck/lint, timeout 300s, logs em `/tmp/forge-verify-*`) e grava `verification.yaml` (§10.10) + `evidence/runs/*/run-manifest.json`. `FAIL` → corrija e re-rode antes de prosseguir (leia só o `tail -20` dos logs).
 
+**`type: bugfix`:** o script também dispara o replay real (`red-evidence.sh replay`, `lib/red-replay.mjs`) quando `evidence/red/red-evidence.json` ainda estiver `pending`, e grava o resultado em `verification.yaml:verification.red_first`. Evidência não resolvida (`pending`/`not-possible`) bloqueia o `FAIL` do script — rode `/forge:red replay` manualmente (mais contexto para diagnosticar) ou `/forge:red waive` antes de re-rodar.
+
 ## 2. Checkpoint review guiado (sua parte)
 
 Releia requirements/design/tasks do change e confirme **contra o código real**:
@@ -57,8 +59,10 @@ Marcadores `<scaffold: ...>` remanescentes **bloqueiam a transição para `verif
 
 `AskUserQuestion` (resumo 2-3 linhas: resultado, checks, desvios, delta pronto?): **Approve** / **Review** / **Reject** / **Block**.
 
+**`type: bugfix` com Red `observed`:** o replay prova que houve falha comportamental reprodutível e específica — não prova *intenção*. Inclua na mesma `AskUserQuestion` (ou como pergunta separada, quando o Red for o ponto central da revisão) a checagem semântica que nenhum script fecha: **o motivo da falha observada na base é o defeito relatado em `bugfix.md §1`, ou uma quebra adjacente que por coincidência casa com o `failure_pattern` declarado?** Reprove (`Review`/`Reject`) quando a resposta for "quebra adjacente" — mesmo com `status: observed` gravado, o teste não guarda o defeito certo e precisa ser reescrito. Registre a resposta em `--notes`:
+
 ```bash
-bash .forge/scripts/approval-log.sh <change-id> --gate implementation_verified --decision <decision> [--reason "<motivo>"] --scope "verification.md"
+bash .forge/scripts/approval-log.sh <change-id> --gate implementation_verified --decision <decision> [--reason "<motivo>"] --scope "verification.md" [--notes "red-first: <defeito relatado | quebra adjacente — reabrir/regravar Red>"]
 ```
 
 - **Approve** → `bash .forge/scripts/spec-transition.sh <change-id> verified`. Informe o fim de ciclo atual: o archive (`/forge:archive`, aplica deltas ao baseline) chega no MVP3 — até lá o change permanece `verified`, ou encerra via `/forge:close --reason superseded`.

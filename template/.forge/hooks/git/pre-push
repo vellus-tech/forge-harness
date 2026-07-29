@@ -19,6 +19,17 @@ if [ -f "$DOCS_LIB" ]; then
   fi
 fi
 
+# red-first (rule testing/regression-red-first.md) — check ESTÁTICO só (nunca roda teste; o
+# replay caro fica para /forge:red replay e para /forge:verify).
+RED_LIB="$ROOT/.forge/hooks/git/lib/check-red-first.sh"
+if [ -f "$RED_LIB" ]; then
+  # shellcheck disable=SC1090
+  . "$RED_LIB"
+  if ! printf '%s\n' "$INPUT" | REPO="$ROOT" check_red_first; then
+    exit 1
+  fi
+fi
+
 FORGE_MD="$ROOT/.forge/FORGE.md"
 [ -f "$FORGE_MD" ] || { echo "pre-push OK (sem harness)"; exit 0; }
 

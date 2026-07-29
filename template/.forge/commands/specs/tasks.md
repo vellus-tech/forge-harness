@@ -17,6 +17,7 @@ Preencha `tasks.md` (estrutura do template do change) derivando dos artefatos ex
 - cada task declara: `rastreia:` (REQ-NN / seção do design / seção do bugfix), `paths:` previstos e `depende:` (TASK-NN ou —);
 - agrupe em **waves** por dependência (uma wave só depende de waves anteriores; sem ciclos);
 - inclua tasks de teste/verificação exigidas pelo artefato de requirements (bugfix: testes de regressão da §5 são tasks obrigatórias);
+- **`type: bugfix` — a TASK do Red precede toda TASK de correção, com dependência explícita.** Abra uma `TASK-01` (ou a primeira da wave 1) dedicada a `/forge:red record` + `/forge:red replay` — `rastreia: bugfix.md §5`, DoD é a evidência gravada como `observed` (ver `.forge/rules/testing/regression-red-first.md`). Toda TASK que altera `fix_files` declara `depende: TASK-01` (ou o número correspondente). Nunca agrupe Red e correção na mesma task — mesmo quando a correção é trivial, a separação preserva a possibilidade de observar o Red isoladamente antes do Green.
 - tabela de rastreabilidade ao final: todo REQ (ou invariante/teste de regressão) coberto por ≥1 task.
 
 ## 2. Auto-checagem (antes do gate)

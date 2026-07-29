@@ -71,6 +71,30 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0003"
+    },
+    {
+      "id": "LDG-0004",
+      "type": "roadmap",
+      "title": "Red-first: mover a execução do replay para CI (fecha cache e parte do comando arbitrário)",
+      "detail": "A norma testing/regression-red-first.md (ADR 0003) é calibrada para descuido, não para autor adversarial: comando declarado arbitrário, defeito introduzido no próprio PR, e waiver externamente inverificável continuam abertos porque a evidência é produzida inteiramente pela parte sendo verificada, num ambiente que ela controla. Rodar o replay (red-evidence.sh ensure/replay) num runner de CI que o autor não controla fecharia o vetor do comando arbitrário (o CI define o ambiente, não o autor) e eliminaria de vez a tentação de reintroduzir um cache local (o CI não precisa de atalho de custo entre execuções isoladas). Não fecha o vetor de defeito-introduzido-no-próprio-PR nem o de waiver inverificável — esses exigem revisão humana, não infraestrutura.",
+      "severity": null,
+      "priority": "P2",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-07-28T18:15:00-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0004"
     }
   ]
 }

@@ -47,6 +47,29 @@
       "enum": ["behavioral", "build-error", "unknown", null],
       "description": "Natureza da falha na base. Apenas behavioral conta como Red; build-error é ruído."
     },
+    "base_result": {
+      "type": ["string", "null"],
+      "enum": ["failed", "passed", "unknown", null],
+      "description": "Resultado do teste declarado ao rodar sobre a árvore base (pré-correção). 'passed' é a expressão literal do item 2 da rule ('teste que já passava na base — não reproduz nada') e bloqueia mesmo com status:observed. Populado pelo replay real (Onda C); ausente não é falso positivo — só vira achado quando explicitamente 'passed'."
+    },
+    "base_strategy": {
+      "type": ["string", "null"],
+      "enum": ["ancestry", "revert-synthesis", null],
+      "description": "Estratégia usada por lib/red-replay.mjs para derivar a árvore pré-correção (Furo 8). 'revert-synthesis' significa que base_commit é o HEAD a partir do qual o revert foi sintetizado, não um commit literal pré-correção — ver revert_patch para reproduzir."
+    },
+    "revert_patch": {
+      "type": ["string", "null"],
+      "description": "Quando base_strategy é 'revert-synthesis', o(s) patch(es) revertido(s) nos fix_files para reconstruir a árvore base (Furo 8) — sem isso, um auditor que rode o teste em base_commit veria o teste passando (base_commit aponta para HEAD, já corrigido), evidência aparentemente contraditória."
+    },
+    "replay_head": {
+      "type": ["string", "null"],
+      "pattern": "^[a-f0-9]{7,40}$",
+      "description": "Commit HEAD no momento em que o replay rodou (Furo 1). status:'observed' exige que este valor corresponda ao HEAD atual — divergência significa que o código mudou desde o último replay e a evidência precisa ser re-observada."
+    },
+    "setup_command": {
+      "type": ["string", "null"],
+      "description": "Comando opcional (ex.: 'npm ci') executado no worktree efêmero antes do teste, para materializar dependências não versionadas (node_modules/.venv/...) (Furo 5). Roda com o mesmo teto de tempo do teste."
+    },
     "reproduces": {
       "type": ["string", "null"],
       "description": "Seção do bugfix.md que este teste reproduz — normalmente a §1 (comportamento atual incorreto)."
@@ -71,6 +94,11 @@
       }
     },
     "recorded_at": { "type": ["string", "null"], "minLength": 10 },
-    "replayed_at": { "type": ["string", "null"], "minLength": 10 }
+    "replayed_at": { "type": ["string", "null"], "minLength": 10 },
+    "waived_at": {
+      "type": ["string", "null"],
+      "minLength": 10,
+      "description": "Timestamp do waive (§ Quando o Red não é possível). Campo próprio — não sobrescreve recorded_at, que preserva quando a evidência foi originalmente declarada."
+    }
   }
 }

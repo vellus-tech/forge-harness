@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**5 itens ativos** · roadmap 2 · tech-debt 1 · follow-up 2
+**7 itens ativos** · roadmap 2 · tech-debt 3 · follow-up 2
 
 ## Roadmap
 
@@ -24,6 +24,8 @@ _(nenhum)_
 ## Dívida técnica
 
 - **LDG-0005** [open] (P2) — gitignore managed-block: updater não mescla padrões novos em bloco já existente
+- **LDG-0006** [open] (P2) — Gates: 'echo $var | grep -q' sofre SIGPIPE e falha aleatoriamente sob carga
+- **LDG-0007** [open] (P2) — Assinatura de IA já no histórico: 275 commits em 5 repositórios
 
 ## Bugs conhecidos
 

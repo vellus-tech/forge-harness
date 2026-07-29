@@ -119,6 +119,54 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0005"
+    },
+    {
+      "id": "LDG-0006",
+      "type": "tech-debt",
+      "title": "Gates: 'echo $var | grep -q' sofre SIGPIPE e falha aleatoriamente sob carga",
+      "detail": "",
+      "severity": null,
+      "priority": "P2",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-07-29T10:19:48-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0006"
+    },
+    {
+      "id": "LDG-0007",
+      "type": "tech-debt",
+      "title": "Assinatura de IA já no histórico: 275 commits em 5 repositórios",
+      "detail": "",
+      "severity": null,
+      "priority": "P2",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-07-29T10:19:48-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0007"
     }
   ]
 }

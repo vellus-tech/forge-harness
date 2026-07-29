@@ -135,8 +135,26 @@ export function detectForks(messages) {
 // Pura: nenhuma leitura de disco, nenhum relógio de parede. Determinística sob permutação da
 // entrada — é a propriedade que garante que N réplicas convirjam para o mesmo CHANNEL.md.
 export function mergeLogs(messages) {
-  const byThread = new Map();
+  // União de verdade: msg_id repetido colapsa para uma ocorrência. O nome já dizia "conjunto",
+  // mas nada garantia — e a diferença só aparece quando a mesma mensagem chega por dois caminhos
+  // (um import que gravou duas vezes, dois arquivos com a mesma linha, um merge feito à mão).
+  // Sem a deduplicação, a mensagem aparecia DUAS vezes na ordem da thread, e como a ordem é o que
+  // todas as réplicas comparam para dizer que convergiram, duas réplicas com o mesmo conteúdo
+  // pareceriam divergentes. Encontrado por property-based testing (idempotência de mergeLogs),
+  // não por caso de exemplo: é precisamente o tipo de entrada que ninguém escreve à mão.
+  const seen = new Set();
+  const unique = [];
   for (const m of messages) {
+    const id = m && m.msg_id;
+    if (id !== undefined && id !== null) {
+      if (seen.has(id)) continue;
+      seen.add(id);
+    }
+    unique.push(m);
+  }
+
+  const byThread = new Map();
+  for (const m of unique) {
     if (!byThread.has(m.thread_id)) byThread.set(m.thread_id, []);
     byThread.get(m.thread_id).push(m);
   }

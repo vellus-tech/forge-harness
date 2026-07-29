@@ -124,10 +124,10 @@
       "id": "LDG-0006",
       "type": "tech-debt",
       "title": "Gates: 'echo $var | grep -q' sofre SIGPIPE e falha aleatoriamente sob carga",
-      "detail": "",
+      "detail": "Resolvido: 184 asserções em 33 gates convertidas de pipe para here-string; asserções mudas de w42/w80/w22 instrumentadas. Suíte 67/67 verde.",
       "severity": null,
       "priority": "P2",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -140,8 +140,8 @@
         "promoted_to": null
       },
       "created_at": "2026-07-29T10:19:48-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-07-29T13:59:53-03:00",
+      "resolved_at": "2026-07-29T13:59:53-03:00",
       "dedup_key": "manual:LDG-0006"
     },
     {
@@ -167,6 +167,30 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0007"
+    },
+    {
+      "id": "LDG-0008",
+      "type": "roadmap",
+      "title": "Enforcement determinista de TDD-em-feature e de cobertura de propriedades (PBT)",
+      "detail": "",
+      "severity": null,
+      "priority": "P2",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-07-29T12:23:45-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0008"
     }
   ]
 }

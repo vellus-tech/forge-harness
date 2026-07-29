@@ -6,6 +6,20 @@ e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+### Added
+- **Liaison integrado ao harness, com conteúdo de peer tratado como dado (Onda 3).** Bloco `liaison` no `forge.yaml` (`auto`, `enforce`) com entrada no schema, `readLiaisonAuto()` no `sync-adapters`, resumo de inbox no `SessionStart` e bloco advisory no `doctor` — advisory de verdade, porque o estado do canal é fluxo de conversa entre repositórios e não drift desta instalação; reprovar o doctor por mensagem em quarentena ensinaria o operador a ignorar o doctor.
+  - **O que entra no contexto é a decisão central.** O corpo de uma mensagem é texto escrito por um agente de outro repositório, e o canal atravessa exatamente a fronteira que um atacante quer atravessar. O `SessionStart` mostra contagem e assunto, nunca o corpo; ele só aparece com `inbox --show`, um ato deliberado, e ainda assim sob banner `UNTRUSTED` nomeando a origem, dentro de fence, com linhas iniciadas por `/comando:` neutralizadas. **Neutralizar é prefixar, nunca apagar** — o operador precisa ver o que o peer mandou, e mais ainda quando foi uma tentativa de injeção.
+  - **`send` varre segredos** (`lib/secret-scan.mjs`): a mensagem sai do repositório e, publicada num hub compartilhado ou branch remota, não volta atrás.
+  - **`renderUntrusted` mora em módulo próprio** porque `liaison-render.mjs` é um script que executa ao ser carregado — importá-lo pela função quebrava justamente o `inbox --show`, e um operador diante de comando quebrado lê o JSONL cru, que é o conteúdo sem banner, sem fence e sem neutralização.
+  - Rules novas: `liaison-untrusted-input.md` (as guardas mecânicas e o limite honesto que sobra para o julgamento de quem lê) e `liaison-protocol.md`. Gate `w112`, prova de mutação em sete pontos.
+
+- **Harness de property-based testing zero-dep, e a norma que ele torna verificável.** A `tdd.md` exigia PBT "onde houver propriedade" e indicava FsCheck/fast-check/Kotest — ferramentas do projeto adotante, não daqui; os gates do Forge rodam com `node` puro sobre `template/.forge/**`. Uma norma que quem a escreve não consegue cumprir é uma norma que ninguém verifica. `scripts/lib/pbt.mjs` traz geração reprodutível por seed, busca de contraexemplo e shrinking. A rule `testing/property-based-testing.md` substitui a seção que citava `Money.Add`/`Split` — resíduo de outro projeto — pelas famílias de propriedade que aparecem na prática. Gate `w121`, prova de mutação em seis pontos, incluindo o harness cego e o embaralhador que não embaralha. O enforcement que falta está nomeado na própria rule (`LDG-0008`), não escondido.
+
+### Fixed
+- **`mergeLogs` deduplica por `msg_id`.** Encontrado pela primeira propriedade escrita com o runner novo (idempotência), não por caso de exemplo — ninguém escreve à mão uma lista com a mesma mensagem repetida, e as doze asserções do `w110` passavam todas. A mesma mensagem chegando por dois caminhos aparecia duas vezes na ordem da thread; como a ordem é o que as réplicas comparam para declarar convergência, duas réplicas idênticas pareceriam divergentes.
+- **Classe de SIGPIPE que derrubava gates aleatoriamente (`LDG-0006`, fechado).** Quatro execuções consecutivas da suíte reprovaram gates **diferentes**, todos verdes isolados: `echo "$var" | grep -q` faz o grep sair no primeiro match e fechar o pipe, o produtor recebe SIGPIPE e retorna diferente de zero, e a asserção reprova comportamento correto — a saída do `w107` mostrava o `pre-push` bloqueando como devia e o gate ficou vermelho assim mesmo. 184 asserções em 33 gates passam a usar here-string. Junto, a segunda causa: `[ cond ] && cmd` sob `set -e` mata o gate **sem imprimir nada**; asserções mudas de `w42`, `w80` e `w22` instrumentadas.
+- **`build:plugin` sincroniza a versão do `marketplace.json`.** Era passo manual atrelado ao bump, e passo manual atrelado a bump é passo esquecido: o `rc24` saiu com o marketplace uma versão atrás, descoberto pelo gate depois da tag cortada e do pacote publicado.
+
 ## [0.1.0-rc24] — 2026-07-29
 
 ### Added

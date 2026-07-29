@@ -45,14 +45,21 @@ node -e "
 echo "OK [2]"
 
 echo "[3] spec-verify grava evidence/runs no change"
-(cd "$T" && bash "$S/spec-new.sh" rm-evidence --type feature --scale 0 >/dev/null
-          bash "$S/spec-transition.sh" rm-evidence tasks-ready >/dev/null
-          bash "$S/spec-transition.sh" rm-evidence implementing >/dev/null)
+# Encadeado em subshell sob set -e, um passo que falhe mata o gate SEM mensagem — o sintoma
+# vira "parou no [3]" e não se sabe qual comando caiu (classe LDG-0006).
+(cd "$T" && bash "$S/spec-new.sh" rm-evidence --type feature --scale 0 >/tmp/w90-sn.log 2>&1) \
+  || { echo "FAIL [3]: spec-new falhou"; tail -5 /tmp/w90-sn.log; exit 1; }
+(cd "$T" && bash "$S/spec-transition.sh" rm-evidence tasks-ready >/tmp/w90-t1.log 2>&1) \
+  || { echo "FAIL [3]: transição para tasks-ready falhou"; tail -5 /tmp/w90-t1.log; exit 1; }
+(cd "$T" && bash "$S/spec-transition.sh" rm-evidence implementing >/tmp/w90-t2.log 2>&1) \
+  || { echo "FAIL [3]: transição para implementing falhou"; tail -5 /tmp/w90-t2.log; exit 1; }
 perl -pi -e 's/^(\s*)- \[ \] /$1- [X] /' "$T/.forge/specs/active/rm-evidence/tasks.md"
-(cd "$T" && bash "$S/spec-transition.sh" rm-evidence implemented >/dev/null
-          FORGE_ROOT="$T" bash "$S/spec-verify.sh" rm-evidence >/dev/null)
-VRM="$(find "$T/.forge/specs/active/rm-evidence/evidence/runs" -name run-manifest.json | head -1)"
-[ -f "$VRM" ]
+(cd "$T" && bash "$S/spec-transition.sh" rm-evidence implemented >/tmp/w90-t3.log 2>&1) \
+  || { echo "FAIL [3]: transição para implemented falhou"; tail -5 /tmp/w90-t3.log; exit 1; }
+(cd "$T" && FORGE_ROOT="$T" bash "$S/spec-verify.sh" rm-evidence >/tmp/w90-vf.log 2>&1) \
+  || { echo "FAIL [3]: spec-verify falhou"; tail -8 /tmp/w90-vf.log; exit 1; }
+VRM="$(find "$T/.forge/specs/active/rm-evidence/evidence/runs" -name run-manifest.json 2>/dev/null | head -1)"
+[ -n "$VRM" ] && [ -f "$VRM" ] || { echo "FAIL [3]: spec-verify não gravou run-manifest em evidence/runs"; exit 1; }
 node "$WS/tools/validate-yaml.mjs" "$WS/template/.forge/schemas/run-manifest.schema.json" "$VRM" >/dev/null
 node -e "const m=require('$VRM'); if (m.stage !== 'verify' || m.status !== 'passed') throw new Error('verify manifest mismatch')"
 echo "OK [3]"

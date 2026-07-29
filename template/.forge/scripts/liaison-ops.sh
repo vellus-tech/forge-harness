@@ -22,12 +22,14 @@
 #   liaison-ops.sh send     <channel> --thread <id> --kind note|question|answer|contract-change \
 #                            --subject "<txt>" [--body "<txt>" | --body-file <path>] [--requires-ack] \
 #                            [--in-reply-to <msg_id>] [--change <id>] [--contract-files <a,b>] [--commit <sha>]
-#   liaison-ops.sh ack      <channel> <msg_id> [--subject "<txt>"]
+#   liaison-ops.sh ack      <channel> <msg_id> [--subject "<txt>"] [--reason wont-adopt|acknowledged]
 #   liaison-ops.sh inbox    <channel> [--thread <id>]
 #   liaison-ops.sh read     <channel> --upto <msg_id>
 #   liaison-ops.sh status   [<channel>]
 #   liaison-ops.sh export   <channel> --out <dir>
 #   liaison-ops.sh import   <channel> --from <dir>
+#   liaison-ops.sh peer     set <channel> <participante> --path <dir>
+#   liaison-ops.sh peer-path <channel> <participante>
 #   liaison-ops.sh transport set   <channel> --kind manual|fs|git|gh [--path <dir>] [--remote <url>] [--branch <b>]
 #   liaison-ops.sh transport show  <channel>
 #   liaison-ops.sh transport probe <channel>
@@ -55,7 +57,7 @@ CONFIG="$LIAISON_DIR/liaison.yaml"
 TPL="$(cd "$SCRIPT_DIR/.." && pwd)/templates/liaison/CHANNEL.md"
 
 cmd="${1:-}"; shift || true
-[ -n "$cmd" ] || { echo "Usage: liaison-ops.sh open|thread|send|inbox|read|ack|status|export|import|transport|sync|render [args...]" >&2; exit 1; }
+[ -n "$cmd" ] || { echo "Usage: liaison-ops.sh open|thread|send|inbox|read|ack|status|export|import|peer|peer-path|transport|sync|render [args...]" >&2; exit 1; }
 
 _git_date() { git -C "$ROOT" log -1 --format=%cI 2>/dev/null || echo ""; }
 _id_ok() { printf '%s' "$1" | grep -Eq '^[a-z0-9][a-z0-9._-]*$'; }
@@ -421,7 +423,7 @@ send)
     *) shift ;;
   esac; done
   # authored_by registra a autoria REAL quando o conteúdo veio de outro repositório (o caso do
-  # /forge:ask-peer). O sender continua sendo este repositório — é o invariante de um escritor por
+  # /forge:liaison ask). O sender continua sendo este repositório — é o invariante de um escritor por
   # arquivo que torna o merge livre de conflito; gravar no log alheio faria o log dele divergir do
   # nosso e o import do outro lado reprovaria por reescrita de história.
   if [ -n "${authored_by:-}" ]; then
@@ -836,7 +838,7 @@ import)
   ;;
 
 # ---------------------------------------------------------------------------------------------
-# peer — caminho LOCAL do repositório de um participante, para o atalho síncrono /forge:ask-peer.
+# peer — caminho LOCAL do repositório de um participante, para o subcomando síncrono `liaison ask`.
 # Fica no liaison.yaml e não numa mensagem porque é informação de máquina: o mesmo participante
 # mora em diretórios diferentes em cada estação. Quem não tem o peer clonado não usa o atalho.
 peer)
@@ -878,7 +880,7 @@ const { pathToFileURL } = require('url');
   const p = C.getPeerPath(C.readConfig(cfg), channel, participant);
   if (!p) {
     console.error(`caminho local de '${participant}' não configurado no canal '${channel}' — rode: liaison-ops.sh peer set ${channel} ${participant} --path <dir>`);
-    console.error('(sem ele, o atalho síncrono /forge:ask-peer não se aplica; use o fluxo assíncrono)');
+    console.error('(sem ele, o subcomando síncrono `liaison ask` não se aplica; use o fluxo assíncrono)');
     process.exit(1);
   }
   process.stdout.write(p);

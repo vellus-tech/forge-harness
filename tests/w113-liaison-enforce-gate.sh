@@ -224,7 +224,23 @@ if grep -rEl 'claude[[:space:]]+-p' "$WS/template/.forge/scripts/" "$WS/template
   grep -rEl 'claude[[:space:]]+-p' "$WS/template/.forge/scripts/" "$WS/template/.forge/hooks/"
   exit 1
 fi
-[ -f "$WS/template/.forge/commands/harness/ask-peer.md" ] || { echo "FAIL [10]: commands/harness/ask-peer.md ausente"; exit 1; }
+# A consulta síncrona é subcomando do liaison, não comando de topo: é o padrão da casa (ledger,
+# capabilities, red, wave e o próprio liaison já expõem subcomandos) e o ask COMPÕE o liaison —
+# internamente chama `send` duas vezes, para a pergunta e para a resposta. Um comando que é
+# composição de outro mora dentro dele; separado, só é encontrável por quem já sabe que existe.
+LIAISON_MD="$WS/template/.forge/commands/harness/liaison.md"
+[ -f "$LIAISON_MD" ] || { echo "FAIL [10]: commands/harness/liaison.md ausente"; exit 1; }
+[ ! -f "$WS/template/.forge/commands/harness/ask-peer.md" ] \
+  || { echo "FAIL [10]: ask-peer.md ainda existe como comando de topo — deveria ser subcomando de liaison"; exit 1; }
+grep -q 'liaison ask' "$LIAISON_MD" || { echo "FAIL [10]: liaison.md não documenta o subcomando 'ask'"; exit 1; }
+grep -q 'ask' <<<"$(grep -m1 '^argument-hint:' "$LIAISON_MD")" \
+  || { echo "FAIL [10]: 'ask' fora do argument-hint do liaison — não seria descoberto"; exit 1; }
+# o mandato de segurança precisa continuar visível: consolidar não pode diluí-lo
+grep -qi 'somente leitura\|read-only' "$LIAISON_MD" || { echo "FAIL [10]: o mandato read-only da consulta sumiu na consolidação"; exit 1; }
+grep -q 'dangerously-skip-permissions' "$LIAISON_MD" || { echo "FAIL [10]: a proibição de skip-permissions sumiu na consolidação"; exit 1; }
+# nenhum resquício do comando antigo na superfície gerada
+[ ! -f "$WS/plugin/forge/commands/ask-peer.md" ] || { echo "FAIL [10]: plugin ainda expõe /forge:ask-peer"; exit 1; }
+grep -rq 'forge:ask-peer' "$WS/docs/refer/slash-commands.md" && { echo "FAIL [10]: índice de comandos ainda lista /forge:ask-peer"; exit 1; }
 echo "OK [10]"
 
 echo "[11] peer-path resolve o repositório do participante (e reprova o desconhecido)"

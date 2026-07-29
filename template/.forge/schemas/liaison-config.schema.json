@@ -91,7 +91,7 @@
               "propertyNames": {
                 "pattern": "^[a-z0-9][a-z0-9._-]*$"
               },
-              "description": "Caminho LOCAL do repositório de cada participante, consumido apenas pelo atalho síncrono /forge:ask-peer. É informação de máquina, não do canal: o mesmo participante mora em diretórios diferentes em cada estação, e por isso nunca viaja numa mensagem. Quem não tem o peer clonado simplesmente usa o fluxo assíncrono."
+              "description": "Caminho LOCAL do repositório de cada participante, consumido apenas pelo subcomando síncrono `liaison ask`. É informação de máquina, não do canal: o mesmo participante mora em diretórios diferentes em cada estação, e por isso nunca viaja numa mensagem. Quem não tem o peer clonado simplesmente usa o fluxo assíncrono."
             }
           }
         }

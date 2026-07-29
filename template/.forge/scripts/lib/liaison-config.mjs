@@ -29,7 +29,7 @@ export const TRANSPORT_KINDS = ['manual', 'fs', 'git', 'gh'];
 // Campos de transporte reconhecidos, na ordem de emissão. `kind` sempre primeiro.
 const TRANSPORT_FIELDS = ['kind', 'path', 'remote', 'branch'];
 
-// Caminho local do repositório de cada participante, usado só pelo /forge:ask-peer (consulta
+// Caminho local do repositório de cada participante, usado só pelo subcomando `liaison ask` (consulta
 // síncrona). É informação de MÁQUINA, não do canal: o mesmo participante fica em diretórios
 // diferentes em cada estação, e por isso nunca viaja numa mensagem — quem não tiver o peer
 // clonado simplesmente não usa o atalho síncrono e segue pelo fluxo assíncrono.

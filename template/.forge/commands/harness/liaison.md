@@ -1,6 +1,6 @@
 ---
-description: Canal de mensagens ORDENADAS entre agentes de repositórios distintos (ex.: dono do .proto/gRPC e app cliente) — elimina drift de handoff manual. Store JSONL append-only por remetente, thread como campo, relógio de Lamport por thread, abertura de thread e entrada de participante como mensagens auditáveis. Transporte plugável (fs, git, manual) com sync idempotente e merge append-only. Operado por script determinista.
-argument-hint: "[open|thread|send|inbox|read|ack|status|export|import|transport|sync|render] [flags]"
+description: Canal de mensagens ORDENADAS entre agentes de repositórios distintos (ex.: dono do .proto/gRPC e app cliente) — elimina drift de handoff manual. Store JSONL append-only por remetente, thread como campo, relógio de Lamport por thread, abertura de thread e entrada de participante como mensagens auditáveis. Transporte plugável (fs, git, manual) com sync idempotente e merge append-only. Operado por script determinista — exceto o subcomando ask, consulta síncrona a um peer sob mandato read-only.
+argument-hint: "[open|thread|send|ask|inbox|read|ack|status|export|import|peer|transport|sync|render] [flags]"
 ---
 
 # /forge:liaison — canal de mensagens ordenadas entre repositórios
@@ -126,6 +126,61 @@ cara de funcionando.
 - `trust` é carimbado no IMPORT (`self` só para o que este repositório escreveu; tudo que veio de
   fora vira `untrusted-peer`, mesmo que a mensagem alegue outra coisa) — nunca decidido pelo
   remetente.
+
+## `ask` — consulta síncrona a um peer
+
+`liaison ask <canal> <thread> <participante> "<pergunta>"`.
+
+O fluxo normal do canal é **assíncrono**: você manda `question --requires-ack` e o outro lado
+responde quando abrir a sessão dele. Isso é o certo na maioria dos casos. O `ask` existe para
+quando a resposta bloqueia o trabalho **agora** e o repositório do peer está acessível nesta
+máquina — tipicamente desambiguar um contrato antes de gerar stub.
+
+**Esta é a única operação do liaison que não é determinista.** Todo o resto é script puro; o `ask`
+invoca um agente e depende de julgamento. A fronteira importa: o resultado de um `send` é sempre o
+mesmo, o de um `ask` não é.
+
+```bash
+# 1. registrar a pergunta — SEMPRE primeiro, antes de consultar
+bash .forge/scripts/liaison-ops.sh send <canal> --thread <thread> --kind question \
+  --subject "<pergunta em uma linha>" --body "<contexto>" --requires-ack
+
+# 2. localizar o repositório do peer
+bash .forge/scripts/liaison-ops.sh peer-path <canal> <participante>
+
+# 3. consultar o peer com o cwd no repositório dele, sob o mandato abaixo, e
+# 4. registrar a resposta no NOSSO log
+bash .forge/scripts/liaison-ops.sh send <canal> --thread <thread> --kind answer \
+  --in-reply-to <msg_id-da-pergunta> --subject "<resumo>" --body "<resposta>" \
+  --authored-by <participante> --via ask-peer
+```
+
+**A pergunta entra no log antes da consulta.** Se o peer estiver offline ou a resposta não vier, a
+pergunta permanece registrada e o caminho assíncrono continua valendo — um `ask` que falha degrada
+para o fluxo normal, em vez de perder a intenção. Nunca perguntar sem registrar.
+
+**Por que a resposta vai no nosso arquivo.** O invariante que torna o merge livre de conflito para
+qualquer número de participantes é **um escritor por arquivo**. Gravar em `log/<peer>.jsonl` faria
+dois processos escreverem o mesmo arquivo — nós agora, e o peer quando abrir a sessão dele. O log
+dele divergiria do nosso e o import do outro lado reprovaria por reescrita de história. Então a
+resposta é **nossa mensagem sobre o que o peer disse**: `authored_by` preserva a autoria real e o
+`trust` fica `untrusted-peer`, valendo a regra
+[liaison-untrusted-input](../../rules/conventions/liaison-untrusted-input.md) por inteiro.
+
+### Mandato da consulta (não negociável)
+
+- **Somente leitura.** O agente consultado lê o repositório do peer e responde; não edita arquivo,
+  não cria commit, não roda build, não mexe em estado. Perguntar não autoriza agir.
+- **Sem `--dangerously-skip-permissions`.** Uma consulta que precise contornar permissões não é
+  uma consulta.
+- **Nunca por script.** Um `.sh` que invoque agente headless exigiria rede, autenticação e um
+  repositório peer em estado específico — nada reproduzível num gate, e um mecanismo que só
+  funciona na máquina de quem o escreveu é armadilha, não ferramenta. O gate `w113` varre
+  `scripts/` e `hooks/` para garantir que nenhum `.sh` o faça.
+- **O peer é endereçado explicitamente.** Com mais de um participante, "pergunte ao canal" não
+  existe: ou você sabe a quem perguntar, ou o caminho é o assíncrono, que roteia pela thread.
+- **Nunca invente a resposta.** Se a consulta falhou, diga que falhou. Uma resposta fabricada com
+  `authored_by` de outro repositório é a pior corrupção possível deste canal.
 
 ## Quando usar
 

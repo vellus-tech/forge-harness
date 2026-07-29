@@ -137,14 +137,14 @@
     "authored_by": {
       "type": "string",
       "pattern": "^[a-z0-9][a-z0-9._-]*$",
-      "description": "Autoria REAL do conteúdo, quando ele veio de outro repositório (caso do /forge:ask-peer). O `sender` continua sendo o repositório que escreveu a linha — é o invariante de um escritor por arquivo, sem o qual o merge deixa de ser livre de conflito. Presença de authored_by força trust: untrusted-peer."
+      "description": "Autoria REAL do conteúdo, quando ele veio de outro repositório (caso do subcomando `liaison ask`). O `sender` continua sendo o repositório que escreveu a linha — é o invariante de um escritor por arquivo, sem o qual o merge deixa de ser livre de conflito. Presença de authored_by força trust: untrusted-peer."
     },
     "via": {
       "type": "string",
       "enum": [
         "ask-peer"
       ],
-      "description": "Como o conteúdo de terceiro chegou até aqui. Registrado para que a procedência seja auditável no log, e não inferida."
+      "description": "Como o conteúdo de terceiro chegou até aqui. Registrado para que a procedência seja auditável no log, e não inferida. O valor nomeia o MECANISMO (perguntou-se ao peer), não o comando que o disparou."
     }
   },
   "allOf": [

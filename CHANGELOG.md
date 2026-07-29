@@ -6,6 +6,21 @@ e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-07-29
+
+> **Primeiro release fora do trem de RCs.** As 24 tags `v0.1.0-rc*` eram SemVer formalmente válido
+> e semanticamente vazio: o mesmo incremento carregava três features ou um typo, e quem lia o
+> carimbo `template_version` num projeto adotante não conseguia inferir se a atualização era
+> segura. A regra passa a estar escrita em `docs/release/sync-policy.md` — `MINOR` para feature,
+> `PATCH` para correção, `rc` só quando houver release a candidatar, e `1.0.0` quando a superfície
+> de `.forge/` for algo que o projeto se comprometa a não quebrar sem aviso.
+>
+> **Ao subir de `0.1.x` para `0.2.x`, reconcilie o `.gitignore`.** O bloco `# >>> forge (managed) >>>`
+> só é escrito quando o marcador está ausente, então projeto já instalado não recebe padrão novo
+> (`LDG-0005`). Acrescente ao bloco existente: `.forge.bak-*/`, `.forge/cache/`. Sem isso, o
+> backup que o próprio `forge update` cria acaba versionado — aconteceu no `payments`, junto com um
+> binário de 50 MB.
+
 ### Added
 - **Enforcement de ack e `/forge:ask-peer` no liaison (Ondas 4 e 5).** Um `contract-change` que chega com `requires_ack` é um fato sobre contrato que alguém precisa reconhecer; sem cobrança, a mensagem vira o handoff manual que o subsistema existe para substituir — chega, ninguém lê, e o contrato deriva.
   - **Três regras definem o escopo da cobrança.** Cada participante responde pelo **próprio** ack, nunca pelo dos outros: com N repositórios, exigir o ack de todos faria o mais lento travar o trabalho de todo mundo, e o ack de terceiro não é informação que este repositório possa produzir — seria uma trava que o bloqueado não tem como abrir. Só cobra quem **participa** da thread. E nunca cobra a própria mensagem, porque ackar a si mesmo não informa ninguém.

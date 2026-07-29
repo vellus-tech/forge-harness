@@ -29,7 +29,7 @@ Antes de qualquer modificação, leia os rules das categorias aplicáveis à sua
 
 ## Catálogo
 
-### `conventions/` (15 arquivos)
+### `conventions/` (16 arquivos)
 
 | Arquivo | Descrição | Prioridade |
 |---|---|---|
@@ -41,6 +41,7 @@ Antes de qualquer modificação, leia os rules das categorias aplicáveis à sua
 | [ledger-consultation.md](./conventions/ledger-consultation.md) | Consulta ao ledger durável — o que fazer a seguir nasce do `LEDGER.md` (roadmap & dívida técnica) | Alta |
 | [naming.md](./conventions/naming.md) | Convenções de nomenclatura por tipo de artefato | Alta |
 | [conventional-commits.md](./conventions/conventional-commits.md) | Padrão de mensagens de commit + scopes | Alta |
+| [no-ai-attribution.md](./conventions/no-ai-attribution.md) | Commit/PR/issue não leva assinatura de IA — a autoria é de quem decide e assume; detecção estrutural (trailer + marcador de geração), nunca textual | Alta |
 | [lsp-impact-analysis.md](./conventions/lsp-impact-analysis.md) | Análise de impacto antes de editar (LSP/grep + diagnóstico por stack) | Alta |
 | [git-worktree.md](./conventions/git-worktree.md) | Workflow com git worktree | Média |
 | [database-naming.md](./conventions/database-naming.md) | Nomenclatura de tabelas/colunas | Alta |

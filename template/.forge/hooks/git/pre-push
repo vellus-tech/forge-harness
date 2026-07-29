@@ -30,6 +30,33 @@ if [ -f "$RED_LIB" ]; then
   fi
 fi
 
+# no-ai-attribution (rule conventions/no-ai-attribution.md) — varre os commits que estão sendo
+# publicados. Defesa em profundidade sobre o hook commit-msg: aqui pega o que nasceu com
+# --no-verify, o que veio de outra ferramenta, e o que foi importado por cherry-pick de um branch
+# marcado. É a última fronteira antes de a marca virar histórico público, onde removê-la deixa de
+# ser problema de quem commitou e passa a ser problema de todo mundo que tem clone.
+AI_CHECK="$ROOT/.forge/scripts/check-ai-attribution.sh"
+if [ -f "$AI_CHECK" ]; then
+  while read -r _lref lsha _rref rsha; do
+    [ -n "${lsha:-}" ] || continue
+    case "$lsha" in *[!0]*) : ;; *) continue ;; esac   # deleção de ref: nada a varrer
+    if [ -z "${rsha:-}" ] || [ "$rsha" = "0000000000000000000000000000000000000000" ]; then
+      # ref nova no remoto: limita ao que este branch traz além dos demais refs conhecidos
+      range="$(git rev-list "$lsha" --not --remotes 2>/dev/null | tail -1)"
+      [ -n "$range" ] && range="$range~1..$lsha" || range="$lsha"
+    else
+      range="$rsha..$lsha"
+    fi
+    if ! bash "$AI_CHECK" range "$range" >/dev/null; then
+      echo "pre-push BLOQUEADO: no-ai-attribution (rule conventions/no-ai-attribution.md)" >&2
+      bash "$AI_CHECK" range "$range" || true
+      exit 1
+    fi
+  done <<EOF_AI
+$INPUT
+EOF_AI
+fi
+
 FORGE_MD="$ROOT/.forge/FORGE.md"
 [ -f "$FORGE_MD" ] || { echo "pre-push OK (sem harness)"; exit 0; }
 

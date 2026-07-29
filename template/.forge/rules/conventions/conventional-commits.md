@@ -132,3 +132,4 @@ Cada commit representa **uma** mudança lógica. Não misturar types diferentes 
 - Breaking change sem footer `BREAKING CHANGE:`
 - Mensagens genéricas ("fix bug", "update", "wip")
 - Múltiplos tipos de mudança no mesmo commit
+- **Qualquer trailer que atribua o trabalho a uma ferramenta de IA** (`Claude-Session:`, `Co-Authored-By: Claude`, `🤖 Generated with`) — ver [no-ai-attribution](./no-ai-attribution.md), que é a rule canônica do tema e vale também para PR, issue e release notes. Verificado por `check-ai-attribution.sh` nos hooks `commit-msg` e `pre-push`.

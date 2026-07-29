@@ -6,6 +6,8 @@ e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+## [0.1.0-rc24] — 2026-07-29
+
 ### Added
 - **Proibição imposta de assinatura de IA em commits, PRs e issues — `no-ai-attribution`.** O commit pertence a quem decidiu a mudança, revisou o resultado e assume a consequência; a ferramenta usada para escrevê-lo não é coautora, pelo mesmo motivo que o editor de texto não é. Atribuir autoria a ela corrompe o registro de responsabilidade: `git blame` deixa de responder "quem responde por esta linha" e passa a responder "que ferramenta estava aberta naquele dia".
   - **O caso que motivou.** Levantamento de 2026-07-29 encontrou **275 commits marcados em 5 repositórios** (`Axis.PadSimulator` 47/172, `axis-go-cloud` 150/2385, `azim-crm` 44/1381, `axis-fare-validator` 31/560, e o próprio `forge-harness` 3/186), quase todos com o trailer `Claude-Session: https://claude.ai/code/session_...` — uma forma que nem a norma escrita nem o harness cobriam, porque ambos enumeravam marcas específicas (`Co-Authored-By: Claude`, `Generated with`) em vez de descrever a prática. Decisivo: o setting `attribution: { commit: "", pr: "" }` **já estava configurado** e o commit de `2026-07-29T00:08` saiu marcado assim mesmo. Configuração de cliente é por máquina e por conta, não viaja num clone novo nem existe num runner de CI — previne, mas não verifica.

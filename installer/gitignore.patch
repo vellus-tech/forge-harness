@@ -8,7 +8,10 @@
 .forge/graph/cache/fingerprints.json
 .forge/graph/symbols.json
 .forge/graph/module-deps.json
-# .forge/cache/: reservado para custos-atalho locais de qualquer mecanismo do harness que
+# # backups do próprio `forge update` (.forge.bak-N): artefato de rollback, nunca fonte —
+# versioná-los duplica a maquinaria inteira dentro do commit que deveria substituí-la.
+.forge.bak-*/
+.forge/cache/: reservado para custos-atalho locais de qualquer mecanismo do harness que
 # precise de um (nunca commitados, nunca evidência para terceiros). O Red-first (rule
 # testing/regression-red-first.md) chegou a usar um cache de replay aqui e foi removido (ADR
 # 0003, Onda E) — ensure agora executa sempre, sem atalho.

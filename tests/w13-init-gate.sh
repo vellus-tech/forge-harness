@@ -30,6 +30,14 @@ grep -q '<PROJECT_SLUG>' "$T1/.forge/templates/FORGE.md"
 [ ! -d "$T1/.agents" ] && [ ! -d "$T1/.cursor" ] && [ ! -d "$T1/.kiro" ]
 [ -f "$T1/.claude/settings.json" ] && [ -f "$T1/.forge/adapters/claude.lock.yaml" ] && [ -f "$T1/.forge/adapters/core.lock.yaml" ]
 grep -q '>>> forge (managed) >>>' "$T1/.gitignore"
+# O harness precisa ignorar TUDO que ele mesmo gera e que não é fonte. O caso que motivou:
+# o `update` cria .forge.bak-N e o template não o ignorava — num workspace real isso levou o
+# backup inteiro do harness antigo para dentro do commit, duplicando a maquinaria. Ferramenta que
+# produz artefato e não ensina a ignorá-lo empurra o lixo para o histórico de quem a adota.
+for pat in '.forge.bak-\*/' '.forge/cache/' '.forge/worktrees/'; do
+  grep -qF "$(printf '%s' "$pat" | tr -d '\\')" "$T1/.gitignore" \
+    || { echo "FAIL [1]: o bloco managed não ignora '$pat' — artefato gerado pelo harness acabaria versionado"; exit 1; }
+done
 echo "OK [1] (claude-only, sem poluicao de adapters nao escolhidos)"
 
 echo "[2] doctor exit 0"

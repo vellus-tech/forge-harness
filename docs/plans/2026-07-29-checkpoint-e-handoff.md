@@ -1,59 +1,87 @@
 # Checkpoint e handoff — 2026-07-29
 
-> Estado operacional para retomada em sessão nova, por qualquer agente. Complementa (não substitui) o `.forge/HANDOFF.md`, que é gerado por change. O plano vivo, com o desenho completo das ondas, está em `~/.claude/plans/vamos-tentar-a-estrat-gia-jiggly-turing.md` (local, não versionado).
+> Estado operacional para retomada em sessão nova, por qualquer agente. Complementa (não substitui) o `.forge/HANDOFF.md`, gerado por change. O plano do próximo trabalho está **versionado** em [`2026-07-29-api-surface-closure.md`](./2026-07-29-api-surface-closure.md) — diferente do checkpoint anterior, que apontava para um plano em `~/.claude/plans/` e portanto ilegível em qualquer outra máquina.
 
 ## 1. Onde o repositório está
 
-Branch `develop` em `af56931`, sincronizada com `origin`. Versão `0.1.0-rc23` no `package.json`. Suíte completa (`npm test`) 63/63 verde — leva de 10 a 13 minutos, então rode desacoplada (`nohup npm test > /tmp/suite.log 2>&1 &`) e faça poll do arquivo: o teto de tempo do executor mata o processo antes do fim se você esperar em foreground.
+Branch `develop` em `46e69a3`, **sincronizada com `origin`, árvore limpa**. Versão `0.2.0` — batendo nos três lugares (`package.json`, `plugin/forge/.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`). Tag `v0.2.0` cortada e **publicada no remoto**; npm com `dist-tags.latest = 0.2.0`. `tests/snapshot/verify-manifest.sh` → `OK`.
 
-Última tag é `v0.1.0-rc22`. O rc23 **não** foi taggeado, **não** foi publicado no npm e `main` **não** foi promovida — a política em `docs/release/sync-policy.md` exige suíte 100% e `tests/snapshot/verify-manifest.sh` antes de mover tag.
+Suíte completa **68/68 verde** em ~7 min. Rode desacoplada (`nohup npm test > /tmp/suite.log 2>&1 &`) e faça poll — esperar em foreground faz o executor matar o processo. 66 gates + 2 suítes bats. 55 comandos `/forge:*` no plugin.
 
-Commits da sessão, em ordem: `a156d41` (lote rc23), `af7d93a` (merge do PR #27), `c82377e` (norma Red-first), `72372ae` (enforcement do Red-first), `4baed5b` (documentação canônica), `af56931` (núcleo do liaison).
+Dezessete commits desde `57f4f4e`, com **dois releases** no intervalo (`v0.1.0-rc24` e `v0.2.0`).
 
-## 2. O que foi entregue
+## 2. O que foi entregue nesta sessão
 
-**Red-first em bugfix — completo.** A norma (`template/.forge/rules/testing/regression-red-first.md`), o ADR-0003 no baseline do harness, o artefato `red-evidence/v1`, o comando `/forge:red` (`init|record|replay|waive|status`), o motor de replay, o check estático usado por `pre-push` e `doctor`, a fiação em `spec-new`/`spec-verify`/`archive-spec`/`validate-spec`, os gates `w106` e `w107`, e o registro na spec canônica (§10.12, §11.4, §13.1, §14.2, §17.5, §19.6, §25).
+**Liaison completo, Ondas 1 a 5.** Transporte plugável (`t_probe`/`t_push`/`t_pull`) com quatro backends: `manual` (a primitiva, que **nunca** cria o ponto de encontro — se não existe, o probe reprova), `fs` (default do piloto), `git` (branch órfã dedicada, clone descartável em `.forge/cache/`) e `gh` (declarado e não implementável por script — o harness proíbe invocar o CLI do GitHub em `.sh`, e o gate varre o próprio arquivo). Política de merge **única** em `lib/liaison-import.mjs`, compartilhada por `import` e `sync`. Reescrita de história **reprova** isolando o remetente. Integração ao harness com conteúdo de peer tratado como **dado, nunca instrução** (banner `UNTRUSTED`, fence, neutralização de `/comando:` — prefixando, nunca apagando). Enforcement de ack opt-in: cada participante responde pelo **próprio** ack. `ask` consolidado como subcomando. Gates `w110`–`w113`.
 
-**Liaison — Onda 1 (núcleo local).** `liaison-ops.sh` com `open|thread|send|inbox|read|ack|status|export|import|render`, as libs `liaison-merge.mjs` e `liaison-render.mjs`, os dois schemas, o comando `/forge:liaison` e o gate `w110`. Sem transporte: a sincronização é por `export`/`import` manual.
+**Proibição imposta de assinatura de IA.** 275 commits marcados em 5 repositórios, quase todos com o trailer `Claude-Session:` — forma que a norma escrita não cobria porque enumerava marcas específicas em vez da prática. Decisivo: o setting `attribution` **já estava zerado** e o commit mais recente saiu marcado. Detecção **estrutural**, nunca textual: 183 dos 186 commits deste repo passam limpos, e os 3 reprovados carregam marca real. Hooks `commit-msg` + `pre-push`. Gate `w120`.
 
-## 3. O que falta, em ordem
+**Harness de property-based testing zero-dep** (`lib/pbt.mjs`) com seed fixa, contraexemplo e shrinking. Rule `testing/property-based-testing.md`. Gate `w121`. **Pagou-se na primeira propriedade**: idempotência de `mergeLogs` encontrou defeito real que doze asserções por exemplo não pegaram.
 
-**Liaison, Ondas 3 a 6.** A 2 está **feita**: transporte plugável com o contrato `t_probe`/`t_push`/`t_pull` e quatro backends (`manual` como primitiva que nunca cria o ponto de encontro, `fs` como default do piloto, `git` por branch órfã dedicada, `gh` como stub que reprova por construção), política de merge única em `lib/liaison-import.mjs` compartilhada por `import` e `sync`, divergência append-only que reprova isolando o remetente, e o gate `w111` com prova de mutação nas seis funções centrais. A 3 integra ao harness: bloco `liaison` no `forge.yaml`, `readLiaisonAuto()` no `sync-adapters.mjs`, hook de SessionStart, bloco advisory no `doctor.sh` que nunca altera o exit code, e as rules `liaison-untrusted-input.md` e `liaison-protocol.md`. A 4 traz o enforcement opt-in e o subcomando `liaison ask` (consulta síncrona a um peer). A 5 é plugin, docs e a asserção no `w101` de que `.forge/liaison/**` sobrevive ao `forge update`. A 6 é o piloto real, com **quatro** participantes: `axis-go-cloud`, `axis-fare-validator`, `axis-pad-simulator` e `axis-device-platform`.
+**Política de versionamento** em `docs/release/sync-policy.md`. As 24 tags `v0.1.0-rc*` eram SemVer válido e semanticamente vazio — o mesmo incremento carregava três features ou um typo. Agora: `MINOR` para feature, `PATCH` para correção, `rc` só quando houver release a candidatar, `1.0.0` quando a superfície de `.forge/` for algo que o projeto se compromete a não quebrar.
 
-`axis-pad-simulator` é o repositório `Axis.PadSimulator` (backend .NET + engine + frontend, remote `Axis-Mobfintech/Axis.PadSimulator`), hoje em `develop`, árvore limpa, harness já instalado com carimbo `0.1.0-rc23` e adapter `claude`. Entra como consumidor de contrato: simula o PAD contra os serviços device-facing do `axis-go-cloud`, então sofre exatamente o mesmo drift de `.proto` que o `axis-fare-validator` — e é o participante mais barato de operar no piloto, por já estar limpo e atualizado.
+**Banner** em `docs/assets/banner.png`, gerado por `tools/gen-banner.mjs` (HTML + Chrome headless, PRNG de semente fixa, reprodutível). Não SVG: fontes do sistema não resolvem em CI nem no GitHub.
 
-`axis-device-platform` ainda não é repositório — hoje é um diretório de PRDs dentro do `axis-go-cloud` (`PRD-Axis-Device-Platform-v2.0.md`, `SPEC.md`, `stories-requisitos.md`), sem git próprio nem submódulo, e será extraído para repo separado. O piloto portanto começa com os três repositórios existentes, e o quarto entra depois por `join` numa thread só. Isso é proposital: um participante que chega depois, converge apenas na thread em que entrou e não precisa sincronizar o resto do canal é exatamente o teste de participação parcial que justifica o relógio de Lamport ser por thread e não por canal.
+## 3. Consumidores — estado real
 
-**Ledger, quatro itens abertos.** `LDG-0001` e `LDG-0002` (runtime e piloto da capability authz/observability, vindos do PR #27); `LDG-0003` (falta a chave de ativação de rule-packs — hoje `pack:` no frontmatter é sinalização documental sem gate — e o installer materializar só os packs ativos); `LDG-0004` (mover a execução do replay Red-first para CI).
+| Repo | versão | branch | sujos | não publicados |
+|---|---|---|---|---|
+| `axis-go-cloud` | **0.2.0** | `develop` | 53 | 2 |
+| `axis-fare-validator` | **0.2.0** | `develop` | 18 | 0 |
+| `Axis.PadSimulator` | **0.2.0** | `develop` | 0 | 3 |
+| `azim-crm` | 0.1.0-rc24 | `develop` | 0 | 0 |
+| `collatra` | 0.1.0-rc24 | **`chore/forge-update-rc24`** | 0 | sem upstream |
+| `payments` | 0.1.0-dev → rc24 na branch | `main` | 36 | sem upstream |
+| `secret-weapon/Axis.SecretWeapon` | 0.1.0-rc23 → rc24 na branch | `develop` | 3 | 9 |
 
-**Propagação aos consumidores (Ondas 7 e 8 do plano).** Estado levantado em 2026-07-29, e não é uma operação só — são três situações distintas. `azim-crm` está em rc23 com três adapters e árvore limpa: `update` direto, e serve de ensaio. `payments` está em `0.1.0-dev` (anterior a qualquer release), em `main`, com 35 arquivos sujos: salto longo, exige branch própria e conferência dos tombstones em `installer/removed-files.txt`. `secret-weapon` e `oversetter` **não têm `.forge`**: é `init`, não `update`. E `axis-go-cloud` (23 sujos) e `axis-fare-validator` (62 sujos) precisam de árvore limpa antes de qualquer update, senão mudança de harness se mistura com trabalho em andamento.
+**Nada foi publicado** — todos os commits de harness são locais, por decisão. O `collatra` está **na branch de update**, não em `develop`; o `payments` e o `Axis.SecretWeapon` têm o update numa branch `chore/forge-update-rc24` não mergeada.
 
-O `forge update` compara conteúdo arquivo a arquivo, não versão, então o Red-first e o liaison chegam mesmo onde o carimbo já diz rc23. Mas quatro repositórios carregam `rc23` apontando para conteúdos diferentes, porque o rc23 seguiu recebendo commits depois das instalações — **cortar tag antes de propagar** é o que torna o carimbo verificável.
+**Piloto do liaison pronto e verificado ponta a ponta**: `axis-go-cloud` em `enforce: warn` (dono do contrato — travar quem origina não protege ninguém), `axis-fare-validator` e `Axis.PadSimulator` em `enforce: block` (consumidores, que sofrem o drift). Verificado nos repos reais: com contract-change pendente o check reprova (`rc=1`) nos consumidores e passa (`rc=0`) no dono; o ack desbloqueia. Falta escolher as threads iniciais e o hub de transporte real.
 
-**Limitação do installer que afeta todos os já instalados.** O bloco `# >>> forge (managed) >>>` do `.gitignore` só é acrescentado quando o marcador está ausente (`installer/install.sh` ~linha 80; `bin/forge.mjs` ~495 e ~622). Nenhum padrão novo chega a projeto que já tem o bloco — ele fica congelado na primeira instalação. Precisa de reconciliação manual, ou de o updater aprender a mesclar dentro de bloco existente, que é a correção certa e merece item de ledger.
+**Sem harness**: `oversetter` tem 4 repos git, **nenhum** com `.forge/` — instalar ali é decisão de produto, não minha. `secret-weapon` tem 2 repos, ambos já com `.forge/`.
 
-Faltam também as fixtures por stack e a avaliação A/B do plano de capability packs.
+## 4. Próximo trabalho — plano pronto e versionado
 
-## 4. Decisões tomadas — não reabrir sem motivo novo
+[`2026-07-29-api-surface-closure.md`](./2026-07-29-api-surface-closure.md), seis ondas, decidido por agente Opus e verificado contra o repositório real.
 
-O store do liaison é **um JSONL append-only por remetente**: com N participantes são N arquivos, um único escritor cada, e é isso que torna o merge livre de conflito. Thread é campo da mensagem, nunca arquivo. O relógio de Lamport é **por thread**, não por canal, porque com participação parcial um remetente só conhece as threads em que participa. Abertura de thread e entrada de participante são mensagens (`thread-open`, `join`), então a composição da conversa converge pelo mesmo mecanismo do resto e a lista de participantes é computada do log, nunca persistida à parte. Thread organiza e roteia; o **canal** é o limite de confidencialidade — separação real exige canal separado, porque com hub compartilhado quem alcança o transporte lê tudo. Transporte é hub único por canal, não par-a-par. Enforcement é script-enforced atrás de flag opt-in, com `warn` como default. `.forge/liaison/` fica fora de `MACHINERY_DIRS` (`bin/forge.mjs:202`) por ser dado durável.
+O achado que reordena tudo: **o harness já especifica os checks que teriam pegado o defeito, e ambos são instrução para LLM.** `commands/specs/analyze.md:21` manda cruzar o "Checklist de cobertura de superfície" contra tasks e diz que é isso "que impede a lacuna clássica de parâmetro implementado sem superfície de acesso descoberta só depois do marco" — **não existe script `analyze`**. `commands/specs/tasks.md:27` manda auto-verificar ordem topológica — é checklist em markdown, e deixou passar `TASK-89` (Wave 4) dependendo de `TASK-45` (Wave 7).
 
-No Red-first: a prova mora na **execução**, nunca no artefato; a norma é calibrada para **descuido** e declara explicitamente que não protege contra autor adversarial.
+Quatro defeitos reproduzíveis hoje sem escrever convenção nova, e a Onda A pega dois deles.
 
-## 5. Aprendizados operacionais
+## 5. Ledger
 
-**Verificação é o gargalo, não implementação.** Três rodadas de enforcement do Red-first foram rejeitadas por auditoria adversarial. As duas primeiras falharam pelo mesmo motivo — tentaram provar a execução lendo um campo que o próprio autor escreve, e depois um cache cuja chave ele também computa. A lição generaliza: **evidência produzida pela parte verificada, num ambiente que ela controla, não prova a si mesma**.
+**Oito abertos**: `LDG-0001`/`LDG-0002` (runtime e piloto da capability authz/observability), `LDG-0003` (maquinaria de capability packs), `LDG-0004` (replay Red-first em CI), `LDG-0005` (updater não mescla padrões no managed-block do `.gitignore`), `LDG-0007` (275 commits com assinatura de IA no histórico — **mantido por decisão**, limpar exige reescrever histórico publicado), `LDG-0008` (enforcement determinista de TDD-em-feature e cobertura de PBT), `LDG-0009` (managed-block congelado nos consumidores). **Resolvido**: `LDG-0006` (SIGPIPE nos gates).
 
-**Gate que passa com a implementação quebrada não prova nada.** Teste sempre por mutação: quebre a função central numa cópia em `mktemp -d` e confirme que o gate fica vermelho. Numa das rodadas o `w106` chegou a **asseverar o exploit** — exigia que evidência fabricada passasse com `rc=0`, ou seja, o teste virou proteção do furo. Só apareceu porque uma auditoria dedicada leu o `git diff` dos testes procurando asserção afrouxada.
+## 6. Decisões tomadas — não reabrir sem motivo novo
 
-**Asserção nova precisa nascer vermelha.** Uma asserção escrita nesta sessão passava com e sem a correção, porque o estado tinha sido contaminado por um passo anterior do próprio gate. Só a mutação revelou.
+Liaison: store é um JSONL append-only **por remetente** (um escritor por arquivo é o que torna o merge livre de conflito); thread é campo, nunca arquivo; Lamport **por thread**, porque participação parcial não pode exigir ver threads alheias; abertura de thread e entrada de participante são **mensagens**; a thread **roteia**, o canal **confina** — com hub compartilhado quem alcança o transporte lê tudo, então confidencialidade real exige canal separado; transporte é hub único por canal, não par-a-par; o push publica **apenas** o próprio log.
 
-**Falso negativo por concorrência é real.** O `w63` falhou uma vez porque um subagente escrevia no `template/` enquanto o gate copiava a árvore. Não rode a suíte com agentes escrevendo em paralelo.
+Versionamento: fora do trem de `rc`. Consumidor se instala **da tag**, nunca do checkout de desenvolvimento — foi assim que o `rc23` virou carimbo sem lastro em quatro repositórios.
 
-**Portabilidade morde só no CI.** `sed -i ''` é BSD e quebra no runner Linux; `mktemp` no BSD exige os `X` terminais. Verde local não é verde no CI.
+`ask` é subcomando de `liaison`, não comando de topo: é o padrão da casa e o `ask` **compõe** o liaison (chama `send` duas vezes).
 
-**Pré-requisito faltando deve reprovar, nunca desligar o gate.** Três scripts calculavam `ROOT` sem exportar `FORGE_ROOT`, e o validador pulava o replay em silêncio — invisível para a suíte, que sempre invoca com a variável na frente, mas presente na invocação de produção.
+## 7. Aprendizados operacionais — o que custou caro
 
-## 6. Convenções obrigatórias
+**Prova de mutação exige CONTROLE.** Sete mutações apareceram "todas vermelhas" e nenhuma havia sido exercitada: faltava `node_modules` no ambiente espelhado em `mktemp`, e o gate morria antes de chegar na mutação. **O espelho tem que ficar verde SEM mutação antes de qualquer resultado valer.**
 
-Fonte canônica é `template/.forge/**`; `plugin/` é derivado (`npm run build:plugin`, commitado, senão `plugin-sync-gate` trava). Libs `.mjs` são zero-dep (só `node:` builtins). Scripts saem com uma linha `OK`/`FAIL` e escrevem JSON atomicamente (mktemp + mv). Gates entram por glob em `tests/run-all.sh`, sem registro manual. Schemas não são validados em runtime — a validação equivalente é reimplementada à mão. Commits não levam marca de coautoria de IA. PR sempre mira `develop`, nunca `main`.
+**Invariância sob permutação passa trivialmente se o embaralhador não embaralha.** A mutação que fazia `shuffle` devolver a lista intacta sobreviveu — a asserção sobre o próprio gerador é parte do teste.
+
+**`echo "$var" | grep -q` derruba gates aleatoriamente.** O `grep -q` sai no primeiro match e fecha o pipe; o produtor recebe SIGPIPE e retorna diferente de zero, reprovando comportamento correto. Quatro execuções da suíte reprovaram gates **diferentes**, todos verdes isolados. 184 asserções em 33 gates convertidas para here-string.
+
+**`[ cond ] && cmd` sob `set -e` mata o gate SEM imprimir nada.** O sintoma é um gate parando no meio de um passo, sem mensagem. Instrumentar com FAIL explícito é o que torna o próximo diagnóstico possível — e foi o que revelou o bug seguinte.
+
+**Em bash o segundo `trap ... EXIT` SUBSTITUI o primeiro.** Ao instrumentar, adicionei um segundo trap e o fixture parou de ser limpo — 125 diretórios vazados em `/tmp`. Um único trap cobrindo os dois caminhos.
+
+**`node -` usa o stdin para o próprio programa.** Alimentar dados por stdin faz o scanner analisar o vazio e **aprovar tudo** — a pior falha possível: silenciosa e sempre verde.
+
+**O overlay do `update` zera `capabilities.active` em silêncio.** Conferir depois de todo update; já desativou o pack Java do `fare-validator` uma vez.
+
+**`git add -A` em workspace com repos aninhados** adiciona gitlinks; e `.forge.bak-N`/`.codegraph` entram no commit se o managed-block do `.gitignore` estiver congelado. Aconteceu no `payments`: 455 arquivos e 205 mil linhas, com um binário de 50 MB. Corrigido para 187/11,5k.
+
+**Relatório de subagente não é prova.** O agente Opus concluiu que "a informação não está lá" para o caso do Secret Weapon; a leitura do arquivo refutou — o Checklist declara a superfície e as tasks que a cobrem. A conclusão errada teria feito a convenção nova virar preço de entrada sem necessidade.
+
+**Passo manual atrelado a bump é passo esquecido.** O `marketplace.json` saiu uma versão atrás no `rc24`, descoberto pelo gate depois da tag cortada. Agora o `build:plugin` sincroniza.
+
+## 8. Convenções obrigatórias
+
+Fonte canônica é `template/.forge/**`; `plugin/` é derivado (`npm run build:plugin`, commitado, senão `plugin-sync-gate` trava). Libs `.mjs` **zero-dep**. Schemas não são validados em runtime — a validação equivalente é reimplementada à mão. Gates entram por glob em `tests/run-all.sh`. Asserção nova **nasce vermelha**. Pré-requisito faltando **reprova**, nunca desliga o gate. Portabilidade morde só no CI Linux (`sed -i.bak`, `mktemp` com X terminais, sem `readlink -f`/`grep -P`). Commits sem marca de coautoria de IA — agora **imposto** por hook. PR mira `develop`, nunca `main`. Subagente sempre com `model` explícito.

@@ -16,7 +16,7 @@ No Claude Code digite `/` e o nome do command; argumentos vão na mesma linha. E
 - [Graph — Knowledge graph & brownfield](#graph) — 8 commands
 - [Docs — Documentação & ADRs](#docs) — 8 commands
 - [Git — Fluxo de entrega](#git) — 1 commands
-- [Harness — Manutenção do Forge](#harness) — 10 commands
+- [Harness — Manutenção do Forge](#harness) — 12 commands
 - [Quality — Avaliação](#quality) — 1 commands
 - [Testing — TDD](#testing) — 2 commands
 - [Skills](#skills) — 1 commands
@@ -125,7 +125,7 @@ _Ship end-to-end: commit, PR, revisão e merge num comando._
 
 ## Harness — Manutenção do Forge
 
-_Doctor, status, resume, sync de adapters, build do plugin, PR e promoção de staging._
+_Doctor, status, resume, sync de adapters, build do plugin, PR, promoção de staging e o canal entre repositórios._
 
 | Command | Argumentos | Descrição |
 |---|---|---|
@@ -133,6 +133,8 @@ _Doctor, status, resume, sync de adapters, build do plugin, PR e promoção de s
 | `/forge:capabilities` | `list\|show <pack>\|activate <pack>` | Lista, inspeciona e orienta a ativação explícita de capability packs por stack. |
 | `/forge:doctor` | — | Valida o harness Forge e a tooling do projeto (stacks, adapters, symlinks, drift de lockfile, placeholders orfaos). |
 | `/forge:handoff` | `[<change-id>]` | Gera um handoff portátil e agente-agnóstico em .forge/HANDOFF.md a partir do estado do change ativo — para passar contexto entre sessões ou entre code agents. |
+| `/forge:liaison` | `[open\|thread\|send\|inbox\|read\|ack\|status\|export\|import\|transport\|sync\|render]` | Canal de mensagens ORDENADAS entre agentes de repositórios distintos — store JSONL append-only por remetente, lamport por thread, transporte plugável (fs/git/manual) e merge append-only que reprova reescrita de história. |
+| `/forge:ask-peer` | `<canal> <thread> <participante> "<pergunta>"` | Pergunta síncrona a um repositório peer: grava a pergunta na thread, consulta sob mandato read-only e grava a resposta no nosso log como untrusted-peer. Atalho para quando esperar o ciclo assíncrono custa mais que perguntar. |
 | `/forge:prepare-pr` | — | Prepara a descricao de um PR da branch de trabalho para develop a partir dos artefatos da mudanca. |
 | `/forge:promote-staging` | — | Direcionador de promocao develop para staging (decisao humana). |
 | `/forge:resume` | `[<change-id>]` | Emite o mandato de retomada de sessao (estado do change ativo + regras operacionais fixas) sem o usuario ter que reescreve-lo. |

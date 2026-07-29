@@ -92,4 +92,20 @@ grep -q "= $RULE_REL (tombstone pulado" "$T/up6.log" || { echo "FAIL [6]: tombst
 [ ! -f "$T/.forge/rules/architecture/ddd.md" ] || { echo "FAIL [6]: tombstone não removeu rule intocada (template intacto deveria sair)"; exit 1; }
 echo "OK [6]"
 
+echo "[7] .forge/liaison/** sobrevive byte a byte ao update"
+# O liaison é DADO DURÁVEL, não maquinaria: o log é append-only e um único byte alterado quebra o
+# content_sha, fazendo o import do outro lado reprovar o remetente inteiro por reescrita de
+# história. Um overlay que tocasse aqui destruiria o canal de todos os participantes de uma vez.
+mkdir -p "$T/.forge/liaison/contracts-fare/log" "$T/.forge/liaison/contracts-fare/blobs"
+printf '{"msg_id":"peer-0001","subject":"nao pode ser tocado"}\n' > "$T/.forge/liaison/contracts-fare/log/peer.jsonl"
+printf 'self:\n  id: local-repo\nchannels:\n  contracts-fare:\n    participants:\n      - local-repo\n      - peer\n' > "$T/.forge/liaison/liaison.yaml"
+printf 'blob de anexo\n' > "$T/.forge/liaison/contracts-fare/blobs/anexo.txt"
+LIAISON_SHA_BEFORE="$(find "$T/.forge/liaison" -type f | LC_ALL=C sort | xargs shasum -a 256 | shasum -a 256 | cut -d' ' -f1)"
+node "$WS/bin/forge.mjs" update --target "$T" --no-plugin --no-backup >"$T/up7.log" 2>&1 \
+  || { echo "FAIL [7]: update falhou"; cat "$T/up7.log"; exit 1; }
+LIAISON_SHA_AFTER="$(find "$T/.forge/liaison" -type f | LC_ALL=C sort | xargs shasum -a 256 | shasum -a 256 | cut -d' ' -f1)"
+[ "$LIAISON_SHA_BEFORE" = "$LIAISON_SHA_AFTER" ] \
+  || { echo "FAIL [7]: o update alterou .forge/liaison/ — o canal não é maquinaria substituível"; diff <(find "$T/.forge/liaison" -type f | sort) /dev/null || true; exit 1; }
+echo "OK [7]"
+
 echo "PASS w101-update-preserve-gate"

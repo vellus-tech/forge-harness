@@ -1,6 +1,6 @@
 # Relação de Slash Commands — Forge Harness
 
-> Catálogo gerado a partir dos frontmatters em `template/.forge/commands/`. **53 commands** em 10 grupos.
+> Catálogo gerado a partir dos frontmatters em `template/.forge/commands/`. **54 commands** em 10 grupos.
 
 Os `/forge:*` são entregues por um **plugin** do Claude Code (gerado de `.forge/commands/**` por `/forge:build-plugin` ou `bash .forge/scripts/build-plugin.sh`). O Claude Code (>= 2.x) reserva o namespace `:` para plugins — por isso os comandos vivem num plugin `name: forge`, não em `.claude/commands/`. O engine que eles chamam (`.forge/scripts/...`) vem do `.forge/` por projeto (instalado via `npx forge-harness init`).
 
@@ -18,7 +18,7 @@ No Claude Code digite `/` e o nome do command; argumentos vão na mesma linha. E
 - [Git — Fluxo de entrega](#git) — 1 commands
 - [Harness — Manutenção do Forge](#harness) — 10 commands
 - [Quality — Avaliação](#quality) — 1 commands
-- [Testing — TDD](#testing) — 1 commands
+- [Testing — TDD](#testing) — 2 commands
 - [Skills](#skills) — 1 commands
 
 
@@ -156,10 +156,11 @@ _Execução de evals de qualidade._
 
 ## Testing — TDD
 
-_Scaffolding de testes._
+_Scaffolding de testes e protocolo Red-first de bugfix._
 
 | Command | Argumentos | Descrição |
 |---|---|---|
+| `/forge:red` | `init\|record\|replay\|waive\|status <change-id> [flags]` | Protocolo Red-first de correção de defeito (rule testing/regression-red-first.md) — init escaffolda a evidência num change bugfix já existente, record declara o teste que reproduz o bug, replay… |
 | `/forge:scaffold-tdd` | `[test-name]` | Gera o esqueleto de um teste seguindo o ciclo Red-Green-Refactor, com estrutura AAA (Arrange-Act-Assert) e placeholder de PBT quando aplicável. |
 
 

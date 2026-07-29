@@ -811,6 +811,34 @@ deferrals:
 
 Os três arquivos são atualizados por scripts deterministas (não pelo modelo relendo tudo), preservando a economia de contexto.
 
+### 10.12 `red-evidence.schema.json` — evidência de Red em bugfix (`red-evidence/v1`)
+
+Todo change `type: bugfix` nasce com `evidence/red/red-evidence.json` (`status: pending`) e é o artefato central do protocolo Red-first (rule `testing/regression-red-first.md`, ADR `0003-red-first-regression-evidence`). Ele registra qual teste reproduz o defeito, com qual comando, contra qual padrão de falha esperado, e quais arquivos a correção toca:
+
+```yaml
+# representação YAML; o arquivo é JSON
+schema: red-evidence/v1
+change_id: fix-token-expiry
+status: observed              # pending | observed | waived | not-possible
+test_path: tests/tokenization/expiry.test.ts
+test_id: "expires token after grace period"
+command: "npm test -- expiry.test.ts"
+failure_pattern: "expected token to be expired"
+fix_files: [src/tokenization/expiry.ts]
+base_commit: "a1b2c3d"
+base_strategy: ancestry        # ancestry | revert-synthesis
+classification: behavioral     # behavioral | build-error | unknown
+base_result: failed
+replay_head: "e4f5a6b"
+waiver: null                   # {reason, note, deferral_id, ledger_id} quando status:waived
+recorded_at: "2026-07-20T10:00:00-03:00"
+replayed_at: "2026-07-20T10:05:00-03:00"
+```
+
+**Ponto central do desenho: este artefato é declaração, nunca prova.** Todo campo — inclusive `status`, `classification`, `replayed_at` e `replay_head` — é escrito por quem está sendo verificado; um agente ou autor pode preencher o JSON à mão de ponta a ponta sem que nenhum teste jamais tenha rodado. Duas tentativas anteriores de fechar essa lacuna acrescentando mais campos ao artefato foram tentadas e revertidas por serem estruturalmente circulares (ADR 0003, adendas 1 e 2) — a lição generalizada foi: nenhum estado produzido inteiramente pela parte sendo verificada, num ambiente que ela controla, prova nada a um terceiro adversarial.
+
+A prova real vem da **execução**, fora do artefato: `/forge:verify` e a transição para `verified` chamam `red-evidence.sh ensure <change-id>` sempre, incondicionalmente, para todo change `type: bugfix` — sem ler `status` para decidir se executam. `ensure` reconstrói a árvore pré-correção num worktree git efêmero, roda o teste declarado com timeout explícito e só sobrescreve o artefato com `status: observed` quando confirma, por execução real, falha comportamental na base (não erro de build) casando com `failure_pattern`, mais passagem em HEAD. Ver seção 19.6 para o validador estático que complementa esse fluxo, e seu limite documentado.
+
 ---
 
 ## 11. Modos de Uso
@@ -881,12 +909,15 @@ Bug com risco de regressão.
 /forge:spec new --type bugfix <bug>
 /forge:root-cause
 /forge:tasks
+/forge:red
 /forge:implement
 /forge:verify
 /forge:archive
 ```
 
 Artefato principal `bugfix.md`: comportamento atual incorreto, comportamento esperado, comportamento que deve continuar inalterado, root cause, propriedades/PBTs ou testes de regressão.
+
+`/forge:red` opera o protocolo Red-first (rule `testing/regression-red-first.md`, seção 10.12): `record` declara o teste que reproduz o defeito, `replay` roda o motor real e observa a falha na árvore pré-correção, `waive` dispensa com motivo tipado quando o Red for genuinamente inviável. `/forge:implement` não depende de `status: observed` para começar — a garantia é cobrada em `/forge:verify` e na transição para `verified`, que executam o replay incondicionalmente para todo `type: bugfix` (seção 13.1).
 
 ### 11.5 Refactor
 
@@ -1004,6 +1035,7 @@ Comando: `/forge:archive <change-id>`.
 - Para brownfield: diff impact analisado contra `.forge/graph/graph.json`.
 - Para mudança de contrato: contract tests ou schema validation executados.
 - Para domínios regulados/financeiros: aprovação humana explícita.
+- Para `type: bugfix`: evidência de Red observada por execução (`evidence/red/red-evidence.json` em `status: observed`, confirmado por `red-evidence.sh ensure`, seção 10.12) ou waiver tipado com o deferral/ledger correspondente registrado (`status: waived`, rule `testing/regression-red-first.md`).
 
 ### 13.2 Operação
 
@@ -1047,6 +1079,7 @@ Namespace `/forge:*`. Os comandos vivem em `.forge/commands/**` e são projetado
 | `/forge:design` | gera/refina design técnico (com loop builder→validator) |
 | `/forge:tasks` | gera tasks rastreáveis, ordenadas por dependência; pode fatiar em stories |
 | `/forge:analyze` | análise cross-artifact: spec/design/tasks/constitution |
+| `/forge:red` | `init`/`record`/`replay`/`waive`/`status` do protocolo Red-first (seção 10.12) — só `type: bugfix`, entre `tasks` e `implement` no fluxo de bugfix (seção 11.4); `init` escaffolda a evidência num change já existente (brownfield) |
 | `/forge:implement` | executa tasks/stories com checkpoints |
 | `/forge:verify` | valida implementação contra spec (checkpoint review guiado) |
 | `/forge:archive` | aplica deltas ao baseline e move para archived |
@@ -1263,6 +1296,7 @@ Cada feature/story passa por gates deterministas (scripts que retornam uma linha
 - **Grep negativo (NOT cross-file):** nenhum padrão proibido aparece (sem `TODO`/`FIXME`/`not implemented` residuais, sem em-dash em labels Mermaid, sem debug).
 - **Consistency cross-file:** símbolo usado de forma consistente entre arquivos (Classe A: factory vs middleware, etc.).
 - **Smoke executado pelo workflow** (não pelo modelo), com timeout e exit code esperado — anti auto-mentira.
+- **`check-red-first`** (`check-red-first.sh`, seção 19.6): para `type: bugfix`, confere estaticamente a completude e a coerência da declaração de Red — sem rodar teste algum. É o caminho barato usado no `pre-push` e no `doctor`; a observação real do Red, cara, fica em `/forge:verify`/`/forge:archive` (seção 10.12), não neste gate.
 
 Todo comando externo roda com `timeout`; a saída bruta vai para arquivo e só o `tail -20` é lido — disciplina anti-context-overflow.
 
@@ -1399,6 +1433,18 @@ Porta o `validate-frontmatter.sh` do LionClaw. Impõe os limites do spec aberto 
 ### 19.5 `forge validate graph`
 
 Schema de nodes/edges, integridade referencial, cobertura de camadas, IDs duplicados, nós órfãos, qualidade mínima de summaries, compatibilidade com changed files.
+
+### 19.6 `check-red-first.sh` — Red-first em bugfix (`red-evidence/v1`)
+
+Verificação **estática** e barata do protocolo Red-first (rule `testing/regression-red-first.md`; artefato descrito em 10.12), usada por `pre-push` e por `doctor` — caminhos que precisam ser rápidos e não podem pagar o custo de um replay real a cada invocação:
+
+- completude da declaração em `evidence/red/red-evidence.json` para todo change `type: bugfix`;
+- classificação real do excerto registrado (`red-classify`, não o campo `classification` auto-declarado) casando com `failure_pattern`;
+- ausência de evidência, teste que já passava na base, falha classificada como erro de build, ou saída fora do padrão declarado — **bloqueiam**, não rebaixáveis por modo de operação, nem em `yolo`;
+- alcançabilidade do teste até os `fix_files` no grafo de código, teste e correção no mesmo commit, nome de teste sem referência ao defeito, mock de símbolo exportado pela correção — **avisam**, proxy imperfeito;
+- para um waiver, que o `deferral_id`/`ledger_id` referenciado existe de fato em `deferrals.json`/`ledger.json`, reaplicando a política do motivo declarado a cada checagem (não confia no que foi gravado da última vez).
+
+**Limite documentado, não descuido:** este validador, sozinho, **não confirma que um replay real aconteceu** por trás de um `status: observed` — um artefato editado à mão com campos internamente consistentes passa por ele. A garantia real está nos dois gates que sempre executam o replay antes de decidir — `/forge:verify` e a transição para `verified`, via `red-evidence.sh ensure` (seção 10.12) — não neste check estático.
 
 ---
 
@@ -1673,6 +1719,7 @@ O MVP deve ser pequeno o suficiente para entregar valor sem reescrever tudo. A v
 | Runner não-agnóstico se amarrar a uma ferramenta | Médio | `runners.yaml` abstrai o executor; se inviável manter ≥3 agentes, reduzir escopo a Claude Code |
 | Validador adversarial gerar falsos positivos | Médio | humano decide o que é real; max 3 iterações; `[CLARIFY]` escala decisão |
 | Story sharding fragmentar contexto em excesso | Baixo | compilação de contexto de épico + dependências explícitas entre stories |
+| Evidência de Red forjável em bugfix (seção 10.12) | Alto (regressão volta com suíte verde) | replay real por execução (worktree git efêmero) fecha a ameaça de descuido; a norma é explícita sobre o que **não** fecha — comando declarado arbitrário, defeito introduzido no próprio PR, waiver com justificativa externamente inverificável — protege contra descuido, não contra autor adversarial (rule `testing/regression-red-first.md`, "O limite desta norma"; ADR 0003) |
 
 ---
 

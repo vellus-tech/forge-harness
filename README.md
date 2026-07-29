@@ -94,7 +94,7 @@ O `.forge/` por projeto traz o **engine**; os **slash commands** `/forge:*` são
 **plugin** do Claude Code — porque o Claude Code (≥ 2.x) reserva o namespace `:` para plugins
 (comandos soltos em `.claude/commands/` viram só `/<nome>`, sem o prefixo `forge:`). **O `init` já
 auto-instala o plugin** (global, vale para todos os seus projetos) quando o adapter claude está ativo;
-depois é só `/reload-plugins` (ou nova sessão) e os 52 comandos `/forge:*` aparecem.
+depois é só `/reload-plugins` (ou nova sessão) e os 54 comandos `/forge:*` aparecem.
 
 Para (re)instalar/atualizar o plugin manualmente, há duas vias:
 
@@ -136,7 +136,7 @@ spec new ─▶ clarify ─▶ requirements ─▶ design ─▶ tasks ─▶ im
 Cada transição é registrada por scripts deterministas; os gates humanos (`approve`/`review`/`reject`/
 `block`) ficam em `approvals.yaml`. Em `scale` baixo, fases são puláveis (Quick Plan) com justificativa.
 
-> 📖 **Relação completa dos 50 slash commands** (`/forge:*`), por grupo e com argumentos:
+> 📖 **Relação completa dos 54 slash commands** (`/forge:*`), por grupo e com argumentos:
 > [`docs/refer/slash-commands.md`](./docs/refer/slash-commands.md). Os comandos são
 > entregues por um **plugin** do Claude Code — gere/instale com `/forge:build-plugin`
 > (ou `bash .forge/scripts/build-plugin.sh`).
@@ -188,7 +188,7 @@ Trocar/adicionar um agente reconcilia o workspace (gera os ausentes, poda os rem
 template/.forge/        # o harness instalável (fonte única)
 ├── FORGE.md            # governança + frontmatter de runtime
 ├── agents/  (43)       # subagentes por categoria (specifications, architecture, review, …)
-├── commands/ (52)      # comandos /forge:* (specs, waves, graph, quality, git, …) — relação completa em docs/refer/slash-commands.md
+├── commands/ (54)      # comandos /forge:* (specs, waves, graph, quality, git, …) — relação completa em docs/refer/slash-commands.md
 ├── contracts/ (5)      # contratos de I/O por estágio (verify, archive, eval, …)
 ├── capabilities/       # packs opt-in por stack (C#/.NET, Node, Java, Python)
 ├── skills/   (11)      # skills especialistas (gate-runner, capability-dispatcher, …)

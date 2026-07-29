@@ -41,13 +41,13 @@ set +e
 out="$(cd "$TP" && printf '%s\n' "$FEED" | bash .forge/hooks/git/pre-push origin file://"$TP" 2>&1)"; rc=$?
 set -e
 [ "$rc" -eq 0 ] || { echo "FAIL [3] (pre-push bloqueou sem node_modules — rc=$rc)"; echo "$out"; exit 1; }
-echo "$out" | grep -q 'typecheck PULADO' || { echo "FAIL [3] (esperava aviso de skip)"; echo "$out"; exit 1; }
+grep -q 'typecheck PULADO' <<<"$out" || { echo "FAIL [3] (esperava aviso de skip)"; echo "$out"; exit 1; }
 # com node_modules presente → o gate roda de fato (pnpm ausente no PATH => falha do comando, rc!=0)
 mkdir -p "$TP/node_modules"
 set +e
 out2="$(cd "$TP" && printf '%s\n' "$FEED" | bash .forge/hooks/git/pre-push origin file://"$TP" 2>&1)"; rc2=$?
 set -e
-echo "$out2" | grep -q 'typecheck PULADO' && { echo "FAIL [3] (não deveria pular com node_modules presente)"; echo "$out2"; exit 1; }
+grep -q 'typecheck PULADO' <<<"$out2" && { echo "FAIL [3] (não deveria pular com node_modules presente)"; echo "$out2"; exit 1; }
 echo "OK [3] (skip sem deps; executa com deps)"
 
 echo "PASS w97-hook-portability-gate"

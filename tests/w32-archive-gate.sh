@@ -135,7 +135,7 @@ printf -- '- [ ] TASK-09 — tarefa esquecida (rastreia: REQ-X; paths: x; depend
 set +e
 out="$(FORGE_ROOT="$T" bash "$S/archive-spec.sh" chg-open 2>&1)"; rc=$?
 set -e
-[ "$rc" -ne 0 ] && echo "$out" | grep -q 'open task'
+[ "$rc" -ne 0 ] && grep -q 'open task' <<<"$out"
 perl -pi -e 's/^(\s*)- \[ \] /$1- [X] /' "$T/.forge/specs/active/chg-open/tasks.md"
 echo "OK [2]"
 
@@ -157,7 +157,7 @@ H_BEFORE="$(cd "$T" && find .forge/product -type f -print0 | LC_ALL=C sort -z | 
 set +e
 out="$(FORGE_ROOT="$T" bash "$S/archive-spec.sh" chg-open 2>&1)"; rc=$?
 set -e
-[ "$rc" -ne 0 ] && echo "$out" | grep -q 'scenario incomplete'
+[ "$rc" -ne 0 ] && grep -q 'scenario incomplete' <<<"$out"
 H_AFTER="$(cd "$T" && find .forge/product -type f -print0 | LC_ALL=C sort -z | xargs -0 shasum -a 256 | shasum -a 256)"
 [ "$H_BEFORE" = "$H_AFTER" ]
 [ -d "$T/.forge/specs/active/chg-open" ]   # change não foi movido
@@ -224,9 +224,9 @@ perl -pi -e "s/^archive:\$/archive:\n  baseline_delta: none/" "$CHG_DIR/manifest
 grep -q '^  baseline_delta: none$' "$CHG_DIR/manifest.yaml"
 CAP_BEFORE="$(shasum -a 256 "$CAP" | awk '{print $1}')"
 out="$(FORGE_ROOT="$T" bash "$S/archive-spec.sh" chg-no-delta)"
-echo "$out" | grep -q '\[2/6\] delta dry-run: SKIP (baseline_delta: none)'
-echo "$out" | grep -q '\[3/6\] delta apply: SKIP (baseline_delta: none)'
-echo "$out" | grep -q 'no baseline delta'
+grep -q '\[2/6\] delta dry-run: SKIP (baseline_delta: none)' <<<"$out"
+grep -q '\[3/6\] delta apply: SKIP (baseline_delta: none)' <<<"$out"
+grep -q 'no baseline delta' <<<"$out"
 [ -d "$T/.forge/specs/archived/$TODAY-chg-no-delta" ]
 [ ! -e "$CHG_DIR" ]                   # change movido
 [ ! -f "$T/.forge/specs/archived/$TODAY-chg-no-delta/spec-delta.yaml" ]
@@ -255,8 +255,8 @@ operations:
     reason: "seed capability-stub from baseline-extract; curated out, never verified"
 EOF
 out="$(FORGE_ROOT="$T" bash "$S/archive-spec.sh" chg-remove-cap-seed 2>&1)"
-echo "$out" | grep -q 'plan: remove capability legacy-stub'
-echo "$out" | grep -q 'removed: legacy-stub'
+grep -q 'plan: remove capability legacy-stub' <<<"$out"
+grep -q 'removed: legacy-stub' <<<"$out"
 [ ! -d "$CAPDIR_SEED" ]
 [ -d "$T/.forge/specs/archived/$TODAY-chg-remove-cap-seed" ]
 grep -q "## $TODAY — chg-remove-cap-seed" "$T/.forge/product/current/CHANGELOG.md"
@@ -275,8 +275,8 @@ set +e
 out="$(FORGE_ROOT="$T" bash "$S/archive-spec.sh" chg-remove-cap-missing 2>&1)"; rc=$?
 set -e
 [ "$rc" -ne 0 ]
-echo "$out" | grep -q 'ghost-capability'
-echo "$out" | grep -qi 'not found'
+grep -q 'ghost-capability' <<<"$out"
+grep -qi 'not found' <<<"$out"
 [ -d "$T/.forge/specs/active/chg-remove-cap-missing" ]   # change não foi movido
 echo "OK [9]"
 
@@ -304,7 +304,7 @@ set +e
 out="$(FORGE_ROOT="$T" bash "$S/archive-spec.sh" chg-remove-cap-guarded 2>&1)"; rc=$?
 set -e
 [ "$rc" -ne 0 ]
-echo "$out" | grep -q 'force: true'
+grep -q 'force: true' <<<"$out"
 [ -d "$CAPDIR_REQ" ]   # nada removido — o guard-rail bloqueou antes de escrever
 
 mk_verified chg-remove-cap-forced

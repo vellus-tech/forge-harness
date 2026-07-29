@@ -54,7 +54,7 @@ EOF
 echo "[1] REQ-05: deny-by-default presente → PASS"
 write_graph enforce
 out="$(bash "$SH" --path "$T/policy/pass-deny-by-default.rego")"
-echo "$out" | grep -q '^OK check-authz'
+grep -q '^OK check-authz' <<<"$out"
 echo "OK [1]"
 
 echo "[2] REQ-05: default allow := true → FAIL nomeando o arquivo, mesmo em mode:warn"
@@ -63,8 +63,8 @@ set +e
 out="$(bash "$SH" --path "$T/policy/fail-allow-true-default.rego")"; rc=$?
 set -e
 [ "$rc" -ne 0 ]
-echo "$out" | grep -q 'CONFLICT'
-echo "$out" | grep -q 'fail-allow-true-default.rego'
+grep -q 'CONFLICT' <<<"$out"
+grep -q 'fail-allow-true-default.rego' <<<"$out"
 echo "OK [2]"
 
 echo "[3] REQ-05: sem default allow := false → FAIL nomeando o arquivo"
@@ -73,8 +73,8 @@ set +e
 out="$(bash "$SH" --path "$T/policy/fail-missing-deny-default.rego")"; rc=$?
 set -e
 [ "$rc" -ne 0 ]
-echo "$out" | grep -q 'CONFLICT'
-echo "$out" | grep -q 'fail-missing-deny-default.rego'
+grep -q 'CONFLICT' <<<"$out"
+grep -q 'fail-missing-deny-default.rego' <<<"$out"
 echo "OK [3]"
 
 echo "[4] REQ-05: allow incondicional → FAIL nomeando o arquivo"
@@ -83,8 +83,8 @@ set +e
 out="$(bash "$SH" --path "$T/policy/fail-unconditional-allow.rego")"; rc=$?
 set -e
 [ "$rc" -ne 0 ]
-echo "$out" | grep -q 'CONFLICT'
-echo "$out" | grep -q 'fail-unconditional-allow.rego'
+grep -q 'CONFLICT' <<<"$out"
+grep -q 'fail-unconditional-allow.rego' <<<"$out"
 echo "OK [4]"
 
 echo "[5] REQ-06: decisão imperativa fora do PEP, mode:enforce → FAIL nomeando o arquivo (Go/Kotlin/TS)"
@@ -93,24 +93,24 @@ set +e
 out="$(bash "$SH" --path "$T/services/orders")"; rc=$?
 set -e
 [ "$rc" -ne 0 ]
-echo "$out" | grep -q 'CONFLICT'
-echo "$out" | grep -q 'services/orders/handler.go' && echo "$out" | grep -q 'hasRole(...)'
-echo "$out" | grep -q 'services/orders/CancelOrderHandler.kt' && echo "$out" | grep -q 'decorator de role ad-hoc'
-echo "$out" | grep -q 'services/orders/cancelOrder.ts' && echo "$out" | grep -q 'claims\["permissions"\]'
+grep -q 'CONFLICT' <<<"$out"
+grep -q 'services/orders/handler.go' <<<"$out" && grep -q 'hasRole(...)' <<<"$out"
+grep -q 'services/orders/CancelOrderHandler.kt' <<<"$out" && grep -q 'decorator de role ad-hoc' <<<"$out"
+grep -q 'services/orders/cancelOrder.ts' <<<"$out" && grep -q 'claims\["permissions"\]' <<<"$out"
 echo "OK [5]"
 
 echo "[6] REQ-06: mesma decisão, mode:warn → WARN, não bloqueia (exit 0) — rebaixável"
 write_graph warn '["pep"]'
 out="$(bash "$SH" --path "$T/services/orders")"
-echo "$out" | grep -q 'WARN'
-echo "$out" | grep -q 'services/orders/handler.go'
-! echo "$out" | grep -q 'CONFLICT'
+grep -q 'WARN' <<<"$out"
+grep -q 'services/orders/handler.go' <<<"$out"
+! grep -q 'CONFLICT' <<<"$out"
 echo "OK [6]"
 
 echo "[7] REQ-06: decisão imperativa DENTRO do diretório do PEP declarado → PASS (isenta)"
 write_graph enforce '["pep"]'
 out="$(bash "$SH" --path "$T/pep")"
-echo "$out" | grep -q '^OK check-authz'
+grep -q '^OK check-authz' <<<"$out"
 echo "OK [7]"
 
 echo "[8] REQ-07: cobertura reportada < threshold declarado → FAIL indicando cobertura×threshold"
@@ -120,14 +120,14 @@ set +e
 out="$(bash "$SH" --path "$T/policy/pass-deny-by-default.rego" --coverage-report "$T/coverage-report.json")"; rc=$?
 set -e
 [ "$rc" -ne 0 ]
-echo "$out" | grep -q 'CONFLICT'
-echo "$out" | grep -q '0.42' && echo "$out" | grep -q '0.9'
+grep -q 'CONFLICT' <<<"$out"
+grep -q '0.42' <<<"$out" && grep -q '0.9' <<<"$out"
 echo "OK [8]"
 
 echo "[9] REQ-07: sem policy_coverage_threshold declarado → no-op (não falso-positivo)"
 write_graph enforce
 out="$(bash "$SH" --path "$T/policy/pass-deny-by-default.rego" --coverage-report "$T/coverage-report.json")"
-echo "$out" | grep -q '^OK check-authz'
+grep -q '^OK check-authz' <<<"$out"
 echo "OK [9]"
 
 echo "[10] REQ-08: rota layer:api sem caminho ao PEP → FAIL nomeando o node (graph-govern); mode:warn → WARN"
@@ -146,14 +146,14 @@ set +e
 out="$(bash "$SH" --path "$T/policy/pass-deny-by-default.rego")"; rc=$?
 set -e
 [ "$rc" -ne 0 ]
-echo "$out" | grep -q 'CONFLICT'
-echo "$out" | grep -q 'services/orders/api/handler.go'
-echo "$out" | grep -q 'REQ-08'
+grep -q 'CONFLICT' <<<"$out"
+grep -q 'services/orders/api/handler.go' <<<"$out"
+grep -q 'REQ-08' <<<"$out"
 # mesmo achado em mode:warn não bloqueia (rebaixável)
 sed -i.bak 's/"mode": "enforce"/"mode": "warn"/' "$T/.forge/graph/graph.json"
 out="$(bash "$SH" --path "$T/policy/pass-deny-by-default.rego")"
-echo "$out" | grep -q 'WARN'
-echo "$out" | grep -q 'services/orders/api/handler.go'
+grep -q 'WARN' <<<"$out"
+grep -q 'services/orders/api/handler.go' <<<"$out"
 echo "OK [10]"
 
 echo "OK"

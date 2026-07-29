@@ -63,7 +63,7 @@ corrupt() { # corrupt <sed-expr> <expected-substring>
   set -e
   mv "$d/manifest.yaml.bak" "$d/manifest.yaml"
   [ "$rc" -eq 1 ] || { echo "esperava FAIL: $2"; exit 1; }
-  echo "$out" | grep -q "$2" || { echo "mensagem sem campo '$2': $out"; exit 1; }
+  grep -q "$2" <<<"$out" || { echo "mensagem sem campo '$2': $out"; exit 1; }
 }
 corrupt 's/^scale: 2$/scale: 9/' 'scale'
 corrupt 's/^type: feature$/type: banana/' 'type invalid'

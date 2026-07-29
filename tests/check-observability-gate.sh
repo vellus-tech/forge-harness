@@ -207,7 +207,7 @@ set +e
 out="$(FORGE_ROOT="$FIX/pass" bash "$SH" --path "$FIX/pass")"; rc=$?
 set -e
 [ "$rc" -eq 0 ] || { echo "esperado exit 0, obtido $rc — saida: $out"; exit 1; }
-echo "$out" | grep -q '^OK check-observability' || { echo "esperado OK, obtido: $out"; exit 1; }
+grep -q '^OK check-observability' <<<"$out" || { echo "esperado OK, obtido: $out"; exit 1; }
 echo "OK [8]"
 
 echo "[9] end-to-end (.sh): fixtures/observability/fail (mode:enforce) → CONFLICT, exit 1"
@@ -215,10 +215,10 @@ set +e
 out="$(FORGE_ROOT="$FIX/fail" bash "$SH" --path "$FIX/fail")"; rc=$?
 set -e
 [ "$rc" -ne 0 ] || { echo "esperado exit != 0, obtido 0 — saida: $out"; exit 1; }
-echo "$out" | grep -q 'CONFLICT' || { echo "esperado CONFLICT, obtido: $out"; exit 1; }
-echo "$out" | grep -q 'services/orders/api/handler.go\|services/orders/api/refund.go' || { echo "CONFLICT nao nomeia o boundary (REQ-09a): $out"; exit 1; }
-echo "$out" | grep -q 'fmt.Println' || { echo "CONFLICT nao menciona fmt.Println (REQ-09b): $out"; exit 1; }
-echo "$out" | grep -q 'services/orders' || { echo "CONFLICT nao nomeia o servico (REQ-10): $out"; exit 1; }
+grep -q 'CONFLICT' <<<"$out" || { echo "esperado CONFLICT, obtido: $out"; exit 1; }
+grep -q 'services/orders/api/handler.go\|services/orders/api/refund.go' <<<"$out" || { echo "CONFLICT nao nomeia o boundary (REQ-09a): $out"; exit 1; }
+grep -q 'fmt.Println' <<<"$out" || { echo "CONFLICT nao menciona fmt.Println (REQ-09b): $out"; exit 1; }
+grep -q 'services/orders' <<<"$out" || { echo "CONFLICT nao nomeia o servico (REQ-10): $out"; exit 1; }
 echo "OK [9]"
 
 echo "[10] end-to-end (.sh): fixtures/observability/fail (mode:warn) → WARN, exit 0"
@@ -228,7 +228,7 @@ set +e
 out="$(FORGE_ROOT="$T/fail-warn" bash "$SH" --path "$T/fail-warn")"; rc=$?
 set -e
 [ "$rc" -eq 0 ] || { echo "esperado exit 0 em mode:warn, obtido $rc — saida: $out"; exit 1; }
-echo "$out" | grep -q '^WARN' || { echo "esperado WARN, obtido: $out"; exit 1; }
+grep -q '^WARN' <<<"$out" || { echo "esperado WARN, obtido: $out"; exit 1; }
 echo "OK [10]"
 
 echo "[11] sem graph.json: REQ-09a/REQ-10 em no-op; REQ-09b roda do mesmo jeito (achado rebaixavel, default seguro mode:warn sem bloco declarado)"
@@ -242,9 +242,9 @@ set +e
 out="$(FORGE_ROOT="$T/case11" bash "$SH" --path "$T/case11")"; rc=$?
 set -e
 [ "$rc" -eq 0 ] || { echo "esperado exit 0 (sem bloco declarado -> default seguro mode:warn), obtido $rc — saida: $out"; exit 1; }
-echo "$out" | grep -q '^WARN' || { echo "esperado WARN, obtido: $out"; exit 1; }
-echo "$out" | grep -q 'fmt.Println' || { echo "esperado REQ-09b mesmo sem grafo: $out"; exit 1; }
-echo "$out" | grep -q 'caminho (import\|alerts-as-code' && { echo "REQ-09a/REQ-10 nao deveriam aparecer sem graph.json: $out"; exit 1; } || true
+grep -q '^WARN' <<<"$out" || { echo "esperado WARN, obtido: $out"; exit 1; }
+grep -q 'fmt.Println' <<<"$out" || { echo "esperado REQ-09b mesmo sem grafo: $out"; exit 1; }
+grep -q 'caminho (import\|alerts-as-code' <<<"$out" && { echo "REQ-09a/REQ-10 nao deveriam aparecer sem graph.json: $out"; exit 1; } || true
 echo "OK [11]"
 
 echo "OK"

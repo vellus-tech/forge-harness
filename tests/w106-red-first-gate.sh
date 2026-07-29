@@ -64,7 +64,7 @@ set +e
 out="$(FORGE_ROOT="$T" bash "$VS" --path "$DIR_A" 2>&1)"; rc=$?
 set -e
 [ "$rc" -ne 0 ] || { echo "FAIL: validate-spec passou com evidência pending (esperava FAIL)"; exit 1; }
-echo "$out" | grep -qi "red-evidence" || { echo "FAIL: mensagem não cita red-evidence.json ($out)"; exit 1; }
+grep -qi "red-evidence" <<<"$out" || { echo "FAIL: mensagem não cita red-evidence.json ($out)"; exit 1; }
 echo "OK [2]"
 
 echo "[3] evidência observed (via REPLAY REAL — Onda D: só execução prova, não o campo) passa"
@@ -93,7 +93,7 @@ git -C "$T" add src/bug-a-calc.mjs
 git -C "$T" -c user.email=t@t -c user.name=t commit -qm "fix: bug-a — calc soma certo" >/dev/null
 
 out="$(FORGE_ROOT="$T" bash "$RE" record bug-a --test-path tests/bug-a.test.mjs --test-id bug-a-regression --command "node --test tests/bug-a.test.mjs" --fix-files src/bug-a-calc.mjs --failure-pattern AssertionError 2>&1)"
-echo "$out" | grep -q "OK record" || { echo "FAIL: record de bug-a não confirmou ($out)"; exit 1; }
+grep -q "OK record" <<<"$out" || { echo "FAIL: record de bug-a não confirmou ($out)"; exit 1; }
 out="$(FORGE_ROOT="$T" bash "$RE" replay bug-a 2>&1)"; rc=$?
 [ "$rc" -eq 0 ] || { echo "FAIL: replay real de bug-a esperava sucesso ($out)"; exit 1; }
 grep -q '"status": "observed"' "$EV_A" || { echo "FAIL: status != observed após replay real"; exit 1; }
@@ -102,7 +102,7 @@ set +e
 out="$(FORGE_ROOT="$T" bash "$VS" --path "$DIR_A" 2>&1)"; rc=$?
 set -e
 [ "$rc" -eq 0 ] || { echo "FAIL: validate-spec falhou com evidência observed por replay real ($out)"; exit 1; }
-echo "$out" | grep -q "OK bug-a" || { echo "FAIL: saída inesperada ($out)"; exit 1; }
+grep -q "OK bug-a" <<<"$out" || { echo "FAIL: saída inesperada ($out)"; exit 1; }
 echo "OK [3]"
 
 echo "[3-FORJA] FORJA COMPLETA — status:observed escrito à mão (campos internamente consistentes) é ACEITA por check-red-first SOZINHO (limite aceito e documentado, Onda E), mas REPROVADA por validate-spec/spec-verify/archive (gates reais, que chamam 'ensure' incondicionalmente e reexecutam o teste declarado de verdade)"
@@ -217,7 +217,7 @@ set +e
 out_verify="$(FORGE_ROOT="$T" bash "$T/.forge/scripts/spec-verify.sh" bug-a 2>&1)"; rc_verify=$?
 set -e
 [ "$rc_verify" -ne 0 ] || { echo "FAIL [3-FORJA/spec-verify]: spec-verify aprovou change com evidência forjada ($out_verify)"; exit 1; }
-echo "$out_verify" | grep -qi "red-first" || { echo "FAIL [3-FORJA/spec-verify]: mensagem não cita red-first ($out_verify)"; exit 1; }
+grep -qi "red-first" <<<"$out_verify" || { echo "FAIL [3-FORJA/spec-verify]: mensagem não cita red-first ($out_verify)"; exit 1; }
 echo "OK [3-FORJA/spec-verify] — spec-verify reprova: red-first citado"
 
 # archive-spec.sh — pré-flight (validate-archive) já reprova antes de chegar ao ensure/check do
@@ -265,7 +265,7 @@ set +e
 out="$(FORGE_ROOT="$T" bash "$CR" waive bug-b --reason non-behavioral --note "só typo" 2>&1)"; rc=$?
 set -e
 [ "$rc" -ne 0 ] || { echo "FAIL: waiver non-behavioral não foi recusado ($out)"; exit 1; }
-echo "$out" | grep -qi "recusad" || { echo "FAIL: mensagem não indica recusa ($out)"; exit 1; }
+grep -qi "recusad" <<<"$out" || { echo "FAIL: mensagem não indica recusa ($out)"; exit 1; }
 EV_B="$DIR_B/evidence/red/red-evidence.json"
 grep -q '"status": "pending"' "$EV_B" || { echo "FAIL: evidência mutada apesar da recusa"; exit 1; }
 # commita o arquivo de teste — sem isso, ele fica untracked pelo resto do gate e o diff real
@@ -308,8 +308,8 @@ set +e
 out="$(FORGE_ROOT="$T6" bash "$T6/.forge/scripts/check-red-first.sh" waive bug-item6 --reason non-behavioral --note "so tipografia" 2>&1)"; rc=$?
 set -e
 [ "$rc" -ne 0 ] || { echo "FAIL [4-ITEM6]: waiver non-behavioral aceito apesar de commit direto na base tocar código do grafo ($out)"; rm -rf "$T6"; exit 1; }
-echo "$out" | grep -qi "recusad" || { echo "FAIL [4-ITEM6]: mensagem não indica recusa ($out)"; rm -rf "$T6"; exit 1; }
-echo "$out" | grep -q "invoice.ts" || { echo "FAIL [4-ITEM6]: mensagem não cita o arquivo tocado ($out)"; rm -rf "$T6"; exit 1; }
+grep -qi "recusad" <<<"$out" || { echo "FAIL [4-ITEM6]: mensagem não indica recusa ($out)"; rm -rf "$T6"; exit 1; }
+grep -q "invoice.ts" <<<"$out" || { echo "FAIL [4-ITEM6]: mensagem não cita o arquivo tocado ($out)"; rm -rf "$T6"; exit 1; }
 rm -rf "$T6"
 echo "OK [4-ITEM6]"
 
@@ -345,8 +345,8 @@ set +e
 out="$(FORGE_ROOT="$T" bash "$CR" check bug-waiver-forja 2>&1)"; rc=$?
 set -e
 [ "$rc" -ne 0 ] || { echo "FAIL [4-WAIVER-FORJADO]: check aprovou waiver forjado à mão com diff tocando grafo ($out)"; exit 1; }
-echo "$out" | grep -qi "waiver non-behavioral inválido" || { echo "FAIL [4-WAIVER-FORJADO]: mensagem não cita waiver inválido ($out)"; exit 1; }
-echo "$out" | grep -q "refund.ts" || { echo "FAIL [4-WAIVER-FORJADO]: mensagem não cita o arquivo tocado ($out)"; exit 1; }
+grep -qi "waiver non-behavioral inválido" <<<"$out" || { echo "FAIL [4-WAIVER-FORJADO]: mensagem não cita waiver inválido ($out)"; exit 1; }
+grep -q "refund.ts" <<<"$out" || { echo "FAIL [4-WAIVER-FORJADO]: mensagem não cita o arquivo tocado ($out)"; exit 1; }
 echo "OK [4-WAIVER-FORJADO] — check reprova: $out"
 # commita refund.ts (+ marcador neutro) — mesmo cuidado do passo [4]: deixá-lo untracked
 # contaminaria via git-status--porcelain o próximo waive non-behavioral do gate ([7c], bug-a).
@@ -425,7 +425,7 @@ set +e
 out="$(FORGE_ROOT="$T" bash "$CR" waive bug-c --reason no-test-infra --note "brownfield sem suíte de testes utilizável" 2>&1)"; rc=$?
 set -e
 [ "$rc" -eq 0 ] || { echo "FAIL: waiver no-test-infra falhou ($out)"; exit 1; }
-echo "$out" | grep -q "OK waive" || { echo "FAIL: saída inesperada ($out)"; exit 1; }
+grep -q "OK waive" <<<"$out" || { echo "FAIL: saída inesperada ($out)"; exit 1; }
 DEF_C="$T/.forge/specs/active/bug-c/deferrals.json"
 [ -f "$DEF_C" ] || { echo "FAIL: deferrals.json não criado"; exit 1; }
 grep -q '"status": "open"' "$DEF_C" || { echo "FAIL: deferral não está open"; exit 1; }
@@ -442,9 +442,9 @@ echo "[8] doctor sinaliza sem alterar o exit code (baseline saneado — rc_base=
 set +e
 out="$(FORGE_ROOT="$T" bash "$DR" 2>&1)"; rc_after=$?
 set -e
-echo "$out" | grep -q "red-first" || { echo "FAIL: doctor não mencionou red-first"; exit 1; }
-echo "$out" | grep -q "bug-b" || { echo "FAIL: doctor não sinalizou bug-b pendente"; exit 1; }
-echo "$out" | grep -q "bug-c" && { echo "FAIL: doctor sinalizou bug-c (waived — deveria estar resolvido)"; exit 1; }
+grep -q "red-first" <<<"$out" || { echo "FAIL: doctor não mencionou red-first"; exit 1; }
+grep -q "bug-b" <<<"$out" || { echo "FAIL: doctor não sinalizou bug-b pendente"; exit 1; }
+grep -q "bug-c" <<<"$out" && { echo "FAIL: doctor sinalizou bug-c (waived — deveria estar resolvido)"; exit 1; }
 [ "$rc_after" = "$rc_base" ] || { echo "FAIL: check red-first mudou o exit code do doctor ($rc_base -> $rc_after)"; exit 1; }
 echo "OK [8]"
 
@@ -506,7 +506,7 @@ set +e
 out="$(FORGE_ROOT="$T" bash "$CR" check feat-a 2>&1)"; rc=$?
 set -e
 [ "$rc" -eq 0 ] || { echo "FAIL: check-red-first falhou para type:feature ($out)"; exit 1; }
-echo "$out" | grep -q "n/a" || { echo "FAIL: saída não indica no-op ($out)"; exit 1; }
+grep -q "n/a" <<<"$out" || { echo "FAIL: saída não indica no-op ($out)"; exit 1; }
 echo "OK [9]"
 
 echo "[10] itens bloqueantes 2/3/4 e completude de replay via check-red-first check (real)"
@@ -520,7 +520,7 @@ check_bugx() { # check_bugx <expected-rc> <grep-pattern-or-empty> <label>
   set -e
   [ "$rc" -eq "$exp" ] || { echo "FAIL [$label]: rc=$rc (esperado $exp) ($out)"; exit 1; }
   if [ -n "$pat" ]; then
-    echo "$out" | grep -qi "$pat" || { echo "FAIL [$label]: saída não casa com '$pat' ($out)"; exit 1; }
+    grep -qi "$pat" <<<"$out" || { echo "FAIL [$label]: saída não casa com '$pat' ($out)"; exit 1; }
   fi
   echo "OK [$label]"
 }
@@ -625,7 +625,7 @@ git -C "$T" add src-x10f/calc.mjs
 git -C "$T" -c user.email=t@t -c user.name=t commit -qm "fix: bug-x item10f — calc soma certo" >/dev/null
 
 out="$(FORGE_ROOT="$T" bash "$RE" record bug-x --test-path tests-x10f/calc.test.mjs --test-id bug-x-regression --command "node --test tests-x10f/calc.test.mjs" --fix-files src-x10f/calc.mjs --failure-pattern AssertionError 2>&1)"
-echo "$out" | grep -q "OK record" || { echo "FAIL [10f]: record não confirmou ($out)"; exit 1; }
+grep -q "OK record" <<<"$out" || { echo "FAIL [10f]: record não confirmou ($out)"; exit 1; }
 out="$(FORGE_ROOT="$T" bash "$RE" replay bug-x 2>&1)"; rc=$?
 [ "$rc" -eq 0 ] || { echo "FAIL [10f]: replay real esperava sucesso ($out)"; exit 1; }
 check_bugx 0 "" "10f-controle-baseline-valida-com-replay-real"
@@ -648,8 +648,8 @@ check_bugd() { # check_bugd <grep-pattern> <label>
   out="$(FORGE_ROOT="$T" bash "$CR" check bug-d 2>&1)"; rc=$?
   set -e
   [ "$rc" -eq 0 ] || { echo "FAIL [$2]: rc=$rc (esperado 0 — item rebaixável não deve bloquear) ($out)"; exit 1; }
-  echo "$out" | grep -q "WARN" || { echo "FAIL [$2]: saída sem WARN ($out)"; exit 1; }
-  echo "$out" | grep -qi "$1" || { echo "FAIL [$2]: saída não casa com '$1' ($out)"; exit 1; }
+  grep -q "WARN" <<<"$out" || { echo "FAIL [$2]: saída sem WARN ($out)"; exit 1; }
+  grep -qi "$1" <<<"$out" || { echo "FAIL [$2]: saída não casa com '$1' ($out)"; exit 1; }
   echo "OK [$2]"
 }
 
@@ -864,7 +864,7 @@ for reason_id in "no-test-infra:bug-w4b" "external-unreproducible:bug-w4c"; do
   out="$(FORGE_ROOT="$T" bash "$CR" check "$cid" 2>&1)"; rc=$?
   set -e
   [ "$rc" -ne 0 ] || { echo "FAIL [13/$reason]: check aprovou waiver '$reason' sem deferral real ($out)"; exit 1; }
-  echo "$out" | grep -qi "deferral correspondente" || { echo "FAIL [13/$reason]: mensagem não cita a ausência de deferral real ($out)"; exit 1; }
+  grep -qi "deferral correspondente" <<<"$out" || { echo "FAIL [13/$reason]: mensagem não cita a ausência de deferral real ($out)"; exit 1; }
   echo "OK [13/$reason] — check reprova: $out"
 done
 # controle — os MESMOS dois motivos, gravados pelo caminho real (/forge:red waive via cmdWaive),
@@ -896,7 +896,7 @@ set +e
 out="$(FORGE_ROOT="$T" bash "$CR" check bug-w4d 2>&1)"; rc=$?
 set -e
 [ "$rc" -ne 0 ] || { echo "FAIL [14a]: check aprovou hotfix-under-incident com deferral SEM blocks:[archive] ($out)"; exit 1; }
-echo "$out" | grep -q 'blocks:\[archive\]' || { echo "FAIL [14a]: mensagem não cita blocks:[archive] ($out)"; exit 1; }
+grep -q 'blocks:\[archive\]' <<<"$out" || { echo "FAIL [14a]: mensagem não cita blocks:[archive] ($out)"; exit 1; }
 echo "OK [14a] — check reprova deferral sem blocks:[archive]: $out"
 
 out_def2="$(FORGE_ROOT="$T" bash "$T/.forge/scripts/deferral-ops.sh" raise bug-w4d --reason "hotfix com blocks" --blocks archive 2>&1)"
@@ -931,7 +931,7 @@ out="$(FORGE_ROOT="$T" bash "$CR" waive bug-graphregen --reason non-behavioral -
 set -e
 [ -f "$T/.forge/graph/graph.json" ] || { echo "FAIL [15]: grafo não foi regenerado (graph.sh update deveria ter rodado antes de decidir)"; exit 1; }
 [ "$rc" -ne 0 ] || { echo "FAIL [15]: waiver non-behavioral deveria ser recusado — probe.mjs é código real, presente no grafo recém-regenerado ($out)"; exit 1; }
-echo "$out" | grep -qi "recusad" || { echo "FAIL [15]: mensagem não indica recusa ($out)"; exit 1; }
+grep -qi "recusad" <<<"$out" || { echo "FAIL [15]: mensagem não indica recusa ($out)"; exit 1; }
 cp "$GRAPH_BACKUP" "$T/.forge/graph/graph.json"
 rm -f "$GRAPH_BACKUP" "$T/src-graphregen/probe.mjs"
 rmdir "$T/src-graphregen" 2>/dev/null || true
@@ -955,7 +955,7 @@ set +e
 out="$(FORGE_ROOT="$T16" bash "$T16/.forge/scripts/check-red-first.sh" waive bug-nograph --reason non-behavioral --note "so documentacao" 2>&1)"; rc=$?
 set -e
 [ "$rc" -ne 0 ] || { echo "FAIL [16]: waiver non-behavioral aceito sem conseguir verificar o grafo (graph.sh ausente) ($out)"; rm -rf "$T16"; exit 1; }
-echo "$out" | grep -qi "recusad" || { echo "FAIL [16]: mensagem não indica recusa ($out)"; rm -rf "$T16"; exit 1; }
+grep -qi "recusad" <<<"$out" || { echo "FAIL [16]: mensagem não indica recusa ($out)"; rm -rf "$T16"; exit 1; }
 rm -rf "$T16"
 echo "OK [16] — grafo indisponível após tentativa de regen é reprovado, não permitido em silêncio"
 
@@ -966,8 +966,8 @@ FORGE_ROOT="$T" bash "$RE" record bug-typechange --test-path tests/bug-a.test.mj
 perl -pi -e 's/^type: .*/type: refactor/' "$DIR_TC/manifest.yaml"
 out="$(FORGE_ROOT="$T" bash "$CR" check bug-typechange 2>&1)"; rc=$?
 [ "$rc" -eq 0 ] || { echo "FAIL [17]: mudar type não deveria travar o check (n/a — apenas WARN) ($out)"; exit 1; }
-echo "$out" | grep -q "WARN" || { echo "FAIL [17]: saída sem WARN após mudança de type com evidência gravada ($out)"; exit 1; }
-echo "$out" | grep -qi "type mudou" || { echo "FAIL [17]: mensagem não cita a mudança de type ($out)"; exit 1; }
+grep -q "WARN" <<<"$out" || { echo "FAIL [17]: saída sem WARN após mudança de type com evidência gravada ($out)"; exit 1; }
+grep -qi "type mudou" <<<"$out" || { echo "FAIL [17]: mensagem não cita a mudança de type ($out)"; exit 1; }
 echo "OK [17a] — WARN emitido quando type muda após /forge:red record"
 # controle — mudar type ANTES de qualquer /forge:red record (só o scaffold trivial de spec-new,
 # status:pending, recorded_at:null) não gera warning nenhum — recategorizar antes de qualquer
@@ -976,7 +976,7 @@ FORGE_ROOT="$T" bash "$SN" bug-typechange-early --type bugfix --scale 1 >/dev/nu
 perl -pi -e 's/^type: .*/type: feature/' "$T/.forge/specs/active/bug-typechange-early/manifest.yaml"
 out="$(FORGE_ROOT="$T" bash "$CR" check bug-typechange-early 2>&1)"; rc=$?
 [ "$rc" -eq 0 ] || { echo "FAIL [17b]: check falhou para type mudado antes de qualquer record ($out)"; exit 1; }
-echo "$out" | grep -q "WARN" && { echo "FAIL [17b]: WARN inesperado — scaffold trivial nunca foi 'gravado' de verdade ($out)"; exit 1; }
+grep -q "WARN" <<<"$out" && { echo "FAIL [17b]: WARN inesperado — scaffold trivial nunca foi 'gravado' de verdade ($out)"; exit 1; }
 echo "OK [17b] — sem WARN quando a mudança de type precede qualquer /forge:red record (scaffold trivial)"
 echo "OK [17]"
 

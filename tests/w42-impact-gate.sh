@@ -49,7 +49,7 @@ FORGE_ROOT="$T" bash "$S/baseline-extract.sh" >/dev/null
 node "$WS/tools/validate-yaml.mjs" "$WS/template/.forge/schemas/baseline-capability.schema.json" "$T/.forge/product/current/capabilities/billing/spec.yaml" >/dev/null
 # segunda rodada não sobrescreve / não duplica
 out2="$(FORGE_ROOT="$T" bash "$S/baseline-extract.sh")"
-echo "$out2" | grep -q 'no new capability stubs'
+grep -q 'no new capability stubs' <<<"$out2"
 echo "OK [3]"
 
 echo "[4] archive sem impact.json (change toca codigo) → FAIL"

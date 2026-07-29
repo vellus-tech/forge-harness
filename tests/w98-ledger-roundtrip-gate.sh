@@ -42,7 +42,7 @@ echo "[4] --from-ledger inexistente: change criado, WARN, sem abortar"
 out="$(FORGE_ROOT="$T" bash "$SN" chg-c --type feature --scale 1 --from-ledger LDG-9999 2>&1)"; rc=$?
 [ $rc -eq 0 ] || { echo "FAIL: spec-new abortou com ledger id inexistente"; exit 1; }
 [ -d "$T/.forge/specs/active/chg-c" ] || { echo "FAIL: change chg-c não criado"; exit 1; }
-printf '%s' "$out" | grep -q "WARN" || { echo "FAIL: sem WARN para ledger id inexistente"; exit 1; }
+grep -q "WARN" <<<"$out" || { echo "FAIL: sem WARN para ledger id inexistente"; exit 1; }
 echo "OK [4]"
 
 echo "[5] doctor sinaliza promoted órfão (change ausente) — advisory non-load-bearing"
@@ -57,7 +57,7 @@ FORGE_ROOT="$T" bash "$LG" promote LDG-0003 --to change-que-nao-existe >/dev/nul
 set +e
 out="$(FORGE_ROOT="$T" bash "$DR" 2>&1)"; rc_orphan=$?
 set -e
-printf '%s' "$out" | grep -q "LDG-0003" || { echo "FAIL: doctor não sinalizou LDG-0003 órfão"; exit 1; }
+grep -q "LDG-0003" <<<"$out" || { echo "FAIL: doctor não sinalizou LDG-0003 órfão"; exit 1; }
 [ "$rc_orphan" = "$rc_base" ] || { echo "FAIL: check do ledger mudou o exit do doctor ($rc_base -> $rc_orphan) — deveria ser non-load-bearing"; exit 1; }
 echo "OK [5]"
 

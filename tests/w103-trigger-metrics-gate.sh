@@ -19,7 +19,7 @@ cat > "$T/results.json" <<'EOF'
 EOF
 
 out="$(bash "$WS/template/.forge/scripts/eval-trigger-metrics.sh" "$T/results.json")"
-echo "$out" | grep -q 'precision=0.5 recall=0.5 f1=0.5'
+grep -q 'precision=0.5 recall=0.5 f1=0.5' <<<"$out"
 node - "$T/trigger-metrics.json" <<'NODE'
 const d=require(process.argv[2]);
 if(d.metrics.all.true_positive!==1 || d.metrics.all.false_positive!==1 || d.metrics.all.false_negative!==1 || d.metrics.all.true_negative!==1) process.exit(1);

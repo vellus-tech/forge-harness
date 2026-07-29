@@ -31,7 +31,7 @@ EOF
 
 echo "[1] adjacência + fan-out/fan-in"
 out="$(node "$LIB" "$T")"
-echo "$out" | grep -q 'services/a'
+grep -q 'services/a' <<<"$out"
 echo "$out" | grep -A2 '## services/a' | grep -q 'services/b (1)'
 echo "$out" | grep -A2 '## services/a' | grep -q 'packages/shared (1)'
 # shared é usado por a e b (fan-in 2)
@@ -46,8 +46,8 @@ g.edges.push({from:"packages/shared/z.ts",to:"services/a/x.ts",resolved:true});
 fs.writeFileSync(p,JSON.stringify(g,null,2));
 '
 out2="$(node "$LIB" "$T")"
-echo "$out2" | grep -qi 'Ciclos entre módulos'
-echo "$out2" | grep -q '→'
+grep -qi 'Ciclos entre módulos' <<<"$out2"
+grep -q '→' <<<"$out2"
 echo "OK [2]"
 
 echo "[3] grafo acíclico → nenhum ciclo"
@@ -81,10 +81,10 @@ cat > "$T/.forge/graph/graph.json" <<'JSON'
 }
 JSON
 v="$(node "$LIB" "$T")"
-echo "$v" | grep -qi 'Violações de camada'
-echo "$v" | grep -q 'domain→infrastructure: 1'
+grep -qi 'Violações de camada' <<<"$v"
+grep -q 'domain→infrastructure: 1' <<<"$v"
 # api->domain é permitido (não vira violação)
-! echo "$v" | grep -q 'api→domain'
+! grep -q 'api→domain' <<<"$v"
 echo "OK [5]"
 
 echo "[6] --by-project usa o diretório do projeto .NET"
@@ -98,8 +98,8 @@ cat > "$T/.forge/graph/graph.json" <<'JSON'
 }
 JSON
 p="$(node "$LIB" "$T" --by-project)"
-echo "$p" | grep -q 'backend/svc/src/App.Api'
-echo "$p" | grep -q 'App.Domain (1)'
+grep -q 'backend/svc/src/App.Api' <<<"$p"
+grep -q 'App.Domain (1)' <<<"$p"
 echo "OK [6]"
 
 echo "OK"

@@ -70,7 +70,7 @@ echo "OK [4]"
 echo "[5] dry-run marca preservação e não escreve"
 printf '\n<!-- template v4 -->\n' >> "$SRC2/rules/architecture/clean-architecture.md"
 out="$(node "$WS/bin/forge.mjs" update --target "$T" --dry-run --no-plugin --source "$SRC2")"
-echo "$out" | grep -q "= $RULE_REL (preservado — customização local)" \
+grep -q "= $RULE_REL (preservado — customização local)" <<<"$out" \
   || { echo "FAIL [5]: dry-run não marcou preservação"; echo "$out" | head; exit 1; }
 [ "$(shasum -a 256 "$T/$RULE" | cut -d' ' -f1)" = "$SHA_CUSTOM" ] || { echo "FAIL [5]: dry-run escreveu"; exit 1; }
 echo "OK [5]"

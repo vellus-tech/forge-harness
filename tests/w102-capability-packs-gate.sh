@@ -39,7 +39,7 @@ set +e
 out="$(cd "$T" && bash .forge/scripts/doctor.sh --report 2>&1)"
 status=$?
 set -e
-echo "$out" | grep -q 'capability pack sugerido: backend-dotnet-relational'
+grep -q 'capability pack sugerido: backend-dotnet-relational' <<<"$out"
 grep -q 'active: \[\]' "$T/.forge/forge.yaml"
 [ "$status" -eq 0 ] || [ "$status" -eq 1 ]
 echo "OK [4]"

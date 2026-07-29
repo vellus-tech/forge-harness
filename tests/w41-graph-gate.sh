@@ -82,7 +82,7 @@ export class Money {
 }
 EOF
 out="$(FORGE_ROOT="$T" bash "$G" update)"
-echo "$out" | grep -q 'zero tokens'
+grep -q 'zero tokens' <<<"$out"
 fp_after="$(node -e 'const g=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));console.log(g.nodes.find(n=>n.id==="src/domain/money.ts").fingerprint)' "$T/.forge/graph/graph.json")"
 [ "$fp_before" = "$fp_after" ]
 echo "OK [4] (fingerprint estável: ${fp_before:0:12})"
@@ -93,7 +93,7 @@ import { pay } from '../application/pay';
 export const extra = pay;
 EOF
 out="$(FORGE_ROOT="$T" bash "$G" update)"
-echo "$out" | grep -q 'structural change'
+grep -q 'structural change' <<<"$out"
 fp_struct="$(node -e 'const g=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));console.log(g.nodes.find(n=>n.id==="src/domain/money.ts").fingerprint)' "$T/.forge/graph/graph.json")"
 [ "$fp_struct" != "$fp_before" ]
 echo "OK [5]"
@@ -110,7 +110,7 @@ require("fs").writeFileSync(p,JSON.stringify(g,null,2));
 set +e
 out="$(FORGE_ROOT="$T" bash "$G" validate 2>&1)"; rc=$?
 set -e
-[ "$rc" -ne 0 ] && echo "$out" | grep -q 'referential integrity'
+[ "$rc" -ne 0 ] && grep -q 'referential integrity' <<<"$out"
 mv "$T/g.bak" "$T/.forge/graph/graph.json"
 echo "OK [6]"
 

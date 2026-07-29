@@ -43,7 +43,7 @@ printf -- '- [X] TASK-01 — done\n' > "$DIR/tasks.md"
 set +e
 out="$(FORGE_ROOT="$T" bash "$S/validate-stage-contract.sh" check --stage verify --change contract-demo 2>&1)"; rc=$?
 set -e
-[ "$rc" -ne 0 ] && echo "$out" | grep -q 'missing output'
+[ "$rc" -ne 0 ] && grep -q 'missing output' <<<"$out"
 printf 'verification:\n  checks: []\n' > "$DIR/verification.yaml"
 FORGE_ROOT="$T" bash "$S/run-manifest.sh" write --stage verify --change contract-demo --status passed --outputs verification.yaml >/dev/null
 FORGE_ROOT="$T" bash "$S/validate-stage-contract.sh" check --stage verify --change contract-demo >/dev/null

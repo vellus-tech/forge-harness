@@ -103,7 +103,7 @@ echo "OK [2]"
 
 echo "[3] --dry-run não escreve no disco"
 out="$(node "$WS/bin/forge.mjs" update --target "$T" --dry-run --no-plugin)"
-echo "$out" | grep -q 'template_version' || { echo "FAIL (dry-run não menciona template_version)"; echo "$out"; exit 1; }
+grep -q 'template_version' <<<"$out" || { echo "FAIL (dry-run não menciona template_version)"; echo "$out"; exit 1; }
 [ "$(shasum -a 256 "$T/.forge/specs/active/demo/manifest.yaml" | cut -d' ' -f1)" = "$SHA_MANIFEST_BEFORE" ] \
   || { echo "FAIL (dry-run alterou disco: manifest.yaml)"; exit 1; }
 grep -q 'template_version: "0.0.1-old"' "$T/.forge/forge.yaml" || { echo "FAIL (dry-run alterou forge.yaml)"; exit 1; }
@@ -168,15 +168,15 @@ echo "OK [f] (backup no 1º run; --no-backup pula no 2º)"
 
 # [g] doctor --report limpo, sem falso-positivo por causa do texto ".claude/" na spec
 doctor_out="$(bash "$T/.forge/scripts/doctor.sh" --report)"
-echo "$doctor_out" | grep -qi 'sem refs .claude' || { echo "FAIL [g] (doctor não reportou 'sem refs .claude/' — falso-positivo?)"; echo "$doctor_out"; exit 1; }
-echo "$doctor_out" | grep -qi 'sem placeholders' || { echo "FAIL [g] (doctor não reportou 'sem placeholders')"; echo "$doctor_out"; exit 1; }
+grep -qi 'sem refs .claude' <<<"$doctor_out" || { echo "FAIL [g] (doctor não reportou 'sem refs .claude/' — falso-positivo?)"; echo "$doctor_out"; exit 1; }
+grep -qi 'sem placeholders' <<<"$doctor_out" || { echo "FAIL [g] (doctor não reportou 'sem placeholders')"; echo "$doctor_out"; exit 1; }
 echo "OK [g] (doctor limpo; spec citando .claude/ não gerou falso-positivo)"
 
 echo "OK [4]"
 
 echo "[5] idempotência: dry-run pós-update reporta nada a atualizar"
 out="$(node "$WS/bin/forge.mjs" update --target "$T" --dry-run --no-plugin --source "$WS/template/.forge")"
-echo "$out" | grep -qi 'nada a atualizar' || { echo "FAIL (dry-run pós-update não é idempotente)"; echo "$out"; exit 1; }
+grep -qi 'nada a atualizar' <<<"$out" || { echo "FAIL (dry-run pós-update não é idempotente)"; echo "$out"; exit 1; }
 echo "OK [5]"
 
 echo "[6] invariante das tombstones: nenhum path em removed-files.txt existe no template atual"

@@ -36,7 +36,7 @@ based_on: [ADR-0007]
 tenant_id obrigatorio + RLS.
 EOF
 out="$(FORGE_ROOT="$T" bash "$VR")"
-echo "$out" | grep -q '1 anchored'
+grep -q '1 anchored' <<<"$out"
 echo "OK [2]"
 
 echo "[3] based_on ADR inexistente → FAIL nomeando a rule"
@@ -51,7 +51,7 @@ EOF
 set +e
 out="$(FORGE_ROOT="$T" bash "$VR")"; rc=$?
 set -e
-[ "$rc" -ne 0 ] && echo "$out" | grep -q 'ghost.md' && echo "$out" | grep -q 'ADR-0099'
+[ "$rc" -ne 0 ] && grep -q 'ghost.md' <<<"$out" && echo "$out" | grep -q 'ADR-0099'
 rm "$T/.forge/rules/architecture/ghost.md"
 echo "OK [3]"
 
@@ -71,7 +71,7 @@ EOF
 set +e
 out="$(FORGE_ROOT="$T" bash "$VR")"; rc=$?
 set -e
-[ "$rc" -ne 0 ] && echo "$out" | grep -q 'premature.md' && echo "$out" | grep -qi 'proposed'
+[ "$rc" -ne 0 ] && grep -q 'premature.md' <<<"$out" && echo "$out" | grep -qi 'proposed'
 rm "$T/.forge/rules/architecture/premature.md"
 echo "OK [4]"
 

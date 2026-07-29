@@ -53,7 +53,14 @@ rm -f "$T/.forge/specs/active/chg-f/spec-delta.yaml"
 echo "OK [1]"
 
 echo "[2] verify recusa estados pré-implementing"
-(cd "$T" && bash "$SN" chg-g --type feature --scale 1 >/dev/null && bash "$TR" chg-g requirements-ready >/dev/null && bash "$TR" chg-g tasks-ready >/dev/null)
+# Encadeado em subshell com `&&` sob `set -e`, um passo que falhe mata o gate SEM mensagem — o
+# sintoma vira "parou no [2]" e não se sabe qual dos três comandos caiu (classe LDG-0006).
+(cd "$T" && bash "$SN" chg-g --type feature --scale 1 >/tmp/w22-sn.log 2>&1) \
+  || { echo "FAIL [2]: spec-new falhou"; tail -5 /tmp/w22-sn.log; exit 1; }
+(cd "$T" && bash "$TR" chg-g requirements-ready >/tmp/w22-tr1.log 2>&1) \
+  || { echo "FAIL [2]: transição para requirements-ready falhou"; tail -5 /tmp/w22-tr1.log; exit 1; }
+(cd "$T" && bash "$TR" chg-g tasks-ready >/tmp/w22-tr2.log 2>&1) \
+  || { echo "FAIL [2]: transição para tasks-ready falhou"; tail -5 /tmp/w22-tr2.log; exit 1; }
 set +e
 (cd "$T" && bash "$VF" chg-g) >/dev/null 2>&1; [ $? -ne 0 ] || { echo "verify aceitou tasks-ready!"; exit 1; }
 set -e

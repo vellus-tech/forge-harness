@@ -19,14 +19,14 @@ set +e
 out="$(node "$CHK" "$FIX/log-pan-fail")"; rc=$?
 set -e
 [ "$rc" -ne 0 ] || { echo "FAIL [1]: esperava CONFLICT, obteve exit 0: $out"; exit 1; }
-echo "$out" | grep -q 'CONFLICT' || { echo "FAIL [1]: saída sem CONFLICT: $out"; exit 1; }
-echo "$out" | grep -q 'service.go' || { echo "FAIL [1]: saída não nomeia o arquivo: $out"; exit 1; }
-echo "$out" | grep -q 'REQ-12a' || { echo "FAIL [1]: saída não referencia REQ-12a: $out"; exit 1; }
+grep -q 'CONFLICT' <<<"$out" || { echo "FAIL [1]: saída sem CONFLICT: $out"; exit 1; }
+grep -q 'service.go' <<<"$out" || { echo "FAIL [1]: saída não nomeia o arquivo: $out"; exit 1; }
+grep -q 'REQ-12a' <<<"$out" || { echo "FAIL [1]: saída não referencia REQ-12a: $out"; exit 1; }
 echo "OK [1] — $out"
 
 echo "[2] PAN mascarado (literal sem corrida de dígitos + via mask()) → PASS"
 out="$(node "$CHK" "$FIX/log-pan-masked-pass")"
-echo "$out" | grep -q '^OK ' || { echo "FAIL [2]: esperava OK, obteve: $out"; exit 1; }
+grep -q '^OK ' <<<"$out" || { echo "FAIL [2]: esperava OK, obteve: $out"; exit 1; }
 echo "OK [2] — $out"
 
 echo "[3] campo sensível sem classificação → CONFLICT"
@@ -34,14 +34,14 @@ set +e
 out="$(node "$CHK" "$FIX/sensitive-field-fail")"; rc=$?
 set -e
 [ "$rc" -ne 0 ] || { echo "FAIL [3]: esperava CONFLICT, obteve exit 0: $out"; exit 1; }
-echo "$out" | grep -q 'CONFLICT' || { echo "FAIL [3]: saída sem CONFLICT: $out"; exit 1; }
-echo "$out" | grep -q 'cpf' || { echo "FAIL [3]: saída não nomeia o campo: $out"; exit 1; }
-echo "$out" | grep -q 'REQ-12b' || { echo "FAIL [3]: saída não referencia REQ-12b: $out"; exit 1; }
+grep -q 'CONFLICT' <<<"$out" || { echo "FAIL [3]: saída sem CONFLICT: $out"; exit 1; }
+grep -q 'cpf' <<<"$out" || { echo "FAIL [3]: saída não nomeia o campo: $out"; exit 1; }
+grep -q 'REQ-12b' <<<"$out" || { echo "FAIL [3]: saída não referencia REQ-12b: $out"; exit 1; }
 echo "OK [3] — $out"
 
 echo "[4] campo sensível COM classificação correspondente → PASS"
 out="$(node "$CHK" "$FIX/sensitive-field-pass")"
-echo "$out" | grep -q '^OK ' || { echo "FAIL [4]: esperava OK, obteve: $out"; exit 1; }
+grep -q '^OK ' <<<"$out" || { echo "FAIL [4]: esperava OK, obteve: $out"; exit 1; }
 echo "OK [4] — $out"
 
 echo "[5] retrocompat: gw3-data-governance-gate.sh continua verde (NFR-04)"

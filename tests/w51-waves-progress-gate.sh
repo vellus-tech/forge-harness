@@ -83,7 +83,7 @@ bash "$T/.forge/scripts/wave-ops.sh" open w51-test W0 | grep -q "OK open"
 set +e
 out="$(bash "$T/.forge/scripts/wave-ops.sh" open w51-test W1 2>&1)"; rc=$?
 set -e
-[ "$rc" -ne 0 ] && echo "$out" | grep -qi 'FAIL\|dependência\|not found\|closed'
+[ "$rc" -ne 0 ] && grep -qi 'FAIL\|dependência\|not found\|closed' <<<"$out"
 echo "OK [3]"
 
 echo "[4] wave-ops close: OK fecha; FAIL recusa"
@@ -101,7 +101,7 @@ bash "$T/.forge/scripts/wave-ops.sh" open w51-test W1 | grep -q "OK open"
 set +e
 out2="$(bash "$T/.forge/scripts/wave-ops.sh" close w51-test W1 --gate FAIL 2>&1)"; rc2=$?
 set -e
-[ "$rc2" -ne 0 ] && echo "$out2" | grep -qi 'FAIL'
+[ "$rc2" -ne 0 ] && grep -qi 'FAIL' <<<"$out2"
 echo "OK [4]"
 
 echo "[5] deferral raise + resolve + test"
@@ -115,7 +115,7 @@ echo "[6] deferral open bloqueia fechamento da última wave"
 # Levantar novo deferral e deixar open
 bash "$T/.forge/scripts/deferral-ops.sh" raise w51-test --reason "Pendência aberta" >/dev/null
 st="$(bash "$T/.forge/scripts/deferral-ops.sh" status w51-test)"
-echo "$st" | grep -q "^OPEN"
+grep -q "^OPEN" <<<"$st"
 # Tentar fechar W1 (última wave) com deferral open — o comando wave close não verifica deferrals
 # diretamente; a wave-advance skill faz isso. Verificamos apenas o status do ledger.
 echo "OPEN deferral detectado antes do close da última wave — OK"
@@ -126,7 +126,7 @@ echo "[7] wave não abre com dependência não-closed (já verificado em [3])"
 set +e
 out3="$(bash "$T/.forge/scripts/wave-ops.sh" open w51-test W1 2>&1)"; rc3=$?
 set -e
-[ "$rc3" -ne 0 ] && echo "$out3" | grep -qi 'FAIL\|já está open\|open'
+[ "$rc3" -ne 0 ] && grep -qi 'FAIL\|já está open\|open' <<<"$out3"
 echo "OK [7]"
 
 echo "[8] comandos wave/progress/defer/resolve-deferrals"

@@ -58,11 +58,11 @@ git -C "$T" commit -qm "fix: bug-1 — sum soma errado" >/dev/null
 FORGE_ROOT="$T" bash "$SN" bug-1 --type bugfix --scale 1 >/dev/null
 DIR1="$T/.forge/specs/active/bug-1"
 out="$(FORGE_ROOT="$T" bash "$RE" record bug-1 --test-path tests/sum.test.mjs --test-id bug-1-regression --command "node --test tests/sum.test.mjs" --fix-files src/sum.mjs --failure-pattern AssertionError 2>&1)"
-echo "$out" | grep -q "OK record" || { echo "FAIL: record não confirmou ($out)"; exit 1; }
+grep -q "OK record" <<<"$out" || { echo "FAIL: record não confirmou ($out)"; exit 1; }
 
 out="$(FORGE_ROOT="$T" bash "$RE" replay bug-1 2>&1)"; rc=$?
 [ "$rc" -eq 0 ] || { echo "FAIL: replay [1] esperava sucesso ($out)"; exit 1; }
-echo "$out" | grep -qi "observado" || { echo "FAIL: saída não confirma observação ($out)"; exit 1; }
+grep -qi "observado" <<<"$out" || { echo "FAIL: saída não confirma observação ($out)"; exit 1; }
 [ "$(status_of "$DIR1/evidence/red/red-evidence.json")" = "observed" ] || { echo "FAIL: status != observed"; exit 1; }
 grep -q '^  "strategy"' "$DIR1/evidence/red/red-evidence.json" && { echo "FAIL: campo interno fora do schema vazou para o JSON"; exit 1; }
 grep -q '"classification": "behavioral"' "$DIR1/evidence/red/red-evidence.json" || { echo "FAIL: classification não gravada"; exit 1; }
@@ -108,7 +108,7 @@ set +e
 out="$(FORGE_ROOT="$T" bash "$RE" replay bug-2 2>&1)"; rc=$?
 set -e
 [ "$rc" -ne 0 ] || { echo "FAIL: replay [2] esperava falha ($out)"; exit 1; }
-echo "$out" | grep -qi "não reproduz" || { echo "FAIL: mensagem não cita 'não reproduz' ($out)"; exit 1; }
+grep -qi "não reproduz" <<<"$out" || { echo "FAIL: mensagem não cita 'não reproduz' ($out)"; exit 1; }
 [ "$(status_of "$DIR2/evidence/red/red-evidence.json")" = "pending" ] || { echo "FAIL: status deveria voltar a pending"; exit 1; }
 echo "OK [2]"
 
@@ -140,9 +140,9 @@ set +e
 out="$(FORGE_ROOT="$T" bash "$RE" replay bug-3 2>&1)"; rc=$?
 set -e
 [ "$rc" -ne 0 ] || { echo "FAIL: replay [3] esperava falha ($out)"; exit 1; }
-echo "$out" | grep -qi "build\|compila" || { echo "FAIL: mensagem não cita build/compilação ($out)"; exit 1; }
-echo "$out" | grep -qvi "comportamento não" || true
-echo "$out" | grep -qi "não comportamento" || { echo "FAIL: mensagem não afirma 'não comportamento' ($out)"; exit 1; }
+grep -qi "build\|compila" <<<"$out" || { echo "FAIL: mensagem não cita build/compilação ($out)"; exit 1; }
+grep -qvi "comportamento não" <<<"$out" || true
+grep -qi "não comportamento" <<<"$out" || { echo "FAIL: mensagem não afirma 'não comportamento' ($out)"; exit 1; }
 echo "OK [3]"
 
 echo "[4] teste e correção no mesmo commit -> revert-synthesis -> observed"
@@ -170,7 +170,7 @@ DIR4="$T/.forge/specs/active/bug-4"
 FORGE_ROOT="$T" bash "$RE" record bug-4 --test-path tests4/sum4.test.mjs --test-id bug-4-regression --command "node --test tests4/sum4.test.mjs" --fix-files src4/sum4.mjs --failure-pattern AssertionError >/dev/null
 out="$(FORGE_ROOT="$T" bash "$RE" replay bug-4 2>&1)"; rc=$?
 [ "$rc" -eq 0 ] || { echo "FAIL: replay [4] esperava sucesso via revert-synthesis ($out)"; exit 1; }
-echo "$out" | grep -qi "revert-synthesis" || { echo "FAIL: saída não confirma revert-synthesis ($out)"; exit 1; }
+grep -qi "revert-synthesis" <<<"$out" || { echo "FAIL: saída não confirma revert-synthesis ($out)"; exit 1; }
 [ "$(status_of "$DIR4/evidence/red/red-evidence.json")" = "observed" ] || { echo "FAIL: status != observed em [4]"; exit 1; }
 # Furo 8 — revert-synthesis grava base_strategy E o patch revertido (reprodução por um
 # auditor; sem isso base_commit aponta pro HEAD já corrigido e a evidência parece se contradizer).
@@ -187,7 +187,7 @@ set +e
 out="$(FORGE_ROOT="$T" bash "$RE" replay bug-5 2>&1)"; rc=$?
 set -e
 [ "$rc" -ne 0 ] || { echo "FAIL: replay [5] esperava falha ($out)"; exit 1; }
-echo "$out" | grep -qi "failure_pattern" || { echo "FAIL: mensagem não cita failure_pattern ($out)"; exit 1; }
+grep -qi "failure_pattern" <<<"$out" || { echo "FAIL: mensagem não cita failure_pattern ($out)"; exit 1; }
 echo "OK [5]"
 
 echo "[6] base não derivável -> not-possible, rebaixável, exige waiver"
@@ -200,7 +200,7 @@ out="$(FORGE_ROOT="$T" bash "$RE" replay bug-6 2>&1)"; rc=$?
 set -e
 wt_after="$(git -C "$T" worktree list --porcelain | grep -c '^worktree ' || true)"
 [ "$rc" -ne 0 ] || { echo "FAIL: replay [6] esperava not-possible ($out)"; exit 1; }
-echo "$out" | grep -qi "NOT-POSSIBLE" || { echo "FAIL: mensagem não sinaliza NOT-POSSIBLE ($out)"; exit 1; }
+grep -qi "NOT-POSSIBLE" <<<"$out" || { echo "FAIL: mensagem não sinaliza NOT-POSSIBLE ($out)"; exit 1; }
 [ "$(status_of "$DIR6/evidence/red/red-evidence.json")" = "not-possible" ] || { echo "FAIL: status != not-possible"; exit 1; }
 [ "$wt_before" = "$wt_after" ] || { echo "FAIL: worktree vazou (before=$wt_before after=$wt_after) — not-possible deveria ser barato"; exit 1; }
 # rebaixável: check-red-first (Onda B) continua bloqueando (não resolvido) até waive
@@ -237,8 +237,8 @@ end_ts=$(date +%s)
 set -e
 wt_after7="$(git -C "$T" worktree list --porcelain | grep -c '^worktree ' || true)"
 [ "$rc" -ne 0 ] || { echo "FAIL: pre-push deveria bloquear ($out)"; exit 1; }
-echo "$out" | grep -qi "red-first" || { echo "FAIL: pre-push não citou red-first ($out)"; exit 1; }
-echo "$out" | grep -qi "bug-2" || { echo "FAIL: pre-push não citou o change pendente bug-2 ($out)"; exit 1; }
+grep -qi "red-first" <<<"$out" || { echo "FAIL: pre-push não citou red-first ($out)"; exit 1; }
+grep -qi "bug-2" <<<"$out" || { echo "FAIL: pre-push não citou o change pendente bug-2 ($out)"; exit 1; }
 [ "$wt_before7" = "$wt_after7" ] || { echo "FAIL: pre-push criou worktree — replay não pode rodar no hook"; exit 1; }
 elapsed=$((end_ts - start_ts))
 [ "$elapsed" -le 15 ] || { echo "FAIL: pre-push demorou ${elapsed}s — check estático deveria ser rápido (sem rodar teste algum)"; exit 1; }
@@ -263,7 +263,7 @@ FEED8="refs/heads/main $sha_push8 refs/heads/main $parent_sha8"
 set +e
 out="$(cd "$T" && printf '%s\n' "$FEED8" | bash .forge/hooks/git/pre-push origin "file://$T" 2>&1)"; rc=$?
 set -e
-echo "$out" | grep -qi "red-first" && { echo "FAIL: pre-push citou red-first para um push sem interseção com fix_files ($out)"; exit 1; }
+grep -qi "red-first" <<<"$out" && { echo "FAIL: pre-push citou red-first para um push sem interseção com fix_files ($out)"; exit 1; }
 [ "$rc" -eq 0 ] || { echo "FAIL: pre-push deveria passar (push sem relação com bug-2 pendente) ($out)"; exit 1; }
 echo "OK [8]"
 
@@ -357,7 +357,7 @@ echo "OK [9]"
 
 echo "[10] Onda E, item 2 — 'ensure' NUNCA pula: duas chamadas seguidas sobre a MESMA evidência observed reexecutam o motor de replay as DUAS vezes (sem cache) — mede o custo real de sempre-executar"
 out="$(FORGE_ROOT="$T" bash "$RE" record bug-9 --test-path tests/sum.test.mjs --test-id bug-1-regression --command "node --test tests/sum.test.mjs" --fix-files src/sum.mjs --failure-pattern AssertionError 2>&1)"
-echo "$out" | grep -q "OK record" || { echo "FAIL: restauração da declaração original de bug-9 falhou ($out)"; exit 1; }
+grep -q "OK record" <<<"$out" || { echo "FAIL: restauração da declaração original de bug-9 falhou ($out)"; exit 1; }
 out="$(FORGE_ROOT="$T" bash "$RE" replay bug-9 2>&1)"; rc=$?
 [ "$rc" -eq 0 ] || { echo "FAIL: replay real de bug-9 (declaração restaurada) deveria observar ($out)"; exit 1; }
 [ "$(status_of "$EV9")" = "observed" ] || { echo "FAIL: bug-9 deveria estar observed após replay real"; exit 1; }
@@ -441,8 +441,8 @@ out="$(FORGE_ROOT="$T" bash "$RE" replay bug-12 2>&1)"; rc=$?
 set -e
 wt_after12="$(git -C "$T" worktree list --porcelain | grep -c '^worktree ' || true)"
 [ "$rc" -ne 0 ] || { echo "FAIL: replay [12] esperava not-possible (ambiente incompleto) ($out)"; exit 1; }
-echo "$out" | grep -qi "NOT-POSSIBLE" || { echo "FAIL: mensagem não sinaliza NOT-POSSIBLE ($out)"; exit 1; }
-echo "$out" | grep -qi "ambiente" || { echo "FAIL: mensagem não atribui a falha ao ambiente do worktree ($out)"; exit 1; }
+grep -qi "NOT-POSSIBLE" <<<"$out" || { echo "FAIL: mensagem não sinaliza NOT-POSSIBLE ($out)"; exit 1; }
+grep -qi "ambiente" <<<"$out" || { echo "FAIL: mensagem não atribui a falha ao ambiente do worktree ($out)"; exit 1; }
 [ "$(status_of "$DIR12/evidence/red/red-evidence.json")" = "not-possible" ] || { echo "FAIL: status != not-possible em bug-12"; exit 1; }
 [ "$wt_before12" = "$wt_after12" ] || { echo "FAIL: worktree vazou em [12]"; exit 1; }
 echo "OK [12]"
@@ -451,7 +451,7 @@ echo "[13] setup_command declarado corrige o ambiente -> replay prossegue normal
 FORGE_ROOT="$T" bash "$RE" record bug-12 --test-path tests12/y.test.mjs --test-id bug-12-regression --command "node --test tests12/y.test.mjs" --fix-files src12/y.mjs --failure-pattern AssertionError --setup-command "printf 'export function helper(){ return 1; }\n' > src12/missing-dep.mjs" >/dev/null
 out="$(FORGE_ROOT="$T" bash "$RE" replay bug-12 2>&1)"; rc=$?
 [ "$rc" -eq 0 ] || { echo "FAIL: replay [13] esperava sucesso com setup_command declarado ($out)"; exit 1; }
-echo "$out" | grep -qi "observado" || { echo "FAIL: setup_command não destravou o replay ($out)"; exit 1; }
+grep -qi "observado" <<<"$out" || { echo "FAIL: setup_command não destravou o replay ($out)"; exit 1; }
 echo "OK [13]"
 
 echo "[14] excerpt_sha256 adulterado (evidência editada à mão) é REPROVADO"
@@ -471,7 +471,7 @@ set +e
 out="$(FORGE_ROOT="$T" bash "$T/.forge/scripts/check-red-first.sh" check bug-14 2>&1)"; rc=$?
 set -e
 [ "$rc" -ne 0 ] || { echo "FAIL: check-red-first deveria reprovar excerpt_sha256 adulterado ($out)"; exit 1; }
-echo "$out" | grep -qi "excerpt_sha256" || { echo "FAIL: mensagem não cita excerpt_sha256 ($out)"; exit 1; }
+grep -qi "excerpt_sha256" <<<"$out" || { echo "FAIL: mensagem não cita excerpt_sha256 ($out)"; exit 1; }
 echo "OK [14]"
 
 echo "[15] record sem --failure-pattern é recusado"
@@ -480,7 +480,7 @@ set +e
 out="$(FORGE_ROOT="$T" bash "$RE" record bug-15 --test-path tests/sum.test.mjs --command "node --test tests/sum.test.mjs" --fix-files src/sum.mjs 2>&1)"; rc=$?
 set -e
 [ "$rc" -ne 0 ] || { echo "FAIL: record sem --failure-pattern deveria ser recusado ($out)"; exit 1; }
-echo "$out" | grep -qi "failure-pattern" || { echo "FAIL: mensagem não cita --failure-pattern ($out)"; exit 1; }
+grep -qi "failure-pattern" <<<"$out" || { echo "FAIL: mensagem não cita --failure-pattern ($out)"; exit 1; }
 echo "OK [15]"
 
 echo "[16] worktree remove NUNCA faz prune global (worktree de terceiro sobrevive)"
@@ -499,8 +499,8 @@ FORGE_ROOT="$T" bash "$RE" replay bug-16 >/dev/null
 after_list="$(git -C "$T" worktree list --porcelain)"
 # git resolve o path para o real (symlinks de TMPDIR resolvidos, ex. /tmp -> /private/tmp no
 # macOS) — compara pelo basename, não pela string exata do path criado.
-echo "$before_list" | grep -qF "$third_base" || { echo "FAIL: fixture do teste [16] não registrou o worktree de terceiro"; exit 1; }
-echo "$after_list" | grep -qF "$third_base" || { echo "FAIL: replay removeu (via prune global) a entrada de um worktree de terceiro — Furo 7 reaberto"; exit 1; }
+grep -qF "$third_base" <<<"$before_list" || { echo "FAIL: fixture do teste [16] não registrou o worktree de terceiro"; exit 1; }
+grep -qF "$third_base" <<<"$after_list" || { echo "FAIL: replay removeu (via prune global) a entrada de um worktree de terceiro — Furo 7 reaberto"; exit 1; }
 git -C "$T" worktree prune >/dev/null 2>&1 || true
 echo "OK [16]"
 
@@ -716,7 +716,7 @@ set +e
 out="$(FORGE_ROOT="$T" bash "$RE" replay bug-20 2>&1)"; rc=$?
 set -e
 [ "$rc" -ne 0 ] || { echo "FAIL [20a]: replay deveria FALHAR — test_id declarado (case-marker-x) não é quem falhou de fato ($out)"; exit 1; }
-echo "$out" | grep -qi "não menciona o caso declarado\|test-id" || { echo "FAIL [20a]: mensagem não cita o descasamento de test_id ($out)"; exit 1; }
+grep -qi "não menciona o caso declarado\|test-id" <<<"$out" || { echo "FAIL [20a]: mensagem não cita o descasamento de test_id ($out)"; exit 1; }
 [ "$(status_of "$DIR20/evidence/red/red-evidence.json")" = "pending" ] || { echo "FAIL [20a]: status deveria voltar a pending"; exit 1; }
 echo "OK [20a] — test_id declarado errado (caso que PASSOU) é rejeitado, não aprovado por substring solta na saída inteira"
 

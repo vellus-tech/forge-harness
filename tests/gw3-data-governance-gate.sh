@@ -42,7 +42,7 @@ printf '# Design\nDD-002: coluna tenant_id + filtro EF, RLS opcional.\n' > "$T/b
 set +e
 out="$(node "$CHK" "$T/bad")"; rc=$?
 set -e
-[ "$rc" -ne 0 ] && echo "$out" | grep -q 'CONFLICT' && echo "$out" | grep -q 'design.md'
+[ "$rc" -ne 0 ] && grep -q 'CONFLICT' <<<"$out" && echo "$out" | grep -q 'design.md'
 echo "OK [4]"
 
 echo "[5] exceção formal é permitida"
@@ -55,7 +55,7 @@ printf '# Design\nO cache usa chave global sem namespace de tenant.\n' > "$T/cac
 set +e
 out="$(node "$CHK" "$T/cache.md")"; rc=$?
 set -e
-[ "$rc" -ne 0 ] && echo "$out" | grep -qi 'cross-tenant\|namespace'
+[ "$rc" -ne 0 ] && grep -qi 'cross-tenant\|namespace' <<<"$out"
 echo "OK [6]"
 
 echo "[7] anti-padrão literal do incidente (change real)"
@@ -68,7 +68,7 @@ EOF
 set +e
 out="$(FORGE_ROOT="$T" bash "$T/.forge/scripts/check-data-governance.sh" feat-tenant)"; rc=$?
 set -e
-[ "$rc" -ne 0 ] && echo "$out" | grep -q 'CONFLICT'
+[ "$rc" -ne 0 ] && grep -q 'CONFLICT' <<<"$out"
 echo "OK [7]"
 
 echo "[8] ADR template de governança de dados"

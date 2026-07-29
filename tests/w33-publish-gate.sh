@@ -80,7 +80,7 @@ echo "edicao manual indevida" >> "$T/docs/product/capabilities/billing/spec.yaml
 set +e
 out="$(FORGE_ROOT="$T" bash "$S/validate-archive.sh" probe 2>&1)"; rc=$?
 set -e
-[ "$rc" -ne 0 ] && echo "$out" | grep -q 'without baseline origin'
+[ "$rc" -ne 0 ] && grep -q 'without baseline origin' <<<"$out"
 echo "OK [3]"
 
 echo "[4] re-publish cura o round-trip"

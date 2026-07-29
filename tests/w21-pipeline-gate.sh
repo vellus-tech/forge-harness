@@ -83,7 +83,7 @@ perl -pi -e 's/decision: review/decision: maybe/' "$T/.forge/specs/active/chg-a/
 set +e
 out="$(cd "$T" && bash "$VS" chg-a)"; rc=$?
 set -e
-[ "$rc" -eq 1 ] && echo "$out" | grep -q 'decision invalid'
+[ "$rc" -eq 1 ] && grep -q 'decision invalid' <<<"$out"
 mv "$T/ap.bak" "$T/.forge/specs/active/chg-a/approvals.yaml"
 echo "OK [7]"
 

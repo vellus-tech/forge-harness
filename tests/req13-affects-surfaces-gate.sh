@@ -34,8 +34,8 @@ set +e
 out="$(cd "$T" && bash "$VALIDATE" --path "$T/.forge/specs/active/feat-api-empty")"; rc=$?
 set -e
 [ "$rc" -ne 0 ] || { echo "FAIL [1]: esperava reprovação, obteve: $out"; exit 1; }
-echo "$out" | grep -q 'endpoint' || { echo "FAIL [1]: mensagem não cita o mapa endpoint→policy: $out"; exit 1; }
-echo "$out" | grep -q 'auditable events map' || { echo "FAIL [1]: mensagem não cita o mapa de eventos auditáveis: $out"; exit 1; }
+grep -q 'endpoint' <<<"$out" || { echo "FAIL [1]: mensagem não cita o mapa endpoint→policy: $out"; exit 1; }
+grep -q 'auditable events map' <<<"$out" || { echo "FAIL [1]: mensagem não cita o mapa de eventos auditáveis: $out"; exit 1; }
 echo "OK [1] — $out"
 
 echo "[2] affects_surfaces: [api] + mapas preenchidos → OK"
@@ -60,14 +60,14 @@ text = text.replace(
 open(p, "w", encoding="utf-8").write(text)
 PYEOF
 out="$(cd "$T" && bash "$VALIDATE" --path "$T/.forge/specs/active/feat-api-filled")"
-echo "$out" | grep -q '^OK ' || { echo "FAIL [2]: esperava OK, obteve: $out"; exit 1; }
+grep -q '^OK ' <<<"$out" || { echo "FAIL [2]: esperava OK, obteve: $out"; exit 1; }
 echo "OK [2] — $out"
 
 echo "[3] change trivial (sem affects_surfaces) → OK, nenhuma exigência nova"
 mk_change "feat-trivial"
 grep -q '^affects_surfaces:' "$T/.forge/specs/active/feat-trivial/manifest.yaml" && { echo "FAIL [3]: manifest não deveria ter affects_surfaces"; exit 1; }
 out="$(cd "$T" && bash "$VALIDATE" --path "$T/.forge/specs/active/feat-trivial")"
-echo "$out" | grep -q '^OK ' || { echo "FAIL [3]: esperava OK, obteve: $out"; exit 1; }
+grep -q '^OK ' <<<"$out" || { echo "FAIL [3]: esperava OK, obteve: $out"; exit 1; }
 echo "OK [3] — $out"
 
 echo "OK"

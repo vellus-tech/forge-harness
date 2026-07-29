@@ -10,6 +10,7 @@
 // Driven by env (set by liaison-ops.sh): LIAISON_ROOT, LIAISON_CHANNEL, LIAISON_CHANNEL_DIR,
 // LIAISON_TPL, LIAISON_OUT, LIAISON_SELF.
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
+import { renderUntrusted } from './untrusted-render.mjs';
 import { join } from 'node:path';
 import { mergeLogs } from './liaison-merge.mjs';
 
@@ -60,7 +61,11 @@ function fmtTag(m) {
 function renderMessage(m) {
   const lines = [`- **${m.msg_id}** [${fmtTag(m)}] \`${m.sender}\` (lamport ${m.lamport}) — ${m.subject || '(sem assunto)'}`];
   if (m.in_reply_to) lines.push(`  ↳ em resposta a \`${m.in_reply_to}\``);
-  if (m.body) lines.push(`  ${m.body.replace(/\n+/g, ' ').trim()}`);
+  // Corpo de mensagem é texto arbitrário escrito por OUTRO repositório. Vai sempre embrulhado
+  // (banner + fence + neutralização), inclusive o que nós mesmos escrevemos: um render que trata
+  // conteúdo próprio e alheio de formas diferentes convida ao erro no dia em que a origem do
+  // registro deixar de ser óbvia — e o custo de embrulhar o próprio é uma linha a mais.
+  if (m.body) lines.push(...renderUntrusted(m.body, m.sender).split('\n').map((l) => `  ${l}`));
   else if (m.body_ref) lines.push(`  corpo em \`${m.body_ref}\``);
   const refs = m.refs || {};
   const refBits = [];

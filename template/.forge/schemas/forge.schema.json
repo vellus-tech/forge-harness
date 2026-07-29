@@ -3,138 +3,330 @@
   "$id": "https://forge.dev/schemas/forge.schema.json",
   "title": "Forge core schemas: forge.yaml manifest and FORGE.md frontmatter",
   "$defs": {
-    "nullableString": { "type": ["string", "null"] },
+    "nullableString": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "forgeFrontmatter": {
       "type": "object",
-      "required": ["forge_version", "project", "sdd", "runtime", "integrations", "quality"],
+      "required": [
+        "forge_version",
+        "project",
+        "sdd",
+        "runtime",
+        "integrations",
+        "quality"
+      ],
       "additionalProperties": false,
       "properties": {
-        "forge_version": { "const": 1 },
+        "forge_version": {
+          "const": 1
+        },
         "project": {
           "type": "object",
-          "required": ["name", "display"],
+          "required": [
+            "name",
+            "display"
+          ],
           "additionalProperties": false,
           "properties": {
-            "name": { "type": "string" },
-            "display": { "type": "string" },
-            "description": { "type": ["string", "null"] },
-            "repo_slug": { "type": ["string", "null"] },
-            "default_branch": { "type": ["string", "null"] },
-            "owners": { "type": "array", "items": { "type": "string" } },
-            "domains": { "type": "array", "items": { "type": "string" } }
+            "name": {
+              "type": "string"
+            },
+            "display": {
+              "type": "string"
+            },
+            "description": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "repo_slug": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "default_branch": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "owners": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "domains": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
           }
         },
         "sdd": {
           "type": "object",
-          "required": ["default_mode", "default_rigor", "default_scale", "archive_policy", "human_gate_required"],
+          "required": [
+            "default_mode",
+            "default_rigor",
+            "default_scale",
+            "archive_policy",
+            "human_gate_required"
+          ],
           "additionalProperties": false,
           "properties": {
-            "default_mode": { "enum": ["greenfield", "brownfield", "feature", "bugfix", "refactor"] },
-            "default_rigor": { "enum": ["spec-first", "spec-anchored", "spec-as-source"] },
-            "default_scale": { "type": "integer", "minimum": 0, "maximum": 4 },
-            "archive_policy": { "enum": ["after_verified_implementation", "manual_override"] },
-            "human_gate_required": { "type": "boolean" }
+            "default_mode": {
+              "enum": [
+                "greenfield",
+                "brownfield",
+                "feature",
+                "bugfix",
+                "refactor"
+              ]
+            },
+            "default_rigor": {
+              "enum": [
+                "spec-first",
+                "spec-anchored",
+                "spec-as-source"
+              ]
+            },
+            "default_scale": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4
+            },
+            "archive_policy": {
+              "enum": [
+                "after_verified_implementation",
+                "manual_override"
+              ]
+            },
+            "human_gate_required": {
+              "type": "boolean"
+            }
           }
         },
         "runtime": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "primary_stack": { "$ref": "#/$defs/nullableString" },
-            "package_manager": { "$ref": "#/$defs/nullableString" },
-            "run": { "$ref": "#/$defs/nullableString" },
-            "test": { "$ref": "#/$defs/nullableString" },
-            "typecheck": { "$ref": "#/$defs/nullableString" },
-            "lint": { "$ref": "#/$defs/nullableString" },
-            "gates": { "$ref": "#/$defs/nullableString" }
+            "primary_stack": {
+              "$ref": "#/$defs/nullableString"
+            },
+            "package_manager": {
+              "$ref": "#/$defs/nullableString"
+            },
+            "run": {
+              "$ref": "#/$defs/nullableString"
+            },
+            "test": {
+              "$ref": "#/$defs/nullableString"
+            },
+            "typecheck": {
+              "$ref": "#/$defs/nullableString"
+            },
+            "lint": {
+              "$ref": "#/$defs/nullableString"
+            },
+            "gates": {
+              "$ref": "#/$defs/nullableString"
+            }
           }
         },
         "authz": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "pep_paths": { "type": "array", "items": { "type": "string" } },
-            "policy_dir": { "$ref": "#/$defs/nullableString" },
-            "allowlist": { "type": "array", "items": { "type": "string" } },
-            "mode": { "enum": ["warn", "enforce"] },
-            "policy_coverage_threshold": { "type": "number", "minimum": 0, "maximum": 1 }
+            "pep_paths": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "policy_dir": {
+              "$ref": "#/$defs/nullableString"
+            },
+            "allowlist": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "mode": {
+              "enum": [
+                "warn",
+                "enforce"
+              ]
+            },
+            "policy_coverage_threshold": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
           }
         },
         "observability": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "wrapper_paths": { "type": "array", "items": { "type": "string" } },
-            "allowlist": { "type": "array", "items": { "type": "string" } },
-            "mode": { "enum": ["warn", "enforce"] }
+            "wrapper_paths": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "allowlist": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "mode": {
+              "enum": [
+                "warn",
+                "enforce"
+              ]
+            }
           }
         },
         "integrations": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "jira": { "type": ["object", "string", "null"] },
-            "github": { "type": ["object", "string", "null"] },
+            "jira": {
+              "type": [
+                "object",
+                "string",
+                "null"
+              ]
+            },
+            "github": {
+              "type": [
+                "object",
+                "string",
+                "null"
+              ]
+            },
             "graph": {
               "type": "object",
               "additionalProperties": false,
               "properties": {
-                "enabled": { "type": "boolean" },
-                "path": { "type": "string" }
+                "enabled": {
+                  "type": "boolean"
+                },
+                "path": {
+                  "type": "string"
+                }
               }
             }
           }
         },
         "quality": {
           "type": "object",
-          "required": ["evals_enabled"],
+          "required": [
+            "evals_enabled"
+          ],
           "additionalProperties": false,
           "properties": {
-            "evals_enabled": { "type": "boolean" },
-            "runners_config": { "type": "string" }
+            "evals_enabled": {
+              "type": "boolean"
+            },
+            "runners_config": {
+              "type": "string"
+            }
           }
         }
       }
     },
     "forgeManifest": {
       "type": "object",
-      "required": ["version", "harness", "specs"],
+      "required": [
+        "version",
+        "harness",
+        "specs"
+      ],
       "additionalProperties": false,
       "properties": {
-        "version": { "const": 1 },
+        "version": {
+          "const": 1
+        },
         "harness": {
           "type": "object",
-          "required": ["name", "installed_at", "template_version", "adapters"],
+          "required": [
+            "name",
+            "installed_at",
+            "template_version",
+            "adapters"
+          ],
           "additionalProperties": false,
           "properties": {
-            "name": { "const": "forge" },
-            "installed_at": { "type": "string" },
-            "template_version": { "type": "string" },
+            "name": {
+              "const": "forge"
+            },
+            "installed_at": {
+              "type": "string"
+            },
+            "template_version": {
+              "type": "string"
+            },
             "adapters": {
               "type": "array",
               "items": {
-                "enum": ["claude", "codex", "qwen", "kiro", "gemini", "cursor", "agents-skills", "forge-cli"]
+                "enum": [
+                  "claude",
+                  "codex",
+                  "qwen",
+                  "kiro",
+                  "gemini",
+                  "cursor",
+                  "agents-skills",
+                  "forge-cli"
+                ]
               }
             }
           }
         },
         "specs": {
           "type": "object",
-          "required": ["root", "active", "archived", "baseline"],
+          "required": [
+            "root",
+            "active",
+            "archived",
+            "baseline"
+          ],
           "additionalProperties": false,
           "properties": {
-            "root": { "type": "string" },
-            "active": { "type": "string" },
-            "archived": { "type": "string" },
-            "baseline": { "type": "string" }
+            "root": {
+              "type": "string"
+            },
+            "active": {
+              "type": "string"
+            },
+            "archived": {
+              "type": "string"
+            },
+            "baseline": {
+              "type": "string"
+            }
           }
         },
         "graph": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "enabled": { "type": "boolean" },
-            "root": { "type": "string" }
+            "enabled": {
+              "type": "boolean"
+            },
+            "root": {
+              "type": "string"
+            }
           }
         },
         "capabilities": {
@@ -143,7 +335,9 @@
           "properties": {
             "active": {
               "type": "array",
-              "items": { "type": "string" }
+              "items": {
+                "type": "string"
+              }
             }
           }
         },
@@ -151,48 +345,111 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "enabled": { "type": "boolean" },
-            "evals_root": { "type": "string" },
-            "runners": { "type": "string" },
-            "require_tests_before_archive": { "type": "boolean" },
-            "require_traceability_before_archive": { "type": "boolean" },
-            "require_human_approval_before_archive": { "type": "boolean" }
+            "enabled": {
+              "type": "boolean"
+            },
+            "evals_root": {
+              "type": "string"
+            },
+            "runners": {
+              "type": "string"
+            },
+            "require_tests_before_archive": {
+              "type": "boolean"
+            },
+            "require_traceability_before_archive": {
+              "type": "boolean"
+            },
+            "require_human_approval_before_archive": {
+              "type": "boolean"
+            }
           }
         },
         "handoff": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "auto": { "type": "boolean" }
+            "auto": {
+              "type": "boolean"
+            }
           }
         },
         "ledger": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "auto": { "type": "boolean" }
+            "auto": {
+              "type": "boolean"
+            }
+          }
+        },
+        "liaison": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Canal ordenado entre repositórios (.forge/liaison/). auto liga o resumo de inbox no SessionStart — contagem e assunto, nunca o corpo, que é conteúdo de outro repositório e entra como dado, jamais como instrução. enforce decide o que fazer com contract-change inbound sem ack: warn avisa, block reprova (faz sentido nos consumidores de contrato, não no dono).",
+          "properties": {
+            "auto": {
+              "type": "boolean",
+              "description": "SessionStart resume o inbox do liaison. Default false."
+            },
+            "enforce": {
+              "enum": [
+                "warn",
+                "block"
+              ],
+              "description": "Ack pendente de contract-change inbound: avisa (warn, default) ou reprova (block)."
+            }
           }
         },
         "autonomy": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "mode": { "enum": ["hitl", "yolo"] },
+            "mode": {
+              "enum": [
+                "hitl",
+                "yolo"
+              ]
+            },
             "gate_agent": {
               "type": "object",
               "additionalProperties": false,
               "properties": {
-                "model": { "type": "string" },
-                "effort": { "enum": ["low", "medium", "high"] }
+                "model": {
+                  "type": "string"
+                },
+                "effort": {
+                  "enum": [
+                    "low",
+                    "medium",
+                    "high"
+                  ]
+                }
               }
             },
             "human_hard_stops": {
               "type": "array",
-              "items": { "enum": ["requirements_reviewed", "design_reviewed", "tasks_reviewed", "implementation_verified", "human_archive_approval", "close"] }
+              "items": {
+                "enum": [
+                  "requirements_reviewed",
+                  "design_reviewed",
+                  "tasks_reviewed",
+                  "implementation_verified",
+                  "human_archive_approval",
+                  "close"
+                ]
+              }
             },
             "irreversible_hard_stops": {
               "type": "array",
-              "items": { "enum": ["deploy_prd", "promote_staging", "adapter_removal", "branch_cleanup"] }
+              "items": {
+                "enum": [
+                  "deploy_prd",
+                  "promote_staging",
+                  "adapter_removal",
+                  "branch_cleanup"
+                ]
+              }
             }
           }
         }

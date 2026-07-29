@@ -165,6 +165,22 @@ EOF_CHG
     else ok "harness: ledger sem itens promovidos órfãos"; fi
   fi
 
+  # liaison advisory (§ liaison-protocol): informativo, NUNCA load-bearing. O estado do canal é
+  # fluxo de conversa entre repositórios, não drift do harness — um peer que ainda não sincronizou,
+  # uma mensagem em quarentena esperando o thread-open, um ack pendente: nada disso é defeito desta
+  # instalação, e reprovar o doctor por isso faria o operador aprender a ignorar o doctor.
+  # Divergência e conflito aparecem aqui porque exigem decisão humana, mas com marcador `·`.
+  if [ -d "$ROOT/.forge/liaison" ] && [ -f "$ROOT/.forge/scripts/liaison-ops.sh" ]; then
+    liaison_line="$(FORGE_ROOT="$ROOT" bash "$ROOT/.forge/scripts/liaison-ops.sh" status 2>/dev/null || true)"
+    if [ -n "$liaison_line" ] && [ "$liaison_line" != "LIAISON: não inicializado" ]; then
+      info "harness: ${liaison_line}"
+      conflicts="$(find "$ROOT/.forge/liaison" -mindepth 3 -maxdepth 3 -path '*/conflicts/*' -name '*.json' 2>/dev/null | wc -l | tr -d ' ')"
+      if [ "${conflicts:-0}" -gt 0 ]; then
+        info "harness: liaison — $conflicts conflito(s) registrado(s) em conflicts/ (decisão humana; ver /forge:liaison)"
+      fi
+    fi
+  fi
+
   # changes órfãos (§ lifecycle-reconcile): change implementado/mergeado cujo manifest nunca
   # acompanhou — verified parado sem /forge:archive, ou TASKs 100% com status ainda
   # tasks-ready/implementing. Detector determinista (zero-LLM). Informativo, NUNCA load-bearing

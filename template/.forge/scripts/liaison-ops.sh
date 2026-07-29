@@ -431,6 +431,27 @@ send)
     echo "FAIL: requires_ack proibido em kind=answer" >&2; exit 1
   fi
 
+  # Segredo no corpo é segredo vazado: a mensagem sai do repositório e, com transporte por hub
+  # compartilhado ou branch remota, não volta atrás. Barra antes de escrever no log, não depois.
+  if [ -n "$body" ] || [ -n "$body_file" ]; then
+    scan_target="$body"
+    [ -n "$body_file" ] && scan_target="$(cat "$body_file" 2>/dev/null || true)"
+    hits="$(SCAN_TEXT="$scan_target" node - "$LIBDIR" <<'NODEEOF'
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib] = process.argv;
+  const { findSecrets } = await import(pathToFileURL(join(lib, 'secret-scan.mjs')).href);
+  process.stdout.write(findSecrets(process.env.SCAN_TEXT || '').join(', '));
+})();
+NODEEOF
+)"
+    if [ -n "$hits" ]; then
+      echo "FAIL: possível segredo no corpo da mensagem ($hits) — o liaison publica fora deste repositório; use uma referência (--change, --commit) em vez do valor" >&2
+      exit 1
+    fi
+  fi
+
   body_ref=""
   if [ -n "$body_file" ]; then
     [ -f "$body_file" ] || { echo "FAIL: --body-file '$body_file' não encontrado" >&2; exit 1; }
@@ -568,16 +589,24 @@ inbox)
   [ -n "$channel" ] || { echo "FAIL: <channel> obrigatório" >&2; exit 1; }
   ch_dir="$LIAISON_DIR/$channel"
   [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado" >&2; exit 1; }
-  filter_thread=""
-  while [ $# -gt 0 ]; do case "$1" in --thread) filter_thread="$2"; shift 2 ;; *) shift ;; esac; done
+  filter_thread=""; show_body="false"; titles_only="false"
+  while [ $# -gt 0 ]; do case "$1" in
+    --thread) filter_thread="$2"; shift 2 ;;
+    --show) show_body="true"; shift ;;
+    --titles-only) titles_only="true"; shift ;;
+    *) shift ;;
+  esac; done
 
-  node - "$LIBDIR" "$ch_dir" "$filter_thread" <<'NODEEOF'
+  node - "$LIBDIR" "$ch_dir" "$filter_thread" "$show_body" "$titles_only" <<'NODEEOF'
 const { readFileSync, readdirSync, existsSync } = require('fs');
 const { join } = require('path');
 const { pathToFileURL } = require('url');
 (async () => {
-  const [, , lib, chDir, filterThread] = process.argv;
-  const { mergeLogs } = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
+  const [, , lib2, chDir, filterThread, showBody, titlesOnly] = process.argv;
+  const M = await import(pathToFileURL(join(lib2, 'liaison-merge.mjs')).href);
+  // untrusted-render, não liaison-render: aquele é um SCRIPT (roda o render inteiro ao ser
+  // carregado), então importá-lo só pela função quebraria justamente este caminho.
+  const R = await import(pathToFileURL(join(lib2, 'untrusted-render.mjs')).href);
   const logDir = join(chDir, 'log');
   const files = existsSync(logDir) ? readdirSync(logDir).filter((f) => f.endsWith('.jsonl')) : [];
   const all = [];
@@ -585,19 +614,30 @@ const { pathToFileURL } = require('url');
     const text = readFileSync(join(logDir, f), 'utf8');
     for (const line of text.split('\n')) { const t = line.trim(); if (t) all.push(JSON.parse(t)); }
   }
-  const { threads } = mergeLogs(all);
+  const { threads } = M.mergeLogs(all);
   const state = existsSync(join(chDir, 'state.json')) ? JSON.parse(readFileSync(join(chDir, 'state.json'), 'utf8')) : { cursors: {} };
   const cursors = state.cursors || {};
   let ids = Object.keys(threads).sort();
   if (filterThread) ids = ids.filter((id) => id === filterThread);
-  if (!ids.length) { console.log('(nenhuma thread)'); return; }
+  if (!ids.length) { if (titlesOnly !== 'true') console.log('(nenhuma thread)'); return; }
   for (const id of ids) {
     const t = threads[id];
     const cursorMsgId = cursors[id] && cursors[id].msg_id;
     const cursorIdx = cursorMsgId ? t.order.indexOf(cursorMsgId) : -1;
     const unread = t.messages.slice(cursorIdx + 1);
+    if (titlesOnly === 'true' && !unread.length) continue;
     console.log(`${id} — ${t.subject || '(sem assunto)'}: ${unread.length} não lida(s)`);
-    for (const m of unread) console.log(`  ${m.msg_id} [${m.kind}] \`${m.sender}\` — ${m.subject || '(sem assunto)'}`);
+    for (const m of unread) {
+      console.log(`  ${m.msg_id} [${m.kind}] \`${m.sender}\` — ${m.subject || '(sem assunto)'}`);
+      // O corpo só sai com --show, e nunca cru: vai dentro do banner UNTRUSTED, em fence, com
+      // `/forge:` neutralizado. Assunto e metadados são gerados por nós a partir do envelope;
+      // o corpo é texto arbitrário de outro repositório.
+      if (showBody === 'true' && m.body) {
+        for (const line of R.renderUntrusted(m.body, m.sender).split('\n')) console.log(`  ${line}`);
+      } else if (showBody === 'true' && m.body_ref) {
+        console.log(`    corpo em \`${m.body_ref}\` (blob — abra deliberadamente)`);
+      }
+    }
   }
 })();
 NODEEOF

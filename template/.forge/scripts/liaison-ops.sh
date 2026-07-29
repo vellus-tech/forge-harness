@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # liaison-ops.sh — operações deterministas do subsistema liaison: canal de mensagens ORDENADAS
 # entre agentes de repositórios distintos (ex.: dono do .proto/gRPC e app cliente), sem drift de
-# handoff manual. Onda 1 (núcleo local, SEM transporte — export/import são a primitiva MANUAL de
-# sincronização; o transporte automático é a Onda 2).
+# handoff manual. Onda 2: transporte plugável (`transport` + `sync`) sobre o núcleo da Onda 1 —
+# export/import continuam sendo a primitiva manual, e o transporte `manual` é literalmente ela.
 #
 # Modelo (ver rationale completo em lib/liaison-merge.mjs):
 #   - Store: um JSONL append-only POR REMETENTE — .forge/liaison/<channel>/log/<sender>.jsonl,
@@ -28,7 +28,18 @@
 #   liaison-ops.sh status   [<channel>]
 #   liaison-ops.sh export   <channel> --out <dir>
 #   liaison-ops.sh import   <channel> --from <dir>
+#   liaison-ops.sh transport set   <channel> --kind manual|fs|git|gh [--path <dir>] [--remote <url>] [--branch <b>]
+#   liaison-ops.sh transport show  <channel>
+#   liaison-ops.sh transport probe <channel>
+#   liaison-ops.sh sync     <channel> [--push-only | --pull-only]
 #   liaison-ops.sh render   <channel>
+#
+# TRANSPORTE (Onda 2): plugável, em lib/transports/<kind>.sh, com o contrato t_probe/t_push/t_pull.
+# Move ARQUIVOS OPACOS — nunca parseia mensagem, nunca sabe o que é thread, nunca decide merge. A
+# política de merge é uma só, em lib/liaison-import.mjs, compartilhada por `import` e `sync`: se
+# houvesse uma por porta de entrada, a mais frouxa viraria o caminho de menor resistência.
+# Topologia de hub único por canal (cada participante publica o próprio log e puxa os N-1
+# restantes) — configuração cresce como N, não como N².
 #
 # Determinístico: created_at = data do commit HEAD (nunca wall clock; exceção: state.json —
 # cursores locais de leitura, único lugar onde wall clock é aceitável). content_sha cobre o
@@ -44,7 +55,7 @@ CONFIG="$LIAISON_DIR/liaison.yaml"
 TPL="$(cd "$SCRIPT_DIR/.." && pwd)/templates/liaison/CHANNEL.md"
 
 cmd="${1:-}"; shift || true
-[ -n "$cmd" ] || { echo "Usage: liaison-ops.sh open|thread|send|inbox|read|ack|status|export|import|render [args...]" >&2; exit 1; }
+[ -n "$cmd" ] || { echo "Usage: liaison-ops.sh open|thread|send|inbox|read|ack|status|export|import|transport|sync|render [args...]" >&2; exit 1; }
 
 _git_date() { git -C "$ROOT" log -1 --format=%cI 2>/dev/null || echo ""; }
 _id_ok() { printf '%s' "$1" | grep -Eq '^[a-z0-9][a-z0-9._-]*$'; }
@@ -53,16 +64,106 @@ _chan_ok() { printf '%s' "$1" | grep -Eq '^[a-z0-9][a-z0-9-]*$'; }
 _read_self() {
   [ -f "$CONFIG" ] || { printf ''; return 0; }
   node - "$LIBDIR" "$CONFIG" <<'NODEEOF'
-const { readFileSync } = require('fs');
 const { join } = require('path');
 const { pathToFileURL } = require('url');
 (async () => {
   const [, , lib, cfg] = process.argv;
-  const { parseYamlSubset } = await import(pathToFileURL(join(lib, 'yaml-lite.mjs')).href);
-  const doc = parseYamlSubset(readFileSync(cfg, 'utf8'));
+  const { readConfig } = await import(pathToFileURL(join(lib, 'liaison-config.mjs')).href);
+  const doc = readConfig(cfg);
   process.stdout.write((doc.self && doc.self.id) || '');
 })();
 NODEEOF
+}
+
+# Emite, uma variável por linha (KIND/PATH/REMOTE/BRANCH), o transporte configurado do canal.
+# Vazio quando não há transporte — o caller decide se isso é erro (sync) ou informação (show).
+_read_transport() {
+  [ -f "$CONFIG" ] || { printf ''; return 0; }
+  node - "$LIBDIR" "$CONFIG" "$1" <<'NODEEOF'
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, cfg, channel] = process.argv;
+  const C = await import(pathToFileURL(join(lib, 'liaison-config.mjs')).href);
+  const t = C.getTransport(C.readConfig(cfg), channel);
+  if (!t) return;
+  const errs = C.validateTransport(t);
+  if (errs.length) { console.error(`transporte inválido em liaison.yaml: ${errs.join('; ')}`); process.exit(1); }
+  const out = [`KIND=${t.kind}`];
+  for (const [k, v] of [['PATH', t.path], ['REMOTE', t.remote], ['BRANCH', t.branch]]) {
+    if (v) out.push(`${k}=${v}`);
+  }
+  process.stdout.write(out.join('\n') + '\n');
+})();
+NODEEOF
+}
+
+# Carrega o transporte do canal em LIAISON_T_* e faz source do backend. Reprova (rc 1) quando o
+# canal não tem transporte configurado — pré-requisito faltando REPROVA, nunca desliga o sync em
+# silêncio contra um default inventado.
+_load_transport() {
+  local channel="$1"
+  local conf; conf="$(_read_transport "$channel")" || exit 1
+  if [ -z "$conf" ]; then
+    echo "FAIL: transporte não configurado para o canal '$channel' — rode: liaison-ops.sh transport set $channel --kind fs --path <dir>" >&2
+    return 1
+  fi
+  LIAISON_T_KIND=""; LIAISON_T_PATH=""; LIAISON_T_REMOTE=""; LIAISON_T_BRANCH=""
+  local line key val
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    key="${line%%=*}"; val="${line#*=}"
+    case "$key" in
+      KIND) LIAISON_T_KIND="$val" ;;
+      PATH) LIAISON_T_PATH="$val" ;;
+      REMOTE) LIAISON_T_REMOTE="$val" ;;
+      BRANCH) LIAISON_T_BRANCH="$val" ;;
+    esac
+  done <<< "$conf"
+  local backend="$LIBDIR/transports/$LIAISON_T_KIND.sh"
+  [ -f "$backend" ] || { echo "FAIL: backend de transporte ausente: $backend" >&2; return 1; }
+  LIAISON_SELF="$(_read_self)"
+  [ -n "$LIAISON_SELF" ] || { echo "FAIL: self não configurado (rode 'open' primeiro)" >&2; return 1; }
+  export LIAISON_ROOT="$ROOT" LIAISON_CHANNEL="$channel" LIAISON_CHANNEL_DIR="$LIAISON_DIR/$channel"
+  export LIAISON_SELF LIAISON_T_KIND LIAISON_T_PATH LIAISON_T_REMOTE LIAISON_T_BRANCH
+  # shellcheck disable=SC1090
+  . "$backend"
+}
+
+# Aplica um bundle cru (dir com log/ + blobs/) sobre o canal, pela política única de merge.
+# Ecoa a linha de resultado e devolve rc 1 quando algum remetente reescreveu história.
+_apply_bundle() {
+  local channel="$1" from_dir="$2" label="$3"
+  local ch_dir="$LIAISON_DIR/$channel"
+  local self; self="$(_read_self)"
+  mkdir -p "$ch_dir/conflicts" "$ch_dir/blobs"
+  local out rc=0
+  out="$(node - "$LIBDIR" "$ch_dir" "$from_dir" "$self" <<'NODEEOF'
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, chDir, fromDir, self] = process.argv;
+  const { applyBundle } = await import(pathToFileURL(join(lib, 'liaison-import.mjs')).href);
+  const M = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
+  const r = applyBundle({ chDir, fromDir, self });
+  if (r.overflow) {
+    console.error(`bundle excede o teto de ${M.IMPORT_MAX_MESSAGES} mensagens por aplicação (${r.overflow}) — nada foi aplicado`);
+    process.exit(1);
+  }
+  const div = r.divergences.map((d) => `${d.sender}@seq=${d.seq}`).join(', ');
+  process.stdout.write([r.accepted, r.dup, r.conflicts, r.quarantined, div].join('\t'));
+})();
+NODEEOF
+)" || return 1
+  local n_new n_dup n_conf n_quar div
+  IFS=$'\t' read -r n_new n_dup n_conf n_quar div <<< "$out"
+  _render "$channel"
+  if [ -n "$div" ]; then
+    echo "FAIL: divergência de log em $div — log append-only não reescreve história; nada desses remetentes foi aplicado (ver conflicts/)" >&2
+    rc=1
+  fi
+  echo "OK $label — $n_new nova(s), $n_dup duplicata(s) (no-op), $n_conf conflito(s), $n_quar em quarentena"
+  return $rc
 }
 
 _render() {
@@ -96,20 +197,15 @@ open)
 
   IFS=',' read -ra parts <<< "$participants"
   result="$(node - "$LIBDIR" "$CONFIG" "$self_arg" "$channel" "${parts[*]}" <<'NODEEOF'
-const { readFileSync, existsSync, writeFileSync, renameSync } = require('fs');
 const { join } = require('path');
 const { pathToFileURL } = require('url');
 (async () => {
   const [, , lib, cfg, selfArg, channel, partsRaw] = process.argv;
-  const { parseYamlSubset } = await import(pathToFileURL(join(lib, 'yaml-lite.mjs')).href);
-  const idRe = /^[a-z0-9][a-z0-9._-]*$/;
+  const C = await import(pathToFileURL(join(lib, 'liaison-config.mjs')).href);
   const newParts = partsRaw.split(' ').filter(Boolean);
-  for (const p of newParts) if (!idRe.test(p)) { console.error(`participante inválido: ${p}`); process.exit(1); }
+  for (const p of newParts) if (!C.ID_RE.test(p)) { console.error(`participante inválido: ${p}`); process.exit(1); }
 
-  let doc = { self: {}, channels: {} };
-  if (existsSync(cfg)) doc = parseYamlSubset(readFileSync(cfg, 'utf8'));
-  if (!doc.self) doc.self = {};
-  if (!doc.channels) doc.channels = {};
+  const doc = C.readConfig(cfg);
 
   if (selfArg) {
     if (doc.self.id && doc.self.id !== selfArg) {
@@ -121,19 +217,14 @@ const { pathToFileURL } = require('url');
   if (!doc.self.id) { console.error('self.id não configurado — passe --self na primeira chamada de open'); process.exit(1); }
   if (!newParts.includes(doc.self.id)) newParts.push(doc.self.id);
 
-  const existing = (doc.channels[channel] && Array.isArray(doc.channels[channel].participants)) ? doc.channels[channel].participants : [];
+  const prev = doc.channels[channel] || {};
+  const existing = Array.isArray(prev.participants) ? prev.participants : [];
   const merged = [...new Set([...existing, ...newParts])].sort();
-  doc.channels[channel] = { participants: merged };
+  // Reabrir um canal acrescenta participantes; NUNCA descarta o transporte já configurado —
+  // `open` é idempotente e é chamado de novo sempre que a lista de participantes cresce.
+  doc.channels[channel] = { participants: merged, ...(prev.transport ? { transport: prev.transport } : {}) };
 
-  // Serialização determinística — forma controlada (self.id + channels ordenados por nome).
-  const lines = ['self:', `  id: ${doc.self.id}`, 'channels:'];
-  for (const name of Object.keys(doc.channels).sort()) {
-    lines.push(`  ${name}:`, '    participants:');
-    for (const p of doc.channels[name].participants.slice().sort()) lines.push(`      - ${p}`);
-  }
-  const text = lines.join('\n') + '\n';
-  writeFileSync(cfg + '.tmp', text);
-  renameSync(cfg + '.tmp', cfg);
+  C.writeConfig(cfg, doc);
   console.log(doc.self.id);
   console.log(merged.join(','));
 })();
@@ -660,136 +751,102 @@ import)
   while [ $# -gt 0 ]; do case "$1" in --from) from_dir="$2"; shift 2 ;; *) shift ;; esac; done
   [ -n "$from_dir" ] || { echo "FAIL: --from <dir> obrigatório" >&2; exit 1; }
   [ -d "$from_dir/log" ] || { echo "FAIL: '$from_dir/log' não encontrado" >&2; exit 1; }
-  self="$(_read_self)"
-  [ -n "$self" ] || { echo "FAIL: self não configurado" >&2; exit 1; }
-  mkdir -p "$ch_dir/conflicts" "$ch_dir/blobs"
+  [ -n "$(_read_self)" ] || { echo "FAIL: self não configurado" >&2; exit 1; }
+  _apply_bundle "$channel" "$from_dir" "import"
+  ;;
 
-  out="$(node - "$LIBDIR" "$ch_dir" "$from_dir" "$self" "$channel" <<'NODEEOF'
-const { readFileSync, writeFileSync, readdirSync, existsSync, renameSync, copyFileSync } = require('fs');
-const { join, basename } = require('path');
+# ---------------------------------------------------------------------------------------------
+transport)
+  sub="${1:-}"; shift || true
+  channel="${1:-}"; shift || true
+  [ -n "$sub" ] && [ -n "$channel" ] || { echo "FAIL: uso: transport set|show|probe <channel> [...]" >&2; exit 1; }
+  ch_dir="$LIAISON_DIR/$channel"
+  [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado (rode 'open' primeiro)" >&2; exit 1; }
+
+  case "$sub" in
+  set)
+    t_kind=""; t_path=""; t_remote=""; t_branch=""
+    while [ $# -gt 0 ]; do case "$1" in
+      --kind) t_kind="$2"; shift 2 ;;
+      --path) t_path="$2"; shift 2 ;;
+      --remote) t_remote="$2"; shift 2 ;;
+      --branch) t_branch="$2"; shift 2 ;;
+      *) shift ;;
+    esac; done
+    [ -n "$t_kind" ] || { echo "FAIL: --kind obrigatório (manual|fs|git|gh)" >&2; exit 1; }
+    node - "$LIBDIR" "$CONFIG" "$channel" "$t_kind" "$t_path" "$t_remote" "$t_branch" <<'NODEEOF'
+const { join } = require('path');
 const { pathToFileURL } = require('url');
 (async () => {
-  const [, , lib, chDir, fromDir, self, channel] = process.argv;
-  const M = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
-  const logDir = join(chDir, 'log');
-  const conflictsDir = join(chDir, 'conflicts');
-  const blobsDir = join(chDir, 'blobs');
-  const fromLog = join(fromDir, 'log');
-  const fromBlobs = join(fromDir, 'blobs');
-
-  const readJsonl = (p) => {
-    let text; try { text = readFileSync(p, 'utf8'); } catch { return []; }
-    const out = [];
-    for (const line of text.split('\n')) { const t = line.trim(); if (t) { try { out.push(JSON.parse(t)); } catch { /* linha corrompida ignorada */ } } }
-    return out;
-  };
-  const writeConflict = (msgId, reason, incoming, existing) => {
-    writeFileSync(join(conflictsDir, `${msgId}.json`), JSON.stringify({ msg_id: msgId, reason, incoming, existing: existing || null }, null, 2) + '\n');
-  };
-
-  const bundleFiles = readdirSync(fromLog).filter((f) => f.endsWith('.jsonl'));
-  // Pré-varredura: junta candidatos válidos por arquivo, aplicando as regras de import ANTES de
-  // escrever qualquer coisa (import é atômico à luz do teto de 200 msgs por chamada).
-  const perSenderNew = new Map(); // sender -> [msg,...] a acrescentar
-  let acceptedCount = 0, dupCount = 0, conflictCount = 0;
-  const conflictsToWrite = [];
-
-  for (const file of bundleFiles) {
-    const fileSender = basename(file, '.jsonl');
-    if (!M.ID_RE.test(fileSender)) { continue; }
-    if (fileSender === self) continue; // nunca importamos nosso próprio arquivo de fora — somos a fonte da verdade dele
-    const incoming = readJsonl(join(fromLog, file));
-    const existing = existsSync(join(logDir, file)) ? readJsonl(join(logDir, file)) : [];
-    const existingById = new Map(existing.map((m) => [m.msg_id, m]));
-
-    for (const raw of incoming) {
-      // spoofing: sender != nome do arquivo em que chegou
-      if (raw.sender !== fileSender) {
-        conflictsToWrite.push([raw.msg_id || `${file}:unknown`, `sender declarado ('${raw.sender}') diverge do arquivo ('${fileSender}')`, raw, existingById.get(raw.msg_id)]);
-        conflictCount++; continue;
-      }
-      // spoofing: mensagem se declara com o self.id local vinda de fora
-      if (raw.sender === self) {
-        conflictsToWrite.push([raw.msg_id || `${file}:self-spoof`, `mensagem se declara sender='${self}' (identidade local) vinda de fora`, raw, null]);
-        conflictCount++; continue;
-      }
-      const errs = M.validateEnvelope(raw);
-      if (errs.length) {
-        conflictsToWrite.push([raw.msg_id || `${file}:invalid`, `envelope inválido: ${errs.join('; ')}`, raw, existingById.get(raw.msg_id)]);
-        conflictCount++; continue;
-      }
-      const recomputed = M.computeContentSha(raw);
-      if (recomputed !== raw.content_sha) {
-        conflictsToWrite.push([raw.msg_id, `content_sha não confere (declarado ${raw.content_sha}, recalculado ${recomputed})`, raw, existingById.get(raw.msg_id)]);
-        conflictCount++; continue;
-      }
-      const already = existingById.get(raw.msg_id);
-      if (already) {
-        if (already.content_sha === raw.content_sha) { dupCount++; continue; } // duplicata: no-op silencioso
-        conflictsToWrite.push([raw.msg_id, 'content_sha diverge para o mesmo msg_id', raw, already]);
-        conflictCount++; continue;
-      }
-      // body_ref: valida path e existência do blob no bundle
-      if (raw.body_ref) {
-        if (!M.BODY_REF_RE.test(raw.body_ref)) {
-          conflictsToWrite.push([raw.msg_id, `body_ref fora do padrão permitido: ${raw.body_ref}`, raw, null]);
-          conflictCount++; continue;
-        }
-        const blobName = raw.body_ref.slice('blobs/'.length);
-        const srcBlob = join(fromBlobs, blobName);
-        if (!existsSync(srcBlob)) {
-          conflictsToWrite.push([raw.msg_id, `blob referenciado ausente no bundle: ${raw.body_ref}`, raw, null]);
-          conflictCount++; continue;
-        }
-        const stat = require('fs').statSync(srcBlob);
-        if (stat.size > M.BLOB_MAX_BYTES) {
-          conflictsToWrite.push([raw.msg_id, `blob excede ${M.BLOB_MAX_BYTES} bytes`, raw, null]);
-          conflictCount++; continue;
-        }
-      }
-      acceptedCount++;
-      if (!perSenderNew.has(fileSender)) perSenderNew.set(fileSender, { toAdd: [], srcFile: file });
-      perSenderNew.get(fileSender).toAdd.push(raw);
-    }
-  }
-
-  if (acceptedCount > M.IMPORT_MAX_MESSAGES) {
-    console.error(`import excede o teto de ${M.IMPORT_MAX_MESSAGES} mensagens por chamada (${acceptedCount}) — nada foi aplicado`);
-    process.exit(1);
-  }
-
-  // Fase de escrita — atômica por arquivo de remetente.
-  for (const [sender, { toAdd, srcFile }] of perSenderNew) {
-    const target = join(logDir, `${sender}.jsonl`);
-    const existing = existsSync(target) ? readJsonl(target) : [];
-    const merged = existing.concat(toAdd.map((m) => ({ ...m, trust: 'untrusted-peer' })));
-    const byId = new Map(merged.map((m) => [m.msg_id, m]));
-    const finalMsgs = [...byId.values()].sort((a, b) => a.seq - b.seq);
-    writeFileSync(target + '.tmp', finalMsgs.map((m) => JSON.stringify(m)).join('\n') + '\n');
-    renameSync(target + '.tmp', target);
-    for (const m of toAdd) {
-      if (m.body_ref) {
-        const blobName = m.body_ref.slice('blobs/'.length);
-        const dest = join(blobsDir, blobName);
-        if (!existsSync(dest)) copyFileSync(join(fromBlobs, blobName), dest);
-      }
-    }
-  }
-  for (const [msgId, reason, incoming, existing] of conflictsToWrite) writeConflict(msgId, reason, incoming, existing);
-
-  // Quarentena recalculada, apenas informativa (não persistida).
-  const files2 = existsSync(logDir) ? readdirSync(logDir).filter((f) => f.endsWith('.jsonl')) : [];
-  const all2 = [];
-  for (const f of files2) for (const m of readJsonl(join(logDir, f))) all2.push(m);
-  const { quarantined } = M.mergeLogs(all2);
-
-  process.stdout.write(`${acceptedCount} ${dupCount} ${conflictCount} ${quarantined.length}`);
+  const [, , lib, cfg, channel, kind, path, remote, branch] = process.argv;
+  const C = await import(pathToFileURL(join(lib, 'liaison-config.mjs')).href);
+  const doc = C.readConfig(cfg);
+  if (!doc.self.id) { console.error('self.id não configurado — rode `open` primeiro'); process.exit(1); }
+  if (!doc.channels[channel]) { console.error(`canal '${channel}' não registrado no liaison.yaml — rode \`open\` primeiro`); process.exit(1); }
+  const transport = { kind };
+  if (path) transport.path = path;
+  if (remote) transport.remote = remote;
+  if (branch) transport.branch = branch;
+  const errs = C.validateTransport(transport);
+  if (errs.length) { console.error(errs.join('; ')); process.exit(1); }
+  doc.channels[channel].transport = transport;
+  C.writeConfig(cfg, doc);
 })();
 NODEEOF
-)"
-  IFS=' ' read -r n_new n_dup n_conf n_quar <<< "$out"
-  _render "$channel"
-  echo "OK import — $n_new nova(s), $n_dup duplicata(s) (no-op), $n_conf conflito(s), $n_quar em quarentena"
+    echo "OK transport set — canal $channel usa transporte $t_kind"
+    ;;
+
+  show)
+    conf="$(_read_transport "$channel")" || exit 1
+    if [ -z "$conf" ]; then echo "LIAISON/$channel: transporte não configurado"; exit 0; fi
+    echo "LIAISON/$channel: $(printf '%s' "$conf" | tr '\n' ' ' | sed 's/ *$//')"
+    ;;
+
+  probe)
+    _load_transport "$channel" || exit 1
+    t_probe || exit 1
+    echo "OK transport probe — $LIAISON_T_KIND alcançável para o canal $channel"
+    ;;
+
+  *) echo "FAIL: subcomando desconhecido 'transport $sub'" >&2; exit 1 ;;
+  esac
+  ;;
+
+# ---------------------------------------------------------------------------------------------
+# sync — publica o próprio log no ponto de encontro e aplica o que os demais publicaram.
+# Ordem deliberada: PUSH antes de PULL. Publicar primeiro garante que o que já escrevemos fica
+# disponível mesmo que a aplicação do bundle alheio reprove (divergência, teto excedido); e evita
+# o caso em que uma réplica atrasada puxa, aprende o estado novo, e então republica logs de
+# terceiros — o push só toca o próprio arquivo, mas a ordem torna o invariante evidente.
+sync)
+  channel="${1:-}"; shift || true
+  [ -n "$channel" ] || { echo "FAIL: <channel> obrigatório" >&2; exit 1; }
+  ch_dir="$LIAISON_DIR/$channel"
+  [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado (rode 'open' primeiro)" >&2; exit 1; }
+  do_push=1; do_pull=1
+  while [ $# -gt 0 ]; do case "$1" in
+    --push-only) do_pull=0; shift ;;
+    --pull-only) do_push=0; shift ;;
+    *) shift ;;
+  esac; done
+
+  _load_transport "$channel" || exit 1
+  t_probe || { echo "FAIL: transporte $LIAISON_T_KIND indisponível — sync abortado" >&2; exit 1; }
+
+  if [ "$do_push" -eq 1 ]; then
+    t_push || { echo "FAIL: push pelo transporte $LIAISON_T_KIND" >&2; exit 1; }
+  fi
+
+  if [ "$do_pull" -eq 0 ]; then
+    echo "OK sync — push-only via $LIAISON_T_KIND (log de $LIAISON_SELF publicado)"
+    exit 0
+  fi
+
+  staging="$(mktemp -d "${TMPDIR:-/tmp}/forge-liaison-sync.XXXXXX")"
+  # shellcheck disable=SC2064
+  trap "rm -rf '$staging'" EXIT
+  t_pull "$staging" || { echo "FAIL: pull pelo transporte $LIAISON_T_KIND" >&2; exit 1; }
+  _apply_bundle "$channel" "$staging" "sync via $LIAISON_T_KIND"
   ;;
 
 # ---------------------------------------------------------------------------------------------

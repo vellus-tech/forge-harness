@@ -34,6 +34,34 @@
               "minItems": 1,
               "items": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
               "description": "Participantes conhecidos do CANAL (repositórios que têm log/<sender>.jsonl esperado). Confina quem o import aceita como sender legítimo — não confunde com a lista de participantes de uma thread individual, que vive nas mensagens thread-open/join."
+            },
+            "transport": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind"],
+              "description": "Ponto de encontro do canal, consumido por `liaison-ops.sh sync`. Ausente = sync REPROVA com mensagem explícita: pré-requisito faltando nunca desliga a sincronização em silêncio contra um default inventado. Topologia de hub único por canal — cada participante publica o próprio log e puxa os N-1 restantes, de modo que a configuração cresce como N e não como N². CONFIDENCIALIDADE: quem alcança o transporte lê o canal inteiro, todas as threads; separação real exige canal separado com transporte separado.",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": ["manual", "fs", "git", "gh"],
+                  "description": "Backend em scripts/lib/transports/<kind>.sh, com o contrato t_probe/t_push/t_pull. `manual` é a primitiva (diretório de troca no mesmo layout de export/import, jamais criado pelo script); `fs` é o default do piloto (hub multi-canal criado sob demanda); `git` usa branch órfã dedicada num remote, com clone de trabalho descartável em .forge/cache/liaison/<channel>; `gh` é declarado e NÃO implementável por script — o harness proíbe invocar o CLI do GitHub em .sh, então o backend reprova por construção."
+                },
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Diretório do ponto de encontro. Obrigatório em `manual` (layout <path>/{log,blobs}) e em `fs` (layout <path>/<channel>/{log,blobs})."
+                },
+                "remote": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "URL do repositório remoto (`git`) ou owner/repo (`gh`)."
+                },
+                "branch": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Branch dedicada do canal no transporte `git`. Default: liaison/<channel>. Órfã por construção — sem ancestral comum com o código, para nunca virar candidata a merge nem disparar CI."
+                }
+              }
             }
           }
         }

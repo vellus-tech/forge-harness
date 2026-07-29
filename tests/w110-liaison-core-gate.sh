@@ -138,8 +138,8 @@ LG c thread join "$CH" internal-note --subject "ops-bot entrou" >/dev/null
 LG c send "$CH" --thread internal-note --kind note --subject "confirmado" --body "ok" >/dev/null
 # c NUNCA recebeu nada de fare-proto-v2 (nem quarentena — a thread simplesmente não existe no seu log)
 c_threads="$(LG c thread list "$CH")"
-printf '%s\n' "$c_threads" | grep -q "internal-note" || { echo "FAIL [4]: internal-note não convergiu em c"; exit 1; }
-printf '%s\n' "$c_threads" | grep -q "fare-proto-v2" && { echo "FAIL [4]: c enxergou fare-proto-v2 sem tê-la recebido"; exit 1; }
+grep -q "internal-note" <<<"$c_threads" || { echo "FAIL [4]: internal-note não convergiu em c"; exit 1; }
+grep -q "fare-proto-v2" <<<"$c_threads" && { echo "FAIL [4]: c enxergou fare-proto-v2 sem tê-la recebido"; exit 1; }
 echo "OK [4]"
 
 echo "[5] três participantes convergem para a mesma ordem, sob permutação da ordem de import"
@@ -158,8 +158,8 @@ LG e import "$CH" --from "$T/bundle-a2" >/dev/null
 order_d="$(dump_order "$T/d/.forge/liaison/$CH")"
 order_e="$(dump_order "$T/e/.forge/liaison/$CH")"
 [ "$order_d" = "$order_e" ] || { echo "FAIL [5]: ordem divergiu sob permutação de import"; diff <(echo "$order_d") <(echo "$order_e"); exit 1; }
-printf '%s\n' "$order_d" | grep -q "fare-proto-v2" || { echo "FAIL [5]: fare-proto-v2 ausente na convergência"; exit 1; }
-printf '%s\n' "$order_d" | grep -q "internal-note" || { echo "FAIL [5]: internal-note ausente na convergência"; exit 1; }
+grep -q "fare-proto-v2" <<<"$order_d" || { echo "FAIL [5]: fare-proto-v2 ausente na convergência"; exit 1; }
+grep -q "internal-note" <<<"$order_d" || { echo "FAIL [5]: internal-note ausente na convergência"; exit 1; }
 echo "OK [5]"
 
 echo "[6] corpo grande vira blob com sha conferível"
@@ -172,7 +172,7 @@ blob_file="$T/a/.forge/liaison/$CH/${blob_ref}"
 [ -f "$blob_file" ] || { echo "FAIL [6]: blob não existe em $blob_file"; exit 1; }
 sha_actual="$(shasum -a 256 "$blob_file" | cut -d' ' -f1)"
 [ "$sha_actual" = "$sha_expected" ] || { echo "FAIL [6]: sha do blob não confere"; exit 1; }
-printf '%s' "$blob_ref" | grep -q "^blobs/$sha_expected" || { echo "FAIL [6]: nome do blob não referencia o sha"; exit 1; }
+grep -q "^blobs/$sha_expected" <<<"$blob_ref" || { echo "FAIL [6]: nome do blob não referencia o sha"; exit 1; }
 echo "OK [6]"
 
 echo "[7] body_ref com path traversal recusado no import"
@@ -180,7 +180,7 @@ mkdir -p "$T/bundle-traversal/log"
 msg="$(_craft "{\"msg_id\":\"axis-fare-validator-0090\",\"channel\":\"$CH\",\"thread_id\":\"fare-proto-v2\",\"sender\":\"axis-fare-validator\",\"seq\":90,\"lamport\":90,\"kind\":\"note\",\"in_reply_to\":null,\"requires_ack\":false,\"subject\":\"traversal\",\"body_ref\":\"blobs/../../etc/passwd\",\"refs\":{\"change_id\":null,\"contract_files\":[],\"commit\":null},\"created_at\":\"2026-01-01T00:00:00Z\"}")"
 printf '%s\n' "$msg" > "$T/bundle-traversal/log/axis-fare-validator.jsonl"
 out7="$(LG a import "$CH" --from "$T/bundle-traversal")"
-printf '%s\n' "$out7" | grep -q "1 conflito" || { echo "FAIL [7]: path traversal não foi para conflito: $out7"; exit 1; }
+grep -q "1 conflito" <<<"$out7" || { echo "FAIL [7]: path traversal não foi para conflito: $out7"; exit 1; }
 [ -f "$T/a/.forge/liaison/$CH/conflicts/axis-fare-validator-0090.json" ] || { echo "FAIL [7]: conflito não registrado"; exit 1; }
 echo "OK [7]"
 
@@ -189,12 +189,12 @@ mkdir -p "$T/bundle-orphan/log"
 orphan="$(_craft "{\"msg_id\":\"ops-bot-0050\",\"channel\":\"$CH\",\"thread_id\":\"orphan-thread\",\"sender\":\"ops-bot\",\"seq\":50,\"lamport\":1,\"kind\":\"note\",\"in_reply_to\":null,\"requires_ack\":false,\"subject\":\"chegou antes\",\"body\":\"orfã\",\"refs\":{\"change_id\":null,\"contract_files\":[],\"commit\":null},\"created_at\":\"2026-01-01T00:00:00Z\"}")"
 printf '%s\n' "$orphan" > "$T/bundle-orphan/log/ops-bot.jsonl"
 out8a="$(LG a import "$CH" --from "$T/bundle-orphan")"
-printf '%s\n' "$out8a" | grep -q "1 em quarentena" || { echo "FAIL [8a]: mensagem órfã não ficou em quarentena: $out8a"; exit 1; }
+grep -q "1 em quarentena" <<<"$out8a" || { echo "FAIL [8a]: mensagem órfã não ficou em quarentena: $out8a"; exit 1; }
 mkdir -p "$T/bundle-orphan-open/log"
 opener="$(_craft "{\"msg_id\":\"ops-bot-0051\",\"channel\":\"$CH\",\"thread_id\":\"orphan-thread\",\"sender\":\"ops-bot\",\"seq\":51,\"lamport\":1,\"kind\":\"thread-open\",\"in_reply_to\":null,\"requires_ack\":false,\"subject\":\"abertura tardia\",\"participants\":[\"ops-bot\",\"axis-go-cloud\"],\"refs\":{\"change_id\":null,\"contract_files\":[],\"commit\":null},\"created_at\":\"2026-01-01T00:00:00Z\"}")"
 printf '%s\n' "$opener" > "$T/bundle-orphan-open/log/ops-bot.jsonl"
 out8b="$(LG a import "$CH" --from "$T/bundle-orphan-open")"
-printf '%s\n' "$out8b" | grep -q "0 em quarentena" || { echo "FAIL [8b]: quarentena não foi liberada com o thread-open: $out8b"; exit 1; }
+grep -q "0 em quarentena" <<<"$out8b" || { echo "FAIL [8b]: quarentena não foi liberada com o thread-open: $out8b"; exit 1; }
 LG a thread list "$CH" | grep -q "orphan-thread" || { echo "FAIL [8b]: orphan-thread não apareceu resolvida"; exit 1; }
 echo "OK [8]"
 
@@ -207,7 +207,7 @@ mkdir -p "$T/bundle-ack-forged/log"
 forged_ack="$(_craft "{\"msg_id\":\"axis-fare-validator-0091\",\"channel\":\"$CH\",\"thread_id\":\"fare-proto-v2\",\"sender\":\"axis-fare-validator\",\"seq\":91,\"lamport\":91,\"kind\":\"ack\",\"in_reply_to\":\"axis-go-cloud-0001\",\"requires_ack\":true,\"subject\":\"ack forjado\",\"refs\":{\"change_id\":null,\"contract_files\":[],\"commit\":null},\"created_at\":\"2026-01-01T00:00:00Z\"}")"
 printf '%s\n' "$forged_ack" > "$T/bundle-ack-forged/log/axis-fare-validator.jsonl"
 out9b="$(LG a import "$CH" --from "$T/bundle-ack-forged")"
-printf '%s\n' "$out9b" | grep -q "1 conflito" || { echo "FAIL [9b]: ack com requires_ack=true não foi recusado: $out9b"; exit 1; }
+grep -q "1 conflito" <<<"$out9b" || { echo "FAIL [9b]: ack com requires_ack=true não foi recusado: $out9b"; exit 1; }
 echo "OK [9]"
 
 echo "[10] spoofing de sender recusado"
@@ -215,12 +215,12 @@ mkdir -p "$T/bundle-spoof/log"
 spoof="$(_craft "{\"msg_id\":\"axis-go-cloud-0099\",\"channel\":\"$CH\",\"thread_id\":\"fare-proto-v2\",\"sender\":\"axis-go-cloud\",\"seq\":99,\"lamport\":99,\"kind\":\"note\",\"in_reply_to\":null,\"requires_ack\":false,\"subject\":\"forjado\",\"body\":\"finjo ser axis-go-cloud\",\"refs\":{\"change_id\":null,\"contract_files\":[],\"commit\":null},\"created_at\":\"2026-01-01T00:00:00Z\"}")"
 printf '%s\n' "$spoof" > "$T/bundle-spoof/log/axis-fare-validator.jsonl"   # arquivo de b, sender diz ser a
 out10="$(LG a import "$CH" --from "$T/bundle-spoof")"
-printf '%s\n' "$out10" | grep -q "1 conflito" || { echo "FAIL [10]: spoofing não foi recusado: $out10"; exit 1; }
+grep -q "1 conflito" <<<"$out10" || { echo "FAIL [10]: spoofing não foi recusado: $out10"; exit 1; }
 echo "OK [10]"
 
 echo "[11] duplicata (content_sha igual) é no-op; content_sha divergente vira conflito"
 out11a="$(LG c import "$CH" --from "$T/bundle-a-t2-only")"
-printf '%s\n' "$out11a" | grep -q "1 duplicata" || { echo "FAIL [11a]: reimport idêntico não foi no-op: $out11a"; exit 1; }
+grep -q "1 duplicata" <<<"$out11a" || { echo "FAIL [11a]: reimport idêntico não foi no-op: $out11a"; exit 1; }
 mkdir -p "$T/bundle-tamper/log"
 node -e "
 const fs=require('fs');
@@ -229,19 +229,24 @@ const m={...lines[0], subject:'ADULTERADO'};
 fs.writeFileSync('$T/bundle-tamper/log/ops-bot.jsonl', JSON.stringify(m)+'\n');
 "
 out11b="$(LG a import "$CH" --from "$T/bundle-tamper")"
-printf '%s\n' "$out11b" | grep -q "1 conflito" || { echo "FAIL [11b]: content_sha divergente não virou conflito: $out11b"; exit 1; }
+grep -q "1 conflito" <<<"$out11b" || { echo "FAIL [11b]: content_sha divergente não virou conflito: $out11b"; exit 1; }
 # fork genuíno: mesmo msg_id, AMBAS as versões internamente válidas (content_sha recalculado
-# confere com o declarado em cada uma), mas divergentes entre si — deve virar conflito, sem
-# tocar o log local (a versão já conhecida permanece intocada).
+# confere com o declarado em cada uma), mas divergentes entre si. O log de um remetente é
+# append-only: reescrever uma posição já conhecida é DIVERGÊNCIA, não conflito de mensagem — o
+# import REPROVA (rc != 0), nomeia o remetente, registra em conflicts/ e não toca o log local.
 LG a import "$CH" --from "$T/bundle-c2" >/dev/null   # estabelece ops-bot-0001 localmente em a
 before_fork_sha="$(node -e "const fs=require('fs');const m=fs.readFileSync('$T/a/.forge/liaison/$CH/log/ops-bot.jsonl','utf8').trim().split('\n').map(l=>JSON.parse(l)).find(x=>x.msg_id==='ops-bot-0001');console.log(m.content_sha)")"
 mkdir -p "$T/bundle-fork/log"
 forked="$(_craft "{\"msg_id\":\"ops-bot-0001\",\"channel\":\"$CH\",\"thread_id\":\"internal-note\",\"sender\":\"ops-bot\",\"seq\":1,\"lamport\":2,\"kind\":\"join\",\"in_reply_to\":null,\"requires_ack\":false,\"subject\":\"versão divergente do join\",\"refs\":{\"change_id\":null,\"contract_files\":[],\"commit\":null},\"created_at\":\"2026-01-01T00:00:00Z\"}")"
 printf '%s\n' "$forked" > "$T/bundle-fork/log/ops-bot.jsonl"
-out11c="$(LG a import "$CH" --from "$T/bundle-fork")"
-printf '%s\n' "$out11c" | grep -q "1 conflito" || { echo "FAIL [11c]: fork genuíno (mesmo msg_id, ambos válidos) não virou conflito: $out11c"; exit 1; }
+if LG a import "$CH" --from "$T/bundle-fork" >"$T/out11c.txt" 2>&1; then
+  echo "FAIL [11c]: reescrita de história (mesmo seq, ambos válidos) deveria REPROVAR"; cat "$T/out11c.txt"; exit 1
+fi
+grep -q "divergência" "$T/out11c.txt" || { echo "FAIL [11c]: saída não reporta divergência"; cat "$T/out11c.txt"; exit 1; }
+grep -q "ops-bot" "$T/out11c.txt" || { echo "FAIL [11c]: saída não nomeia o remetente divergente"; cat "$T/out11c.txt"; exit 1; }
+[ -f "$T/a/.forge/liaison/$CH/conflicts/ops-bot.divergence.json" ] || { echo "FAIL [11c]: divergência não registrada em conflicts/"; exit 1; }
 after_fork_sha="$(node -e "const fs=require('fs');const m=fs.readFileSync('$T/a/.forge/liaison/$CH/log/ops-bot.jsonl','utf8').trim().split('\n').map(l=>JSON.parse(l)).find(x=>x.msg_id==='ops-bot-0001');console.log(m.content_sha)")"
-[ "$before_fork_sha" = "$after_fork_sha" ] || { echo "FAIL [11c]: log local foi tocado por um fork em conflito"; exit 1; }
+[ "$before_fork_sha" = "$after_fork_sha" ] || { echo "FAIL [11c]: log local foi tocado por uma reescrita de história"; exit 1; }
 echo "OK [11]"
 
 echo "[12] render preserva o bloco NARRATIVE entre regenerações"

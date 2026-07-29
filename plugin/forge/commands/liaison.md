@@ -1,6 +1,6 @@
 ---
-description: Canal de mensagens ORDENADAS entre agentes de repositórios distintos (ex.: dono do .proto/gRPC e app cliente) — elimina drift de handoff manual. Store JSONL append-only por remetente, thread como campo, relógio de Lamport por thread, abertura de thread e entrada de participante como mensagens auditáveis. Onda 1: núcleo local + sincronização manual (export/import). Operado por script determinista.
-argument-hint: "[open|thread|send|inbox|read|ack|status|export|import|render] [flags]"
+description: Canal de mensagens ORDENADAS entre agentes de repositórios distintos (ex.: dono do .proto/gRPC e app cliente) — elimina drift de handoff manual. Store JSONL append-only por remetente, thread como campo, relógio de Lamport por thread, abertura de thread e entrada de participante como mensagens auditáveis. Transporte plugável (fs, git, manual) com sync idempotente e merge append-only. Operado por script determinista.
+argument-hint: "[open|thread|send|inbox|read|ack|status|export|import|transport|sync|render] [flags]"
 ---
 
 # /forge:liaison — canal de mensagens ordenadas entre repositórios
@@ -30,11 +30,12 @@ localmente).
   mecanismo do resto do canal e fica auditável no próprio log.
 - **Visibilidade: a thread ROTEIA, o canal CONFINA.** A lista de participantes de uma thread
   define quem é cobrado por ack e para quem o roteamento se dirige — **não** quem pode ler. Com
-  hub compartilhado (Onda 2), quem alcança o transporte lê tudo; prometer isolamento por thread
+  hub compartilhado, quem alcança o transporte lê tudo; prometer isolamento por thread
   seria falsa sensação de segurança. Confidencialidade de verdade exige canal separado.
-- **Onda 1 = SEM transporte.** `export`/`import` são a primitiva **manual** de sincronização —
-  copie o diretório exportado para o outro repositório (scp, PR, drive, o que for) e importe do
-  outro lado. Transporte automático (push/pull via `gh`/`git`/fs) é a Onda 2.
+- **`export`/`import` são a primitiva de sincronização** — copie o diretório exportado para o
+  outro repositório (scp, PR, drive, o que for) e importe do outro lado. O transporte automático
+  (`sync`) é essa mesma primitiva com o transporte fazendo a cópia; o backend `manual` é
+  literalmente ela.
 
 ## Protocolo
 
@@ -59,21 +60,64 @@ bash .forge/scripts/liaison-ops.sh inbox  <channel> [--thread <id>]   # não lid
 bash .forge/scripts/liaison-ops.sh read   <channel> --upto <msg_id>   # avança o cursor local
 bash .forge/scripts/liaison-ops.sh status [<channel>]                 # one-line
 
-# sincronização manual (Onda 1 — sem transporte automático)
+# sincronização manual (a primitiva — sempre disponível, sem configurar nada)
 bash .forge/scripts/liaison-ops.sh export <channel> --out <dir>
 bash .forge/scripts/liaison-ops.sh import <channel> --from <dir>
+
+# transporte (configura o ponto de encontro do canal, uma vez por repositório)
+bash .forge/scripts/liaison-ops.sh transport set   <channel> --kind fs --path <dir-do-hub>
+bash .forge/scripts/liaison-ops.sh transport set   <channel> --kind git --remote <url> [--branch <b>]
+bash .forge/scripts/liaison-ops.sh transport show  <channel>
+bash .forge/scripts/liaison-ops.sh transport probe <channel>          # o ponto de encontro responde?
+
+# sincronizar (push do próprio log + pull dos demais, na mesma chamada)
+bash .forge/scripts/liaison-ops.sh sync <channel> [--push-only | --pull-only]
 
 # regenerar a view mestre
 bash .forge/scripts/liaison-ops.sh render <channel>                   # <channel>/CHANNEL.md
 ```
+
+## Transporte
+
+O transporte é **plugável** (`scripts/lib/transports/<kind>.sh`, contrato `t_probe`/`t_push`/
+`t_pull`) e move **arquivos opacos**: não parseia mensagem, não sabe o que é thread, não decide
+merge. A política de merge é uma só — a mesma para `import` e para `sync` — porque duas políticas
+fariam a mais frouxa virar o caminho de menor resistência.
+
+| kind | ponto de encontro | quando |
+|---|---|---|
+| `manual` | diretório com `log/` + `blobs/`, no layout exato do `export` | a fronteira não é cruzável por script (pendrive, anexo, VPN montada à mão). **Nunca cria o diretório**: se ele não existe, o `probe` reprova, para você não publicar num lugar que ninguém combinou |
+| `fs` | `<path>/<channel>/{log,blobs}`, criado sob demanda | default do piloto — dois repositórios na mesma máquina ou num volume compartilhado |
+| `git` | branch **órfã** dedicada num remote, clone de trabalho descartável em `.forge/cache/liaison/<channel>` | os participantes não compartilham filesystem. Branch órfã por construção: sem ancestral comum com o código, nunca vira candidata a merge nem dispara CI |
+| `gh` | — | **declarado, não implementável por script.** O harness proíbe invocar o CLI do GitHub em `.sh` (rede, auth interativa, estado irreprodutível em gate); o backend reprova por construção. A via por issue é sua, agente, com as ferramentas que você tem |
+
+**Topologia: hub único por canal, nunca par-a-par.** Cada participante publica o próprio log no
+ponto de encontro e puxa os N−1 restantes — a configuração cresce como N (cada repo aponta para um
+lugar), não como N². Par-a-par deixaria dois participantes divergentes por tempo indeterminado sem
+ninguém perceber.
+
+**O push publica apenas o próprio log.** Um participante nunca republica o log de terceiro: se o
+fizesse, publicaria a versão possivelmente atrasada que ele conhece, regredindo o hub e apagando
+mensagens que o dono do log já havia enviado.
+
+**Sem transporte configurado, `sync` REPROVA** citando o comando que falta. Pré-requisito ausente
+nunca desliga a sincronização em silêncio contra um default inventado — o canal ficaria mudo com
+cara de funcionando.
 
 ## Regras de import (o que protege o canal de um peer malicioso ou corrompido)
 
 - `sender` da mensagem é conferido contra o arquivo em que ela chegou (`log/<X>.jsonl` só pode
   conter `sender: X`) — divergência mata spoofing e vai para `<channel>/conflicts/`.
 - Mensagem que se declara com o `self.id` local vinda de fora é recusada.
-- Duplicata com `content_sha` igual é **no-op silencioso**; `content_sha` diferente para o mesmo
-  `msg_id` vira conflito em `conflicts/`, sem tocar o log.
+- Duplicata com `content_sha` igual é **no-op silencioso** — é o que torna `sync` idempotente.
+- Adulteração em trânsito (`content_sha` não confere com o conteúdo) vira conflito em `conflicts/`,
+  sem tocar o log.
+- **Reescrita de história REPROVA.** O log de um remetente é append-only: uma posição (`seq`) já
+  conhecida não pode chegar com outro `msg_id` ou outro `content_sha`. Quando chega, é
+  **divergência** — nenhuma mensagem daquele remetente é aplicada, o comando sai com erro nomeando
+  quem divergiu, e o registro vai para `conflicts/<sender>.divergence.json`. A divergência isola o
+  remetente: os demais continuam sendo aplicados, para que um peer corrompido não trave o canal
+  inteiro.
 - Mensagem cujo `thread_id` não tem `thread-open` correspondente **ainda conhecido localmente**
   fica em quarentena (recalculada a cada `render`/`inbox`, nunca persistida à parte) — liberada
   automaticamente assim que a abertura chega.

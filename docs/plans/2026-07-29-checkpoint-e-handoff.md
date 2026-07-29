@@ -24,7 +24,13 @@ Sobre o terceiro: `axis-device-platform` ainda não é repositório — hoje é 
 
 **Ledger, quatro itens abertos.** `LDG-0001` e `LDG-0002` (runtime e piloto da capability authz/observability, vindos do PR #27); `LDG-0003` (falta a chave de ativação de rule-packs — hoje `pack:` no frontmatter é sinalização documental sem gate — e o installer materializar só os packs ativos); `LDG-0004` (mover a execução do replay Red-first para CI).
 
-**Fora do plano.** Propagação do harness aos consumidores (`axis-go-cloud`, `axis-fare-validator`, `collatra`, `azim-crm`), parada desde o rc20/rc21, e agravada por uma limitação real do installer: o bloco `# >>> forge (managed) >>>` do `.gitignore` só é acrescentado quando o marcador está ausente, então repositório já instalado nunca recebe padrões novos por update. Faltam também as fixtures por stack e a avaliação A/B do plano de capability packs.
+**Propagação aos consumidores (Ondas 7 e 8 do plano).** Estado levantado em 2026-07-29, e não é uma operação só — são três situações distintas. `azim-crm` está em rc23 com três adapters e árvore limpa: `update` direto, e serve de ensaio. `payments` está em `0.1.0-dev` (anterior a qualquer release), em `main`, com 35 arquivos sujos: salto longo, exige branch própria e conferência dos tombstones em `installer/removed-files.txt`. `secret-weapon` e `oversetter` **não têm `.forge`**: é `init`, não `update`. E `axis-go-cloud` (23 sujos) e `axis-fare-validator` (62 sujos) precisam de árvore limpa antes de qualquer update, senão mudança de harness se mistura com trabalho em andamento.
+
+O `forge update` compara conteúdo arquivo a arquivo, não versão, então o Red-first e o liaison chegam mesmo onde o carimbo já diz rc23. Mas quatro repositórios carregam `rc23` apontando para conteúdos diferentes, porque o rc23 seguiu recebendo commits depois das instalações — **cortar tag antes de propagar** é o que torna o carimbo verificável.
+
+**Limitação do installer que afeta todos os já instalados.** O bloco `# >>> forge (managed) >>>` do `.gitignore` só é acrescentado quando o marcador está ausente (`installer/install.sh` ~linha 80; `bin/forge.mjs` ~495 e ~622). Nenhum padrão novo chega a projeto que já tem o bloco — ele fica congelado na primeira instalação. Precisa de reconciliação manual, ou de o updater aprender a mesclar dentro de bloco existente, que é a correção certa e merece item de ledger.
+
+Faltam também as fixtures por stack e a avaliação A/B do plano de capability packs.
 
 ## 4. Decisões tomadas — não reabrir sem motivo novo
 

@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**4 itens ativos** · roadmap 2 · follow-up 2
+**5 itens ativos** · roadmap 2 · tech-debt 1 · follow-up 2
 
 ## Roadmap
 
@@ -23,7 +23,7 @@ _(nenhum)_
 
 ## Dívida técnica
 
-_(nenhum)_
+- **LDG-0005** [open] (P2) — gitignore managed-block: updater não mescla padrões novos em bloco já existente
 
 ## Bugs conhecidos
 

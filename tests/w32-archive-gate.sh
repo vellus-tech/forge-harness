@@ -199,11 +199,14 @@ operations:
     reason: "Replaced by v2 tokenization"
     migration: "Use REQ-TOK-010"
 EOF
-FORGE_ROOT="$T" bash "$S/archive-spec.sh" chg-remove >/dev/null
-! grep -q 'REQ-TOK-001$' "$CAP" || true
-! grep -q 'id: REQ-TOK-001' "$CAP"
-grep -q 'Replaced by v2 tokenization' "$CAP"
-grep -q '^version: 1.0.0$' "$CAP"          # 0.1.1 -> remove(major) 1.0.0
+FORGE_ROOT="$T" bash "$S/archive-spec.sh" chg-remove >"$T/arch-remove.log" 2>&1 \
+  || { echo "FAIL [5]: archive-spec reprovou: $(cat "$T/arch-remove.log")"; exit 1; }
+# Asserções com FAIL explícito (antes eram nuas: sob `set -e` o gate morria SEM imprimir qual delas
+# quebrou, e o diagnóstico começava do zero — ver LDG-0012).
+! grep -q 'id: REQ-TOK-001' "$CAP" || { echo "FAIL [5]: REQ-TOK-001 sobreviveu à remoção"; exit 1; }
+grep -q 'Replaced by v2 tokenization' "$CAP" || { echo "FAIL [5]: history note ausente"; exit 1; }
+grep -q '^version: 1.0.0$' "$CAP" \
+  || { echo "FAIL [5]: bump major não aplicado — version: $(grep -m1 '^version:' "$CAP")"; exit 1; }
 node "$WS/tools/validate-yaml.mjs" "$WS/template/.forge/schemas/baseline-capability.schema.json" "$CAP" >/dev/null
 echo "OK [5]"
 

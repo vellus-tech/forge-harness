@@ -28,13 +28,15 @@ Receba: `change_id` + `current_wave_id`.
    ```
    Se `OPEN (...)`: não pode concluir — escale via HITL.
 
-3. **Gate da wave** (skill `gate-runner`): rode gates declarados para a wave. Capture `OK`/`FAIL` em uma linha.
+3. **Gate da wave**: não capture nem repasse veredito — o `close` executa os gates declarados em `runtime.gates` ele mesmo. A skill `gate-runner` continua valendo para os gates baratos POR TASK dentro de `/forge:implement`, que são outra coisa.
 
 ### Fechar a wave atual
 
 ```bash
-bash .forge/scripts/wave-ops.sh close <change-id> <wave-id> --gate OK
+bash .forge/scripts/wave-ops.sh close <change-id> <wave-id>
 ```
+
+Sem `--gate`. O exemplo anterior passava `--gate OK` literal — o que fechava a wave sem executar nada, porque o `close` aceitava o veredito de quem o chamava.
 
 ### Abrir a próxima wave elegível
 

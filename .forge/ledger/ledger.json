@@ -335,6 +335,54 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0014"
+    },
+    {
+      "id": "LDG-0015",
+      "type": "tech-debt",
+      "title": "gitignore de .NET/VS ignora o store do liaison via [Ll]og/ — canal versionado sem mensagens",
+      "detail": "Descoberto ao abrir o canal em quatro repositorios Axis: o .gitignore padrao de .NET/Visual Studio (template oficial da Microsoft) traz '[Ll]og/', que engole '.forge/liaison/<canal>/log/'. O efeito e silencioso e pior que um erro: CHANNEL.md e state.json ficam versionados e as MENSAGENS nao — canal com cara de versionado e store vazio em qualquer clone. Atingiu o axis-go-cloud, que e justamente o DONO dos contratos. Como '[Ll]og/' exclui o DIRETORIO, negar apenas os arquivos nao resolve (git nao reabre diretorio excluido): a negacao do diretorio tem de vir DEPOIS da regra. Correcao aplicada a mao naquele repo; o managed-block do installer (installer/gitignore.patch) deve passar a emitir '!.forge/liaison/**/log/' e '!.forge/liaison/**/log/*.jsonl', senao todo adotante .NET repete. Gate sugerido: apos 'liaison open', verificar com 'git check-ignore -q' que o log e versionavel e REPROVAR se nao for.",
+      "severity": null,
+      "priority": "P1",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": "liaison/gitignore-log"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-07-30T11:05:18-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0015"
+    },
+    {
+      "id": "LDG-0016",
+      "type": "tech-debt",
+      "title": "Suite: 11 gates criam repo git em /tmp e o gc em background derruba o rm -rf do fixture",
+      "detail": "Corrigido no run-all.sh via GIT_CONFIG_COUNT (gc.auto/maintenance.auto/gc.autoDetach = 0) com assercao no w80, mas a causa raiz merece nota: 'git commit' dispara 'git gc --auto' em background, que continua escrevendo em .git depois do commit retornar. O 'rm -rf' do fixture corre contra esse processo e, quando perde, mata o gate DEPOIS de todas as assercoes passarem. Nao reproduz no macOS (APFS+timing), reproduz no CI Linux (overlayfs). Assinatura identica a do SIGPIPE ja corrigido: gate verde isolado, vermelho na suite, gates DIFERENTES a cada execucao — o que significa que parte das 'falhas fantasma' historicas pode ter sido esta, e nao SIGPIPE. Se voltar a aparecer, checar tambem 'git maintenance' e processos filhos do gate.",
+      "severity": null,
+      "priority": "P2",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": "tests/git-gc-race"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-07-30T11:05:18-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0016"
     }
   ]
 }

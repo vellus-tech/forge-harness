@@ -11,7 +11,12 @@
 //      <CHANGE_*> placeholders, no bare NEEDS CLARIFICATION from
 //      requirements-ready on (backtick-quoted mentions are instructional),
 //      traceability.yaml coherence, spec-delta.yaml structural rules.
-// Output: single line "OK <id>" (exit 0) or "FAIL (<reasons>)" (exit 1). Usage:
+//   6. integridade do grafo de tasks (TSK-01..04) e cobertura de superfície
+//      (SRF-01) via lib/tasks-graph.mjs, na transição a tasks-ready — os dois
+//      checks que o harness especificava como instrução para LLM.
+// Output: uma linha de veredito "OK <id>" (exit 0) ou "FAIL (<reasons>)"
+// (exit 1), precedida por zero ou mais linhas "WARN (<achado>)" para achados
+// rebaixáveis, que não alteram o exit code. Usage:
 //   node validate-spec.mjs <path-to-change-dir>
 import { readFileSync, existsSync } from 'node:fs';
 import { join, basename, resolve } from 'node:path';
@@ -20,11 +25,27 @@ import { parseYamlSubset } from './yaml-lite.mjs';
 import { hasScaffoldMarkers } from './scaffold-markers.mjs';
 import { evaluateRedFirst } from './check-red-first.mjs';
 import { applyMode } from './gate-mode.mjs';
+import { parseTasks, checkTasksGraph, parseSurfaceChecklist, checkSurfaceCoverage, checkSurfaceChecklistPresence } from './tasks-graph.mjs';
 
 const dir = process.argv[2];
 if (!dir) { console.log('FAIL (usage: validate-spec.mjs <change-dir>)'); process.exit(1); }
 const root = resolve(dir);
 const errors = [];
+// Achados rebaixáveis: saem como linhas `WARN (...)` antes do veredito e NÃO mudam o exit code.
+// O contrato de saída continua tendo exatamente uma linha de veredito (`OK <id>` / `FAIL (...)`).
+const warnings = [];
+
+// Paths que o grafo de código classifica `layer:api` — insumo do SRF-01, quando o grafo existe.
+// Sem grafo o check opera só com a heurística de nome de path, e nunca por isso deixa de rodar:
+// pré-requisito ausente degrada a precisão, não desliga a verificação.
+function apiLayerPaths() {
+  try {
+    const gp = join(process.env.FORGE_ROOT || root, '.forge/graph/graph.json');
+    if (!existsSync(gp)) return [];
+    const g = JSON.parse(readFileSync(gp, 'utf8'));
+    return (Array.isArray(g.nodes) ? g.nodes : []).filter((n) => n && n.layer === 'api').map((n) => n.id);
+  } catch { return []; }
+}
 
 // ── load manifest ────────────────────────────────────────────────────────────
 const manifestPath = join(root, 'manifest.yaml');
@@ -240,6 +261,32 @@ if (reached('requirements-ready') && man.type !== 'bugfix' && man.type !== 'refa
 if (reached('tasks-ready')) {
   const text = readIf('tasks.md');
   if (text && !/^\s*- \[( |-|X|!)\] TASK-[0-9]+/m.test(text)) errors.push('tasks.md: no TASK-NN entries');
+  // TSK-01..04 + SRF-01 (lib/tasks-graph.mjs): substituem a auto-checagem por LLM de
+  // `commands/specs/tasks.md` §2 e o item 6 de `commands/specs/analyze.md`. Um invariante
+  // estrutural verificado por um modelo é um invariante que às vezes não é verificado — foi assim
+  // que uma dependência de Wave 4 para Wave 7 atravessou um plano de 89 tasks.
+  if (text) {
+    const parsed = parseTasks(text);
+    for (const f of checkTasksGraph(parsed)) {
+      if (f.enforceable) errors.push(`${f.code} ${f.msg}`);
+      else warnings.push(`${f.code} ${f.msg}`);      // TSK-04 furo, TSK-05 não-verificável
+    }
+    // SRF-01 cruza o "Checklist de cobertura de superfície" do requirements.md contra o grafo de
+    // tasks. Rebaixável por calibração: sem oráculo de código (SUR-01), o achado não distingue
+    // "a rota não existe" de "a task que a entregou declarou `paths:` incompleto".
+    const reqText = readIf(reqArtifact);
+    if (reqText) {
+      const rows = parseSurfaceChecklist(reqText);
+      // SRF-02 primeiro: sem Checklist preenchido o SRF-01 não roda, e "não rodou" precisa aparecer.
+      // Silenciar aqui reproduziria, no script, a falha que ele veio corrigir no comando.
+      for (const f of checkSurfaceChecklistPresence(reqText)) warnings.push(`${f.code} ${f.msg}`);
+      // Sem applyMode: todos os findings de SRF-01 nascem rebaixáveis e o mode aqui seria sempre
+      // 'warn', então o ramo blocking era código morto. A promoção a bloqueante é `opts.enforceable`
+      // da própria lib, e passa a ser exercida quando houver oráculo de código para confirmá-la.
+      for (const f of checkSurfaceCoverage(rows, parsed, { apiPaths: apiLayerPaths() }))
+        warnings.push(`${f.code} ${f.msg}`);
+    }
+  }
 }
 
 // ── traceability.yaml coherence (§19.2) ─────────────────────────────────────
@@ -289,5 +336,6 @@ if (has('spec-delta.yaml')) {
 }
 
 // ── verdict ──────────────────────────────────────────────────────────────────
+for (const w of warnings) console.log(`WARN (${w})`);
 if (errors.length) { console.log(`FAIL (${errors.join('; ')})`); process.exit(1); }
 console.log(`OK ${man.id}`);

@@ -6,6 +6,17 @@ e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+### Added
+- **Grafo de tasks e cobertura de superfície como código (`lib/tasks-graph.mjs`, gate `w130`).** O harness já especificava os dois checks, e ambos eram instrução para um modelo: `commands/specs/tasks.md` §2 mandava auto-verificar a ordem topológica, e `commands/specs/analyze.md` item 6 mandava cruzar o "Checklist de cobertura de superfície" contra as tasks — dizendo textualmente que era isso "que impede a lacuna clássica de parâmetro implementado sem superfície de acesso descoberta só depois do marco". Não existe script `analyze`, e a conferência a olho deixou passar, num plano real de 89 tasks, uma dependência de Wave 4 para Wave 7 e uma rota que o contrato promete sem nenhuma task que a implemente.
+  - **TSK-01** dependência para TASK inexistente, **TSK-02** ciclo, **TSK-03** dependência para wave posterior, **TSK-04** ID duplicado — bloqueiam a transição a `tasks-ready` no `validate-spec`. Furo na numeração apenas **avisa**: é ambíguo, e remover task sem renumerar é a operação segura (renumerar invalida referências já gravadas em commits, PRs e stories).
+  - **TSK-05** e **SRF-02** anunciam que o check **não rodou** — nenhum cabeçalho de wave reconhecível, ou Checklist ausente/só esqueleto. Um verificador que silencia quando não entende o insumo reproduz, em código, exatamente a falha que veio corrigir na instrução.
+  - **SRF-01** cruza o Checklist contra o grafo de tasks, com veredito **por REQ**: reprova quando a linha declara endpoint/rota e nenhuma das tasks que a cobrem produz superfície. Sai como `WARN` por calibração medida — no change que o motivou, 4 das 27 linhas disparam sem grafo de código e 2 com grafo, sendo uma por defeito real (a rota não existe) e outra por `paths:` incompleto numa task que entregou a rota. Sem oráculo de código, o achado não distingue os dois casos; `enforceable: true` é opt-in.
+  - Parser tolerante ao que os planos reais têm: campos reconhecidos pelo **nome**, em qualquer ordem, com ou sem parênteses em volta; bullet `-` ou `*`; cabeçalho de wave em qualquer nível, com ou sem negrito; os quatro estados do tracker; `rastreia:` com `design DD-NN`/`ADR NNNN`/`LDG-NNNN` misturados aos REQ; e `paths:` com brace-expansion de shell, diretório e lista — expande o expansível e deixa o resto literal, sem fingir resolução de glob. A primeira versão casava o bloco de metadados por **forma**, e seis maneiras de escrever a mesma linha faziam as arestas desaparecerem — um grafo sem arestas é um grafo sem defeitos, e os três primeiros checks desligavam em silêncio.
+  - Duas propriedades sob PBT: `TSK-03` acusa **se e somente se** existe aresta para wave posterior (com asserção sobre o próprio gerador, para que a propriedade não passe por degeneração), e o parser é idempotente e insensível a espaçamento.
+
+### Changed
+- `validate-spec` passa a emitir linhas `WARN (...)` antes do veredito, para achados rebaixáveis. A linha de veredito (`OK <id>` / `FAIL (...)`) e o exit code não mudam.
+
 ## [0.2.0] — 2026-07-29
 
 > **Primeiro release fora do trem de RCs.** As 24 tags `v0.1.0-rc*` eram SemVer formalmente válido

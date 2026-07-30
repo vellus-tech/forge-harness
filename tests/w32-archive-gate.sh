@@ -131,11 +131,19 @@ operations:
       title: Another requirement
       normative: SHOULD
 EOF
-printf -- '- [ ] TASK-09 — tarefa esquecida (rastreia: REQ-X; paths: x; depende: —)\n' >> "$T/.forge/specs/active/chg-open/tasks.md"
+# TASK-04 e não TASK-09: o scaffold tem TASK-01..03, e um salto para 09 abre furo de numeração —
+# que o TSK-04 do validate-spec (lib/tasks-graph.mjs) reprova, com razão, ANTES de o archive chegar
+# à task aberta. O que este passo testa é a task ABERTA; o número tem de ser contíguo para que o
+# defeito sob teste seja o único presente.
+printf -- '- [ ] TASK-04 — tarefa esquecida (rastreia: REQ-X; paths: x; depende: —)\n' >> "$T/.forge/specs/active/chg-open/tasks.md"
 set +e
 out="$(FORGE_ROOT="$T" bash "$S/archive-spec.sh" chg-open 2>&1)"; rc=$?
 set -e
-[ "$rc" -ne 0 ] && grep -q 'open task' <<<"$out"
+# NUNCA `[ cond ] && cmd` sob set -e: quando a condição falha, o gate morre sem imprimir nada, e o
+# diagnóstico começa do zero. Foi exatamente o que aconteceu aqui — a mensagem que faltava era a de
+# um check novo reprovando, e o gate a engoliu.
+[ "$rc" -ne 0 ] || { echo "FAIL [2]: archive aceitou change com task aberta (rc=0): $out"; exit 1; }
+grep -q 'open task' <<<"$out" || { echo "FAIL [2]: archive reprovou por outro motivo que não a task aberta: $out"; exit 1; }
 perl -pi -e 's/^(\s*)- \[ \] /$1- [X] /' "$T/.forge/specs/active/chg-open/tasks.md"
 echo "OK [2]"
 

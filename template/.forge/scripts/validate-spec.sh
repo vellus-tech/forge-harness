@@ -4,7 +4,9 @@
 #   validate-spec.sh <change-id>      validates .forge/specs/active/<change-id>/
 #   validate-spec.sh --path <dir>     validates an explicit change directory
 #   validate-spec.sh --all            validates every change under specs/active/
-# Output: one "OK <id>" / "FAIL (...)" line per change; exit 1 if any failed.
+# Output: one "OK <id>" / "FAIL (...)" verdict line per change, precedida por zero ou mais linhas
+# "WARN (...)" — achados rebaixáveis (hoje: SRF-01, cobertura de superfície) que NÃO mudam o exit
+# code. Exit 1 se algum change reprovou.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

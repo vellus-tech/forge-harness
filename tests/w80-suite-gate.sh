@@ -78,4 +78,27 @@ for entry in "${MAP[@]}"; do
 done
 echo "OK [6]"
 
+echo "[7] a suíte desliga a manutenção automática do git em todo fixture"
+# `git commit` dispara `git gc --auto` em BACKGROUND. Onze gates criam repositório git em /tmp; se
+# o fixture é removido logo após o último commit, o gc ainda escreve em `.git` e o `rm -rf` falha
+# com "Directory not empty" — sob `set -e`, o gate morre DEPOIS de passar em todas as asserções.
+# Não reproduz no macOS, reproduz no CI Linux: foi assim que o w106 reprovou no CI com o log
+# inteiro verde. A asserção mora aqui, e não em cada gate, porque o modo de falha é justamente o
+# esquecimento — um gate novo herda a proteção sem o autor precisar saber que ela existe.
+for k in gc.auto maintenance.auto; do
+  grep -qE "GIT_CONFIG_KEY_[0-9]+=$k\b" "$WS/tests/run-all.sh" \
+    || { echo "FAIL [7]: run-all.sh não desliga $k — fixture git pode ser removido sob gc em background"; exit 1; }
+done
+grep -qE '^export GIT_CONFIG_COUNT=[0-9]+' "$WS/tests/run-all.sh" \
+  || { echo "FAIL [7]: GIT_CONFIG_COUNT ausente — as chaves GIT_CONFIG_KEY_* são ignoradas pelo git sem ele"; exit 1; }
+# o contador tem de cobrir todas as chaves declaradas, senão o git ignora as excedentes EM SILÊNCIO
+declared="$(grep -cE 'GIT_CONFIG_KEY_[0-9]+=' "$WS/tests/run-all.sh")"
+count="$(grep -oE '^export GIT_CONFIG_COUNT=[0-9]+' "$WS/tests/run-all.sh" | grep -oE '[0-9]+')"
+[ "$count" = "$declared" ] \
+  || { echo "FAIL [7]: GIT_CONFIG_COUNT=$count mas há $declared chave(s) declarada(s) — o git ignora as excedentes sem avisar"; exit 1; }
+# e a config precisa CHEGAR ao git de verdade, não só estar escrita no arquivo
+probe="$(cd "$WS" && GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=gc.auto GIT_CONFIG_VALUE_0=0 git config --get gc.auto)"
+[ "$probe" = "0" ] || { echo "FAIL [7]: git não respeita GIT_CONFIG_COUNT neste ambiente (leu '$probe')"; exit 1; }
+echo "OK [7]"
+
 echo "OK"

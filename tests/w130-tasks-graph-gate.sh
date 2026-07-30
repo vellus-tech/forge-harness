@@ -671,7 +671,11 @@ cat > "$G/.forge/graph/graph.json" <<'GRAPH'
 {"nodes":[{"id":"backend/Acme.Configs/src/Acme.Configs.Api/Endpoints/P.cs","layer":"api"},
           {"id":"backend/Acme.Core/Store.cs","layer":"domain"}],"edges":[]}
 GRAPH
-sed 's/^id: change$/id: graphed/' "$CH/manifest.yaml" > "$CG/manifest.yaml"
+# Este change TOCA superfície de API (a task declara um projeto que o grafo classifica layer:api),
+# então tem de DECLARAR — é o que o SRF-00 (gate w131) exige. Declarar `api` liga o REQ-13, que
+# passa a cobrar os dois mapas; o fixture os fornece. O encadeamento é o desenho: sem a declaração,
+# nem os mapas nem o SRF-01 seriam exigidos.
+{ sed 's/^id: change$/id: graphed/' "$CH/manifest.yaml"; printf 'affects_surfaces:\n  - api\n'; } > "$CG/manifest.yaml"
 cp "$CH/proposal.md" "$CH/design.md" "$CG/"
 cat > "$CG/requirements.md" <<'REQ'
 # Requirements
@@ -685,6 +689,18 @@ Critérios de aceite: dado x, quando y, então z.
 | REQ | Parâmetro/config exposto | Superfície (tela/endpoint/CLI) | Coberto por task |
 |---|---|---|---|
 | REQ-01 | janela | endpoint no orquestrador | TASK-01 |
+
+## Mapa endpoint → ação → recurso → policy
+
+| Endpoint | Ação | Recurso | Policy |
+|---|---|---|---|
+| `POST /api/v1/configs/partitions` | criar | partição | `partitions:create` |
+
+## Mapa de eventos auditáveis
+
+| Evento | Quando | Campos |
+|---|---|---|
+| `particao.criada` | após criar | terminal |
 REQ
 # a task declara o DIRETÓRIO do projeto; é o grafo que sabe que dentro dele nasce rota
 cat > "$CG/tasks.md" <<'TASKS'

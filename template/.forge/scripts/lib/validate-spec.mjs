@@ -25,7 +25,7 @@ import { parseYamlSubset } from './yaml-lite.mjs';
 import { hasScaffoldMarkers } from './scaffold-markers.mjs';
 import { evaluateRedFirst } from './check-red-first.mjs';
 import { applyMode } from './gate-mode.mjs';
-import { parseTasks, checkTasksGraph, parseSurfaceChecklist, checkSurfaceCoverage, checkSurfaceChecklistPresence } from './tasks-graph.mjs';
+import { parseTasks, checkTasksGraph, parseSurfaceChecklist, checkSurfaceCoverage, checkSurfaceChecklistPresence, checkSurfaceDeclaration } from './tasks-graph.mjs';
 
 const dir = process.argv[2];
 if (!dir) { console.log('FAIL (usage: validate-spec.mjs <change-dir>)'); process.exit(1); }
@@ -274,6 +274,15 @@ if (reached('tasks-ready')) {
     // SRF-01 cruza o "Checklist de cobertura de superfície" do requirements.md contra o grafo de
     // tasks. Rebaixável por calibração: sem oráculo de código (SUR-01), o achado não distingue
     // "a rota não existe" de "a task que a entregou declarou `paths:` incompleto".
+    // SRF-00 antes de tudo: é a porta que, fechada, torna obrigatório o que vem depois. Roda com o
+    // grafo quando ele existe (para reconhecer projeto cujo nome não denuncia a camada) e sem ele
+    // quando não existe — degrada a precisão, nunca desliga.
+    // respeita `enforceable` como todo o resto: empurrar SRF-00 direto para `errors` fazia o campo
+    // ser decorativo, e um campo decorativo é um campo que ninguém percebe quando muda de valor.
+    for (const f of checkSurfaceDeclaration(man, parsed, { apiPaths: apiLayerPaths() })) {
+      if (f.enforceable) errors.push(`${f.code} ${f.msg}`);
+      else warnings.push(`${f.code} ${f.msg}`);
+    }
     const reqText = readIf(reqArtifact);
     if (reqText) {
       const rows = parseSurfaceChecklist(reqText);

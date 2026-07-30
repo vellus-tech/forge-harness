@@ -365,6 +365,47 @@ export function producesSurface(task, opts = {}) {
   return false;
 }
 
+// SRF-00 — a porta de saída por omissão.
+//
+// Todo o resto desta família (REQ-13: mapa endpoint→ação→recurso→policy, mapa de eventos auditáveis,
+// e o SRF-01 abaixo) é condicionado a `affects_surfaces` incluir `api`. Um check que só roda quando o
+// change se declara sujeito a ele é um check OPCIONAL — e a omissão não acontece ao acaso: acontece
+// justamente no change grande, que é onde ela custa mais. No repositório que motivou este módulo, o
+// maior change de API não declara `affects_surfaces`, e por isso nunca foi obrigado a preencher o
+// mapa endpoint→policy.
+//
+// BLOQUEIA, e aqui não há a ambiguidade que rebaixa o SRF-01: a afirmação é sobre o que o change
+// TOCA, verificável nos paths declarados pelas próprias tasks e no manifest — não depende de saber
+// se uma rota existe no código. E a correção é acrescentar uma linha ao manifest.
+export function checkSurfaceDeclaration(manifest, parsed, opts = {}) {
+  const man = manifest || {};
+  const declared = Array.isArray(man.affects_surfaces) ? man.affects_surfaces.map(String) : [];
+  if (declared.includes('api')) return [];
+
+  const apiPaths = opts.apiPaths || [];
+  const paths = new Set();
+  for (const t of (parsed && parsed.tasks) || []) for (const p of t.paths) paths.add(p);
+  for (const p of Array.isArray(man.affected_paths) ? man.affected_paths : []) paths.add(String(p));
+
+  const apiFiles = [...paths].filter((p) => !TEST_PATH_RE.test(p) && !CONTRACT_PATH_RE.test(p)
+    && (API_PATH_RE.test(p) || apiPaths.some((t) => pathTouches(p, t))));
+  const contracts = [...paths].filter((p) => /(^|\/)contracts?\/(openapi|asyncapi)(\/|$)/i.test(p));
+  const verbTasks = ((parsed && parsed.tasks) || []).filter((t) => VERB_PATH_RE.test(t.title || ''));
+  if (!apiFiles.length && !contracts.length && !verbTasks.length) return [];
+
+  // A contagem e os exemplos existem para que a mensagem ENSINE onde olhar: "declare api" sozinho
+  // devolve ao autor o trabalho de descobrir por que o gate acha que ele toca API.
+  const ev = [];
+  if (apiFiles.length) ev.push(`${apiFiles.length} path(s) de API (ex.: ${apiFiles.slice(0, 3).join(', ')})`);
+  if (contracts.length) ev.push(`${contracts.length} contrato(s) de API (ex.: ${contracts.slice(0, 3).join(', ')})`);
+  if (verbTasks.length) ev.push(`${verbTasks.length} task(s) com verbo HTTP + path no título (ex.: ${verbTasks.slice(0, 2).map((t) => t.id).join(', ')})`);
+  return [{
+    code: 'SRF-00',
+    enforceable: true,
+    msg: `manifest.yaml: affects_surfaces não inclui "api", mas o change toca superfície de API — ${ev.join('; ')}. Declare "affects_surfaces: [api]" (REQ-13), que é o que exige os mapas endpoint→ação→recurso→policy e de eventos auditáveis; sem a declaração, esses requisitos são opt-out por omissão`,
+  }];
+}
+
 // SRF-01 — substitui o item 6 de `commands/specs/analyze.md`. Veredito POR REQ: reprova quando a
 // linha declara superfície de endpoint e NENHUMA das tasks que a cobrem produz superfície.
 //

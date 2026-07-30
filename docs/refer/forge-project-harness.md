@@ -1419,6 +1419,13 @@ O Forge precisa de validadores deterministas, não apenas agentes revisores. Ele
 - manifest válido; artefatos exigidos pelo tipo e pelo nível scale.
 - headings obrigatórios; requirements com cenários/testabilidade; sem placeholders; status coerente; traceability coerente.
 - `spec-delta.yaml` válido quando a spec pretende atualizar baseline.
+- **grafo de tasks e cobertura de superfície** (`lib/tasks-graph.mjs`), da transição a `tasks-ready` em diante — os dois checks que o harness antes especificava como instrução para um modelo, e que nessa forma deixaram passar, num plano de 89 tasks, uma dependência de Wave 4 para Wave 7 e uma rota prometida pelo contrato sem task que a implemente:
+  - `TSK-01` dependência para TASK inexistente · `TSK-02` ciclo · `TSK-03` dependência para TASK de wave **posterior** · `TSK-04` ID **duplicado**. **Bloqueiam** — são fatos estruturais sobre o próprio artefato, decidíveis sem olhar código nem ambiente.
+  - `TSK-04` furo na numeração **avisa** em vez de bloquear: é ambíguo (task perdida num merge, ou task removida sem renumerar — que é a operação segura, porque renumerar invalida referências já gravadas). Bloquear empurraria o autor para a operação perigosa.
+  - `TSK-05` e `SRF-02` anunciam que o check **não rodou** — nenhum cabeçalho de wave reconhecível, ou Checklist ausente/só esqueleto. A diferença entre "não há lacuna" e "ninguém olhou" é a que esta seção existe para eliminar; um verificador que silencia quando não entende o insumo reproduz, em código, a falha que ele veio corrigir na instrução.
+  - `SRF-01` cruza o "Checklist de cobertura de superfície" do `requirements.md` contra o grafo de tasks, com veredito **por REQ**: reprova a linha que declara endpoint/rota quando nenhuma das tasks que a cobrem produz superfície. Sai como `WARN` (rebaixável) até que o cruzamento com as rotas reais do código exista — sem esse oráculo, o achado não distingue "a rota não existe" de "a task que a entregou declarou `paths:` incompleto". Consome os nodes `layer:api` do grafo de código quando ele existe; sem grafo, opera com a heurística de nome de path, com precisão menor e nunca desligado.
+  - O oráculo de "produz superfície" é deliberadamente **estreito**: contrato (`contracts/**`) promete a rota e teste a exercita — nenhum dos dois a produz; e o vocabulário de camada de apresentação do grafo (`web/`, `ui/`, `views/`) responde "que camada é esta?", não "isto registra rota HTTP?". Emprestá-lo fazia uma task de front-end contar como produtora de endpoint, mascarando exatamente o defeito que o check procura.
+- Saída: uma linha de veredito (`OK <id>` / `FAIL (...)`), precedida por zero ou mais linhas `WARN (...)` que não alteram o exit code.
 
 ### 19.3 `forge validate archive <change-id>`
 

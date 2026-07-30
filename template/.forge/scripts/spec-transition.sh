@@ -80,6 +80,10 @@ perl -pi -e "s/^status: .*/status: $TARGET/; s/^updated_at: .*/updated_at: \"$TO
 
 if out="$(bash "$SCRIPT_DIR/validate-spec.sh" --path "$DIR" 2>&1)"; then
   rm -f "$MAN.bak"
+  # Achado rebaixável calculado na transição e jogado fora é achado que não existe. O ramo de
+  # sucesso capturava a saída e só a imprimia ao falhar, então todo WARN (SRF-01/SRF-02, TSK-04
+  # furo, TSK-05) morria aqui — o change avançava e ninguém via.
+  grep '^WARN ' <<< "$out" || true
   echo "OK $ID: $CURRENT -> $TARGET"
 else
   mv "$MAN.bak" "$MAN"

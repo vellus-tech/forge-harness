@@ -64,6 +64,14 @@ export const BEHAVIORAL_SIGNATURES = [
   { framework: 'rspec', label: 'RSpec Failure/Error', re: /^\s*Failure\/Error:/m },
   // PHPUnit
   { framework: 'phpunit', label: 'PHPUnit Failed asserting', re: /Failed asserting that/ },
+  // Gate shell (convenção deste harness e de qualquer suíte feita de scripts): a falha é uma
+  // linha `FAIL [n] (motivo)` emitida pelo próprio teste ao ver o comportamento errado — é
+  // asserção, não erro de build. Sem esta assinatura, um repositório cujos testes são gates
+  // shell nunca consegue Red observado: o replay roda o gate, vê a falha real e a descarta como
+  // 'unknown' pelo item 3. Ancorada ao início da linha e exigindo o colchete do índice do caso —
+  // "…sem FAIL [1] no meio da frase" não casa, e `FAIL (…)` sem índice (formato dos validadores,
+  // que reportam erro de estrutura, não de comportamento) também não.
+  { framework: 'shell-gate', label: 'gate FAIL [n]', re: /^FAIL \[[^\]\n]+\]/m },
 ];
 
 // classify(text): 'behavioral' se qualquer assinatura de framework de asserção casar (vence

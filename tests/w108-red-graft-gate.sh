@@ -138,4 +138,23 @@ import('$WS/template/.forge/scripts/lib/red-classify.mjs').then((m) => {
 " || { echo "FAIL [4] (classificador não reconhece falha de gate bash)"; exit 1; }
 echo "OK [4]"
 
+echo "[5] evidência com base_strategy test-graft passa no validador do artefato"
+# O motor grava, mas quem decide se o change avança é o validador — e ele tem a lista de
+# estratégias válidas em código, separada do schema. Um valor novo aceito pelo motor e recusado
+# pelo validador deixa o change travado com uma evidência que ele mesmo produziu.
+node -e "
+import('$WS/template/.forge/scripts/lib/red-evidence.mjs').then((m) => {
+  const base = { schema: 'red-evidence/v1', change_id: 'x', status: 'observed', base_strategy: 'test-graft' };
+  if (typeof m.validateRedEvidence !== 'function') { console.log('FAIL [5] (validateRedEvidence não exportado — ajuste o gate)'); process.exit(1); }
+  const res = m.validateRedEvidence(base);
+  // a função devolve um ARRAY de erros; ler res.errors daria [] em qualquer cenário — verde falso
+  const all = Array.isArray(res) ? res : (res && res.errors) || [];
+  if (!Array.isArray(res)) { console.log('FAIL [5] (contrato mudou: validateRedEvidence não devolve mais um array)'); process.exit(1); }
+  const errs = all.filter((e) => String(e).includes('base_strategy'));
+  if (errs.length) { console.log('FAIL [5] (validador recusa base_strategy test-graft: ' + errs.join('; ') + ')'); process.exit(1); }
+  process.exit(0);
+});
+" || { echo "FAIL [5] (validador do artefato não aceita test-graft)"; exit 1; }
+echo "OK [5]"
+
 echo "PASS w108-red-graft-gate"

@@ -11,6 +11,11 @@ export const REL_PATH = 'evidence/red/red-evidence.json';
 export const STATUSES = ['pending', 'observed', 'waived', 'not-possible'];
 export const CLASSIFICATIONS = ['behavioral', 'build-error', 'unknown'];
 export const WAIVER_REASONS = ['non-behavioral', 'no-test-infra', 'external-unreproducible', 'hotfix-under-incident'];
+// Estratégias de derivação da árvore base (lib/red-replay.mjs). Exportada em vez de repetida em
+// literal: a lista vivia em dois lugares (aqui e no schema JSON) e o valor novo 'test-graft'
+// chegou ao motor sem chegar ao validador — o change ficava travado com a evidência que ele
+// mesmo acabara de produzir.
+export const BASE_STRATEGIES = ['ancestry', 'revert-synthesis', 'test-graft'];
 
 // validateRedEvidence(data): espelho do schema — additionalProperties:false não é
 // reforçado aqui (não é o ponto de risco; a lista fixa de campos abaixo já é o contrato),
@@ -35,8 +40,12 @@ export function validateRedEvidence(data) {
     errors.push(`classification invalid: ${data.classification} (allowed: ${CLASSIFICATIONS.join('|')}|null)`);
   if (data.base_result !== undefined && data.base_result !== null && !['failed', 'passed', 'unknown'].includes(data.base_result))
     errors.push(`base_result invalid: ${data.base_result} (allowed: failed|passed|unknown|null)`);
-  if (data.base_strategy !== undefined && data.base_strategy !== null && !['ancestry', 'revert-synthesis'].includes(data.base_strategy))
-    errors.push(`base_strategy invalid: ${data.base_strategy} (allowed: ancestry|revert-synthesis|null)`);
+  if (data.base_strategy !== undefined && data.base_strategy !== null && !BASE_STRATEGIES.includes(data.base_strategy))
+    errors.push(`base_strategy invalid: ${data.base_strategy} (allowed: ${BASE_STRATEGIES.join('|')}|null)`);
+  if (data.graft_from !== undefined && data.graft_from !== null) {
+    if (typeof data.graft_from !== 'string' || !/^[a-f0-9]{7,40}$/.test(data.graft_from))
+      errors.push('graft_from must match ^[a-f0-9]{7,40}$');
+  }
   for (const k of ['revert_patch', 'setup_command'])
     if (data[k] !== undefined && data[k] !== null && typeof data[k] !== 'string') errors.push(`${k} must be string|null`);
   if (data.replay_head !== undefined && data.replay_head !== null) {

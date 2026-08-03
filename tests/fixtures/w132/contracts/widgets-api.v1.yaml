@@ -1,0 +1,17 @@
+openapi: 3.0.3
+info:
+  title: Widgets API (fixture derivado)
+  version: 1.0.0
+paths:
+  /internal/v1/widgets/status:
+    get:
+      summary: Status do widget
+  /internal/v1/widgets/dispatch:
+    post:
+      summary: Despacha um widget
+  /internal/v1/widgets/items/{tenant}/{sequence}/export:
+    get:
+      summary: Exporta um item
+  /internal/v1/widgets/events/stream:
+    get:
+      summary: Fluxo de eventos

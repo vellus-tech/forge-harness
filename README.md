@@ -52,6 +52,11 @@ runtime e sem gastar tokens onde não precisa.
   nunca instrução**: banner `UNTRUSTED`, fence e neutralização de `/comando:` no render.
 - **Baseline & archive:** capabilities versionadas, `spec-delta` com *apply* determinista, ingestão de
   `docs/product/` legado **sem perda**.
+- **Red-first com evidência observada, não declarada:** em correção de defeito, o teste que reproduz
+  o bug é executado na árvore **pré-correção** derivada do próprio histórico — por ancestralidade,
+  por revert sintetizado, ou (quando o teste nasceu junto da correção, o caso do squash de PR) por
+  enxerto do teste sobre o commit anterior. Falha de build na base não conta como Red, e o que o
+  motor não consegue observar vira `not-possible` em vez de virar um veredito confiante.
 - **PoC notação MDL 2.0** ([mdlmodel.com](https://mdlmodel.com)) gerada a partir do code graph.
 
 ## 🚀 Quickstart

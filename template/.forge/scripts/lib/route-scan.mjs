@@ -35,7 +35,7 @@
 //   2. Rota cujo prefixo o scanner não conseguiu compor NÃO é emitida com o path parcial. Um
 //      path parcial não existe em runtime nenhum, e o SUR-01 — que bloqueia — daria veredito
 //      confiante sobre ele. Ausente o SUR-02 acusa; inventado ninguém acusa.
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { relative } from 'node:path';
 import { collect, DEFAULT_SKIP } from './source-scan.mjs';
 
@@ -134,9 +134,9 @@ function literal(raw) {
  * rotas dela saíam SEM prefixo e sem diagnóstico — path inventado pela via mais silenciosa que
  * existe. Mascarar o conteúdo das strings preservando as posições resolve os dois de uma vez.
  */
-function project(raw) {
-  const code = [...raw];
-  const struct = [...raw];
+export function project(raw) {
+  const code = raw.split('');
+  const struct = raw.split('');
   const n = raw.length;
   const branco = (arr, i) => { if (raw[i] !== '\n') arr[i] = ' '; };
 
@@ -161,10 +161,23 @@ function project(raw) {
       continue;
     }
     if (c === '"' || c === "'" || c === '`') {
+      // Verbatim do C# (`@"..."`, `$@"..."`, `@$"..."`): a barra invertida NÃO escapa nada; o
+      // escape é a aspa duplicada. Tratá-la como escape fazia um path do Windows terminado em
+      // barra (`@"\\srv\share\"`, idioma dominante) consumir a aspa de fechamento e seguir
+      // "dentro da string", branqueando o código real até a próxima aspa — as chaves do corpo da
+      // classe sumiam e o prefixo evaporava, sem diagnóstico.
+      const verbatim = c === '"' && (raw[i - 1] === '@' || (raw[i - 1] === '$' && raw[i - 2] === '@'));
       i += 1;
       while (i < n) {
-        if (raw[i] === '\\') { branco(struct, i); branco(struct, i + 1); i += 2; continue; }
-        if (raw[i] === c) break;
+        if (verbatim) {
+          if (raw[i] === '"' && raw[i + 1] === '"') { branco(struct, i); branco(struct, i + 1); i += 2; continue; }
+          if (raw[i] === '"') break;
+        } else {
+          // O guard `i + 1 < n` mantém a invariante de comprimento: escrever em `struct[n]`
+          // estenderia o array numa string não terminada em `\`.
+          if (raw[i] === '\\' && i + 1 < n) { branco(struct, i); branco(struct, i + 1); i += 2; continue; }
+          if (raw[i] === c) break;
+        }
         branco(struct, i);
         i += 1;
       }
@@ -263,6 +276,20 @@ function containerOf(classes, index) {
   return best;
 }
 
+/**
+ * Argumento de path de uma anotação Spring, que raramente vem sozinho.
+ * `("/x")`, `(value = "/x", produces = "…")`, `(path = "/x")`, `({"/x", "/y"})`.
+ */
+function springPath(raw) {
+  const s = String(raw == null ? '' : raw);
+  const nomeado = s.match(/\b(?:value|path)\s*=\s*\{?\s*(["'][^"']*["'])/);
+  if (nomeado) return literal(nomeado[1]);
+  const array = s.match(/^\s*\{\s*(["'][^"']*["'])/);
+  if (array) return literal(array[1]);
+  if (/=/.test(s)) return null;
+  return literal(s);
+}
+
 // ── Passa 1: indexação por dialeto ─────────────────────────────────────────────────────────
 
 /**
@@ -302,12 +329,15 @@ function pushGroupChain(idx, { scope, symbol, parentId, chainSrc, file, line, tr
  * emitia rota cruzada entre módulos e perdia a rota real, sem nenhum diagnóstico.
  */
 function indexDotnetMinimal(text, struct, file, idx) {
+  // Match que começa dentro de um literal não é código: `@"app.MapGet(""/x"", H);"` é template de
+  // source generator, não registro de rota.
+  const emLiteral = (i) => struct[i] !== text[i];
   const rotasAntes = idx.routes.length + idx.absolute.length;
   const sitiosGrupo = [];
-  { const re = /\.\s*MapGroup\s*\(/g; for (let m; (m = re.exec(text)); ) sitiosGrupo.push(m.index); }
+  { const re = /\.\s*MapGroup\s*\(/g; for (let m; (m = re.exec(struct)); ) sitiosGrupo.push(m.index); }
   const ancorados = new Set();
   const ancorar = (de, ate) => { for (const i of sitiosGrupo) if (i >= de && i < ate) ancorados.add(i); };
-  const sitiosVerbo = (text.match(/\.\s*Map(?:Get|Post|Put|Delete|Patch|Head|Options)\s*\(/g) || []).length;
+  const sitiosVerbo = (struct.match(/\.\s*Map(?:Get|Post|Put|Delete|Patch|Head|Options)\s*\(/g) || []).length;
 
   const producerRe = /\b(?:public|internal|private|protected)?\s*static\s+[\w<>,.\[\]?]+\s+(\w+)\s*(?:<[^<>()]*>)?\s*\(\s*(?:this\s+)?(IEndpointRouteBuilder|RouteGroupBuilder|WebApplication)\s+(\w+)[^)]*\)/g;
   const producerBodies = [];
@@ -343,6 +373,7 @@ function indexDotnetMinimal(text, struct, file, idx) {
   const groupRe = new RegExp(`(?:var|RouteGroupBuilder)\\s+(\\w+)\\s*=\\s*(\\w+)(${CHAIN})([^;]*)`, 'g');
   for (let m; (m = groupRe.exec(text)); ) {
     const [, symbol, parent, chainSrc, resto] = m;
+    if (emLiteral(m.index)) continue;
     const scope = scopeAt(m.index);
     const line = lineOf(text, m.index);
     const perdido = /\.\s*MapGroup\s*\(/.test(resto || '');
@@ -356,6 +387,7 @@ function indexDotnetMinimal(text, struct, file, idx) {
   // uma raiz: sem registrá-lo, as rotas dele eram promovidas a absolutas e saíam sem prefixo.
   const groupFrouxoRe = /(?:var|RouteGroupBuilder)\s+(\w+)\s*=\s*[^;]*?\.\s*MapGroup\s*\([^;]*/g;
   for (let m; (m = groupFrouxoRe.exec(text)); ) {
+    if (emLiteral(m.index)) continue;
     const scope = scopeAt(m.index);
     const id = `${scope}:${m[1]}`;
     if (idx.groups.some((g) => g.id === id)) continue;
@@ -370,6 +402,7 @@ function indexDotnetMinimal(text, struct, file, idx) {
     const cap = verb[0].toUpperCase() + verb.slice(1);
     const re = new RegExp(`\\b(\\w+)(${CHAIN})\\s*\\.\\s*Map${cap}\\s*\\(\\s*([^,)]*)`, 'g');
     for (let m; (m = re.exec(text)); ) {
+      if (emLiteral(m.index)) continue;
       const [, recv, chainSrc, rawPath] = m;
       const scope = scopeAt(m.index);
       const line = lineOf(text, m.index);
@@ -400,6 +433,7 @@ function indexDotnetMinimal(text, struct, file, idx) {
     const cap = verb[0].toUpperCase() + verb.slice(1);
     const re = new RegExp(`(\\w+)\\s*\\.\\s*Map${cap}\\s*\\(\\s*([^,)]*)`, 'g');
     for (let m; (m = re.exec(text)); ) {
+      if (emLiteral(m.index)) continue;
       const lit = literal(m[2]);
       const scope = scopeAt(m.index);
       if (lit === null) {
@@ -412,6 +446,7 @@ function indexDotnetMinimal(text, struct, file, idx) {
 
   const callRe = /(\w+)\s*\.\s*(Map[A-Z]\w*)\s*\(\s*\)/g;
   for (let m; (m = callRe.exec(text)); ) {
+    if (emLiteral(m.index)) continue;
     if (/^Map(Get|Post|Put|Delete|Patch|Head|Options|Group)$/.test(m[2])) continue;
     idx.calls.push({ owner: `${scopeAt(m.index)}:${m[1]}`, producer: m[2], file, line: lineOf(text, m.index) });
   }
@@ -494,9 +529,9 @@ function indexSpring(text, struct, file, idx) {
   const prefixes = new Map();
   classes.forEach((c, i) => {
     const desde = i > 0 ? classes[i - 1].end : 0;
-    const raw = attrBefore(text, desde, c.declIndex, /@RequestMapping\s*\(\s*(?:value\s*=\s*)?([^)]*?)\s*\)/g);
+    const raw = attrBefore(text, desde, c.declIndex, /@RequestMapping\s*\(\s*([^)]*?)\s*\)/g);
     if (raw === null) { prefixes.set(c.name, { path: '', ok: true }); return; }
-    const lit = literal(raw);
+    const lit = springPath(raw);
     if (lit === null) {
       idx.unresolved.push({ kind: 'class-route-not-literal', file, line: lineOf(text, c.declIndex), detail: raw.slice(0, 60) });
       prefixes.set(c.name, { path: '', ok: false });
@@ -505,14 +540,36 @@ function indexSpring(text, struct, file, idx) {
     prefixes.set(c.name, { path: lit, ok: true });
   });
 
+  // `@RequestMapping(..., method=RequestMethod.GET)` dentro do corpo de uma classe é registro de
+  // rota como qualquer `@GetMapping`. Sem isto ele não virava rota NEM irresolúvel.
+  const metodoRe = /@RequestMapping\s*\(\s*([^)]*?)\s*\)/g;
+  for (let m; (m = metodoRe.exec(text)); ) {
+    const owner = containerOf(classes, m.index);
+    if (!owner) continue;
+    const line = lineOf(text, m.index);
+    const verbos = [...String(m[1]).matchAll(/RequestMethod\s*\.\s*(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)/g)].map((x) => x[1]);
+    if (verbos.length === 0) continue;
+    const pref = prefixes.get(owner.name);
+    const lit = springPath(m[1]);
+    if (lit === null) {
+      idx.unresolved.push({ kind: 'route-path-not-literal', file, line, detail: String(m[1]).slice(0, 60) });
+      continue;
+    }
+    if (!pref || !pref.ok) {
+      idx.unresolved.push({ kind: 'route-prefix-unresolved', file, line, detail: '@RequestMapping em classe cujo prefixo não resolveu' });
+      continue;
+    }
+    for (const v of verbos) idx.absolute.push({ method: v, path: joinPath(pref.path, lit), file, line });
+  }
+
   for (const verb of HTTP_VERBS) {
     const cap = verb[0].toUpperCase() + verb.slice(1);
-    const re = new RegExp(`@${cap}Mapping\\s*(?:\\(\\s*(?:value\\s*=\\s*)?([^)]*?)\\s*\\))?`, 'g');
+    const re = new RegExp(`@${cap}Mapping\\s*(?:\\(\\s*([^)]*?)\\s*\\))?`, 'g');
     for (let m; (m = re.exec(text)); ) {
       const line = lineOf(text, m.index);
       const owner = containerOf(classes, m.index);
       const pref = owner ? prefixes.get(owner.name) : { path: '', ok: true };
-      const lit = m[1] === undefined ? '' : literal(m[1]);
+      const lit = m[1] === undefined ? '' : springPath(m[1]);
       if (m[1] !== undefined && lit === null) {
         idx.unresolved.push({ kind: 'route-path-not-literal', file, line, detail: String(m[1]).slice(0, 60) });
         continue;
@@ -537,21 +594,28 @@ function indexKtor(text, struct, file, idx) {
   // `route(` que o padrão principal não casa (argumento com parênteses, p.ex. `route(base())`)
   // não empilha frame nenhum, e as rotas de dentro sairiam sem prefixo. Contadas aqui para que
   // a diferença vire diagnóstico em vez de path parcial.
-  const totalRoute = (text.match(/\broute\s*\(/g) || []).length;
+  const totalRoute = (struct.match(/\broute\s*\(/g) || []).length;
   let casados = 0;
 
   const tokens = [];
   const re = /\broute\s*\(\s*([^)]*?)\s*\)\s*\{|\b(get|post|put|delete|patch|head|options)\s*\(\s*([^)]*?)\s*\)\s*\{|\b(get|post|put|delete|patch|head|options)\s*\{|\{|\}/g;
   const stack = [];
+  // Handlers abertos: um verbo COM path abre um corpo de resposta, e o que estiver lá dentro é
+  // conteúdo, não roteamento. É o que distingue `route { authenticate { get {} } }` — legítimo —
+  // de `get("/p") { respondHtml { head {} } }`, onde `head` é DSL do kotlinx.html e virava rota
+  // fantasma. A profundidade sozinha não separava os dois e descartava o primeiro.
+  const handlers = [];
   let depth = 0;
   for (let m; (m = re.exec(text)); ) {
-    // Chave dentro de literal não abre nem fecha bloco: na projeção estrutural ela é espaço.
-    if (m[0] === '{' && struct[m.index] !== '{') continue;
-    if (m[0] === '}' && struct[m.index] !== '}') continue;
+    // Nada que venha de dentro de um literal conta: nem chave, nem `route(`, nem verbo. Numa raw
+    // string do Kotlin com exemplo de DSL, o match fantasma emitia rota E a rota real herdava o
+    // prefixo da falsa.
+    if (struct[m.index + m[0].length - 1] !== m[0][m[0].length - 1]) continue;
     if (m[0] === '{') { depth += 1; continue; }
     if (m[0] === '}') {
       depth -= 1;
       while (stack.length && stack[stack.length - 1].depth > depth) stack.pop();
+      while (handlers.length && handlers[handlers.length - 1] > depth) handlers.pop();
       continue;
     }
     if (m[1] !== undefined) {
@@ -570,7 +634,7 @@ function indexKtor(text, struct, file, idx) {
     // route() é getter de propriedade do Kotlin; vários níveis abaixo é DSL cujo nome coincide
     // com verbo — `call.respondHtml { head { ... } }` do kotlinx.html emitia um `HEAD /x`
     // fantasma, que o SUR-02 acusaria como rota não declarada.
-    if (m[4] !== undefined && (stack.length === 0 || depth !== stack[stack.length - 1].depth)) {
+    if (m[4] !== undefined && (stack.length === 0 || handlers.length > 0)) {
       depth += 1;
       continue;
     }
@@ -578,6 +642,7 @@ function indexKtor(text, struct, file, idx) {
       const verbo = m[2] !== undefined ? m[2] : m[4];
       const lit = m[2] !== undefined ? (literal(m[3]) ?? '') : '';
       depth += 1;
+      handlers.push(depth);
       const line = lineOf(text, m.index);
       if (stack.some((s) => s.unresolved)) {
         idx.unresolved.push({ kind: 'route-prefix-unresolved', file, line, detail: `${verbo}('${lit}') sob route() com prefixo irresolúvel — path parcial não é emitido` });
@@ -608,7 +673,7 @@ function indexKtor(text, struct, file, idx) {
  * rota: `router.post('/orders')` sozinho vale `/orders` ou `/api/v2/orders` conforme o mount, e
  * chutar o primeiro é inventar path.
  */
-function indexJsHttp(text, file, idx) {
+function indexJsHttp(text, struct, file, idx) {
   const mounts = new Map();
   const useRe = /\b(?:app|server|router)\s*\.\s*use\s*\(\s*(['"`][^'"`]*['"`])\s*,\s*(\w+)/g;
   for (let m; (m = useRe.exec(text)); ) {
@@ -654,23 +719,39 @@ function indexJsHttp(text, file, idx) {
     }
   }
 
-  const ctrl = text.match(/@Controller\s*\(\s*([^)]*?)\s*\)/);
-  if (!ctrl) return;
-  const nestPrefix = literal(ctrl[1]);
-  if (nestPrefix === null) {
-    idx.unresolved.push({ kind: 'class-route-not-literal', file, line: 1, detail: ctrl[1].slice(0, 60) });
-    return;
-  }
+  if (!/@Controller\s*\(/.test(text)) return;
+  const classes = classesOf(struct);
+  const prefixes = new Map();
+  classes.forEach((c, i) => {
+    const desde = i > 0 ? classes[i - 1].end : 0;
+    const raw = attrBefore(text, desde, c.declIndex, /@Controller\s*\(\s*([^)]*?)\s*\)/g);
+    if (raw === null) { prefixes.set(c.name, { path: '', ok: true }); return; }
+    const lit = literal(raw);
+    if (lit === null) {
+      idx.unresolved.push({ kind: 'class-route-not-literal', file, line: lineOf(text, c.declIndex), detail: raw.slice(0, 60) });
+      prefixes.set(c.name, { path: '', ok: false });
+      return;
+    }
+    prefixes.set(c.name, { path: lit, ok: true });
+  });
+
   for (const verb of HTTP_VERBS) {
     const cap = verb[0].toUpperCase() + verb.slice(1);
     const re = new RegExp(`@${cap}\\s*\\(\\s*([^)]*?)\\s*\\)`, 'g');
     for (let m; (m = re.exec(text)); ) {
+      const line = lineOf(text, m.index);
+      const owner = containerOf(classes, m.index);
+      const pref = owner ? prefixes.get(owner.name) : null;
       const lit = m[1] === '' ? '' : literal(m[1]);
       if (m[1] !== '' && lit === null) {
-        idx.unresolved.push({ kind: 'route-path-not-literal', file, line: lineOf(text, m.index), detail: m[1].slice(0, 60) });
+        idx.unresolved.push({ kind: 'route-path-not-literal', file, line, detail: m[1].slice(0, 60) });
         continue;
       }
-      idx.absolute.push({ method: verb.toUpperCase(), path: joinPath(nestPrefix, lit || ''), file, line: lineOf(text, m.index) });
+      if (!pref || !pref.ok) {
+        idx.unresolved.push({ kind: 'route-prefix-unresolved', file, line, detail: `@${cap}() em classe sem @Controller literal — prefixo desconhecido` });
+        continue;
+      }
+      idx.absolute.push({ method: verb.toUpperCase(), path: joinPath(pref.path, lit || ''), file, line });
     }
   }
 }
@@ -876,7 +957,15 @@ export function scanRoutes(paths, { exts = ROUTE_EXTS, skipDirs = DEFAULT_SKIP, 
       indexKtor(text, struct, rel, idx);
       indexSpring(text, struct, rel, idx);
     } else if (ext === '.ts' || ext === '.js' || ext === '.mjs') {
-      indexJsHttp(text, rel, idx);
+      indexJsHttp(text, struct, rel, idx);
+    }
+  }
+
+  for (const p of paths) {
+    if (!existsSync(p)) {
+      idx.unresolved.push({ kind: 'source-missing', file: relative(root, p) || p, line: 0, detail: 'caminho de código declarado e inexistente — nenhuma rota é lida dali, e ausência de rota deixa o cruzamento verde por vacuidade' });
+    } else if (collect([p], { exts, skipDirs }).length === 0) {
+      idx.unresolved.push({ kind: 'source-empty', file: relative(root, p) || p, line: 0, detail: `caminho declarado e sem nenhum arquivo de dialeto suportado — nada foi lido, e nada lido não é o mesmo que nada exposto` });
     }
   }
 

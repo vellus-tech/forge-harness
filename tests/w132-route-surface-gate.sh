@@ -64,6 +64,14 @@
 #   [38] DSL cujo nome coincide com verbo (`respondHtml { head { … } }`) não vira rota fantasma
 #   [39] restrição genérica `where T : class` não cria classe fantasma que rouba o [Route]
 #   [40] o guard de MapGroup não é abafado por dupla contagem; fonte declarada e vazia é reportada
+#   [41] PROPRIEDADE sobre corpus real: a projeção preserva o comprimento do arquivo (um emoji
+#        dessincronizava code point × UTF-16); verbatim C# terminado em barra e bloco
+#        intermediário do Ktor não destroem o que está em volta
+#   [42] SIMETRIA de projeção: trecho de DSL dentro de literal não vira rota, e o guard
+#        anti-silêncio (contador × match na mesma projeção) continua disparando
+#   [43] PARAMÉTRICO: duas unidades de roteamento no mesmo arquivo, nos SEIS dialetos — a classe
+#        de defeito mais recorrente desta implementação, fechada de uma vez em vez de por dialeto
+#   [44] fonte de CÓDIGO declarada e ausente/vazia é reportada, como já era a de contrato
 set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -1002,6 +1010,13 @@ fun Application.configure() {
             }
         }
     }
+    route("/api/v1/sem-path") {
+        get {
+            call.respondHtml {
+                head { title { +"Index" } }
+            }
+        }
+    }
 }
 KT
 cat > "$T/check-38.mjs" <<'EOF'
@@ -1012,7 +1027,11 @@ const paths = routes.map((r) => `${r.method} ${r.path}`);
 // `call.respondHtml { head { ... } }` do kotlinx.html é o idioma canônico de HTML no Ktor, e
 // `head` está na lista de verbos. Aceitar `verb {` em qualquer profundidade inventava um endpoint.
 if (paths.includes('HEAD /api/v1/orders')) { console.error('DSL aninhada virou rota fantasma'); process.exit(1); }
-if (paths.length !== 2) { console.error(`esperava exatamente as 2 rotas reais, veio ${JSON.stringify(paths)}`); process.exit(1); }
+// O verbo SEM path é a forma idiomática, e é a que não abria handler: o corpo dele voltava a ser
+// lido como roteamento e `respondHtml { head { … } }` emitia HEAD de novo.
+if (paths.includes('HEAD /api/v1/sem-path')) { console.error('DSL sob verbo SEM path virou rota fantasma'); process.exit(1); }
+if (!paths.includes('GET /api/v1/sem-path')) { console.error(`verbo sem path sumiu: ${JSON.stringify(paths)}`); process.exit(1); }
+if (paths.length !== 3) { console.error(`esperava exatamente as 3 rotas reais, veio ${JSON.stringify(paths)}`); process.exit(1); }
 EOF
 node "$T/check-38.mjs" "$LIB" "$FIX" "$T" || { echo "FAIL [38]"; exit 1; }
 echo "OK [38]"
@@ -1069,6 +1088,248 @@ EOF
 node "$T/check-40.mjs" "$LIB" "$FIX" "$T" || { echo "FAIL [40]"; exit 1; }
 echo "OK [40]"
 
+echo "[41] projeção preserva comprimento sobre corpus real, e escapa dos dois dialetos"
+mkdir -p "$T/proj"
+mkdir -p "$T/corpus"
+cat > "$T/corpus/Bloco.cs" <<'CS'
+/* comentário
+   de bloco 🤖
+   com { chave } e "aspas" */
+[Route("api/v1/bloco")]
+public class BlocoController : ControllerBase
+{
+    static readonly string P = @"C:\temp\";
+    static readonly string Q = @"linha1
+linha2 { ainda dentro }";
+    [HttpGet("x")] public IActionResult X() => Ok();
+}
+CS
+cat > "$T/corpus/Raw.kt" <<'KT'
+fun Application.configure() {
+    val doc = """route("/exemplo") { get("/g") { } }"""
+    // comentário 🤖 com "aspas"
+    route("/v1") { get("/ok") { call.respond("ok") } }
+}
+KT
+cat > "$T/corpus/Anot.java" <<'JAVA'
+/* bloco
+   multilinha */
+@RestController
+@RequestMapping(value = "/api/anot", produces = "application/json")
+public class AnotController {
+    @GetMapping("/y")
+    public String y() { return "{}"; }
+}
+JAVA
+cat > "$T/corpus/Tmpl.ts" <<'TS'
+const app = express();
+// 🤖 nota
+app.get('/estatico', h);
+const msg = `use ${'app.get'} assim`;
+TS
+cat > "$T/proj/Files.cs" <<'CS'
+[Route("api/v1/files")]
+public class FilesController : ControllerBase
+{
+    static readonly string Share = @"\\srv\share\";
+    [HttpGet("list")] public IActionResult L() => Ok();
+}
+CS
+cat > "$T/proj/Auth.kt" <<'KT'
+fun Application.configure() {
+    route("/v1/admin") {
+        authenticate("jwt") {
+            get { call.respond("ok") }
+        }
+    }
+    route("/v1/public") { get { call.respond("ok") } }
+}
+KT
+cat > "$T/check-41.mjs" <<'EOF'
+const [lib, , tmp] = process.argv.slice(2);
+const { readFileSync, readdirSync } = await import('node:fs');
+const { project, scanRoutes } = await import(`${lib}/route-scan.mjs`);
+
+// PROPRIEDADE, sobre o corpus REAL do próprio harness: as duas projeções têm de ter exatamente o
+// comprimento do original, porque todo `lineOf`/`slice` indexa nelas. `[...raw]` fatia por code
+// point enquanto o tokenizador anda em unidades UTF-16, e um único emoji dessincronizava as duas
+// numerações — a verificação por exemplo não pegava, e um arquivo deste repositório já quebrava.
+let vistos = 0;
+const corpus = [`${tmp}/corpus`, `${process.argv[3]}/dotnet`];
+const arquivos = [];
+for (const dir of corpus) for (const f of readdirSync(dir)) arquivos.push(`${dir}/${f}`);
+for (const f of arquivos) {
+  const raw = readFileSync(f, 'utf8');
+  const { code, struct } = project(raw);
+  // Quatro cláusulas POSICIONAIS. Comprimento é corolário da primeira, e sozinho ele não via que
+  // a projeção pode deixar de branquear (ou branquear demais) sem mudar de tamanho.
+  if (code.length !== raw.length || struct.length !== raw.length) { console.error(`comprimento mudou em ${f}`); process.exit(1); }
+  for (let i = 0; i < raw.length; i += 1) {
+    if (code[i] !== raw[i] && code[i] !== ' ') { console.error(`${f}:${i} code trocou '${raw[i]}' por '${code[i]}' — só espaço é permitido`); process.exit(1); }
+    if (struct[i] !== raw[i] && struct[i] !== ' ') { console.error(`${f}:${i} struct trocou '${raw[i]}' por '${struct[i]}'`); process.exit(1); }
+    // Newline nunca some: `lineOf` conta quebras, e comer uma faz o diagnóstico apontar para a
+    // linha errada — o número que o operador usa para achar o código.
+    if ((raw[i] === '\n') !== (code[i] === '\n') || (raw[i] === '\n') !== (struct[i] === '\n')) { console.error(`${f}:${i} newline não preservada`); process.exit(1); }
+    // `struct` é mais mascarada que `code`, nunca menos.
+    if (code[i] !== raw[i] && struct[i] === raw[i]) { console.error(`${f}:${i} code mascarou e struct não`); process.exit(1); }
+  }
+  vistos += 1;
+}
+if (vistos < 6) { console.error(`corpus degenerado: só ${vistos} arquivos`); process.exit(1); }
+
+// Astral fora do corpus, para não depender de o repo continuar tendo emoji.
+for (const amostra of ['const a = "🤖";\nvar b = 1;\n', 'x // 🤖\ny\n', '`${"🤖"}`\n', 'var s = "ab\\']) {
+  const { code, struct } = project(amostra);
+  if (code.length !== amostra.length || struct.length !== amostra.length) {
+    console.error(`projeção mudou de comprimento em amostra ${JSON.stringify(amostra)}`); process.exit(1);
+  }
+}
+
+// Verbatim do C#: a barra invertida não escapa, e um path do Windows terminado em barra fazia a
+// string engolir o código seguinte — as chaves do corpo sumiam e o prefixo evaporava.
+const cs = scanRoutes([`${tmp}/proj/Files.cs`], { root: tmp }).routes.map((r) => `${r.method} ${r.path}`);
+if (!cs.includes('GET /api/v1/files/list')) { console.error(`verbatim terminado em barra comeu o corpo da classe: ${JSON.stringify(cs)}`); process.exit(1); }
+
+// Bloco intermediário legítimo do Ktor (`authenticate`) não pode descartar o verbo sem path.
+const kt = scanRoutes([`${tmp}/proj/Auth.kt`], { root: tmp }).routes.map((r) => `${r.method} ${r.path}`);
+if (!kt.includes('GET /v1/admin')) { console.error(`bloco intermediário descartou rota legítima: ${JSON.stringify(kt)}`); process.exit(1); }
+if (!kt.includes('GET /v1/public')) { console.error('rota sem bloco intermediário regrediu'); process.exit(1); }
+EOF
+node "$T/check-41.mjs" "$LIB" "$FIX" "$T" || { echo "FAIL [41]"; exit 1; }
+echo "OK [41]"
+
+echo "[42] DSL dentro de literal não vira rota, e o guard anti-silêncio continua disparando"
+mkdir -p "$T/simetria"
+cat > "$T/simetria/Doc.kt" <<'KT'
+fun Application.configure() {
+    val doc = """route("/fake") { get("/g") { } }"""
+    route(base()) {
+        get("/x") { call.respond() }
+    }
+}
+KT
+cat > "$T/simetria/Tpl.cs" <<'CS'
+var tpl = @"app.MapGet(""/gerado"", H);";
+Helper.Build().MapGet("/composto", H);
+CS
+cat > "$T/check-42.mjs" <<'EOF'
+const [lib, , tmp] = process.argv.slice(2);
+const { scanRoutes } = await import(`${lib}/route-scan.mjs`);
+
+// Contador numa projeção e match na outra desliga o guard: o trecho de DSL dentro do literal
+// infla o numerador sem entrar no denominador. E o match fantasma não só emite rota como faz a
+// rota REAL herdar o prefixo da falsa — `/fake/x` no lugar de um prefixo irresolúvel.
+const kt = scanRoutes([`${tmp}/simetria/Doc.kt`], { root: tmp });
+const ktPaths = kt.routes.map((r) => `${r.method} ${r.path}`);
+if (ktPaths.some((p) => p.includes('/fake'))) { console.error(`DSL dentro de raw string virou rota: ${JSON.stringify(ktPaths)}`); process.exit(1); }
+if (!kt.unresolved.some((u) => u.kind === 'ktor-route-unparsed')) { console.error('o guard do Ktor foi abafado pelo match vindo do literal'); process.exit(1); }
+
+// Mesmo par no .NET: template de source generator dentro de verbatim string.
+const cs = scanRoutes([`${tmp}/simetria/Tpl.cs`], { root: tmp });
+const csPaths = cs.routes.map((r) => `${r.method} ${r.path}`);
+if (csPaths.some((p) => p.includes('/gerado'))) { console.error(`MapGet dentro de verbatim virou rota: ${JSON.stringify(csPaths)}`); process.exit(1); }
+if (!cs.unresolved.some((u) => u.kind === 'route-site-unindexed')) { console.error(`sítio real de receptor composto deixou de ser reportado: ${JSON.stringify(cs.unresolved.map((u) => u.kind))}`); process.exit(1); }
+EOF
+node "$T/check-42.mjs" "$LIB" "$FIX" "$T" || { echo "FAIL [42]"; exit 1; }
+echo "OK [42]"
+
+echo "[43] duas unidades de roteamento no mesmo arquivo, em TODOS os dialetos"
+mkdir -p "$T/duplo"
+cat > "$T/duplo/Minimal.cs" <<'CS'
+var alfa = app.MapGroup("/alfa");
+alfa.MapGet("/um", H);
+var beta = app.MapGroup("/beta");
+beta.MapPost("/dois", H);
+CS
+cat > "$T/duplo/Attrs.cs" <<'CS'
+[Route("api/gama")]
+public class GamaController : ControllerBase { [HttpGet("tres")] public IActionResult A() => Ok(); }
+
+[Route("api/delta")]
+public class DeltaController : ControllerBase { [HttpPost("quatro")] public IActionResult B() => Ok(); }
+CS
+cat > "$T/duplo/Spring.java" <<'JAVA'
+@RequestMapping("/api/epsilon")
+public class EpsilonController {
+    @GetMapping("/cinco")
+    public String a() { return ""; }
+}
+
+@RequestMapping("/api/zeta")
+public class ZetaController {
+    @PostMapping("/seis")
+    public String b() { return ""; }
+}
+JAVA
+cat > "$T/duplo/Routing.kt" <<'KT'
+fun Application.configure() {
+    route("/eta") { get("/sete") { call.respond("ok") } }
+    route("/theta") { post("/oito") { call.respond("ok") } }
+}
+KT
+cat > "$T/duplo/server.js" <<'JS'
+const iotaRouter = express.Router();
+iotaRouter.get('/nove', h);
+app.use('/iota', iotaRouter);
+const kappaRouter = express.Router();
+kappaRouter.post('/dez', h);
+app.use('/kappa', kappaRouter);
+JS
+cat > "$T/duplo/nest.ts" <<'TS'
+@Controller('lambda')
+export class LambdaController { @Get('onze') a() {} }
+
+@Controller('mu')
+export class MuController { @Post('doze') b() {} }
+TS
+cat > "$T/check-43.mjs" <<'EOF'
+const [lib, , tmp] = process.argv.slice(2);
+const { scanRoutes } = await import(`${lib}/route-scan.mjs`);
+
+// A classe de defeito mais recorrente desta implementação: o prefixo de UMA unidade de roteamento
+// aplicado às rotas de OUTRA, ou descartado, quando duas convivem no mesmo arquivo. Já apareceu e
+// foi corrigida no .NET por atributos e no Spring, e seguia VIVA no Nest — três descobertas
+// separadas, por três revisões diferentes, do mesmo defeito. Aqui ela é testada de uma vez nos
+// seis dialetos, para que a próxima ocorrência entre vermelha em vez de virar a quarta descoberta.
+const casos = [
+  ['Minimal.cs', ['GET /alfa/um', 'POST /beta/dois']],
+  ['Attrs.cs', ['GET /api/gama/tres', 'POST /api/delta/quatro']],
+  ['Spring.java', ['GET /api/epsilon/cinco', 'POST /api/zeta/seis']],
+  ['Routing.kt', ['GET /eta/sete', 'POST /theta/oito']],
+  ['server.js', ['GET /iota/nove', 'POST /kappa/dez']],
+  ['nest.ts', ['GET /lambda/onze', 'POST /mu/doze']],
+];
+for (const [arquivo, esperado] of casos) {
+  const r = scanRoutes([`${tmp}/duplo/${arquivo}`], { root: tmp });
+  const got = r.routes.map((x) => `${x.method} ${x.path}`).sort();
+  const want = [...esperado].sort();
+  if (JSON.stringify(got) !== JSON.stringify(want)) {
+    console.error(`${arquivo}: veio ${JSON.stringify(got)}, esperava ${JSON.stringify(want)}`);
+    process.exit(1);
+  }
+  if (r.unresolved.length !== 0) {
+    console.error(`${arquivo}: ${r.unresolved.length} irresolúvel(is) num arquivo que resolve inteiro: ${JSON.stringify(r.unresolved.map((u) => u.kind))}`);
+    process.exit(1);
+  }
+}
+EOF
+node "$T/check-43.mjs" "$LIB" "$FIX" "$T" || { echo "FAIL [43]"; exit 1; }
+echo "OK [43]"
+
+echo "[44] fonte de CÓDIGO declarada e ausente é reportada, como a de contrato"
+run_node <<'EOF' || { echo "FAIL [44]"; exit 1; }
+const [lib, , tmp] = process.argv.slice(2);
+const { scanRoutes } = await import(`${lib}/route-scan.mjs`);
+// O lado do contrato já reportava `source-missing`/`source-empty` porque superfície vazia deixa o
+// cruzamento verde por vacuidade. A regra do cabeçalho vale nas duas direções, e o lado do código
+// não a aplicava: um `src/` renomeado no wiring deixava o SUR-02 verde, calado.
+const ausente = scanRoutes([`${tmp}/nao-existe-nenhum`], { root: tmp });
+if (!ausente.unresolved.some((u) => u.kind === 'source-missing')) { console.error('caminho de código inexistente passou calado'); process.exit(1); }
+const vazio = scanRoutes([`${tmp}/union/specs`], { root: tmp });
+if (!vazio.unresolved.some((u) => u.kind === 'source-empty')) { console.error('caminho sem arquivo de dialeto passou calado'); process.exit(1); }
+EOF
+echo "OK [44]"
+
 echo "[29] PROVA: cada correção morre quando a regra que a implementa é mutada"
 # A mutação opera sobre uma CÓPIA do lib — o original nunca é tocado, então não há vetor de
 # mutação fantasma por restore() malfeito. Os checks reutilizados aqui são os MESMOS arquivos que
@@ -1086,7 +1347,7 @@ mutar() {
 soma_lib() { cat "$LIB"/*.mjs | shasum | cut -d' ' -f1; }
 LIB_ANTES="$(soma_lib)"
 
-for caso in 17 18 19 24 30 31 33 34 37 38 39 40; do
+for caso in 17 18 19 24 30 31 33 34 37 38 39 40 41 42 43; do
   rm -rf "$T/mutlib" "$T/ctrllib"
   mkdir -p "$T/mutlib" "$T/ctrllib"
   cp "$LIB"/*.mjs "$T/mutlib/"
@@ -1108,9 +1369,13 @@ for caso in 17 18 19 24 30 31 33 34 37 38 39 40; do
     34) mutar "$T/mutlib/api-surface.mjs" 'if (ind === 0 && /^servers\s*:\s*$/.test(line.trim()))' 'if (/^servers\s*:\s*$/.test(line.trim()))' ;;
     37) mutar "$T/mutlib/route-scan.mjs" 'branco(struct, i);
         i += 1;' 'i += 1;' ;;
-    38) mutar "$T/mutlib/route-scan.mjs" 'if (m[4] !== undefined && (stack.length === 0 || depth !== stack[stack.length - 1].depth)) {' 'if (m[4] !== undefined && stack.length === 0) {' ;;
+    38) mutar "$T/mutlib/route-scan.mjs" 'if (m[4] !== undefined && (stack.length === 0 || handlers.length > 0)) {' 'if (m[4] !== undefined && stack.length === 0) {' ;;
     39) mutar "$T/mutlib/route-scan.mjs" "if (antes.endsWith(':') || antes.endsWith(',')) continue;" '' ;;
     40) mutar "$T/mutlib/route-scan.mjs" 'if (idx.groups.some((g) => g.id === id)) continue;' 'continue;' ;;
+    41) mutar "$T/mutlib/route-scan.mjs" "const code = raw.split('');" 'const code = [...raw];' ;;
+    42) mutar "$T/mutlib/route-scan.mjs" 'const emLiteral = (i) => struct[i] !== text[i];' 'const emLiteral = () => false;' ;;
+    43) mutar "$T/mutlib/route-scan.mjs" 'const owner = containerOf(classes, m.index);
+      const pref = owner ? prefixes.get(owner.name) : null;' 'const pref = [...prefixes.values()][0];' ;;
   esac || { echo "FAIL [29]: mutação do caso [$caso] não encontrou o alvo — a prova não vale"; exit 1; }
 
   if node "$T/check-$caso.mjs" "$T/mutlib" "$FIX" "$T" >/dev/null 2>&1; then

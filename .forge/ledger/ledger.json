@@ -148,10 +148,10 @@
       "id": "LDG-0007",
       "type": "tech-debt",
       "title": "Assinatura de IA já no histórico: 275 commits em 5 repositórios",
-      "detail": "",
+      "detail": "Assinatura de IA já no histórico: 275 commits em 5 repositórios. WONT-FIX (2026-08-03): reescrever histórico publicado de cinco repositórios quebra clones, forks, referências de PR e âncoras de commit em documentos, para remover um trailer que não afeta build, licença nem auditoria de conteúdo. O custo recai sobre todo mundo que já clonou; o benefício é cosmético e retroativo. A regra segue valendo daqui para frente, imposta deterministicamente por check-ai-attribution.sh (gate w120) no pre-push e no verify — o que impede a dívida de crescer. Reabrir só se algum requisito externo (auditoria, contrato) exigir histórico limpo, e aí como migração planejada, não como limpeza oportunista.",
       "severity": null,
       "priority": "P2",
-      "status": "open",
+      "status": "wont-fix",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -164,7 +164,7 @@
         "promoted_to": null
       },
       "created_at": "2026-07-29T10:19:48-03:00",
-      "updated_at": null,
+      "updated_at": "2026-08-03T18:30:00-03:00",
       "resolved_at": null,
       "dedup_key": "manual:LDG-0007"
     },
@@ -244,10 +244,10 @@
       "id": "LDG-0011",
       "type": "tech-debt",
       "title": "Nada exige o campo 'depende:' na linha de task — plano sem metadados passa TSK-01..03 trivialmente",
-      "detail": "Descoberto no dogfood do w130: o change create-forge-project-harness tem 30 tasks e ZERO arestas declaradas, porque nenhuma linha carrega o bloco '(rastreia: ...; paths: ...; depende: ...)'. O parser le fielmente (nao ha aresta, logo nao ha aresta invalida) e TSK-01/02/03 passam sem exercitar nada. E a mesma forma do defeito C do plano de fechamento de superficie — porta de saida por omissao: o check e correto e o artefato simplesmente nao fornece o insumo. Pertence a Onda B, junto de SRF-00: exigir o bloco de metadados a partir de tasks-ready, ou registrar explicitamente que o plano nao declara dependencias.",
+      "detail": "Descoberto no dogfood do w130: o change create-forge-project-harness tem 30 tasks e ZERO arestas declaradas, porque nenhuma linha carrega o bloco '(rastreia: ...; paths: ...; depende: ...)'. O parser le fielmente (nao ha aresta, logo nao ha aresta invalida) e TSK-01/02/03 passam sem exercitar nada. E a mesma forma do defeito C do plano de fechamento de superficie — porta de saida por omissao: o check e correto e o artefato simplesmente nao fornece o insumo. Pertence a Onda B, junto de SRF-00: exigir o bloco de metadados a partir de tasks-ready, ou registrar explicitamente que o plano nao declara dependencias. — Resolvido: Entregue pelo change tasks-meta-required (archived 2026-08-03, REQ-FHT-048): TSK-06 bloqueia plano em que NENHUMA task declara metadados e avisa quando a omissão é pontual, com o predicado em hasMeta para não punir 'depende: —'. CORREÇÃO DE PREMISSA: este item afirmava '30 tasks e ZERO arestas' no create-forge-project-harness; medido em 2026-08-03, o plano tem 19 das 30 com bloco e 19 arestas — o número descrevia o estado anterior à correção que fez o parser reconhecer campo por nome em qualquer ordem. O defeito estrutural era real e está fechado; o exemplo é que havia envelhecido.",
       "severity": null,
       "priority": "P2",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -260,8 +260,8 @@
         "promoted_to": null
       },
       "created_at": "2026-07-29T20:21:33-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-08-03T19:48:15-03:00",
+      "resolved_at": "2026-08-03T19:48:15-03:00",
       "dedup_key": "manual:LDG-0011"
     },
     {
@@ -534,10 +534,10 @@
       "id": "LDG-0023",
       "type": "follow-up",
       "title": "A execução da verificação regenerou `.forge/HANDOFF.md` (atualização determinística do header para",
-      "detail": "",
+      "detail": "Resolvido: Nota histórica sem ação associada: a verificação regenerou o HANDOFF.md porque o gerador é determinístico e o estado havia mudado. Comportamento esperado.",
       "severity": null,
       "priority": null,
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": "add-portable-handoff",
         "origin": "archive",
@@ -552,18 +552,18 @@
         "promoted_to": null
       },
       "created_at": "2026-08-03T17:51:02-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-08-03T18:30:00-03:00",
+      "resolved_at": "2026-08-03T18:30:00-03:00",
       "dedup_key": "add-portable-handoff:verify-2"
     },
     {
       "id": "LDG-0024",
       "type": "follow-up",
       "title": "O `w108[5]` nasceu com verde falso: lia `res.errors` de uma função que devolve um **array**, e",
-      "detail": "",
+      "detail": "Resolvido: Corrigido no próprio ciclo do red-replay-graft-base, antes do archive: o w108[5] passou a asserir o contrato de retorno (array) explicitamente. Observação colhida pelo harvest já nascida resolvida.",
       "severity": null,
       "priority": null,
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": "red-replay-graft-base",
         "origin": "archive",
@@ -578,18 +578,18 @@
         "promoted_to": null
       },
       "created_at": "2026-08-03T17:51:02-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-08-03T18:30:00-03:00",
+      "resolved_at": "2026-08-03T18:30:00-03:00",
       "dedup_key": "red-replay-graft-base:verify-1"
     },
     {
       "id": "LDG-0025",
       "type": "follow-up",
       "title": "A lista de estratégias de base existia duplicada (validador em literal + schema JSON). Virou",
-      "detail": "",
+      "detail": "Resolvido: Corrigido no próprio ciclo do red-replay-graft-base: a lista virou BASE_STRATEGIES exportada em lib/red-evidence.mjs, consumida pelo validador. O schema mantém a própria cópia por ser artefato de contrato.",
       "severity": null,
       "priority": null,
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": "red-replay-graft-base",
         "origin": "archive",
@@ -604,8 +604,8 @@
         "promoted_to": null
       },
       "created_at": "2026-08-03T17:51:02-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-08-03T18:30:00-03:00",
+      "resolved_at": "2026-08-03T18:30:00-03:00",
       "dedup_key": "red-replay-graft-base:verify-2"
     },
     {

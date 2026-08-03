@@ -1,0 +1,103 @@
+{
+  "schema": "run-manifest/v1",
+  "run_id": "20260803224959-d3e92154",
+  "stage": "archive",
+  "status": "passed",
+  "started_at": "2026-08-03T22:49:55Z",
+  "finished_at": "2026-08-03T22:49:59.511Z",
+  "duration_ms": 4511,
+  "git": {
+    "repo": true,
+    "branch": "develop",
+    "head_sha": "1915213e3ebb626072923ae8819527a61f717c59",
+    "dirty": true,
+    "changed_files": [
+      ".forge/graph/",
+      ".forge/ledger/LEDGER.md",
+      ".forge/ledger/ledger.json",
+      ".forge/product/current/CHANGELOG.md",
+      ".forge/product/current/capabilities/forge-harness-template/spec.yaml",
+      ".forge/specs/active/tasks-meta-required/bugfix.md",
+      ".forge/specs/active/tasks-meta-required/evidence/red/red-evidence.json",
+      ".forge/specs/active/tasks-meta-required/manifest.yaml",
+      ".forge/specs/active/tasks-meta-required/proposal.md",
+      ".forge/specs/active/tasks-meta-required/spec-delta.yaml",
+      ".forge/specs/active/tasks-meta-required/tasks.md",
+      ".forge/specs/archived/2026-08-03-tasks-meta-required/",
+      ".forge/specs/archived/index.yaml"
+    ],
+    "diff_stat": ".forge/ledger/LEDGER.md                            | 10 ++---\n .forge/ledger/ledger.json                          | 30 +++++++-------\n .forge/product/current/CHANGELOG.md                |  6 +++\n .../capabilities/forge-harness-template/spec.yaml  | 46 +++++++++++++++-------\n .forge/specs/active/tasks-meta-required/bugfix.md  | 40 -------------------\n .../evidence/red/red-evidence.json                 | 25 ------------\n .../specs/active/tasks-meta-required/manifest.yaml | 33 ----------------\n .../specs/active/tasks-meta-required/proposal.md   | 27 -------------\n .../active/tasks-meta-required/spec-delta.yaml     | 21 ----------\n .forge/specs/active/tasks-meta-required/tasks.md   | 20 ----------\n .forge/specs/archived/index.yaml                   |  4 ++\n 11 files changed, 60 insertions(+), 202 deletions(-)",
+    "diff_sha256": "07cdcd6ee47eef24d9362831e85352ba7cedabf3a1e03eddb2ae5175e8e72dd4"
+  },
+  "inputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "605421241722d5b02155218714f822f507a7009d44e617cc6fde1e6b3e80800c",
+      "bytes": 814,
+      "kind": "file"
+    },
+    {
+      "path": "tasks.md",
+      "exists": true,
+      "sha256": "7089e150c9714d7a652a5ec9ccf5b06dc9384866182f9c94384d62cff2ecf7b7",
+      "bytes": 1430,
+      "kind": "file"
+    },
+    {
+      "path": "verification.yaml",
+      "exists": true,
+      "sha256": "f5151eb91d26a8ddf3c931e86b24840c8240ac0813aebb286d2cfe7305321dc9",
+      "bytes": 1057,
+      "kind": "file"
+    },
+    {
+      "path": "spec-delta.yaml",
+      "exists": true,
+      "sha256": "33de4c32a142819f77f23d49fa993ed20d0a587a33c433688dc7c1d8bcdc08be",
+      "bytes": 1623,
+      "kind": "file"
+    },
+    {
+      "path": "impact.json",
+      "exists": true,
+      "sha256": "eae32c74dff2a56af0678da06c7ed5ec9f8684e79b4cafd19cab070b251d80b1",
+      "bytes": 2130,
+      "kind": "file"
+    }
+  ],
+  "commands": [
+    {
+      "name": "archive-spec",
+      "command": "archive-spec.sh tasks-meta-required",
+      "status": "passed"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "605421241722d5b02155218714f822f507a7009d44e617cc6fde1e6b3e80800c",
+      "bytes": 814,
+      "kind": "file"
+    },
+    {
+      "path": "evidence/runs",
+      "exists": false,
+      "sha256": null,
+      "bytes": null
+    }
+  ],
+  "runner": {
+    "name": "local",
+    "profile": "standard"
+  },
+  "budgets": {
+    "profile": "standard",
+    "budget_class": "medium",
+    "expected_runs": 1,
+    "estimated_timeout_s": 300,
+    "uses_llm": false,
+    "uses_subagent": false
+  }
+}

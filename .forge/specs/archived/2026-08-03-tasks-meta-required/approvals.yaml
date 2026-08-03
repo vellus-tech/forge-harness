@@ -1,0 +1,29 @@
+approvals:
+  - gate: requirements_reviewed
+    decision: approve
+    reason: "bugfix scale 1 do LDG-0011: análise e plano conferidos; red-first com w130[16] e quatro controles"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-08-03T19:49:13-03:00"
+    commit: "1915213"
+    scope: "bugfix.md,tasks.md"
+  - gate: tasks_reviewed
+    decision: approve
+    reason: "bugfix scale 1 do LDG-0011: análise e plano conferidos; red-first com w130[16] e quatro controles"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-08-03T19:49:13-03:00"
+    commit: "1915213"
+    scope: "bugfix.md,tasks.md"
+  - gate: implementation_verified
+    decision: approve
+    reason: "npm test 73/73; w130 16 casos verdes; Red observado pelo motor; efeito conferido em artefato real"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-08-03T19:49:48-03:00"
+    commit: "1915213"
+    scope: "verification.md,verification.yaml"
+  - gate: human_archive_approval
+    decision: approve
+    reason: "LDG-0011 entregue conforme direção do autor ('pode seguir com a sugestão', 2026-08-03); delta = 1 add_requirement REQ-FHT-048"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-08-03T19:49:49-03:00"
+    commit: "1915213"
+    scope: "spec-delta.yaml"

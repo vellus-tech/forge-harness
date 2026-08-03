@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**23 itens ativos** · roadmap 4 · tech-debt 11 · known-bug 2 · follow-up 6 · (5 encerrados)
+**18 itens ativos** · roadmap 4 · tech-debt 9 · known-bug 2 · follow-up 3 · (10 encerrados)
 
 ## Roadmap
 
@@ -26,9 +26,6 @@ _(nenhum)_
 
 ## Dívida técnica
 
-- **LDG-0007** [open] (P2) — Assinatura de IA já no histórico: 275 commits em 5 repositórios
-- **LDG-0011** [open] (P2) — Nada exige o campo 'depende:' na linha de task — plano sem metadados passa TSK-01..03 trivialmente
-  Descoberto no dogfood do w130: o change create-forge-project-harness tem 30 tasks e ZERO arestas declaradas, porque nenhuma linha carrega o bloco '(rastreia: ...; paths: ...; depende: ...)'. O parser le fielmente (nao ha aresta, logo nao ha aresta invalida) e TSK-01/02/03 passam sem exercitar nada. E a mesma forma do defeito C do plano de fechamento de superficie — porta de saida por omissao: o check e correto e o artefato simplesmente nao fornece o insumo. Pertence a Onda B, junto de SRF-00: exigir o bloco de metadados a partir de tasks-ready, ou registrar explicitamente que o plano nao declara dependencias.
 - **LDG-0012** [open] (P2) — Assercoes na forma '[ cond ] && cmd' sob set -e reprovam sem imprimir mensagem
   Custou um ciclo de diagnostico nesta sessao: o w32-archive-gate morreu no meio do passo [2] sem uma linha de saida, e a causa real (um check novo reprovando por outro motivo) ficou invisivel. A forma funciona como assercao — set -e mata o gate — mas engole a razao, e o proximo diagnostico comeca do zero. Varredura encontra o padrao em ~15 gates (w14-adapters com 10 ocorrencias, gw1/gw2/gw3, changelog-merge, w33, w50, w80, w102, w112, w32:168). Distinguir os casos de CONTROLE DE FLUXO legitimo (run-all.sh:31/37/38, copia condicional de fixture) dos de ASSERCAO, e converter apenas os segundos para a forma '|| { echo FAIL ...; exit 1; }'. Corrigido nesta sessao apenas w32:138, o que a regressao atingiu.
 - **LDG-0013** [open] (P2) — Wave fecha sem gate quando o projeto nao declara runtime.gates (registrado como NO-GATES)
@@ -48,7 +45,7 @@ _(nenhum)_
 - **LDG-0020** [open] (P3) — route-scan: composicao e' por CAMINHO, e DAG denso de produtores custa exponencial antes do MAX_DEPTH
   O corte de ciclo (Set no caminho) resolve recursao mutua, e o diagnostico chain-too-deep foi colapsado por owner para nao alocar um objeto por caminho truncado — o que derrubou o consumo de memoria. Mas a travessia continua sendo por caminho, nao memoizada: num DAG acíclico e denso (produtores P0..P29, cada Pi invocando Pi+1..Pi+B) o custo cresce com B^MAX_DEPTH. Medicao da revisao antes do colapso do diagnostico: B=4 dava 420ms/222MB, B=5 dava 12,9s/1,3GB, B=6 estourava a heap. Registrars reais formam arvore, nao DAG denso, entao isto e' robustez e nao defeito de campo — mas a saida existe e e' barata: memoizar por (owner, prefixo) em vez de recompor cada caminho, ja que o resultado so depende desse par.
 
-_Encerrados: 5 (resolved 5)_
+_Encerrados: 7 (resolved 6 · wont-fix 1)_
 
 ## Bugs conhecidos
 
@@ -62,9 +59,8 @@ _Encerrados: 5 (resolved 5)_
 - **LDG-0001** [open] — Runtime cross-repo da capability authz/observability (PEP libs Go/Kotlin/TS, repo de política OPA, wrappers OTel, authz-console UI)
 - **LDG-0002** [open] — Piloto do gate authz/observability no axis-go-cloud (provar gate quebrando o build ao adicionar rota sem PEP)
 - **LDG-0022** [open] — O contrato C5 não foi estendido para asserir o estado `+2 Session hooks`; essa cobertura vive no · via `add-portable-handoff`#verify-1
-- **LDG-0023** [open] — A execução da verificação regenerou `.forge/HANDOFF.md` (atualização determinística do header para · via `add-portable-handoff`#verify-2
-- **LDG-0024** [open] — O `w108[5]` nasceu com verde falso: lia `res.errors` de uma função que devolve um **array**, e · via `red-replay-graft-base`#verify-1
-- **LDG-0025** [open] — A lista de estratégias de base existia duplicada (validador em literal + schema JSON). Virou · via `red-replay-graft-base`#verify-2
+
+_Encerrados: 3 (resolved 3)_
 
 ## Notas
 

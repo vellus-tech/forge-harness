@@ -27,3 +27,7 @@ archived:
     archived_at: "2026-08-03"
     kind: baseline_update
     path: 2026-08-03-red-replay-graft-base
+  - change_id: tasks-meta-required
+    archived_at: "2026-08-03"
+    kind: baseline_update
+    path: 2026-08-03-tasks-meta-required

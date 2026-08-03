@@ -1,0 +1,193 @@
+{
+  "schema": "graph/v0",
+  "generated_at": "2026-08-03T22:49:55.375Z",
+  "engine": "native",
+  "root": "/Users/milton/Documents/projects/forge-harness",
+  "stats": {
+    "nodes": 19,
+    "edges": 2,
+    "languages": [
+      "csharp",
+      "go",
+      "js",
+      "kotlin",
+      "ts"
+    ],
+    "summaries_stale": 19,
+    "census": {
+      "csharp": 3,
+      "go": 9,
+      "js": 3,
+      "kotlin": 1,
+      "ts": 3
+    }
+  },
+  "nodes": [
+    {
+      "id": "tests/fixtures/authz/fail/imperative-outside-pep.go",
+      "lang": "go",
+      "loc": 10,
+      "fingerprint": "51e00212cede92611b3e1fbfd22bc5e33cb59f220bc2050d437b219c5a2ecaae",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/authz/fail/imperative-outside-pep.kt",
+      "lang": "kotlin",
+      "loc": 8,
+      "fingerprint": "632057394fb0eaeca28d50d41dd302fa29a6a7979698f2e3af335906faf42491",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/authz/fail/imperative-outside-pep.ts",
+      "lang": "ts",
+      "loc": 6,
+      "fingerprint": "ab931d61c89623fb36bcb73a8b6eae950f3262442f436cdd1ae34277047291b3",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/authz/pass/pep/imperative-inside-pep.go",
+      "lang": "go",
+      "loc": 8,
+      "fingerprint": "aa3a556e6f6c0890fbc25f7affd3f44e7d8f0f40c5632a2eb6782605ee4b4f99",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/brownfield/src/billing.ts",
+      "lang": "ts",
+      "loc": 25,
+      "fingerprint": "662579726b1771e8469c43f3e2c7653dca4f74b66e09c0b2641582cb33877145",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/brownfield/src/money.ts",
+      "lang": "ts",
+      "loc": 33,
+      "fingerprint": "664a267ad3d60f3e79184a977c8f6e891540827dbdbfb9642dacfaf3e6c9ba96",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/data-governance/log-pan-fail/service.go",
+      "lang": "go",
+      "loc": 10,
+      "fingerprint": "5d793fb25ddc6ef84d2becaf17483edc9fba279457e986c519d3f9326dd538b7",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/data-governance/log-pan-masked-pass/service.go",
+      "lang": "go",
+      "loc": 16,
+      "fingerprint": "448666df7a99386c9140e6786ed3a65fbbd2562706ba84a3bdcdc7917e7c0236",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/data-governance/sensitive-field-fail/model.go",
+      "lang": "go",
+      "loc": 9,
+      "fingerprint": "8d6e9c7e8a9dc684ee7d72b99c2e55b346557e31d0804e5b33ab6ffb936580d8",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/data-governance/sensitive-field-pass/model.go",
+      "lang": "go",
+      "loc": 9,
+      "fingerprint": "8d6e9c7e8a9dc684ee7d72b99c2e55b346557e31d0804e5b33ab6ffb936580d8",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/observability/fail/services/orders/api/handler.go",
+      "lang": "go",
+      "loc": 8,
+      "fingerprint": "e95f27be85d770367224810aea36c8cc5ec01931f2ad5531134a0a51c17a3d90",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/observability/pass/packages/otel/wrap.go",
+      "lang": "go",
+      "loc": 11,
+      "fingerprint": "5cfc071e96f936b572d45beac8347a11b1b527fc2aa2dc05ba00fe6beb3c4483",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/observability/pass/services/orders/api/handler.go",
+      "lang": "go",
+      "loc": 8,
+      "fingerprint": "85d5c7b4f4491086811f6629ce25ed41db761af5774c711e003b0c6ea769d8f6",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w132/dotnet/Program.cs",
+      "lang": "csharp",
+      "loc": 19,
+      "fingerprint": "2e8a140618d3b6bd09ddbc4cef69d2ccb0136cb3a313ddf806931bf272409d77",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w132/dotnet/WidgetEndpoints.cs",
+      "lang": "csharp",
+      "loc": 24,
+      "fingerprint": "a147fd53f59e4f0d111f522014bf7b920ba25b327b9146ea8d33f6c850d92bb2",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w132/dotnet/WidgetStreamEndpoints.cs",
+      "lang": "csharp",
+      "loc": 13,
+      "fingerprint": "8115494a1004f241d0447b8be832e4938ca09ad9ab3d55df34cd5d545af30559",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tools/gen-banner.mjs",
+      "lang": "js",
+      "loc": 275,
+      "fingerprint": "41126e323b9aa2156bbf58113884f042f1d04cae0ab8fb6ff40c124e51a76796",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "tools/validate-forge.mjs",
+      "lang": "js",
+      "loc": 86,
+      "fingerprint": "8e4fa3de525b08a8c2911781581bd893c42b1a935aa444c8f67950b9d4589118",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "tools/validate-yaml.mjs",
+      "lang": "js",
+      "loc": 26,
+      "fingerprint": "ff9219e347bd2c717aa433e27c3d651d78c6519f4faa7032b85784d2800cc894",
+      "layer": "unknown",
+      "summary": null
+    }
+  ],
+  "edges": [
+    {
+      "from": "tests/fixtures/brownfield/src/billing.ts",
+      "to": "./money.js",
+      "kind": "import",
+      "resolved": false
+    },
+    {
+      "from": "tests/fixtures/observability/pass/services/orders/api/handler.go",
+      "to": "example.com/orders/packages/otel",
+      "kind": "import",
+      "resolved": false
+    }
+  ]
+}

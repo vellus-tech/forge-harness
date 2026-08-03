@@ -28,13 +28,14 @@ A integridade do grafo de tasks é verificada por `lib/tasks-graph.mjs`, executa
 bash .forge/scripts/validate-spec.sh <change-id>
 ```
 
-**Bloqueiam** a transição: **TSK-01** dependência que aponta para TASK inexistente · **TSK-02** ciclo · **TSK-03** dependência para TASK de wave **posterior** · **TSK-04** ID **duplicado**.
+**Bloqueiam** a transição: **TSK-01** dependência que aponta para TASK inexistente · **TSK-02** ciclo · **TSK-03** dependência para TASK de wave **posterior** · **TSK-04** ID **duplicado** · **TSK-06** **nenhuma** task declara metadados.
 
 **Avisam** (`WARN`, não travam):
 
 - **TSK-04 furo na numeração.** Ambíguo por natureza: pode ser task perdida num merge, mas também é o resultado de remover uma task sem renumerar — que é a operação segura, já que renumerar invalida referências gravadas em commits, PRs e stories.
 - **TSK-05 não foi possível verificar.** Nenhum cabeçalho de wave reconhecido, logo a ordem topológica entre waves não foi conferida. Um check que não rodou é indistinguível de um check que passou, e é por isso que ele se anuncia.
 - **SRF-01 cobertura de superfície.** Cruza o "Checklist de cobertura de superfície" do `requirements.md` contra o grafo: REQ que declara endpoint/rota sem que nenhuma das tasks que o cobrem produza superfície. Resolva declarando o `paths:` real da task que entrega a rota, ou abrindo a task que falta.
+- **TSK-06 parte das tasks sem bloco de metadados.** As dependências dessas tasks não entraram no grafo. Avisa quando é pontual (task trivial é motivo plausível) e **bloqueia** quando é o plano inteiro — aí não sobrou aresta nenhuma, e TSK-01/02/03 passariam por vacuidade. `depende: —` é declaração de independência e não conta como omissão: o que se cobra é ter declarado, não ter dependência.
 - **SRF-02 Checklist ausente ou vazio** — mesmo princípio do TSK-05: o SRF-01 não rodou, e isso aparece.
 
 O parser reconhece os campos `rastreia:`/`paths:`/`depende:` pelo **nome**, em qualquer ordem, com ou sem parênteses em volta — não há forma canônica a memorizar.

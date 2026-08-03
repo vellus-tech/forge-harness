@@ -6,7 +6,9 @@
 
 O módulo já reconhece essa classe: o comentário em `tasks-graph.mjs:107` registra que "um grafo sem arestas é um grafo sem defeitos: TSK-01, TSK-02 e TSK-03 desligavam em silêncio, que é a falha que este módulo existe para eliminar". A correção de então tratou o caso em que os metadados **existem** mas em formato não reconhecido (varredura por nome de campo, em qualquer ordem). O caso em que os metadados simplesmente **não foram escritos** continuou aberto — e é indistinguível, para o check, de um plano perfeito.
 
-Reprodução real: o change `create-forge-project-harness` deste repositório tem 30 tasks e zero arestas declaradas. `FORGE_ROOT=$(pwd) bash template/.forge/scripts/validate-spec.sh create-forge-project-harness` responde `OK`, com um único WARN sobre outro assunto (`SRF-02`). Três checks bloqueantes atravessaram um plano de 30 tasks sem verificar uma única dependência.
+Reprodução: um plano de três tasks sem nenhum bloco de metadados produz zero achados em `checkTasksGraph` — os três checks aprovam sem ter verificado nada (`w130[16]`, caso (a)).
+
+**Correção de premissa.** O `LDG-0011` registra que o change `create-forge-project-harness` deste repositório teria "30 tasks e ZERO arestas declaradas". Medido agora, o plano tem **19 das 30 tasks com bloco de metadados e 19 arestas declaradas**; as 11 sem bloco são as da Wave 1. O número do ledger descreve o estado de quando o item foi aberto, antes de o parser passar a reconhecer campo por nome em qualquer ordem — a mesma correção que o comentário em `tasks-graph.mjs:107` documenta. O defeito estrutural continua real e é o que este change fecha; o exemplo citado no ledger é que envelheceu, e vale corrigi-lo lá.
 
 ## 2. Comportamento esperado
 

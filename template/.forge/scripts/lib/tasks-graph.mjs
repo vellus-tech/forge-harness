@@ -158,7 +158,11 @@ export function parseTasks(text) {
     // o `(` que abria o bloco de metadados fica no fim do recorte do título — apara-se junto com a
     // pontuação decorativa, sem tocar parêntese que faça parte do texto ("(bits 2, 35)")
     const title = trimWrappers(hits.length ? rest.slice(0, hits[0].at) : rest).replace(/[\s;·(]+$/, '').trim();
-    tasks.push({ id: normId(n), n, status, wave, title, traces: meta.traces, paths: meta.paths, dependsOn: meta.dependsOn, exposes: meta.exposes, line: i + 1 });
+    // hasMeta responde "a linha declarou ALGUM campo reconhecido?", que é diferente de "algum
+    // campo tem valor". `depende: —` deixa dependsOn vazio exatamente como a omissão total, e sem
+    // esta distinção o TSK-06 puniria quem declarou independência — que é a declaração correta.
+    const hasMeta = hits.some((h) => META_KEYS[h.key]);
+    tasks.push({ id: normId(n), n, status, wave, title, traces: meta.traces, paths: meta.paths, dependsOn: meta.dependsOn, exposes: meta.exposes, hasMeta, line: i + 1 });
   });
   return { tasks, waves };
 }
@@ -240,6 +244,36 @@ export function checkTasksGraph(parsed) {
   const withDeps = tasks.filter((t) => t.dependsOn.length);
   if (withDeps.length && tasks.every((t) => t.wave === null))
     findings.push({ code: 'TSK-05', enforceable: false, msg: `tasks.md: nenhum cabeçalho de wave reconhecido (esperado "## Wave N — …") — as ${withDeps.length} dependências declaradas NÃO foram verificadas contra ordem de wave (TSK-03 não pôde rodar)` });
+
+  // TSK-06 — a outra metade do mesmo princípio do TSK-05, e a que faltava: sem NENHUM bloco de
+  // metadados o grafo não tem aresta, e um grafo sem arestas é um grafo sem defeitos. TSK-01/02/03
+  // não encontram nada para reprovar e o plano é aprovado sem ter sido verificado. Todo achado
+  // deste módulo nasce de um fato PRESENTE no artefato (aresta pendurada, ciclo, ordem invertida,
+  // ID duplicado); esta é a ausência que precisa virar achado, senão o caminho mais fácil para
+  // passar nos checks é não declarar nada.
+  //
+  // A assimetria entre bloquear e avisar segue a de TSK-04 (duplicata bloqueia, furo avisa):
+  // omissão SISTEMÁTICA é o artefato inteiro não alimentando o check, e o conserto — escrever o
+  // bloco — é seguro e barato; omissão PONTUAL é plausivelmente uma task trivial, e bloquear ali
+  // empurraria para anotação decorativa, que polui o grafo sem informar nada.
+  //
+  // O predicado é `hasMeta` (a linha declarou algum campo?), nunca `dependsOn.length` (a lista tem
+  // item?): `depende: —` é declaração explícita de independência e produz lista vazia igual à
+  // omissão total. Punir os dois do mesmo jeito ensinaria a não declarar.
+  const semMeta = tasks.filter((t) => !t.hasMeta);
+  if (tasks.length > 1 && semMeta.length) {
+    if (semMeta.length === tasks.length) {
+      findings.push({
+        code: 'TSK-06', enforceable: true,
+        msg: `tasks.md: nenhuma das ${tasks.length} tasks declara metadados (esperado "(rastreia: …; paths: …; depende: …)") — sem aresta declarada, TSK-01 (dependência pendurada), TSK-02 (ciclo) e TSK-03 (ordem entre waves) não verificaram nada e passaram por vacuidade`,
+      });
+    } else {
+      findings.push({
+        code: 'TSK-06', enforceable: false,
+        msg: `tasks.md: ${semMeta.length} de ${tasks.length} task(s) sem bloco de metadados (${semMeta.map((t) => t.id).join(', ')}) — as dependências dessas tasks não entraram no grafo; declare "depende: —" quando de fato não houver`,
+      });
+    }
+  }
 
   return findings.sort((a, b) => (a.code < b.code ? -1 : a.code > b.code ? 1 : a.msg < b.msg ? -1 : 1));
 }

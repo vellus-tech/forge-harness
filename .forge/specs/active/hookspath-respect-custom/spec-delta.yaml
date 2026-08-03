@@ -1,0 +1,27 @@
+# Spec delta — hookspath-respect-custom (autorado no archive; bugfix verificado em 2026-07-09,
+# commit 9982e59, antes do scaffold de spec-delta existir — fallback de change legado, /forge:archive §1).
+# Payload derivado de bugfix.md §2 (comportamento esperado) e §3 (o que não pode regredir),
+# conferido contra tests/w94-hookspath-preserve-gate.sh. Numeração continua de REQ-FHT-045.
+operations:
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-046
+    content_ref: bugfix.md#2-comportamento-esperado
+    requirement:
+      id: REQ-FHT-046
+      title: "core.hooksPath customizado nunca é sobrescrito por init/update/install.sh"
+      normative: SHALL NOT
+      scenarios:
+        - id: SCN-FHT-046-A
+          given: "um repositório com core.hooksPath customizado para outro valor (ex.: .githooks), configurado pelo próprio projeto e não pelo Forge"
+          when: "forge init --force, forge update ou installer/install.sh roda nesse repositório"
+          then: "o valor customizado é preservado e uma nota informativa explica que os hooks do Forge (pre-push de docs, pre-commit de worktree) não estão ativos por causa do hooksPath customizado, com a orientação de encadeá-los ou trocar manualmente"
+        - id: SCN-FHT-046-B
+          given: "um repositório sem core.hooksPath configurado (default .git/hooks) e outro já com .forge/hooks/git"
+          when: "init, update ou install.sh roda"
+          then: "o repositório sem configuração recebe core.hooksPath = .forge/hooks/git (caminho feliz da instalação nova, sem regressão) e o que já apontava para .forge/hooks/git é no-op silencioso, sem emitir a nota de hooksPath customizado"
+      contracts: []
+      tests:
+        - tests/w94-hookspath-preserve-gate.sh
+        - tests/w13-init-gate.sh
+        - tests/w63-forge-update-gate.sh

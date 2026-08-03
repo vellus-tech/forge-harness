@@ -4,7 +4,12 @@ Todas as mudanças notáveis deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/)
 e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
-## [Unreleased]
+## [0.4.0] — 2026-08-03
+
+> Onda C do fechamento de superfície: o harness passa a ter oráculo de rota — um script que
+> responde "este endpoint existe?" cruzando o que o contrato promete contra o que o código expõe.
+> Cinco rodadas de revisão crítica antes do merge; o registro delas está abaixo, porque o padrão
+> que elas revelaram vale mais que a lista de defeitos.
 
 ### Added
 - **O oráculo que faltava: quais rotas o código de fato expõe (`lib/route-scan.mjs`, `lib/api-surface.mjs`, gate `w132`).** As Ondas A e B tornaram executáveis os checks que o harness já especificava e fecharam as portas de saída por omissão, mas nenhum script sabia responder "este endpoint existe?". A comparação entre o que o contrato promete e o que o código entrega continuava sendo leitura humana — e a leitura humana falhou exatamente onde o path não cabe numa linha.

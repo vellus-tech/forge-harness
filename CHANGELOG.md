@@ -6,6 +6,13 @@ e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-08-03
+
+> Duas ondas do fechamento de superfície de API: os checks que o harness já especificava como
+> instrução para modelo viram script, e as duas portas de saída por omissão que os tornavam
+> opcionais se fecham. `wave close` deixa de aceitar o veredito de quem fecha a wave e passa a
+> executar os gates — o script que a documentação já mandava rodar não existia no repositório.
+
 ### Added
 - **Grafo de tasks e cobertura de superfície como código (`lib/tasks-graph.mjs`, gate `w130`).** O harness já especificava os dois checks, e ambos eram instrução para um modelo: `commands/specs/tasks.md` §2 mandava auto-verificar a ordem topológica, e `commands/specs/analyze.md` item 6 mandava cruzar o "Checklist de cobertura de superfície" contra as tasks — dizendo textualmente que era isso "que impede a lacuna clássica de parâmetro implementado sem superfície de acesso descoberta só depois do marco". Não existe script `analyze`, e a conferência a olho deixou passar, num plano real de 89 tasks, uma dependência de Wave 4 para Wave 7 e uma rota que o contrato promete sem nenhuma task que a implemente.
   - **TSK-01** dependência para TASK inexistente, **TSK-02** ciclo, **TSK-03** dependência para wave posterior, **TSK-04** ID duplicado — bloqueiam a transição a `tasks-ready` no `validate-spec`. Furo na numeração apenas **avisa**: é ambíguo, e remover task sem renumerar é a operação segura (renumerar invalida referências já gravadas em commits, PRs e stories).

@@ -354,19 +354,35 @@ export function collectDeclaredSurface({ contractPaths = [], specPaths = [], aut
   const unresolved = [];
   const rel = (f) => relative(root, f) || f;
 
-  const declarado = (paths, rotulo) => {
+  // Valida a FONTE, não só o path. `existsSync` sozinho aprova o diretório de contratos vazio —
+  // que é o estado normal de um change no início, e precisamente quando o SUR-01 precisa se
+  // abster. Um path declarado do qual nada foi lido é indistinguível, para o cruzamento, de um
+  // contrato que não promete nada.
+  const declarado = (paths, exts, rotulo) => {
     for (const p of paths) {
-      if (existsSync(p)) continue;
-      unresolved.push({
-        kind: 'source-missing',
-        file: rel(p),
-        detail: `${rotulo} declarado e inexistente — contrato movido, renomeado ou com typo no wiring devolve superfície vazia, e superfície vazia deixa o SUR-01 verde por vacuidade`,
-      });
+      if (!existsSync(p)) {
+        unresolved.push({
+          kind: 'source-missing',
+          file: rel(p),
+          detail: `${rotulo} declarado e inexistente — contrato movido, renomeado ou com typo no wiring devolve superfície vazia, e superfície vazia deixa o SUR-01 verde por vacuidade`,
+        });
+        continue;
+      }
+      if (collect([p], { exts, skipDirs: DEFAULT_SKIP }).length === 0) {
+        unresolved.push({
+          kind: 'source-empty',
+          file: rel(p),
+          detail: `${rotulo} declarado e sem nenhum arquivo legível (${[...exts].join('/')}) — nada foi lido, e nada lido não é o mesmo que nada prometido`,
+        });
+      }
     }
   };
-  declarado(authzPaths, 'authz-map');
-  declarado(contractPaths, 'contrato');
-  declarado(specPaths, 'spec');
+  const EXT_YAML = new Set(['.yaml', '.yml']);
+  const EXT_CONTRATO = new Set(['.yaml', '.yml', '.json']);
+  const EXT_SPEC = new Set(['.md']);
+  declarado(authzPaths, EXT_YAML, 'authz-map');
+  declarado(contractPaths, EXT_CONTRATO, 'contrato');
+  declarado(specPaths, EXT_SPEC, 'spec');
 
   const ler = (f) => {
     const text = readIf(f);

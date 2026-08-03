@@ -120,14 +120,60 @@ function literal(raw) {
   return conteudo;
 }
 
-function stripComments(text) {
-  // Remove // e /* */ e # (Python) sem tentar ser um parser — o objetivo é só evitar que rota
-  // comentada conte como rota exposta, que seria falso positivo caro no SUR-02.
-  return text
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .split('\n')
-    .map((l) => l.replace(/\/\/.*$/, '').replace(/(^|\s)#(?!\[).*$/, '$1'))
-    .join('\n');
+/**
+ * Varre o arquivo uma vez e devolve duas projeções do MESMO comprimento, para que todo índice
+ * valha nas duas:
+ *
+ *   code    comentários viram espaço. É onde os regexes de indexação leem os literais de path.
+ *   struct  comentários E o conteúdo das strings viram espaço. É onde as chaves são contadas.
+ *
+ * A separação existe porque contar chaves sobre o texto cru é indefensável. Um `//` dentro de uma
+ * URL literal (`new Uri("https://api.acme.com/")`) fazia o removedor de comentário levar junto o
+ * `}` da mesma linha; uma chave dentro de string (`const string Tmpl = "{";`) desbalanceava
+ * diretamente. Nos dois casos o corpo da classe deixava de fechar, a classe era descartada, e as
+ * rotas dela saíam SEM prefixo e sem diagnóstico — path inventado pela via mais silenciosa que
+ * existe. Mascarar o conteúdo das strings preservando as posições resolve os dois de uma vez.
+ */
+function project(raw) {
+  const code = [...raw];
+  const struct = [...raw];
+  const n = raw.length;
+  const branco = (arr, i) => { if (raw[i] !== '\n') arr[i] = ' '; };
+
+  let i = 0;
+  while (i < n) {
+    const c = raw[i];
+    const d = raw[i + 1];
+
+    if (c === '/' && d === '/') {
+      while (i < n && raw[i] !== '\n') { branco(code, i); branco(struct, i); i += 1; }
+      continue;
+    }
+    if (c === '/' && d === '*') {
+      const fim = raw.indexOf('*/', i + 2);
+      const parar = fim === -1 ? n : fim + 2;
+      for (; i < parar; i += 1) { branco(code, i); branco(struct, i); }
+      continue;
+    }
+    // `#` de comentário (Python, e `#region` do C#, inofensivo aqui). `#[` é atributo de Rust.
+    if (c === '#' && d !== '[' && (i === 0 || /\s/.test(raw[i - 1]))) {
+      while (i < n && raw[i] !== '\n') { branco(code, i); branco(struct, i); i += 1; }
+      continue;
+    }
+    if (c === '"' || c === "'" || c === '`') {
+      i += 1;
+      while (i < n) {
+        if (raw[i] === '\\') { branco(struct, i); branco(struct, i + 1); i += 2; continue; }
+        if (raw[i] === c) break;
+        branco(struct, i);
+        i += 1;
+      }
+      i += 1;
+      continue;
+    }
+    i += 1;
+  }
+  return { code: code.join(''), struct: struct.join('') };
 }
 
 function lineOf(text, index) {
@@ -168,7 +214,15 @@ function blockAt(text, openIndex) {
 function classesOf(text) {
   const decls = [];
   const re = /\bclass\s+(\w+)/g;
-  for (let m; (m = re.exec(text)); ) decls.push({ name: m[1], declIndex: m.index, after: m.index + m[0].length });
+  for (let m; (m = re.exec(text)); ) {
+    // `where TDto : class` é RESTRIÇÃO genérica, não declaração. Sem este corte o regex casava
+    // um fantasma chamado `where`, que se interpõe entre o controller e o `{` do corpo dele — e
+    // com o limite por próxima-declaração isso descartava o controller de verdade, transferindo
+    // o `[Route]` (e a resolução de `[controller]`) para o fantasma.
+    const antes = text.slice(0, m.index).trimEnd();
+    if (antes.endsWith(':') || antes.endsWith(',')) continue;
+    decls.push({ name: m[1], declIndex: m.index, after: m.index + m[0].length });
+  }
 
   const out = [];
   decls.forEach((d, i) => {
@@ -247,18 +301,20 @@ function pushGroupChain(idx, { scope, symbol, parentId, chainSrc, file, line, tr
  * Escolher (o comportamento anterior, em que a última definição lida sobrescrevia as outras)
  * emitia rota cruzada entre módulos e perdia a rota real, sem nenhum diagnóstico.
  */
-function indexDotnetMinimal(text, file, idx) {
-  const gruposAntes = idx.groups.length;
+function indexDotnetMinimal(text, struct, file, idx) {
   const rotasAntes = idx.routes.length + idx.absolute.length;
-  const sitiosGrupo = (text.match(/\.\s*MapGroup\s*\(/g) || []).length;
+  const sitiosGrupo = [];
+  { const re = /\.\s*MapGroup\s*\(/g; for (let m; (m = re.exec(text)); ) sitiosGrupo.push(m.index); }
+  const ancorados = new Set();
+  const ancorar = (de, ate) => { for (const i of sitiosGrupo) if (i >= de && i < ate) ancorados.add(i); };
   const sitiosVerbo = (text.match(/\.\s*Map(?:Get|Post|Put|Delete|Patch|Head|Options)\s*\(/g) || []).length;
 
   const producerRe = /\b(?:public|internal|private|protected)?\s*static\s+[\w<>,.\[\]?]+\s+(\w+)\s*(?:<[^<>()]*>)?\s*\(\s*(?:this\s+)?(IEndpointRouteBuilder|RouteGroupBuilder|WebApplication)\s+(\w+)[^)]*\)/g;
   const producerBodies = [];
   for (let m; (m = producerRe.exec(text)); ) {
-    const open = text.indexOf('{', m.index + m[0].length);
+    const open = struct.indexOf('{', m.index + m[0].length);
     if (open === -1) continue;
-    const blk = blockAt(text, open);
+    const blk = blockAt(struct, open);
     if (!blk) continue;
     const [, name, type, param] = m;
     const scope = `${file}#${name}`;
@@ -290,7 +346,20 @@ function indexDotnetMinimal(text, file, idx) {
     const scope = scopeAt(m.index);
     const line = lineOf(text, m.index);
     const perdido = /\.\s*MapGroup\s*\(/.test(resto || '');
+    const fimCadeia = m.index + m[0].length - (resto || '').length;
+    ancorar(fimCadeia - chainSrc.length, fimCadeia);
     pushGroupChain(idx, { scope, symbol, parentId: `${scope}:${parent}`, chainSrc, file, line, truncada: perdido });
+  }
+
+  // Atribuição que CONTÉM MapGroup mas cuja cadeia o padrão estrito não ancora
+  // (`var b = Helper.Build().MapGroup("/b")`). O símbolo é um grupo de prefixo desconhecido, não
+  // uma raiz: sem registrá-lo, as rotas dele eram promovidas a absolutas e saíam sem prefixo.
+  const groupFrouxoRe = /(?:var|RouteGroupBuilder)\s+(\w+)\s*=\s*[^;]*?\.\s*MapGroup\s*\([^;]*/g;
+  for (let m; (m = groupFrouxoRe.exec(text)); ) {
+    const scope = scopeAt(m.index);
+    const id = `${scope}:${m[1]}`;
+    if (idx.groups.some((g) => g.id === id)) continue;
+    idx.groups.push({ id, scope, symbol: m[1], parent: `${scope}:<desconhecido>`, path: null, file, line: lineOf(text, m.index) });
   }
 
   // Cadeia fluente sem atribuição: `app.MapGroup("/x").MapGet("/y", H)` e
@@ -304,6 +373,7 @@ function indexDotnetMinimal(text, file, idx) {
       const [, recv, chainSrc, rawPath] = m;
       const scope = scopeAt(m.index);
       const line = lineOf(text, m.index);
+      ancorar(m.index + recv.length, m.index + recv.length + chainSrc.length);
       fluentSeq += 1;
       const ownerId = pushGroupChain(idx, { scope, symbol: `#fluente${fluentSeq}`, parentId: `${scope}:${recv}`, chainSrc, file, line });
       const lit = literal(rawPath);
@@ -320,6 +390,7 @@ function indexDotnetMinimal(text, file, idx) {
     if (/^Map(Get|Post|Put|Delete|Patch|Head|Options|Group)$/.test(producer)) continue;
     const scope = scopeAt(m.index);
     const line = lineOf(text, m.index);
+    ancorar(m.index + recv.length, m.index + recv.length + chainSrc.length);
     fluentSeq += 1;
     const ownerId = pushGroupChain(idx, { scope, symbol: `#fluente${fluentSeq}`, parentId: `${scope}:${recv}`, chainSrc, file, line });
     idx.calls.push({ owner: ownerId, producer, file, line });
@@ -345,13 +416,13 @@ function indexDotnetMinimal(text, file, idx) {
     idx.calls.push({ owner: `${scopeAt(m.index)}:${m[1]}`, producer: m[2], file, line: lineOf(text, m.index) });
   }
 
-  const gruposVistos = idx.groups.length - gruposAntes;
-  if (gruposVistos < sitiosGrupo) {
+  const orfaos = sitiosGrupo.filter((i) => !ancorados.has(i));
+  if (orfaos.length) {
     idx.unresolved.push({
       kind: 'mapgroup-unindexed',
       file,
-      line: 0,
-      detail: `${sitiosGrupo - gruposVistos} chamada(s) MapGroup() que o scanner não conseguiu ancorar (elo não adjacente, receptor composto); o prefixo delas não entra em rota nenhuma`,
+      line: lineOf(text, orfaos[0]),
+      detail: `${orfaos.length} chamada(s) MapGroup() que o scanner não conseguiu ancorar (elo não adjacente, receptor composto); o prefixo delas não entra em rota nenhuma`,
     });
   }
   const rotasVistas = idx.routes.length + idx.absolute.length - rotasAntes;
@@ -373,8 +444,8 @@ function indexDotnetMinimal(text, file, idx) {
  * arquivo, se houver exatamente um" fazia dois controllers no mesmo `.cs` descartarem os dois
  * prefixos e emitirem `/list` no lugar de `/api/alpha/list` — path inventado, sem diagnóstico.
  */
-function indexDotnetAttributes(text, file, idx) {
-  const classes = classesOf(text);
+function indexDotnetAttributes(text, struct, file, idx) {
+  const classes = classesOf(struct);
   const prefixes = new Map();
   classes.forEach((c, i) => {
     const desde = i > 0 ? classes[i - 1].end : 0;
@@ -418,8 +489,8 @@ function indexDotnetAttributes(text, file, idx) {
  * aplicava o prefixo de uma classe às rotas de todas as outras. Em `.kt`, onde várias classes
  * por arquivo é a norma, isso trocava o prefixo de metade das rotas.
  */
-function indexSpring(text, file, idx) {
-  const classes = classesOf(text);
+function indexSpring(text, struct, file, idx) {
+  const classes = classesOf(struct);
   const prefixes = new Map();
   classes.forEach((c, i) => {
     const desde = i > 0 ? classes[i - 1].end : 0;
@@ -462,7 +533,7 @@ function indexSpring(text, file, idx) {
  * Frame com prefixo irresolúvel CONTAMINA os descendentes: as rotas abaixo dele não são
  * emitidas, porque sairiam sem o prefixo — `/status` no lugar de `/{basePath}/status`.
  */
-function indexKtor(text, file, idx) {
+function indexKtor(text, struct, file, idx) {
   // `route(` que o padrão principal não casa (argumento com parênteses, p.ex. `route(base())`)
   // não empilha frame nenhum, e as rotas de dentro sairiam sem prefixo. Contadas aqui para que
   // a diferença vire diagnóstico em vez de path parcial.
@@ -474,6 +545,9 @@ function indexKtor(text, file, idx) {
   const stack = [];
   let depth = 0;
   for (let m; (m = re.exec(text)); ) {
+    // Chave dentro de literal não abre nem fecha bloco: na projeção estrutural ela é espaço.
+    if (m[0] === '{' && struct[m.index] !== '{') continue;
+    if (m[0] === '}' && struct[m.index] !== '}') continue;
     if (m[0] === '{') { depth += 1; continue; }
     if (m[0] === '}') {
       depth -= 1;
@@ -492,9 +566,14 @@ function indexKtor(text, file, idx) {
       }
       continue;
     }
-    // `get { }` sem path: só conta dentro de um route() aberto — fora dele, `get {` é getter de
-    // propriedade do Kotlin, não rota.
-    if (m[4] !== undefined && stack.length === 0) { depth += 1; continue; }
+    // `get { }` sem path só conta quando está DIRETAMENTE dentro de um route() aberto. Fora de
+    // route() é getter de propriedade do Kotlin; vários níveis abaixo é DSL cujo nome coincide
+    // com verbo — `call.respondHtml { head { ... } }` do kotlinx.html emitia um `HEAD /x`
+    // fantasma, que o SUR-02 acusaria como rota não declarada.
+    if (m[4] !== undefined && (stack.length === 0 || depth !== stack[stack.length - 1].depth)) {
+      depth += 1;
+      continue;
+    }
     if (m[2] !== undefined || m[4] !== undefined) {
       const verbo = m[2] !== undefined ? m[2] : m[4];
       const lit = m[2] !== undefined ? (literal(m[3]) ?? '') : '';
@@ -784,18 +863,18 @@ export function scanRoutes(paths, { exts = ROUTE_EXTS, skipDirs = DEFAULT_SKIP, 
 
   for (const f of files) {
     const raw = readFileSync(f, 'utf8');
-    const text = stripComments(raw);
+    const { code: text, struct } = project(raw);
     const rel = relative(root, f) || f;
     const ext = f.slice(f.lastIndexOf('.'));
 
     if (ext === '.cs') {
-      indexDotnetMinimal(text, rel, idx);
-      indexDotnetAttributes(text, rel, idx);
+      indexDotnetMinimal(text, struct, rel, idx);
+      indexDotnetAttributes(text, struct, rel, idx);
     } else if (ext === '.java') {
-      indexSpring(text, rel, idx);
+      indexSpring(text, struct, rel, idx);
     } else if (ext === '.kt') {
-      indexKtor(text, rel, idx);
-      indexSpring(text, rel, idx);
+      indexKtor(text, struct, rel, idx);
+      indexSpring(text, struct, rel, idx);
     } else if (ext === '.ts' || ext === '.js' || ext === '.mjs') {
       indexJsHttp(text, rel, idx);
     }

@@ -60,6 +60,10 @@
 #   [34] basePath compõe nas duas serializações; `servers` ambíguo ou de PathItem não contamina
 #   [35] authz-map ilegível, em flow style, ou com `endpoint:` fora da forma, vira `unresolved`
 #   [36] paths sobrepostos não fabricam ambiguidade de produtor (arquivo indexado duas vezes)
+#   [37] literal com `//` ou `{` não desbalanceia o corpo da classe (o prefixo não evapora)
+#   [38] DSL cujo nome coincide com verbo (`respondHtml { head { … } }`) não vira rota fantasma
+#   [39] restrição genérica `where T : class` não cria classe fantasma que rouba o [Route]
+#   [40] o guard de MapGroup não é abafado por dupla contagem; fonte declarada e vazia é reportada
 set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -960,6 +964,111 @@ if (routes.length !== 5) { console.error(`esperava as mesmas 5 rotas com paths s
 EOF
 echo "OK [36]"
 
+echo "[37] literal com // ou chave não desbalanceia o corpo da classe"
+mkdir -p "$T/literais"
+cat > "$T/literais/Orders.cs" <<'CS'
+[Route("api/v1/orders")]
+public class OrdersController : ControllerBase
+{
+    private static readonly HttpClient Client = new() { BaseAddress = new Uri("https://api.acme.com/") };
+    private const string Tmpl = "{";
+    [HttpGet("list")] public IActionResult List() => Ok();
+}
+CS
+cat > "$T/check-37.mjs" <<'EOF'
+const [lib, , tmp] = process.argv.slice(2);
+const { scanRoutes } = await import(`${lib}/route-scan.mjs`);
+const { routes } = scanRoutes([`${tmp}/literais`], { root: tmp });
+const paths = routes.map((r) => `${r.method} ${r.path}`);
+// O `//` da URL fazia o removedor de comentário levar junto o `}` da mesma linha; a chave dentro
+// da string desbalanceava direto. O corpo da classe deixava de fechar, a classe era descartada, e
+// a rota saía SEM prefixo — path inventado pela via mais silenciosa que existe.
+if (paths.includes('GET /list')) { console.error('literal desbalanceou o corpo da classe e o prefixo evaporou'); process.exit(1); }
+if (!paths.includes('GET /api/v1/orders/list')) { console.error(`prefixo não resolveu: ${JSON.stringify(paths)}`); process.exit(1); }
+EOF
+node "$T/check-37.mjs" "$LIB" "$FIX" "$T" || { echo "FAIL [37]"; exit 1; }
+echo "OK [37]"
+
+echo "[38] DSL cujo nome coincide com verbo não vira rota fantasma"
+mkdir -p "$T/dsl"
+cat > "$T/dsl/Routing.kt" <<'KT'
+fun Application.configure() {
+    route("/api/v1/orders") {
+        get("/list") { call.respond(service.list()) }
+        get("/page") {
+            call.respondHtml {
+                head { title { +"Orders" } }
+                body { h1 { +"Orders" } }
+            }
+        }
+    }
+}
+KT
+cat > "$T/check-38.mjs" <<'EOF'
+const [lib, , tmp] = process.argv.slice(2);
+const { scanRoutes } = await import(`${lib}/route-scan.mjs`);
+const { routes } = scanRoutes([`${tmp}/dsl`], { root: tmp });
+const paths = routes.map((r) => `${r.method} ${r.path}`);
+// `call.respondHtml { head { ... } }` do kotlinx.html é o idioma canônico de HTML no Ktor, e
+// `head` está na lista de verbos. Aceitar `verb {` em qualquer profundidade inventava um endpoint.
+if (paths.includes('HEAD /api/v1/orders')) { console.error('DSL aninhada virou rota fantasma'); process.exit(1); }
+if (paths.length !== 2) { console.error(`esperava exatamente as 2 rotas reais, veio ${JSON.stringify(paths)}`); process.exit(1); }
+EOF
+node "$T/check-38.mjs" "$LIB" "$FIX" "$T" || { echo "FAIL [38]"; exit 1; }
+echo "OK [38]"
+
+echo "[39] restrição genérica 'where T : class' não cria classe fantasma"
+mkdir -p "$T/generico"
+cat > "$T/generico/Items.cs" <<'CS'
+[ApiController]
+[Route("api/v1/[controller]")]
+public class ItemsController<TDto, TKey> : ControllerBase
+    where TDto : class
+    where TKey : struct
+{
+    [HttpGet("list")] public IActionResult List() => Ok();
+}
+CS
+cat > "$T/check-39.mjs" <<'EOF'
+const [lib, , tmp] = process.argv.slice(2);
+const { scanRoutes } = await import(`${lib}/route-scan.mjs`);
+const { routes } = scanRoutes([`${tmp}/generico`], { root: tmp });
+const paths = routes.map((r) => `${r.method} ${r.path}`);
+// `\bclass\s+(\w+)` casava a restrição e criava um fantasma chamado `where`, que se interpõe
+// entre o controller e o `{` do corpo dele — com o limite por próxima-declaração, isso descartava
+// o controller real e transferia o [Route] (e a resolução de [controller]) para o fantasma.
+if (paths.some((p) => p.includes('where'))) { console.error(`restrição genérica virou nome de classe: ${JSON.stringify(paths)}`); process.exit(1); }
+if (!paths.includes('GET /api/v1/Items/list')) { console.error(`prefixo do controller genérico não resolveu: ${JSON.stringify(paths)}`); process.exit(1); }
+EOF
+node "$T/check-39.mjs" "$LIB" "$FIX" "$T" || { echo "FAIL [39]"; exit 1; }
+echo "OK [39]"
+
+echo "[40] guard de MapGroup não é abafado, e fonte declarada e vazia é reportada"
+mkdir -p "$T/abafa" "$T/fontevazia"
+cat > "$T/abafa/G.cs" <<'CS'
+var ep = app.MapGroup("/a").MapGet("/x", H);
+var b  = Helper.Build().MapGroup("/b");
+b.MapGet("/y", H);
+CS
+cat > "$T/check-40.mjs" <<'EOF'
+const [lib, , tmp] = process.argv.slice(2);
+const { scanRoutes } = await import(`${lib}/route-scan.mjs`);
+const as = await import(`${lib}/api-surface.mjs`);
+const { routes, unresolved } = scanRoutes([`${tmp}/abafa`], { root: tmp });
+const paths = routes.map((r) => `${r.method} ${r.path}`);
+// Contar PUSHES em vez de sítios dava crédito em dobro quando uma atribuição era consumida pelas
+// duas regexes, e esse crédito abafava um sítio genuinamente não ancorado no mesmo arquivo.
+if (!unresolved.some((u) => u.kind === 'mapgroup-unindexed')) { console.error('sítio não ancorado foi abafado por dupla contagem'); process.exit(1); }
+if (paths.includes('GET /y')) { console.error('rota de grupo com prefixo desconhecido saiu como absoluta'); process.exit(1); }
+if (!paths.includes('GET /a/x')) { console.error('a supressão levou junto a cadeia que resolveu'); process.exit(1); }
+// Diretório de contratos existente e VAZIO é o estado normal de um change no início — justamente
+// quando o SUR-01 precisa se abster e passaria.
+const vazio = as.collectDeclaredSurface({ contractPaths: [`${tmp}/fontevazia`], root: tmp });
+if (!vazio.unresolved.some((u) => u.kind === 'source-empty')) { console.error('fonte declarada e sem arquivo legível passou calada'); process.exit(1); }
+EOF
+node "$T/check-40.mjs" "$LIB" "$FIX" "$T" || { echo "FAIL [40]"; exit 1; }
+echo "OK [40]"
+
 echo "[29] PROVA: cada correção morre quando a regra que a implementa é mutada"
 # A mutação opera sobre uma CÓPIA do lib — o original nunca é tocado, então não há vetor de
 # mutação fantasma por restore() malfeito. Os checks reutilizados aqui são os MESMOS arquivos que
@@ -977,7 +1086,7 @@ mutar() {
 soma_lib() { cat "$LIB"/*.mjs | shasum | cut -d' ' -f1; }
 LIB_ANTES="$(soma_lib)"
 
-for caso in 17 18 19 24 30 31 33 34; do
+for caso in 17 18 19 24 30 31 33 34 37 38 39 40; do
   rm -rf "$T/mutlib" "$T/ctrllib"
   mkdir -p "$T/mutlib" "$T/ctrllib"
   cp "$LIB"/*.mjs "$T/mutlib/"
@@ -997,6 +1106,11 @@ for caso in 17 18 19 24 30 31 33 34; do
     31) mutar "$T/mutlib/route-scan.mjs" 'if (dono && !dono.rootLike) return false;' '' ;;
     33) mutar "$T/mutlib/api-surface.mjs" "kind: 'source-missing'," "kind: 'source-missing-x'," ;;
     34) mutar "$T/mutlib/api-surface.mjs" 'if (ind === 0 && /^servers\s*:\s*$/.test(line.trim()))' 'if (/^servers\s*:\s*$/.test(line.trim()))' ;;
+    37) mutar "$T/mutlib/route-scan.mjs" 'branco(struct, i);
+        i += 1;' 'i += 1;' ;;
+    38) mutar "$T/mutlib/route-scan.mjs" 'if (m[4] !== undefined && (stack.length === 0 || depth !== stack[stack.length - 1].depth)) {' 'if (m[4] !== undefined && stack.length === 0) {' ;;
+    39) mutar "$T/mutlib/route-scan.mjs" "if (antes.endsWith(':') || antes.endsWith(',')) continue;" '' ;;
+    40) mutar "$T/mutlib/route-scan.mjs" 'if (idx.groups.some((g) => g.id === id)) continue;' 'continue;' ;;
   esac || { echo "FAIL [29]: mutação do caso [$caso] não encontrou o alvo — a prova não vale"; exit 1; }
 
   if node "$T/check-$caso.mjs" "$T/mutlib" "$FIX" "$T" >/dev/null 2>&1; then

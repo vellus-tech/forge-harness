@@ -607,6 +607,78 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "red-replay-graft-base:verify-2"
+    },
+    {
+      "id": "LDG-0026",
+      "type": "known-bug",
+      "title": "Code graph pula bin/ — em projeto Node isso remove o entrypoint do CLI do grafo",
+      "detail": "SKIP_DIRS em lib/graph-build.mjs:23-24 lista 'bin' junto de dist/build/out/obj, heurística de saída-de-compilação de .NET/Java. Em projeto Node, bin/ é o entrypoint declarado no package.json — código-fonte, não artefato. Consequência: /forge:impact, /forge:onboard e /forge:c4 operam sobre um grafo sem o ponto de entrada, e nada avisa (o arquivo simplesmente não vira nó). Afeta consumidores, não só o dogfood. Correção provável: decidir por sinal do projeto (bin do package.json, presença de shebang/import) em vez de pelo nome do diretório. Achado ao rodar /forge:codegraph neste repo (2026-08-03), onde o grafo saiu com 19 nós, 16 deles fixtures de teste.",
+      "severity": "MEDIUM",
+      "priority": "P2",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-03T18:14:22-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0026"
+    },
+    {
+      "id": "LDG-0027",
+      "type": "tech-debt",
+      "title": "Grafo de código é cego no dogfood: o motor do harness vive em bin/ e template/.forge/, ambos pulados",
+      "detail": "SKIP_DIRS pula 'bin' e '.forge', e .sh não está no mapa LANG — então /forge:codegraph neste repositório enxerga 19 nós (16 fixtures de tests/fixtures/**, 3 de tools/) e nenhum dos 107 arquivos de template/.forge/scripts/** nem bin/forge.mjs. Pular .forge/ é correto por design (num consumidor é o harness instalado, não o produto); o problema é específico do repo que PRODUZ o template. Consequência: /forge:onboard, /forge:c4 e /forge:impact não têm valor aqui, e a auto-avaliação do harness sobre si mesmo não cobre o próprio motor. Saídas possíveis: raiz de varredura configurável no FORGE.md, ou tratar template/.forge/ como código-fonte quando o package.json declara o pacote forge-harness. Distinto do LDG-0026, que afeta qualquer projeto Node.",
+      "severity": "LOW",
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-03T18:14:22-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0027"
+    },
+    {
+      "id": "LDG-0028",
+      "type": "known-bug",
+      "title": "forge update: mensagem diz '.forge não encontrado' quando o ausente é o forge.yaml",
+      "detail": "bin/forge.mjs:426-427 testa existsSync(.forge/forge.yaml) e, ao falhar, emite '.forge não encontrado em <target> — use npx forge-harness init'. Num projeto com .forge/ presente mas sem forge.yaml (harness parcialmente instalado, forge.yaml apagado, ou o dogfood deste repo), a mensagem manda reinstalar do zero quando o diagnóstico real é outro — e 'init' num .forge/ com specs e baseline é justamente o que o /forge:upgrade proíbe. O exit 3 e o não-escrever estão corretos (REQ-FHT-037); só a mensagem mente sobre a causa. Correção: distinguir os dois casos e, quando .forge/ existe, nomear o arquivo ausente. Achado ao rodar /forge:upgrade neste repo (2026-08-03).",
+      "severity": "LOW",
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-03T18:14:22-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0028"
     }
   ]
 }

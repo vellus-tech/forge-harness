@@ -12,3 +12,10 @@ tests/**/*.actual
 
 # Forge cache local (locks, estado efêmero)
 .forge/cache/
+
+# Scratch de agente/revisão — diretórios que subagentes criam na raiz ao reproduzir casos.
+# Entraram uma vez no repositório por `git add -A` sem conferência (commit 37754e6).
+/x/
+/dummy/
+/probe*/
+/scratch/

@@ -220,7 +220,7 @@
       "id": "LDG-0010",
       "type": "roadmap",
       "title": "Promover SRF-01 a bloqueante quando o route-scan (Onda C) existir",
-      "detail": "SRF-01 hoje sai como WARN porque, sem varredura das rotas reais, ele nao distingue 'a rota nao existe' (defeito de codigo, LDG-0091 no Axis.SecretWeapon) de 'a task que entregou a rota declarou paths: incompleto' (defeito de declaracao). Medido no change real: 4 achados sem grafo, 2 com grafo layer:api — um de cada tipo. Com SUR-01 (contrato->codigo) disponivel, o achado passa a ser confirmavel e SRF-01 pode bloquear via opts.enforceable, que ja existe. Corrige tambem uma premissa errada do plano 2026-07-29-api-surface-closure.md: a TASK-56 do change real declara paths apenas em SecretWeapon.Orchestrator/ (que tem ZERO registro de rota), nao em Transport.Api/ — logo o veredito por REQ, sozinho, nao sobrevive ao caso da TASK-56 como o plano supunha.",
+      "detail": "SRF-01 hoje sai como WARN porque, sem varredura das rotas reais, ele nao distingue 'a rota nao existe' (defeito de codigo) de 'a task que entregou a rota declarou paths: incompleto' (defeito de declaracao). ATUALIZACAO (Onda C, gate w132): o pre-requisito existe — lib/route-scan.mjs resolve as rotas reais, inclusive a cadeia de dois saltos, e SUR-01 confirma contrato->codigo com zero falso positivo no repositorio de referencia. A promocao em si NAO foi feita nesta onda, e deliberadamente: ela muda calibracao, e mudar calibracao sem medir e' o mesmo erro que fez SRF-01 nascer WARN. O que falta e' medir, no change real, quantos dos achados de SRF-01 passam a ser confirmaveis por SUR-01 — e decidir se o veredito continua por REQ ou passa a cruzar com a rota concreta, dado que a premissa do plano sobre veredito-por-REQ nao sobrevive ao caso da TASK-56.",
       "severity": null,
       "priority": "P2",
       "status": "open",
@@ -236,7 +236,7 @@
         "promoted_to": null
       },
       "created_at": "2026-07-29T20:21:33-03:00",
-      "updated_at": null,
+      "updated_at": "2026-08-03T13:38:00-03:00",
       "resolved_at": null,
       "dedup_key": "manual:LDG-0010"
     },

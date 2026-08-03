@@ -116,4 +116,26 @@ grep -qi "não reproduz\|nao reproduz" <<<"$out" || { echo "FAIL [3] (recusa nã
 [ "$(json_field "$DIR9/evidence/red/red-evidence.json" status)" != "observed" ] || { echo "FAIL [3] (status observed indevido)"; exit 1; }
 echo "OK [3]"
 
+echo "[4] falha de gate bash ('FAIL [n] (...)') classifica como comportamental, não 'unknown'"
+# Sem esta assinatura, nenhum bugfix de um repositório cujos testes são gates shell consegue Red
+# observado: o replay roda o gate, vê a falha real, e a recusa por 'item 3 — erro de build'. O
+# formato é convenção estabelecida (todo gate deste repo emite `FAIL [n] (motivo)`), e a âncora de
+# início de linha evita casar prosa que mencione a palavra no meio de uma frase.
+node -e "
+import('$WS/template/.forge/scripts/lib/red-classify.mjs').then((m) => {
+  const cases = [
+    ['FAIL [1] (hooksPath sobrescrito)', 'behavioral'],
+    ['[3] update em repo com hooksPath customizado\nFAIL [3] (update sobrescreveu hooksPath)', 'behavioral'],
+    ['tudo certo por aqui, sem FAIL [1] no meio da frase', 'unknown'],
+    ['SyntaxError: Unexpected token', 'build-error'],
+  ];
+  for (const [text, want] of cases) {
+    const got = m.classify(text);
+    if (got !== want) { console.log('FAIL [4] (classify(' + JSON.stringify(text.slice(0, 40)) + ') = ' + got + ', esperado ' + want + ')'); process.exit(1); }
+  }
+  process.exit(0);
+});
+" || { echo "FAIL [4] (classificador não reconhece falha de gate bash)"; exit 1; }
+echo "OK [4]"
+
 echo "PASS w108-red-graft-gate"

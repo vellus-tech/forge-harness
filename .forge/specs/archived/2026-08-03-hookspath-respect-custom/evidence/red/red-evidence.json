@@ -13,7 +13,7 @@
   "base_result": "failed",
   "base_strategy": "test-graft",
   "revert_patch": null,
-  "replay_head": "148ea5cd86cb97a07ca6722f6d59fc570f65a9f0",
+  "replay_head": "bce11168ffcc6d7aec980282926843b96a9fc034",
   "setup_command": null,
   "reproduces": "bugfix.md §1 — init/update sobrescrevem core.hooksPath customizado",
   "fix_files": [
@@ -22,7 +22,7 @@
   ],
   "waiver": null,
   "recorded_at": "2026-08-03T20:25:42.828Z",
-  "replayed_at": "2026-08-03T20:43:20.451Z",
+  "replayed_at": "2026-08-03T20:58:49.176Z",
   "waived_at": null,
   "graft_from": "0510b3ff8f22890c74157fe1330fa7d79642cdbd"
 }

@@ -503,6 +503,110 @@
       "updated_at": "2026-08-03T16:00:16-03:00",
       "resolved_at": null,
       "dedup_key": "manual:LDG-0021"
+    },
+    {
+      "id": "LDG-0022",
+      "type": "follow-up",
+      "title": "O contrato C5 não foi estendido para asserir o estado `+2 Session hooks`; essa cobertura vive no",
+      "detail": "",
+      "severity": null,
+      "priority": null,
+      "status": "open",
+      "source": {
+        "change_id": "add-portable-handoff",
+        "origin": "archive",
+        "ref": "verify-1"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-portable-handoff"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-03T17:51:02-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "add-portable-handoff:verify-1"
+    },
+    {
+      "id": "LDG-0023",
+      "type": "follow-up",
+      "title": "A execução da verificação regenerou `.forge/HANDOFF.md` (atualização determinística do header para",
+      "detail": "",
+      "severity": null,
+      "priority": null,
+      "status": "open",
+      "source": {
+        "change_id": "add-portable-handoff",
+        "origin": "archive",
+        "ref": "verify-2"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-portable-handoff"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-03T17:51:02-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "add-portable-handoff:verify-2"
+    },
+    {
+      "id": "LDG-0024",
+      "type": "follow-up",
+      "title": "O `w108[5]` nasceu com verde falso: lia `res.errors` de uma função que devolve um **array**, e",
+      "detail": "",
+      "severity": null,
+      "priority": null,
+      "status": "open",
+      "source": {
+        "change_id": "red-replay-graft-base",
+        "origin": "archive",
+        "ref": "verify-1"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "red-replay-graft-base"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-03T17:51:02-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "red-replay-graft-base:verify-1"
+    },
+    {
+      "id": "LDG-0025",
+      "type": "follow-up",
+      "title": "A lista de estratégias de base existia duplicada (validador em literal + schema JSON). Virou",
+      "detail": "",
+      "severity": null,
+      "priority": null,
+      "status": "open",
+      "source": {
+        "change_id": "red-replay-graft-base",
+        "origin": "archive",
+        "ref": "verify-2"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "red-replay-graft-base"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-03T17:51:02-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "red-replay-graft-base:verify-2"
     }
   ]
 }

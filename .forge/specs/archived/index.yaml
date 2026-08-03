@@ -7,3 +7,23 @@ archived:
     archived_at: "2026-07-20"
     kind: baseline_update
     path: 2026-07-20-security-observability-gates
+  - change_id: add-portable-handoff
+    archived_at: "2026-08-03"
+    kind: baseline_update
+    path: 2026-08-03-add-portable-handoff
+  - change_id: deepspec-provenance
+    archived_at: "2026-08-03"
+    kind: baseline_update
+    path: 2026-08-03-deepspec-provenance
+  - change_id: forge-update-command
+    archived_at: "2026-08-03"
+    kind: baseline_update
+    path: 2026-08-03-forge-update-command
+  - change_id: hookspath-respect-custom
+    archived_at: "2026-08-03"
+    kind: baseline_update
+    path: 2026-08-03-hookspath-respect-custom
+  - change_id: red-replay-graft-base
+    archived_at: "2026-08-03"
+    kind: baseline_update
+    path: 2026-08-03-red-replay-graft-base

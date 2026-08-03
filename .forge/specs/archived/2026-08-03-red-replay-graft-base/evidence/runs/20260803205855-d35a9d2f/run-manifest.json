@@ -1,0 +1,148 @@
+{
+  "schema": "run-manifest/v1",
+  "run_id": "20260803205855-d35a9d2f",
+  "stage": "archive",
+  "status": "passed",
+  "started_at": "2026-08-03T20:58:49Z",
+  "finished_at": "2026-08-03T20:58:55.359Z",
+  "duration_ms": 6359,
+  "git": {
+    "repo": true,
+    "branch": "develop",
+    "head_sha": "bce11168ffcc6d7aec980282926843b96a9fc034",
+    "dirty": true,
+    "changed_files": [
+      ".forge/HANDOFF.md",
+      ".forge/ledger/LEDGER.md",
+      ".forge/ledger/ledger.json",
+      ".forge/product/current/CHANGELOG.md",
+      ".forge/product/current/capabilities/forge-harness-template/spec.yaml",
+      ".forge/specs/active/add-portable-handoff/analysis.md",
+      ".forge/specs/active/add-portable-handoff/approvals.yaml",
+      ".forge/specs/active/add-portable-handoff/design.md",
+      ".forge/specs/active/add-portable-handoff/manifest.yaml",
+      ".forge/specs/active/add-portable-handoff/proposal.md",
+      ".forge/specs/active/add-portable-handoff/requirements.md",
+      ".forge/specs/active/add-portable-handoff/spec-delta.yaml",
+      ".forge/specs/active/add-portable-handoff/tasks.md",
+      ".forge/specs/active/add-portable-handoff/verification.md",
+      ".forge/specs/active/add-portable-handoff/verification.yaml",
+      ".forge/specs/active/deepspec-provenance/analysis.md",
+      ".forge/specs/active/deepspec-provenance/approvals.yaml",
+      ".forge/specs/active/deepspec-provenance/design.md",
+      ".forge/specs/active/deepspec-provenance/manifest.yaml",
+      ".forge/specs/active/deepspec-provenance/proposal.md",
+      ".forge/specs/active/deepspec-provenance/requirements.md",
+      ".forge/specs/active/deepspec-provenance/spec-delta.yaml",
+      ".forge/specs/active/deepspec-provenance/tasks.md",
+      ".forge/specs/active/deepspec-provenance/verification.md",
+      ".forge/specs/active/deepspec-provenance/verification.yaml",
+      ".forge/specs/active/forge-update-command/analysis.md",
+      ".forge/specs/active/forge-update-command/approvals.yaml",
+      ".forge/specs/active/forge-update-command/design.md",
+      ".forge/specs/active/forge-update-command/manifest.yaml",
+      ".forge/specs/active/forge-update-command/proposal.md",
+      ".forge/specs/active/forge-update-command/requirements.md",
+      ".forge/specs/active/forge-update-command/spec-delta.yaml",
+      ".forge/specs/active/forge-update-command/tasks.md",
+      ".forge/specs/active/forge-update-command/verification.md",
+      ".forge/specs/active/forge-update-command/verification.yaml",
+      ".forge/specs/active/hookspath-respect-custom/approvals.yaml",
+      ".forge/specs/active/hookspath-respect-custom/bugfix.md",
+      ".forge/specs/active/hookspath-respect-custom/evidence/red/red-evidence.json",
+      ".forge/specs/active/hookspath-respect-custom/manifest.yaml",
+      ".forge/specs/active/hookspath-respect-custom/proposal.md",
+      ".forge/specs/active/hookspath-respect-custom/spec-delta.yaml",
+      ".forge/specs/active/hookspath-respect-custom/tasks.md",
+      ".forge/specs/active/hookspath-respect-custom/verification.md",
+      ".forge/specs/active/hookspath-respect-custom/verification.yaml",
+      ".forge/specs/active/red-replay-graft-base/approvals.yaml",
+      ".forge/specs/active/red-replay-graft-base/bugfix.md",
+      ".forge/specs/active/red-replay-graft-base/evidence/red/red-evidence.json",
+      ".forge/specs/active/red-replay-graft-base/manifest.yaml",
+      ".forge/specs/active/red-replay-graft-base/proposal.md",
+      ".forge/specs/active/red-replay-graft-base/spec-delta.yaml",
+      ".forge/specs/active/red-replay-graft-base/tasks.md",
+      ".forge/specs/active/red-replay-graft-base/verification.md",
+      ".forge/specs/active/red-replay-graft-base/verification.yaml",
+      ".forge/specs/archived/2026-08-03-add-portable-handoff/",
+      ".forge/specs/archived/2026-08-03-deepspec-provenance/",
+      ".forge/specs/archived/2026-08-03-forge-update-command/",
+      ".forge/specs/archived/2026-08-03-hookspath-respect-custom/",
+      ".forge/specs/archived/2026-08-03-red-replay-graft-base/",
+      ".forge/specs/archived/index.yaml"
+    ],
+    "diff_stat": ".forge/HANDOFF.md                                  |  43 +--\n .forge/ledger/LEDGER.md                            |   6 +-\n .forge/ledger/ledger.json                          | 104 ++++++\n .forge/product/current/CHANGELOG.md                |  30 ++\n .../capabilities/forge-harness-template/spec.yaml  | 356 ++++++++++++++++++++-\n .../specs/active/add-portable-handoff/analysis.md  |  44 ---\n .../active/add-portable-handoff/approvals.yaml     |  25 --\n .forge/specs/active/add-portable-handoff/design.md | 115 -------\n .../active/add-portable-handoff/manifest.yaml      |  41 ---\n .../specs/active/add-portable-handoff/proposal.md  |  59 ----\n .../active/add-portable-handoff/requirements.md    | 108 -------\n .../active/add-portable-handoff/spec-delta.yaml    | 122 -------\n .forge/specs/active/add-portable-handoff/tasks.md  |  49 ---\n .../active/add-portable-handoff/verification.md    |  32 --\n .../active/add-portable-handoff/verification.yaml  |  27 --\n .../specs/active/deepspec-provenance/analysis.md   |  52 ---\n .../active/deepspec-provenance/approvals.yaml      |  25 --\n .forge/specs/active/deepspec-provenance/design.md  |  96 ------\n .../specs/active/deepspec-provenance/manifest.yaml |  46 ---\n .../specs/active/deepspec-provenance/proposal.md   |  60 ----\n .../active/deepspec-provenance/requirements.md     | 147 ---------\n .../active/deepspec-provenance/spec-delta.yaml     | 201 ------------\n .forge/specs/active/deepspec-provenance/tasks.md   |  38 ---\n .../active/deepspec-provenance/verification.md     |  56 ----\n .../active/deepspec-provenance/verification.yaml   |  24 --\n .../specs/active/forge-update-command/analysis.md  |  45 ---\n .../active/forge-update-command/approvals.yaml     |  25 --\n .forge/specs/active/forge-update-command/design.md | 108 -------\n .../active/forge-update-command/manifest.yaml      |  42 ---\n .../specs/active/forge-update-command/proposal.md  |  46 ---\n .../active/forge-update-command/requirements.md    | 114 -------\n .../active/forge-update-command/spec-delta.yaml    | 151 ---------\n .forge/specs/active/forge-update-command/tasks.md  |  37 ---\n .../active/forge-update-command/verification.md    |  39 ---\n .../active/forge-update-command/verification.yaml  |  30 --\n .../active/hookspath-respect-custom/approvals.yaml |  19 --\n .../active/hookspath-respect-custom/bugfix.md      |  62 ----\n .../evidence/red/red-evidence.json                 |  28 --\n .../active/hookspath-respect-custom/manifest.yaml  |  37 ---\n .../active/hookspath-respect-custom/proposal.md    |  34 --\n .../hookspath-respect-custom/spec-delta.yaml       |  27 --\n .../specs/active/hookspath-respect-custom/tasks.md |  14 -\n .../hookspath-respect-custom/verification.md       |  56 ----\n .../hookspath-respect-custom/verification.yaml     |  28 --\n .../active/red-replay-graft-base/approvals.yaml    |  22 --\n .../specs/active/red-replay-graft-base/bugfix.md   |  38 ---\n .../evidence/red/red-evidence.json                 |  28 --\n .../active/red-replay-graft-base/manifest.yaml     |  38 ---\n .../specs/active/red-replay-graft-base/proposal.md |  27 --\n .../active/red-replay-graft-base/spec-delta.yaml   |  27 --\n .forge/specs/active/red-replay-graft-base/tasks.md |  26 --\n .../active/red-replay-graft-base/verification.md   |  44 ---\n .../active/red-replay-graft-base/verification.yaml |  26 --\n .forge/specs/archived/index.yaml                   |  20 ++\n 54 files changed, 522 insertions(+), 2622 deletions(-)",
+    "diff_sha256": "01ca14b2831e1cede52ff15a21b238f2bc3e360f07a37de7d6213c33fb2b8499"
+  },
+  "inputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "2130507550e0b27f98e86e05ba873df88637c55d56afae25146d612264e8bac3",
+      "bytes": 847,
+      "kind": "file"
+    },
+    {
+      "path": "tasks.md",
+      "exists": true,
+      "sha256": "8d4c4f35b61213373ce5ce3f425092d97358cf7c7a296333e3e68e27aa489209",
+      "bytes": 2136,
+      "kind": "file"
+    },
+    {
+      "path": "verification.yaml",
+      "exists": true,
+      "sha256": "9c8e8ace364ceae0ff822042365d3a330165591f499fe7e99f68ca4fcd84c26a",
+      "bytes": 1255,
+      "kind": "file"
+    },
+    {
+      "path": "spec-delta.yaml",
+      "exists": true,
+      "sha256": "46a2b972dd048e1e00a7b613b38eaa40542bda3dc5135d9318ae8469b818f150",
+      "bytes": 2115,
+      "kind": "file"
+    },
+    {
+      "path": "impact.json",
+      "exists": false,
+      "sha256": null,
+      "bytes": null
+    }
+  ],
+  "commands": [
+    {
+      "name": "archive-spec",
+      "command": "archive-spec.sh red-replay-graft-base",
+      "status": "passed"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "2130507550e0b27f98e86e05ba873df88637c55d56afae25146d612264e8bac3",
+      "bytes": 847,
+      "kind": "file"
+    },
+    {
+      "path": "evidence/runs",
+      "exists": false,
+      "sha256": null,
+      "bytes": null
+    }
+  ],
+  "runner": {
+    "name": "local",
+    "profile": "standard"
+  },
+  "budgets": {
+    "profile": "standard",
+    "budget_class": "medium",
+    "expected_runs": 1,
+    "estimated_timeout_s": 300,
+    "uses_llm": false,
+    "uses_subagent": false
+  }
+}

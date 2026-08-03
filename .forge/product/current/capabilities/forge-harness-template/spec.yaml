@@ -1,5 +1,5 @@
 capability_id: forge-harness-template
-version: 0.1.0
+version: 0.6.0
 status: current
 requirements:
   - id: REQ-FHT-001
@@ -37,7 +37,7 @@ requirements:
     normative: "SHALL"
     scenarios:
       - id: SCN-FHT-004-A
-        given: "rules/architecture/observability.md estendida com a seção \\\"Golden Signals e Alerts-as-Code\\\" (alertas como código versionado, schema alerts-as-code) e a stack OSS OTel Collector→Tempo/Loki/Prometheus/Grafana (Jaeger como alternativa compatível via OTLP)"
+        given: "rules/architecture/observability.md estendida com a seção \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\"Golden Signals e Alerts-as-Code\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\" (alertas como código versionado, schema alerts-as-code) e a stack OSS OTel Collector→Tempo/Loki/Prometheus/Grafana (Jaeger como alternativa compatível via OTLP)"
         when: "validate-rules.sh roda sobre a rule estendida"
         then: "não acusa drift e não há regressão nas seções pré-existentes (Correlation ID, Métricas, Logs, Traces, Audit Trail)"
     tests:
@@ -47,7 +47,7 @@ requirements:
     normative: "SHALL"
     scenarios:
       - id: SCN-FHT-005-A
-        given: "um arquivo .rego sem \\\"default allow := false\\\", ou contendo \\\"default allow := true\\\", ou com \\\"allow\\\" incondicional"
+        given: "um arquivo .rego sem \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\"default allow := false\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\", ou contendo \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\"default allow := true\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\", ou com \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\"allow\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\" incondicional"
         when: "check-authz.sh roda sobre o diretório da política, mesmo com mode:warn declarado em governance.authz"
         then: "sai CONFLICT nomeando o arquivo com exit≠0 (achado sempre enforceable:true, ignora o mode); um pacote deny-by-default correto aprova (OK check-authz, exit 0)"
     tests:
@@ -57,7 +57,7 @@ requirements:
     normative: "SHALL"
     scenarios:
       - id: SCN-FHT-006-A
-        given: "código Go/Kotlin/TS com hasRole(...)/user.role==.../claims[\\\"permissions\\\"]/decorator de role (@RolesAllowed etc.) fora do(s) pep_paths declarado(s) em governance.authz"
+        given: "código Go/Kotlin/TS com hasRole(...)/user.role==.../claims[\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\"permissions\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\"]/decorator de role (@RolesAllowed etc.) fora do(s) pep_paths declarado(s) em governance.authz"
         when: "check-authz.sh roda em mode:enforce"
         then: "sai CONFLICT nomeando o arquivo e o anti-padrão; em mode:warn a mesma ocorrência vira WARN sem bloquear (exit 0); a mesma ocorrência dentro do diretório do PEP declarado passa (OK check-authz)"
     tests:
@@ -77,7 +77,7 @@ requirements:
     normative: "SHALL"
     scenarios:
       - id: SCN-FHT-008-A
-        given: "um graph.json com node layer:api fora da allowlist sem edge resolved:true (direto ou transitivo) até um node roles:[\\\"pep\\\"]"
+        given: "um graph.json com node layer:api fora da allowlist sem edge resolved:true (direto ou transitivo) até um node roles:[\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\"pep\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\"]"
         when: "check-authz.sh roda (delega a graph-govern.mjs:checkRole)"
         then: "sai CONFLICT nomeando o node da rota em mode:enforce e WARN em mode:warn; uma rota presente na allowlist é isenta mesmo sem caminho ao PEP"
     tests:
@@ -88,7 +88,7 @@ requirements:
     normative: "SHALL"
     scenarios:
       - id: SCN-FHT-009-A
-        given: "um node layer:api sem edge resolved até um node roles:[\\\"otel-wrapper\\\"] declarado (REQ-09a), e/ou uso de fmt.Println/console.log/print( em código de serviço fora do wrapper_paths declarado (REQ-09b)"
+        given: "um node layer:api sem edge resolved até um node roles:[\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\"otel-wrapper\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\"] declarado (REQ-09a), e/ou uso de fmt.Println/console.log/print( em código de serviço fora do wrapper_paths declarado (REQ-09b)"
         when: "check-observability.sh roda"
         then: "sai CONFLICT nomeando o boundary sem caminho ao wrapper (REQ-09a) e/ou o arquivo com logger cru citando a chamada crua (REQ-09b) em mode:enforce; com o wrapper alcançável e logger estruturado, os dois sub-checks passam sem finding"
     tests:
@@ -101,7 +101,7 @@ requirements:
       - id: SCN-FHT-010-A
         given: "um serviço com boundary declarado (node layer:api fora da allowlist de governance.observability) sem nenhum artefato .json que valide contra alerts-as-code.schema.json com o campo service correspondente"
         when: "check-observability.sh roda"
-        then: "sai CONFLICT nomeando o serviço (ex.: \\\"services/orders\\\") sem artefato alerts-as-code válido; com um artefato válido cobrindo o mesmo service, o sub-check passa sem finding"
+        then: "sai CONFLICT nomeando o serviço (ex.: \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\"services/orders\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\") sem artefato alerts-as-code válido; com um artefato válido cobrindo o mesmo service, o sub-check passa sem finding"
     contracts:
       - template/.forge/schemas/alerts-as-code.schema.json
     tests:
@@ -113,7 +113,7 @@ requirements:
       - id: SCN-FHT-011-A
         given: "o frontmatter do FORGE.md declara os blocos authz: (pep_paths, allowlist, mode, policy_coverage_threshold) e observability: (wrapper_paths, allowlist, mode), em block-sequence, com ou sem comentário final de linha"
         when: "graph-build.mjs constrói o graph.json a partir do FORGE.md"
-        then: "os nodes cujo id casa um glob de pep_paths/wrapper_paths ganham roles:[\\\"pep\\\"]/roles:[\\\"otel-wrapper\\\"], o graph.json emite governance.authz/governance.observability, e o FORGE.md valida contra forge.schema.json (authz/observability como objetos opcionais, runtime.gates como string opcional); ausência dos blocos ⇒ governance ausente no graph.json ⇒ REQ-06/07/08/09/10 em no-op"
+        then: "os nodes cujo id casa um glob de pep_paths/wrapper_paths ganham roles:[\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\"pep\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\"]/roles:[\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\"otel-wrapper\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\"], o graph.json emite governance.authz/governance.observability, e o FORGE.md valida contra forge.schema.json (authz/observability como objetos opcionais, runtime.gates como string opcional); ausência dos blocos ⇒ governance ausente no graph.json ⇒ REQ-06/07/08/09/10 em no-op"
     contracts:
       - template/.forge/schemas/graph.schema.json
       - template/.forge/schemas/forge.schema.json
@@ -126,7 +126,7 @@ requirements:
     normative: "SHALL"
     scenarios:
       - id: SCN-FHT-012-A
-        given: "código com PAN (13-19 dígitos)/CPF/e-mail dentro de uma chamada log.*(...)/logger.*(...) sem mascaramento (REQ-12a), ou um campo marcado // forge:sensitive-field=\\\"x\\\" sem entrada correspondente em data-classification.json (REQ-12b)"
+        given: "código com PAN (13-19 dígitos)/CPF/e-mail dentro de uma chamada log.*(...)/logger.*(...) sem mascaramento (REQ-12a), ou um campo marcado // forge:sensitive-field=\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\"x\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\" sem entrada correspondente em data-classification.json (REQ-12b)"
         when: "check-data-governance.mjs roda sobre o código, mesmo sem nenhum bloco de mode declarado no FORGE.md"
         then: "sai CONFLICT nomeando o arquivo:linha e citando REQ-12a/REQ-12b (achado sempre enforceable:true, nunca rebaixável); o mesmo dado mascarado ou o campo com classificação correspondente aprova (OK data-governance), e gw3-data-governance-gate.sh [1]-[8] permanece verde (retrocompat .md, NFR-04)"
     contracts:
@@ -141,7 +141,7 @@ requirements:
       - id: SCN-FHT-013-A
         given: "um change cujo manifest.yaml declara affects_surfaces: [api] e o requirements.md ainda tem os placeholders vazios do mapa endpoint→ação→recurso→policy e do mapa de eventos auditáveis"
         when: "validate-spec.mjs roda"
-        then: "reprova citando explicitamente os dois mapas ausentes (\\\"missing endpoint→ação→recurso→policy map\\\"/\\\"missing auditable events map\\\"); com os mapas preenchidos, o mesmo change valida (OK); um change sem affects_surfaces (trivial) valida sem exigir nenhuma das quatro seções (proporcionalidade, NFR-03)"
+        then: "reprova citando explicitamente os dois mapas ausentes (\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\"missing endpoint→ação→recurso→policy map\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\"/\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\"missing auditable events map\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\"); com os mapas preenchidos, o mesmo change valida (OK); um change sem affects_surfaces (trivial) valida sem exigir nenhuma das quatro seções (proporcionalidade, NFR-03)"
     tests:
       - tests/req13-affects-surfaces-gate.sh
   - id: REQ-FHT-014
@@ -192,6 +192,342 @@ requirements:
     tests:
       - tests/run-all.sh
       - tests/plugin-sync-gate.sh
+  - id: REQ-FHT-018
+    title: "Comando /forge:handoff gera artefato portátil de 5 seções"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-018-A
+        given: "o harness instalado com template/.forge/templates/handoff/HANDOFF.md e o comando harness/handoff.md registrados"
+        when: "o usuário roda /forge:handoff [<change-id>] — sem argumento sobre o único change ativo, ou com um id inexistente"
+        then: "grava/sobrescreve .forge/HANDOFF.md com as 5 seções (header, estado determinístico, regras fixas, delta narrativo entre os marcadores FORGE:NARRATIVE-DELTA, ponteiros de retomada), sendo a seção 3 idêntica às 5 regras fixas do /forge:resume e a seção 4 a única escrita por modelo; com id inexistente falha com mensagem clara e exit≠0, sem gravar nada"
+    tests:
+      - tests/w60-handoff-gen-gate.sh
+  - id: REQ-FHT-019
+    title: "Gerador de handoff determinístico, sem LLM e sem dependência npm"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-019-A
+        given: "um change ativo com manifest.yaml + progress.json + deferrals.json e um repositório git, num clone limpo sem provider LLM configurado"
+        when: "template/.forge/scripts/handoff-gen.sh roda duas vezes consecutivas sem mudança de estado, relocado por FORGE_ROOT"
+        then: "as duas execuções produzem seções determinísticas byte-idênticas (diff vazio), lendo o bloco runtime: do FORGE.md e o estado git via git -C, reusando lib/yaml-lite.mjs, sem chamada a LLM e sem instalar dependência alguma (datas vêm do commit HEAD, não do relógio)"
+    tests:
+      - tests/w60-handoff-gen-gate.sh
+  - id: REQ-FHT-020
+    title: "/forge:resume ingere o delta narrativo do handoff"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-020-A
+        given: "um repositório com .forge/HANDOFF.md presente e outro sem o arquivo"
+        when: "/forge:resume roda nos dois casos"
+        then: "com o arquivo presente, o mandato de retomada lê apenas a seção 4 (entre os marcadores FORGE:NARRATIVE-DELTA) e a reflete na linha Handoff:; sem o arquivo, o comportamento anterior do resume é preservado integralmente (nenhuma regressão)"
+    tests:
+      - tests/w60-handoff-gen-gate.sh
+  - id: REQ-FHT-021
+    title: "Descoberta agente-agnóstica do handoff via AGENTS.md"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-021-A
+        given: "o template template/.forge/templates/AGENTS.md com o ponteiro para .forge/HANDOFF.md no corpo projetado"
+        when: "sync-adapters regenera o AGENTS.md do projeto"
+        then: "a linha de ponteiro aparece no AGENTS.md e, por symlink, em CLAUDE.md/QWEN.md/GEMINI.md, o header \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\"Generated from .forge/FORGE.md\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\" é preservado e o doctor não acusa drift"
+    tests:
+      - tests/snapshot/claude-contract.bats
+      - tests/w12-sync-gate.sh
+  - id: REQ-FHT-022
+    title: "Automação de sessão opt-in via handoff.auto"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-022-A
+        given: "forge.yaml com handoff.auto: false (default) e o mesmo projeto com handoff.auto: true"
+        when: "sync-adapters gera .claude/settings.json"
+        then: "com false o settings.json é idêntico ao baseline (sem hooks de sessão); com true inclui SessionStart e SessionEnd apontando para hooks/session/on-session-{start,end}.sh, ambos rule-based e sem chamada a LLM"
+    contracts:
+      - template/.forge/schemas/forge.schema.json
+    tests:
+      - tests/w62-handoff-hook-gate.sh
+  - id: REQ-FHT-023
+    title: "Gate de pre-push exige README e CHANGELOG em mudança user-facing (hard require)"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-023-A
+        given: "um range de push classificado como user-facing (commit feat|fix|perf, ou path fora de docs/config) e um range docs-only/chore-only; para branch nova (sha remoto zerado) a base é o merge-base com a default branch"
+        when: "o hook pre-push executa hooks/git/lib/check-docs-reviewed.sh sobre o range <base>..<local>"
+        then: "o range user-facing sem README.md e CHANGELOG.md no diff sai com exit 1 nomeando o que falta; com ambos presentes passa; o range docs-only/chore-only passa — sem nenhuma válvula de escape por variável de ambiente"
+    tests:
+      - tests/w61-docs-review-gate.sh
+  - id: REQ-FHT-024
+    title: "Plugin /forge:* sincronizado com os comandos do template"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-024-A
+        given: "um comando novo adicionado em template/.forge/commands/** (aqui, harness/handoff.md)"
+        when: "npm run build:plugin roda e tests/plugin-sync-gate.sh é executado"
+        then: "plugin/forge/** fica byte-idêntico ao gerado, o gate de sincronia passa, a contagem em docs/refer/slash-commands.md reflete o total de comandos e a suíte completa (npm test) permanece verde"
+    tests:
+      - tests/plugin-sync-gate.sh
+      - tests/run-all.sh
+  - id: REQ-FHT-025
+    title: "Schema e gerador do run-manifest/v1"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-025-A
+        given: "um comando crítico que grava evidência, rodando com um change ativo e, noutra execução, sem change ativo"
+        when: "lib/run-manifest.mjs grava o manifesto do estágio"
+        then: "produz um run-manifest.json com schema, run_id, stage, status, started_at, finished_at, duration_ms, git, inputs, commands, outputs, runner e budgets, válido contra run-manifest.schema.json (additionalProperties:false em todos os níveis), em evidence/runs/<run-id>/ quando há change ativo e em .forge/runs/<run-id>/ quando não há"
+    contracts:
+      - template/.forge/schemas/run-manifest.schema.json
+    tests:
+      - tests/w90-run-manifest-gate.sh
+  - id: REQ-FHT-026
+    title: "Proveniência git segura — nunca o diff bruto"
+    normative: "SHALL NOT"
+    scenarios:
+      - id: SCN-FHT-026-A
+        given: "uma working tree suja contendo um segredo no diff de trabalho"
+        when: "o run-manifest é gravado e validado"
+        then: "o manifesto registra branch, HEAD SHA, dirty flag, arquivos alterados, diff --stat e diff_sha256, e o segredo não aparece em lugar nenhum do JSON persistido; nenhum caminho de código executa git diff sem --stat, e o validador interno rejeita manifesto cujo JSON contenha o marcador \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\"diff --git\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\""
+    tests:
+      - tests/w90-run-manifest-gate.sh
+  - id: REQ-FHT-027
+    title: "Contratos de I/O declarativos por estágio"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-027-A
+        given: "os estágios verify, archive, eval, run-spec-pipeline e skill-lifecycle-eval"
+        when: "validate-harness.sh valida os contratos em .forge/contracts/stages/*.yaml"
+        then: "os 5 arquivos existem com stage, required_inputs, required_outputs, validators, budget_class e evidence_required, e a validação falha se um contrato estiver ausente ou inválido"
+    tests:
+      - tests/w91-stage-contract-gate.sh
+  - id: REQ-FHT-028
+    title: "Validador determinístico de contrato de estágio"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-028-A
+        given: "um estágio cujo contrato declara required_outputs, num change onde a evidência existe e noutro onde falta"
+        when: "validate-stage-contract.sh check <stage> roda"
+        then: "aprova quando todos os artefatos obrigatórios foram produzidos e falha nomeando o output ausente quando falta — sem depender de LLM"
+    tests:
+      - tests/w91-stage-contract-gate.sh
+  - id: REQ-FHT-029
+    title: "Run-manifest e contrato de estágio bloqueiam verify e archive"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-029-A
+        given: "um change em /forge:verify ou /forge:archive cujo contrato de estágio não é satisfeito"
+        when: "spec-verify.sh ou archive-spec.sh executa run-manifest.sh write e validate-stage-contract.sh check"
+        then: "o script aborta com exit≠0 (não apenas loga aviso) e a fase não conclui; com o contrato satisfeito, o manifesto é gravado e o fluxo segue"
+    tests:
+      - tests/w91-stage-contract-gate.sh
+      - tests/w90-run-manifest-gate.sh
+  - id: REQ-FHT-030
+    title: "Evidência best-effort (não-bloqueante) em eval, skill-lifecycle e run-spec-pipeline"
+    normative: "SHOULD"
+    scenarios:
+      - id: SCN-FHT-030-A
+        given: "os fluxos /forge:eval, /forge:skill-lifecycle eval|optimize e /forge:run-spec-pipeline"
+        when: "a gravação de evidência falha durante a execução"
+        then: "o fluxo prossegue sem bloquear (nenhum deles chama validate-stage-contract check como gate), enquanto os três comandos citam budget-preflight/run-manifest no corpo .md e nos scripts chamados — só verify e archive bloqueiam, por design"
+    tests:
+      - tests/w92-benchmark-registry-gate.sh
+  - id: REQ-FHT-031
+    title: "Benchmark registry com os 5 casos canônicos"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-031-A
+        given: "o registry em .forge/evals/benchmarks/"
+        when: "os casos são validados contra benchmark-case.schema.json"
+        then: "existem os 5 diretórios greenfield-small, brownfield-bugfix, refactor-invariant, docs-only e multi-module-scale3, cada um com um case.json válido, pequeno e versionável"
+    contracts:
+      - template/.forge/schemas/benchmark-case.schema.json
+    tests:
+      - tests/w92-benchmark-registry-gate.sh
+  - id: REQ-FHT-032
+    title: "/forge:eval benchmark <case|suite>"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-032-A
+        given: "o benchmark registry e o eval harness já existente (runners.yaml, grading.schema.json, meta-count.sh, meta-aggregate.sh)"
+        when: "o usuário roda /forge:eval benchmark com um caso único e, depois, com a suite"
+        then: "benchmark-eval.sh/.mjs executa reusando o harness existente e produz aggregate + run-manifest nos dois modos, com o modo benchmark documentado em eval.md"
+    tests:
+      - tests/w92-benchmark-registry-gate.sh
+  - id: REQ-FHT-033
+    title: "Perfis de execução e precedência de resolução"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-033-A
+        given: "os perfis standard, quick, regulated e brownfield-heavy declaráveis em forge.yaml e manifest.yaml, e passáveis por flag"
+        when: "budget-preflight.mjs resolve o perfil de execução nos quatro níveis"
+        then: "aplica a precedência flag > manifest.yaml > forge.yaml > default standard — projeto sem nenhum dos campos resolve para standard, sem erro (retrocompatibilidade)"
+    tests:
+      - tests/w93-profiles-budget-gate.sh
+  - id: REQ-FHT-034
+    title: "Override --set key.path=value restrito a eval/benchmark"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-034-A
+        given: "a flag --set key.path=value passada a um comando de eval/benchmark e, depois, a qualquer outro comando do harness"
+        when: "o comando resolve sua configuração"
+        then: "o override é aplicado em run-manifest.mjs, budget-preflight.mjs e benchmark-eval.mjs, e nenhum outro script do harness lê essa flag (o --set pré-existente de sync-adapters tem semântica distinta — lista de adapters — e não é override)"
+    tests:
+      - tests/w93-profiles-budget-gate.sh
+  - id: REQ-FHT-035
+    title: "Budget preflight antes de comando caro"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-035-A
+        given: "um comando caro (verify, archive, eval, skill-lifecycle, run-spec-pipeline) prestes a executar"
+        when: "budget-preflight.sh roda no início do fluxo"
+        then: "emite a linha BUDGET stage=... profile=... runs=... timeout_s=... budget=... outputs=... llm=... subagent=... antes da execução, como estimativa heurística (não precisão monetária) e sem bloquear o fluxo"
+    tests:
+      - tests/w93-profiles-budget-gate.sh
+  - id: REQ-FHT-036
+    title: "Zero-dep nos scripts de proveniência"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-036-A
+        given: "os scripts de run-manifest, contratos de estágio, benchmark e budget preflight"
+        when: "a suíte completa roda num clone limpo"
+        then: "os scripts usam apenas builtins do node (node:fs/path/crypto/child_process), o yaml-lite.mjs local e bash — sem nenhuma dependência npm nova — e npm test permanece verde incluindo os gates w90–w93 e o w80-suite-gate atualizado"
+    tests:
+      - tests/run-all.sh
+      - tests/w80-suite-gate.sh
+  - id: REQ-FHT-037
+    title: "Subcomando update no CLI do harness"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-037-A
+        given: "um projeto com .forge/ instalado e outro sem .forge/"
+        when: "o usuário roda npx forge-harness update (ou node bin/forge.mjs update), com ou sem --target/--source"
+        then: "no projeto com .forge/ a maquinaria é atualizada preservando os dados do projeto e o relatório final lista o que foi atualizado, o que foi preservado e onde ficou o backup; sem .forge/ falha com exit 3 sugerindo init, sem alterar nada"
+    tests:
+      - tests/w63-forge-update-gate.sh
+  - id: REQ-FHT-038
+    title: "Overlay aditivo da maquinaria, sem deleção"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-038-A
+        given: "um projeto com um arquivo de maquinaria alterado no template novo, um arquivo extra (órfão) criado pelo projeto dentro de um diretório de maquinaria, e adapters/*.lock.yaml presentes"
+        when: "o update roda"
+        then: "agents/, commands/, hooks/, schemas/, scripts/, skills/, templates/, rules/, adapters/*.yaml e o README.md do .forge/ são sobrescritos com o template novo, arquivos novos são adicionados, o órfão do projeto é preservado (nada é deletado) e os adapters/*.lock.yaml não são sobrescritos pelo overlay"
+    tests:
+      - tests/w63-forge-update-gate.sh
+  - id: REQ-FHT-039
+    title: "Preservação integral dos dados do projeto no update"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-039-A
+        given: "um projeto com uma spec, um ADR, runners.yaml com enabled: true, constitution.md, context.md e FORGE.md preenchidos"
+        when: "o update roda"
+        then: "specs/active, specs/archived, product/current, product/published, custom/, evals/ (conteúdo), runners.yaml, FORGE.md, constitution.md e context.md permanecem byte-idênticos ao estado anterior"
+    tests:
+      - tests/w63-forge-update-gate.sh
+      - tests/npx-pack-gate.sh
+  - id: REQ-FHT-040
+    title: "Merge campo-a-campo do forge.yaml no update"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-040-A
+        given: "um forge.yaml com adapters ativos e flags do projeto, e uma versão de pacote mais nova"
+        when: "o update roda"
+        then: "apenas harness.template_version é atualizado para a versão do pacote; a lista de adapters ativos e todas as demais chaves permanecem idênticas"
+    tests:
+      - tests/w63-forge-update-gate.sh
+  - id: REQ-FHT-041
+    title: "Reconciliação de adapters e ambiente ao fim do overlay"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-041-A
+        given: "um projeto com adapter claude ativo, hooksPath desconfigurado e bloco managed do .gitignore desatualizado, rodando com e sem --no-plugin"
+        when: "o overlay do update termina"
+        then: "sync-adapters --adapter all roda preservando a lista ativa (.claude, AGENTS.md e lockfiles regenerados sem drift, doctor limpo), o core.hooksPath e o bloco managed do .gitignore são reconciliados, e o plugin global só é re-materializado quando claude está ativo e --no-plugin não foi passado"
+    tests:
+      - tests/w63-forge-update-gate.sh
+  - id: REQ-FHT-042
+    title: "--dry-run e backup automático no update"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-042-A
+        given: "um projeto prestes a receber o update, com e sem a flag --no-backup"
+        when: "o usuário roda update --dry-run e, depois, o update real"
+        then: "o --dry-run lista os paths que mudariam sem escrever nada em disco (exit 0); o update real cria .forge.bak-N por padrão e não cria backup algum sob --no-backup"
+    tests:
+      - tests/w63-forge-update-gate.sh
+  - id: REQ-FHT-043
+    title: "Slash /forge:upgrade distinto de /forge:update"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-043-A
+        given: "o comando template/.forge/commands/harness/upgrade.md com frontmatter válido"
+        when: "o usuário roda /forge:upgrade no agente e o plugin é reconstruído"
+        then: "o comando dispara o update do CLI mostrando o --dry-run antes de aplicar, sem colidir com /forge:update (grafo), e o plugin-sync-gate passa com a contagem de comandos incrementada"
+    tests:
+      - tests/plugin-sync-gate.sh
+  - id: REQ-FHT-044
+    title: "Doctor não acusa falso-positivo em specs, worktrees, product, evals e custom"
+    normative: "SHALL NOT"
+    scenarios:
+      - id: SCN-FHT-044-A
+        given: "um projeto com uma spec citando \\\\\\\\\\\\\\\".claude/\\\\\\\\\\\\\\\" no texto e um placeholder <PROJECT_ID> dentro de worktrees/**"
+        when: "o doctor varre a fonte canônica"
+        then: "não reporta vazamento de refs .claude/ nem placeholder órfão, porque specs/, worktrees/, product/, evals/ e custom/ são excluídos dessas checagens — as demais checagens do doctor seguem valendo"
+    tests:
+      - tests/w63-forge-update-gate.sh
+  - id: REQ-FHT-045
+    title: "Idempotência do update e cobertura pelo tarball empacotado"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-045-A
+        given: "um projeto já atualizado, sem mudança de versão do pacote, e o tarball npm empacotado"
+        when: "o update roda uma segunda vez, e a seção 6 do npx-pack-gate executa init+update a partir do tarball"
+        then: "a segunda execução é no-op (working tree inalterada), e o fluxo pelo tarball preserva o produto do projeto enquanto atualiza a maquinaria, com o doctor limpo ao final"
+    tests:
+      - tests/w63-forge-update-gate.sh
+      - tests/npx-pack-gate.sh
+  - id: REQ-FHT-046
+    title: "core.hooksPath customizado nunca é sobrescrito por init/update/install.sh"
+    normative: "SHALL NOT"
+    scenarios:
+      - id: SCN-FHT-046-A
+        given: "um repositório com core.hooksPath customizado para outro valor (ex.: .githooks), configurado pelo próprio projeto e não pelo Forge"
+        when: "forge init --force, forge update ou installer/install.sh roda nesse repositório"
+        then: "o valor customizado é preservado e uma nota informativa explica que os hooks do Forge (pre-push de docs, pre-commit de worktree) não estão ativos por causa do hooksPath customizado, com a orientação de encadeá-los ou trocar manualmente"
+      - id: SCN-FHT-046-B
+        given: "um repositório sem core.hooksPath configurado (default .git/hooks) e outro já com .forge/hooks/git"
+        when: "init, update ou install.sh roda"
+        then: "o repositório sem configuração recebe core.hooksPath = .forge/hooks/git (caminho feliz da instalação nova, sem regressão) e o que já apontava para .forge/hooks/git é no-op silencioso, sem emitir a nota de hooksPath customizado"
+    tests:
+      - tests/w94-hookspath-preserve-gate.sh
+      - tests/w13-init-gate.sh
+      - tests/w63-forge-update-gate.sh
+  - id: REQ-FHT-047
+    title: "Replay deriva base pré-correção mesmo quando teste e correção vêm no mesmo commit"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-047-A
+        given: "um repositório em que o commit que introduziu o caso declarado também toca os fix_files (squash), com um commit posterior tocando os mesmos arquivos por outro motivo e reescrevendo as linhas da correção"
+        when: "o replay deriva a árvore base"
+        then: "a estratégia ancestry é descartada (o commit posterior é ruído e sua base já contém a correção), revert-synthesis reverte o diff do commit do caso e, quando esse patch não aplica sobre o HEAD, a base passa a ser parent(caseCommit) com o test_path enxertado — gravada como base_strategy test-graft e graft_from, e nunca como uma afirmação de que o teste 'já passa na base'"
+      - id: SCN-FHT-047-B
+        given: "uma suíte cujos testes são gates shell, que reportam falha como \\\"FAIL [n] (motivo)\\\", e um artefato com base_strategy test-graft"
+        when: "a falha na base é classificada e o artefato validado"
+        then: "a falha classifica como behavioral (não 'unknown', que a recusaria pelo item 3 da rule), enquanto prosa que apenas mencione o termo e o \\\"FAIL (...)\\\" sem índice dos validadores continuam não casando; e o validador do artefato aceita base_strategy test-graft com graft_from em formato de commit"
+    contracts:
+      - template/.forge/schemas/red-evidence.schema.json
+    tests:
+      - tests/w108-red-graft-gate.sh
+      - tests/w107-red-replay-gate.sh
+      - tests/w106-red-first-gate.sh
 history:
   - change_id: security-observability-gates
     archived_at: "2026-07-20"
+  - change_id: add-portable-handoff
+    archived_at: "2026-08-03"
+  - change_id: deepspec-provenance
+    archived_at: "2026-08-03"
+  - change_id: forge-update-command
+    archived_at: "2026-08-03"
+  - change_id: hookspath-respect-custom
+    archived_at: "2026-08-03"
+  - change_id: red-replay-graft-base
+    archived_at: "2026-08-03"

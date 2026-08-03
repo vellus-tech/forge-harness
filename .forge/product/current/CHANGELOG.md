@@ -2,6 +2,36 @@
 
 > One entry per archived change (newest first). Maintained by `/forge:archive` — do not edit by hand.
 
+## 2026-08-03 — red-replay-graft-base
+
+- **Capabilities:** forge-harness-template
+- **Operações:** 1
+- **Pasta:** `.forge/specs/archived/2026-08-03-red-replay-graft-base/`
+
+## 2026-08-03 — hookspath-respect-custom
+
+- **Capabilities:** forge-harness-template
+- **Operações:** 1
+- **Pasta:** `.forge/specs/archived/2026-08-03-hookspath-respect-custom/`
+
+## 2026-08-03 — forge-update-command
+
+- **Capabilities:** forge-harness-template
+- **Operações:** 9
+- **Pasta:** `.forge/specs/archived/2026-08-03-forge-update-command/`
+
+## 2026-08-03 — deepspec-provenance
+
+- **Capabilities:** forge-harness-template
+- **Operações:** 12
+- **Pasta:** `.forge/specs/archived/2026-08-03-deepspec-provenance/`
+
+## 2026-08-03 — add-portable-handoff
+
+- **Capabilities:** forge-harness-template
+- **Operações:** 7
+- **Pasta:** `.forge/specs/archived/2026-08-03-add-portable-handoff/`
+
 ## 2026-07-20 — security-observability-gates
 
 - **Capabilities:** forge-harness-template

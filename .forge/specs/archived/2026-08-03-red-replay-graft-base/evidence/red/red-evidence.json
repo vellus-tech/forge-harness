@@ -13,7 +13,7 @@
   "base_result": "failed",
   "base_strategy": "ancestry",
   "revert_patch": null,
-  "replay_head": "148ea5cd86cb97a07ca6722f6d59fc570f65a9f0",
+  "replay_head": "bce11168ffcc6d7aec980282926843b96a9fc034",
   "setup_command": null,
   "reproduces": "bugfix.md §1 — ancestry deriva base já corrigida quando teste e fix vêm no mesmo commit",
   "fix_files": [
@@ -22,7 +22,7 @@
   ],
   "waiver": null,
   "recorded_at": "2026-08-03T20:40:58.381Z",
-  "replayed_at": "2026-08-03T20:43:03.407Z",
+  "replayed_at": "2026-08-03T20:58:54.845Z",
   "waived_at": null,
   "graft_from": null
 }

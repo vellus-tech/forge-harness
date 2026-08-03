@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**16 itens ativos** · roadmap 4 · tech-debt 10 · follow-up 2 · (5 encerrados)
+**20 itens ativos** · roadmap 4 · tech-debt 10 · follow-up 6 · (5 encerrados)
 
 ## Roadmap
 
@@ -56,6 +56,10 @@ _(nenhum)_
 
 - **LDG-0001** [open] — Runtime cross-repo da capability authz/observability (PEP libs Go/Kotlin/TS, repo de política OPA, wrappers OTel, authz-console UI)
 - **LDG-0002** [open] — Piloto do gate authz/observability no axis-go-cloud (provar gate quebrando o build ao adicionar rota sem PEP)
+- **LDG-0022** [open] — O contrato C5 não foi estendido para asserir o estado `+2 Session hooks`; essa cobertura vive no · via `add-portable-handoff`#verify-1
+- **LDG-0023** [open] — A execução da verificação regenerou `.forge/HANDOFF.md` (atualização determinística do header para · via `add-portable-handoff`#verify-2
+- **LDG-0024** [open] — O `w108[5]` nasceu com verde falso: lia `res.errors` de uma função que devolve um **array**, e · via `red-replay-graft-base`#verify-1
+- **LDG-0025** [open] — A lista de estratégias de base existia duplicada (validador em literal + schema JSON). Virou · via `red-replay-graft-base`#verify-2
 
 ## Notas
 

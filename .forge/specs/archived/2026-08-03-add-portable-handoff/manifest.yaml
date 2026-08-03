@@ -1,29 +1,24 @@
-id: deepspec-provenance
+id: add-portable-handoff
 type: feature
 mode: brownfield
 rigor: spec-anchored
 scale: 3
-status: verified
-created_at: "2026-07-09"
-updated_at: "2026-07-09"
+status: archived
+created_at: "2026-07-08"
+updated_at: "2026-08-03"
 owner: "milton"
 parent:
   baseline: .forge/product/current
 affected_capabilities:
   - forge-harness-template
 affected_paths:
-  - template/.forge/schemas/
-  - template/.forge/contracts/
-  - template/.forge/scripts/
-  - template/.forge/evals/benchmarks/
-  - template/.forge/commands/specs/
-  - template/.forge/commands/quality/
-  - template/.forge/commands/skills/
+  - template/.forge/
   - tests/
   - docs/
   - plugin/forge/
   - README.md
   - CHANGELOG.md
+  - forge.yaml
 dependencies:
   specs: []
   code: []
@@ -32,7 +27,7 @@ gates:
   design_reviewed: true
   tasks_reviewed: true
   implementation_verified: true
-  human_archive_approval: false
+  human_archive_approval: true
 dev_loop:
   sharded: false
   stories_path: stories/
@@ -42,5 +37,6 @@ quick_plan:
   skipped_phases: []
   justification:
 archive:
-  eligible: false
-  reason: "tasks not implemented"
+  kind: baseline_update
+  eligible: true
+  reason: "deltas applied to baseline on 2026-08-03"

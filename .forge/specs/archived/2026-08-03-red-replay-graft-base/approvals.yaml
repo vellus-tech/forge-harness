@@ -20,3 +20,10 @@ approvals:
     decided_at: "2026-08-03T17:50:53-03:00"
     commit: "62eef2a"
     scope: "verification.md,verification.yaml"
+  - gate: human_archive_approval
+    decision: approve
+    reason: "delta conferido e aprovado pelo autor via /forge:archive (AskUserQuestion, 2026-08-03) — 29+1 add_requirement em forge-harness-template, nenhum modify/remove"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-08-03T17:58:31-03:00"
+    commit: "bce1116"
+    scope: "spec-delta.yaml"

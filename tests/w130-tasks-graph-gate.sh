@@ -720,4 +720,46 @@ out4="$(FORGE_ROOT="$G" node "$LIB/validate-spec.mjs" "$CG" 2>&1 || true)"
 grep -q 'WARN.*SRF-01' <<< "$out4" || { echo "FAIL [15] CONTROLE: sem grafo o SRF-01 deveria avisar: $out4"; exit 1; }
 echo "OK [15]"
 
+echo "[16] TSK-06 — plano sem metadados nenhum não pode passar em silêncio"
+node - "$LIB" <<'EOF' || { echo "FAIL [16]: plano sem metadados atravessa TSK-01/02/03 sem achado"; exit 1; }
+const { join } = require('path'); const { pathToFileURL } = require('url');
+(async () => {
+  const G = await import(pathToFileURL(join(process.argv[2], 'tasks-graph.mjs')).href);
+  const codes = (md) => G.checkTasksGraph(G.parseTasks(md));
+  const W = '## Wave 1 — a\n';
+
+  // (a) omissão SISTEMÁTICA: nenhuma linha declara campo algum. Sem aresta não há aresta inválida,
+  // então TSK-01/02/03 aprovam um plano sobre o qual não verificaram nada. Bloqueia.
+  const semMeta = W + '- [ ] TASK-01 — faz a coisa\n- [ ] TASK-02 — faz outra coisa\n- [ ] TASK-03 — e mais uma\n';
+  const f = codes(semMeta).filter((x) => x.code === 'TSK-06');
+  if (f.length !== 1) { console.error(`(a) esperava 1 achado TSK-06, veio ${JSON.stringify(codes(semMeta))}`); process.exit(1); }
+  if (!f[0].enforceable) { console.error('(a) TSK-06 de omissão sistemática precisa bloquear'); process.exit(1); }
+  for (const c of ['TSK-01', 'TSK-02', 'TSK-03']) {
+    if (!f[0].msg.includes(c)) { console.error(`(a) a mensagem não diz que ${c} deixou de rodar: ${f[0].msg}`); process.exit(1); }
+  }
+
+  // (b) omissão PONTUAL: o plano declara metadados, uma task não. Avisa, não bloqueia — plausível
+  // que a task seja trivial, e bloquear aqui empurra para anotação decorativa.
+  const parcial = W + '- [ ] TASK-01 — t (rastreia: REQ-01; paths: `a`; depende: —)\n- [ ] TASK-02 — sem bloco\n';
+  const g = codes(parcial).filter((x) => x.code === 'TSK-06');
+  if (g.length !== 1) { console.error(`(b) esperava 1 achado TSK-06, veio ${JSON.stringify(codes(parcial))}`); process.exit(1); }
+  if (g[0].enforceable) { console.error('(b) omissão pontual não pode bloquear'); process.exit(1); }
+  if (!g[0].msg.includes('TASK-02')) { console.error(`(b) a mensagem não nomeia a task sem bloco: ${g[0].msg}`); process.exit(1); }
+
+  // (c) CONTROLE — declarar independência é diferente de não declarar nada. `depende: —` deixa
+  // dependsOn vazio igual à omissão; a distinção tem que ser "a linha tem campo reconhecido?".
+  const independentes = W + '- [ ] TASK-01 — t (rastreia: REQ-01; paths: `a`; depende: —)\n- [ ] TASK-02 — u (rastreia: REQ-02; paths: `b`; depende: nenhuma)\n';
+  if (codes(independentes).some((x) => x.code === 'TSK-06')) { console.error(`(c) TSK-06 disparou sobre plano legitimamente sem dependências: ${JSON.stringify(codes(independentes))}`); process.exit(1); }
+
+  // (d) CONTROLE — uma única task sem metadados: não há aresta possível, nada foi desligado.
+  if (codes(W + '- [ ] TASK-01 — tarefa única\n').some((x) => x.code === 'TSK-06')) { console.error('(d) TSK-06 disparou sobre plano de uma task'); process.exit(1); }
+
+  // (e) CONTROLE — o achado não pode canibalizar os outros: com metadados presentes e um defeito
+  // real, TSK-01 continua sendo quem acusa.
+  const pendurada = W + '- [ ] TASK-01 — t (rastreia: R; depende: TASK-99)\n- [ ] TASK-02 — u (rastreia: R; depende: —)\n';
+  if (!codes(pendurada).some((x) => x.code === 'TSK-01')) { console.error('(e) TSK-01 parou de acusar dependência pendurada'); process.exit(1); }
+})();
+EOF
+echo "OK [16]"
+
 echo "PASS w130-tasks-graph-gate"

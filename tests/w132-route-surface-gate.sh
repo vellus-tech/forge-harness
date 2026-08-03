@@ -72,6 +72,8 @@
 #   [43] PARAMÉTRICO: duas unidades de roteamento no mesmo arquivo, nos SEIS dialetos — a classe
 #        de defeito mais recorrente desta implementação, fechada de uma vez em vez de por dialeto
 #   [44] fonte de CÓDIGO declarada e ausente/vazia é reportada, como já era a de contrato
+#   [45] SUR-01 se ABSTÉM quando o scanner reportou irresolúvel (LDG-0017) — só afirma "este
+#        endpoint não existe" sobre varredura que resolveu tudo; kind desconhecido também abstém
 set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -97,7 +99,9 @@ if (routes.length !== 5) { console.error(`esperava 5 rotas, veio ${routes.length
 if (unresolved.length !== 0) { console.error(`esperava 0 unresolved, veio ${unresolved.length}`); process.exit(1); }
 const { endpoints } = as.collectDeclaredSurface({ contractPaths: [`${fix}/contracts`], root: fix });
 if (endpoints.length !== 4) { console.error(`esperava 4 declarados, veio ${endpoints.length}`); process.exit(1); }
-if (as.surContractToCode(endpoints, rs.routeKeys(routes)).length !== 0) { console.error('SUR-01 deveria ser 0'); process.exit(1); }
+const s01 = as.surContractToCode(endpoints, rs.routeKeys(routes), { unresolved });
+if (s01.verdict !== 'conclusive') { console.error(`SUR-01 deveria concluir no fixture íntegro, veio '${s01.verdict}' (${s01.blockers})`); process.exit(1); }
+if (s01.findings.length !== 0) { console.error('SUR-01 deveria ser 0'); process.exit(1); }
 const decl = as.collectDeclaredSurface({ contractPaths: [`${fix}/contracts`], root: fix });
 if (decl.unresolved.length !== 0) { console.error(`fixture íntegro produziu ${decl.unresolved.length} irresolúvel no lado do contrato: ${JSON.stringify(decl.unresolved.map((u) => u.kind))}`); process.exit(1); }
 const dk = new Set(endpoints.map((e) => `${e.method} ${e.path}`));
@@ -336,9 +340,10 @@ const rs = await import(`${lib}/route-scan.mjs`);
 const as = await import(`${lib}/api-surface.mjs`);
 const { routes } = rs.scanRoutes([`${tmp}/mut12`], { root: tmp });
 const { endpoints } = as.collectDeclaredSurface({ contractPaths: [`${fix}/contracts`], root: fix });
-const sur01 = as.surContractToCode(endpoints, rs.routeKeys(routes));
-if (sur01.length !== 1) { console.error(`esperava 1 achado SUR-01, veio ${sur01.length}`); process.exit(1); }
-if (sur01[0].path !== '/internal/v1/widgets/dispatch') { console.error(`achado no path errado: ${sur01[0].path}`); process.exit(1); }
+const sur01 = as.surContractToCode(endpoints, rs.routeKeys(routes), { unresolved: [] });
+if (sur01.verdict !== 'conclusive') { console.error(`esperava veredito conclusivo, veio '${sur01.verdict}'`); process.exit(1); }
+if (sur01.findings.length !== 1) { console.error(`esperava 1 achado SUR-01, veio ${sur01.findings.length}`); process.exit(1); }
+if (sur01.findings[0].path !== '/internal/v1/widgets/dispatch') { console.error(`achado no path errado: ${sur01.findings[0].path}`); process.exit(1); }
 EOF
 echo "OK [12]"
 
@@ -1330,6 +1335,78 @@ if (!vazio.unresolved.some((u) => u.kind === 'source-empty')) { console.error('c
 EOF
 echo "OK [44]"
 
+echo "[45] SUR-01 se abstém quando o scanner reportou irresolúvel (LDG-0017)"
+mkdir -p "$T/abstencao/contratos" "$T/abstencao/src"
+cat > "$T/abstencao/contratos/api.yaml" <<'YML'
+openapi: 3.0.3
+paths:
+  /internal/v1/billing/charge:
+    post:
+      summary: cobra
+  /internal/v1/vault/reveal:
+    post:
+      summary: revela
+YML
+cat > "$T/abstencao/src/Program.cs" <<'CS'
+var billing = app.MapGroup("/internal/v1/billing");
+billing.MapModuleEndpoints();
+var vault = app.MapGroup("/internal/v1/vault");
+vault.MapModuleEndpoints();
+CS
+cat > "$T/abstencao/src/BillingEndpoints.cs" <<'CS'
+public static class BillingEndpoints
+{
+    public static RouteGroupBuilder MapModuleEndpoints(this RouteGroupBuilder group)
+    {
+        group.MapPost("/charge", Charge);
+        return group;
+    }
+}
+CS
+cat > "$T/abstencao/src/VaultEndpoints.cs" <<'CS'
+public static class VaultEndpoints
+{
+    public static RouteGroupBuilder MapModuleEndpoints(this RouteGroupBuilder group)
+    {
+        group.MapPost("/reveal", Reveal);
+        return group;
+    }
+}
+CS
+cat > "$T/check-45.mjs" <<'EOF'
+const [lib, , tmp] = process.argv.slice(2);
+const rs = await import(`${lib}/route-scan.mjs`);
+const as = await import(`${lib}/api-surface.mjs`);
+
+// Produtores homônimos: o scanner não sabe qual invocação alcança qual definição, reporta
+// `producer-ambiguous` e SUPRIME as rotas dos dois módulos. As duas promessas do contrato existem
+// no código — mas o scanner não pode prová-lo. Concluir aqui seria acusar dois endpoints reais de
+// não implementados, em massa e com cara de veredito confiante.
+const { routes, unresolved } = rs.scanRoutes([`${tmp}/abstencao/src`], { root: tmp });
+if (unresolved.length === 0) { console.error('o fixture deveria produzir irresolúvel — sem ele o caso não testa nada'); process.exit(1); }
+const { endpoints } = as.collectDeclaredSurface({ contractPaths: [`${tmp}/abstencao/contratos`], root: tmp });
+if (endpoints.length !== 2) { console.error(`contrato deveria declarar 2 endpoints, veio ${endpoints.length}`); process.exit(1); }
+
+const s = as.surContractToCode(endpoints, rs.routeKeys(routes), { unresolved });
+if (s.verdict !== 'inconclusive') { console.error(`SUR-01 concluiu sobre base incompleta: veredito '${s.verdict}'`); process.exit(1); }
+if (s.findings.length !== 0) { console.error(`SUR-01 emitiu ${s.findings.length} achado(s) bloqueante(s) sem poder provar ausência`); process.exit(1); }
+if (s.abstained.length !== 2) { console.error(`os endpoints não checados deveriam aparecer em abstained, veio ${s.abstained.length}`); process.exit(1); }
+if (!s.blockers.includes('producer-ambiguous')) { console.error(`o motivo da abstenção não foi nomeado: ${JSON.stringify(s.blockers)}`); process.exit(1); }
+
+// CONTROLE: sem irresolúvel, o mesmo cruzamento conclui — a abstenção não pode ser um "nunca
+// bloqueia" disfarçado.
+const conclusivo = as.surContractToCode(endpoints, new Set(['POST /internal/v1/billing/charge']), { unresolved: [] });
+if (conclusivo.verdict !== 'conclusive') { console.error('sem irresolúvel o veredito deveria ser conclusivo'); process.exit(1); }
+if (conclusivo.findings.length !== 1) { console.error(`esperava 1 achado no controle, veio ${conclusivo.findings.length}`); process.exit(1); }
+
+// Kind DESCONHECIDO tem de suprimir também: o default é abster, para que um diagnóstico novo que
+// alguém esqueça de classificar não faça o gate bloquear com base incompleta.
+const novo = as.surContractToCode(endpoints, new Set(), { unresolved: [{ kind: 'kind-que-ninguem-classificou' }] });
+if (novo.verdict !== 'inconclusive') { console.error('kind desconhecido não fez o SUR-01 se abster — o default é inseguro'); process.exit(1); }
+EOF
+node "$T/check-45.mjs" "$LIB" "$FIX" "$T" || { echo "FAIL [45]"; exit 1; }
+echo "OK [45]"
+
 echo "[29] PROVA: cada correção morre quando a regra que a implementa é mutada"
 # A mutação opera sobre uma CÓPIA do lib — o original nunca é tocado, então não há vetor de
 # mutação fantasma por restore() malfeito. Os checks reutilizados aqui são os MESMOS arquivos que
@@ -1347,7 +1424,7 @@ mutar() {
 soma_lib() { cat "$LIB"/*.mjs | shasum | cut -d' ' -f1; }
 LIB_ANTES="$(soma_lib)"
 
-for caso in 17 18 19 24 30 31 33 34 37 38 39 40 41 42 43; do
+for caso in 17 18 19 24 30 31 33 34 37 38 39 40 41 42 43 45; do
   rm -rf "$T/mutlib" "$T/ctrllib"
   mkdir -p "$T/mutlib" "$T/ctrllib"
   cp "$LIB"/*.mjs "$T/mutlib/"
@@ -1374,6 +1451,7 @@ for caso in 17 18 19 24 30 31 33 34 37 38 39 40 41 42 43; do
     40) mutar "$T/mutlib/route-scan.mjs" 'if (idx.groups.some((g) => g.id === id)) continue;' 'continue;' ;;
     41) mutar "$T/mutlib/route-scan.mjs" "const code = raw.split('');" 'const code = [...raw];' ;;
     42) mutar "$T/mutlib/route-scan.mjs" 'const emLiteral = (i) => struct[i] !== text[i];' 'const emLiteral = () => false;' ;;
+    45) mutar "$T/mutlib/api-surface.mjs" 'if (cegueira.length === 0) {' 'if (true) {' ;;
     43) mutar "$T/mutlib/route-scan.mjs" 'const owner = containerOf(classes, m.index);
       const pref = owner ? prefixes.get(owner.name) : null;' 'const pref = [...prefixes.values()][0];' ;;
   esac || { echo "FAIL [29]: mutação do caso [$caso] não encontrou o alvo — a prova não vale"; exit 1; }

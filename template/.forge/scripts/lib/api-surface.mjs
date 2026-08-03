@@ -418,9 +418,42 @@ export function collectDeclaredSurface({ contractPaths = [], specPaths = [], aut
 /**
  * SUR-01 — contrato→código: endpoint declarado que não existe como rota. BLOQUEIA.
  * É o defeito de "a promessa vive no contrato e ninguém a implementou".
+ *
+ * ── Por que existe veredito, e não só uma lista ────────────────────────────────────────────
+ * O route-scan não emite path parcial: quando um prefixo não resolve (produtor homônimo ambíguo,
+ * router sem mount conhecido, grupo com prefixo dinâmico), as rotas afetadas simplesmente não
+ * saem e o caso vira `unresolved`. Isso é seguro para o SUR-02, onde a rota some e alguém olha —
+ * mas é perigoso aqui, porque este check BLOQUEIA: um módulo inteiro cujas rotas foram suprimidas
+ * faria o SUR-01 acusar todos os endpoints dele como não implementados, em massa e com cara de
+ * veredito confiante.
+ *
+ * A regra é: o SUR-01 só pode afirmar "este endpoint não existe" sobre uma varredura em que o
+ * scanner afirmou ter resolvido tudo. Havendo irresolúvel, ele devolve `inconclusive` e move os
+ * ausentes para `abstained` — que é diferente de "nenhum achado" e não deve ser lido como verde.
+ * Abster com escopo global é grosseiro de propósito: mapear endpoint→arquivo exigiria informação
+ * que nenhuma das duas pontas tem, e a alternativa (adivinhar o escopo) reintroduziria o veredito
+ * confiante sobre base incompleta que este desenho existe para impedir.
+ *
+ * @returns {{verdict: 'conclusive'|'inconclusive', findings: Array, abstained: Array, blockers: string[]}}
  */
-export function surContractToCode(declared, routeKeySet) {
-  return declared.filter((e) => !routeKeySet.has(`${e.method} ${e.path}`));
+export function surContractToCode(declared, routeKeySet, { unresolved = [] } = {}) {
+  const ausentes = declared.filter((e) => !routeKeySet.has(`${e.method} ${e.path}`));
+
+  // Kinds que comprovadamente NÃO reduzem o conjunto de rotas conhecidas. A lista é de exceções
+  // explícitas, e o default é o oposto: kind desconhecido SUPRIME. Um diagnóstico novo que
+  // alguém esqueça de classificar faz o gate se abster, nunca bloquear com base incompleta.
+  const NAO_SUPRIME = new Set([]);
+  const cegueira = unresolved.filter((u) => !NAO_SUPRIME.has(u.kind));
+
+  if (cegueira.length === 0) {
+    return { verdict: 'conclusive', findings: ausentes, abstained: [], blockers: [] };
+  }
+  return {
+    verdict: 'inconclusive',
+    findings: [],
+    abstained: ausentes,
+    blockers: [...new Set(cegueira.map((u) => u.kind))].sort(),
+  };
 }
 
 /**

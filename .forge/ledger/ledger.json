@@ -388,10 +388,10 @@
       "id": "LDG-0017",
       "type": "tech-debt",
       "title": "SUR-01 precisa se abster quando o route-scan reporta unresolved no mesmo escopo",
-      "detail": "O route-scan corrigido deixou de emitir path parcial: quando o prefixo nao resolve (produtor homonimo ambiguo, router Express sem mount, route() de Ktor com argumento composto, grupo com prefixo dinamico), as rotas afetadas simplesmente nao saem, e o caso vira unresolved reportado. Isso e correto para o SUR-02 (a rota ausente aparece como nao declarada, e alguem olha), mas e' perigoso para o SUR-01, que BLOQUEIA: um modulo inteiro cujas rotas foram suprimidas faz o SUR-01 acusar todos os endpoints daquele modulo como nao implementados — falso positivo em massa, com cara de veredito confiante. A fiacao do SUR-01 (ainda nao feita; ver LDG-0010) precisa tratar unresolved como condicao de abstencao ou de reprovacao explicita do proprio check, nunca como ruido ignoravel. Regra: SUR-01 so pode afirmar 'este endpoint nao existe' sobre um escopo em que o scanner afirmou ter resolvido tudo.",
+      "detail": "O route-scan corrigido deixou de emitir path parcial: quando o prefixo nao resolve (produtor homonimo ambiguo, router Express sem mount, route() de Ktor com argumento composto, grupo com prefixo dinamico), as rotas afetadas simplesmente nao saem, e o caso vira unresolved reportado. Isso e correto para o SUR-02 (a rota ausente aparece como nao declarada, e alguem olha), mas e' perigoso para o SUR-01, que BLOQUEIA: um modulo inteiro cujas rotas foram suprimidas faz o SUR-01 acusar todos os endpoints daquele modulo como nao implementados — falso positivo em massa, com cara de veredito confiante. A fiacao do SUR-01 (ainda nao feita; ver LDG-0010) precisa tratar unresolved como condicao de abstencao ou de reprovacao explicita do proprio check, nunca como ruido ignoravel. Regra: SUR-01 so pode afirmar 'este endpoint nao existe' sobre um escopo em que o scanner afirmou ter resolvido tudo. — Resolvido: Resolvido. surContractToCode deixa de devolver lista e passa a devolver VEREDITO: 'conclusive' com findings, ou 'inconclusive' com os ausentes em abstained e os motivos em blockers. 'Nenhum achado' e 'nao pude verificar' sao opostos para um check que bloqueia, e a assinatura anterior nao expressava o segundo. Duas decisoes de projeto: (1) a abstencao e' GLOBAL, nao por escopo — mapear endpoint->arquivo exigiria informacao que nem o contrato nem o scanner tem, e adivinhar o escopo reintroduziria o veredito confiante sobre base incompleta que o item existe para impedir; (2) a lista de kinds que NAO suprimem rota esta vazia e o default e' suprimir, para que diagnostico novo nao classificado faca o gate abster em vez de bloquear. Gate w132 caso [45], com o cenario que originou o item (dois modulos com MapModuleEndpoints homonimo, ambos os endpoints existindo no codigo) e DOIS controles: um confirma que sem irresolvivel o mesmo cruzamento conclui e acusa de verdade — senao a abstencao seria um 'nunca bloqueia' disfarcado —, outro confirma que kind desconhecido tambem abstem. CONSEQUENCIA para LDG-0010: combinada com LDG-0019, a abstencao faz vertical slice .NET e Express multi-arquivo cairem em 'inconclusive' sistematicamente — nao em falso positivo, que era o risco original, mas tambem nao em cobertura. Tornar o SUR-01 util nesses layouts passa por promover o mapa de mounts do Express ao indice global e decidir o que fazer com produtores homonimos, nao por afrouxar a abstencao.",
       "severity": null,
       "priority": "P1",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -404,8 +404,8 @@
         "promoted_to": null
       },
       "created_at": "2026-08-03T14:30:55-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-08-03T17:01:52-03:00",
+      "resolved_at": "2026-08-03T17:01:52-03:00",
       "dedup_key": "manual:LDG-0017"
     },
     {

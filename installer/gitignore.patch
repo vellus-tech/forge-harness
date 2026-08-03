@@ -8,10 +8,10 @@
 .forge/graph/cache/fingerprints.json
 .forge/graph/symbols.json
 .forge/graph/module-deps.json
-# # backups do próprio `forge update` (.forge.bak-N): artefato de rollback, nunca fonte —
+# backups do próprio `forge update` (.forge.bak-N): artefato de rollback, nunca fonte —
 # versioná-los duplica a maquinaria inteira dentro do commit que deveria substituí-la.
 .forge.bak-*/
-.forge/cache/: reservado para custos-atalho locais de qualquer mecanismo do harness que
+# .forge/cache/: reservado para custos-atalho locais de qualquer mecanismo do harness que
 # precise de um (nunca commitados, nunca evidência para terceiros). O Red-first (rule
 # testing/regression-red-first.md) chegou a usar um cache de replay aqui e foi removido (ADR
 # 0003, Onda E) — ensure agora executa sempre, sem atalho.
@@ -23,4 +23,11 @@
 .claude/settings.local.json
 .claude/cache/
 .DS_Store
+# Store do liaison é EVIDÊNCIA versionada, não log de aplicação. O template oficial de .NET/VS
+# traz `[Ll]og/`, que engole `.forge/liaison/<canal>/log/` — e o efeito é pior que um erro:
+# CHANNEL.md e state.json ficam versionados e as MENSAGENS não, deixando um canal com cara de
+# versionado e store vazio em qualquer clone. A ordem abaixo não é estilo: o git não reabre
+# diretório excluído, então a negação do DIRETÓRIO tem de vir antes da dos arquivos.
+!.forge/liaison/**/log/
+!.forge/liaison/**/log/*.jsonl
 # <<< forge (managed) <<<

@@ -100,10 +100,10 @@
       "id": "LDG-0005",
       "type": "tech-debt",
       "title": "gitignore managed-block: updater não mescla padrões novos em bloco já existente",
-      "detail": "",
+      "detail": "Resolvido: Resolvido no gate w133. O bloco managed do .gitignore passa a RECONCILIAR em vez de ser acrescido uma unica vez: applyGitignoreBlock() em bin/forge.mjs substitui o conteudo entre marcadores pelo do template a cada init/update, e o install.sh (caminho curl|bash, que nao passa pelo forge.mjs) ganhou a mesma logica em awk. O que esta FORA dos marcadores e' do usuario e nunca e' tocado, inclusive para dedup — brownfield que ja lista .DS_Store nao ganha entrada duplicada. Era a CAUSA de LDG-0009 e LDG-0015: sem reconciliacao, corrigir o template nao entrega nada a quem ja instalou.",
       "severity": null,
       "priority": "P2",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -116,8 +116,8 @@
         "promoted_to": null
       },
       "created_at": "2026-07-29T10:15:59-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-08-03T16:47:54-03:00",
+      "resolved_at": "2026-08-03T16:47:54-03:00",
       "dedup_key": "manual:LDG-0005"
     },
     {
@@ -196,10 +196,10 @@
       "id": "LDG-0009",
       "type": "tech-debt",
       "title": "Consumidores com managed-block do .gitignore congelado nao ignoram .forge.bak-*/ nem .forge/cache/",
-      "detail": "",
+      "detail": "Resolvido: Resolvido junto com LDG-0005, que era a causa. Com a reconciliacao, '.forge.bak-*/' e '.forge/cache/' passam a chegar a consumidores que ja tinham o bloco. Casos [1] e [3] do gate w133 cobrem: o [1] monta um .gitignore com o bloco ANTIGO (marcadores presentes, padroes novos ausentes) e exige que o update os traga; o [3] confirma via 'git check-ignore' que backup do proprio update e cache local deixam de ser commitaveis.",
       "severity": null,
       "priority": "P1",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -212,8 +212,8 @@
         "promoted_to": null
       },
       "created_at": "2026-07-29T14:28:15-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-08-03T16:47:54-03:00",
+      "resolved_at": "2026-08-03T16:47:54-03:00",
       "dedup_key": "manual:LDG-0009"
     },
     {
@@ -340,10 +340,10 @@
       "id": "LDG-0015",
       "type": "tech-debt",
       "title": "gitignore de .NET/VS ignora o store do liaison via [Ll]og/ — canal versionado sem mensagens",
-      "detail": "Descoberto ao abrir o canal em quatro repositorios Axis: o .gitignore padrao de .NET/Visual Studio (template oficial da Microsoft) traz '[Ll]og/', que engole '.forge/liaison/<canal>/log/'. O efeito e silencioso e pior que um erro: CHANNEL.md e state.json ficam versionados e as MENSAGENS nao — canal com cara de versionado e store vazio em qualquer clone. Atingiu o axis-go-cloud, que e justamente o DONO dos contratos. Como '[Ll]og/' exclui o DIRETORIO, negar apenas os arquivos nao resolve (git nao reabre diretorio excluido): a negacao do diretorio tem de vir DEPOIS da regra. Correcao aplicada a mao naquele repo; o managed-block do installer (installer/gitignore.patch) deve passar a emitir '!.forge/liaison/**/log/' e '!.forge/liaison/**/log/*.jsonl', senao todo adotante .NET repete. Gate sugerido: apos 'liaison open', verificar com 'git check-ignore -q' que o log e versionavel e REPROVAR se nao for.",
+      "detail": "Descoberto ao abrir o canal em quatro repositorios Axis: o .gitignore padrao de .NET/Visual Studio (template oficial da Microsoft) traz '[Ll]og/', que engole '.forge/liaison/<canal>/log/'. O efeito e silencioso e pior que um erro: CHANNEL.md e state.json ficam versionados e as MENSAGENS nao — canal com cara de versionado e store vazio em qualquer clone. Atingiu o axis-go-cloud, que e justamente o DONO dos contratos. Como '[Ll]og/' exclui o DIRETORIO, negar apenas os arquivos nao resolve (git nao reabre diretorio excluido): a negacao do diretorio tem de vir DEPOIS da regra. Correcao aplicada a mao naquele repo; o managed-block do installer (installer/gitignore.patch) deve passar a emitir '!.forge/liaison/**/log/' e '!.forge/liaison/**/log/*.jsonl', senao todo adotante .NET repete. Gate sugerido: apos 'liaison open', verificar com 'git check-ignore -q' que o log e versionavel e REPROVAR se nao for. — Resolvido: Resolvido. O installer/gitignore.patch passa a emitir '!.forge/liaison/**/log/' e '!.forge/liaison/**/log/*.jsonl', nessa ordem — o git nao reabre diretorio excluido, entao a negacao do DIRETORIO tem de vir antes da dos arquivos, e ambas depois da regra que exclui (garantido por o bloco ser acrescido ao fim). Entregue aos consumidores existentes pela reconciliacao de LDG-0005. Gate w133 caso [4], com o .gitignore verbatim do template .NET/VS e CONTROLE proprio: verifica antes que a regra '[Ll]og/' esta em vigor, senao o caso passaria por vacuidade num repo sem ela. Corrigida tambem a linha 14 do patch, que era prosa sem o '#' e que o git lia como PADRAO — caso [5] barra a reincidencia.",
       "severity": null,
       "priority": "P1",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -356,8 +356,8 @@
         "promoted_to": null
       },
       "created_at": "2026-07-30T11:05:18-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-08-03T16:47:54-03:00",
+      "resolved_at": "2026-08-03T16:47:54-03:00",
       "dedup_key": "manual:LDG-0015"
     },
     {

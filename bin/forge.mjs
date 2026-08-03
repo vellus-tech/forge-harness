@@ -39,7 +39,67 @@ const GITIGNORE_PATCH = join(PKG_ROOT, 'installer', 'gitignore.patch');
 const REMOVED_MANIFEST = process.env.FORGE_REMOVED_MANIFEST || join(PKG_ROOT, 'installer', 'removed-files.txt');
 const STAGING_YML = join(PKG_ROOT, 'template', 'github', 'workflows', 'staging.yml');
 const GI_MARKER = '# >>> forge (managed) >>>';
+const GI_MARKER_END = '# <<< forge (managed) <<<';
 const ADAPTERS = ['claude', 'codex', 'gemini', 'qwen', 'cursor', 'kiro', 'forge-cli', 'agents-skills'];
+
+/**
+ * Aplica o managed-block do .gitignore RECONCILIANDO, não só acrescentando.
+ *
+ * O comportamento anterior era append-once (`if (!cur.includes(MARKER)) append`): quem já tinha o
+ * bloco nunca recebia padrão novo, e o harness passou a depender disso para entregar correções —
+ * o backup do update, o cache local e as negações do store do liaison ficaram presos no template,
+ * sem chegar a nenhum consumidor instalado. Um bloco marcado como "managed" que congela na
+ * primeira escrita não é gerenciado; é um comentário.
+ *
+ * O que fica fora dos marcadores é do usuário e nunca é tocado — inclusive para dedup: padrão que
+ * o projeto já lista por conta própria não é repetido dentro do bloco.
+ */
+function applyGitignoreBlock(target) {
+  const gi = join(target, '.gitignore');
+  const patch = readFileSync(GITIGNORE_PATCH, 'utf8');
+  const cur = existsSync(gi) ? readFileSync(gi, 'utf8') : '';
+
+  const pIni = patch.indexOf(GI_MARKER);
+  const pFim = patch.indexOf(GI_MARKER_END);
+  if (pIni === -1 || pFim === -1) { console.log('gitignore: patch sem marcadores — bloco não aplicado'); return; }
+  const blocoPatch = patch.slice(pIni, pFim + GI_MARKER_END.length);
+
+  const ini = cur.indexOf(GI_MARKER);
+  const fim = cur.indexOf(GI_MARKER_END);
+  if (ini !== -1 && (fim === -1 || fim < ini)) {
+    // Marcador de abertura sem fechamento: reescrever aqui poderia comer regra do projeto.
+    console.log('gitignore: bloco forge com marcadores inconsistentes — não reconciliado (conserte à mão)');
+    return;
+  }
+
+  const antes = ini === -1 ? cur : cur.slice(0, ini);
+  const depois = ini === -1 ? '' : cur.slice(fim + GI_MARKER_END.length);
+
+  // Dedup só contra o que está FORA do bloco: um brownfield que já lista `.DS_Store` não ganha
+  // entrada duplicada.
+  const fora = new Set(
+    `${antes}\n${depois}`.split('\n').map((l) => l.replace(/\s+$/, '')).filter((l) => l.trim() && !l.trimStart().startsWith('#')),
+  );
+  const bloco = blocoPatch
+    .split('\n')
+    .filter((l) => {
+      const t = l.replace(/\s+$/, '');
+      if (!t.trim() || t.trimStart().startsWith('#')) return true;
+      return !fora.has(t);
+    })
+    .join('\n');
+
+  if (ini === -1) {
+    const sep = !cur || cur.endsWith('\n') ? '' : '\n';
+    writeFileSync(gi, `${cur}${sep}\n${bloco}\n`);
+    console.log('gitignore: bloco forge adicionado');
+    return;
+  }
+  const novo = `${antes}${bloco}${depois}`;
+  if (novo === cur) return;
+  writeFileSync(gi, novo);
+  console.log('gitignore: bloco forge reconciliado');
+}
 
 const pkgVersion = () => {
   try { return JSON.parse(readFileSync(join(PKG_ROOT, 'package.json'), 'utf8')).version; }
@@ -489,10 +549,8 @@ async function updateHarness() {
   if (added.length) console.log(`forge.yaml: ${added.length} chave(s) de topo nova(s) do template mescladas: ${added.join(', ')}`);
   for (const key of skipped) console.log(`forge.yaml: seção nova '${key}:' NÃO mesclada (contém placeholder — exige preenchimento manual); revise o template`);
 
-  // gitignore managed block (idempotente)
-  const gi = join(target, '.gitignore');
-  const giCur = existsSync(gi) ? readFileSync(gi, 'utf8') : '';
-  if (!giCur.includes(GI_MARKER)) { appendFileSync(gi, readFileSync(GITIGNORE_PATCH, 'utf8')); console.log('gitignore: bloco forge adicionado'); }
+  // gitignore managed block — reconcilia (não é append-once; ver applyGitignoreBlock)
+  applyGitignoreBlock(target);
 
   wireHooksPath(target);
 
@@ -618,13 +676,8 @@ async function main() {
   const orphans = walk(forge).filter((f) => isTemplated(f) && !underTemplates(f) && /<PROJECT_[A-Z_]*>/.test(readFileSync(f, 'utf8')));
   if (orphans.length) fail(`${orphans.length} arquivo(s) ainda contêm placeholders <PROJECT_*>`, 1);
 
-  // 4. .gitignore patch (idempotent via marker)
-  const gi = join(target, '.gitignore');
-  const giCur = existsSync(gi) ? readFileSync(gi, 'utf8') : '';
-  if (!giCur.includes(GI_MARKER)) {
-    appendFileSync(gi, readFileSync(GITIGNORE_PATCH, 'utf8'));
-    console.log('gitignore: bloco forge adicionado');
-  }
+  // 4. .gitignore managed block (reconcilia; ver applyGitignoreBlock)
+  applyGitignoreBlock(target);
 
   // 5. git hooks path (only when the target is a git repo)
   wireHooksPath(target);

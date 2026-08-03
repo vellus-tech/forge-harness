@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**20 itens ativos** · roadmap 4 · tech-debt 14 · follow-up 2 · (1 encerrado)
+**17 itens ativos** · roadmap 4 · tech-debt 11 · follow-up 2 · (4 encerrados)
 
 ## Roadmap
 
@@ -26,12 +26,8 @@ _(nenhum)_
 
 ## Dívida técnica
 
-- **LDG-0009** [open] (P1) — Consumidores com managed-block do .gitignore congelado nao ignoram .forge.bak-*/ nem .forge/cache/
-- **LDG-0015** [open] (P1) — gitignore de .NET/VS ignora o store do liaison via [Ll]og/ — canal versionado sem mensagens
-  Descoberto ao abrir o canal em quatro repositorios Axis: o .gitignore padrao de .NET/Visual Studio (template oficial da Microsoft) traz '[Ll]og/', que engole '.forge/liaison/<canal>/log/'. O efeito e silencioso e pior que um erro: CHANNEL.md e state.json ficam versionados e as MENSAGENS nao — canal com cara de versionado e store vazio em qualquer clone. Atingiu o axis-go-cloud, que e justamente o DONO dos contratos. Como '[Ll]og/' exclui o DIRETORIO, negar apenas os arquivos nao resolve (git nao reabre diretorio excluido): a negacao do diretorio tem de vir DEPOIS da regra. Correcao aplicada a mao naquele repo; o managed-block do installer (installer/gitignore.patch) deve passar a emitir '!.forge/liaison/**/log/' e '!.forge/liaison/**/log/*.jsonl', senao todo adotante .NET repete. Gate sugerido: apos 'liaison open', verificar com 'git check-ignore -q' que o log e versionavel e REPROVAR se nao for.
 - **LDG-0017** [open] (P1) — SUR-01 precisa se abster quando o route-scan reporta unresolved no mesmo escopo
   O route-scan corrigido deixou de emitir path parcial: quando o prefixo nao resolve (produtor homonimo ambiguo, router Express sem mount, route() de Ktor com argumento composto, grupo com prefixo dinamico), as rotas afetadas simplesmente nao saem, e o caso vira unresolved reportado. Isso e correto para o SUR-02 (a rota ausente aparece como nao declarada, e alguem olha), mas e' perigoso para o SUR-01, que BLOQUEIA: um modulo inteiro cujas rotas foram suprimidas faz o SUR-01 acusar todos os endpoints daquele modulo como nao implementados — falso positivo em massa, com cara de veredito confiante. A fiacao do SUR-01 (ainda nao feita; ver LDG-0010) precisa tratar unresolved como condicao de abstencao ou de reprovacao explicita do proprio check, nunca como ruido ignoravel. Regra: SUR-01 so pode afirmar 'este endpoint nao existe' sobre um escopo em que o scanner afirmou ter resolvido tudo.
-- **LDG-0005** [open] (P2) — gitignore managed-block: updater não mescla padrões novos em bloco já existente
 - **LDG-0007** [open] (P2) — Assinatura de IA já no histórico: 275 commits em 5 repositórios
 - **LDG-0011** [open] (P2) — Nada exige o campo 'depende:' na linha de task — plano sem metadados passa TSK-01..03 trivialmente
   Descoberto no dogfood do w130: o change create-forge-project-harness tem 30 tasks e ZERO arestas declaradas, porque nenhuma linha carrega o bloco '(rastreia: ...; paths: ...; depende: ...)'. O parser le fielmente (nao ha aresta, logo nao ha aresta invalida) e TSK-01/02/03 passam sem exercitar nada. E a mesma forma do defeito C do plano de fechamento de superficie — porta de saida por omissao: o check e correto e o artefato simplesmente nao fornece o insumo. Pertence a Onda B, junto de SRF-00: exigir o bloco de metadados a partir de tasks-ready, ou registrar explicitamente que o plano nao declara dependencias.
@@ -52,7 +48,7 @@ _(nenhum)_
 - **LDG-0020** [open] (P3) — route-scan: composicao e' por CAMINHO, e DAG denso de produtores custa exponencial antes do MAX_DEPTH
   O corte de ciclo (Set no caminho) resolve recursao mutua, e o diagnostico chain-too-deep foi colapsado por owner para nao alocar um objeto por caminho truncado — o que derrubou o consumo de memoria. Mas a travessia continua sendo por caminho, nao memoizada: num DAG acíclico e denso (produtores P0..P29, cada Pi invocando Pi+1..Pi+B) o custo cresce com B^MAX_DEPTH. Medicao da revisao antes do colapso do diagnostico: B=4 dava 420ms/222MB, B=5 dava 12,9s/1,3GB, B=6 estourava a heap. Registrars reais formam arvore, nao DAG denso, entao isto e' robustez e nao defeito de campo — mas a saida existe e e' barata: memoizar por (owner, prefixo) em vez de recompor cada caminho, ja que o resultado so depende desse par.
 
-_Encerrados: 1 (resolved 1)_
+_Encerrados: 4 (resolved 4)_
 
 ## Bugs conhecidos
 

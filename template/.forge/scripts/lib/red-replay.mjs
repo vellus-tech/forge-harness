@@ -12,24 +12,37 @@
 // (ruleItem 'green'). Só depois de HEAD estar saudável é que a árvore base é derivada e testada
 // — não adianta gastar esforço reconstruindo/revertendo se o ambiente nem roda o comando.
 //
-// Três estratégias para derivar a base pré-correção, nesta ordem — nunca trava mudo: quando
-// nenhuma das duas primeiras funciona, cai em NOT-POSSIBLE, um veredito válido que a rule
+// Quatro estratégias para derivar a base pré-correção, nesta ordem — nunca trava mudo: quando
+// nenhuma das três primeiras funciona, cai em NOT-POSSIBLE, um veredito válido que a rule
 // resolve com waiver (não com a máquina inventando um teste ou um commit):
 //
 //   (a) ANCESTRY — localiza o commit que introduziu o CASO declarado (test_id) no arquivo de
 //       teste — não o commit que criou o ARQUIVO (Furo 2: arquivo de teste preexistente é o
 //       fluxo comuníssimo "acrescentar caso de regressão a um arquivo antigo"; ancorar na
 //       criação do arquivo levava a base para uma era anterior ao caso existir). Base = pai do
-//       primeiro commit que toca fix_files DEPOIS desse commit de introdução do caso.
-//   (b) REVERT-SYNTHESIS — quando (a) não resolve (o caso mais comum é teste e correção no
-//       mesmo commit — squash): cria um worktree em HEAD e reverte, só nos fix_files, o diff
-//       introduzido pelo commit que os tocou por último — mantendo o teste (que já está em
-//       HEAD) intacto. A base deixa de ser um commit literal e passa a ser uma árvore sintética.
-//   (c) NOT-POSSIBLE — nem test_id resolve a um commit de introdução, nem os fix_files têm
-//       histórico git suficiente para sintetizar o revert, nem o test_id declarado existe na
-//       árvore base derivada. Retorna { strategy:'not-possible', reason }. O caller
-//       (lib/red-evidence-ops.mjs) grava status:'not-possible' e devolve exit≠0 pedindo waiver
-//       — nunca lança exceção, nunca deixa o processo pendurado.
+//       primeiro commit que toca fix_files DEPOIS desse commit de introdução do caso. Só se
+//       aplica quando o commit de introdução do caso NÃO toca fix_files (Furo 13): se o teste
+//       veio junto da correção, qualquer commit posterior que toque os mesmos arquivos é ruído,
+//       e a base derivada dele JÁ contém a correção — o replay então afirmava "teste já passa na
+//       árvore base" sobre uma base que nunca teve o defeito.
+//   (b) REVERT-SYNTHESIS — teste e correção no mesmo commit (squash): cria um worktree em HEAD e
+//       reverte, só nos fix_files, o diff da CORREÇÃO — o commit que introduziu o caso, quando é
+//       ele que toca o arquivo (Furo 13; antes revertia sempre o último commit que tocou o
+//       arquivo, que pode ser ruído posterior) — mantendo o teste (que já está em HEAD) intacto.
+//       A base deixa de ser um commit literal e passa a ser uma árvore sintética.
+//   (c) TEST-GRAFT — quando (b) existe mas o patch reverso NÃO aplica (o HEAD evoluiu longe
+//       demais das regiões que a correção tocou, caso comum meses depois): base = pai do commit
+//       de introdução do caso — árvore pré-correção histórica REAL — com o test_path enxertado a
+//       partir desse commit. É a única base que existe quando o teste nasceu junto da correção, e
+//       é literalmente o que um auditor faz à mão. O enxerto não afrouxa nada: os vereditos de
+//       recusa (teste passa na base, falha não-comportamental, padrão divergente, saída que não
+//       menciona o caso) continuam valendo sobre a árvore enxertada. Registra graft_from para que
+//       o auditor saiba que o arquivo de teste não existia em base_commit.
+//   (d) NOT-POSSIBLE — nem test_id resolve a um commit de introdução, nem os fix_files têm
+//       histórico git suficiente para sintetizar o revert ou enxertar o teste, nem o test_id
+//       declarado existe na árvore base derivada. Retorna { strategy:'not-possible', reason }. O
+//       caller (lib/red-evidence-ops.mjs) grava status:'not-possible' e devolve exit≠0 pedindo
+//       waiver — nunca lança exceção, nunca deixa o processo pendurado.
 //
 // Veredito 'observed' exige, na ordem: (0) comando passa em HEAD (Green real, não presumido);
 // (1) o test_id declarado (quando presente) existe no arquivo de teste na árvore base — senão a
@@ -38,9 +51,9 @@
 // casa com failure_pattern quando declarado; (5) a saída MENCIONA o test_id declarado — o caso
 // que falhou precisa ser o caso declarado, não uma falha histórica adjacente que por acaso casa
 // com o padrão (Furo 2). Qualquer ausência aborta com motivo nomeado — ver replay() abaixo.
-import { existsSync, readFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 import { execFileSync, spawn } from 'node:child_process';
 import { classify } from './red-classify.mjs';
 
@@ -128,6 +141,16 @@ function findFixLastCommit(root, file) {
   return out || null;
 }
 
+// commitTouches: o commit alterou este arquivo? (Furo 13 — o predicado que separa "teste antes
+// da correção" de "teste junto da correção"; sem ele, ancestry era tentada nos dois mundos e no
+// segundo derivava uma base que já contém o fix.)
+function commitTouches(root, commit, file) {
+  try {
+    const out = git(root, ['show', '--name-only', '--format=', commit, '--', file]);
+    return out.trim().length > 0;
+  } catch { return false; }
+}
+
 // deriveBase: decide a estratégia SEM tocar em disco (nenhum worktree criado aqui) — só
 // inspeção de histórico. Puro o suficiente para ser testado isoladamente.
 export function deriveBase({ root, testPath, fixFiles, testId }) {
@@ -136,7 +159,11 @@ export function deriveBase({ root, testPath, fixFiles, testId }) {
   }
 
   const caseCommit = findCaseIntroCommit(root, testPath, testId);
-  if (caseCommit) {
+  // Furo 13 — o commit que introduziu o caso também toca fix_files? Então a correção está NELE
+  // (squash), e ancestry não se aplica: o "primeiro commit posterior que toca fix_files" é ruído,
+  // e parent(ruído) já contém o fix.
+  const caseCarriesFix = caseCommit ? fixFiles.some((f) => commitTouches(root, caseCommit, f)) : false;
+  if (caseCommit && !caseCarriesFix) {
     const fixCommit = findFixCommitAfter(root, fixFiles, caseCommit);
     if (fixCommit) {
       const base = parentOf(root, fixCommit);
@@ -161,15 +188,27 @@ export function deriveBase({ root, testPath, fixFiles, testId }) {
       reason: `test_id ('${testId}') declarado não aparece em ${testPath} nem em HEAD — a base não pode conter um caso que não existe (item 3, Verificação)`,
     };
   }
+  // (c) descritor do enxerto, quando aplicável — computado aqui (barato, só histórico) para
+  // servir de fallback ao revert que não aplica, e de estratégia principal quando não há sequer
+  // o que reverter.
+  const graftBase = caseCarriesFix ? parentOf(root, caseCommit) : null;
+  const graft = graftBase ? { strategy: 'test-graft', ref: graftBase, graftFrom: caseCommit, caseCommit } : null;
+
   const reverts = [];
   for (const f of fixFiles) {
-    const c = findFixLastCommit(root, f);
-    if (!c) return { strategy: 'not-possible', reason: `fix_files '${f}' sem histórico git — revert-synthesis inviável` };
+    // Furo 13 — reverter a CORREÇÃO, não a última mexida no arquivo: quando o caso nasceu junto
+    // do fix, o commit a reverter é o do próprio caso; commits posteriores no mesmo arquivo são
+    // ruído e revertê-los deixaria a base ainda corrigida.
+    const c = caseCarriesFix && commitTouches(root, caseCommit, f) ? caseCommit : findFixLastCommit(root, f);
+    if (!c) {
+      if (graft) return graft;
+      return { strategy: 'not-possible', reason: `fix_files '${f}' sem histórico git — revert-synthesis inviável` };
+    }
     reverts.push({ file: f, commit: c });
   }
   let head;
   try { head = git(root, ['rev-parse', 'HEAD']).trim(); } catch { return { strategy: 'not-possible', reason: 'HEAD não resolve (repo sem commits?)' }; }
-  return { strategy: 'revert-synthesis', ref: head, reverts };
+  return { strategy: 'revert-synthesis', ref: head, reverts, fallback: graft };
 }
 
 // ── worktrees efêmeros ──────────────────────────────────────────────────────────────────
@@ -255,6 +294,29 @@ function applyRevert(root, worktreeDir, reverts) {
     }
   }
   return applied.join('\n');
+}
+
+// graftTest: materializa o arquivo de teste na árvore base a partir do commit que o introduziu
+// (Furo 13, estratégia (c)). Preserva o bit de execução do blob original — teste declarado como
+// `./tests/x.sh` não roda se o enxerto vier sem +x. Nunca toca nada além do test_path: a base
+// continua sendo, byte a byte, a árvore pré-correção histórica em todo o resto.
+function graftTest(root, worktreeDir, testPath, graftFrom) {
+  const content = readFileAt(root, graftFrom, testPath);
+  if (content === null) {
+    throw new Error(`test-graft: ${testPath} não existe em ${String(graftFrom).slice(0, 7)} — não há teste a enxertar`);
+  }
+  let mode = '100644';
+  try {
+    const entry = git(root, ['ls-tree', graftFrom, '--', testPath]).trim();
+    if (entry) mode = entry.split(/\s+/)[0] || mode;
+  } catch { /* mode default */ }
+  const dest = join(worktreeDir, testPath);
+  try {
+    mkdirSync(dirname(dest), { recursive: true });
+    writeFileSync(dest, content, { encoding: 'utf8', mode: mode === '100755' ? 0o755 : 0o644 });
+  } catch (e) {
+    throw new Error(`test-graft: falha ao enxertar ${testPath} na árvore base (${e.message})`);
+  }
 }
 
 // runTest: roda exatamente o comando declarado — nunca a suíte — via child_process.spawn com
@@ -483,18 +545,37 @@ export async function replay({ root, evidence, timeoutS = DEFAULT_TIMEOUT_S }) {
     }
 
     // ── árvore base derivada ────────────────────────────────────────────────────────────
+    // `effective` pode divergir de `descriptor`: um revert-synthesis cujo patch não aplica cai
+    // para o test-graft anunciado em descriptor.fallback (Furo 13). Todo o resto do fluxo — e o
+    // que vai para o artefato — lê `effective`, nunca o descritor original.
+    let effective = descriptor;
     try {
-      baseDir = addWorktree(root, descriptor.strategy === 'revert-synthesis' ? 'HEAD' : descriptor.ref);
+      baseDir = addWorktree(root, effective.strategy === 'revert-synthesis' ? 'HEAD' : effective.ref);
     } catch (e) {
-      return finish({ verdict: 'not-possible', reason: `worktree base falhou: ${(e.stderr || e.message || '').toString().trim()}`, strategy: descriptor.strategy });
+      return finish({ verdict: 'not-possible', reason: `worktree base falhou: ${(e.stderr || e.message || '').toString().trim()}`, strategy: effective.strategy });
     }
     let revertPatch = null;
-    if (descriptor.strategy === 'revert-synthesis') {
-      try { revertPatch = applyRevert(root, baseDir, descriptor.reverts); }
-      catch (e) { return finish({ verdict: 'not-possible', reason: e.message, strategy: descriptor.strategy }); }
+    if (effective.strategy === 'revert-synthesis') {
+      try { revertPatch = applyRevert(root, baseDir, effective.reverts); }
+      catch (e) {
+        if (!descriptor.fallback) {
+          return finish({ verdict: 'not-possible', reason: e.message, strategy: effective.strategy });
+        }
+        // o revert não aplica sobre este HEAD — troca de worktree e segue pelo enxerto, que usa
+        // uma árvore histórica real em vez de uma sintética.
+        removeWorktree(root, baseDir);
+        baseDir = null;
+        effective = descriptor.fallback;
+        try { baseDir = addWorktree(root, effective.ref); }
+        catch (e2) { return finish({ verdict: 'not-possible', reason: `worktree base falhou: ${(e2.stderr || e2.message || '').toString().trim()}`, strategy: effective.strategy }); }
+      }
+    }
+    if (effective.strategy === 'test-graft') {
+      try { graftTest(root, baseDir, testPath, effective.graftFrom); }
+      catch (e) { return finish({ verdict: 'not-possible', reason: e.message, strategy: effective.strategy }); }
     }
     if (!existsSync(join(baseDir, testPath))) {
-      return finish({ verdict: 'not-possible', reason: `test_path (${testPath}) ausente na árvore base derivada`, strategy: descriptor.strategy });
+      return finish({ verdict: 'not-possible', reason: `test_path (${testPath}) ausente na árvore base derivada`, strategy: effective.strategy });
     }
     // Furo 2, defesa em profundidade: confere de novo no worktree materializado (não só no
     // blob via `git show`, cujo resultado deriveBase já validou) — protege contra fix_files
@@ -502,56 +583,60 @@ export async function replay({ root, evidence, timeoutS = DEFAULT_TIMEOUT_S }) {
     let baseTestContent = null;
     try { baseTestContent = readFileSync(join(baseDir, testPath), 'utf8'); } catch { baseTestContent = null; }
     if (!caseExistsInContent(baseTestContent, testId)) {
-      return finish({ verdict: 'not-possible', reason: `test_id ('${testId}') declarado não aparece na árvore base derivada — a base está errada`, strategy: descriptor.strategy });
+      return finish({ verdict: 'not-possible', reason: `test_id ('${testId}') declarado não aparece na árvore base derivada — a base está errada`, strategy: effective.strategy });
     }
 
     const baseSetup = await runSetup({ cwd: baseDir, setupCommand, timeoutS });
     if (!baseSetup.ok) {
-      return finish({ verdict: 'not-possible', reason: `ambiente do worktree incompleto — ${baseSetup.reason} na base (declare setup_command correto ou dispense com /forge:red waive)`, strategy: descriptor.strategy });
+      return finish({ verdict: 'not-possible', reason: `ambiente do worktree incompleto — ${baseSetup.reason} na base (declare setup_command correto ou dispense com /forge:red waive)`, strategy: effective.strategy });
     }
 
     const baseRun = await runTest({ cwd: baseDir, command, timeoutS });
     if (baseRun.indeterminate) {
-      return finish({ verdict: 'not-possible', reason: 'ambiente do worktree incompleto — execução indeterminada na base (sinal externo/erro de spawn)', strategy: descriptor.strategy });
+      return finish({ verdict: 'not-possible', reason: 'ambiente do worktree incompleto — execução indeterminada na base (sinal externo/erro de spawn)', strategy: effective.strategy });
     }
     const classification = classify(baseRun.output);
     const excerpt = truncateExcerpt(normalizeExcerpt(baseRun.output, [baseDir, headDir]));
-    const baseInfo = { strategy: descriptor.strategy, ref: descriptor.ref, exitCode: baseRun.exitCode, classification, excerpt };
+    const baseInfo = { strategy: effective.strategy, ref: effective.ref, exitCode: baseRun.exitCode, classification, excerpt };
 
     if (baseRun.exitCode === 0) {
-      return finish({ verdict: 'fail', ruleItem: '2', reason: 'teste já passa na árvore base — não reproduz o defeito relatado (item 2)', strategy: descriptor.strategy, base: baseInfo, base_result: 'passed', diagnostic: { classification, excerpt } });
+      return finish({ verdict: 'fail', ruleItem: '2', reason: 'teste já passa na árvore base — não reproduz o defeito relatado (item 2)', strategy: effective.strategy, base: baseInfo, base_result: 'passed', diagnostic: { classification, excerpt } });
     }
     if (classification !== 'behavioral') {
       return finish({
         verdict: 'fail', ruleItem: '3',
         reason: `falha na base classificada como '${classification}' — erro de build/compilação, não comportamento (item 3)`,
-        strategy: descriptor.strategy, base: baseInfo, base_result: 'failed', diagnostic: { classification, excerpt },
+        strategy: effective.strategy, base: baseInfo, base_result: 'failed', diagnostic: { classification, excerpt },
       });
     }
     if (!matchesPattern(baseRun.output, failurePattern)) {
       return finish({
         verdict: 'fail', ruleItem: '4',
         reason: `saída da falha diverge do failure_pattern declarado ('${failurePattern}') (item 4)`,
-        strategy: descriptor.strategy, base: baseInfo, base_result: 'failed', diagnostic: { classification, excerpt },
+        strategy: effective.strategy, base: baseInfo, base_result: 'failed', diagnostic: { classification, excerpt },
       });
     }
     if (!outputMentionsCase(baseRun.output, testId)) {
       return finish({
         verdict: 'fail', ruleItem: 'test-id',
         reason: `saída da falha não menciona o caso declarado (test_id: '${testId}') — o caso que falhou pode não ser o declarado`,
-        strategy: descriptor.strategy, base: baseInfo, base_result: 'failed', diagnostic: { classification, excerpt },
+        strategy: effective.strategy, base: baseInfo, base_result: 'failed', diagnostic: { classification, excerpt },
       });
     }
 
     return finish({
       verdict: 'observed',
-      strategy: descriptor.strategy,
-      base_strategy: descriptor.strategy,
-      // 'ancestry': descriptor.ref é o commit pré-correção real. 'revert-synthesis': descriptor.ref
+      strategy: effective.strategy,
+      base_strategy: effective.strategy,
+      // 'ancestry': effective.ref é o commit pré-correção real. 'revert-synthesis': effective.ref
       // é o HEAD a partir do qual o revert foi sintetizado (não existe um commit literal
       // pré-correção — a árvore é sintética) — registrado assim mesmo por ser a referência mais
-      // honesta disponível (rastreável, resolve no histórico real).
-      base_commit: descriptor.ref,
+      // honesta disponível (rastreável, resolve no histórico real). 'test-graft': effective.ref é
+      // o pai do commit que trouxe teste+correção — commit real e pré-correção —, mas o arquivo
+      // de teste NÃO existe lá; graft_from diz de onde ele foi enxertado, sem o que a evidência
+      // pareceria contraditória para quem tentasse reproduzi-la.
+      base_commit: effective.ref,
+      graft_from: effective.strategy === 'test-graft' ? effective.graftFrom : null,
       classification,
       excerpt,
       base_result: 'failed',

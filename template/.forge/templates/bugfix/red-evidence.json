@@ -13,6 +13,7 @@
   "base_result": null,
   "base_strategy": null,
   "revert_patch": null,
+  "graft_from": null,
   "replay_head": null,
   "setup_command": null,
   "reproduces": "bugfix.md §1",

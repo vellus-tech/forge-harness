@@ -141,7 +141,9 @@ function persistReplayResult(ev, data, result) {
   // INFORMATIVO (quando o último replay rodou, sobre qual HEAD) — nenhum caminho de decisão em
   // check-red-first.mjs lê esses dois campos para concluir 'observed' (Onda D: a prova mora na
   // execução — cache local ou o próprio replay ao vivo — não no artefato).
-  const updated = { ...data, replayed_at: nowIso(), replay_head: result.replay_head || null, base_strategy: null, revert_patch: null };
+  // graft_from acompanha base_strategy no reset: é o par que explica de onde veio a árvore base,
+  // e um graft_from remanescente de uma tentativa anterior descreveria uma base que não é a desta.
+  const updated = { ...data, replayed_at: nowIso(), replay_head: result.replay_head || null, base_strategy: null, revert_patch: null, graft_from: null };
 
   if (result.verdict === 'observed') {
     updated.status = 'observed';
@@ -152,6 +154,7 @@ function persistReplayResult(ev, data, result) {
     updated.excerpt_sha256 = sha256(updated.excerpt);
     updated.base_result = result.base_result || 'failed';
     updated.revert_patch = result.revert_patch || null;
+    updated.graft_from = result.graft_from || null;
   } else if (result.verdict === 'not-possible') {
     updated.status = 'not-possible';
     if (result.diagnostic) {

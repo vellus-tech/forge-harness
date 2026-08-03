@@ -54,8 +54,13 @@
     },
     "base_strategy": {
       "type": ["string", "null"],
-      "enum": ["ancestry", "revert-synthesis", null],
-      "description": "Estratégia usada por lib/red-replay.mjs para derivar a árvore pré-correção (Furo 8). 'revert-synthesis' significa que base_commit é o HEAD a partir do qual o revert foi sintetizado, não um commit literal pré-correção — ver revert_patch para reproduzir."
+      "enum": ["ancestry", "revert-synthesis", "test-graft", null],
+      "description": "Estratégia usada por lib/red-replay.mjs para derivar a árvore pré-correção (Furo 8). 'revert-synthesis' significa que base_commit é o HEAD a partir do qual o revert foi sintetizado, não um commit literal pré-correção — ver revert_patch para reproduzir. 'test-graft' significa que base_commit é um commit pré-correção real, mas o arquivo de teste não existe nele — foi enxertado a partir de graft_from (Furo 13)."
+    },
+    "graft_from": {
+      "type": ["string", "null"],
+      "pattern": "^[a-f0-9]{7,40}$",
+      "description": "Quando base_strategy é 'test-graft', o commit de onde o test_path foi enxertado na árvore base — normalmente o commit que trouxe teste e correção juntos (squash). Sem este campo, um auditor que fizesse checkout de base_commit não acharia o arquivo de teste e leria a evidência como contraditória."
     },
     "revert_patch": {
       "type": ["string", "null"],

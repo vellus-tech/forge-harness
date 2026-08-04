@@ -113,7 +113,7 @@ if (onMainPath && man.status !== 'idea' && !has('proposal.md'))
   errors.push('proposal.md missing (required from status=proposed onward)');
 if (reached('requirements-ready') && scale >= 1 && !has(reqArtifact))
   errors.push(`${reqArtifact} missing (required from requirements-ready onward at scale ${scale})`);
-if (man.status === 'design-ready' && man.type !== 'bugfix' && !has('design.md'))
+if (man.status === 'design-ready' && !has('design.md'))
   errors.push('design.md missing (status design-ready requires it)');
 if (reached('tasks-ready')) {
   if (!has('tasks.md')) errors.push('tasks.md missing (required from tasks-ready onward)');

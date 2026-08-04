@@ -4,7 +4,7 @@
 //   2. template/.forge/FORGE.md frontmatter  vs $defs/forgeFrontmatter
 //   3. adapter-capability.schema.json        compiles (sanity)
 // Output: one "OK <check>" line per check; exits 1 on first failure with ajv errors.
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
@@ -61,13 +61,23 @@ console.log(`OK ${decls.length} adapter declarations vs adapter-capability schem
 const specManifest = JSON.parse(read('template/.forge/schemas/spec-manifest.schema.json'));
 const validateSpecManifest = ajv.compile(specManifest);
 console.log('OK spec-manifest.schema.json compiles');
-const dogfood = parse(read('.forge/specs/active/gate-assert-visibility/manifest.yaml'));
-if (!validateSpecManifest(dogfood)) {
-  console.error('FAIL dogfooding manifest vs spec-manifest schema');
-  console.error(JSON.stringify(validateSpecManifest.errors, null, 2));
-  process.exit(1);
+// Ponteiro derivado, não cravado: qualquer change ativo real serve de fixture dogfood — cravar
+// um id específico quebra de novo assim que ele for arquivado/fechado (aconteceu 2x: LDG-0012 e
+// antes dele, create-forge-project-harness).
+const activeDir = resolve(root, '.forge/specs/active');
+const activeChanges = existsSync(activeDir) ? readdirSync(activeDir).filter((d) => existsSync(resolve(activeDir, d, 'manifest.yaml'))).sort() : [];
+if (activeChanges.length === 0) {
+  console.log('OK dogfooding manifest vs spec-manifest schema (SKIP — nenhum change ativo no momento)');
+} else {
+  const dogfoodId = activeChanges[0];
+  const dogfood = parse(read(`.forge/specs/active/${dogfoodId}/manifest.yaml`));
+  if (!validateSpecManifest(dogfood)) {
+    console.error(`FAIL dogfooding manifest (${dogfoodId}) vs spec-manifest schema`);
+    console.error(JSON.stringify(validateSpecManifest.errors, null, 2));
+    process.exit(1);
+  }
+  console.log(`OK dogfooding manifest (${dogfoodId}) vs spec-manifest schema`);
 }
-console.log('OK dogfooding manifest (gate-assert-visibility) vs spec-manifest schema');
 
 // W3.0 — baseline schemas compile; canonical state machine definition conforms
 const compiled = {};

@@ -4,9 +4,13 @@
 # adapted to the change's scale (§10.3):
 #   scale 0:  idea -> proposed -> tasks-ready -> implementing -> implemented -> verified
 #   scale 1:  + requirements-ready (before tasks-ready)
-#   scale >=2: + design-ready (after requirements-ready) — exceto type:bugfix, que normalmente
-#     dispensa design (root cause vive no bugfix.md; ver design.md command doc). Espelha a mesma
-#     isenção que validate-spec.mjs já concede a partir de tasks-ready (LDG-0030).
+#   scale >=2: + design-ready (after requirements-ready). type:bugfix (ou quick_plan.skipped_phases
+#     contendo "design", qualquer type) pode pular requirements-ready -> tasks-ready direto — mas
+#     design-ready CONTINUA na cadeia para quem passar por ele (bugfix com decisão arquitetural,
+#     manifest legado já parado lá antes deste pulo existir). É uma rota lateral alternativa, não
+#     uma remoção do estado (LDG-0030 — a 1ª versão deste fix removia design-ready da cadeia para
+#     bugfix, o que travava manifests legados e proibia a opção descrita em commands/specs/design.md
+#     "crie design.md só se a correção exigir decisão arquitetural" — corrigido por review).
 # Lateral states:
 #   any -> blocked (requires --reason)
 #   blocked -> any chain state (requires --reason; human decision)
@@ -44,19 +48,40 @@ case "$TARGET" in
   archived) echo "FAIL (archive arrives in MVP3 — /forge:archive)"; exit 2 ;;
 esac
 
-# chain for this scale
+# chain for this scale — design-ready sempre presente a partir de scale 2 (nunca removida:
+# ver nota acima). O pulo de bugfix/quick_plan é uma rota lateral checada à parte, abaixo.
 chain="idea proposed"
 [ "$SCALE" -ge 1 ] 2>/dev/null && chain="$chain requirements-ready"
-[ "$SCALE" -ge 2 ] 2>/dev/null && [ "$TYPE" != "bugfix" ] && chain="$chain design-ready"
+[ "$SCALE" -ge 2 ] 2>/dev/null && chain="$chain design-ready"
 chain="$chain tasks-ready implementing implemented verified"
 
 in_chain() { printf ' %s ' $chain | grep -q " $1 "; }
+
+# quick_plan.skipped_phases contém "design"? (bloco YAML simples, block style — flow style
+# '[design]' não é reconhecido aqui, mesma limitação conhecida do yaml-lite, LDG-0030 2ª metade)
+QP_SKIPS_DESIGN=0
+if grep -q '^quick_plan:' "$MAN" 2>/dev/null; then
+  QP_BLOCK="$(awk '/^quick_plan:/{f=1;next} f && /^[A-Za-z_]+:/{exit} f' "$MAN")"
+  if grep -q 'enabled: true' <<<"$QP_BLOCK" && grep -qE '^\s*-\s*design\s*$' <<<"$QP_BLOCK"; then
+    QP_SKIPS_DESIGN=1
+  fi
+fi
+
+# LDG-0030: pulo lateral requirements-ready -> tasks-ready para bugfix (ou quick_plan
+# declarado) — design-ready permanece um alvo válido da cadeia normal para quem o alcançar
+# por qualquer outro caminho (opt-in, ou manifest legado já parado lá).
+SKIP_DESIGN=0
+if [ "$CURRENT" = "requirements-ready" ] && [ "$TARGET" = "tasks-ready" ]; then
+  { [ "$TYPE" = "bugfix" ] || [ "$QP_SKIPS_DESIGN" -eq 1 ]; } && SKIP_DESIGN=1
+fi
 
 if [ "$TARGET" = "blocked" ]; then
   [ -n "$REASON" ] || { echo "FAIL (blocked requires --reason)"; exit 2; }
 elif [ "$CURRENT" = "blocked" ]; then
   in_chain "$TARGET" || { echo "FAIL (cannot unblock to '$TARGET' — not a chain state for scale $SCALE)"; exit 1; }
   [ -n "$REASON" ] || { echo "FAIL (unblocking requires --reason)"; exit 2; }
+elif [ "$SKIP_DESIGN" -eq 1 ]; then
+  : # rota lateral autorizada — bugfix (ou quick_plan) pulando design-ready de propósito
 else
   in_chain "$TARGET" || { echo "FAIL ('$TARGET' is not a chain state for scale $SCALE)"; exit 1; }
   in_chain "$CURRENT" || { echo "FAIL (current status '$CURRENT' is outside the chain — resolve manually)"; exit 1; }

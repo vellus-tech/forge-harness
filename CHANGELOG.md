@@ -4,6 +4,15 @@ Todas as mudanças notáveis deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/)
 e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
+## [Unreleased]
+
+### Fixed
+- **Asserções bash `[ cond ] && cmd` sob `set -e` morriam sem mensagem ou passavam em silêncio (`LDG-0012`).** Quando o ÚLTIMO comando de uma lista `&&` falha, `set -e` mata o script na hora, sem qualquer `FAIL` explicando o motivo. Quando uma cláusula NÃO-final falha, ela é isenta de `set -e` (regra POSIX/bash) e o script segue como se tivesse passado — passagem silenciosa, mais grave que a morte muda porque nem o código de saída sinaliza o problema. 52 sites corrigidos em 20 arquivos de `tests/*.sh`, convertidos para `cond || { echo "FAIL [n]: ..."; exit 1; }`. Nenhum veredito de gate muda — é correção exclusiva de observabilidade de falha.
+- **State machine de spec não deixava um `type: bugfix` scale≥2 pular `design-ready` mesmo com `quick_plan` justificado (`LDG-0030`).** `spec-transition.sh` e `validate-spec.mjs` só concediam essa isenção a partir de `tasks-ready`. Corrigido como rota lateral opcional — `design-ready` continua na cadeia (retrocompatível com manifests já parados lá, e ainda alcançável por quem quiser fazer design de uma correção arquitetural), mas um bugfix pode ir direto de `requirements-ready` a `tasks-ready` sem passar por ele. A isenção também passa a valer para qualquer `type` cujo `quick_plan.skipped_phases` declare `design` explicitamente.
+
+### Migração
+- Se você tem um change `type: bugfix` scale≥2 parado em `design-ready` desta versão do harness, ele continua avançando normalmente (`design-ready` → `tasks-ready`) — nenhuma ação necessária.
+
 ## [0.6.0] — 2026-08-04
 
 > Cinco itens do ledger fechados em sequência, todos da mesma família: gates que aprovavam sem ter medido. O último terminou com um resultado que a própria medição contradisse — e vale mais que os quatro anteriores.

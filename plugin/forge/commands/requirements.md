@@ -47,7 +47,7 @@ Apresente via `AskUserQuestion` (resumo de 2-3 linhas do estado + nº de iteraç
 bash .forge/scripts/approval-log.sh <change-id> --gate requirements_reviewed --decision <decision> [--reason "<motivo>"] --iteration <n> --scope "<artefato-alvo>"
 ```
 
-- **Approve** → `bash .forge/scripts/spec-transition.sh <change-id> requirements-ready` e reporte o próximo comando (`/forge:design` em scale ≥2; `/forge:tasks` em scale 1).
+- **Approve** → `bash .forge/scripts/spec-transition.sh <change-id> requirements-ready` e reporte o próximo comando (`/forge:design` em scale ≥2; `/forge:tasks` em scale 1; `type: bugfix` scale ≥2 pode ir direto a `/forge:tasks` — design é opcional para esse tipo, sugira `/forge:design` só se a correção tiver decisão arquitetural).
 - **Review** → use o motivo como instrução e volte ao passo 1 (conta como nova rodada de loop; o registro fica no approvals.yaml).
 - **Reject** → registre e pare; sugira `/forge:close --reason rejected` se o change não segue.
 - **Block** → registre a causa e pare (`spec-transition.sh <id> blocked --reason "<causa>"`).

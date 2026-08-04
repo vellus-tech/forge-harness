@@ -710,10 +710,10 @@
       "id": "LDG-0030",
       "type": "known-bug",
       "title": "Bugfix scale 2 que dispensa design fica deadlocked: design-ready exige design.md sem honrar quick_plan.skipped_phases",
-      "detail": "Achado pelo yolo-gate ao decidir o design_reviewed do change gate-assert-visibility. Um change type:bugfix, scale 2, com quick_plan.enabled:true e skipped_phases:[design] nao consegue avançar: (1) spec-transition.sh monta a cadeia por scale e para scale >= 2 o unico proximo passo depois de requirements-ready e design-ready — o script nao consulta quick_plan em nenhum ponto (zero ocorrencias do termo no arquivo); (2) lib/validate-spec.mjs aplica 'if (man.status === design-ready && !has(design.md))' de forma incondicional, sem a isençao que o proprio validador ja concede logo abaixo no guard de tasks-ready ('scale >= 2 && man.type !== bugfix && !has(design.md)'). Ou seja, a intençao de dispensar design.md para bugfix ja esta codificada no validador, mas so vale de tasks-ready em diante; o waypoint design-ready continua exigindo o artefato, e como a transiçao e linear e obrigatoria, o change fica preso em requirements-ready a menos que se fabrique um design.md vazio so para satisfazer o guard — exatamente a ceremonia que quick_plan existe para evitar. Correçao sugerida: fazer o guard de design-ready honrar quick_plan.skipped_phases contendo 'design' (e/ou a mesma isençao type !== bugfix), ou permitir que spec-transition.sh pule a fase declarada em skipped_phases ao montar a cadeia. Nota lateral: yaml-lite.mjs nao suporta array em flow style — 'skipped_phases: [design]' parseia como a string literal '[design]' e faz o validador reprovar com 'requires non-empty skipped_phases'; o template spec-new.sh grava '[]', o que induz o autor ao formato errado.",
+      "detail": "Achado pelo yolo-gate ao decidir o design_reviewed do change gate-assert-visibility. Um change type:bugfix, scale 2, com quick_plan.enabled:true e skipped_phases:[design] nao consegue avançar: (1) spec-transition.sh monta a cadeia por scale e para scale >= 2 o unico proximo passo depois de requirements-ready e design-ready — o script nao consulta quick_plan em nenhum ponto (zero ocorrencias do termo no arquivo); (2) lib/validate-spec.mjs aplica 'if (man.status === design-ready && !has(design.md))' de forma incondicional, sem a isençao que o proprio validador ja concede logo abaixo no guard de tasks-ready ('scale >= 2 && man.type !== bugfix && !has(design.md)'). Ou seja, a intençao de dispensar design.md para bugfix ja esta codificada no validador, mas so vale de tasks-ready em diante; o waypoint design-ready continua exigindo o artefato, e como a transiçao e linear e obrigatoria, o change fica preso em requirements-ready a menos que se fabrique um design.md vazio so para satisfazer o guard — exatamente a ceremonia que quick_plan existe para evitar. Correçao sugerida: fazer o guard de design-ready honrar quick_plan.skipped_phases contendo 'design' (e/ou a mesma isençao type !== bugfix), ou permitir que spec-transition.sh pule a fase declarada em skipped_phases ao montar a cadeia. Nota lateral: yaml-lite.mjs nao suporta array em flow style — 'skipped_phases: [design]' parseia como a string literal '[design]' e faz o validador reprovar com 'requires non-empty skipped_phases'; o template spec-new.sh grava '[]', o que induz o autor ao formato errado. — Resolvido: Corrigido em spec-transition.sh + validate-spec.mjs, com revisão adversarial (3 reviewers independentes no code-evaluator do PR #42) que rejeitou a 1ª versão do fix por remover design-ready da cadeia (quebrava retrocompatibilidade de manifests legados e proibia a opção de design para bugfix, em vez de torná-la opcional). Fix final: design-ready permanece na cadeia para scale>=2 sempre; pulo requirements-ready->tasks-ready é rota lateral disponível para type:bugfix OU quick_plan.skipped_phases contendo 'design' (honra a causa raiz original do item, não só o predicado por type). Coberto por teste (tests/w21-pipeline-gate.sh cenário [1b], TDD real: vermelho confirmado contra a versão anterior do código antes da correção). Nota lateral do item original (yaml-lite.mjs não suporta array em flow style) segue aberta separadamente.",
       "severity": null,
       "priority": "P2",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": "gate-assert-visibility",
         "origin": "manual",
@@ -728,8 +728,8 @@
         "promoted_to": null
       },
       "created_at": "2026-08-04T11:52:45-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-08-04T17:22:38-03:00",
+      "resolved_at": "2026-08-04T17:22:38-03:00",
       "dedup_key": "manual:LDG-0030"
     },
     {
@@ -781,6 +781,84 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0032"
+    },
+    {
+      "id": "LDG-0033",
+      "type": "tech-debt",
+      "title": "yaml-lite.mjs não parseia array em flow style — quick_plan.skipped_phases: [design] vira string literal",
+      "detail": "Residual do LDG-0030 (agora resolvido), citado como nota lateral no item original. spec-new.sh grava skipped_phases em flow style ([]) por padrão, induzindo o autor ao formato que o parser não entende; block style (- design) funciona. Corrigir yaml-lite.mjs para suportar flow style, ou spec-new.sh para gravar block style por padrão.",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": "gate-assert-visibility",
+        "origin": "gate-assert-visibility PR #42 code-evaluator",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "gate-assert-visibility"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-04T17:22:38-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0033"
+    },
+    {
+      "id": "LDG-0034",
+      "type": "tech-debt",
+      "title": "Mensagens FAIL de algumas conversões do LDG-0012 agrupam 2-3 condições sem indicar qual falhou",
+      "detail": "Achado pelo quality-reviewer no code-evaluator do PR #42. Exemplos: w13-init-gate.sh/w14-adapters-gate.sh 'FAIL [1]: settings.json/claude.lock.yaml/core.lock.yaml ausentes' (3 arquivos bundled), w30-schemas-gate.sh:377 'CHANGELOG.md do baseline ou product/published ausente' (OR vago). Fora do escopo da correção mecânica original (converter, não redesenhar diagnóstico). Separar em ifs com mensagem por cláusula numa iteração futura.",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": "gate-assert-visibility",
+        "origin": "gate-assert-visibility PR #42 code-evaluator (QUAL-005)",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "gate-assert-visibility"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-04T17:22:38-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0034"
+    },
+    {
+      "id": "LDG-0035",
+      "type": "tech-debt",
+      "title": "Nenhum gate confronta archive-state-machine.yaml (definição canônica) com a cadeia executável de spec-transition.sh",
+      "detail": "Achado pelo harness-integrity-reviewer no code-evaluator do PR #42. tools/validate-forge.mjs e w30-schemas-gate.sh só validam o YAML contra seu próprio JSON schema — nenhum gate deriva a cadeia real do script e confere contra as transições declaradas. Drift já existe: a isenção de design-ready por type:bugfix (LDG-0030) não está registrada no schema (só scale_skippable existe, não algo como type_skippable). Adicionar o campo ao schema + um gate que derive (scale,type) -> next esperado do script e compare com o YAML fecharia a classe inteira de drift silencioso.",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": "gate-assert-visibility",
+        "origin": "gate-assert-visibility PR #42 code-evaluator (INTEG-007)",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "gate-assert-visibility"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-04T17:22:38-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0035"
     }
   ]
 }

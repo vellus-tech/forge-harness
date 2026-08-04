@@ -31,6 +31,39 @@ set -e
 grep -q '^status: tasks-ready$' "$T/.forge/specs/active/chg-a/manifest.yaml"
 echo "OK [1]"
 
+echo "[1b] LDG-0030: bugfix scale>=2 pula design-ready OU passa por ele (opcional, não proibido)"
+# (a) caminho de pulo: bugfix scale 2 vai direto requirements-ready -> tasks-ready
+(cd "$T" && bash "$SN" bug-skip --type bugfix --scale 2 >/dev/null)
+(cd "$T" && bash "$TR" bug-skip requirements-ready >/dev/null)
+(cd "$T" && bash "$TR" bug-skip tasks-ready >/dev/null)
+grep -q '^status: tasks-ready$' "$T/.forge/specs/active/bug-skip/manifest.yaml" \
+  || { echo "FAIL [1b]: bugfix scale 2 não pulou requirements-ready -> tasks-ready"; exit 1; }
+# (b) caminho opcional: bugfix scale 2 AINDA PODE passar por design-ready se quiser
+#     (correção arquitetural legítima; design.md command doc: "normalmente dispensa", não "nunca pode")
+#     — precisa existir design.md de verdade, mesma exigência de qualquer outro type.
+(cd "$T" && bash "$SN" bug-design --type bugfix --scale 2 >/dev/null)
+(cd "$T" && bash "$TR" bug-design requirements-ready >/dev/null)
+printf '# Design — bug-design\n\nDecisão arquitetural desta correção.\n' > "$T/.forge/specs/active/bug-design/design.md"
+(cd "$T" && bash "$TR" bug-design design-ready >/dev/null) \
+  || { echo "FAIL [1b]: bugfix scale 2 com design.md real não conseguiu optar por design-ready (deveria ser opcional, não proibido)"; exit 1; }
+(cd "$T" && bash "$TR" bug-design tasks-ready >/dev/null) \
+  || { echo "FAIL [1b]: bugfix parado em design-ready não avançou para tasks-ready"; exit 1; }
+# (c) manifest legado: bugfix scale 2 já parado em design-ready (harness anterior a este fix)
+#     precisa continuar avançando após o upgrade — não pode travar (retrocompatibilidade)
+(cd "$T" && bash "$SN" bug-legacy --type bugfix --scale 2 >/dev/null)
+perl -pi -e 's/^status: .*/status: design-ready/' "$T/.forge/specs/active/bug-legacy/manifest.yaml"
+(cd "$T" && bash "$TR" bug-legacy tasks-ready >/dev/null) \
+  || { echo "FAIL [1b]: manifest legado de bugfix em design-ready ficou travado (retrocompatibilidade quebrada)"; exit 1; }
+# (d) controle: feature scale 2 continua EXIGINDO design-ready (comportamento inalterado)
+set +e
+(cd "$T" && bash "$SN" feat-nodesign --type feature --scale 2 >/dev/null
+            bash "$TR" feat-nodesign requirements-ready >/dev/null
+            bash "$TR" feat-nodesign tasks-ready) >/dev/null 2>&1
+rc=$?
+set -e
+[ "$rc" -ne 0 ] || { echo "FAIL [1b]: feature scale 2 pulou design-ready indevidamente (regressão do controle)"; exit 1; }
+echo "OK [1b]"
+
 echo "[2] pulos legais por scale"
 (cd "$T" && bash "$SN" chg-z --type feature --scale 0 >/dev/null && bash "$TR" chg-z tasks-ready >/dev/null)
 (cd "$T" && bash "$SN" chg-o --type feature --scale 1 >/dev/null && bash "$TR" chg-o requirements-ready >/dev/null && bash "$TR" chg-o tasks-ready >/dev/null)

@@ -90,8 +90,16 @@ node "$WS/tools/validate-forge.mjs" >/dev/null
 echo "OK [5]"
 
 echo "[6] dogfooding valida"
-bash "$WS/template/.forge/scripts/validate-spec.sh" --path "$WS/.forge/specs/active/gate-assert-visibility" >/dev/null
-echo "OK [6]"
+# ponteiro derivado (não cravado): qualquer change ativo real do harness serve de fixture —
+# cravar um id específico quebra assim que ele for arquivado/fechado (LOGIC-004, achado no
+# code-evaluator do PR do LDG-0012).
+DOGFOOD_ID="$(ls -1 "$WS/.forge/specs/active" 2>/dev/null | sort | head -1)"
+if [ -z "$DOGFOOD_ID" ]; then
+  echo "OK [6] (SKIP — nenhum change ativo no momento)"
+else
+  bash "$WS/template/.forge/scripts/validate-spec.sh" --path "$WS/.forge/specs/active/$DOGFOOD_ID" >/dev/null
+  echo "OK [6] ($DOGFOOD_ID)"
+fi
 
 echo "[7] FORGE.md com blocos authz:/observability: + gates: em runtime: valida contra forgeFrontmatter (REQ-11/§2.3/§4)"
 cat > "$T/fm-governance.yaml" <<'EOF'

@@ -15,16 +15,23 @@ cp -R "$WS/template/.forge" "$T/.forge"
 S="$T/.forge/scripts"
 C4="$T/.forge/graph/c4"
 
-# fixture: src/domain + services/billing (2 arquivos -> tem component view)
+# fixture: src/domain + services/billing, AMBOS com 2 arquivos. O gerador só emite
+# component view para boundary com >= 2 arquivos (c4-gen.mjs, `if (allFiles.length < 2) continue`),
+# então src/domain precisa de 2 arquivos para que money.ts chegue a ser renderizado e o
+# cenário [5] tenha o que verificar. O import interno currency->money também dá ao C3 de
+# boundary pequeno uma aresta intra-boundary (a aresta invoice->money é cross-boundary e
+# o C3 não a desenha — ver item de ledger da lacuna do gerador).
 mkdir -p "$T/src/domain" "$T/services/billing"
 printf 'export class Money {}\n' > "$T/src/domain/money.ts"
+printf "import { Money } from './money';\nexport class Currency { m = new Money(); }\n" > "$T/src/domain/currency.ts"
 printf "import { Money } from '../../src/domain/money';\nexport class Invoice { m = new Money(); }\n" > "$T/services/billing/invoice.ts"
 printf 'export class Payment {}\n' > "$T/services/billing/payment.ts"
 FORGE_ROOT="$T" bash "$S/graph.sh" build >/dev/null
 
 echo "[1] geração dos 3 níveis"
 FORGE_ROOT="$T" bash "$S/c4.sh" >/dev/null
-[ -f "$C4/c1-context.md" ] && [ -f "$C4/c2-container.md" ]
+[ -f "$C4/c1-context.md" ] && [ -f "$C4/c2-container.md" ] \
+  || { echo "FAIL [1]: c1-context.md ou c2-container.md ausente"; exit 1; }
 ls "$C4"/c3-component-*.md >/dev/null
 grep -q '^flowchart' "$C4/c2-container.md"
 echo "OK [1]"
@@ -52,7 +59,8 @@ h2="$(cat "$C4"/*.md | shasum -a 256)"
 echo "OK [4]"
 
 echo "[5] sanitização de nome com ponto (money.ts -> 'money ts')"
-grep -rq 'money ts' "$C4"/ && ! grep -rEq '\["[^"]*money\.ts[^"]*"\]' "$C4"/
+grep -rq 'money ts' "$C4"/ && ! grep -rEq '\["[^"]*money\.ts[^"]*"\]' "$C4"/ \
+  || { echo "FAIL [5]: 'money ts' sanitizado ausente, ou 'money.ts' com ponto ainda vazando num label"; exit 1; }
 echo "OK [5]"
 
 echo "[6] c3 stale removido quando boundary some"
@@ -77,7 +85,8 @@ FORGE_ROOT="$T2" node "$S/lib/c4-gen.mjs" "$T2" >/dev/null
 BIG="$T2/.forge/graph/c4/c3-component-services-big.md"
 [ -f "$BIG" ]
 cnt="$(grep -cE '^[[:space:]]+g[0-9]+\["' "$BIG")"
-[ "$cnt" -le 50 ] && [ "$cnt" -ge 2 ]
+[ "$cnt" -le 50 ] && [ "$cnt" -ge 2 ] \
+  || { echo "FAIL [7]: C3 agregado com cnt=$cnt fora da faixa [2, 50]"; exit 1; }
 grep -q 'agregado' "$BIG"
 grep -q '60 arquivos' "$BIG"
 rm -rf "$T2"

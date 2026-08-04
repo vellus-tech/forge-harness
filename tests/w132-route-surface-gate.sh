@@ -1472,4 +1472,193 @@ done
 [ "$(soma_lib)" = "$LIB_ANTES" ] || { echo "FAIL [29]: o lib de origem foi modificado pela prova de mutação"; exit 1; }
 echo "OK [29]"
 
+echo "[46] Express multi-arquivo: o mount vive no app.js e o router noutro arquivo"
+# Layout canônico de Express — routers em arquivos próprios, montados no app. Até aqui `mounts`
+# era local ao arquivo, então o layout inteiro só produzia `router-mount-unknown`: zero rotas num
+# dos arranjos mais comuns que existem. A simetria com os produtores .NET é resolver o mount na
+# passa 2, a partir de um índice global.
+mkdir -p "$T/expmulti/routes"
+cat > "$T/expmulti/app.js" <<'JS'
+const express = require('express');
+const orders = require('./routes/orders');
+const invoices = require('./routes/invoices.js');
+const app = express();
+app.use('/api/v1/orders', orders);
+app.use('/api/v1/invoices', invoices);
+JS
+cat > "$T/expmulti/routes/orders.js" <<'JS'
+const express = require('express');
+const router = express.Router();
+router.get('/:id', handler);
+router.post('/', handler);
+module.exports = router;
+JS
+cat > "$T/expmulti/routes/invoices.js" <<'JS'
+import { Router } from 'express';
+const r = Router();
+r.get('/pending', handler);
+export default r;
+JS
+run_node <<'EOF' || { echo "FAIL [46]: layout Express multi-arquivo não resolveu"; exit 1; }
+const [lib, , tmp] = process.argv.slice(2);
+const { scanRoutes } = await import(`${lib}/route-scan.mjs`);
+const { routes, unresolved } = scanRoutes([`${tmp}/expmulti`], { root: tmp });
+const paths = routes.map((r) => `${r.method} ${r.path}`).sort();
+for (const esperado of ['GET /api/v1/orders/{}', 'POST /api/v1/orders', 'GET /api/v1/invoices/pending']) {
+  if (!paths.includes(esperado)) { console.error(`faltou ${esperado}: ${JSON.stringify(paths)}`); process.exit(1); }
+}
+// e o path parcial NÃO pode sair junto — emitir /pending seria inventar uma rota que não existe
+for (const proibido of ['GET /{}', 'POST /', 'GET /pending']) {
+  if (paths.includes(proibido)) { console.error(`path parcial emitido: ${proibido} em ${JSON.stringify(paths)}`); process.exit(1); }
+}
+if (unresolved.some((u) => u.kind === 'router-mount-unknown')) {
+  console.error(`mount resolvido continua sendo reportado como desconhecido: ${JSON.stringify(unresolved)}`);
+  process.exit(1);
+}
+EOF
+echo "OK [46]"
+
+echo "[47] CONTROLE: router de arquivo que ninguém monta continua sem sair"
+mkdir -p "$T/exporphan/routes"
+cat > "$T/exporphan/app.js" <<'JS'
+const express = require('express');
+const app = express();
+app.get('/health', handler);
+JS
+cat > "$T/exporphan/routes/ghost.js" <<'JS'
+const express = require('express');
+const router = express.Router();
+router.get('/ghost', handler);
+module.exports = router;
+JS
+run_node <<'EOF' || { echo "FAIL [47]: router órfão passou a inventar prefixo"; exit 1; }
+const [lib, , tmp] = process.argv.slice(2);
+const { scanRoutes } = await import(`${lib}/route-scan.mjs`);
+const { routes, unresolved } = scanRoutes([`${tmp}/exporphan`], { root: tmp });
+const paths = routes.map((r) => `${r.method} ${r.path}`);
+if (!paths.includes('GET /health')) { console.error(`rota direta do app sumiu: ${JSON.stringify(paths)}`); process.exit(1); }
+if (paths.includes('GET /ghost')) { console.error('router sem mount nenhum emitiu path relativo como absoluto'); process.exit(1); }
+if (!unresolved.some((u) => u.kind === 'router-mount-unknown')) { console.error('router órfão deixou de ser reportado — silêncio é o defeito'); process.exit(1); }
+EOF
+echo "OK [47]"
+
+echo "[48] o mesmo router montado em DOIS prefixos existe nos dois — é união, não ambiguidade"
+mkdir -p "$T/exptwice/routes"
+cat > "$T/exptwice/app.js" <<'JS'
+const express = require('express');
+const shared = require('./routes/shared');
+const app = express();
+app.use('/v1/things', shared);
+app.use('/v2/things', shared);
+JS
+cat > "$T/exptwice/routes/shared.js" <<'JS'
+const express = require('express');
+const router = express.Router();
+router.get('/:id', handler);
+module.exports = router;
+JS
+run_node <<'EOF' || { echo "FAIL [48]: montagem dupla não virou duas rotas"; exit 1; }
+const [lib, , tmp] = process.argv.slice(2);
+const { scanRoutes } = await import(`${lib}/route-scan.mjs`);
+const { routes } = scanRoutes([`${tmp}/exptwice`], { root: tmp });
+const paths = routes.map((r) => `${r.method} ${r.path}`).sort();
+for (const esperado of ['GET /v1/things/{}', 'GET /v2/things/{}']) {
+  if (!paths.includes(esperado)) { console.error(`faltou ${esperado}: ${JSON.stringify(paths)}`); process.exit(1); }
+}
+EOF
+echo "OK [48]"
+
+echo "[49] vertical slice .NET: using/namespace desambigua MapEndpoints homônimo"
+# O convênio em que cada feature define `public static void MapEndpoints(this RouteGroupBuilder g)`
+# produzia producer-ambiguous em 100% das invocações e ZERO rotas — com N definições homônimas o
+# scanner não sabia qual delas a chamada alcança. Escolher uma emitia rota cruzada entre módulos;
+# reportar era correto mas custava a cobertura inteira nesse layout. O C# JÁ diz qual é: o `using`
+# do arquivo que invoca, mais o namespace de cada definição.
+mkdir -p "$T/vslice/Features/Orders" "$T/vslice/Features/Billing"
+cat > "$T/vslice/Program.cs" <<'CS'
+using Acme.Features.Orders;
+using Acme.Features.Billing;
+var app = WebApplication.Create();
+var orders = app.MapGroup("/orders");
+orders.MapEndpoints();
+CS
+cat > "$T/vslice/Features/Orders/Endpoints.cs" <<'CS'
+namespace Acme.Features.Orders;
+public static class OrdersEndpoints
+{
+    public static void MapEndpoints(this RouteGroupBuilder group)
+    {
+        group.MapPost("/place", Place);
+    }
+}
+CS
+cat > "$T/vslice/Features/Billing/Endpoints.cs" <<'CS'
+namespace Acme.Features.Billing;
+public static class BillingEndpoints
+{
+    public static void MapEndpoints(this RouteGroupBuilder group)
+    {
+        group.MapGet("/invoices", List);
+    }
+}
+CS
+run_node <<'EOF' || { echo "FAIL [49]: vertical slice .NET não resolveu"; exit 1; }
+const [lib, , tmp] = process.argv.slice(2);
+const { scanRoutes } = await import(`${lib}/route-scan.mjs`);
+const { routes, unresolved } = scanRoutes([`${tmp}/vslice`], { root: tmp });
+const paths = routes.map((r) => `${r.method} ${r.path}`).sort();
+// AMBAS as definições estão visíveis por using no Program.cs, então a ambiguidade é REAL e o
+// scanner tem de continuar reportando — o que ele NÃO pode é emitir uma das duas como se soubesse.
+if (paths.includes('POST /orders/place') && paths.includes('GET /orders/invoices')) {
+  console.error(`emitiu as duas rotas homônimas como se ambas fossem alcançadas: ${JSON.stringify(paths)}`);
+  process.exit(1);
+}
+if (paths.length && !unresolved.some((u) => u.kind === 'producer-ambiguous')) {
+  console.error(`escolheu uma definição sem reportar ambiguidade: ${JSON.stringify(paths)}`);
+  process.exit(1);
+}
+if (!unresolved.some((u) => u.kind === 'producer-ambiguous')) { console.error('ambiguidade real deixou de ser reportada'); process.exit(1); }
+EOF
+echo "OK [49]"
+
+echo "[50] vertical slice .NET: com UM using só, a definição visível é a que resolve"
+# Este é o arranjo que o layout produz na prática — cada host importa as features que monta.
+mkdir -p "$T/vslice1/Features/Orders" "$T/vslice1/Features/Billing"
+cat > "$T/vslice1/Program.cs" <<'CS'
+using Acme.Features.Orders;
+var app = WebApplication.Create();
+var orders = app.MapGroup("/orders");
+orders.MapEndpoints();
+CS
+cat > "$T/vslice1/Features/Orders/Endpoints.cs" <<'CS'
+namespace Acme.Features.Orders;
+public static class OrdersEndpoints
+{
+    public static void MapEndpoints(this RouteGroupBuilder group)
+    {
+        group.MapPost("/place", Place);
+    }
+}
+CS
+cat > "$T/vslice1/Features/Billing/Endpoints.cs" <<'CS'
+namespace Acme.Features.Billing;
+public static class BillingEndpoints
+{
+    public static void MapEndpoints(this RouteGroupBuilder group)
+    {
+        group.MapGet("/invoices", List);
+    }
+}
+CS
+run_node <<'EOF' || { echo "FAIL [50]: using não desambiguou o homônimo"; exit 1; }
+const [lib, , tmp] = process.argv.slice(2);
+const { scanRoutes } = await import(`${lib}/route-scan.mjs`);
+const { routes } = scanRoutes([`${tmp}/vslice1`], { root: tmp });
+const paths = routes.map((r) => `${r.method} ${r.path}`).sort();
+if (!paths.includes('POST /orders/place')) { console.error(`a definição visível por using não resolveu: ${JSON.stringify(paths)}`); process.exit(1); }
+// e a de OUTRO namespace, que o Program.cs não importa, não pode ter sido escolhida
+if (paths.includes('GET /orders/invoices')) { console.error(`escolheu definição de namespace não importado: ${JSON.stringify(paths)}`); process.exit(1); }
+EOF
+echo "OK [50]"
+
 echo "OK"

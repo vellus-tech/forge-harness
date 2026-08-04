@@ -152,6 +152,12 @@ if [ -d "$TARGET/.github" ] || [ -d "$TARGET/.git" ]; then
     cp "$SCRIPT_DIR/../template/github/workflows/staging.yml" "$TARGET/.github/workflows/staging.yml"
     echo "ci: staging.yml installed (runs only on push to staging)"
   fi
+  # red-first.yml — a execução de referência do replay roda num runner que o autor do PR não
+  # controla (LDG-0004). Nunca sobrescreve: workflow existente é do projeto.
+  if [ ! -f "$TARGET/.github/workflows/red-first.yml" ]; then
+    cp "$SCRIPT_DIR/../template/github/workflows/red-first.yml" "$TARGET/.github/workflows/red-first.yml"
+    echo "ci: red-first.yml installed (replays Red evidence on pull requests)"
+  fi
 fi
 
 # 7. adapters — install ONLY the chosen set (default: claude); records them in forge.yaml

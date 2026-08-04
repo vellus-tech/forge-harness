@@ -45,8 +45,42 @@ export FORGE_ROOT="$ROOT"
 command -v node >/dev/null 2>&1 || { echo "FAIL (node >= 20 required)"; exit 1; }
 
 CMD="${1:-}"; shift || true
+
+# `ci` é o único subcomando SEM change-id, e a exceção é deliberada (LDG-0004): quem escolhe o
+# escopo tem de ser o estado do repositório, não quem invoca. Um `ci --change X` devolveria ao
+# autor a capacidade de apontar a verificação para o change que lhe convém — que é exatamente o
+# grau de controle que mover a execução para o CI existe para tirar.
+if [ "$CMD" = "ci" ]; then
+  [ $# -eq 0 ] || { echo "FAIL (red-evidence.sh ci não aceita argumentos — o escopo é todo change ativo type:bugfix, por construção)"; exit 1; }
+  ACTIVE_DIR="$ROOT/.forge/specs/active"
+  [ -d "$ACTIVE_DIR" ] || { echo "OK ci — nenhum change ativo (sem specs/active)"; exit 0; }
+  fail=0
+  checked=0
+  for man in "$ACTIVE_DIR"/*/manifest.yaml; do
+    [ -f "$man" ] || continue
+    id="$(basename "$(dirname "$man")")"
+    type="$(awk -F': ' '$1=="type"{gsub(/[" ]/,"",$2); print $2; exit}' "$man")"
+    [ "$type" = "bugfix" ] || continue
+    checked=$((checked + 1))
+    # `ensure` executa e nunca falha o script; `check-red-first` é quem decide — a mesma divisão
+    # que spec-verify.sh já usa, para não abrir uma terceira opinião sobre o mesmo artefato.
+    node "$SCRIPT_DIR/lib/red-evidence-ops.mjs" ensure "$ACTIVE_DIR/$id" >"/tmp/forge-red-ci-$id.log" 2>&1 || true
+    if out="$(bash "$SCRIPT_DIR/check-red-first.sh" check "$id" 2>&1)"; then
+      strategy="$(node -e "try{const d=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'));process.stdout.write((d.status||'?')+(d.base_strategy?' via '+d.base_strategy:''))}catch{process.stdout.write('?')}" "$ACTIVE_DIR/$id/evidence/red/red-evidence.json" 2>/dev/null || echo '?')"
+      echo "  OK   $id — $strategy"
+    else
+      fail=1
+      echo "  FAIL $id — $out"
+    fi
+  done
+  if [ "$checked" -eq 0 ]; then echo "OK ci — nenhum change ativo type:bugfix"; exit 0; fi
+  [ "$fail" -eq 0 ] || { echo "FAIL ci — $checked change(s) type:bugfix verificado(s), ao menos um sem Red observado (logs em /tmp/forge-red-ci-*.log)"; exit 1; }
+  echo "OK ci — $checked change(s) type:bugfix com Red observado ou dispensado"
+  exit 0
+fi
+
 CHID="${1:-}"
-[ -n "$CMD" ] && [ -n "$CHID" ] || { echo "FAIL (usage: red-evidence.sh record|replay|status|waive <change-id> [...])"; exit 1; }
+[ -n "$CMD" ] && [ -n "$CHID" ] || { echo "FAIL (usage: red-evidence.sh record|replay|status|waive|init <change-id> [...] | ci)"; exit 1; }
 shift || true
 
 DIR="$ROOT/.forge/specs/active/$CHID"

@@ -66,6 +66,27 @@ Saídas: `OK replay` (grava `observed` + `base_commit`/`classification`/`excerpt
 `excerpt_sha256`/`replayed_at`) · `FAIL replay (item N) — <motivo>` (volta a `pending`, exit 1)
 · `NOT-POSSIBLE replay — <motivo>` (grava `not-possible`, exit 1 — próximo passo é `waive`).
 
+## ci — a execução de referência, num runner que o autor não controla
+
+```bash
+bash .forge/scripts/red-evidence.sh ci
+```
+
+Varre **todo** change ativo `type: bugfix`, roda `ensure` em cada um e aplica o check estático,
+agregando o veredito num exit code. É o que o workflow `red-first.yml` executa em cada pull
+request — e é ele, não o `red-evidence.json` commitado, que decide se o Red foi observado.
+
+Não aceita `<change-id>`, deliberadamente: quem define o escopo é o estado do repositório. Um
+`ci --change X` devolveria a quem invoca a capacidade de apontar a verificação para o change que
+lhe convém, que é o grau de controle que rodar no CI existe para tirar.
+
+Change ativo de outro tipo é ignorado e repositório sem bugfix ativo sai `0` — ausência de
+correção de defeito não é falha. O runner precisa de histórico completo (`fetch-depth: 0`) para o
+motor derivar a árvore pré-correção, e das dependências instaladas antes, porque o worktree
+efêmero nasce sem elas.
+
+Saídas: `OK ci — N change(s) …` · `FAIL ci — …` com uma linha `OK`/`FAIL` por change verificado.
+
 ## status — one-liner não-bloqueante
 
 ```bash

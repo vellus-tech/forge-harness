@@ -38,6 +38,7 @@ const GITIGNORE_PATCH = join(PKG_ROOT, 'installer', 'gitignore.patch');
 // FORGE_REMOVED_MANIFEST: override para os gates de teste injetarem tombstones sintéticas.
 const REMOVED_MANIFEST = process.env.FORGE_REMOVED_MANIFEST || join(PKG_ROOT, 'installer', 'removed-files.txt');
 const STAGING_YML = join(PKG_ROOT, 'template', 'github', 'workflows', 'staging.yml');
+const RED_FIRST_YML = join(PKG_ROOT, 'template', 'github', 'workflows', 'red-first.yml');
 const GI_MARKER = '# >>> forge (managed) >>>';
 const GI_MARKER_END = '# <<< forge (managed) <<<';
 const ADAPTERS = ['claude', 'codex', 'gemini', 'qwen', 'cursor', 'kiro', 'forge-cli', 'agents-skills'];
@@ -690,6 +691,13 @@ async function main() {
     if (!existsSync(dst) && existsSync(STAGING_YML)) {
       cpSync(STAGING_YML, dst);
       console.log('ci: staging.yml instalado (roda só em push para staging)');
+    }
+    // red-first.yml — a execução de referência do replay roda num runner que o autor do PR não
+    // controla (LDG-0004). Nunca sobrescreve: workflow existente é do projeto.
+    const redDst = join(wfDir, 'red-first.yml');
+    if (!existsSync(redDst) && existsSync(RED_FIRST_YML)) {
+      cpSync(RED_FIRST_YML, redDst);
+      console.log('ci: red-first.yml instalado (replay da evidência de Red em pull request)');
     }
   }
 

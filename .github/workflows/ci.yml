@@ -20,3 +20,11 @@ jobs:
         run: npm ci || npm install
       - name: Run full gate suite
         run: bash tests/run-all.sh
+
+      # Red-first (LDG-0004): a execução que vale é esta, num runner que o autor do PR não
+      # controla. Reexecuta o replay de todo change ativo type:bugfix e reprova o build se o Red
+      # não for observado aqui — independentemente do que o artefato commitado afirme. Fecha o
+      # vetor do ambiente controlado pelo autor; NÃO fecha o comando declarado arbitrário, o
+      # defeito introduzido no próprio PR nem o waiver inverificável (ver a rule).
+      - name: Red-first replay (autoridade do CI)
+        run: FORGE_ROOT="$PWD" bash template/.forge/scripts/red-evidence.sh ci

@@ -287,7 +287,20 @@ export function fromOpenApi(text, file = 'openapi', unresolved = []) {
 export function fromPolicyTable(text, file = 'requirements.md') {
   const out = [];
   const lines = text.split('\n');
-  for (let i = 0; i < lines.length; i += 1) {
+  // Ancorado no heading da seção, como fromChecklist (LDG-0018.3). Sem âncora, QUALQUER tabela
+  // markdown cuja primeira célula casasse `VERB /path` entrava na superfície DECLARADA — uma
+  // tabela de "APIs de terceiros consumidas" fazia o SUR-01, que bloqueia, acusar o código por
+  // não expor um endpoint que ele corretamente não expõe.
+  //
+  // Quando o heading NÃO existe, a varredura volta a ser ampla, de propósito: exigir o heading
+  // faria a spec que escreveu o mapa sob outro título perder a superfície declarada inteira — e
+  // superfície declarada vazia deixa o cruzamento verde por vacuidade, que é o defeito oposto e
+  // pior. Degrada para o comportamento anterior e ANUNCIA (ver policyTableAnchored), nunca
+  // emudece.
+  const start = lines.findIndex((l) => /^#{1,6}\s*Mapa\s+endpoint\b/i.test(l));
+  const ancorado = start !== -1;
+  for (let i = ancorado ? start + 1 : 0; i < lines.length; i += 1) {
+    if (ancorado && /^#{1,6}\s/.test(lines[i])) break;
     const row = lines[i];
     if (!row.trim().startsWith('|')) continue;
     const cells = row.split('|').map((c) => c.trim()).filter((c, idx, arr) => !(idx === 0 && !c) && !(idx === arr.length - 1 && !c));
@@ -301,6 +314,15 @@ export function fromPolicyTable(text, file = 'requirements.md') {
     out.push({ method: m[1], path: m[2], source: 'table', file, line: i + 1, policy: policy && policy !== '—' ? policy : null });
   }
   return out;
+}
+
+/**
+ * A tabela de policy deste texto está sob o heading canônico? Quem coleta usa para anunciar que
+ * leu sem âncora — nesse modo uma tabela alheia (ex.: "APIs de terceiros consumidas") pode ter
+ * entrado na superfície declarada, e quem lê o veredito precisa saber disso.
+ */
+export function policyTableAnchored(text) {
+  return String(text || '').split('\n').some((l) => /^#{1,6}\s*Mapa\s+endpoint\b/i.test(l));
 }
 
 // ── Fonte 4: Checklist de cobertura de superfície ──────────────────────────────────────────
@@ -407,7 +429,16 @@ export function collectDeclaredSurface({ contractPaths = [], specPaths = [], aut
   for (const f of collect(specPaths, { exts: new Set(['.md']), skipDirs: DEFAULT_SKIP })) {
     const text = ler(f);
     if (text === null) continue;
-    for (const e of fromPolicyTable(text, rel(f))) { upsert(map, e); bySource.table += 1; }
+    const daTabela = fromPolicyTable(text, rel(f));
+    if (daTabela.length && !policyTableAnchored(text)) {
+      unresolved.push({
+        kind: 'policy-table-unanchored',
+        file: rel(f),
+        line: 0,
+        detail: 'tabela endpoint→policy lida sem o heading "## Mapa endpoint → ação → recurso → policy"; toda tabela do arquivo foi varrida, então uma tabela de APIs consumidas (não expostas) pode ter entrado na superfície declarada',
+      });
+    }
+    for (const e of daTabela) { upsert(map, e); bySource.table += 1; }
     for (const e of fromChecklist(text, rel(f))) { upsert(map, e); bySource.checklist += 1; }
   }
 

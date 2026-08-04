@@ -198,7 +198,11 @@ const [lib, , tmp] = process.argv.slice(2);
 const { scanRoutes } = await import(`${lib}/route-scan.mjs`);
 const { routes } = scanRoutes([`${tmp}/attrs`], { root: tmp });
 const paths = routes.map((r) => `${r.method} ${r.path}`).sort();
-const esperado = ['GET /api/v1/Orders', 'GET /api/v1/Orders/{}', 'POST /api/v1/Orders/bulk'].sort();
+// o token [controller] resolve em minúsculo desde o LDG-0018.1: o roteamento do ASP.NET é
+// case-insensitive e o contrato escreve minúsculo, então preservar a caixa da classe fazia o
+// SUR-01 acusar diferença de caixa como endpoint ausente. O `v1` do literal segue intocado —
+// só o token derivado do nome da classe é rebaixado.
+const esperado = ['GET /api/v1/orders', 'GET /api/v1/orders/{}', 'POST /api/v1/orders/bulk'].sort();
 if (JSON.stringify(paths) !== JSON.stringify(esperado)) { console.error(`veio ${JSON.stringify(paths)}, esperava ${JSON.stringify(esperado)}`); process.exit(1); }
 EOF
 echo "OK [6]"
@@ -1062,7 +1066,8 @@ const paths = routes.map((r) => `${r.method} ${r.path}`);
 // entre o controller e o `{` do corpo dele — com o limite por próxima-declaração, isso descartava
 // o controller real e transferia o [Route] (e a resolução de [controller]) para o fantasma.
 if (paths.some((p) => p.includes('where'))) { console.error(`restrição genérica virou nome de classe: ${JSON.stringify(paths)}`); process.exit(1); }
-if (!paths.includes('GET /api/v1/Items/list')) { console.error(`prefixo do controller genérico não resolveu: ${JSON.stringify(paths)}`); process.exit(1); }
+// [controller] resolve em minúsculo desde o LDG-0018.1
+if (!paths.includes('GET /api/v1/items/list')) { console.error(`prefixo do controller genérico não resolveu: ${JSON.stringify(paths)}`); process.exit(1); }
 EOF
 node "$T/check-39.mjs" "$LIB" "$FIX" "$T" || { echo "FAIL [39]"; exit 1; }
 echo "OK [39]"
@@ -1724,5 +1729,183 @@ if (routes.length) { console.error(`cliente HTTP virou rota: ${JSON.stringify(ro
 if (unresolved.some((u) => u.kind === 'route-receiver-unknown')) { console.error('axios num arquivo sem framework virou irresolúvel — ruído'); process.exit(1); }
 EOF
 echo "OK [52]"
+
+echo "[53] tabela de policy só conta sob o heading dela (LDG-0018.3)"
+# fromPolicyTable varria TODA tabela markdown cuja primeira célula casasse "VERB /path". Uma tabela
+# de "APIs de terceiros CONSUMIDAS" entrava na superfície DECLARADA, e o SUR-01 — que bloqueia —
+# acusava o código por não expor um endpoint que ele corretamente não expõe. fromChecklist já
+# ancora num heading; esta é a simetria que faltava.
+mkdir -p "$T/policyanchor"
+cat > "$T/policyanchor/requirements.md" <<'MD'
+# Requirements — x
+
+## Mapa endpoint → ação → recurso → policy
+
+| Endpoint | Ação | Recurso | Policy | REQ |
+|---|---|---|---|---|
+| `POST /orders` | write | pedido | orders:write | REQ-01 |
+
+## APIs de terceiros consumidas
+
+| Endpoint | Fornecedor | Observação |
+|---|---|---|
+| `GET /v3/exchange-rates` | acme-fx | consumido, não exposto |
+| `POST /v1/notify` | pushy | consumido, não exposto |
+MD
+run_node <<'EOF' || { echo "FAIL [53]: tabela fora do heading entrou na superfície declarada"; exit 1; }
+const [lib, , tmp] = process.argv.slice(2);
+const { fromPolicyTable } = await import(`${lib}/api-surface.mjs`);
+const { readFileSync } = await import('node:fs');
+const text = readFileSync(`${tmp}/policyanchor/requirements.md`, 'utf8');
+const eps = fromPolicyTable(text, 'requirements.md').map((e) => `${e.method.toUpperCase()} ${e.path}`);
+if (!eps.includes('POST /orders')) { console.error(`o mapa de policy real não foi lido: ${JSON.stringify(eps)}`); process.exit(1); }
+for (const consumido of ['GET /v3/exchange-rates', 'POST /v1/notify']) {
+  if (eps.includes(consumido)) { console.error(`API consumida entrou como superfície exposta: ${consumido}`); process.exit(1); }
+}
+EOF
+echo "OK [53]"
+
+echo "[54] .NET [controller]: diferença de caixa não é endpoint ausente (LDG-0018.1)"
+# `[Route("api/[controller]")]` resolve para o nome da classe COM a caixa original (`/api/Orders`),
+# e o contrato costuma escrever minúsculo. Como o roteamento do ASP.NET é case-insensitive, o
+# endpoint existe — mas o SUR-01 acusaria por diferença de caixa. Normalizar caixa no
+# normalizePath seria errado: Spring e Express são case-sensitive e usam o mesmo normalizador.
+# O case-fold é do indexador .NET, e só dele.
+mkdir -p "$T/ctrlcase"
+cat > "$T/ctrlcase/OrdersController.cs" <<'CS'
+namespace Acme.Api;
+[ApiController]
+[Route("api/[controller]")]
+public class OrdersController : ControllerBase
+{
+    [HttpGet("{id}")]
+    public IActionResult Get(long id) => Ok();
+}
+CS
+run_node <<'EOF' || { echo "FAIL [54]: caixa do [controller] não foi normalizada no dialeto .NET"; exit 1; }
+const [lib, , tmp] = process.argv.slice(2);
+const { scanRoutes } = await import(`${lib}/route-scan.mjs`);
+const { routes } = scanRoutes([`${tmp}/ctrlcase`], { root: tmp });
+const paths = routes.map((r) => `${r.method} ${r.path}`);
+if (!paths.includes('GET /api/orders/{}')) { console.error(`esperava o token [controller] em minúsculo: ${JSON.stringify(paths)}`); process.exit(1); }
+EOF
+
+# CONTROLE: o case-fold é do .NET. Spring e Express são case-sensitive e não podem ser tocados.
+mkdir -p "$T/casesens"
+cat > "$T/casesens/App.java" <<'JAVA'
+@RestController
+@RequestMapping("/api/Orders")
+public class OrdersController {
+    @GetMapping("/List")
+    public String list() { return ""; }
+}
+JAVA
+cat > "$T/casesens/server.js" <<'JS'
+const express = require('express');
+const app = express();
+app.get('/API/Health', handler);
+JS
+run_node <<'EOF' || { echo "FAIL [54b]: case-fold vazou para dialeto case-sensitive"; exit 1; }
+const [lib, , tmp] = process.argv.slice(2);
+const { scanRoutes } = await import(`${lib}/route-scan.mjs`);
+const { routes } = scanRoutes([`${tmp}/casesens`], { root: tmp });
+const paths = routes.map((r) => `${r.method} ${r.path}`);
+if (!paths.includes('GET /api/Orders/List')) { console.error(`Spring perdeu a caixa original: ${JSON.stringify(paths)}`); process.exit(1); }
+if (!paths.includes('GET /API/Health')) { console.error(`Express perdeu a caixa original: ${JSON.stringify(paths)}`); process.exit(1); }
+EOF
+echo "OK [54]"
+
+echo "[55] .py e .go: ou tem indexador, ou o arquivo lido é reportado (LDG-0018.2)"
+# Ambos estão em ROUTE_EXTS e não tinham indexador nenhum: o arquivo era lido, varrido e ignorado,
+# sem uma linha de diagnóstico. Superfície vazia por dialeto não implementado é indistinguível de
+# superfície vazia por não haver rota — e a primeira deixa o cruzamento verde por vacuidade.
+mkdir -p "$T/pygo"
+cat > "$T/pygo/main.py" <<'PY_'
+from fastapi import FastAPI, APIRouter
+app = FastAPI()
+
+@app.get("/health")
+def health(): return {}
+
+router = APIRouter(prefix="/api/v1")
+
+@router.post("/orders")
+def create(): return {}
+PY_
+cat > "$T/pygo/flaskapp.py" <<'PY_'
+from flask import Flask
+app = Flask(__name__)
+
+@app.route("/legacy/ping", methods=["GET", "POST"])
+def ping(): return ""
+PY_
+cat > "$T/pygo/server.go" <<'GO'
+package main
+
+func main() {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/go/health", healthHandler)
+	r := chi.NewRouter()
+	r.Get("/go/items/{id}", getItem)
+	r.Post("/go/items", createItem)
+}
+GO
+run_node <<'EOF' || { echo "FAIL [55]: dialetos .py/.go seguem lidos e ignorados"; exit 1; }
+const [lib, , tmp] = process.argv.slice(2);
+const { scanRoutes } = await import(`${lib}/route-scan.mjs`);
+const { routes, unresolved } = scanRoutes([`${tmp}/pygo`], { root: tmp });
+const paths = routes.map((r) => `${r.method} ${r.path}`).sort();
+const esperados = ['GET /health', 'POST /api/v1/orders', 'GET /legacy/ping', 'POST /legacy/ping', 'GET /go/health', 'POST /go/health', 'GET /go/items/{}', 'POST /go/items'];
+const faltando = esperados.filter((e) => !paths.includes(e));
+// HandleFunc não declara verbo — aceita-se que o dialeto reporte em vez de inventar um
+const criticos = faltando.filter((f) => !f.includes('/go/health'));
+if (criticos.length) { console.error(`faltaram ${JSON.stringify(criticos)} em ${JSON.stringify(paths)}`); process.exit(1); }
+if (paths.includes('POST /orders')) { console.error('prefixo do APIRouter foi ignorado — path parcial emitido'); process.exit(1); }
+EOF
+echo "OK [55]"
+
+echo "[56] Nest: dois controllers no mesmo arquivo, e prefixo não literal reportado"
+# NOTA: o LDG-0018.4 registrava "Nest só resolve @Controller literal e UM controller por arquivo".
+# Medido em 2026-08-04, multi-controller JÁ funciona — a correção de prefixo-por-classe do PR #40
+# o cobriu de passagem, e o item envelheceu. Este caso trava o comportamento para que não regrida,
+# e verifica que o prefixo não literal continua sendo reportado em vez de virar path parcial.
+# Nest resolvia @Controller literal e UM controller por arquivo — o segundo herdava o prefixo do
+# primeiro, que é path inventado pela via silenciosa de sempre.
+mkdir -p "$T/nestmulti"
+cat > "$T/nestmulti/controllers.ts" <<'TS'
+@Controller('cats')
+export class CatsController {
+  @Get(':id')
+  findOne() {}
+}
+
+@Controller('dogs')
+export class DogsController {
+  @Post()
+  create() {}
+}
+TS
+cat > "$T/nestmulti/dynamic.ts" <<'TS'
+@Controller(BASE_PATH)
+export class DynamicController {
+  @Get('items')
+  list() {}
+}
+TS
+run_node <<'EOF' || { echo "FAIL [56]: Nest multi-controller ou prefixo dinâmico"; exit 1; }
+const [lib, , tmp] = process.argv.slice(2);
+const { scanRoutes } = await import(`${lib}/route-scan.mjs`);
+const { routes, unresolved } = scanRoutes([`${tmp}/nestmulti`], { root: tmp });
+const paths = routes.map((r) => `${r.method} ${r.path}`).sort();
+if (!paths.includes('GET /cats/{}')) { console.error(`primeiro controller: ${JSON.stringify(paths)}`); process.exit(1); }
+if (!paths.includes('POST /dogs')) { console.error(`segundo controller do MESMO arquivo perdeu o prefixo: ${JSON.stringify(paths)}`); process.exit(1); }
+if (paths.includes('POST /cats')) { console.error('segundo controller herdou o prefixo do primeiro — path inventado'); process.exit(1); }
+if (paths.some((p) => p.includes('items'))) { console.error('controller com prefixo não literal emitiu rota'); process.exit(1); }
+// os kinds reais: o @Controller não literal vira class-route-not-literal, e cada verbo dentro
+// dele vira route-prefix-unresolved. Nenhum path parcial é emitido.
+if (!unresolved.some((u) => u.kind === 'class-route-not-literal')) { console.error(`@Controller não literal não foi reportado: ${JSON.stringify(unresolved.map((u) => u.kind))}`); process.exit(1); }
+if (!unresolved.some((u) => u.kind === 'route-prefix-unresolved')) { console.error(`verbo sob prefixo desconhecido não foi reportado: ${JSON.stringify(unresolved.map((u) => u.kind))}`); process.exit(1); }
+EOF
+echo "OK [56]"
 
 echo "OK"

@@ -515,8 +515,16 @@ function indexDotnetAttributes(text, struct, file, idx) {
       prefixes.set(c.name, { path: '', ok: false });
       return;
     }
-    // `[controller]` é substituído pelo nome da classe sem o sufixo Controller.
-    prefixes.set(c.name, { path: lit.replace(/\[controller\]/gi, c.name.replace(/Controller$/, '')), ok: true });
+    // `[controller]` é substituído pelo nome da classe sem o sufixo Controller, em MINÚSCULO
+    // (LDG-0018.1). O roteamento do ASP.NET é case-insensitive, então `/api/Orders` e
+    // `/api/orders` são o mesmo endpoint — mas o contrato costuma escrever minúsculo, e o SUR-01,
+    // que bloqueia, acusaria por diferença de caixa um endpoint que existe.
+    //
+    // O case-fold é DAQUI, não do normalizePath: Spring e Express são case-sensitive e usam o
+    // mesmo normalizador, então rebaixar caixa lá faria dois endpoints distintos colidirem.
+    // Também não se aplica ao resto do path: só o token substituído é derivado do nome da classe
+    // (uma decisão de C#, não do autor da rota) — `[Route("api/V2/[controller]")]` preserva o V2.
+    prefixes.set(c.name, { path: lit.replace(/\[controller\]/gi, c.name.replace(/Controller$/, '').toLowerCase()), ok: true });
   });
 
   for (const verb of HTTP_VERBS) {
@@ -686,6 +694,99 @@ function indexKtor(text, struct, file, idx) {
     return;
   }
   idx.absolute.push(...tokens);
+}
+
+/**
+ * Python: FastAPI (`@app.get("/x")`, `APIRouter(prefix="/api")`) e Flask
+ * (`@app.route("/x", methods=["GET","POST"])`).
+ *
+ * O prefixo do `APIRouter` é resolvido quando declarado no mesmo arquivo — mesma regra do router
+ * de Express. Decorator sobre símbolo sem prefixo conhecido não emite path parcial; vira
+ * `router-prefix-unknown`, porque `/orders` e `/api/v1/orders` são endpoints diferentes e chutar
+ * o primeiro é inventar.
+ */
+function indexPython(text, file, idx) {
+  const prefixes = new Map();     // símbolo do router -> prefixo literal
+  const semPrefixo = new Set();   // router declarado sem prefix=
+  const routerRe = /(\w+)\s*=\s*APIRouter\s*\(([^)]*)\)/g;
+  for (let m; (m = routerRe.exec(text)); ) {
+    const pm = m[2].match(/prefix\s*=\s*(['"][^'"]*['"])/);
+    if (!pm) { semPrefixo.add(m[1]); continue; }
+    const lit = literal(pm[1]);
+    if (lit === null) { semPrefixo.add(m[1]); continue; }
+    prefixes.set(m[1], lit);
+  }
+  const apps = new Set();
+  for (const m of text.matchAll(/(\w+)\s*=\s*(?:FastAPI|Flask)\s*\(/g)) apps.add(m[1]);
+
+  const emit = (recv, verb, rel, at) => {
+    const line = lineOf(text, at);
+    if (apps.has(recv)) { idx.absolute.push({ method: verb, path: normalizePath(rel), file, line }); return; }
+    if (prefixes.has(recv)) { idx.absolute.push({ method: verb, path: joinPath(prefixes.get(recv), rel), file, line }); return; }
+    idx.unresolved.push({
+      kind: 'router-prefix-unknown',
+      file,
+      line,
+      detail: `@${recv}.${verb.toLowerCase()}('${rel}') — '${recv}' não é app conhecido nem APIRouter com prefix literal; o prefixo é desconhecido`,
+    });
+  };
+
+  // FastAPI: @app.get("/x") / @router.post("/y")
+  for (const verb of HTTP_VERBS) {
+    const re = new RegExp(`@\\s*(\\w+)\\s*\\.\\s*${verb}\\s*\\(\\s*(['"][^'"]*['"])`, 'g');
+    for (let m; (m = re.exec(text)); ) {
+      const lit = literal(m[2]);
+      if (lit === null) { idx.unresolved.push({ kind: 'route-path-not-literal', file, line: lineOf(text, m.index), detail: m[2].slice(0, 60) }); continue; }
+      emit(m[1], verb.toUpperCase(), lit, m.index);
+    }
+  }
+  // Flask: @app.route("/x", methods=["GET", "POST"]) — sem methods, o default do Flask é GET
+  const flaskRe = /@\s*(\w+)\s*\.\s*route\s*\(\s*(['"][^'"]*['"])([^)]*)\)/g;
+  for (let m; (m = flaskRe.exec(text)); ) {
+    const lit = literal(m[2]);
+    if (lit === null) { idx.unresolved.push({ kind: 'route-path-not-literal', file, line: lineOf(text, m.index), detail: m[2].slice(0, 60) }); continue; }
+    const metodos = [...m[3].matchAll(/['"](GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)['"]/gi)].map((x) => x[1].toUpperCase());
+    for (const verb of metodos.length ? [...new Set(metodos)] : ['GET']) emit(m[1], verb, lit, m.index);
+  }
+}
+
+/**
+ * Go: chi/gorilla (`r.Get("/x", h)`, `r.HandleFunc("/x", h).Methods("GET")`) e net/http
+ * (`mux.HandleFunc("/x", h)`).
+ *
+ * `HandleFunc` de net/http não declara verbo — o handler decide por dentro. Emitir um verbo
+ * escolhido pelo scanner seria inventar metade do endpoint, então vira `route-verb-unknown` com
+ * o path registrado: o SUR-02 consegue avisar, e o SUR-01 não bloqueia sobre um palpite.
+ */
+function indexGo(text, file, idx) {
+  const VERBOS_GO = ['Get', 'Post', 'Put', 'Delete', 'Patch', 'Head', 'Options'];
+  for (const verb of VERBOS_GO) {
+    const re = new RegExp(`\\b\\w+\\s*\\.\\s*${verb}\\s*\\(\\s*("[^"]*"|\`[^\`]*\`)`, 'g');
+    for (let m; (m = re.exec(text)); ) {
+      const lit = literal(m[1]);
+      if (lit === null) { idx.unresolved.push({ kind: 'route-path-not-literal', file, line: lineOf(text, m.index), detail: m[1].slice(0, 60) }); continue; }
+      if (!lit.startsWith('/')) continue;
+      idx.absolute.push({ method: verb.toUpperCase(), path: normalizePath(lit), file, line: lineOf(text, m.index) });
+    }
+  }
+  const hfRe = /\b\w+\s*\.\s*HandleFunc\s*\(\s*("[^"]*"|`[^`]*`)\s*,[^)]*\)\s*(?:\.\s*Methods\s*\(([^)]*)\))?/g;
+  for (let m; (m = hfRe.exec(text)); ) {
+    const lit = literal(m[1]);
+    if (lit === null) { idx.unresolved.push({ kind: 'route-path-not-literal', file, line: lineOf(text, m.index), detail: m[1].slice(0, 60) }); continue; }
+    if (!lit.startsWith('/')) continue;
+    const line = lineOf(text, m.index);
+    const metodos = m[2] ? [...m[2].matchAll(/"(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)"/gi)].map((x) => x[1].toUpperCase()) : [];
+    if (metodos.length) {
+      for (const verb of [...new Set(metodos)]) idx.absolute.push({ method: verb, path: normalizePath(lit), file, line });
+      continue;
+    }
+    idx.unresolved.push({
+      kind: 'route-verb-unknown',
+      file,
+      line,
+      detail: `HandleFunc("${lit}") sem .Methods(...) — o handler decide o verbo por dentro; o path existe mas o método é desconhecido`,
+    });
+  }
 }
 
 /**
@@ -1115,6 +1216,10 @@ export function scanRoutes(paths, { exts = ROUTE_EXTS, skipDirs = DEFAULT_SKIP, 
       indexSpring(text, struct, rel, idx);
     } else if (ext === '.ts' || ext === '.js' || ext === '.mjs') {
       indexJsHttp(text, struct, rel, idx);
+    } else if (ext === '.py') {
+      indexPython(text, rel, idx);
+    } else if (ext === '.go') {
+      indexGo(text, rel, idx);
     }
   }
 

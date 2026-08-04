@@ -177,4 +177,57 @@ process.exit(ok ? 0 : 1);
 ' "$T/.forge/graph/graph.json"
 echo "OK [9]"
 
+echo "[10] bin/ é código-fonte em projeto Node, e saída de build em .NET/Java"
+# SKIP_DIRS listava 'bin' junto de dist/build/out/obj — heurística de saída de compilação de
+# .NET/Java. Em projeto Node, bin/ é o entrypoint declarado no package.json: pulá-lo tira o ponto
+# de entrada do grafo em silêncio, e /forge:impact, /forge:onboard e /forge:c4 operam sobre isso.
+B="$T/binfix"
+mkdir -p "$B/bin" "$B/src" "$B/bin/Debug/net8.0" "$B/dist" "$B/obj"
+cp -R "$WS/template/.forge" "$B/.forge"
+cat > "$B/package.json" <<'EOF'
+{ "name": "demo-cli", "version": "1.0.0", "type": "module", "bin": { "demo": "bin/cli.mjs" } }
+EOF
+cat > "$B/bin/cli.mjs" <<'EOF'
+#!/usr/bin/env node
+import { run } from '../src/run.mjs';
+run();
+EOF
+cat > "$B/src/run.mjs" <<'EOF'
+export function run() { return 1; }
+EOF
+# saída de compilação .NET DENTRO de bin/ — inclusive um .cs gerado, que é o caso que justifica
+# a exclusão original e não pode voltar a entrar
+cat > "$B/bin/Debug/net8.0/Generated.cs" <<'EOF'
+namespace Generated; public class Assembly { }
+EOF
+# controles: dist/ e obj/ seguem pulados
+cat > "$B/dist/bundle.mjs" <<'EOF'
+export const bundled = 1;
+EOF
+cat > "$B/obj/Gen.cs" <<'EOF'
+namespace Obj; public class Gen { }
+EOF
+
+FORGE_ROOT="$B" bash "$B/.forge/scripts/graph.sh" build >/dev/null
+# a asserção precisa terminar em `|| { echo "FAIL [10] …"; exit 1; }`: sob `set -e`, um `node -e`
+# que sai 1 mata o gate sem imprimir a linha de falha, e o diagnóstico seguinte começa do zero
+# (LDG-0012). É também o formato que o classificador do replay reconhece como comportamental.
+node -e '
+const g = require(process.argv[1]);
+const ids = g.nodes.map((n) => n.id);
+const has = (p) => ids.includes(p);
+const fail = (m) => { console.error(m + " — nodes: " + JSON.stringify(ids)); process.exit(1); };
+if (!has("bin/cli.mjs")) fail("bin/cli.mjs (entrypoint declarado no package.json) ficou fora do grafo");
+if (!has("src/run.mjs")) fail("src/run.mjs ficou fora do grafo");
+// a aresta do entrypoint é o que se perdia junto com o nó
+const e = g.edges.find((x) => x.from === "bin/cli.mjs" && x.to === "src/run.mjs");
+if (!e) fail("aresta bin/cli.mjs -> src/run.mjs ausente");
+if (!e.resolved) fail("aresta bin/cli.mjs -> src/run.mjs não resolvida");
+// controles: saída de compilação continua fora
+if (has("bin/Debug/net8.0/Generated.cs")) fail("bin/Debug (saída .NET) entrou no grafo");
+if (has("dist/bundle.mjs")) fail("dist/ entrou no grafo");
+if (has("obj/Gen.cs")) fail("obj/ entrou no grafo");
+' "$B/.forge/graph/graph.json" || { echo "FAIL [10] (bin/ tratado como saída de build em projeto Node)"; exit 1; }
+echo "OK [10]"
+
 echo "OK"

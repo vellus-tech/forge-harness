@@ -1,0 +1,27 @@
+{
+  "schema": "red-evidence/v1",
+  "change_id": "graph-bin-source",
+  "status": "pending",
+  "test_path": "tests/w41-graph-gate.sh",
+  "test_id": "[10] bin/ é código-fonte em projeto Node, e saída de build em .NET/Java",
+  "command": "bash tests/w41-graph-gate.sh",
+  "base_commit": null,
+  "failure_pattern": "ficou fora do grafo",
+  "excerpt": "[1] build + schema\nOK [1]\n[2] validate graph\nOK [2]\n[3] determinismo (2 builds idênticos exceto timestamp)\nOK [3]\n[4] incremental: mudança cosmética = zero tokens (fingerprint estável)\nOK [4] (fingerprint estável: 0b3d791c683b)\n[5] mudança estrutural altera fingerprint\nOK [5]\n[6] validate detecta corrupção\nOK [6]\n[7] query + path\nOK [7]\n[8] sem blocos authz:/observability: no FORGE.md → sem governance (no-op)\nOK [8]\n[9] FORGE.md COM authz:/observability: → roles taggeados + governance materializado\nOK [9]\n[10] bin/ é código-fonte em projeto Node, e saída de build em .NET/Java\nbin/cli.mjs (entrypoint declarado no package.json) ficou fora do grafo — nodes: [\"src/run.mjs\"]\n",
+  "excerpt_sha256": "9113b617516cb1463acf87f0912ff2dacfb85da1ac54097a4d04b73b8ad9e9ef",
+  "classification": "unknown",
+  "base_result": "failed",
+  "base_strategy": "ancestry",
+  "revert_patch": null,
+  "graft_from": null,
+  "replay_head": "fc16d8afe42ca93aea5870efac1585cf4780e0a6",
+  "setup_command": "npm ci --no-audit --no-fund",
+  "reproduces": "bugfix.md §1 — SKIP_DIRS poda bin/ pela heurística de saída de build",
+  "fix_files": [
+    "template/.forge/scripts/lib/graph-build.mjs"
+  ],
+  "waiver": null,
+  "recorded_at": "2026-08-04T00:24:25.357Z",
+  "replayed_at": "2026-08-04T00:24:29.793Z",
+  "waived_at": null
+}

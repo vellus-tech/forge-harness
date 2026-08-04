@@ -1,0 +1,33 @@
+id: graph-bin-source
+type: bugfix
+mode: brownfield
+rigor: spec-anchored
+scale: 1
+status: proposed
+created_at: "2026-08-03"
+updated_at: "2026-08-03"
+owner: "Milton Antonio da Silva Jr"
+parent:
+  baseline: .forge/product/current
+affected_capabilities: []
+affected_paths: []
+dependencies:
+  specs: []
+  code: []
+gates:
+  requirements_reviewed: false
+  design_reviewed: false
+  tasks_reviewed: false
+  implementation_verified: false
+  human_archive_approval: false
+dev_loop:
+  sharded: false
+  stories_path: stories/
+  epic_context_compiled: false
+quick_plan:
+  enabled: false
+  skipped_phases: []
+  justification:
+archive:
+  eligible: false
+  reason: "tasks not implemented"

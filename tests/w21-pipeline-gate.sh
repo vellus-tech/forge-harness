@@ -83,7 +83,8 @@ perl -pi -e 's/decision: review/decision: maybe/' "$T/.forge/specs/active/chg-a/
 set +e
 out="$(cd "$T" && bash "$VS" chg-a)"; rc=$?
 set -e
-[ "$rc" -eq 1 ] && grep -q 'decision invalid' <<<"$out"
+[ "$rc" -eq 1 ] && grep -q 'decision invalid' <<<"$out" \
+  || { echo "FAIL [7]: validate-spec não reprovou approvals.yaml com decision inválida citando 'decision invalid' (rc=$rc, out=$out)"; exit 1; }
 mv "$T/ap.bak" "$T/.forge/specs/active/chg-a/approvals.yaml"
 echo "OK [7]"
 

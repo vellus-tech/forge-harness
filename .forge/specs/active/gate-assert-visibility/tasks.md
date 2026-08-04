@@ -11,7 +11,7 @@
 
 ## Wave 2 — Conversão por arquivo (20 tasks, independentes entre si, todas dependem só do Red)
 
-- [ ] TASK-02 — converte `tests/changelog-merge-gate.sh` (linhas 40, 41, 49 — 3 sites) ao idioma A (rastreia: `bugfix.md` §1/§2; paths: `tests/changelog-merge-gate.sh`; depende: TASK-01)
+- [X] TASK-02 — converte `tests/changelog-merge-gate.sh` (linhas 40, 41, 49 — 3 sites) ao idioma A (rastreia: `bugfix.md` §1/§2; paths: `tests/changelog-merge-gate.sh`; depende: TASK-01)
 - [ ] TASK-03 — converte `tests/check-authz-gate.sh` (linhas 97, 98, 99, 124 — 4 sites) ao idioma A (rastreia: `bugfix.md` §1/§2; paths: `tests/check-authz-gate.sh`; depende: TASK-01)
 - [ ] TASK-04 — converte `tests/gw1-conflict-gate.sh` (linha 38 — 1 site) ao idioma A (rastreia: `bugfix.md` §1/§2; paths: `tests/gw1-conflict-gate.sh`; depende: TASK-01)
 - [ ] TASK-05 — converte `tests/gw2-rules-anchor-gate.sh` (linhas 54, 74 — 2 sites) ao idioma A (rastreia: `bugfix.md` §1/§2; paths: `tests/gw2-rules-anchor-gate.sh`; depende: TASK-01)

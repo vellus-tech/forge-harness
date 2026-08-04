@@ -49,7 +49,7 @@ case "$TARGET" in
 esac
 
 # chain for this scale — design-ready sempre presente a partir de scale 2 (nunca removida:
-# ver nota acima). O pulo de bugfix/quick_plan é uma rota lateral checada à parte, abaixo.
+# ver nota acima). O pulo de bugfix é uma rota lateral checada à parte, abaixo.
 chain="idea proposed"
 [ "$SCALE" -ge 1 ] 2>/dev/null && chain="$chain requirements-ready"
 [ "$SCALE" -ge 2 ] 2>/dev/null && chain="$chain design-ready"
@@ -57,22 +57,17 @@ chain="$chain tasks-ready implementing implemented verified"
 
 in_chain() { printf ' %s ' $chain | grep -q " $1 "; }
 
-# quick_plan.skipped_phases contém "design"? (bloco YAML simples, block style — flow style
-# '[design]' não é reconhecido aqui, mesma limitação conhecida do yaml-lite, LDG-0030 2ª metade)
-QP_SKIPS_DESIGN=0
-if grep -q '^quick_plan:' "$MAN" 2>/dev/null; then
-  QP_BLOCK="$(awk '/^quick_plan:/{f=1;next} f && /^[A-Za-z_]+:/{exit} f' "$MAN")"
-  if grep -q 'enabled: true' <<<"$QP_BLOCK" && grep -qE '^\s*-\s*design\s*$' <<<"$QP_BLOCK"; then
-    QP_SKIPS_DESIGN=1
-  fi
-fi
-
-# LDG-0030: pulo lateral requirements-ready -> tasks-ready para bugfix (ou quick_plan
-# declarado) — design-ready permanece um alvo válido da cadeia normal para quem o alcançar
-# por qualquer outro caminho (opt-in, ou manifest legado já parado lá).
+# LDG-0030: pulo lateral requirements-ready -> tasks-ready só para type:bugfix (root cause
+# vive no bugfix.md; ver design.md command doc) — design-ready permanece um alvo válido da
+# cadeia normal para quem o alcançar por qualquer outro caminho (opt-in com design.md real,
+# ou manifest legado já parado lá). NÃO generalizado para quick_plan.skipped_phases: uma
+# tentativa anterior fazia isso, mas validate-spec.mjs (guard de design.md a partir de
+# tasks-ready) não honra quick_plan hoje — o pulo ficaria autorizado aqui e reprovado logo
+# depois pelo validador, código morto anunciado como recurso (achado em revisão de PR,
+# corrigido). Extensão a quick_plan fica para quando o guard do validador também honrar.
 SKIP_DESIGN=0
-if [ "$CURRENT" = "requirements-ready" ] && [ "$TARGET" = "tasks-ready" ]; then
-  { [ "$TYPE" = "bugfix" ] || [ "$QP_SKIPS_DESIGN" -eq 1 ]; } && SKIP_DESIGN=1
+if [ "$SCALE" -ge 2 ] 2>/dev/null && [ "$TYPE" = "bugfix" ] && [ "$CURRENT" = "requirements-ready" ] && [ "$TARGET" = "tasks-ready" ]; then
+  SKIP_DESIGN=1
 fi
 
 if [ "$TARGET" = "blocked" ]; then
@@ -80,13 +75,15 @@ if [ "$TARGET" = "blocked" ]; then
 elif [ "$CURRENT" = "blocked" ]; then
   in_chain "$TARGET" || { echo "FAIL (cannot unblock to '$TARGET' — not a chain state for scale $SCALE)"; exit 1; }
   [ -n "$REASON" ] || { echo "FAIL (unblocking requires --reason)"; exit 2; }
-elif [ "$SKIP_DESIGN" -eq 1 ]; then
-  : # rota lateral autorizada — bugfix (ou quick_plan) pulando design-ready de propósito
 else
   in_chain "$TARGET" || { echo "FAIL ('$TARGET' is not a chain state for scale $SCALE)"; exit 1; }
   in_chain "$CURRENT" || { echo "FAIL (current status '$CURRENT' is outside the chain — resolve manually)"; exit 1; }
-  next="$(printf '%s\n' $chain | awk -v cur="$CURRENT" '$0==cur{getline; print; exit}')"
-  [ "$TARGET" = "$next" ] || { echo "FAIL (invalid transition $CURRENT -> $TARGET; next allowed for scale $SCALE: $next)"; exit 1; }
+  if [ "$SKIP_DESIGN" -eq 1 ]; then
+    : # rota lateral autorizada — bugfix pulando design-ready de propósito
+  else
+    next="$(printf '%s\n' $chain | awk -v cur="$CURRENT" '$0==cur{getline; print; exit}')"
+    [ "$TARGET" = "$next" ] || { echo "FAIL (invalid transition $CURRENT -> $TARGET; next allowed for scale $SCALE: $next)"; exit 1; }
+  fi
 fi
 
 # G1 guardrail (conflict-handling): a relevant conflict blocks implementation.

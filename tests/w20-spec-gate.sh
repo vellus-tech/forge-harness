@@ -90,15 +90,23 @@ node "$WS/tools/validate-forge.mjs" >/dev/null
 echo "OK [5]"
 
 echo "[6] dogfooding valida"
-# ponteiro derivado (não cravado): qualquer change ativo real do harness serve de fixture —
-# cravar um id específico quebra assim que ele for arquivado/fechado (LOGIC-004, achado no
-# code-evaluator do PR do LDG-0012).
-DOGFOOD_ID="$(ls -1 "$WS/.forge/specs/active" 2>/dev/null | sort | head -1)"
-if [ -z "$DOGFOOD_ID" ]; then
-  echo "OK [6] (SKIP — nenhum change ativo no momento)"
+# ponteiro derivado (não cravado): TODO change ativo real do harness vira fixture — cravar um id
+# específico quebra assim que ele for arquivado/fechado (LOGIC-004/R2-003, achados no
+# code-evaluator do PR do LDG-0012). Sem degradar para "OK ... SKIP" quando não há change ativo
+# (mesma classe de defeito que este change existe pra eliminar) — cai para uma fixture sintética
+# num tmpdir à parte, sempre validada de verdade.
+DOGFOOD_IDS="$(ls -1 "$WS/.forge/specs/active" 2>/dev/null | sort)"
+if [ -z "$DOGFOOD_IDS" ]; then
+  TSYN="$(mktemp -d /tmp/forge-w20-dogfood-syn.XXXXXX)"
+  (cd "$TSYN" && FORGE_ROOT="$TSYN" bash "$WS/template/.forge/scripts/spec-new.sh" synthetic-dogfood --type feature --scale 2 >/dev/null)
+  bash "$WS/template/.forge/scripts/validate-spec.sh" --path "$TSYN/.forge/specs/active/synthetic-dogfood" >/dev/null
+  rm -rf "$TSYN"
+  echo "OK [6] (sintético, sem change real ativo)"
 else
-  bash "$WS/template/.forge/scripts/validate-spec.sh" --path "$WS/.forge/specs/active/$DOGFOOD_ID" >/dev/null
-  echo "OK [6] ($DOGFOOD_ID)"
+  for id in $DOGFOOD_IDS; do
+    bash "$WS/template/.forge/scripts/validate-spec.sh" --path "$WS/.forge/specs/active/$id" >/dev/null
+  done
+  echo "OK [6] ($DOGFOOD_IDS)"
 fi
 
 echo "[7] FORGE.md com blocos authz:/observability: + gates: em runtime: valida contra forgeFrontmatter (REQ-11/§2.3/§4)"

@@ -87,7 +87,7 @@ node "$WS/tools/validate-forge.mjs" >/dev/null
 echo "OK [5]"
 
 echo "[6] dogfooding valida"
-bash "$WS/template/.forge/scripts/validate-spec.sh" --path "$WS/.forge/specs/active/create-forge-project-harness" >/dev/null
+bash "$WS/template/.forge/scripts/validate-spec.sh" --path "$WS/.forge/specs/active/gate-assert-visibility" >/dev/null
 echo "OK [6]"
 
 echo "[7] FORGE.md com blocos authz:/observability: + gates: em runtime: valida contra forgeFrontmatter (REQ-11/§2.3/§4)"

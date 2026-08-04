@@ -4,7 +4,9 @@
 # adapted to the change's scale (§10.3):
 #   scale 0:  idea -> proposed -> tasks-ready -> implementing -> implemented -> verified
 #   scale 1:  + requirements-ready (before tasks-ready)
-#   scale >=2: + design-ready (after requirements-ready)
+#   scale >=2: + design-ready (after requirements-ready) — exceto type:bugfix, que normalmente
+#     dispensa design (root cause vive no bugfix.md; ver design.md command doc). Espelha a mesma
+#     isenção que validate-spec.mjs já concede a partir de tasks-ready (LDG-0030).
 # Lateral states:
 #   any -> blocked (requires --reason)
 #   blocked -> any chain state (requires --reason; human decision)
@@ -35,6 +37,7 @@ MAN="$DIR/manifest.yaml"
 
 CURRENT="$(awk -F': ' '$1=="status"{print $2; exit}' "$MAN")"
 SCALE="$(awk -F': ' '$1=="scale"{print $2; exit}' "$MAN")"
+TYPE="$(awk -F': ' '$1=="type"{print $2; exit}' "$MAN")"
 
 case "$TARGET" in
   abandoned|rejected|superseded) echo "FAIL (use spec-close.sh / /forge:close for $TARGET)"; exit 2 ;;
@@ -44,7 +47,7 @@ esac
 # chain for this scale
 chain="idea proposed"
 [ "$SCALE" -ge 1 ] 2>/dev/null && chain="$chain requirements-ready"
-[ "$SCALE" -ge 2 ] 2>/dev/null && chain="$chain design-ready"
+[ "$SCALE" -ge 2 ] 2>/dev/null && [ "$TYPE" != "bugfix" ] && chain="$chain design-ready"
 chain="$chain tasks-ready implementing implemented verified"
 
 in_chain() { printf ' %s ' $chain | grep -q " $1 "; }

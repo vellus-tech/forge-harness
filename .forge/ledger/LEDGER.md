@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**15 itens ativos** · roadmap 4 · tech-debt 7 · known-bug 1 · follow-up 3 · (14 encerrados)
+**15 itens ativos** · roadmap 4 · tech-debt 6 · known-bug 2 · follow-up 3 · (15 encerrados)
 
 ## Roadmap
 
@@ -28,8 +28,6 @@ _(nenhum)_
 
 ## Dívida técnica
 
-- **LDG-0012** [open] (P2) — Assercoes na forma '[ cond ] && cmd' sob set -e reprovam sem imprimir mensagem
-  Custou um ciclo de diagnostico nesta sessao: o w32-archive-gate morreu no meio do passo [2] sem uma linha de saida, e a causa real (um check novo reprovando por outro motivo) ficou invisivel. A forma funciona como assercao — set -e mata o gate — mas engole a razao, e o proximo diagnostico comeca do zero. Varredura encontra o padrao em ~15 gates (w14-adapters com 10 ocorrencias, gw1/gw2/gw3, changelog-merge, w33, w50, w80, w102, w112, w32:168). Distinguir os casos de CONTROLE DE FLUXO legitimo (run-all.sh:31/37/38, copia condicional de fixture) dos de ASSERCAO, e converter apenas os segundos para a forma '|| { echo FAIL ...; exit 1; }'. Corrigido nesta sessao apenas w32:138, o que a regressao atingiu.
 - **LDG-0013** [open] (P2) — Wave fecha sem gate quando o projeto nao declara runtime.gates (registrado como NO-GATES)
   A Onda B fechou a autocertificacao (wave close agora EXECUTA os gates em vez de aceitar o veredito do chamador), mas deixou uma porta legitima aberta por compatibilidade: projeto sem 'runtime.gates' no FORGE.md fecha a wave sem executar nada. O waves.json registra 'executed:NO-GATES' — auditavel, e o gate w131 assere que esse registro difere do de gate verde, para que 'nao havia gate' nunca se confunda com 'passou'. Fechar de vez exigiria obrigar todo projeto adotante a declarar ao menos um gate, o que e decisao de produto: e a mesma classe do SRF-00 (opt-out por omissao), um nivel acima.
 - **LDG-0016** [open] (P2) — Suite: 11 gates criam repo git em /tmp e o gc em background derruba o rm -rf do fixture
@@ -43,10 +41,12 @@ _(nenhum)_
 - **LDG-0020** [open] (P3) — route-scan: composicao e' por CAMINHO, e DAG denso de produtores custa exponencial antes do MAX_DEPTH
   O corte de ciclo (Set no caminho) resolve recursao mutua, e o diagnostico chain-too-deep foi colapsado por owner para nao alocar um objeto por caminho truncado — o que derrubou o consumo de memoria. Mas a travessia continua sendo por caminho, nao memoizada: num DAG acíclico e denso (produtores P0..P29, cada Pi invocando Pi+1..Pi+B) o custo cresce com B^MAX_DEPTH. Medicao da revisao antes do colapso do diagnostico: B=4 dava 420ms/222MB, B=5 dava 12,9s/1,3GB, B=6 estourava a heap. Registrars reais formam arvore, nao DAG denso, entao isto e' robustez e nao defeito de campo — mas a saida existe e e' barata: memoizar por (owner, prefixo) em vez de recompor cada caminho, ja que o resultado so depende desse par.
 
-_Encerrados: 9 (resolved 8 · wont-fix 1)_
+_Encerrados: 10 (promoted 1 · resolved 8 · wont-fix 1)_
 
 ## Bugs conhecidos
 
+- **LDG-0030** [open] (P2) — Bugfix scale 2 que dispensa design fica deadlocked: design-ready exige design.md sem honrar quick_plan.skipped_phases · via `gate-assert-visibility`
+  Achado pelo yolo-gate ao decidir o design_reviewed do change gate-assert-visibility. Um change type:bugfix, scale 2, com quick_plan.enabled:true e skipped_phases:[design] nao consegue avançar: (1) spec-transition.sh monta a cadeia por scale e para scale >= 2 o unico proximo passo depois de requirements-ready e design-ready — o script nao consulta quick_plan em nenhum ponto (zero ocorrencias do termo no arquivo); (2) lib/validate-spec.mjs aplica 'if (man.status === design-ready && !has(design.md))' de forma incondicional, sem a isençao que o proprio validador ja concede logo abaixo no guard de tasks-ready ('scale >= 2 && man.type !== bugfix && !has(design.md)'). Ou seja, a intençao de dispensar design.md para bugfix ja esta codificada no validador, mas so vale de tasks-ready em diante; o waypoint design-ready continua exigindo o artefato, e como a transiçao e linear e obrigatoria, o change fica preso em requirements-ready a menos que se fabrique um design.md vazio so para satisfazer o guard — exatamente a ceremonia que quick_plan existe para evitar. Correçao sugerida: fazer o guard de design-ready honrar quick_plan.skipped_phases contendo 'design' (e/ou a mesma isençao type !== bugfix), ou permitir que spec-transition.sh pule a fase declarada em skipped_phases ao montar a cadeia. Nota lateral: yaml-lite.mjs nao suporta array em flow style — 'skipped_phases: [design]' parseia como a string literal '[design]' e faz o validador reprovar com 'requires non-empty skipped_phases'; o template spec-new.sh grava '[]', o que induz o autor ao formato errado.
 - **LDG-0028** [open] (P3/LOW) — forge update: mensagem diz '.forge não encontrado' quando o ausente é o forge.yaml
   bin/forge.mjs:426-427 testa existsSync(.forge/forge.yaml) e, ao falhar, emite '.forge não encontrado em <target> — use npx forge-harness init'. Num projeto com .forge/ presente mas sem forge.yaml (harness parcialmente instalado, forge.yaml apagado, ou o dogfood deste repo), a mensagem manda reinstalar do zero quando o diagnóstico real é outro — e 'init' num .forge/ com specs e baseline é justamente o que o /forge:upgrade proíbe. O exit 3 e o não-escrever estão corretos (REQ-FHT-037); só a mensagem mente sobre a causa. Correção: distinguir os dois casos e, quando .forge/ existe, nomear o arquivo ausente. Achado ao rodar /forge:upgrade neste repo (2026-08-03).
 

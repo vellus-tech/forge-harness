@@ -61,13 +61,13 @@ console.log(`OK ${decls.length} adapter declarations vs adapter-capability schem
 const specManifest = JSON.parse(read('template/.forge/schemas/spec-manifest.schema.json'));
 const validateSpecManifest = ajv.compile(specManifest);
 console.log('OK spec-manifest.schema.json compiles');
-const dogfood = parse(read('.forge/specs/active/create-forge-project-harness/manifest.yaml'));
+const dogfood = parse(read('.forge/specs/active/gate-assert-visibility/manifest.yaml'));
 if (!validateSpecManifest(dogfood)) {
   console.error('FAIL dogfooding manifest vs spec-manifest schema');
   console.error(JSON.stringify(validateSpecManifest.errors, null, 2));
   process.exit(1);
 }
-console.log('OK dogfooding manifest (create-forge-project-harness) vs spec-manifest schema');
+console.log('OK dogfooding manifest (gate-assert-visibility) vs spec-manifest schema');
 
 // W3.0 — baseline schemas compile; canonical state machine definition conforms
 const compiled = {};

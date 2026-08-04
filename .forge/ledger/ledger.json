@@ -271,7 +271,7 @@
       "detail": "Custou um ciclo de diagnostico nesta sessao: o w32-archive-gate morreu no meio do passo [2] sem uma linha de saida, e a causa real (um check novo reprovando por outro motivo) ficou invisivel. A forma funciona como assercao — set -e mata o gate — mas engole a razao, e o proximo diagnostico comeca do zero. Varredura encontra o padrao em ~15 gates (w14-adapters com 10 ocorrencias, gw1/gw2/gw3, changelog-merge, w33, w50, w80, w102, w112, w32:168). Distinguir os casos de CONTROLE DE FLUXO legitimo (run-all.sh:31/37/38, copia condicional de fixture) dos de ASSERCAO, e converter apenas os segundos para a forma '|| { echo FAIL ...; exit 1; }'. Corrigido nesta sessao apenas w32:138, o que a regressao atingiu.",
       "severity": null,
       "priority": "P2",
-      "status": "open",
+      "status": "promoted",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -280,11 +280,13 @@
       "links": {
         "adr": [],
         "capability": [],
-        "change": [],
-        "promoted_to": null
+        "change": [
+          "gate-assert-visibility"
+        ],
+        "promoted_to": "gate-assert-visibility"
       },
       "created_at": "2026-07-29T20:21:33-03:00",
-      "updated_at": null,
+      "updated_at": "2026-08-04T11:52:45-03:00",
       "resolved_at": null,
       "dedup_key": "manual:LDG-0012"
     },
@@ -703,6 +705,32 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0029"
+    },
+    {
+      "id": "LDG-0030",
+      "type": "known-bug",
+      "title": "Bugfix scale 2 que dispensa design fica deadlocked: design-ready exige design.md sem honrar quick_plan.skipped_phases",
+      "detail": "Achado pelo yolo-gate ao decidir o design_reviewed do change gate-assert-visibility. Um change type:bugfix, scale 2, com quick_plan.enabled:true e skipped_phases:[design] nao consegue avançar: (1) spec-transition.sh monta a cadeia por scale e para scale >= 2 o unico proximo passo depois de requirements-ready e design-ready — o script nao consulta quick_plan em nenhum ponto (zero ocorrencias do termo no arquivo); (2) lib/validate-spec.mjs aplica 'if (man.status === design-ready && !has(design.md))' de forma incondicional, sem a isençao que o proprio validador ja concede logo abaixo no guard de tasks-ready ('scale >= 2 && man.type !== bugfix && !has(design.md)'). Ou seja, a intençao de dispensar design.md para bugfix ja esta codificada no validador, mas so vale de tasks-ready em diante; o waypoint design-ready continua exigindo o artefato, e como a transiçao e linear e obrigatoria, o change fica preso em requirements-ready a menos que se fabrique um design.md vazio so para satisfazer o guard — exatamente a ceremonia que quick_plan existe para evitar. Correçao sugerida: fazer o guard de design-ready honrar quick_plan.skipped_phases contendo 'design' (e/ou a mesma isençao type !== bugfix), ou permitir que spec-transition.sh pule a fase declarada em skipped_phases ao montar a cadeia. Nota lateral: yaml-lite.mjs nao suporta array em flow style — 'skipped_phases: [design]' parseia como a string literal '[design]' e faz o validador reprovar com 'requires non-empty skipped_phases'; o template spec-new.sh grava '[]', o que induz o autor ao formato errado.",
+      "severity": null,
+      "priority": "P2",
+      "status": "open",
+      "source": {
+        "change_id": "gate-assert-visibility",
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "gate-assert-visibility"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-04T11:52:45-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0030"
     }
   ]
 }

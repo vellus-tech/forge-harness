@@ -25,7 +25,7 @@ import { parseYamlSubset } from './yaml-lite.mjs';
 import { hasScaffoldMarkers } from './scaffold-markers.mjs';
 import { evaluateRedFirst } from './check-red-first.mjs';
 import { applyMode } from './gate-mode.mjs';
-import { parseTasks, checkTasksGraph, parseSurfaceChecklist, checkSurfaceCoverage, checkSurfaceChecklistPresence, checkSurfaceDeclaration } from './tasks-graph.mjs';
+import { parseTasks, checkTasksGraph, parseSurfaceChecklist, checkSurfaceCoverage, checkSurfaceChecklistPresence, checkSurfaceDeclaration, checkSurfaceChecklistLiteral } from './tasks-graph.mjs';
 
 const dir = process.argv[2];
 if (!dir) { console.log('FAIL (usage: validate-spec.mjs <change-dir>)'); process.exit(1); }
@@ -279,6 +279,12 @@ if (reached('tasks-ready')) {
     // quando não existe — degrada a precisão, nunca desliga.
     // respeita `enforceable` como todo o resto: empurrar SRF-00 direto para `errors` fazia o campo
     // ser decorativo, e um campo decorativo é um campo que ninguém percebe quando muda de valor.
+    // SRF-03 (LDG-0010): célula de superfície de API escrita em prosa, sem `VERB /path`. Aviso —
+    // é o insumo que falta para o SRF-01 poder cruzar contra as rotas reais.
+    for (const f of checkSurfaceChecklistLiteral(parseSurfaceChecklist(readIf('requirements.md') || ''))) {
+      if (f.enforceable) errors.push(`${f.code} ${f.msg}`);
+      else warnings.push(`${f.code} ${f.msg}`);
+    }
     for (const f of checkSurfaceDeclaration(man, parsed, { apiPaths: apiLayerPaths() })) {
       if (f.enforceable) errors.push(`${f.code} ${f.msg}`);
       else warnings.push(`${f.code} ${f.msg}`);

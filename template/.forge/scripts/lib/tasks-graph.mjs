@@ -323,6 +323,34 @@ export function parseSurfaceChecklist(text) {
   return rows;
 }
 
+// SRF-03 — a célula de superfície que fala em endpoint precisa CITAR o endpoint (LDG-0010).
+//
+// A medição de 2026-08-04 contra o repositório de referência mostrou que 64% dos achados SRF-01
+// caem em células escritas em prosa ("endpoints de publicação no bff + tela admin"), e sobre prosa
+// o oráculo de rota não tem o que cruzar: não dá para dizer se o endpoint não existe (defeito de
+// código) ou se a task declarou `paths:` incompleto (defeito de declaração). Enquanto a célula não
+// citar `VERB /path`, o SRF-01 não pode ser promovido a bloqueante — o que falta não é o oráculo,
+// é o insumo.
+//
+// Nasce como AVISO, deliberadamente: promover direto inundaria specs já escritas, e um gate que
+// chega bloqueando o passado é um gate que a pessoa desliga. Superfície que não é de API (tela,
+// CLI, flag de config) não é cobrada — pedir endpoint onde não há endpoint transformaria o check
+// num formulário.
+export function checkSurfaceChecklistLiteral(rows) {
+  const findings = [];
+  for (const r of rows || []) {
+    const cel = String(r.surface || '');
+    if (!namesApiSurface(cel)) continue;          // não fala em endpoint/rota: nada a cobrar
+    if (VERB_PATH_RE.test(cel)) continue;          // já cita o literal
+    findings.push({
+      code: 'SRF-03',
+      enforceable: false,
+      msg: `requirements.md:${r.line}: ${r.req} declara superfície de API em prosa ("${cel.slice(0, 60)}") sem citar o endpoint no formato "VERB /path" — sem o literal, a cobertura não pode ser cruzada contra as rotas que o código expõe, e o SRF-01 fica limitado a um veredito por REQ`,
+    });
+  }
+  return findings;
+}
+
 // SRF-02 — o Checklist é incondicional no template. Requirements com `## REQ-` e sem a seção (ou com
 // a seção vazia) significa que o SRF-01 não rodou, e isso tem que aparecer: a diferença entre "não
 // há lacuna de superfície" e "ninguém olhou" é a diferença que este módulo existe para eliminar.

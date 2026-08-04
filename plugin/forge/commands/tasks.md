@@ -37,6 +37,7 @@ bash .forge/scripts/validate-spec.sh <change-id>
 - **SRF-01 cobertura de superfície.** Cruza o "Checklist de cobertura de superfície" do `requirements.md` contra o grafo: REQ que declara endpoint/rota sem que nenhuma das tasks que o cobrem produza superfície. Resolva declarando o `paths:` real da task que entrega a rota, ou abrindo a task que falta.
 - **TSK-06 parte das tasks sem bloco de metadados.** As dependências dessas tasks não entraram no grafo. Avisa quando é pontual (task trivial é motivo plausível) e **bloqueia** quando é o plano inteiro — aí não sobrou aresta nenhuma, e TSK-01/02/03 passariam por vacuidade. `depende: —` é declaração de independência e não conta como omissão: o que se cobra é ter declarado, não ter dependência.
 - **SRF-02 Checklist ausente ou vazio** — mesmo princípio do TSK-05: o SRF-01 não rodou, e isso aparece.
+- **SRF-03 superfície de API declarada em prosa.** A célula fala em endpoint/rota mas não cita `VERB /path`. Medido contra um repositório real, 64% dos achados de SRF-01 caem em células assim ("endpoints de publicação no bff + tela admin") — e sobre prosa o oráculo de rota não tem o que cruzar: não dá para distinguir "o endpoint não existe" de "a task declarou `paths:` incompleto". Escrever `POST /api/v1/lists/ranges` no lugar de "endpoint de listas" é o que torna a cobertura verificável. Superfície que não é de API (tela, CLI, flag) não é cobrada.
 
 O parser reconhece os campos `rastreia:`/`paths:`/`depende:` pelo **nome**, em qualquer ordem, com ou sem parênteses em volta — não há forma canônica a memorizar.
 

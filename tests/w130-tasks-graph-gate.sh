@@ -712,7 +712,10 @@ cat > "$CG/tasks.md" <<'TASKS'
 TASKS
 out3="$(FORGE_ROOT="$G" node "$LIB/validate-spec.mjs" "$CG" 2>&1 || true)"
 grep -q '^OK graphed' <<< "$out3" || { echo "FAIL [15]: validate-spec reprovou o change: $out3"; exit 1; }
-grep -q 'SRF-01' <<< "$out3" && { echo "FAIL [15]: o grafo layer:api não silenciou o SRF-01: $out3"; exit 1; }
+# casa o CÓDIGO do achado ("WARN (SRF-01 requirements.md:…"), não a string solta: a mensagem do
+# SRF-03 menciona "SRF-01" em prosa ao explicar o que ficou limitado, e um grep frouxo a confundia
+# com um achado de SRF-01 de verdade.
+grep -qE '\(SRF-01 ' <<< "$out3" && { echo "FAIL [15]: o grafo layer:api não silenciou o SRF-01: $out3"; exit 1; }
 # CONTROLE: sem o graph.json, o mesmo change gera o WARN — prova que foi o grafo que decidiu, e
 # não a heurística de nome de path aceitando `Acme.Configs/` por conta própria
 rm "$G/.forge/graph/graph.json"
@@ -761,5 +764,40 @@ const { join } = require('path'); const { pathToFileURL } = require('url');
 })();
 EOF
 echo "OK [16]"
+
+echo "[17] SRF-03 — célula de superfície que fala em endpoint precisa citar VERB /path (LDG-0010)"
+# A medição do LDG-0010 (2026-08-04, axis-go-cloud) mostrou que 64% dos achados SRF-01 caem em
+# células escritas em prosa — "endpoints de publicação no bff + tela admin" —, e sobre prosa o
+# oráculo de rota não tem o que cruzar. Enquanto a célula não citar o endpoint literalmente, o
+# SRF-01 não pode ser promovido a bloqueante: falta o insumo, não o oráculo.
+node - "$LIB" <<'EOF' || { echo "FAIL [17]: SRF-03 não cobra endpoint literal"; exit 1; }
+const { join } = require('path'); const { pathToFileURL } = require('url');
+(async () => {
+  const G = await import(pathToFileURL(join(process.argv[2], 'tasks-graph.mjs')).href);
+  const md = (linhas) => `## Checklist de cobertura de superfície\n\n| REQ | Parâmetro | Superfície | Coberto por task |\n|---|---|---|---|\n${linhas}\n`;
+  const srf03 = (texto) => G.checkSurfaceChecklistLiteral(G.parseSurfaceChecklist(texto)).filter((f) => f.code === 'SRF-03');
+
+  // (a) prosa citando endpoint, sem VERB /path — o caso dominante da medição
+  const prosa = md('| REQ-01 | — | endpoints de publicação no bff + tela admin | TASK-01 |');
+  const a = srf03(prosa);
+  if (a.length !== 1) { console.error(`(a) esperava 1 SRF-03, veio ${JSON.stringify(srf03(prosa))}`); process.exit(1); }
+  if (a[0].enforceable) { console.error('(a) SRF-03 nasce como aviso, não bloqueio — specs existentes não podem ser inundadas'); process.exit(1); }
+  if (!a[0].msg.includes('REQ-01')) { console.error(`(a) a mensagem não nomeia o REQ: ${a[0].msg}`); process.exit(1); }
+
+  // (b) CONTROLE: célula com endpoint literal não é cobrada
+  if (srf03(md('| REQ-01 | — | `POST /api/v1/orders` | TASK-01 |')).length) { console.error('(b) célula com VERB /path foi cobrada'); process.exit(1); }
+
+  // (c) CONTROLE: superfície que não é de API (tela, CLI, config) não é cobrada — cobrar aqui
+  // transformaria o check num pedido de endpoint onde não há endpoint nenhum
+  for (const cel of ['tela de administração de listas', 'flag `handoff.auto` no forge.yaml', 'CLI `forge update`']) {
+    const f = srf03(md(`| REQ-01 | — | ${cel} | TASK-01 |`));
+    if (f.length) { console.error(`(c) superfície não-API foi cobrada: "${cel}" → ${JSON.stringify(f.map((x) => x.msg))}`); process.exit(1); }
+  }
+
+  // (d) mistura: fala em endpoint E cita um literal → satisfeito pelo literal presente
+  if (srf03(md('| REQ-01 | — | tela admin + endpoint `GET /devices/me` | TASK-01 |')).length) { console.error('(d) célula mista com literal foi cobrada'); process.exit(1); }
+})();
+EOF
+echo "OK [17]"
 
 echo "PASS w130-tasks-graph-gate"

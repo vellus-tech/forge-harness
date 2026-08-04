@@ -23,7 +23,7 @@
 - [X] TASK-11 — converte `tests/w21-pipeline-gate.sh` (linha 86 — 1 site) ao idioma A (rastreia: `bugfix.md` §1/§2; paths: `tests/w21-pipeline-gate.sh`; depende: TASK-01)
 - [X] TASK-12 — converte `tests/w22-close-gate.sh` (linha 78 — 1 site; a 106 já está segura, não tocar) ao idioma A (rastreia: `bugfix.md` §1/§2; paths: `tests/w22-close-gate.sh`; depende: TASK-01)
 - [X] TASK-13 — converte `tests/w30-schemas-gate.sh` (linha 75 — 1 site) ao idioma A (rastreia: `bugfix.md` §1/§2; paths: `tests/w30-schemas-gate.sh`; depende: TASK-01)
-- [ ] TASK-14 — converte `tests/w32-archive-gate.sh` (linhas 68, 87, 168 — 3 sites) ao idioma A (rastreia: `bugfix.md` §1/§2; paths: `tests/w32-archive-gate.sh`; depende: TASK-01)
+- [X] TASK-14 — converte `tests/w32-archive-gate.sh` (linhas 68, 87, 168 — 3 sites) ao idioma A (rastreia: `bugfix.md` §1/§2; paths: `tests/w32-archive-gate.sh`; depende: TASK-01)
 - [ ] TASK-15 — converte `tests/w33-publish-gate.sh` (linha 83 — 1 site) ao idioma A (rastreia: `bugfix.md` §1/§2; paths: `tests/w33-publish-gate.sh`; depende: TASK-01)
 - [ ] TASK-16 — converte `tests/w41-graph-gate.sh` (linha 113 — 1 site) ao idioma A (rastreia: `bugfix.md` §1/§2; paths: `tests/w41-graph-gate.sh`; depende: TASK-01)
 - [ ] TASK-17 — converte `tests/w43-c4-gate.sh` (linhas 27, 55, 80 — 3 sites) ao idioma A (rastreia: `bugfix.md` §1/§2; paths: `tests/w43-c4-gate.sh`; depende: TASK-01)

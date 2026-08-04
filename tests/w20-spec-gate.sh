@@ -26,9 +26,12 @@ echo "[1] spec-new para os 5 tipos"
 out="$(cd "$T" && bash "$VALIDATE" --all)"
 [ "$(echo "$out" | grep -c '^OK ')" -eq 5 ]
 # artifact shape by type/scale
-[ -f "$T/.forge/specs/active/feat-x/design.md" ] && [ -f "$T/.forge/specs/active/feat-x/requirements.md" ]
-[ -f "$T/.forge/specs/active/fix-y/bugfix.md" ] && [ ! -e "$T/.forge/specs/active/fix-y/design.md" ] && [ ! -e "$T/.forge/specs/active/fix-y/requirements.md" ]
-[ -f "$T/.forge/specs/active/ref-z/refactor.md" ] && [ -f "$T/.forge/specs/active/ref-z/design.md" ]
+[ -f "$T/.forge/specs/active/feat-x/design.md" ] && [ -f "$T/.forge/specs/active/feat-x/requirements.md" ] \
+  || { echo "FAIL [1]: feat-x (feature scale 2) sem design.md+requirements.md"; exit 1; }
+[ -f "$T/.forge/specs/active/fix-y/bugfix.md" ] && [ ! -e "$T/.forge/specs/active/fix-y/design.md" ] && [ ! -e "$T/.forge/specs/active/fix-y/requirements.md" ] \
+  || { echo "FAIL [1]: fix-y (bugfix) sem bugfix.md, ou com design.md/requirements.md indevidos"; exit 1; }
+[ -f "$T/.forge/specs/active/ref-z/refactor.md" ] && [ -f "$T/.forge/specs/active/ref-z/design.md" ] \
+  || { echo "FAIL [1]: ref-z (refactor scale 2) sem refactor.md+design.md"; exit 1; }
 [ ! -e "$T/.forge/specs/active/brown-v/requirements.md" ]   # scale 0: only proposal+tasks
 grep -q '^status: proposed$' "$T/.forge/specs/active/feat-x/manifest.yaml"
 grep -q 'feat-x' "$T/.forge/specs/active/feat-x/proposal.md"   # placeholders filled

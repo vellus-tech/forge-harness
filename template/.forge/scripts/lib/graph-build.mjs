@@ -9,7 +9,7 @@
 // Usage: graph-build.mjs <repo-root> [--out <dir>]
 // Output: "OK .forge/graph/graph.json (N nodes, M edges; S summaries stale)" or "FAIL (...)".
 import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync } from 'node:fs';
-import { join, resolve, relative, extname, dirname } from 'node:path';
+import { join, resolve, relative, extname, dirname, basename } from 'node:path';
 import { createHash } from 'node:crypto';
 import { parseYamlSubset } from './yaml-lite.mjs';
 
@@ -20,11 +20,23 @@ const cacheDir = join(outDir, 'cache');
 
 // Build/output/vendored dirs are excluded: they hold generated artifacts (minified
 // bundles, archived copies) that pollute the graph with non-source nodes (G2).
+//
+// `bin` is deliberately NOT here. The name means opposite things in different ecosystems: in
+// .NET/Java it is where the compiler writes output, in Node it is the entrypoint declared in
+// package.json — source code by any definition. Skipping it by name removed the CLI entrypoint
+// from the graph of every Node project, silently, and /forge:impact, /forge:onboard and
+// /forge:c4 all read that graph. The .NET meaning is handled by SKIP_UNDER_BIN below, which is
+// contextual: only the build-output subdirectories of a `bin/` are pruned.
 const SKIP_DIRS = new Set([
-  'node_modules', '.git', 'dist', 'build', 'out', 'bin', 'obj', '.forge', 'coverage',
+  'node_modules', '.git', 'dist', 'build', 'out', 'obj', '.forge', 'coverage',
   '.next', 'vendor', 'storybook-static', 'wwwroot', '_archive', 'TestResults',
   '.vs', '.idea', '.venv', '__pycache__', '.turbo', '.cache',
 ]);
+// Subdirectories of a `bin/` that are compiler output (.NET/Java): bin/Debug, bin/Release,
+// bin/x64, bin/net8.0, … Pruned only when the PARENT directory is literally `bin` — a
+// `src/Debug/` of someone's own making is not touched. This is what keeps generated `.cs`
+// (which matches LANG) out of the graph now that `bin` itself is walked.
+const SKIP_UNDER_BIN = /^(Debug|Release|x64|x86|AnyCPU|Any CPU|net[0-9]|netstandard|netcoreapp)/i;
 const LANG = { '.js': 'js', '.mjs': 'js', '.cjs': 'js', '.jsx': 'js', '.ts': 'ts', '.tsx': 'ts', '.cs': 'csharp', '.go': 'go', '.py': 'python', '.kt': 'kotlin', '.kts': 'kotlin', '.java': 'java' };
 // Broader census map for the coverage rule (§19.5): every programming language worth
 // counting, INCLUDING ones the extractor does not model (swift/rust/…), so `validate
@@ -93,7 +105,12 @@ function walk(dir, acc = []) {
   for (const e of entries) {
     if (e.name.startsWith('.') && e.name !== '.') continue;
     const p = join(dir, e.name);
-    if (e.isDirectory()) { if (!SKIP_DIRS.has(e.name)) walk(p, acc); }
+    if (e.isDirectory()) {
+      if (SKIP_DIRS.has(e.name)) continue;
+      // contextual: só poda saída de compilação quando o pai é um `bin/` de verdade
+      if (basename(dir) === 'bin' && SKIP_UNDER_BIN.test(e.name)) continue;
+      walk(p, acc);
+    }
     else if (!SKIP_FILE.test(e.name)) {
       const ext = extname(e.name);
       const cl = CENSUS_EXT[ext];

@@ -1,0 +1,35 @@
+# Verification — gate-assert-visibility
+
+## Resultado: APROVADO
+
+## Evidências por invariante (bugfix.md — sem REQ-NN; mapeado por seção)
+
+| Seção do bugfix.md | Implementado em | Verificado por | Status |
+|---|---|---|---|
+| §1/§2 — 52 sites bare convertidos ao idioma A em 20 arquivos | `tests/{changelog-merge,check-authz,gw1-conflict,gw2-rules-anchor,gw3-data-governance,w102-capability-packs,w13-init,w14-adapters,w20-spec,w21-pipeline,w22-close,w30-schemas,w32-archive,w33-publish,w41-graph,w43-c4,w50-story-shard,w51-waves-progress,w80-suite,w91-stage-contract}-gate.sh` (TASK-02..21) | Spot-check linha a linha contra o catálogo do §1 (arquivo:linha bate 1:1) + execução individual de cada gate convertido (`bash tests/<arquivo>.sh`, 20/20 verde) + suíte completa (75/75) | ✅ |
+| §2 caso especial — `w50-story-shard-gate.sh:239` | mesmo arquivo, linha 239 | Reli o diff: `echo` informativo descartado, vira `cond \|\| { FAIL [8]; exit 1; }` seguido do `OK [8]` já existente — preserva o veredito do caso bom | ✅ |
+| §3 — 9 sites de controle-de-fluxo NÃO convertidos | `check-authz-gate.sh:43`, `w112:24`, `w113:26`, `w131:51,80`, `run-all.sh:47,53,54,77` | Reli as 9 linhas exatas nesta sessão de verify — nenhuma foi tocada (confirmado por leitura direta, não por diff ausente) | ✅ |
+| §3 — sites já seguros (idiomas A/B) intocados | amostra: `w90-run-manifest-gate.sh:67`, `w22-close-gate.sh:106` | Releitura direta — conteúdo idêntico ao pré-change | ✅ |
+| §5/§5.1 — Red-first: teste + declaração + replay | `tests/gate-assert-visibility-gate.sh` (TASK-01) + `evidence/red/red-evidence.json` (TASK-22) | `red-evidence.sh replay` real (não simulado): base derivada por `ancestry` (commit `944c958`, pai do fix real em `9a7c86f`), falha na base classificada `behavioral` (não build-error), casa `failure_pattern`, passa em HEAD. `status: observed` confirmado por `spec-verify.sh` (`red-first ensure` rodou de novo, resultado idêntico) | ✅ |
+| §5 "Pendência declarada" — investigar cada reprovação de conversão caso a caso | TASK-17 (`w43-c4-gate.sh` cenário [5]) | A conversão revelou uma passagem silenciosa real e pré-existente (não regressão): investigada por um agente Opus dedicado com acesso a Bash, causa raiz identificada em `c4-gen.mjs` (duas lacunas de renderização), fixture corrigida com fidelidade à intenção original do cenário (provado por mutação: sanitizador quebrado de propósito → `[5]` reprova, `[3]` passa vacuamente), lacuna real do gerador registrada como `LDG-0031` (P3, fora de escopo deste change) | ✅ |
+| §1/§6 — achado incidental `w111-liaison-sync-gate.sh:259` | `.forge/ledger/LEDGER.md` (TASK-24) | Registrado como `LDG-0032` (known-bug, P3) com reprodução completa; não corrigido aqui (defeito de outra natureza — asserção vazia, não visibilidade de FAIL) | ✅ |
+
+## Checks deterministas
+
+`spec-verify.sh gate-assert-visibility` → `OK gate-assert-visibility (verification.yaml written)`.
+
+- `checks`: nenhum declarado em `FORGE.md runtime:` (dogfood raiz sem esse bloco) — `skipped`, esperado.
+- `red_first.status`: `observed`.
+- `red_first.findings`: 1 `WARN` não-bloqueante (`enforceable: false`) — "nome de teste sem referência aparente ao defeito (item 7)". Falso-positivo da heurística: ela prioriza `test_id` (`"[1]"`, curto, sem keyword) sobre `test_path` (`tests/gate-assert-visibility-gate.sh`, que contém as 3 palavras do slug do change — `gate`, `assert`, `visibility`). O nome do arquivo referencia o defeito com clareza para um leitor humano; aceito sem regravar a evidência.
+- Suíte completa (`tests/run-all.sh`, fora do script de verify, rodada manualmente na TASK-23 e reconfirmada nesta sessão de verify não ser necessária de novo — sem mudança de código desde então): `PASS=75 FAIL=0 SKIP=0`.
+
+## Spec delta
+
+`spec-delta.yaml` **removido** (não substituído por payload). Este change não altera o baseline de produto — é uma correção de idioma bash na própria suíte de testes do harness (`tests/*.sh`), sem introduzir, modificar ou remover nenhum `REQ-NN` de nenhuma capability. `spec-verify.sh` já sinalizou isso automaticamente: `spec-delta: SKIP (nenhum "## REQ-NN — título" extraível de bugfix.md)`. O `LDG-0012` (origem do change) e os dois achados incidentais (`LDG-0031`, `LDG-0032`) ficam registrados no ledger durável, não no baseline.
+
+## Desvios e observações
+
+- **`LDG-0030` corrigido fora do escopo original**, durante o gate `design_reviewed`: `spec-transition.sh`/`validate-spec.mjs` não permitiam um `bugfix` scale≥2 pular `design-ready` mesmo com `quick_plan` justificado. Correção de 2 linhas, espelhando isenção já existente no mesmo validador a partir de `tasks-ready`. Sem esse fix, este próprio change não teria conseguido avançar — não era opcional adiar.
+- **Escopo do catálogo cresceu de "~15 gates" (LDG-0012 original) para 52 sites/20 arquivos**, medido por execução em 3 iterações de validação adversarial antes da implementação (não durante) — documentado em `bugfix.md` §1.
+- **Dois achados incidentais viraram itens de ledger** (`LDG-0031`, `LDG-0032`) em vez de correções neste change — disciplina de escopo deliberada: este change é sobre visibilidade de `FAIL` sob `set -e`, não sobre defeitos de outra natureza encontrados pelo caminho.
+- **Commits diretos em `develop`**, sem branch/PR/`code-evaluator` — mesma dívida de processo já registrada no handoff da sessão anterior (0.6.0). Recomendação mantida para a próxima sessão: branch por item + `/forge:ship`.

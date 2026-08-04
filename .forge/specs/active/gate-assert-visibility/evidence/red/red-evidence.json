@@ -14,7 +14,7 @@
   "base_strategy": "ancestry",
   "revert_patch": null,
   "graft_from": null,
-  "replay_head": "e4a30a377e5ab6976ee3b0761bb86e83a6ed5f82",
+  "replay_head": "7d265a722dca96b1c7d208f01717b67f0db16507",
   "setup_command": null,
   "reproduces": "bugfix.md §1",
   "fix_files": [
@@ -22,6 +22,6 @@
   ],
   "waiver": null,
   "recorded_at": "2026-08-04T18:07:55.459Z",
-  "replayed_at": "2026-08-04T19:36:20.078Z",
+  "replayed_at": "2026-08-04T20:09:34.395Z",
   "waived_at": null
 }

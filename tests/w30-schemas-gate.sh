@@ -72,7 +72,8 @@ done
 for d in capabilities prd frd-nfrd ddd trd adr glossary; do
   [ -d "$WS/template/.forge/product/current/$d" ]
 done
-[ -f "$WS/template/.forge/product/current/CHANGELOG.md" ] && [ -d "$WS/template/.forge/product/published" ]
+[ -f "$WS/template/.forge/product/current/CHANGELOG.md" ] && [ -d "$WS/template/.forge/product/published" ] \
+  || { echo "FAIL [4]: CHANGELOG.md do baseline ou product/published ausente"; exit 1; }
 echo "OK [4]"
 
 echo "[5] templates de delta/traceability validam contra os schemas"

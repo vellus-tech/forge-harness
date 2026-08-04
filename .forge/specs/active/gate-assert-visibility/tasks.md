@@ -18,7 +18,7 @@
 - [X] TASK-06 — converte `tests/gw3-data-governance-gate.sh` (linhas 28, 29, 45, 58, 71 — 5 sites) ao idioma A (rastreia: `bugfix.md` §1/§2; paths: `tests/gw3-data-governance-gate.sh`; depende: TASK-01)
 - [X] TASK-07 — converte `tests/w102-capability-packs-gate.sh` (linha 32 — 1 site) ao idioma A (rastreia: `bugfix.md` §1/§2; paths: `tests/w102-capability-packs-gate.sh`; depende: TASK-01)
 - [X] TASK-08 — converte `tests/w13-init-gate.sh` (linhas 28, 29, 30, 31 — 4 sites) ao idioma A (rastreia: `bugfix.md` §1/§2; paths: `tests/w13-init-gate.sh`; depende: TASK-01)
-- [ ] TASK-09 — converte `tests/w14-adapters-gate.sh` (linhas 25, 26, 27, 33, 34, 37, 54, 59, 61, 62, 63 — 11 sites) ao idioma A (rastreia: `bugfix.md` §1/§2; paths: `tests/w14-adapters-gate.sh`; depende: TASK-01)
+- [X] TASK-09 — converte `tests/w14-adapters-gate.sh` (linhas 25, 26, 27, 33, 34, 37, 54, 59, 61, 62, 63 — 11 sites) ao idioma A (rastreia: `bugfix.md` §1/§2; paths: `tests/w14-adapters-gate.sh`; depende: TASK-01)
 - [ ] TASK-10 — converte `tests/w20-spec-gate.sh` (linhas 29, 30, 31 — 3 sites) ao idioma A (rastreia: `bugfix.md` §1/§2; paths: `tests/w20-spec-gate.sh`; depende: TASK-01)
 - [ ] TASK-11 — converte `tests/w21-pipeline-gate.sh` (linha 86 — 1 site) ao idioma A (rastreia: `bugfix.md` §1/§2; paths: `tests/w21-pipeline-gate.sh`; depende: TASK-01)
 - [ ] TASK-12 — converte `tests/w22-close-gate.sh` (linha 78 — 1 site; a 106 já está segura, não tocar) ao idioma A (rastreia: `bugfix.md` §1/§2; paths: `tests/w22-close-gate.sh`; depende: TASK-01)

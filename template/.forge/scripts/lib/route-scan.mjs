@@ -328,10 +328,32 @@ function pushGroupChain(idx, { scope, symbol, parentId, chainSrc, file, line, tr
  * Escolher (o comportamento anterior, em que a última definição lida sobrescrevia as outras)
  * emitia rota cruzada entre módulos e perdia a rota real, sem nenhum diagnóstico.
  */
+// Escopo de resolução do C#: o namespace declarado no arquivo e os `using` visíveis nele. É o que
+// permite desambiguar um produtor homônimo (LDG-0019): no convênio de vertical slice, N features
+// declaram `MapEndpoints` e o compilador sabe qual é a certa pelo `using` de quem invoca — essa
+// informação está no texto, e ignorá-la custava a cobertura inteira do layout.
+// `using var x = ...` e `using (...)` são declaração de recurso, não import, e ficam de fora pela
+// exigência de que o alvo seja um nome pontuado terminado em `;`.
+function csScope(text) {
+  let ns = '';
+  const mFile = text.match(/^\s*namespace\s+([\w.]+)\s*;/m);
+  const mBlock = text.match(/^\s*namespace\s+([\w.]+)\s*\{/m);
+  if (mFile) ns = mFile[1];
+  else if (mBlock) ns = mBlock[1];
+  const usings = new Set();
+  const globals = new Set();
+  const re = /^\s*(global\s+)?using\s+(?:static\s+)?([\w.]+)\s*;/gm;
+  for (let m; (m = re.exec(text)); ) (m[1] ? globals : usings).add(m[2]);
+  return { ns, usings, globals };
+}
+
 function indexDotnetMinimal(text, struct, file, idx) {
   // Match que começa dentro de um literal não é código: `@"app.MapGet(""/x"", H);"` é template de
   // source generator, não registro de rota.
   const emLiteral = (i) => struct[i] !== text[i];
+  const escopo = csScope(text);
+  idx.csScope.set(file, escopo);
+  for (const g of escopo.globals) idx.csGlobalUsings.add(g);
   const rotasAntes = idx.routes.length + idx.absolute.length;
   const sitiosGrupo = [];
   { const re = /\.\s*MapGroup\s*\(/g; for (let m; (m = re.exec(struct)); ) sitiosGrupo.push(m.index); }
@@ -352,6 +374,7 @@ function indexDotnetMinimal(text, struct, file, idx) {
       name,
       scope,
       param,
+      ns: escopo.ns,
       rootLike: ROOT_BUILDER_TYPES.test(type),
       file,
       line: lineOf(text, m.index),
@@ -674,20 +697,54 @@ function indexKtor(text, struct, file, idx) {
  * chutar o primeiro é inventar path.
  */
 function indexJsHttp(text, struct, file, idx) {
+  // Map<símbolo, prefixo[]>: montar o MESMO router em dois prefixos é legítimo em Express e as
+  // duas rotas existem em runtime. Guardar um prefixo só por símbolo (o último a aparecer) perdia
+  // silenciosamente metade da superfície nesse arranjo.
   const mounts = new Map();
   const useRe = /\b(?:app|server|router)\s*\.\s*use\s*\(\s*(['"`][^'"`]*['"`])\s*,\s*(\w+)/g;
   for (let m; (m = useRe.exec(text)); ) {
     const lit = literal(m[1]);
-    if (lit !== null) mounts.set(m[2], lit);
+    if (lit !== null) push(mounts, m[2], lit);
   }
   const regRe = /\b(?:fastify|app|server)\s*\.\s*register\s*\(\s*(\w+)\s*,\s*\{[^}]*prefix\s*:\s*(['"`][^'"`]*['"`])/g;
   for (let m; (m = regRe.exec(text)); ) {
     const lit = literal(m[2]);
-    if (lit !== null) mounts.set(m[1], lit);
+    if (lit !== null) push(mounts, m[1], lit);
+  }
+
+  // Mount CROSS-ARQUIVO (LDG-0019): no layout canônico de Express o router mora num arquivo e o
+  // `app.use()` que o monta mora no app.js. Enquanto `mounts` era só local, esse arranjo — um dos
+  // mais comuns que existem — produzia exclusivamente `router-mount-unknown` e ZERO rotas.
+  // Aqui a montagem vira fato do índice GLOBAL, resolvido na passa 2, na mesma simetria que os
+  // produtores .NET já têm. Só entram símbolos que um import/require resolve para um arquivo: um
+  // mount cujo alvo não se resolve continua desconhecido, nunca chutado.
+  const imports = new Map(); // símbolo local -> especificador do módulo
+  const reqRe = /(?:const|let|var)\s+(\w+)\s*=\s*require\s*\(\s*(['"`][^'"`]+['"`])\s*\)/g;
+  for (let m; (m = reqRe.exec(text)); ) {
+    const spec = literal(m[2]);
+    if (spec !== null) imports.set(m[1], spec);
+  }
+  const impRe = /\bimport\s+(\w+)\s*(?:,\s*\{[^}]*\}\s*)?from\s*(['"`][^'"`]+['"`])/g;
+  for (let m; (m = impRe.exec(text)); ) {
+    const spec = literal(m[2]);
+    if (spec !== null) imports.set(m[1], spec);
+  }
+  for (const [sym, prefixes] of mounts) {
+    const spec = imports.get(sym);
+    if (spec === undefined) continue;      // símbolo local: já resolvido pelo mount do próprio arquivo
+    if (!spec.startsWith('.')) continue;   // pacote de terceiro não é router deste repositório
+    for (const prefix of prefixes) idx.mounts.push({ from: file, spec, prefix });
   }
 
   const isRoot = (r) => /^(app|server|fastify)$/.test(r);
-  const isRouter = (r) => /^(router|api|routes)$/i.test(r) || /(Router|Routes)$/.test(r);
+  // Router reconhecido pela ATRIBUIÇÃO, não só pelo nome: `const r = Router()` é tão router
+  // quanto `const usersRouter = express.Router()`, e a heurística de nome sozinha descartava o
+  // primeiro em silêncio — junto com todas as rotas dele. O nome continua valendo como sinal
+  // adicional, para o caso de o router chegar por parâmetro de função.
+  const declaredRouters = new Set();
+  const routerDeclRe = /(?:const|let|var)\s+(\w+)\s*=\s*(?:new\s+)?(?:express\s*\.\s*)?Router\s*\(/g;
+  for (let m; (m = routerDeclRe.exec(text)); ) declaredRouters.add(m[1]);
+  const isRouter = (r) => declaredRouters.has(r) || /^(router|api|routes)$/i.test(r) || /(Router|Routes)$/.test(r);
 
   for (const verb of HTTP_VERBS) {
     const re = new RegExp(`\\b(\\w+)\\s*\\.\\s*${verb}\\s*\\(\\s*([^,)]*)`, 'g');
@@ -706,16 +763,17 @@ function indexJsHttp(text, struct, file, idx) {
         continue;
       }
       const mount = mounts.get(recv);
-      if (mount === undefined) {
-        idx.unresolved.push({
-          kind: 'router-mount-unknown',
-          file,
-          line,
-          detail: `${recv}.${verb}('${lit}') — nenhum app.use()/register() conhecido monta '${recv}'; o prefixo é desconhecido`,
-        });
+      if (mount === undefined || !mount.length) {
+        // Sem mount LOCAL: a rota fica pendente do índice global de mounts, resolvida na passa 2.
+        // Se ninguém montar este arquivo, a passa 2 a devolve como `router-mount-unknown` — o
+        // veredito de antes, só que tomado depois de olhar o repositório inteiro em vez de um
+        // arquivo isolado.
+        idx.pendingRoutes.push({ method: verb.toUpperCase(), rel: lit, recv, file, line });
         continue;
       }
-      idx.absolute.push({ method: verb.toUpperCase(), path: joinPath(mount, lit), file, line });
+      for (const prefix of [...new Set(mount)]) {
+        idx.absolute.push({ method: verb.toUpperCase(), path: joinPath(prefix, lit), file, line });
+      }
     }
   }
 
@@ -758,9 +816,82 @@ function indexJsHttp(text, struct, file, idx) {
 
 // ── Passa 2: composição transitiva ─────────────────────────────────────────────────────────
 
+// resolveSpec: especificador relativo de import/require → caminho de arquivo do índice, tentando
+// as formas que Node aceita (extensão explícita, extensão implícita, index do diretório). Devolve
+// null quando nada casa — mount para arquivo que o scanner não leu não é mount conhecido.
+function resolveSpec(fromFile, spec, knownFiles) {
+  const base = posixDirname(fromFile);
+  const target = posixJoin(base, spec);
+  const cands = [target];
+  for (const ext of ['.js', '.mjs', '.cjs', '.ts']) cands.push(target + ext);
+  for (const ext of ['.js', '.mjs', '.cjs', '.ts']) cands.push(posixJoin(target, 'index' + ext));
+  for (const c of cands) if (knownFiles.has(c)) return c;
+  return null;
+}
+function posixDirname(p) { const i = p.lastIndexOf('/'); return i < 0 ? '' : p.slice(0, i); }
+function posixJoin(a, b) {
+  const parts = [];
+  for (const seg of `${a}/${b}`.split('/')) {
+    if (!seg || seg === '.') continue;
+    if (seg === '..') parts.pop(); else parts.push(seg);
+  }
+  return parts.join('/');
+}
+
+// candidatasVisiveis: das N definições homônimas de um produtor, quais o arquivo que INVOCA
+// enxerga de fato — `using` do chamador, seu próprio namespace, e os `global using` do projeto.
+// Produtor sem namespace está no namespace global e é visível de qualquer lugar.
+// Devolve a lista original quando o filtro não ajuda (nenhuma candidata visível): nesse caso o
+// scanner não sabe menos do que sabia, e continua reportando ambiguidade em vez de escolher.
+function candidatasVisiveis(cands, callFile, idx) {
+  if (cands.length <= 1) return cands;
+  const escopo = idx.csScope.get(callFile);
+  if (!escopo) return cands;
+  const visivel = new Set([...escopo.usings, ...idx.csGlobalUsings]);
+  if (escopo.ns) visivel.add(escopo.ns);
+  const filtradas = cands.filter((p) => !p.ns || visivel.has(p.ns));
+  return filtradas.length ? filtradas : cands;
+}
+
 function compose(idx) {
   const routes = [];
   const unresolved = [...idx.unresolved];
+
+  // ── mounts cross-arquivo (LDG-0019) ──────────────────────────────────────────────────────
+  // Cada `app.use('/prefix', importado)` vira um prefixo aplicável ao ARQUIVO que o import
+  // resolve. Um mesmo arquivo montado em dois prefixos é UNIÃO, não ambiguidade: em Express as
+  // duas montagens existem em runtime e as duas rotas respondem — o oposto do produtor .NET
+  // homônimo, em que N definições disputam UMA invocação e escolher seria inventar.
+  const knownFiles = new Set(idx.files || []);
+  const prefixesByFile = new Map();
+  for (const m of idx.mounts || []) {
+    const target = resolveSpec(m.from, m.spec, knownFiles);
+    if (target === null) {
+      unresolved.push({
+        kind: 'router-mount-unresolved-import',
+        file: m.from,
+        line: 0,
+        detail: `app.use('${m.prefix}', …) monta '${m.spec}', que não resolve para nenhum arquivo lido — o prefixo existe mas não se sabe a que rotas aplicar`,
+      });
+      continue;
+    }
+    push(prefixesByFile, target, m.prefix);
+  }
+  for (const p of idx.pendingRoutes || []) {
+    const prefixes = prefixesByFile.get(p.file);
+    if (!prefixes || !prefixes.length) {
+      unresolved.push({
+        kind: 'router-mount-unknown',
+        file: p.file,
+        line: p.line,
+        detail: `${p.recv}.${p.method.toLowerCase()}('${p.rel}') — nenhum app.use()/register() conhecido monta '${p.recv}', neste arquivo nem em outro; o prefixo é desconhecido`,
+      });
+      continue;
+    }
+    for (const prefix of [...new Set(prefixes)]) {
+      routes.push({ method: p.method, path: normalizePath(joinPath(prefix, p.rel)), file: p.file, line: p.line, chain: [] });
+    }
+  }
 
   // Rotas já absolutas (atributos, Spring, Ktor, Express) entram direto — nesses dialetos o
   // prefixo é léxico e já foi resolvido na indexação.
@@ -782,12 +913,15 @@ function compose(idx) {
   const producerByOwner = new Map();
   for (const p of allProducers) producerByOwner.set(`${p.scope}:${p.param}`, p);
 
+  // A ambiguidade é julgada POR CHAMADA, não por nome: o mesmo `MapEndpoints` pode ser inequívoco
+  // num host que importa uma feature só e ambíguo noutro que importa várias. Julgar pelo nome
+  // global condenava o primeiro caso junto com o segundo.
   const invokedNames = new Set();
   const ambiguousNames = new Set();
   for (const c of idx.calls) {
-    const n = (idx.producers.get(c.producer) || []).length;
-    if (n === 1) invokedNames.add(c.producer);
-    else if (n > 1) ambiguousNames.add(c.producer);
+    const cands = candidatasVisiveis(idx.producers.get(c.producer) || [], c.file, idx);
+    if (cands.length === 1) invokedNames.add(c.producer);
+    else if (cands.length > 1) ambiguousNames.add(c.producer);
   }
 
   // Um owner é RAIZ quando o prefixo dele é conhecido sem se saber quem o invocou: o `app` do
@@ -848,7 +982,7 @@ function compose(idx) {
     }
 
     for (const c of callsByOwner.get(ownerId) || []) {
-      const cands = idx.producers.get(c.producer) || [];
+      const cands = candidatasVisiveis(idx.producers.get(c.producer) || [], c.file, idx);
       if (cands.length === 0) {
         unresolved.push({
           kind: 'producer-not-found',
@@ -940,12 +1074,13 @@ function compose(idx) {
  */
 export function scanRoutes(paths, { exts = ROUTE_EXTS, skipDirs = DEFAULT_SKIP, root = process.cwd() } = {}) {
   const files = [...new Set(collect(paths, { exts, skipDirs }))];
-  const idx = { groups: [], producers: new Map(), routes: [], calls: [], absolute: [], unresolved: [] };
+  const idx = { groups: [], producers: new Map(), routes: [], calls: [], absolute: [], unresolved: [], mounts: [], pendingRoutes: [], files: [], csScope: new Map(), csGlobalUsings: new Set() };
 
   for (const f of files) {
     const raw = readFileSync(f, 'utf8');
     const { code: text, struct } = project(raw);
     const rel = relative(root, f) || f;
+    idx.files.push(rel);   // índice de arquivos lidos: resolveSpec() casa mounts contra ele
     const ext = f.slice(f.lastIndexOf('.'));
 
     if (ext === '.cs') {

@@ -1,10 +1,10 @@
 {
   "schema": "graph/v0",
-  "generated_at": "2026-08-03T22:49:55.375Z",
+  "generated_at": "2026-08-04T00:26:33.693Z",
   "engine": "native",
   "root": "/Users/milton/Documents/projects/forge-harness",
   "stats": {
-    "nodes": 19,
+    "nodes": 20,
     "edges": 2,
     "languages": [
       "csharp",
@@ -13,16 +13,24 @@
       "kotlin",
       "ts"
     ],
-    "summaries_stale": 19,
+    "summaries_stale": 20,
     "census": {
       "csharp": 3,
       "go": 9,
-      "js": 3,
+      "js": 4,
       "kotlin": 1,
       "ts": 3
     }
   },
   "nodes": [
+    {
+      "id": "bin/forge.mjs",
+      "lang": "js",
+      "loc": 731,
+      "fingerprint": "3fd4f7b061f52dca36a30025df1e50fd103687889392ccbd0732261a9cce7d18",
+      "layer": "unknown",
+      "summary": null
+    },
     {
       "id": "tests/fixtures/authz/fail/imperative-outside-pep.go",
       "lang": "go",

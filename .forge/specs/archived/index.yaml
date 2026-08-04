@@ -31,3 +31,7 @@ archived:
     archived_at: "2026-08-03"
     kind: baseline_update
     path: 2026-08-03-tasks-meta-required
+  - change_id: graph-bin-source
+    archived_at: "2026-08-03"
+    kind: baseline_update
+    path: 2026-08-03-graph-bin-source

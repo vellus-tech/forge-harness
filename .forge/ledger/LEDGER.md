@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**18 itens ativos** · roadmap 4 · tech-debt 9 · known-bug 2 · follow-up 3 · (10 encerrados)
+**17 itens ativos** · roadmap 4 · tech-debt 9 · known-bug 1 · follow-up 3 · (11 encerrados)
 
 ## Roadmap
 
@@ -49,10 +49,10 @@ _Encerrados: 7 (resolved 6 · wont-fix 1)_
 
 ## Bugs conhecidos
 
-- **LDG-0026** [open] (P2/MEDIUM) — Code graph pula bin/ — em projeto Node isso remove o entrypoint do CLI do grafo
-  SKIP_DIRS em lib/graph-build.mjs:23-24 lista 'bin' junto de dist/build/out/obj, heurística de saída-de-compilação de .NET/Java. Em projeto Node, bin/ é o entrypoint declarado no package.json — código-fonte, não artefato. Consequência: /forge:impact, /forge:onboard e /forge:c4 operam sobre um grafo sem o ponto de entrada, e nada avisa (o arquivo simplesmente não vira nó). Afeta consumidores, não só o dogfood. Correção provável: decidir por sinal do projeto (bin do package.json, presença de shebang/import) em vez de pelo nome do diretório. Achado ao rodar /forge:codegraph neste repo (2026-08-03), onde o grafo saiu com 19 nós, 16 deles fixtures de teste.
 - **LDG-0028** [open] (P3/LOW) — forge update: mensagem diz '.forge não encontrado' quando o ausente é o forge.yaml
   bin/forge.mjs:426-427 testa existsSync(.forge/forge.yaml) e, ao falhar, emite '.forge não encontrado em <target> — use npx forge-harness init'. Num projeto com .forge/ presente mas sem forge.yaml (harness parcialmente instalado, forge.yaml apagado, ou o dogfood deste repo), a mensagem manda reinstalar do zero quando o diagnóstico real é outro — e 'init' num .forge/ com specs e baseline é justamente o que o /forge:upgrade proíbe. O exit 3 e o não-escrever estão corretos (REQ-FHT-037); só a mensagem mente sobre a causa. Correção: distinguir os dois casos e, quando .forge/ existe, nomear o arquivo ausente. Achado ao rodar /forge:upgrade neste repo (2026-08-03).
+
+_Encerrados: 1 (resolved 1)_
 
 ## Follow-ups
 

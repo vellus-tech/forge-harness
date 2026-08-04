@@ -1,0 +1,15 @@
+verification:
+  commit: "fa6ffbb"
+  verified_at: "2026-08-04"
+  checks:
+    - name: "npm-test-full-suite"
+      command: "npm test"
+      status: passed
+    - name: "w132-route-surface-gate (53 casos, 15 mutações mortas)"
+      command: "bash tests/w132-route-surface-gate.sh"
+      status: passed
+    - name: "medição de cobertura: Express canônico 0->5 rotas, vertical slice .NET 0->2"
+      command: "node scratchpad/medir.mjs (fixtures representativos dos dois layouts)"
+      status: passed
+  evidence:
+    - "verification.md — tabela REQ-a-REQ, medição antes/depois e a premissa do ledger que caiu"

@@ -39,3 +39,7 @@ archived:
     archived_at: "2026-08-04"
     kind: baseline_update
     path: 2026-08-04-red-first-ci-authority
+  - change_id: route-scan-multifile-mounts
+    archived_at: "2026-08-04"
+    kind: baseline_update
+    path: 2026-08-04-route-scan-multifile-mounts

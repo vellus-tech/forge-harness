@@ -436,10 +436,10 @@
       "id": "LDG-0019",
       "type": "tech-debt",
       "title": "route-scan: layouts dominantes (vertical slice .NET, Express multi-arquivo) resolvem zero rotas por conservadorismo correto",
-      "detail": "Consequencia deliberada de duas correcoes do PR #40, medida na segunda rodada de revisao. (1) VERTICAL SLICE .NET: o convenio em que cada feature define 'public static void MapEndpoints(this RouteGroupBuilder g)' produz producer-ambiguous em 100% das invocacoes e ZERO rotas, porque com N definicoes homonimas o scanner nao sabe qual delas a invocacao alcanca. Escolher uma (o comportamento anterior) emitia rota cruzada entre modulos e perdia a rota real, entao reportar e' a resposta certa — mas o custo de cobertura e' total nesse layout. Desambiguar de verdade exige resolver namespace/using do C#, que esta fora do alcance de um scanner por regex. (2) EXPRESS MULTI-ARQUIVO: 'mounts' e' local ao indexJsHttp e portanto POR ARQUIVO; o layout canonico (routers em arquivos separados, app.use no app.js) so gera router-mount-unknown. A simetria que falta e' promover mounts ao indice global e resolve-los na passa 2, como ja e' feito com os produtores .NET — isso e' trabalho de tamanho conhecido e fecharia o caso. AMBOS interagem com LDG-0017: enquanto o SUR-01 nao se abstiver na presenca de unresolved, esses layouts reprovariam por inteiro se o gate fosse fiado hoje.",
+      "detail": "Consequencia deliberada de duas correcoes do PR #40, medida na segunda rodada de revisao. (1) VERTICAL SLICE .NET: o convenio em que cada feature define 'public static void MapEndpoints(this RouteGroupBuilder g)' produz producer-ambiguous em 100% das invocacoes e ZERO rotas, porque com N definicoes homonimas o scanner nao sabe qual delas a invocacao alcanca. Escolher uma (o comportamento anterior) emitia rota cruzada entre modulos e perdia a rota real, entao reportar e' a resposta certa — mas o custo de cobertura e' total nesse layout. Desambiguar de verdade exige resolver namespace/using do C#, que esta fora do alcance de um scanner por regex. (2) EXPRESS MULTI-ARQUIVO: 'mounts' e' local ao indexJsHttp e portanto POR ARQUIVO; o layout canonico (routers em arquivos separados, app.use no app.js) so gera router-mount-unknown. A simetria que falta e' promover mounts ao indice global e resolve-los na passa 2, como ja e' feito com os produtores .NET — isso e' trabalho de tamanho conhecido e fecharia o caso. AMBOS interagem com LDG-0017: enquanto o SUR-01 nao se abstiver na presenca de unresolved, esses layouts reprovariam por inteiro se o gate fosse fiado hoje. — Resolvido: Entregue pelo change route-scan-multifile-mounts (archived 2026-08-04, REQ-FHT-051). Express multi-arquivo: mounts promovidos ao índice global e resolvidos na passa 2, montagem múltipla como união, router reconhecido pela atribuição. Vertical slice .NET: a premissa do item ('resolver namespace/using está fora do alcance de um scanner por regex') NÃO se sustentou para a forma comum — 'namespace X;' e 'using X;' são regexáveis e são o que o compilador usa; a ambiguidade passou a ser julgada por chamada. Continuam fora do alcance alias de using e ImplicitUsings do .csproj. MEDIÇÃO: Express canônico 0 -> 5 rotas, vertical slice .NET 0 -> 2 rotas, ambos com zero irresolúveis — este é o insumo que o LDG-0010 pedia. Achado extra durante a medição: require('express').Router() não era reconhecido e o receptor não classificado sumia sem diagnóstico (zero rotas E zero irresolúveis), corrigido no mesmo change com route-receiver-unknown ancorado no uso do framework.",
       "severity": null,
       "priority": "P2",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -452,8 +452,8 @@
         "promoted_to": null
       },
       "created_at": "2026-08-03T14:30:55-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-08-04T10:34:50-03:00",
+      "resolved_at": "2026-08-04T10:34:50-03:00",
       "dedup_key": "manual:LDG-0019"
     },
     {

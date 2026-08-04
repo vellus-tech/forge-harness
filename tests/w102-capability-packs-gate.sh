@@ -29,7 +29,8 @@ echo "[3] adapter agents-skills usa inventário dinâmico"
 (cd "$T" && bash .forge/scripts/smoke-adapters.sh) | tail -1 | grep -q '^OK$'
 projected="$(find "$T/.agents/skills" -name SKILL.md | wc -l | tr -d ' ')"
 canonical="$(find "$T/.forge/skills" -name SKILL.md | wc -l | tr -d ' ')"
-[ "$projected" = "$canonical" ] && [ "$canonical" -gt 10 ]
+[ "$projected" = "$canonical" ] && [ "$canonical" -gt 10 ] \
+  || { echo "FAIL [3]: skills projetadas ($projected) != canônicas ($canonical), ou canônicas <= 10"; exit 1; }
 echo "OK [3] ($canonical skills)"
 
 echo "[4] doctor sugere .NET sem ativar"

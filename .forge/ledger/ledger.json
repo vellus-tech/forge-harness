@@ -271,7 +271,7 @@
       "detail": "Custou um ciclo de diagnostico nesta sessao: o w32-archive-gate morreu no meio do passo [2] sem uma linha de saida, e a causa real (um check novo reprovando por outro motivo) ficou invisivel. A forma funciona como assercao — set -e mata o gate — mas engole a razao, e o proximo diagnostico comeca do zero. Varredura encontra o padrao em ~15 gates (w14-adapters com 10 ocorrencias, gw1/gw2/gw3, changelog-merge, w33, w50, w80, w102, w112, w32:168). Distinguir os casos de CONTROLE DE FLUXO legitimo (run-all.sh:31/37/38, copia condicional de fixture) dos de ASSERCAO, e converter apenas os segundos para a forma '|| { echo FAIL ...; exit 1; }'. Corrigido nesta sessao apenas w32:138, o que a regressao atingiu.",
       "severity": null,
       "priority": "P2",
-      "status": "open",
+      "status": "promoted",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -280,11 +280,13 @@
       "links": {
         "adr": [],
         "capability": [],
-        "change": [],
-        "promoted_to": null
+        "change": [
+          "gate-assert-visibility"
+        ],
+        "promoted_to": "gate-assert-visibility"
       },
       "created_at": "2026-07-29T20:21:33-03:00",
-      "updated_at": null,
+      "updated_at": "2026-08-04T11:52:45-03:00",
       "resolved_at": null,
       "dedup_key": "manual:LDG-0012"
     },
@@ -703,6 +705,160 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0029"
+    },
+    {
+      "id": "LDG-0030",
+      "type": "known-bug",
+      "title": "Bugfix scale 2 que dispensa design fica deadlocked: design-ready exige design.md sem honrar quick_plan.skipped_phases",
+      "detail": "Bugfix scale 2 que dispensa design ficava deadlocked: spec-transition.sh não consultava quick_plan/type ao montar a cadeia, e validate-spec.mjs exigia design.md incondicionalmente em design-ready. Achado pelo yolo-gate ao decidir o design_reviewed do change gate-assert-visibility. — RESOLVIDO em spec-transition.sh (PR #42, 3 rodadas de revisão adversarial pelo code-evaluator): design-ready permanece SEMPRE na cadeia para scale>=2 (retrocompatível com manifests legados já parados lá, e ainda alcançável por bugfix que queira design real); pulo lateral requirements-ready->tasks-ready fica disponível só para type:bugfix — uma 1ª versão do fix removia design-ready da cadeia (quebrava retrocompatibilidade), uma 2ª tentava generalizar para quick_plan.skipped_phases mas virava código morto porque validate-spec.mjs não honra quick_plan no guard de tasks-ready (achado numa 2ª rodada de revisão) — a generalização foi revertida, mantido só o predicado por type que é o caso real que originou o item. Coberto por teste com TDD real (tests/w21-pipeline-gate.sh cenário [1b], vermelho confirmado contra o código anterior). A extensão a quick_plan segue como trabalho futuro genuíno, não como algo já entregue — ver LDG-0035 (drift de schema) e o guard de validate-spec.mjs que precisaria mudar junto. Nota lateral do item original (yaml-lite.mjs não suporta array em flow style) segue aberta como LDG-0033.",
+      "severity": null,
+      "priority": "P2",
+      "status": "resolved",
+      "source": {
+        "change_id": "gate-assert-visibility",
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "gate-assert-visibility"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-04T11:52:45-03:00",
+      "updated_at": "2026-08-04T19:11:44-03:00",
+      "resolved_at": "2026-08-04T17:22:38-03:00",
+      "dedup_key": "manual:LDG-0030"
+    },
+    {
+      "id": "LDG-0031",
+      "type": "known-bug",
+      "title": "C4: arquivo de boundary de arquivo único, cross-referenciado, não aparece em nenhum dos 3 níveis — e o C3 omite toda aresta cross-boundary",
+      "detail": "Achado incidental na TASK-17 do change gate-assert-visibility, ao converter a asserção bare do cenário [5] de tests/w43-c4-gate.sh (a asserção mascarava a própria reprovação: 'grep -rq A && ! grep -rEq B' sob set -e — quando A falha, A não é o último comando da lista && e fica isento de set -e, então o gate seguia para OK [5] sem nunca avaliar B). Duas lacunas distintas em template/.forge/scripts/lib/c4-gen.mjs, ambas reproduzidas por execução direta, não inferidas. (1) Boundary de arquivo único não gera component view: a linha 'if (allFiles.length < 2) continue;' (c4-gen.mjs:127, presente desde a introdução em cda9ecb) pula o C3 do boundary, e como C1 só mostra sistema+externals e C2 agrega por boundary ('src/domain (1)'), o nome do arquivo nunca é renderizado em nível nenhum. Comportamento assimétrico: boundary de 2 arquivos expõe os nomes, o de 1 arquivo some — e contradiz o espírito declarado do próprio gerador para o caminho de boundary grande (c4-gen.mjs:30, 'nenhum arquivo some, só sobe de abstração'). (2) O C3 de boundary pequeno desenha APENAS arestas intra-boundary: c4-gen.mjs:137-140 exige que AMBOS os extremos estejam em 'inset' (os arquivos do próprio boundary), então toda dependência de saída é descartada. Esta é a metade mais consequente, porque o diagrama fica afirmativamente enganoso, não só incompleto: no C4 canônico a Component view mostra os componentes/containers externos com que o boundary conversa. REPRODUÇÃO: mini-repo TS com src/domain/money.ts (único arquivo do boundary) e services/billing/{invoice.ts,payment.ts}, onde invoice.ts importa '../../src/domain/money'; rodar graph.sh build + c4.sh. Resultado observado: gera só c1-context.md, c2-container.md e c3-component-services-billing.md; 'grep -r money .forge/graph/c4/' não retorna NADA; e c3-component-services-billing.md sai com f0[\"invoice ts\"] e f1[\"payment ts\"] e ZERO arestas, apesar de a única aresta resolvida do grafo (invoice.ts -> money.ts) partir dali. O rastro da dependência sobrevive só no C2, como 'c0 --> c1' entre boundaries. NOTA DE COBERTURA: enquanto (2) valer, o ramo de renderização de aresta intra-boundary (c4-gen.mjs:139) era código morto no gate w43 — a fixture só tinha aresta cross-boundary e o cenário [7] exercita o ramo agregado. A TASK-17 passou a cobri-lo ao dar 2 arquivos a src/domain (currency.ts importando ./money), que é também o que destrava o cenário [5]. Corrigir o gerador ficou FORA de escopo do gate-assert-visibility (change puramente mecânico de visibilidade de falha): mudaria o artefato gerado de todo projeto consumidor e exige decisão de design sobre o que uma Component view deve mostrar (nó externo tracejado? C3 de nó único?).",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-04T15:18:28-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0031"
+    },
+    {
+      "id": "LDG-0032",
+      "type": "known-bug",
+      "title": "tests/w111-liaison-sync-gate.sh:259 é uma asserção vazia (grep ... && true — sempre verdadeira)",
+      "detail": "Achado durante a varredura completa do LDG-0012 no bugfix.md do change gate-assert-visibility. A linha 'grep -rn \"gh \" \"...transports/gh.sh\" | grep -vq \"^.*#\" && true' sempre avalia para true (o '&& true' descarta qualquer status de saída), então esta asserção nunca reprova, independentemente do conteúdo real de transports/gh.sh. Tem marcador de cenário '[12]' acima (linha 258), então bateria com o critério objetivo do LDG-0012 (marcador [n] presente = candidato a conversão), mas é uma classe de defeito DIFERENTE — não é morte/passagem silenciosa sob set -e, é uma asserção estruturalmente vazia. Fora do escopo do gate-assert-visibility (que corrige só o idioma bare && sob set -e). Corrigir provavelmente remove o '&& true' redundante, deixando o grep -vq como a asserção real (o script já continua com o if seguinte que faz a checagem de verdade — avaliar se a linha é vestigial e pode ser removida, ou se faltou uma checagem que ela deveria fazer).",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": "gate-assert-visibility",
+        "origin": "gate-assert-visibility (TASK-24)",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "gate-assert-visibility"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-04T16:36:39-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0032"
+    },
+    {
+      "id": "LDG-0033",
+      "type": "tech-debt",
+      "title": "yaml-lite.mjs não parseia array em flow style — quick_plan.skipped_phases: [design] vira string literal",
+      "detail": "Residual do LDG-0030 (agora resolvido), citado como nota lateral no item original. spec-new.sh grava skipped_phases em flow style ([]) por padrão, induzindo o autor ao formato que o parser não entende; block style (- design) funciona. Corrigir yaml-lite.mjs para suportar flow style, ou spec-new.sh para gravar block style por padrão.",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": "gate-assert-visibility",
+        "origin": "gate-assert-visibility PR #42 code-evaluator",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "gate-assert-visibility"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-04T17:22:38-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0033"
+    },
+    {
+      "id": "LDG-0034",
+      "type": "tech-debt",
+      "title": "Mensagens FAIL de algumas conversões do LDG-0012 agrupam 2-3 condições sem indicar qual falhou",
+      "detail": "Achado pelo quality-reviewer no code-evaluator do PR #42. Exemplos: w13-init-gate.sh/w14-adapters-gate.sh 'FAIL [1]: settings.json/claude.lock.yaml/core.lock.yaml ausentes' (3 arquivos bundled), w30-schemas-gate.sh:377 'CHANGELOG.md do baseline ou product/published ausente' (OR vago). Fora do escopo da correção mecânica original (converter, não redesenhar diagnóstico). Separar em ifs com mensagem por cláusula numa iteração futura.",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": "gate-assert-visibility",
+        "origin": "gate-assert-visibility PR #42 code-evaluator (QUAL-005)",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "gate-assert-visibility"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-04T17:22:38-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0034"
+    },
+    {
+      "id": "LDG-0035",
+      "type": "tech-debt",
+      "title": "Nenhum gate confronta archive-state-machine.yaml (definição canônica) com a cadeia executável de spec-transition.sh",
+      "detail": "Achado pelo harness-integrity-reviewer no code-evaluator do PR #42, atualizado após 2ª rodada de revisão (R2-004): a evidência original citava uma isenção de design-ready por type:bugfix em validate-spec.mjs que foi revertida no mesmo PR (design-ready voltou a exigir design.md incondicionalmente, para qualquer type). O drift real e atual é outro: a rota lateral requirements-ready -> tasks-ready (pulo de design-ready, só para type:bugfix scale>=2) não consta como transição nenhuma em template/.forge/schemas/archive-state-machine.yaml, cuja cadeia declarada só prevê requirements-ready -> design-ready -> tasks-ready linear. tools/validate-forge.mjs e w30-schemas-gate.sh só validam o YAML contra seu próprio JSON schema — nenhum gate deriva a cadeia real de spec-transition.sh e confere contra as transições declaradas. Adicionar a aresta lateral ao schema (ex.: um campo type_conditional ou uma transição extra explícita) + um gate que derive (scale,type) -> next esperado do script e compare com o YAML fecharia a classe inteira de drift silencioso.",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": "gate-assert-visibility",
+        "origin": "gate-assert-visibility PR #42 code-evaluator (INTEG-007)",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "gate-assert-visibility"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-04T17:22:38-03:00",
+      "updated_at": "2026-08-04T18:51:20-03:00",
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0035"
     }
   ]
 }

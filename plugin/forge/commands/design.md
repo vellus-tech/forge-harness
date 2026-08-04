@@ -7,7 +7,7 @@ argument-hint: "[<change-id>]"
 
 Argumentos: `$ARGUMENTS` (change-id opcional; sem argumento, use o único change ativo).
 
-Pré-condições: status `requirements-ready` (scale ≥2). Scale 0/1 dispensam esta fase — informe e sugira `/forge:tasks` (forçar design em scale baixo é permitido sem transição extra; pular design em scale ≥2 exige `quick_plan` no manifest com justificativa). Tipo `bugfix` normalmente dispensa design (root cause vive no `bugfix.md`); crie `design.md` só se a correção exigir decisão arquitetural.
+Pré-condições: status `requirements-ready` (scale ≥2). Scale 0/1 dispensam esta fase — informe e sugira `/forge:tasks` (forçar design em scale baixo é permitido sem transição extra). Tipo `bugfix` scale ≥2 pula esta fase automaticamente (root cause vive no `bugfix.md`) e pode ir direto a `/forge:tasks`; `design-ready` continua disponível como opção quando a correção tem decisão arquitetural — crie `design.md` normalmente e siga o fluxo de baixo. Para os demais tipos, pular design em scale ≥2 declarando `quick_plan` no manifest é uma intenção documentada, mas ainda **não tem mecanismo de skip implementado** (o guard de `design.md` do validador não consulta `quick_plan` hoje — ver `LDG-0035` no ledger).
 
 ## 1. Builder
 

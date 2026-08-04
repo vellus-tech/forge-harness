@@ -51,7 +51,8 @@ EOF
 set +e
 out="$(FORGE_ROOT="$T" bash "$VR")"; rc=$?
 set -e
-[ "$rc" -ne 0 ] && grep -q 'ghost.md' <<<"$out" && echo "$out" | grep -q 'ADR-0099'
+[ "$rc" -ne 0 ] && grep -q 'ghost.md' <<<"$out" && echo "$out" | grep -q 'ADR-0099' \
+  || { echo "FAIL [3]: validate-rules não reprovou ghost.md citando ADR-0099 inexistente (rc=$rc, out=$out)"; exit 1; }
 rm "$T/.forge/rules/architecture/ghost.md"
 echo "OK [3]"
 
@@ -71,7 +72,8 @@ EOF
 set +e
 out="$(FORGE_ROOT="$T" bash "$VR")"; rc=$?
 set -e
-[ "$rc" -ne 0 ] && grep -q 'premature.md' <<<"$out" && echo "$out" | grep -qi 'proposed'
+[ "$rc" -ne 0 ] && grep -q 'premature.md' <<<"$out" && echo "$out" | grep -qi 'proposed' \
+  || { echo "FAIL [4]: validate-rules não reprovou premature.md citando ADR proposed (rc=$rc, out=$out)"; exit 1; }
 rm "$T/.forge/rules/architecture/premature.md"
 echo "OK [4]"
 

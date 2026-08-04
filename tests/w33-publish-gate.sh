@@ -80,7 +80,8 @@ echo "edicao manual indevida" >> "$T/docs/product/capabilities/billing/spec.yaml
 set +e
 out="$(FORGE_ROOT="$T" bash "$S/validate-archive.sh" probe 2>&1)"; rc=$?
 set -e
-[ "$rc" -ne 0 ] && grep -q 'without baseline origin' <<<"$out"
+[ "$rc" -ne 0 ] && grep -q 'without baseline origin' <<<"$out" \
+  || { echo "FAIL [3]: validate-archive não reprovou edição manual em docs/product citando 'without baseline origin' (rc=$rc, out=$out)"; exit 1; }
 echo "OK [3]"
 
 echo "[4] re-publish cura o round-trip"

@@ -7,7 +7,7 @@ argument-hint: "[<change-id>]"
 
 Argumentos: `$ARGUMENTS` (change-id opcional; sem argumento, use o único change ativo).
 
-Pré-condição: a última fase exigida pelo scale está pronta (`requirements-ready` em scale 1; `design-ready` em scale ≥2; `proposed` em scale 0).
+Pré-condição: a última fase exigida pelo scale está pronta (`requirements-ready` em scale 1; `design-ready` em scale ≥2; `proposed` em scale 0). **Exceção:** `type: bugfix` scale ≥2 pode chegar direto de `requirements-ready` (design é opcional para esse tipo — ver `/forge:design`, LDG-0030); `design-ready` continua sendo um estado válido se o bugfix optou por ele.
 
 ## 1. Geração
 

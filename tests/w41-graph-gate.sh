@@ -110,7 +110,8 @@ require("fs").writeFileSync(p,JSON.stringify(g,null,2));
 set +e
 out="$(FORGE_ROOT="$T" bash "$G" validate 2>&1)"; rc=$?
 set -e
-[ "$rc" -ne 0 ] && grep -q 'referential integrity' <<<"$out"
+[ "$rc" -ne 0 ] && grep -q 'referential integrity' <<<"$out" \
+  || { echo "FAIL [6]: graph validate não reprovou edge fantasma citando 'referential integrity' (rc=$rc, out=$out)"; exit 1; }
 mv "$T/g.bak" "$T/.forge/graph/graph.json"
 echo "OK [6]"
 

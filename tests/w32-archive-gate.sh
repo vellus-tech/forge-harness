@@ -65,7 +65,8 @@ EOF
 FORGE_ROOT="$T" bash "$S/archive-spec.sh" add-card-tokenization >/dev/null
 CAP="$T/.forge/product/current/capabilities/tokenization/spec.yaml"
 [ -f "$CAP" ]
-grep -q 'REQ-TOK-001' "$CAP" && grep -q 'SCN-TOK-001-A' "$CAP"
+grep -q 'REQ-TOK-001' "$CAP" && grep -q 'SCN-TOK-001-A' "$CAP" \
+  || { echo "FAIL [1]: spec.yaml do baseline não cita REQ-TOK-001 + SCN-TOK-001-A"; exit 1; }
 grep -q 'change_id: add-card-tokenization' "$CAP"
 [ -d "$T/.forge/specs/archived/$TODAY-add-card-tokenization" ]
 [ ! -e "$T/.forge/specs/active/add-card-tokenization" ]
@@ -84,7 +85,8 @@ echo "[1b] evidência do verify sobrevive ao move do archive (issue #22 §3)"
 # (i.e. não podem embutir o segmento specs/active/<id> que deixa de existir).
 ARCHIVED_DIR="$T/.forge/specs/archived/$TODAY-add-card-tokenization"
 VRM="$(find "$ARCHIVED_DIR/evidence/runs" -name run-manifest.json -exec grep -l '"stage": "verify"' {} \; | head -1)"
-[ -n "$VRM" ] && [ -f "$VRM" ]
+[ -n "$VRM" ] && [ -f "$VRM" ] \
+  || { echo "FAIL [1b]: run-manifest de verify não encontrado em evidence/runs após o archive (VRM='$VRM')"; exit 1; }
 node -e '
   const fs = require("fs");
   const path = require("path");
@@ -165,7 +167,8 @@ H_BEFORE="$(cd "$T" && find .forge/product -type f -print0 | LC_ALL=C sort -z | 
 set +e
 out="$(FORGE_ROOT="$T" bash "$S/archive-spec.sh" chg-open 2>&1)"; rc=$?
 set -e
-[ "$rc" -ne 0 ] && grep -q 'scenario incomplete' <<<"$out"
+[ "$rc" -ne 0 ] && grep -q 'scenario incomplete' <<<"$out" \
+  || { echo "FAIL [3]: dry-run não reprovou cenário incompleto citando 'scenario incomplete' (rc=$rc, out=$out)"; exit 1; }
 H_AFTER="$(cd "$T" && find .forge/product -type f -print0 | LC_ALL=C sort -z | xargs -0 shasum -a 256 | shasum -a 256)"
 [ "$H_BEFORE" = "$H_AFTER" ]
 [ -d "$T/.forge/specs/active/chg-open" ]   # change não foi movido

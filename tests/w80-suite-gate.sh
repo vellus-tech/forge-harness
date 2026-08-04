@@ -22,7 +22,8 @@ B="$WS/tests/fixtures/brownfield"
 [ -f "$B/package.json" ]
 grep -q '"name"' "$B/package.json"
 [ -f "$B/tsconfig.json" ]
-[ -f "$B/src/money.ts" ] && [ -f "$B/src/billing.ts" ]
+[ -f "$B/src/money.ts" ] && [ -f "$B/src/billing.ts" ] \
+  || { echo "FAIL [2]: fixture brownfield sem src/money.ts e/ou src/billing.ts"; exit 1; }
 [ -f "$B/docs/product/modules/billing/requirements.md" ]
 grep -qi 'LEGADO' "$B/docs/product/modules/billing/requirements.md"
 [ -f "$B/contracts/billing.contract.md" ]
@@ -32,7 +33,8 @@ echo "OK [2]"
 
 echo "[3] run-all.sh existe, executável, --list completo"
 RA="$WS/tests/run-all.sh"
-[ -f "$RA" ] && [ -x "$RA" ]
+[ -f "$RA" ] && [ -x "$RA" ] \
+  || { echo "FAIL [3]: run-all.sh ausente ou não executável"; exit 1; }
 listing="$(bash "$RA" --list)"
 # todo *-gate.sh aparece na listagem
 for g in "$WS"/tests/*-gate.sh; do

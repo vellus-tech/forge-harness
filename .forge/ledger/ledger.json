@@ -755,6 +755,32 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0031"
+    },
+    {
+      "id": "LDG-0032",
+      "type": "known-bug",
+      "title": "tests/w111-liaison-sync-gate.sh:259 é uma asserção vazia (grep ... && true — sempre verdadeira)",
+      "detail": "Achado durante a varredura completa do LDG-0012 no bugfix.md do change gate-assert-visibility. A linha 'grep -rn \"gh \" \"...transports/gh.sh\" | grep -vq \"^.*#\" && true' sempre avalia para true (o '&& true' descarta qualquer status de saída), então esta asserção nunca reprova, independentemente do conteúdo real de transports/gh.sh. Tem marcador de cenário '[12]' acima (linha 258), então bateria com o critério objetivo do LDG-0012 (marcador [n] presente = candidato a conversão), mas é uma classe de defeito DIFERENTE — não é morte/passagem silenciosa sob set -e, é uma asserção estruturalmente vazia. Fora do escopo do gate-assert-visibility (que corrige só o idioma bare && sob set -e). Corrigir provavelmente remove o '&& true' redundante, deixando o grep -vq como a asserção real (o script já continua com o if seguinte que faz a checagem de verdade — avaliar se a linha é vestigial e pode ser removida, ou se faltou uma checagem que ela deveria fazer).",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": "gate-assert-visibility",
+        "origin": "gate-assert-visibility (TASK-24)",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "gate-assert-visibility"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-04T16:36:39-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0032"
     }
   ]
 }

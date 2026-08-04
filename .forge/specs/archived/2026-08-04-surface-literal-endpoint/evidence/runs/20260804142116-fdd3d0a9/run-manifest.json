@@ -1,0 +1,97 @@
+{
+  "schema": "run-manifest/v1",
+  "run_id": "20260804142116-fdd3d0a9",
+  "stage": "archive",
+  "status": "passed",
+  "started_at": "2026-08-04T14:21:15Z",
+  "finished_at": "2026-08-04T14:21:16.493Z",
+  "duration_ms": 1493,
+  "git": {
+    "repo": true,
+    "branch": "develop",
+    "head_sha": "5bcf362b3107ff248cb74f988fa063539f526664",
+    "dirty": true,
+    "changed_files": [
+      ".forge/graph/graph.json",
+      ".forge/ledger/LEDGER.md",
+      ".forge/ledger/ledger.json",
+      ".forge/product/current/CHANGELOG.md",
+      ".forge/product/current/capabilities/forge-harness-template/spec.yaml",
+      ".forge/specs/archived/2026-08-04-surface-literal-endpoint/",
+      ".forge/specs/archived/index.yaml"
+    ],
+    "diff_stat": ".forge/graph/graph.json                            |  2 +-\n .forge/ledger/LEDGER.md                            |  2 +-\n .forge/ledger/ledger.json                          |  4 +-\n .forge/product/current/CHANGELOG.md                |  6 +++\n .../capabilities/forge-harness-template/spec.yaml  | 48 ++++++++++++++--------\n .forge/specs/archived/index.yaml                   |  4 ++\n 6 files changed, 44 insertions(+), 22 deletions(-)",
+    "diff_sha256": "b3aa08f8a11002867215038b7b5b26923388a20c356ed8951be67cc68422de1c"
+  },
+  "inputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "995a6769de0917e4dd66526e141c53e29d3b03013dce2422c9bc7490ed574fe2",
+      "bytes": 819,
+      "kind": "file"
+    },
+    {
+      "path": "tasks.md",
+      "exists": true,
+      "sha256": "80b14af62f6939438a5d4eb69ff52290b4129476d0f95c1660159e7fbbddd90b",
+      "bytes": 821,
+      "kind": "file"
+    },
+    {
+      "path": "verification.yaml",
+      "exists": true,
+      "sha256": "fc33aa6e34204461312377a1105a10d77fa2bcf319269778a29324885c27a7bc",
+      "bytes": 780,
+      "kind": "file"
+    },
+    {
+      "path": "spec-delta.yaml",
+      "exists": true,
+      "sha256": "235d0693dc6c9c0c9fc06053c46cd05ff75abd25526ab4a915093f0ce6f4aa41",
+      "bytes": 1031,
+      "kind": "file"
+    },
+    {
+      "path": "impact.json",
+      "exists": true,
+      "sha256": "a3251af84a83dd8da78fb9caa13db79ea0db10824ec999d634207f71912e66b7",
+      "bytes": 2130,
+      "kind": "file"
+    }
+  ],
+  "commands": [
+    {
+      "name": "archive-spec",
+      "command": "archive-spec.sh surface-literal-endpoint",
+      "status": "passed"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "995a6769de0917e4dd66526e141c53e29d3b03013dce2422c9bc7490ed574fe2",
+      "bytes": 819,
+      "kind": "file"
+    },
+    {
+      "path": "evidence/runs",
+      "exists": false,
+      "sha256": null,
+      "bytes": null
+    }
+  ],
+  "runner": {
+    "name": "local",
+    "profile": "standard"
+  },
+  "budgets": {
+    "profile": "standard",
+    "budget_class": "medium",
+    "expected_runs": 1,
+    "estimated_timeout_s": 300,
+    "uses_llm": false,
+    "uses_subagent": false
+  }
+}

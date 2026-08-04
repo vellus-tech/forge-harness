@@ -1,0 +1,41 @@
+{
+  "schema": "impact/v0",
+  "generated_at": "2026-08-04T14:21:15.768Z",
+  "graph_fingerprint": "54cbced203c8bdf7c7d9c24862113f44a7840c1a6b5e73067e557870317ade86",
+  "seeds": [
+    "tests/fixtures/authz/fail/imperative-outside-pep.go",
+    "tests/fixtures/authz/fail/imperative-outside-pep.kt",
+    "tests/fixtures/authz/fail/imperative-outside-pep.ts",
+    "tests/fixtures/authz/pass/pep/imperative-inside-pep.go",
+    "tests/fixtures/brownfield/src/billing.ts",
+    "tests/fixtures/brownfield/src/money.ts",
+    "tests/fixtures/data-governance/log-pan-fail/service.go",
+    "tests/fixtures/data-governance/log-pan-masked-pass/service.go",
+    "tests/fixtures/data-governance/sensitive-field-fail/model.go",
+    "tests/fixtures/data-governance/sensitive-field-pass/model.go",
+    "tests/fixtures/observability/fail/services/orders/api/handler.go",
+    "tests/fixtures/observability/pass/packages/otel/wrap.go",
+    "tests/fixtures/observability/pass/services/orders/api/handler.go",
+    "tests/fixtures/w132/dotnet/Program.cs",
+    "tests/fixtures/w132/dotnet/WidgetEndpoints.cs",
+    "tests/fixtures/w132/dotnet/WidgetStreamEndpoints.cs"
+  ],
+  "impacted": [
+    "tests/fixtures/authz/fail/imperative-outside-pep.go",
+    "tests/fixtures/authz/fail/imperative-outside-pep.kt",
+    "tests/fixtures/authz/fail/imperative-outside-pep.ts",
+    "tests/fixtures/authz/pass/pep/imperative-inside-pep.go",
+    "tests/fixtures/brownfield/src/billing.ts",
+    "tests/fixtures/brownfield/src/money.ts",
+    "tests/fixtures/data-governance/log-pan-fail/service.go",
+    "tests/fixtures/data-governance/log-pan-masked-pass/service.go",
+    "tests/fixtures/data-governance/sensitive-field-fail/model.go",
+    "tests/fixtures/data-governance/sensitive-field-pass/model.go",
+    "tests/fixtures/observability/fail/services/orders/api/handler.go",
+    "tests/fixtures/observability/pass/packages/otel/wrap.go",
+    "tests/fixtures/observability/pass/services/orders/api/handler.go",
+    "tests/fixtures/w132/dotnet/Program.cs",
+    "tests/fixtures/w132/dotnet/WidgetEndpoints.cs",
+    "tests/fixtures/w132/dotnet/WidgetStreamEndpoints.cs"
+  ]
+}

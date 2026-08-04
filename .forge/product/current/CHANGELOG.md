@@ -2,6 +2,12 @@
 
 > One entry per archived change (newest first). Maintained by `/forge:archive` — do not edit by hand.
 
+## 2026-08-04 — surface-literal-endpoint
+
+- **Capabilities:** forge-harness-template
+- **Operações:** 1
+- **Pasta:** `.forge/specs/archived/2026-08-04-surface-literal-endpoint/`
+
 ## 2026-08-04 — route-scan-dialect-coverage
 
 - **Capabilities:** forge-harness-template

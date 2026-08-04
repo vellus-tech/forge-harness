@@ -412,10 +412,10 @@
       "id": "LDG-0018",
       "type": "tech-debt",
       "title": "route-scan: cobertura de dialeto conhecida e incompleta (caixa do [controller], Go, Python, tabela de policy sem ancora)",
-      "detail": "Quatro lacunas levantadas na revisao do gate w132 e deliberadamente NAO fechadas na correcao, porque nenhuma delas produz path inventado — todas produzem ausencia ou ruido, que sao visiveis. (1) O token [controller] do .NET vira o nome da classe com a caixa original ('/api/Orders'), e o contrato costuma escrever minusculo; como o roteamento do ASP.NET e case-insensitive, o endpoint existe e o SUR-01 acusaria por diferenca de caixa. Normalizar caixa em normalizePath e' tentador e ERRADO: Spring e Express sao case-sensitive, e o mesmo normalizador serve os dois. A saida provavel e' case-fold por dialeto, no indexador, nao no normalizador. (2) .py e .go estao em ROUTE_EXTS e nao tem indexador nenhum — arquivo lido e ignorado, sem diagnostico. Ou implementa, ou tira da lista. (3) fromPolicyTable varre TODA tabela markdown do spec cuja primeira celula case 'VERB /path', sem ancora de secao: uma tabela de 'APIs de terceiros CONSUMIDAS' entra na superficie declarada e o SUR-01 bloqueia porque o codigo, corretamente, nao expoe aquilo. fromChecklist ancora num heading; fromPolicyTable deveria ancorar tambem. (4) Nest so resolve @Controller literal e um controller por arquivo.",
+      "detail": "Quatro lacunas levantadas na revisao do gate w132 e deliberadamente NAO fechadas na correcao, porque nenhuma delas produz path inventado — todas produzem ausencia ou ruido, que sao visiveis. (1) O token [controller] do .NET vira o nome da classe com a caixa original ('/api/Orders'), e o contrato costuma escrever minusculo; como o roteamento do ASP.NET e case-insensitive, o endpoint existe e o SUR-01 acusaria por diferenca de caixa. Normalizar caixa em normalizePath e' tentador e ERRADO: Spring e Express sao case-sensitive, e o mesmo normalizador serve os dois. A saida provavel e' case-fold por dialeto, no indexador, nao no normalizador. (2) .py e .go estao em ROUTE_EXTS e nao tem indexador nenhum — arquivo lido e ignorado, sem diagnostico. Ou implementa, ou tira da lista. (3) fromPolicyTable varre TODA tabela markdown do spec cuja primeira celula case 'VERB /path', sem ancora de secao: uma tabela de 'APIs de terceiros CONSUMIDAS' entra na superficie declarada e o SUR-01 bloqueia porque o codigo, corretamente, nao expoe aquilo. fromChecklist ancora num heading; fromPolicyTable deveria ancorar tambem. (4) Nest so resolve @Controller literal e um controller por arquivo. — Resolvido: Entregue pelo change route-scan-dialect-coverage (archived 2026-08-04, REQ-FHT-052). (1) [controller] resolve em minúsculo, no indexador .NET e não no normalizePath — Spring e Express são case-sensitive e usam o mesmo normalizador. (2) .py e .go ganharam indexador: FastAPI com prefixo de APIRouter, Flask com methods/default GET, chi/gorilla por verbo; HandleFunc sem .Methods() vira route-verb-unknown em vez de receber verbo inventado. (3) fromPolicyTable ancorado no heading, MAS com degrade anunciado quando o heading não existe — a âncora estrita quebrava specs cuja tabela está sob outro título, e superfície declarada vazia deixa o SUR-01 verde por vacuidade, defeito pior que o falso positivo original. (4) PREMISSA ENVELHECIDA: 'um controller por arquivo' já não era verdade — a correção de prefixo-por-classe do PR #40 cobriu multi-controller de passagem; só '@Controller literal' continua valendo, e é conservadorismo correto. Dois casos existentes do w132 ([6] e [39]) foram atualizados por mudança deliberada de comportamento na caixa do token.",
       "severity": null,
       "priority": "P2",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -428,8 +428,8 @@
         "promoted_to": null
       },
       "created_at": "2026-08-03T14:30:55-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-08-04T10:48:45-03:00",
+      "resolved_at": "2026-08-04T10:48:45-03:00",
       "dedup_key": "manual:LDG-0018"
     },
     {

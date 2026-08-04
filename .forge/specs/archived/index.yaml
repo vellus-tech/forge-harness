@@ -43,3 +43,7 @@ archived:
     archived_at: "2026-08-04"
     kind: baseline_update
     path: 2026-08-04-route-scan-multifile-mounts
+  - change_id: route-scan-dialect-coverage
+    archived_at: "2026-08-04"
+    kind: baseline_update
+    path: 2026-08-04-route-scan-dialect-coverage

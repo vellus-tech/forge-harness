@@ -1,6 +1,6 @@
 {
   "schema": "graph/v0",
-  "generated_at": "2026-08-04T00:26:33.693Z",
+  "generated_at": "2026-08-04T12:38:23.462Z",
   "engine": "native",
   "root": "/Users/milton/Documents/projects/forge-harness",
   "stats": {
@@ -26,8 +26,8 @@
     {
       "id": "bin/forge.mjs",
       "lang": "js",
-      "loc": 731,
-      "fingerprint": "3fd4f7b061f52dca36a30025df1e50fd103687889392ccbd0732261a9cce7d18",
+      "loc": 739,
+      "fingerprint": "b53d678147391217e937e4146e92dc0cf51125003240441812af442fe29fb8e0",
       "layer": "unknown",
       "summary": null
     },

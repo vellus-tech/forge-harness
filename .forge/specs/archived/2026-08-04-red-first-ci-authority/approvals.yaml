@@ -27,3 +27,10 @@ approvals:
     decided_at: "2026-08-04T09:37:44-03:00"
     commit: "f8e4520"
     scope: "verification.md,verification.yaml"
+  - gate: human_archive_approval
+    decision: approve
+    reason: "LDG-0004 entregue conforme direção do autor (sequência 0026 → 0004 → 0019 → 0018 → 0010); delta = 1 add_requirement REQ-FHT-050"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-08-04T09:38:23-03:00"
+    commit: "0fd4c76"
+    scope: "spec-delta.yaml"

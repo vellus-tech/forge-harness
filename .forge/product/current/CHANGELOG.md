@@ -2,6 +2,12 @@
 
 > One entry per archived change (newest first). Maintained by `/forge:archive` — do not edit by hand.
 
+## 2026-08-04 — red-first-ci-authority
+
+- **Capabilities:** forge-harness-template
+- **Operações:** 1
+- **Pasta:** `.forge/specs/archived/2026-08-04-red-first-ci-authority/`
+
 ## 2026-08-03 — graph-bin-source
 
 - **Capabilities:** forge-harness-template

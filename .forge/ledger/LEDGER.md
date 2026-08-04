@@ -9,16 +9,16 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**17 itens ativos** · roadmap 4 · tech-debt 9 · known-bug 1 · follow-up 3 · (11 encerrados)
+**16 itens ativos** · roadmap 3 · tech-debt 9 · known-bug 1 · follow-up 3 · (12 encerrados)
 
 ## Roadmap
 
-- **LDG-0004** [open] (P2) — Red-first: mover a execução do replay para CI (fecha cache e parte do comando arbitrário)
-  A norma testing/regression-red-first.md (ADR 0003) é calibrada para descuido, não para autor adversarial: comando declarado arbitrário, defeito introduzido no próprio PR, e waiver externamente inverificável continuam abertos porque a evidência é produzida inteiramente pela parte sendo verificada, num ambiente que ela controla. Rodar o replay (red-evidence.sh ensure/replay) num runner de CI que o autor não controla fecharia o vetor do comando arbitrário (o CI define o ambiente, não o autor) e eliminaria de vez a tentação de reintroduzir um cache local (o CI não precisa de atalho de custo entre execuções isoladas). Não fecha o vetor de defeito-introduzido-no-próprio-PR nem o de waiver inverificável — esses exigem revisão humana, não infraestrutura.
 - **LDG-0008** [open] (P2) — Enforcement determinista de TDD-em-feature e de cobertura de propriedades (PBT)
 - **LDG-0010** [open] (P2) — Promover SRF-01 a bloqueante quando o route-scan (Onda C) existir
   SRF-01 hoje sai como WARN porque, sem varredura das rotas reais, ele nao distingue 'a rota nao existe' (defeito de codigo) de 'a task que entregou a rota declarou paths: incompleto' (defeito de declaracao). ATUALIZACAO (Onda C, gate w132): o pre-requisito existe — lib/route-scan.mjs resolve as rotas reais, inclusive a cadeia de dois saltos. A promocao NAO foi feita, e agora ha um motivo a mais alem da calibracao: a revisao critica do PR #40 encontrou seis classes de defeito no proprio oraculo, todas emitindo path INVENTADO com unresolved vazio (produtor homonimo indexado por nome global, subgrupo aberto dentro de produtor relativo, interpolacao dentro da aspa em JS/Kotlin, duas classes-controller por arquivo, cadeia fluente invisivel, router Express sem mount, contrato OpenAPI em JSON nunca parseado). Todas corrigidas com teste e prova de mutacao no mesmo PR. CONSEQUENCIA PARA A MEDICAO: os numeros que o PR original reportava contra o repositorio de referencia (41 rotas, zero irresolveis, SUR-01 = 0) foram medidos com o scanner defeituoso e NAO valem como calibracao — 'zero irresolveis' media a estreiteza do reconhecedor, nao a cobertura. A medicao tem de ser refeita com o scanner corrigido antes de qualquer promocao, e agora deve reportar tambem o numero de unresolved por escopo, que e' o insumo do LDG-0017.
 - **LDG-0003** [open] — Maquinaria de capability packs no harness (forge.yaml packs:, installer materializa só packs ativos)
+
+_Encerrados: 1 (resolved 1)_
 
 ## Ideias de feature
 

@@ -35,3 +35,7 @@ archived:
     archived_at: "2026-08-03"
     kind: baseline_update
     path: 2026-08-03-graph-bin-source
+  - change_id: red-first-ci-authority
+    archived_at: "2026-08-04"
+    kind: baseline_update
+    path: 2026-08-04-red-first-ci-authority

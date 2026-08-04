@@ -742,15 +742,37 @@ function indexJsHttp(text, struct, file, idx) {
   // primeiro em silêncio — junto com todas as rotas dele. O nome continua valendo como sinal
   // adicional, para o caso de o router chegar por parâmetro de função.
   const declaredRouters = new Set();
-  const routerDeclRe = /(?:const|let|var)\s+(\w+)\s*=\s*(?:new\s+)?(?:express\s*\.\s*)?Router\s*\(/g;
+  // cobre `express.Router()`, `Router()`, `new Router()` e `require('express').Router()` — esta
+  // última é forma corrente e não casava, o que fazia o arquivo inteiro sumir sem diagnóstico.
+  const routerDeclRe = /(?:const|let|var)\s+(\w+)\s*=\s*(?:new\s+)?(?:(?:require\s*\(\s*['"`][^'"`]+['"`]\s*\)|express|fastify)\s*\.\s*)?Router\s*\(/g;
   for (let m; (m = routerDeclRe.exec(text)); ) declaredRouters.add(m[1]);
+  // Sinal de que ESTE arquivo fala o dialeto: só nele um receptor desconhecido em `x.get('/…')`
+  // é candidato a rota. Sem essa âncora, todo `axios.get('/users')` do repositório viraria
+  // irresolúvel — ruído que treina a pessoa a ignorar o relatório.
+  const usaFramework = /require\s*\(\s*['"`](express|fastify|koa)['"`]|from\s*['"`](express|fastify|koa)['"`]/.test(text)
+    || declaredRouters.size > 0;
   const isRouter = (r) => declaredRouters.has(r) || /^(router|api|routes)$/i.test(r) || /(Router|Routes)$/.test(r);
 
   for (const verb of HTTP_VERBS) {
     const re = new RegExp(`\\b(\\w+)\\s*\\.\\s*${verb}\\s*\\(\\s*([^,)]*)`, 'g');
     for (let m; (m = re.exec(text)); ) {
       const recv = m[1];
-      if (!isRoot(recv) && !isRouter(recv) && !mounts.has(recv)) continue;
+      if (!isRoot(recv) && !isRouter(recv) && !mounts.has(recv)) {
+        // Não descartar em silêncio: num arquivo que usa o framework, um receptor que o scanner
+        // não classifica pode ser um router batizado de forma que a heurística não prevê — e
+        // "nenhuma rota, nenhum irresolúvel" deixa o cruzamento verde por vacuidade, que é
+        // exatamente o que este módulo existe para impedir.
+        const litOpaco = literal(m[2]);
+        if (usaFramework && litOpaco !== null && litOpaco.startsWith('/')) {
+          idx.unresolved.push({
+            kind: 'route-receiver-unknown',
+            file,
+            line: lineOf(text, m.index),
+            detail: `${recv}.${verb}('${litOpaco}') — '${recv}' não é app/router reconhecido nem tem mount conhecido; se for um router, o prefixo dele é desconhecido`,
+          });
+        }
+        continue;
+      }
       const line = lineOf(text, m.index);
       const lit = literal(m[2]);
       if (lit === null) {

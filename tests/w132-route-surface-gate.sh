@@ -1661,4 +1661,68 @@ if (paths.includes('GET /orders/invoices')) { console.error(`escolheu definiçã
 EOF
 echo "OK [50]"
 
+echo "[51] receptor de rota não reconhecido não pode sumir calado"
+# Achado ao MEDIR a cobertura depois de [46]-[50]: `const r = require('express').Router()` — forma
+# corrente — não casava o reconhecedor de router, e a condição de receptor descartava a chamada
+# com `continue`, sem rota e sem diagnóstico. Zero rotas E zero irresolúveis é o pior resultado
+# possível: o cruzamento fica verde por vacuidade. É a mesma classe do guard de reconhecimento
+# incompleto que os dialetos .NET e Ktor já têm.
+mkdir -p "$T/exprequire/routes"
+cat > "$T/exprequire/app.js" <<'JS'
+const express = require('express');
+const orders = require('./routes/orders');
+const app = express();
+app.use('/api/orders', orders);
+JS
+cat > "$T/exprequire/routes/orders.js" <<'JS'
+const r = require('express').Router();
+r.get('/:id', handler);
+module.exports = r;
+JS
+run_node <<'EOF' || { echo "FAIL [51]: receptor não reconhecido sumiu sem rota e sem diagnóstico"; exit 1; }
+const [lib, , tmp] = process.argv.slice(2);
+const { scanRoutes } = await import(`${lib}/route-scan.mjs`);
+const { routes, unresolved } = scanRoutes([`${tmp}/exprequire`], { root: tmp });
+const paths = routes.map((r) => `${r.method} ${r.path}`);
+if (!paths.includes('GET /api/orders/{}')) { console.error(`require('express').Router() não foi reconhecido: ${JSON.stringify(paths)}`); process.exit(1); }
+EOF
+
+# e o caso geral: receptor que o scanner NÃO consegue classificar, num arquivo que usa o
+# framework, vira diagnóstico — nunca silêncio
+mkdir -p "$T/expopaque"
+cat > "$T/expopaque/server.js" <<'JS'
+const express = require('express');
+const app = express();
+app.get('/health', handler);
+mistery.post('/opaque', handler);
+JS
+run_node <<'EOF' || { echo "FAIL [51b]: receptor opaco sumiu calado"; exit 1; }
+const [lib, , tmp] = process.argv.slice(2);
+const { scanRoutes } = await import(`${lib}/route-scan.mjs`);
+const { routes, unresolved } = scanRoutes([`${tmp}/expopaque`], { root: tmp });
+const paths = routes.map((r) => `${r.method} ${r.path}`);
+if (!paths.includes('GET /health')) { console.error(`rota direta sumiu: ${JSON.stringify(paths)}`); process.exit(1); }
+if (paths.includes('POST /opaque')) { console.error('receptor opaco emitiu path como se fosse absoluto'); process.exit(1); }
+if (!unresolved.some((u) => u.kind === 'route-receiver-unknown')) { console.error(`receptor opaco não foi reportado: ${JSON.stringify(unresolved)}`); process.exit(1); }
+EOF
+echo "OK [51]"
+
+echo "[52] CONTROLE: cliente HTTP num arquivo sem framework não vira ruído"
+# O guard de [51] não pode transformar todo `axios.get('/x')` do repositório em irresolúvel: o
+# sinal é o arquivo usar o framework, não a chamada parecer com uma rota.
+mkdir -p "$T/httpclient"
+cat > "$T/httpclient/client.js" <<'JS'
+const axios = require('axios');
+export async function fetchUser(id) { return axios.get('/users/' + id); }
+export async function ping() { return axios.get('/health'); }
+JS
+run_node <<'EOF' || { echo "FAIL [52]: cliente HTTP virou ruído de irresolúvel"; exit 1; }
+const [lib, , tmp] = process.argv.slice(2);
+const { scanRoutes } = await import(`${lib}/route-scan.mjs`);
+const { routes, unresolved } = scanRoutes([`${tmp}/httpclient`], { root: tmp });
+if (routes.length) { console.error(`cliente HTTP virou rota: ${JSON.stringify(routes.map((r) => r.path))}`); process.exit(1); }
+if (unresolved.some((u) => u.kind === 'route-receiver-unknown')) { console.error('axios num arquivo sem framework virou irresolúvel — ruído'); process.exit(1); }
+EOF
+echo "OK [52]"
+
 echo "OK"

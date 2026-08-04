@@ -23,3 +23,11 @@ approvals:
     decided_at: "2026-08-04T14:48:42-03:00"
     commit: "cb577f2"
     scope: "tasks.md"
+  - gate: implementation_verified
+    decision: approve
+    reason: "verification.md APROVADO: checkpoint invariante-a-invariante contra código real (52 sites em 20 arquivos, 9 sites de controle-de-fluxo confirmados intocados, sites já-seguros intocados), suíte completa 75/75, spec-delta removido com justificativa (bugfix sem REQ-NN de baseline). Checagem semântica do Red: a falha observada na base (w80-suite-gate.sh:25, commit 944c958) é exatamente o defeito relatado em bugfix.md §1(a) — cadeia AND de 2 cláusulas onde a última (billing.ts) falha, matando o processo sob set -e sem diagnóstico; não há confound (nenhuma outra mudança entre a base e o teste, classification=behavioral confirmado pelo motor). Decisão tomada por Claude Code nesta sessão interativa, a pedido explícito do usuário — não é decisão autônoma de modo yolo."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-08-04T17:13:01-03:00"
+    commit: "2f12a52"
+    scope: "verification.md"
+    notes: "red-first: defeito relatado (não quebra adjacente) — silêncio de set -e na cláusula final do AND em w80-suite-gate.sh:25, exatamente §1(a) do bugfix.md"

@@ -8,7 +8,7 @@
 ## 1. Header
 
 - **Change:** `gate-assert-visibility` · type `bugfix` · scale `2` · fase `verified`
-- **Branch:** `develop` · HEAD `08acf9f` (2026-08-04T19:21:42-03:00)
+- **Branch:** `develop` · HEAD `25a005b` (2026-08-04T19:24:10-03:00)
 
 ## 2. Estado
 

@@ -52,6 +52,14 @@ bash .forge/scripts/check-data-governance.sh <change-id>
 
 Ele flagra divergências literais vs a matriz transversal (`.forge/rules/data/data-governance.md`) — ex.: um módulo declarando "RLS opcional"/"sem RLS" para tabela multi-tenant de domínio, ou cache sem namespace de tenant. Qualquer `CONFLICT` retornado é um achado **BLOCKER** de tipo `conflict` no `analysis.md` (decisão transversal tem dono único — `conflict-handling.md` G4).
 
+**Checagem determinista de frescor do grafo/impacto (G5):** quando o change toca código (`affected_paths` não vazio) e há grafo construído, rode
+
+```bash
+node .forge/scripts/lib/impact-freshness.mjs .forge/specs/active/<change-id> .
+```
+
+Mesma fórmula de fingerprint usada pelo pré-flight do `/forge:archive` (`impact-freshness.mjs`) — um só ponto de verdade para "o `impact.json` corresponde ao grafo atual?". `missing` ou `stale` é achado **BLOCKER** de tipo `risk`: "impact.json ausente/desatualizado — rode `/forge:graph update` e depois `/forge:impact --change <id>` antes de `/forge:implement`". `not-applicable` (sem grafo, ou change sem `affected_paths` de código) não gera achado. Isso torna a obrigatoriedade de scale ≥3 (`impact.md`) um gate real — sem isso, nada impedia `/forge:implement` de rodar contra um grafo desatualizado.
+
 ## Regras
 
 - **Não corrija nada** neste comando — achados são insumo; correções acontecem nos comandos de fase (ou via Review no gate correspondente).

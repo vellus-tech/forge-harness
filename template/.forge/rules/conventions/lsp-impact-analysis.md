@@ -21,6 +21,7 @@ Não obrigatório para edições locais triviais que não mudam a superfície p�
 1. **Localizar** — todas as referências e implementações do símbolo:
    - **Preferir LSP/IDE quando disponível**: *find all references*, *go to definition*, *find implementations*, *rename simbólico* (entende escopo, overloads e namespace; não toca strings nem homônimos não relacionados).
    - **Caso contrário**, `grep`/Grep por todas as ocorrências — atento a overloads, homônimos em escopos diferentes e usos parciais (ex.: nome em string de log, atributo, reflexão).
+   - **Complementar, quando `graph.enabled: true`**: `bash .forge/scripts/graph.sh query <termo>` / `path <de> <para>` (grafo nativo do harness, custo zero) — não substitui o LSP nem o grep, mas enxerga fan-in/fan-out **cross-arquivo e cross-linguagem** que o LSP de uma única stack não alcança (ver "CodeGraph nativo" abaixo). Para o raio de impacto completo do conjunto de arquivos afetados, `bash .forge/scripts/impact.sh --files <paths>`.
 2. **Editar** — com o impacto já mapeado; atualizar todos os call sites na mesma mudança.
 3. **Validar** — rodar o diagnóstico da stack (compilador / typechecker / linter) **antes de declarar concluído**. Em projetos com *warnings tratados como erros*, o build já é o diagnóstico autoritativo.
 
@@ -48,12 +49,23 @@ O LSP entende o grafo de símbolos de **uma** linguagem. Ele **não** enxerga di
 
 Para mudanças que cruzam artefatos, **confronte manualmente as fontes** — idealmente as três: contrato ↔ implementação ↔ teste. O LSP só fica confiável com o projeto compilando; no meio de uma edição que quebrou o build, suas referências/diagnósticos ficam degradados — nesse estado, recaia no `grep` + build.
 
+## CodeGraph nativo — camada complementar (quando disponível)
+
+O harness constrói um grafo de imports/refs determinista e zero-tokens (`/forge:codegraph`, ADR `0001-graph-engine`), independente de LSP instalado. Ele não entende semântica de símbolo dentro de uma linguagem — quem faz isso é o LSP/diagnóstico da coluna direita da tabela acima — mas cobre exatamente onde o LSP para: relações **entre arquivos e entre linguagens** (fan-in/fan-out, camada, caminho de import). Use-o como primeiro filtro, barato, antes de abrir arquivo cru ou de decidir o escopo de um `grep`:
+
+- `bash .forge/scripts/graph.sh query <termo>` — localiza o nó, suas dependências e camada, a custo zero, antes de ler o arquivo (§16.2).
+- `bash .forge/scripts/graph.sh path <de> <para>` — existe cadeia de import entre dois arquivos/módulos?
+- `bash .forge/scripts/impact.sh --files <paths>` — conjunto de arquivos que dependem (transitivamente) dos arquivos-semente; é o mesmo mecanismo obrigatório em scale ≥3 antes de `/forge:tasks`/`/forge:implement` (`.forge/commands/graph/impact.md`).
+
+Não dispensa o passo 3 (diagnóstico da stack) nem os limites descritos acima — SQL↔ORM, `.proto`↔stub, schema↔consumidor continuam exigindo confronto manual das fontes, porque o grafo mapeia imports/refs de código, não esses vínculos declarativos.
+
 ## Anti-patterns
 
 - Renomear via find/replace textual cego (atinge string literal e homônimos de outro escopo).
 - Mudar assinatura ou contrato público sem buscar todos os call sites.
 - Declarar uma mudança concluída sem rodar o compilador/typechecker da stack.
 - Confiar no LSP para validar consistência entre artefatos que ele não indexa (SQL, proto, YAML).
+- Ignorar o CodeGraph nativo quando `graph.enabled: true` em mudança que cruza múltiplas linguagens/stacks — ele enxerga fan-in/fan-out entre arquivos que o LSP de uma stack isolada não vê.
 
 ## Verificação
 

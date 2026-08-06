@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**19 itens ativos** · roadmap 4 · tech-debt 9 · known-bug 3 · follow-up 3 · (16 encerrados)
+**22 itens ativos** · roadmap 4 · tech-debt 12 · known-bug 3 · follow-up 3 · (16 encerrados)
 
 ## Roadmap
 
@@ -46,6 +46,12 @@ _(nenhum)_
   Achado pelo quality-reviewer no code-evaluator do PR #42. Exemplos: w13-init-gate.sh/w14-adapters-gate.sh 'FAIL [1]: settings.json/claude.lock.yaml/core.lock.yaml ausentes' (3 arquivos bundled), w30-schemas-gate.sh:377 'CHANGELOG.md do baseline ou product/published ausente' (OR vago). Fora do escopo da correção mecânica original (converter, não redesenhar diagnóstico). Separar em ifs com mensagem por cláusula numa iteração futura.
 - **LDG-0035** [open] (P3) — Nenhum gate confronta archive-state-machine.yaml (definição canônica) com a cadeia executável de spec-transition.sh · via `gate-assert-visibility`
   Achado pelo harness-integrity-reviewer no code-evaluator do PR #42, atualizado após 2ª rodada de revisão (R2-004): a evidência original citava uma isenção de design-ready por type:bugfix em validate-spec.mjs que foi revertida no mesmo PR (design-ready voltou a exigir design.md incondicionalmente, para qualquer type). O drift real e atual é outro: a rota lateral requirements-ready -> tasks-ready (pulo de design-ready, só para type:bugfix scale>=2) não consta como transição nenhuma em template/.forge/schemas/archive-state-machine.yaml, cuja cadeia declarada só prevê requirements-ready -> design-ready -> tasks-ready linear. tools/validate-forge.mjs e w30-schemas-gate.sh só validam o YAML contra seu próprio JSON schema — nenhum gate deriva a cadeia real de spec-transition.sh e confere contra as transições declaradas. Adicionar a aresta lateral ao schema (ex.: um campo type_conditional ou uma transição extra explícita) + um gate que derive (scale,type) -> next esperado do script e compare com o YAML fecharia a classe inteira de drift silencioso.
+- **LDG-0036** [open] (P3/medium) — G5 (frescor de grafo/impacto em /forge:analyze) é instrução, não gate executável
+  PR #43 introduziu G5 em analyze.md (checagem determinista de impact-freshness.mjs), mas nada em spec-transition.sh/validate-spec.mjs chama esse script — depende do agente rodar /forge:analyze de fato. Achado HIGH da revisão adversarial (Opus) do PR #43: fazer (a) spec-transition.sh implementing chamar impact-freshness.mjs diretamente, e (b) um gate que confirme a presença/execução de G5 (padrão w130-tasks-graph-gate.sh), e (c) ancorar G5 a uma rule (G1-G4 têm rule dona; G5 não).
+- **LDG-0037** [open] (P3/medium) — gate-assert-visibility fica active indefinidamente e trava red-evidence.sh ci a um formato de histórico
+  Achado da revisão adversarial (PR #45): o change gate-assert-visibility está status:verified, archive.eligible:false, e permanece em .forge/specs/active/ por decisão registrada no manifest (não há baseline a atualizar). Consequência: red-evidence.sh ci reexecuta o replay desse bugfix já encerrado em TODO PR, para sempre, e já houve deriva silenciosa entre o base_strategy commitado (ancestry/944c9582, inalcançável a partir de origin/develop) e a estratégia real observada (revert-synthesis). Se um commit futuro tocar tests/w80-suite-gate.sh nos mesmos trechos, o patch reverso deixa de aplicar. Remédio: /forge:close esse change (delivered-externally) para sair do escopo do ci, ou fazer red-evidence.sh ci ignorar changes já verified.
+- **LDG-0038** [open] (P3/low) — red-replay.mjs não detecta clone shallow — devolve not-possible genérico em vez de mensagem acionável
+  Achado da revisão adversarial (PR #45): deriveBase() em red-replay.mjs devolve not-possible com razão genérica quando o histórico git é insuficiente (clone shallow), mandando o autor rodar /forge:red replay de novo — conselho errado, já que o problema é do ambiente (fetch-depth), não do comando. Um git rev-parse --is-shallow-repository no início da função daria a mensagem certa ('repositório raso — configure fetch-depth: 0').
 
 _Encerrados: 10 (promoted 1 · resolved 8 · wont-fix 1)_
 

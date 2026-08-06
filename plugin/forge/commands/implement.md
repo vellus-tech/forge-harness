@@ -39,7 +39,7 @@ Para cada task `[ ]` cuja(s) dependência(s) estejam `[X]`:
 1. Marque `[-]` no `tasks.md` do change.
 2. Implemente **somente** o escopo da task (paths declarados; TDD-first quando há lógica verificável; rules do projeto em `.forge/rules/` valem integralmente).
    - **Antes de abrir arquivo cru para editar** (task não é criação pura): se `graph.enabled: true`, localize o nó com `bash .forge/scripts/graph.sh query <termo>` — dependências e camada a custo zero, antes de gastar tokens lendo o arquivo (§16.2).
-   - **Task que renomeia símbolo, muda assinatura ou altera contrato público** (`rules/conventions/lsp-impact-analysis.md`): rode também `bash .forge/scripts/impact.sh --files <paths-da-task>` e cruze o conjunto impactado com os call sites já mapeados por LSP/grep antes de editar — o grafo é camada complementar (enxerga fan-in/fan-out cross-arquivo e cross-linguagem), não substitui o passo de LSP/grep da rule.
+   - **Task que renomeia símbolo, muda assinatura ou altera contrato público** (`rules/conventions/lsp-impact-analysis.md`): rode também `bash .forge/scripts/impact.sh --files <path1>,<path2>,...` (lista separada por vírgula num único argumento — espaço entre paths trunca a análise em silêncio) e cruze o conjunto impactado com os call sites já mapeados por LSP/grep antes de editar — o grafo é camada complementar (enxerga fan-in/fan-out cross-arquivo e cross-linguagem), não substitui o passo de LSP/grep da rule.
    - **`type: bugfix`, task do Red (rastreia bugfix.md §5):** o DoD desta task **não é suíte verde** — é a evidência gravada. Rode `/forge:red record` (declara test_path/command/fix_files/failure_pattern) e depois `/forge:red replay` (`bash .forge/scripts/red-evidence.sh replay <change-id>`) até o resultado ser `OK replay` (status `observed`) ou, quando o Red for genuinamente inviável, `/forge:red waive --reason <motivo>`. `FAIL replay` ou `NOT-POSSIBLE` sem waiver **não fecha a task** — não marque `[X]` com a evidência em `pending`.
 3. **Gates baratos** (skill `gate-runner`): parseabilidade dos arquivos gerados, grep negativo (sem `TODO`/`FIXME`/`not implemented` residuais, sem debug), anti-empty; rode build/teste da stack quando declarados no `FORGE.md runtime:`. Uma linha por gate; output bruto em `/tmp`.
 4. Commit atômico: `<type>(<scope>): TASK-NN — <título conciso>`. **Nunca** co-autoria de IA (constitution). Não faça push — quem publica é o operador ou o fluxo orquestrador.
@@ -52,9 +52,10 @@ Para cada task `[ ]` cuja(s) dependência(s) estejam `[X]`:
 Quando não restar `[ ]`/`[-]`/`[!]`:
 
 ```bash
-# se graph.enabled: true — fecha o grafo fresco antes do /forge:verify, evita
-# recuperação tardia no pré-flight do /forge:archive
-bash .forge/scripts/graph.sh update
+# graph.sh update materializa/reconstrói o grafo mesmo se você não tiver graph.enabled: true —
+# rode só quando o forge.yaml declarar graph.enabled: true; fecha o grafo fresco antes do
+# /forge:verify, evita recuperação tardia no pré-flight do /forge:archive
+awk '/^graph:/{f=1} f&&/enabled:/{print;exit}' forge.yaml 2>/dev/null | grep -q true && bash .forge/scripts/graph.sh update
 bash .forge/scripts/spec-transition.sh <change-id> implemented
 ```
 

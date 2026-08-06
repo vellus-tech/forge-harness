@@ -1,0 +1,22 @@
+verification:
+  commit: "f8e4520"
+  verified_at: "2026-08-04"
+  checks:
+    - name: "npm-test-full-suite"
+      command: "npm test"
+      status: passed
+    - name: "w109-red-ci-gate (6 casos: varredura, escopo, paridade dos instaladores)"
+      command: "bash tests/w109-red-ci-gate.sh"
+      status: passed
+    - name: "subcomando ci no próprio repositório"
+      command: "FORGE_ROOT=$(pwd) bash template/.forge/scripts/red-evidence.sh ci"
+      status: passed
+    - name: "prova de mutação em w109[6] — desligar a materialização no install.sh reprova o caso"
+      command: "if false && [ ! -f ... ] no installer/install.sh + bash tests/w109-red-ci-gate.sh"
+      status: passed
+    - name: "sincronia do plugin após documentar o subcomando"
+      command: "bash tests/plugin-sync-gate.sh"
+      status: passed
+  evidence:
+    - "verification.md — tabela REQ-a-REQ, prova de mutação e a fronteira do que não é fechado"
+    - "npm test — PASS=74 FAIL=0 SKIP=0 (325s)"

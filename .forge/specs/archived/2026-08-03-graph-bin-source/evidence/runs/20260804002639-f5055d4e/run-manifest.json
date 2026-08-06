@@ -1,0 +1,103 @@
+{
+  "schema": "run-manifest/v1",
+  "run_id": "20260804002639-f5055d4e",
+  "stage": "archive",
+  "status": "passed",
+  "started_at": "2026-08-04T00:26:33Z",
+  "finished_at": "2026-08-04T00:26:39.023Z",
+  "duration_ms": 6023,
+  "git": {
+    "repo": true,
+    "branch": "develop",
+    "head_sha": "afed3db48f9bd3622b068a90dc8d73dfec25bb6e",
+    "dirty": true,
+    "changed_files": [
+      ".forge/graph/cache/fingerprints.json",
+      ".forge/graph/graph.json",
+      ".forge/graph/report.md",
+      ".forge/product/current/CHANGELOG.md",
+      ".forge/product/current/capabilities/forge-harness-template/spec.yaml",
+      ".forge/specs/active/graph-bin-source/bugfix.md",
+      ".forge/specs/active/graph-bin-source/evidence/red/red-evidence.json",
+      ".forge/specs/active/graph-bin-source/manifest.yaml",
+      ".forge/specs/active/graph-bin-source/proposal.md",
+      ".forge/specs/active/graph-bin-source/spec-delta.yaml",
+      ".forge/specs/active/graph-bin-source/tasks.md",
+      ".forge/specs/archived/2026-08-03-graph-bin-source/",
+      ".forge/specs/archived/index.yaml"
+    ],
+    "diff_stat": ".forge/graph/cache/fingerprints.json               |  1 +\n .forge/graph/graph.json                            | 16 ++++++--\n .forge/graph/report.md                             |  6 +--\n .forge/product/current/CHANGELOG.md                |  6 +++\n .../capabilities/forge-harness-template/spec.yaml  | 48 ++++++++++++++--------\n .forge/specs/active/graph-bin-source/bugfix.md     | 38 -----------------\n .../evidence/red/red-evidence.json                 | 27 ------------\n .forge/specs/active/graph-bin-source/manifest.yaml | 33 ---------------\n .forge/specs/active/graph-bin-source/proposal.md   | 27 ------------\n .../specs/active/graph-bin-source/spec-delta.yaml  | 21 ----------\n .forge/specs/active/graph-bin-source/tasks.md      | 20 ---------\n .forge/specs/archived/index.yaml                   |  4 ++\n 12 files changed, 58 insertions(+), 189 deletions(-)",
+    "diff_sha256": "022cdb6ed4b7457394874f469b3f5df450df0614a7ef7ac1129c350c5cc88af4"
+  },
+  "inputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "994f21d0a1301e1c10d41b5b6e48d408f65da0bb33d6fe01aa005ef4fedbf5cf",
+      "bytes": 775,
+      "kind": "file"
+    },
+    {
+      "path": "tasks.md",
+      "exists": true,
+      "sha256": "c8cfdf6d96455460d061ec1f6d6ef6fd3c209c89aeecb4675cc831377aac4a3f",
+      "bytes": 882,
+      "kind": "file"
+    },
+    {
+      "path": "verification.yaml",
+      "exists": true,
+      "sha256": "7e355facb286d196964008d31e2ac7f62f2978a7a1dbf5875419774dfcefb007",
+      "bytes": 841,
+      "kind": "file"
+    },
+    {
+      "path": "spec-delta.yaml",
+      "exists": true,
+      "sha256": "dcf1f93c4004470ad6b1fafd233733f43f7de100ba177d8c2453ac927c867bb8",
+      "bytes": 1321,
+      "kind": "file"
+    },
+    {
+      "path": "impact.json",
+      "exists": true,
+      "sha256": "64a7dbf8dddf5d346b31fb2b21b38d486801354382882d65871d50d53e9e25e7",
+      "bytes": 2130,
+      "kind": "file"
+    }
+  ],
+  "commands": [
+    {
+      "name": "archive-spec",
+      "command": "archive-spec.sh graph-bin-source",
+      "status": "passed"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "994f21d0a1301e1c10d41b5b6e48d408f65da0bb33d6fe01aa005ef4fedbf5cf",
+      "bytes": 775,
+      "kind": "file"
+    },
+    {
+      "path": "evidence/runs",
+      "exists": false,
+      "sha256": null,
+      "bytes": null
+    }
+  ],
+  "runner": {
+    "name": "local",
+    "profile": "standard"
+  },
+  "budgets": {
+    "profile": "standard",
+    "budget_class": "medium",
+    "expected_runs": 1,
+    "estimated_timeout_s": 300,
+    "uses_llm": false,
+    "uses_subagent": false
+  }
+}

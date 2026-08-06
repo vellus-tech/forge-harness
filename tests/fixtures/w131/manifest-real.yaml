@@ -1,0 +1,62 @@
+# Fixture CONGELADO do manifest de um change real de API. O defeito que ele documenta e uma
+# AUSENCIA: nao ha affects_surfaces, e por isso o REQ-13 (mapa endpoint->acao->recurso->policy e
+# mapa de eventos auditaveis) nunca foi exigido. Nomes de produto foram substituidos; a lista de
+# affected_paths e a ausencia do campo sao as do artefato original.
+id: fixture-change-b
+type: feature
+mode: brownfield
+rigor: spec-anchored
+scale: 3
+status: implementing
+created_at: "2026-07-27"
+updated_at: "2026-07-29"
+owner: fixture
+parent:
+  baseline: .forge/product/current
+affected_capabilities:
+  - transporte
+  - crud-de-configs
+  - interface-de-usuario
+  - parsing-de-specs
+  - orquestracao-de-envio
+  - motor-de-campos
+affected_paths:
+  - backend/Acme.Transport/
+  - backend/Acme.Configs/
+  - backend/Acme.Engine.Api/
+  - backend/Acme.Orchestrator/
+  - backend/Acme.Masking/
+  - backend/Acme.FieldEngine/
+  - backend/Acme.RegressionHarness/
+  - src/main/resources/specs/
+  - src/test/java/
+  - src/test/resources/golden-masters/
+  - contracts/
+  - frontend/src/
+  - frontend/e2e/
+  - docker-compose.yml
+  - docs/adr/
+  - docs/runbook-nota.md
+  - .forge/scripts/
+  - .forge/ledger/
+dependencies:
+  specs:
+    - dep-a
+  code: []
+gates:
+  requirements_reviewed: true
+  design_reviewed: true
+  tasks_reviewed: true
+  implementation_verified: false
+  human_archive_approval: false
+dev_loop:
+  sharded: true
+  stories_path: stories/
+  epic_context_compiled: true
+quick_plan:
+  enabled: false
+  skipped_phases: []
+  justification:
+archive:
+  eligible: false
+  reason: "tasks not implemented"

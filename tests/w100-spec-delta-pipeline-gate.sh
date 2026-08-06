@@ -73,7 +73,7 @@ echo "[2] scaffold gera ops dos REQ-NN e não sobrescreve delta autorado"
 write_reqs chg-tok
 set_caps chg-tok card-tokenization
 out="$(node "$SC" "$T/.forge/specs/active/chg-tok" "$T")"
-echo "$out" | grep -q '^OK' || { echo "FAIL: scaffold não gerou ($out)"; exit 1; }
+grep -q '^OK' <<<"$out" || { echo "FAIL: scaffold não gerou ($out)"; exit 1; }
 D="$T/.forge/specs/active/chg-tok/spec-delta.yaml"
 grep -q 'capability: card-tokenization' "$D" || { echo "FAIL: capability não derivada do manifest"; exit 1; }
 grep -q 'requirement_id: REQ-CT-001' "$D" || { echo "FAIL: requirement_id não derivado com padding de 3 dígitos (REQ-CT-001)"; exit 1; }
@@ -95,8 +95,8 @@ cat >> "$T/.forge/specs/active/chg-tok/requirements.md" <<'EOF'
   - [ ] segunda tentativa com o mesmo token falha
 EOF
 out="$(node "$SC" "$T/.forge/specs/active/chg-tok" "$T")"
-echo "$out" | grep -q '^SKIP' || { echo "FAIL: scaffold reescreveu delta com REQ novo"; exit 1; }
-echo "$out" | grep -q 'WARN: REQ sem op correspondente.*REQ-03' || { echo "FAIL: cobertura de REQ-03 não avisada ($out)"; exit 1; }
+grep -q '^SKIP' <<<"$out" || { echo "FAIL: scaffold reescreveu delta com REQ novo"; exit 1; }
+grep -q 'WARN: REQ sem op correspondente.*REQ-03' <<<"$out" || { echo "FAIL: cobertura de REQ-03 não avisada ($out)"; exit 1; }
 echo "OK [2]"
 
 echo "[3] spec-verify integra o scaffold e avisa placeholder remanescente"
@@ -106,8 +106,8 @@ set_caps chg-ver card-tokenization
 for s in requirements-ready tasks-ready implementing; do FORGE_ROOT="$T" bash "$ST" chg-ver "$s" >/dev/null; done
 done_tasks chg-ver
 out="$(FORGE_ROOT="$T" bash "$SV" chg-ver)"
-echo "$out" | grep -q 'spec-delta: OK' || { echo "FAIL: spec-verify não rodou o scaffold"; echo "$out"; exit 1; }
-echo "$out" | grep -q 'WARN: spec-delta.yaml ainda tem placeholders' || { echo "FAIL: spec-verify não avisou placeholder"; echo "$out"; exit 1; }
+grep -q 'spec-delta: OK' <<<"$out" || { echo "FAIL: spec-verify não rodou o scaffold"; echo "$out"; exit 1; }
+grep -q 'WARN: spec-delta.yaml ainda tem placeholders' <<<"$out" || { echo "FAIL: spec-verify não avisou placeholder"; echo "$out"; exit 1; }
 [ -f "$T/.forge/specs/active/chg-ver/verification.yaml" ] || { echo "FAIL: verification.yaml não escrito"; exit 1; }
 echo "OK [3]"
 
@@ -117,7 +117,7 @@ FORGE_ROOT="$T" bash "$ST" chg-ver implemented >/dev/null
 set +e
 out="$(FORGE_ROOT="$T" bash "$ST" chg-ver verified 2>&1)"; rc=$?
 set -e
-[ "$rc" -ne 0 ] && echo "$out" | grep -q 'scaffold/template placeholders' || { echo "FAIL: transição a verified aceitou delta em scaffold ($out)"; exit 1; }
+[ "$rc" -ne 0 ] && grep -q 'scaffold/template placeholders' <<<"$out" || { echo "FAIL: transição a verified aceitou delta em scaffold ($out)"; exit 1; }
 perl -pi -e 's/<scaffold: precondição — preencher na fase verify>/portador autenticado na sessão de checkout/g' "$T/.forge/specs/active/chg-ver/spec-delta.yaml"
 FORGE_ROOT="$T" bash "$ST" chg-ver verified >/dev/null || { echo "FAIL: verified recusado com delta preenchido"; exit 1; }
 perl -pi -e 's/^  human_archive_approval: false/  human_archive_approval: true/' "$T/.forge/specs/active/chg-ver/manifest.yaml"
@@ -126,7 +126,7 @@ printf '# <scaffold: reintroduzido para o teste>\n' >> "$T/.forge/specs/active/c
 set +e
 out="$(node "$VA" "$T/.forge/specs/active/chg-ver" "$T" 2>&1)"; rc=$?
 set -e
-[ "$rc" -ne 0 ] && echo "$out" | grep -q 'scaffold/template placeholders' || { echo "FAIL: pré-flight aceitou delta com scaffold ($out)"; exit 1; }
+[ "$rc" -ne 0 ] && grep -q 'scaffold/template placeholders' <<<"$out" || { echo "FAIL: pré-flight aceitou delta com scaffold ($out)"; exit 1; }
 perl -ni -e 'print unless /<scaffold: reintroduzido/' "$T/.forge/specs/active/chg-ver/spec-delta.yaml"
 node "$VA" "$T/.forge/specs/active/chg-ver" "$T" >/dev/null || { echo "FAIL: pré-flight recusou delta preenchido"; node "$VA" "$T/.forge/specs/active/chg-ver" "$T"; exit 1; }
 echo "OK [4]"
@@ -143,8 +143,8 @@ printf 'const c = require("./c.js");\nmodule.exports = { c };\n' > "$T/src/a.js"
 printf 'module.exports = 2;\n' > "$T/src/c.js"
 FORGE_ROOT="$T" bash "$T/.forge/scripts/graph.sh" build >/dev/null
 out="$(FORGE_ROOT="$T" bash "$AS" chg-ver)" || { echo "FAIL: archive não completou"; echo "$out"; exit 1; }
-echo "$out" | grep -q '\[0/6\] impact refresh' || { echo "FAIL: refresh de impact não logado"; echo "$out"; exit 1; }
-echo "$out" | grep -q '^OK chg-ver archived' || { echo "FAIL: archive sem OK final"; echo "$out"; exit 1; }
+grep -q '\[0/6\] impact refresh' <<<"$out" || { echo "FAIL: refresh de impact não logado"; echo "$out"; exit 1; }
+grep -q '^OK chg-ver archived' <<<"$out" || { echo "FAIL: archive sem OK final"; echo "$out"; exit 1; }
 [ -f "$T/.forge/product/current/capabilities/card-tokenization/spec.yaml" ] || { echo "FAIL: capability não aplicada ao baseline"; exit 1; }
 # impact fresh → nenhum refresh disparado (segundo change, outra capability)
 FORGE_ROOT="$T" bash "$SN" chg-arc2 --type feature --scale 1 >/dev/null
@@ -160,7 +160,7 @@ perl -pi -e 's/^  human_archive_approval: false/  human_archive_approval: true/'
 perl -pi -e 's/^affected_paths: \[\]$/affected_paths:\n  - src\/a.js/' "$T/.forge/specs/active/chg-arc2/manifest.yaml"
 FORGE_ROOT="$T" bash "$T/.forge/scripts/impact.sh" --change chg-arc2 >/dev/null
 out="$(FORGE_ROOT="$T" bash "$AS" chg-arc2)" || { echo "FAIL: archive fresh não completou"; echo "$out"; exit 1; }
-echo "$out" | grep -q '\[0/6\] impact refresh' && { echo "FAIL: refresh disparado com impact fresh"; echo "$out"; exit 1; }
+grep -q '\[0/6\] impact refresh' <<<"$out" && { echo "FAIL: refresh disparado com impact fresh"; echo "$out"; exit 1; }
 echo "OK [5]"
 
 echo "[6] doctor: drift informativo (·) sem mudar exit"
@@ -174,14 +174,14 @@ rm -f "$T/.forge/specs/active/chg-drift/spec-delta.yaml"
 set +e
 out_drift="$(bash "$DR" 2>&1)"; rc_drift=$?
 set -e
-printf '%s' "$out_drift" | grep -q "drift — change 'chg-drift' verified sem spec-delta.yaml" || { echo "FAIL: doctor não acusou verified sem delta"; printf '%s\n' "$out_drift" | grep -i drift; exit 1; }
+grep -q "drift — change 'chg-drift' verified sem spec-delta.yaml" <<<"$out_drift" || { echo "FAIL: doctor não acusou verified sem delta"; printf '%s\n' "$out_drift" | grep -i drift; exit 1; }
 [ "$rc_drift" = "$rc_base" ] || { echo "FAIL: check de drift mudou o exit do doctor ($rc_base -> $rc_drift)"; exit 1; }
 # placeholder também é drift
 printf 'operations:\n  - op: add_requirement\n    capability: x\n    requirement_id: REQ-XXX-001\n' > "$T/.forge/specs/active/chg-drift/spec-delta.yaml"
 set +e
 out_ph="$(bash "$DR" 2>&1)"
 set -e
-printf '%s' "$out_ph" | grep -q "ainda em placeholder" || { echo "FAIL: doctor não acusou delta em placeholder"; exit 1; }
+grep -q "ainda em placeholder" <<<"$out_ph" || { echo "FAIL: doctor não acusou delta em placeholder"; exit 1; }
 echo "OK [6]"
 
 echo "PASS w100-spec-delta-pipeline-gate"

@@ -1,0 +1,27 @@
+{
+  "schema": "red-evidence/v1",
+  "change_id": "tasks-meta-required",
+  "status": "observed",
+  "test_path": "tests/w130-tasks-graph-gate.sh",
+  "test_id": "[16] TSK-06 — plano sem metadados nenhum não pode passar em silêncio",
+  "command": "bash tests/w130-tasks-graph-gate.sh",
+  "base_commit": "551074966be512b6e287759bb9c16c7f57af78c6",
+  "failure_pattern": "FAIL \\[16\\]",
+  "excerpt": "[0] CONTROLE: fixture canônico e íntegro passa em todos os checks\nOK [0]\n[1] o parser extrai os campos da linha canônica\nOK [1]\n[2] paths — brace-expansion, diretório e lista com vírgula\nOK [2]\n[3] TSK-01 — dependência pendurada\nOK [3]\n[4] TSK-02 — ciclo de dependência\nOK [4]\n[5] TSK-03 — dependência para wave posterior\nOK [5]\n[6] TSK-04 — ID duplicado e furo na numeração\nOK [6]\n[7] SRF-01 — REQ cuja superfície é endpoint e cujas tasks não produzem superfície\nOK [7]\n[8] PBT — TSK-03 acusa se e somente se existe aresta para wave posterior\nOK [8]\n[9] PBT — parser idempotente e insensível a espaçamento\nOK [9]\n[10] REPRODUÇÃO — fixture congelado do repositório real\nOK [10]\n[11] FIAÇÃO — validate-spec reprova a transição a tasks-ready com grafo quebrado\nOK [11]\n[12] ROBUSTEZ — variações de escrita não desligam a verificação\nOK [12]\n[13] CALIBRAÇÃO — o oráculo de superfície não é largo nem cego\nOK [13]\n[14] Checklist — rota parametrizada, título com sufixo, segunda tabela, seção ausente\nOK [14]\n[15] FIAÇÃO — o grafo de código alimenta o SRF-01 em produção\nOK [15]\n[16] TSK-06 — plano sem metadados nenhum não pode passar em silêncio\n(a) esperava 1 achado TSK-06, veio []\nFAIL [16]: plano sem metadados atravessa TSK-01/02/03 sem achado\n",
+  "excerpt_sha256": "147c62448b3ae4ff777caf6f795f5acf957c5691073d0b61dab9819cd8d6d97a",
+  "classification": "behavioral",
+  "base_result": "failed",
+  "base_strategy": "ancestry",
+  "revert_patch": null,
+  "graft_from": null,
+  "replay_head": "1915213e3ebb626072923ae8819527a61f717c59",
+  "setup_command": null,
+  "reproduces": "bugfix.md §1 — grafo sem arestas é grafo sem defeitos",
+  "fix_files": [
+    "template/.forge/scripts/lib/tasks-graph.mjs"
+  ],
+  "waiver": null,
+  "recorded_at": "2026-08-03T22:48:20.780Z",
+  "replayed_at": "2026-08-03T22:49:58.975Z",
+  "waived_at": null
+}

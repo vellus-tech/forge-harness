@@ -1,0 +1,23 @@
+verification:
+  commit: "1915213"
+  verified_at: "2026-08-03"
+  checks:
+    - name: "npm-test-full-suite"
+      command: "npm test"
+      status: passed
+    - name: "w130-tasks-graph-gate (16 casos, incluindo TSK-06 e os quatro controles)"
+      command: "bash tests/w130-tasks-graph-gate.sh"
+      status: passed
+    - name: "Red observado do change (ancestry, base 5510749)"
+      command: "FORGE_ROOT=$(pwd) bash template/.forge/scripts/red-evidence.sh replay tasks-meta-required"
+      status: passed
+    - name: "sincronia do plugin após documentar o TSK-06"
+      command: "bash tests/plugin-sync-gate.sh"
+      status: passed
+    - name: "validação estrutural do change"
+      command: "FORGE_ROOT=$(pwd) bash template/.forge/scripts/validate-spec.sh tasks-meta-required"
+      status: passed
+  evidence:
+    - "verification.md — tabela item-a-item do bugfix.md e o efeito medido em artefato real"
+    - "evidence/red/red-evidence.json — status observed, base_strategy ancestry, base 5510749"
+    - "npm test — PASS=73 FAIL=0 SKIP=0 (300s)"

@@ -35,7 +35,8 @@ EOF
 set +e
 out="$(cd "$T" && bash "$S/spec-transition.sh" feat-conf implementing 2>&1)"; rc=$?
 set -e
-[ "$rc" -ne 0 ] && echo "$out" | grep -q 'BLOCKER'
+[ "$rc" -ne 0 ] && grep -q 'BLOCKER' <<<"$out" \
+  || { echo "FAIL [1]: spec-transition não recusou implementing com BLOCKER em analysis.md (rc=$rc, out=$out)"; exit 1; }
 grep -q '^status: tasks-ready$' "$D/manifest.yaml"   # não transicionou
 echo "OK [1]"
 

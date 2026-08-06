@@ -1,0 +1,8 @@
+# Analysis — security-observability-gates
+## Status: PASS
+## Achados
+| ID | Severidade | Tipo | Onde | Recomendação |
+|---|---|---|---|---|
+| AN-05 | INFO | Formatação | tasks.md linha 21-22 (fim da Wave 2 / início da Wave 3) | Falta linha em branco entre a última task da Wave 2 (TASK-10) e o heading `## Wave 3`, diferente do padrão usado nas demais transições de wave. Não é lido por parser determinista (nenhum script varre `## Wave` em `tasks.md`; é consumido por agente/LLM), portanto não bloqueia — apenas nit cosmético opcional para consistência visual.
+## Síntese (2-3 linhas)
+Os quatro achados da iteração 1 (AN-01 BLOCKER, AN-02/AN-03 HIGH, AN-04 MEDIUM) estão resolvidos e confirmados contra o código: `gates:` é CSV escalar de linha única compatível com os parsers awk `get_runtime` (spec-verify.sh) e `fm_field` (pre-push), que só leem `key: value` numa linha dentro do bloco `runtime:` — block-sequence quebraria ambos; TASK-11 saiu da Wave 2 e agora depende de TASK-10 (Wave 3), eliminando a colisão em `rules/README.md`; a checklist de cobertura de superfície não tem mais "TASK a definir" — todas as linhas citam TASK-NN reais e coerentes com tasks.md; TASK-11 contém a reconciliação Tempo×Jaeger, e o `observability.md` atual de fato já menciona Jaeger, tornando a reconciliação necessária e correta. A varredura de regressão não encontrou dependência intra-wave nova, rastreabilidade REQ-01..17+NFR-01..04 permanece completa e a ordem topológica segue acíclica e válida; o gate `check-data-governance.sh` passou (OK, exit 0). Único achado residual é um nit de formatação sem impacto funcional.

@@ -1,0 +1,101 @@
+{
+  "schema": "run-manifest/v1",
+  "run_id": "20260804135017-6809dbc8",
+  "stage": "archive",
+  "status": "passed",
+  "started_at": "2026-08-04T13:50:16Z",
+  "finished_at": "2026-08-04T13:50:17.272Z",
+  "duration_ms": 1272,
+  "git": {
+    "repo": true,
+    "branch": "develop",
+    "head_sha": "3fe2e53acc32a7615c02b10aed9ef18df8808140",
+    "dirty": true,
+    "changed_files": [
+      ".forge/graph/graph.json",
+      ".forge/product/current/CHANGELOG.md",
+      ".forge/product/current/capabilities/forge-harness-template/spec.yaml",
+      ".forge/specs/active/route-scan-dialect-coverage/design.md",
+      ".forge/specs/active/route-scan-dialect-coverage/manifest.yaml",
+      ".forge/specs/active/route-scan-dialect-coverage/proposal.md",
+      ".forge/specs/active/route-scan-dialect-coverage/requirements.md",
+      ".forge/specs/active/route-scan-dialect-coverage/spec-delta.yaml",
+      ".forge/specs/active/route-scan-dialect-coverage/tasks.md",
+      ".forge/specs/archived/2026-08-04-route-scan-dialect-coverage/",
+      ".forge/specs/archived/index.yaml"
+    ],
+    "diff_stat": ".forge/graph/graph.json                            |  2 +-\n .forge/product/current/CHANGELOG.md                |  6 ++\n .../capabilities/forge-harness-template/spec.yaml  | 54 ++++++++++-----\n .../active/route-scan-dialect-coverage/design.md   | 35 ----------\n .../route-scan-dialect-coverage/manifest.yaml      | 33 ----------\n .../active/route-scan-dialect-coverage/proposal.md | 27 --------\n .../route-scan-dialect-coverage/requirements.md    | 77 ----------------------\n .../route-scan-dialect-coverage/spec-delta.yaml    | 21 ------\n .../active/route-scan-dialect-coverage/tasks.md    | 20 ------\n .forge/specs/archived/index.yaml                   |  4 ++\n 10 files changed, 48 insertions(+), 231 deletions(-)",
+    "diff_sha256": "6826047defcab9008bacb4f29871666e7b7eb6f356da937b4da1f2915c32f3fa"
+  },
+  "inputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "7f22fb1b2a57c781fd090beddb41945f224640b4354c7fffebc9d8d566be9223",
+      "bytes": 786,
+      "kind": "file"
+    },
+    {
+      "path": "tasks.md",
+      "exists": true,
+      "sha256": "b0fc1ab876f0f4e37a0848015a7eb1a9dc9b1832f0abbdc22c1d871e1f3f9454",
+      "bytes": 1093,
+      "kind": "file"
+    },
+    {
+      "path": "verification.yaml",
+      "exists": true,
+      "sha256": "3a5efda643621330bd42b16a11d73dfe7be0d866c3ede79b8af133c2b37ed4b2",
+      "bytes": 414,
+      "kind": "file"
+    },
+    {
+      "path": "spec-delta.yaml",
+      "exists": true,
+      "sha256": "db7c9742d0f2a9b5d659231bc888a090f8f7d7c4bfb20e5c160de1d249ee3a03",
+      "bytes": 2100,
+      "kind": "file"
+    },
+    {
+      "path": "impact.json",
+      "exists": true,
+      "sha256": "1fd99537b83c38d76348b2353d8e0e9fff8af587cf60005a61f39220b0f9b3ab",
+      "bytes": 2130,
+      "kind": "file"
+    }
+  ],
+  "commands": [
+    {
+      "name": "archive-spec",
+      "command": "archive-spec.sh route-scan-dialect-coverage",
+      "status": "passed"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "7f22fb1b2a57c781fd090beddb41945f224640b4354c7fffebc9d8d566be9223",
+      "bytes": 786,
+      "kind": "file"
+    },
+    {
+      "path": "evidence/runs",
+      "exists": false,
+      "sha256": null,
+      "bytes": null
+    }
+  ],
+  "runner": {
+    "name": "local",
+    "profile": "standard"
+  },
+  "budgets": {
+    "profile": "standard",
+    "budget_class": "medium",
+    "expected_runs": 1,
+    "estimated_timeout_s": 300,
+    "uses_llm": false,
+    "uses_subagent": false
+  }
+}

@@ -1,0 +1,26 @@
+# Spec delta — route-scan-dialect-coverage. Numeração continua de REQ-FHT-051.
+operations:
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-052
+    content_ref: requirements.md#req-01
+    requirement:
+      id: REQ-FHT-052
+      title: "Cobertura de dialeto do oráculo de rota: âncora da tabela, caixa do token, Python e Go"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-052-A
+          given: "um requirements.md com o mapa endpoint→policy sob o heading canônico e, mais abaixo, uma tabela de APIs de terceiros consumidas; e outro requirements.md com a mesma tabela sem heading algum"
+          when: "a superfície declarada é coletada"
+          then: "no primeiro só os endpoints da seção ancorada entram, e a tabela de consumidas fica de fora; no segundo a varredura permanece ampla — para que a superfície declarada não fique vazia e o cruzamento verde por vacuidade — e o caso é reportado como policy-table-unanchored"
+        - id: SCN-FHT-052-B
+          given: "um controller .NET com [Route(\"api/[controller]\")] na classe OrdersController, e endpoints equivalentes escritos em Spring e Express com caixa mista"
+          when: "scanRoutes varre os três"
+          then: "o token [controller] resolve em minúsculo (/api/orders), porque o roteamento do ASP.NET é case-insensitive e acusar diferença de caixa seria falso positivo, enquanto Spring e Express preservam a caixa integralmente — o rebaixamento é do indexador .NET, nunca do normalizePath compartilhado"
+        - id: SCN-FHT-052-C
+          given: "arquivos .py com FastAPI (incluindo APIRouter com prefix) e Flask, e .go com chi/gorilla e net/http"
+          when: "scanRoutes varre o projeto"
+          then: "as rotas dos frameworks dominantes são extraídas com o prefixo composto quando conhecido, Flask assume GET quando methods não é declarado, e HandleFunc sem .Methods() vira route-verb-unknown com o path registrado em vez de receber um verbo inventado"
+      contracts: []
+      tests:
+        - tests/w132-route-surface-gate.sh

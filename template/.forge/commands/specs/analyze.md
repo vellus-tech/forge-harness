@@ -18,7 +18,7 @@ Leia TODOS os artefatos do change + `.forge/constitution.md` + `.forge/rules/` a
 3. **Drift:** afirmações no design que contradizem o repo real (paths/contratos citados existem?); `affected_paths`/`affected_capabilities` do manifest coerentes com as tasks.
 4. **Fases puladas:** se o scale exige fase ausente, confira `quick_plan` (enabled + justificativa) — ausente → achado bloqueante.
 5. **Riscos operacionais:** tasks sem critério de verificação; dependências externas sem fallback; ausência de tasks de teste para REQs críticos.
-6. **Cobertura de superfície (gate pré-marco):** cruze a tabela "Checklist de cobertura de superfície" do `requirements.md` (`template/.forge/templates/spec/requirements.md`) contra design/tasks — todo parâmetro/config/flag exposto tem tela/endpoint/CLI mapeado E task que o implementa; toda linha `NEEDS CLARIFICATION` na tabela é achado **BLOCKER** de tipo `coverage`. Isso é o que impede a lacuna clássica de "parâmetro implementado sem superfície de acesso" descoberta só depois do marco.
+6. **Cobertura de superfície (gate pré-marco):** o cruzamento entre a tabela "Checklist de cobertura de superfície" do `requirements.md` e o grafo de tasks é feito por **script** — `SRF-01`, em `lib/tasks-graph.mjs`, executado pelo `validate-spec` desde a transição a `tasks-ready`. Rode `bash .forge/scripts/validate-spec.sh <change-id>` e trate cada `WARN (SRF-01 …)` como achado de tipo `coverage`: REQ que declara endpoint/rota e cujas tasks, como declaradas, não produzem superfície nenhuma. **Não refaça esse cruzamento a olho** — ele deixou passar, num plano de 89 tasks, uma rota que o contrato promete e nenhuma task implementa. O que continua sendo seu aqui: linha `NEEDS CLARIFICATION` na tabela (achado **BLOCKER** de tipo `coverage`), e superfície não-HTTP (tela, CLI, variável de ambiente), que o `SRF-01` deliberadamente não julga.
 
 ## Saída
 
@@ -51,6 +51,14 @@ bash .forge/scripts/check-data-governance.sh <change-id>
 ```
 
 Ele flagra divergências literais vs a matriz transversal (`.forge/rules/data/data-governance.md`) — ex.: um módulo declarando "RLS opcional"/"sem RLS" para tabela multi-tenant de domínio, ou cache sem namespace de tenant. Qualquer `CONFLICT` retornado é um achado **BLOCKER** de tipo `conflict` no `analysis.md` (decisão transversal tem dono único — `conflict-handling.md` G4).
+
+**Checagem determinista de frescor do grafo/impacto:** quando o change toca código (`affected_paths` não vazio) e há grafo construído, rode
+
+```bash
+node .forge/scripts/lib/impact-freshness.mjs .forge/specs/active/<change-id> .
+```
+
+Mesma fórmula de fingerprint usada pelo pré-flight do `/forge:archive` (`impact-freshness.mjs`) — um só ponto de verdade para "o `impact.json` corresponde ao grafo atual?". `missing` ou `stale` é achado **BLOCKER** de tipo `risk`: "impact.json ausente/desatualizado — rode `/forge:update` e depois `/forge:impact --change <id>` antes de `/forge:implement`". `not-applicable` (sem grafo, ou change sem `affected_paths`) não gera achado. Um BLOCKER aqui já é bloqueante pelo mecanismo determinista descrito acima (`spec-transition.sh` recusa `implementing` com BLOCKER aberto em `analysis.md`) — o que ainda depende do agente é a própria execução desta checagem durante `/forge:analyze`, não a força do achado depois de escrito; wiring de execução obrigatória e a rule que ancora este check ficam registrados no ledger como follow-up.
 
 ## Regras
 

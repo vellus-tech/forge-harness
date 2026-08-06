@@ -1,0 +1,24 @@
+# Spec delta — tasks-meta-required. Um requisito: a ausência de metadados no plano precisa virar
+# achado, senão o caminho mais fácil para passar nos checks de grafo é não declarar nada.
+# Numeração continua de REQ-FHT-047 (red-replay-graft-base).
+operations:
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-048
+    content_ref: bugfix.md#2-comportamento-esperado
+    requirement:
+      id: REQ-FHT-048
+      title: "Plano de tasks sem metadados não passa pelos checks de grafo por vacuidade"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-048-A
+          given: "um tasks.md com duas ou mais tasks em que nenhuma linha declara campo de metadados reconhecido (rastreia/paths/depende/expõe, em qualquer grafia aceita pelo parser)"
+          when: "checkTasksGraph roda sobre o plano"
+          then: "emite TSK-06 bloqueante nomeando que TSK-01, TSK-02 e TSK-03 não verificaram nada e passaram por vacuidade; quando a omissão é apenas de parte das tasks, o mesmo código emite achado não-bloqueante nomeando as tasks sem bloco"
+        - id: SCN-FHT-048-B
+          given: "um plano cujas tasks declaram \"depende: —\" ou \"depende: nenhuma\", e um plano de uma única task sem metadados"
+          when: "checkTasksGraph roda"
+          then: "nenhum TSK-06 é emitido nos dois casos — declarar independência é diferente de não declarar nada, e um plano de uma task não tem aresta possível; TSK-01..05 seguem com os mesmos achados e a mesma classificação de antes"
+      contracts: []
+      tests:
+        - tests/w130-tasks-graph-gate.sh

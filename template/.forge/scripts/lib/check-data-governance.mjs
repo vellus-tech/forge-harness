@@ -9,25 +9,34 @@
 // "RLS opcional"/"sem RLS" against the mandatory-RLS decision). It complements,
 // not replaces, the human/LLM cross-artifact analysis (/forge:analyze).
 //
+// REQ-12 extension (TASK-16, design.md §2.2 "Extensão check-data-governance"):
+//   (a) PAN (13-19 dígitos)/CPF/e-mail dentro de uma chamada de log (log.*(...)/
+//       logger.*(...)) — violação PCI direta.
+//   (b) campo marcado `// forge:sensitive-field="x"` (ou `#` em Python/Rego) sem
+//       entrada correspondente no artefato `data-classification` (JSON, schema
+//       data-classification.schema.json) encontrado dentro dos mesmos `inputs`.
+// A varredura de código usa o coletor genérico `source-scan.collect` com `exts`
+// ampliado (`.go/.kt/.ts/.rego/.py`) — o coletor .md original fica com `exts`
+// default (`.md`), preservando 100% o comportamento de `gw3-data-governance-gate.sh`
+// [1]-[8] (NFR-04).
+//
+// REQ-16 AC3 exclui REQ-12 da lista dos "cinco gates de adoção" (REQ-06/07/08/09/10)
+// que leem `mode: warn|enforce` de um bloco declarativo do FORGE.md — REQ-12 nunca é
+// rebaixável, sempre enforce. Por isso TODO finding deste gate (os legados de .md e os
+// dois novos de REQ-12) é marcado `enforceable:true` e passa por `lib/gate-mode.mjs`
+// apenas para manter o mesmo contrato uniforme dos três gates da Wave 4 (design.md
+// §2.2 "Contrato comum dos gates") — nenhum bloco `data-governance:` novo é lido do
+// FORGE.md/graph.json (não existe essa família em REQ-11); o `mode` nunca rebaixa nada
+// aqui, então o resultado observável é idêntico ao anterior (sempre CONFLICT/exit 1).
+//
 // Usage: check-data-governance.mjs <change-dir|file> [...more files]
 // Output: "OK data-governance (no divergence)" or "CONFLICT (<findings>)" (exit 1).
-import { readFileSync, existsSync, statSync, readdirSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { collect, scan } from './source-scan.mjs';
+import { applyMode } from './gate-mode.mjs';
 
 const inputs = process.argv.slice(2);
 if (!inputs.length) { console.log('OK data-governance (nothing to check)'); process.exit(0); }
-
-function collect(p, acc = []) {
-  const rp = resolve(p);
-  if (!existsSync(rp)) return acc;
-  if (statSync(rp).isDirectory()) {
-    for (const e of readdirSync(rp, { withFileTypes: true })) {
-      if (e.isDirectory()) collect(join(rp, e.name), acc);
-      else if (e.name.endsWith('.md')) acc.push(join(rp, e.name));
-    }
-  } else if (rp.endsWith('.md')) acc.push(rp);
-  return acc;
-}
 
 // anti-patterns vs the global matrix. Each: { re, why, allow } — allow skips a
 // match when the same line carries an allowed qualifier (e.g. formal exception).
@@ -39,19 +48,70 @@ const ANTI = [
   { re: /cache\b[^\n]*\bsem\s+(namespace|prefixo)\s+(de\s+)?tenant/i, why: 'cache sem namespace de tenant — vetor de vazamento cross-tenant', allow: /(?!)/ },
 ];
 
-const findings = [];
-for (const f of inputs.flatMap((i) => collect(i))) {
-  const rel = f.includes('/specs/active/') ? f.slice(f.indexOf('/specs/active/') + 1) : f;
-  const lines = readFileSync(f, 'utf8').split('\n');
-  lines.forEach((line, i) => {
-    for (const a of ANTI) {
-      if (a.re.test(line) && !a.allow.test(line)) findings.push(`${rel}:${i + 1}: ${a.why}`);
-    }
-  });
+// ── REQ-12a — PAN/CPF/e-mail em chamada de log (sempre enforce) ──────────────────────
+// Regex/taint por linha: exige o call de log (log.*(.../logger.*() e o valor bruto na
+// MESMA linha. `allow` cobre mascaramento explícito (mask(/redact(/last4/asteriscos/x).
+const LOG_CALL = String.raw`(?:\blog|\blogger)\.\w+\s*\(.*`;
+const PAN_DIGITS = String.raw`\b\d{13,19}\b`;
+const CPF = String.raw`\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b`;
+const EMAIL = String.raw`\b[\w.+-]+@[\w-]+\.[A-Za-z]{2,}\b`;
+const MASKED_ALLOW = /mask\(|redact\(|last4|\*{2,}|x{4,}/i;
+const LOG_TAINT = [
+  { re: new RegExp(LOG_CALL + PAN_DIGITS, 'i'), why: 'PAN (13-19 dígitos) em chamada de log — mascare antes de logar (REQ-12a, PCI DSS Req 3/10)', allow: MASKED_ALLOW },
+  { re: new RegExp(LOG_CALL + CPF, 'i'), why: 'CPF em chamada de log — PII exposta sem mascaramento (REQ-12a)', allow: MASKED_ALLOW },
+  { re: new RegExp(LOG_CALL + EMAIL, 'i'), why: 'e-mail em chamada de log — PII exposta sem mascaramento (REQ-12a)', allow: MASKED_ALLOW },
+];
+
+// ── REQ-12b — campo marcado sensível sem classificação (sempre enforce) ──────────────
+// Convenção de marcação inline (comentário — funciona em Go/Kotlin/TS com `//` e em
+// Python/Rego com `#`): `// forge:sensitive-field="cpf"` ou `# forge:sensitive-field="cpf"`.
+// O gate procura um artefato `data-classification.json` (schema data-classification.
+// schema.json) dentro dos mesmos `inputs`; campo marcado sem entrada correspondente no
+// mapa (ou artefato ausente) é finding.
+const SENSITIVE_MARKER_RE = /(?:\/\/|#)\s*forge:sensitive-field\s*[:=]\s*"?([A-Za-z0-9_.]+)"?/i;
+
+function loadClassification(paths) {
+  const jsonFiles = collect(paths, { exts: new Set(['.json']) });
+  const hit = jsonFiles.find((f) => f.endsWith('data-classification.json'));
+  if (!hit) return null;
+  try { return JSON.parse(readFileSync(hit, 'utf8')); } catch { return null; } // malformado ⇒ tratado como ausente, nunca lança
 }
 
-if (findings.length) {
-  console.log(`CONFLICT (${findings.join('; ')})`);
-  process.exit(1);
+function relLike(f) {
+  return f.includes('/specs/active/') ? f.slice(f.indexOf('/specs/active/') + 1) : f;
+}
+
+function scanSensitiveFields(files, classification) {
+  const findings = [];
+  for (const f of files) {
+    const r = relLike(f);
+    const lines = readFileSync(f, 'utf8').split('\n');
+    lines.forEach((line, i) => {
+      const m = line.match(SENSITIVE_MARKER_RE);
+      if (!m) return;
+      const field = m[1];
+      if (!classification || !Object.prototype.hasOwnProperty.call(classification, field)) {
+        findings.push(`${r}:${i + 1}: campo sensível "${field}" sem entrada em data-classification (REQ-12b)`);
+      }
+    });
+  }
+  return findings;
+}
+
+const CODE_EXTS = new Set(['.go', '.kt', '.ts', '.rego', '.py']);
+
+const mdFindings = scan(collect(inputs), ANTI); // default exts {'.md'} — retrocompat NFR-04
+const codeFiles = collect(inputs, { exts: CODE_EXTS });
+const logFindings = scan(codeFiles, LOG_TAINT);
+const classification = loadClassification(inputs);
+const fieldFindings = scanSensitiveFields(codeFiles, classification);
+
+// Todo finding deste gate é inegociável (REQ-16 AC3) — ver nota no topo do arquivo.
+const findings = [...mdFindings, ...logFindings, ...fieldFindings].map((msg) => ({ enforceable: true, msg }));
+const result = applyMode(findings, {});
+
+if (result.blocking.length) {
+  console.log(`CONFLICT (${result.blocking.map((f) => f.msg).join('; ')})`);
+  process.exit(result.exitCode);
 }
 console.log('OK data-governance (no divergence)');

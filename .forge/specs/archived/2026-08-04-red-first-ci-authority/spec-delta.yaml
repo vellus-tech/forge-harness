@@ -1,0 +1,22 @@
+# Spec delta — red-first-ci-authority. Numeração continua de REQ-FHT-049 (graph-bin-source).
+operations:
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-050
+    content_ref: requirements.md#req-01
+    requirement:
+      id: REQ-FHT-050
+      title: "A execução de referência do Red-first é a de um runner que o autor não controla"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-050-A
+          given: "um repositório com changes ativos de tipos variados, um deles type:bugfix com evidência de Red pendente"
+          when: "red-evidence.sh ci roda (sem argumentos — o subcomando recusa change-id, para que o escopo venha do repositório e não de quem invoca)"
+          then: "todo change type:bugfix é reexecutado via ensure e avaliado pelo check estático, a saída nomeia cada change com seu veredito, o exit é ≠0 porque um deles não tem Red observado, e changes de outros tipos não aparecem no relato nem afetam o resultado; repositório sem bugfix ativo sai 0"
+        - id: SCN-FHT-050-B
+          given: "um pull request num projeto com o harness instalado"
+          when: "o workflow red-first.yml roda no runner, com fetch-depth: 0 e dependências instaladas antes"
+          then: "o replay é reexecutado ali e o build reprova se o Red não for observado, independentemente do que o red-evidence.json commitado afirme; o workflow é materializado por init/update tanto pelo bin/forge.mjs quanto pelo installer/install.sh, e nunca sobrescreve um workflow já existente no projeto"
+      contracts: []
+      tests:
+        - tests/w109-red-ci-gate.sh

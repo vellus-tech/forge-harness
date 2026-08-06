@@ -21,9 +21,28 @@ Causa raiz (não o sintoma). Arquivo/função/condição; por que o defeito foi 
 
 ## 5. Testes de regressão
 
-- [ ] Teste que reproduz o bug (falha antes da correção, passa depois)
-- [ ] Propriedades/PBT quando o domínio justificar (ex.: invariantes monetárias)
-- [ ] Testes que protegem a seção 3 (comportamento preservado)
+Protocolo Red-first (ver `rules/testing/regression-red-first.md`): o teste que reproduz o defeito é escrito **antes** da correção, roda na árvore pré-correção e é **observado** falhando por comportamento — nunca por erro de compilação ou fixture ausente. A observação é registrada com `/forge:red record` e reproduzida por `/forge:red replay`; declaração sem replay não vale como evidência. Quando o Red for genuinamente impossível, use `/forge:red waive --reason <non-behavioral|no-test-infra|external-unreproducible|hotfix-under-incident>` — não invente teste para cumprir tabela.
+
+Além do teste de reprodução:
+
+- Propriedades/PBT quando o domínio justificar (ex.: invariantes monetárias).
+- Testes que protegem a seção 3 (comportamento que deve permanecer inalterado).
+
+### 5.1 Declaração de evidência do Red
+
+Preencha `evidence/red/red-evidence.json` (schema `red-evidence/v1`) com:
+
+| Campo | Conteúdo |
+|---|---|
+| `test_path` / `test_id` | Arquivo e caso de teste que reproduz o defeito |
+| `command` | Comando que executa apenas esse teste |
+| `base_commit` | Commit da árvore pré-correção onde o Red foi observado |
+| `failure_pattern` | Padrão que a saída da falha na base precisa casar no replay |
+| `excerpt` / `excerpt_sha256` | Trecho e hash da saída de falha observada |
+| `classification` | `behavioral` (Red válido) ou `build-error` (ruído, não conta) |
+| `reproduces` | Seção deste documento que o teste reproduz — normalmente §1 |
+| `fix_files` | Arquivos alterados pela correção |
+| `waiver` | Motivo tipado, nota e ids de deferral/ledger quando o Red não for possível |
 
 ## 6. Rastreabilidade
 

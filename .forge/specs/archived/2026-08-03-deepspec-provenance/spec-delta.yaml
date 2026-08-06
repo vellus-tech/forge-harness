@@ -1,0 +1,201 @@
+# Spec delta — deepspec-provenance (autorado no archive; change verificado em 2026-07-09,
+# commit 6454285, antes do scaffold de spec-delta existir — fallback de change legado, /forge:archive §1).
+# Payloads derivados de requirements.md (REQ-01..12) e da tabela REQ-a-REQ de verification.md.
+# Numeração continua de REQ-FHT-024 (add-portable-handoff, arquivado no mesmo lote).
+operations:
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-025
+    content_ref: requirements.md#req-01
+    requirement:
+      id: REQ-FHT-025
+      title: "Schema e gerador do run-manifest/v1"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-025-A
+          given: "um comando crítico que grava evidência, rodando com um change ativo e, noutra execução, sem change ativo"
+          when: "lib/run-manifest.mjs grava o manifesto do estágio"
+          then: "produz um run-manifest.json com schema, run_id, stage, status, started_at, finished_at, duration_ms, git, inputs, commands, outputs, runner e budgets, válido contra run-manifest.schema.json (additionalProperties:false em todos os níveis), em evidence/runs/<run-id>/ quando há change ativo e em .forge/runs/<run-id>/ quando não há"
+      contracts:
+        - template/.forge/schemas/run-manifest.schema.json
+      tests:
+        - tests/w90-run-manifest-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-026
+    content_ref: requirements.md#req-02
+    requirement:
+      id: REQ-FHT-026
+      title: "Proveniência git segura — nunca o diff bruto"
+      normative: SHALL NOT
+      scenarios:
+        - id: SCN-FHT-026-A
+          given: "uma working tree suja contendo um segredo no diff de trabalho"
+          when: "o run-manifest é gravado e validado"
+          then: "o manifesto registra branch, HEAD SHA, dirty flag, arquivos alterados, diff --stat e diff_sha256, e o segredo não aparece em lugar nenhum do JSON persistido; nenhum caminho de código executa git diff sem --stat, e o validador interno rejeita manifesto cujo JSON contenha o marcador \"diff --git\""
+      contracts: []
+      tests:
+        - tests/w90-run-manifest-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-027
+    content_ref: requirements.md#req-03
+    requirement:
+      id: REQ-FHT-027
+      title: "Contratos de I/O declarativos por estágio"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-027-A
+          given: "os estágios verify, archive, eval, run-spec-pipeline e skill-lifecycle-eval"
+          when: "validate-harness.sh valida os contratos em .forge/contracts/stages/*.yaml"
+          then: "os 5 arquivos existem com stage, required_inputs, required_outputs, validators, budget_class e evidence_required, e a validação falha se um contrato estiver ausente ou inválido"
+      contracts: []
+      tests:
+        - tests/w91-stage-contract-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-028
+    content_ref: requirements.md#req-04
+    requirement:
+      id: REQ-FHT-028
+      title: "Validador determinístico de contrato de estágio"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-028-A
+          given: "um estágio cujo contrato declara required_outputs, num change onde a evidência existe e noutro onde falta"
+          when: "validate-stage-contract.sh check <stage> roda"
+          then: "aprova quando todos os artefatos obrigatórios foram produzidos e falha nomeando o output ausente quando falta — sem depender de LLM"
+      contracts: []
+      tests:
+        - tests/w91-stage-contract-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-029
+    content_ref: requirements.md#req-05
+    requirement:
+      id: REQ-FHT-029
+      title: "Run-manifest e contrato de estágio bloqueiam verify e archive"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-029-A
+          given: "um change em /forge:verify ou /forge:archive cujo contrato de estágio não é satisfeito"
+          when: "spec-verify.sh ou archive-spec.sh executa run-manifest.sh write e validate-stage-contract.sh check"
+          then: "o script aborta com exit≠0 (não apenas loga aviso) e a fase não conclui; com o contrato satisfeito, o manifesto é gravado e o fluxo segue"
+      contracts: []
+      tests:
+        - tests/w91-stage-contract-gate.sh
+        - tests/w90-run-manifest-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-030
+    content_ref: requirements.md#req-06
+    requirement:
+      id: REQ-FHT-030
+      title: "Evidência best-effort (não-bloqueante) em eval, skill-lifecycle e run-spec-pipeline"
+      normative: SHOULD
+      scenarios:
+        - id: SCN-FHT-030-A
+          given: "os fluxos /forge:eval, /forge:skill-lifecycle eval|optimize e /forge:run-spec-pipeline"
+          when: "a gravação de evidência falha durante a execução"
+          then: "o fluxo prossegue sem bloquear (nenhum deles chama validate-stage-contract check como gate), enquanto os três comandos citam budget-preflight/run-manifest no corpo .md e nos scripts chamados — só verify e archive bloqueiam, por design"
+      contracts: []
+      tests:
+        - tests/w92-benchmark-registry-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-031
+    content_ref: requirements.md#req-07
+    requirement:
+      id: REQ-FHT-031
+      title: "Benchmark registry com os 5 casos canônicos"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-031-A
+          given: "o registry em .forge/evals/benchmarks/"
+          when: "os casos são validados contra benchmark-case.schema.json"
+          then: "existem os 5 diretórios greenfield-small, brownfield-bugfix, refactor-invariant, docs-only e multi-module-scale3, cada um com um case.json válido, pequeno e versionável"
+      contracts:
+        - template/.forge/schemas/benchmark-case.schema.json
+      tests:
+        - tests/w92-benchmark-registry-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-032
+    content_ref: requirements.md#req-08
+    requirement:
+      id: REQ-FHT-032
+      title: "/forge:eval benchmark <case|suite>"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-032-A
+          given: "o benchmark registry e o eval harness já existente (runners.yaml, grading.schema.json, meta-count.sh, meta-aggregate.sh)"
+          when: "o usuário roda /forge:eval benchmark com um caso único e, depois, com a suite"
+          then: "benchmark-eval.sh/.mjs executa reusando o harness existente e produz aggregate + run-manifest nos dois modos, com o modo benchmark documentado em eval.md"
+      contracts: []
+      tests:
+        - tests/w92-benchmark-registry-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-033
+    content_ref: requirements.md#req-09
+    requirement:
+      id: REQ-FHT-033
+      title: "Perfis de execução e precedência de resolução"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-033-A
+          given: "os perfis standard, quick, regulated e brownfield-heavy declaráveis em forge.yaml e manifest.yaml, e passáveis por flag"
+          when: "budget-preflight.mjs resolve o perfil de execução nos quatro níveis"
+          then: "aplica a precedência flag > manifest.yaml > forge.yaml > default standard — projeto sem nenhum dos campos resolve para standard, sem erro (retrocompatibilidade)"
+      contracts: []
+      tests:
+        - tests/w93-profiles-budget-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-034
+    content_ref: requirements.md#req-10
+    requirement:
+      id: REQ-FHT-034
+      title: "Override --set key.path=value restrito a eval/benchmark"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-034-A
+          given: "a flag --set key.path=value passada a um comando de eval/benchmark e, depois, a qualquer outro comando do harness"
+          when: "o comando resolve sua configuração"
+          then: "o override é aplicado em run-manifest.mjs, budget-preflight.mjs e benchmark-eval.mjs, e nenhum outro script do harness lê essa flag (o --set pré-existente de sync-adapters tem semântica distinta — lista de adapters — e não é override)"
+      contracts: []
+      tests:
+        - tests/w93-profiles-budget-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-035
+    content_ref: requirements.md#req-11
+    requirement:
+      id: REQ-FHT-035
+      title: "Budget preflight antes de comando caro"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-035-A
+          given: "um comando caro (verify, archive, eval, skill-lifecycle, run-spec-pipeline) prestes a executar"
+          when: "budget-preflight.sh roda no início do fluxo"
+          then: "emite a linha BUDGET stage=... profile=... runs=... timeout_s=... budget=... outputs=... llm=... subagent=... antes da execução, como estimativa heurística (não precisão monetária) e sem bloquear o fluxo"
+      contracts: []
+      tests:
+        - tests/w93-profiles-budget-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-036
+    content_ref: requirements.md#req-12
+    requirement:
+      id: REQ-FHT-036
+      title: "Zero-dep nos scripts de proveniência"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-036-A
+          given: "os scripts de run-manifest, contratos de estágio, benchmark e budget preflight"
+          when: "a suíte completa roda num clone limpo"
+          then: "os scripts usam apenas builtins do node (node:fs/path/crypto/child_process), o yaml-lite.mjs local e bash — sem nenhuma dependência npm nova — e npm test permanece verde incluindo os gates w90–w93 e o w80-suite-gate atualizado"
+      contracts: []
+      tests:
+        - tests/run-all.sh
+        - tests/w80-suite-gate.sh

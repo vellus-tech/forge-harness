@@ -1,0 +1,36 @@
+approvals:
+  - gate: requirements_reviewed
+    decision: approve
+    reason: "feature scale 2 do LDG-0019: requisitos, design e plano conferidos"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-08-04T10:35:54-03:00"
+    commit: "fa6ffbb"
+    scope: "requirements.md,design.md,tasks.md"
+  - gate: design_reviewed
+    decision: approve
+    reason: "feature scale 2 do LDG-0019: requisitos, design e plano conferidos"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-08-04T10:35:54-03:00"
+    commit: "fa6ffbb"
+    scope: "requirements.md,design.md,tasks.md"
+  - gate: tasks_reviewed
+    decision: approve
+    reason: "feature scale 2 do LDG-0019: requisitos, design e plano conferidos"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-08-04T10:35:54-03:00"
+    commit: "fa6ffbb"
+    scope: "requirements.md,design.md,tasks.md"
+  - gate: implementation_verified
+    decision: approve
+    reason: "npm test 74/74; w132 53 casos; cobertura medida nos dois layouts"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-08-04T10:36:26-03:00"
+    commit: "fa6ffbb"
+    scope: "verification.md,verification.yaml"
+  - gate: human_archive_approval
+    decision: approve
+    reason: "LDG-0019 entregue conforme direção do autor; delta = 1 add_requirement REQ-FHT-051"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-08-04T10:36:26-03:00"
+    commit: "fa6ffbb"
+    scope: "spec-delta.yaml"

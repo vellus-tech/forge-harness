@@ -9,8 +9,9 @@
 // Usage: graph-build.mjs <repo-root> [--out <dir>]
 // Output: "OK .forge/graph/graph.json (N nodes, M edges; S summaries stale)" or "FAIL (...)".
 import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync } from 'node:fs';
-import { join, resolve, relative, extname, dirname } from 'node:path';
+import { join, resolve, relative, extname, dirname, basename } from 'node:path';
 import { createHash } from 'node:crypto';
+import { parseYamlSubset } from './yaml-lite.mjs';
 
 const root = resolve(process.argv[2] || '.');
 const outArg = process.argv.indexOf('--out');
@@ -19,11 +20,23 @@ const cacheDir = join(outDir, 'cache');
 
 // Build/output/vendored dirs are excluded: they hold generated artifacts (minified
 // bundles, archived copies) that pollute the graph with non-source nodes (G2).
+//
+// `bin` is deliberately NOT here. The name means opposite things in different ecosystems: in
+// .NET/Java it is where the compiler writes output, in Node it is the entrypoint declared in
+// package.json — source code by any definition. Skipping it by name removed the CLI entrypoint
+// from the graph of every Node project, silently, and /forge:impact, /forge:onboard and
+// /forge:c4 all read that graph. The .NET meaning is handled by SKIP_UNDER_BIN below, which is
+// contextual: only the build-output subdirectories of a `bin/` are pruned.
 const SKIP_DIRS = new Set([
-  'node_modules', '.git', 'dist', 'build', 'out', 'bin', 'obj', '.forge', 'coverage',
+  'node_modules', '.git', 'dist', 'build', 'out', 'obj', '.forge', 'coverage',
   '.next', 'vendor', 'storybook-static', 'wwwroot', '_archive', 'TestResults',
   '.vs', '.idea', '.venv', '__pycache__', '.turbo', '.cache',
 ]);
+// Subdirectories of a `bin/` that are compiler output (.NET/Java): bin/Debug, bin/Release,
+// bin/x64, bin/net8.0, … Pruned only when the PARENT directory is literally `bin` — a
+// `src/Debug/` of someone's own making is not touched. This is what keeps generated `.cs`
+// (which matches LANG) out of the graph now that `bin` itself is walked.
+const SKIP_UNDER_BIN = /^(Debug|Release|x64|x86|AnyCPU|Any CPU|net[0-9]|netstandard|netcoreapp)/i;
 const LANG = { '.js': 'js', '.mjs': 'js', '.cjs': 'js', '.jsx': 'js', '.ts': 'ts', '.tsx': 'ts', '.cs': 'csharp', '.go': 'go', '.py': 'python', '.kt': 'kotlin', '.kts': 'kotlin', '.java': 'java' };
 // Broader census map for the coverage rule (§19.5): every programming language worth
 // counting, INCLUDING ones the extractor does not model (swift/rust/…), so `validate
@@ -39,6 +52,52 @@ const CENSUS_EXT = {
 // Minified/generated files are not source — skip even when they carry a source extension (G2).
 const SKIP_FILE = /\.min\.(js|css)$|\.bundle\.js$/;
 
+// ── governance: authz:/observability: blocks from FORGE.md frontmatter (§2.3) ──
+// Zero-dep, same yaml-lite parser validate-spec.mjs already uses — no second YAML
+// dialect (NFR-01). Absence of FORGE.md, or of the blocks themselves, is a no-op:
+// governanceBlocks stays {} and no node gets tagged, no `governance` is emitted
+// (REQ-11 AC — never a false positive). This never touches the awk parsers of
+// spec-verify.sh/pre-push, which only read `runtime:`.
+function readGovernanceBlocks(repoRoot) {
+  const forgeMdPath = join(repoRoot, '.forge', 'FORGE.md');
+  if (!existsSync(forgeMdPath)) return {};
+  try {
+    const text = readFileSync(forgeMdPath, 'utf8');
+    const m = text.match(/^---\n([\s\S]*?)\n---/);
+    if (!m) return {};
+    const fm = parseYamlSubset(m[1]);
+    const out = {};
+    if (fm.authz && typeof fm.authz === 'object' && !Array.isArray(fm.authz)) out.authz = fm.authz;
+    if (fm.observability && typeof fm.observability === 'object' && !Array.isArray(fm.observability)) out.observability = fm.observability;
+    return out;
+  } catch { return {}; } // malformed frontmatter → no-op, never a false positive
+}
+
+// glob → RegExp: `*` matches within one path segment (never `/`). The pattern
+// matches the declared directory/file itself AND everything under it, since
+// pep_paths/wrapper_paths name directories (e.g. "packages/pep") that own many
+// source files, or occasionally a single file.
+function globToRegExp(glob) {
+  const escaped = String(glob).split('/')
+    .map((seg) => seg.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*'))
+    .join('/');
+  return new RegExp(`^${escaped}(?:/.*)?$`);
+}
+
+const governanceBlocks = readGovernanceBlocks(root);
+const pepPatterns = (governanceBlocks.authz && Array.isArray(governanceBlocks.authz.pep_paths)
+  ? governanceBlocks.authz.pep_paths : []).map(globToRegExp);
+const wrapperPatterns = (governanceBlocks.observability && Array.isArray(governanceBlocks.observability.wrapper_paths)
+  ? governanceBlocks.observability.wrapper_paths : []).map(globToRegExp);
+// roles: ["pep"] / ["otel-wrapper"] tag nodes whose id matches a declared glob —
+// consumed by lib/graph-govern.mjs (TASK-12) for reachability from layer:api.
+function rolesFor(id) {
+  const roles = [];
+  if (pepPatterns.some((re) => re.test(id))) roles.push('pep');
+  if (wrapperPatterns.some((re) => re.test(id))) roles.push('otel-wrapper');
+  return roles;
+}
+
 const census = {}; // census-lang -> file count (walk-populated, persisted in stats)
 function walk(dir, acc = []) {
   let entries;
@@ -46,7 +105,12 @@ function walk(dir, acc = []) {
   for (const e of entries) {
     if (e.name.startsWith('.') && e.name !== '.') continue;
     const p = join(dir, e.name);
-    if (e.isDirectory()) { if (!SKIP_DIRS.has(e.name)) walk(p, acc); }
+    if (e.isDirectory()) {
+      if (SKIP_DIRS.has(e.name)) continue;
+      // contextual: só poda saída de compilação quando o pai é um `bin/` de verdade
+      if (basename(dir) === 'bin' && SKIP_UNDER_BIN.test(e.name)) continue;
+      walk(p, acc);
+    }
     else if (!SKIP_FILE.test(e.name)) {
       const ext = extname(e.name);
       const cl = CENSUS_EXT[ext];
@@ -214,7 +278,10 @@ for (const f of files) {
   const src = read(f);
   const lang = LANG[extname(f)];
   const id = relative(root, f);
-  nodes.push({ id, lang, loc: src.split('\n').length, fingerprint: structuralFingerprint(src), layer: layerOf(id), summary: null });
+  const node = { id, lang, loc: src.split('\n').length, fingerprint: structuralFingerprint(src), layer: layerOf(id), summary: null };
+  const roles = rolesFor(id);
+  if (roles.length) node.roles = roles;
+  nodes.push(node);
 
   if (lang === 'js' || lang === 'ts') {
     for (const m of src.matchAll(JS_IMPORT)) {
@@ -275,6 +342,14 @@ const graph = {
   nodes,
   edges,
 };
+// governance: only emitted when the FORGE.md frontmatter declared authz:/observability:
+// (§2.3). Absence ⇒ key absent ⇒ downstream gates (graph-govern.mjs) see no governance
+// and stay a no-op — never a false positive (REQ-11 AC).
+if (governanceBlocks.authz || governanceBlocks.observability) {
+  graph.governance = {};
+  if (governanceBlocks.authz) graph.governance.authz = governanceBlocks.authz;
+  if (governanceBlocks.observability) graph.governance.observability = governanceBlocks.observability;
+}
 
 mkdirSync(cacheDir, { recursive: true });
 writeFileSync(join(outDir, 'graph.json'), JSON.stringify(graph, null, 2) + '\n');

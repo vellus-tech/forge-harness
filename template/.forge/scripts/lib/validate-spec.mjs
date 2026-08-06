@@ -11,17 +11,41 @@
 //      <CHANGE_*> placeholders, no bare NEEDS CLARIFICATION from
 //      requirements-ready on (backtick-quoted mentions are instructional),
 //      traceability.yaml coherence, spec-delta.yaml structural rules.
-// Output: single line "OK <id>" (exit 0) or "FAIL (<reasons>)" (exit 1). Usage:
+//   6. integridade do grafo de tasks (TSK-01..04) e cobertura de superfície
+//      (SRF-01) via lib/tasks-graph.mjs, na transição a tasks-ready — os dois
+//      checks que o harness especificava como instrução para LLM.
+// Output: uma linha de veredito "OK <id>" (exit 0) ou "FAIL (<reasons>)"
+// (exit 1), precedida por zero ou mais linhas "WARN (<achado>)" para achados
+// rebaixáveis, que não alteram o exit code. Usage:
 //   node validate-spec.mjs <path-to-change-dir>
 import { readFileSync, existsSync } from 'node:fs';
 import { join, basename, resolve } from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { parseYamlSubset } from './yaml-lite.mjs';
 import { hasScaffoldMarkers } from './scaffold-markers.mjs';
+import { evaluateRedFirst } from './check-red-first.mjs';
+import { applyMode } from './gate-mode.mjs';
+import { parseTasks, checkTasksGraph, parseSurfaceChecklist, checkSurfaceCoverage, checkSurfaceChecklistPresence, checkSurfaceDeclaration, checkSurfaceChecklistLiteral } from './tasks-graph.mjs';
 
 const dir = process.argv[2];
 if (!dir) { console.log('FAIL (usage: validate-spec.mjs <change-dir>)'); process.exit(1); }
 const root = resolve(dir);
 const errors = [];
+// Achados rebaixáveis: saem como linhas `WARN (...)` antes do veredito e NÃO mudam o exit code.
+// O contrato de saída continua tendo exatamente uma linha de veredito (`OK <id>` / `FAIL (...)`).
+const warnings = [];
+
+// Paths que o grafo de código classifica `layer:api` — insumo do SRF-01, quando o grafo existe.
+// Sem grafo o check opera só com a heurística de nome de path, e nunca por isso deixa de rodar:
+// pré-requisito ausente degrada a precisão, não desliga a verificação.
+function apiLayerPaths() {
+  try {
+    const gp = join(process.env.FORGE_ROOT || root, '.forge/graph/graph.json');
+    if (!existsSync(gp)) return [];
+    const g = JSON.parse(readFileSync(gp, 'utf8'));
+    return (Array.isArray(g.nodes) ? g.nodes : []).filter((n) => n && n.layer === 'api').map((n) => n.id);
+  } catch { return []; }
+}
 
 // ── load manifest ────────────────────────────────────────────────────────────
 const manifestPath = join(root, 'manifest.yaml');
@@ -57,6 +81,15 @@ for (const k of ['created_at', 'updated_at'])
 if (man.gates && typeof man.gates === 'object' && !Array.isArray(man.gates))
   for (const g of GATE_KEYS)
     if (typeof man.gates[g] !== 'boolean') errors.push(`gates.${g} must be boolean`);
+// affects_surfaces (REQ-13/NFR-03/§2.5): campo opcional, array de string (ex.: "api", "data").
+// Gatilho declarativo de proporcionalidade — consumido pela regra condicional da TASK-09,
+// não por este validador. Ausente é válido (change trivial não exige seções novas).
+if (man.affects_surfaces !== undefined && man.affects_surfaces !== null) {
+  if (!Array.isArray(man.affects_surfaces)) errors.push('affects_surfaces must be an array of strings');
+  else man.affects_surfaces.forEach((s, i) => {
+    if (typeof s !== 'string') errors.push(`affects_surfaces[${i}] must be a string`);
+  });
+}
 
 if (man.quick_plan && man.quick_plan.enabled === true) {
   const sp = man.quick_plan.skipped_phases;
@@ -91,6 +124,38 @@ if (reached('tasks-ready')) {
 }
 if (reached('verified') && !has('verification.yaml'))
   errors.push('verification.yaml missing (status verified requires recorded evidence — §12)');
+
+// ── red-first (rule testing/regression-red-first.md, itens 1-4 — bloqueiam, não rebaixáveis) ──
+// change type:bugfix só alcança verified com Red observado (por replay real) ou dispensado
+// (waived, com a política dos quatro motivos reaplicada a cada checagem) — espelha o precedente
+// hasScaffoldMarkers acima: reprova aqui em vez de deixar o gap chegar ao archive.
+//
+// Onda E (decisão do orquestrador) — sem cache local, a única forma não-circular de confirmar
+// 'observed' na transição para verified é executar o replay de VERDADE, agora, e deixar o
+// resultado real sobrescrever o artefato (inclusive uma evidência forjada à mão) ANTES de
+// avaliar. `red-evidence.sh ensure` roda incondicionalmente aqui — não porque confiamos no
+// status já escrito, mas justamente para não precisar confiar: evaluateRedFirst(), logo abaixo,
+// lê o que ESTA chamada acabou de gravar, não o que estava lá antes. Só dispara quando a
+// transição sob validação é para 'verified' ou além (reached('verified')) — no resto do ciclo de
+// vida (idea..implemented) valida sem custo de execução, como sempre. best-effort (nunca lança) —
+// evaluateRedFirst decide com o que sobrar, inclusive se ensure falhar ao rodar.
+if (reached('verified') && man.type === 'bugfix') {
+  const ensureScript = join(process.env.FORGE_ROOT || root, '.forge/scripts/red-evidence.sh');
+  if (existsSync(ensureScript) && man.id) {
+    try {
+      execFileSync('bash', [ensureScript, 'ensure', String(man.id)], {
+        cwd: process.env.FORGE_ROOT || root,
+        env: { ...process.env, FORGE_ROOT: process.env.FORGE_ROOT || root },
+        stdio: 'ignore',
+      });
+    } catch { /* best-effort — evaluateRedFirst abaixo decide com o estado que resultou */ }
+  }
+  const redFirst = evaluateRedFirst(root);
+  if (redFirst.applicable) {
+    const applied = applyMode(redFirst.findings, {});
+    for (const f of applied.blocking) errors.push(f.msg); // já referencia a rule no próprio texto
+  }
+}
 
 // ── approvals.yaml rules (§12.1 — mirror of approvals.schema.json) ──────────
 const approvalsPath = join(root, 'approvals.yaml');
@@ -146,6 +211,23 @@ for (const f of MD_ARTIFACTS) {
   }
 }
 
+// ── helpers for REQ-13/NFR-03 (§2.5): mapas obrigatórios de requirements.md ──
+// Extrai o corpo de uma seção "## <heading>" até o próximo "## " (ou fim do arquivo).
+function sectionBody(text, headingRe) {
+  const m = headingRe.exec(text);
+  if (!m) return null;
+  const rest = text.slice(m.index + m[0].length);
+  const nextIdx = rest.search(/^##\s/m);
+  return nextIdx === -1 ? rest : rest.slice(0, nextIdx);
+}
+// Uma seção "preenchida" tem ao menos uma linha de tabela (fora do header/separador) sem
+// placeholder "<...>" — distingue o esqueleto do template (reprova) de uma tabela real (passa).
+function hasFilledTableRow(body) {
+  if (!body) return false;
+  const rows = body.split('\n').filter((l) => /^\s*\|/.test(l) && !/^\s*\|[\s:|-]+\|\s*$/.test(l));
+  return rows.slice(1).some((r) => r.trim().length > 0 && !/<[^<>]*>/.test(r));
+}
+
 const headingRules = [
   ['proposal.md', /^## 1\./m, 'section "## 1." (why)'],
   ['proposal.md', /^## 2\./m, 'section "## 2." (what changes)'],
@@ -162,9 +244,64 @@ if (reached('requirements-ready') && man.type !== 'bugfix' && man.type !== 'refa
   if (text && !/^## REQ-/m.test(text)) errors.push('requirements.md: no "## REQ-" entries');
   if (text && !/critérios de aceite/i.test(text)) errors.push('requirements.md: no acceptance criteria (testability — §19.2)');
 }
+// REQ-13/NFR-03 (§2.5): change cujo manifest declara affects_surfaces incluindo "api" exige,
+// em requirements.md, o mapa endpoint→ação→recurso→policy e o mapa de eventos auditáveis
+// preenchidos. Proporcionalidade: affects_surfaces ausente (ou sem "api") não exige nada aqui —
+// mesma guarda de reached('requirements-ready')/tipo/scale do bloco de REQ- acima.
+if (reached('requirements-ready') && man.type !== 'bugfix' && man.type !== 'refactor' && scale >= 1
+  && Array.isArray(man.affects_surfaces) && man.affects_surfaces.includes('api')) {
+  const text = readIf(reqArtifact) || '';
+  const endpointBody = sectionBody(text, /^##\s*Mapa endpoint.*policy\s*$/im);
+  const auditBody = sectionBody(text, /^##\s*Mapa de eventos audit[áa]veis\s*$/im);
+  if (!hasFilledTableRow(endpointBody))
+    errors.push(`${reqArtifact}: missing endpoint→ação→recurso→policy map (required — affects_surfaces includes "api", REQ-13)`);
+  if (!hasFilledTableRow(auditBody))
+    errors.push(`${reqArtifact}: missing auditable events map (required — affects_surfaces includes "api", REQ-13)`);
+}
 if (reached('tasks-ready')) {
   const text = readIf('tasks.md');
   if (text && !/^\s*- \[( |-|X|!)\] TASK-[0-9]+/m.test(text)) errors.push('tasks.md: no TASK-NN entries');
+  // TSK-01..04 + SRF-01 (lib/tasks-graph.mjs): substituem a auto-checagem por LLM de
+  // `commands/specs/tasks.md` §2 e o item 6 de `commands/specs/analyze.md`. Um invariante
+  // estrutural verificado por um modelo é um invariante que às vezes não é verificado — foi assim
+  // que uma dependência de Wave 4 para Wave 7 atravessou um plano de 89 tasks.
+  if (text) {
+    const parsed = parseTasks(text);
+    for (const f of checkTasksGraph(parsed)) {
+      if (f.enforceable) errors.push(`${f.code} ${f.msg}`);
+      else warnings.push(`${f.code} ${f.msg}`);      // TSK-04 furo, TSK-05 não-verificável
+    }
+    // SRF-01 cruza o "Checklist de cobertura de superfície" do requirements.md contra o grafo de
+    // tasks. Rebaixável por calibração: sem oráculo de código (SUR-01), o achado não distingue
+    // "a rota não existe" de "a task que a entregou declarou `paths:` incompleto".
+    // SRF-00 antes de tudo: é a porta que, fechada, torna obrigatório o que vem depois. Roda com o
+    // grafo quando ele existe (para reconhecer projeto cujo nome não denuncia a camada) e sem ele
+    // quando não existe — degrada a precisão, nunca desliga.
+    // respeita `enforceable` como todo o resto: empurrar SRF-00 direto para `errors` fazia o campo
+    // ser decorativo, e um campo decorativo é um campo que ninguém percebe quando muda de valor.
+    // SRF-03 (LDG-0010): célula de superfície de API escrita em prosa, sem `VERB /path`. Aviso —
+    // é o insumo que falta para o SRF-01 poder cruzar contra as rotas reais.
+    for (const f of checkSurfaceChecklistLiteral(parseSurfaceChecklist(readIf('requirements.md') || ''))) {
+      if (f.enforceable) errors.push(`${f.code} ${f.msg}`);
+      else warnings.push(`${f.code} ${f.msg}`);
+    }
+    for (const f of checkSurfaceDeclaration(man, parsed, { apiPaths: apiLayerPaths() })) {
+      if (f.enforceable) errors.push(`${f.code} ${f.msg}`);
+      else warnings.push(`${f.code} ${f.msg}`);
+    }
+    const reqText = readIf(reqArtifact);
+    if (reqText) {
+      const rows = parseSurfaceChecklist(reqText);
+      // SRF-02 primeiro: sem Checklist preenchido o SRF-01 não roda, e "não rodou" precisa aparecer.
+      // Silenciar aqui reproduziria, no script, a falha que ele veio corrigir no comando.
+      for (const f of checkSurfaceChecklistPresence(reqText)) warnings.push(`${f.code} ${f.msg}`);
+      // Sem applyMode: todos os findings de SRF-01 nascem rebaixáveis e o mode aqui seria sempre
+      // 'warn', então o ramo blocking era código morto. A promoção a bloqueante é `opts.enforceable`
+      // da própria lib, e passa a ser exercida quando houver oráculo de código para confirmá-la.
+      for (const f of checkSurfaceCoverage(rows, parsed, { apiPaths: apiLayerPaths() }))
+        warnings.push(`${f.code} ${f.msg}`);
+    }
+  }
 }
 
 // ── traceability.yaml coherence (§19.2) ─────────────────────────────────────
@@ -214,5 +351,6 @@ if (has('spec-delta.yaml')) {
 }
 
 // ── verdict ──────────────────────────────────────────────────────────────────
+for (const w of warnings) console.log(`WARN (${w})`);
 if (errors.length) { console.log(`FAIL (${errors.join('; ')})`); process.exit(1); }
 console.log(`OK ${man.id}`);

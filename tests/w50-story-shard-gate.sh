@@ -236,7 +236,8 @@ Sem objetivo concreto.
 EOF
 # Verificar que não há tasks TASK-NN na story (deve ter zero)
 task_count="$(grep -cE 'TASK-[0-9]+' "$T/empty-story.md" || true)"
-[ "$task_count" -eq 0 ] && echo "invariante detectada: story sem tasks identificável"
+[ "$task_count" -eq 0 ] \
+  || { echo "FAIL [8]: story vazia deveria ter zero tasks identificáveis (achou $task_count)"; exit 1; }
 echo "OK [8]"
 
 echo "OK"

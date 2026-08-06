@@ -1,0 +1,24 @@
+[
+  {
+    "method": "GET",
+    "path": "/accounts/{id}",
+    "action": "read",
+    "resource": "account",
+    "policy": "policies/account_read.rego",
+    "negative_contract_test": {
+      "unauthenticated_401": "tests/contract/accounts_get_unauthenticated_401.spec.ts",
+      "forbidden_403": "tests/contract/accounts_get_forbidden_403.spec.ts"
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/accounts/{id}/close",
+    "action": "close",
+    "resource": "account",
+    "policy": "policies/account_close.rego",
+    "negative_contract_test": {
+      "unauthenticated_401": "tests/contract/accounts_close_unauthenticated_401.spec.ts",
+      "forbidden_403": "tests/contract/accounts_close_forbidden_403.spec.ts"
+    }
+  }
+]

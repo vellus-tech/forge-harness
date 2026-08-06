@@ -21,7 +21,7 @@ node "$BIN" init --target "$D1" --slug c1 --name C1 --desc t --yes --no-plugin >
 git -C "$D1" config core.hooksPath .githooks
 out="$(node "$BIN" init --target "$D1" --slug c1 --name C1 --desc t --yes --no-plugin --force 2>&1)"
 [ "$(git -C "$D1" config --get core.hooksPath)" = ".githooks" ] || { echo "FAIL [1] (hooksPath sobrescrito)"; exit 1; }
-echo "$out" | grep -qi 'customizado' || { echo "FAIL [1] (nota informativa ausente)"; exit 1; }
+grep -qi 'customizado' <<<"$out" || { echo "FAIL [1] (nota informativa ausente)"; exit 1; }
 echo "OK [1]"
 
 echo "[2] init em repo sem hooksPath → segue setando .forge/hooks/git"
@@ -51,7 +51,7 @@ D5="$T/case5"; mkdir -p "$D5"; git -C "$D5" init -q
 node "$BIN" init --target "$D5" --slug c5 --name C5 --desc t --yes --no-plugin >/dev/null 2>&1
 out5="$(node "$BIN" update --target "$D5" --no-plugin 2>&1)"
 [ "$(git -C "$D5" config --get core.hooksPath)" = ".forge/hooks/git" ] || { echo "FAIL [5]"; exit 1; }
-echo "$out5" | grep -qi 'customizado' && { echo "FAIL [5] (nota de customizado indevida)"; exit 1; }
+grep -qi 'customizado' <<<"$out5" && { echo "FAIL [5] (nota de customizado indevida)"; exit 1; }
 echo "OK [5]"
 
 echo "PASS w94-hookspath-preserve-gate"

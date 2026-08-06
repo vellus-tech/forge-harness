@@ -1,0 +1,151 @@
+# Spec delta — forge-update-command (autorado no archive; change verificado em 2026-07-09,
+# commit ab0c695, antes do scaffold de spec-delta existir — fallback de change legado, /forge:archive §1).
+# Payloads derivados de requirements.md (REQ-01..09) e da tabela REQ-a-REQ de verification.md.
+# Numeração continua de REQ-FHT-036 (deepspec-provenance, arquivado no mesmo lote).
+operations:
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-037
+    content_ref: requirements.md#req-01
+    requirement:
+      id: REQ-FHT-037
+      title: "Subcomando update no CLI do harness"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-037-A
+          given: "um projeto com .forge/ instalado e outro sem .forge/"
+          when: "o usuário roda npx forge-harness update (ou node bin/forge.mjs update), com ou sem --target/--source"
+          then: "no projeto com .forge/ a maquinaria é atualizada preservando os dados do projeto e o relatório final lista o que foi atualizado, o que foi preservado e onde ficou o backup; sem .forge/ falha com exit 3 sugerindo init, sem alterar nada"
+      contracts: []
+      tests:
+        - tests/w63-forge-update-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-038
+    content_ref: requirements.md#req-02
+    requirement:
+      id: REQ-FHT-038
+      title: "Overlay aditivo da maquinaria, sem deleção"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-038-A
+          given: "um projeto com um arquivo de maquinaria alterado no template novo, um arquivo extra (órfão) criado pelo projeto dentro de um diretório de maquinaria, e adapters/*.lock.yaml presentes"
+          when: "o update roda"
+          then: "agents/, commands/, hooks/, schemas/, scripts/, skills/, templates/, rules/, adapters/*.yaml e o README.md do .forge/ são sobrescritos com o template novo, arquivos novos são adicionados, o órfão do projeto é preservado (nada é deletado) e os adapters/*.lock.yaml não são sobrescritos pelo overlay"
+      contracts: []
+      tests:
+        - tests/w63-forge-update-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-039
+    content_ref: requirements.md#req-03
+    requirement:
+      id: REQ-FHT-039
+      title: "Preservação integral dos dados do projeto no update"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-039-A
+          given: "um projeto com uma spec, um ADR, runners.yaml com enabled: true, constitution.md, context.md e FORGE.md preenchidos"
+          when: "o update roda"
+          then: "specs/active, specs/archived, product/current, product/published, custom/, evals/ (conteúdo), runners.yaml, FORGE.md, constitution.md e context.md permanecem byte-idênticos ao estado anterior"
+      contracts: []
+      tests:
+        - tests/w63-forge-update-gate.sh
+        - tests/npx-pack-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-040
+    content_ref: requirements.md#req-04
+    requirement:
+      id: REQ-FHT-040
+      title: "Merge campo-a-campo do forge.yaml no update"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-040-A
+          given: "um forge.yaml com adapters ativos e flags do projeto, e uma versão de pacote mais nova"
+          when: "o update roda"
+          then: "apenas harness.template_version é atualizado para a versão do pacote; a lista de adapters ativos e todas as demais chaves permanecem idênticas"
+      contracts: []
+      tests:
+        - tests/w63-forge-update-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-041
+    content_ref: requirements.md#req-05
+    requirement:
+      id: REQ-FHT-041
+      title: "Reconciliação de adapters e ambiente ao fim do overlay"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-041-A
+          given: "um projeto com adapter claude ativo, hooksPath desconfigurado e bloco managed do .gitignore desatualizado, rodando com e sem --no-plugin"
+          when: "o overlay do update termina"
+          then: "sync-adapters --adapter all roda preservando a lista ativa (.claude, AGENTS.md e lockfiles regenerados sem drift, doctor limpo), o core.hooksPath e o bloco managed do .gitignore são reconciliados, e o plugin global só é re-materializado quando claude está ativo e --no-plugin não foi passado"
+      contracts: []
+      tests:
+        - tests/w63-forge-update-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-042
+    content_ref: requirements.md#req-06
+    requirement:
+      id: REQ-FHT-042
+      title: "--dry-run e backup automático no update"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-042-A
+          given: "um projeto prestes a receber o update, com e sem a flag --no-backup"
+          when: "o usuário roda update --dry-run e, depois, o update real"
+          then: "o --dry-run lista os paths que mudariam sem escrever nada em disco (exit 0); o update real cria .forge.bak-N por padrão e não cria backup algum sob --no-backup"
+      contracts: []
+      tests:
+        - tests/w63-forge-update-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-043
+    content_ref: requirements.md#req-07
+    requirement:
+      id: REQ-FHT-043
+      title: "Slash /forge:upgrade distinto de /forge:update"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-043-A
+          given: "o comando template/.forge/commands/harness/upgrade.md com frontmatter válido"
+          when: "o usuário roda /forge:upgrade no agente e o plugin é reconstruído"
+          then: "o comando dispara o update do CLI mostrando o --dry-run antes de aplicar, sem colidir com /forge:update (grafo), e o plugin-sync-gate passa com a contagem de comandos incrementada"
+      contracts: []
+      tests:
+        - tests/plugin-sync-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-044
+    content_ref: requirements.md#req-08
+    requirement:
+      id: REQ-FHT-044
+      title: "Doctor não acusa falso-positivo em specs, worktrees, product, evals e custom"
+      normative: SHALL NOT
+      scenarios:
+        - id: SCN-FHT-044-A
+          given: "um projeto com uma spec citando \".claude/\" no texto e um placeholder <PROJECT_ID> dentro de worktrees/**"
+          when: "o doctor varre a fonte canônica"
+          then: "não reporta vazamento de refs .claude/ nem placeholder órfão, porque specs/, worktrees/, product/, evals/ e custom/ são excluídos dessas checagens — as demais checagens do doctor seguem valendo"
+      contracts: []
+      tests:
+        - tests/w63-forge-update-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-045
+    content_ref: requirements.md#req-09
+    requirement:
+      id: REQ-FHT-045
+      title: "Idempotência do update e cobertura pelo tarball empacotado"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-045-A
+          given: "um projeto já atualizado, sem mudança de versão do pacote, e o tarball npm empacotado"
+          when: "o update roda uma segunda vez, e a seção 6 do npx-pack-gate executa init+update a partir do tarball"
+          then: "a segunda execução é no-op (working tree inalterada), e o fluxo pelo tarball preserva o produto do projeto enquanto atualiza a maquinaria, com o doctor limpo ao final"
+      contracts: []
+      tests:
+        - tests/w63-forge-update-gate.sh
+        - tests/npx-pack-gate.sh

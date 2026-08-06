@@ -4,11 +4,16 @@
 #   validate-spec.sh <change-id>      validates .forge/specs/active/<change-id>/
 #   validate-spec.sh --path <dir>     validates an explicit change directory
 #   validate-spec.sh --all            validates every change under specs/active/
-# Output: one "OK <id>" / "FAIL (...)" line per change; exit 1 if any failed.
+# Output: one "OK <id>" / "FAIL (...)" verdict line per change, precedida por zero ou mais linhas
+# "WARN (...)" — achados rebaixáveis (hoje: SRF-01, cobertura de superfície) que NÃO mudam o exit
+# code. Exit 1 se algum change reprovou.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="${FORGE_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
+# Exportado porque lib/validate-spec.mjs resolve o red-evidence.sh a partir de FORGE_ROOT: sem
+# isto ele cai no diretório do change, o existsSync falha e o replay do Red é pulado EM SILÊNCIO.
+export FORGE_ROOT="$ROOT"
 ACTIVE="$ROOT/.forge/specs/active"
 
 command -v node >/dev/null 2>&1 || { echo "FAIL (node >= 20 required)"; exit 1; }

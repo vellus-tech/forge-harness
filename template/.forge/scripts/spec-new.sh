@@ -69,7 +69,12 @@ fill() { # fill <template> <dest-file>
 
 fill "$TPL/spec/proposal.md" "$DEST/proposal.md"
 case "$TYPE" in
-  bugfix)   [ "$SCALE" -ge 1 ] && fill "$TPL/bugfix/bugfix.md" "$DEST/bugfix.md" ;;
+  bugfix)   [ "$SCALE" -ge 1 ] && fill "$TPL/bugfix/bugfix.md" "$DEST/bugfix.md"
+            # evidência do Red-first (rule testing/regression-red-first.md, item 1) — nasce
+            # status:pending independentemente de scale (item 1 não é escalonado pela rule);
+            # /forge:red record ou check-red-first.sh waive avançam o status.
+            mkdir -p "$DEST/evidence/red"
+            fill "$TPL/bugfix/red-evidence.json" "$DEST/evidence/red/red-evidence.json" ;;
   refactor) [ "$SCALE" -ge 1 ] && fill "$TPL/refactor/refactor.md" "$DEST/refactor.md" ;;
   *)        [ "$SCALE" -ge 1 ] && fill "$TPL/spec/requirements.md" "$DEST/requirements.md" ;;
 esac

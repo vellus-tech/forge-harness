@@ -1,0 +1,18 @@
+{
+  "schema": "graph/v0",
+  "nodes": [
+    { "id": "services/orders/api/handler.go", "layer": "api" },
+    { "id": "services/health/api/ping.go", "layer": "api" },
+    { "id": "packages/otel/wrap.go", "layer": "infrastructure", "roles": ["otel-wrapper"] }
+  ],
+  "edges": [
+    { "from": "services/orders/api/handler.go", "to": "packages/otel/wrap.go", "kind": "import", "resolved": true }
+  ],
+  "governance": {
+    "observability": {
+      "wrapper_paths": ["packages/otel"],
+      "allowlist": ["services/health"],
+      "mode": "enforce"
+    }
+  }
+}

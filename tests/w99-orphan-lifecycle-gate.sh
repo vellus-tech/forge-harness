@@ -111,14 +111,14 @@ DRC="$CLEAN/.forge/scripts/doctor.sh"
 set +e
 out_clean="$(bash "$DRC" 2>&1)"; rc_clean=$?
 set -e
-printf '%s' "$out_clean" | grep -q "sem changes órfãos" || { echo "FAIL: doctor sem órfão não imprimiu linha ok"; echo "$out_clean" | grep -i orf; rm -rf "$CLEAN"; exit 1; }
+grep -q "sem changes órfãos" <<<"$out_clean" || { echo "FAIL: doctor sem órfão não imprimiu linha ok"; echo "$out_clean" | grep -i orf; rm -rf "$CLEAN"; exit 1; }
 # introduz um órfão verified (status setado direto — detector lê só `status:`)
 FORGE_ROOT="$CLEAN" bash "$CLEAN/.forge/scripts/spec-new.sh" orf --type feature --scale 0 >/dev/null
 perl -pi -e 's/^status: .*/status: verified/' "$CLEAN/.forge/specs/active/orf/manifest.yaml"
 set +e
 out_orph="$(bash "$DRC" 2>&1)"; rc_orph=$?
 set -e
-printf '%s' "$out_orph" | grep -qE "· .*orf.*mergeado/verificado|orf.*sem baixa" || { echo "FAIL: doctor não sinalizou o órfão 'orf'"; echo "$out_orph" | grep -i orf; rm -rf "$CLEAN"; exit 1; }
+grep -qE "· .*orf.*mergeado/verificado|orf.*sem baixa" <<<"$out_orph" || { echo "FAIL: doctor não sinalizou o órfão 'orf'"; echo "$out_orph" | grep -i orf; rm -rf "$CLEAN"; exit 1; }
 [ "$rc_orph" = "$rc_clean" ] || { echo "FAIL: check de órfão mudou o exit do doctor ($rc_clean -> $rc_orph) — deveria ser non-load-bearing"; rm -rf "$CLEAN"; exit 1; }
 rm -rf "$CLEAN"
 echo "OK [7]"

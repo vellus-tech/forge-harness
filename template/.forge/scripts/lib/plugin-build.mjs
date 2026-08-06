@@ -139,4 +139,23 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   writePlugin(out, files);
   console.log(`OK plugin '${name}' v${version} → ${out}`);
   console.log(`   ${files.length - 1} comandos /${name}:* (de ${commandsDir})`);
+
+  // O marketplace declara a versão do plugin publicado e precisa acompanhar o package.json. Era
+  // passo manual, e passo manual atrelado a bump é passo esquecido: um release saiu com o
+  // marketplace uma versão atrás, e quem descobriu foi o gate — depois da tag já cortada e
+  // publicada. Sincronizar aqui elimina a classe, em vez de confiar em alguém lembrar.
+  syncMarketplace(root, version, name);
+}
+
+function syncMarketplace(root, version, name) {
+  const mpPath = join(root, '.claude-plugin/marketplace.json');
+  if (!existsSync(mpPath)) return;
+  let mp;
+  try { mp = JSON.parse(readFileSync(mpPath, 'utf8')); } catch { return; }
+  const entry = (mp.plugins || []).find((p) => p.name === name) || (mp.plugins || [])[0];
+  if (!entry || entry.version === version) return;
+  const before = entry.version;
+  entry.version = version;
+  writeFileSync(mpPath, JSON.stringify(mp, null, 2) + '\n');
+  console.log(`   marketplace: ${before} → ${version}`);
 }

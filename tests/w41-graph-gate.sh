@@ -8,6 +8,9 @@
 #   [5] mudança ESTRUTURAL (novo import) altera o fingerprint e o grafo
 #   [6] validate detecta grafo corrompido (edge resolvido órfão; id duplicado)
 #   [7] query e path funcionam sobre o grafo
+#   [8] FORGE.md sem blocos authz:/observability: → sem `governance` no graph.json (no-op)
+#   [9] FORGE.md COM blocos authz:/observability: → nodes taggeados com `roles`
+#       (pep/otel-wrapper por glob) + `governance` materializado no graph.json (TASK-07)
 set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -79,7 +82,7 @@ export class Money {
 }
 EOF
 out="$(FORGE_ROOT="$T" bash "$G" update)"
-echo "$out" | grep -q 'zero tokens'
+grep -q 'zero tokens' <<<"$out"
 fp_after="$(node -e 'const g=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));console.log(g.nodes.find(n=>n.id==="src/domain/money.ts").fingerprint)' "$T/.forge/graph/graph.json")"
 [ "$fp_before" = "$fp_after" ]
 echo "OK [4] (fingerprint estável: ${fp_before:0:12})"
@@ -90,7 +93,7 @@ import { pay } from '../application/pay';
 export const extra = pay;
 EOF
 out="$(FORGE_ROOT="$T" bash "$G" update)"
-echo "$out" | grep -q 'structural change'
+grep -q 'structural change' <<<"$out"
 fp_struct="$(node -e 'const g=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));console.log(g.nodes.find(n=>n.id==="src/domain/money.ts").fingerprint)' "$T/.forge/graph/graph.json")"
 [ "$fp_struct" != "$fp_before" ]
 echo "OK [5]"
@@ -107,7 +110,8 @@ require("fs").writeFileSync(p,JSON.stringify(g,null,2));
 set +e
 out="$(FORGE_ROOT="$T" bash "$G" validate 2>&1)"; rc=$?
 set -e
-[ "$rc" -ne 0 ] && echo "$out" | grep -q 'referential integrity'
+[ "$rc" -ne 0 ] && grep -q 'referential integrity' <<<"$out" \
+  || { echo "FAIL [6]: graph validate não reprovou edge fantasma citando 'referential integrity' (rc=$rc, out=$out)"; exit 1; }
 mv "$T/g.bak" "$T/.forge/graph/graph.json"
 echo "OK [6]"
 
@@ -115,5 +119,116 @@ echo "[7] query + path"
 FORGE_ROOT="$T" bash "$G" query money | grep -q 'src/domain/money.ts'
 FORGE_ROOT="$T" bash "$G" path src/api/handler.ts src/domain/money.ts | grep -q 'PATH:'
 echo "OK [7]"
+
+echo "[8] sem blocos authz:/observability: no FORGE.md → sem governance (no-op)"
+node -e '
+const g=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));
+process.exit(("governance" in g) ? 1 : 0);
+' "$T/.forge/graph/graph.json"
+echo "OK [8]"
+
+echo "[9] FORGE.md COM authz:/observability: → roles taggeados + governance materializado"
+mkdir -p "$T/packages/pep" "$T/packages/otel" "$T/services/health"
+cat > "$T/packages/pep/check.ts" <<'EOF'
+export function check() { return true; }
+EOF
+cat > "$T/packages/otel/wrap.ts" <<'EOF'
+export function wrap() { return true; }
+EOF
+cat > "$T/services/health/index.ts" <<'EOF'
+export const health = () => 'ok';
+EOF
+node -e '
+const fs = require("fs");
+const p = process.argv[1];
+let text = fs.readFileSync(p, "utf8");
+const insert = [
+  "authz:",
+  "  pep_paths:",
+  "    - packages/pep",
+  "  policy_dir: policy",
+  "  allowlist:",
+  "    - services/health",
+  "  mode: warn",
+  "observability:",
+  "  wrapper_paths:",
+  "    - packages/otel",
+  "  allowlist:",
+  "    - services/health",
+  "  mode: warn",
+  "",
+].join("\n");
+const idx = text.indexOf("---\n", 4); // start of the SECOND "---" (closes the frontmatter)
+text = text.slice(0, idx) + insert + text.slice(idx);
+fs.writeFileSync(p, text);
+' "$T/.forge/FORGE.md"
+FORGE_ROOT="$T" bash "$G" build >/dev/null
+node "$WS/tools/validate-yaml.mjs" "$SCHEMA" "$T/.forge/graph/graph.json" >/dev/null
+node -e '
+const g=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));
+const pep = g.nodes.find(n=>n.id==="packages/pep/check.ts");
+const wrap = g.nodes.find(n=>n.id==="packages/otel/wrap.ts");
+const health = g.nodes.find(n=>n.id==="services/health/index.ts");
+const ok = pep && Array.isArray(pep.roles) && pep.roles.includes("pep")
+  && wrap && Array.isArray(wrap.roles) && wrap.roles.includes("otel-wrapper")
+  && (!health || !health.roles) // allowlist não taggeia — só afeta os gates, não o grafo
+  && g.governance && g.governance.authz && g.governance.authz.pep_paths.includes("packages/pep")
+  && g.governance.observability && g.governance.observability.wrapper_paths.includes("packages/otel");
+process.exit(ok ? 0 : 1);
+' "$T/.forge/graph/graph.json"
+echo "OK [9]"
+
+echo "[10] bin/ é código-fonte em projeto Node, e saída de build em .NET/Java"
+# SKIP_DIRS listava 'bin' junto de dist/build/out/obj — heurística de saída de compilação de
+# .NET/Java. Em projeto Node, bin/ é o entrypoint declarado no package.json: pulá-lo tira o ponto
+# de entrada do grafo em silêncio, e /forge:impact, /forge:onboard e /forge:c4 operam sobre isso.
+B="$T/binfix"
+mkdir -p "$B/bin" "$B/src" "$B/bin/Debug/net8.0" "$B/dist" "$B/obj"
+cp -R "$WS/template/.forge" "$B/.forge"
+cat > "$B/package.json" <<'EOF'
+{ "name": "demo-cli", "version": "1.0.0", "type": "module", "bin": { "demo": "bin/cli.mjs" } }
+EOF
+cat > "$B/bin/cli.mjs" <<'EOF'
+#!/usr/bin/env node
+import { run } from '../src/run.mjs';
+run();
+EOF
+cat > "$B/src/run.mjs" <<'EOF'
+export function run() { return 1; }
+EOF
+# saída de compilação .NET DENTRO de bin/ — inclusive um .cs gerado, que é o caso que justifica
+# a exclusão original e não pode voltar a entrar
+cat > "$B/bin/Debug/net8.0/Generated.cs" <<'EOF'
+namespace Generated; public class Assembly { }
+EOF
+# controles: dist/ e obj/ seguem pulados
+cat > "$B/dist/bundle.mjs" <<'EOF'
+export const bundled = 1;
+EOF
+cat > "$B/obj/Gen.cs" <<'EOF'
+namespace Obj; public class Gen { }
+EOF
+
+FORGE_ROOT="$B" bash "$B/.forge/scripts/graph.sh" build >/dev/null
+# a asserção precisa terminar em `|| { echo "FAIL [10] …"; exit 1; }`: sob `set -e`, um `node -e`
+# que sai 1 mata o gate sem imprimir a linha de falha, e o diagnóstico seguinte começa do zero
+# (LDG-0012). É também o formato que o classificador do replay reconhece como comportamental.
+node -e '
+const g = require(process.argv[1]);
+const ids = g.nodes.map((n) => n.id);
+const has = (p) => ids.includes(p);
+const fail = (m) => { console.error(m + " — nodes: " + JSON.stringify(ids)); process.exit(1); };
+if (!has("bin/cli.mjs")) fail("bin/cli.mjs (entrypoint declarado no package.json) ficou fora do grafo");
+if (!has("src/run.mjs")) fail("src/run.mjs ficou fora do grafo");
+// a aresta do entrypoint é o que se perdia junto com o nó
+const e = g.edges.find((x) => x.from === "bin/cli.mjs" && x.to === "src/run.mjs");
+if (!e) fail("aresta bin/cli.mjs -> src/run.mjs ausente");
+if (!e.resolved) fail("aresta bin/cli.mjs -> src/run.mjs não resolvida");
+// controles: saída de compilação continua fora
+if (has("bin/Debug/net8.0/Generated.cs")) fail("bin/Debug (saída .NET) entrou no grafo");
+if (has("dist/bundle.mjs")) fail("dist/ entrou no grafo");
+if (has("obj/Gen.cs")) fail("obj/ entrou no grafo");
+' "$B/.forge/graph/graph.json" || { echo "FAIL [10] (bin/ tratado como saída de build em projeto Node)"; exit 1; }
+echo "OK [10]"
 
 echo "OK"

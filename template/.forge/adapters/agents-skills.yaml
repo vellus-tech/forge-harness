@@ -10,5 +10,5 @@ supports:
   hooks: false
 smoke_tests:
   - name: skills-projected
-    command: "test \"$(find .agents/skills -name SKILL.md | wc -l | tr -d ' ')\" = \"4\""
+    command: "test \"$(find .agents/skills -name SKILL.md | wc -l | tr -d ' ')\" = \"$(find .forge/skills -name SKILL.md | wc -l | tr -d ' ')\""
 loss_warnings: []

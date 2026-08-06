@@ -1,0 +1,71 @@
+{
+  "schema": "run-manifest/v1",
+  "run_id": "20260804200934-bef9c255",
+  "stage": "verify",
+  "status": "passed",
+  "started_at": "2026-08-04T20:09:33Z",
+  "finished_at": "2026-08-04T20:09:34.632Z",
+  "duration_ms": 1632,
+  "git": {
+    "repo": true,
+    "branch": "develop",
+    "head_sha": "7d265a722dca96b1c7d208f01717b67f0db16507",
+    "dirty": true,
+    "changed_files": [
+      ".forge/specs/active/gate-assert-visibility/evidence/red/red-evidence.json",
+      ".forge/specs/active/gate-assert-visibility/verification.yaml"
+    ],
+    "diff_stat": ".../active/gate-assert-visibility/evidence/red/red-evidence.json      | 4 ++--\n 1 file changed, 2 insertions(+), 2 deletions(-)",
+    "diff_sha256": "bef9daddf40dfda3e34210a3846f906faf88973b0f43d3112dfb40f0ee2862aa"
+  },
+  "inputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "535e5c2415371576b3975ff841b23e13ecf4aada3f5a284b60271f5dcdd2a0c6",
+      "bytes": 1515,
+      "kind": "file"
+    },
+    {
+      "path": "tasks.md",
+      "exists": true,
+      "sha256": "55c8600660f213142d46d1ebd44669478b1c0842ab3fffb7968f781307eed222",
+      "bytes": 8423,
+      "kind": "file"
+    },
+    {
+      "path": "traceability.yaml",
+      "exists": false,
+      "sha256": null,
+      "bytes": null
+    }
+  ],
+  "commands": [
+    {
+      "name": "spec-verify",
+      "command": "spec-verify.sh gate-assert-visibility",
+      "status": "passed"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "verification.yaml",
+      "exists": true,
+      "sha256": "466c0f46bbd0174be86e4ff51816d2f16e9ab7fffd19efc8ed967c832f58ac8f",
+      "bytes": 431,
+      "kind": "file"
+    }
+  ],
+  "runner": {
+    "name": "local",
+    "profile": "standard"
+  },
+  "budgets": {
+    "profile": "standard",
+    "budget_class": "medium",
+    "expected_runs": 1,
+    "estimated_timeout_s": 300,
+    "uses_llm": false,
+    "uses_subagent": false
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "schema": "red-evidence/v1",
+  "change_id": "gate-assert-visibility",
+  "status": "observed",
+  "test_path": "tests/gate-assert-visibility-gate.sh",
+  "test_id": "[1]",
+  "command": "bash tests/gate-assert-visibility-gate.sh",
+  "base_commit": "944c95823ac2b7e0d4a3235478db585f80ec4215",
+  "failure_pattern": "FAIL \\[1\\]: w80-suite-gate\\.sh saiu",
+  "excerpt": "[1] w80-suite-gate.sh reporta FAIL [2] explícito com billing.ts ausente\nFAIL [1]: w80-suite-gate.sh saiu rc=1 sem emitir 'FAIL [2]: ...' ao remover billing.ts da fixture ([1] fixtures com a forma esperada\nOK [1]\n[2] brownfield mini-repo TS real)\n",
+  "excerpt_sha256": "846f1a34315b2057981e463c25472f949756d0f1f57e832903aba1f159e8e902",
+  "classification": "behavioral",
+  "base_result": "failed",
+  "base_strategy": "ancestry",
+  "revert_patch": null,
+  "graft_from": null,
+  "replay_head": "7d265a722dca96b1c7d208f01717b67f0db16507",
+  "setup_command": null,
+  "reproduces": "bugfix.md §1",
+  "fix_files": [
+    "tests/w80-suite-gate.sh"
+  ],
+  "waiver": null,
+  "recorded_at": "2026-08-04T18:07:55.459Z",
+  "replayed_at": "2026-08-04T20:09:34.395Z",
+  "waived_at": null
+}

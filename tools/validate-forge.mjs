@@ -4,9 +4,11 @@
 //   2. template/.forge/FORGE.md frontmatter  vs $defs/forgeFrontmatter
 //   3. adapter-capability.schema.json        compiles (sanity)
 // Output: one "OK <check>" line per check; exits 1 on first failure with ajv errors.
-import { readFileSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
+import { readFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { tmpdir } from 'node:os';
+import { execFileSync } from 'node:child_process';
 import { parse } from 'yaml';
 import Ajv2020 from 'ajv/dist/2020.js';
 
@@ -61,13 +63,33 @@ console.log(`OK ${decls.length} adapter declarations vs adapter-capability schem
 const specManifest = JSON.parse(read('template/.forge/schemas/spec-manifest.schema.json'));
 const validateSpecManifest = ajv.compile(specManifest);
 console.log('OK spec-manifest.schema.json compiles');
-const dogfood = parse(read('.forge/specs/active/create-forge-project-harness/manifest.yaml'));
-if (!validateSpecManifest(dogfood)) {
-  console.error('FAIL dogfooding manifest vs spec-manifest schema');
-  console.error(JSON.stringify(validateSpecManifest.errors, null, 2));
-  process.exit(1);
+// Ponteiro derivado, não cravado: todo change ativo real vira fixture dogfood — cravar um id
+// específico quebra de novo assim que ele for arquivado/fechado (aconteceu 2x: LDG-0012 e antes
+// dele, create-forge-project-harness). Sem degradar para "OK ... SKIP" quando não há change
+// ativo (mesma classe de defeito que este repositório existe para eliminar, R2-003 do
+// code-evaluator) — gera um change sintético num tmpdir e valida ele em vez de não validar nada.
+const activeDir = resolve(root, '.forge/specs/active');
+const activeChanges = existsSync(activeDir) ? readdirSync(activeDir).filter((d) => existsSync(resolve(activeDir, d, 'manifest.yaml'))).sort() : [];
+const validateManifestAt = (label, manifestPath) => {
+  const dogfood = parse(readFileSync(manifestPath, 'utf8'));
+  if (!validateSpecManifest(dogfood)) {
+    console.error(`FAIL dogfooding manifest (${label}) vs spec-manifest schema`);
+    console.error(JSON.stringify(validateSpecManifest.errors, null, 2));
+    process.exit(1);
+  }
+  console.log(`OK dogfooding manifest (${label}) vs spec-manifest schema`);
+};
+if (activeChanges.length === 0) {
+  const tmp = mkdtempSync(join(tmpdir(), 'forge-validate-dogfood-'));
+  try {
+    execFileSync('bash', [resolve(root, 'template/.forge/scripts/spec-new.sh'), 'synthetic-dogfood', '--type', 'feature', '--scale', '2'], { env: { ...process.env, FORGE_ROOT: tmp }, stdio: 'pipe' });
+    validateManifestAt('sintético, sem change real ativo', join(tmp, '.forge/specs/active/synthetic-dogfood/manifest.yaml'));
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+} else {
+  for (const id of activeChanges) validateManifestAt(id, resolve(root, `.forge/specs/active/${id}/manifest.yaml`));
 }
-console.log('OK dogfooding manifest (create-forge-project-harness) vs spec-manifest schema');
 
 // W3.0 — baseline schemas compile; canonical state machine definition conforms
 const compiled = {};

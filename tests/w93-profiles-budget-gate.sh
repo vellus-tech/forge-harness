@@ -15,13 +15,13 @@ S="$T/.forge/scripts"
 
 echo "[1] default standard"
 out="$(FORGE_ROOT="$T" bash "$S/budget-preflight.sh" --stage eval)"
-echo "$out" | grep -q 'profile=standard'
+grep -q 'profile=standard' <<<"$out"
 echo "OK [1]"
 
 echo "[2] forge.yaml profile"
 printf 'execution_profile: quick\n' > "$T/.forge/forge.yaml"
 out="$(FORGE_ROOT="$T" bash "$S/budget-preflight.sh" --stage eval)"
-echo "$out" | grep -q 'profile=quick'
+grep -q 'profile=quick' <<<"$out"
 echo "OK [2]"
 
 echo "[3] manifest profile vence forge.yaml"
@@ -32,21 +32,21 @@ id: profile-demo
 execution_profile: regulated
 EOF
 out="$(FORGE_ROOT="$T" bash "$S/budget-preflight.sh" --stage verify --change profile-demo)"
-echo "$out" | grep -q 'profile=regulated'
-echo "$out" | grep -q 'runs=3'
+grep -q 'profile=regulated' <<<"$out"
+grep -q 'runs=3' <<<"$out"
 echo "OK [3]"
 
 echo "[4] flag --profile vence manifest"
 out="$(FORGE_ROOT="$T" bash "$S/budget-preflight.sh" --stage verify --change profile-demo --profile brownfield-heavy)"
-echo "$out" | grep -q 'profile=brownfield-heavy'
+grep -q 'profile=brownfield-heavy' <<<"$out"
 echo "OK [4]"
 
 echo "[5] --set aplica runs/runner"
 out="$(FORGE_ROOT="$T" bash "$S/budget-preflight.sh" --stage eval --profile quick --set runs=4 --set runner=stub --outputs aggregate.json)"
-echo "$out" | grep -q 'runner=stub'
-echo "$out" | grep -q 'runs=4'
-echo "$out" | grep -q 'timeout_s=480'
-echo "$out" | grep -q 'outputs=1'
+grep -q 'runner=stub' <<<"$out"
+grep -q 'runs=4' <<<"$out"
+grep -q 'timeout_s=480' <<<"$out"
+grep -q 'outputs=1' <<<"$out"
 echo "OK [5]"
 
 echo "OK"

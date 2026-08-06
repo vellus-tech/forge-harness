@@ -1,0 +1,122 @@
+# Spec delta — add-portable-handoff (autorado no archive, change verificado em 2026-07-09
+# antes do scaffold de spec-delta existir; fallback de change legado previsto no /forge:archive §1).
+# Payloads derivados de requirements.md (REQ-01..07) e da tabela REQ-a-REQ de verification.md,
+# conferida contra o código real no commit 7858850.
+# Todas as ops são add_requirement: a capability forge-harness-template não tinha nenhum destes
+# requisitos (numeração continua de REQ-FHT-017, último do baseline atual).
+operations:
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-018
+    content_ref: requirements.md#req-01
+    requirement:
+      id: REQ-FHT-018
+      title: "Comando /forge:handoff gera artefato portátil de 5 seções"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-018-A
+          given: "o harness instalado com template/.forge/templates/handoff/HANDOFF.md e o comando harness/handoff.md registrados"
+          when: "o usuário roda /forge:handoff [<change-id>] — sem argumento sobre o único change ativo, ou com um id inexistente"
+          then: "grava/sobrescreve .forge/HANDOFF.md com as 5 seções (header, estado determinístico, regras fixas, delta narrativo entre os marcadores FORGE:NARRATIVE-DELTA, ponteiros de retomada), sendo a seção 3 idêntica às 5 regras fixas do /forge:resume e a seção 4 a única escrita por modelo; com id inexistente falha com mensagem clara e exit≠0, sem gravar nada"
+      contracts: []
+      tests:
+        - tests/w60-handoff-gen-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-019
+    content_ref: requirements.md#req-02
+    requirement:
+      id: REQ-FHT-019
+      title: "Gerador de handoff determinístico, sem LLM e sem dependência npm"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-019-A
+          given: "um change ativo com manifest.yaml + progress.json + deferrals.json e um repositório git, num clone limpo sem provider LLM configurado"
+          when: "template/.forge/scripts/handoff-gen.sh roda duas vezes consecutivas sem mudança de estado, relocado por FORGE_ROOT"
+          then: "as duas execuções produzem seções determinísticas byte-idênticas (diff vazio), lendo o bloco runtime: do FORGE.md e o estado git via git -C, reusando lib/yaml-lite.mjs, sem chamada a LLM e sem instalar dependência alguma (datas vêm do commit HEAD, não do relógio)"
+      contracts: []
+      tests:
+        - tests/w60-handoff-gen-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-020
+    content_ref: requirements.md#req-03
+    requirement:
+      id: REQ-FHT-020
+      title: "/forge:resume ingere o delta narrativo do handoff"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-020-A
+          given: "um repositório com .forge/HANDOFF.md presente e outro sem o arquivo"
+          when: "/forge:resume roda nos dois casos"
+          then: "com o arquivo presente, o mandato de retomada lê apenas a seção 4 (entre os marcadores FORGE:NARRATIVE-DELTA) e a reflete na linha Handoff:; sem o arquivo, o comportamento anterior do resume é preservado integralmente (nenhuma regressão)"
+      contracts: []
+      tests:
+        - tests/w60-handoff-gen-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-021
+    content_ref: requirements.md#req-04
+    requirement:
+      id: REQ-FHT-021
+      title: "Descoberta agente-agnóstica do handoff via AGENTS.md"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-021-A
+          given: "o template template/.forge/templates/AGENTS.md com o ponteiro para .forge/HANDOFF.md no corpo projetado"
+          when: "sync-adapters regenera o AGENTS.md do projeto"
+          then: "a linha de ponteiro aparece no AGENTS.md e, por symlink, em CLAUDE.md/QWEN.md/GEMINI.md, o header \"Generated from .forge/FORGE.md\" é preservado e o doctor não acusa drift"
+      contracts: []
+      tests:
+        - tests/snapshot/claude-contract.bats
+        - tests/w12-sync-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-022
+    content_ref: requirements.md#req-05
+    requirement:
+      id: REQ-FHT-022
+      title: "Automação de sessão opt-in via handoff.auto"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-022-A
+          given: "forge.yaml com handoff.auto: false (default) e o mesmo projeto com handoff.auto: true"
+          when: "sync-adapters gera .claude/settings.json"
+          then: "com false o settings.json é idêntico ao baseline (sem hooks de sessão); com true inclui SessionStart e SessionEnd apontando para hooks/session/on-session-{start,end}.sh, ambos rule-based e sem chamada a LLM"
+      contracts:
+        - template/.forge/schemas/forge.schema.json
+      tests:
+        - tests/w62-handoff-hook-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-023
+    content_ref: requirements.md#req-06
+    requirement:
+      id: REQ-FHT-023
+      title: "Gate de pre-push exige README e CHANGELOG em mudança user-facing (hard require)"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-023-A
+          given: "um range de push classificado como user-facing (commit feat|fix|perf, ou path fora de docs/config) e um range docs-only/chore-only; para branch nova (sha remoto zerado) a base é o merge-base com a default branch"
+          when: "o hook pre-push executa hooks/git/lib/check-docs-reviewed.sh sobre o range <base>..<local>"
+          then: "o range user-facing sem README.md e CHANGELOG.md no diff sai com exit 1 nomeando o que falta; com ambos presentes passa; o range docs-only/chore-only passa — sem nenhuma válvula de escape por variável de ambiente"
+      contracts: []
+      tests:
+        - tests/w61-docs-review-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-024
+    content_ref: requirements.md#req-07
+    requirement:
+      id: REQ-FHT-024
+      title: "Plugin /forge:* sincronizado com os comandos do template"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-024-A
+          given: "um comando novo adicionado em template/.forge/commands/** (aqui, harness/handoff.md)"
+          when: "npm run build:plugin roda e tests/plugin-sync-gate.sh é executado"
+          then: "plugin/forge/** fica byte-idêntico ao gerado, o gate de sincronia passa, a contagem em docs/refer/slash-commands.md reflete o total de comandos e a suíte completa (npm test) permanece verde"
+      contracts: []
+      tests:
+        - tests/plugin-sync-gate.sh
+        - tests/run-all.sh

@@ -3,3 +3,51 @@ archived:
     archived_at: "2026-06-11"
     kind: baseline_update
     path: 2026-06-11-baseline-spec-lifecycle
+  - change_id: security-observability-gates
+    archived_at: "2026-07-20"
+    kind: baseline_update
+    path: 2026-07-20-security-observability-gates
+  - change_id: add-portable-handoff
+    archived_at: "2026-08-03"
+    kind: baseline_update
+    path: 2026-08-03-add-portable-handoff
+  - change_id: deepspec-provenance
+    archived_at: "2026-08-03"
+    kind: baseline_update
+    path: 2026-08-03-deepspec-provenance
+  - change_id: forge-update-command
+    archived_at: "2026-08-03"
+    kind: baseline_update
+    path: 2026-08-03-forge-update-command
+  - change_id: hookspath-respect-custom
+    archived_at: "2026-08-03"
+    kind: baseline_update
+    path: 2026-08-03-hookspath-respect-custom
+  - change_id: red-replay-graft-base
+    archived_at: "2026-08-03"
+    kind: baseline_update
+    path: 2026-08-03-red-replay-graft-base
+  - change_id: tasks-meta-required
+    archived_at: "2026-08-03"
+    kind: baseline_update
+    path: 2026-08-03-tasks-meta-required
+  - change_id: graph-bin-source
+    archived_at: "2026-08-03"
+    kind: baseline_update
+    path: 2026-08-03-graph-bin-source
+  - change_id: red-first-ci-authority
+    archived_at: "2026-08-04"
+    kind: baseline_update
+    path: 2026-08-04-red-first-ci-authority
+  - change_id: route-scan-multifile-mounts
+    archived_at: "2026-08-04"
+    kind: baseline_update
+    path: 2026-08-04-route-scan-multifile-mounts
+  - change_id: route-scan-dialect-coverage
+    archived_at: "2026-08-04"
+    kind: baseline_update
+    path: 2026-08-04-route-scan-dialect-coverage
+  - change_id: surface-literal-endpoint
+    archived_at: "2026-08-04"
+    kind: baseline_update
+    path: 2026-08-04-surface-literal-endpoint

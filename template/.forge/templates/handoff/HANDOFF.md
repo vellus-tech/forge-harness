@@ -30,6 +30,10 @@
    não é a verdade até o orquestrador conferir.
 5. Checkpoint + encerrar a sessão por módulo/PR — não acumule múltiplos módulos numa sessão só;
    `/forge:ship` fecha o ciclo antes de abrir o próximo.
+6. **TDD estrito em todo código — Vermelho → Verde → Refactor.** Teste que falha primeiro (pelo
+   motivo certo, não erro de build), implementar o mínimo para passar, só então refatorar. Vale
+   para features/bugfixes do produto E para mudanças na maquinaria do harness (scripts,
+   validadores) — não só onde o pipeline já exige Red-first formal.
 
 ## 4. Delta narrativo
 

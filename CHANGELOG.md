@@ -6,9 +6,16 @@ e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-08-06
+
+### Added
+- **`/forge:analyze` ganha checagem determinista de frescor do grafo/impacto.** Quando o change toca código e há grafo construído, `impact-freshness.mjs` (mesma fórmula do pré-flight do `/forge:archive`) decide se `impact.json` está `missing`/`stale`/`ok`/`not-applicable` — o primeiro caso é achado **BLOCKER** de tipo `risk`, bloqueante pelo mecanismo já existente de `spec-transition.sh`.
+- **`/forge:implement` passa a citar o grafo explicitamente no loop por TASK.** Pré-flight roda `graph.sh update` (idempotente, custo zero quando nada mudou estruturalmente) quando `graph.enabled: true`; antes de abrir arquivo cru ou mudar contrato público, instrui `graph.sh query`/`impact.sh --files` como camada complementar ao LSP/grep (fan-in/fan-out cross-arquivo e cross-linguagem).
+
 ### Fixed
 - **Asserções bash `[ cond ] && cmd` sob `set -e` morriam sem mensagem ou passavam em silêncio (`LDG-0012`).** Quando o ÚLTIMO comando de uma lista `&&` falha, `set -e` mata o script na hora, sem qualquer `FAIL` explicando o motivo. Quando uma cláusula NÃO-final falha, ela é isenta de `set -e` (regra POSIX/bash) e o script segue como se tivesse passado — passagem silenciosa, mais grave que a morte muda porque nem o código de saída sinaliza o problema. 52 sites corrigidos em 20 arquivos de `tests/*.sh`, convertidos para `cond || { echo "FAIL [n]: ..."; exit 1; }`. Nenhum veredito de gate muda — é correção exclusiva de observabilidade de falha.
 - **State machine de spec não deixava um `type: bugfix` scale≥2 pular `design-ready` mesmo com `quick_plan` justificado (`LDG-0030`).** `spec-transition.sh` e `validate-spec.mjs` só concediam essa isenção a partir de `tasks-ready`. Corrigido como rota lateral opcional — `design-ready` continua na cadeia (retrocompatível com manifests já parados lá, e ainda alcançável por quem quiser fazer design de uma correção arquitetural), mas um bugfix pode ir direto de `requirements-ready` a `tasks-ready` sem passar por ele. A isenção também passa a valer para qualquer `type` cujo `quick_plan.skipped_phases` declare `design` explicitamente.
+- **CI do próprio repositório rodava com checkout raso e reprovava o replay de Red-first sem defeito real.** `actions/checkout@v4` sem `fetch-depth: 0` não dá histórico suficiente para o motor de `red-evidence.sh` derivar a árvore pré-correção — todo replay caía em `not-possible`. `template/github/workflows/red-first.yml` (distribuído a consumidores) já exigia isso; faltava replicar no `ci.yml` deste próprio repositório. Gate de regressão novo (`tests/ci-fetch-depth-gate.sh`) cobre a lacuna.
 
 ### Migração
 - Se você tem um change `type: bugfix` scale≥2 parado em `design-ready` desta versão do harness, ele continua avançando normalmente (`design-ready` → `tasks-ready`) — nenhuma ação necessária.

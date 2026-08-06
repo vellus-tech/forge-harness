@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Forge commit-msg — barra assinatura de IA antes de a mensagem virar commit.
+#
+# Este é o único ponto do fluxo em que a marca ainda pode ser removida sem custo: depois do
+# commit, tirá-la exige reescrever histórico, e depois do push exige reescrever histórico
+# publicado. O pre-push repete a verificação sobre o range como defesa em profundidade, para o
+# caso de um commit ter nascido com --no-verify ou por uma ferramenta que ignore o hook.
+#
+# Barato por construção: lê um arquivo e roda um node de uma passada. Nada de rede, nada de git
+# pesado — cabe no orçamento de um hook que roda a cada commit.
+set -u
+
+MSG_FILE="${1:-}"
+[ -n "$MSG_FILE" ] || exit 0
+
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+CHECK="$ROOT/.forge/scripts/check-ai-attribution.sh"
+
+# Sem o check instalado, o hook não tem o que impor — mas também não inventa aprovação: apenas
+# sai limpo, porque bloquear commit por ausência de maquinaria própria travaria um repo que
+# acabou de clonar o harness pela metade.
+[ -f "$CHECK" ] || exit 0
+
+if ! bash "$CHECK" msg-file "$MSG_FILE"; then
+  echo "commit-msg BLOQUEADO: no-ai-attribution" >&2
+  exit 1
+fi
+exit 0

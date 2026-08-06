@@ -1,0 +1,132 @@
+{
+  "schema": "run-manifest/v1",
+  "run_id": "20260803205841-a267e238",
+  "stage": "archive",
+  "status": "passed",
+  "started_at": "2026-08-03T20:58:41Z",
+  "finished_at": "2026-08-03T20:58:41.847Z",
+  "duration_ms": 847,
+  "git": {
+    "repo": true,
+    "branch": "develop",
+    "head_sha": "bce11168ffcc6d7aec980282926843b96a9fc034",
+    "dirty": true,
+    "changed_files": [
+      ".forge/HANDOFF.md",
+      ".forge/ledger/LEDGER.md",
+      ".forge/ledger/ledger.json",
+      ".forge/product/current/CHANGELOG.md",
+      ".forge/product/current/capabilities/forge-harness-template/spec.yaml",
+      ".forge/specs/active/add-portable-handoff/analysis.md",
+      ".forge/specs/active/add-portable-handoff/approvals.yaml",
+      ".forge/specs/active/add-portable-handoff/design.md",
+      ".forge/specs/active/add-portable-handoff/manifest.yaml",
+      ".forge/specs/active/add-portable-handoff/proposal.md",
+      ".forge/specs/active/add-portable-handoff/requirements.md",
+      ".forge/specs/active/add-portable-handoff/spec-delta.yaml",
+      ".forge/specs/active/add-portable-handoff/tasks.md",
+      ".forge/specs/active/add-portable-handoff/verification.md",
+      ".forge/specs/active/add-portable-handoff/verification.yaml",
+      ".forge/specs/active/deepspec-provenance/analysis.md",
+      ".forge/specs/active/deepspec-provenance/approvals.yaml",
+      ".forge/specs/active/deepspec-provenance/design.md",
+      ".forge/specs/active/deepspec-provenance/manifest.yaml",
+      ".forge/specs/active/deepspec-provenance/proposal.md",
+      ".forge/specs/active/deepspec-provenance/requirements.md",
+      ".forge/specs/active/deepspec-provenance/spec-delta.yaml",
+      ".forge/specs/active/deepspec-provenance/tasks.md",
+      ".forge/specs/active/deepspec-provenance/verification.md",
+      ".forge/specs/active/deepspec-provenance/verification.yaml",
+      ".forge/specs/active/forge-update-command/analysis.md",
+      ".forge/specs/active/forge-update-command/approvals.yaml",
+      ".forge/specs/active/forge-update-command/design.md",
+      ".forge/specs/active/forge-update-command/manifest.yaml",
+      ".forge/specs/active/forge-update-command/proposal.md",
+      ".forge/specs/active/forge-update-command/requirements.md",
+      ".forge/specs/active/forge-update-command/spec-delta.yaml",
+      ".forge/specs/active/forge-update-command/tasks.md",
+      ".forge/specs/active/forge-update-command/verification.md",
+      ".forge/specs/active/forge-update-command/verification.yaml",
+      ".forge/specs/active/hookspath-respect-custom/approvals.yaml",
+      ".forge/specs/active/hookspath-respect-custom/manifest.yaml",
+      ".forge/specs/active/red-replay-graft-base/approvals.yaml",
+      ".forge/specs/active/red-replay-graft-base/manifest.yaml",
+      ".forge/specs/archived/2026-08-03-add-portable-handoff/",
+      ".forge/specs/archived/2026-08-03-deepspec-provenance/",
+      ".forge/specs/archived/2026-08-03-forge-update-command/",
+      ".forge/specs/archived/index.yaml"
+    ],
+    "diff_stat": ".forge/HANDOFF.md                                  |  43 ++-\n .forge/ledger/LEDGER.md                            |   4 +-\n .forge/ledger/ledger.json                          |  52 ++++\n .forge/product/current/CHANGELOG.md                |  18 ++\n .../capabilities/forge-harness-template/spec.yaml  | 318 ++++++++++++++++++++-\n .../specs/active/add-portable-handoff/analysis.md  |  44 ---\n .../active/add-portable-handoff/approvals.yaml     |  25 --\n .forge/specs/active/add-portable-handoff/design.md | 115 --------\n .../active/add-portable-handoff/manifest.yaml      |  41 ---\n .../specs/active/add-portable-handoff/proposal.md  |  59 ----\n .../active/add-portable-handoff/requirements.md    | 108 -------\n .../active/add-portable-handoff/spec-delta.yaml    | 122 --------\n .forge/specs/active/add-portable-handoff/tasks.md  |  49 ----\n .../active/add-portable-handoff/verification.md    |  32 ---\n .../active/add-portable-handoff/verification.yaml  |  27 --\n .../specs/active/deepspec-provenance/analysis.md   |  52 ----\n .../active/deepspec-provenance/approvals.yaml      |  25 --\n .forge/specs/active/deepspec-provenance/design.md  |  96 -------\n .../specs/active/deepspec-provenance/manifest.yaml |  46 ---\n .../specs/active/deepspec-provenance/proposal.md   |  60 ----\n .../active/deepspec-provenance/requirements.md     | 147 ----------\n .../active/deepspec-provenance/spec-delta.yaml     | 201 -------------\n .forge/specs/active/deepspec-provenance/tasks.md   |  38 ---\n .../active/deepspec-provenance/verification.md     |  56 ----\n .../active/deepspec-provenance/verification.yaml   |  24 --\n .../specs/active/forge-update-command/analysis.md  |  45 ---\n .../active/forge-update-command/approvals.yaml     |  25 --\n .forge/specs/active/forge-update-command/design.md | 108 -------\n .../active/forge-update-command/manifest.yaml      |  42 ---\n .../specs/active/forge-update-command/proposal.md  |  46 ---\n .../active/forge-update-command/requirements.md    | 114 --------\n .../active/forge-update-command/spec-delta.yaml    | 151 ----------\n .forge/specs/active/forge-update-command/tasks.md  |  37 ---\n .../active/forge-update-command/verification.md    |  39 ---\n .../active/forge-update-command/verification.yaml  |  30 --\n .../active/hookspath-respect-custom/approvals.yaml |   7 +\n .../active/hookspath-respect-custom/manifest.yaml  |   2 +-\n .../active/red-replay-graft-base/approvals.yaml    |   7 +\n .../active/red-replay-graft-base/manifest.yaml     |   2 +-\n .forge/specs/archived/index.yaml                   |  12 +\n 40 files changed, 426 insertions(+), 2043 deletions(-)",
+    "diff_sha256": "b847bfa78f004a3dd78288ea9e466f669b25d2393a796e1f5126eafa6d442884"
+  },
+  "inputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "c15c831ffa0a8b68e85d65578a8afed63d8169c6e4c13468ab7dfb3e34e8ee64",
+      "bytes": 871,
+      "kind": "file"
+    },
+    {
+      "path": "tasks.md",
+      "exists": true,
+      "sha256": "4864b7c00ea4c12d50f45287d58f3d6e49e7c70a6f191e0c17c252b399d75353",
+      "bytes": 2363,
+      "kind": "file"
+    },
+    {
+      "path": "verification.yaml",
+      "exists": true,
+      "sha256": "9b125949b02a06a0842a0bd047d9d37c659c5c9e339da978d498c882af0569de",
+      "bytes": 1604,
+      "kind": "file"
+    },
+    {
+      "path": "spec-delta.yaml",
+      "exists": true,
+      "sha256": "0246070903a31c517174aa401983194d98d6a0b8b3b2c842c8fabce986dc9fdc",
+      "bytes": 7646,
+      "kind": "file"
+    },
+    {
+      "path": "impact.json",
+      "exists": false,
+      "sha256": null,
+      "bytes": null
+    }
+  ],
+  "commands": [
+    {
+      "name": "archive-spec",
+      "command": "archive-spec.sh forge-update-command",
+      "status": "passed"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "c15c831ffa0a8b68e85d65578a8afed63d8169c6e4c13468ab7dfb3e34e8ee64",
+      "bytes": 871,
+      "kind": "file"
+    },
+    {
+      "path": "evidence/runs",
+      "exists": false,
+      "sha256": null,
+      "bytes": null
+    }
+  ],
+  "runner": {
+    "name": "local",
+    "profile": "standard"
+  },
+  "budgets": {
+    "profile": "standard",
+    "budget_class": "medium",
+    "expected_runs": 1,
+    "estimated_timeout_s": 300,
+    "uses_llm": false,
+    "uses_subagent": false
+  }
+}

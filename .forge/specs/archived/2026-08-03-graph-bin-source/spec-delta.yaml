@@ -1,0 +1,22 @@
+# Spec delta — graph-bin-source. Numeração continua de REQ-FHT-048 (tasks-meta-required).
+operations:
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-049
+    content_ref: bugfix.md#2-comportamento-esperado
+    requirement:
+      id: REQ-FHT-049
+      title: "Code graph trata bin/ como código-fonte e poda apenas a saída de build dentro dele"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-049-A
+          given: "um projeto Node cujo package.json declara \"bin\": {\"demo\": \"bin/cli.mjs\"}, com bin/cli.mjs importando src/run.mjs"
+          when: "graph.sh build constrói o grafo"
+          then: "bin/cli.mjs é nó do grafo e a aresta bin/cli.mjs → src/run.mjs existe resolvida — o entrypoint do CLI não desaparece em silêncio de /forge:impact, /forge:onboard e /forge:c4"
+        - id: SCN-FHT-049-B
+          given: "o mesmo projeto com bin/Debug/net8.0/Generated.cs (saída de compilação .NET, com extensão que casa LANG), além de dist/ e obj/"
+          when: "graph.sh build constrói o grafo"
+          then: "nenhum dos três entra no grafo — a poda de Debug/Release/x64/net* é contextual ao diretório pai chamado bin, e o restante de SKIP_DIRS segue inalterado"
+      contracts: []
+      tests:
+        - tests/w41-graph-gate.sh

@@ -26,8 +26,8 @@ set +e
 out="$(python3 "$SCAN" "$T/tokens.css" "$T/src")"; rc=$?
 set -e
 [ "$rc" -eq 1 ] || { echo "FAIL [1] (esperava exit 1, veio $rc)"; exit 1; }
-echo "$out" | grep -q 'PHANTOM --surface-1' || { echo "FAIL [1] (não reportou --surface-1)"; exit 1; }
-echo "$out" | grep -q 'PHANTOM --surface-0' && { echo "FAIL [1] (marcou token DEFINIDO como fantasma)"; exit 1; }
+grep -q 'PHANTOM --surface-1' <<<"$out" || { echo "FAIL [1] (não reportou --surface-1)"; exit 1; }
+grep -q 'PHANTOM --surface-0' <<<"$out" && { echo "FAIL [1] (marcou token DEFINIDO como fantasma)"; exit 1; }
 echo "OK [1]"
 
 echo "[2] fixture sem fantasma → OK"

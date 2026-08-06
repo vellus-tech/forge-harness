@@ -26,9 +26,12 @@ echo "[1] spec-new para os 5 tipos"
 out="$(cd "$T" && bash "$VALIDATE" --all)"
 [ "$(echo "$out" | grep -c '^OK ')" -eq 5 ]
 # artifact shape by type/scale
-[ -f "$T/.forge/specs/active/feat-x/design.md" ] && [ -f "$T/.forge/specs/active/feat-x/requirements.md" ]
-[ -f "$T/.forge/specs/active/fix-y/bugfix.md" ] && [ ! -e "$T/.forge/specs/active/fix-y/design.md" ] && [ ! -e "$T/.forge/specs/active/fix-y/requirements.md" ]
-[ -f "$T/.forge/specs/active/ref-z/refactor.md" ] && [ -f "$T/.forge/specs/active/ref-z/design.md" ]
+[ -f "$T/.forge/specs/active/feat-x/design.md" ] && [ -f "$T/.forge/specs/active/feat-x/requirements.md" ] \
+  || { echo "FAIL [1]: feat-x (feature scale 2) sem design.md+requirements.md"; exit 1; }
+[ -f "$T/.forge/specs/active/fix-y/bugfix.md" ] && [ ! -e "$T/.forge/specs/active/fix-y/design.md" ] && [ ! -e "$T/.forge/specs/active/fix-y/requirements.md" ] \
+  || { echo "FAIL [1]: fix-y (bugfix) sem bugfix.md, ou com design.md/requirements.md indevidos"; exit 1; }
+[ -f "$T/.forge/specs/active/ref-z/refactor.md" ] && [ -f "$T/.forge/specs/active/ref-z/design.md" ] \
+  || { echo "FAIL [1]: ref-z (refactor scale 2) sem refactor.md+design.md"; exit 1; }
 [ ! -e "$T/.forge/specs/active/brown-v/requirements.md" ]   # scale 0: only proposal+tasks
 grep -q '^status: proposed$' "$T/.forge/specs/active/feat-x/manifest.yaml"
 grep -q 'feat-x' "$T/.forge/specs/active/feat-x/proposal.md"   # placeholders filled
@@ -63,7 +66,7 @@ corrupt() { # corrupt <sed-expr> <expected-substring>
   set -e
   mv "$d/manifest.yaml.bak" "$d/manifest.yaml"
   [ "$rc" -eq 1 ] || { echo "esperava FAIL: $2"; exit 1; }
-  echo "$out" | grep -q "$2" || { echo "mensagem sem campo '$2': $out"; exit 1; }
+  grep -q "$2" <<<"$out" || { echo "mensagem sem campo '$2': $out"; exit 1; }
 }
 corrupt 's/^scale: 2$/scale: 9/' 'scale'
 corrupt 's/^type: feature$/type: banana/' 'type invalid'
@@ -72,12 +75,103 @@ corrupt 's/^  enabled: false$/  enabled: true/' 'quick_plan'
 corrupt 's/^id: feat-x$/id: outro-id/' 'folder name'
 echo "OK [4]"
 
+echo "[4b] affects_surfaces (REQ-13/NFR-03/§2.5): manifest com e sem o campo validam"
+d="$T/.forge/specs/active/feat-x"
+[ "$(cd "$T" && bash "$VALIDATE" feat-x)" = "OK feat-x" ] || { echo "esperava OK sem affects_surfaces"; exit 1; }
+cp "$d/manifest.yaml" "$d/manifest.yaml.bak"
+printf 'affects_surfaces:\n  - api\n  - data\n' >> "$d/manifest.yaml"
+out="$(cd "$T" && bash "$VALIDATE" feat-x)"
+mv "$d/manifest.yaml.bak" "$d/manifest.yaml"
+[ "$out" = "OK feat-x" ] || { echo "esperava OK com affects_surfaces: [api, data] — obteve: $out"; exit 1; }
+echo "OK [4b]"
+
 echo "[5] paridade ajv (workspace)"
 node "$WS/tools/validate-forge.mjs" >/dev/null
 echo "OK [5]"
 
 echo "[6] dogfooding valida"
-bash "$WS/template/.forge/scripts/validate-spec.sh" --path "$WS/.forge/specs/active/create-forge-project-harness" >/dev/null
-echo "OK [6]"
+# ponteiro derivado (não cravado): TODO change ativo real do harness vira fixture — cravar um id
+# específico quebra assim que ele for arquivado/fechado (LOGIC-004/R2-003, achados no
+# code-evaluator do PR do LDG-0012). Sem degradar para "OK ... SKIP" quando não há change ativo
+# (mesma classe de defeito que este change existe pra eliminar) — cai para uma fixture sintética
+# num tmpdir à parte, sempre validada de verdade.
+DOGFOOD_IDS="$(ls -1 "$WS/.forge/specs/active" 2>/dev/null | sort)"
+if [ -z "$DOGFOOD_IDS" ]; then
+  TSYN="$(mktemp -d /tmp/forge-w20-dogfood-syn.XXXXXX)"
+  (cd "$TSYN" && FORGE_ROOT="$TSYN" bash "$WS/template/.forge/scripts/spec-new.sh" synthetic-dogfood --type feature --scale 2 >/dev/null)
+  bash "$WS/template/.forge/scripts/validate-spec.sh" --path "$TSYN/.forge/specs/active/synthetic-dogfood" >/dev/null
+  rm -rf "$TSYN"
+  echo "OK [6] (sintético, sem change real ativo)"
+else
+  for id in $DOGFOOD_IDS; do
+    bash "$WS/template/.forge/scripts/validate-spec.sh" --path "$WS/.forge/specs/active/$id" >/dev/null
+  done
+  echo "OK [6] ($DOGFOOD_IDS)"
+fi
+
+echo "[7] FORGE.md com blocos authz:/observability: + gates: em runtime: valida contra forgeFrontmatter (REQ-11/§2.3/§4)"
+cat > "$T/fm-governance.yaml" <<'EOF'
+forge_version: 1
+project:
+  name: acme
+  display: Acme
+sdd:
+  default_mode: brownfield
+  default_rigor: spec-anchored
+  default_scale: 2
+  archive_policy: after_verified_implementation
+  human_gate_required: true
+runtime:
+  primary_stack:
+  package_manager:
+  run:
+  test:
+  typecheck:
+  lint:
+  gates: check-authz,check-observability,check-data-governance
+authz:
+  pep_paths:
+    - services/*/internal/authz
+    - packages/pep
+  policy_dir: policy
+  allowlist:
+    - services/health
+    - services/metrics
+  mode: warn
+  policy_coverage_threshold: 0.8
+observability:
+  wrapper_paths:
+    - packages/otel
+    - services/*/observability
+  allowlist:
+    - services/health
+  mode: warn
+integrations:
+  jira:
+  github:
+  graph:
+    enabled: true
+    path: .forge/graph/graph.json
+quality:
+  evals_enabled: false
+  runners_config: .forge/runners.yaml
+EOF
+(cd "$WS" && node -e '
+const { readFileSync } = require("node:fs");
+const { parse } = require("yaml");
+const Ajv2020 = require("ajv/dist/2020.js");
+const [schemaPath, dataPath] = process.argv.slice(1);
+const core = JSON.parse(readFileSync(schemaPath, "utf8"));
+const data = parse(readFileSync(dataPath, "utf8"));
+const schema = { ...core.$defs.forgeFrontmatter, $defs: { nullableString: core.$defs.nullableString } };
+const ajv = new Ajv2020.default({ allErrors: true, strict: true, allowUnionTypes: true });
+const validate = ajv.compile(schema);
+if (!validate(data)) {
+  console.error(JSON.stringify(validate.errors, null, 2));
+  process.exit(1);
+}
+console.log("OK forgeFrontmatter + authz/observability/gates");
+' "$WS/template/.forge/schemas/forge.schema.json" "$T/fm-governance.yaml") >/dev/null
+echo "OK [7]"
 
 echo "OK"

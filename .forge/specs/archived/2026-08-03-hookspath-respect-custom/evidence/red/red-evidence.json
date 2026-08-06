@@ -1,0 +1,28 @@
+{
+  "schema": "red-evidence/v1",
+  "change_id": "hookspath-respect-custom",
+  "status": "observed",
+  "test_path": "tests/w94-hookspath-preserve-gate.sh",
+  "test_id": "[1] init em repo com hooksPath customizado → preserva",
+  "command": "bash tests/w94-hookspath-preserve-gate.sh",
+  "base_commit": "8d17ce29175747589019fdc619d530f517c3bf12",
+  "failure_pattern": "FAIL \\[1\\]",
+  "excerpt": "[1] init em repo com hooksPath customizado → preserva\nFAIL [1] (hooksPath sobrescrito)\n",
+  "excerpt_sha256": "8ea4df58a32837da7bd4b1085ae534bf5fd5658ee11ff16a0ace311347cb00d8",
+  "classification": "behavioral",
+  "base_result": "failed",
+  "base_strategy": "test-graft",
+  "revert_patch": null,
+  "replay_head": "bce11168ffcc6d7aec980282926843b96a9fc034",
+  "setup_command": null,
+  "reproduces": "bugfix.md §1 — init/update sobrescrevem core.hooksPath customizado",
+  "fix_files": [
+    "bin/forge.mjs",
+    "installer/install.sh"
+  ],
+  "waiver": null,
+  "recorded_at": "2026-08-03T20:25:42.828Z",
+  "replayed_at": "2026-08-03T20:58:49.176Z",
+  "waived_at": null,
+  "graft_from": "0510b3ff8f22890c74157fe1330fa7d79642cdbd"
+}

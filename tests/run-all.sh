@@ -23,6 +23,22 @@ for a in "$@"; do
   esac
 done
 
+# Desliga a manutenção automática do git em TODO fixture da suíte.
+#
+# `git commit` dispara `git gc --auto` em BACKGROUND. Onze gates criam repositório git em /tmp, e
+# quando o fixture é removido logo depois do último commit, o gc ainda está escrevendo em `.git` —
+# o `rm -rf` então falha com "Directory not empty", e sob `set -e` o gate morre DEPOIS de ter
+# passado nas suas asserções. Não reproduz no macOS (APFS + timing), reproduz no CI Linux
+# (overlayfs). Foi o que reprovou o w106 no CI com todas as asserções verdes no log.
+#
+# Via GIT_CONFIG_COUNT em vez de `git config` por fixture: uma única declaração cobre os onze
+# gates e qualquer gate futuro, sem depender de cada autor lembrar. É também a razão de estar
+# AQUI e não em cada gate — o esquecimento é a falha que se quer eliminar.
+export GIT_CONFIG_COUNT=3
+export GIT_CONFIG_KEY_0=gc.auto           GIT_CONFIG_VALUE_0=0
+export GIT_CONFIG_KEY_1=maintenance.auto  GIT_CONFIG_VALUE_1=0
+export GIT_CONFIG_KEY_2=gc.autoDetach     GIT_CONFIG_VALUE_2=false
+
 # Ordem: guardrails (gw*) primeiro, depois waves (w*) em ordem numérica natural.
 # `run-all.sh` se exclui; o w80 (gate da própria suíte) NÃO chama run-all (sem recursão).
 # Build do array sem mapfile (portável p/ bash 3.2 do macOS).

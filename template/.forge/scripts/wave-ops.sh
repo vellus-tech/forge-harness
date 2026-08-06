@@ -134,9 +134,51 @@ NODEEOF
 
 close)
   wave_id="${1:-}"; [ -n "$wave_id" ] || { echo "FAIL: wave-id obrigatório" >&2; exit 1; }
-  gate_result="OK"
-  if [ "${2:-}" = "--gate" ]; then gate_result="${3:-OK}"; fi
   [ -f "$waves_file" ] || { echo "FAIL: waves.json não encontrado" >&2; exit 1; }
+
+  # O veredito do gate é OBSERVADO aqui, não recebido do chamador.
+  #
+  # Antes: `gate_result="OK"` por default, e `--gate OK` substituía execução. Quem fechava a wave
+  # assinava o próprio laudo — e não por má-fé: `commands/waves/wave.md` mandava obter o resultado de
+  # `run-gates.sh`, um script que NÃO EXISTIA no repositório, e a skill `wave-advance` passava
+  # `--gate OK` literal. Não havia caminho honesto disponível.
+  #
+  # Agora: `--gate FAIL` continua reprovando sem gastar execução (afirmação negativa do chamador é
+  # sempre aceita — ninguém precisa provar que falhou). `--gate OK`, ou a ausência de `--gate`,
+  # dispara os gates de verdade e o resultado real decide. O veredito gravado carrega a PROCEDÊNCIA,
+  # para que "passou nos gates", "não havia gate" e "alguém disse que passou" nunca mais se
+  # confundam no waves.json.
+  claimed=""
+  if [ "${2:-}" = "--gate" ]; then claimed="${3:-OK}"; fi
+
+  if [ "$claimed" = "FAIL" ]; then
+    echo "FAIL: gate declarado FAIL pelo chamador — wave não pode fechar" >&2; exit 1
+  fi
+
+  gate_out=""
+  if [ -x "$FORGE_ROOT/.forge/scripts/run-gates.sh" ] || [ -f "$FORGE_ROOT/.forge/scripts/run-gates.sh" ]; then
+    set +e
+    gate_out="$(FORGE_ROOT="$FORGE_ROOT" bash "$FORGE_ROOT/.forge/scripts/run-gates.sh" "$change_id" "$wave_id" 2>&1)"
+    gate_rc=$?
+    set -e
+  else
+    echo "FAIL: run-gates.sh ausente — não há como observar o gate desta wave (pré-requisito faltando reprova; não se assume OK)" >&2
+    exit 1
+  fi
+  verdict="$(printf '%s\n' "$gate_out" | tail -1)"
+  printf '%s\n' "$gate_out"
+  if [ "$gate_rc" -ne 0 ]; then
+    echo "FAIL: gate da wave $wave_id reprovou na execução — wave não pode fechar" >&2; exit 1
+  fi
+  # `grep -c` sem match retorna != 0, e numa substituição dentro de atribuição isso mata o script
+  # sob `set -e` — o close chegava a reprovar por ACIDENTE em vez de por veredito, o que é tão ruim
+  # quanto aprovar por acidente: o resultado certo pelo motivo errado esconde a próxima regressão.
+  passed_count="$(printf '%s\n' "$gate_out" | grep -c ': passed' || true)"
+  case "$verdict" in
+    NO-GATES) gate_result="executed:NO-GATES" ;;
+    OK)       gate_result="executed:OK ($passed_count gate(s))" ;;
+    *)        echo "FAIL: veredito inesperado do run-gates.sh: '$verdict'" >&2; exit 1 ;;
+  esac
   result="$(node - "$waves_file" "$wave_id" "$gate_result" "$(_now)" <<'NODEEOF'
 const { readFileSync } = require('fs');
 const [, , wf, waveId, gateResult, now] = process.argv;

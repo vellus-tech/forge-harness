@@ -72,7 +72,8 @@ done
 for d in capabilities prd frd-nfrd ddd trd adr glossary; do
   [ -d "$WS/template/.forge/product/current/$d" ]
 done
-[ -f "$WS/template/.forge/product/current/CHANGELOG.md" ] && [ -d "$WS/template/.forge/product/published" ]
+[ -f "$WS/template/.forge/product/current/CHANGELOG.md" ] && [ -d "$WS/template/.forge/product/published" ] \
+  || { echo "FAIL [4]: CHANGELOG.md do baseline ou product/published ausente"; exit 1; }
 echo "OK [4]"
 
 echo "[5] templates de delta/traceability validam contra os schemas"
@@ -80,5 +81,21 @@ V "$S/traceability.schema.json" "$WS/template/.forge/templates/spec/traceability
 V "$S/verification.schema.json" "$WS/template/.forge/templates/spec/verification.yaml"
 V "$S/approvals.schema.json" "$WS/template/.forge/templates/spec/approvals.yaml"
 echo "OK [5]"
+
+echo "[6] schemas de governança (authz-map/data-classification/alerts-as-code): fixture válido aprova, inválido reprova"
+G="$WS/tests/fixtures/governance-schemas"
+V "$S/authz-map.schema.json" "$G/authz-map-valid.json"
+V "$S/data-classification.schema.json" "$G/data-classification-valid.json"
+V "$S/alerts-as-code.schema.json" "$G/alerts-as-code-valid.json"
+for pair in "authz-map:authz-map-invalid" "data-classification:data-classification-invalid" "alerts-as-code:alerts-as-code-invalid"; do
+  schema_name="${pair%%:*}"
+  fixture_name="${pair##*:}"
+  set +e
+  V "$S/$schema_name.schema.json" "$G/$fixture_name.json" 2>/dev/null
+  rc=$?
+  set -e
+  [ "$rc" -ne 0 ] || { echo "negativo aceito: $fixture_name"; exit 1; }
+done
+echo "OK [6]"
 
 echo "OK"

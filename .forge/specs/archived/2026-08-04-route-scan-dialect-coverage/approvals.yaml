@@ -1,0 +1,36 @@
+approvals:
+  - gate: requirements_reviewed
+    decision: approve
+    reason: "feature scale 2 do LDG-0018"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-08-04T10:49:47-03:00"
+    commit: "3fe2e53"
+    scope: "requirements.md,design.md,tasks.md"
+  - gate: design_reviewed
+    decision: approve
+    reason: "feature scale 2 do LDG-0018"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-08-04T10:49:47-03:00"
+    commit: "3fe2e53"
+    scope: "requirements.md,design.md,tasks.md"
+  - gate: tasks_reviewed
+    decision: approve
+    reason: "feature scale 2 do LDG-0018"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-08-04T10:49:47-03:00"
+    commit: "3fe2e53"
+    scope: "requirements.md,design.md,tasks.md"
+  - gate: implementation_verified
+    decision: approve
+    reason: "npm test 74/74; w132 57 casos"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-08-04T10:50:16-03:00"
+    commit: "3fe2e53"
+    scope: "verification.md,verification.yaml"
+  - gate: human_archive_approval
+    decision: approve
+    reason: "LDG-0018 entregue conforme direção do autor; delta = 1 add_requirement REQ-FHT-052"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-08-04T10:50:16-03:00"
+    commit: "3fe2e53"
+    scope: "spec-delta.yaml"

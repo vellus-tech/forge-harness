@@ -1,0 +1,7 @@
+approvals:
+  - gate: close
+    decision: deliver-external
+    reason: "TASK-23..30 (W5.0-W5.3 dev loop/quality + Fase 8 pilotos/rollout) entregues fora deste change, via commits diretos em develop entre 2026-06 e 2026-08: shard.md, wave-ops.sh, deferral-ops.sh, runners.yaml + evals/ + code-evaluator.md, tests/run-all.sh, e tags v0.1.0-rc8..v0.6.0 (muito além do v0.1.0 previsto). Confirmado via /forge:resume 2026-08-04."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-08-04T11:49:12-03:00"
+    commit: "1a622cd"

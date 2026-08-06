@@ -1,0 +1,12 @@
+verification:
+  commit: "3fe2e53"
+  verified_at: "2026-08-04"
+  checks:
+    - name: "npm-test-full-suite"
+      command: "npm test"
+      status: passed
+    - name: "w132-route-surface-gate (57 casos, 15 mutações mortas)"
+      command: "bash tests/w132-route-surface-gate.sh"
+      status: passed
+  evidence:
+    - "verification.md — tabela REQ-a-REQ, as duas correções de rumo e a premissa que envelheceu"

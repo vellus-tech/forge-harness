@@ -37,8 +37,10 @@ git checkout -q main 2>/dev/null || git checkout -q master
 git merge --no-ff --no-edit feature/x -q
 node .forge/scripts/lib/changelog-from-merge.mjs "$T"
 grep -q '## \[Unreleased\]' CHANGELOG.md
-grep -q '### Added' CHANGELOG.md && grep -q 'login por OTP' CHANGELOG.md
-grep -q '### Fixed' CHANGELOG.md && grep -q 'arredondamento de centavos' CHANGELOG.md
+grep -q '### Added' CHANGELOG.md && grep -q 'login por OTP' CHANGELOG.md \
+  || { echo "FAIL [2]: CHANGELOG.md sem '### Added' com 'login por OTP' após o merge"; exit 1; }
+grep -q '### Fixed' CHANGELOG.md && grep -q 'arredondamento de centavos' CHANGELOG.md \
+  || { echo "FAIL [2]: CHANGELOG.md sem '### Fixed' com 'arredondamento de centavos' após o merge"; exit 1; }
 ! grep -q 'bump deps' CHANGELOG.md
 echo "OK [2]"
 
@@ -46,7 +48,8 @@ echo "[3] idempotência: re-rodar não duplica"
 before="$(grep -c 'login por OTP' CHANGELOG.md)"
 node .forge/scripts/lib/changelog-from-merge.mjs "$T"
 after="$(grep -c 'login por OTP' CHANGELOG.md)"
-[ "$before" -eq 1 ] && [ "$after" -eq 1 ]
+[ "$before" -eq 1 ] && [ "$after" -eq 1 ] \
+  || { echo "FAIL [3]: contagem de 'login por OTP' mudou entre execuções (before=$before after=$after) — não é idempotente"; exit 1; }
 echo "OK [3]"
 
 echo "[4] no-op quando HEAD não é merge"

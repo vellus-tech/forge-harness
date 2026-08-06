@@ -70,7 +70,7 @@ echo "OK [4]"
 echo "[5] dry-run marca preservação e não escreve"
 printf '\n<!-- template v4 -->\n' >> "$SRC2/rules/architecture/clean-architecture.md"
 out="$(node "$WS/bin/forge.mjs" update --target "$T" --dry-run --no-plugin --source "$SRC2")"
-echo "$out" | grep -q "= $RULE_REL (preservado — customização local)" \
+grep -q "= $RULE_REL (preservado — customização local)" <<<"$out" \
   || { echo "FAIL [5]: dry-run não marcou preservação"; echo "$out" | head; exit 1; }
 [ "$(shasum -a 256 "$T/$RULE" | cut -d' ' -f1)" = "$SHA_CUSTOM" ] || { echo "FAIL [5]: dry-run escreveu"; exit 1; }
 echo "OK [5]"
@@ -91,5 +91,21 @@ FORGE_REMOVED_MANIFEST="$T/tombstones.txt" node "$WS/bin/forge.mjs" update --tar
 grep -q "= $RULE_REL (tombstone pulado" "$T/up6.log" || { echo "FAIL [6]: tombstone pulado sem aviso"; grep -i tombstone "$T/up6.log"; exit 1; }
 [ ! -f "$T/.forge/rules/architecture/ddd.md" ] || { echo "FAIL [6]: tombstone não removeu rule intocada (template intacto deveria sair)"; exit 1; }
 echo "OK [6]"
+
+echo "[7] .forge/liaison/** sobrevive byte a byte ao update"
+# O liaison é DADO DURÁVEL, não maquinaria: o log é append-only e um único byte alterado quebra o
+# content_sha, fazendo o import do outro lado reprovar o remetente inteiro por reescrita de
+# história. Um overlay que tocasse aqui destruiria o canal de todos os participantes de uma vez.
+mkdir -p "$T/.forge/liaison/contracts-fare/log" "$T/.forge/liaison/contracts-fare/blobs"
+printf '{"msg_id":"peer-0001","subject":"nao pode ser tocado"}\n' > "$T/.forge/liaison/contracts-fare/log/peer.jsonl"
+printf 'self:\n  id: local-repo\nchannels:\n  contracts-fare:\n    participants:\n      - local-repo\n      - peer\n' > "$T/.forge/liaison/liaison.yaml"
+printf 'blob de anexo\n' > "$T/.forge/liaison/contracts-fare/blobs/anexo.txt"
+LIAISON_SHA_BEFORE="$(find "$T/.forge/liaison" -type f | LC_ALL=C sort | xargs shasum -a 256 | shasum -a 256 | cut -d' ' -f1)"
+node "$WS/bin/forge.mjs" update --target "$T" --no-plugin --no-backup >"$T/up7.log" 2>&1 \
+  || { echo "FAIL [7]: update falhou"; cat "$T/up7.log"; exit 1; }
+LIAISON_SHA_AFTER="$(find "$T/.forge/liaison" -type f | LC_ALL=C sort | xargs shasum -a 256 | shasum -a 256 | cut -d' ' -f1)"
+[ "$LIAISON_SHA_BEFORE" = "$LIAISON_SHA_AFTER" ] \
+  || { echo "FAIL [7]: o update alterou .forge/liaison/ — o canal não é maquinaria substituível"; diff <(find "$T/.forge/liaison" -type f | sort) /dev/null || true; exit 1; }
+echo "OK [7]"
 
 echo "PASS w101-update-preserve-gate"

@@ -1,0 +1,7 @@
+{
+  "cpf": {
+    "classification": "pii",
+    "masking": "redact_full",
+    "tokenization_boundary": false
+  }
+}

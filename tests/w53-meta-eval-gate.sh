@@ -112,7 +112,7 @@ for arm in with-template without-template; do for k in 1 2; do
     --out "$CASE/runs/$arm/run-$k/counts.json" >/dev/null
 done; done
 out6="$(bash "$T/.forge/scripts/meta-aggregate.sh" "$CASE")"
-echo "$out6" | grep -q '^OK meta'
+grep -q '^OK meta' <<<"$out6"
 [ -f "$CASE/meta-aggregate.json" ]
 echo "OK [6]"
 
@@ -149,7 +149,7 @@ set +e
 out9="$(bash "$T/.forge/scripts/meta-aggregate.sh" "$EMPTY" 2>&1)"; rc9=$?
 set -e
 [ "$rc9" -ne 0 ]
-echo "$out9" | grep -qi 'braço\|brac\|>=1'
+grep -qi 'braço\|brac\|>=1' <<<"$out9"
 echo "OK [9]"
 
 echo "[10] camada Quality é opt-in (evals_enabled: false default)"

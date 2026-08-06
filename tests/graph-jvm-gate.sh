@@ -131,8 +131,8 @@ echo "OK [2]"
 
 echo "[3] validate graph OK (java lang válida, sem órfãos)"
 out="$(FORGE_ROOT="$T" bash "$G" validate)"
-echo "$out" | grep -q '^OK graph' || { echo "esperava OK: $out"; exit 1; }
-echo "$out" | grep -q 'orphan' && { echo "não deveria haver órfão: $out"; exit 1; }
+grep -q '^OK graph' <<<"$out" || { echo "esperava OK: $out"; exit 1; }
+grep -q 'orphan' <<<"$out" && { echo "não deveria haver órfão: $out"; exit 1; }
 echo "OK [3]"
 
 echo "[4] cobertura: dominante não suportada = WARN; suportada 0 nodes = FAIL; .h vendored sem WARN falso"
@@ -143,8 +143,8 @@ for i in 1 2 3 4 5; do printf 'import Foundation\nclass Thing%s {}\n' "$i" > "$S
 printf 'export const x = 1;\n' > "$S/tool.js"
 FORGE_ROOT="$S" bash "$G" build >/dev/null
 out="$(FORGE_ROOT="$S" bash "$G" validate)"
-echo "$out" | grep -q '^OK graph' || { echo "swift: esperava OK (WARN): $out"; exit 1; }
-echo "$out" | grep -q "dominant language 'swift'" || { echo "swift: faltou WARN: $out"; exit 1; }
+grep -q '^OK graph' <<<"$out" || { echo "swift: esperava OK (WARN): $out"; exit 1; }
+grep -q "dominant language 'swift'" <<<"$out" || { echo "swift: faltou WARN: $out"; exit 1; }
 # 4b: java suportada com 0 nodes (grafo corrompido/stale) → FAIL, mesmo não sendo dominante
 node -e '
 const p=process.argv[1];const g=JSON.parse(require("fs").readFileSync(p,"utf8"));
@@ -155,7 +155,7 @@ set +e
 out="$(FORGE_ROOT="$T" bash "$G" validate 2>&1)"; rc=$?
 set -e
 [ "$rc" -ne 0 ] || { echo "esperava FAIL (java 0 nodes): $out"; exit 1; }
-echo "$out" | grep -q "language 'java'" || { echo "faltou motivo de cobertura: $out"; exit 1; }
+grep -q "language 'java'" <<<"$out" || { echo "faltou motivo de cobertura: $out"; exit 1; }
 # 4c: headers .h vendored não superam código real (não viram census 'c')
 V="$(mktemp -d /tmp/forge-h.XXXXXX)"
 cp -R "$WS/template/.forge" "$V/.forge"
@@ -164,8 +164,8 @@ for i in 1 2 3; do printf 'package com.x;\npublic class C%s {}\n' "$i" > "$V/app
 for i in $(seq 1 30); do printf '#pragma once\nint f%s();\n' "$i" > "$V/cpp/thirdparty/include/h$i.h"; done
 FORGE_ROOT="$V" bash "$G" build >/dev/null
 out="$(FORGE_ROOT="$V" bash "$G" validate)"
-echo "$out" | grep -q "language 'c'" && { echo "REGRESSÃO: .h vendored gerou WARN falso: $out"; rm -rf "$V"; exit 1; }
-echo "$out" | grep -q '^OK graph' || { echo ".h: esperava OK: $out"; rm -rf "$V"; exit 1; }
+grep -q "language 'c'" <<<"$out" && { echo "REGRESSÃO: .h vendored gerou WARN falso: $out"; rm -rf "$V"; exit 1; }
+grep -q '^OK graph' <<<"$out" || { echo ".h: esperava OK: $out"; rm -rf "$V"; exit 1; }
 rm -rf "$V"
 echo "OK [4]"
 
@@ -174,13 +174,13 @@ set +e
 out="$(node "$S/.forge/scripts/lib/impact-scan.mjs" --graph "$S/.forge/graph/graph.json" --files Sources/App/File1.swift 2>&1)"; rc=$?
 set -e
 [ "$rc" -ne 0 ] || { echo "esperava FAIL: $out"; exit 1; }
-echo "$out" | grep -q 'not covered by the native extractor' || { echo "faltou msg de não-suportado: $out"; exit 1; }
+grep -q 'not covered by the native extractor' <<<"$out" || { echo "faltou msg de não-suportado: $out"; exit 1; }
 # path com diretório pontilhado e sem extensão → mensagem genérica, não pseudo-extensão
 set +e
 out="$(node "$S/.forge/scripts/lib/impact-scan.mjs" --graph "$S/.forge/graph/graph.json" --files docs/v1.2/README 2>&1)"; rc=$?
 set -e
-echo "$out" | grep -q '2/README' && { echo "REGRESSÃO: pseudo-extensão .2/README: $out"; exit 1; }
-echo "$out" | grep -q 'paths outside the graph or graph stale' || { echo "esperava msg genérica: $out"; exit 1; }
+grep -q '2/README' <<<"$out" && { echo "REGRESSÃO: pseudo-extensão .2/README: $out"; exit 1; }
+grep -q 'paths outside the graph or graph stale' <<<"$out" || { echo "esperava msg genérica: $out"; exit 1; }
 echo "OK [5]"
 
 echo "[6] layerOf: Android sem colidir com domínio genérico"

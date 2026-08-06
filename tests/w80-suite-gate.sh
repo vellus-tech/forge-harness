@@ -22,7 +22,8 @@ B="$WS/tests/fixtures/brownfield"
 [ -f "$B/package.json" ]
 grep -q '"name"' "$B/package.json"
 [ -f "$B/tsconfig.json" ]
-[ -f "$B/src/money.ts" ] && [ -f "$B/src/billing.ts" ]
+[ -f "$B/src/money.ts" ] && [ -f "$B/src/billing.ts" ] \
+  || { echo "FAIL [2]: fixture brownfield sem src/money.ts e/ou src/billing.ts"; exit 1; }
 [ -f "$B/docs/product/modules/billing/requirements.md" ]
 grep -qi 'LEGADO' "$B/docs/product/modules/billing/requirements.md"
 [ -f "$B/contracts/billing.contract.md" ]
@@ -32,16 +33,17 @@ echo "OK [2]"
 
 echo "[3] run-all.sh existe, executável, --list completo"
 RA="$WS/tests/run-all.sh"
-[ -f "$RA" ] && [ -x "$RA" ]
+[ -f "$RA" ] && [ -x "$RA" ] \
+  || { echo "FAIL [3]: run-all.sh ausente ou não executável"; exit 1; }
 listing="$(bash "$RA" --list)"
 # todo *-gate.sh aparece na listagem
 for g in "$WS"/tests/*-gate.sh; do
   base="$(basename "$g")"
-  echo "$listing" | grep -q "$base"
+  grep -q "$base" <<<"$listing" || { echo "FAIL [3]: gate $base não aparece no --list do run-all"; exit 1; }
 done
 # bats suites listadas
-echo "$listing" | grep -q 'validators.bats'
-echo "$listing" | grep -q 'claude-contract.bats'
+grep -q 'validators.bats' <<<"$listing" || { echo "FAIL [3]: validators.bats não aparece no --list"; exit 1; }
+grep -q 'claude-contract.bats' <<<"$listing" || { echo "FAIL [3]: claude-contract.bats não aparece no --list"; exit 1; }
 echo "OK [3]"
 
 echo "[4] run-all não chama a si mesmo (sem recursão)"
@@ -77,5 +79,28 @@ for entry in "${MAP[@]}"; do
   [ -f "$WS/tests/$gate" ] || { echo "FALTA gate para '${entry%%:*}': $gate"; exit 1; }
 done
 echo "OK [6]"
+
+echo "[7] a suíte desliga a manutenção automática do git em todo fixture"
+# `git commit` dispara `git gc --auto` em BACKGROUND. Onze gates criam repositório git em /tmp; se
+# o fixture é removido logo após o último commit, o gc ainda escreve em `.git` e o `rm -rf` falha
+# com "Directory not empty" — sob `set -e`, o gate morre DEPOIS de passar em todas as asserções.
+# Não reproduz no macOS, reproduz no CI Linux: foi assim que o w106 reprovou no CI com o log
+# inteiro verde. A asserção mora aqui, e não em cada gate, porque o modo de falha é justamente o
+# esquecimento — um gate novo herda a proteção sem o autor precisar saber que ela existe.
+for k in gc.auto maintenance.auto; do
+  grep -qE "GIT_CONFIG_KEY_[0-9]+=$k\b" "$WS/tests/run-all.sh" \
+    || { echo "FAIL [7]: run-all.sh não desliga $k — fixture git pode ser removido sob gc em background"; exit 1; }
+done
+grep -qE '^export GIT_CONFIG_COUNT=[0-9]+' "$WS/tests/run-all.sh" \
+  || { echo "FAIL [7]: GIT_CONFIG_COUNT ausente — as chaves GIT_CONFIG_KEY_* são ignoradas pelo git sem ele"; exit 1; }
+# o contador tem de cobrir todas as chaves declaradas, senão o git ignora as excedentes EM SILÊNCIO
+declared="$(grep -cE 'GIT_CONFIG_KEY_[0-9]+=' "$WS/tests/run-all.sh")"
+count="$(grep -oE '^export GIT_CONFIG_COUNT=[0-9]+' "$WS/tests/run-all.sh" | grep -oE '[0-9]+')"
+[ "$count" = "$declared" ] \
+  || { echo "FAIL [7]: GIT_CONFIG_COUNT=$count mas há $declared chave(s) declarada(s) — o git ignora as excedentes sem avisar"; exit 1; }
+# e a config precisa CHEGAR ao git de verdade, não só estar escrita no arquivo
+probe="$(cd "$WS" && GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=gc.auto GIT_CONFIG_VALUE_0=0 git config --get gc.auto)"
+[ "$probe" = "0" ] || { echo "FAIL [7]: git não respeita GIT_CONFIG_COUNT neste ambiente (leu '$probe')"; exit 1; }
+echo "OK [7]"
 
 echo "OK"

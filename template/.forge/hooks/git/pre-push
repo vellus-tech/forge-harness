@@ -19,6 +19,55 @@ if [ -f "$DOCS_LIB" ]; then
   fi
 fi
 
+# red-first (rule testing/regression-red-first.md) — check ESTÁTICO só (nunca roda teste; o
+# replay caro fica para /forge:red replay e para /forge:verify).
+RED_LIB="$ROOT/.forge/hooks/git/lib/check-red-first.sh"
+if [ -f "$RED_LIB" ]; then
+  # shellcheck disable=SC1090
+  . "$RED_LIB"
+  if ! printf '%s\n' "$INPUT" | REPO="$ROOT" check_red_first; then
+    exit 1
+  fi
+fi
+
+# no-ai-attribution (rule conventions/no-ai-attribution.md) — varre os commits que estão sendo
+# publicados. Defesa em profundidade sobre o hook commit-msg: aqui pega o que nasceu com
+# --no-verify, o que veio de outra ferramenta, e o que foi importado por cherry-pick de um branch
+# marcado. É a última fronteira antes de a marca virar histórico público, onde removê-la deixa de
+# ser problema de quem commitou e passa a ser problema de todo mundo que tem clone.
+AI_CHECK="$ROOT/.forge/scripts/check-ai-attribution.sh"
+if [ -f "$AI_CHECK" ]; then
+  while read -r _lref lsha _rref rsha; do
+    [ -n "${lsha:-}" ] || continue
+    case "$lsha" in *[!0]*) : ;; *) continue ;; esac   # deleção de ref: nada a varrer
+    if [ -z "${rsha:-}" ] || [ "$rsha" = "0000000000000000000000000000000000000000" ]; then
+      # ref nova no remoto: limita ao que este branch traz além dos demais refs conhecidos
+      range="$(git rev-list "$lsha" --not --remotes 2>/dev/null | tail -1)"
+      [ -n "$range" ] && range="$range~1..$lsha" || range="$lsha"
+    else
+      range="$rsha..$lsha"
+    fi
+    if ! bash "$AI_CHECK" range "$range" >/dev/null; then
+      echo "pre-push BLOQUEADO: no-ai-attribution (rule conventions/no-ai-attribution.md)" >&2
+      bash "$AI_CHECK" range "$range" || true
+      exit 1
+    fi
+  done <<EOF_AI
+$INPUT
+EOF_AI
+fi
+
+# liaison acks (rule conventions/liaison-protocol.md) — cobra só os acks que ESTE repositório deve.
+# Roda antes do gate de FORGE.md porque não depende dele: um repositório pode ter canal de liaison
+# sem ter o bloco runtime configurado, e a cobrança de contrato vale igual.
+ACKS="$ROOT/.forge/scripts/check-liaison-acks.sh"
+if [ -f "$ACKS" ]; then
+  if ! FORGE_ROOT="$ROOT" bash "$ACKS"; then
+    echo "pre-push BLOQUEADO: liaison — ack pendente (rule conventions/liaison-protocol.md)" >&2
+    exit 1
+  fi
+fi
+
 FORGE_MD="$ROOT/.forge/FORGE.md"
 [ -f "$FORGE_MD" ] || { echo "pre-push OK (sem harness)"; exit 0; }
 
@@ -63,4 +112,25 @@ run_check() {  # run_check <label> <cmd>
 
 run_check "typecheck" "$(fm_field typecheck)"
 run_check "test" "$(fm_field test)"
+
+# ── gates declared in FORGE.md runtime: gates (REQ-15/TASK-17, design.md §2.6) ──
+# CSV escalar numa única linha (ex.: "gates: check-authz,check-observability,check-data-governance"),
+# lida por fm_field (mesmo awk de typecheck/test) + split por vírgula. Ausência de "gates:" ⇒
+# nada roda (compat). Cada gate roda sobre o repo inteiro (--path) e respeita seu próprio
+# mode: warn|enforce internamente — os warn reportam sem bloquear o push.
+GATES_CSV="$(fm_field gates)"
+if [ -n "$GATES_CSV" ]; then
+  IFS=',' read -ra _forge_gates <<< "$GATES_CSV"
+  for gate in "${_forge_gates[@]}"; do
+    gate="$(printf '%s' "$gate" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+    [ -n "$gate" ] || continue
+    gate_script="$ROOT/.forge/scripts/${gate}.sh"
+    if [ -f "$gate_script" ]; then
+      run_check "$gate" "bash '$gate_script' --path '$ROOT'"
+    else
+      echo "pre-push: gate '$gate' declarado em runtime.gates mas $gate_script não existe — skip"
+    fi
+  done
+fi
+
 echo "pre-push OK"

@@ -25,8 +25,10 @@ echo "OK [1]"
 
 echo "[2] matriz transversal: 3 mecanismos por store"
 M="$T/.forge/rules/data/data-governance.md"
-grep -q 'PostgreSQL' "$M" && grep -q 'MongoDB' "$M" && grep -qi 'redis' "$M"
-grep -qi 'RLS' "$M" && grep -qi 'filtro de repositório\|interceptor' "$M" && grep -qi 'namespacing de chave\|namespace' "$M"
+grep -q 'PostgreSQL' "$M" && grep -q 'MongoDB' "$M" && grep -qi 'redis' "$M" \
+  || { echo "FAIL [2]: data-governance.md não cita PostgreSQL+MongoDB+redis"; exit 1; }
+grep -qi 'RLS' "$M" && grep -qi 'filtro de repositório\|interceptor' "$M" && grep -qi 'namespacing de chave\|namespace' "$M" \
+  || { echo "FAIL [2]: data-governance.md não cita RLS+filtro/interceptor+namespace"; exit 1; }
 echo "OK [2]"
 
 echo "[3] database-naming saneada (não afirma mais 'sem RLS conforme ADR')"
@@ -42,7 +44,8 @@ printf '# Design\nDD-002: coluna tenant_id + filtro EF, RLS opcional.\n' > "$T/b
 set +e
 out="$(node "$CHK" "$T/bad")"; rc=$?
 set -e
-[ "$rc" -ne 0 ] && echo "$out" | grep -q 'CONFLICT' && echo "$out" | grep -q 'design.md'
+[ "$rc" -ne 0 ] && grep -q 'CONFLICT' <<<"$out" && echo "$out" | grep -q 'design.md' \
+  || { echo "FAIL [4]: checker não reprovou RLS opcional citando CONFLICT + design.md (rc=$rc, out=$out)"; exit 1; }
 echo "OK [4]"
 
 echo "[5] exceção formal é permitida"
@@ -55,7 +58,8 @@ printf '# Design\nO cache usa chave global sem namespace de tenant.\n' > "$T/cac
 set +e
 out="$(node "$CHK" "$T/cache.md")"; rc=$?
 set -e
-[ "$rc" -ne 0 ] && echo "$out" | grep -qi 'cross-tenant\|namespace'
+[ "$rc" -ne 0 ] && grep -qi 'cross-tenant\|namespace' <<<"$out" \
+  || { echo "FAIL [6]: checker não reprovou cache sem namespace de tenant (rc=$rc, out=$out)"; exit 1; }
 echo "OK [6]"
 
 echo "[7] anti-padrão literal do incidente (change real)"
@@ -68,7 +72,8 @@ EOF
 set +e
 out="$(FORGE_ROOT="$T" bash "$T/.forge/scripts/check-data-governance.sh" feat-tenant)"; rc=$?
 set -e
-[ "$rc" -ne 0 ] && echo "$out" | grep -q 'CONFLICT'
+[ "$rc" -ne 0 ] && grep -q 'CONFLICT' <<<"$out" \
+  || { echo "FAIL [7]: check-data-governance não reprovou o anti-padrão literal citando CONFLICT (rc=$rc, out=$out)"; exit 1; }
 echo "OK [7]"
 
 echo "[8] ADR template de governança de dados"

@@ -1,0 +1,18 @@
+# Spec delta — surface-literal-endpoint. Numeração continua de REQ-FHT-052.
+operations:
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-053
+    content_ref: requirements.md#req-01
+    requirement:
+      id: REQ-FHT-053
+      title: "Checklist de superfície cobra o endpoint literal que torna a cobertura cruzável"
+      normative: SHOULD
+      scenarios:
+        - id: SCN-FHT-053-A
+          given: "um Checklist de cobertura de superfície com uma linha cuja célula de superfície fala em endpoint sem citar VERB /path, outra que cita o literal, outra que mistura prosa e literal, e outras cuja superfície é tela, CLI ou flag de configuração"
+          when: "validate-spec avalia o change"
+          then: "apenas a primeira recebe SRF-03, como aviso e nomeando o REQ — a que cita o literal e a mista passam, e as de superfície não-API não são cobradas, para que o check não vire formulário"
+      contracts: []
+      tests:
+        - tests/w130-tasks-graph-gate.sh

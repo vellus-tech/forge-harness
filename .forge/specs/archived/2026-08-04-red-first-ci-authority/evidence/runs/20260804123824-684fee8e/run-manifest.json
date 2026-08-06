@@ -1,0 +1,105 @@
+{
+  "schema": "run-manifest/v1",
+  "run_id": "20260804123824-684fee8e",
+  "stage": "archive",
+  "status": "passed",
+  "started_at": "2026-08-04T12:38:23Z",
+  "finished_at": "2026-08-04T12:38:24.170Z",
+  "duration_ms": 1170,
+  "git": {
+    "repo": true,
+    "branch": "develop",
+    "head_sha": "0fd4c7697179c67f96c8163357e15b81c671ec65",
+    "dirty": true,
+    "changed_files": [
+      ".forge/graph/cache/fingerprints.json",
+      ".forge/graph/graph.json",
+      ".forge/product/current/CHANGELOG.md",
+      ".forge/product/current/capabilities/forge-harness-template/spec.yaml",
+      ".forge/specs/active/red-first-ci-authority/approvals.yaml",
+      ".forge/specs/active/red-first-ci-authority/design.md",
+      ".forge/specs/active/red-first-ci-authority/manifest.yaml",
+      ".forge/specs/active/red-first-ci-authority/proposal.md",
+      ".forge/specs/active/red-first-ci-authority/requirements.md",
+      ".forge/specs/active/red-first-ci-authority/spec-delta.yaml",
+      ".forge/specs/active/red-first-ci-authority/tasks.md",
+      ".forge/specs/active/red-first-ci-authority/verification.md",
+      ".forge/specs/active/red-first-ci-authority/verification.yaml",
+      ".forge/specs/archived/2026-08-04-red-first-ci-authority/",
+      ".forge/specs/archived/index.yaml"
+    ],
+    "diff_stat": ".forge/graph/cache/fingerprints.json               |  2 +-\n .forge/graph/graph.json                            |  6 +--\n .forge/product/current/CHANGELOG.md                |  6 +++\n .../capabilities/forge-harness-template/spec.yaml  | 50 ++++++++++++-------\n .../active/red-first-ci-authority/approvals.yaml   | 29 -----------\n .../specs/active/red-first-ci-authority/design.md  | 58 ----------------------\n .../active/red-first-ci-authority/manifest.yaml    | 41 ---------------\n .../active/red-first-ci-authority/proposal.md      | 27 ----------\n .../active/red-first-ci-authority/requirements.md  | 53 --------------------\n .../active/red-first-ci-authority/spec-delta.yaml  | 22 --------\n .../specs/active/red-first-ci-authority/tasks.md   | 37 --------------\n .../active/red-first-ci-authority/verification.md  | 44 ----------------\n .../red-first-ci-authority/verification.yaml       | 22 --------\n .forge/specs/archived/index.yaml                   |  4 ++\n 14 files changed, 47 insertions(+), 354 deletions(-)",
+    "diff_sha256": "b51d8888f0cedd452d353edca63c6abfb1231ddc1f23d92d02fe85d5bb9ad05e"
+  },
+  "inputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "8fad357ee2db3b1996b01cefedb2bfd012859d6f517469bd3f77a392d7662d19",
+      "bytes": 890,
+      "kind": "file"
+    },
+    {
+      "path": "tasks.md",
+      "exists": true,
+      "sha256": "5f0b36c5bc2a32ead53f4646f44c7ae688640540546f6c93f1f741f4525103db",
+      "bytes": 2030,
+      "kind": "file"
+    },
+    {
+      "path": "verification.yaml",
+      "exists": true,
+      "sha256": "5f545c872fc8629e052076bd178f3e040a7fefd6c5711eeffc43604077d2a462",
+      "bytes": 988,
+      "kind": "file"
+    },
+    {
+      "path": "spec-delta.yaml",
+      "exists": true,
+      "sha256": "3c145ac1fa02cf11ab5c2f9950f2c89044f70a73a42b710abd30fb615e22f1b6",
+      "bytes": 1639,
+      "kind": "file"
+    },
+    {
+      "path": "impact.json",
+      "exists": true,
+      "sha256": "a6a547a4235bcff57648b76365008655cbf6c139a24caeab05710a00cd63f3a3",
+      "bytes": 2172,
+      "kind": "file"
+    }
+  ],
+  "commands": [
+    {
+      "name": "archive-spec",
+      "command": "archive-spec.sh red-first-ci-authority",
+      "status": "passed"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "8fad357ee2db3b1996b01cefedb2bfd012859d6f517469bd3f77a392d7662d19",
+      "bytes": 890,
+      "kind": "file"
+    },
+    {
+      "path": "evidence/runs",
+      "exists": false,
+      "sha256": null,
+      "bytes": null
+    }
+  ],
+  "runner": {
+    "name": "local",
+    "profile": "standard"
+  },
+  "budgets": {
+    "profile": "standard",
+    "budget_class": "medium",
+    "expected_runs": 1,
+    "estimated_timeout_s": 300,
+    "uses_llm": false,
+    "uses_subagent": false
+  }
+}

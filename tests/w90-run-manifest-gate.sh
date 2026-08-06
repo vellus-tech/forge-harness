@@ -3,11 +3,18 @@
 #   [1] schema JSON válido e manifesto direto valida contra schema
 #   [2] proveniência Git registra metadados seguros sem diff bruto
 #   [3] spec-verify grava run-manifest no change ativo
+#   [4] gate declarado em runtime.gates (REQ-15/TASK-17, design.md §2.6) roda via spec-verify
+#       e aparece como check em verification.yaml
 set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 T="$(mktemp -d /tmp/forge-w90.XXXXXX)"
-trap 'rm -rf "$T"' EXIT
+# Diretório de log por execução: path fixo em /tmp é sobrescrito pela próxima rodada, e a
+# evidência da falha some justamente quando alguém vai investigá-la.
+LOGDIR="$(mktemp -d "$T-logs.XXXXXX")"
+# UM único trap: em bash o segundo `trap ... EXIT` substitui o primeiro, e o fixture ficaria sem
+# limpeza — foi assim que 125 diretórios vazaram para /tmp antes de alguém notar.
+trap 'rm -rf "$T" "$LOGDIR"' EXIT
 cp -R "$WS/template/.forge" "$T/.forge"
 S="$T/.forge/scripts"
 
@@ -43,16 +50,40 @@ node -e "
 echo "OK [2]"
 
 echo "[3] spec-verify grava evidence/runs no change"
-(cd "$T" && bash "$S/spec-new.sh" rm-evidence --type feature --scale 0 >/dev/null
-          bash "$S/spec-transition.sh" rm-evidence tasks-ready >/dev/null
-          bash "$S/spec-transition.sh" rm-evidence implementing >/dev/null)
+# Encadeado em subshell sob set -e, um passo que falhe mata o gate SEM mensagem — o sintoma
+# vira "parou no [3]" e não se sabe qual comando caiu (classe LDG-0006).
+(cd "$T" && bash "$S/spec-new.sh" rm-evidence --type feature --scale 0 >$LOGDIR/sn.log 2>&1) \
+  || { echo "FAIL [3]: spec-new falhou"; tail -5 $LOGDIR/sn.log; exit 1; }
+(cd "$T" && bash "$S/spec-transition.sh" rm-evidence tasks-ready >$LOGDIR/t1.log 2>&1) \
+  || { echo "FAIL [3]: transição para tasks-ready falhou"; tail -5 $LOGDIR/t1.log; exit 1; }
+(cd "$T" && bash "$S/spec-transition.sh" rm-evidence implementing >$LOGDIR/t2.log 2>&1) \
+  || { echo "FAIL [3]: transição para implementing falhou"; tail -5 $LOGDIR/t2.log; exit 1; }
 perl -pi -e 's/^(\s*)- \[ \] /$1- [X] /' "$T/.forge/specs/active/rm-evidence/tasks.md"
-(cd "$T" && bash "$S/spec-transition.sh" rm-evidence implemented >/dev/null
-          FORGE_ROOT="$T" bash "$S/spec-verify.sh" rm-evidence >/dev/null)
-VRM="$(find "$T/.forge/specs/active/rm-evidence/evidence/runs" -name run-manifest.json | head -1)"
-[ -f "$VRM" ]
+(cd "$T" && bash "$S/spec-transition.sh" rm-evidence implemented >$LOGDIR/t3.log 2>&1) \
+  || { echo "FAIL [3]: transição para implemented falhou"; tail -5 $LOGDIR/t3.log; exit 1; }
+(cd "$T" && FORGE_ROOT="$T" bash "$S/spec-verify.sh" rm-evidence >$LOGDIR/vf.log 2>&1) \
+  || { echo "FAIL [3]: spec-verify falhou"; tail -8 $LOGDIR/vf.log; exit 1; }
+VRM="$(find "$T/.forge/specs/active/rm-evidence/evidence/runs" -name run-manifest.json 2>/dev/null | head -1)"
+[ -n "$VRM" ] && [ -f "$VRM" ] || { echo "FAIL [3]: spec-verify não gravou run-manifest em evidence/runs"; exit 1; }
 node "$WS/tools/validate-yaml.mjs" "$WS/template/.forge/schemas/run-manifest.schema.json" "$VRM" >/dev/null
 node -e "const m=require('$VRM'); if (m.stage !== 'verify' || m.status !== 'passed') throw new Error('verify manifest mismatch')"
 echo "OK [3]"
+
+echo "[4] gate declarado em runtime.gates roda via spec-verify e aparece no verification.yaml"
+(cd "$T" && bash "$S/spec-new.sh" rm-gates --type feature --scale 0 >/dev/null
+          bash "$S/spec-transition.sh" rm-gates tasks-ready >/dev/null
+          bash "$S/spec-transition.sh" rm-gates implementing >/dev/null)
+perl -pi -e 's/^(\s*)- \[ \] /$1- [X] /' "$T/.forge/specs/active/rm-gates/tasks.md"
+(cd "$T" && bash "$S/spec-transition.sh" rm-gates implemented >/dev/null)
+# runtime.gates: CSV escalar numa única linha (nunca block-sequence — get_runtime/fm_field só
+# leem "key: value"); substitui a linha "  gates:" vazia herdada do template.
+perl -pi -e 's/^  gates:[ \t]*$/  gates: check-data-governance/' "$T/.forge/FORGE.md"
+grep -qE '^  gates: check-data-governance$' "$T/.forge/FORGE.md"
+FORGE_ROOT="$T" bash "$S/spec-verify.sh" rm-gates >/dev/null
+VY="$T/.forge/specs/active/rm-gates/verification.yaml"
+[ -f "$VY" ]
+grep -qE '^\s*- name: check-data-governance$' "$VY"
+grep -qE '^\s*status: passed$' "$VY"
+echo "OK [4]"
 
 echo "OK"

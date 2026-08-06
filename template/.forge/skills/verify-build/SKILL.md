@@ -1,7 +1,7 @@
 ---
 name: verify-build
 description: |
-  Skill determinística usada pelo `code-evaluator` antes de gastar tokens com reviewers LLM. Detecta a stack do diff (`.cs` → .NET, `.ts/.tsx` → Node, `.kt/.kts` → Gradle) e roda compilação + testes. Retorna JSON com `passed: true/false`, lista de erros estruturada e métricas (coverage por camada quando disponível). Falha aqui = `REJECTED` imediato, sem chamar reviewers.
+  Skill determinística usada pelo `code-evaluator` antes de gastar tokens com reviewers LLM. Detecta a stack do diff (`.cs` → .NET, `.ts/.tsx` → Node, `.java` → Java, `.py` → Python, `.kt/.kts` → Gradle) e roda compilação + testes. Retorna JSON com `passed: true/false`, lista de erros estruturada e métricas (coverage por camada quando disponível). Falha aqui = `REJECTED` imediato, sem chamar reviewers.
 ---
 
 # Skill: verify-build
@@ -33,6 +33,8 @@ Classifica:
 |---|---|
 | `*.cs`, `*.csproj`, `*.sln` | dotnet |
 | `*.ts`, `*.tsx`, `package.json`, `*.config.ts` | node |
+| `*.java`, `pom.xml` | java |
+| `*.py`, `pyproject.toml`, `requirements*.txt` | python |
 | `*.kt`, `*.kts`, `build.gradle*` | gradle |
 | `Dockerfile`, `*.yaml` (K8s), `.github/workflows/*.yml` | infra (build a partir do contexto) |
 
@@ -99,7 +101,31 @@ BUILD_EXIT=$?
 TEST_EXIT=$?
 ```
 
-### 5. Pipeline Infra (validações estáticas)
+### 5. Pipeline Java
+
+Use o wrapper e o build tool existentes; nunca troque Maven por Gradle (ou vice-versa) durante a verificação.
+
+```bash
+if [ -x ./mvnw ]; then ./mvnw -B verify
+elif [ -f pom.xml ]; then mvn -B verify
+elif [ -x ./gradlew ]; then ./gradlew --no-daemon test
+else echo "FAIL: Java sem Maven/Gradle wrapper ou ferramenta disponível"; exit 1
+fi
+```
+
+### 6. Pipeline Python
+
+Use o gerenciador e os comandos declarados no projeto. Para `pyproject.toml`, não instale globalmente; crie/consuma o ambiente virtual já definido pela ferramenta do repositório.
+
+```bash
+# Exemplos condicionais: o runtime do FORGE.md vence.
+python -m pytest
+ruff check .
+```
+
+Se o projeto declara mypy ou pyright no runtime, execute-o; caso contrário, reporte typecheck como não configurado, não como aprovado.
+
+### 7. Pipeline Infra (validações estáticas)
 
 Sem compilação real, mas valida sintaxe:
 

@@ -22,19 +22,25 @@ sync() { (cd "$T" && bash .forge/scripts/sync-adapters.sh "$@" >/dev/null); }
 
 echo "[1] install default (claude only)"
 "$WS/installer/install.sh" --target "$T" --slug fixture-app --name "Fixture App" --desc "Gate W1.4" >/dev/null
-[ -f "$T/AGENTS.md" ] && [ -L "$T/CLAUDE.md" ]
-[ ! -d "$T/.agents" ] && [ ! -d "$T/.cursor" ] && [ ! -d "$T/.kiro" ]
-[ ! -e "$T/QWEN.md" ] && [ ! -e "$T/GEMINI.md" ]
+[ -f "$T/AGENTS.md" ] && [ -L "$T/CLAUDE.md" ] \
+  || { echo "FAIL [1]: AGENTS.md ausente ou CLAUDE.md não é symlink"; exit 1; }
+[ ! -d "$T/.agents" ] && [ ! -d "$T/.cursor" ] && [ ! -d "$T/.kiro" ] \
+  || { echo "FAIL [1]: .agents/.cursor/.kiro presentes num install default (claude-only)"; exit 1; }
+[ ! -e "$T/QWEN.md" ] && [ ! -e "$T/GEMINI.md" ] \
+  || { echo "FAIL [1]: QWEN.md/GEMINI.md presentes num install default (claude-only)"; exit 1; }
 [ "$(find "$T/.forge/adapters" -name '*.lock.yaml' | wc -l | tr -d ' ')" -eq 2 ] # core + claude
 echo "OK [1]"
 
 echo "[2] reconcile para claude,cursor,qwen"
 sync --set claude,cursor,qwen
-[ -f "$T/.cursor/rules/forge.mdc" ] && grep -q 'alwaysApply: true' "$T/.cursor/rules/forge.mdc"
-[ -d "$T/.agents/commands/forge" ] && ls "$T"/.agents/commands/forge/*.md >/dev/null
+[ -f "$T/.cursor/rules/forge.mdc" ] && grep -q 'alwaysApply: true' "$T/.cursor/rules/forge.mdc" \
+  || { echo "FAIL [2]: .cursor/rules/forge.mdc ausente ou sem alwaysApply: true"; exit 1; }
+[ -d "$T/.agents/commands/forge" ] && ls "$T"/.agents/commands/forge/*.md >/dev/null \
+  || { echo "FAIL [2]: .agents/commands/forge sem *.md"; exit 1; }
 [ -L "$T/QWEN.md" ]
 [ ! -d "$T/.kiro" ]
-grep -q '    - cursor' "$T/.forge/forge.yaml" && grep -q '    - qwen' "$T/.forge/forge.yaml"
+grep -q '    - cursor' "$T/.forge/forge.yaml" && grep -q '    - qwen' "$T/.forge/forge.yaml" \
+  || { echo "FAIL [2]: forge.yaml não lista cursor+qwen ativos"; exit 1; }
 echo "OK [2]"
 
 echo "[3] smokes do conjunto ativo + foreign paths"
@@ -51,16 +57,21 @@ echo "OK [4] (${H1:0:12})"
 
 echo "[5] adicionar kiro via --set"
 sync --set claude,cursor,qwen,kiro
-[ -f "$T/.kiro/steering/forge.md" ] && [ ! -d "$T/.kiro/specs" ]
+[ -f "$T/.kiro/steering/forge.md" ] && [ ! -d "$T/.kiro/specs" ] \
+  || { echo "FAIL [5]: .kiro/steering/forge.md ausente, ou .kiro/specs presente indevidamente"; exit 1; }
 echo "OK [5]"
 
 echo "[6] reduzir para claude → poda cursor/qwen/kiro"
 sync --set claude
-[ ! -d "$T/.cursor" ] && [ ! -d "$T/.kiro" ] && [ ! -d "$T/.agents" ]
+[ ! -d "$T/.cursor" ] && [ ! -d "$T/.kiro" ] && [ ! -d "$T/.agents" ] \
+  || { echo "FAIL [6]: .cursor/.kiro/.agents deveriam ter sido podados"; exit 1; }
 [ ! -e "$T/QWEN.md" ]
-[ ! -f "$T/.forge/adapters/cursor.lock.yaml" ] && [ ! -f "$T/.forge/adapters/qwen.lock.yaml" ] && [ ! -f "$T/.forge/adapters/kiro.lock.yaml" ]
-[ -f "$T/.forge/adapters/claude.lock.yaml" ] && [ -f "$T/.forge/adapters/core.lock.yaml" ]
-[ -f "$T/AGENTS.md" ] && [ -L "$T/CLAUDE.md" ]   # core + claude survive
+[ ! -f "$T/.forge/adapters/cursor.lock.yaml" ] && [ ! -f "$T/.forge/adapters/qwen.lock.yaml" ] && [ ! -f "$T/.forge/adapters/kiro.lock.yaml" ] \
+  || { echo "FAIL [6]: lockfiles de cursor/qwen/kiro deveriam ter sido removidos"; exit 1; }
+[ -f "$T/.forge/adapters/claude.lock.yaml" ] && [ -f "$T/.forge/adapters/core.lock.yaml" ] \
+  || { echo "FAIL [6]: claude.lock.yaml/core.lock.yaml deveriam sobreviver à poda"; exit 1; }
+[ -f "$T/AGENTS.md" ] && [ -L "$T/CLAUDE.md" ] \
+  || { echo "FAIL [6]: AGENTS.md/CLAUDE.md deveriam sobreviver à poda (core + claude)"; exit 1; }
 echo "OK [6] (poda completa, claude intacto)"
 
 echo "[7] contrato (generated mode)"

@@ -1,0 +1,41 @@
+name: red-first
+# A evidência de Red de uma correção de defeito é produzida pela parte que está sendo verificada.
+# Este workflow reexecuta o replay num runner que o autor do PR não controla e faz do veredito
+# daqui a autoridade: o que o `red-evidence.json` commitado afirma não basta.
+#
+# Fecha o vetor do ambiente controlado pelo autor. NÃO fecha o comando declarado arbitrário (ele
+# continua vindo do artefato), o defeito introduzido no próprio PR, nem o waiver inverificável —
+# esses três exigem revisão humana. Ver .forge/rules/testing/regression-red-first.md.
+on:
+  pull_request:
+    paths:
+      - '.forge/specs/active/**'
+      - 'src/**'
+      - 'lib/**'
+      - 'app/**'
+      - 'tests/**'
+  workflow_dispatch:
+
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    steps:
+      # fetch-depth: 0 é obrigatório — o motor deriva a árvore pré-correção do histórico
+      # (ancestry, revert sintetizado ou enxerto do teste). Com o checkout raso padrão não há
+      # histórico de onde derivar, e todo replay viraria `not-possible`.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # O replay roda o teste declarado num worktree git efêmero, que nasce sem node_modules.
+      # Sem as dependências materializadas, um teste que importe qualquer pacote falha por
+      # ambiente e o motor devolve `not-possible` — corretamente, mas sem verificar nada.
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+
+      - name: Red-first replay
+        run: bash .forge/scripts/red-evidence.sh ci

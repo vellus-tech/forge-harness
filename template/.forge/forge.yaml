@@ -16,6 +16,10 @@ specs:
 graph:
   enabled: true
   root: .forge/graph
+capabilities:
+  # Packs opt-in por stack. O código/ADRs do projeto sempre vencem o pack; o doctor apenas sugere.
+  # Ex.: backend-dotnet-relational,backend-node-postgres
+  active: []
 quality:
   enabled: false
   evals_root: .forge/evals
@@ -34,6 +38,18 @@ ledger:
   # Quando true, o hook SessionStart também lista os itens open de maior prioridade (rule-based, sem
   # LLM), como o handoff.auto. A captura automática no close/archive independe deste flag. Default off.
   auto: false
+liaison:
+  # Canal de mensagens ORDENADAS entre agentes de repositórios distintos (ex.: dono do .proto e app
+  # cliente), em .forge/liaison/. Ver rules/conventions/liaison-protocol.md e liaison-untrusted-input.md.
+  # auto: quando true, o hook SessionStart resume o inbox — contagem e ASSUNTO, nunca o corpo, que é
+  # conteúdo escrito por outro repositório e entra no contexto como dado, jamais como instrução.
+  # enforce: o que fazer com contract-change inbound que exige ack e não foi ackado (Onda 4).
+  #   warn (default): avisa no pre-push e no pré-flight do archive, sem bloquear.
+  #   block: reprova. Faz sentido nos CONSUMIDORES de contrato — quem sofre o drift precisa da trava;
+  #          o dono do .proto não. Cada participante bloqueia pelo próprio ack pendente, nunca pelo
+  #          dos outros, senão o participante mais lento trava o trabalho de todo mundo.
+  auto: false
+  enforce: warn
 autonomy:
   # Modo de decisão nos gates HITL (§12.1). Ver rules/conventions/autonomy-yolo.md.
   #   hitl (default): gates de aprovação param para decisão humana via AskUserQuestion.

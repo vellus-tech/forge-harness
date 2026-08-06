@@ -1,0 +1,18 @@
+verification:
+  commit: "5bcf362"
+  verified_at: "2026-08-04"
+  checks:
+    - name: "npm-test-full-suite"
+      command: "npm test"
+      status: passed
+    - name: "w130-tasks-graph-gate (17 casos, incluindo SRF-03 e seus três controles)"
+      command: "bash tests/w130-tasks-graph-gate.sh"
+      status: passed
+    - name: "medição do LDG-0010 contra o repositório de referência"
+      command: "scanRoutes + collectDeclaredSurface + surContractToCode sobre axis-go-cloud"
+      status: passed
+    - name: "impacto do SRF-03 em specs reais (7 de 26 changes)"
+      command: "checkSurfaceChecklistLiteral sobre .forge/specs do axis-go-cloud"
+      status: passed
+  evidence:
+    - "verification.md — a medição inteira e por que a promoção do SRF-01 não se sustenta"

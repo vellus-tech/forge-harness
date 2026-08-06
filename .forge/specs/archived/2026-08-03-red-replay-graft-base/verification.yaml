@@ -1,0 +1,26 @@
+verification:
+  commit: "62eef2a"
+  verified_at: "2026-08-03"
+  checks:
+    - name: "npm-test-full-suite"
+      command: "npm test"
+      status: passed
+    - name: "w108-red-graft-gate (5 casos: test-graft, graft_from, recusa preservada, classificador, validador)"
+      command: "bash tests/w108-red-graft-gate.sh"
+      status: passed
+    - name: "w107-red-replay-gate (ancestry e revert-synthesis sem regressão)"
+      command: "bash tests/w107-red-replay-gate.sh"
+      status: passed
+    - name: "w106-red-first-gate (tabela de assinaturas do classificador)"
+      command: "bash tests/w106-red-first-gate.sh"
+      status: passed
+    - name: "Red observado do próprio change (ancestry, base 4810189)"
+      command: "FORGE_ROOT=$(pwd) bash template/.forge/scripts/red-evidence.sh replay red-replay-graft-base"
+      status: passed
+    - name: "validação estrutural do change"
+      command: "FORGE_ROOT=$(pwd) bash template/.forge/scripts/validate-spec.sh red-replay-graft-base"
+      status: passed
+  evidence:
+    - "verification.md — tabela item-a-item do bugfix.md com path e gate por item"
+    - "evidence/red/red-evidence.json — status observed, base_strategy ancestry, base 4810189"
+    - "npm test — PASS=73 FAIL=0 SKIP=0 (260s)"

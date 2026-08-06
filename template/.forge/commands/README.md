@@ -11,6 +11,7 @@ No Claude Code, digite `/` seguido do nome do command. Argumentos são passados 
 | Command | Argumentos | Descrição |
 |---|---|---|
 | `/forge:new-adr` | `<title>` | Cria novo ADR com numeração sequencial em `docs/product/adr/` |
+| `/forge:red` | `init\|record\|replay\|waive\|status <change-id> [flags]` | Protocolo Red-first de correção de defeito — declara o teste que reproduz o bug, roda o motor de replay real e observa a falha, ou dispensa com motivo tipado (só `type: bugfix`) |
 | `/forge:scaffold-tdd` | `<test-name>` | Gera esqueleto de teste xUnit Red-Green-Refactor com AAA |
 | `/forge:update-changelog` | `<component> <type> <description>` | Atualiza CHANGELOG seguindo Keep a Changelog |
 | `/forge:specs-loop` | `[--skip-approved]` | Loop autônomo de especificação de módulos em `docs/product/modules/`, orquestrando os 3 agents (`requirements-writer`, `design-writer`, `tasks-writer`); idempotente |
@@ -26,6 +27,7 @@ No Claude Code, digite `/` seguido do nome do command. Argumentos são passados 
 ## Detalhes
 
 - [new-adr](./docs/new-adr.md)
+- [red](./testing/red.md)
 - [scaffold-tdd](./testing/scaffold-tdd.md)
 - [update-changelog](./docs/update-changelog.md)
 - [specs-loop](./specs/specs-loop.md)

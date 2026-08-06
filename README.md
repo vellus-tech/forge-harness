@@ -1,13 +1,15 @@
 <div align="center">
 
-# 🔨 Forge Project Harness
+<img src="docs/assets/banner.png" alt="Forge Harness — Spec-Driven Development como fonte única: determinista, multi-agente, code graph nativo" width="900">
+
+# Forge Project Harness
 
 **Spec-Driven Development como fonte única — multi-agente, determinista e com code graph nativo.**
 
 [![CI](https://github.com/vellus-tech/forge-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/vellus-tech/forge-harness/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![npm](https://img.shields.io/npm/v/forge-harness?color=blue&label=npm)](https://www.npmjs.com/package/forge-harness)
-[![Gates](https://img.shields.io/badge/gates-30%20passing-brightgreen.svg)](./tests)
+[![Gates](https://img.shields.io/badge/gates-66%20passing-brightgreen.svg)](./tests)
 [![Runtime](https://img.shields.io/badge/runtime-zero--dependency-success.svg)](#)
 [![Node](https://img.shields.io/badge/node-%E2%89%A520-339933.svg)](#)
 [![Adapters](https://img.shields.io/badge/adapters-claude%20%C2%B7%20codex%20%C2%B7%20cursor%20%C2%B7%20%2B5-8A2BE2.svg)](#adapters-multi-agente)
@@ -42,8 +44,19 @@ runtime e sem gastar tokens onde não precisa.
 - **Eval harness opt-in:** avaliação A/B quantitativa de skills/commands/templates + **meta-avaliação do
   próprio harness** (evolução por evidência, não opinião).
 - **Sessões longas:** story sharding, waves, ledger de deferrals e disciplina de contexto.
+- **Canal entre repositórios (`liaison`):** mensagens **ordenadas** e duráveis entre agentes de
+  repositórios distintos que colaboram por contrato — o dono do `.proto`, o app que consome os
+  stubs, o simulador que exercita o mesmo serviço. Store JSONL append-only por remetente (um
+  escritor por arquivo), relógio de Lamport **por thread**, transporte plugável (`fs`, `git`,
+  `manual`) e merge que **reprova reescrita de história**. Conteúdo de peer entra como **dado,
+  nunca instrução**: banner `UNTRUSTED`, fence e neutralização de `/comando:` no render.
 - **Baseline & archive:** capabilities versionadas, `spec-delta` com *apply* determinista, ingestão de
   `docs/product/` legado **sem perda**.
+- **Red-first com evidência observada, não declarada:** em correção de defeito, o teste que reproduz
+  o bug é executado na árvore **pré-correção** derivada do próprio histórico — por ancestralidade,
+  por revert sintetizado, ou (quando o teste nasceu junto da correção, o caso do squash de PR) por
+  enxerto do teste sobre o commit anterior. Falha de build na base não conta como Red, e o que o
+  motor não consegue observar vira `not-possible` em vez de virar um veredito confiante.
 - **PoC notação MDL 2.0** ([mdlmodel.com](https://mdlmodel.com)) gerada a partir do code graph.
 
 ## 🚀 Quickstart
@@ -94,7 +107,7 @@ O `.forge/` por projeto traz o **engine**; os **slash commands** `/forge:*` são
 **plugin** do Claude Code — porque o Claude Code (≥ 2.x) reserva o namespace `:` para plugins
 (comandos soltos em `.claude/commands/` viram só `/<nome>`, sem o prefixo `forge:`). **O `init` já
 auto-instala o plugin** (global, vale para todos os seus projetos) quando o adapter claude está ativo;
-depois é só `/reload-plugins` (ou nova sessão) e os 52 comandos `/forge:*` aparecem.
+depois é só `/reload-plugins` (ou nova sessão) e os 56 comandos `/forge:*` aparecem.
 
 Para (re)instalar/atualizar o plugin manualmente, há duas vias:
 
@@ -126,6 +139,31 @@ O `installer/install.sh` (bash) é o mesmo fluxo do `init`, útil sem Node/npm n
 totalmente offline. O `bin/forge.mjs` (usado pelo `npx`) é a porta cross-platform desse script.
 </details>
 
+<details>
+<summary>Por que o subsistema se chama <code>liaison</code></summary>
+
+Do francês *lier* (ligar), estabelecido no vocabulário organizacional como **canal formal de
+comunicação entre grupos que permanecem autônomos** — um *liaison officer* faz a ponte sem que
+nenhum dos lados se subordine ao outro. É exatamente o que o subsistema é: dois ou mais
+repositórios que colaboram por contrato, mas cada um com seu próprio ciclo, seu ledger e sua
+autoridade sobre o próprio código.
+
+O nome foi escolhido por eliminação dos vizinhos, que descreviam mal:
+
+| Termo | Por que não |
+|---|---|
+| *chat* | sugere conversa efêmera; aqui cada mensagem é um fato de contrato que se cita num ADR meses depois |
+| *queue* | pressupõe produtor e consumidor com papéis fixos; no canal todos escrevem e todos leem |
+| *RPC* / *call* | pressupõe chamada síncrona e resposta imediata; o fluxo normal é assíncrono e sobrevive à sessão |
+| *sync* | descreve o transporte, não o conteúdo — e o subsistema é sobre **o que** atravessa a fronteira, não sobre como os bytes viajam |
+
+**O custo assumido, dito abertamente:** é a única palavra estrangeira não-técnica na superfície de
+comandos (`spec`, `graph`, `verify`, `archive`, `ledger` são transparentes para quem lê português),
+e escreve-se de um jeito que se erra com facilidade. A precisão do termo foi considerada mais
+valiosa que a familiaridade — decisão consciente, não descuido.
+
+</details>
+
 ## 🧭 Ciclo de vida SDD
 
 ```text
@@ -136,7 +174,7 @@ spec new ─▶ clarify ─▶ requirements ─▶ design ─▶ tasks ─▶ im
 Cada transição é registrada por scripts deterministas; os gates humanos (`approve`/`review`/`reject`/
 `block`) ficam em `approvals.yaml`. Em `scale` baixo, fases são puláveis (Quick Plan) com justificativa.
 
-> 📖 **Relação completa dos 50 slash commands** (`/forge:*`), por grupo e com argumentos:
+> 📖 **Relação completa dos 56 slash commands** (`/forge:*`), por grupo e com argumentos:
 > [`docs/refer/slash-commands.md`](./docs/refer/slash-commands.md). Os comandos são
 > entregues por um **plugin** do Claude Code — gere/instale com `/forge:build-plugin`
 > (ou `bash .forge/scripts/build-plugin.sh`).
@@ -188,9 +226,10 @@ Trocar/adicionar um agente reconcilia o workspace (gera os ausentes, poda os rem
 template/.forge/        # o harness instalável (fonte única)
 ├── FORGE.md            # governança + frontmatter de runtime
 ├── agents/  (43)       # subagentes por categoria (specifications, architecture, review, …)
-├── commands/ (52)      # comandos /forge:* (specs, waves, graph, quality, git, …) — relação completa em docs/refer/slash-commands.md
+├── commands/ (54)      # comandos /forge:* (specs, waves, graph, quality, git, …) — relação completa em docs/refer/slash-commands.md
 ├── contracts/ (5)      # contratos de I/O por estágio (verify, archive, eval, …)
-├── skills/   (9)       # skills especialistas (gate-runner, story-context, …)
+├── capabilities/       # packs opt-in por stack (C#/.NET, Node, Java, Python)
+├── skills/   (11)      # skills especialistas (gate-runner, capability-dispatcher, …)
 ├── rules/   (33)       # convenções (arquitetura, domínio, testing, …)
 ├── schemas/ (19)       # JSON Schemas (manifest, run-manifest, benchmark, graph, …)
 └── scripts/ (63)       # engine determinista (graph, archive, eval, provenance, hooks, …)

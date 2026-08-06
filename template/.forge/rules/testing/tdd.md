@@ -3,7 +3,7 @@ title: Test-Driven Development (TDD)
 applies_to:
   - all
 priority: high
-last_reviewed: 2026-05-08
+last_reviewed: 2026-07-28
 ---
 
 # Test-Driven Development (TDD)
@@ -38,9 +38,9 @@ Property-Based Testing (PBT) complementa testes de exemplo quando há propriedad
 
 ### Property-Based Testing
 
-12. Usar FsCheck (C#) para propriedades matemáticas verificáveis
-13. Obrigatório em: `Money.Add/Subtract`, `Split()`, `CalculateFee()`, qualquer operação de arredondamento
-14. Propriedades típicas: comutatividade, associatividade, idempotência, invariantes de soma
+12. Onde a unidade tem propriedade algébrica ou estrutural verificável (invariância sob permutação, idempotência, round-trip, conservação, monotonicidade), o teste de propriedade é **obrigatório** e complementa — não substitui — os testes por exemplo
+13. A norma completa, com as famílias de propriedade, as regras de escrita (seed fixa, shrinking, verificação do gerador) e as ferramentas por stack, vive em [property-based-testing.md](./property-based-testing.md)
+14. Onde não há propriedade, não force: PBT sobre código sem propriedade reimplementa a função e não prova nada
 
 ### Ferramentas por Stack
 
@@ -118,10 +118,11 @@ public void Split_Calculates()
 
 - PRs sem testes para lógica nova são bloqueados pelo checklist do PR template
 - `dotnet test --collect:"XPlat Code Coverage"` reporta cobertura por linha
-- Testes PBT em `core-money` são obrigatórios antes de qualquer PR de `Money`
+- Propriedades declaradas no `design.md` são conferidas no `/forge:verify` (ver [property-based-testing.md](./property-based-testing.md))
 
 ## Referências
 
+- [Red-first em correção de defeito](./regression-red-first.md) — o mesmo ciclo aplicado a bugfix, onde o Red precisa ser observado e replicável, não presumido.
 - [Money como centavos](../domain/money-as-cents.md)
 - [NBR 5891](../domain/nbr-5891-rounding.md)
 - Test-Driven Development — Kent Beck

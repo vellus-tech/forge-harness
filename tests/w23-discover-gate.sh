@@ -3,13 +3,15 @@
 #   [1] brownfield fixture (node-ts + git + dirty file) → manifest.json valid by
 #       schema (ajv) with stack/commands/changed_files/fingerprints populated
 #   [2] greenfield fixture (no stack, no git) → manifest still valid by schema
-#   [3] re-run is idempotent (fresh manifest, exit 0)
+#   [3] Java/Maven fixture → stack e comandos Java detectados
+#   [4] re-run is idempotent (fresh manifest, exit 0)
 set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 T1="$(mktemp -d /tmp/forge-w23a.XXXXXX)"
 T2="$(mktemp -d /tmp/forge-w23b.XXXXXX)"
-trap 'rm -rf "$T1" "$T2"' EXIT
+T3="$(mktemp -d /tmp/forge-w23c.XXXXXX)"
+trap 'rm -rf "$T1" "$T2" "$T3"' EXIT
 SCHEMA="$WS/template/.forge/schemas/graph-manifest.schema.json"
 
 echo "[1] brownfield node-ts"
@@ -47,9 +49,21 @@ process.exit(m.stack.length === 0 && m.git.repo === false ? 0 : 1);
 ' "$T2/.forge/graph/manifest.json"
 echo "OK [2]"
 
-echo "[3] idempotência"
+echo "[3] Java/Maven"
+printf '<project></project>\n' > "$T3/pom.xml"
+mkdir -p "$T3/src/main/java" && echo 'class Fixture {}' > "$T3/src/main/java/Fixture.java"
+cp -R "$WS/template/.forge" "$T3/.forge"
+(cd "$T3" && bash .forge/scripts/discover.sh >/dev/null)
+node "$WS/tools/validate-yaml.mjs" "$SCHEMA" "$T3/.forge/graph/manifest.json" >/dev/null
+node -e '
+const m = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+process.exit(m.stack.includes("java") && m.commands.test === "mvn test" && m.commands.build === "mvn package" ? 0 : 1);
+' "$T3/.forge/graph/manifest.json"
+echo "OK [3]"
+
+echo "[4] idempotência"
 (cd "$T1" && bash .forge/scripts/discover.sh >/dev/null)
 node "$WS/tools/validate-yaml.mjs" "$SCHEMA" "$T1/.forge/graph/manifest.json" >/dev/null
-echo "OK [3]"
+echo "OK [4]"
 
 echo "OK"

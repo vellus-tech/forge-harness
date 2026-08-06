@@ -65,7 +65,8 @@ EOF
 FORGE_ROOT="$T" bash "$S/archive-spec.sh" add-card-tokenization >/dev/null
 CAP="$T/.forge/product/current/capabilities/tokenization/spec.yaml"
 [ -f "$CAP" ]
-grep -q 'REQ-TOK-001' "$CAP" && grep -q 'SCN-TOK-001-A' "$CAP"
+grep -q 'REQ-TOK-001' "$CAP" && grep -q 'SCN-TOK-001-A' "$CAP" \
+  || { echo "FAIL [1]: spec.yaml do baseline não cita REQ-TOK-001 + SCN-TOK-001-A"; exit 1; }
 grep -q 'change_id: add-card-tokenization' "$CAP"
 [ -d "$T/.forge/specs/archived/$TODAY-add-card-tokenization" ]
 [ ! -e "$T/.forge/specs/active/add-card-tokenization" ]
@@ -84,7 +85,8 @@ echo "[1b] evidência do verify sobrevive ao move do archive (issue #22 §3)"
 # (i.e. não podem embutir o segmento specs/active/<id> que deixa de existir).
 ARCHIVED_DIR="$T/.forge/specs/archived/$TODAY-add-card-tokenization"
 VRM="$(find "$ARCHIVED_DIR/evidence/runs" -name run-manifest.json -exec grep -l '"stage": "verify"' {} \; | head -1)"
-[ -n "$VRM" ] && [ -f "$VRM" ]
+[ -n "$VRM" ] && [ -f "$VRM" ] \
+  || { echo "FAIL [1b]: run-manifest de verify não encontrado em evidence/runs após o archive (VRM='$VRM')"; exit 1; }
 node -e '
   const fs = require("fs");
   const path = require("path");
@@ -131,11 +133,19 @@ operations:
       title: Another requirement
       normative: SHOULD
 EOF
-printf -- '- [ ] TASK-09 — tarefa esquecida (rastreia: REQ-X; paths: x; depende: —)\n' >> "$T/.forge/specs/active/chg-open/tasks.md"
+# TASK-04 e não TASK-09: o scaffold tem TASK-01..03, e um salto para 09 abre furo de numeração —
+# que o TSK-04 do validate-spec (lib/tasks-graph.mjs) reprova, com razão, ANTES de o archive chegar
+# à task aberta. O que este passo testa é a task ABERTA; o número tem de ser contíguo para que o
+# defeito sob teste seja o único presente.
+printf -- '- [ ] TASK-04 — tarefa esquecida (rastreia: REQ-X; paths: x; depende: —)\n' >> "$T/.forge/specs/active/chg-open/tasks.md"
 set +e
 out="$(FORGE_ROOT="$T" bash "$S/archive-spec.sh" chg-open 2>&1)"; rc=$?
 set -e
-[ "$rc" -ne 0 ] && echo "$out" | grep -q 'open task'
+# NUNCA `[ cond ] && cmd` sob set -e: quando a condição falha, o gate morre sem imprimir nada, e o
+# diagnóstico começa do zero. Foi exatamente o que aconteceu aqui — a mensagem que faltava era a de
+# um check novo reprovando, e o gate a engoliu.
+[ "$rc" -ne 0 ] || { echo "FAIL [2]: archive aceitou change com task aberta (rc=0): $out"; exit 1; }
+grep -q 'open task' <<<"$out" || { echo "FAIL [2]: archive reprovou por outro motivo que não a task aberta: $out"; exit 1; }
 perl -pi -e 's/^(\s*)- \[ \] /$1- [X] /' "$T/.forge/specs/active/chg-open/tasks.md"
 echo "OK [2]"
 
@@ -157,7 +167,8 @@ H_BEFORE="$(cd "$T" && find .forge/product -type f -print0 | LC_ALL=C sort -z | 
 set +e
 out="$(FORGE_ROOT="$T" bash "$S/archive-spec.sh" chg-open 2>&1)"; rc=$?
 set -e
-[ "$rc" -ne 0 ] && echo "$out" | grep -q 'scenario incomplete'
+[ "$rc" -ne 0 ] && grep -q 'scenario incomplete' <<<"$out" \
+  || { echo "FAIL [3]: dry-run não reprovou cenário incompleto citando 'scenario incomplete' (rc=$rc, out=$out)"; exit 1; }
 H_AFTER="$(cd "$T" && find .forge/product -type f -print0 | LC_ALL=C sort -z | xargs -0 shasum -a 256 | shasum -a 256)"
 [ "$H_BEFORE" = "$H_AFTER" ]
 [ -d "$T/.forge/specs/active/chg-open" ]   # change não foi movido
@@ -191,11 +202,14 @@ operations:
     reason: "Replaced by v2 tokenization"
     migration: "Use REQ-TOK-010"
 EOF
-FORGE_ROOT="$T" bash "$S/archive-spec.sh" chg-remove >/dev/null
-! grep -q 'REQ-TOK-001$' "$CAP" || true
-! grep -q 'id: REQ-TOK-001' "$CAP"
-grep -q 'Replaced by v2 tokenization' "$CAP"
-grep -q '^version: 1.0.0$' "$CAP"          # 0.1.1 -> remove(major) 1.0.0
+FORGE_ROOT="$T" bash "$S/archive-spec.sh" chg-remove >"$T/arch-remove.log" 2>&1 \
+  || { echo "FAIL [5]: archive-spec reprovou: $(cat "$T/arch-remove.log")"; exit 1; }
+# Asserções com FAIL explícito (antes eram nuas: sob `set -e` o gate morria SEM imprimir qual delas
+# quebrou, e o diagnóstico começava do zero — ver LDG-0012).
+! grep -q 'id: REQ-TOK-001' "$CAP" || { echo "FAIL [5]: REQ-TOK-001 sobreviveu à remoção"; exit 1; }
+grep -q 'Replaced by v2 tokenization' "$CAP" || { echo "FAIL [5]: history note ausente"; exit 1; }
+grep -q '^version: 1.0.0$' "$CAP" \
+  || { echo "FAIL [5]: bump major não aplicado — version: $(grep -m1 '^version:' "$CAP")"; exit 1; }
 node "$WS/tools/validate-yaml.mjs" "$WS/template/.forge/schemas/baseline-capability.schema.json" "$CAP" >/dev/null
 echo "OK [5]"
 
@@ -224,9 +238,9 @@ perl -pi -e "s/^archive:\$/archive:\n  baseline_delta: none/" "$CHG_DIR/manifest
 grep -q '^  baseline_delta: none$' "$CHG_DIR/manifest.yaml"
 CAP_BEFORE="$(shasum -a 256 "$CAP" | awk '{print $1}')"
 out="$(FORGE_ROOT="$T" bash "$S/archive-spec.sh" chg-no-delta)"
-echo "$out" | grep -q '\[2/6\] delta dry-run: SKIP (baseline_delta: none)'
-echo "$out" | grep -q '\[3/6\] delta apply: SKIP (baseline_delta: none)'
-echo "$out" | grep -q 'no baseline delta'
+grep -q '\[2/6\] delta dry-run: SKIP (baseline_delta: none)' <<<"$out"
+grep -q '\[3/6\] delta apply: SKIP (baseline_delta: none)' <<<"$out"
+grep -q 'no baseline delta' <<<"$out"
 [ -d "$T/.forge/specs/archived/$TODAY-chg-no-delta" ]
 [ ! -e "$CHG_DIR" ]                   # change movido
 [ ! -f "$T/.forge/specs/archived/$TODAY-chg-no-delta/spec-delta.yaml" ]
@@ -255,8 +269,8 @@ operations:
     reason: "seed capability-stub from baseline-extract; curated out, never verified"
 EOF
 out="$(FORGE_ROOT="$T" bash "$S/archive-spec.sh" chg-remove-cap-seed 2>&1)"
-echo "$out" | grep -q 'plan: remove capability legacy-stub'
-echo "$out" | grep -q 'removed: legacy-stub'
+grep -q 'plan: remove capability legacy-stub' <<<"$out"
+grep -q 'removed: legacy-stub' <<<"$out"
 [ ! -d "$CAPDIR_SEED" ]
 [ -d "$T/.forge/specs/archived/$TODAY-chg-remove-cap-seed" ]
 grep -q "## $TODAY — chg-remove-cap-seed" "$T/.forge/product/current/CHANGELOG.md"
@@ -275,8 +289,8 @@ set +e
 out="$(FORGE_ROOT="$T" bash "$S/archive-spec.sh" chg-remove-cap-missing 2>&1)"; rc=$?
 set -e
 [ "$rc" -ne 0 ]
-echo "$out" | grep -q 'ghost-capability'
-echo "$out" | grep -qi 'not found'
+grep -q 'ghost-capability' <<<"$out"
+grep -qi 'not found' <<<"$out"
 [ -d "$T/.forge/specs/active/chg-remove-cap-missing" ]   # change não foi movido
 echo "OK [9]"
 
@@ -304,7 +318,7 @@ set +e
 out="$(FORGE_ROOT="$T" bash "$S/archive-spec.sh" chg-remove-cap-guarded 2>&1)"; rc=$?
 set -e
 [ "$rc" -ne 0 ]
-echo "$out" | grep -q 'force: true'
+grep -q 'force: true' <<<"$out"
 [ -d "$CAPDIR_REQ" ]   # nada removido — o guard-rail bloqueou antes de escrever
 
 mk_verified chg-remove-cap-forced

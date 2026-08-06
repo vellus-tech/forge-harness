@@ -1,0 +1,28 @@
+{
+  "schema": "red-evidence/v1",
+  "change_id": "red-replay-graft-base",
+  "status": "observed",
+  "test_path": "tests/w108-red-graft-gate.sh",
+  "test_id": "[1] squash (teste+correção juntos) + commit posterior de ruído -> test-graft observa o Red",
+  "command": "bash tests/w108-red-graft-gate.sh",
+  "base_commit": "481018912d796670d92f9a312ae63c69a836bc2b",
+  "failure_pattern": "FAIL \\[1\\]",
+  "excerpt": "[1] squash (teste+correção juntos) + commit posterior de ruído -> test-graft observa o Red\nFAIL [1] (replay não observou o Red: FAIL replay (item 2) — teste já passa na árvore base — não reproduz o defeito relatado (item 2))\n",
+  "excerpt_sha256": "d0023fca816d35c6f1c0d51743e2502dbdb94f9bedc433bcc09f633fdf2eb5ce",
+  "classification": "behavioral",
+  "base_result": "failed",
+  "base_strategy": "ancestry",
+  "revert_patch": null,
+  "replay_head": "bce11168ffcc6d7aec980282926843b96a9fc034",
+  "setup_command": null,
+  "reproduces": "bugfix.md §1 — ancestry deriva base já corrigida quando teste e fix vêm no mesmo commit",
+  "fix_files": [
+    "template/.forge/scripts/lib/red-replay.mjs",
+    "template/.forge/scripts/lib/red-evidence-ops.mjs"
+  ],
+  "waiver": null,
+  "recorded_at": "2026-08-03T20:40:58.381Z",
+  "replayed_at": "2026-08-03T20:58:54.845Z",
+  "waived_at": null,
+  "graft_from": null
+}

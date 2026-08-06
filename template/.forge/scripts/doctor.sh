@@ -165,6 +165,22 @@ EOF_CHG
     else ok "harness: ledger sem itens promovidos órfãos"; fi
   fi
 
+  # liaison advisory (§ liaison-protocol): informativo, NUNCA load-bearing. O estado do canal é
+  # fluxo de conversa entre repositórios, não drift do harness — um peer que ainda não sincronizou,
+  # uma mensagem em quarentena esperando o thread-open, um ack pendente: nada disso é defeito desta
+  # instalação, e reprovar o doctor por isso faria o operador aprender a ignorar o doctor.
+  # Divergência e conflito aparecem aqui porque exigem decisão humana, mas com marcador `·`.
+  if [ -d "$ROOT/.forge/liaison" ] && [ -f "$ROOT/.forge/scripts/liaison-ops.sh" ]; then
+    liaison_line="$(FORGE_ROOT="$ROOT" bash "$ROOT/.forge/scripts/liaison-ops.sh" status 2>/dev/null || true)"
+    if [ -n "$liaison_line" ] && [ "$liaison_line" != "LIAISON: não inicializado" ]; then
+      info "harness: ${liaison_line}"
+      conflicts="$(find "$ROOT/.forge/liaison" -mindepth 3 -maxdepth 3 -path '*/conflicts/*' -name '*.json' 2>/dev/null | wc -l | tr -d ' ')"
+      if [ "${conflicts:-0}" -gt 0 ]; then
+        info "harness: liaison — $conflicts conflito(s) registrado(s) em conflicts/ (decisão humana; ver /forge:liaison)"
+      fi
+    fi
+  fi
+
   # changes órfãos (§ lifecycle-reconcile): change implementado/mergeado cujo manifest nunca
   # acompanhou — verified parado sem /forge:archive, ou TASKs 100% com status ainda
   # tasks-ready/implementing. Detector determinista (zero-LLM). Informativo, NUNCA load-bearing
@@ -208,6 +224,33 @@ EOF_ORPHAN
     done
   fi
 
+  # red-first (rule testing/regression-red-first.md): change type:bugfix ativo cuja evidência
+  # de Red ainda não está observed/waived. Advisory puro, igual ao bloco do ledger acima —
+  # NUNCA seta MISSING_DIAG (o enforcement real e bloqueante é o validate-spec.mjs na
+  # transição para verified, e o check-red-first.sh no pré-flight do archive).
+  if [ -d "$ROOT/.forge/specs/active" ] && command -v node >/dev/null 2>&1 \
+     && [ -f "$ROOT/.forge/scripts/lib/check-red-first.mjs" ]; then
+    red_pending=""
+    for chdir in "$ROOT"/.forge/specs/active/*/; do
+      [ -f "$chdir/manifest.yaml" ] || continue
+      chtype="$(awk -F': ' '$1=="type"{print $2; exit}' "$chdir/manifest.yaml")"
+      [ "$chtype" = "bugfix" ] || continue
+      chid="$(basename "$chdir")"
+      st="$(FORGE_ROOT="$ROOT" node "$ROOT/.forge/scripts/lib/check-red-first.mjs" status "$chdir" 2>/dev/null || echo "")"
+      case "$st" in
+        OK*) ;;
+        "") ;;
+        *) red_pending="${red_pending:+$red_pending, }$chid ($st)" ;;
+      esac
+    done
+    if [ -n "$red_pending" ]; then
+      info "harness: red-first — evidência pendente: $red_pending"
+      hint "grave a observação (/forge:red record) ou dispense (check-red-first.sh waive <id> --reason <r>)"
+    else
+      ok "harness: red-first sem evidência pendente"
+    fi
+  fi
+
   # plugin /forge:* instalado no Claude Code (best-effort; puramente informativo — NUNCA
   # contribui para MISSING_DIAG/exit 1). Sintoma real que motivou o check: usuário colando o
   # CORPO dos comandos como texto porque /forge:* silenciosamente não existia (plugin nunca
@@ -241,6 +284,7 @@ DETECTED=""
 [ -n "$(find_marker '*.sln')$(find_marker '*.csproj')" ] && DETECTED="$DETECTED dotnet"
 { [ -f package.json ] || [ -f tsconfig.json ] || [ -n "$(find_marker tsconfig.json)" ]; } && DETECTED="$DETECTED node"
 { [ -f pyproject.toml ] || [ -f requirements.txt ] || [ -f setup.py ]; } && DETECTED="$DETECTED python"
+[ -n "$(find_marker 'pom.xml')$(find_marker '*.java')" ] && DETECTED="$DETECTED java"
 [ -n "$(find_marker 'build.gradle')$(find_marker 'build.gradle.kts')" ] && DETECTED="$DETECTED kotlin"
 
 if [ -z "$DETECTED" ]; then
@@ -255,6 +299,27 @@ fi
 
 echo "Stacks detectadas:${DETECTED}"
 echo "Modo: $( [ "$INSTALL" -eq 1 ] && echo 'reportar + instalar (--install)' || echo 'somente reportar' )"
+echo
+
+# Capability packs são sugestão explícita, nunca ativação automática. A ativação é uma decisão
+# de arquitetura registrada no forge.yaml e os packs só orientam a área onde são aplicáveis.
+suggest_pack() {
+  local pack="$1"
+  if grep -Eq "^[[:space:]]*active:.*${pack}" "$ROOT/.forge/forge.yaml" 2>/dev/null; then
+    ok "capability pack ativo: $pack"
+  elif [ -f "$ROOT/.forge/capabilities/$pack/PROFILE.md" ]; then
+    info "capability pack sugerido: $pack (opt-in)"
+    hint "registre em .forge/forge.yaml: capabilities.active: [$pack]"
+  fi
+}
+for stack in $DETECTED; do
+  case "$stack" in
+    dotnet) suggest_pack backend-dotnet-relational ;;
+    node) suggest_pack backend-node-postgres ;;
+    java) suggest_pack backend-java-relational ;;
+    python) suggest_pack backend-python-relational ;;
+  esac
+done
 echo
 
 # try_install <descrição> <comando-de-instalação...>
@@ -328,6 +393,20 @@ check_python() {
   else info "lsp: pyright/python-lsp-server ausente (opcional)"; fi
 }
 
+# ── Java ──────────────────────────────────────────────────────────────────────
+check_java() {
+  echo "Java"
+  if have java && { have mvn || [ -x ./mvnw ] || have gradle || [ -x ./gradlew ]; }; then
+    ok "diagnóstico: Java + build tool disponíveis"
+  else
+    miss "diagnóstico: Java ou Maven/Gradle ausente (load-bearing — build/test)"
+    MISSING_DIAG=1
+    hint "instale JDK LTS e use mvnw/gradlew do projeto quando disponíveis"
+  fi
+  if have java-language-server || have jdtls; then ok "lsp: java-language-server/jdtls presente"
+  else info "lsp: java-language-server/jdtls ausente (opcional)"; fi
+}
+
 # ── Kotlin / JVM ───────────────────────────────────────────────────────────────
 check_kotlin() {
   echo "Kotlin / JVM"
@@ -355,6 +434,7 @@ for stack in $DETECTED; do
     dotnet) check_dotnet ;;
     node)   check_node ;;
     python) check_python ;;
+    java)   check_java ;;
     kotlin) check_kotlin ;;
   esac
   echo

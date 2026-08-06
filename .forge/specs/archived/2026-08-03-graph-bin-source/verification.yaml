@@ -1,0 +1,19 @@
+verification:
+  commit: "afed3db"
+  verified_at: "2026-08-03"
+  checks:
+    - name: "npm-test-full-suite"
+      command: "npm test"
+      status: passed
+    - name: "w41-graph-gate (10 casos, incluindo bin/ e os três controles)"
+      command: "bash tests/w41-graph-gate.sh"
+      status: passed
+    - name: "Red observado do change (ancestry, base 76161b6, setup npm ci)"
+      command: "FORGE_ROOT=$(pwd) bash template/.forge/scripts/red-evidence.sh replay graph-bin-source"
+      status: passed
+    - name: "efeito real: grafo do repo passa de 19 para 20 nós com bin/forge.mjs"
+      command: "FORGE_ROOT=$(pwd) bash template/.forge/scripts/graph.sh build"
+      status: passed
+  evidence:
+    - "verification.md — tabela item-a-item e efeito medido"
+    - "evidence/red/red-evidence.json — status observed, base_strategy ancestry"

@@ -1,0 +1,101 @@
+{
+  "schema": "run-manifest/v1",
+  "run_id": "20260804133627-18038db2",
+  "stage": "archive",
+  "status": "passed",
+  "started_at": "2026-08-04T13:36:26Z",
+  "finished_at": "2026-08-04T13:36:27.404Z",
+  "duration_ms": 1404,
+  "git": {
+    "repo": true,
+    "branch": "develop",
+    "head_sha": "fa6ffbb52eb64fd33a5d85c3f63bbd477c3248f8",
+    "dirty": true,
+    "changed_files": [
+      ".forge/graph/graph.json",
+      ".forge/product/current/CHANGELOG.md",
+      ".forge/product/current/capabilities/forge-harness-template/spec.yaml",
+      ".forge/specs/active/route-scan-multifile-mounts/design.md",
+      ".forge/specs/active/route-scan-multifile-mounts/manifest.yaml",
+      ".forge/specs/active/route-scan-multifile-mounts/proposal.md",
+      ".forge/specs/active/route-scan-multifile-mounts/requirements.md",
+      ".forge/specs/active/route-scan-multifile-mounts/spec-delta.yaml",
+      ".forge/specs/active/route-scan-multifile-mounts/tasks.md",
+      ".forge/specs/archived/2026-08-04-route-scan-multifile-mounts/",
+      ".forge/specs/archived/index.yaml"
+    ],
+    "diff_stat": ".forge/graph/graph.json                            |  2 +-\n .forge/product/current/CHANGELOG.md                |  6 ++\n .../capabilities/forge-harness-template/spec.yaml  | 54 ++++++++++-----\n .../active/route-scan-multifile-mounts/design.md   | 35 ----------\n .../route-scan-multifile-mounts/manifest.yaml      | 33 ----------\n .../active/route-scan-multifile-mounts/proposal.md | 27 --------\n .../route-scan-multifile-mounts/requirements.md    | 77 ----------------------\n .../route-scan-multifile-mounts/spec-delta.yaml    | 21 ------\n .../active/route-scan-multifile-mounts/tasks.md    | 20 ------\n .forge/specs/archived/index.yaml                   |  4 ++\n 10 files changed, 48 insertions(+), 231 deletions(-)",
+    "diff_sha256": "dc30386afd718be3e2cfa34e64b08df2492c5faead9654cf5e209cbfdd42084f"
+  },
+  "inputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "be22cdbb34d37832e812b829bfa72cfce563709cf418e88b1f14125a902cfc9c",
+      "bytes": 786,
+      "kind": "file"
+    },
+    {
+      "path": "tasks.md",
+      "exists": true,
+      "sha256": "370bda7fa935602dec15ddba14fee5ee60d5b97c981151790c088c47e64f1097",
+      "bytes": 1524,
+      "kind": "file"
+    },
+    {
+      "path": "verification.yaml",
+      "exists": true,
+      "sha256": "726286113b50ff7e96c823006ad6d8856f5dfbe191f2f2ae85a5c018c23b5737",
+      "bytes": 614,
+      "kind": "file"
+    },
+    {
+      "path": "spec-delta.yaml",
+      "exists": true,
+      "sha256": "5463a29ceab4d215310fabe93dde3d3aef15b860717cc46b63a08f9bb168c1ab",
+      "bytes": 2201,
+      "kind": "file"
+    },
+    {
+      "path": "impact.json",
+      "exists": true,
+      "sha256": "cc7e86789cdcbe0099aa76b11716a3a4c28be7ffdfe971364f51b6bf4f0115fe",
+      "bytes": 2130,
+      "kind": "file"
+    }
+  ],
+  "commands": [
+    {
+      "name": "archive-spec",
+      "command": "archive-spec.sh route-scan-multifile-mounts",
+      "status": "passed"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "be22cdbb34d37832e812b829bfa72cfce563709cf418e88b1f14125a902cfc9c",
+      "bytes": 786,
+      "kind": "file"
+    },
+    {
+      "path": "evidence/runs",
+      "exists": false,
+      "sha256": null,
+      "bytes": null
+    }
+  ],
+  "runner": {
+    "name": "local",
+    "profile": "standard"
+  },
+  "budgets": {
+    "profile": "standard",
+    "budget_class": "medium",
+    "expected_runs": 1,
+    "estimated_timeout_s": 300,
+    "uses_llm": false,
+    "uses_subagent": false
+  }
+}

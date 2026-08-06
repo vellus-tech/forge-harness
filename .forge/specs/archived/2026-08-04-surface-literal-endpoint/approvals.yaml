@@ -1,0 +1,36 @@
+approvals:
+  - gate: requirements_reviewed
+    decision: approve
+    reason: "feature scale 2; direção do autor após a medição do LDG-0010 (atacar o insumo)"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-08-04T11:20:45-03:00"
+    commit: "5bcf362"
+    scope: "requirements.md,design.md,tasks.md"
+  - gate: design_reviewed
+    decision: approve
+    reason: "feature scale 2; direção do autor após a medição do LDG-0010 (atacar o insumo)"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-08-04T11:20:45-03:00"
+    commit: "5bcf362"
+    scope: "requirements.md,design.md,tasks.md"
+  - gate: tasks_reviewed
+    decision: approve
+    reason: "feature scale 2; direção do autor após a medição do LDG-0010 (atacar o insumo)"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-08-04T11:20:45-03:00"
+    commit: "5bcf362"
+    scope: "requirements.md,design.md,tasks.md"
+  - gate: implementation_verified
+    decision: approve
+    reason: "npm test 74/74; w130 17 casos; medição registrada"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-08-04T11:21:14-03:00"
+    commit: "5bcf362"
+    scope: "verification.md,verification.yaml"
+  - gate: human_archive_approval
+    decision: approve
+    reason: "direção do autor: atacar o insumo do LDG-0010; delta = 1 add_requirement REQ-FHT-053"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-08-04T11:21:15-03:00"
+    commit: "5bcf362"
+    scope: "spec-delta.yaml"

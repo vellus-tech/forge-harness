@@ -137,7 +137,7 @@ echo "OK [5]"
 
 echo "[6] eval-aggregate.sh: mean±stddev + deltas"
 out6="$(AJV_PATH="$WS/node_modules/ajv/dist/2020" bash "$T/.forge/scripts/eval-aggregate.sh" "$ITER")"
-echo "$out6" | grep -q '^OK aggregate'
+grep -q '^OK aggregate' <<<"$out6"
 [ -f "$ITER/aggregate.json" ]
 node -e "
   const a = JSON.parse(require('fs').readFileSync('$ITER/aggregate.json','utf8'));
@@ -167,7 +167,7 @@ cat > "$CAND" <<'EOF'
 }
 EOF
 out7="$(bash "$T/.forge/scripts/eval-holdout.sh" "$CAND")"
-echo "$out7" | grep -q 'winner general'
+grep -q 'winner general' <<<"$out7"
 [ -f "$ITER/holdout.json" ]
 node -e "
   const h = JSON.parse(require('fs').readFileSync('$ITER/holdout.json','utf8'));
@@ -181,6 +181,25 @@ node -e "
 "
 echo "OK [7]"
 
+echo "[7b] eval-holdout.sh: split estratificado de triggering"
+STRAT="$ITER/candidates-stratified.json"
+cat > "$STRAT" <<'EOF'
+{
+  "skill": "fixture",
+  "cases": [
+    {"id":"P-01","trigger_expected":true}, {"id":"P-02","trigger_expected":true},
+    {"id":"N-01","trigger_expected":false}, {"id":"N-02","trigger_expected":false}
+  ],
+  "candidates": [{"id":"c0","description":"x","scores":{"P-01":1,"P-02":1,"N-01":1,"N-02":1}}]
+}
+EOF
+bash "$T/.forge/scripts/eval-holdout.sh" "$STRAT" >/dev/null
+node -e '
+const h=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));
+if(h.split.stratified_by!=="trigger_expected" || h.split.train.length!==2 || h.split.test.length!==2) process.exit(1);
+' "$ITER/holdout.json"
+echo "OK [7b]"
+
 echo "[8] holdout recusa description > 1024 chars"
 BIG="$ITER/candidates-big.json"
 node -e "
@@ -192,7 +211,7 @@ set +e
 out8="$(bash "$T/.forge/scripts/eval-holdout.sh" "$BIG" 2>&1)"; rc8=$?
 set -e
 [ "$rc8" -ne 0 ]
-echo "$out8" | grep -qi '1024'
+grep -qi '1024' <<<"$out8"
 echo "OK [8]"
 
 echo "[9] camada Quality é opt-in (evals_enabled: false default)"

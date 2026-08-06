@@ -1,0 +1,29 @@
+approvals:
+  - gate: requirements_reviewed
+    decision: approve
+    reason: "bugfix scale 1: análise e plano conferidos pelo autor; correção red-first com w108 verde e w106/w107 sem regressão"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-08-03T17:50:10-03:00"
+    commit: "62eef2a"
+    scope: "bugfix.md,tasks.md"
+  - gate: tasks_reviewed
+    decision: approve
+    reason: "bugfix scale 1: análise e plano conferidos pelo autor; correção red-first com w108 verde e w106/w107 sem regressão"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-08-03T17:50:10-03:00"
+    commit: "62eef2a"
+    scope: "bugfix.md,tasks.md"
+  - gate: implementation_verified
+    decision: approve
+    reason: "npm test 73/73; w108 verde; w106/w107 sem regressão; Red observado pelo motor"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-08-03T17:50:53-03:00"
+    commit: "62eef2a"
+    scope: "verification.md,verification.yaml"
+  - gate: human_archive_approval
+    decision: approve
+    reason: "delta conferido e aprovado pelo autor via /forge:archive (AskUserQuestion, 2026-08-03) — 29+1 add_requirement em forge-harness-template, nenhum modify/remove"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-08-03T17:58:31-03:00"
+    commit: "bce1116"
+    scope: "spec-delta.yaml"

@@ -77,24 +77,54 @@ orphans=$(grep -rl '<PROJECT_[A-Z_]*>' "$TARGET/.forge" 2>/dev/null | grep -v '/
 # (ou qualquer padrão do bloco) não deve ganhar entrada duplicada. Comentários, marcadores e
 # linhas em branco do bloco são preservados; linhas de padrão já presentes verbatim são omitidas.
 GI="$TARGET/.gitignore"
-if ! grep -q '# >>> forge (managed) >>>' "$GI" 2>/dev/null; then
-  touch "$GI"
-  EXISTING="$(mktemp)"; BLOCK="$(mktemp)"
-  grep -v '^[[:space:]]*#' "$GI" | sed 's/[[:space:]]*$//' | grep -v '^[[:space:]]*$' | sort -u > "$EXISTING" || true
-  while IFS= read -r line || [ -n "$line" ]; do
-    trimmed="${line%"${line##*[![:space:]]}"}"   # rstrip
-    if printf '%s' "$trimmed" | grep -qE '^[[:space:]]*(#|$)'; then
-      printf '%s\n' "$line" >> "$BLOCK"           # comentário/marcador/branco: preserva
-    elif grep -qxF "$trimmed" "$EXISTING"; then
-      :                                            # padrão já existe no alvo: pula (dedup)
-    else
-      printf '%s\n' "$line" >> "$BLOCK"
-    fi
-  done < "$SCRIPT_DIR/gitignore.patch"
-  cat "$BLOCK" >> "$GI"
-  rm -f "$EXISTING" "$BLOCK"
+touch "$GI"
+GI_INI='# >>> forge (managed) >>>'
+GI_FIM='# <<< forge (managed) <<<'
+
+# O bloco RECONCILIA em vez de só ser acrescido. Append-once (o comportamento anterior) faz o
+# bloco congelar na primeira escrita: quem já o tem nunca recebe padrão novo, e o harness passou
+# a depender disso para entregar correções — o backup do update, o cache local e as negações do
+# store do liaison ficavam presos no template. Bloco "managed" que congela não é gerenciado.
+# O que está FORA dos marcadores é do usuário e não é tocado, inclusive para dedup.
+ANTES="$(mktemp)"; DEPOIS="$(mktemp)"; EXISTING="$(mktemp)"; BLOCK="$(mktemp)"
+if grep -qF "$GI_INI" "$GI" 2>/dev/null; then
+  awk -v ini="$GI_INI" 'index($0,ini){exit} {print}' "$GI" > "$ANTES"
+  awk -v fim="$GI_FIM" 'vis{print} index($0,fim){vis=1}' "$GI" > "$DEPOIS"
+  RECONCILIOU=1
+else
+  cat "$GI" > "$ANTES"
+  : > "$DEPOIS"
+  RECONCILIOU=0
+fi
+
+cat "$ANTES" "$DEPOIS" | grep -v '^[[:space:]]*#' | sed 's/[[:space:]]*$//' | grep -v '^[[:space:]]*$' | sort -u > "$EXISTING" || true
+IN_BLOCK=0
+while IFS= read -r line || [ -n "$line" ]; do
+  case "$line" in
+    "$GI_INI"*) IN_BLOCK=1 ;;
+  esac
+  [ "$IN_BLOCK" -eq 1 ] || continue
+  trimmed="${line%"${line##*[![:space:]]}"}"   # rstrip
+  if printf '%s' "$trimmed" | grep -qE '^[[:space:]]*(#|$)'; then
+    printf '%s\n' "$line" >> "$BLOCK"           # comentário/marcador/branco: preserva
+  elif grep -qxF "$trimmed" "$EXISTING"; then
+    :                                            # padrão já existe fora do bloco: pula (dedup)
+  else
+    printf '%s\n' "$line" >> "$BLOCK"
+  fi
+  case "$line" in
+    "$GI_FIM"*) IN_BLOCK=0 ;;
+  esac
+done < "$SCRIPT_DIR/gitignore.patch"
+
+if [ "$RECONCILIOU" -eq 1 ]; then
+  cat "$ANTES" "$BLOCK" "$DEPOIS" > "$GI"
+  echo "gitignore: forge block reconciled (dedup)"
+else
+  { [ -s "$ANTES" ] && printf '\n'; cat "$BLOCK"; } >> "$GI"
   echo "gitignore: forge block appended (dedup)"
 fi
+rm -f "$ANTES" "$DEPOIS" "$EXISTING" "$BLOCK"
 
 # 5. git hooks path (only when target is a git repo) — never overwrite a custom, non-Forge
 # hooksPath: it lives in .git/config, shared across worktrees, so stomping it here could silently
@@ -121,6 +151,12 @@ if [ -d "$TARGET/.github" ] || [ -d "$TARGET/.git" ]; then
   if [ ! -f "$TARGET/.github/workflows/staging.yml" ]; then
     cp "$SCRIPT_DIR/../template/github/workflows/staging.yml" "$TARGET/.github/workflows/staging.yml"
     echo "ci: staging.yml installed (runs only on push to staging)"
+  fi
+  # red-first.yml — a execução de referência do replay roda num runner que o autor do PR não
+  # controla (LDG-0004). Nunca sobrescreve: workflow existente é do projeto.
+  if [ ! -f "$TARGET/.github/workflows/red-first.yml" ]; then
+    cp "$SCRIPT_DIR/../template/github/workflows/red-first.yml" "$TARGET/.github/workflows/red-first.yml"
+    echo "ci: red-first.yml installed (replays Red evidence on pull requests)"
   fi
 fi
 

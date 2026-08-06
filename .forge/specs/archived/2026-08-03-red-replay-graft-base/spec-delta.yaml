@@ -1,0 +1,27 @@
+# Spec delta — red-replay-graft-base. Um requisito: o motor de Red-first precisa saber derivar a
+# árvore pré-correção quando o teste nasceu junto da correção, e reconhecer a falha de um gate
+# shell como comportamental. Numeração continua de REQ-FHT-046 (hookspath-respect-custom).
+operations:
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-047
+    content_ref: bugfix.md#2-comportamento-esperado
+    requirement:
+      id: REQ-FHT-047
+      title: "Replay deriva base pré-correção mesmo quando teste e correção vêm no mesmo commit"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-047-A
+          given: "um repositório em que o commit que introduziu o caso declarado também toca os fix_files (squash), com um commit posterior tocando os mesmos arquivos por outro motivo e reescrevendo as linhas da correção"
+          when: "o replay deriva a árvore base"
+          then: "a estratégia ancestry é descartada (o commit posterior é ruído e sua base já contém a correção), revert-synthesis reverte o diff do commit do caso e, quando esse patch não aplica sobre o HEAD, a base passa a ser parent(caseCommit) com o test_path enxertado — gravada como base_strategy test-graft e graft_from, e nunca como uma afirmação de que o teste 'já passa na base'"
+        - id: SCN-FHT-047-B
+          given: "uma suíte cujos testes são gates shell, que reportam falha como \"FAIL [n] (motivo)\", e um artefato com base_strategy test-graft"
+          when: "a falha na base é classificada e o artefato validado"
+          then: "a falha classifica como behavioral (não 'unknown', que a recusaria pelo item 3 da rule), enquanto prosa que apenas mencione o termo e o \"FAIL (...)\" sem índice dos validadores continuam não casando; e o validador do artefato aceita base_strategy test-graft com graft_from em formato de commit"
+      contracts:
+        - template/.forge/schemas/red-evidence.schema.json
+      tests:
+        - tests/w108-red-graft-gate.sh
+        - tests/w107-red-replay-gate.sh
+        - tests/w106-red-first-gate.sh

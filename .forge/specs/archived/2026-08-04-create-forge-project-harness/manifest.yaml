@@ -1,0 +1,40 @@
+id: create-forge-project-harness
+type: greenfield
+mode: greenfield
+rigor: spec-anchored
+scale: 3
+status: delivered-externally
+created_at: "2026-06-10"
+updated_at: "2026-08-04"
+owner: "milton"
+parent:
+  baseline: .forge/product/current
+affected_capabilities:
+  - forge-harness-template
+affected_paths:
+  - template/
+  - installer/
+  - tests/
+  - tools/
+  - contracts/
+dependencies:
+  specs: []
+  code: []
+gates:
+  requirements_reviewed: true
+  design_reviewed: true
+  tasks_reviewed: true
+  implementation_verified: false
+  human_archive_approval: false
+dev_loop:
+  sharded: false
+  stories_path: stories/
+  epic_context_compiled: false
+quick_plan:
+  enabled: false
+  skipped_phases: []
+  justification:
+archive:
+  kind: closed_without_baseline_update
+  eligible: false
+  reason: "TASK-23..30 (W5.0-W5.3 dev loop/quality + Fase 8 pilotos/rollout) entregues fora deste change, via commits diretos em develop entre 2026-06 e 2026-08: shard.md, wave-ops.sh, deferral-ops.sh, runners.yaml + evals/ + code-evaluator.md, tests/run-all.sh, e tags v0.1.0-rc8..v0.6.0 (muito além do v0.1.0 previsto). Confirmado via /forge:resume 2026-08-04."

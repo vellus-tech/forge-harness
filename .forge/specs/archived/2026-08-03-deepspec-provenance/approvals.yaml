@@ -1,0 +1,32 @@
+approvals:
+  - gate: requirements_reviewed
+    decision: approve
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-07-09T15:38:26-03:00"
+    iteration: 1
+    commit: "6f5367c"
+  - gate: design_reviewed
+    decision: approve
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-07-09T15:38:26-03:00"
+    iteration: 1
+    commit: "6f5367c"
+  - gate: tasks_reviewed
+    decision: approve
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-07-09T15:38:26-03:00"
+    iteration: 1
+    commit: "6f5367c"
+  - gate: implementation_verified
+    decision: approve
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-07-09T15:43:20-03:00"
+    iteration: 1
+    commit: "6454285"
+  - gate: human_archive_approval
+    decision: approve
+    reason: "delta conferido e aprovado pelo autor via /forge:archive (AskUserQuestion, 2026-08-03) — 29+1 add_requirement em forge-harness-template, nenhum modify/remove"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-08-03T17:58:31-03:00"
+    commit: "bce1116"
+    scope: "spec-delta.yaml"

@@ -43,6 +43,30 @@ fi
 echo "[1/6] pre-flight (§13.1)"
 FORGE_ROOT="$ROOT" bash "$SCRIPT_DIR/validate-archive.sh" --path "$DIR" || exit 1
 
+# liaison acks (rule conventions/liaison-protocol.md): incorporar um change ao baseline com um
+# contract-change inbound ainda pendente de ack é justamente como o drift entra — o baseline passa
+# a afirmar algo que o outro repositório não confirmou. Só cobra os acks DESTE repositório, e só em
+# enforce:block; em warn apenas avisa. `spec-close.sh` deliberadamente NÃO consulta este check:
+# fechar um change (abandoned/superseded/delivered-externally) não afirma nada sobre contrato, e
+# travar o encerramento por ack de peer deixaria changes zumbis presos no ativo.
+if [ -f "$SCRIPT_DIR/check-liaison-acks.sh" ]; then
+  FORGE_ROOT="$ROOT" bash "$SCRIPT_DIR/check-liaison-acks.sh" || exit 1
+fi
+
+# red-first (rule testing/regression-red-first.md): redundante com o bloqueio já feito por
+# validate-spec.mjs na transição para verified (chamado acima), mas roda de novo aqui como
+# defesa em profundidade — um manifest editado à mão para 'verified' sem passar pela
+# transição normal não teria sido pego antes. type != bugfix é no-op (red-evidence.sh/check-red-first.sh).
+#
+# `ensure` roda SEMPRE antes do check estático, como em spec-verify.sh: o archive é o outro ponto
+# em que alguém precisa de garantia de verdade, e o estado pode ter mudado desde o /forge:verify.
+# `ensure` nunca falha o script (best-effort, log em /tmp) — quem decide bloquear é o
+# check-red-first logo depois.
+if [ -f "$SCRIPT_DIR/red-evidence.sh" ]; then
+  FORGE_ROOT="$ROOT" bash "$SCRIPT_DIR/red-evidence.sh" ensure "$ID" >"/tmp/forge-archive-$ID-red-ensure.log" 2>&1 || true
+fi
+FORGE_ROOT="$ROOT" bash "$SCRIPT_DIR/check-red-first.sh" check "$ID" || exit 1
+
 # spec-delta.yaml legitimately absent (manifest.archive.baseline_delta: none, already
 # validated in the pre-flight [1/6]): a verified pure refactor has nothing to dry-run or
 # apply — skip both delta-apply.mjs passes instead of failing on a missing file.

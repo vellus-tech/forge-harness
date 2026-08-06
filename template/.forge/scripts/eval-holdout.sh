@@ -9,6 +9,7 @@
 #   {
 #     "skill": "verify-build",
 #     "cases": ["TC-01","TC-02","TC-03","TC-04","TC-05"],
+#     // ou objetos para split estratificado: [{"id":"P-01","trigger_expected":true}],
 #     "candidates": [
 #       { "id": "c0", "description": "...", "scores": { "TC-01": 1, "TC-02": 0, ... } }
 #     ]
@@ -36,11 +37,33 @@ if (!Array.isArray(data.candidates) || data.candidates.length < 1) {
   console.error('FAIL: precisa de >=1 candidata'); process.exit(1);
 }
 
-// Split 60/40 determinista: ordena ids e fatia. floor(0.6*n) p/ train, resto p/ test.
-const cases = [...data.cases].sort();
-const nTrain = Math.max(1, Math.floor(cases.length * 0.6));
-const train = cases.slice(0, nTrain);
-const test = cases.slice(nTrain);
+// Split 60/40 determinista. Cases com trigger_expected são estratificados para que positivos
+// e negativos participem de train e test; o formato antigo de strings mantém compatibilidade.
+const normalized = data.cases.map(c => typeof c === 'string' ? { id: c, trigger_expected: null } : c);
+if (normalized.some(c => !c || typeof c.id !== 'string')) {
+  console.error('FAIL: cada case deve ser id string ou objeto com id'); process.exit(1);
+}
+let stratified = normalized.every(c => typeof c.trigger_expected === 'boolean');
+const split = (items) => {
+  const ids = [...items].map(c => c.id).sort();
+  const n = Math.max(1, Math.floor(ids.length * 0.6));
+  return { train: ids.slice(0, n), test: ids.slice(n) };
+};
+let train, test;
+if (stratified) {
+  const positives = normalized.filter(c => c.trigger_expected);
+  const negatives = normalized.filter(c => !c.trigger_expected);
+  // Uma classe com apenas um exemplo não pode aparecer nos dois lados; use o split legado para
+  // preservar um conjunto de teste válido e deixe a baixa cobertura de classe explícita no eval.
+  if (positives.length < 2 || negatives.length < 2) stratified = false;
+  const positive = split(positives);
+  const negative = split(negatives);
+  train = [...positive.train, ...negative.train].sort();
+  test = [...positive.test, ...negative.test].sort();
+}
+if (!stratified) {
+  ({ train, test } = split(normalized));
+}
 if (test.length === 0) { console.error('FAIL: test split vazio'); process.exit(1); }
 
 const LIMIT = 1024; // limite de chars da description (spec Agent Skills)
@@ -70,7 +93,7 @@ const winner = [...scored].sort((a, b) =>
 
 const out = {
   skill: data.skill,
-  split: { train, test, ratio: '60/40' },
+  split: { train, test, ratio: '60/40', stratified_by: stratified ? 'trigger_expected' : null },
   selection_metric: 'test_score',
   candidates: scored,
   winner: { id: winner.id, train_score: winner.train_score, test_score: winner.test_score, description: winner.description }

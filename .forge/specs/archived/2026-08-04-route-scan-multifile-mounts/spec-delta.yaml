@@ -1,0 +1,26 @@
+# Spec delta — route-scan-multifile-mounts. Numeração continua de REQ-FHT-050.
+operations:
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-051
+    content_ref: requirements.md#req-01
+    requirement:
+      id: REQ-FHT-051
+      title: "Route-scan cobre os layouts dominantes de Express e de vertical slice .NET"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-051-A
+          given: "um projeto Express no layout canônico — routers em arquivos próprios, montados por app.use() no app.js — incluindo um router montado em dois prefixos e outro que ninguém monta"
+          when: "scanRoutes varre o projeto"
+          then: "as rotas dos routers montados saem com o prefixo composto, o router montado duas vezes produz as duas rotas (união, porque as duas existem em runtime), o router não montado não emite path parcial e é reportado como router-mount-unknown, e um mount cujo import não resolve para arquivo lido vira router-mount-unresolved-import"
+        - id: SCN-FHT-051-B
+          given: "um projeto .NET em vertical slice, com várias features declarando MapEndpoints homônimo, e hosts que importam uma ou mais delas"
+          when: "scanRoutes resolve cada invocação"
+          then: "a invocação num host que enxerga uma única definição (por using, namespace próprio ou global using) resolve para ela, enquanto a invocação que enxerga duas continua reportando producer-ambiguous sem emitir nenhuma — a ambiguidade é julgada por chamada, não por nome global, e um filtro que não deixa candidata alguma devolve a lista original"
+        - id: SCN-FHT-051-C
+          given: "uma chamada x.get('/algo') cujo receptor o scanner não classifica, num arquivo que importa o framework, e a mesma forma num arquivo que só usa um cliente HTTP"
+          when: "scanRoutes varre os dois"
+          then: "o primeiro vira route-receiver-unknown — zero rotas com zero irresolúveis deixa de ser possível, porque o cruzamento ficaria verde por vacuidade — e o segundo não gera achado nenhum, para que o relatório não vire ruído"
+      contracts: []
+      tests:
+        - tests/w132-route-surface-gate.sh

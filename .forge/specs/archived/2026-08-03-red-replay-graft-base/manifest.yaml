@@ -1,0 +1,39 @@
+id: red-replay-graft-base
+type: bugfix
+mode: brownfield
+rigor: spec-anchored
+scale: 1
+status: archived
+created_at: "2026-08-03"
+updated_at: "2026-08-03"
+owner: "Milton Antonio da Silva Jr"
+parent:
+  baseline: .forge/product/current
+affected_capabilities:
+  - forge-harness-template
+affected_paths:
+  - template/.forge/scripts/lib/
+  - template/.forge/schemas/
+  - template/.forge/templates/bugfix/
+  - tests/
+dependencies:
+  specs: []
+  code: []
+gates:
+  requirements_reviewed: true
+  design_reviewed: false
+  tasks_reviewed: true
+  implementation_verified: true
+  human_archive_approval: true
+dev_loop:
+  sharded: false
+  stories_path: stories/
+  epic_context_compiled: false
+quick_plan:
+  enabled: false
+  skipped_phases: []
+  justification:
+archive:
+  kind: baseline_update
+  eligible: true
+  reason: "deltas applied to baseline on 2026-08-03"

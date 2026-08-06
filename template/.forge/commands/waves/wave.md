@@ -41,16 +41,15 @@ bash .forge/scripts/wave-ops.sh open <change-id> <wave-id>
 
 ### close
 
-Fecha a wave aberta após verificar gates.
+Fecha a wave aberta. **O `close` executa os gates ele mesmo** — não passe veredito:
 
 ```bash
-# Rode o gate-runner da wave (skill gate-runner) e capture o resultado
-gate_result="$(bash .forge/scripts/run-gates.sh <change-id> <wave-id> 2>&1 | tail -1)"
-# Só feche se OK
-bash .forge/scripts/wave-ops.sh close <change-id> <wave-id> --gate "$gate_result"
+bash .forge/scripts/wave-ops.sh close <change-id> <wave-id>
 ```
 
-- Recusa se `gate_result` for `FAIL`.
+- Roda `run-gates.sh`, que executa os gates declarados em `runtime.gates` do `FORGE.md`. Reprova se algum falhar; grava em `waves.json` o resultado **observado**, com procedência (`executed:OK (N gate(s))` ou `executed:NO-GATES` quando o projeto não declarou nenhum).
+- `--gate FAIL` continua aceito e recusa sem gastar execução — afirmação negativa do chamador não precisa de prova. **`--gate OK` não substitui execução**: os gates rodam de todo modo e o resultado real decide.
+- Antes, o `close` assumia `OK` na ausência de `--gate`, e este comando mandava capturar o resultado de um `run-gates.sh` que **não existia** no repositório. Quem fechava a wave assinava o próprio laudo, sem ter caminho honesto disponível.
 - **Última wave**: antes de fechar, verifique que não há `deferral` `open`:
   ```bash
   bash .forge/scripts/deferral-ops.sh status <change-id>

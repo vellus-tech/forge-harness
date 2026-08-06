@@ -1,14 +1,14 @@
-# Handoff — add-portable-handoff
+# Handoff — gate-assert-visibility
 
 > Artefato de passagem de contexto entre sessões e entre code agents (Codex ↔ Claude Code ↔ …).
 > Gerado por `/forge:handoff` (ou pelo hook opt-in de sessão). Seções 1-3 e 5 são determinísticas
 > (montadas a partir do estado do change); a seção 4 é o único texto narrativo. **Não é fonte da
-> verdade** — o estado canônico vive em `.forge/specs/active/add-portable-handoff/`.
+> verdade** — o estado canônico vive em `.forge/specs/active/gate-assert-visibility/`.
 
 ## 1. Header
 
-- **Change:** `add-portable-handoff` · type `feature` · scale `3` · fase `implemented`
-- **Branch:** `feat/portable-handoff` · HEAD `7858850` (2026-07-09T09:04:00-03:00)
+- **Change:** `gate-assert-visibility` · type `bugfix` · scale `2` · fase `verified`
+- **Branch:** `develop` · HEAD `25a005b` (2026-08-04T19:24:10-03:00)
 
 ## 2. Estado
 
@@ -30,35 +30,41 @@
    não é a verdade até o orquestrador conferir.
 5. Checkpoint + encerrar a sessão por módulo/PR — não acumule múltiplos módulos numa sessão só;
    `/forge:ship` fecha o ciclo antes de abrir o próximo.
+6. **TDD estrito em todo código — Vermelho → Verde → Refactor.** Teste que falha primeiro (pelo
+   motivo certo, não erro de build), implementar o mínimo para passar, só então refatorar. Vale
+   para features/bugfixes do produto E para mudanças na maquinaria do harness (scripts,
+   validadores) — não só onde o pipeline já exige Red-first formal.
 
 ## 4. Delta narrativo
 
 <!-- FORGE:NARRATIVE-DELTA:START -->
-**Release 0.1.0-rc18 publicado (2026-07-15).** Entregou a **reconciliação de lifecycle** — detecção
-determinística de change SDD órfão (implementado/mergeado com manifest defasado): detector
-`template/.forge/scripts/lib/orphan-changes.mjs` (buckets `merged_unarchived`/`done_not_advanced`),
-surface em `/forge:status`·`/forge:doctor`·`/forge:resume`, `/forge:ship` fechando o loop pós-merge,
-e o caminho module-based avançando status via `template/.forge/scripts/spec-advance-module.sh`
-(chamado pelo `sprint-orchestrator`). Novo gate `w99` (8 casos); suíte **46/46**. PR #14→develop,
-release commit direto em develop, tag `v0.1.0-rc18`, develop→main `--no-ff`, `latest` no npm.
+**Resumo do que já estava fechado antes deste delta:** `gate-assert-visibility` (bugfix scale 2, origem `LDG-0012` — asserções bash `[ cond ] && cmd` sob `set -e` que morrem ou passam em silêncio sem `FAIL`) foi especificado, implementado em 24 tasks (52 sites em 20 arquivos) e verificado (`/forge:verify` aprovado, suíte 75/75) com ~20 commits diretos em `develop`, sem branch/PR/`code-evaluator`. Ver handoff anterior (histórico de git) para o detalhe dessa fase.
 
-**Foco/próximo passo:** propagar rc18 aos 4 projetos ativos (collatra, axis-go-cloud, azim-crm,
-axis-fare-validator) — **ainda não feito** (não pedido nesta sessão), via a cadência de worktree
-limpa + `node bin/forge.mjs update --no-plugin` documentada em `[[project-npm-published]]`.
+**O que aconteceu depois disso, nesta mesma sessão: a dívida de processo foi resolvida de ponta a ponta.**
 
-**Gotcha (recorrente):** o token npm do 1Password (`item Npmjs` › `notesPlain`) tem rótulo textual
-antes do `npm_…` — extrair com `grep -oE 'npm_[A-Za-z0-9]+'`, **nunca** `tr -d` a nota inteira
-(quebra a auth: E401/E404).
+**1. Extração retroativa para PR.** Os ~20-32 commits diretos em `develop` foram extraídos para a branch `fix/tests/gate-assert-visibility`; `develop` local foi resetado para `origin/develop` (nenhum trabalho perdido — os commits já estavam preservados na branch antes do reset). Branch empurrada, virou PR #42.
 
-**Estado do harness:** 4 changes ainda em `specs/active/` no status `verified`
-(`add-portable-handoff`, `deepspec-provenance`, `forge-update-command`, `hookspath-respect-custom`)
-— são exatamente `merged_unarchived` para o novo detector (dogfood do gap); pendente `/forge:archive`
-de cada quando fizer sentido incorporá-los ao baseline.
+**2. `code-evaluator` adaptado — reviewers nomeados (`logic-reviewer`, `arch-reviewer` etc., de `template/.forge/agents/review/code-evaluator.md`) não são subagent types registrados neste ambiente, então o orquestrador rodou 3 papéis equivalentes (lógica/correção, qualidade/convenções, integridade do harness) em paralelo, Opus/Sonnet — **3 rodadas de revisão adversarial**, todas registradas no PR #42:**
+  - **Rodada 1 — reprovado pelos 3.** BLOCKER convergente: `plugin/forge/**` (espelho gerado do plugin Claude Code) dessincronizado de `template/.forge/commands/**` (`npm run build:plugin` não tinha rodado após editar comandos). 2 HIGH: o fix ad hoc do `LDG-0030` (deixar `type: bugfix` scale≥2 pular `design-ready`) não tinha teste nenhum, e a implementação REMOVIA `design-ready` da cadeia de estados — quebrando retrocompatibilidade (change já parado em `design-ready` numa versão anterior ficaria travado ao atualizar) e proibindo a opção de design arquitetural que `commands/specs/design.md` sempre permitiu para bugfix.
+  - **Correção da rodada 1:** `design-ready` voltou a ficar SEMPRE na cadeia para scale≥2; o pulo virou rota lateral opcional `requirements-ready → tasks-ready`, só para `type: bugfix`. TDD real desta vez — teste vermelho (`tests/w21-pipeline-gate.sh` cenário `[1b]`) confirmado falhando contra o código antigo antes da correção, só depois o fix, teste verde. `plugin/forge/**` regenerado.
+  - **Rodada 2 — 1 HIGH novo.** Um reviewer focado reconfirmou os 3 achados da rodada 1 corrigidos (inclusive com prova de mutação: reverteu o código, viu o teste ficar vermelho, restaurou) e achou que a correção da rodada 1 tinha uma extensão para `quick_plan.skipped_phases` (pulo autorizado para QUALQUER `type` que declarasse isso no manifest, não só bugfix) que virava código morto — `validate-spec.mjs` não honra `quick_plan` no guard de `design.md` a partir de `tasks-ready`, então o pulo era autorizado e reprovado logo em seguida pelo validador. Generalização removida, mantido só `type: bugfix`. Mais MEDIUM/LOW: doc `design.md` desatualizada, e um fix anterior (ponteiro de "dogfood" que valida contra um change ativo real) degradava silenciosamente para "OK ... SKIP" quando não havia change ativo — mesma classe de defeito (asserção que some sem reprovar) que este change inteiro existe para eliminar. Corrigido com fixture sintética sempre gerada e validada.
+  - **Rodada 3 — autoverificação, sem novo agente.** Resíduo textual: a nota de resolução do `LDG-0030` no ledger e `verification.md` ainda citavam a generalização por `quick_plan` já revertida na rodada 2. Corrigido.
+  - Suíte `tests/run-all.sh` revalidada 100% verde (75/75) a cada rodada — 4 vezes ao todo. Comentário consolidado postado no PR #42.
+
+**3. Merge.** `gh pr merge 42 --squash --delete-branch` → squash em `develop`, commit `08acf9f`. Branch local e remota limpas, `develop` local sincronizado com `origin/develop`.
+
+**4. Estado final do change:** `gate-assert-visibility` permanece `verified`, **sem** `/forge:archive` — decisão explícita do usuário, já que não há baseline de produto a atualizar (correção pura da suíte de testes do harness). `orphan-changes.mjs` classifica como `merged_unarchived`, sinal normal e aceito neste caso.
+
+**5. Ledger final:** `LDG-0012` resolvido (via o change). `LDG-0030` resolvido — com a história completa das 3 tentativas registrada no `detail` (fix ad hoc sem teste → correção com TDD → remoção da generalização morta). `LDG-0031`–`LDG-0035` abertos, todos P3 (achados incidentais de revisão, genuinamente fora de escopo desta correção mecânica): sanitização C4 de boundary de arquivo único, asserção vazia em `w111-liaison-sync-gate.sh:259`, yaml-lite que não parseia array em flow style, mensagens FAIL bundled sem indicar qual cláusula falhou, drift entre `archive-state-machine.yaml` e a cadeia executável de `spec-transition.sh`. Nenhum P0/P1 aberto.
+
+**Aprendizado forte a reforçar.** Mesmo com TDD e revisão adversarial pesada na implementação original, o `code-evaluator` achou 3 rodadas de problemas reais na correção "final" — incluindo a ironia de a MESMA sessão que instituiu "TDD estrito, inclusive na maquinaria do harness" ter inicialmente corrigido o `LDG-0030` sem nenhum teste. A revisão adversarial em camada (builder→validator no artefato, depois `code-evaluator` no diff final) pegou coisas que a primeira camada sozinha não pegou. Reforça a regra fixa 6 (TDD, seção 3 acima) e é argumento para nunca pular a revisão de diff mesmo quando a implementação já passou por bastante escrutínio.
+
+**Não há pendência deste change específico.** Ciclo fechado: PR mergeado, suíte verde, ledger reconciliado. Próximo passo lógico é o próximo item do ledger (todos P2/P3 abertos, sem P0/P1) ou outro trabalho novo.
 <!-- FORGE:NARRATIVE-DELTA:END -->
 
 ## 5. Como retomar
 
-- **Claude Code:** rode `/forge:resume add-portable-handoff` (lê o estado + ingere esta seção 4).
+- **Claude Code:** rode `/forge:resume gate-assert-visibility` (lê o estado + ingere esta seção 4).
 - **Outro agente (Codex/Cursor/Gemini):** leia este arquivo inteiro; o estado detalhado está em
-  `.forge/specs/active/add-portable-handoff/` (`manifest.yaml`, `progress.json`, `deferrals.json`,
+  `.forge/specs/active/gate-assert-visibility/` (`manifest.yaml`, `progress.json`, `deferrals.json`,
   `tasks.md`). Siga as regras da seção 3.

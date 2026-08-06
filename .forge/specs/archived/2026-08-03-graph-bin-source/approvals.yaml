@@ -1,0 +1,29 @@
+approvals:
+  - gate: requirements_reviewed
+    decision: approve
+    reason: "bugfix scale 1 do LDG-0026: análise e plano conferidos; red-first com w41[10] e três controles"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-08-03T21:26:07-03:00"
+    commit: "afed3db"
+    scope: "bugfix.md,tasks.md"
+  - gate: tasks_reviewed
+    decision: approve
+    reason: "bugfix scale 1 do LDG-0026: análise e plano conferidos; red-first com w41[10] e três controles"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-08-03T21:26:07-03:00"
+    commit: "afed3db"
+    scope: "bugfix.md,tasks.md"
+  - gate: implementation_verified
+    decision: approve
+    reason: "npm test 73/73; w41 10 casos; Red observado; efeito conferido no grafo do repo"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-08-03T21:26:33-03:00"
+    commit: "afed3db"
+    scope: "verification.md,verification.yaml"
+  - gate: human_archive_approval
+    decision: approve
+    reason: "LDG-0026 entregue conforme direção do autor (sequência 0026 → 0004 → 0019 → 0018 → 0010, 2026-08-03); delta = 1 add_requirement REQ-FHT-049"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-08-03T21:26:33-03:00"
+    commit: "afed3db"
+    scope: "spec-delta.yaml"

@@ -30,6 +30,8 @@ Extraia dos argumentos: `<change-id>`, `--type`, `--scale`, `--rigor`, `--mode`.
 
 Se o usuário escolher um scale **abaixo** do que o risco aparente sugere, avise e registre depois no `manifest.yaml > quick_plan` (enabled, skipped_phases e justification — obrigatórios).
 
+`3` de story sharding não é sugestão: `/forge:implement` reprova fechado (via `validate-spec.sh`, `lib/story-shard.mjs`) se `dev_loop.sharded`/`dev_loop.epic_context_compiled` não estiverem `true`, ou se `stories/` não cobrir cada TASK exatamente uma vez e sem ciclo — a única dispensa é `quick_plan.skipped_phases` incluindo `story-sharding` (com `justification`), nunca omissão silenciosa.
+
 ### 2. Criação (determinista)
 
 ```bash

@@ -1087,6 +1087,32 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0043"
+    },
+    {
+      "id": "LDG-0047",
+      "type": "known-bug",
+      "title": "liaison: divergência calava o remetente inteiro e o teto de 200 travava a recuperação",
+      "detail": "applyBundle devolvia a primeira divergência e descartava todas as mensagens do remetente — uma reescrita em duas posições reteve 73 mensagens posteriores íntegras em três réplicas por dias. Passa a quarentenar a POSIÇÃO (registro por posição em conflicts/<sender>.seq-<n>.divergence.json, removido quando a origem resolve) e a aplicar o excedente do teto em LOTES ordenados por prefixo de seq, com status/render nomeando as posições retidas. Issue #48; gate w140.",
+      "severity": null,
+      "priority": "P1",
+      "status": "resolved",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [
+          "forge-harness-template"
+        ],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-19T16:33:24-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0040"
     }
   ]
 }

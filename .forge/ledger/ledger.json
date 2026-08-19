@@ -1113,6 +1113,32 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0040"
+    },
+    {
+      "id": "LDG-0046",
+      "type": "feature-idea",
+      "title": "/forge:pentest — toolchain de pentest mobile containerizado sob demanda",
+      "detail": "Comando manual (espelha /forge:dev) que orquestra um toolchain de pentest Android containerizado: activate/scan/status/deactivate, config no bloco runtime.pentest do FORGE.md, engine bash-3.2-compat pentest-ops.sh, timeout via perl alarm. Trade-off de segurança do adb (porta 5037 exposta na LAN durante a janela de teste) explícito na UX; deactivate reverte para localhost-only. Só bancada/dev, nunca device fielded. Gate tests/w142-pentest-gate.sh. Issue #34.",
+      "severity": null,
+      "priority": "P3",
+      "status": "resolved",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [
+          "forge-harness-template"
+        ],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-19T16:33:24-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0040"
     }
   ]
 }

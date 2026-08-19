@@ -233,7 +233,9 @@ grep -q "1 conflito" <<<"$out11b" || { echo "FAIL [11b]: content_sha divergente 
 # fork genuíno: mesmo msg_id, AMBAS as versões internamente válidas (content_sha recalculado
 # confere com o declarado em cada uma), mas divergentes entre si. O log de um remetente é
 # append-only: reescrever uma posição já conhecida é DIVERGÊNCIA, não conflito de mensagem — o
-# import REPROVA (rc != 0), nomeia o remetente, registra em conflicts/ e não toca o log local.
+# import REPROVA (rc != 0), nomeia o remetente, registra a POSIÇÃO em conflicts/ e mantém a versão
+# conhecida. O registro é por posição (`<sender>.seq-<n>.divergence.json`), nunca um agregado por
+# remetente: agregar esconderia quantas e quais posições estão retidas (issue #48).
 LG a import "$CH" --from "$T/bundle-c2" >/dev/null   # estabelece ops-bot-0001 localmente em a
 before_fork_sha="$(node -e "const fs=require('fs');const m=fs.readFileSync('$T/a/.forge/liaison/$CH/log/ops-bot.jsonl','utf8').trim().split('\n').map(l=>JSON.parse(l)).find(x=>x.msg_id==='ops-bot-0001');console.log(m.content_sha)")"
 mkdir -p "$T/bundle-fork/log"
@@ -244,7 +246,8 @@ if LG a import "$CH" --from "$T/bundle-fork" >"$T/out11c.txt" 2>&1; then
 fi
 grep -q "divergência" "$T/out11c.txt" || { echo "FAIL [11c]: saída não reporta divergência"; cat "$T/out11c.txt"; exit 1; }
 grep -q "ops-bot" "$T/out11c.txt" || { echo "FAIL [11c]: saída não nomeia o remetente divergente"; cat "$T/out11c.txt"; exit 1; }
-[ -f "$T/a/.forge/liaison/$CH/conflicts/ops-bot.divergence.json" ] || { echo "FAIL [11c]: divergência não registrada em conflicts/"; exit 1; }
+[ -f "$T/a/.forge/liaison/$CH/conflicts/ops-bot.seq-1.divergence.json" ] || { echo "FAIL [11c]: posição divergente não registrada em conflicts/"; ls "$T/a/.forge/liaison/$CH/conflicts/"; exit 1; }
+[ ! -f "$T/a/.forge/liaison/$CH/conflicts/ops-bot.divergence.json" ] || { echo "FAIL [11c]: registro agregado por remetente — não dá para agir sobre a posição"; exit 1; }
 after_fork_sha="$(node -e "const fs=require('fs');const m=fs.readFileSync('$T/a/.forge/liaison/$CH/log/ops-bot.jsonl','utf8').trim().split('\n').map(l=>JSON.parse(l)).find(x=>x.msg_id==='ops-bot-0001');console.log(m.content_sha)")"
 [ "$before_fork_sha" = "$after_fork_sha" ] || { echo "FAIL [11c]: log local foi tocado por uma reescrita de história"; exit 1; }
 echo "OK [11]"

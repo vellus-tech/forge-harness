@@ -14,13 +14,27 @@
 //   5. body_ref fora do padrão, blob ausente ou acima do teto → conflito
 //   6. COMPATIBILIDADE DE LOG — o log de um remetente é append-only: uma posição (seq) já
 //      conhecida não pode chegar com outro msg_id ou outro content_sha. Reescrita de história é
-//      DIVERGÊNCIA: nenhuma mensagem daquele remetente é aplicada e o comando reprova. A
-//      divergência isola o remetente — os demais são aplicados normalmente, para que um peer
-//      corrompido não trave o canal inteiro.
+//      DIVERGÊNCIA: a POSIÇÃO divergente vai para quarentena e o comando reprova; as demais
+//      posições do mesmo remetente continuam sendo aplicadas.
 //   7. duplicata exata (mesmo msg_id, mesmo content_sha) → no-op silencioso
 //
+// QUARENTENA POR POSIÇÃO, não por remetente (issue #48). Antes, uma única divergência descartava
+// TODAS as mensagens daquele remetente — uma reescrita em duas posições calou 73 mensagens
+// posteriores, íntegras e sem colisão de msg_id/content_sha, em três réplicas por dias. O
+// invariante que o descarte protegia ("não aceito história reescrita") é preservado quarentenando
+// as posições em conflito: ele não exige recusar as seguintes. E não se abre buraco no log — a
+// réplica MANTÉM a versão que já conhecia das posições divergentes e ganha as posteriores. O
+// silêncio é o defeito: um remetente calado é indistinguível de um remetente quieto, e só o
+// tornava visível uma comparação externa contra o hub.
+//
+// LOTE, não recusa total, acima do teto (issue #48). `IMPORT_MAX_MESSAGES` continua limitando o
+// que uma chamada aplica, mas o excedente NÃO é descartado: aplica-se um prefixo por seq e
+// reporta-se quantas faltam, de modo que `sync` repetido converge. "Nada foi aplicado"
+// transformava atraso em estado terminal — o backlog cresce sozinho, então a réplica que passasse
+// do teto nunca mais alcançaria o hub.
+//
 // `trust` é carimbado aqui como 'untrusted-peer', nunca aceito do remetente.
-import { readFileSync, writeFileSync, readdirSync, existsSync, renameSync, copyFileSync, statSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, readdirSync, existsSync, renameSync, copyFileSync, statSync, mkdirSync, unlinkSync } from 'node:fs';
 import { join, basename } from 'node:path';
 import * as M from './liaison-merge.mjs';
 
@@ -35,8 +49,48 @@ function readJsonl(path) {
   return out;
 }
 
-// Aplica o bundle em fromDir sobre o canal em chDir. Retorna contadores + a lista de remetentes
-// divergentes (vazia = nada reescreveu história).
+// Sufixo dos registros de posição quarentenada em conflicts/: `<sender>.seq-<n>.divergence.json`.
+// Um registro POR POSIÇÃO (e não um agregado `<sender>.divergence.json`) porque é sobre a posição
+// que se age — restaurar a linha, ou republicar o conteúdo reescrito com seq novo. Um agregado
+// esconde quantas e quais posições estão retidas.
+const DIVERGENCE_RE = /^(.+)\.seq-(\d+)\.divergence\.json$/;
+
+function divergenceFile(sender, seq) {
+  return `${sender}.seq-${seq}.divergence.json`;
+}
+
+// Lê as posições atualmente em quarentena por divergência a partir de conflicts/. Vive aqui (e não
+// em liaison-merge.mjs) porque é leitura de disco e porque quem escreve o formato é quem deve
+// lê-lo. Usada por `status` e pelo render — um total agregado esconderia exatamente o defeito da
+// issue #48.
+export function readQuarantinedPositions(chDir) {
+  const dir = join(chDir, 'conflicts');
+  if (!existsSync(dir)) return [];
+  const out = [];
+  for (const f of readdirSync(dir).sort()) {
+    const m = DIVERGENCE_RE.exec(f);
+    if (!m) continue;
+    let rec = {};
+    try { rec = JSON.parse(readFileSync(join(dir, f), 'utf8')); } catch { rec = {}; }
+    out.push({
+      sender: rec.sender || m[1],
+      seq: Number(rec.seq !== undefined && rec.seq !== null ? rec.seq : m[2]),
+      msg_id: rec.msg_id || null,
+      known_msg_id: rec.known_msg_id || null,
+      // O content_sha entra no relato porque a divergência costuma ser de CONTEÚDO com o mesmo
+      // msg_id (foi o caso da issue #48): sem ele, as duas versões saem com o mesmo nome e a
+      // linha parece dizer que a mensagem diverge de si mesma.
+      content_sha: (rec.incoming && rec.incoming.content_sha) || null,
+      known_content_sha: (rec.known && rec.known.content_sha) || null,
+      reason: rec.reason || '',
+      file: f,
+    });
+  }
+  return out.sort((a, b) => a.sender.localeCompare(b.sender) || a.seq - b.seq);
+}
+
+// Aplica o bundle em fromDir sobre o canal em chDir. Retorna contadores + a lista de POSIÇÕES
+// divergentes quarentenadas (vazia = nada reescreveu história).
 export function applyBundle({ chDir, fromDir, self }) {
   const logDir = join(chDir, 'log');
   const conflictsDir = join(chDir, 'conflicts');
@@ -49,7 +103,8 @@ export function applyBundle({ chDir, fromDir, self }) {
   const conflictsToWrite = [];
   const divergences = [];
   const perSenderNew = new Map();
-  let accepted = 0, dup = 0, conflicts = 0;
+  const sendersInBundle = [];
+  let dup = 0, conflicts = 0;
 
   const bundleFiles = existsSync(fromLog)
     ? readdirSync(fromLog).filter((f) => f.endsWith('.jsonl')).sort()
@@ -59,6 +114,7 @@ export function applyBundle({ chDir, fromDir, self }) {
     const fileSender = basename(file, '.jsonl');
     if (!M.ID_RE.test(fileSender)) continue;
     if (fileSender === self) continue; // somos a fonte da verdade do nosso próprio log
+    sendersInBundle.push(fileSender);
 
     const incoming = readJsonl(join(fromLog, file));
     const existing = existsSync(join(logDir, file)) ? readJsonl(join(logDir, file)) : [];
@@ -108,30 +164,49 @@ export function applyBundle({ chDir, fromDir, self }) {
     // --- passada 2: compatibilidade de log (append-only) --------------------------------------
     // Roda só sobre candidatos já íntegros: mensagem adulterada em trânsito é conflito individual
     // (passada 1), não acusação de que o remetente reescreveu a própria história.
-    const divergence = detectDivergence(candidates, existingBySeq, existingById);
-    if (divergence) {
-      divergences.push({ sender: fileSender, ...divergence });
-      conflictsToWrite.push([`${fileSender}.divergence`, divergence.reason, divergence.incoming, divergence.known]);
-      conflicts++;
-      continue; // nenhuma mensagem deste remetente é aplicada
-    }
+    const divs = detectDivergences(candidates, existingBySeq, existingById);
+    const quarantinedSeqs = new Set(divs.map((d) => d.seq));
+    for (const d of divs) divergences.push({ sender: fileSender, ...d });
 
     // --- passada 3: separa duplicatas de novidades --------------------------------------------
     for (const raw of candidates) {
+      // Posição em quarentena: descartada individualmente. A réplica fica com a versão que já
+      // conhecia (ou, no caso do gêmeo, sem nenhuma das duas — e aí o buraco de seq é o
+      // diagnóstico honesto, reportado por detectGaps).
+      if (quarantinedSeqs.has(Number(raw.seq))) continue;
       const already = existingById.get(raw.msg_id);
       if (already) { dup++; continue; } // content_sha já conferido idêntico na passada 2
-      accepted++;
       if (!perSenderNew.has(fileSender)) perSenderNew.set(fileSender, []);
       perSenderNew.get(fileSender).push(raw);
     }
   }
 
-  if (accepted > M.IMPORT_MAX_MESSAGES) {
-    return { accepted: 0, dup: 0, conflicts: 0, quarantined: 0, divergences: [], overflow: accepted };
+  // --- seleção do LOTE -------------------------------------------------------------------------
+  // O teto continua valendo por chamada, mas o excedente vira BACKLOG, não descarte. Ordem:
+  // remetentes em ordem alfabética, e dentro de cada um um PREFIXO por seq — prefixo é o único
+  // corte que preserva a semântica append-only (não inventa buraco de seq). Determinístico: a
+  // ordem das linhas no bundle não influi. Não há flag de override deliberadamente — o teto existe
+  // para conter bundle malicioso ou corrompido, e uma flag de "recuperação" seria exatamente o que
+  // um bundle hostil pediria; o lote é a saída legítima, e converge sem afrouxar o teto.
+  //
+  // A ordem alfabética faz um remetente com backlog enorme atrasar os seguintes, mas não os
+  // esfomeia: cada chamada drena até 200, então N chamadas de sync põem todos em dia. Um
+  // round-robin entre remetentes distribuiria melhor e custaria a propriedade que importa — o
+  // corte tem de ser previsível para que duas réplicas com o mesmo bundle apliquem o mesmo lote.
+  const batch = new Map();
+  let budget = M.IMPORT_MAX_MESSAGES;
+  let remaining = 0;
+  for (const sender of [...perSenderNew.keys()].sort()) {
+    const msgs = perSenderNew.get(sender).slice().sort((a, b) => Number(a.seq) - Number(b.seq));
+    const take = Math.min(Math.max(budget, 0), msgs.length);
+    if (take > 0) batch.set(sender, msgs.slice(0, take));
+    budget -= take;
+    remaining += msgs.length - take;
   }
+  const accepted = [...batch.values()].reduce((n, arr) => n + arr.length, 0);
 
   // --- escrita, atômica por arquivo de remetente ---------------------------------------------
-  for (const [sender, toAdd] of perSenderNew) {
+  for (const [sender, toAdd] of batch) {
     const target = join(logDir, `${sender}.jsonl`);
     const existing = existsSync(target) ? readJsonl(target) : [];
     const merged = existing.concat(toAdd.map((m) => ({ ...m, trust: 'untrusted-peer' })));
@@ -151,37 +226,87 @@ export function applyBundle({ chDir, fromDir, self }) {
     writeFileSync(join(conflictsDir, `${msgId}.json`), JSON.stringify({ msg_id: msgId, reason, incoming, existing: existing || null }, null, 2) + '\n');
   }
 
-  return { accepted, dup, conflicts, quarantined: countQuarantined(logDir), divergences };
+  // Registro POR POSIÇÃO quarentenada. Carrega sender/seq/msg_id em campos próprios porque é isso
+  // que `status` e `render` mostram — o nome do arquivo é conveniência, não a fonte.
+  for (const d of divergences) {
+    writeFileSync(join(conflictsDir, divergenceFile(d.sender, d.seq)), JSON.stringify({
+      sender: d.sender,
+      seq: d.seq,
+      msg_id: d.incoming ? d.incoming.msg_id : null,
+      known_msg_id: d.known ? d.known.msg_id : null,
+      reason: d.reason,
+      incoming: d.incoming,
+      known: d.known || null,
+    }, null, 2) + '\n');
+  }
+  // Convergência do registro: posição que deixou de divergir (a origem restaurou a linha, ou
+  // republicou o conteúdo com seq novo) tem o registro REMOVIDO. Sem isso, o canal reportaria
+  // quarentena para sempre depois de já resolvida, e um aviso que nunca desliga deixa de ser aviso.
+  // A varredura é por remetente presente NESTE bundle — nunca apaga registro de quem não veio.
+  for (const sender of sendersInBundle) {
+    const live = new Set(divergences.filter((d) => d.sender === sender).map((d) => d.seq));
+    for (const f of readdirSync(conflictsDir)) {
+      const m = DIVERGENCE_RE.exec(f);
+      if (!m || m[1] !== sender) continue;
+      if (!live.has(Number(m[2]))) unlinkSync(join(conflictsDir, f));
+    }
+  }
+
+  return {
+    accepted,
+    dup,
+    conflicts,
+    quarantined: countQuarantined(logDir),
+    quarantinedPositions: divergences.length,
+    remaining,
+    divergences,
+  };
 }
 
 // Reescrita de história: uma posição já conhecida (por seq ou por msg_id) chegando com outro
 // conteúdo. Também detecta o bundle internamente inconsistente (dois seq iguais divergentes),
 // que é o mesmo defeito visto antes de tocar o disco.
-function detectDivergence(candidates, existingBySeq, existingById) {
+//
+// Retorna TODAS as posições divergentes (ordenadas por seq), não a primeira — devolver só a
+// primeira era o que fazia o caller descartar o remetente inteiro. Uma posição aparece uma única
+// vez, com o motivo da primeira detecção.
+//
+// O caso GÊMEO (o próprio bundle traz duas versões da mesma posição) quarentena a posição por
+// INTEIRO: não há critério para escolher entre as duas versões, e escolher uma seria inventar
+// história. Por isso o `continue` abaixo NÃO registra a segunda versão em `seenSeq` — quem filtra
+// os candidatos usa o conjunto de seq quarentenados, o que derruba ambas.
+function detectDivergences(candidates, existingBySeq, existingById) {
   const seenSeq = new Map();
+  const bySeq = new Map();
   for (const raw of candidates) {
     const seq = Number(raw.seq);
     const known = existingBySeq.get(seq) || existingById.get(raw.msg_id);
     if (known && (known.msg_id !== raw.msg_id || known.content_sha !== raw.content_sha)) {
-      return {
-        seq,
-        reason: `log divergente: a posição seq=${seq} já é conhecida como ${known.msg_id}/${known.content_sha} e chegou como ${raw.msg_id}/${raw.content_sha} — log append-only não reescreve história`,
-        incoming: raw,
-        known,
-      };
+      if (!bySeq.has(seq)) {
+        bySeq.set(seq, {
+          seq,
+          reason: `log divergente: a posição seq=${seq} já é conhecida como ${known.msg_id}/${known.content_sha} e chegou como ${raw.msg_id}/${raw.content_sha} — log append-only não reescreve história`,
+          incoming: raw,
+          known,
+        });
+      }
+      continue;
     }
     const twin = seenSeq.get(seq);
     if (twin && twin.content_sha !== raw.content_sha) {
-      return {
-        seq,
-        reason: `log divergente: o próprio bundle traz duas versões da posição seq=${seq} (${twin.msg_id}/${twin.content_sha} e ${raw.msg_id}/${raw.content_sha})`,
-        incoming: raw,
-        known: twin,
-      };
+      if (!bySeq.has(seq)) {
+        bySeq.set(seq, {
+          seq,
+          reason: `log divergente: o próprio bundle traz duas versões da posição seq=${seq} (${twin.msg_id}/${twin.content_sha} e ${raw.msg_id}/${raw.content_sha})`,
+          incoming: raw,
+          known: twin,
+        });
+      }
+      continue;
     }
     seenSeq.set(seq, raw);
   }
-  return null;
+  return [...bySeq.values()].sort((a, b) => a.seq - b.seq);
 }
 
 function countQuarantined(logDir) {

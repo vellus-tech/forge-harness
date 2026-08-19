@@ -13,6 +13,7 @@ import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { renderUntrusted } from './untrusted-render.mjs';
 import { join } from 'node:path';
 import { mergeLogs } from './liaison-merge.mjs';
+import { readQuarantinedPositions } from './liaison-import.mjs';
 
 const env = process.env;
 const channel = env.LIAISON_CHANNEL;
@@ -44,6 +45,9 @@ function readAllMessages(dir) {
 
 const messages = readAllMessages(channelDir);
 const { threads, quarantined, gaps, forks } = mergeLogs(messages);
+// Posições retidas por reescrita de história (issue #48). Vêm de conflicts/, não do merge: são
+// mensagens que NUNCA entraram no log local, então nenhuma leitura dos *.jsonl as revelaria.
+const divergentPositions = readQuarantinedPositions(channelDir);
 
 const threadIds = Object.keys(threads).sort((a, b) => {
   const ta = threads[a].opened_at || '';
@@ -98,6 +102,12 @@ function renderQuarantine() {
   return quarantined.map((m) => `- \`${m.msg_id}\` (thread \`${m.thread_id}\`, remetente \`${m.sender}\`) — ${m.quarantine_reason}`).join('\n');
 }
 
+function renderDivergences() {
+  if (!divergentPositions.length) return '_(nenhuma)_';
+  const sh = (v) => (v ? String(v).slice(0, 12) : '?');
+  return divergentPositions.map((p) => `- \`${p.sender}\`@seq=${p.seq} — recebida \`${p.msg_id || '?'}\` (\`${sh(p.content_sha)}\`), conhecida localmente \`${p.known_msg_id || '?'}\` (\`${sh(p.known_content_sha)}\`) · registro em \`conflicts/${p.file}\``).join('\n');
+}
+
 function renderDiagnostics() {
   const parts = [];
   if (gaps.length) parts.push(gaps.map((g) => `- **buraco de seq** em \`${g.sender}\`: faltando ${g.missing.join(', ')}`).join('\n'));
@@ -106,8 +116,9 @@ function renderDiagnostics() {
 }
 
 const totalMessages = threadIds.reduce((s, id) => s + threads[id].order.length, 0);
-const summary = threadIds.length || quarantined.length
-  ? `**${threadIds.length} thread(s)** · ${totalMessages} mensagem(ns) · ${quarantined.length} em quarentena`
+const divergentBit = divergentPositions.length ? ` · ${divergentPositions.length} posição(ões) retida(s) por divergência` : '';
+const summary = threadIds.length || quarantined.length || divergentPositions.length
+  ? `**${threadIds.length} thread(s)** · ${totalMessages} mensagem(ns) · ${quarantined.length} em quarentena${divergentBit}`
   : '_(canal vazio — nenhuma mensagem ainda)_';
 
 let content = readFileSync(tplPath, 'utf8');
@@ -118,6 +129,7 @@ content = content
   .replaceAll('{{THREAD_INDEX}}', renderThreadIndex())
   .replaceAll('{{THREAD_VIEWS}}', renderThreadViews())
   .replaceAll('{{QUARANTINE}}', renderQuarantine())
+  .replaceAll('{{DIVERGENCES}}', renderDivergences())
   .replaceAll('{{DIAGNOSTICS}}', renderDiagnostics());
 
 // Preserva o bloco narrativo já escrito ("Notas") entre regenerações.

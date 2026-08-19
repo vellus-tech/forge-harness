@@ -148,23 +148,27 @@ const { pathToFileURL } = require('url');
   const { applyBundle } = await import(pathToFileURL(join(lib, 'liaison-import.mjs')).href);
   const M = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
   const r = applyBundle({ chDir, fromDir, self });
-  if (r.overflow) {
-    console.error(`bundle excede o teto de ${M.IMPORT_MAX_MESSAGES} mensagens por aplicação (${r.overflow}) — nada foi aplicado`);
-    process.exit(1);
-  }
-  const div = r.divergences.map((d) => `${d.sender}@seq=${d.seq}`).join(', ');
-  process.stdout.write([r.accepted, r.dup, r.conflicts, r.quarantined, div].join('\t'));
+  const div = r.divergences.map((d) => `${d.sender}@seq=${d.seq} (${d.incoming ? d.incoming.msg_id : '?'})`).join(', ');
+  process.stdout.write([r.accepted, r.dup, r.conflicts, r.quarantined, r.remaining, M.IMPORT_MAX_MESSAGES, div].join('\t'));
 })();
 NODEEOF
 )" || return 1
-  local n_new n_dup n_conf n_quar div
-  IFS=$'\t' read -r n_new n_dup n_conf n_quar div <<< "$out"
+  local n_new n_dup n_conf n_quar n_rest n_max div
+  IFS=$'\t' read -r n_new n_dup n_conf n_quar n_rest n_max div <<< "$out"
   _render "$channel"
   if [ -n "$div" ]; then
-    echo "FAIL: divergência de log em $div — log append-only não reescreve história; nada desses remetentes foi aplicado (ver conflicts/)" >&2
+    # Fail-loud continua: reescrita de história exige ação humana na ORIGEM. O que mudou é o
+    # escopo do dano — só as posições nomeadas ficam retidas, o resto do log é aplicado.
+    echo "FAIL: divergência de log em $div — log append-only não reescreve história; essas POSIÇÕES ficaram em quarentena (ver conflicts/) e as demais mensagens foram aplicadas" >&2
     rc=1
   fi
-  echo "OK $label — $n_new nova(s), $n_dup duplicata(s) (no-op), $n_conf conflito(s), $n_quar em quarentena"
+  local tail=""
+  # Backlog acima do teto não é erro: é o próximo lote. Sem esta linha, um sync que aplicou 200 de
+  # 205 pareceria ter terminado o trabalho.
+  if [ "${n_rest:-0}" -gt 0 ]; then
+    tail=" — $n_rest restante(s) acima do teto de $n_max por lote; rode sync novamente para aplicar o próximo"
+  fi
+  echo "OK $label — $n_new nova(s), $n_dup duplicata(s) (no-op), $n_conf conflito(s), $n_quar em quarentena${tail}"
   return $rc
 }
 
@@ -745,6 +749,7 @@ const { pathToFileURL } = require('url');
 (async () => {
   const [, , lib, chDir, channel] = process.argv;
   const { mergeLogs } = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
+  const { readQuarantinedPositions } = await import(pathToFileURL(join(lib, 'liaison-import.mjs')).href);
   const logDir = join(chDir, 'log');
   const files = existsSync(logDir) ? readdirSync(logDir).filter((f) => f.endsWith('.jsonl')) : [];
   const all = [];
@@ -762,7 +767,14 @@ const { pathToFileURL } = require('url');
     unread += threads[id].order.length - (idx + 1);
   }
   const diag = gaps.length || forks.length ? ` · ${gaps.length} buraco(s) · ${forks.length} fork(s)` : '';
-  console.log(`LIAISON/${channel}: ${Object.keys(threads).length} thread(s) · ${unread} não lida(s) · ${quarantined.length} em quarentena${diag}`);
+  // Posições retidas por divergência entram na linha E são NOMEADAS abaixo. Só o contador
+  // esconderia o defeito da issue #48: um remetente calado é indistinguível de um quieto, e
+  // "N em quarentena" não diz de quem nem de onde, que é o que permite agir.
+  const pos = readQuarantinedPositions(chDir);
+  const posBit = pos.length ? ` · ${pos.length} posição(ões) retida(s) por divergência` : '';
+  console.log(`LIAISON/${channel}: ${Object.keys(threads).length} thread(s) · ${unread} não lida(s) · ${quarantined.length} em quarentena${posBit}${diag}`);
+  const sh = (v) => (v ? String(v).slice(0, 12) : '?');
+  for (const p of pos) console.log(`  ! quarentena por divergência: ${p.sender}@seq=${p.seq} — recebida ${p.msg_id || '?'}/${sh(p.content_sha)}, conhecida ${p.known_msg_id || '?'}/${sh(p.known_content_sha)} (conflicts/${p.file})`);
 })();
 NODEEOF
   else
@@ -779,7 +791,9 @@ const { pathToFileURL } = require('url');
 (async () => {
   const [, , lib, liaisonDir, channelsRaw, self] = process.argv;
   const { mergeLogs } = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
+  const { readQuarantinedPositions } = await import(pathToFileURL(join(lib, 'liaison-import.mjs')).href);
   const channels = channelsRaw.split(' ').filter(Boolean);
+  const positions = [];
   let threadsTotal = 0, unreadTotal = 0, quarantinedTotal = 0;
   for (const channel of channels) {
     const chDir = join(liaisonDir, channel);
@@ -795,13 +809,17 @@ const { pathToFileURL } = require('url');
     const cursors = state.cursors || {};
     threadsTotal += Object.keys(threads).length;
     quarantinedTotal += quarantined.length;
+    for (const p of readQuarantinedPositions(chDir)) positions.push({ channel, ...p });
     for (const id of Object.keys(threads)) {
       const cur = cursors[id] && cursors[id].msg_id;
       const idx = cur ? threads[id].order.indexOf(cur) : -1;
       unreadTotal += threads[id].order.length - (idx + 1);
     }
   }
-  console.log(`LIAISON: self=${self || '?'} · ${channels.length} canal(is) · ${threadsTotal} thread(s) · ${unreadTotal} não lida(s) · ${quarantinedTotal} em quarentena`);
+  const posBit = positions.length ? ` · ${positions.length} posição(ões) retida(s) por divergência` : '';
+  console.log(`LIAISON: self=${self || '?'} · ${channels.length} canal(is) · ${threadsTotal} thread(s) · ${unreadTotal} não lida(s) · ${quarantinedTotal} em quarentena${posBit}`);
+  const sh = (v) => (v ? String(v).slice(0, 12) : '?');
+  for (const p of positions) console.log(`  ! quarentena por divergência em ${p.channel}: ${p.sender}@seq=${p.seq} — recebida ${p.msg_id || '?'}/${sh(p.content_sha)}, conhecida ${p.known_msg_id || '?'}/${sh(p.known_content_sha)}`);
 })();
 NODEEOF
   fi

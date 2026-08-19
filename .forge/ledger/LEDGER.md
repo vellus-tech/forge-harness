@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**23 itens ativos** · roadmap 4 · tech-debt 12 · known-bug 4 · follow-up 3 · (20 encerrados)
+**23 itens ativos** · roadmap 4 · tech-debt 12 · known-bug 4 · follow-up 3 · (21 encerrados)
 
 ## Roadmap
 
@@ -20,7 +20,7 @@
   SRF-01 hoje sai como WARN porque, sem varredura das rotas reais, não distingue 'a rota não existe' (defeito de código) de 'a task declarou paths: incompleto' (defeito de declaração). MEDIÇÃO REFEITA (2026-08-04) com o scanner corrigido pelos changes route-scan-multifile-mounts e route-scan-dialect-coverage, contra o repositório de referência axis-go-cloud (services, src, apps, axis-device-platform, packages): LADO DO CÓDIGO — 343 rotas resolvidas (o plano original media 41; o 'zero irresolúveis' de então media a estreiteza do reconhecedor) e 83 irresolúveis: 38 producer-not-found, 23 group-path-not-literal, 12 producer-never-invoked, 5 mapgroup-unindexed, 5 route-site-unindexed. Concentrados em axis-device-platform/src (37) e packages/dotnet (14). LADO DECLARADO — 172 endpoints (170 OpenAPI, 9 tabela, 18 checklist; authz-map zero) e 43 irresolúveis, dos quais 41 contract-without-paths. CRUZAMENTO — SUR-01 = inconclusive, 49 abstidos, 5 kinds de blocker. Ou seja: promover hoje resultaria num gate que NÃO dispara neste repositório. SRF-01 EM CHANGES REAIS — 35 changes analisados, 8 com achado, 11 achados no total. Classificados contra o oráculo: 7 (64%) NÃO citam endpoint literal (a célula do checklist é prosa: 'endpoints de publicação no bff + tela admin') e o oráculo não ajuda a decidir; 2 citam endpoint que EXISTE no código (defeito de declaração); 2 citam endpoint AUSENTE (defeito de código OU fora do alcance — e com 83 irresolúveis não dá para afirmar qual). CONCLUSÃO: a premissa do item — 'com o route-scan o SRF-01 passa a distinguir os dois defeitos' — vale para 4 dos 11 achados (36%). O pré-requisito que falta não é o oráculo: é o checklist citar endpoint literal, e a cegueira do scanner cair. Promoção NÃO recomendada nesta medição.
 - **LDG-0003** [open] — Maquinaria de capability packs no harness (forge.yaml packs:, installer materializa só packs ativos)
 
-_Encerrados: 1 (resolved 1)_
+_Encerrados: 2 (resolved 2)_
 
 ## Ideias de feature
 

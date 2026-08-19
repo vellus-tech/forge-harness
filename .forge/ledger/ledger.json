@@ -1061,6 +1061,32 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0043"
+    },
+    {
+      "id": "LDG-0044",
+      "type": "roadmap",
+      "title": "Gate mecânico contra segredo hardcoded em arquivo versionado (issue #37)",
+      "detail": "A família de gates deterministas do harness não tinha equivalente para credencial versionada, apesar de o modo de falha ser o mais silencioso de todos: a credencial entra num arquivo de configuração, o build funciona, nada quebra, e ela permanece rastreada indefinidamente. check-secrets.sh detecta quatro classes sobre o conjunto VERSIONADO (git ls-files): credencial de conexão, chave privada PEM, token de provedor com prefixo reconhecível e Authorization Basic literal. Linha comentada é varrida como linha ativa. Modos staged, range, path e report. Conjunto varrido vazio reprova SEMPRE, inclusive em warn e em report. Allowlist com justificativa obrigatória na linha; entrada sem justificativa reprova, e allowlist que esvazia o conjunto reprova por vacuidade. Ausência do bloco secrets: resolve para warn porque o gate está fiado no pre-commit e no CI e não é opt-in: brownfield com passivo herdaria trava no dia da atualização. Template entrega block explícito. Gate tests/w139-secrets-gate.sh, 15 cenários, com prova de mutação por classe. Nota: o push protection do GitHub barrou o próprio PR por causa das fixtures, que passaram a ser montadas em runtime.",
+      "severity": null,
+      "priority": "P2",
+      "status": "resolved",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [
+          "forge-harness-template"
+        ],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-19T17:44:57-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0043"
     }
   ]
 }

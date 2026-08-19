@@ -13,6 +13,13 @@ argument-hint: "[--no-backup]"
 
 ## Protocolo
 
+0. **Rode do checkout principal, nunca de um worktree.** A maquinaria é versionada DENTRO da árvore: aplicá-la num worktree escreveria `.forge/**` novo apenas naquela branch, e o tronco mais os demais worktrees ficariam com a versão antiga — recebendo verde de gates que não estão rodando. Pior: `core.hooksPath` vive no `.git/config` **comum**, então um update rodado do worktree reaponta os hooks de todo o repositório para uma árvore que é de uma branch só. O `update` **recusa** rodar dali (sem flag de escape) e informa o caminho do tronco. Confirme antes:
+
+   ```bash
+   [ "$(git rev-parse --path-format=absolute --git-common-dir | xargs dirname)" = "$(git rev-parse --show-toplevel)" ] \
+     && echo "checkout principal — pode seguir" || echo "worktree — rode do tronco"
+   ```
+
 1. **Prévia (dry-run)** — mostre o que mudaria, sem escrever:
 
    ```bash
@@ -35,11 +42,24 @@ argument-hint: "[--no-backup]"
    reconcilia adapters ativos (`sync-adapters --adapter all`), garante `core.hooksPath` e o bloco
    managed do `.gitignore`, re-materializa o plugin `/forge:*` (se claude ativo), e roda o `doctor`.
 
-4. **Resuma** o resultado: o que foi atualizado, o que foi preservado (specs/baseline), e o backup.
+4. **Garanta o `core.hooksPath` absoluto.** O `update` já o grava apontando para `<tronco>/.forge/hooks/git` e migra o valor legado relativo (`.forge/hooks/git`), preservando um `hooksPath` customizado de verdade. Absoluto porque `core.hooksPath` vive no `.git/config` comum e um valor relativo é resolvido por cada worktree contra a própria árvore, que carrega a cópia antiga dos hooks. Confirme no fim:
+
+   ```bash
+   git config --get core.hooksPath   # tem de ser caminho absoluto, terminando em /.forge/hooks/git
+   ```
+
+5. **Meça a propagação para os worktrees existentes.** O `doctor` (que o `update` roda no fim) lista, por worktree linkado, quantos arquivos de maquinaria divergem do tronco e quantos commits aquele worktree está à frente. Use a tabela para decidir: sincronize primeiro os que estão com **zero commits à frente** (rebase/merge do tronco é trivial ali) e escale os que estão muito à frente ou em `HEAD` destacado, onde a sincronização é decisão de quem tem o contexto da branch.
+
+6. **Resuma** o resultado: o que foi atualizado, o que foi preservado (specs/baseline), o estado do `core.hooksPath`, a divergência dos worktrees e o backup.
    Sugira remover o `.forge.bak-N` após validar (o `.forge` é versionado em git).
 
 ## Regras
 
+- **Nunca** rode este comando de dentro de um worktree linkado — ele recusa, e a recusa não tem flag
+  de escape (rule `conventions/machinery-propagation.md`).
+- **Maquinaria versionada na árvore não se propaga sozinha.** Atualizar o tronco não atualiza nenhum
+  worktree ativo; um gate aprovado no tronco não protege onde o trabalho acontece até a branch
+  daquele worktree receber o merge.
 - **Nunca** use `init --force` para atualizar — ele move o `.forge/` inteiro para backup e reinstala
   do zero. `update` é o caminho que preserva o trabalho de produto.
 - Órfãos (arquivos que o template removeu entre versões) **não** são deletados pelo overlay aditivo —

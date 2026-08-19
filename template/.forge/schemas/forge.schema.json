@@ -196,6 +196,37 @@
             }
           }
         },
+        "codegraph": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Mapa de camadas DECLARÁVEL do code graph (issue #38). A heurística embutida do engine reconhece convenções de pasta e o sufixo de projeto .NET; layouts que fogem disso — plataforma satélite, pacotes compartilhados, monólito legado pré-Clean-Architecture — passam a ser descritos aqui, pelo próprio repositório, sem mudança no engine. Bloco ausente = heurística embutida pura, e o grafo é idêntico ao de antes desta chave existir.",
+          "properties": {
+            "layers": {
+              "type": "array",
+              "description": "Pares padrão-de-path → camada, avaliados na ORDEM DECLARADA (o primeiro match vence) e ANTES da heurística embutida. Glob no dialeto de authz.pep_paths (`*` casa dentro de um segmento; o padrão cobre o próprio path e tudo abaixo dele) mais `**` como segmento inteiro, que atravessa zero ou mais segmentos.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["path", "layer"],
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "Glob relativo à raiz do repositório. Ex.: `platform/src/services/*/*.Api`, `packages/dotnet/*.Abstractions`, `src/*.DAL`, `platform/**/*.Kernel`."
+                  },
+                  "layer": {
+                    "enum": ["api", "application", "domain", "infrastructure", "contracts", "test", "config", "unknown"],
+                    "description": "`unknown` aqui é DECLARAÇÃO, não lacuna: afirma que a taxonomia domain/application/infrastructure/api/contracts não descreve este path (frontend, tooling, conteúdo estático, MDX de doc). Esses nós ganham `taxonomy: \"out\"` no grafo e saem do denominador da cobertura de camada."
+                  }
+                }
+              }
+            },
+            "orphans_by_design": {
+              "type": "array",
+              "description": "Globs de arquivos cuja ausência de aresta é o estado CORRETO — marcador de assembly resolvido por reflexão, plugin carregado por DI, entrypoint descoberto por convenção. `forge validate graph` não os reporta como achado. Spec de E2E (layer test), configuração (layer config), migrations e o que estiver declarado fora da taxonomia já são reconhecidos sem declaração.",
+              "items": { "type": "string" }
+            }
+          }
+        },
         "integrations": {
           "type": "object",
           "additionalProperties": false,
@@ -398,6 +429,20 @@
                 "block"
               ],
               "description": "Ack pendente de contract-change inbound: avisa (warn, default) ou reprova (block)."
+            }
+          }
+        },
+        "secrets": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Gate mecânico contra segredo hardcoded em arquivo VERSIONADO (check-secrets.sh, rule conventions/no-hardcoded-secrets.md). Roda no pre-commit sobre o índice, no CI sobre o diff do PR e, se declarado em runtime.gates, no pre-push sobre o repositório inteiro. Falha de INTEGRIDADE (conjunto varrido vazio, allowlist malformada) reprova em qualquer modo: um gate que não rodou não pode se reportar verde. Exceções em .forge/secrets-allowlist.txt, com justificativa obrigatória na própria linha.",
+          "properties": {
+            "enforce": {
+              "enum": [
+                "warn",
+                "block"
+              ],
+              "description": "Achado de segredo: avisa (warn) ou reprova (block). A AUSÊNCIA deste bloco resolve para warn, porque o gate não é opt-in — está fiado no pre-commit e no CI — e um repositório existente com passivo herdaria trava no dia da atualização do harness. O forge.yaml do template entrega block explícito: projeto que nasce com o harness nasce sem passivo."
             }
           }
         },

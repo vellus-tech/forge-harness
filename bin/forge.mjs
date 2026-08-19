@@ -22,7 +22,7 @@
 // the derived defaults without prompting. Exit codes: 0 ok · 2 usage · 3 .forge already exists.
 import {
   cpSync, existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync,
-  renameSync, appendFileSync, rmSync,
+  renameSync, appendFileSync, rmSync, realpathSync,
 } from 'node:fs';
 import { join, resolve, dirname, basename, relative, sep } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -182,26 +182,57 @@ Interativo quando há TTY e faltam dados; caso contrário usa os padrões.`;
 
 function fail(msg, code = 1) { console.error(`FAIL (${msg})`); process.exit(code); }
 
-// Wires core.hooksPath to .forge/hooks/git — used by both init and update. Never overwrites a
-// custom, non-Forge hooksPath the project already had: core.hooksPath lives in .git/config, which
-// is shared across all worktrees of a repo (unless extensions.worktreeConfig is on), so silently
-// stomping it from a linked worktree (e.g. `forge update` run inside .forge/worktrees/<id>/) would
-// disable the project's own hooks everywhere, including its main checkout, without any warning.
+// Resolve o CHECKOUT PRINCIPAL de um caminho que pode ser um worktree linkado. `--git-common-dir`
+// devolve o `.git` compartilhado por todos os worktrees; o diretório que o contém é o tronco.
+// `--path-format=absolute` (git >= 2.31) é necessário porque, no próprio checkout principal,
+// `--git-common-dir` devolveria `.git` relativo — e o dirname disso seria o worktree corrente,
+// exatamente o que se quer evitar. Degrada para `--show-toplevel` em git antigo.
+function mainCheckoutOf(target) {
+  try {
+    const common = execFileSync('git', ['-C', target, 'rev-parse', '--path-format=absolute', '--git-common-dir'], { encoding: 'utf8' }).trim();
+    if (common && common.startsWith(sep)) return dirname(common);
+  } catch { /* git < 2.31, ou não é repositório */ }
+  try { return execFileSync('git', ['-C', target, 'rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim() || target; } catch { return target; }
+}
+
+// Aponta core.hooksPath para os hooks do TRONCO, por caminho ABSOLUTO — usado por init e update.
+//
+// Por absoluto: core.hooksPath vive no .git/config, que é compartilhado por todos os worktrees, e
+// um valor RELATIVO é resolvido por cada worktree contra a PRÓPRIA árvore — que carrega a cópia
+// antiga dos hooks daquela branch. O efeito é que um hook novo, versionado e já mergeado, não
+// bloqueia nada em nenhum worktree ativo, e a única evidência disso é o commit proibido passando
+// em silêncio. Um caminho absoluto para o tronco faz todo worktree executar o hook do tronco.
+//
+// O preço é que o valor passa a ser específico da máquina e do caminho do clone: mover ou
+// renomear o diretório quebra o apontamento. Como core.hooksPath JÁ era config local não
+// versionada (some num clone novo, some num runner de CI), o preço é de grau, não de espécie — e
+// o doctor passa a verificar e a acusar o apontamento quebrado.
+//
+// Nunca sobrescreve um hooksPath customizado de verdade (`.githooks` e afins). O valor legado
+// relativo `.forge/hooks/git` NÃO conta como customizado: ele é nosso, e é o defeito — esse é
+// migrado para absoluto com a razão impressa.
+const HOOKS_PATH_LEGACY = '.forge/hooks/git';
 function wireHooksPath(target) {
   let isRepo = false;
   try { execFileSync('git', ['-C', target, 'rev-parse', '--git-dir'], { stdio: 'ignore' }); isRepo = true; } catch { /* not a repo */ }
   if (!isRepo) { console.log("git: não é um repositório — hooks não configurados (rode 'git init' + doctor depois)"); return; }
+  const root = mainCheckoutOf(target);
+  const desired = join(root, '.forge', 'hooks', 'git');
   let cur = '';
   try { cur = execFileSync('git', ['-C', target, 'config', '--get', 'core.hooksPath'], { encoding: 'utf8' }).trim(); } catch { /* unset */ }
-  if (cur === '.forge/hooks/git') return; // already correct, no-op
-  if (cur) {
+  if (cur === desired) return; // já correto, no-op
+  if (cur && cur !== HOOKS_PATH_LEGACY) {
     console.log(`git: core.hooksPath já customizado para '${cur}' — preservado (não sobrescrito).`);
     console.log(`  Os hooks do Forge (.forge/hooks/git/*) não estão ativos; encadeie-os no seu hook`);
     console.log('  customizado se quiser o gate de pre-push de docs e o guard de pre-commit de worktree.');
     return;
   }
-  execFileSync('git', ['-C', target, 'config', 'core.hooksPath', '.forge/hooks/git'], { stdio: 'ignore' });
-  console.log('git: core.hooksPath -> .forge/hooks/git');
+  execFileSync('git', ['-C', target, 'config', 'core.hooksPath', desired], { stdio: 'ignore' });
+  if (cur === HOOKS_PATH_LEGACY) {
+    console.log(`git: core.hooksPath '${HOOKS_PATH_LEGACY}' -> '${desired}' (absoluto — worktrees passam a rodar os hooks do tronco)`);
+  } else {
+    console.log(`git: core.hooksPath -> ${desired}`);
+  }
 }
 
 // Recursively collect every file path under dir (used by init's placeholder pass and update's overlay).
@@ -426,6 +457,27 @@ async function updateHarness() {
   const forge = join(target, '.forge');
   if (!existsSync(join(forge, 'forge.yaml')))
     fail(`.forge não encontrado em ${target} — use \`npx forge-harness init\` para instalar`, 3);
+
+  // Passo zero: recusa rodar de dentro de um worktree linkado. A maquinaria é versionada DENTRO da
+  // árvore, então um update aplicado num worktree escreve `.forge/**` novo apenas naquela branch —
+  // o tronco e todos os outros worktrees continuam com a versão antiga, e quem trabalha neles
+  // recebe verde de gates que não estão rodando. Pior: como `core.hooksPath` vive no `.git/config`
+  // COMUM, o update rodado do worktree reaponta os hooks de TODO o repositório para uma árvore que
+  // é de uma branch só. Não há flag de escape: atualizar maquinaria de dentro de um worktree é
+  // sempre a operação errada, e oferecer um `--allow-worktree` seria oferecer o defeito.
+  // Compara caminhos CANÔNICOS: no macOS /tmp é symlink para /private/tmp e o git devolve o
+  // caminho real, de modo que uma comparação textual acusaria worktree em todo repositório sob
+  // /tmp. Foi o que aconteceu na primeira versão deste guard — e ele matava o gate w94 em
+  // silêncio, sob `set -e`, sem imprimir motivo nenhum.
+  const canon = (pth) => { try { return realpathSync(pth); } catch { return resolve(pth); } };
+  const mainRoot = mainCheckoutOf(target);
+  if (mainRoot && canon(mainRoot) !== canon(target)) {
+    fail(`update rodado de dentro de um worktree linkado (${target}).\n` +
+         `  A maquinaria é versionada na árvore: aplicá-la aqui atualizaria só esta branch, e o\n` +
+         `  tronco mais os demais worktrees ficariam com a versão antiga — recebendo verde de gates\n` +
+         `  que não estão rodando.\n` +
+         `  Rode do checkout principal: (cd ${mainRoot} && npx forge-harness update)`, 4);
+  }
 
   const src = vals.source ? resolve(vals.source) : TEMPLATE_FORGE;
   const version = pkgVersion();

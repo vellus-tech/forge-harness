@@ -7,6 +7,11 @@ on:
 jobs:
   gates:
     runs-on: ubuntu-latest
+    # Teto do job inteiro. Sem ele o default do GitHub é 6 HORAS, e um passo que pendura segura a
+    # fila de todos os PRs abertos sem nunca reportar falha — foi o que aconteceu quando o mirror
+    # apt do runner engasgou: três runs parados quase uma hora no mesmo passo, todos in_progress,
+    # nenhum com veredito. Um CI que não termina é pior que um CI que reprova.
+    timeout-minutes: 25
     steps:
       # fetch-depth: 0 é obrigatório — o motor deriva a árvore pré-correção do histórico
       # (ancestry, revert sintetizado ou enxerto do teste). Com o checkout raso padrão não há
@@ -18,13 +23,43 @@ jobs:
         with:
           node-version: '20'
       - name: Install bats
-        run: sudo apt-get update && sudo apt-get install -y bats
+        timeout-minutes: 8
+        run: |
+          set -uo pipefail
+          # O mirror apt deste runner engasga com frequência — medido: dez runs seguidos parados
+          # neste passo, alguns por quase uma hora, antes de haver teto. Uma tentativa só, curta, e
+          # queda imediata para o registry do npm, que já está quente por causa do `npm ci` logo
+          # abaixo e não depende do mirror Ubuntu.
+          #
+          # A soma dos tetos internos (90 + 60 = 150s) tem de caber FOLGADA dentro do
+          # `timeout-minutes` do passo: se ela estourar primeiro, o GitHub mata o passo inteiro e o
+          # fallback nunca roda — o teto viraria só um jeito mais rápido de falhar. Foi o defeito
+          # da primeira versão deste bloco (duas tentativas de até 300s = 600s contra um teto de
+          # 480s).
+          if timeout 90 sudo apt-get update -qq && timeout 60 sudo apt-get install -y -qq bats; then
+            bats --version && exit 0
+          fi
+          echo "apt indisponível — instalando bats pelo npm"
+          npm install -g bats && bats --version
       - name: Install pyyaml (frontmatter contract test)
         run: python3 -m pip install --user pyyaml || pip3 install --user pyyaml
       - name: Install dev deps (ajv for schema parity)
         run: npm ci || npm install
       - name: Run full gate suite
         run: bash tests/run-all.sh
+
+      # Segredo hardcoded em arquivo versionado (issue #37, rule conventions/no-hardcoded-secrets.md).
+      # No PR, sobre o DIFF: a pergunta ali é o que está ENTRANDO, e reprovar o autor pelo passivo
+      # que ele não criou seria ruído. Num push para main/develop, sobre o repositório inteiro,
+      # porque ali a pergunta é o passivo acumulado. Nos dois casos num runner que o autor do PR
+      # não controla — o gate local é conveniência, este é autoridade.
+      - name: Segredo em arquivo versionado (check-secrets)
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            FORGE_ROOT="$PWD" bash template/.forge/scripts/check-secrets.sh range "${{ github.event.pull_request.base.sha }}..HEAD"
+          else
+            FORGE_ROOT="$PWD" bash template/.forge/scripts/check-secrets.sh path "$PWD"
+          fi
 
       # Red-first (LDG-0004): a execução que vale é esta, num runner que o autor do PR não
       # controla. Reexecuta o replay de todo change ativo type:bugfix e reprova o build se o Red

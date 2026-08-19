@@ -11,7 +11,7 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync } from 'node:fs';
 import { join, resolve, relative, extname, dirname, basename } from 'node:path';
 import { createHash } from 'node:crypto';
-import { parseYamlSubset } from './yaml-lite.mjs';
+import { readForgeFrontmatter, compileLayerMap, resolveLayer, layerCoverage } from './graph-layers.mjs';
 
 const root = resolve(process.argv[2] || '.');
 const outArg = process.argv.indexOf('--out');
@@ -53,24 +53,18 @@ const CENSUS_EXT = {
 const SKIP_FILE = /\.min\.(js|css)$|\.bundle\.js$/;
 
 // ── governance: authz:/observability: blocks from FORGE.md frontmatter (§2.3) ──
-// Zero-dep, same yaml-lite parser validate-spec.mjs already uses — no second YAML
-// dialect (NFR-01). Absence of FORGE.md, or of the blocks themselves, is a no-op:
+// The frontmatter itself is read once by readForgeFrontmatter (lib/graph-layers.mjs) with the
+// same zero-dep yaml-lite parser validate-spec.mjs uses — no second YAML dialect (NFR-01) and
+// no second read of the file. Absence of FORGE.md, or of the blocks themselves, is a no-op:
 // governanceBlocks stays {} and no node gets tagged, no `governance` is emitted
 // (REQ-11 AC — never a false positive). This never touches the awk parsers of
 // spec-verify.sh/pre-push, which only read `runtime:`.
-function readGovernanceBlocks(repoRoot) {
-  const forgeMdPath = join(repoRoot, '.forge', 'FORGE.md');
-  if (!existsSync(forgeMdPath)) return {};
-  try {
-    const text = readFileSync(forgeMdPath, 'utf8');
-    const m = text.match(/^---\n([\s\S]*?)\n---/);
-    if (!m) return {};
-    const fm = parseYamlSubset(m[1]);
-    const out = {};
-    if (fm.authz && typeof fm.authz === 'object' && !Array.isArray(fm.authz)) out.authz = fm.authz;
-    if (fm.observability && typeof fm.observability === 'object' && !Array.isArray(fm.observability)) out.observability = fm.observability;
-    return out;
-  } catch { return {}; } // malformed frontmatter → no-op, never a false positive
+function readGovernanceBlocks(fm) {
+  const out = {};
+  if (!fm || typeof fm !== 'object') return out;
+  if (fm.authz && typeof fm.authz === 'object' && !Array.isArray(fm.authz)) out.authz = fm.authz;
+  if (fm.observability && typeof fm.observability === 'object' && !Array.isArray(fm.observability)) out.observability = fm.observability;
+  return out;
 }
 
 // glob → RegExp: `*` matches within one path segment (never `/`). The pattern
@@ -84,7 +78,11 @@ function globToRegExp(glob) {
   return new RegExp(`^${escaped}(?:/.*)?$`);
 }
 
-const governanceBlocks = readGovernanceBlocks(root);
+// Uma leitura só do frontmatter do FORGE.md serve os dois consumidores: os blocos de
+// governança (§2.3) e o bloco `codegraph:` do mapa de camadas declarável (issue #38).
+const forgeFrontmatter = readForgeFrontmatter(root);
+const governanceBlocks = readGovernanceBlocks(forgeFrontmatter);
+const layerMap = compileLayerMap(forgeFrontmatter);
 const pepPatterns = (governanceBlocks.authz && Array.isArray(governanceBlocks.authz.pep_paths)
   ? governanceBlocks.authz.pep_paths : []).map(globToRegExp);
 const wrapperPatterns = (governanceBlocks.observability && Array.isArray(governanceBlocks.observability.wrapper_paths)
@@ -137,35 +135,10 @@ function structuralFingerprint(src) {
   return createHash('sha256').update(norm).digest('hex');
 }
 
-// Layer classification by path. Two signals: folder conventions (controllers/, domain/…)
-// AND the .NET project-suffix convention (Collatra.Billing.Domain/… → domain), which the
-// folder-only heuristic missed for ~55% of C# files in real solutions (G3). The dotted
-// suffix (\.domain\/) is checked alongside the folder name in each layer.
-function layerOf(id) {
-  const p = id.toLowerCase();
-  if (/(^|\/)(tests?|__tests__|spec)(\/|$)|\.(spec|test|tests)\.|\.tests?(\/|$)/.test(p)) return 'test';
-  // .NET project-suffix is AUTHORITATIVE: the whole project is one layer, regardless of
-  // inner folder names (Collatra.X.Infrastructure/Services/ is infrastructure, not application).
-  if (/\.(api|web|host|gateway|bff|presentation)(\/|$)/.test(p)) return 'api';
-  if (/\.(application|usecases?|worker)(\/|$)/.test(p)) return 'application';
-  if (/\.(domain|core)(\/|$)/.test(p)) return 'domain';
-  if (/\.(infrastructure|infra|persistence|messaging|caching|observability|errorhandling)(\/|$)/.test(p)) return 'infrastructure';
-  if (/\.(contracts?|dtos?)(\/|$)/.test(p)) return 'contracts';
-  // folder conventions (non-.NET, or projects without a layer suffix). The
-  // presentation/api and infrastructure sets also carry Android/mobile idioms
-  // (ui/, viewmodel/, screens/, activities & fragments as presentation; network/,
-  // datasource/, remote/, retrofit/ as infrastructure) — the dominant brownfield
-  // profile the Understanding Layer (§16) targets (issue #18). Generic words that
-  // collide with legitimate non-Android domains are deliberately excluded: `compose`
-  // (Docker Compose), `room`/`dao` (chat/booking Room entities, web3 DAO), `local`.
-  if (/(^|\/)(api|controllers?|presentation|web|pages|routes|endpoints?|middlewares?|filters|attributes|ui|views?|viewmodels?|screens?|activity|activities|fragments?|widgets?)(\/|$)/.test(p)) return 'api';
-  if (/(^|\/)(application|usecases?|interactors?|handlers?|services?|commands?|queries|behaviors?)(\/|$)/.test(p)) return 'application';
-  if (/(^|\/)(domain|entities|core|model|models|aggregates?|valueobjects?|events?)(\/|$)/.test(p)) return 'domain';
-  if (/(^|\/)(infrastructure|persistence|repositories|repository|data|datasources?|adapters?|migrations?|network|remote|retrofit)(\/|$)/.test(p)) return 'infrastructure';
-  if (/(^|\/)(contracts?|dtos?|schemas?)(\/|$)/.test(p)) return 'contracts';
-  if (/\.(config|json|ya?ml)$|(^|\/)config(\/|$)/.test(p)) return 'config';
-  return 'unknown';
-}
+// Layer classification: o mapa DECLARADO em `codegraph.layers` (frontmatter do FORGE.md) vence,
+// e a heurística embutida — convenções de pasta + sufixo de projeto .NET — é o default de quem
+// não declarou nada. Ambos vivem em lib/graph-layers.mjs; ver o cabeçalho de lá para o porquê
+// da configuração morar no FORGE.md e não no forge.yaml (issue #38).
 
 // per-language import extraction → resolved internal edges
 const JS_IMPORT = /(?:import\s+(?:[^'"]*?\s+from\s+)?|export\s+[^'"]*?\s+from\s+|require\s*\(\s*|import\s*\(\s*)['"]([^'"]+)['"]/g;
@@ -278,7 +251,13 @@ for (const f of files) {
   const src = read(f);
   const lang = LANG[extname(f)];
   const id = relative(root, f);
-  const node = { id, lang, loc: src.split('\n').length, fingerprint: structuralFingerprint(src), layer: layerOf(id), summary: null };
+  const { layer, declared } = resolveLayer(id, layerMap);
+  const node = { id, lang, loc: src.split('\n').length, fingerprint: structuralFingerprint(src), layer, summary: null };
+  // `taxonomy: "out"` só nasce de uma DECLARAÇÃO explícita de `layer: unknown` — é a afirmação
+  // "a taxonomia domain/application/infrastructure/api/contracts não descreve este path"
+  // (frontend, tooling, conteúdo estático). `unknown` por queda da heurística continua sendo
+  // lacuna, e um repositório que não declara nada produz exatamente o grafo de antes.
+  if (declared && layer === 'unknown') node.taxonomy = 'out';
   const roles = rolesFor(id);
   if (roles.length) node.roles = roles;
   nodes.push(node);
@@ -338,7 +317,10 @@ const graph = {
   generated_at: new Date().toISOString(),
   engine: 'native',
   root,
-  stats: { nodes: nodes.length, edges: edges.length, languages: langs, summaries_stale: summariesStale, census: censusSorted },
+  // layer_coverage é métrica DERIVADA (não muda classificação nenhuma): classificados sobre a
+  // população em escopo da taxonomia. O que o repositório declarou fora da taxonomia sai do
+  // denominador — ver lib/graph-layers.mjs (issue #38).
+  stats: { nodes: nodes.length, edges: edges.length, languages: langs, summaries_stale: summariesStale, census: censusSorted, layer_coverage: layerCoverage(nodes) },
   nodes,
   edges,
 };
@@ -360,6 +342,7 @@ writeFileSync(join(cacheDir, 'fingerprints.json'), JSON.stringify(fp, null, 2) +
 const sum = {}; for (const n of nodes) if (n.summary) sum[n.id] = { fingerprint: n.fingerprint, summary: n.summary };
 writeFileSync(join(cacheDir, 'summaries.json'), JSON.stringify(sum, null, 2) + '\n');
 // report.md (human-readable, deterministic)
+const cov = graph.stats.layer_coverage;
 const byLayer = {};
 for (const n of nodes) byLayer[n.layer] = (byLayer[n.layer] || 0) + 1;
 const report = [
@@ -370,6 +353,10 @@ const report = [
   `- Summaries stale (need LLM curation): ${summariesStale}`, '',
   `## Nodes per layer`, '',
   ...Object.entries(byLayer).sort().map(([l, c]) => `- ${l}: ${c}`), '',
+  `## Layer coverage`, '',
+  `- Classified: ${cov.classified} of ${cov.denominator} node(s) in taxonomy scope` + (cov.ratio === null ? ' (no node in scope — coverage undefined)' : ` (${(cov.ratio * 100).toFixed(1)}%)`),
+  `- Out of taxonomy (declared in codegraph.layers as \`unknown\`): ${cov.out_of_taxonomy} — excluded from the denominator, NOT a gap`,
+  `- Unclassified (heuristic found no layer): ${cov.unclassified}` + (cov.unclassified ? ' — declare the layout in `codegraph.layers` (FORGE.md) if these are backend code' : ''), '',
   `## Unresolved edges (external deps or unknown targets)`, '',
   `- ${edges.filter((e) => !e.resolved).length} unresolved`, '',
 ].join('\n');

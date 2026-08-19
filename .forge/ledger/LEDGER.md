@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**22 itens ativos** · roadmap 4 · tech-debt 12 · known-bug 3 · follow-up 3 · (16 encerrados)
+**23 itens ativos** · roadmap 4 · tech-debt 12 · known-bug 4 · follow-up 3 · (25 encerrados)
 
 ## Roadmap
 
@@ -20,11 +20,13 @@
   SRF-01 hoje sai como WARN porque, sem varredura das rotas reais, não distingue 'a rota não existe' (defeito de código) de 'a task declarou paths: incompleto' (defeito de declaração). MEDIÇÃO REFEITA (2026-08-04) com o scanner corrigido pelos changes route-scan-multifile-mounts e route-scan-dialect-coverage, contra o repositório de referência axis-go-cloud (services, src, apps, axis-device-platform, packages): LADO DO CÓDIGO — 343 rotas resolvidas (o plano original media 41; o 'zero irresolúveis' de então media a estreiteza do reconhecedor) e 83 irresolúveis: 38 producer-not-found, 23 group-path-not-literal, 12 producer-never-invoked, 5 mapgroup-unindexed, 5 route-site-unindexed. Concentrados em axis-device-platform/src (37) e packages/dotnet (14). LADO DECLARADO — 172 endpoints (170 OpenAPI, 9 tabela, 18 checklist; authz-map zero) e 43 irresolúveis, dos quais 41 contract-without-paths. CRUZAMENTO — SUR-01 = inconclusive, 49 abstidos, 5 kinds de blocker. Ou seja: promover hoje resultaria num gate que NÃO dispara neste repositório. SRF-01 EM CHANGES REAIS — 35 changes analisados, 8 com achado, 11 achados no total. Classificados contra o oráculo: 7 (64%) NÃO citam endpoint literal (a célula do checklist é prosa: 'endpoints de publicação no bff + tela admin') e o oráculo não ajuda a decidir; 2 citam endpoint que EXISTE no código (defeito de declaração); 2 citam endpoint AUSENTE (defeito de código OU fora do alcance — e com 83 irresolúveis não dá para afirmar qual). CONCLUSÃO: a premissa do item — 'com o route-scan o SRF-01 passa a distinguir os dois defeitos' — vale para 4 dos 11 achados (36%). O pré-requisito que falta não é o oráculo: é o checklist citar endpoint literal, e a cegueira do scanner cair. Promoção NÃO recomendada nesta medição.
 - **LDG-0003** [open] — Maquinaria de capability packs no harness (forge.yaml packs:, installer materializa só packs ativos)
 
-_Encerrados: 1 (resolved 1)_
+_Encerrados: 2 (resolved 2)_
 
 ## Ideias de feature
 
-_(nenhum)_
+_(nenhum ativo)_
+
+_Encerrados: 1 (resolved 1)_
 
 ## Dívida técnica
 
@@ -53,7 +55,7 @@ _(nenhum)_
 - **LDG-0038** [open] (P3/low) — red-replay.mjs não detecta clone shallow — devolve not-possible genérico em vez de mensagem acionável
   Achado da revisão adversarial (PR #45): deriveBase() em red-replay.mjs devolve not-possible com razão genérica quando o histórico git é insuficiente (clone shallow), mandando o autor rodar /forge:red replay de novo — conselho errado, já que o problema é do ambiente (fetch-depth), não do comando. Um git rev-parse --is-shallow-repository no início da função daria a mensagem certa ('repositório raso — configure fetch-depth: 0').
 
-_Encerrados: 10 (promoted 1 · resolved 8 · wont-fix 1)_
+_Encerrados: 11 (promoted 1 · resolved 9 · wont-fix 1)_
 
 ## Bugs conhecidos
 
@@ -63,8 +65,10 @@ _Encerrados: 10 (promoted 1 · resolved 8 · wont-fix 1)_
   Achado incidental na TASK-17 do change gate-assert-visibility, ao converter a asserção bare do cenário [5] de tests/w43-c4-gate.sh (a asserção mascarava a própria reprovação: 'grep -rq A && ! grep -rEq B' sob set -e — quando A falha, A não é o último comando da lista && e fica isento de set -e, então o gate seguia para OK [5] sem nunca avaliar B). Duas lacunas distintas em template/.forge/scripts/lib/c4-gen.mjs, ambas reproduzidas por execução direta, não inferidas. (1) Boundary de arquivo único não gera component view: a linha 'if (allFiles.length < 2) continue;' (c4-gen.mjs:127, presente desde a introdução em cda9ecb) pula o C3 do boundary, e como C1 só mostra sistema+externals e C2 agrega por boundary ('src/domain (1)'), o nome do arquivo nunca é renderizado em nível nenhum. Comportamento assimétrico: boundary de 2 arquivos expõe os nomes, o de 1 arquivo some — e contradiz o espírito declarado do próprio gerador para o caminho de boundary grande (c4-gen.mjs:30, 'nenhum arquivo some, só sobe de abstração'). (2) O C3 de boundary pequeno desenha APENAS arestas intra-boundary: c4-gen.mjs:137-140 exige que AMBOS os extremos estejam em 'inset' (os arquivos do próprio boundary), então toda dependência de saída é descartada. Esta é a metade mais consequente, porque o diagrama fica afirmativamente enganoso, não só incompleto: no C4 canônico a Component view mostra os componentes/containers externos com que o boundary conversa. REPRODUÇÃO: mini-repo TS com src/domain/money.ts (único arquivo do boundary) e services/billing/{invoice.ts,payment.ts}, onde invoice.ts importa '../../src/domain/money'; rodar graph.sh build + c4.sh. Resultado observado: gera só c1-context.md, c2-container.md e c3-component-services-billing.md; 'grep -r money .forge/graph/c4/' não retorna NADA; e c3-component-services-billing.md sai com f0["invoice ts"] e f1["payment ts"] e ZERO arestas, apesar de a única aresta resolvida do grafo (invoice.ts -> money.ts) partir dali. O rastro da dependência sobrevive só no C2, como 'c0 --> c1' entre boundaries. NOTA DE COBERTURA: enquanto (2) valer, o ramo de renderização de aresta intra-boundary (c4-gen.mjs:139) era código morto no gate w43 — a fixture só tinha aresta cross-boundary e o cenário [7] exercita o ramo agregado. A TASK-17 passou a cobri-lo ao dar 2 arquivos a src/domain (currency.ts importando ./money), que é também o que destrava o cenário [5]. Corrigir o gerador ficou FORA de escopo do gate-assert-visibility (change puramente mecânico de visibilidade de falha): mudaria o artefato gerado de todo projeto consumidor e exige decisão de design sobre o que uma Component view deve mostrar (nó externo tracejado? C3 de nó único?).
 - **LDG-0032** [open] (P3) — tests/w111-liaison-sync-gate.sh:259 é uma asserção vazia (grep ... && true — sempre verdadeira) · via `gate-assert-visibility`
   Achado durante a varredura completa do LDG-0012 no bugfix.md do change gate-assert-visibility. A linha 'grep -rn "gh " "...transports/gh.sh" | grep -vq "^.*#" && true' sempre avalia para true (o '&& true' descarta qualquer status de saída), então esta asserção nunca reprova, independentemente do conteúdo real de transports/gh.sh. Tem marcador de cenário '[12]' acima (linha 258), então bateria com o critério objetivo do LDG-0012 (marcador [n] presente = candidato a conversão), mas é uma classe de defeito DIFERENTE — não é morte/passagem silenciosa sob set -e, é uma asserção estruturalmente vazia. Fora do escopo do gate-assert-visibility (que corrige só o idioma bare && sob set -e). Corrigir provavelmente remove o '&& true' redundante, deixando o grep -vq como a asserção real (o script já continua com o if seguinte que faz a checagem de verdade — avaliar se a linha é vestigial e pode ser removida, ou se faltou uma checagem que ela deveria fazer).
+- **LDG-0040** [open] (P3) — doctor: guard de placeholders varre specs arquivadas e o baseline, e acusa <PROJECT_*> literal
+  No próprio forge-harness o doctor reporta '3 arquivo(s) com placeholders <PROJECT_*> não preenchidos'. Os arquivos são .forge/specs/archived/2026-08-03-forge-update-command/{design,requirements,spec-delta} e .forge/product/current/capabilities/forge-harness-template/spec.yaml, onde <PROJECT_*> aparece como TEXTO descrevendo o template, não como placeholder a preencher. O guard deve restringir a varredura ao que o init materializa (raiz do harness instalado) e excluir specs arquivadas, worktrees e o baseline — hoje ele produz um vermelho permanente que ensina a ignorar o doctor. Relacionado: o mesmo doctor acusa AGENTS.md ausente e CLAUDE.md que não resolve, que é o dogfood raiz deliberadamente incompleto deste repositório.
 
-_Encerrados: 2 (resolved 2)_
+_Encerrados: 8 (resolved 8)_
 
 ## Follow-ups
 

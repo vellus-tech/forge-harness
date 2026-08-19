@@ -21,6 +21,20 @@ S="$T/.forge/scripts"
             bash "$S/spec-transition.sh" feat-conf tasks-ready >/dev/null)
 D="$T/.forge/specs/active/feat-conf"
 
+# Este gate mede a precedência do BLOCKER de analysis.md, não o story sharding. Desde a issue #35,
+# porém, um change scale >= 3 também precisa estar shardado para alcançar `implementing` — sem
+# declarar a dispensa, os cenários [1] a [3] passariam a medir a mensagem errada (reprovariam por
+# falta de stories, não por BLOCKER, e o [3] nunca liberaria). A dispensa é a rota oficial e em
+# BLOCK STYLE, que é a única que o yaml-lite parseia (LDG-0033); usá-la aqui exercita de quebra
+# que ela de fato funciona ponta a ponta no spec-transition.
+cat >> "$D/manifest.yaml" <<'EOF'
+quick_plan:
+  enabled: true
+  skipped_phases:
+    - story-sharding
+  justification: "fixture do gw1 mede precedência de BLOCKER em analysis.md, não story sharding"
+EOF
+
 echo "[1] analysis.md com BLOCKER trava implementing"
 cat > "$D/analysis.md" <<'EOF'
 # Analysis — feat-conf

@@ -26,6 +26,12 @@
 
 {{QUARANTINE}}
 
+## Posições retidas por divergência (reescrita de história)
+
+> Cada linha é uma POSIÇÃO (`seq`) de um remetente cuja versão vinda do hub conflita com a versão já conhecida aqui. As demais mensagens do mesmo remetente continuam sendo aplicadas normalmente. A saída legítima é a origem restaurar a linha ou republicar o conteúdo com `seq` novo — o log é append-only e não reescreve história.
+
+{{DIVERGENCES}}
+
 ## Diagnósticos (não bloqueantes)
 
 {{DIAGNOSTICS}}

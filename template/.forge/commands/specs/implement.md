@@ -12,8 +12,9 @@ Argumentos: `$ARGUMENTS` (change-id opcional; sem argumento, use o único change
 1. Status `tasks-ready` (ou `implementing` — retomada idempotente: continue da primeira task não-`[X]`).
 2. **Scale ≥ 3:** `analysis.md` deve existir sem achados BLOCKER abertos (`/forge:analyze` é obrigatório antes — pare e indique se ausente).
 3. **Scale ≥ 3:** trabalhe em worktree dedicado — carregue a skill `using-git-worktrees` (localização canônica `.forge/worktrees/<change-id>`).
-4. Primeira execução: `bash .forge/scripts/spec-transition.sh <change-id> implementing`.
-5. **Grafo:** se `graph.enabled: true` no `forge.yaml`, rode `bash .forge/scripts/graph.sh update` antes de iniciar o loop — idempotente e de custo zero quando nada mudou estruturalmente desde o último build (§16.2); mantém o grafo fresco ao longo de toda a implementação, sem depender só da auto-recuperação tardia do `/forge:archive`.
+4. **Scale ≥ 3: story sharding obrigatória** (§17.1) — rode `bash .forge/scripts/validate-spec.sh <change-id>` **antes** de qualquer transição ou task. O guard (lib/story-shard.mjs, via validate-spec.mjs) reprova fechado quando `dev_loop.sharded`/`dev_loop.epic_context_compiled` não forem `true`, ou quando `stories/` não existir, estiver vazio, não cobrir cada TASK de `tasks.md` exatamente uma vez, ou tiver ciclo em `depends_on` — em qualquer um desses casos, **pare** e rode `/forge:shard <change-id>` antes de prosseguir. Dispensa excepcional só via `quick_plan.enabled: true` com `story-sharding` em `skipped_phases` (bloco style — array flow-style não é parseado e reprova fechado, LDG-0033) e `justification` preenchida; nunca uma omissão silenciosa. Este mesmo check já roda dentro da transição do passo 5 (via `spec-transition.sh`) — rodá-lo aqui cobre também a retomada idempotente do passo 1, onde a transição não é reexecutada.
+5. Primeira execução: `bash .forge/scripts/spec-transition.sh <change-id> implementing`.
+6. **Grafo:** se `graph.enabled: true` no `forge.yaml`, rode `bash .forge/scripts/graph.sh update` antes de iniciar o loop — idempotente e de custo zero quando nada mudou estruturalmente desde o último build (§16.2); mantém o grafo fresco ao longo de toda a implementação, sem depender só da auto-recuperação tardia do `/forge:archive`.
 
 ## Modo story-by-story (quando `dev_loop.sharded: true`)
 

@@ -1,6 +1,6 @@
 ---
 description: Canal de mensagens ORDENADAS entre agentes de repositórios distintos (ex.: dono do .proto/gRPC e app cliente) — elimina drift de handoff manual. Store JSONL append-only por remetente, thread como campo, relógio de Lamport por thread, abertura de thread e entrada de participante como mensagens auditáveis. Transporte plugável (fs, git, manual) com sync idempotente e merge append-only. Operado por script determinista — exceto o subcomando ask, consulta síncrona a um peer sob mandato read-only.
-argument-hint: "[open|thread|send|ask|inbox|read|ack|status|export|import|peer|transport|sync|render] [flags]"
+argument-hint: "[open|thread|send|ask|inbox|read|ack|status|conflicts|export|import|peer|transport|sync|render] [flags]"
 ---
 
 # /forge:liaison — canal de mensagens ordenadas entre repositórios
@@ -58,7 +58,9 @@ bash .forge/scripts/liaison-ops.sh ack <channel> <msg_id> [--subject "<txt>"]
 # consultar
 bash .forge/scripts/liaison-ops.sh inbox  <channel> [--thread <id>]   # não lido por thread
 bash .forge/scripts/liaison-ops.sh read   <channel> --upto <msg_id>   # avança o cursor local
-bash .forge/scripts/liaison-ops.sh status [<channel>]                 # one-line
+bash .forge/scripts/liaison-ops.sh status [<channel>]                 # one-line + posições retidas
+bash .forge/scripts/liaison-ops.sh conflicts list <channel>          # o que está retido, e o que fazer
+bash .forge/scripts/liaison-ops.sh conflicts resolve <channel> <sender> <seq>  # republica em seq novo
 
 # sincronização manual (a primitiva — sempre disponível, sem configurar nada)
 bash .forge/scripts/liaison-ops.sh export <channel> --out <dir>
@@ -104,6 +106,14 @@ mensagens que o dono do log já havia enviado.
 nunca desliga a sincronização em silêncio contra um default inventado — o canal ficaria mudo com
 cara de funcionando.
 
+**O canal mora no TRONCO, não na branch.** `liaison-ops.sh`, a cobrança de ack e o SessionStart resolvem o `ROOT` pelo `.git` compartilhado (`--git-common-dir`), nunca pelo `--show-toplevel`. É o que mantém o invariante do store: **um escritor por arquivo de remetente**. Resolvido pelo worktree, cada branch ganharia a sua cópia de `log/<self>.jsonl` com o próprio contador de `seq`, e duas branches escrevendo em paralelo produziriam duas mensagens diferentes na MESMA posição — que é como um ack legítimo já ficou inacessível ao destinatário. Entre máquinas distintas nenhuma verificação local alcança: ali o escritor único é acordo, e a evidência de que foi quebrado é o `seq` colidindo do lado de quem recebe.
+
+**`status` e `render` sinalizam `created_at` incoerente com a causalidade** — mensagem cujo `created_at` é anterior ao da mensagem que ela responde (`in_reply_to`). Não bloqueia e não reordena nada: a ordem da thread é `(lamport, sender, seq)` e nunca timestamp. É diagnóstico barato de um defeito caro — um relógio de parede inconsistente costuma ser a primeira pista visível de que duas cópias do mesmo log estão escrevendo em paralelo.
+
+**`conflicts list` enumera o que está retido e `conflicts resolve` traz o conteúdo de volta.** O conteúdo de uma posição retida NUNCA entra no log local: para quem recebe, ele simplesmente não existe. `resolve` o republica numa sequência nova do seu próprio log — o único caminho legítimo num log append-only — com `authored_by` do autor real e `resolves` apontando a posição de origem, e sempre como `note`: reemitir um `ack` ou um `contract-change` como se fosse seu falsificaria autoria de decisão, e a cobrança de ack conta exatamente isso. Republicar não corrige a divergência (só a origem pode), e republicar duas vezes é recusado.
+
+**`status` e `render` NOMEIAM as posições retidas por divergência** — remetente, `seq` e `msg_id`, uma linha por posição, além do contador. Um remetente calado é indistinguível de um remetente quieto, e um total agregado esconde exatamente isso: a réplica parece saudável enquanto uma fatia do canal não chega. Se aparecer alguma linha `! quarentena por divergência`, a ação é na ORIGEM (restaurar a linha reescrita, ou republicar o conteúdo com `seq` novo) — a réplica não tem como decidir qual versão é a verdadeira.
+
 ## Regras de import (o que protege o canal de um peer malicioso ou corrompido)
 
 - `sender` da mensagem é conferido contra o arquivo em que ela chegou (`log/<X>.jsonl` só pode
@@ -112,17 +122,12 @@ cara de funcionando.
 - Duplicata com `content_sha` igual é **no-op silencioso** — é o que torna `sync` idempotente.
 - Adulteração em trânsito (`content_sha` não confere com o conteúdo) vira conflito em `conflicts/`,
   sem tocar o log.
-- **Reescrita de história REPROVA.** O log de um remetente é append-only: uma posição (`seq`) já
-  conhecida não pode chegar com outro `msg_id` ou outro `content_sha`. Quando chega, é
-  **divergência** — nenhuma mensagem daquele remetente é aplicada, o comando sai com erro nomeando
-  quem divergiu, e o registro vai para `conflicts/<sender>.divergence.json`. A divergência isola o
-  remetente: os demais continuam sendo aplicados, para que um peer corrompido não trave o canal
-  inteiro.
+- **Reescrita de história REPROVA, mas quarentena a POSIÇÃO, não o remetente.** O log de um remetente é append-only: uma posição (`seq`) já conhecida não pode chegar com outro `msg_id` ou outro `content_sha`. Quando chega, é **divergência** — aquela posição vai para quarentena, as demais mensagens do mesmo remetente continuam sendo aplicadas, o comando sai com erro nomeando cada posição retida (`<sender>@seq=<n>`), e cada uma ganha seu registro em `conflicts/<sender>.seq-<n>.divergence.json`. A réplica MANTÉM a versão que já conhecia da posição divergente, então não se abre buraco no log; a exceção é o bundle que traz duas versões da MESMA posição, que é quarentenada por inteiro (não há critério para escolher entre as duas) e aí o buraco de `seq` é reportado nos diagnósticos. O registro some sozinho no `sync` seguinte quando a origem resolve a divergência — restaurando a linha, ou republicando o conteúdo com `seq` novo, que é o caminho legítimo em log append-only.
+- **Divergência isola a posição, nunca cala o remetente.** Descartar o remetente inteiro protegia o mesmo invariante e custava o canal: uma reescrita em duas posições reteve 73 mensagens posteriores íntegras em três réplicas por dias, e o remetente não tinha como notar, porque a réplica dele próprio estava completa (issue #48).
 - Mensagem cujo `thread_id` não tem `thread-open` correspondente **ainda conhecido localmente**
   fica em quarentena (recalculada a cada `render`/`inbox`, nunca persistida à parte) — liberada
   automaticamente assim que a abertura chega.
-- Tetos: corpo inline ≤2 KB (acima disso, use `--body-file`, vira blob ≤64 KB); ≤200 mensagens
-  por chamada de `import` (excedeu = nada é aplicado, atômico).
+- Tetos: corpo inline ≤2 KB (acima disso, use `--body-file`, vira blob ≤64 KB); ≤200 mensagens aplicadas por chamada de `import`/`sync`. **Excedeu o teto, o resto vira LOTE, não descarte:** aplica-se um prefixo por `seq` (o único corte que preserva append-only) e reporta-se quantas faltam — repetir `sync` converge. Não há flag de override do teto de propósito: ele existe para conter bundle malicioso ou corrompido, e uma flag de "recuperação" seria exatamente o que um bundle hostil pediria.
 - `trust` é carimbado no IMPORT (`self` só para o que este repositório escreveu; tudo que veio de
   fora vira `untrusted-peer`, mesmo que a mensagem alegue outra coisa) — nunca decidido pelo
   remetente.

@@ -49,5 +49,32 @@ if [ -n "$harness_md" ]; then
   esac
 fi
 
+# segredo hardcoded em arquivo versionado (rule conventions/no-hardcoded-secrets.md).
+#
+# Sobre o ÍNDICE, que é exatamente o conjunto prestes a virar histórico — e o único momento em que
+# remover a linha ainda resolve. Depois do commit o valor está no histórico e em todos os clones, e
+# a remediação deixa de ser um `git reset` para virar rotação de credencial e análise de exposição.
+#
+# É o único gate deste hook que roda um script do harness em vez de um grep inline, porque a
+# distinção entre segredo e placeholder não cabe num grep: a diferença entre `Password=${DB_PASS}`
+# e `Password=Tr0v4d0r` é o que separa um gate usável de um que vira `--no-verify` de hábito.
+#
+# Opcional por construção: um repositório que não instalou (ou removeu) check-secrets.sh não é
+# penalizado; e `secrets.enforce: warn` no forge.yaml rebaixa os achados para aviso, que é como um
+# brownfield com passivo adota o gate sem travar o time no dia da ativação.
+SECRETS="$ROOT/.forge/scripts/check-secrets.sh"
+if [ -f "$SECRETS" ]; then
+  # Saída capturada: o gate emite uma linha por asserção, e imprimir isso em TODO commit limpo
+  # transformaria o sinal em ruído. Num commit reprovado, sai inteira.
+  # `if ! var="$(cmd)"` e não `var=$(cmd); if [ $? -ne 0 ]`: o segundo idioma depende de nada ser
+  # inserido entre a atribuição e o teste, e a inserção acidental é justamente como um gate deixa
+  # de reprovar sem que ninguém perceba.
+  if ! secrets_out="$(FORGE_ROOT="$ROOT" bash "$SECRETS" staged 2>&1)"; then
+    printf '%s\n' "$secrets_out"
+    echo "pre-commit BLOQUEADO: check-secrets (rule conventions/no-hardcoded-secrets.md)"
+    fail=1
+  fi
+fi
+
 [ "$fail" -eq 0 ] && echo "pre-commit OK" && exit 0
 exit 1

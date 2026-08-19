@@ -1,6 +1,6 @@
 # Relação de Slash Commands — Forge Harness
 
-> Catálogo gerado a partir dos frontmatters em `template/.forge/commands/`. **54 commands** em 10 grupos.
+> Catálogo gerado a partir dos frontmatters em `template/.forge/commands/`. **55 commands** em 10 grupos.
 
 Os `/forge:*` são entregues por um **plugin** do Claude Code (gerado de `.forge/commands/**` por `/forge:build-plugin` ou `bash .forge/scripts/build-plugin.sh`). O Claude Code (>= 2.x) reserva o namespace `:` para plugins — por isso os comandos vivem num plugin `name: forge`, não em `.claude/commands/`. O engine que eles chamam (`.forge/scripts/...`) vem do `.forge/` por projeto (instalado via `npx forge-harness init`).
 
@@ -12,7 +12,7 @@ No Claude Code digite `/` e o nome do command; argumentos vão na mesma linha. E
 
 - [Specs — SDD / Spec-Driven Development](#specs) — 13 commands
 - [Coding — Dev loop & entrega](#coding) — 4 commands
-- [Waves — Planejamento incremental](#waves) — 5 commands
+- [Waves — Planejamento incremental](#waves) — 6 commands
 - [Graph — Knowledge graph & brownfield](#graph) — 8 commands
 - [Docs — Documentação & ADRs](#docs) — 8 commands
 - [Git — Fluxo de entrega](#git) — 1 commands
@@ -69,6 +69,7 @@ _Planejamento e execução por ondas, deferrals e progresso._
 |---|---|---|
 | `/forge:defer` | `[<change-id>] --reason \"<motivo>\" [--blocks \"<item,...>\"]` | Registra uma pendência no ledger do change ativo (§17.4). |
 | `/forge:dev` | `up\|sync\|smoke\|rebuild [--env <dev\|test>] [--clean-branches]` | Ambiente de desenvolvimento local — up (sobe stack), sync (migrations + seeds), smoke (validação pré-PR), rebuild (derruba + rebuild --no-cache + cleanup opcional). |
+| `/forge:pentest` | `activate\|scan <apk-path\|package>\|status\|deactivate` | Toolchain de pentest mobile containerizado sob demanda — activate (shell no container), scan (workflow estático → findings), status (toolchain/device/versões), deactivate (reverte o adb do host e limpa órfãos). Ferramenta manual; só bancada/dev, nunca device fielded. |
 | `/forge:progress` | `[<change-id>]` | Mini-report curto do progresso do change ativo (§17.3). |
 | `/forge:resolve-deferrals` | `[<change-id>] <deferral-id> resolve\|test [--note \"<resolução>\"]` | Marca deferrals do change como resolved (e depois tested). |
 | `/forge:wave` | `plan\|open\|close\|status [<change-id>] [<wave-id>]` | Gerencia o plano de waves do change ativo — plan (deriva waves das stories), open (abre wave respeitando deps), close (fecha com gate), status (one-line). |

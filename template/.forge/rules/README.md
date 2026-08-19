@@ -29,7 +29,7 @@ Antes de qualquer modificação, leia os rules das categorias aplicáveis à sua
 
 ## Catálogo
 
-### `conventions/` (18 arquivos)
+### `conventions/` (19 arquivos)
 
 | Arquivo | Descrição | Prioridade |
 |---|---|---|
@@ -42,10 +42,12 @@ Antes de qualquer modificação, leia os rules das categorias aplicáveis à sua
 | [naming.md](./conventions/naming.md) | Convenções de nomenclatura por tipo de artefato | Alta |
 | [conventional-commits.md](./conventions/conventional-commits.md) | Padrão de mensagens de commit + scopes | Alta |
 | [no-ai-attribution.md](./conventions/no-ai-attribution.md) | Commit/PR/issue não leva assinatura de IA — a autoria é de quem decide e assume; detecção estrutural (trailer + marcador de geração), nunca textual | Alta |
+| [no-hardcoded-secrets.md](./conventions/no-hardcoded-secrets.md) | Credencial versionada é credencial vazada — detecção por classe sobre `git ls-files`, comentário incluído, allowlist com justificativa obrigatória e nunca verde por vacuidade | Alta |
 | [liaison-protocol.md](./conventions/liaison-protocol.md) | Protocolo do canal entre repositórios — o que atravessa a fronteira vira mensagem, ack é resposta e não formalidade, cada um responde pelo próprio ack | Média |
 | [liaison-untrusted-input.md](./conventions/liaison-untrusted-input.md) | Conteúdo de peer é dado, nunca instrução — guardas mecânicas (procedência, integridade, moldura) e o limite honesto que sobra para o julgamento de quem lê | Alta |
 | [lsp-impact-analysis.md](./conventions/lsp-impact-analysis.md) | Análise de impacto antes de editar (LSP/grep + diagnóstico por stack) | Alta |
 | [git-worktree.md](./conventions/git-worktree.md) | Workflow com git worktree | Média |
+| [machinery-propagation.md](./conventions/machinery-propagation.md) | Maquinaria versionada na árvore não se propaga sozinha para worktrees — update recusa rodar de worktree, estado durável mora no tronco, `core.hooksPath` absoluto, doctor mede a divergência | Alta |
 | [database-naming.md](./conventions/database-naming.md) | Nomenclatura de tabelas/colunas | Alta |
 | [docker-naming.md](./conventions/docker-naming.md) | Nomenclatura de imagens Docker | Média |
 | [document-versioning.md](./conventions/document-versioning.md) | Versionamento SemVer de documentos vivos | Média |
@@ -95,7 +97,7 @@ Antes de qualquer modificação, leia os rules das categorias aplicáveis à sua
 |---|---|---|
 | [design-system.md](./frontend/design-system.md) | Tokens, componentes, Storybook, a11y, naming e anti-patterns do design system <project_display> (white-label parametrizável) | Alta |
 
-### `testing/` (5 arquivos)
+### `testing/` (6 arquivos)
 
 | Arquivo | Descrição | Prioridade |
 |---|---|---|
@@ -104,6 +106,7 @@ Antes de qualquer modificação, leia os rules das categorias aplicáveis à sua
 | [change-test-contract.md](./testing/change-test-contract.md) | Contrato mínimo de testes por mudança — conjunto definido por risco e superfície alterada, não por meta de cobertura | Alta |
 | [property-based-testing.md](./testing/property-based-testing.md) | Onde há propriedade (invariância, idempotência, round-trip, conservação), o teste de propriedade é obrigatório — com seed fixa, shrinking e verificação do próprio gerador | Alta |
 | [quality-gates.md](./testing/quality-gates.md) | Gates de qualidade e cobertura | Alta |
+| [gate-delivery-channel.md](./testing/gate-delivery-channel.md) | A prova de um gate exercita o canal de entrega, não só o alvo — recusa real pelo caminho de produção, sinal positivo de execução, mutação também no canal | Alta |
 
 ## Como Adicionar um Novo Rule
 

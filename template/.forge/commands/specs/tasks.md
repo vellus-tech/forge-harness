@@ -53,7 +53,7 @@ Continua sendo seu: **nenhum REQ órfão na tabela de rastreabilidade** (o valid
 bash .forge/scripts/approval-log.sh <change-id> --gate tasks_reviewed --decision <decision> [--reason "<motivo>"] --scope "tasks.md"
 ```
 
-- **Approve** → `bash .forge/scripts/spec-transition.sh <change-id> tasks-ready`. Próximo: `/forge:analyze` (obrigatório em scale ≥3) ou `/forge:implement`.
+- **Approve** → `bash .forge/scripts/spec-transition.sh <change-id> tasks-ready`. Próximo: `/forge:analyze` (obrigatório em scale ≥3) e, também em scale ≥3, `/forge:shard` — `/forge:implement` reprova fechado (`validate-spec.sh`) se `dev_loop.sharded` não estiver `true`.
 - **Review** → ajuste conforme o motivo e reapresente.
 - **Reject**/**Block** → registre e pare.
 

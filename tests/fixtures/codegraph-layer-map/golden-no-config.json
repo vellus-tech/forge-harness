@@ -1,0 +1,205 @@
+{
+  "nodes": [
+    {
+      "id": "apps/web/e2e/checkout.spec.ts",
+      "lang": "ts",
+      "loc": 2,
+      "fingerprint": "0fdf0ff1566501aab0408ad9dc3f0cb6840b2bdded9e790e17e016e2c6ca8468",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "apps/web/src/components/Button.tsx",
+      "lang": "ts",
+      "loc": 2,
+      "fingerprint": "ee213c4e256f360b460a8d7d25d7cadd69ad4bc48e41145b788326dae07930ed",
+      "layer": "api",
+      "summary": null
+    },
+    {
+      "id": "apps/web/src/pages/Home.tsx",
+      "lang": "ts",
+      "loc": 3,
+      "fingerprint": "9a3d337f16c44e286ef0a1b501a4264077e70ed1bde0e480fb0ad274c6afb2e2",
+      "layer": "api",
+      "summary": null
+    },
+    {
+      "id": "legacy/src/Produto.BLL/CalculadoraObsoleta.cs",
+      "lang": "csharp",
+      "loc": 3,
+      "fingerprint": "6dbf4329795fa289a0a22a756cd5b45f9b2629995d0a1e0b318653443c1747ff",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "legacy/src/Produto.BLL/PedidoService.cs",
+      "lang": "csharp",
+      "loc": 4,
+      "fingerprint": "705bf1a7cbaed7db08b4baf41bbc8e503f86d901734df37dd9925267fb057233",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "legacy/src/Produto.DAL/Migrations/001_CriaPedido.cs",
+      "lang": "csharp",
+      "loc": 3,
+      "fingerprint": "98785c8f6186b19ad792f2dcec91e2594f6fab2feeee6d8dd0c9fb1ff3210145",
+      "layer": "infrastructure",
+      "summary": null
+    },
+    {
+      "id": "legacy/src/Produto.DAL/PedidoDao.cs",
+      "lang": "csharp",
+      "loc": 4,
+      "fingerprint": "3549da638ea40a57039eda02c1380ce0e9ecb83f31f0b42a1e2bf7a789f42a27",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "legacy/src/Produto.Entidades/Pedido.cs",
+      "lang": "csharp",
+      "loc": 3,
+      "fingerprint": "fb53d1a6e7f54cb896e0d2772f8da5aae10f3c41bc2911ca623b63911d3962bc",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "legacy/src/Produto.Web/PedidoPage.cs",
+      "lang": "csharp",
+      "loc": 4,
+      "fingerprint": "596b32bd40a16088205c2f523ffdb5a68d041af5f049795f14ce572e6ddd6634",
+      "layer": "api",
+      "summary": null
+    },
+    {
+      "id": "packages/dotnet/Contoso.Messaging.Abstractions/IBus.cs",
+      "lang": "csharp",
+      "loc": 3,
+      "fingerprint": "ccf5b925ab7fa3437d322230aec19985481cb580bb456a85ea032b7310a08f51",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "packages/dotnet/Contoso.Sdk/BillingClient.cs",
+      "lang": "csharp",
+      "loc": 4,
+      "fingerprint": "78d20ffe6ba65e5debe9db844624fe5cbc8109b0d447f5f6a1514edff9e58428",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "platform/src/services/billing/Contoso.Billing.Api/AssemblyMarker.cs",
+      "lang": "csharp",
+      "loc": 3,
+      "fingerprint": "a92ad71cf152b9ebd7ea26364cdfd9a553273b138158461c8b80937d00e2f18a",
+      "layer": "api",
+      "summary": null
+    },
+    {
+      "id": "platform/src/services/billing/Contoso.Billing.Api/InvoiceController.cs",
+      "lang": "csharp",
+      "loc": 4,
+      "fingerprint": "2cba68e52c9a0b3ff94055124123922ea3db85f6ffa1c9f6dae3ac2661ec40cc",
+      "layer": "api",
+      "summary": null
+    },
+    {
+      "id": "platform/src/services/billing/Contoso.Billing.Handlers/IssueInvoiceHandler.cs",
+      "lang": "csharp",
+      "loc": 4,
+      "fingerprint": "6bc8ae56029b41f1ac77d71787600036d181d1311fd2f48a55c96748846dd521",
+      "layer": "application",
+      "summary": null
+    },
+    {
+      "id": "platform/src/shared/Contoso.Shared.Kernel/Guard.cs",
+      "lang": "csharp",
+      "loc": 3,
+      "fingerprint": "88f0fbcafabb10bf8acdffb0d1e4cb863a6590fe836da9cff5b228c108c04e02",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "platform/src/shared/Contoso.Shared.Persistence/InvoiceRepository.cs",
+      "lang": "csharp",
+      "loc": 4,
+      "fingerprint": "9c75787cafa5f0af6e19dd80988b99b0e53dbba4132839f1e3989b707e30dcb1",
+      "layer": "infrastructure",
+      "summary": null
+    },
+    {
+      "id": "tools/codegen/gen.mjs",
+      "lang": "js",
+      "loc": 2,
+      "fingerprint": "04645ad0216a1a346066b861687c2f7bac5d284afe5e73f3789c5092e93bd0d6",
+      "layer": "unknown",
+      "summary": null
+    }
+  ],
+  "edges": [
+    {
+      "from": "apps/web/src/pages/Home.tsx",
+      "to": "apps/web/src/components/Button.tsx",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "legacy/src/Produto.BLL/PedidoService.cs",
+      "to": "legacy/src/Produto.DAL/PedidoDao.cs",
+      "kind": "namespace",
+      "resolved": true
+    },
+    {
+      "from": "legacy/src/Produto.DAL/PedidoDao.cs",
+      "to": "legacy/src/Produto.Entidades/Pedido.cs",
+      "kind": "namespace",
+      "resolved": true
+    },
+    {
+      "from": "legacy/src/Produto.Web/PedidoPage.cs",
+      "to": "legacy/src/Produto.BLL/PedidoService.cs",
+      "kind": "namespace",
+      "resolved": true
+    },
+    {
+      "from": "packages/dotnet/Contoso.Sdk/BillingClient.cs",
+      "to": "packages/dotnet/Contoso.Messaging.Abstractions/IBus.cs",
+      "kind": "namespace",
+      "resolved": true
+    },
+    {
+      "from": "platform/src/services/billing/Contoso.Billing.Api/InvoiceController.cs",
+      "to": "platform/src/services/billing/Contoso.Billing.Handlers/IssueInvoiceHandler.cs",
+      "kind": "namespace",
+      "resolved": true
+    },
+    {
+      "from": "platform/src/services/billing/Contoso.Billing.Handlers/IssueInvoiceHandler.cs",
+      "to": "platform/src/shared/Contoso.Shared.Persistence/InvoiceRepository.cs",
+      "kind": "namespace",
+      "resolved": true
+    },
+    {
+      "from": "platform/src/shared/Contoso.Shared.Persistence/InvoiceRepository.cs",
+      "to": "platform/src/shared/Contoso.Shared.Kernel/Guard.cs",
+      "kind": "namespace",
+      "resolved": true
+    }
+  ],
+  "stats": {
+    "nodes": 17,
+    "edges": 8,
+    "languages": [
+      "csharp",
+      "js",
+      "ts"
+    ],
+    "summaries_stale": 17,
+    "census": {
+      "csharp": 13,
+      "js": 1,
+      "ts": 3
+    }
+  }
+}

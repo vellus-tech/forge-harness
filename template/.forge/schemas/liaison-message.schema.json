@@ -142,9 +142,47 @@
     "via": {
       "type": "string",
       "enum": [
-        "ask-peer"
+        "ask-peer",
+        "divergence-resolve"
       ],
-      "description": "Como o conteúdo de terceiro chegou até aqui. Registrado para que a procedência seja auditável no log, e não inferida. O valor nomeia o MECANISMO (perguntou-se ao peer), não o comando que o disparou."
+      "description": "Como o conteúdo de terceiro chegou até aqui. Registrado para que a procedência seja auditável no log, e não inferida. O valor nomeia o MECANISMO (perguntou-se ao peer; recuperou-se uma posição retida por divergência), não o comando que o disparou."
+    },
+    "resolves": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sender",
+        "seq"
+      ],
+      "description": "Só em mensagens produzidas por `liaison-ops.sh conflicts resolve`: a POSIÇÃO retida por divergência cujo conteúdo esta mensagem republica em sequência nova. Republicar é o único caminho legítimo num log append-only — reescrever a posição de origem seria a própria história reescrita que o import recusa, e escrever no log alheio quebraria o invariante de um escritor por arquivo. O `kind` original fica registrado aqui e NÃO é reemitido: a mensagem republicada é sempre `note`, porque reemitir um `ack` ou um `contract-change` como se fosse nosso falsificaria autoria de decisão.",
+      "properties": {
+        "sender": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "msg_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "content_sha": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "kind": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
     }
   },
   "allOf": [

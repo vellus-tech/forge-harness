@@ -12,7 +12,8 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { renderUntrusted } from './untrusted-render.mjs';
 import { join } from 'node:path';
-import { mergeLogs } from './liaison-merge.mjs';
+import { mergeLogs, formatSkew } from './liaison-merge.mjs';
+import { readQuarantinedPositions } from './liaison-import.mjs';
 
 const env = process.env;
 const channel = env.LIAISON_CHANNEL;
@@ -43,7 +44,10 @@ function readAllMessages(dir) {
 }
 
 const messages = readAllMessages(channelDir);
-const { threads, quarantined, gaps, forks } = mergeLogs(messages);
+const { threads, quarantined, gaps, forks, clockSkews } = mergeLogs(messages);
+// Posições retidas por reescrita de história (issue #48). Vêm de conflicts/, não do merge: são
+// mensagens que NUNCA entraram no log local, então nenhuma leitura dos *.jsonl as revelaria.
+const divergentPositions = readQuarantinedPositions(channelDir);
 
 const threadIds = Object.keys(threads).sort((a, b) => {
   const ta = threads[a].opened_at || '';
@@ -98,16 +102,30 @@ function renderQuarantine() {
   return quarantined.map((m) => `- \`${m.msg_id}\` (thread \`${m.thread_id}\`, remetente \`${m.sender}\`) — ${m.quarantine_reason}`).join('\n');
 }
 
+function renderDivergences() {
+  if (!divergentPositions.length) return '_(nenhuma)_';
+  const sh = (v) => (v ? String(v).slice(0, 12) : '?');
+  return divergentPositions.map((p) => `- \`${p.sender}\`@seq=${p.seq} — recebida \`${p.msg_id || '?'}\` (\`${sh(p.content_sha)}\`), conhecida localmente \`${p.known_msg_id || '?'}\` (\`${sh(p.known_content_sha)}\`) · registro em \`conflicts/${p.file}\``).join('\n');
+}
+
 function renderDiagnostics() {
   const parts = [];
   if (gaps.length) parts.push(gaps.map((g) => `- **buraco de seq** em \`${g.sender}\`: faltando ${g.missing.join(', ')}`).join('\n'));
   if (forks.length) parts.push(forks.map((f) => `- **fork** em \`${f.sender}\` seq ${f.seq}: ${f.msg_ids.join(' vs ')}`).join('\n'));
+  // created_at incoerente com a causalidade: a resposta é anterior à mensagem que ela responde.
+  // Não bloqueia e não reordena nada (a ordem é lamport/sender/seq) — é sinal de relógio de parede
+  // errado, que no caso da issue #36 era a única pista externa de que o log de um remetente estava
+  // sendo escrito por duas cópias em paralelo.
+  if (clockSkews.length) {
+    parts.push(clockSkews.map((c) => `- **created_at incoerente** em \`${c.msg_id}\` (\`${c.sender}\`, thread \`${c.thread_id}\`): \`${c.created_at}\` é ANTERIOR ao de \`${c.in_reply_to}\` (\`${c.ref_created_at}\`, \`${c.ref_sender}\`), que ela responde — ${formatSkew(c.behind_ms)} antes. A ordem da thread não depende de timestamp; suspeite do relógio da origem ou de duas cópias do mesmo log escrevendo em paralelo.`).join('\n'));
+  }
   return parts.length ? parts.join('\n') : '_(nenhum)_';
 }
 
 const totalMessages = threadIds.reduce((s, id) => s + threads[id].order.length, 0);
-const summary = threadIds.length || quarantined.length
-  ? `**${threadIds.length} thread(s)** · ${totalMessages} mensagem(ns) · ${quarantined.length} em quarentena`
+const divergentBit = divergentPositions.length ? ` · ${divergentPositions.length} posição(ões) retida(s) por divergência` : '';
+const summary = threadIds.length || quarantined.length || divergentPositions.length
+  ? `**${threadIds.length} thread(s)** · ${totalMessages} mensagem(ns) · ${quarantined.length} em quarentena${divergentBit}`
   : '_(canal vazio — nenhuma mensagem ainda)_';
 
 let content = readFileSync(tplPath, 'utf8');
@@ -118,6 +136,7 @@ content = content
   .replaceAll('{{THREAD_INDEX}}', renderThreadIndex())
   .replaceAll('{{THREAD_VIEWS}}', renderThreadViews())
   .replaceAll('{{QUARANTINE}}', renderQuarantine())
+  .replaceAll('{{DIVERGENCES}}', renderDivergences())
   .replaceAll('{{DIAGNOSTICS}}', renderDiagnostics());
 
 // Preserva o bloco narrativo já escrito ("Notas") entre regenerações.

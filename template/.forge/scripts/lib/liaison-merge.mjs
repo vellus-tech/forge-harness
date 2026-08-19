@@ -124,6 +124,65 @@ export function detectForks(messages) {
   return forks.sort((a, b) => a.sender.localeCompare(b.sender) || a.seq - b.seq);
 }
 
+// Causalidade de relógio de PAREDE (diagnóstico NÃO bloqueante, issue #36). A ordem da thread é
+// (lamport, sender, seq) e nunca timestamp — por isso um `created_at` errado não corrompe nada e
+// não pode reter mensagem. Mas ele é sintoma barato de detectar de um defeito caro: no caso
+// reportado, o log de um remetente estava sendo escrito por DUAS cópias em paralelo, cada uma com
+// o relógio da própria máquina, e o primeiro sinal disponível era um `ack` datado quase um dia
+// ANTES da mensagem que ele respondia. O Lamport da thread estava coerente, o de parede não, e
+// nada sinalizava.
+//
+// Só compara contra a mensagem REFERENCIADA em `in_reply_to`, e só quando ela já é conhecida
+// localmente: sem a referência não há relação causal a violar, e acusar por ausência transformaria
+// sincronização parcial (que é o estado normal do canal) em ruído permanente. Datas ilegíveis são
+// ignoradas em silêncio aqui — forma de envelope é assunto de validateEnvelope, não deste
+// diagnóstico.
+//
+// Date.parse e não comparação de string: os dois carimbos podem vir com offsets diferentes
+// (-03:00 e Z são o formato real produzido por `git log %cI` em máquinas distintas), e "2026-07-30T
+// 23:00:00Z" é POSTERIOR a "2026-07-30T21:00:00-03:00" apesar de ordenar antes lexicograficamente.
+export function detectClockSkew(messages) {
+  const byId = new Map();
+  for (const m of messages) if (m && m.msg_id !== undefined && m.msg_id !== null && !byId.has(m.msg_id)) byId.set(m.msg_id, m);
+  const out = [];
+  for (const m of byId.values()) {
+    if (!m.in_reply_to) continue;
+    const ref = byId.get(m.in_reply_to);
+    if (!ref) continue;
+    const t = Date.parse(m.created_at || '');
+    const tRef = Date.parse(ref.created_at || '');
+    if (!Number.isFinite(t) || !Number.isFinite(tRef)) continue;
+    if (t >= tRef) continue;
+    out.push({
+      sender: m.sender,
+      msg_id: m.msg_id,
+      seq: Number(m.seq) || 0,
+      thread_id: m.thread_id,
+      kind: m.kind,
+      created_at: m.created_at,
+      in_reply_to: ref.msg_id,
+      ref_sender: ref.sender,
+      ref_created_at: ref.created_at,
+      behind_ms: tRef - t,
+    });
+  }
+  return out.sort((a, b) => String(a.msg_id).localeCompare(String(b.msg_id)));
+}
+
+// Formata a defasagem para leitura humana (dias/horas/minutos). Um número em milissegundos não diz
+// se o relógio está minutos ou um dia fora, que é justamente a diferença entre ruído e defeito.
+export function formatSkew(ms) {
+  const total = Math.max(0, Math.round(Number(ms) / 1000));
+  const d = Math.floor(total / 86400);
+  const h = Math.floor((total % 86400) / 3600);
+  const min = Math.floor((total % 3600) / 60);
+  const bits = [];
+  if (d) bits.push(`${d}d`);
+  if (h) bits.push(`${h}h`);
+  if (min || !bits.length) bits.push(`${min}min`);
+  return bits.join(' ');
+}
+
 // --- Merge central ------------------------------------------------------------
 
 // Recebe o conjunto (união) de mensagens de TODOS os arquivos log/<sender>.jsonl atualmente
@@ -131,7 +190,7 @@ export function detectForks(messages) {
 //   threads[thread_id] = { subject, opened_by, participants[], order: [msg_id...], messages[] }
 //   quarantined: mensagens cuja thread não tem thread-open correspondente (ainda) — retidas até
 //     a abertura chegar; sincronização parcial não pode inventar thread.
-//   gaps / forks: diagnósticos não bloqueantes (ver acima).
+//   gaps / forks / clockSkews: diagnósticos não bloqueantes (ver acima).
 // Pura: nenhuma leitura de disco, nenhum relógio de parede. Determinística sob permutação da
 // entrada — é a propriedade que garante que N réplicas convirjam para o mesmo CHANNEL.md.
 export function mergeLogs(messages) {
@@ -194,6 +253,7 @@ export function mergeLogs(messages) {
     quarantined: quarantined.sort((a, b) => a.thread_id.localeCompare(b.thread_id) || a.sender.localeCompare(b.sender) || (Number(a.seq) || 0) - (Number(b.seq) || 0)),
     gaps: detectGaps(messages),
     forks: detectForks(messages),
+    clockSkews: detectClockSkew(unique),
   };
 }
 

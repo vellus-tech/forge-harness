@@ -13,6 +13,12 @@ tests/**/*.actual
 # Forge cache local (locks, estado efêmero)
 .forge/cache/
 
+# Worktrees do harness. O bloco managed que o installer entrega (installer/gitignore.patch) já
+# ignora este caminho em todo projeto que instala o Forge; este repositório é a FONTE do bloco e
+# não o aplica em si mesmo, então o padrão precisa existir aqui explicitamente. Sem ele, abrir um
+# worktree pelo fluxo do próprio harness deixa a árvore suja.
+.forge/worktrees/
+
 # Scratch de agente/revisão — diretórios que subagentes criam na raiz ao reproduzir casos.
 # Entraram uma vez no repositório por `git add -A` sem conferência (commit 37754e6).
 /x/

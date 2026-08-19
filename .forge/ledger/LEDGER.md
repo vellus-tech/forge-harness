@@ -24,7 +24,9 @@ _Encerrados: 2 (resolved 2)_
 
 ## Ideias de feature
 
-_(nenhum)_
+_(nenhum ativo)_
+
+_Encerrados: 1 (resolved 1)_
 
 ## Dívida técnica
 

@@ -10,6 +10,25 @@ ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
 # before anything else touches it, and run the docs-reviewed gate. This check is
 # independent of .forge/FORGE.md — it applies to any repo using this hook.
 INPUT="$(cat)"
+# Re-export the raw refs for gates declared in runtime.gates. Without this, a gate that needs to
+# know WHAT is being published only sees what's in checkout — and the two diverge on
+# `git push origin other-branch:main` and on multi-ref pushes, where a gate resolving its target
+# via `git rev-parse HEAD` would validate the wrong commit. The hook's stdin can only be consumed
+# once; this is the only way what arrived on it reaches gate scripts downstream.
+#
+# Via a FILE, never the payload itself in the environment. The payload is unbounded (`git push
+# --all` on a repo with thousands of refs) and the kernel caps a SINGLE environment string at
+# 128 KB on Linux (MAX_ARG_STRLEN). Past that every exec inside this hook fails with E2BIG —
+# including the awk that reads FORGE.md — so the hook finds no typecheck, no test and no gates,
+# prints "pre-push OK" and exits 0 having verified nothing. Fail-open on the largest pushes is
+# the worst possible failure mode for a gate. A path is a few dozen bytes and never gets near
+# the cap. Covered by tests/w135-push-refs-export-gate.sh, scenarios [3] and [4].
+FORGE_PUSH_REFS_FILE="$(mktemp "${TMPDIR:-/tmp}/forge-pushrefs-XXXXXX")"
+export FORGE_PUSH_REFS_FILE
+trap 'rm -f "$FORGE_PUSH_REFS_FILE"' EXIT
+# An empty stdin (nothing being pushed) writes an EMPTY file, not a blank line: a gate must be
+# able to tell "zero refs" from "one ref I failed to parse".
+if [ -n "$INPUT" ]; then printf '%s\n' "$INPUT" > "$FORGE_PUSH_REFS_FILE"; else : > "$FORGE_PUSH_REFS_FILE"; fi
 DOCS_LIB="$ROOT/.forge/hooks/git/lib/check-docs-reviewed.sh"
 if [ -f "$DOCS_LIB" ]; then
   # shellcheck disable=SC1090

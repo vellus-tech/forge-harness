@@ -1120,6 +1120,7 @@ Namespace `/forge:*`. Os comandos vivem em `.forge/commands/**` e são projetado
 | `/forge:resolve-deferrals` | retoma e fecha as pendências do ledger ao fim do projeto, com teste |
 | `/forge:c4` | gera/atualiza diagramas C4 + HTML consolidado (greenfield/feature) |
 | `/forge:dev` | sobe/sincroniza o ambiente local Docker (`up`/`sync`/`smoke`) |
+| `/forge:pentest` | orquestra sob demanda um toolchain de pentest mobile containerizado (`activate`/`scan`/`status`/`deactivate`) contra APK + device de bancada; ferramenta manual, só dev/laboratório |
 
 ### 14.6 Loop builder→validator
 

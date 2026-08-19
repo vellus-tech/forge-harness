@@ -26,16 +26,20 @@ jobs:
         timeout-minutes: 8
         run: |
           set -uo pipefail
-          # apt sem teto de tempo trava o job. Teto explícito por invocação, duas tentativas, e
-          # queda para o registry do npm — que já está quente por causa do `npm ci` logo abaixo e
-          # não depende do mirror Ubuntu do runner.
-          for i in 1 2; do
-            if timeout 180 sudo apt-get update -qq && timeout 120 sudo apt-get install -y -qq bats; then
-              bats --version && exit 0
-            fi
-            echo "apt indisponível (tentativa $i)"
-          done
-          echo "caindo para o npm"
+          # O mirror apt deste runner engasga com frequência — medido: dez runs seguidos parados
+          # neste passo, alguns por quase uma hora, antes de haver teto. Uma tentativa só, curta, e
+          # queda imediata para o registry do npm, que já está quente por causa do `npm ci` logo
+          # abaixo e não depende do mirror Ubuntu.
+          #
+          # A soma dos tetos internos (90 + 60 = 150s) tem de caber FOLGADA dentro do
+          # `timeout-minutes` do passo: se ela estourar primeiro, o GitHub mata o passo inteiro e o
+          # fallback nunca roda — o teto viraria só um jeito mais rápido de falhar. Foi o defeito
+          # da primeira versão deste bloco (duas tentativas de até 300s = 600s contra um teto de
+          # 480s).
+          if timeout 90 sudo apt-get update -qq && timeout 60 sudo apt-get install -y -qq bats; then
+            bats --version && exit 0
+          fi
+          echo "apt indisponível — instalando bats pelo npm"
           npm install -g bats && bats --version
       - name: Install pyyaml (frontmatter contract test)
         run: python3 -m pip install --user pyyaml || pip3 install --user pyyaml

@@ -22,6 +22,13 @@ runtime:
   typecheck:
   lint:
   gates:
+codegraph:
+  # Mapa de camadas do code graph. Vazio = heurística embutida do engine (convenções de pasta +
+  # sufixo de projeto .NET). Declare aqui os layouts que ela não reconhece — plataforma satélite,
+  # pacotes compartilhados, monólito legado — em vez de esperar mudança no engine. Ordem importa:
+  # o primeiro padrão que casar vence. Ver §8.
+  layers: []
+  orphans_by_design: []
 integrations:
   jira:
   github:
@@ -115,7 +122,34 @@ relative path (no fork needed). `forge doctor` flags orphan overrides as drift.
 | 4 Understanding | `graph/` | brownfield map, impact, C4 |
 | 5 Dev Loop & Quality | `templates/story/`, `evals/`, `runners.yaml` | long-running + quantitative quality (opt-in) |
 
-## 7. Autonomy (HITL vs YOLO)
+## 7. Code graph: layer map and the meaning of `unknown`
+
+The graph engine classifies every file into `api | application | domain | infrastructure |
+contracts | test | config | unknown`. Its built-in heuristic reads folder conventions and the .NET
+project-suffix convention; a repository whose layout differs — a satellite platform under
+`<root>/src/services/<svc>/<Ns>.<Layer>`, shared packages under `packages/dotnet/<Ns>`, a legacy
+pre-Clean-Architecture monolith under `src/<Product>.<Layer>` — **declares** its own layouts in the
+`codegraph.layers` frontmatter block instead of waiting for the engine to grow another regex. Each
+entry is a path glob plus a layer; entries are evaluated in declaration order (first match wins) and
+always before the built-in heuristic. Declaring nothing keeps the heuristic and the exact graph of
+before.
+
+`unknown` is **not** a defect by itself. It carries two different meanings and only one of them is a
+gap. Declaring `layer: unknown` for a path is the statement "the layer taxonomy does not describe
+this code" — frontend, tooling, documentation MDX, browser E2E specs — and those nodes are marked
+`taxonomy: "out"` in `graph.json` and **excluded from the denominator** of `stats.layer_coverage`.
+`unknown` reached by falling through the heuristic stays in the denominator, because that one is a
+real gap and the metric has to keep saying so. Reporting both as the same number is what made 18% of
+a measured repository read as a hole where there was none.
+
+Orphan nodes follow the same logic. `forge validate graph` no longer reports a bare orphan count:
+an assembly marker resolved by reflection, a migration discovered by assembly scanning, a browser
+E2E spec and static content are orphans **by design**, and the warning names only what is left over
+— dead code or an import the extractor failed to resolve. Test-layer, config-layer, `migrations/`
+and out-of-taxonomy nodes are recognized without any declaration; anything else the repository knows
+to be legitimately edgeless goes into `codegraph.orphans_by_design`.
+
+## 8. Autonomy (HITL vs YOLO)
 
 `forge.yaml > autonomy.mode` controls how HITL gates (§12.1) are decided. `hitl` (default) stops for a
 human via `AskUserQuestion`. `yolo` delegates each approval gate to an Opus-effort-high subagent

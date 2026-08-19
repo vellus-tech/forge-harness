@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**23 itens ativos** · roadmap 4 · tech-debt 12 · known-bug 4 · follow-up 3 · (23 encerrados)
+**23 itens ativos** · roadmap 4 · tech-debt 12 · known-bug 4 · follow-up 3 · (24 encerrados)
 
 ## Roadmap
 
@@ -55,7 +55,7 @@ _Encerrados: 1 (resolved 1)_
 - **LDG-0038** [open] (P3/low) — red-replay.mjs não detecta clone shallow — devolve not-possible genérico em vez de mensagem acionável
   Achado da revisão adversarial (PR #45): deriveBase() em red-replay.mjs devolve not-possible com razão genérica quando o histórico git é insuficiente (clone shallow), mandando o autor rodar /forge:red replay de novo — conselho errado, já que o problema é do ambiente (fetch-depth), não do comando. Um git rev-parse --is-shallow-repository no início da função daria a mensagem certa ('repositório raso — configure fetch-depth: 0').
 
-_Encerrados: 10 (promoted 1 · resolved 8 · wont-fix 1)_
+_Encerrados: 11 (promoted 1 · resolved 9 · wont-fix 1)_
 
 ## Bugs conhecidos
 

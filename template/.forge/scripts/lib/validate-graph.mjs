@@ -13,6 +13,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { execSync } from 'node:child_process';
+import { classifyOrphans, readLayerMap } from './graph-layers.mjs';
 
 const graphPath = process.argv[2];
 if (!graphPath || !existsSync(graphPath)) { console.log(`FAIL (graph.json not found: ${graphPath || '(none)'} — run /forge:codegraph)`); process.exit(1); }
@@ -46,6 +47,7 @@ for (const [i, n] of g.nodes.entries()) {
   if (!FP_RE.test(String(n.fingerprint || ''))) errors.push(`${at} (${n.id}): fingerprint not sha256`);
   if (!LAYERS.has(n.layer)) errors.push(`${at} (${n.id}): layer invalid: ${n.layer} (coverage rule)`);
   if (n.summary != null && String(n.summary).trim().length < 12) errors.push(`${at} (${n.id}): summary too short (min quality)`);
+  if (n.taxonomy !== undefined && n.taxonomy !== 'out') errors.push(`${at} (${n.id}): taxonomy invalid: ${n.taxonomy} (only "out" — a declared exit from the layer taxonomy)`);
 }
 for (const d of dup) errors.push(`duplicate node id: ${d}`);
 
@@ -60,8 +62,26 @@ for (const [i, e] of g.edges.entries()) {
     else degree.set(e.to, degree.get(e.to) + 1);
   }
 }
-const orphans = [...degree.values()].filter((d) => d === 0).length;
-if (orphans > 0) warnings.push(`${orphans} orphan node(s) with no edges`);
+// Orphan classification (issue #38). A bare count is not actionable: in the measured repo, 926
+// orphans hid exactly 4 pieces of real dead code, and the warning gave no way to reach them.
+// Orphan BY DESIGN — assembly marker resolved by reflection, migration discovered by assembly
+// scanning, browser E2E spec, static content/tooling declared out of taxonomy — is the correct
+// state for those files, not a finding. Only what is left over (dead code or an import the
+// extractor failed to resolve) is worth a warning; when nothing is left over, there is nothing
+// to say and the validator stays silent instead of manufacturing noise.
+const orphanIds = [...degree.entries()].filter(([, d]) => d === 0).map(([id]) => id).sort();
+if (orphanIds.length) {
+  const nodesById = new Map(g.nodes.map((n) => [n.id, n]));
+  const declaredGlobs = root ? readLayerMap(root).orphanGlobs : [];
+  const { byDesign, candidates, reasons } = classifyOrphans(orphanIds, nodesById, declaredGlobs);
+  if (candidates.length) {
+    const why = Object.entries(reasons).sort().map(([r, c]) => `${r}: ${c}`).join(', ');
+    const shown = candidates.slice(0, 10).join(', ');
+    const more = candidates.length > 10 ? `, +${candidates.length - 10} more` : '';
+    warnings.push(`${candidates.length} orphan node(s) to review — dead code or unresolved imports: ${shown}${more}`
+      + (byDesign.length ? ` (${byDesign.length} further orphan(s) are by design — ${why} — and are not reported)` : ''));
+  }
+}
 
 // stats coherence
 if (g.stats && g.stats.nodes !== g.nodes.length) errors.push(`stats.nodes (${g.stats.nodes}) != actual (${g.nodes.length})`);

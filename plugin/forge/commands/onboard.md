@@ -16,7 +16,7 @@ Pré-requisito: `/forge:codegraph` (e baseline, se existir).
 
 ## Saída (mapa navegável, conciso)
 
-- **Camadas e módulos** (contagem por camada);
+- **Camadas e módulos** (contagem por camada, mais a cobertura de `stats.layer_coverage`). Nó `unknown` com `taxonomy: "out"` é código que o repositório declarou fora da taxonomia — frontend, tooling, conteúdo estático — e não é lacuna: reporte-o à parte, nunca como buraco de arquitetura. Já `unknown` sem essa marca é layout que ninguém declarou, e a saída é declará-lo em `codegraph.layers` (ver `/forge:codegraph`);
 - **Como as coisas se conectam** (fluxos principais);
 - **Onde mexer com cuidado** (alto fan-in, violações de camada candidatas);
 - **Próximas leituras** (3-5 arquivos-chave por relevância, não a árvore inteira).

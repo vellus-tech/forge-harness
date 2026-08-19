@@ -184,9 +184,11 @@ grep -q 'paths outside the graph or graph stale' <<<"$out" || { echo "esperava m
 echo "OK [5]"
 
 echo "[6] layerOf: Android sem colidir com domínio genérico"
-node -e '
-const src=require("fs").readFileSync("'"$WS"'/template/.forge/scripts/lib/graph-build.mjs","utf8");
-eval(src.match(/function layerOf[\s\S]*?\n\}/)[0]);
+# A heurística embutida saiu do graph-build.mjs para lib/graph-layers.mjs quando o mapa de
+# camadas virou declarável (issue #38) — este cenário passa a importá-la de verdade, em vez de
+# recortá-la do arquivo por regex e dar eval.
+cat > "$T/layer-check.mjs" <<EOF
+import { builtinLayerOf as layerOf } from '$WS/template/.forge/scripts/lib/graph-layers.mjs';
 const expect=[
   ["src/features/room/RoomService.ts","unknown"],       // Room de chat, não infra
   ["src/dao/ProposalVoting.ts","unknown"],              // DAO web3, não infra
@@ -194,8 +196,9 @@ const expect=[
   ["app/src/main/java/com/acme/viewmodel/PayVM.java","api"],
   ["app/src/main/java/com/acme/network/Api.java","infrastructure"],
 ];
-for(const [p,exp] of expect){ const got=layerOf(p); if(got!==exp){console.error(`layerOf(${p})=${got}, esperava ${exp}`);process.exit(1);} }
-'
+for(const [p,exp] of expect){ const got=layerOf(p); if(got!==exp){console.error(\`layerOf(\${p})=\${got}, esperava \${exp}\`);process.exit(1);} }
+EOF
+node "$T/layer-check.mjs"
 echo "OK [6]"
 
 echo "OK"

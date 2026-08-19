@@ -21,6 +21,7 @@ e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
 ### Migração
 - Quem já tinha `core.hooksPath` no valor relativo `.forge/hooks/git` recebe a migração automática para o caminho absoluto no próximo `forge update`, com a razão impressa. Um `hooksPath` customizado (`.githooks` e afins) continua preservado e intocado. O valor passa a ser específico da máquina e do caminho do clone — mover ou renomear o diretório quebra o apontamento, e o `doctor` passa a acusar isso explicitamente em vez de deixar os hooks inertes em silêncio.
+- **Change `scale >= 3` já em curso não avança mais para `implementing` sem story sharding.** É mudança de comportamento deliberada — o contrato sempre declarou o sharding como parte desse scale, só não havia nada verificando. Quem tem um change scale 3 parado em `tasks-ready` tem dois caminhos: rodar `/forge:shard <change-id>` (o esperado), ou declarar a dispensa no `manifest.yaml` com `quick_plan.enabled: true` e `story-sharding` em `skipped_phases`, em **block style** — `skipped_phases: [story-sharding]` em flow style não é parseado pelo `yaml-lite` (`LDG-0033`) e reprova fechado, nunca concede a dispensa em silêncio. A mensagem de reprovação já traz a ação corretiva.
 - Se você tem um change `type: bugfix` scale≥2 parado em `design-ready` desta versão do harness, ele continua avançando normalmente (`design-ready` → `tasks-ready`) — nenhuma ação necessária.
 
 ## [0.6.0] — 2026-08-04

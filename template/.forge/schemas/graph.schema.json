@@ -20,7 +20,20 @@
         "edges": { "type": "integer", "minimum": 0 },
         "languages": { "type": "array", "items": { "type": "string" } },
         "summaries_stale": { "type": "integer", "minimum": 0 },
-        "census": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } }
+        "census": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
+        "layer_coverage": {
+          "type": "object",
+          "description": "Cobertura de camada (issue #38). O denominador é a população EM ESCOPO da taxonomia — classificados + lacunas. Nós declarados fora da taxonomia (codegraph.layers com layer: unknown) saem do denominador: unknown declarado é o estado CORRETO de frontend, tooling, conteúdo estático e spec de E2E, não um buraco. ratio null quando o denominador é zero (cobertura indefinida, jamais 100% por vacuidade).",
+          "additionalProperties": false,
+          "required": ["classified", "unclassified", "out_of_taxonomy", "denominator", "ratio"],
+          "properties": {
+            "classified": { "type": "integer", "minimum": 0 },
+            "unclassified": { "type": "integer", "minimum": 0 },
+            "out_of_taxonomy": { "type": "integer", "minimum": 0 },
+            "denominator": { "type": "integer", "minimum": 0 },
+            "ratio": { "type": ["number", "null"], "minimum": 0, "maximum": 1 }
+          }
+        }
       }
     },
     "nodes": {
@@ -36,7 +49,11 @@
           "fingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
           "layer": { "enum": ["api", "application", "domain", "infrastructure", "contracts", "test", "config", "unknown"] },
           "summary": { "type": ["string", "null"] },
-          "roles": { "type": "array", "items": { "type": "string" } }
+          "roles": { "type": "array", "items": { "type": "string" } },
+          "taxonomy": {
+            "const": "out",
+            "description": "Presente apenas quando o repositório DECLAROU este path fora da taxonomia (codegraph.layers com layer: unknown). Ausência é o default e significa 'em escopo' — um repositório sem bloco codegraph: produz exatamente o grafo de antes desta chave existir."
+          }
         }
       }
     },

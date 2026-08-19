@@ -82,11 +82,31 @@ export function readQuarantinedPositions(chDir) {
       // linha parece dizer que a mensagem diverge de si mesma.
       content_sha: (rec.incoming && rec.incoming.content_sha) || null,
       known_content_sha: (rec.known && rec.known.content_sha) || null,
+      thread_id: (rec.incoming && rec.incoming.thread_id) || null,
+      subject: (rec.incoming && rec.incoming.subject) || null,
+      // Marcador de recuperação: o conteúdo retido já foi republicado em sequência nova. A
+      // divergência em si CONTINUA (a origem ainda reescreveu história, e é ela quem tem de
+      // corrigir) — o que o marcador diz é que ninguém precisa republicar de novo. Sem ele, cada
+      // sync devolveria a posição ao operador como se nada tivesse sido feito.
+      resolved_as: rec.resolved_as || null,
       reason: rec.reason || '',
       file: f,
     });
   }
   return out.sort((a, b) => a.sender.localeCompare(b.sender) || a.seq - b.seq);
+}
+
+// Marca uma posição retida como REPUBLICADA em sequência nova. Vive aqui, e não em liaison-ops.sh,
+// porque quem escreve o formato de conflicts/ é quem deve mutá-lo — o nome do arquivo é convenção
+// desta lib, não contrato do shell. Devolve false quando a posição não está retida (nada a marcar).
+export function markResolved(chDir, sender, seq, resolvedAs) {
+  const file = join(chDir, 'conflicts', divergenceFile(sender, seq));
+  if (!existsSync(file)) return false;
+  let rec;
+  try { rec = JSON.parse(readFileSync(file, 'utf8')); } catch { return false; }
+  rec.resolved_as = resolvedAs;
+  writeFileSync(file, JSON.stringify(rec, null, 2) + '\n');
+  return true;
 }
 
 // Aplica o bundle em fromDir sobre o canal em chDir. Retorna contadores + a lista de POSIÇÕES
@@ -229,7 +249,22 @@ export function applyBundle({ chDir, fromDir, self }) {
   // Registro POR POSIÇÃO quarentenada. Carrega sender/seq/msg_id em campos próprios porque é isso
   // que `status` e `render` mostram — o nome do arquivo é conveniência, não a fonte.
   for (const d of divergences) {
-    writeFileSync(join(conflictsDir, divergenceFile(d.sender, d.seq)), JSON.stringify({
+    const file = join(conflictsDir, divergenceFile(d.sender, d.seq));
+    // A divergência persiste enquanto a origem não corrigir, então cada sync REESCREVE este
+    // registro. Se a reescrita apagasse o marcador de republicação, o operador republicaria o
+    // mesmo conteúdo a cada sync — o canal ganharia uma cópia por sincronização. O marcador é
+    // carregado adiante apenas quando é a MESMA divergência (mesmo par recebido/conhecido); se a
+    // origem publicou outra coisa naquela posição, o conteúdo republicado antes não a cobre.
+    let carried = null;
+    if (existsSync(file)) {
+      try {
+        const prev = JSON.parse(readFileSync(file, 'utf8'));
+        const sameIncoming = prev.incoming && d.incoming && prev.incoming.content_sha === d.incoming.content_sha;
+        const sameKnown = (prev.known ? prev.known.content_sha : null) === (d.known ? d.known.content_sha : null);
+        if (prev.resolved_as && sameIncoming && sameKnown) carried = prev.resolved_as;
+      } catch { /* registro ilegível: trata como se não houvesse marcador */ }
+    }
+    writeFileSync(file, JSON.stringify({
       sender: d.sender,
       seq: d.seq,
       msg_id: d.incoming ? d.incoming.msg_id : null,
@@ -237,6 +272,7 @@ export function applyBundle({ chDir, fromDir, self }) {
       reason: d.reason,
       incoming: d.incoming,
       known: d.known || null,
+      ...(carried ? { resolved_as: carried } : {}),
     }, null, 2) + '\n');
   }
   // Convergência do registro: posição que deixou de divergir (a origem restaurou a linha, ou

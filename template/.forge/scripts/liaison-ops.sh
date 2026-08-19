@@ -28,6 +28,8 @@
 #   liaison-ops.sh status   [<channel>]
 #   liaison-ops.sh export   <channel> --out <dir>
 #   liaison-ops.sh import   <channel> --from <dir>
+#   liaison-ops.sh conflicts list <channel>
+#   liaison-ops.sh conflicts resolve <channel> <sender> <seq>
 #   liaison-ops.sh peer     set <channel> <participante> --path <dir>
 #   liaison-ops.sh peer-path <channel> <participante>
 #   liaison-ops.sh transport set   <channel> --kind manual|fs|git|gh [--path <dir>] [--remote <url>] [--branch <b>]
@@ -49,7 +51,27 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT="${FORGE_ROOT:-$(git -C "$(pwd)" rev-parse --show-toplevel 2>/dev/null || pwd)}"
+# ROOT é o CHECKOUT PRINCIPAL, nunca o worktree de onde o script foi chamado. O canal do liaison é
+# estado durável de PROJETO, não de branch — mesma classe do ledger, e a mesma rule
+# (conventions/machinery-propagation.md). Resolvido por `--show-toplevel`, cada worktree linkado
+# ganha a SUA cópia de `log/<self>.jsonl` com o SEU contador de seq: é literalmente a causa-raiz da
+# issue #36 ("duas cópias do mesmo log de remetente escrevendo em paralelo, cada uma com seu
+# contador local"), com a agravante de que a colisão só aparece do outro lado, no import de quem
+# recebe as duas versões da mesma posição. O invariante do store é UM ESCRITOR por arquivo de
+# remetente; um único ROOT por clone é o que o torna verdadeiro dentro do clone.
+#
+# `--git-common-dir` devolve o `.git` compartilhado por TODOS os worktrees; o diretório que o
+# contém é o tronco. `--path-format=absolute` é necessário porque, no próprio checkout principal,
+# `--git-common-dir` devolveria `.git` relativo — e `dirname .git` daria `.`, que é justamente o
+# worktree corrente que se quer evitar. Mesmo idioma de ledger-ops.sh e de hooks/git/pre-commit.
+_forge_main_root() {
+  local common
+  common="$(git -C "$(pwd)" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || return 1
+  [ -n "$common" ] || return 1
+  case "$common" in /*) : ;; *) return 1 ;; esac
+  dirname "$common"
+}
+ROOT="${FORGE_ROOT:-$(_forge_main_root || git -C "$(pwd)" rev-parse --show-toplevel 2>/dev/null || pwd)}"
 export FORGE_ROOT="$ROOT"
 LIBDIR="$SCRIPT_DIR/lib"
 LIAISON_DIR="$ROOT/.forge/liaison"
@@ -57,7 +79,7 @@ CONFIG="$LIAISON_DIR/liaison.yaml"
 TPL="$(cd "$SCRIPT_DIR/.." && pwd)/templates/liaison/CHANNEL.md"
 
 cmd="${1:-}"; shift || true
-[ -n "$cmd" ] || { echo "Usage: liaison-ops.sh open|thread|send|inbox|read|ack|status|export|import|peer|peer-path|transport|sync|render [args...]" >&2; exit 1; }
+[ -n "$cmd" ] || { echo "Usage: liaison-ops.sh open|thread|send|inbox|read|ack|status|export|import|conflicts|peer|peer-path|transport|sync|render [args...]" >&2; exit 1; }
 
 _git_date() { git -C "$ROOT" log -1 --format=%cI 2>/dev/null || echo ""; }
 _id_ok() { printf '%s' "$1" | grep -Eq '^[a-z0-9][a-z0-9._-]*$'; }
@@ -748,7 +770,7 @@ const { join } = require('path');
 const { pathToFileURL } = require('url');
 (async () => {
   const [, , lib, chDir, channel] = process.argv;
-  const { mergeLogs } = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
+  const { mergeLogs, formatSkew } = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
   const { readQuarantinedPositions } = await import(pathToFileURL(join(lib, 'liaison-import.mjs')).href);
   const logDir = join(chDir, 'log');
   const files = existsSync(logDir) ? readdirSync(logDir).filter((f) => f.endsWith('.jsonl')) : [];
@@ -757,7 +779,7 @@ const { pathToFileURL } = require('url');
     const text = readFileSync(join(logDir, f), 'utf8');
     for (const line of text.split('\n')) { const t = line.trim(); if (t) all.push(JSON.parse(t)); }
   }
-  const { threads, quarantined, gaps, forks } = mergeLogs(all);
+  const { threads, quarantined, gaps, forks, clockSkews } = mergeLogs(all);
   const state = existsSync(join(chDir, 'state.json')) ? JSON.parse(readFileSync(join(chDir, 'state.json'), 'utf8')) : { cursors: {} };
   const cursors = state.cursors || {};
   let unread = 0;
@@ -766,15 +788,19 @@ const { pathToFileURL } = require('url');
     const idx = cur ? threads[id].order.indexOf(cur) : -1;
     unread += threads[id].order.length - (idx + 1);
   }
+  // created_at incoerente entra na linha E é nomeado abaixo: um contador não diz qual mensagem
+  // nem contra qual referência, que é o único dado sobre o qual dá para agir (issue #36).
+  const skewBit = clockSkews.length ? ` · ${clockSkews.length} created_at incoerente(s)` : '';
   const diag = gaps.length || forks.length ? ` · ${gaps.length} buraco(s) · ${forks.length} fork(s)` : '';
   // Posições retidas por divergência entram na linha E são NOMEADAS abaixo. Só o contador
   // esconderia o defeito da issue #48: um remetente calado é indistinguível de um quieto, e
   // "N em quarentena" não diz de quem nem de onde, que é o que permite agir.
   const pos = readQuarantinedPositions(chDir);
   const posBit = pos.length ? ` · ${pos.length} posição(ões) retida(s) por divergência` : '';
-  console.log(`LIAISON/${channel}: ${Object.keys(threads).length} thread(s) · ${unread} não lida(s) · ${quarantined.length} em quarentena${posBit}${diag}`);
+  console.log(`LIAISON/${channel}: ${Object.keys(threads).length} thread(s) · ${unread} não lida(s) · ${quarantined.length} em quarentena${posBit}${skewBit}${diag}`);
   const sh = (v) => (v ? String(v).slice(0, 12) : '?');
   for (const p of pos) console.log(`  ! quarentena por divergência: ${p.sender}@seq=${p.seq} — recebida ${p.msg_id || '?'}/${sh(p.content_sha)}, conhecida ${p.known_msg_id || '?'}/${sh(p.known_content_sha)} (conflicts/${p.file})`);
+  for (const c of clockSkews) console.log(`  ! created_at incoerente: ${c.msg_id} (${c.sender}, thread ${c.thread_id}) tem created_at ${c.created_at}, ${formatSkew(c.behind_ms)} ANTES de ${c.in_reply_to} (${c.ref_created_at}) que ela responde — relógio de parede da origem, ou duas cópias do mesmo log escrevendo em paralelo`);
 })();
 NODEEOF
   else
@@ -790,10 +816,11 @@ const { join } = require('path');
 const { pathToFileURL } = require('url');
 (async () => {
   const [, , lib, liaisonDir, channelsRaw, self] = process.argv;
-  const { mergeLogs } = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
+  const { mergeLogs, formatSkew } = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
   const { readQuarantinedPositions } = await import(pathToFileURL(join(lib, 'liaison-import.mjs')).href);
   const channels = channelsRaw.split(' ').filter(Boolean);
   const positions = [];
+  const skews = [];
   let threadsTotal = 0, unreadTotal = 0, quarantinedTotal = 0;
   for (const channel of channels) {
     const chDir = join(liaisonDir, channel);
@@ -804,7 +831,8 @@ const { pathToFileURL } = require('url');
       const text = readFileSync(join(logDir, f), 'utf8');
       for (const line of text.split('\n')) { const t = line.trim(); if (t) all.push(JSON.parse(t)); }
     }
-    const { threads, quarantined } = mergeLogs(all);
+    const { threads, quarantined, clockSkews } = mergeLogs(all);
+    for (const c of clockSkews) skews.push({ channel, ...c });
     const state = existsSync(join(chDir, 'state.json')) ? JSON.parse(readFileSync(join(chDir, 'state.json'), 'utf8')) : { cursors: {} };
     const cursors = state.cursors || {};
     threadsTotal += Object.keys(threads).length;
@@ -817,9 +845,11 @@ const { pathToFileURL } = require('url');
     }
   }
   const posBit = positions.length ? ` · ${positions.length} posição(ões) retida(s) por divergência` : '';
-  console.log(`LIAISON: self=${self || '?'} · ${channels.length} canal(is) · ${threadsTotal} thread(s) · ${unreadTotal} não lida(s) · ${quarantinedTotal} em quarentena${posBit}`);
+  const skewBit = skews.length ? ` · ${skews.length} created_at incoerente(s)` : '';
+  console.log(`LIAISON: self=${self || '?'} · ${channels.length} canal(is) · ${threadsTotal} thread(s) · ${unreadTotal} não lida(s) · ${quarantinedTotal} em quarentena${posBit}${skewBit}`);
   const sh = (v) => (v ? String(v).slice(0, 12) : '?');
   for (const p of positions) console.log(`  ! quarentena por divergência em ${p.channel}: ${p.sender}@seq=${p.seq} — recebida ${p.msg_id || '?'}/${sh(p.content_sha)}, conhecida ${p.known_msg_id || '?'}/${sh(p.known_content_sha)}`);
+  for (const c of skews) console.log(`  ! created_at incoerente em ${c.channel}: ${c.msg_id} (${c.sender}) tem created_at ${c.created_at}, ${formatSkew(c.behind_ms)} ANTES de ${c.in_reply_to} (${c.ref_created_at}) que ela responde`);
 })();
 NODEEOF
   fi
@@ -853,6 +883,134 @@ import)
   [ -d "$from_dir/log" ] || { echo "FAIL: '$from_dir/log' não encontrado" >&2; exit 1; }
   [ -n "$(_read_self)" ] || { echo "FAIL: self não configurado" >&2; exit 1; }
   _apply_bundle "$channel" "$from_dir" "import"
+  ;;
+
+# ---------------------------------------------------------------------------------------------
+# conflicts — posições retidas por divergência (reescrita de história na origem) e a recuperação
+# assistida delas. A retenção por posição foi entregue na issue #48; o que faltava era o caminho de
+# volta: o conteúdo retido NUNCA entra no log local, então para o destinatário ele simplesmente não
+# existe — no caso reportado, um ack legítimo. Até aqui só dava para lê-lo abrindo
+# conflicts/*.divergence.json à mão e comparando com o log.
+#
+# `resolve` republica esse conteúdo numa sequência NOVA, que é o único caminho legítimo num log
+# append-only. A republicação sai do NOSSO log, com `authored_by` do autor real e `resolves`
+# apontando a posição de origem: escrever no log alheio quebraria o invariante de um escritor por
+# arquivo — exatamente a causa-raiz da colisão de seq que a issue relata — e o import do outro lado
+# reprovaria a linha por reescrita de história.
+#
+# `kind` vira `note`, nunca o kind original. Reemitir um `ack` ou um `contract-change` como se
+# fosse nosso falsificaria autoria de decisão: quem acka é quem decidiu ackar, e a cobrança de ack
+# (check-liaison-acks.sh) conta exatamente isso. `resolves.kind` preserva o que a mensagem era.
+conflicts)
+  sub="${1:-}"; shift || true
+  case "$sub" in
+    list)
+      channel="${1:-}"; shift || true
+      [ -n "$channel" ] || { echo "FAIL: uso: conflicts list <channel>" >&2; exit 1; }
+      ch_dir="$LIAISON_DIR/$channel"
+      [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado" >&2; exit 1; }
+      node - "$LIBDIR" "$ch_dir" "$channel" <<'NODEEOF'
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, chDir, channel] = process.argv;
+  const { readQuarantinedPositions } = await import(pathToFileURL(join(lib, 'liaison-import.mjs')).href);
+  const pos = readQuarantinedPositions(chDir);
+  // Conjunto vazio responde EXPLICITAMENTE. Silêncio seria indistinguível de comando quebrado, e
+  // este é justamente o comando que alguém roda para saber se há algo preso.
+  if (!pos.length) { console.log(`LIAISON/${channel}: nenhuma posição retida por divergência`); return; }
+  console.log(`LIAISON/${channel}: ${pos.length} posição(ões) retida(s) por divergência`);
+  const sh = (v) => (v ? String(v).slice(0, 12) : '?');
+  for (const p of pos) {
+    console.log(`  ! ${p.sender}@seq=${p.seq} — recebida ${p.msg_id || '?'}/${sh(p.content_sha)}, conhecida ${p.known_msg_id || '?'}/${sh(p.known_content_sha)}${p.thread_id ? ` · thread ${p.thread_id}` : ''}${p.subject ? ` · "${p.subject}"` : ''} (conflicts/${p.file})`);
+    if (p.resolved_as) console.log(`      republicada como ${p.resolved_as.msg_id} — a divergência na origem CONTINUA; corrigi-la é com quem escreveu o log`);
+    else console.log(`      recuperar: liaison-ops.sh conflicts resolve ${channel} ${p.sender} ${p.seq}`);
+  }
+})();
+NODEEOF
+      ;;
+    resolve)
+      channel="${1:-}"; shift || true
+      div_sender="${1:-}"; shift || true
+      div_seq="${1:-}"; shift || true
+      [ -n "$channel" ] && [ -n "$div_sender" ] && [ -n "$div_seq" ] \
+        || { echo "FAIL: uso: conflicts resolve <channel> <sender> <seq>" >&2; exit 1; }
+      printf '%s' "$div_seq" | grep -Eq '^[0-9]+$' || { echo "FAIL: <seq> deve ser inteiro, recebido '$div_seq'" >&2; exit 1; }
+      _id_ok "$div_sender" || { echo "FAIL: <sender> inválido '$div_sender'" >&2; exit 1; }
+      ch_dir="$LIAISON_DIR/$channel"
+      [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado" >&2; exit 1; }
+      self="$(_read_self)"
+      [ -n "$self" ] || { echo "FAIL: self não configurado" >&2; exit 1; }
+      out="$(node - "$LIBDIR" "$ch_dir" "$self" "$channel" "$div_sender" "$div_seq" "$(_git_date)" <<'NODEEOF'
+const { readFileSync, writeFileSync, readdirSync, existsSync, renameSync } = require('fs');
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, chDir, self, channel, divSender, divSeqRaw, now] = process.argv;
+  const M = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
+  const I = await import(pathToFileURL(join(lib, 'liaison-import.mjs')).href);
+  const divSeq = Number(divSeqRaw);
+  const pos = I.readQuarantinedPositions(chDir).find((p) => p.sender === divSender && p.seq === divSeq);
+  if (!pos) { console.error(`nenhuma posição retida em ${divSender}@seq=${divSeq} (veja: conflicts list ${channel})`); process.exit(1); }
+  if (pos.resolved_as) { console.error(`${divSender}@seq=${divSeq} já foi republicada como ${pos.resolved_as.msg_id} — republicar de novo duplicaria o conteúdo no canal`); process.exit(1); }
+  const rec = JSON.parse(readFileSync(join(chDir, 'conflicts', pos.file), 'utf8'));
+  const inc = rec.incoming;
+  if (!inc || !inc.thread_id) { console.error(`o registro conflicts/${pos.file} não carrega a mensagem recebida — nada a republicar`); process.exit(1); }
+
+  const logDir = join(chDir, 'log');
+  const files = existsSync(logDir) ? readdirSync(logDir).filter((f) => f.endsWith('.jsonl')) : [];
+  const all = [];
+  for (const f of files) {
+    const text = readFileSync(join(logDir, f), 'utf8');
+    for (const line of text.split('\n')) { const t = line.trim(); if (t) all.push(JSON.parse(t)); }
+  }
+  const threadMsgs = all.filter((m) => m.thread_id === inc.thread_id);
+  if (!threadMsgs.some((m) => m.kind === 'thread-open')) {
+    console.error(`thread '${inc.thread_id}' desconhecida localmente — sincronize a abertura da thread antes de republicar`); process.exit(1);
+  }
+  // Corpo em blob: o blob de uma posição RETIDA não é copiado pelo import (só o das mensagens
+  // aplicadas), então pode não existir aqui. Republicar sem o corpo seria entregar um envelope
+  // vazio dizendo que recuperou o conteúdo.
+  if (inc.body_ref && !existsSync(join(chDir, 'blobs', inc.body_ref.slice('blobs/'.length)))) {
+    console.error(`o corpo da posição está em ${inc.body_ref}, ausente em blobs/ — peça à origem o blob (ou republique você mesmo o conteúdo com 'send')`); process.exit(1);
+  }
+
+  const own = all.filter((m) => m.sender === self);
+  const seq = M.nextSeq(own);
+  const lamport = M.nextLamport(threadMsgs);
+  const msgId = `${self}-${String(seq).padStart(4, '0')}`;
+  const msg = {
+    msg_id: msgId, channel, thread_id: inc.thread_id, sender: self, seq, lamport,
+    kind: 'note', in_reply_to: inc.in_reply_to || null, requires_ack: false,
+    subject: inc.subject,
+    ...(inc.body ? { body: inc.body } : {}),
+    ...(inc.body_ref ? { body_ref: inc.body_ref } : {}),
+    refs: inc.refs || { change_id: null, contract_files: [], commit: null },
+    authored_by: inc.sender,
+    via: 'divergence-resolve',
+    resolves: { sender: inc.sender, seq: divSeq, msg_id: inc.msg_id || null, content_sha: inc.content_sha || null, kind: inc.kind || null },
+    created_at: now,
+    trust: 'untrusted-peer',
+  };
+  msg.content_sha = M.computeContentSha(msg);
+  const errs = M.validateEnvelope(msg);
+  if (errs.length) { console.error('envelope inválido: ' + errs.join('; ')); process.exit(1); }
+  const target = join(logDir, `${self}.jsonl`);
+  const senderMsgs = own.concat([msg]).sort((a, b) => a.seq - b.seq);
+  writeFileSync(target + '.tmp', senderMsgs.map((m) => JSON.stringify(m)).join('\n') + '\n');
+  renameSync(target + '.tmp', target);
+  I.markResolved(chDir, divSender, divSeq, { msg_id: msgId, created_at: now });
+  process.stdout.write(`${msgId}\t${inc.msg_id || '?'}`);
+})();
+NODEEOF
+)" || exit 1
+      IFS=$'\t' read -r new_id orig_id <<< "$out"
+      _render "$channel"
+      echo "OK conflicts resolve — $new_id republica o conteúdo de $orig_id ($div_sender@seq=$div_seq) em sequência nova; a divergência na origem continua e só ela pode corrigi-la"
+      ;;
+    *)
+      echo "FAIL: uso: conflicts list <channel> | conflicts resolve <channel> <sender> <seq>" >&2; exit 1 ;;
+  esac
   ;;
 
 # ---------------------------------------------------------------------------------------------

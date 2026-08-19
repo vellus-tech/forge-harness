@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**22 itens ativos** · roadmap 4 · tech-debt 12 · known-bug 3 · follow-up 3 · (16 encerrados)
+**22 itens ativos** · roadmap 4 · tech-debt 12 · known-bug 3 · follow-up 3 · (17 encerrados)
 
 ## Roadmap
 
@@ -64,7 +64,7 @@ _Encerrados: 10 (promoted 1 · resolved 8 · wont-fix 1)_
 - **LDG-0032** [open] (P3) — tests/w111-liaison-sync-gate.sh:259 é uma asserção vazia (grep ... && true — sempre verdadeira) · via `gate-assert-visibility`
   Achado durante a varredura completa do LDG-0012 no bugfix.md do change gate-assert-visibility. A linha 'grep -rn "gh " "...transports/gh.sh" | grep -vq "^.*#" && true' sempre avalia para true (o '&& true' descarta qualquer status de saída), então esta asserção nunca reprova, independentemente do conteúdo real de transports/gh.sh. Tem marcador de cenário '[12]' acima (linha 258), então bateria com o critério objetivo do LDG-0012 (marcador [n] presente = candidato a conversão), mas é uma classe de defeito DIFERENTE — não é morte/passagem silenciosa sob set -e, é uma asserção estruturalmente vazia. Fora do escopo do gate-assert-visibility (que corrige só o idioma bare && sob set -e). Corrigir provavelmente remove o '&& true' redundante, deixando o grep -vq como a asserção real (o script já continua com o if seguinte que faz a checagem de verdade — avaliar se a linha é vestigial e pode ser removida, ou se faltou uma checagem que ela deveria fazer).
 
-_Encerrados: 2 (resolved 2)_
+_Encerrados: 3 (resolved 3)_
 
 ## Follow-ups
 

@@ -931,6 +931,32 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0038"
+    },
+    {
+      "id": "LDG-0039",
+      "type": "known-bug",
+      "title": "pre-push não expunha as refs publicadas aos gates de runtime.gates (FORGE_PUSH_REFS_FILE)",
+      "detail": "O git entrega ao pre-push, por stdin, uma linha \"<local ref> <local sha> <remote ref> <remote sha>\" por ref. O hook consome esse stdin uma única vez em INPUT=$(cat), então um gate de runtime.gates invocado depois não tinha como relê-lo e só via o que estava em checkout — que diverge do publicado em 'git push origin outra-branch:main' e em push de múltiplas refs. Corrigido re-exportando as linhas cruas num arquivo temporário apontado por FORGE_PUSH_REFS_FILE, removido no EXIT do hook. A primeira versão da correção punha o payload dentro da própria variável de ambiente, e a revisão adversarial mostrou que isso falha ABERTO: acima de MAX_ARG_STRLEN (128 KB no Linux, ~1 MB de argv+envp no macOS) todo exec do hook morre com E2BIG, inclusive o awk que lê o FORGE.md, e o hook imprime 'pre-push OK' sem ter rodado typecheck, teste nem gate algum. Coberto por tests/w135-push-refs-export-gate.sh (Red observado contra o hook anterior; o cenário [3], com 12000 refs, prova a regressão do E2BIG nos dois sistemas). Pendência remanescente: REQ-FHT-015/SCN-FHT-015-A do baseline descreve o contrato de execução dos gates e ainda não menciona FORGE_PUSH_REFS_FILE como parte do ambiente — atualizar no próximo /forge:archive que tocar essa capability.",
+      "severity": null,
+      "priority": "P2",
+      "status": "resolved",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [
+          "forge-harness-template"
+        ],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-19T16:12:57-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0039"
     }
   ]
 }

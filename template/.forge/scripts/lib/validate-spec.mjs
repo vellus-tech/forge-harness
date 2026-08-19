@@ -26,6 +26,7 @@ import { hasScaffoldMarkers } from './scaffold-markers.mjs';
 import { evaluateRedFirst } from './check-red-first.mjs';
 import { applyMode } from './gate-mode.mjs';
 import { parseTasks, checkTasksGraph, parseSurfaceChecklist, checkSurfaceCoverage, checkSurfaceChecklistPresence, checkSurfaceDeclaration, checkSurfaceChecklistLiteral } from './tasks-graph.mjs';
+import { parseStories, checkStoryCoverage, checkStoryCycle } from './story-shard.mjs';
 
 const dir = process.argv[2];
 if (!dir) { console.log('FAIL (usage: validate-spec.mjs <change-dir>)'); process.exit(1); }
@@ -300,6 +301,53 @@ if (reached('tasks-ready')) {
       // da própria lib, e passa a ser exercida quando houver oráculo de código para confirmá-la.
       for (const f of checkSurfaceCoverage(rows, parsed, { apiPaths: apiLayerPaths() }))
         warnings.push(`${f.code} ${f.msg}`);
+    }
+  }
+}
+
+// ── story sharding obrigatória em scale >= 3 (§17.1 — issue #35) ────────────
+// O contrato scale-adaptive (spec.md tabela de scale, tasks.md, spec-manifest.schema.json) já
+// declarava que scale >= 3 soma story sharding ao fluxo, mas nada verificava isso antes de
+// `/forge:implement` entrar no loop TASK a TASK — `dev_loop.sharded` podia ficar `false` para
+// sempre e a implementação seguia em silêncio, sem `epic_context.md` nem stories auto-contidas.
+// Roda a partir de `implementing` (onde o loop de execução de fato começa) — como todo o resto
+// deste arquivo, é chamado por `spec-transition.sh` ANTES da transição ser persistida (com
+// rollback se reprovar), então cobre tanto a chamada direta de `/forge:implement` quanto a
+// transição `tasks-ready -> implementing`.
+//
+// Dispensa excepcional: `quick_plan.enabled: true` com "story-sharding" em
+// `quick_plan.skipped_phases` (bloco já validado acima — array não-vazio + justification). Tem
+// de ser em BLOCK STYLE: yaml-lite.mjs não parseia array flow-style não-vazio (LDG-0033) — uma
+// tentativa em `skipped_phases: [story-sharding]` vira string literal, falha o
+// `Array.isArray(sp)` do bloco de quick_plan acima e reprova fechado, nunca concede a dispensa
+// em silêncio.
+const skipsStorySharding = !!(man.quick_plan && man.quick_plan.enabled === true
+  && Array.isArray(man.quick_plan.skipped_phases) && man.quick_plan.skipped_phases.includes('story-sharding'));
+if (reached('implementing') && scale >= 3 && !skipsStorySharding) {
+  const HINT = 'run /forge:shard <change-id> before /forge:implement';
+  const devLoop = (man.dev_loop && typeof man.dev_loop === 'object') ? man.dev_loop : {};
+  if (devLoop.sharded !== true)
+    errors.push(`scale >= 3 requires story sharding: dev_loop.sharded is not true (${HINT})`);
+  if (devLoop.epic_context_compiled !== true)
+    errors.push(`scale >= 3 requires story sharding: dev_loop.epic_context_compiled is not true (${HINT})`);
+  if (devLoop.sharded === true && devLoop.epic_context_compiled === true) {
+    const tasksText = readIf('tasks.md') || '';
+    const parsedTasks = parseTasks(tasksText);
+    const taskIds = [...new Set(parsedTasks.tasks.map((t) => t.id))];
+    if (!taskIds.length) {
+      // Vacuidade: tasks.md sem nenhuma TASK-NN não é "nada para cobrir" — é FAIL explícito,
+      // igual a stories/ vazio logo abaixo (regra 3 do harness: conjunto varrido vazio nunca é OK
+      // por não ter achado nada).
+      errors.push(`scale >= 3 requires story sharding: tasks.md has no TASK-NN entries to cover (${HINT})`);
+    } else {
+      const storiesDir = join(root, devLoop.stories_path || 'stories/');
+      const { stories, errors: storyErrors } = parseStories(storiesDir);
+      if (storyErrors.length) {
+        for (const e of storyErrors) errors.push(`scale >= 3 requires story sharding: ${e} (${HINT})`);
+      } else {
+        for (const f of checkStoryCoverage(taskIds, stories)) errors.push(`scale >= 3 requires story sharding: ${f} (${HINT})`);
+        for (const f of checkStoryCycle(stories)) errors.push(`scale >= 3 requires story sharding: ${f} (${HINT})`);
+      }
     }
   }
 }

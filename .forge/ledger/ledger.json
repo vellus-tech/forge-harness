@@ -1035,6 +1035,32 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0042"
+    },
+    {
+      "id": "LDG-0043",
+      "type": "known-bug",
+      "title": "scale >= 3 entrava em implementing sem story sharding, em silêncio (issue #35)",
+      "detail": "O contrato scale-adaptive declarava story sharding como parte de scale >= 3 (spec.md, tasks.md), mas o pré-flight de implement.md só exigia analysis.md sem BLOCKER e worktree dedicado: com dev_loop.sharded em false a implementação entrava no loop TASK a TASK sem epic_context.md nem stories auto-contidas. validate-spec.mjs (com lib/story-shard.mjs novo) passa a reprovar fechado, a partir de status implementing em scale >= 3, quando dev_loop.sharded/epic_context_compiled não forem true, ou quando stories/ não cobrir cada TASK exatamente uma vez, ou quando o grafo depends_on tiver ciclo. Cobre a transição tasks-ready->implementing e a retomada idempotente do pré-flight. Dispensa só via quick_plan.skipped_phases incluindo story-sharding, em block style — flow style não é parseado pelo yaml-lite (LDG-0033) e reprova fechado, nunca concede a dispensa em silêncio. Guard é código, não instrução em markdown (anti-padrão registrado no LDG-0036). Gate tests/w138-story-shard-guard-gate.sh, 12 cenários.",
+      "severity": null,
+      "priority": "P2",
+      "status": "resolved",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [
+          "forge-harness-template"
+        ],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-19T17:44:57-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0043"
     }
   ]
 }

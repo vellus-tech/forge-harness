@@ -50,6 +50,20 @@ liaison:
   #          dos outros, senão o participante mais lento trava o trabalho de todo mundo.
   auto: false
   enforce: warn
+secrets:
+  # Gate mecânico contra segredo hardcoded em arquivo VERSIONADO (check-secrets.sh, rule
+  # conventions/no-hardcoded-secrets.md). Roda no pre-commit sobre o índice, no CI sobre o diff do
+  # PR e, se declarado em runtime.gates, no pre-push sobre o repositório inteiro.
+  #   block: qualquer achado reprova. É o modo de repositório novo ou já saneado, e é o que o
+  #          template entrega abaixo — projeto que nasce com o harness nasce sem passivo.
+  #   warn (default na AUSÊNCIA deste bloco): achado vira aviso e não bloqueia. É o que um
+  #          repositório existente HERDA ao atualizar o harness, porque o gate não é opt-in e
+  #          chegar travando o time no primeiro dia é como um gate vira `--no-verify` de hábito.
+  #          Combine com `check-secrets.sh report` para medir o passivo e feche em `block` depois.
+  # Falha de INTEGRIDADE (conjunto varrido vazio, allowlist malformada) reprova nos dois modos:
+  # um gate que não rodou não pode reportar-se verde. Exceções em .forge/secrets-allowlist.txt,
+  # com justificativa obrigatória na própria linha.
+  enforce: block
 autonomy:
   # Modo de decisão nos gates HITL (§12.1). Ver rules/conventions/autonomy-yolo.md.
   #   hitl (default): gates de aprovação param para decisão humana via AskUserQuestion.

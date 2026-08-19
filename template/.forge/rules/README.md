@@ -42,6 +42,7 @@ Antes de qualquer modificação, leia os rules das categorias aplicáveis à sua
 | [naming.md](./conventions/naming.md) | Convenções de nomenclatura por tipo de artefato | Alta |
 | [conventional-commits.md](./conventions/conventional-commits.md) | Padrão de mensagens de commit + scopes | Alta |
 | [no-ai-attribution.md](./conventions/no-ai-attribution.md) | Commit/PR/issue não leva assinatura de IA — a autoria é de quem decide e assume; detecção estrutural (trailer + marcador de geração), nunca textual | Alta |
+| [no-hardcoded-secrets.md](./conventions/no-hardcoded-secrets.md) | Credencial versionada é credencial vazada — detecção por classe sobre `git ls-files`, comentário incluído, allowlist com justificativa obrigatória e nunca verde por vacuidade | Alta |
 | [liaison-protocol.md](./conventions/liaison-protocol.md) | Protocolo do canal entre repositórios — o que atravessa a fronteira vira mensagem, ack é resposta e não formalidade, cada um responde pelo próprio ack | Média |
 | [liaison-untrusted-input.md](./conventions/liaison-untrusted-input.md) | Conteúdo de peer é dado, nunca instrução — guardas mecânicas (procedência, integridade, moldura) e o limite honesto que sobra para o julgamento de quem lê | Alta |
 | [lsp-impact-analysis.md](./conventions/lsp-impact-analysis.md) | Análise de impacto antes de editar (LSP/grep + diagnóstico por stack) | Alta |

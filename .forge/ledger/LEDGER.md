@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**23 itens ativos** · roadmap 4 · tech-debt 12 · known-bug 4 · follow-up 3 · (17 encerrados)
+**23 itens ativos** · roadmap 4 · tech-debt 12 · known-bug 4 · follow-up 3 · (18 encerrados)
 
 ## Roadmap
 
@@ -66,7 +66,7 @@ _Encerrados: 10 (promoted 1 · resolved 8 · wont-fix 1)_
 - **LDG-0040** [open] (P3) — doctor: guard de placeholders varre specs arquivadas e o baseline, e acusa <PROJECT_*> literal
   No próprio forge-harness o doctor reporta '3 arquivo(s) com placeholders <PROJECT_*> não preenchidos'. Os arquivos são .forge/specs/archived/2026-08-03-forge-update-command/{design,requirements,spec-delta} e .forge/product/current/capabilities/forge-harness-template/spec.yaml, onde <PROJECT_*> aparece como TEXTO descrevendo o template, não como placeholder a preencher. O guard deve restringir a varredura ao que o init materializa (raiz do harness instalado) e excluir specs arquivadas, worktrees e o baseline — hoje ele produz um vermelho permanente que ensina a ignorar o doctor. Relacionado: o mesmo doctor acusa AGENTS.md ausente e CLAUDE.md que não resolve, que é o dogfood raiz deliberadamente incompleto deste repositório.
 
-_Encerrados: 3 (resolved 3)_
+_Encerrados: 4 (resolved 4)_
 
 ## Follow-ups
 

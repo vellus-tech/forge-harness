@@ -983,6 +983,32 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0040"
+    },
+    {
+      "id": "LDG-0041",
+      "type": "known-bug",
+      "title": "SessionStart misturava acks pendentes de liaison com ruído agregado (issue #47)",
+      "detail": "on-session-start.sh resumia o inbox do liaison como contagem agregada por canal, misturando mensagem própria, ack já emitido e nota sem ação com o subconjunto que exige resposta real (requires_ack sem ack). check-liaison-acks.sh já calculava esse subconjunto mas só rodava no pre-push e no pré-flight do archive. Efeito medido em axis-go-cloud: 2 mensagens requires_ack ficaram sem resposta por mais de 24h, invisíveis numa contagem de 34. Corrigido: o hook roda check-liaison-acks.sh logo após o summary e, só com débito real (WARN/FAIL), imprime um bloco rotulado 'ação necessária' antes do resumo agregado. O guard é -f e não -x, porque o script é invocado por bash e exigir o bit de execução transformaria um checkout que perdeu o modo num pulo silencioso. Gate tests/w136-session-start-liaison-acks-gate.sh, cenários [1], [1b], [2] e [3].",
+      "severity": null,
+      "priority": "P2",
+      "status": "resolved",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [
+          "forge-harness-template"
+        ],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-19T17:34:27-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0041"
     }
   ]
 }

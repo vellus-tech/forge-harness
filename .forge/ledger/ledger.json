@@ -1009,6 +1009,32 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0041"
+    },
+    {
+      "id": "LDG-0042",
+      "type": "known-bug",
+      "title": "Maquinaria versionada na árvore não se propaga para worktrees (ledger ROOT, hooksPath relativo, update de dentro do worktree)",
+      "detail": "Issue #41. Três defeitos independentes com a mesma causa. (a) ledger-ops.sh resolvia ROOT por --show-toplevel, que dentro de um worktree devolve o próprio worktree: registro nascia no ledger.json da branch e toda branch que tocasse o ledger colidia no merge (cinco reconciliações num dia no axis-go-cloud, dez entradas presas numa branch no axis-fare-validator). Passou a resolver por --git-common-dir absoluto. (b) core.hooksPath era gravado relativo por bin/forge.mjs e installer/install.sh; ele vive no .git/config comum e valor relativo é resolvido por cada worktree contra a própria árvore, então hook novo mergeado não bloqueava nada em worktree nenhum. Passou a ser o caminho absoluto do tronco, migrando o legado relativo e preservando customização real. (c) forge update aceitava rodar de dentro de um worktree; agora recusa sem flag de escape. Além disso o doctor passou a verificar o hooksPath e a medir a divergência de maquinaria por worktree, e duas rules foram escritas (conventions/machinery-propagation.md e testing/gate-delivery-channel.md). Coberto por tests/w137-worktree-machinery-gate.sh (5 cenários, Red observado em cada um antes da respectiva correção) e por w94 estendido com o cenário de migração do valor legado.",
+      "severity": null,
+      "priority": "P1",
+      "status": "resolved",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [
+          "forge-harness-template"
+        ],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-19T17:38:59-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0042"
     }
   ]
 }

@@ -19,3 +19,8 @@ tests/**/*.actual
 /dummy/
 /probe*/
 /scratch/
+
+# Estado local de ferramenta externa de code graph (índice SQLite de ~7 MB, regenerável).
+# Tem .gitignore próprio para o .db, mas o próprio diretório não deve entrar aqui — o índice é
+# por máquina, e o grafo que este repositório versiona é o do Forge, em .forge/graph/.
+/.codegraph/

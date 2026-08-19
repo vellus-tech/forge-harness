@@ -34,6 +34,21 @@ fi
 if [ "$(_yaml_auto liaison)" = "true" ] && [ -f "$ROOT/.forge/scripts/liaison-ops.sh" ]; then
   summary="$(FORGE_ROOT="$ROOT" bash "$ROOT/.forge/scripts/liaison-ops.sh" status 2>/dev/null || true)"
   if [ -n "$summary" ] && [ "$summary" != "LIAISON: não inicializado" ]; then
+    # Acks pendentes (issue #47): a contagem agregada abaixo mistura mensagem própria, ack já
+    # emitido e nota sem ação com o pequeno subconjunto que exige resposta real — nenhuma sessão
+    # nova consegue distinguir 2 itens acionáveis dentro de uma contagem de 34. check-liaison-acks.sh
+    # já calcula exatamente esse subconjunto (escopado ao próprio repo, só threads em que participa,
+    # nunca a própria mensagem); antes só rodava no pre-push e no pré-flight do archive. Aqui é só
+    # visibilidade forçada no primeiro instante da sessão — não bloqueia nada (enforce: warn/block
+    # continua sendo a decisão do pre-push, não deste hook).
+    if [ -x "$ROOT/.forge/scripts/check-liaison-acks.sh" ]; then
+      acks="$(FORGE_ROOT="$ROOT" bash "$ROOT/.forge/scripts/check-liaison-acks.sh" 2>/dev/null || true)"
+      case "$acks" in
+        WARN*|FAIL*)
+          printf '\n## LIAISON — ACKS PENDENTES (ação necessária, não é ruído)\n\n%s\n' "$acks"
+          ;;
+      esac
+    fi
     printf '\n## LIAISON — canal entre repositórios\n\n%s\n' "$summary"
     while IFS= read -r ch; do
       [ -n "$ch" ] || continue

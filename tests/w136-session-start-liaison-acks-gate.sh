@@ -2,6 +2,7 @@
 # Gate W136 — SessionStart destaca acks pendentes do liaison (issue #47):
 #   [1] com débito real (contract-change requires_ack sem ack) o hook imprime um bloco
 #       "LIAISON — ACKS PENDENTES" ANTES do resumo agregado "LIAISON — canal entre repositórios"
+#   [1b] checkout que perdeu o bit de execução do check-liaison-acks.sh não pula o check em silêncio
 #   [2] sem débito (check-liaison-acks.sh volta OK) o bloco de acks pendentes NÃO aparece,
 #       mas o resumo agregado continua aparecendo normalmente
 #   [3] depois de ackar a mensagem pendente, o bloco some (a mesma transição do incidente real)
@@ -79,6 +80,19 @@ pos_acks="$(grep -n "LIAISON — ACKS PENDENTES" <<<"$hook_out" | head -1 | cut 
 pos_summary="$(grep -n "LIAISON — canal entre repositórios" <<<"$hook_out" | head -1 | cut -d: -f1)"
 [ "$pos_acks" -lt "$pos_summary" ] || { echo "FAIL [1]: bloco de acks pendentes não veio ANTES do resumo agregado (acks=$pos_acks, resumo=$pos_summary)"; exit 1; }
 echo "OK [1]"
+
+echo "[1b] checkout sem bit de execução no check-liaison-acks.sh continua reportando o débito"
+# Um checkout pode perder o modo do arquivo (tarball, Windows/WSL, cópia por ferramenta que não
+# preserva permissão). O script é invocado por `bash`, então rodá-lo não depende do bit — e um
+# guard que exigisse -x transformaria isso num pulo SILENCIOSO, escondendo débito real exatamente
+# como o defeito que esta issue corrige.
+chmod -x "$T/fv/.forge/scripts/check-liaison-acks.sh"
+hook_out1b="$(cd "$T/fv" && bash "$T/fv/.forge/hooks/session/on-session-start.sh" 2>&1)"
+chmod +x "$T/fv/.forge/scripts/check-liaison-acks.sh"
+[ -n "$hook_out1b" ] || { echo "FAIL [1b]: o hook não produziu saída nenhuma"; exit 1; }
+grep -q "LIAISON — ACKS PENDENTES" <<<"$hook_out1b" \
+  || { echo "FAIL [1b]: sem o bit de execução o hook pulou o check em silêncio e o débito sumiu do relatório"; echo "$hook_out1b"; exit 1; }
+echo "OK [1b]"
 
 echo "[2] sem débito (check-liaison-acks OK) o bloco NÃO aparece, mas o resumo agregado continua"
 mk_repo obs observer

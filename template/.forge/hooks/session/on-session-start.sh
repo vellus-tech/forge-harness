@@ -41,7 +41,11 @@ if [ "$(_yaml_auto liaison)" = "true" ] && [ -f "$ROOT/.forge/scripts/liaison-op
     # nunca a própria mensagem); antes só rodava no pre-push e no pré-flight do archive. Aqui é só
     # visibilidade forçada no primeiro instante da sessão — não bloqueia nada (enforce: warn/block
     # continua sendo a decisão do pre-push, não deste hook).
-    if [ -x "$ROOT/.forge/scripts/check-liaison-acks.sh" ]; then
+    # -f e não -x: o script é invocado por `bash`, então o bit de execução é irrelevante para
+    # rodá-lo — e exigi-lo transformaria um checkout que perdeu o modo (tarball, Windows/WSL,
+    # cópia por ferramenta que não preserva permissão) num pulo SILENCIOSO, escondendo débito real
+    # exatamente como o defeito que esta issue corrige. Mesmo predicado do pre-push.
+    if [ -f "$ROOT/.forge/scripts/check-liaison-acks.sh" ]; then
       acks="$(FORGE_ROOT="$ROOT" bash "$ROOT/.forge/scripts/check-liaison-acks.sh" 2>/dev/null || true)"
       case "$acks" in
         WARN*|FAIL*)

@@ -7,6 +7,11 @@ on:
 jobs:
   gates:
     runs-on: ubuntu-latest
+    # Teto do job inteiro. Sem ele o default do GitHub é 6 HORAS, e um passo que pendura segura a
+    # fila de todos os PRs abertos sem nunca reportar falha — foi o que aconteceu quando o mirror
+    # apt do runner engasgou: três runs parados quase uma hora no mesmo passo, todos in_progress,
+    # nenhum com veredito. Um CI que não termina é pior que um CI que reprova.
+    timeout-minutes: 25
     steps:
       # fetch-depth: 0 é obrigatório — o motor deriva a árvore pré-correção do histórico
       # (ancestry, revert sintetizado ou enxerto do teste). Com o checkout raso padrão não há
@@ -18,7 +23,20 @@ jobs:
         with:
           node-version: '20'
       - name: Install bats
-        run: sudo apt-get update && sudo apt-get install -y bats
+        timeout-minutes: 8
+        run: |
+          set -uo pipefail
+          # apt sem teto de tempo trava o job. Teto explícito por invocação, duas tentativas, e
+          # queda para o registry do npm — que já está quente por causa do `npm ci` logo abaixo e
+          # não depende do mirror Ubuntu do runner.
+          for i in 1 2; do
+            if timeout 180 sudo apt-get update -qq && timeout 120 sudo apt-get install -y -qq bats; then
+              bats --version && exit 0
+            fi
+            echo "apt indisponível (tentativa $i)"
+          done
+          echo "caindo para o npm"
+          npm install -g bats && bats --version
       - name: Install pyyaml (frontmatter contract test)
         run: python3 -m pip install --user pyyaml || pip3 install --user pyyaml
       - name: Install dev deps (ajv for schema parity)

@@ -401,6 +401,20 @@
             }
           }
         },
+        "secrets": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Gate mecânico contra segredo hardcoded em arquivo VERSIONADO (check-secrets.sh, rule conventions/no-hardcoded-secrets.md). Roda no pre-commit sobre o índice, no CI sobre o diff do PR e, se declarado em runtime.gates, no pre-push sobre o repositório inteiro. Falha de INTEGRIDADE (conjunto varrido vazio, allowlist malformada) reprova em qualquer modo: um gate que não rodou não pode se reportar verde. Exceções em .forge/secrets-allowlist.txt, com justificativa obrigatória na própria linha.",
+          "properties": {
+            "enforce": {
+              "enum": [
+                "warn",
+                "block"
+              ],
+              "description": "Achado de segredo: avisa (warn) ou reprova (block). A AUSÊNCIA deste bloco resolve para warn, porque o gate não é opt-in — está fiado no pre-commit e no CI — e um repositório existente com passivo herdaria trava no dia da atualização do harness. O forge.yaml do template entrega block explícito: projeto que nasce com o harness nasce sem passivo."
+            }
+          }
+        },
         "autonomy": {
           "type": "object",
           "additionalProperties": false,

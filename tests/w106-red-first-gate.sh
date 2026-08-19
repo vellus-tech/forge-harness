@@ -43,6 +43,10 @@ DR="$T/.forge/scripts/doctor.sh"
 RE="$T/.forge/scripts/red-evidence.sh"
 git -C "$T" init -q
 git -C "$T" config user.email t@t; git -C "$T" config user.name t; git -C "$T" config commit.gpgsign false
+# Parte do mesmo saneamento do Furo 5: a cópia crua do template traz .forge/hooks/git mas ninguém
+# aponta para lá, e o doctor reprova isso (issue #41 — hooks instalados que não rodam são inertes
+# em silêncio). Sem apontar, o baseline voltaria a rc=1 por motivo alheio ao red-first.
+git -C "$T" config core.hooksPath "$(cd "$T" && pwd -P)/.forge/hooks/git"
 git -C "$T" add -A && git -C "$T" commit -qm init >/dev/null
 
 echo "[1] spec-new --type bugfix cria red-evidence.json pending"

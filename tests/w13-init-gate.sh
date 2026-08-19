@@ -71,7 +71,12 @@ echo "OK [5] (bats verde)"
 echo "[6] repo git: hooksPath + staging.yml + pre-commit"
 git -C "$T2" init -q -b main
 "$WS/installer/install.sh" --target "$T2" --slug fixture-git --name "Fixture Git" --desc "Fixture git do gate W1.3" >/dev/null
-[ "$(git -C "$T2" config core.hooksPath)" = ".forge/hooks/git" ]
+# ABSOLUTO, apontando para os hooks do tronco. Era relativo (`.forge/hooks/git`) até a issue #41:
+# core.hooksPath vive no .git/config comum e um valor relativo é resolvido por cada worktree
+# contra a PRÓPRIA árvore, que carrega a cópia antiga dos hooks daquela branch (gate w137).
+T2R="$(cd "$T2" && pwd -P)"   # macOS: /tmp é symlink para /private/tmp; o git devolve o real
+hp="$(git -C "$T2" config core.hooksPath || true)"
+[ "$hp" = "$T2R/.forge/hooks/git" ] || { echo "FAIL [6] (core.hooksPath: esperava '$T2R/.forge/hooks/git', veio '$hp')"; exit 1; }
 [ -f "$T2/.github/workflows/staging.yml" ]
 git -C "$T2" add -A
 out="$(git -C "$T2" -c user.name=fixture -c user.email=fixture@test commit -q -m "chore: fixture inicial" 2>&1 || { echo "COMMIT_FAILED"; exit 1; })"

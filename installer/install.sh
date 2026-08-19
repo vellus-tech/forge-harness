@@ -126,20 +126,37 @@ else
 fi
 rm -f "$ANTES" "$DEPOIS" "$EXISTING" "$BLOCK"
 
-# 5. git hooks path (only when target is a git repo) — never overwrite a custom, non-Forge
-# hooksPath: it lives in .git/config, shared across worktrees, so stomping it here could silently
-# disable the project's own hooks everywhere (including its main checkout).
+# 5. git hooks path (only when target is a git repo) — ABSOLUTO, apontando para os hooks do
+# CHECKOUT PRINCIPAL. core.hooksPath vive no .git/config, compartilhado por todos os worktrees, e
+# um valor RELATIVO é resolvido por cada worktree contra a PRÓPRIA árvore — que carrega a cópia
+# antiga dos hooks daquela branch. Um hook novo, versionado e mergeado, então não bloqueia nada em
+# nenhum worktree ativo, e a única evidência disso é o commit proibido passando em silêncio.
+# Paridade obrigatória com wireHooksPath() em bin/forge.mjs — projeto instalado por `curl | bash`
+# não passa pelo outro caminho.
+# Nunca sobrescreve um hooksPath customizado de verdade; o valor legado relativo
+# `.forge/hooks/git` não conta como customizado (é nosso, e é o defeito) e é migrado.
 if git -C "$TARGET" rev-parse --git-dir >/dev/null 2>&1; then
+  # dirname do .git COMUM = tronco. --path-format=absolute (git >= 2.31) porque, no próprio
+  # checkout principal, --git-common-dir devolveria `.git` relativo. Degrada para --show-toplevel.
+  MAIN_ROOT="$(git -C "$TARGET" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+  case "$MAIN_ROOT" in
+    /*) MAIN_ROOT="$(dirname "$MAIN_ROOT")" ;;
+    *)  MAIN_ROOT="$(git -C "$TARGET" rev-parse --show-toplevel 2>/dev/null || echo "$TARGET")" ;;
+  esac
+  WANT_HOOKS_PATH="$MAIN_ROOT/.forge/hooks/git"
   CUR_HOOKS_PATH="$(git -C "$TARGET" config --get core.hooksPath || true)"
-  if [ "$CUR_HOOKS_PATH" = ".forge/hooks/git" ]; then
+  if [ "$CUR_HOOKS_PATH" = "$WANT_HOOKS_PATH" ]; then
     : # already correct, no-op
-  elif [ -n "$CUR_HOOKS_PATH" ]; then
+  elif [ -n "$CUR_HOOKS_PATH" ] && [ "$CUR_HOOKS_PATH" != ".forge/hooks/git" ]; then
     echo "git: core.hooksPath já customizado para '$CUR_HOOKS_PATH' — preservado (não sobrescrito)."
     echo "  Os hooks do Forge (.forge/hooks/git/*) não estão ativos; encadeie-os no seu hook"
     echo "  customizado se quiser o gate de pre-push de docs e o guard de pre-commit de worktree."
+  elif [ "$CUR_HOOKS_PATH" = ".forge/hooks/git" ]; then
+    git -C "$TARGET" config core.hooksPath "$WANT_HOOKS_PATH"
+    echo "git: core.hooksPath '.forge/hooks/git' -> '$WANT_HOOKS_PATH' (absoluto — worktrees passam a rodar os hooks do tronco)"
   else
-    git -C "$TARGET" config core.hooksPath .forge/hooks/git
-    echo "git: core.hooksPath -> .forge/hooks/git"
+    git -C "$TARGET" config core.hooksPath "$WANT_HOOKS_PATH"
+    echo "git: core.hooksPath -> $WANT_HOOKS_PATH"
   fi
 else
   echo "git: not a repository — hooks not configured (run 'git init' + re-run doctor)"

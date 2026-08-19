@@ -251,6 +251,67 @@ EOF_ORPHAN
     fi
   fi
 
+  # core.hooksPath — config LOCAL e não versionada: some num clone novo, some num runner de CI, e
+  # some numa máquina nova. Um valor errado desativa TODOS os hooks do Forge em silêncio, e a única
+  # evidência disso é o commit proibido passando. Precisa ser ABSOLUTO e apontar para os hooks do
+  # CHECKOUT PRINCIPAL: um valor relativo é resolvido por cada worktree contra a PRÓPRIA árvore,
+  # que carrega a cópia antiga dos hooks daquela branch — hook novo, mergeado, não bloqueia nada
+  # onde o trabalho acontece.
+  if git rev-parse --git-dir >/dev/null 2>&1; then
+    hp_common="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+    case "$hp_common" in
+      /*) hp_main="$(dirname "$hp_common")" ;;
+      *)  hp_main="$(git rev-parse --show-toplevel 2>/dev/null || echo "$ROOT")" ;;
+    esac
+    hp_want="$hp_main/.forge/hooks/git"
+    hp_cur="$(git config --get core.hooksPath 2>/dev/null || true)"
+    if [ "$hp_cur" = "$hp_want" ]; then
+      ok "harness: core.hooksPath -> hooks do tronco (absoluto)"
+    elif [ -z "$hp_cur" ]; then
+      # Sem hooks instalados não há o que apontar; com hooks instalados e ninguém apontando, o
+      # harness está inerte e isso é defeito.
+      if [ -d "$hp_want" ]; then
+        miss "harness: core.hooksPath não configurado — os hooks em $hp_want existem e nenhum deles roda"
+        hint "corrija com: npx forge-harness update   (ou git config core.hooksPath '$hp_want')"
+        MISSING_DIAG=1
+      else
+        info "harness: core.hooksPath não configurado (nenhum hook do Forge instalado neste checkout)"
+      fi
+    elif [ ! -d "$hp_cur" ]; then
+      miss "harness: core.hooksPath aponta para '$hp_cur', que não existe — nenhum hook roda"
+      hint "corrija com: npx forge-harness update   (ou git config core.hooksPath '$hp_want')"
+      MISSING_DIAG=1
+    elif [ "$hp_cur" = ".forge/hooks/git" ]; then
+      miss "harness: core.hooksPath relativo ('.forge/hooks/git') — cada worktree resolve na própria árvore e roda a cópia antiga dos hooks"
+      hint "corrija com: npx forge-harness update   (grava o caminho absoluto do tronco)"
+      MISSING_DIAG=1
+    else
+      info "harness: core.hooksPath customizado ('$hp_cur') — os hooks do Forge não estão ativos"
+      hint "encadeie .forge/hooks/git/* no seu hook customizado se quiser os gates do Forge"
+    fi
+
+    # Divergência de maquinaria por worktree. Maquinaria versionada dentro da árvore não se
+    # propaga sozinha: um script, uma rule ou um schema corrigidos no tronco continuam sendo a
+    # versão antiga em todo worktree ativo, e quem trabalha ali recebe verde de um gate que não
+    # está rodando. Medido em axis-go-cloud: cinco de oito worktrees com 86 a 103 arquivos
+    # divergentes. Informativo, nunca reprova — sincronizar é decisão de quem tem o contexto da
+    # branch, e um worktree legitimamente à frente do tronco também aparece aqui.
+    wt_head="$(git -C "$hp_main" rev-parse HEAD 2>/dev/null || true)"
+    if [ -n "$wt_head" ]; then
+      git worktree list --porcelain 2>/dev/null | awk '/^worktree /{print substr($0,10)}' | while IFS= read -r wt; do
+        [ -n "$wt" ] || continue
+        [ "$wt" = "$hp_main" ] && continue
+        wt_sha="$(git -C "$wt" rev-parse HEAD 2>/dev/null || true)"
+        [ -n "$wt_sha" ] || continue
+        n="$(git -C "$hp_main" diff --name-only "$wt_sha" "$wt_head" -- \
+               .forge/scripts .forge/rules .forge/schemas .forge/templates .forge/hooks .forge/agents 2>/dev/null | wc -l | tr -d ' ')"
+        [ "${n:-0}" -gt 0 ] || continue
+        ahead="$(git -C "$hp_main" rev-list --count "$wt_head..$wt_sha" 2>/dev/null || echo '?')"
+        printf "  %s·%s %s\n" "$YEL" "$RST" "harness: worktree $(basename "$wt") com $n arquivo(s) de maquinaria divergentes do tronco ($ahead commit(s) à frente)"
+      done
+    fi
+  fi
+
   # plugin /forge:* instalado no Claude Code (best-effort; puramente informativo — NUNCA
   # contribui para MISSING_DIAG/exit 1). Sintoma real que motivou o check: usuário colando o
   # CORPO dos comandos como texto porque /forge:* silenciosamente não existia (plugin nunca

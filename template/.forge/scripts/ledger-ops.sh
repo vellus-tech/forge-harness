@@ -20,7 +20,26 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT="${FORGE_ROOT:-$(git -C "$(pwd)" rev-parse --show-toplevel 2>/dev/null || pwd)}"
+
+# ROOT é o CHECKOUT PRINCIPAL, nunca o worktree de onde o script foi chamado. O ledger é artefato
+# durável de PROJETO, não de branch: resolvido por `--show-toplevel`, um registro feito de dentro
+# de um worktree nasce no ledger.json daquela branch, e toda branch que toca o ledger passa a
+# colidir por construção no merge. Medido em axis-go-cloud (cinco reconciliações num único dia) e
+# em axis-fare-validator (dez entradas presas numa branch de feature, duas delas normas de
+# processo, invisíveis para o resto do repositório até o PR mergear).
+#
+# `--git-common-dir` devolve o `.git` compartilhado por TODOS os worktrees; o diretório que o
+# contém é o tronco. `--path-format=absolute` é necessário porque, no próprio checkout principal,
+# `--git-common-dir` devolveria `.git` relativo — e `dirname .git` daria `.`, que é justamente o
+# worktree corrente que se quer evitar. O mesmo idioma já é usado em hooks/git/pre-commit.
+_forge_main_root() {
+  local common
+  common="$(git -C "$(pwd)" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || return 1
+  [ -n "$common" ] || return 1
+  case "$common" in /*) : ;; *) return 1 ;; esac
+  dirname "$common"
+}
+ROOT="${FORGE_ROOT:-$(_forge_main_root || git -C "$(pwd)" rev-parse --show-toplevel 2>/dev/null || pwd)}"
 LEDGER_DIR="$ROOT/.forge/ledger"
 LF="$LEDGER_DIR/ledger.json"
 TPL="$(cd "$SCRIPT_DIR/.." && pwd)/templates/ledger/LEDGER.md"

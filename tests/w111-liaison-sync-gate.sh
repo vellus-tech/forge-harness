@@ -7,7 +7,8 @@
 #   [5] participante parcial converge na sua thread sem receber a outra
 #   [6] sync repetido é no-op (0 nova(s))
 #   [7] push publica APENAS o próprio log — não regride o log de terceiro no hub
-#   [8] divergência (peer reescreve posição já conhecida) REPROVA e não toca o log local
+#   [8] divergência (peer reescreve posição já conhecida) REPROVA, quarentena a POSIÇÃO e não
+#       sobrescreve a versão conhecida
 #   [9] mensagem órfã de thread fica retida no sync e é liberada quando o thread-open chega
 #   [10] manual é a primitiva: export|import produz o mesmo estado que sync
 #   [11] git: transporte por branch dedicada em remote local converge
@@ -173,7 +174,7 @@ hub_fv_after="$(sha_of "$HUB/$CH/log/axis-fare-validator.jsonl")"
 [ "$hub_fv_before" = "$hub_fv_after" ] || { echo "FAIL [7]: push de gc reescreveu o log de fv no hub (regressão de terceiro)"; exit 1; }
 echo "OK [7]"
 
-echo "[8] divergência (peer reescreve posição já conhecida) REPROVA e não toca o log local"
+echo "[8] divergência (peer reescreve posição já conhecida) REPROVA e quarentena a posição"
 LG gc sync "$CH" >/dev/null
 before_sha="$(sha_of "$T/gc/.forge/liaison/$CH/log/axis-fare-validator.jsonl")"
 # Reescreve, no hub, a mensagem seq=1 de fv com outro conteúdo (content_sha internamente válido).
@@ -200,8 +201,10 @@ grep -q "divergência" "$T/out8.txt" || { echo "FAIL [8]: saída não reporta di
 grep -q "axis-fare-validator" "$T/out8.txt" || { echo "FAIL [8]: saída não nomeia o remetente divergente"; cat "$T/out8.txt"; exit 1; }
 after_sha="$(sha_of "$T/gc/.forge/liaison/$CH/log/axis-fare-validator.jsonl")"
 [ "$before_sha" = "$after_sha" ] || { echo "FAIL [8]: log local foi tocado apesar da divergência"; exit 1; }
-[ -f "$T/gc/.forge/liaison/$CH/conflicts/axis-fare-validator.divergence.json" ] \
-  || { echo "FAIL [8]: divergência não registrada em conflicts/"; ls "$T/gc/.forge/liaison/$CH/conflicts/"; exit 1; }
+[ -f "$T/gc/.forge/liaison/$CH/conflicts/axis-fare-validator.seq-1.divergence.json" ] \
+  || { echo "FAIL [8]: posição divergente não registrada em conflicts/"; ls "$T/gc/.forge/liaison/$CH/conflicts/"; exit 1; }
+[ ! -f "$T/gc/.forge/liaison/$CH/conflicts/axis-fare-validator.divergence.json" ] \
+  || { echo "FAIL [8]: registro agregado por remetente — quarentena é por posição (issue #48)"; exit 1; }
 # restaura o hub para não contaminar os passos seguintes
 LG fv sync "$CH" --push-only >/dev/null
 echo "OK [8]"
@@ -256,7 +259,7 @@ LG g1 inbox "$CH" --thread git-thread | grep -q "de volta pelo git" || { echo "F
 echo "OK [11]"
 
 echo "[12] gh: stub reprova com mensagem explícita e nunca invoca gh"
-grep -rn "gh " "$WS/template/.forge/scripts/lib/transports/gh.sh" | grep -vq "^.*#" && true
+# (a checagem real é o grep abaixo; havia aqui um `grep ... && true` que nunca podia falhar — LDG-0032)
 if grep -Eq '(^|[^A-Za-z_-])gh[[:space:]]+(issue|api|pr|repo)' "$WS/template/.forge/scripts/lib/transports/gh.sh"; then
   echo "FAIL [12]: transports/gh.sh invoca o binário gh (convenção: .sh nunca chama gh)"; exit 1
 fi

@@ -36,7 +36,7 @@ O que o canal oferece é **ordem garantida por thread** e **durabilidade**: um f
 1. **Toda mudança de contrato gera mensagem.** A métrica de saúde do canal é comparar `git log` dos arquivos de contrato com `inbox --kind contract-change`: mudança sem mensagem correspondente é drift nascendo.
 2. **Ack é resposta, não formalidade.** Ackar significa "vi e vou tratar". Se a decisão é não adotar, use `ack --reason wont-adopt`, que registra dívida em vez de silêncio — recusa registrada é informação, recusa silenciosa é o drift de novo.
 3. **Cada um responde pelo próprio ack.** Com N participantes, esperar o ack de todos faria o mais lento travar o trabalho de todos, e o ack de terceiro não é informação que eu possa produzir.
-4. **Nunca edite `log/*.jsonl` ou `CHANNEL.md` à mão.** São gerados e mutados só pelo script. Editar à mão quebra o `content_sha` e o import do outro lado passa a reprovar seu log inteiro por divergência.
+4. **Nunca edite `log/*.jsonl` ou `CHANNEL.md` à mão.** São gerados e mutados só pelo script. Editar à mão quebra o `content_sha`, e o import do outro lado passa a reter aquelas posições em quarentena por divergência — as réplicas ficam com a versão antiga delas, e nenhuma correção sua naquelas posições chega ao canal. O caminho legítimo para corrigir conteúdo já publicado é republicar com `seq` novo, nunca reescrever a posição.
 5. **Sincronize deliberadamente.** `sync` publica o seu log e recolhe os demais. Sem transporte configurado ele reprova, em vez de fingir que sincronizou.
 
 ## Sobre o que chega

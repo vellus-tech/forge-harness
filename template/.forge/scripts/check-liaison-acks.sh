@@ -22,7 +22,18 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT="${FORGE_ROOT:-$(git -C "$(pwd)" rev-parse --show-toplevel 2>/dev/null || pwd)}"
+# Mesmo ROOT de liaison-ops.sh: o canal do liaison é estado durável de PROJETO e mora no tronco
+# (rule conventions/machinery-propagation.md). Um leitor que resolvesse pelo `--show-toplevel`
+# ficaria cego justamente para quem trabalha numa branch — leria a cópia congelada do worktree e
+# devolveria "nenhum ack pendente" para uma dívida que existe.
+_forge_main_root() {
+  local common
+  common="$(git -C "$(pwd)" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || return 1
+  [ -n "$common" ] || return 1
+  case "$common" in /*) : ;; *) return 1 ;; esac
+  dirname "$common"
+}
+ROOT="${FORGE_ROOT:-$(_forge_main_root || git -C "$(pwd)" rev-parse --show-toplevel 2>/dev/null || pwd)}"
 LIBDIR="$SCRIPT_DIR/lib"
 LIAISON_DIR="$ROOT/.forge/liaison"
 CONFIG="$LIAISON_DIR/liaison.yaml"

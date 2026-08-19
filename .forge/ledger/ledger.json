@@ -1165,6 +1165,32 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0040"
+    },
+    {
+      "id": "LDG-0048",
+      "type": "known-bug",
+      "title": "Liaison: colisão de seq passava em silêncio e o ack retido não tinha caminho de volta (issue #36)",
+      "detail": "Três lacunas independentes. (a) created_at incoerente com a causalidade não era sinalizado: o ack recusado era quase um dia anterior à mensagem que ele responde, Lamport coerente e relógio de parede não. status e render passam a nomear toda mensagem cujo created_at anteceda o da referência em in_reply_to, como diagnóstico NÃO bloqueante. (b) A causa-raiz era duas cópias do mesmo log de remetente com contadores locais; dentro de um clone a fonte era o ROOT resolvido por --show-toplevel, que dá a cada worktree linkado sua cópia de log/<self>.jsonl. liaison-ops.sh, check-liaison-acks.sh e o bloco de liaison do SessionStart passam a resolver pelo --git-common-dir absoluto (mesmo idioma de ledger-ops.sh, rule machinery-propagation.md da issue #41); o invariante de escritor único ficou documentado em conventions/liaison-protocol.md, porque entre máquinas nenhuma verificação local alcança. (c) O conteúdo de uma posição retida nunca entra no log local: conflicts list enumera as posições retidas e conflicts resolve republica o conteúdo em sequência nova do próprio log, com authored_by e o campo resolves, sempre como kind note para não falsificar autoria de decisão. Gate w143, nove cenários.",
+      "severity": null,
+      "priority": "P2",
+      "status": "resolved",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [
+          "forge-harness-template"
+        ],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-19T17:52:11-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0048"
     }
   ]
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Gate W136 — story sharding obrigatória em scale >= 3 (issue #35), como SCRIPT.
+# Gate W138 — story sharding obrigatória em scale >= 3 (issue #35), como SCRIPT.
 #
 # Por que existe: o contrato scale-adaptive já DECLARAVA que scale >= 3 soma story sharding ao
 # fluxo (`commands/specs/spec.md` tabela de scale, `commands/specs/tasks.md`, e o próprio
@@ -36,7 +36,7 @@ set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LIB="$WS/template/.forge/scripts/lib"
-T="$(mktemp -d /tmp/forge-w136.XXXXXX)"
+T="$(mktemp -d /tmp/forge-w138.XXXXXX)"
 trap 'rm -rf "$T"' EXIT
 
 MANIFEST_HEADER='id: change
@@ -427,7 +427,7 @@ echo "OK [11]"
 # ── [12] FIAÇÃO no lifecycle ──────────────────────────────────────────────────────────────────
 echo "[12] FIAÇÃO — spec-transition.sh reprova tasks-ready -> implementing sem shard, e passa depois de corrigido"
 cp -R "$WS/template/.forge" "$T/.forge"
-CHID="epic-w136"
+CHID="epic-w138"
 CH="$T/.forge/specs/active/$CHID"
 mkdir -p "$CH"
 cat > "$CH/manifest.yaml" <<EOF
@@ -473,4 +473,4 @@ grep -q "^OK $CHID: tasks-ready -> implementing" <<< "$out2" \
   || { echo "FAIL [12] CONTROLE: transição não passou após corrigir sharding: $out2"; exit 1; }
 echo "OK [12]"
 
-echo "PASS w136-story-shard-guard-gate"
+echo "PASS w138-story-shard-guard-gate"

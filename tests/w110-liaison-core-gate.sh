@@ -195,7 +195,8 @@ opener="$(_craft "{\"msg_id\":\"ops-bot-0051\",\"channel\":\"$CH\",\"thread_id\"
 printf '%s\n' "$opener" > "$T/bundle-orphan-open/log/ops-bot.jsonl"
 out8b="$(LG a import "$CH" --from "$T/bundle-orphan-open")"
 grep -q "0 em quarentena" <<<"$out8b" || { echo "FAIL [8b]: quarentena não foi liberada com o thread-open: $out8b"; exit 1; }
-tl_out="$(LG a thread list "$CH" 2>&1 || true)"
+tl_out="$(LG a thread list "$CH" 2>&1)"; tl_rc=$?
+[ "$tl_rc" -eq 0 ] || { echo "FAIL [8b]: thread list reprovou (rc $tl_rc): $tl_out"; exit 1; }
 grep -q "orphan-thread" <<<"$tl_out" || { echo "FAIL [8b]: orphan-thread não apareceu resolvida ($tl_out)"; exit 1; }
 echo "OK [8]"
 

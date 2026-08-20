@@ -1243,6 +1243,30 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0049"
+    },
+    {
+      "id": "LDG-0052",
+      "type": "tech-debt",
+      "title": "bash: sustenido dentro de $( ) engole o resto da linha e o script morre com bad substitution, e o bash -n não vê",
+      "detail": "Descoberto ao instrumentar check-liaison-acks.sh (issue #49, instância 1). Um comentário JS dentro de um heredoc que vive dentro de $( ) — o idioma que todo script do harness usa para chamar node — não pode conter sustenido: o bash trata o sustenido como início de comentário DELE, engole o resto da linha e leva junto o parêntese de fechamento ou a crase do template literal. O script inteiro morre em runtime com 'bad substitution: no closing )', apontando a linha da substituição e não a do comentário. O 'bash -n' passa: a sintaxe é válida, o que quebra é o balanceamento depois da expansão. Aconteceu duas vezes na mesma edição, uma com '(issue #49, instância 1)' e outra com um template literal iniciado por sustenido. Candidato a cenário no check-shell-pipeline.sh, que já varre os .sh do harness: sustenido dentro de heredoc contido em $( ) é forma proibida.",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-20T10:56:09-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0052"
     }
   ]
 }

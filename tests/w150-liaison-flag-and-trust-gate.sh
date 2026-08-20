@@ -28,6 +28,7 @@
 #   [8] procedência: mensagem no log de um PEER que se declara `trust: self` REPROVA
 #   [9] procedência: `send --authored-by` grava `untrusted-peer` no log PRÓPRIO e isso NÃO reprova
 #  [10] procedência que não pôde ser derivada sobre store não vazio REPROVA em vez de sair calada
+#  [11] a cobrança de ack diz QUANTAS threads examinou (instância 1 da issue #49)
 set -uo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -362,5 +363,18 @@ out10b="$(ACKCHECK consumer 2>&1)"; rc10b=$?
 grep -q "OK liaison-trust" <<<"$out10b" \
   || { echo "FAIL [10]: com o self de volta a verificação não voltou a rodar: $out10b"; exit 1; }
 echo "OK [10]"
+
+echo "[11] a cobrança de ack diz quantas threads examinou (instância 1 da issue #49)"
+# `OK liaison-acks — nenhum ack pendente deste repositório` era o mesmo desfecho para "não
+# participo de thread nenhuma neste canal" e para "participo de nove e nenhuma me deve ack". O
+# contador de controle separa os dois: cobertura e ausência de cobertura não podem colapsar.
+out11="$(ACKCHECK consumer 2>&1)"; rc11=$?
+[ "$rc11" -eq 0 ] || { echo "FAIL [11]: canal íntegro reprovou (rc $rc11): $out11"; exit 1; }
+grep -qE "liaison-acks — [0-9]+ thread\(s\)" <<<"$out11" \
+  || { echo "FAIL [11]: a cobrança de ack não diz quantas threads examinou: $out11"; exit 1; }
+n_th="$(sed -n 's/.*liaison-acks — \([0-9]\{1,\}\) thread(s).*/\1/p' <<<"$out11" | head -1)"
+[ "${n_th:-0}" -ge 1 ] \
+  || { echo "FAIL [11]: contou ${n_th:-0} thread(s) — o 'OK' seria sobre conjunto vazio e não mediria nada: $out11"; exit 1; }
+echo "OK [11]"
 
 echo "PASS w150-liaison-flag-and-trust"

@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**23 itens ativos** · roadmap 4 · tech-debt 12 · known-bug 4 · follow-up 3 · (26 encerrados)
+**24 itens ativos** · roadmap 4 · tech-debt 13 · known-bug 4 · follow-up 3 · (27 encerrados)
 
 ## Roadmap
 
@@ -54,6 +54,8 @@ _Encerrados: 1 (resolved 1)_
   Achado da revisão adversarial (PR #45): o change gate-assert-visibility está status:verified, archive.eligible:false, e permanece em .forge/specs/active/ por decisão registrada no manifest (não há baseline a atualizar). Consequência: red-evidence.sh ci reexecuta o replay desse bugfix já encerrado em TODO PR, para sempre, e já houve deriva silenciosa entre o base_strategy commitado (ancestry/944c9582, inalcançável a partir de origin/develop) e a estratégia real observada (revert-synthesis). Se um commit futuro tocar tests/w80-suite-gate.sh nos mesmos trechos, o patch reverso deixa de aplicar. Remédio: /forge:close esse change (delivered-externally) para sair do escopo do ci, ou fazer red-evidence.sh ci ignorar changes já verified.
 - **LDG-0038** [open] (P3/low) — red-replay.mjs não detecta clone shallow — devolve not-possible genérico em vez de mensagem acionável
   Achado da revisão adversarial (PR #45): deriveBase() em red-replay.mjs devolve not-possible com razão genérica quando o histórico git é insuficiente (clone shallow), mandando o autor rodar /forge:red replay de novo — conselho errado, já que o problema é do ambiente (fetch-depth), não do comando. Um git rev-parse --is-shallow-repository no início da função daria a mensagem certa ('repositório raso — configure fetch-depth: 0').
+- **LDG-0052** [open] (P3) — bash: sustenido dentro de $( ) engole o resto da linha e o script morre com bad substitution, e o bash -n não vê
+  Descoberto ao instrumentar check-liaison-acks.sh (issue #49, instância 1). Um comentário JS dentro de um heredoc que vive dentro de $( ) — o idioma que todo script do harness usa para chamar node — não pode conter sustenido: o bash trata o sustenido como início de comentário DELE, engole o resto da linha e leva junto o parêntese de fechamento ou a crase do template literal. O script inteiro morre em runtime com 'bad substitution: no closing )', apontando a linha da substituição e não a do comentário. O 'bash -n' passa: a sintaxe é válida, o que quebra é o balanceamento depois da expansão. Aconteceu duas vezes na mesma edição, uma com '(issue #49, instância 1)' e outra com um template literal iniciado por sustenido. Candidato a cenário no check-shell-pipeline.sh, que já varre os .sh do harness: sustenido dentro de heredoc contido em $( ) é forma proibida.
 
 _Encerrados: 12 (promoted 1 · resolved 10 · wont-fix 1)_
 

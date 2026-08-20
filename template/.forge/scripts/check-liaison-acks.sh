@@ -129,6 +129,13 @@ const { pathToFileURL } = require('url');
   if (!self) return;
 
   const out = [];
+  // Contador de controle da issue 49, instância 1: quantas threads DESTE repositório a cobrança
+  // examinou. Sem ele, "não participo de thread nenhuma" e "participo de nove e nenhuma me deve
+  // ack" terminam na mesma linha, e cobertura fica indistinguível de ausência de cobertura.
+  // ATENÇÃO ao editar: este bloco vive dentro de $( ) do shell, e ali o bash trata um sustenido
+  // como início de comentário — ele engole o resto da linha, inclusive um parêntese de
+  // fechamento ou uma crase, e o script morre com "bad substitution". Sem sustenido aqui.
+  let scanned = 0;
   const channels = existsSync(liaisonDir)
     ? readdirSync(liaisonDir, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort()
     : [];
@@ -148,6 +155,7 @@ const { pathToFileURL } = require('url');
     for (const [threadId, t] of Object.entries(threads)) {
       // regra 2: só cobra thread da qual este repositório participa
       if (!t.participants.includes(self)) continue;
+      scanned += 1;
       // acks que ESTE repositório emitiu, por mensagem alvo (regra 1)
       const ackedByMe = new Set(
         t.messages.filter((m) => m.kind === 'ack' && m.sender === self && m.in_reply_to).map((m) => m.in_reply_to),
@@ -160,20 +168,40 @@ const { pathToFileURL } = require('url');
       }
     }
   }
-  process.stdout.write(out.join('\n'));
+  // Primeira linha SEMPRE, mesmo sem pendência: é ela que separa "examinei N threads e nenhuma me
+  // deve ack" de "não examinei thread nenhuma".
+  // Marcador sem sustenido e sem template literal, pelo mesmo motivo descrito acima.
+  process.stdout.write(['SCOPE ' + scanned].concat(out).join('\n'));
 })();
 NODEEOF
 )"
 
+# Separa o contador de controle (primeira linha) da lista de pendências. `self` ausente faz o node
+# devolver saída vazia — e aí não há escopo a declarar, porque não há de onde saber o que é "meu".
+# `head`/`tail` e não `${var%%$'\n'*}`: o bash 3.2 do macOS não expande `$'...'` dentro de
+# expansão de parâmetro, e o script inteiro morre com "bad substitution" (rule shell-portability).
+scanned_threads=""
+case "$pending" in
+  'SCOPE '*)
+    scanned_threads="$(printf '%s\n' "$pending" | head -1)"
+    scanned_threads="${scanned_threads#SCOPE }"
+    pending="$(printf '%s\n' "$pending" | tail -n +2)"
+    ;;
+esac
+
 if [ -z "$pending" ]; then
-  echo "OK liaison-acks — nenhum ack pendente deste repositório"
+  if [ -n "$scanned_threads" ]; then
+    echo "OK liaison-acks — $scanned_threads thread(s) deste repositório examinada(s), nenhum ack pendente"
+  else
+    echo "OK liaison-acks — nenhum ack pendente deste repositório"
+  fi
   [ -z "$TRUST_OK" ] || echo "$TRUST_OK"
   exit 0
 fi
 
-n="$(printf '%s\n' "$pending" | grep -c .)"
+n="$(printf '%s\n' "$pending" | grep -c . || true)"
 if [ "$mode" = "block" ]; then
-  echo "FAIL liaison-acks — $n mensagem(ns) exigem ack deste repositório (enforce: block):" >&2
+  echo "FAIL liaison-acks — $scanned_threads thread(s) examinada(s), $n mensagem(ns) exigem ack deste repositório (enforce: block):" >&2
   printf '%s\n' "$pending" | sed 's/^/  /' >&2
   echo "  Reconheça com: liaison-ops.sh ack <canal> <msg_id>" >&2
   echo "  Se a decisão é NÃO adotar, use --reason wont-adopt: acka e registra a dívida no ledger," >&2
@@ -182,7 +210,7 @@ if [ "$mode" = "block" ]; then
   exit 1
 fi
 
-echo "WARN liaison-acks — $n mensagem(ns) exigem ack deste repositório (enforce: warn, não bloqueia):"
+echo "WARN liaison-acks — $scanned_threads thread(s) examinada(s), $n mensagem(ns) exigem ack deste repositório (enforce: warn, não bloqueia):"
 printf '%s\n' "$pending" | sed 's/^/  /'
 [ -z "$TRUST_OK" ] || echo "$TRUST_OK"
 exit 0

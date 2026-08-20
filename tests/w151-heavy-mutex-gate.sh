@@ -497,6 +497,88 @@ bad2="$(awk '/^START/{if(cur!=""){print "OVERLAP"; exit} cur=$2} /^END/{cur=""}'
   || { echo "FAIL [18]: sem mutex NÃO houve entrelaçamento — o cenário [17] fica inconclusivo, porque não se sabe se o mutex protegeu ou se a carga nunca colidiria: $(cat "$W2F")"; exit 1; }
 echo "OK [18]"
 
+scenario "[31] reentrância não confia em PID solto: ancestral com token divergente NÃO é reentrante"
+BOX="$(newbox)"
+cat > "$BOX/c31.sh" <<'C31'
+set -uo pipefail
+. "$LIBP"
+forge_heavy_mutex_acquire --label "filho" --timeout 3 && printf 'REENTROU\n'
+C31
+mkdir -p "$BOX/w151res.lock"
+printf '%s\n' "$$" > "$BOX/w151res.lock/pid"
+printf '%s\n' "Mon Jan  1 00:00:00 2001" > "$BOX/w151res.lock/token"
+out31="$(FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res LIBP="$LIB" \
+         bash "$BOX/c31.sh" 2>&1)"; rc31=$?
+grep -q "ancestral" <<<"$out31" \
+  && { echo "FAIL [31]: tratou como ancestral um PID cujo token NÃO confere — um PID reciclado na nossa árvore faria a carga seguir sem lock nenhum: $out31"; exit 1; }
+echo "OK [31]"
+
+scenario "[32] reentrância reavaliada a cada poll, e o reentrante NÃO deixa ticket na fila"
+BOX="$(newbox)"; : > "$BOX/w151res.q.enabled"; mkdir -p "$BOX/w151res.q"
+cat > "$BOX/p32.sh" <<'P32'
+set -uo pipefail
+. "$LIBP"
+LIBP="$LIBP" BOXP="$BOXP" bash "$BOXP/c32.sh" &
+CH=$!
+sleep 2
+forge_heavy_mutex_acquire --label "pai tardio" --timeout 10 || exit $?
+printf 'PAI-PEGOU\n'
+wait "$CH"
+forge_heavy_mutex_release
+P32
+cat > "$BOX/c32.sh" <<'C32'
+set -uo pipefail
+. "$LIBP"
+forge_heavy_mutex_acquire --label "filho precoce" --timeout 25 && printf 'FILHO-SEGUIU\n'
+C32
+out32="$(FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res FORGE_HEAVY_MUTEX_POLL_S=1 \
+         LIBP="$LIB" BOXP="$BOX" bash "$BOX/p32.sh" 2>&1)"; rc32=$?
+grep -q "FILHO-SEGUIU" <<<"$out32" \
+  || { echo "FAIL [32]: o filho que entrou na fila ANTES de o ancestral adquirir ficou esperando atrás da fila pelo processo que o gerou (rc $rc32): $out32"; exit 1; }
+nq32="$(q_count "$BOX/w151res.q")"
+[ "${nq32:-0}" -eq 0 ] \
+  || { echo "FAIL [32]: sobraram $nq32 ticket(s) na fila — o reentrante saiu do laço sem recolher o seu, e ele bloqueia quem espera atrás por uma posse inteira"; exit 1; }
+echo "OK [32]"
+
+scenario "[34] interruptor DESLIGADO no meio do voo: os tickets são recolhidos"
+BOX="$(newbox)"; : > "$BOX/w151res.q.enabled"; mkdir -p "$BOX/w151res.q"
+SP34="$(sleeper)"; mk_ticket "$BOX/w151res.q" "00000000000000000001" "$SP34"
+cat > "$BOX/w34.sh" <<'W34'
+set -uo pipefail
+. "$LIBP"
+forge_heavy_mutex_acquire --label "espera" --timeout 25 && printf 'PEGOU\n'
+forge_heavy_mutex_release
+W34
+FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res FORGE_HEAVY_MUTEX_POLL_S=1 \
+  LIBP="$LIB" bash "$BOX/w34.sh" > "$BOX/w34.out" 2>&1 &
+W34P=$!; track "$W34P"
+w=0; while [ $w -lt 60 ] && [ "$(q_count "$BOX/w151res.q")" -lt 2 ]; do sleep 0.2; w=$((w+1)); done
+rm -f "$BOX/w151res.q.enabled"
+w=0; while [ $w -lt 80 ] && kill -0 "$W34P" 2>/dev/null; do sleep 0.5; w=$((w+1)); done
+kill -9 "$SP34" 2>/dev/null
+grep -q "PEGOU" "$BOX/w34.out" 2>/dev/null \
+  || { echo "FAIL [34]: com a fila DESLIGADA no meio do voo o processo não passou a disputar no modo legado: $(cat "$BOX/w34.out")"; exit 1; }
+nq34="$(q_count "$BOX/w151res.q")"
+[ "${nq34:-0}" -le 1 ] \
+  || { echo "FAIL [34]: $nq34 ticket(s) ficaram na fila após o desligamento — tickets órfãos bloqueiam quem religar a fila depois"; exit 1; }
+kill -9 "$W34P" 2>/dev/null
+echo "OK [34]"
+
+scenario "[48] invariante das saídas: adquirir, timeout e reentrância deixam a fila VAZIA"
+BOX="$(newbox)"; : > "$BOX/w151res.q.enabled"; mkdir -p "$BOX/w151res.q"
+FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res \
+  bash -c '. "$0"; forge_heavy_mutex_acquire --timeout 5; forge_heavy_mutex_release' "$LIB" >/dev/null 2>&1
+[ "$(q_count "$BOX/w151res.q")" -eq 0 ] \
+  || { echo "FAIL [48]: saída por AQUISIÇÃO deixou ticket na fila"; exit 1; }
+SP48="$(sleeper)"; mk_ticket "$BOX/w151res.q" "00000000000000000001" "$SP48"
+FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res FORGE_HEAVY_MUTEX_POLL_S=1 \
+  bash -c '. "$0"; forge_heavy_mutex_acquire --timeout 2' "$LIB" >/dev/null 2>&1
+nq="$(q_count "$BOX/w151res.q")"
+[ "$nq" -eq 1 ] \
+  || { echo "FAIL [48]: saída por TIMEOUT deixou $nq ticket(s) — esperado só o do concorrente vivo"; exit 1; }
+kill -9 "$SP48" 2>/dev/null
+echo "OK [48]"
+
 [ "$SCENARIOS_RUN" -gt 0 ] \
   || { echo "FAIL [contador]: nenhum cenário executado — um gate que não roda nada não cobre nada"; exit 1; }
 echo "PASS w151-heavy-mutex ($SCENARIOS_RUN cenário(s))"

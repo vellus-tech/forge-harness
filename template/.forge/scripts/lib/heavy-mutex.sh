@@ -270,6 +270,25 @@ _fhm_head_ticket() {
 # diretório, porque o outro falha com a origem já ausente. Quem levou RECONFERE o que tem na mão e
 # devolve se não for mais o órfão que motivou a decisão. É o mesmo princípio do `release`, que
 # confere PID e nonce antes de remover: nunca destrua o que você não provou ser seu.
+
+# Reentrância por LINHAGEM, reavaliada. A ordem normativa é identidade → linhagem → enfileirar, e
+# ela é fixada porque a inversão dá DEADLOCK: medido, verificar linhagem DENTRO do ramo de
+# cabeça-de-fila faz o filho esperar atrás da fila pelo processo que o gerou.
+#
+# O token do ancestral TEM de conferir: um PID reciclado que por acaso esteja na nossa árvore de
+# ancestrais não pode nos fazer seguir sem lock nenhum.
+_fhm_reentrant_now() {  # 0 quando o detentor atual é ancestral vivo e coerente
+  local h t
+  [ -d "$_FHM_LOCK" ] || return 1
+  h="$(cat "$_FHM_LOCK/pid" 2>/dev/null || echo '')"
+  [ -n "$h" ] || return 1
+  t="$(cat "$_FHM_LOCK/token" 2>/dev/null || echo '')"
+  _fhm_alive "$h" "$t" || return 1
+  _fhm_is_ancestor "$h" || return 1
+  _FHM_ANCESTOR="$h"
+  return 0
+}
+
 _fhm_reclaim_orphan() {  # _fhm_reclaim_orphan <pid-esperado>
   local want="$1" reap p2 t2
   reap="${_FHM_LOCK}.reaping.$$.$(date +%s).${RANDOM:-0}"
@@ -347,6 +366,18 @@ forge_heavy_mutex_acquire() {
 
   local incomplete=0 holder htok
   _FHM_NONCE="$$.$(date +%s).${RANDOM:-0}"
+  # Passo 3 da ordem normativa: reentrância é verificada ANTES de enfileirar, e o caminho
+  # reentrante NÃO cria ticket. Enfileirar primeiro e descobrir a linhagem depois deixaria o
+  # ticket de um processo que não está esperando na cabeça da fila, bloqueando quem espera atrás
+  # por uma posse inteira.
+  if _fhm_reentrant_now; then
+    echo "heavy-mutex: lock já detido por processo ancestral (PID $_FHM_ANCESTOR) — seguindo sem readquirir." >&2
+    _FHM_OWNED="false"
+    FORGE_HEAVY_MUTEX_REENTRANT=1
+    export FORGE_HEAVY_MUTEX_REENTRANT
+    return 0
+  fi
+
   local qon="DESLIGADA" head
   if _fhm_queue_enabled; then
     qon="LIGADA"
@@ -356,7 +387,25 @@ forge_heavy_mutex_acquire() {
   while : ; do
     # PORTÃO DE JUSTIÇA: só a cabeça TENTA. Com a fila desligada, todos tentam — que é o
     # comportamento legado, e é o que mantém a migração monótona em corretude.
+    # 6b — reentrância REAVALIADA: o ancestral pode ter adquirido depois de nós. Sem isto, um
+    # filho que entrou na fila antes de o ancestral pegar o lock espera atrás da fila pelo
+    # processo que o gerou. Custa um `cat` e um `ps` por poll.
+    if _fhm_reentrant_now; then
+      echo "heavy-mutex: lock passou a ser detido por processo ancestral (PID $_FHM_ANCESTOR) — seguindo sem readquirir." >&2
+      _FHM_OWNED="false"
+      FORGE_HEAVY_MUTEX_REENTRANT=1
+      export FORGE_HEAVY_MUTEX_REENTRANT
+      _fhm_leave_queue
+      return 0
+    fi
+    # 6a — interruptor REAVALIADO: pode ter mudado no meio do voo. Desligado, recolhemos o ticket
+    # em vez de deixá-lo na fila — um ticket órfão na cabeça bloqueia quem respeita a fila.
+    if ! _fhm_queue_enabled; then
+      qon="DESLIGADA"
+      _fhm_leave_queue
+    fi
     if _fhm_queue_enabled; then
+      qon="LIGADA"
       # O próprio ticket pode ter sido varrido por terceiro. Não reenfileirar tornaria "não sou
       # cabeça" um estado ABSORVENTE: medido, o processo espera o teto inteiro com o lock LIVRE.
       if [ -z "${_FHM_TICKET:-}" ] || [ ! -d "$_FHM_TICKET" ]; then

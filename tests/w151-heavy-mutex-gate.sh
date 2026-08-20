@@ -743,6 +743,50 @@ lk26="$(sed -n 's/^LOCK=//p' "$MK" | head -1)"
   || { echo "FAIL [26]: rc final $rc26; o baseline SEM a biblioteca devolve 0 aqui, e a composição não pode mudar isso — normalizar o código de saída é decisão do autor do handler"; exit 1; }
 echo "OK [26]"
 
+scenario "[42] wrapper: stdout puro, códigos de saída e conflito de aliases"
+BOX="$(newbox)"; HR="$WS/template/.forge/scripts/heavy-run.sh"
+out42="$(FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res bash "$HR" -- echo oi 2>/dev/null)"
+[ "$out42" = "oi" ] \
+  || { echo "FAIL [42]: stdout não é do comando — veio '$out42', esperado 'oi'. Saída de suíte pesada é parseada por terceiros, e uma linha nossa no meio quebra quem consome"; exit 1; }
+FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res bash "$HR" -- sh -c 'exit 42' >/dev/null 2>&1
+[ $? -eq 42 ] || { echo "FAIL [42]: o código do comando não foi propagado sem tradução"; exit 1; }
+FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res bash "$HR" echo oi >/dev/null 2>&1
+[ $? -eq 64 ] || { echo "FAIL [42]: comando sem '--' deveria dar 64"; exit 1; }
+FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res \
+  FORGE_HEAVY_MUTEX_TIMEOUT_S=100 HEAVY_RUN_TIMEOUT_SECONDS=200 bash "$HR" -- echo x >/dev/null 2>&1
+[ $? -eq 64 ] \
+  || { echo "FAIL [42]: dois aliases da MESMA grandeza com valores diferentes deveriam dar 64 — escolher um em silêncio é como uma configuração deixa de ser lida sem ninguém notar"; exit 1; }
+MARK42="$BOX/held42"
+FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res bash "$HR" -- \
+  sh -c 'echo "$FORGE_HEAVY_MUTEX_HELD_PATH" > "$1"' _ "$MARK42" >/dev/null 2>&1
+lk42="$(cat "$MARK42" 2>/dev/null)"
+[ -n "$lk42" ] && [ ! -d "$lk42" ] \
+  || { echo "FAIL [42]: o wrapper não liberou o lock ao fim do comando (lock=$lk42)"; exit 1; }
+echo "OK [42]"
+
+scenario "[43] wrapper: status e o sweep --legacy que nomeia caminhos que NÃO serializam"
+BOX="$(newbox)"; HR="$WS/template/.forge/scripts/heavy-run.sh"
+st43="$(FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res bash "$HR" status 2>&1)"; rc43=$?
+[ "$rc43" -eq 0 ] || { echo "FAIL [43]: status sobre recurso livre deveria dar 0 (veio $rc43): $st43"; exit 1; }
+grep -q "livre" <<<"$st43" || { echo "FAIL [43]: status não diz que está livre: $st43"; exit 1; }
+grep -q "fila" <<<"$st43" || { echo "FAIL [43]: status não informa o estado da fila: $st43"; exit 1; }
+DEAD43="$(sleeper)"; kill -9 "$DEAD43" 2>/dev/null; wait "$DEAD43" 2>/dev/null
+mk_lock "$BOX/w151res.lock" "$DEAD43" "carimbo-morto"
+sw43="$(FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res bash "$HR" sweep 2>&1)"
+grep -q "1 lock" <<<"$sw43" \
+  || { echo "FAIL [43]: sweep não removeu o lock órfão: $sw43"; exit 1; }
+echo "OK [43]"
+
+scenario "[44] wrapper: queue enable/disable/state opera o interruptor da máquina"
+BOX="$(newbox)"; HR="$WS/template/.forge/scripts/heavy-run.sh"
+FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res bash "$HR" queue enable >/dev/null 2>&1
+s44="$(FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res bash "$HR" queue state 2>/dev/null)"
+[ "$s44" = "LIGADA" ] || { echo "FAIL [44]: queue enable não ligou a fila (state='$s44')"; exit 1; }
+FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res bash "$HR" queue disable >/dev/null 2>&1
+s44b="$(FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res bash "$HR" queue state 2>/dev/null)"
+[ "$s44b" = "DESLIGADA" ] || { echo "FAIL [44]: queue disable não desligou (state='$s44b')"; exit 1; }
+echo "OK [44]"
+
 [ "$SCENARIOS_RUN" -gt 0 ] \
   || { echo "FAIL [contador]: nenhum cenário executado — um gate que não roda nada não cobre nada"; exit 1; }
 echo "PASS w151-heavy-mutex ($SCENARIOS_RUN cenário(s))"

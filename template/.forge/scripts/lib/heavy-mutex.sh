@@ -257,6 +257,37 @@ forge_heavy_mutex_arm_trap() {
   return 0
 }
 
+
+forge_heavy_mutex_status() {
+  local res rr root prov tab lock qsw hp ht age n=0 f
+  tab="$(printf '\t')"
+  res="$(_fhm_resource)"
+  while [ $# -gt 0 ]; do
+    case "$1" in --resource) res="$2"; shift 2 ;; *) return 64 ;; esac
+  done
+  rr="$(_fhm_resolve_root)" || return 69
+  root="${rr%%$tab*}"; prov="${rr#*$tab}"
+  lock="$root/$res.lock"; qsw="$root/$res.q.enabled"
+  echo "recurso ..... $res"
+  echo "lock ........ $lock (âncora: $prov)"
+  [ -f "$qsw" ] && echo "fila ........ LIGADA" || echo "fila ........ DESLIGADA"
+  for f in "$root/$res.q"/*; do [ -d "$f" ] && n=$((n + 1)); done
+  echo "fila ........ $n ticket(s)"
+  if [ -d "$lock" ]; then
+    hp="$(cat "$lock/pid" 2>/dev/null || echo '?')"
+    ht="$(cat "$lock/token" 2>/dev/null || echo '')"
+    age="$(LC_ALL=C ps -o etime= -p "$hp" 2>/dev/null | tr -d ' ')"
+    if _fhm_alive "$hp" "$ht"; then
+      echo "detentor .... PID $hp há ${age:-?}"
+    else
+      echo "detentor .... PID $hp — ÓRFÃO (processo morto, zumbi ou PID reciclado)"
+    fi
+    return 1
+  fi
+  echo "detentor .... (livre)"
+  return 0
+}
+
 forge_heavy_mutex_path() {
   local res rr root prov tab
   tab="$(printf '\t')"

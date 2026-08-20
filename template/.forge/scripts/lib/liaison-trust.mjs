@@ -96,6 +96,25 @@ export function verifyChannel(chDir, self, channel = '') {
   return { scanned, violations };
 }
 
+// Quantas mensagens o store guarda, SEM derivar procedência. Existe para o caso em que a derivação
+// não é possível (canal sem `self` configurado): o chamador precisa saber se ficou algo sem
+// verificar, porque "não verifiquei" e "verifiquei e está coerente" não podem terminar no mesmo
+// silêncio — e um store com mensagens e sem `self` não é estado legítimo, já que `send` e `import`
+// exigem o campo.
+export function countMessages(liaisonDir) {
+  let n = 0;
+  if (!existsSync(liaisonDir)) return n;
+  for (const d of readdirSync(liaisonDir, { withFileTypes: true })) {
+    if (!d.isDirectory()) continue;
+    const logDir = join(liaisonDir, d.name, 'log');
+    if (!existsSync(logDir)) continue;
+    for (const f of readdirSync(logDir).filter((x) => x.endsWith('.jsonl'))) {
+      n += readJsonl(join(logDir, f)).length;
+    }
+  }
+  return n;
+}
+
 export function verifyAll(liaisonDir, self) {
   const violations = [];
   let scanned = 0;

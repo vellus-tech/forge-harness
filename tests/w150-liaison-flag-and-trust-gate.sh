@@ -27,6 +27,7 @@
 #   [7] procedência: `trust` invertido no log próprio REPROVA nomeando arquivo e msg_id (alvo morto)
 #   [8] procedência: mensagem no log de um PEER que se declara `trust: self` REPROVA
 #   [9] procedência: `send --authored-by` grava `untrusted-peer` no log PRÓPRIO e isso NÃO reprova
+#  [10] procedência que não pôde ser derivada sobre store não vazio REPROVA em vez de sair calada
 set -uo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -337,5 +338,29 @@ out9="$(ACKCHECK consumer 2>&1)"; rc9=$?
 [ "$rc9" -eq 0 ] \
   || { echo "FAIL [9]: conteúdo de autoria externa gravado no log próprio (authored_by) foi tratado como incoerência (rc $rc9) — falso positivo que travaria o push de quem usa o ask: $out9"; exit 1; }
 echo "OK [9]"
+
+echo "[10] store não vazio cuja procedência não pôde ser derivada reprova, em vez de calar"
+# `self` ausente é o único caminho pelo qual a verificação de procedência não tem de onde derivar
+# nada. Devolver 0 sem uma linha faria "não verifiquei" e "verifiquei e está coerente" terminarem no
+# mesmo silêncio para quem lê a saída do push — a classe de defeito que este gate inteiro fecha. Um
+# `liaison.yaml` sem `self` sobre um store COM mensagens não é estado legítimo: `send` e `import`
+# exigem `self`, então o store só chegou ali por edição, restauração ou merge do arquivo de config.
+cp "$T/consumer/.forge/liaison/liaison.yaml" "$T/cfg.bak"
+grep -v -e '^self:' -e '^  id:' "$T/cfg.bak" > "$T/consumer/.forge/liaison/liaison.yaml"
+n_orphan="$(msgs_in_channel "$CHDIR")"
+[ "${n_orphan:-0}" -ge 1 ] \
+  || { echo "FAIL [10]: o store do consumidor está vazio — o cenário não distinguiria 'não verifiquei' de 'nada a verificar'"; exit 1; }
+out10="$(ACKCHECK consumer 2>&1)"; rc10=$?
+[ "$rc10" -ne 0 ] \
+  || { echo "FAIL [10]: ${n_orphan} mensagem(ns) ficaram SEM verificação de procedência e o push seguiu (rc 0): $out10"; exit 1; }
+grep -q "liaison-trust" <<<"$out10" \
+  || { echo "FAIL [10]: a reprovação não nomeia a verificação que não pôde rodar: $out10"; exit 1; }
+cp "$T/cfg.bak" "$T/consumer/.forge/liaison/liaison.yaml"
+out10b="$(ACKCHECK consumer 2>&1)"; rc10b=$?
+[ "$rc10b" -eq 0 ] \
+  || { echo "FAIL [10]: restaurar o self não voltou ao verde (rc $rc10b): $out10b"; exit 1; }
+grep -q "OK liaison-trust" <<<"$out10b" \
+  || { echo "FAIL [10]: com o self de volta a verificação não voltou a rodar: $out10b"; exit 1; }
+echo "OK [10]"
 
 echo "PASS w150-liaison-flag-and-trust"

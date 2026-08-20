@@ -75,8 +75,9 @@ const { pathToFileURL } = require('url');
   const T = await import(pathToFileURL(join(lib, 'liaison-trust.mjs')).href);
   const C = await import(pathToFileURL(join(lib, 'liaison-config.mjs')).href);
   const self = (C.readConfig(cfg).self || {}).id;
-  // Sem self não há de onde derivar procedência: o canal existe mas ninguém o configurou.
-  if (!self) { process.stdout.write('SKIP'); return; }
+  // Sem self não há de onde derivar procedência. Quantas mensagens ficaram sem verificação é o que
+  // decide o veredito do chamador: sair calado aqui empataria "não verifiquei" com "está coerente".
+  if (!self) { process.stdout.write(`SKIP ${T.countMessages(liaisonDir)}`); return; }
   const { scanned, violations } = T.verifyAll(liaisonDir, self);
   if (!violations.length) { process.stdout.write(`OK ${scanned}`); return; }
   process.stdout.write([`BAD ${scanned}`, ...violations.map(T.formatViolation)].join('\n'));
@@ -96,6 +97,24 @@ case "$trust_report" in
     exit 1
     ;;
   OK*) TRUST_OK="OK liaison-trust — ${trust_report#OK } mensagem(ns) com procedência coerente" ;;
+  SKIP*)
+    # Store com mensagens e sem `self` não é estado legítimo — `send` e `import` exigem o campo, então
+    # ele só chegou ali por edição, restauração ou merge do liaison.yaml. Deixar passar entregaria um
+    # push cujo store inteiro ficou sem verificação, e o sinal disso seria a AUSÊNCIA de uma linha.
+    n_skip="${trust_report#SKIP }"
+    if [ "${n_skip:-0}" -gt 0 ]; then
+      echo "FAIL liaison-trust — ${n_skip} mensagem(ns) no store e nenhuma verificada: '$CONFIG' não declara self.id," >&2
+      echo "  e a procedência é derivada dele. Restaure o bloco 'self:' do liaison.yaml a partir do histórico." >&2
+      exit 1
+    fi
+    TRUST_OK="OK liaison-trust — store vazio, nada a verificar"
+    ;;
+  *)
+    # Nem OK, nem BAD, nem SKIP: a verificação devolveu algo que este script não sabe ler. Aceitar em
+    # silêncio seria o mesmo defeito, uma camada acima.
+    echo "FAIL liaison-trust — a verificação devolveu resposta que não sei ler: '$trust_report'" >&2
+    exit 1
+    ;;
 esac
 
 pending="$(node - "$LIBDIR" "$LIAISON_DIR" "$CONFIG" <<'NODEEOF'

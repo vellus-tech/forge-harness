@@ -31,6 +31,7 @@ export LC_ALL
 
 _FHM_LOCK=""
 _FHM_OWNED="false"
+_FHM_NONCE=""
 
 # 0 quando <pid> é ancestral deste processo. Reentrância por LINHAGEM, não por variável de
 # ambiente: quem empurra via `heavy-run.sh -- git push` já detém o lock, e o wrapper não exporta
@@ -61,6 +62,16 @@ _fhm_die69() { echo "heavy-mutex: $1" >&2; return 69; }
 _fhm_resolve_root() {  # ecoa "<root>\t<proveniência>"; rc 69 se inutilizável
   local root="${FORGE_HEAVY_MUTEX_ROOT:-}" tab
   tab="$(printf '\t')"
+  # TRAVA DE TESTE — asserção POSITIVA, não backstop. Um backstop por "existência antes/depois" não
+  # detecta um cenário que crie E remova o lock real, porque "inexistente" bate nas duas pontas.
+  # Com esta trava, um cenário que esqueça de montar a caixa falha alto em vez de tocar o /tmp da
+  # máquina — e a suíte jamais vira a carga que o mutex existe para impedir. Aconteceu de verdade
+  # durante a implementação: os cenários da onda W0 isolavam por TMPDIR, a W1 passou a ignorar
+  # TMPDIR, e a suíte criou o sidecar no /tmp real sem que nada reclamasse.
+  if [ "${FORGE_HEAVY_MUTEX_TESTING:-}" = "1" ] && [ -z "$root" ]; then
+    _fhm_die69 "FORGE_HEAVY_MUTEX_TESTING=1 exige FORGE_HEAVY_MUTEX_ROOT — recusado para não tocar o lock real da máquina."
+    return 69
+  fi
   if [ -n "$root" ]; then
     # Declarada por quem chama: regime ESTRITO. `-L` primeiro, porque `-d` e `-O` seguem symlink.
     [ -L "$root" ] && { _fhm_die69 "FORGE_HEAVY_MUTEX_ROOT '$root' é um symlink — recusado. Um terceiro que plante o nome desvia o lock em silêncio, e `mkdir -p` aceitaria."; return 69; }
@@ -102,6 +113,41 @@ _fhm_ensure_sidecar() {  # _fhm_ensure_sidecar <caminho>
   return 0
 }
 
+
+# ── identidade e liveness (D3) ───────────────────────────────────────────────────────────────────
+# `kill -0` NÃO serve para liveness aqui, e a razão é medida: devolve `Operation not permitted`
+# para processo VIVO de outro uid — classificando-o como morto — e devolve 0 para ZUMBI, que já
+# não segura recurso nenhum. Uma única chamada de `ps` entrega liveness E token, funciona entre
+# uids e elimina as duas assimetrias.
+#
+# `LC_ALL=C` é obrigatório e `LC_TIME` sozinho basta para quebrar: o mesmo PID rende
+# `Thu Aug 20 13:53:00 2026` sob C e `qui 20 ago 13:53:00 2026` sob pt_BR. Sem fixar, o token
+# gravado por um processo nunca bateria com o recomputado por outro de locale diferente.
+# Há padding à direita em `lstart` e em `state`, daí o trim.
+_fhm_token() {  # _fhm_token <pid>
+  LC_ALL=C ps -o lstart= -p "$1" 2>/dev/null | tr -s ' ' | sed 's/^ *//;s/ *$//'
+}
+
+# Só o PRIMEIRO caractere interessa: medido, o macOS produz `S`, `R`, `Z` e `Ss` para o pid 1, e o
+# Linux produz `S` e `Z`. Casar o primeiro caractere funciona nos dois.
+_fhm_state1() {  # _fhm_state1 <pid>
+  LC_ALL=C ps -o state= -p "$1" 2>/dev/null | sed 's/^ *//' | cut -c1
+}
+
+_fhm_alive() {  # _fhm_alive <pid> <token-gravado> — 0 se vivo E é o mesmo processo
+  local pid="$1" want="$2" now st
+  case "$pid" in ''|*[!0-9]*) return 1 ;; esac
+  now="$(_fhm_token "$pid")"
+  [ -n "$now" ] || return 1
+  st="$(_fhm_state1 "$pid")"
+  [ "$st" = "Z" ] && return 1
+  # Token gravado ausente é lock do protocolo LEGADO: ele não grava token. Aí a única identidade
+  # disponível é o PID, e tratamos como vivo — recusar seria remover lock legado vivo, que é
+  # exatamente o dano que a interoperabilidade existe para impedir.
+  [ -n "$want" ] || return 0
+  [ "$now" = "$want" ]
+}
+
 forge_heavy_mutex_path() {
   local res rr root prov tab
   tab="$(printf '\t')"
@@ -136,22 +182,38 @@ forge_heavy_mutex_acquire() {
   _fhm_ensure_sidecar "$root/$res.q" || return 69
   _FHM_LOCK="$root/$res.lock"
 
-  # DEFEITO 2, importado de propósito nesta onda: polling sem fila.
+  local incomplete=0 holder htok
+  _FHM_NONCE="$$.$(date +%s).${RANDOM:-0}"
   while ! mkdir "$_FHM_LOCK" 2>/dev/null; do
     holder="$(cat "$_FHM_LOCK/pid" 2>/dev/null || echo '')"
+    htok="$(cat "$_FHM_LOCK/token" 2>/dev/null || echo '')"
 
-    if [ -n "$holder" ] && _fhm_is_ancestor "$holder"; then
-      echo "heavy-mutex: lock já detido por processo ancestral (PID $holder) — seguindo sem readquirir." >&2
-      _FHM_OWNED="false"
-      FORGE_HEAVY_MUTEX_REENTRANT=1
-      export FORGE_HEAVY_MUTEX_REENTRANT
-      return 0
-    fi
-
-    if [ -n "$holder" ] && ! kill -0 "$holder" 2>/dev/null; then
-      echo "heavy-mutex: lock órfão de PID $holder removido (processo não existe mais)." >&2
-      rm -rf "$_FHM_LOCK"
-      continue
+    if [ -z "$holder" ]; then
+      # Lock SEM dono legível é o estado da janela entre o `mkdir` e a escrita do `pid`. Reclamar
+      # no primeiro poll é apagar o lock de quem acabou de vencer a corrida — é o que o legado faz,
+      # e é uma corrida real. Contamos observações consecutivas em vez de comparar mtime, o que
+      # evitaria a divergência `stat -f %m` (BSD) contra `stat -c %Y` (GNU).
+      incomplete=$((incomplete + 1))
+      if [ "$incomplete" -ge "${FORGE_HEAVY_MUTEX_INCOMPLETE_POLLS:-5}" ]; then
+        echo "heavy-mutex: lock incompleto (sem pid) por $incomplete poll(s) — reclamando $_FHM_LOCK" >&2
+        rm -rf "$_FHM_LOCK"
+        incomplete=0
+        continue
+      fi
+    else
+      incomplete=0
+      if _fhm_alive "$holder" "$htok" && _fhm_is_ancestor "$holder"; then
+        echo "heavy-mutex: lock já detido por processo ancestral (PID $holder) — seguindo sem readquirir." >&2
+        _FHM_OWNED="false"
+        FORGE_HEAVY_MUTEX_REENTRANT=1
+        export FORGE_HEAVY_MUTEX_REENTRANT
+        return 0
+      fi
+      if ! _fhm_alive "$holder" "$htok"; then
+        echo "heavy-mutex: lock órfão de PID $holder removido em $_FHM_LOCK (processo morto, zumbi ou PID reciclado)." >&2
+        rm -rf "$_FHM_LOCK"
+        continue
+      fi
     fi
 
     if [ "$waited" -ge "$timeout" ]; then
@@ -160,18 +222,38 @@ forge_heavy_mutex_acquire() {
       echo "  detentor .... PID ${holder:-desconhecido}" >&2
       return 75
     fi
-    # `${label}` com chaves e o texto seguinte separado: `$label…` fez o bash tratar a reticência
-    # multibyte como parte do NOME da variável, e o hook morria com "unbound variable" sob `set -u`.
     if [ "$waited" = 0 ]; then
       echo "heavy-mutex: AGUARDANDO — ${label}" >&2
       echo "  lock ........ $_FHM_LOCK (âncora: $prov)" >&2
       echo "  detentor .... PID ${holder:-'?'}" >&2
     fi
-    sleep 1
-    waited=$((waited + 1))
+    sleep "${FORGE_HEAVY_MUTEX_POLL_S:-1}"
+    waited=$((waited + ${FORGE_HEAVY_MUTEX_POLL_S:-1}))
   done
 
-  printf '%s\n' "$$" > "$_FHM_LOCK/pid"
+  # `pid` PRIMEIRO, porque é o campo que o legado lê: estreita ao máximo a janela em que o lock
+  # existe sem dono legível. Todo `rc` de escrita é conferido — um `printf` que falhe é falha de
+  # AQUISIÇÃO, não um aviso solto no stderr.
+  printf '%s\n' "$$" > "$_FHM_LOCK/pid" || { echo "heavy-mutex: não consegui escrever $_FHM_LOCK/pid" >&2; return 75; }
+  # Sonda de teste: reproduz determinística e exclusivamente a revogação por consumidor legado
+  # dentro da janela, para que o cenário [19] meça a decisão e não dependa de vencer uma corrida.
+  [ "${FORGE_HEAVY_MUTEX_REVOKE_PROBE:-}" = "1" ] && rm -rf "$_FHM_LOCK"
+  printf '%s\n' "$(_fhm_token "$$")" > "$_FHM_LOCK/token" 2>/dev/null
+  printf '%s\n' "$_FHM_NONCE" > "$_FHM_LOCK/nonce" 2>/dev/null
+  printf '%s\n' "$(date +%s)" > "$_FHM_LOCK/acquired_at" 2>/dev/null
+  printf '%s\n' "${label}" > "$_FHM_LOCK/label" 2>/dev/null
+
+  # CONFIRMAÇÃO DE POSSE. Escrever `pid` primeiro ESTREITA a janela (medido: mediana 87 µs, p95
+  # 130 µs), não a fecha — e um consumidor legado que a atravesse remove o nosso lock e segue.
+  # Sem esta releitura, o processo continua se comportando como detentor de um lock que não existe
+  # mais, tendo produzido apenas uma linha `No such file or directory` que ninguém lê: duas suítes
+  # pesadas rodando juntas, que é o defeito que o mutex existe para impedir.
+  if [ ! -d "$_FHM_LOCK" ] || [ "$(cat "$_FHM_LOCK/pid" 2>/dev/null)" != "$$" ] \
+     || [ "$(cat "$_FHM_LOCK/nonce" 2>/dev/null)" != "$_FHM_NONCE" ]; then
+    echo "heavy-mutex: lock revogado por consumidor legado durante a janela de escrita — a aquisição FALHOU ($_FHM_LOCK)" >&2
+    _FHM_OWNED="false"
+    return 75
+  fi
   _FHM_OWNED="true"
   # Recibo SEMPRE, mesmo sem contenção: é o análogo do contador de controle para um primitivo que
   # não itera universo. Sem ele, "rodei com o mutex e não houve disputa" e "rodei sem o mutex
@@ -189,7 +271,17 @@ forge_heavy_mutex_release() {
   [ -n "$_FHM_LOCK" ] || return 0
   local holder
   holder="$(cat "$_FHM_LOCK/pid" 2>/dev/null || echo '')"
-  [ "$holder" = "$$" ] && rm -rf "$_FHM_LOCK"
+  local nonce; nonce="$(cat "$_FHM_LOCK/nonce" 2>/dev/null || echo '')"
+  # Confere PID e NONCE: o token identifica um processo, o nonce identifica ESTA aquisição.
+  if [ "$holder" = "$$" ] && [ "$nonce" = "${_FHM_NONCE:-}" ]; then
+    rm -rf "$_FHM_LOCK"
+    # `rm -rf` pode falhar com "Directory not empty" sob criação concorrente. Conferir a remoção,
+    # tentar de novo, e nunca ASSUMIR que removeu — um lock que sobra bloqueia a máquina inteira.
+    if [ -d "$_FHM_LOCK" ]; then
+      rm -rf "$_FHM_LOCK"
+      [ -d "$_FHM_LOCK" ] && echo "heavy-mutex: NÃO consegui remover $_FHM_LOCK — o próximo adquirente vai tratá-lo como órfão; confira o caminho." >&2
+    fi
+  fi
   _FHM_OWNED="false"
   return 0
 }

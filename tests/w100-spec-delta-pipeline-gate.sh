@@ -83,7 +83,10 @@ FORGE_ROOT="$T" bash "$VS" --path "$T/.forge/specs/active/chg-tok" >/dev/null ||
 # autoria manual → scaffold vira SKIP e preserva o conteúdo
 perl -pi -e 's/<scaffold: precondição — preencher na fase verify>/portador autenticado na sessão de checkout/g' "$D"
 before="$(shasum "$D")"
-node "$SC" "$T/.forge/specs/active/chg-tok" "$T" | grep -q '^SKIP' || { echo "FAIL: scaffold sobrescreveu delta autorado"; exit 1; }
+# Sem pipe (issue #49): grep -q sairia no 1º casamento, o node levaria SIGPIPE e o pipeline
+# devolveria 141 — sob pipefail o `||` dispararia por causa do sinal, não por ausência de SKIP.
+sc_out="$(node "$SC" "$T/.forge/specs/active/chg-tok" "$T" 2>&1 || true)"
+grep -q '^SKIP' <<<"$sc_out" || { echo "FAIL: scaffold sobrescreveu delta autorado ($sc_out)"; exit 1; }
 [ "$before" = "$(shasum "$D")" ] || { echo "FAIL: conteúdo autorado foi alterado"; exit 1; }
 # REQ novo adicionado DEPOIS da geração → SKIP com aviso de cobertura (nunca reescreve)
 cat >> "$T/.forge/specs/active/chg-tok/requirements.md" <<'EOF'

@@ -55,6 +55,68 @@ if [ -f "$FORGE_YAML" ]; then
   [ -n "$found" ] && mode="$found"
 fi
 
+# ── procedência (issue #51) ──────────────────────────────────────────────────────────────────────
+# `trust` era o único campo do envelope que nenhum instrumento verificava. content_sha o exclui por
+# desenho (varia legitimamente entre cópias da mesma mensagem), então verificação por hash é
+# estruturalmente cega a ele — e uma restauração de log truncado que copiou a réplica de um peer
+# sobre o log próprio fez 172 mensagens PRÓPRIAS se declararem `untrusted-peer` sem que nada
+# reprovasse. A invariante é derivável de fato observável, não declarada: em `log/<self>.jsonl` toda
+# mensagem é `self` (salvo as de autoria externa, que carregam `authored_by`), e em `log/<outro>.jsonl`
+# nenhuma é. Ver lib/liaison-trust.mjs.
+#
+# Reprova SEMPRE, independente de `enforce: warn|block`: aquele modo gradua uma dívida social (o ack
+# que este repositório deve a alguém), e esta é outra classe — o log em disco está afirmando uma
+# procedência que os próprios arquivos desmentem, e publicar isso propaga a inversão para os peers.
+trust_report="$(node - "$LIBDIR" "$LIAISON_DIR" "$CONFIG" <<'NODEEOF'
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, liaisonDir, cfg] = process.argv;
+  const T = await import(pathToFileURL(join(lib, 'liaison-trust.mjs')).href);
+  const C = await import(pathToFileURL(join(lib, 'liaison-config.mjs')).href);
+  const self = (C.readConfig(cfg).self || {}).id;
+  // Sem self não há de onde derivar procedência. Quantas mensagens ficaram sem verificação é o que
+  // decide o veredito do chamador: sair calado aqui empataria "não verifiquei" com "está coerente".
+  if (!self) { process.stdout.write(`SKIP ${T.countMessages(liaisonDir)}`); return; }
+  const { scanned, violations } = T.verifyAll(liaisonDir, self);
+  if (!violations.length) { process.stdout.write(`OK ${scanned}`); return; }
+  process.stdout.write([`BAD ${scanned}`, ...violations.map(T.formatViolation)].join('\n'));
+})();
+NODEEOF
+)" || { echo "FAIL liaison-trust — a verificação de procedência não pôde ser executada" >&2; exit 1; }
+
+TRUST_OK=""
+case "$trust_report" in
+  BAD*)
+    n_bad="$(printf '%s\n' "$trust_report" | tail -n +2 | grep -c . || true)"
+    echo "FAIL liaison-trust — $n_bad mensagem(ns) declaram procedência que os próprios arquivos do canal desmentem:" >&2
+    printf '%s\n' "$trust_report" | tail -n +2 | sed 's/^/  /' >&2
+    echo "  Nenhum content_sha detecta isto: o campo é excluído do hash por desenho, porque varia entre cópias." >&2
+    echo "  Causa típica: cópia manual, restauração de backup ou merge que trouxe o log de um peer para cima do próprio." >&2
+    echo "  Restaure o arquivo apontado a partir do histórico do repositório — corrigir o campo à mão esconde a cópia errada." >&2
+    exit 1
+    ;;
+  OK*) TRUST_OK="OK liaison-trust — ${trust_report#OK } mensagem(ns) com procedência coerente" ;;
+  SKIP*)
+    # Store com mensagens e sem `self` não é estado legítimo — `send` e `import` exigem o campo, então
+    # ele só chegou ali por edição, restauração ou merge do liaison.yaml. Deixar passar entregaria um
+    # push cujo store inteiro ficou sem verificação, e o sinal disso seria a AUSÊNCIA de uma linha.
+    n_skip="${trust_report#SKIP }"
+    if [ "${n_skip:-0}" -gt 0 ]; then
+      echo "FAIL liaison-trust — ${n_skip} mensagem(ns) no store e nenhuma verificada: '$CONFIG' não declara self.id," >&2
+      echo "  e a procedência é derivada dele. Restaure o bloco 'self:' do liaison.yaml a partir do histórico." >&2
+      exit 1
+    fi
+    TRUST_OK="OK liaison-trust — store vazio, nada a verificar"
+    ;;
+  *)
+    # Nem OK, nem BAD, nem SKIP: a verificação devolveu algo que este script não sabe ler. Aceitar em
+    # silêncio seria o mesmo defeito, uma camada acima.
+    echo "FAIL liaison-trust — a verificação devolveu resposta que não sei ler: '$trust_report'" >&2
+    exit 1
+    ;;
+esac
+
 pending="$(node - "$LIBDIR" "$LIAISON_DIR" "$CONFIG" <<'NODEEOF'
 const { readFileSync, readdirSync, existsSync } = require('fs');
 const { join } = require('path');
@@ -67,6 +129,13 @@ const { pathToFileURL } = require('url');
   if (!self) return;
 
   const out = [];
+  // Contador de controle da issue 49, instância 1: quantas threads DESTE repositório a cobrança
+  // examinou. Sem ele, "não participo de thread nenhuma" e "participo de nove e nenhuma me deve
+  // ack" terminam na mesma linha, e cobertura fica indistinguível de ausência de cobertura.
+  // ATENÇÃO ao editar: este bloco vive dentro de $( ) do shell, e ali o bash trata um sustenido
+  // como início de comentário — ele engole o resto da linha, inclusive um parêntese de
+  // fechamento ou uma crase, e o script morre com "bad substitution". Sem sustenido aqui.
+  let scanned = 0;
   const channels = existsSync(liaisonDir)
     ? readdirSync(liaisonDir, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort()
     : [];
@@ -86,6 +155,7 @@ const { pathToFileURL } = require('url');
     for (const [threadId, t] of Object.entries(threads)) {
       // regra 2: só cobra thread da qual este repositório participa
       if (!t.participants.includes(self)) continue;
+      scanned += 1;
       // acks que ESTE repositório emitiu, por mensagem alvo (regra 1)
       const ackedByMe = new Set(
         t.messages.filter((m) => m.kind === 'ack' && m.sender === self && m.in_reply_to).map((m) => m.in_reply_to),
@@ -98,26 +168,49 @@ const { pathToFileURL } = require('url');
       }
     }
   }
-  process.stdout.write(out.join('\n'));
+  // Primeira linha SEMPRE, mesmo sem pendência: é ela que separa "examinei N threads e nenhuma me
+  // deve ack" de "não examinei thread nenhuma".
+  // Marcador sem sustenido e sem template literal, pelo mesmo motivo descrito acima.
+  process.stdout.write(['SCOPE ' + scanned].concat(out).join('\n'));
 })();
 NODEEOF
 )"
 
+# Separa o contador de controle (primeira linha) da lista de pendências. `self` ausente faz o node
+# devolver saída vazia — e aí não há escopo a declarar, porque não há de onde saber o que é "meu".
+# `head`/`tail` e não `${var%%$'\n'*}`: o bash 3.2 do macOS não expande `$'...'` dentro de
+# expansão de parâmetro, e o script inteiro morre com "bad substitution" (rule shell-portability).
+scanned_threads=""
+case "$pending" in
+  'SCOPE '*)
+    scanned_threads="$(printf '%s\n' "$pending" | head -1)"
+    scanned_threads="${scanned_threads#SCOPE }"
+    pending="$(printf '%s\n' "$pending" | tail -n +2)"
+    ;;
+esac
+
 if [ -z "$pending" ]; then
-  echo "OK liaison-acks — nenhum ack pendente deste repositório"
+  if [ -n "$scanned_threads" ]; then
+    echo "OK liaison-acks — $scanned_threads thread(s) deste repositório examinada(s), nenhum ack pendente"
+  else
+    echo "OK liaison-acks — nenhum ack pendente deste repositório"
+  fi
+  [ -z "$TRUST_OK" ] || echo "$TRUST_OK"
   exit 0
 fi
 
-n="$(printf '%s\n' "$pending" | grep -c .)"
+n="$(printf '%s\n' "$pending" | grep -c . || true)"
 if [ "$mode" = "block" ]; then
-  echo "FAIL liaison-acks — $n mensagem(ns) exigem ack deste repositório (enforce: block):" >&2
+  echo "FAIL liaison-acks — $scanned_threads thread(s) examinada(s), $n mensagem(ns) exigem ack deste repositório (enforce: block):" >&2
   printf '%s\n' "$pending" | sed 's/^/  /' >&2
   echo "  Reconheça com: liaison-ops.sh ack <canal> <msg_id>" >&2
   echo "  Se a decisão é NÃO adotar, use --reason wont-adopt: acka e registra a dívida no ledger," >&2
   echo "  porque recusa registrada é informação e recusa silenciosa é o drift que o canal combate." >&2
+  [ -z "$TRUST_OK" ] || echo "$TRUST_OK"
   exit 1
 fi
 
-echo "WARN liaison-acks — $n mensagem(ns) exigem ack deste repositório (enforce: warn, não bloqueia):"
+echo "WARN liaison-acks — $scanned_threads thread(s) examinada(s), $n mensagem(ns) exigem ack deste repositório (enforce: warn, não bloqueia):"
 printf '%s\n' "$pending" | sed 's/^/  /'
+[ -z "$TRUST_OK" ] || echo "$TRUST_OK"
 exit 0

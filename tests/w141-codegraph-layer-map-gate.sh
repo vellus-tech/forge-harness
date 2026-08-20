@@ -278,11 +278,17 @@ case "$vgp" in
   OK*) : ;;
   *) echo "FAIL [9]: validate reprovou o clone sem configuração: $vgp"; exit 1 ;;
 esac
-node -e '
+# Sem pipe (issue #49): grep -q sairia no 1º casamento, o node levaria SIGPIPE e o pipeline
+# devolveria 141 — sob pipefail o `||` dispararia pelo sinal, não pelo veredito do script.
+tx1="$(node -e '
 const g=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));
 if (g.nodes.some(n=>n.taxonomy!==undefined)) { console.log("BAD"); process.exit(0); }
 console.log("OK");
-' "$PJ" | grep -q '^OK$' || { echo "FAIL [9]: sem configuração algum node ganhou taxonomy"; exit 1; }
+' "$PJ" 2>&1 || true)"
+case "$tx1" in
+  OK) : ;;
+  *) echo "FAIL [9]: sem configuração algum node ganhou taxonomy ($tx1)"; exit 1 ;;
+esac
 # malformado: bloco com forma errada (escalar onde se espera lista) não pode derrubar o build
 mkdir -p "$T/bad" && cp -R "$WS/template/.forge" "$T/bad/.forge"
 bash "$FIX/make-fixture.sh" "$T/bad" >/dev/null 2>&1
@@ -292,11 +298,15 @@ case "$outb" in
   OK*) : ;;
   *) echo "FAIL [9]: bloco malformado derrubou o build: $outb"; exit 1 ;;
 esac
-node -e '
+tx2="$(node -e '
 const g=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));
 if (g.nodes.some(n=>n.taxonomy!==undefined)) { console.log("BAD"); process.exit(0); }
 console.log("OK");
-' "$T/bad/.forge/graph/graph.json" | grep -q '^OK$' || { echo "FAIL [9]: bloco malformado produziu classificação"; exit 1; }
+' "$T/bad/.forge/graph/graph.json" 2>&1 || true)"
+case "$tx2" in
+  OK) : ;;
+  *) echo "FAIL [9]: bloco malformado produziu classificação ($tx2)"; exit 1 ;;
+esac
 echo "OK [9]"
 
 echo "PASS w141-codegraph-layer-map-gate"

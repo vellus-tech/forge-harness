@@ -62,7 +62,20 @@ fi
 # Opcional por construção: um repositório que não instalou (ou removeu) check-secrets.sh não é
 # penalizado; e `secrets.enforce: warn` no forge.yaml rebaixa os achados para aviso, que é como um
 # brownfield com passivo adota o gate sem travar o time no dia da ativação.
+# Regra de delegação (issue #49, instância 4): chamar algo que não existe é ERRO, não no-op.
+# O no-op só é legítimo quando o harness NÃO está instalado — aí não há maquinaria a impor. Se o
+# DIRETÓRIO que hospeda o alvo existe, a ausência do alvo significa harness atualizado pela
+# metade, script apagado ou instalação corrompida, e isso não pode terminar no mesmo desfecho de
+# uma execução bem-sucedida.
+#
+# O comentário acima dizia "opcional por construção: um repositório que não instalou (ou removeu)
+# check-secrets.sh não é penalizado". Removê-lo continua sendo possível — removendo o harness. O
+# que não pode é o gate de segredo sumir de dentro de um harness instalado sem que nada acuse.
 SECRETS="$ROOT/.forge/scripts/check-secrets.sh"
+if [ ! -f "$SECRETS" ] && [ -d "$ROOT/.forge/scripts" ]; then
+  echo "pre-commit BLOQUEADO: .forge/scripts/ existe mas check-secrets.sh não — a delegação aponta para um alvo ausente"
+  fail=1
+fi
 if [ -f "$SECRETS" ]; then
   # Saída capturada: o gate emite uma linha por asserção, e imprimir isso em TODO commit limpo
   # transformaria o sinal em ruído. Num commit reprovado, sai inteira.

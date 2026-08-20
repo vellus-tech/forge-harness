@@ -105,7 +105,21 @@ check_harness() {
   if [ "$orphans" -eq 0 ]; then ok "harness: sem placeholders <PROJECT_*> órfãos"
   else miss "harness: $orphans arquivo(s) com placeholders <PROJECT_*> não preenchidos"; MISSING_DIAG=1; fi
 
-  locks_found=0
+  # Cabeçalho "Generated from" na 1ª linha do artefato gerado.
+#
+# Era `head -1 "$f" | grep -q 'Generated from'` inline. Sob `pipefail`, `grep -q` sai no primeiro
+# casamento e o `head` que ainda escreve leva SIGPIPE: o pipeline devolve 141, a falha é promovida,
+# e o `|| drift=$((drift+1))` conta como DRIFT um arquivo que estava correto (issue #49, instância
+# 3). Sem pipeline não há SIGPIPE a promover.
+_generated_header() { # _generated_header <arquivo>
+  [ -f "$1" ] || return 1
+  case "$(head -1 "$1" 2>/dev/null)" in
+    *"Generated from"*) return 0 ;;
+  esac
+  return 1
+}
+
+locks_found=0
   for lock in "$ROOT"/.forge/adapters/*.lock.yaml; do
     [ -f "$lock" ] || continue
     locks_found=$((locks_found + 1))
@@ -114,7 +128,7 @@ check_harness() {
     while read -r dest hash; do
       [ -n "$dest" ] || continue
       if [ "$hash" = "symlink" ]; then
-        { [ -L "$ROOT/$dest" ] || { [ -f "$ROOT/$dest" ] && head -1 "$ROOT/$dest" | grep -q 'Generated from'; }; } || drift=$((drift + 1))
+        { [ -L "$ROOT/$dest" ] || _generated_header "$ROOT/$dest"; } || drift=$((drift + 1))
       elif [ -f "$ROOT/$dest" ]; then
         actual="sha256:$(shasum -a 256 "$ROOT/$dest" | cut -d' ' -f1)"
         [ "$actual" = "$hash" ] || drift=$((drift + 1))

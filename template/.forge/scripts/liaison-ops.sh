@@ -47,7 +47,14 @@
 #
 # Determinístico: created_at = data do commit HEAD (nunca wall clock; exceção: state.json —
 # cursores locais de leitura, único lugar onde wall clock é aceitável). content_sha cobre o
-# envelope canônico menos content_sha/trust. trust é carimbado no IMPORT, nunca pelo remetente.
+# envelope canônico menos content_sha/trust. trust é carimbado no IMPORT, nunca pelo remetente —
+# e, por ser excluído do hash, é o único campo que verificação por integridade não alcança: a
+# derivação dele a partir do arquivo que carrega a linha é conferida por lib/liaison-trust.mjs,
+# chamada no pre-push por check-liaison-acks.sh.
+#
+# Nenhum subcomando aceita flag que não conheça: argumento desconhecido REPROVA nomeando a flag,
+# o subcomando e as flags aceitas por ele (ver _reject_unknown). O `ack` não aceita corpo — ele é
+# recibo, e o corpo tem um caminho único de escrita, o `send`.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -84,6 +91,27 @@ cmd="${1:-}"; shift || true
 _git_date() { git -C "$ROOT" log -1 --format=%cI 2>/dev/null || echo ""; }
 _id_ok() { printf '%s' "$1" | grep -Eq '^[a-z0-9][a-z0-9._-]*$'; }
 _chan_ok() { printf '%s' "$1" | grep -Eq '^[a-z0-9][a-z0-9-]*$'; }
+
+# Argumento que o subcomando não conhece REPROVA — nunca é descartado. Todo parser de flags
+# terminava num caso curinga que apenas descartava o argumento, e o descarte silencioso publicava
+# mensagem incompleta com rc 0 e sem aviso: um `ack ... --body-file corpo.md` (o `--body-file`
+# só existe no `send`) publicava o ack SEM corpo
+# nenhum, e a sessão que o escreveu acreditou ter anexado o relatório; um `--subjet` publicava
+# mensagem sem assunto. Três linhas acima o script já sabia reprovar o VALOR inválido de uma flag
+# conhecida (`--reason`) — só não reprovava a flag que não conhece.
+#
+# O conjunto de flags varia POR SUBCOMANDO, então a mensagem nomeia qual subcomando recusa: sem
+# isso, quem escreveu `--body-file` num `ack` conclui que a flag não existe em lugar nenhum.
+_reject_unknown() {  # _reject_unknown <subcomando> <flags aceitas> <argumento> [dica]
+  local sub="$1" accepted="$2" arg="$3" hint="${4:-}"
+  case "$arg" in
+    -*) echo "FAIL: flag desconhecida '$arg' para o subcomando '$sub'" >&2 ;;
+    *)  echo "FAIL: argumento inesperado '$arg' para o subcomando '$sub'" >&2 ;;
+  esac
+  echo "  flags aceitas em '$sub': $accepted" >&2
+  [ -z "$hint" ] || echo "  $hint" >&2
+  exit 1
+}
 
 _read_self() {
   [ -f "$CONFIG" ] || { printf ''; return 0; }
@@ -215,7 +243,7 @@ open)
   while [ $# -gt 0 ]; do case "$1" in
     --self) self_arg="$2"; shift 2 ;;
     --participants) participants="$2"; shift 2 ;;
-    *) shift ;;
+    *) _reject_unknown "open" "--self, --participants" "$1" ;;
   esac; done
   [ -n "$participants" ] || { echo "FAIL: --participants obrigatório (lista separada por vírgula)" >&2; exit 1; }
   [ -z "$self_arg" ] || _id_ok "$self_arg" || { echo "FAIL: --self inválido '$self_arg'" >&2; exit 1; }
@@ -285,7 +313,7 @@ thread)
       --body) body="$2"; shift 2 ;;
       --participants) participants="$2"; shift 2 ;;
       --requires-ack) requires_ack="true"; shift ;;
-      *) shift ;;
+      *) _reject_unknown "thread open" "--subject, --body, --participants, --requires-ack" "$1" ;;
     esac; done
     [ -n "$subject" ] || { echo "FAIL: --subject obrigatório" >&2; exit 1; }
     [ -n "$participants" ] || { echo "FAIL: --participants obrigatório" >&2; exit 1; }
@@ -345,7 +373,7 @@ NODEEOF
       --subject) subject="$2"; shift 2 ;;
       --body) body="$2"; shift 2 ;;
       --requires-ack) requires_ack="true"; shift ;;
-      *) shift ;;
+      *) _reject_unknown "thread join" "--subject, --body, --requires-ack" "$1" ;;
     esac; done
     [ -n "$subject" ] || subject="$self entrou na thread"
     out="$(node - "$LIBDIR" "$ch_dir" "$self" "$channel" "$thread_id" "$subject" "$body" "$requires_ack" "$(_git_date)" <<'NODEEOF'
@@ -393,6 +421,7 @@ NODEEOF
     ;;
 
   list)
+    [ $# -eq 0 ] || _reject_unknown "thread list" "(nenhuma)" "$1"
     node - "$LIBDIR" "$ch_dir" <<'NODEEOF'
 const { readFileSync, readdirSync, existsSync } = require('fs');
 const { join } = require('path');
@@ -446,7 +475,7 @@ send)
     --commit) commit="$2"; shift 2 ;;
     --authored-by) authored_by="$2"; shift 2 ;;
     --via) via="$2"; shift 2 ;;
-    *) shift ;;
+    *) _reject_unknown "send" "--thread, --kind, --subject, --body, --body-file, --requires-ack, --in-reply-to, --change, --contract-files, --commit, --authored-by, --via" "$1" ;;
   esac; done
   # authored_by registra a autoria REAL quando o conteúdo veio de outro repositório (o caso do
   # /forge:liaison ask). O sender continua sendo este repositório — é o invariante de um escritor por
@@ -583,7 +612,8 @@ ack)
   while [ $# -gt 0 ]; do case "$1" in
     --subject) subject="$2"; shift 2 ;;
     --reason) reason="$2"; shift 2 ;;
-    *) shift ;;
+    --body|--body-file) _reject_unknown "ack" "--subject, --reason" "$1" "o ack é um RECIBO, não conteúdo: o corpo tem um único caminho de escrita, o send (varredura de segredo, teto de blob e body_ref moram lá; uma segunda porta viraria a mais frouxa). Publique o conteúdo com: liaison-ops.sh send $channel --thread <thread> --kind note --in-reply-to $msg_id --body-file <arquivo> — e então acke." ;;
+    *) _reject_unknown "ack" "--subject, --reason" "$1" ;;
   esac; done
   case "${reason:-}" in
     ''|wont-adopt|acknowledged) ;;
@@ -662,7 +692,7 @@ inbox)
     --thread) filter_thread="$2"; shift 2 ;;
     --show) show_body="true"; shift ;;
     --titles-only) titles_only="true"; shift ;;
-    *) shift ;;
+    *) _reject_unknown "inbox" "--thread, --show, --titles-only" "$1" ;;
   esac; done
 
   node - "$LIBDIR" "$ch_dir" "$filter_thread" "$show_body" "$titles_only" <<'NODEEOF'
@@ -718,7 +748,7 @@ read)
   ch_dir="$LIAISON_DIR/$channel"
   [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado" >&2; exit 1; }
   upto=""
-  while [ $# -gt 0 ]; do case "$1" in --upto) upto="$2"; shift 2 ;; *) shift ;; esac; done
+  while [ $# -gt 0 ]; do case "$1" in --upto) upto="$2"; shift 2 ;; *) _reject_unknown "read" "--upto" "$1" ;; esac; done
   [ -n "$upto" ] || { echo "FAIL: --upto <msg_id> obrigatório" >&2; exit 1; }
 
   now_wall="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -760,7 +790,8 @@ NODEEOF
 
 # ---------------------------------------------------------------------------------------------
 status)
-  channel="${1:-}"
+  channel="${1:-}"; shift || true
+  [ $# -eq 0 ] || _reject_unknown "status" "(nenhuma)" "$1"
   if [ -n "$channel" ]; then
     ch_dir="$LIAISON_DIR/$channel"
     [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado" >&2; exit 1; }
@@ -862,7 +893,7 @@ export)
   ch_dir="$LIAISON_DIR/$channel"
   [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado" >&2; exit 1; }
   out_dir=""
-  while [ $# -gt 0 ]; do case "$1" in --out) out_dir="$2"; shift 2 ;; *) shift ;; esac; done
+  while [ $# -gt 0 ]; do case "$1" in --out) out_dir="$2"; shift 2 ;; *) _reject_unknown "export" "--out" "$1" ;; esac; done
   [ -n "$out_dir" ] || { echo "FAIL: --out <dir> obrigatório" >&2; exit 1; }
   mkdir -p "$out_dir/log" "$out_dir/blobs"
   if [ -d "$ch_dir/log" ]; then find "$ch_dir/log" -type f -name '*.jsonl' -exec cp {} "$out_dir/log/" \; ; fi
@@ -878,7 +909,7 @@ import)
   ch_dir="$LIAISON_DIR/$channel"
   [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado (rode 'open' primeiro)" >&2; exit 1; }
   from_dir=""
-  while [ $# -gt 0 ]; do case "$1" in --from) from_dir="$2"; shift 2 ;; *) shift ;; esac; done
+  while [ $# -gt 0 ]; do case "$1" in --from) from_dir="$2"; shift 2 ;; *) _reject_unknown "import" "--from" "$1" ;; esac; done
   [ -n "$from_dir" ] || { echo "FAIL: --from <dir> obrigatório" >&2; exit 1; }
   [ -d "$from_dir/log" ] || { echo "FAIL: '$from_dir/log' não encontrado" >&2; exit 1; }
   [ -n "$(_read_self)" ] || { echo "FAIL: self não configurado" >&2; exit 1; }
@@ -906,6 +937,7 @@ conflicts)
   case "$sub" in
     list)
       channel="${1:-}"; shift || true
+      [ $# -eq 0 ] || _reject_unknown "conflicts list" "(nenhuma)" "$1"
       [ -n "$channel" ] || { echo "FAIL: uso: conflicts list <channel>" >&2; exit 1; }
       ch_dir="$LIAISON_DIR/$channel"
       [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado" >&2; exit 1; }
@@ -933,6 +965,7 @@ NODEEOF
       channel="${1:-}"; shift || true
       div_sender="${1:-}"; shift || true
       div_seq="${1:-}"; shift || true
+      [ $# -eq 0 ] || _reject_unknown "conflicts resolve" "(nenhuma)" "$1"
       [ -n "$channel" ] && [ -n "$div_sender" ] && [ -n "$div_seq" ] \
         || { echo "FAIL: uso: conflicts resolve <channel> <sender> <seq>" >&2; exit 1; }
       printf '%s' "$div_seq" | grep -Eq '^[0-9]+$' || { echo "FAIL: <seq> deve ser inteiro, recebido '$div_seq'" >&2; exit 1; }
@@ -1024,7 +1057,7 @@ peer)
   [ "$sub" = "set" ] || { echo "FAIL: uso: peer set <channel> <participante> --path <dir>" >&2; exit 1; }
   [ -n "$channel" ] && [ -n "$participant" ] || { echo "FAIL: <channel> e <participante> obrigatórios" >&2; exit 1; }
   peer_path=""
-  while [ $# -gt 0 ]; do case "$1" in --path) peer_path="$2"; shift 2 ;; *) shift ;; esac; done
+  while [ $# -gt 0 ]; do case "$1" in --path) peer_path="$2"; shift 2 ;; *) _reject_unknown "peer set" "--path" "$1" ;; esac; done
   [ -n "$peer_path" ] || { echo "FAIL: --path obrigatório" >&2; exit 1; }
   node - "$LIBDIR" "$CONFIG" "$channel" "$participant" "$peer_path" <<'NODEEOF'
 const { join } = require('path');
@@ -1046,6 +1079,7 @@ NODEEOF
 peer-path)
   channel="${1:-}"; shift || true
   participant="${1:-}"; shift || true
+  [ $# -eq 0 ] || _reject_unknown "peer-path" "(nenhuma)" "$1"
   [ -n "$channel" ] && [ -n "$participant" ] || { echo "FAIL: uso: peer-path <channel> <participante>" >&2; exit 1; }
   out="$(node - "$LIBDIR" "$CONFIG" "$channel" "$participant" <<'NODEEOF'
 const { join } = require('path');
@@ -1082,7 +1116,7 @@ transport)
       --path) t_path="$2"; shift 2 ;;
       --remote) t_remote="$2"; shift 2 ;;
       --branch) t_branch="$2"; shift 2 ;;
-      *) shift ;;
+      *) _reject_unknown "transport set" "--kind, --path, --remote, --branch" "$1" ;;
     esac; done
     [ -n "$t_kind" ] || { echo "FAIL: --kind obrigatório (manual|fs|git|gh)" >&2; exit 1; }
     node - "$LIBDIR" "$CONFIG" "$channel" "$t_kind" "$t_path" "$t_remote" "$t_branch" <<'NODEEOF'
@@ -1108,12 +1142,14 @@ NODEEOF
     ;;
 
   show)
+    [ $# -eq 0 ] || _reject_unknown "transport show" "(nenhuma)" "$1"
     conf="$(_read_transport "$channel")" || exit 1
     if [ -z "$conf" ]; then echo "LIAISON/$channel: transporte não configurado"; exit 0; fi
     echo "LIAISON/$channel: $(printf '%s' "$conf" | tr '\n' ' ' | sed 's/ *$//')"
     ;;
 
   probe)
+    [ $# -eq 0 ] || _reject_unknown "transport probe" "(nenhuma)" "$1"
     _load_transport "$channel" || exit 1
     t_probe || exit 1
     echo "OK transport probe — $LIAISON_T_KIND alcançável para o canal $channel"
@@ -1138,7 +1174,7 @@ sync)
   while [ $# -gt 0 ]; do case "$1" in
     --push-only) do_pull=0; shift ;;
     --pull-only) do_push=0; shift ;;
-    *) shift ;;
+    *) _reject_unknown "sync" "--push-only, --pull-only" "$1" ;;
   esac; done
 
   _load_transport "$channel" || exit 1
@@ -1162,7 +1198,8 @@ sync)
 
 # ---------------------------------------------------------------------------------------------
 render)
-  channel="${1:-}"
+  channel="${1:-}"; shift || true
+  [ $# -eq 0 ] || _reject_unknown "render" "(nenhuma)" "$1"
   [ -n "$channel" ] || { echo "FAIL: <channel> obrigatório" >&2; exit 1; }
   ch_dir="$LIAISON_DIR/$channel"
   [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado" >&2; exit 1; }

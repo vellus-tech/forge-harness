@@ -16,10 +16,21 @@ MSG_FILE="${1:-}"
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
 CHECK="$ROOT/.forge/scripts/check-ai-attribution.sh"
 
-# Sem o check instalado, o hook não tem o que impor — mas também não inventa aprovação: apenas
-# sai limpo, porque bloquear commit por ausência de maquinaria própria travaria um repo que
-# acabou de clonar o harness pela metade.
-[ -f "$CHECK" ] || exit 0
+# Regra de delegação (issue #49, instância 4): chamar algo que não existe é ERRO, não no-op.
+# O no-op só é legítimo quando o harness NÃO está instalado — aí não há maquinaria a impor. Se o
+# DIRETÓRIO que hospeda o alvo existe, a ausência do alvo significa harness atualizado pela
+# metade, script apagado ou instalação corrompida, e isso não pode terminar no mesmo desfecho de
+# uma execução bem-sucedida.
+#
+# Antes: `[ -f "$CHECK" ] || exit 0` — "clonou o harness pela metade" era exatamente o estado que
+# o hook aprovava em silêncio. Repo sem .forge/scripts/ segue no-op; repo COM o diretório e sem o
+# script está quebrado, e o commit-msg passa a dizê-lo.
+if [ ! -f "$CHECK" ]; then
+  [ -d "$ROOT/.forge/scripts" ] || exit 0
+  echo "commit-msg BLOQUEADO: .forge/scripts/ existe mas check-ai-attribution.sh não —" >&2
+  echo "  a delegação aponta para um alvo ausente. Rode /forge:upgrade ou restaure o script." >&2
+  exit 1
+fi
 
 if ! bash "$CHECK" msg-file "$MSG_FILE"; then
   echo "commit-msg BLOQUEADO: no-ai-attribution" >&2

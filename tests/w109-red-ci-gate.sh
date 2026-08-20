@@ -3,7 +3,11 @@
 # de um runner que o autor não controla. O subcomando varre os changes ativos type:bugfix, executa
 # o replay em cada e agrega o veredito num exit code — é o que o workflow chama.
 #
-#   [1] repositório sem change ativo → exit 0 (ausência de bugfix não é falha)
+#   [1] os DOIS vazios do universo, que não são o mesmo estado (issue #49): `specs/active` presente
+#       e vazio é REPOUSO legítimo — passa dizendo `0 change(s) ativo(s)`, porque um repositório
+#       entre ciclos não tem change ativo e o CI roda em todo PR; `specs/active` AUSENTE é alvo
+#       sumido — reprova nomeando universo vazio, e a única saída é a justificativa DECLARADA em
+#       .forge/empty-universe-allowlist.txt, com linha própria, distinguível de "examinei N"
 #   [2] change bugfix com evidência PENDENTE → exit≠0 nomeando o change
 #   [3] change bugfix com Red observado de verdade → exit 0
 #   [4] change de outro tipo é ignorado (nenhum falso positivo sobre feature/refactor)
@@ -25,9 +29,37 @@ git -C "$T" commit -qm "chore: init harness" >/dev/null
 SN="$T/.forge/scripts/spec-new.sh"
 RE="$T/.forge/scripts/red-evidence.sh"
 
-echo "[1] repositório sem change ativo → exit 0"
+echo "[1] repouso legítimo passa nomeado; alvo ausente reprova; justificativa declarada libera"
+# O contador de controle da issue #49 exige que universo vazio não colapse com "examinei e estava
+# limpo". Mas os dois vazios deste modo têm causas opostas, e tratá-los igual troca uma vacuidade
+# por um falso positivo estrutural: `specs/active` presente e VAZIO é o estado de todo repositório
+# entre ciclos de change, e o CI roda em todo PR — reprovar ali produziria vermelho em PR de
+# manutenção, cuja única resposta operacional seria declarar `red-first-ci` na allowlist para
+# sempre, esvaziando o gate justamente para o caso anômalo. `specs/active` AUSENTE é outra coisa:
+# o alvo que o gate varre não está onde ele procura, que é o "confira o alvo, o glob e o range" da
+# própria mensagem de reprovação.
+[ -d "$T/.forge/specs/active" ] \
+  || { echo "FAIL [1] (fixture não tem specs/active — o cenário mediria outro estado)"; exit 1; }
 out="$(FORGE_ROOT="$T" bash "$RE" ci 2>&1)" && rc=0 || rc=$?
-[ "$rc" -eq 0 ] || { echo "FAIL [1] (sem bugfix ativo deveria passar, rc=$rc: $out)"; exit 1; }
+[ "$rc" -eq 0 ] \
+  || { echo "FAIL [1] (repouso legítimo — specs/active presente e vazio — reprovou o CI, rc=$rc: $out)"; exit 1; }
+grep -qE '0 change\(s\) ativo\(s\)' <<<"$out" \
+  || { echo "FAIL [1] (passou sem dizer que examinou ZERO changes — é o silêncio que a issue #49 fecha: $out)"; exit 1; }
+
+mv "$T/.forge/specs/active" "$T/.forge/specs/active-guardado"
+out="$(FORGE_ROOT="$T" bash "$RE" ci 2>&1)" && rc=0 || rc=$?
+[ "$rc" -ne 0 ] \
+  || { echo "FAIL [1] (o alvo que o gate varre não existe e o CI aprovou assim mesmo, rc=$rc: $out)"; exit 1; }
+grep -q 'universo-vazio' <<<"$out" \
+  || { echo "FAIL [1] (reprovou sem nomear o estado de universo vazio: $out)"; exit 1; }
+printf 'red-first-ci  # motivo: fixture sem specs/active, cenário [1] do w109\n' > "$T/.forge/empty-universe-allowlist.txt"
+out="$(FORGE_ROOT="$T" bash "$RE" ci 2>&1)" && rc=0 || rc=$?
+[ "$rc" -eq 0 ] \
+  || { echo "FAIL [1] (justificativa declarada não liberou a vacuidade, rc=$rc: $out)"; exit 1; }
+grep -q 'justificativa declarada' <<<"$out" \
+  || { echo "FAIL [1] (vacuidade justificada saiu indistinguível de universo examinado: $out)"; exit 1; }
+rm -f "$T/.forge/empty-universe-allowlist.txt"
+mv "$T/.forge/specs/active-guardado" "$T/.forge/specs/active"
 echo "OK [1]"
 
 echo "[2] change bugfix com evidência pendente → exit≠0 nomeando o change"

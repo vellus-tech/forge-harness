@@ -73,11 +73,29 @@ _redfirst_should_check() {  # _redfirst_should_check <chdir> <touched-tmpfile> �
 
 check_red_first() {
   local line local_ref local_sha remote_ref remote_sha base failed=0
+  local examined=0 skipped=0 engaged=0
   local check_script="$REPO/.forge/scripts/check-red-first.sh"
   local active_dir="$REPO/.forge/specs/active"
-  # harness sem red-first (versão antiga do template) ou sem changes ativos — no-op, não trava.
-  [ -f "$check_script" ] || return 0
-  [ -d "$active_dir" ] || return 0
+  local univ_lib="$REPO/.forge/scripts/lib/gate-universe.sh"
+
+  # Delegação em alvo AUSENTE é erro, não no-op (issue #49, instância 4). `[ -f ] || return 0`
+  # sozinho degrada em silêncio: apagar o script de red-first — ou atualizar o harness pela
+  # metade — deixava o hook verde sem uma linha, com o mesmo desfecho de uma execução
+  # bem-sucedida. Se o diretório de scripts do harness EXISTE, o alvo da delegação TEM de
+  # existir. Só a ausência do diretório inteiro (repositório sem harness instalado) continua
+  # sendo no-op legítimo — aí não há maquinaria a impor.
+  if [ ! -f "$check_script" ]; then
+    [ -d "$REPO/.forge/scripts" ] || return 0
+    echo "pre-push BLOQUEADO: .forge/scripts/ existe mas check-red-first.sh não — o gate de red-first sumiu." >&2
+    return 1
+  fi
+  if [ ! -f "$univ_lib" ]; then
+    echo "pre-push BLOQUEADO: .forge/scripts/lib/gate-universe.sh ausente — sem contador de controle o gate" >&2
+    echo "  não consegue distinguir 'examinei e estava limpo' de 'não examinei nada' (issue #49)." >&2
+    return 1
+  fi
+  # shellcheck disable=SC1090
+  . "$univ_lib"
 
   while IFS=' ' read -r local_ref local_sha remote_ref remote_sha; do
     [ -n "${local_ref:-}" ] || continue
@@ -86,6 +104,10 @@ check_red_first() {
     base="$(_redfirst_resolve_base "$local_sha" "${remote_sha:-$ZERO_SHA}")"
     [ -n "$base" ] || continue
     _redfirst_has_fix_commit "$base" "$local_sha" || continue
+    # A partir daqui o gate ESTÁ engajado: um commit fix(...) está sendo publicado, então a
+    # pergunta "quantos changes de bugfix eu examinei?" passa a ter resposta obrigatória.
+    engaged=1
+    [ -d "$active_dir" ] || continue
 
     local touched_file
     touched_file="$(mktemp "${TMPDIR:-/tmp}/forge-redfirst-touched-XXXXXX")"
@@ -99,7 +121,16 @@ check_red_first() {
       [ -f "$manifest" ] || continue
       type="$(awk -F': ' '$1=="type"{print $2; exit}' "$manifest")"
       [ "$type" = "bugfix" ] || continue
-      _redfirst_should_check "$chdir" "$touched_file" || continue
+      # Contam como EXAMINADOS os dois desfechos: o change que roda o check estático e o change
+      # que o gate abriu, leu os fix_files declarados e concluiu, por critério explícito, que não
+      # tem relação com o que está sendo empurrado. Esse segundo caso é cobertura — o gate olhou
+      # e decidiu —, não ausência de cobertura. O que a vacuidade acusa é o caso em que NÃO HAVIA
+      # nada para olhar (issue #49).
+      examined=$((examined + 1))
+      if ! _redfirst_should_check "$chdir" "$touched_file"; then
+        skipped=$((skipped + 1))
+        continue
+      fi
 
       out="$(FORGE_ROOT="$REPO" bash "$check_script" check "$chid" 2>&1)"; rc=$?
       if [ "$rc" -ne 0 ]; then
@@ -113,6 +144,24 @@ check_red_first() {
     done
     rm -f "$touched_file"
   done
+
+  # Contador de controle (issue #49, instância 1). Sem esta linha, o push de um bugfix num
+  # repositório SEM change ativo type:bugfix terminava no mesmo `return 0` silencioso de um push
+  # em que todos os changes foram examinados e estavam conformes — o gate existe para exigir
+  # vermelho antes do verde em bugfix e passava justamente num bugfix. Só roda quando o gate
+  # engajou: push sem commit fix(...) não tem universo a contar e continua mudo.
+  if [ "$engaged" -eq 1 ]; then
+    local scope="changes ativos em .forge/specs/active, push com commit fix(...)"
+    [ "$skipped" -gt 0 ] && scope="$scope; $skipped sem interseção com os fix_files declarados"
+    if ! forge_universe_check "red-first" "$examined" "change(s) type:bugfix" "$scope" "$REPO"; then
+      {
+        echo "pre-push BLOQUEADO: red-first — há commit fix(...) sendo publicado e NENHUM change"
+        echo "  ativo type:bugfix foi examinado. Abra o change (/forge:spec new --type bugfix) e"
+        echo "  registre o Red com /forge:red record + replay, ou dispense com /forge:red waive."
+      } >&2
+      failed=1
+    fi
+  fi
 
   [ "$failed" -eq 0 ]
 }

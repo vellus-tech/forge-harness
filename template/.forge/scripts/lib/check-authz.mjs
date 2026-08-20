@@ -22,6 +22,7 @@ import { resolve, join, relative } from 'node:path';
 import { collect, scan } from './source-scan.mjs';
 import { govern, pathMatches } from './graph-govern.mjs';
 import { applyMode, governanceFor } from './gate-mode.mjs';
+import { universeCheck, emitUniverse } from './gate-universe.mjs';
 
 // ── args: separa --coverage-report <path> (REQ-07) dos paths de entrada ──────────────
 const argv = process.argv.slice(2);
@@ -38,6 +39,10 @@ const rel = (f) => relative(root, resolve(f)) || '.';
 // Nota: `inputs` vazio NÃO é tratado como early-exit — REQ-07 (cobertura) e REQ-08 (rota→PEP)
 // não dependem de paths de código, só do graph.json/relatório de cobertura; só REQ-05/06
 // (varredura de arquivo) ficam vazios nesse caso, sem gerar falso-positivo (collect([]) = []).
+// O que MUDOU (issue #49): não gerar falso-positivo não autoriza reportar-se verde. Se o conjunto
+// varrido por REQ-05/06 vier VAZIO — alvo errado, glob que não casa, repositório sem código nas
+// extensões conhecidas — o gate não examinou nada, e isso é um estado próprio, contado e
+// reprovável, não o mesmo `OK` de quem varreu o repositório inteiro e não achou violação.
 
 // ── graph.json + bloco governance.authz (ausente ⇒ {} ⇒ sub-checks dependentes no-op) ──
 const graphPath = join(root, '.forge/graph/graph.json');
@@ -123,4 +128,14 @@ const lines = [];
 if (result.blocking.length) lines.push(`CONFLICT (${result.blocking.map((f) => f.msg).join('; ')})`);
 if (result.warnings.length) lines.push(`WARN (${result.warnings.map((f) => f.msg).join('; ')})`);
 if (lines.length) { console.log(lines.join('\n')); process.exit(result.exitCode); }
+
+// ── contador de controle (issue #49) — antes do OK, e capaz de reprová-lo ─────────────
+const universe = universeCheck({
+  root,
+  gate: 'authz',
+  count: regoFiles.length + codeFiles.length,
+  item: 'arquivo(s)',
+  scope: inputs.length ? inputs.join(' ') : '(nenhum path recebido)',
+});
+if (emitUniverse(universe) !== 0) process.exit(1);
 console.log(`OK check-authz (${regoFiles.length} .rego, ${codeFiles.length} código, mode=${result.mode})`);

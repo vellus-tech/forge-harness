@@ -37,6 +37,8 @@ _FHM_QSWITCH=""
 _FHM_TICKET=""
 _FHM_WAIT_START=""
 _FHM_CLOCK="hires"
+_FHM_RELEASED=0
+_FHM_ANCESTOR=""
 
 # 0 quando <pid> é ancestral deste processo. Reentrância por LINHAGEM, não por variável de
 # ambiente: quem empurra via `heavy-run.sh -- git push` já detém o lock, e o wrapper não exporta
@@ -160,6 +162,99 @@ _fhm_alive() {  # _fhm_alive <pid> <token-gravado> — 0 se vivo E é o mesmo pr
   # exatamente o dano que a interoperabilidade existe para impedir.
   [ -n "$want" ] || return 0
   [ "$now" = "$want" ]
+}
+
+
+# ── liberação garantida (D6) ─────────────────────────────────────────────────────────────────────
+# INVARIANTE DE TRANSPARÊNCIA, e ela é o contrato desta função:
+#
+#   `arm_trap` é transparente. O único efeito observável sobre o script do consumidor é que
+#   `release` roda EXATAMENTE UMA VEZ. Contagem de execuções, ordem, `$?` visto por cada handler e
+#   código de saída final são IDÊNTICOS ao baseline sem a biblioteca, para qualquer disposição de
+#   traps do consumidor.
+#
+# A invariante substituiu uma receita porque as receitas erravam. Medido contra o baseline nas três
+# disposições possíveis do consumidor: compor sem cuidado faz o handler dele rodar DUAS vezes;
+# limpar o EXIT junto com o sinal APAGA o handler dele; e estender a guarda de idempotência ao
+# handler dele SUPRIME o de TERM quando o de EXIT já rodou. As três trocam ainda o código de saída
+# de 0 para 143 quando o consumidor tem handler de TERM que só limpa e não re-raise.
+_fhm_release_once() {
+  # Guarda SÓ o `release`, nunca o handler do consumidor — guardar os dois suprime handler alheio.
+  [ "${_FHM_RELEASED:-0}" = "1" ] && return 0
+  _FHM_RELEASED=1
+  forge_heavy_mutex_release
+}
+
+_fhm_on_exit() {
+  # `$?` PRIMEIRO: qualquer teste antes disto o destrói, e `rc=$?` na primeira linha do handler é
+  # o idioma padrão de cleanup — medido, o handler do consumidor via 0 num script que saiu com 7.
+  __fhm_rc=$?
+  _fhm_release_once
+  _fhm_leave_queue
+  if [ -n "${_FHM_PREV_EXIT:-}" ]; then
+    # Restaura o `$?` que o handler do consumidor veria sem nós, antes de invocá-lo.
+    ( exit "$__fhm_rc" )
+    eval "$_FHM_PREV_EXIT"
+  fi
+  return "$__fhm_rc"
+}
+
+_fhm_on_sig() {  # $1 = nome do sinal
+  __fhm_rc=$?
+  __fhm_sig="$1"
+  _fhm_release_once
+  # Indireção por nome. `${$var}` é sintaxe inválida e silenciosa; `${!var}` não existe em todo
+  # shell alvo. Esta forma foi verificada em bash 3.2.
+  eval "__fhm_prev=\"\${_FHM_PREV_$__fhm_sig:-}\""
+  if [ -n "$__fhm_prev" ]; then
+    # O consumidor TEM handler próprio: rode-o e devolva o controle a ele. Se ele re-raise, o
+    # processo morre por sinal e o EXIT roda como no baseline; se ele só limpa, o script continua
+    # e sai com o código que sairia sem nós — inclusive 0, que é decisão do autor dele.
+    ( exit "$__fhm_rc" )
+    eval "$__fhm_prev"
+    return "$__fhm_rc"
+  fi
+  # O consumidor NÃO tinha handler para este sinal: morra pelo sinal, limpando SÓ o sinal. O nosso
+  # trap de EXIT permanece armado DE PROPÓSITO — medido nos dois SOs, o bash roda o trap de EXIT
+  # ao morrer por sinal fatal não trapado, então é isso que o baseline faz, e limpar o EXIT aqui
+  # apagaria o handler do consumidor.
+  trap - "$__fhm_sig"
+  kill -"$__fhm_sig" $$
+}
+
+forge_heavy_mutex_arm_trap() {
+  # A razão da guarda é portável e não tem a ver com `trap -p`: um trap instalado dentro de
+  # subshell MORRE COM ELA e nunca protege o processo que detém o lock. Medido, `BASH_SUBSHELL`
+  # vale 1 no último elemento de um pipeline, o que recusa `{ acquire; arm_trap; work; } | tee`.
+  [ "${BASH_SUBSHELL:-0}" -eq 0 ] || {
+    echo "heavy-mutex: arm_trap chamado de dentro de subshell — o trap morreria com ela e o lock ficaria para trás." >&2
+    return 64
+  }
+  local p b sig
+  p="$(trap -p EXIT)"
+  # IDEMPOTÊNCIA: uma segunda chamada capturaria o NOSSO handler como "anterior" e o EXIT passaria
+  # a se chamar em laço — medido, o processo trava e precisa ser morto. Note que a guarda de
+  # `release` mantém o contador em 1 durante a recursão, então contagem não denuncia: só o
+  # TÉRMINO denuncia, e é por isso que o cenário assevera término primeiro.
+  case "$p" in *_fhm_on_exit*) return 0 ;; esac
+  # Extração por `eval`, nunca por corte de prefixo/sufixo: `trap -p` devolve o comando
+  # shell-quotado, e o corte produz comando inválido que morre com `unexpected EOF` — em silêncio,
+  # porque o rc do script continua correto.
+  if [ -n "$p" ]; then b="${p#trap -- }"; b="${b% EXIT}"; eval "_FHM_PREV_EXIT=$b"; fi
+  trap _fhm_on_exit EXIT
+  for sig in INT TERM HUP; do
+    p="$(trap -p "$sig")"
+    case "$p" in *_fhm_on_sig*) continue ;; esac
+    if [ -n "$p" ]; then
+      # `trap -p TERM` devolve o sufixo COMO SIGTERM, não como TERM (medido nos dois SOs). Cortar
+      # " $sig" deixa `SIGTERM` colado no fim e o `eval` monta um comando inválido — em silêncio,
+      # porque o handler só quebra na hora do sinal. Corta-se o ÚLTIMO campo, seja qual for o nome.
+      b="${p#trap -- }"; b="${b% *}"
+      eval "_FHM_PREV_$sig=$b"
+    fi
+    trap "_fhm_on_sig $sig" "$sig"
+  done
+  return 0
 }
 
 forge_heavy_mutex_path() {

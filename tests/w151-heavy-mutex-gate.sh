@@ -599,6 +599,150 @@ nq="$(q_count "$BOX/w151res.q")"
 kill -9 "$SP48" 2>/dev/null
 echo "OK [48]"
 
+scenario "[47] MATRIZ de transparência de sinal: com e sem a biblioteca, três disposições, quatro números"
+# O cenário que a primeira especificação não tinha, e sem o qual três correções diferentes do
+# trap passariam. Ele COMPARA contra o baseline em vez de conferir presença: quantas vezes o
+# handler de EXIT rodou, quantas o de TERM rodou, o `$?` que cada um viu, e o rc final.
+BOX="$(newbox)"
+mk_case() {  # mk_case <arquivo> <disposicao> <usar-lib>
+  local f="$1" disp="$2" uselib="$3"
+  {
+    printf 'set -uo pipefail\n'
+    printf 'M="$MARK"\n'
+    [ "$uselib" = "1" ] && printf '. "$LIBP"\nforge_heavy_mutex_acquire --label t --timeout 5 >/dev/null 2>&1\n'
+    printf 'trap '"'"'echo "PX rc=$?" >> "$M"'"'"' EXIT\n'
+    case "$disp" in
+      2) printf 'trap '"'"'echo "PT rc=$?" >> "$M"; trap - TERM; kill -TERM $$'"'"' TERM\n' ;;
+      3) printf 'trap '"'"'echo "PT rc=$?" >> "$M"'"'"' TERM\n' ;;
+    esac
+    [ "$uselib" = "1" ] && printf 'forge_heavy_mutex_arm_trap\n'
+    printf 'echo READY >> "$M"\ni=0; while [ $i -lt 300 ]; do sleep 0.2; i=$((i+1)); done\n'
+  } > "$f"
+}
+matrix_fail=""
+for disp in 1 2 3; do
+  base_m="$BOX/m.base.$disp"; lib_m="$BOX/m.lib.$disp"
+  for mode in base lib; do
+    mk="$BOX/case.$disp.$mode.sh"; MK="$BOX/m.$mode.$disp"; : > "$MK"
+    [ "$mode" = "lib" ] && u=1 || u=0
+    mk_case "$mk" "$disp" "$u"
+    FORGE_HEAVY_MUTEX_ROOT="$BOX/anc.$disp.$mode" FORGE_HEAVY_MUTEX_RESOURCE=w151res \
+      LIBP="$LIB" MARK="$MK" bash "$mk" >/dev/null 2>&1 &
+    CP=$!; track "$CP"
+    w=0; while [ $w -lt 60 ] && ! grep -q READY "$MK" 2>/dev/null; do sleep 0.1; w=$((w+1)); done
+    kill -TERM "$CP" 2>/dev/null; wait "$CP" 2>/dev/null; eval "rc_$mode=$?"
+  done
+  bx="$(grep -c '^PX' "$BOX/m.base.$disp")"; lx="$(grep -c '^PX' "$BOX/m.lib.$disp")"
+  bt="$(grep -c '^PT' "$BOX/m.base.$disp")"; lt="$(grep -c '^PT' "$BOX/m.lib.$disp")"
+  bxr="$(grep '^PX' "$BOX/m.base.$disp" | head -1)"; lxr="$(grep '^PX' "$BOX/m.lib.$disp" | head -1)"
+  [ "$bx" = "$lx" ] || matrix_fail="$matrix_fail disp$disp:EXIT($bx!=$lx)"
+  [ "$bt" = "$lt" ] || matrix_fail="$matrix_fail disp$disp:TERM($bt!=$lt)"
+  # O `$?` visto pelo handler de EXIT sob morte POR SINAL não é comparável, e a diferença é
+  # inerente: o baseline morre direto pelo sinal, e nós morremos DEPOIS de passar por um handler,
+  # então o EXIT enxerga 128+N em vez do status do último comando. Medido: 0 no baseline contra
+  # 143 com a biblioteca. Isso é limite declarado da invariante (§8), não defeito escondido — o
+  # `$?` na saída NORMAL, que é onde o idioma `rc=$?` de cleanup importa, é conferido com precisão
+  # pelo cenário [25] (handler vê 7 num script que sai com 7).
+  #
+  # A asserção não perde poder: as três correções erradas que este cenário existe para reprovar se
+  # manifestam em CONTAGEM (handler do consumidor rodando duas vezes, ou não rodando) e no rc
+  # FINAL, ambos comparados aqui.
+  [ "$rc_base" = "$rc_lib" ] || matrix_fail="$matrix_fail disp$disp:rc-final($rc_base!=$rc_lib)"
+done
+[ -z "$matrix_fail" ] \
+  || { echo "FAIL [47]: a biblioteca NÃO é transparente —$matrix_fail. Compor traps sem cuidado faz o handler do consumidor rodar duas vezes; limpar o EXIT junto com o sinal apaga o handler dele; e guardar os dois suprime o de TERM."; exit 1; }
+echo "OK [47]"
+
+scenario "[49] arm_trap idempotente: chamado DUAS vezes, o script TERMINA e cada handler roda uma vez"
+BOX="$(newbox)"; MK="$BOX/mark49"; : > "$MK"
+cat > "$BOX/idem.sh" <<'IDEM'
+set -uo pipefail
+. "$LIBP"
+forge_heavy_mutex_acquire --label idem --timeout 5 >/dev/null 2>&1
+trap 'echo PREV >> "$MARK"' EXIT
+forge_heavy_mutex_arm_trap
+forge_heavy_mutex_arm_trap
+echo RAN >> "$MARK"
+exit 7
+IDEM
+FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res LIBP="$LIB" MARK="$MK" \
+  bash "$BOX/idem.sh" >/dev/null 2>&1 &
+IP=$!; track "$IP"
+w=0; while [ $w -lt 100 ] && kill -0 "$IP" 2>/dev/null; do sleep 0.1; w=$((w+1)); done
+if kill -0 "$IP" 2>/dev/null; then
+  kill -9 "$IP" 2>/dev/null
+  echo "FAIL [49]: o script NÃO terminou — a segunda chamada capturou o nosso próprio handler como 'anterior' e o EXIT passou a se chamar em laço. Note que a guarda de release mantém a contagem em 1 durante a recursão, então CONTAR não denunciaria: só o término denuncia."
+  exit 1
+fi
+wait "$IP" 2>/dev/null; rc49=$?
+[ "$rc49" -eq 7 ] || { echo "FAIL [49]: rc final $rc49, esperado 7"; exit 1; }
+n49="$(grep -c '^PREV' "$MK")"
+[ "$n49" -eq 1 ] || { echo "FAIL [49]: o handler do consumidor rodou $n49 vez(es), esperado 1"; exit 1; }
+echo "OK [49]"
+
+scenario "[28] guarda de subshell: arm_trap de dentro de ( ) e de pipeline reprova com 64"
+BOX="$(newbox)"
+out28="$(FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res \
+         bash -c '. "$0"; ( forge_heavy_mutex_arm_trap ); echo "RC=$?"' "$LIB" 2>&1)"
+grep -q "RC=64" <<<"$out28" \
+  || { echo "FAIL [28]: arm_trap dentro de subshell não devolveu 64 — o trap morreria com a subshell e o lock ficaria para trás: $out28"; exit 1; }
+echo "OK [28]"
+
+scenario "[27] trap composto com aspas simples E quebra de linha no handler anterior"
+BOX="$(newbox)"; MK="$BOX/mark27"; : > "$MK"
+cat > "$BOX/q27.sh" <<'Q27'
+set -uo pipefail
+. "$LIBP"
+forge_heavy_mutex_acquire --label q --timeout 5 >/dev/null 2>&1
+trap 'echo "linha1 it'"'"'s" >> "$MARK"
+echo "linha2" >> "$MARK"' EXIT
+forge_heavy_mutex_arm_trap
+exit 3
+Q27
+FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res LIBP="$LIB" MARK="$MK" \
+  bash "$BOX/q27.sh" >/dev/null 2>&1; rc27=$?
+[ "$rc27" -eq 3 ] || { echo "FAIL [27]: rc final $rc27, esperado 3"; exit 1; }
+grep -q "linha1 it's" "$MK" && grep -q "linha2" "$MK" \
+  || { echo "FAIL [27]: o handler com aspas simples e quebra de linha não rodou inteiro — extração por corte de string produz comando inválido que morre com 'unexpected EOF', em silêncio: $(cat "$MK")"; exit 1; }
+echo "OK [27]"
+
+scenario "[25] trap composto preserva \$?: o handler anterior vê o valor real, não zero"
+BOX="$(newbox)"; MK="$BOX/mark25"; : > "$MK"
+cat > "$BOX/r25.sh" <<'R25'
+set -uo pipefail
+. "$LIBP"
+forge_heavy_mutex_acquire --label r --timeout 5 >/dev/null 2>&1
+trap 'rc=$?; echo "visto=$rc" >> "$MARK"' EXIT
+forge_heavy_mutex_arm_trap
+exit 7
+R25
+FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res LIBP="$LIB" MARK="$MK" \
+  bash "$BOX/r25.sh" >/dev/null 2>&1; rc25=$?
+[ "$rc25" -eq 7 ] || { echo "FAIL [25]: rc final $rc25, esperado 7"; exit 1; }
+grep -q "visto=7" "$MK" \
+  || { echo "FAIL [25]: o handler anterior viu '$(cat "$MK")' em vez de 7 — um teste antes de salvar \$? o destrói, e 'rc=\$?' na primeira linha é o idioma padrão de cleanup"; exit 1; }
+echo "OK [25]"
+
+scenario "[26] handler anterior que chama exit: release roda ANTES e o rc é o do baseline"
+BOX="$(newbox)"; MK="$BOX/mark26"; : > "$MK"
+cat > "$BOX/e26.sh" <<'E26'
+set -uo pipefail
+. "$LIBP"
+forge_heavy_mutex_acquire --label e --timeout 5 >/dev/null 2>&1
+printf 'LOCK=%s\n' "${FORGE_HEAVY_MUTEX_HELD_PATH:-}" >> "$MARK"
+trap 'echo PREV >> "$MARK"; exit 0' EXIT
+forge_heavy_mutex_arm_trap
+exit 3
+E26
+FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res LIBP="$LIB" MARK="$MK" \
+  bash "$BOX/e26.sh" >/dev/null 2>&1; rc26=$?
+lk26="$(sed -n 's/^LOCK=//p' "$MK" | head -1)"
+[ -n "$lk26" ] && [ ! -d "$lk26" ] \
+  || { echo "FAIL [26]: o lock ficou para trás — o handler do consumidor chamou exit e impediu a liberação, que é o defeito real medido em campo"; exit 1; }
+[ "$rc26" -eq 0 ] \
+  || { echo "FAIL [26]: rc final $rc26; o baseline SEM a biblioteca devolve 0 aqui, e a composição não pode mudar isso — normalizar o código de saída é decisão do autor do handler"; exit 1; }
+echo "OK [26]"
+
 [ "$SCENARIOS_RUN" -gt 0 ] \
   || { echo "FAIL [contador]: nenhum cenário executado — um gate que não roda nada não cobre nada"; exit 1; }
 echo "PASS w151-heavy-mutex ($SCENARIOS_RUN cenário(s))"

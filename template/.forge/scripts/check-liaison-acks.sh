@@ -55,6 +55,49 @@ if [ -f "$FORGE_YAML" ]; then
   [ -n "$found" ] && mode="$found"
 fi
 
+# ── procedência (issue #51) ──────────────────────────────────────────────────────────────────────
+# `trust` era o único campo do envelope que nenhum instrumento verificava. content_sha o exclui por
+# desenho (varia legitimamente entre cópias da mesma mensagem), então verificação por hash é
+# estruturalmente cega a ele — e uma restauração de log truncado que copiou a réplica de um peer
+# sobre o log próprio fez 172 mensagens PRÓPRIAS se declararem `untrusted-peer` sem que nada
+# reprovasse. A invariante é derivável de fato observável, não declarada: em `log/<self>.jsonl` toda
+# mensagem é `self` (salvo as de autoria externa, que carregam `authored_by`), e em `log/<outro>.jsonl`
+# nenhuma é. Ver lib/liaison-trust.mjs.
+#
+# Reprova SEMPRE, independente de `enforce: warn|block`: aquele modo gradua uma dívida social (o ack
+# que este repositório deve a alguém), e esta é outra classe — o log em disco está afirmando uma
+# procedência que os próprios arquivos desmentem, e publicar isso propaga a inversão para os peers.
+trust_report="$(node - "$LIBDIR" "$LIAISON_DIR" "$CONFIG" <<'NODEEOF'
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, liaisonDir, cfg] = process.argv;
+  const T = await import(pathToFileURL(join(lib, 'liaison-trust.mjs')).href);
+  const C = await import(pathToFileURL(join(lib, 'liaison-config.mjs')).href);
+  const self = (C.readConfig(cfg).self || {}).id;
+  // Sem self não há de onde derivar procedência: o canal existe mas ninguém o configurou.
+  if (!self) { process.stdout.write('SKIP'); return; }
+  const { scanned, violations } = T.verifyAll(liaisonDir, self);
+  if (!violations.length) { process.stdout.write(`OK ${scanned}`); return; }
+  process.stdout.write([`BAD ${scanned}`, ...violations.map(T.formatViolation)].join('\n'));
+})();
+NODEEOF
+)" || { echo "FAIL liaison-trust — a verificação de procedência não pôde ser executada" >&2; exit 1; }
+
+TRUST_OK=""
+case "$trust_report" in
+  BAD*)
+    n_bad="$(printf '%s\n' "$trust_report" | tail -n +2 | grep -c . || true)"
+    echo "FAIL liaison-trust — $n_bad mensagem(ns) declaram procedência que os próprios arquivos do canal desmentem:" >&2
+    printf '%s\n' "$trust_report" | tail -n +2 | sed 's/^/  /' >&2
+    echo "  Nenhum content_sha detecta isto: o campo é excluído do hash por desenho, porque varia entre cópias." >&2
+    echo "  Causa típica: cópia manual, restauração de backup ou merge que trouxe o log de um peer para cima do próprio." >&2
+    echo "  Restaure o arquivo apontado a partir do histórico do repositório — corrigir o campo à mão esconde a cópia errada." >&2
+    exit 1
+    ;;
+  OK*) TRUST_OK="OK liaison-trust — ${trust_report#OK } mensagem(ns) com procedência coerente" ;;
+esac
+
 pending="$(node - "$LIBDIR" "$LIAISON_DIR" "$CONFIG" <<'NODEEOF'
 const { readFileSync, readdirSync, existsSync } = require('fs');
 const { join } = require('path');
@@ -105,6 +148,7 @@ NODEEOF
 
 if [ -z "$pending" ]; then
   echo "OK liaison-acks — nenhum ack pendente deste repositório"
+  [ -z "$TRUST_OK" ] || echo "$TRUST_OK"
   exit 0
 fi
 
@@ -115,9 +159,11 @@ if [ "$mode" = "block" ]; then
   echo "  Reconheça com: liaison-ops.sh ack <canal> <msg_id>" >&2
   echo "  Se a decisão é NÃO adotar, use --reason wont-adopt: acka e registra a dívida no ledger," >&2
   echo "  porque recusa registrada é informação e recusa silenciosa é o drift que o canal combate." >&2
+  [ -z "$TRUST_OK" ] || echo "$TRUST_OK"
   exit 1
 fi
 
 echo "WARN liaison-acks — $n mensagem(ns) exigem ack deste repositório (enforce: warn, não bloqueia):"
 printf '%s\n' "$pending" | sed 's/^/  /'
+[ -z "$TRUST_OK" ] || echo "$TRUST_OK"
 exit 0

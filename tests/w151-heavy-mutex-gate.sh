@@ -787,6 +787,75 @@ s44b="$(FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res bash "$
 [ "$s44b" = "DESLIGADA" ] || { echo "FAIL [44]: queue disable não desligou (state='$s44b')"; exit 1; }
 echo "OK [44]"
 
+scenario "[45] gate estático: fixture com lock por TMPDIR reprova nomeando o arquivo; limpa passa com contador"
+BOX="$(newbox)"; CHK="$WS/template/.forge/scripts/check-heavy-mutex.sh"
+mkdir -p "$BOX/sujo" "$BOX/limpo"
+printf '#!/usr/bin/env bash\nlock_path="${TMPDIR:-/tmp}/axis-heavy-suite.lock"\nmkdir "$lock_path"\n' > "$BOX/sujo/hook.sh"
+printf '#!/usr/bin/env bash\n. lib/heavy-mutex.sh\nforge_heavy_mutex_acquire --label x\n' > "$BOX/limpo/hook.sh"
+out45="$(FORGE_ROOT="$WS" bash "$CHK" --path "$BOX/sujo" 2>&1)"; rc45=$?
+[ "$rc45" -ne 0 ] \
+  || { echo "FAIL [45]: o gate aprovou um lock resolvido por TMPDIR — é o defeito 1 codificado: $out45"; exit 1; }
+grep -q "hook.sh" <<<"$out45" \
+  || { echo "FAIL [45]: a reprovação não nomeia o arquivo: $out45"; exit 1; }
+out45b="$(FORGE_ROOT="$WS" bash "$CHK" --path "$BOX/limpo" 2>&1)"; rc45b=$?
+[ "$rc45b" -eq 0 ] \
+  || { echo "FAIL [45]: fixture LIMPA reprovou (rc $rc45b) — um gate que recusa tudo não discrimina: $out45b"; exit 1; }
+grep -qE "arquivo\(s\) examinado\(s\)" <<<"$out45b" \
+  || { echo "FAIL [45]: passou sem dizer QUANTOS arquivos examinou: $out45b"; exit 1; }
+echo "OK [45]"
+
+scenario "[46] gate estático: universo vazio reprova, e a justificativa declarada libera nomeada"
+BOX="$(newbox)"; CHK="$WS/template/.forge/scripts/check-heavy-mutex.sh"
+mkdir -p "$BOX/vazio" "$BOX/fk/.forge"
+out46="$(FORGE_ROOT="$BOX/fk" bash "$CHK" --path "$BOX/vazio" 2>&1)"; rc46=$?
+[ "$rc46" -ne 0 ] \
+  || { echo "FAIL [46]: universo VAZIO passou — 'não examinei nada' e 'examinei e estava limpo' não podem terminar no mesmo verde: $out46"; exit 1; }
+printf 'heavy-mutex  # motivo: fixture sem arquivos, cenário [46] do w151\n' > "$BOX/fk/.forge/empty-universe-allowlist.txt"
+out46b="$(FORGE_ROOT="$BOX/fk" bash "$CHK" --path "$BOX/vazio" 2>&1)"; rc46b=$?
+[ "$rc46b" -eq 0 ] && grep -q "justificativa declarada" <<<"$out46b" \
+  || { echo "FAIL [46]: a justificativa declarada não liberou com linha própria (rc $rc46b): $out46b"; exit 1; }
+echo "OK [46]"
+
+scenario "[36] canal real: pre-push com o lock tomado por processo vivo NÃO executa a carga"
+BOX="$(newbox)"; R="$BOX/repo"
+mkdir -p "$R/.forge/scripts/lib" "$R/.forge/hooks/git"
+cp "$WS/template/.forge/scripts/lib/heavy-mutex.sh" "$R/.forge/scripts/lib/"
+cp "$WS/template/.forge/hooks/git/pre-push" "$R/.forge/hooks/git/"
+# Stubs neutros dos alvos que o pre-push declara. Sem eles o hook bloqueia por delegação em alvo
+# ausente (issue #49) ANTES de chegar ao mutex, e o cenário mediria integridade de instalação em
+# vez de exclusão mútua — passando pelo motivo errado.
+for _stub in check-ai-attribution.sh check-liaison-acks.sh; do
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$R/.forge/scripts/$_stub"
+  chmod +x "$R/.forge/scripts/$_stub"
+done
+cat > "$R/.forge/forge.yaml" <<'FY'
+heavy_mutex:
+  enabled: true
+FY
+# O `runtime:` vive no FORGE.md, não no forge.yaml — e sem FORGE.md o hook sai cedo com
+# "pre-push OK (sem harness)", medindo a ausência do harness em vez do mutex.
+cat > "$R/.forge/FORGE.md" <<'FM'
+runtime:
+  test: sh -c 'echo CARGA-EXECUTOU >> "$MARK"'
+FM
+git -C "$R" init -q -b main 2>/dev/null; git -C "$R" config user.email t@t; git -C "$R" config user.name t
+git -C "$R" config commit.gpgsign false; git -C "$R" add -A 2>/dev/null; git -C "$R" commit -qm init 2>/dev/null
+HOLDP="$(sleeper)"
+mk_lock "$BOX/w151res.lock" "$HOLDP"
+MARK36="$BOX/mark36"; : > "$MARK36"
+sha36="$(git -C "$R" rev-parse HEAD 2>/dev/null)"
+out36="$(cd "$R" && printf 'refs/heads/main %s refs/heads/main 0000000000000000000000000000000000000000\n' "$sha36" | \
+  FORGE_ROOT="$R" FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res \
+  FORGE_HEAVY_MUTEX_TIMEOUT_S=2 MARK="$MARK36" bash "$R/.forge/hooks/git/pre-push" origin "file://$R" 2>&1)"; rc36=$?
+kill -9 "$HOLDP" 2>/dev/null
+[ "$rc36" -ne 0 ] \
+  || { echo "FAIL [36]: o pre-push seguiu com o mutex tomado por processo vivo (rc $rc36) — duas suítes pesadas na mesma máquina: $out36"; exit 1; }
+grep -q "CARGA-EXECUTOU" "$MARK36" 2>/dev/null \
+  && { echo "FAIL [36]: a CARGA executou apesar do mutex tomado — o hook citou o mutex mas não o respeitou"; exit 1; }
+grep -qi "heavy-mutex" <<<"$out36" \
+  || { echo "FAIL [36]: a saída não nomeia o mutex — quem lê o push não saberia por que travou: $out36"; exit 1; }
+echo "OK [36]"
+
 [ "$SCENARIOS_RUN" -gt 0 ] \
   || { echo "FAIL [contador]: nenhum cenário executado — um gate que não roda nada não cobre nada"; exit 1; }
 echo "PASS w151-heavy-mutex ($SCENARIOS_RUN cenário(s))"

@@ -48,6 +48,19 @@ mk_lock() {  # mk_lock <dir-do-lock> <pid> [token]
   printf '%s\n' "fixture" > "$1/nonce"
 }
 
+
+# Carimbo de ticket no formato da biblioteca: microssegundos em 20 dígitos, para que a ordem
+# lexicográfica do glob coincida com a numérica.
+us20() { perl -MTime::HiRes -e 'printf "%020.0f", Time::HiRes::time()*1000000' 2>/dev/null || printf '%020d' "$(( $(date +%s) * 1000000 ))"; }
+
+# Ticket pré-fabricado — o estado que uma fila com concorrentes produziria (camada A).
+mk_ticket() {  # mk_ticket <q-dir> <us20> <pid> [token]
+  mkdir -p "$1/$2.$3"
+  printf '%s\n' "$3" > "$1/$2.$3/pid"
+  if [ $# -ge 4 ]; then printf '%s\n' "$4" > "$1/$2.$3/token"; else tok_of "$3" > "$1/$2.$3/token"; fi
+}
+q_count() { local n=0 f; for f in "$1"/*; do [ -d "$f" ] && n=$((n+1)); done; printf '%s' "$n"; }
+
 # A trava positiva vale para a suíte INTEIRA: qualquer cenário que esqueça de montar a caixa
 # recebe 69 em vez de tocar /tmp. Ver o comentário em lib/heavy-mutex.sh.
 FORGE_HEAVY_MUTEX_TESTING=1
@@ -374,6 +387,115 @@ out24="$(FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res \
 [ "$rc24" -eq 0 ] && grep -q "CARGA-EXECUTOU" <<<"$out24" \
   || { echo "FAIL [24]: o lock deixado por SIGKILL não foi reclamado (rc $rc24) — é o órfão de 14 horas: $out24"; exit 1; }
 echo "OK [24]"
+
+scenario "[40] fila LIGADA: o interruptor é lido e anunciado no recibo"
+BOX="$(newbox)"; : > "$BOX/w151res.q.enabled"
+out40="$(FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res \
+         bash -c '. "$0"; forge_heavy_mutex_acquire --timeout 5; forge_heavy_mutex_release' "$LIB" 2>&1)"; rc40=$?
+[ "$rc40" -eq 0 ] || { echo "FAIL [40]: aquisição com fila ligada reprovou (rc $rc40): $out40"; exit 1; }
+grep -qi "fila LIGADA" <<<"$out40" \
+  || { echo "FAIL [40]: o recibo não diz se a fila está ligada — no período de migração, 'estou atrás de dois' e 'estou disputando às cegas' são decisões diferentes: $out40"; exit 1; }
+echo "OK [40]"
+
+scenario "[12] FIFO: três tickets vivos mais antigos e lock LIVRE — o quarto não adquire"
+BOX="$(newbox)"; : > "$BOX/w151res.q.enabled"; mkdir -p "$BOX/w151res.q"
+for i in 1 2 3; do
+  SP="$(sleeper)"; mk_ticket "$BOX/w151res.q" "0000000000000000000$i" "$SP"
+done
+[ ! -d "$BOX/w151res.lock" ] || { echo "FAIL [12]: o lock deveria estar LIVRE para o cenário medir a fila e não a posse"; exit 1; }
+out12="$(FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res \
+         bash -c '. "$0"; forge_heavy_mutex_acquire --timeout 3' "$LIB" 2>&1)"; rc12=$?
+[ "$rc12" -ne 0 ] \
+  || { echo "FAIL [12]: adquiriu com três tickets vivos à frente e lock livre — a fila não ordena nada, e quem solta-e-retoma continua monopolizando: $out12"; exit 1; }
+echo "OK [12]"
+
+scenario "[13] contrapositiva de [12]: removidos os tickets, o mesmo processo adquire"
+rm -rf "$BOX/w151res.q"/*
+out13="$(FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res \
+         bash -c '. "$0"; forge_heavy_mutex_acquire --timeout 5 && printf "ADQUIRIU\n"; forge_heavy_mutex_release' "$LIB" 2>&1)"; rc13=$?
+[ "$rc13" -eq 0 ] && grep -q "ADQUIRIU" <<<"$out13" \
+  || { echo "FAIL [13]: sem tickets à frente e com lock livre, não adquiriu (rc $rc13) — a fila estaria recusando tudo em vez de ordenar: $out13"; exit 1; }
+echo "OK [13]"
+
+scenario "[10] ticket órfão na cabeça é varrido e a fila anda"
+BOX="$(newbox)"; : > "$BOX/w151res.q.enabled"; mkdir -p "$BOX/w151res.q"
+DEADQ="$(sleeper)"; kill -9 "$DEADQ" 2>/dev/null; wait "$DEADQ" 2>/dev/null
+mk_ticket "$BOX/w151res.q" "00000000000000000001" "$DEADQ" "carimbo-morto"
+out10="$(FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res \
+         bash -c '. "$0"; forge_heavy_mutex_acquire --timeout 6 && printf "ADQUIRIU\n"; forge_heavy_mutex_release' "$LIB" 2>&1)"; rc10=$?
+[ "$rc10" -eq 0 ] && grep -q "ADQUIRIU" <<<"$out10" \
+  || { echo "FAIL [10]: ticket de PID morto na cabeça travou a fila (rc $rc10) — um órfão de ticket bloqueia a máquina como um órfão de lock: $out10"; exit 1; }
+echo "OK [10]"
+
+scenario "[14] ticket vivo removido não é ABSORVENTE: o processo reenfileira e adquire"
+BOX="$(newbox)"; : > "$BOX/w151res.q.enabled"; mkdir -p "$BOX/w151res.q"
+SPB="$(sleeper)"; mk_ticket "$BOX/w151res.q" "00000000000000000001" "$SPB"
+cat > "$BOX/vict.sh" <<'VICT'
+set -uo pipefail
+. "$LIBP"
+forge_heavy_mutex_acquire --label "vitima" --timeout 20 && printf 'ADQUIRIU\n'
+VICT
+FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res FORGE_HEAVY_MUTEX_POLL_S=1 \
+  FORGE_HEAVY_MUTEX_POLL_HEAD_S=1 LIBP="$LIB" bash "$BOX/vict.sh" > "$BOX/v.out" 2>&1 &
+VP=$!; track "$VP"
+w=0; while [ $w -lt 60 ] && [ "$(q_count "$BOX/w151res.q")" -lt 2 ]; do sleep 0.2; w=$((w+1)); done
+rm -rf "$BOX/w151res.q"/*
+w=0; while [ $w -lt 60 ] && kill -0 "$VP" 2>/dev/null; do sleep 0.5; w=$((w+1)); done
+kill -9 "$SPB" 2>/dev/null
+grep -q "ADQUIRIU" "$BOX/v.out" 2>/dev/null \
+  || { echo "FAIL [14]: com o próprio ticket apagado e o lock LIVRE, o processo esperou até o teto em vez de reenfileirar — é o estado absorvente medido, pior que o mecanismo de hoje: $(cat "$BOX/v.out")"; exit 1; }
+kill -9 "$VP" 2>/dev/null
+echo "OK [14]"
+
+scenario "[41] aritmética sobre ticket de 20 dígitos não morre em octal"
+t41="00000000001787244001"
+v41="$(bash -c 'echo $(( 10#$1 ))' _ "$t41" 2>&1)"
+[ "$v41" = "1787244001" ] \
+  || { echo "FAIL [41]: 10# não converteu o ticket zero-padded (veio '$v41')"; exit 1; }
+v41b="$(bash -c 'echo $(( $1 ))' _ "$t41" 2>&1)"; rc41b=$?
+[ "$rc41b" -ne 0 ] \
+  || { echo "FAIL [41]: aritmética SEM 10# deveria falhar em número zero-padded — se não falha, a armadilha documentada não existe e a regra do gate estático perde a razão"; exit 1; }
+echo "OK [41]"
+
+scenario "[17] exclusão mútua real: 5 concorrentes, sem entrelaçamento, 5 pares e 5 PIDs distintos"
+BOX="$(newbox)"; W="$BOX/witness"; : > "$W"
+cat > "$BOX/work.sh" <<'WORK'
+set -uo pipefail
+. "$LIBP"
+forge_heavy_mutex_acquire --label "w" --timeout 30 || exit $?
+printf 'START %s\n' "$$" >> "$WIT"
+sleep 1
+printf 'END %s\n' "$$" >> "$WIT"
+forge_heavy_mutex_release
+WORK
+for i in 1 2 3 4 5; do
+  FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res FORGE_HEAVY_MUTEX_POLL_S=1 \
+    FORGE_HEAVY_MUTEX_POLL_HEAD_S=1 LIBP="$LIB" WIT="$W" bash "$BOX/work.sh" >/dev/null 2>&1 &
+  track "$!"
+done
+wait
+n_start="$(grep -c '^START' "$W")"; n_end="$(grep -c '^END' "$W")"
+n_pid="$(awk '/^START/{print $2}' "$W" | sort -u | grep -c .)"
+[ "$n_start" -eq 5 ] && [ "$n_end" -eq 5 ] && [ "$n_pid" -eq 5 ] \
+  || { echo "FAIL [17]: esperados 5 START, 5 END e 5 PIDs distintos; vieram $n_start/$n_end/$n_pid — um mutex que BLOQUEIA todo mundo produz testemunha vazia e zero entrelaçamento, e passaria numa asserção que só olhasse entrelaçamento"; exit 1; }
+bad="$(awk '/^START/{if(cur!=""){print "OVERLAP"; exit} cur=$2} /^END/{cur=""}' "$W")"
+[ -z "$bad" ] \
+  || { echo "FAIL [17]: seções críticas ENTRELAÇADAS — duas cargas pesadas correram juntas: $(cat "$W")"; exit 1; }
+echo "OK [17]"
+
+scenario "[18] controle de [17]: SEM mutex a mesma carga TEM de entrelaçar"
+BOX="$(newbox)"; W2F="$BOX/witness2"; : > "$W2F"
+cat > "$BOX/work2.sh" <<'WORK2'
+printf 'START %s\n' "$$" >> "$WIT"
+sleep 1
+printf 'END %s\n' "$$" >> "$WIT"
+WORK2
+for i in 1 2 3 4 5; do WIT="$W2F" bash "$BOX/work2.sh" >/dev/null 2>&1 & track "$!"; done
+wait
+bad2="$(awk '/^START/{if(cur!=""){print "OVERLAP"; exit} cur=$2} /^END/{cur=""}' "$W2F")"
+[ -n "$bad2" ] \
+  || { echo "FAIL [18]: sem mutex NÃO houve entrelaçamento — o cenário [17] fica inconclusivo, porque não se sabe se o mutex protegeu ou se a carga nunca colidiria: $(cat "$W2F")"; exit 1; }
+echo "OK [18]"
 
 [ "$SCENARIOS_RUN" -gt 0 ] \
   || { echo "FAIL [contador]: nenhum cenário executado — um gate que não roda nada não cobre nada"; exit 1; }

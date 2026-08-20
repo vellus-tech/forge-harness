@@ -32,6 +32,11 @@ export LC_ALL
 _FHM_LOCK=""
 _FHM_OWNED="false"
 _FHM_NONCE=""
+_FHM_QDIR=""
+_FHM_QSWITCH=""
+_FHM_TICKET=""
+_FHM_WAIT_START=""
+_FHM_CLOCK="hires"
 
 # 0 quando <pid> é ancestral deste processo. Reentrância por LINHAGEM, não por variável de
 # ambiente: quem empurra via `heavy-run.sh -- git push` já detém o lock, e o wrapper não exporta
@@ -78,7 +83,13 @@ _fhm_resolve_root() {  # ecoa "<root>\t<proveniência>"; rc 69 se inutilizável
     if [ ! -d "$root" ]; then
       # `mkdir` simples, nunca `-p` e nunca `-m`: medido, `mkdir -p` ACEITA symlink pré-existente e
       # o `pwd -P` segue o link; e `-p` sobre diretório existente não corrige permissão.
-      mkdir "$root" 2>/dev/null || { _fhm_die69 "não consegui criar FORGE_HEAVY_MUTEX_ROOT '$root'"; return 69; }
+      #
+      # O `mkdir` que falha porque OUTRO acabou de criar não é âncora inutilizável — é corrida
+      # benigna, e é o caso comum quando N consumidores sobem juntos. Confundir os dois faz o
+      # primeiro a chegar vencer e todos os demais receberem 69: medido com cinco concorrentes,
+      # quatro morriam assim. Reconferimos o estado antes de reprovar.
+      mkdir "$root" 2>/dev/null || [ -d "$root" ] || { _fhm_die69 "não consegui criar FORGE_HEAVY_MUTEX_ROOT '$root'"; return 69; }
+      [ -L "$root" ] && { _fhm_die69 "FORGE_HEAVY_MUTEX_ROOT '$root' virou symlink durante a criação — recusado."; return 69; }
     fi
     [ -O "$root" ] || { _fhm_die69 "FORGE_HEAVY_MUTEX_ROOT '$root' não pertence ao uid corrente — recusado."; return 69; }
     printf '%s%sFORGE_HEAVY_MUTEX_ROOT (isolado — não serializa com o resto da máquina)\n' "$root" "$tab"
@@ -107,7 +118,10 @@ _fhm_ensure_sidecar() {  # _fhm_ensure_sidecar <caminho>
   local d="$1"
   [ -L "$d" ] && { _fhm_die69 "sidecar '$d' é um symlink — recusado."; return 69; }
   if [ ! -d "$d" ]; then
-    mkdir "$d" 2>/dev/null || { _fhm_die69 "não consegui criar o sidecar '$d'"; return 69; }
+    # Mesma corrida benigna da âncora declarada: com N consumidores subindo juntos, só um vence o
+    # `mkdir` e os demais receberiam 69 sobre um sidecar que existe e é válido.
+    mkdir "$d" 2>/dev/null || [ -d "$d" ] || { _fhm_die69 "não consegui criar o sidecar '$d'"; return 69; }
+    [ -L "$d" ] && { _fhm_die69 "sidecar '$d' virou symlink durante a criação — recusado."; return 69; }
   fi
   [ -O "$d" ] || { _fhm_die69 "sidecar '$d' não pertence ao uid corrente — recusado."; return 69; }
   return 0
@@ -164,6 +178,148 @@ forge_heavy_mutex_path() {
   return 0
 }
 
+
+# ── fila FIFO (D4) ───────────────────────────────────────────────────────────────────────────────
+# DUAS CAMADAS, e a de justiça nunca enfraquece a de segurança. Segurança é o `mkdir`: se dois
+# tentam, um perde, sempre. Justiça é: só TENTA quem é cabeça da fila. No empate, ambos tentam, o
+# `mkdir` decide, o perdedor volta a esperar — a injustiça fica confinada a microssegundos, contra
+# os minutos que a fila ordena.
+#
+# Por que a fila NÃO pode ser o mecanismo de exclusão: P1 lê o relógio e é desescalonado antes de
+# criar o ticket; P2 lê depois, cria, varre, vê-se sozinho e entra; P1 volta, cria o ticket mais
+# antigo, varre, julga-se o menor e TAMBÉM entra. A ordem de leitura do relógio e a ordem de
+# visibilidade da criação não são a mesma ordem, e resolução de relógio nenhuma conserta isso.
+#
+# Por que isso mata a inanição medida: quem solta e retoma é um PROCESSO NOVO — pega ticket novo,
+# vai para o fim. Estar a poucas instruções do `mkdir` deixa de ser o que decide.
+
+# Microssegundos em 20 dígitos: a ordem lexicográfica do glob passa a coincidir com a numérica.
+# Sem `perl`, cai para resolução de 1s arredondando para CIMA — medido, truncar para baixo dá ao
+# degradado até 1 segundo de vantagem sistemática, e ele furaria a fila de todo mundo do segundo.
+_fhm_now_us20() {
+  local us
+  us="$(perl -MTime::HiRes -e 'printf "%.0f", Time::HiRes::time()*1000000' 2>/dev/null)"
+  if [ -n "$us" ]; then _FHM_CLOCK="hires"; else _FHM_CLOCK="degradado"; us="$(date +%s)999999"; fi
+  printf '%020d' "$us" 2>/dev/null || printf '%020d' 0
+}
+
+_fhm_queue_enabled() { [ -f "$_FHM_QSWITCH" ]; }
+
+# Recolhe o PRÓPRIO ticket. Remoção SIMÉTRICA à criação: `mv` para `.reaping.` e só então
+# `rm -rf`. Medido, a criação por staging+`mv` nunca é observada parcial, mas o `rm -rf` direto
+# produz observações de ticket sem `pid`/`token`; a assimetria estava na ponta errada.
+_fhm_leave_queue() {
+  [ -n "${_FHM_TICKET:-}" ] || return 0
+  [ -d "$_FHM_TICKET" ] || { _FHM_TICKET=""; return 0; }
+  local reap="$_FHM_QDIR/.reaping.$(basename "$_FHM_TICKET").${_FHM_NONCE:-x}"
+  mv "$_FHM_TICKET" "$reap" 2>/dev/null && rm -rf "$reap" 2>/dev/null
+  _FHM_TICKET=""
+  return 0
+}
+
+# Enfileira com o carimbo dado, com PÓS-VERIFICAÇÃO obrigatória. `mv src dst` com `dst` existente
+# devolve rc 0 e ANINHA (medido nos dois SOs): sem conferir, o processo acredita ter enfileirado,
+# o ticket no disco pertence a outro, ele nunca é cabeça, e volta ao timeout sobre recurso livre —
+# o estado absorvente reproduzido pelo código que o corrige.
+_fhm_enqueue() {  # _fhm_enqueue <us20>
+  local stamp="$1" stag dest
+  stag="$_FHM_QDIR/.staging.$$.$stamp"
+  rm -rf "$stag" 2>/dev/null
+  mkdir -p "$stag" 2>/dev/null || return 1
+  printf '%s\n' "$$" > "$stag/pid" || return 1
+  printf '%s\n' "$(_fhm_token "$$")" > "$stag/token" 2>/dev/null
+  dest="$_FHM_QDIR/$stamp.$$"
+  mv "$stag" "$dest" 2>/dev/null || { rm -rf "$stag"; return 1; }
+  if [ ! -f "$dest/pid" ] || [ "$(cat "$dest/pid" 2>/dev/null)" != "$$" ]; then
+    echo "heavy-mutex: destino de ticket ocupado por terceiro — reenfileirando com carimbo novo" >&2
+    rm -rf "$dest/.staging.$$.$stamp" 2>/dev/null
+    return 1
+  fi
+  _FHM_TICKET="$dest"
+  return 0
+}
+
+# Menor ticket VIVO. Varre e recolhe mortos no caminho, idempotentemente, por qualquer participante.
+_fhm_head_ticket() {
+  local f base tpid ttok head=""
+  for f in "$_FHM_QDIR"/*; do
+    [ -d "$f" ] || continue
+    base="$(basename "$f")"
+    tpid="$(cat "$f/pid" 2>/dev/null || echo '')"
+    ttok="$(cat "$f/token" 2>/dev/null || echo '')"
+    if [ -z "$tpid" ] || ! _fhm_alive "$tpid" "$ttok"; then
+      mv "$f" "$_FHM_QDIR/.reaping.$base.dead" 2>/dev/null && rm -rf "$_FHM_QDIR/.reaping.$base.dead" 2>/dev/null
+      continue
+    fi
+    [ -z "$head" ] && head="$base"
+  done
+  printf '%s' "$head"
+}
+
+
+# Reivindica e remove um lock ÓRFÃO com exclusividade.
+#
+# Por que não basta `rm -rf`: a decisão de "isto é órfão" nasce de uma leitura e o `rm` acontece
+# DEPOIS. Entre os dois, o dono pode ter liberado e um terceiro criado o lock — e o `rm` cai sobre
+# o lock de quem acabou de vencer a corrida, JÁ CONFIRMADO. Medido: duas cargas pesadas
+# entrelaçadas na testemunha, que é a falha de segurança que este primitivo existe para impedir.
+# A confirmação de posse não cobre isso: ela é um INSTANTE, e a remoção vem depois dela — detectar
+# na entrada não protege quem já entrou, então a proteção tem de estar do lado de quem remove.
+#
+# `mv` para nome exclusivo é `rename(2)`, atômico: dois reivindicantes competem e só um leva o
+# diretório, porque o outro falha com a origem já ausente. Quem levou RECONFERE o que tem na mão e
+# devolve se não for mais o órfão que motivou a decisão. É o mesmo princípio do `release`, que
+# confere PID e nonce antes de remover: nunca destrua o que você não provou ser seu.
+_fhm_reclaim_orphan() {  # _fhm_reclaim_orphan <pid-esperado>
+  local want="$1" reap p2 t2
+  reap="${_FHM_LOCK}.reaping.$$.$(date +%s).${RANDOM:-0}"
+  mv "$_FHM_LOCK" "$reap" 2>/dev/null || return 1
+  p2="$(cat "$reap/pid" 2>/dev/null || echo '')"
+  t2="$(cat "$reap/token" 2>/dev/null || echo '')"
+  if [ "$p2" = "$want" ] && ! _fhm_alive "$p2" "$t2"; then
+    echo "heavy-mutex: lock órfão de PID $want removido em $_FHM_LOCK (processo morto, zumbi ou PID reciclado)." >&2
+    rm -rf "$reap" 2>/dev/null
+    return 0
+  fi
+  if [ ! -d "$_FHM_LOCK" ] && mv "$reap" "$_FHM_LOCK" 2>/dev/null; then
+    return 1
+  fi
+  echo "heavy-mutex: reivindicação de órfão atropelou um detentor novo (PID ${p2:-?}); evidência em $reap" >&2
+  return 1
+}
+
+
+# Escreve os metadados e CONFIRMA a posse; devolve 1 quando o lock foi revogado no meio, e o
+# chamador RETENTA em vez de desistir. Desistir transformaria uma corrida benigna em falha de
+# push: medido com cinco concorrentes, três saíam com rc 75 sobre um recurso que estava LIVRE.
+_fhm_claim() {  # _fhm_claim <label>
+  local label="$1"
+  # `pid` PRIMEIRO, porque é o campo que o legado lê: estreita ao máximo a janela em que o lock
+  # existe sem dono legível. Todo `rc` de escrita é conferido — um `printf` que falhe é falha de
+  # AQUISIÇÃO, não um aviso solto no stderr.
+  printf '%s\n' "$$" > "$_FHM_LOCK/pid" || { echo "heavy-mutex: não consegui escrever $_FHM_LOCK/pid" >&2; return 1; }
+  # Sonda de teste: reproduz determinística e exclusivamente a revogação por consumidor legado
+  # dentro da janela, para que o cenário [19] meça a decisão e não dependa de vencer uma corrida.
+  [ "${FORGE_HEAVY_MUTEX_REVOKE_PROBE:-}" = "1" ] && rm -rf "$_FHM_LOCK"
+  printf '%s\n' "$(_fhm_token "$$")" > "$_FHM_LOCK/token" 2>/dev/null
+  printf '%s\n' "$_FHM_NONCE" > "$_FHM_LOCK/nonce" 2>/dev/null
+  printf '%s\n' "$(date +%s)" > "$_FHM_LOCK/acquired_at" 2>/dev/null
+  printf '%s\n' "${label}" > "$_FHM_LOCK/label" 2>/dev/null
+
+  # CONFIRMAÇÃO DE POSSE. Escrever `pid` primeiro ESTREITA a janela (medido: mediana 87 µs, p95
+  # 130 µs), não a fecha — e um consumidor legado que a atravesse remove o nosso lock e segue.
+  # Sem esta releitura, o processo continua se comportando como detentor de um lock que não existe
+  # mais, tendo produzido apenas uma linha `No such file or directory` que ninguém lê: duas suítes
+  # pesadas rodando juntas, que é o defeito que o mutex existe para impedir.
+  if [ ! -d "$_FHM_LOCK" ] || [ "$(cat "$_FHM_LOCK/pid" 2>/dev/null)" != "$$" ] \
+     || [ "$(cat "$_FHM_LOCK/nonce" 2>/dev/null)" != "$_FHM_NONCE" ]; then
+    echo "heavy-mutex: lock revogado durante a janela de escrita — refazendo a aquisição ($_FHM_LOCK)" >&2
+    _FHM_OWNED="false"
+    return 1
+  fi
+  return 0
+}
+
 forge_heavy_mutex_acquire() {
   local label="carga pesada" timeout="${FORGE_HEAVY_MUTEX_TIMEOUT_S:-1800}" waited=0 holder
   while [ $# -gt 0 ]; do
@@ -181,10 +337,53 @@ forge_heavy_mutex_acquire() {
   root="${rr%%$tab*}"; prov="${rr#*$tab}"
   _fhm_ensure_sidecar "$root/$res.q" || return 69
   _FHM_LOCK="$root/$res.lock"
+  _FHM_QDIR="$root/$res.q"
+  _FHM_QSWITCH="$root/$res.q.enabled"
+  # WAIT_START é o instante em que ESTE processo começou a esperar, e é o carimbo do ticket mesmo
+  # que ele só venha a ser criado mais tarde — é o que preserva a espera já investida quando o
+  # interruptor liga no meio do voo, em vez de mandar para o fim quem esperava há vinte minutos.
+  _FHM_WAIT_START="$(_fhm_now_us20)"
+  _FHM_TICKET=""
 
   local incomplete=0 holder htok
   _FHM_NONCE="$$.$(date +%s).${RANDOM:-0}"
-  while ! mkdir "$_FHM_LOCK" 2>/dev/null; do
+  local qon="DESLIGADA" head
+  if _fhm_queue_enabled; then
+    qon="LIGADA"
+    _fhm_enqueue "$_FHM_WAIT_START" || _fhm_enqueue "$(_fhm_now_us20)" || true
+  fi
+
+  while : ; do
+    # PORTÃO DE JUSTIÇA: só a cabeça TENTA. Com a fila desligada, todos tentam — que é o
+    # comportamento legado, e é o que mantém a migração monótona em corretude.
+    if _fhm_queue_enabled; then
+      # O próprio ticket pode ter sido varrido por terceiro. Não reenfileirar tornaria "não sou
+      # cabeça" um estado ABSORVENTE: medido, o processo espera o teto inteiro com o lock LIVRE.
+      if [ -z "${_FHM_TICKET:-}" ] || [ ! -d "$_FHM_TICKET" ]; then
+        _FHM_TICKET=""
+        _fhm_enqueue "$_FHM_WAIT_START" || _fhm_enqueue "$(_fhm_now_us20)" || true
+      fi
+      head="$(_fhm_head_ticket)"
+      if [ -n "$head" ] && [ -n "${_FHM_TICKET:-}" ] && [ "$head" != "$(basename "$_FHM_TICKET")" ]; then
+        if [ "$waited" -ge "$timeout" ]; then
+          echo "heavy-mutex: TIMEOUT após ${waited}s na fila (posição alcançada: cabeça é $head)." >&2
+          echo "  lock ........ $_FHM_LOCK (âncora: $prov)" >&2
+          _fhm_leave_queue
+          return 75
+        fi
+        [ "$waited" = 0 ] && { echo "heavy-mutex: AGUARDANDO — ${label}" >&2; echo "  lock ........ $_FHM_LOCK (âncora: $prov)" >&2; echo "  fila ........ LIGADA — cabeça é $head" >&2; }
+        sleep "${FORGE_HEAVY_MUTEX_POLL_S:-1}"
+        waited=$((waited + ${FORGE_HEAVY_MUTEX_POLL_S:-1}))
+        continue
+      fi
+    fi
+    if mkdir "$_FHM_LOCK" 2>/dev/null; then
+      if _fhm_claim "${label}"; then break; fi
+      if [ "$waited" -ge "$timeout" ]; then _fhm_leave_queue; return 75; fi
+      sleep "${FORGE_HEAVY_MUTEX_POLL_S:-1}"
+      waited=$((waited + ${FORGE_HEAVY_MUTEX_POLL_S:-1}))
+      continue
+    fi
     holder="$(cat "$_FHM_LOCK/pid" 2>/dev/null || echo '')"
     htok="$(cat "$_FHM_LOCK/token" 2>/dev/null || echo '')"
 
@@ -207,11 +406,11 @@ forge_heavy_mutex_acquire() {
         _FHM_OWNED="false"
         FORGE_HEAVY_MUTEX_REENTRANT=1
         export FORGE_HEAVY_MUTEX_REENTRANT
+        _fhm_leave_queue
         return 0
       fi
       if ! _fhm_alive "$holder" "$htok"; then
-        echo "heavy-mutex: lock órfão de PID $holder removido em $_FHM_LOCK (processo morto, zumbi ou PID reciclado)." >&2
-        rm -rf "$_FHM_LOCK"
+        _fhm_reclaim_orphan "$holder" || true
         continue
       fi
     fi
@@ -220,6 +419,7 @@ forge_heavy_mutex_acquire() {
       echo "heavy-mutex: TIMEOUT após ${waited}s esperando o mutex da máquina." >&2
       echo "  lock ........ $_FHM_LOCK (âncora: $prov)" >&2
       echo "  detentor .... PID ${holder:-desconhecido}" >&2
+      _fhm_leave_queue
       return 75
     fi
     if [ "$waited" = 0 ]; then
@@ -231,34 +431,12 @@ forge_heavy_mutex_acquire() {
     waited=$((waited + ${FORGE_HEAVY_MUTEX_POLL_S:-1}))
   done
 
-  # `pid` PRIMEIRO, porque é o campo que o legado lê: estreita ao máximo a janela em que o lock
-  # existe sem dono legível. Todo `rc` de escrita é conferido — um `printf` que falhe é falha de
-  # AQUISIÇÃO, não um aviso solto no stderr.
-  printf '%s\n' "$$" > "$_FHM_LOCK/pid" || { echo "heavy-mutex: não consegui escrever $_FHM_LOCK/pid" >&2; return 75; }
-  # Sonda de teste: reproduz determinística e exclusivamente a revogação por consumidor legado
-  # dentro da janela, para que o cenário [19] meça a decisão e não dependa de vencer uma corrida.
-  [ "${FORGE_HEAVY_MUTEX_REVOKE_PROBE:-}" = "1" ] && rm -rf "$_FHM_LOCK"
-  printf '%s\n' "$(_fhm_token "$$")" > "$_FHM_LOCK/token" 2>/dev/null
-  printf '%s\n' "$_FHM_NONCE" > "$_FHM_LOCK/nonce" 2>/dev/null
-  printf '%s\n' "$(date +%s)" > "$_FHM_LOCK/acquired_at" 2>/dev/null
-  printf '%s\n' "${label}" > "$_FHM_LOCK/label" 2>/dev/null
-
-  # CONFIRMAÇÃO DE POSSE. Escrever `pid` primeiro ESTREITA a janela (medido: mediana 87 µs, p95
-  # 130 µs), não a fecha — e um consumidor legado que a atravesse remove o nosso lock e segue.
-  # Sem esta releitura, o processo continua se comportando como detentor de um lock que não existe
-  # mais, tendo produzido apenas uma linha `No such file or directory` que ninguém lê: duas suítes
-  # pesadas rodando juntas, que é o defeito que o mutex existe para impedir.
-  if [ ! -d "$_FHM_LOCK" ] || [ "$(cat "$_FHM_LOCK/pid" 2>/dev/null)" != "$$" ] \
-     || [ "$(cat "$_FHM_LOCK/nonce" 2>/dev/null)" != "$_FHM_NONCE" ]; then
-    echo "heavy-mutex: lock revogado por consumidor legado durante a janela de escrita — a aquisição FALHOU ($_FHM_LOCK)" >&2
-    _FHM_OWNED="false"
-    return 75
-  fi
   _FHM_OWNED="true"
+  _fhm_leave_queue
   # Recibo SEMPRE, mesmo sem contenção: é o análogo do contador de controle para um primitivo que
   # não itera universo. Sem ele, "rodei com o mutex e não houve disputa" e "rodei sem o mutex
   # porque a biblioteca sumiu" produzem o MESMO silêncio no log.
-  echo "heavy-mutex: adquirido — $_FHM_LOCK (âncora: $prov), recurso $res, espera ${waited}s" >&2
+  echo "heavy-mutex: adquirido — $_FHM_LOCK (âncora: $prov), recurso $res, fila $qon, espera ${waited}s, relógio ${_FHM_CLOCK:-hires}" >&2
   FORGE_HEAVY_MUTEX_HELD_PATH="$_FHM_LOCK"
   export FORGE_HEAVY_MUTEX_HELD_PATH
   return 0

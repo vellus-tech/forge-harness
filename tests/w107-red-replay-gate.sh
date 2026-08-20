@@ -263,8 +263,14 @@ FEED8="refs/heads/main $sha_push8 refs/heads/main $parent_sha8"
 set +e
 out="$(cd "$T" && printf '%s\n' "$FEED8" | bash .forge/hooks/git/pre-push origin "file://$T" 2>&1)"; rc=$?
 set -e
-grep -qi "red-first" <<<"$out" && { echo "FAIL: pre-push citou red-first para um push sem interseção com fix_files ($out)"; exit 1; }
+# O que este cenário mede é NÃO-BLOQUEIO, não silêncio. Desde a issue #49 o hook imprime o
+# contador de controle sempre que engaja — dizer "examinei 6 changes type:bugfix, nenhum
+# intersecta os arquivos deste push" é justamente o que separa cobertura de ausência de
+# cobertura. Asserção sobre a linha de BLOQUEIO, portanto, e uma asserção A MAIS exigindo o
+# contador: sem ele, "não examinei nada" e "examinei e não se aplica" voltariam a colapsar.
+grep -qi "pre-push BLOQUEADO: red-first" <<<"$out" && { echo "FAIL: pre-push bloqueou por red-first num push sem interseção com fix_files ($out)"; exit 1; }
 [ "$rc" -eq 0 ] || { echo "FAIL: pre-push deveria passar (push sem relação com bug-2 pendente) ($out)"; exit 1; }
+grep -q "change(s) type:bugfix examinado(s)" <<<"$out" || { echo "FAIL: pre-push não imprimiu o contador de controle do red-first (issue #49) ($out)"; exit 1; }
 echo "OK [8]"
 
 echo "[8b] Onda D, item 5 — bugfix ativo SEM evidência nenhuma NÃO é isento (bloqueia mesmo sem interseção)"

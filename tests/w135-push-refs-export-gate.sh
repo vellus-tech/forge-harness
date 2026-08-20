@@ -38,6 +38,14 @@ runtime:
   gates: check-pushrefs
 EOF
 
+# Alvos de delegação que o pre-push declara. A fixture instala um `.forge/scripts/` — e desde a
+# issue #49 um diretório de scripts do harness presente com alvo declarado AUSENTE é erro, não
+# no-op. Stubs neutros mantêm este gate medindo o que ele diz medir (a re-exportação do stdin do
+# git), sem transformá-lo num teste de integridade da instalação (isso é o w147).
+for _stub in check-ai-attribution.sh check-liaison-acks.sh; do
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$T/.forge/scripts/$_stub"
+done
+
 # O gate espia o que o hook lhe passou. Escreve em arquivo porque run_check desvia a saída
 # do gate para um log temporário — o arquivo é o único canal observável pelo teste.
 cat > "$T/.forge/scripts/check-pushrefs.sh" <<'EOF'

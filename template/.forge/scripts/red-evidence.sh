@@ -53,11 +53,14 @@ CMD="${1:-}"; shift || true
 if [ "$CMD" = "ci" ]; then
   [ $# -eq 0 ] || { echo "FAIL (red-evidence.sh ci não aceita argumentos — o escopo é todo change ativo type:bugfix, por construção)"; exit 1; }
   ACTIVE_DIR="$ROOT/.forge/specs/active"
-  [ -d "$ACTIVE_DIR" ] || { echo "OK ci — nenhum change ativo (sem specs/active)"; exit 0; }
+  # shellcheck disable=SC1090
+  . "$SCRIPT_DIR/lib/gate-universe.sh"
   fail=0
   checked=0
+  active=0
   for man in "$ACTIVE_DIR"/*/manifest.yaml; do
     [ -f "$man" ] || continue
+    active=$((active + 1))
     id="$(basename "$(dirname "$man")")"
     type="$(awk -F': ' '$1=="type"{gsub(/[" ]/,"",$2); print $2; exit}' "$man")"
     [ "$type" = "bugfix" ] || continue
@@ -73,9 +76,29 @@ if [ "$CMD" = "ci" ]; then
       echo "  FAIL $id — $out"
     fi
   done
-  if [ "$checked" -eq 0 ]; then echo "OK ci — nenhum change ativo type:bugfix"; exit 0; fi
-  [ "$fail" -eq 0 ] || { echo "FAIL ci — $checked change(s) type:bugfix verificado(s), ao menos um sem Red observado (logs em /tmp/forge-red-ci-*.log)"; exit 1; }
-  echo "OK ci — $checked change(s) type:bugfix com Red observado ou dispensado"
+  # Contador de controle (issue #49), com a distinção que este modo exige: os dois vazios têm
+  # causas opostas. `specs/active` PRESENTE e vazio é o repouso de qualquer repositório entre
+  # ciclos de change — e o CI roda em todo PR, então reprovar ali produziria vermelho em PR de
+  # manutenção, cuja única resposta operacional seria declarar `red-first-ci` na allowlist para
+  # sempre; o gate ficaria esvaziado justamente para o caso anômalo, que é o oposto do que a issue
+  # quer. `specs/active` AUSENTE é o caso anômalo: o alvo que este gate varre não está onde ele
+  # procura — é o "confira o alvo, o glob e o range" da mensagem de reprovação, e aí o contador
+  # reprova. Em ambos os casos o número examinado é DITO, que é o que a issue exige de fato.
+  if [ ! -d "$ACTIVE_DIR" ]; then
+    if ! forge_universe_check "red-first-ci" 0 "change(s) ativo(s)" "$ACTIVE_DIR (ausente)" "$ROOT"; then
+      exit 1
+    fi
+    echo "OK ci — 0 change(s) ativo(s) examinado(s), alvo ausente com justificativa declarada"
+    exit 0
+  fi
+  if [ "$active" -eq 0 ]; then
+    echo "OK ci — 0 change(s) ativo(s) examinado(s) (specs/active presente e vazio: repouso entre ciclos)"
+    exit 0
+  fi
+  forge_universe_check "red-first-ci" "$active" "change(s) ativo(s)" "$ACTIVE_DIR" "$ROOT" || exit 1
+  if [ "$checked" -eq 0 ]; then echo "OK ci — $active change(s) ativo(s) examinado(s), 0 type:bugfix"; exit 0; fi
+  [ "$fail" -eq 0 ] || { echo "FAIL ci — $active change(s) ativo(s) examinado(s), $checked type:bugfix verificado(s), ao menos um sem Red observado (logs em /tmp/forge-red-ci-*.log)"; exit 1; }
+  echo "OK ci — $active change(s) ativo(s) examinado(s), $checked type:bugfix com Red observado ou dispensado"
   exit 0
 fi
 

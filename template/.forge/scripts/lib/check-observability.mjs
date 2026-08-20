@@ -40,6 +40,7 @@ import { relative, resolve, join } from 'node:path';
 import { collect, scan } from './source-scan.mjs';
 import { govern, pathMatches } from './graph-govern.mjs';
 import { applyMode, governanceFor } from './gate-mode.mjs';
+import { universeCheck, emitUniverse } from './gate-universe.mjs';
 
 // ── REQ-09b — matriz ANTI de logger cru ("contexto de serviço" = código-fonte real,
 // não markdown) + extensões de linguagem varridas. `allow` só é dispensado por um
@@ -175,10 +176,18 @@ if (isMain) {
   if (rootIdx >= 0) { root = args[rootIdx + 1]; args.splice(rootIdx, 2); }
   const inputs = args;
 
-  if (!inputs.length) {
-    console.log('OK check-observability (nothing to check)');
-    process.exit(0);
-  }
+  // Contador de controle (issue #49): `nothing to check` e "varri tudo e estava limpo" saíam os
+  // dois em `OK ... exit 0`. Universo vazio é um estado próprio, contado, e por padrão reprova.
+  const gateRoot = root || process.env.FORGE_ROOT || '.';
+  const universeOf = (n) => universeCheck({
+    root: gateRoot,
+    gate: 'observability',
+    count: n,
+    item: 'arquivo(s)',
+    scope: inputs.length ? inputs.join(' ') : '(nenhum path recebido)',
+  });
+
+  if (!inputs.length) process.exit(emitUniverse(universeOf(0)));
 
   const result = checkObservability(inputs, { root });
 
@@ -190,6 +199,11 @@ if (isMain) {
     console.log(`WARN (${result.warnings.map(describe).join('; ')})`);
     process.exit(0);
   }
-  console.log('OK check-observability (no findings)');
+  // Universo deste gate: código-fonte varrido (REQ-09b) mais os artefatos de alerts-as-code
+  // (REQ-10) — os dois conjuntos que a varredura de fato abre.
+  const scanned = collect(inputs, { exts: SOURCE_EXTS }).length
+    + collect(inputs, { exts: new Set(['.json']) }).length;
+  if (emitUniverse(universeOf(scanned)) !== 0) process.exit(1);
+  console.log(`OK check-observability (${scanned} arquivo(s), no findings)`);
   process.exit(0);
 }

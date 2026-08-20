@@ -17,7 +17,17 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIBDIR="$SCRIPT_DIR/lib"
+# `if` explícito e não `A || B && C`: em shell isso agrupa como `(A || B) && C`, e o `pwd` roda
+# mesmo quando o `git rev-parse` já respondeu — ROOT sairia com DUAS linhas, e o caminho da
+# allowlist derivado dele nunca casaria com arquivo nenhum.
+ROOT="${FORGE_ROOT:-}"
+if [ -z "$ROOT" ]; then
+  ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
+  [ -n "$ROOT" ] || ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+fi
 RULE="rules/conventions/no-ai-attribution.md"
+# shellcheck disable=SC1090
+. "$LIBDIR/gate-universe.sh"
 
 mode="${1:-}"; shift || true
 [ -n "$mode" ] || { echo "Usage: check-ai-attribution.sh msg-file <path> | range <rev-range> | text <path>" >&2; exit 2; }
@@ -76,7 +86,16 @@ range)
   range="${1:-}"
   [ -n "$range" ] || { echo "FAIL: <rev-range> obrigatório" >&2; exit 2; }
   shas="$(git rev-list "$range" 2>/dev/null || true)"
-  if [ -z "$shas" ]; then echo "OK ai-attribution — nenhum commit no range"; exit 0; fi
+  # `awk` e não `grep -c`: sob `set -e`, `grep -c` devolve rc 1 quando a contagem é ZERO, e a
+  # atribuição mataria o script ANTES de o contador de controle poder reprovar — o gate morreria
+  # sem imprimir linha alguma, que é a mesma opacidade que esta correção existe para eliminar.
+  n_commits="$(printf '%s\n' "$shas" | awk 'NF{n++} END{print n+0}')"
+  # Contador de controle (issue #49). `nenhum commit no range` saía como OK e exit 0 — o mesmo
+  # desfecho de "varri 37 commits e todos estavam limpos". Range que não resolve, ref errada e
+  # branch já publicado produzem conjunto vazio, e nesse estado o gate não verificou nada.
+  if ! forge_universe_check "ai-attribution" "$n_commits" "commit(s)" "range $range" "$ROOT"; then
+    exit 1
+  fi
   msgtmp="$(_tmpfile)"
   # shellcheck disable=SC2064
   trap "rm -f '$msgtmp'" EXIT
@@ -96,7 +115,7 @@ EOF_SHAS
     echo "      $bad commit(s) do range carregam assinatura de IA — reescreva antes de publicar (git rebase -i / filter-repo)." >&2
     exit 1
   fi
-  echo "OK ai-attribution — $(printf '%s\n' "$shas" | grep -c .) commit(s) limpos"
+  echo "OK ai-attribution — $n_commits commit(s) limpos"
   ;;
 
 text)

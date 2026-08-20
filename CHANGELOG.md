@@ -6,6 +6,8 @@ e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-08-20
+
 > Uma forma só, seis instâncias, quatro repositórios: o caminho de "não executei" e o caminho de "executei e estava limpo" terminavam no mesmo `exit 0` e imprimiam a mesma linha. Quem lê o log não distinguia cobertura de ausência de cobertura, e o placar ficava verde nos dois casos. As duas issues desta seção — #49 e #51 — são a mesma família: gate, parser e log que reportam sucesso sobre o que não mediram.
 
 ### Added

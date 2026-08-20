@@ -450,14 +450,6 @@ forge_heavy_mutex_acquire() {
       fi
     else
       incomplete=0
-      if _fhm_alive "$holder" "$htok" && _fhm_is_ancestor "$holder"; then
-        echo "heavy-mutex: lock já detido por processo ancestral (PID $holder) — seguindo sem readquirir." >&2
-        _FHM_OWNED="false"
-        FORGE_HEAVY_MUTEX_REENTRANT=1
-        export FORGE_HEAVY_MUTEX_REENTRANT
-        _fhm_leave_queue
-        return 0
-      fi
       if ! _fhm_alive "$holder" "$htok"; then
         _fhm_reclaim_orphan "$holder" || true
         continue

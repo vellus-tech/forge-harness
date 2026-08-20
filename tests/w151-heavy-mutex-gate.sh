@@ -514,30 +514,50 @@ grep -q "ancestral" <<<"$out31" \
 echo "OK [31]"
 
 scenario "[32] reentrância reavaliada a cada poll, e o reentrante NÃO deixa ticket na fila"
+# Para exercitar o 6b (e não o passo 3), o ANCESTRAL precisa entrar na fila ANTES do filho e
+# adquirir DEPOIS que o filho já está esperando. Um terceiro segura o lock enquanto os dois
+# enfileiram; quando ele solta, o pai é a cabeça e adquire, e só então o filho descobre que o
+# detentor virou seu ancestral. Sem essa ordem, o filho é a cabeça e simplesmente adquire — o
+# cenário passa sem nunca tocar o caminho que ele diz medir.
 BOX="$(newbox)"; : > "$BOX/w151res.q.enabled"; mkdir -p "$BOX/w151res.q"
+cat > "$BOX/third32.sh" <<'T32'
+set -uo pipefail
+. "$LIBP"
+forge_heavy_mutex_acquire --label "terceiro" --timeout 10 || exit $?
+printf 'THIRD-HOLDS\n'
+sleep 4
+forge_heavy_mutex_release
+T32
+cat > "$BOX/c32.sh" <<'C32'
+set -uo pipefail
+. "$LIBP"
+sleep 1
+forge_heavy_mutex_acquire --label "filho" --timeout 30 && printf 'FILHO-SEGUIU\n'
+C32
 cat > "$BOX/p32.sh" <<'P32'
 set -uo pipefail
 . "$LIBP"
-LIBP="$LIBP" BOXP="$BOXP" bash "$BOXP/c32.sh" &
+LIBP="$LIBP" bash "$BOXP/c32.sh" &
 CH=$!
-sleep 2
-forge_heavy_mutex_acquire --label "pai tardio" --timeout 10 || exit $?
+forge_heavy_mutex_acquire --label "pai" --timeout 30 || exit $?
 printf 'PAI-PEGOU\n'
 wait "$CH"
 forge_heavy_mutex_release
 P32
-cat > "$BOX/c32.sh" <<'C32'
-set -uo pipefail
-. "$LIBP"
-forge_heavy_mutex_acquire --label "filho precoce" --timeout 25 && printf 'FILHO-SEGUIU\n'
-C32
+FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res FORGE_HEAVY_MUTEX_POLL_S=1 \
+  LIBP="$LIB" bash "$BOX/third32.sh" > "$BOX/t32.out" 2>&1 &
+T32P=$!; track "$T32P"
+w=0; while [ $w -lt 60 ] && ! grep -q THIRD-HOLDS "$BOX/t32.out" 2>/dev/null; do sleep 0.2; w=$((w+1)); done
 out32="$(FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res FORGE_HEAVY_MUTEX_POLL_S=1 \
          LIBP="$LIB" BOXP="$BOX" bash "$BOX/p32.sh" 2>&1)"; rc32=$?
 grep -q "FILHO-SEGUIU" <<<"$out32" \
-  || { echo "FAIL [32]: o filho que entrou na fila ANTES de o ancestral adquirir ficou esperando atrás da fila pelo processo que o gerou (rc $rc32): $out32"; exit 1; }
+  || { echo "FAIL [32]: o filho que já esperava na fila não reconheceu o ancestral que adquiriu DEPOIS dele (rc $rc32): $out32"; exit 1; }
+grep -q "passou a ser detido por processo ancestral" <<<"$out32" \
+  || { echo "FAIL [32]: o filho não passou pelo caminho de reavaliação (6b) — o cenário mediria o passo 3, que é outro caminho: $out32"; exit 1; }
 nq32="$(q_count "$BOX/w151res.q")"
 [ "${nq32:-0}" -eq 0 ] \
-  || { echo "FAIL [32]: sobraram $nq32 ticket(s) na fila — o reentrante saiu do laço sem recolher o seu, e ele bloqueia quem espera atrás por uma posse inteira"; exit 1; }
+  || { echo "FAIL [32]: sobraram $nq32 ticket(s) — o reentrante saiu do laço sem recolher o seu, e ele fica na cabeça bloqueando quem espera atrás por uma posse inteira"; exit 1; }
+kill -9 "$T32P" 2>/dev/null
 echo "OK [32]"
 
 scenario "[34] interruptor DESLIGADO no meio do voo: os tickets são recolhidos"

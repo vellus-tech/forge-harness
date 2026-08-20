@@ -76,13 +76,26 @@ if [ "$CMD" = "ci" ]; then
       echo "  FAIL $id — $out"
     fi
   done
-  # Contador de controle (issue #49). O universo deste modo é o conjunto de changes ATIVOS: zero
-  # changes ativos significa que o CI não olhou para change algum, e isso não pode terminar no
-  # mesmo `exit 0` de "olhei para todos e estavam conformes". Ter N changes ativos e nenhum
-  # type:bugfix é outro estado, legítimo e nomeado — o contador é que separa os dois.
-  if ! forge_universe_check "red-first-ci" "$active" "change(s) ativo(s)" "$ACTIVE_DIR" "$ROOT"; then
-    exit 1
+  # Contador de controle (issue #49), com a distinção que este modo exige: os dois vazios têm
+  # causas opostas. `specs/active` PRESENTE e vazio é o repouso de qualquer repositório entre
+  # ciclos de change — e o CI roda em todo PR, então reprovar ali produziria vermelho em PR de
+  # manutenção, cuja única resposta operacional seria declarar `red-first-ci` na allowlist para
+  # sempre; o gate ficaria esvaziado justamente para o caso anômalo, que é o oposto do que a issue
+  # quer. `specs/active` AUSENTE é o caso anômalo: o alvo que este gate varre não está onde ele
+  # procura — é o "confira o alvo, o glob e o range" da mensagem de reprovação, e aí o contador
+  # reprova. Em ambos os casos o número examinado é DITO, que é o que a issue exige de fato.
+  if [ ! -d "$ACTIVE_DIR" ]; then
+    if ! forge_universe_check "red-first-ci" 0 "change(s) ativo(s)" "$ACTIVE_DIR (ausente)" "$ROOT"; then
+      exit 1
+    fi
+    echo "OK ci — 0 change(s) ativo(s) examinado(s), alvo ausente com justificativa declarada"
+    exit 0
   fi
+  if [ "$active" -eq 0 ]; then
+    echo "OK ci — 0 change(s) ativo(s) examinado(s) (specs/active presente e vazio: repouso entre ciclos)"
+    exit 0
+  fi
+  forge_universe_check "red-first-ci" "$active" "change(s) ativo(s)" "$ACTIVE_DIR" "$ROOT" || exit 1
   if [ "$checked" -eq 0 ]; then echo "OK ci — $active change(s) ativo(s) examinado(s), 0 type:bugfix"; exit 0; fi
   [ "$fail" -eq 0 ] || { echo "FAIL ci — $active change(s) ativo(s) examinado(s), $checked type:bugfix verificado(s), ao menos um sem Red observado (logs em /tmp/forge-red-ci-*.log)"; exit 1; }
   echo "OK ci — $active change(s) ativo(s) examinado(s), $checked type:bugfix com Red observado ou dispensado"

@@ -15,7 +15,8 @@
 #
 #   [1] hook red-first: push com commit fix(...) e ZERO change ativo type:bugfix BLOQUEIA
 #   [2] hook red-first: o contador de controle sai com o número de changes examinados
-#   [3] red-evidence.sh ci: nenhum change ativo é universo vazio e reprova
+#   [3] red-evidence.sh ci: `specs/active` presente e vazio é repouso e passa NOMEADO; ausente é
+#       alvo sumido e reprova — os dois vazios têm causas opostas
 #   [4] red-evidence.sh ci: N changes ativos com 0 type:bugfix é OK, com contador distinto
 #   [5] check-ai-attribution.sh range: range que resolve para 0 commit reprova
 #   [6] justificativa declarada converte vacuidade em OK PRÓPRIO; entrada sem '# motivo:' reprova
@@ -80,10 +81,27 @@ echo "OK [2]"
 # ── [3] e [4] — red-evidence.sh ci ───────────────────────────────────────────────────────────
 R2="$T/r2"; mkdir -p "$R2"; mkrepo "$R2"
 
-echo "[3] red-evidence.sh ci reprova quando não há change ativo algum"
+echo "[3] red-evidence.sh ci: repouso passa nomeado, alvo AUSENTE reprova"
+# Os dois vazios deste modo têm causas opostas e não podem receber o mesmo veredito.
+# `specs/active` presente e vazio é o repouso de qualquer repositório entre ciclos de change, e o
+# CI roda em todo PR: reprovar ali daria vermelho em PR de manutenção, e a única resposta
+# operacional seria declarar `red-first-ci` na allowlist para sempre — o gate ficaria esvaziado
+# justamente para o caso anômalo. `specs/active` AUSENTE é o caso anômalo: o alvo que o gate varre
+# não está onde ele procura. Em ambos o número examinado é DITO, que é o que a issue exige.
 out="$(FORGE_ROOT="$R2" bash "$TPL/scripts/red-evidence.sh" ci 2>&1)"; rc=$?
+if [ "$rc" -ne 0 ]; then
+  echo "FAIL [3]: repouso legítimo (specs/active presente e vazio) reprovou o CI (rc=$rc, saída: '$out')"
+  exit 1
+fi
+case "$out" in
+  *"0 change(s) ativo(s)"*) : ;;
+  *) echo "FAIL [3]: passou sem dizer que examinou zero changes — o silêncio que a issue fecha (saída: '$out')"; exit 1 ;;
+esac
+mv "$R2/.forge/specs/active" "$R2/.forge/specs/active-guardado"
+out="$(FORGE_ROOT="$R2" bash "$TPL/scripts/red-evidence.sh" ci 2>&1)"; rc=$?
+mv "$R2/.forge/specs/active-guardado" "$R2/.forge/specs/active"
 if [ "$rc" -eq 0 ]; then
-  echo "FAIL [3]: ci aprovou sem ter examinado change algum (rc=$rc, saída: '$out')"
+  echo "FAIL [3]: o alvo que o gate varre não existe e o ci aprovou assim mesmo (rc=$rc, saída: '$out')"
   exit 1
 fi
 case "$out" in

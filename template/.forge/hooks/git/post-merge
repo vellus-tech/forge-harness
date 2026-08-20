@@ -5,7 +5,9 @@
 #   2. accumulates the merged branch's conventional commits into the root CHANGELOG.md
 #      ([Unreleased], Keep a Changelog) — no-op when there is no root CHANGELOG.md;
 #   3. suggests promotion to staging when running on the integration branch.
-# Never fails the merge (informational hook).
+# Informational hook — o git IGNORA o exit status do post-merge, então falhar aqui não desfaz o
+# merge; o que muda é o DESFECHO OBSERVÁVEL: uma delegação quebrada passa a ter linha própria e
+# exit≠0, em vez de sair pelo mesmo "post-merge OK" de uma execução bem-sucedida (issue #49).
 set -u
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
@@ -15,8 +17,28 @@ git worktree prune 2>/dev/null || true
 
 # changelog (§20.4): acumula commits convencionais do merge no CHANGELOG.md raiz.
 # Determinista/idempotente; no-op sem CHANGELOG.md raiz ou se HEAD não for um merge.
-if [ -f "$ROOT/.forge/scripts/lib/changelog-from-merge.mjs" ] && command -v node >/dev/null 2>&1; then
-  node "$ROOT/.forge/scripts/lib/changelog-from-merge.mjs" "$ROOT" 2>/dev/null || true
+#
+# Regra de delegação (issue #49, instância 4): chamar algo que não existe é ERRO, não no-op.
+# O no-op só é legítimo quando o harness NÃO está instalado — aí não há maquinaria a impor. Se o
+# DIRETÓRIO que hospeda o alvo existe, a ausência do alvo significa harness atualizado pela
+# metade, script apagado ou instalação corrompida, e isso não pode terminar no mesmo desfecho de
+# uma execução bem-sucedida.
+CHANGELOG_GEN="$ROOT/.forge/scripts/lib/changelog-from-merge.mjs"
+delegation_failed=0
+if [ -f "$CHANGELOG_GEN" ]; then
+  if command -v node >/dev/null 2>&1; then
+    # A saída de erro deixou de ir para /dev/null: `2>/dev/null || true` fazia uma falha do
+    # gerador sair idêntica a um no-op bem-sucedido — o mesmo colapso de estados, um nível abaixo.
+    if ! gen_out="$(node "$CHANGELOG_GEN" "$ROOT" 2>&1)"; then
+      echo "post-merge FALHOU: changelog-from-merge.mjs terminou com erro:" >&2
+      printf '%s\n' "$gen_out" | sed 's/^/  /' >&2
+      delegation_failed=1
+    fi
+  fi
+elif [ -d "$ROOT/.forge/scripts/lib" ]; then
+  echo "post-merge FALHOU: .forge/scripts/lib/ existe mas changelog-from-merge.mjs não —" >&2
+  echo "  a delegação aponta para um alvo ausente, e isso não pode sair como sucesso." >&2
+  delegation_failed=1
 fi
 
 removed=0
@@ -39,6 +61,10 @@ $(git worktree list --porcelain 2>/dev/null | awk '/^worktree /{print $2}' | tai
 EOF_WT
 
 current="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+if [ "$delegation_failed" -ne 0 ]; then
+  echo "post-merge INCOMPLETO (worktrees removidas: $removed) — ver a falha de delegação acima." >&2
+  exit 1
+fi
 msg="post-merge OK (worktrees removidas: $removed)"
 [ "$current" = "develop" ] && msg="$msg — considere /forge:promote-staging quando develop estiver estável"
 echo "$msg"

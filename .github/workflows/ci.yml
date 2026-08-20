@@ -61,6 +61,18 @@ jobs:
             FORGE_ROOT="$PWD" bash template/.forge/scripts/check-secrets.sh path "$PWD"
           fi
 
+      # Instância 3 da issue #49: `<produtor> | grep -q … ||` sob pipefail vira linha pulada em
+      # silêncio. Passo próprio, e não só dentro da suíte, porque o lint é da MAQUINARIA — quem
+      # edita um script do harness precisa ver a reprovação no lugar mais visível do PR.
+      - name: Lint de pipeline sob pipefail (check-shell-pipeline)
+        run: FORGE_ROOT="$PWD" bash template/.forge/scripts/check-shell-pipeline.sh --path template --path tests
+
+      # Instância 2 da issue #49: guarda que ninguém invoca conta como cobertura e não cobre nada.
+      # Este passo prova que a rede de suítes está fiada nos pontos de entrada declarados — e o
+      # próprio passo é um desses pontos de entrada.
+      - name: Prova de invocação da rede de suítes (check-suite-wiring)
+        run: FORGE_ROOT="$PWD" bash template/.forge/scripts/check-suite-wiring.sh --root "$PWD"
+
       # Red-first (LDG-0004): a execução que vale é esta, num runner que o autor do PR não
       # controla. Reexecuta o replay de todo change ativo type:bugfix e reprova o build se o Red
       # não for observado aqui — independentemente do que o artefato commitado afirme. Fecha o

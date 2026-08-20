@@ -113,7 +113,8 @@ LG gc send "$CH" --thread fare-grpc-v1 --kind contract-change --subject "fare_ce
 LG gc sync "$CH" >/dev/null
 out3="$(LG fv sync "$CH")"
 grep -q "2 nova" <<<"$out3" || { echo "FAIL [3]: fv não recebeu as 2 mensagens de gc: $out3"; exit 1; }
-LG fv thread list "$CH" | grep -q "fare-grpc-v1" || { echo "FAIL [3]: thread não convergiu em fv"; exit 1; }
+tl3="$(LG fv thread list "$CH" 2>&1 || true)"
+grep -q "fare-grpc-v1" <<<"$tl3" || { echo "FAIL [3]: thread não convergiu em fv ($tl3)"; exit 1; }
 echo "OK [3]"
 
 echo "[4] quatro participantes: inbox --thread byte-idêntico entre os que compartilham a thread"
@@ -214,12 +215,14 @@ orphan="$(_craft "{\"msg_id\":\"axis-pad-simulator-0090\",\"channel\":\"$CH\",\"
 printf '%s\n' "$orphan" >> "$HUB/$CH/log/axis-pad-simulator.jsonl"
 out9a="$(LG gc sync "$CH")"
 grep -q "1 em quarentena" <<<"$out9a" || { echo "FAIL [9a]: órfã não ficou em quarentena: $out9a"; exit 1; }
-LG gc thread list "$CH" | grep -q "late-thread" && { echo "FAIL [9a]: thread sem abertura apareceu resolvida"; exit 1; }
+tl9a="$(LG gc thread list "$CH" 2>&1 || true)"
+grep -q "late-thread" <<<"$tl9a" && { echo "FAIL [9a]: thread sem abertura apareceu resolvida ($tl9a)"; exit 1; }
 opener="$(_craft "{\"msg_id\":\"axis-pad-simulator-0091\",\"channel\":\"$CH\",\"thread_id\":\"late-thread\",\"sender\":\"axis-pad-simulator\",\"seq\":91,\"lamport\":1,\"kind\":\"thread-open\",\"in_reply_to\":null,\"requires_ack\":false,\"subject\":\"abertura tardia\",\"participants\":[\"axis-pad-simulator\",\"axis-go-cloud\"],\"refs\":{\"change_id\":null,\"contract_files\":[],\"commit\":null},\"created_at\":\"2026-01-01T00:00:00Z\"}")"
 printf '%s\n' "$opener" >> "$HUB/$CH/log/axis-pad-simulator.jsonl"
 out9b="$(LG gc sync "$CH")"
 grep -q "0 em quarentena" <<<"$out9b" || { echo "FAIL [9b]: quarentena não liberada com o thread-open: $out9b"; exit 1; }
-LG gc thread list "$CH" | grep -q "late-thread" || { echo "FAIL [9b]: late-thread não apareceu resolvida"; exit 1; }
+tl9b="$(LG gc thread list "$CH" 2>&1 || true)"
+grep -q "late-thread" <<<"$tl9b" || { echo "FAIL [9b]: late-thread não apareceu resolvida ($tl9b)"; exit 1; }
 echo "OK [9]"
 
 echo "[10] manual é a primitiva: export|import produz o mesmo estado que sync"
@@ -255,7 +258,8 @@ LG g2 thread join "$CH" git-thread --subject "entrou" >/dev/null
 LG g2 send "$CH" --thread git-thread --kind question --subject "de volta pelo git" --body "w" >/dev/null
 LG g2 sync "$CH" >/dev/null
 LG g1 sync "$CH" >/dev/null
-LG g1 inbox "$CH" --thread git-thread | grep -q "de volta pelo git" || { echo "FAIL [11]: ida e volta pelo git não convergiu"; exit 1; }
+ib11="$(LG g1 inbox "$CH" --thread git-thread 2>&1 || true)"
+grep -q "de volta pelo git" <<<"$ib11" || { echo "FAIL [11]: ida e volta pelo git não convergiu ($ib11)"; exit 1; }
 echo "OK [11]"
 
 echo "[12] gh: stub reprova com mensagem explícita e nunca invoca gh"

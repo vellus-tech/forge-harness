@@ -34,9 +34,19 @@
 import { readFileSync } from 'node:fs';
 import { collect, scan } from './source-scan.mjs';
 import { applyMode } from './gate-mode.mjs';
+import { universeCheck, emitUniverse } from './gate-universe.mjs';
 
 const inputs = process.argv.slice(2);
-if (!inputs.length) { console.log('OK data-governance (nothing to check)'); process.exit(0); }
+// `nothing to check` saía com exit 0: invocação sem path algum — que é o que acontece quando o
+// chamador monta a lista de arquivos e a lista sai vazia — reportava-se verde sem ter aberto
+// arquivo nenhum (issue #49). Agora é o contador de controle que decide, com o mesmo critério
+// dos demais gates e a mesma saída declarada em .forge/empty-universe-allowlist.txt.
+const gateRoot = process.env.FORGE_ROOT || '.';
+if (!inputs.length) {
+  process.exit(emitUniverse(universeCheck({
+    root: gateRoot, gate: 'data-governance', count: 0, item: 'arquivo(s)', scope: '(nenhum path recebido)',
+  })));
+}
 
 // anti-patterns vs the global matrix. Each: { re, why, allow } — allow skips a
 // match when the same line carries an allowed qualifier (e.g. formal exception).
@@ -114,4 +124,15 @@ if (result.blocking.length) {
   console.log(`CONFLICT (${result.blocking.map((f) => f.msg).join('; ')})`);
   process.exit(result.exitCode);
 }
-console.log('OK data-governance (no divergence)');
+
+// ── contador de controle (issue #49) — antes do OK, e capaz de reprová-lo ─────────────
+const mdFiles = collect(inputs);
+const universe = universeCheck({
+  root: gateRoot,
+  gate: 'data-governance',
+  count: mdFiles.length + codeFiles.length,
+  item: 'arquivo(s)',
+  scope: inputs.join(' '),
+});
+if (emitUniverse(universe) !== 0) process.exit(1);
+console.log(`OK data-governance (${mdFiles.length} .md, ${codeFiles.length} código, no divergence)`);

@@ -3,7 +3,9 @@
 # de um runner que o autor não controla. O subcomando varre os changes ativos type:bugfix, executa
 # o replay em cada e agrega o veredito num exit code — é o que o workflow chama.
 #
-#   [1] repositório sem change ativo → exit 0 (ausência de bugfix não é falha)
+#   [1] repositório sem change ativo NENHUM → exit≠0 nomeando universo vazio (issue #49); a única
+#       saída é a justificativa DECLARADA em .forge/empty-universe-allowlist.txt, e ela produz uma
+#       linha própria, distinguível de "examinei N e estavam conformes"
 #   [2] change bugfix com evidência PENDENTE → exit≠0 nomeando o change
 #   [3] change bugfix com Red observado de verdade → exit 0
 #   [4] change de outro tipo é ignorado (nenhum falso positivo sobre feature/refactor)
@@ -25,9 +27,15 @@ git -C "$T" commit -qm "chore: init harness" >/dev/null
 SN="$T/.forge/scripts/spec-new.sh"
 RE="$T/.forge/scripts/red-evidence.sh"
 
-echo "[1] repositório sem change ativo → exit 0"
+echo "[1] repositório sem change ativo NENHUM → exit≠0 por universo vazio, com saída declarada"
 out="$(FORGE_ROOT="$T" bash "$RE" ci 2>&1)" && rc=0 || rc=$?
-[ "$rc" -eq 0 ] || { echo "FAIL [1] (sem bugfix ativo deveria passar, rc=$rc: $out)"; exit 1; }
+[ "$rc" -ne 0 ] || { echo "FAIL [1] (o CI aprovou sem ter examinado change algum, rc=$rc: $out)"; exit 1; }
+grep -q 'universo-vazio' <<<"$out" || { echo "FAIL [1] (reprovou sem nomear o estado de universo vazio: $out)"; exit 1; }
+printf 'red-first-ci  # motivo: fixture sem change ativo, cenário [1] do w109\n' > "$T/.forge/empty-universe-allowlist.txt"
+out="$(FORGE_ROOT="$T" bash "$RE" ci 2>&1)" && rc=0 || rc=$?
+[ "$rc" -eq 0 ] || { echo "FAIL [1] (justificativa declarada não liberou a vacuidade, rc=$rc: $out)"; exit 1; }
+grep -q 'justificativa declarada' <<<"$out" || { echo "FAIL [1] (vacuidade justificada saiu indistinguível de universo examinado: $out)"; exit 1; }
+rm -f "$T/.forge/empty-universe-allowlist.txt"
 echo "OK [1]"
 
 echo "[2] change bugfix com evidência pendente → exit≠0 nomeando o change"

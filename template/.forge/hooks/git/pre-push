@@ -29,8 +29,22 @@ trap 'rm -f "$FORGE_PUSH_REFS_FILE"' EXIT
 # An empty stdin (nothing being pushed) writes an EMPTY file, not a blank line: a gate must be
 # able to tell "zero refs" from "one ref I failed to parse".
 if [ -n "$INPUT" ]; then printf '%s\n' "$INPUT" > "$FORGE_PUSH_REFS_FILE"; else : > "$FORGE_PUSH_REFS_FILE"; fi
-DOCS_LIB="$ROOT/.forge/hooks/git/lib/check-docs-reviewed.sh"
-if [ -f "$DOCS_LIB" ]; then
+# Regra de delegação (issue #49, instância 4): chamar algo que não existe é ERRO, não no-op.
+# O no-op só é legítimo quando o harness NÃO está instalado — aí não há maquinaria a impor. Se o
+# DIRETÓRIO que hospeda o alvo existe, a ausência do alvo significa harness atualizado pela
+# metade, script apagado ou instalação corrompida, e isso não pode terminar no mesmo desfecho de
+# uma execução bem-sucedida.
+HOOK_LIB_DIR="$ROOT/.forge/hooks/git/lib"
+require_hook_lib() {  # require_hook_lib <path> — 0 = existe e deve ser sourced; 1 = no-op legítimo
+  [ -f "$1" ] && return 0
+  [ -d "$HOOK_LIB_DIR" ] || return 1
+  echo "pre-push BLOQUEADO: $HOOK_LIB_DIR existe mas $(basename "$1") não —" >&2
+  echo "  a delegação aponta para um alvo ausente. Rode /forge:upgrade ou restaure a lib." >&2
+  exit 1
+}
+
+DOCS_LIB="$HOOK_LIB_DIR/check-docs-reviewed.sh"
+if require_hook_lib "$DOCS_LIB"; then
   # shellcheck disable=SC1090
   . "$DOCS_LIB"
   if ! printf '%s\n' "$INPUT" | REPO="$ROOT" check_docs_reviewed; then
@@ -40,8 +54,8 @@ fi
 
 # red-first (rule testing/regression-red-first.md) — check ESTÁTICO só (nunca roda teste; o
 # replay caro fica para /forge:red replay e para /forge:verify).
-RED_LIB="$ROOT/.forge/hooks/git/lib/check-red-first.sh"
-if [ -f "$RED_LIB" ]; then
+RED_LIB="$HOOK_LIB_DIR/check-red-first.sh"
+if require_hook_lib "$RED_LIB"; then
   # shellcheck disable=SC1090
   . "$RED_LIB"
   if ! printf '%s\n' "$INPUT" | REPO="$ROOT" check_red_first; then
@@ -55,14 +69,29 @@ fi
 # marcado. É a última fronteira antes de a marca virar histórico público, onde removê-la deixa de
 # ser problema de quem commitou e passa a ser problema de todo mundo que tem clone.
 AI_CHECK="$ROOT/.forge/scripts/check-ai-attribution.sh"
+if [ ! -f "$AI_CHECK" ] && [ -d "$ROOT/.forge/scripts" ]; then
+  echo "pre-push BLOQUEADO: .forge/scripts/ existe mas check-ai-attribution.sh não — delegação em alvo ausente" >&2
+  exit 1
+fi
 if [ -f "$AI_CHECK" ]; then
   while read -r _lref lsha _rref rsha; do
     [ -n "${lsha:-}" ] || continue
     case "$lsha" in *[!0]*) : ;; *) continue ;; esac   # deleção de ref: nada a varrer
     if [ -z "${rsha:-}" ] || [ "$rsha" = "0000000000000000000000000000000000000000" ]; then
-      # ref nova no remoto: limita ao que este branch traz além dos demais refs conhecidos
-      range="$(git rev-list "$lsha" --not --remotes 2>/dev/null | tail -1)"
-      [ -n "$range" ] && range="$range~1..$lsha" || range="$lsha"
+      # ref nova no remoto: limita ao que este branch traz além dos demais refs conhecidos.
+      #
+      # `<oldest>~1` NÃO existe quando o commit mais antigo do branch é o commit RAIZ — o caso de
+      # todo repositório recém-criado. O range ficava inválido, `git rev-list` devolvia vazio, e o
+      # gate reportava-se verde tendo varrido zero commit: exatamente o "não executei e executei
+      # limpo terminam no mesmo exit 0" da issue #49, que só apareceu quando o contador de
+      # controle passou a reprovar conjunto vazio. Quando o pai não existe, o range correto é o
+      # próprio sha (todos os commits alcançáveis).
+      oldest="$(git rev-list "$lsha" --not --remotes 2>/dev/null | tail -1)"
+      if [ -n "$oldest" ] && git rev-parse --verify --quiet "$oldest~1" >/dev/null 2>&1; then
+        range="$oldest~1..$lsha"
+      else
+        range="$lsha"
+      fi
     else
       range="$rsha..$lsha"
     fi
@@ -80,6 +109,10 @@ fi
 # Roda antes do gate de FORGE.md porque não depende dele: um repositório pode ter canal de liaison
 # sem ter o bloco runtime configurado, e a cobrança de contrato vale igual.
 ACKS="$ROOT/.forge/scripts/check-liaison-acks.sh"
+if [ ! -f "$ACKS" ] && [ -d "$ROOT/.forge/scripts" ]; then
+  echo "pre-push BLOQUEADO: .forge/scripts/ existe mas check-liaison-acks.sh não — delegação em alvo ausente" >&2
+  exit 1
+fi
 if [ -f "$ACKS" ]; then
   if ! FORGE_ROOT="$ROOT" bash "$ACKS"; then
     echo "pre-push BLOQUEADO: liaison — ack pendente (rule conventions/liaison-protocol.md)" >&2
@@ -147,9 +180,33 @@ if [ -n "$GATES_CSV" ]; then
     if [ -f "$gate_script" ]; then
       run_check "$gate" "bash '$gate_script' --path '$ROOT'"
     else
-      echo "pre-push: gate '$gate' declarado em runtime.gates mas $gate_script não existe — skip"
+      # Era `skip` com exit 0 — declarar um gate e ele não existir virava silêncio verde, a forma
+      # exata do risco que a issue #49 descreve. `run-gates.sh` já tratava isso como MISSING e
+      # reprovava; o hook estava fora de sincronia com o próprio harness.
+      echo "pre-push BLOQUEADO: gate '$gate' declarado em runtime.gates e $gate_script não existe." >&2
+      echo "  Declarar e não existir é delegação em alvo ausente — corrija runtime.gates ou instale o gate." >&2
+      exit 1
     fi
   done
+fi
+
+# ── rede de suítes do harness (issue #49, instância 2) ───────────────────────────────────────
+# Um gate entregue e nunca chamado conta como cobertura nos relatórios e não cobre nada: no
+# axis-device-platform, `grep -rn "run-all.sh" .github .forge/hooks .forge/FORGE.md` devolvia
+# vazio, e doze suítes de guarda só rodavam por invocação manual. O template não fiava a rede em
+# ponto de entrada algum — todo projeto que instalava o harness herdava hooks que nunca a
+# invocavam, e o consumidor axis-fare-validator teve de descobrir e consertar sozinho.
+#
+# O `elif` é o ponto central, e é a instância 4 aplicada à própria fiação: `[ -f ]` sozinho
+# degrada em silêncio — apagar o runner deixaria o hook verde sem uma linha. A existência do
+# DIRETÓRIO de suítes torna a ausência do runner um ERRO.
+HARNESS_SUITE="$ROOT/.forge/scripts/tests/run-all.sh"
+if [ -f "$HARNESS_SUITE" ]; then
+  run_check "harness-tests" "bash '$HARNESS_SUITE'"
+elif [ -d "$ROOT/.forge/scripts/tests" ]; then
+  echo "pre-push BLOQUEADO: .forge/scripts/tests/ existe mas run-all.sh não — a suíte do harness sumiu." >&2
+  echo "  Guarda que ninguém roda não cobre nada; restaure o runner ou remova o diretório." >&2
+  exit 1
 fi
 
 echo "pre-push OK"

@@ -53,11 +53,14 @@ CMD="${1:-}"; shift || true
 if [ "$CMD" = "ci" ]; then
   [ $# -eq 0 ] || { echo "FAIL (red-evidence.sh ci não aceita argumentos — o escopo é todo change ativo type:bugfix, por construção)"; exit 1; }
   ACTIVE_DIR="$ROOT/.forge/specs/active"
-  [ -d "$ACTIVE_DIR" ] || { echo "OK ci — nenhum change ativo (sem specs/active)"; exit 0; }
+  # shellcheck disable=SC1090
+  . "$SCRIPT_DIR/lib/gate-universe.sh"
   fail=0
   checked=0
+  active=0
   for man in "$ACTIVE_DIR"/*/manifest.yaml; do
     [ -f "$man" ] || continue
+    active=$((active + 1))
     id="$(basename "$(dirname "$man")")"
     type="$(awk -F': ' '$1=="type"{gsub(/[" ]/,"",$2); print $2; exit}' "$man")"
     [ "$type" = "bugfix" ] || continue
@@ -73,9 +76,16 @@ if [ "$CMD" = "ci" ]; then
       echo "  FAIL $id — $out"
     fi
   done
-  if [ "$checked" -eq 0 ]; then echo "OK ci — nenhum change ativo type:bugfix"; exit 0; fi
-  [ "$fail" -eq 0 ] || { echo "FAIL ci — $checked change(s) type:bugfix verificado(s), ao menos um sem Red observado (logs em /tmp/forge-red-ci-*.log)"; exit 1; }
-  echo "OK ci — $checked change(s) type:bugfix com Red observado ou dispensado"
+  # Contador de controle (issue #49). O universo deste modo é o conjunto de changes ATIVOS: zero
+  # changes ativos significa que o CI não olhou para change algum, e isso não pode terminar no
+  # mesmo `exit 0` de "olhei para todos e estavam conformes". Ter N changes ativos e nenhum
+  # type:bugfix é outro estado, legítimo e nomeado — o contador é que separa os dois.
+  if ! forge_universe_check "red-first-ci" "$active" "change(s) ativo(s)" "$ACTIVE_DIR" "$ROOT"; then
+    exit 1
+  fi
+  if [ "$checked" -eq 0 ]; then echo "OK ci — $active change(s) ativo(s) examinado(s), 0 type:bugfix"; exit 0; fi
+  [ "$fail" -eq 0 ] || { echo "FAIL ci — $active change(s) ativo(s) examinado(s), $checked type:bugfix verificado(s), ao menos um sem Red observado (logs em /tmp/forge-red-ci-*.log)"; exit 1; }
+  echo "OK ci — $active change(s) ativo(s) examinado(s), $checked type:bugfix com Red observado ou dispensado"
   exit 0
 fi
 

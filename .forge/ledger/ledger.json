@@ -1191,6 +1191,32 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0048"
+    },
+    {
+      "id": "LDG-0051",
+      "type": "known-bug",
+      "title": "Liaison: flag desconhecida descartada em silêncio e campo trust sem verificação (issue #51)",
+      "detail": "Dois defeitos independentes que corrompiam mensagem ou metadado sem aviso, erro ou exit diferente de zero, ambos medidos no ecossistema Axis. (a) Todo parser de flags de liaison-ops.sh terminava num caso curinga que só descartava o argumento: ack ... --body-file corpo.md publicava o ack SEM corpo nenhum, com rc 0 e sem uma linha de aviso (--body-file só existe no send), e --subjet publicava mensagem sem assunto. Os 20 subcomandos passam a reprovar argumento desconhecido nomeando a flag, o subcomando que a recusou e as flags aceitas por ele; o ack continua sem aceitar corpo e a mensagem diz o que usar no lugar. (b) O campo trust era atribuído na escrita e nenhum instrumento o verificava depois: content_sha o exclui por desenho, então verificação por hash é estruturalmente cega a ele, e uma restauração de log truncado que copiou a réplica de um peer sobre o log próprio fez 172 mensagens próprias se declararem untrusted-peer sem que nada reprovasse. trust passa a ser derivado de fato observável (qual arquivo de remetente carrega a linha, mais a presença de authored_by) e a derivação é conferida a cada pre-push por check-liaison-acks.sh via lib/liaison-trust.mjs. Gate w150, dez cenários, incluindo o caminho em que a derivação não é possível (liaison.yaml sem self sobre store não vazio), que reprova em vez de sair calado.",
+      "severity": null,
+      "priority": "P2",
+      "status": "resolved",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [
+          "forge-harness-template"
+        ],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-19T19:50:53-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0051"
     }
   ]
 }

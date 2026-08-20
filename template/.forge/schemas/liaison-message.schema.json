@@ -132,7 +132,7 @@
         "self",
         "untrusted-peer"
       ],
-      "description": "Carimbado no IMPORT — NUNCA pelo remetente. self = escrita local própria; untrusted-peer = tudo que chegou de fora, mesmo depois de passar nas validações de import."
+      "description": "Carimbado no IMPORT — NUNCA pelo remetente. self = escrita local própria; untrusted-peer = tudo que chegou de fora, mesmo depois de passar nas validações de import. NÃO é declaração acreditada: o valor é função de dois fatos observáveis — qual arquivo de remetente carrega a linha (log/<self>.jsonl é escrita local; log/<outro>.jsonl é do import) e a presença de authored_by (autoria externa nunca é self) — e essa derivação é conferida a cada pre-push por check-liaison-acks.sh (lib/liaison-trust.mjs). A conferência existe porque content_sha exclui trust por desenho, e verificação por hash é estruturalmente cega ao campo."
     },
     "authored_by": {
       "type": "string",

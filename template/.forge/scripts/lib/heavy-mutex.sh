@@ -414,8 +414,17 @@ _fhm_queue_enabled() { [ -f "$_FHM_QSWITCH" ]; }
 _fhm_leave_queue() {
   [ -n "${_FHM_TICKET:-}" ] || return 0
   [ -d "$_FHM_TICKET" ] || { _FHM_TICKET=""; return 0; }
-  # Nunca destrua o que você não provou ser seu — mesmo princípio do `release`.
-  [ "$(cat "$_FHM_TICKET/pid" 2>/dev/null)" = "$$" ] || { _FHM_TICKET=""; return 0; }
+  # Nunca destrua o que você não provou ser seu — mesmo princípio do `release`. Mas "li outro pid"
+  # e "não consegui ler" NÃO são o mesmo desfecho: se o arquivo existe e a leitura veio vazia, o
+  # que falhou foi o fork do `cat`, e falta de fork é justamente o que acontece sob a carga que
+  # este mutex existe para conter. Abandonar aí largaria o NOSSO ticket vivo na cabeça da fila,
+  # travando todo mundo atrás até o teto — perder o próprio lugar por escassez de recurso é o
+  # oposto do que a fila promete.
+  _fhm_lq_pid="$(cat "$_FHM_TICKET/pid" 2>/dev/null)"
+  if [ "$_fhm_lq_pid" != "$$" ]; then
+    if [ -n "$_fhm_lq_pid" ] || [ ! -f "$_FHM_TICKET/pid" ]; then _FHM_TICKET=""; return 0; fi
+    # arquivo presente e leitura vazia ⇒ falha de leitura, não ticket alheio: seguimos e recolhemos.
+  fi
   local reap="$_FHM_QDIR/.reaping.$(basename "$_FHM_TICKET").${_FHM_NONCE:-x}"
   mv "$_FHM_TICKET" "$reap" 2>/dev/null && rm -rf "$reap" 2>/dev/null
   _FHM_TICKET=""
@@ -565,16 +574,36 @@ _fhm_claim() {  # _fhm_claim <label>
 _fhm_yaml_timeout() {
   local yaml="${FORGE_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null)}/.forge/forge.yaml"
   [ -f "$yaml" ] || return 0
-  awk '/^heavy_mutex:/{f=1;next} f&&/^[a-z]/{f=0} f&&/^[[:space:]]*timeout_s:/{sub(/^[[:space:]]*timeout_s:[[:space:]]*/,"");gsub(/["'"'"']/,"");print;exit}' "$yaml" 2>/dev/null
+  # O `sub` do comentário é obrigatório, não cosmético: `timeout_s: 600 # 10 minutos` é ortografia
+  # YAML corriqueira — e o forge.yaml que o template entrega é quase todo comentário. Sem isso o
+  # valor sai como "600 # 10 minutos", a validação numérica no chamador o descarta e o timeout
+  # volta para 1800 SEM UMA LINHA DE AVISO. Que é exatamente o defeito que este campo foi criado
+  # para eliminar: config publicada que ninguém lê é pior que config ausente, porque quem a ajusta
+  # acredita ter ajustado.
+  awk '/^heavy_mutex:/{f=1;next} f&&/^[a-z]/{f=0} f&&/^[[:space:]]*timeout_s:/{sub(/^[[:space:]]*timeout_s:[[:space:]]*/,"");sub(/[[:space:]]*#.*$/,"");gsub(/["'"'"']/,"");sub(/[[:space:]]+$/,"");print;exit}' "$yaml" 2>/dev/null
 }
 
 forge_heavy_mutex_acquire() {
   local _t_env="${FORGE_HEAVY_MUTEX_TIMEOUT_S:-}" _t_yaml
   if [ -z "$_t_env" ]; then
     _t_yaml="$(_fhm_yaml_timeout)"
-    case "$_t_yaml" in ''|*[!0-9]*) _t_yaml="" ;; esac
+    # Descartar em silêncio faria "não configurei" e "configurei errado" terminarem no mesmo lugar,
+    # com o mesmo 1800 e nenhum sinal — a vacuidade que esta suíte inteira existe para eliminar,
+    # aplicada à própria configuração. Valor ausente é legítimo e cala; valor PRESENTE e inválido
+    # avisa em stderr e segue com o default, porque config errada não deve travar um push.
+    case "$_t_yaml" in
+      '') : ;;
+      *[!0-9]*|0)
+        printf 'heavy-mutex: timeout_s inválido no forge.yaml (%s) — exigido inteiro positivo; usando 1800s\n' "$_t_yaml" >&2
+        _t_yaml="" ;;
+    esac
   fi
   local label="carga pesada" timeout="${_t_env:-${_t_yaml:-1800}}" waited=0 holder
+  # O contador de reimpressão é por AQUISIÇÃO, não por processo. Ele é global porque os dois laços
+  # de espera precisam enxergá-lo, mas herdar o valor da aquisição anterior faz a subtração ficar
+  # negativa na seguinte, e o primeiro diagnóstico some por até LAST_NOTIFY + NOTIFY_S segundos —
+  # silêncio numa espera que já começou, que é o pior momento para não dizer nada.
+  _FHM_LAST_NOTIFY=0
   while [ $# -gt 0 ]; do
     case "$1" in
       --label) label="$2"; shift 2 ;;

@@ -207,14 +207,26 @@
               "items": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": ["path", "layer"],
+                "required": [
+                  "path",
+                  "layer"
+                ],
                 "properties": {
                   "path": {
                     "type": "string",
                     "description": "Glob relativo à raiz do repositório. Ex.: `platform/src/services/*/*.Api`, `packages/dotnet/*.Abstractions`, `src/*.DAL`, `platform/**/*.Kernel`."
                   },
                   "layer": {
-                    "enum": ["api", "application", "domain", "infrastructure", "contracts", "test", "config", "unknown"],
+                    "enum": [
+                      "api",
+                      "application",
+                      "domain",
+                      "infrastructure",
+                      "contracts",
+                      "test",
+                      "config",
+                      "unknown"
+                    ],
                     "description": "`unknown` aqui é DECLARAÇÃO, não lacuna: afirma que a taxonomia domain/application/infrastructure/api/contracts não descreve este path (frontend, tooling, conteúdo estático, MDX de doc). Esses nós ganham `taxonomy: \"out\"` no grafo e saem do denominador da cobertura de camada."
                   }
                 }
@@ -223,7 +235,9 @@
             "orphans_by_design": {
               "type": "array",
               "description": "Globs de arquivos cuja ausência de aresta é o estado CORRETO — marcador de assembly resolvido por reflexão, plugin carregado por DI, entrypoint descoberto por convenção. `forge validate graph` não os reporta como achado. Spec de E2E (layer test), configuração (layer config), migrations e o que estiver declarado fora da taxonomia já são reconhecidos sem declaração.",
-              "items": { "type": "string" }
+              "items": {
+                "type": "string"
+              }
             }
           }
         },
@@ -495,6 +509,27 @@
                   "branch_cleanup"
                 ]
               }
+            }
+          }
+        },
+        "heavy_mutex": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Serialização de carga pesada entre repositórios da MESMA máquina (issue #52). O lock mora em /tmp por caminho fixo, nunca em $TMPDIR: no macOS o TMPDIR é por usuário E por contexto de invocação, então um lock ancorado nele particiona a exclusão em tantos conjuntos quantos forem os contextos, e cada um serializa consigo mesmo achando que serializa com todos. Default desligado: o harness é publicado no npm e chegar serializando o pre-push de repositórios não relacionados é como um gate vira --no-verify de hábito.",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Engaja o mutex em volta do que é caro no pre-push (typecheck, test, gates), nunca em volta dos checks baratos. Default false."
+            },
+            "resource": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Nome do recurso disputado. Repositórios que disputam a MESMA máquina precisam do mesmo nome para serializar entre si; nomes distintos são conjuntos de exclusão distintos, de propósito. Default forge-heavy-suite."
+            },
+            "timeout_s": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Teto de espera na fila, em segundos. Precedência: FORGE_HEAVY_MUTEX_TIMEOUT_S > este campo > 1800."
             }
           }
         }

@@ -255,16 +255,47 @@ Pc="$(sleeper)"; Pd="$(sleeper)"
 kill -9 "$Pc" "$Pd" 2>/dev/null
 echo "OK [T3]"
 
-scenario "[T4] locale: LC_TIME muda o formato; a biblioteca fixa LC_ALL=C e produz token estável"
-Pe="$(sleeper)"
-tc="$(LC_ALL=C ps -o lstart= -p "$Pe" 2>/dev/null | tr -s ' ' | sed 's/^ *//;s/ *$//')"
-tf="$(LC_ALL= LC_TIME=fr_FR.UTF-8 ps -o lstart= -p "$Pe" 2>/dev/null | tr -s ' ' | sed 's/^ *//;s/ *$//')"
-[ -n "$tf" ] && [ "$tc" != "$tf" ] \
-  || { echo "FAIL [T4]: não foi possível observar a mudança de formato por locale (C='$tc' fr='$tf') — sem isso o cenário não prova que LC_ALL=C é necessário, e um OK aqui seria sobre nada"; exit 1; }
-t4a="$(tok_of "$Pe")"; t4b="$(LC_TIME=fr_FR.UTF-8 tok_of "$Pe")"
-[ "$t4a" = "$t4b" ] \
-  || { echo "FAIL [T4]: o token da biblioteca mudou com LC_TIME ('$t4a' vs '$t4b') — LC_ALL=C não está fixado e o token nunca bateria entre processos de locales diferentes"; exit 1; }
-kill -9 "$Pe" 2>/dev/null
+scenario "[T4] locale: o formato de lstart muda com LC_TIME; a biblioteca fixa LC_ALL=C e o token não muda"
+# A versão anterior deste cenário fixava `fr_FR.UTF-8` e media o `ps` DO SISTEMA. Isso amarrava a
+# prova a um locale instalado: no meu Mac (288 locales) ela rodava, na imagem Debian do CI (só C,
+# C.UTF-8 e POSIX) ela reprovava por ausência de sujeito — verde numa plataforma e vermelho na
+# outra, pelo estado da máquina e não pelo estado do código. Um cenário assim não mede o que diz.
+# Agora o sujeito é FABRICADO: um `ps` de mentira que muda de formato conforme LC_TIME. A premissa
+# deixa de ser "o sistema tem locale francês" e passa a ser aritmética do próprio cenário.
+BOX="$(newbox)"; mkdir -p "$BOX/stub"
+cat > "$BOX/stub/ps" <<'PSSTUB'
+#!/bin/sh
+# `ps -o lstart=` de mentira: obedece a precedência real (LC_ALL vence LC_TIME) e muda o FORMATO,
+# nunca o instante. Se o formato mudasse junto com o instante não daria para separar "o token
+# mudou porque o locale mudou" de "o token mudou porque o tempo passou".
+loc="${LC_ALL:-${LC_TIME:-C}}"
+case "$loc" in
+  C|POSIX|C.*|c) echo "Fri Aug 21 13:52:40 2026" ;;
+  *)             echo "ven. 21 août 2026 à 13:52:40" ;;
+esac
+PSSTUB
+chmod +x "$BOX/stub/ps"
+# O stub entra NA FRENTE do PATH, não no lugar dele: `tr` e `sed` da própria _fhm_token continuam
+# vindo do sistema. Trocar o PATH inteiro faria o cenário falhar por comando ausente e o motivo
+# apareceria como se fosse defeito de locale.
+t4c="$(PATH="$BOX/stub:$PATH" LC_ALL=C       ps -o lstart= -p $$ 2>/dev/null)"
+t4f="$(PATH="$BOX/stub:$PATH" LC_ALL= LC_TIME=fr_FR.UTF-8 ps -o lstart= -p $$ 2>/dev/null)"
+[ -n "$t4c" ] && [ -n "$t4f" ] && [ "$t4c" != "$t4f" ] \
+  || { echo "FAIL [T4]: o sujeito fabricado não muda de formato entre locales (C='$t4c' fr='$t4f') — sem essa diferença o resto do cenário não distingue nada e um OK aqui seria sobre nada"; exit 1; }
+# A asserção: a biblioteca REAL, atravessada por dois LC_TIME opostos, devolve o mesmo token.
+t4a="$(PATH="$BOX/stub:$PATH" LIBP="$LIB" LC_TIME=C \
+       bash -c '. "$LIBP"; _fhm_token '"$$" 2>/dev/null)"
+t4b="$(PATH="$BOX/stub:$PATH" LIBP="$LIB" LC_TIME=fr_FR.UTF-8 \
+       bash -c '. "$LIBP"; _fhm_token '"$$" 2>/dev/null)"
+[ -n "$t4a" ] && [ "$t4a" = "$t4b" ] \
+  || { echo "FAIL [T4]: o token da biblioteca mudou com LC_TIME ('$t4a' vs '$t4b') — LC_ALL=C não está fixado, e dois processos de locales diferentes nunca reconheceriam o lock um do outro"; exit 1; }
+# Controle negativo, no mesmo fôlego: a MESMA leitura SEM o LC_ALL=C tem de divergir. Sem ele o
+# cenário passaria idêntico com a fixação removida da biblioteca — que é exatamente a mutação que
+# ele existe para matar.
+t4x="$(PATH="$BOX/stub:$PATH" LC_TIME=C            ps -o lstart= -p $$ 2>/dev/null | tr -s ' ' | sed 's/^ *//;s/ *$//')"
+t4y="$(PATH="$BOX/stub:$PATH" LC_TIME=fr_FR.UTF-8  ps -o lstart= -p $$ 2>/dev/null | tr -s ' ' | sed 's/^ *//;s/ *$//')"
+[ "$t4x" != "$t4y" ] \
+  || { echo "FAIL [T4]: sem LC_ALL=C a leitura NÃO divergiu ('$t4x' vs '$t4y') — o cenário passaria com a fixação removida, e a estabilidade medida acima não teria causa provada"; exit 1; }
 echo "OK [T4]"
 
 scenario "[T5] zumbi: kill -0 e lstart dizem vivo; só o primeiro caractere de state distingue"
@@ -961,19 +992,45 @@ W
   wait "$hp" 2>/dev/null; wait "$wp" 2>/dev/null
   tr -d '\n' < "$W"
 }
-ord_on="$(run_bias 1)"
-ord_off="$(run_bias 0)"
-case "$ord_on" in
-  *W*H*) : ;;
-  *) echo "FAIL [16]: com a fila LIGADA quem esperava só entrou no fim ('$ord_on') — é a inanição medida em campo, e a fila existe para removê-la"; exit 1 ;;
-esac
-# CONTROLE obrigatório: sem a fila, a mesma corrida TEM de mostrar o viés (quem espera entra no
-# fim). Se não mostrar, o cenário é inconclusivo — não se sabe se a fila fez diferença ou se a
-# corrida nunca teve viés — e inconclusivo é FAIL, nunca OK.
-case "$ord_off" in
-  *H*W) : ;;
-  *) echo "FAIL [16]: sem a fila a corrida NÃO mostrou o viés ('$ord_off') — o cenário fica inconclusivo, porque a ordem justa com fila deixa de provar que a fila fez diferença"; exit 1 ;;
-esac
+ord_on=""; ord_off=""; n_on=0; n_off=0; N16="${W151_BIAS_N:-7}"
+# CONTAGEM, não execução única. A versão anterior rodava cada metade UMA vez e exigia o viés na
+# corrida do controle. Medido: o controle mostra o viés em cerca de 2 de 3 execuções, então o
+# cenário reprovava código correto em torno de um terço das vezes. Um gate publicado no npm que
+# reprova por sorteio é o espelho da vacuidade — um vermelho que não significa nada — e é assim
+# que se ensina --no-verify.
+#
+# A causa é aritmética e vale a pena estar escrita: entre o `release` do detentor e o `mkdir` da
+# posse seguinte corre o preâmbulo do acquire, medido em ~275ms. Contra um poll de 1s, quem espera
+# acerta essa janela com frequência longe de desprezível. A medição de campo que originou a issue
+# ("poucas instruções contra um intervalo de polling") continua verdadeira em direção, mas a
+# margem encolheu porque o próprio preâmbulo engordou — ironia útil de registrar: o acquire hoje
+# atenua sozinho parte do viés que a fila existe para corrigir.
+#
+# As duas metades são afirmações de NATUREZA diferente, e por isso os limiares são assimétricos:
+#   · com fila, ordem justa é GARANTIA  -> exigida em TODAS as execuções;
+#   · sem fila, o viés é ESTOCÁSTICO    -> basta EXISTIR, e exigir maioria devolveria o sorteio.
+# Os dois números são impressos sempre, inclusive no caminho de sucesso: um controle que passou
+# raspando precisa ser visível sem ter de reproduzir a falha.
+#
+# O poll é o MESMO nas duas metades de propósito. Alargar só o do controle tornaria o viés
+# estrutural e o cenário verde, mas aí as metades deixariam de ser a mesma corrida e a comparação
+# viraria retórica: o controle teria falhado porque foi sabotado, não porque a fila fez diferença.
+i16=0
+while [ "$i16" -lt "$N16" ]; do
+  i16=$((i16 + 1))
+  o1="$(run_bias 1)"; case "$o1" in *W*H*) n_on=$((n_on + 1)) ;; esac
+  [ -n "$ord_on" ] && ord_on="$ord_on,$o1" || ord_on="$o1"
+  o0="$(run_bias 0)"; case "$o0" in *H*W) n_off=$((n_off + 1)) ;; esac
+  [ -n "$ord_off" ] && ord_off="$ord_off,$o0" || ord_off="$o0"
+done
+echo "     [16] fila LIGADA, ordem justa em $n_on/$N16 ($ord_on); fila DESLIGADA, viés em $n_off/$N16 ($ord_off)"
+[ "$n_on" -eq "$N16" ] \
+  || { echo "FAIL [16]: com a fila LIGADA quem esperava entrou depois da segunda posse em $((N16 - n_on)) de $N16 execuções ($ord_on) — a ordem justa é garantia, não tendência, e uma única inversão é a inanição medida em campo"; exit 1; }
+# CONTROLE obrigatório: se o viés NUNCA aparecer sem a fila, o cenário é inconclusivo — não se sabe
+# se a fila corrigiu alguma coisa ou se a corrida jamais teve viés para corrigir. Inconclusivo é
+# FAIL, nunca OK.
+[ "$n_off" -ge 2 ] \
+  || { echo "FAIL [16]: sem a fila o viés apareceu em apenas $n_off de $N16 execuções ($ord_off) — o controle não reproduziu o fenômeno, e sem ele a ordem justa com fila não prova que a fila fez diferença"; exit 1; }
 echo "OK [16]"
 
 scenario "[29] release confere a remoção em vez de assumir"

@@ -255,9 +255,8 @@ scenario "[T4] locale: LC_TIME muda o formato; a biblioteca fixa LC_ALL=C e prod
 Pe="$(sleeper)"
 tc="$(LC_ALL=C ps -o lstart= -p "$Pe" 2>/dev/null | tr -s ' ' | sed 's/^ *//;s/ *$//')"
 tf="$(LC_ALL= LC_TIME=fr_FR.UTF-8 ps -o lstart= -p "$Pe" 2>/dev/null | tr -s ' ' | sed 's/^ *//;s/ *$//')"
-if [ -n "$tf" ] && [ "$tc" = "$tf" ]; then
-  echo "  (nota: locale fr_FR indisponível nesta máquina — asserção de formato pulada, estabilidade sob C mantida)"
-fi
+[ -n "$tf" ] && [ "$tc" != "$tf" ] \
+  || { echo "FAIL [T4]: não foi possível observar a mudança de formato por locale (C='$tc' fr='$tf') — sem isso o cenário não prova que LC_ALL=C é necessário, e um OK aqui seria sobre nada"; exit 1; }
 t4a="$(tok_of "$Pe")"; t4b="$(LC_TIME=fr_FR.UTF-8 tok_of "$Pe")"
 [ "$t4a" = "$t4b" ] \
   || { echo "FAIL [T4]: o token da biblioteca mudou com LC_TIME ('$t4a' vs '$t4b') — LC_ALL=C não está fixado e o token nunca bateria entre processos de locales diferentes"; exit 1; }
@@ -265,25 +264,28 @@ kill -9 "$Pe" 2>/dev/null
 echo "OK [T4]"
 
 scenario "[T5] zumbi: kill -0 e lstart dizem vivo; só o primeiro caractere de state distingue"
+# `pgrep -P` NÃO lista filho zumbi no macOS (medido 3/3) — usar isso fazia o cenário degradar para
+# OK justamente na plataforma onde o defeito de campo foi medido. `ps -eo pid,state,ppid` enxerga.
+# E "não consegui montar o sujeito" é FAIL, nunca OK: um cenário que não mede não pode entrar no
+# placar como se tivesse medido — é o defeito canônico deste repositório dentro da suíte que
+# existe para eliminá-lo.
 perl -e 'my $p=fork(); if($p){sleep 30} else {exit 0}' >/dev/null 2>&1 & PERLP=$!; track "$PERLP"
-sleep 1
-ZP=""; for c in $(pgrep -P "$PERLP" 2>/dev/null); do
-  st="$(LC_ALL=C ps -o state= -p "$c" 2>/dev/null | tr -d ' ')"
-  case "$st" in Z*) ZP="$c" ;; esac
+w=0; ZP=""
+while [ $w -lt 40 ] && [ -z "$ZP" ]; do
+  ZP="$(LC_ALL=C ps -eo pid,state,ppid 2>/dev/null | awk -v pp="$PERLP" '$3==pp && $2 ~ /^Z/ {print $1; exit}')"
+  [ -n "$ZP" ] || { sleep 0.2; w=$((w+1)); }
 done
-if [ -n "$ZP" ]; then
-  kill -0 "$ZP" 2>/dev/null \
-    || { echo "FAIL [T5]: kill -0 recusou o zumbi — a premissa do desenho (kill -0 não distingue) estaria errada"; exit 1; }
-  [ -n "$(tok_of "$ZP")" ] \
-    || { echo "FAIL [T5]: lstart não devolveu carimbo para o zumbi — a premissa do desenho estaria errada"; exit 1; }
-  BOX="$(newbox)"; mk_lock "$BOX/w151res.lock" "$ZP"
-  out="$(FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res \
-         bash -c '. "$0"; forge_heavy_mutex_acquire --timeout 3' "$LIB" 2>&1)"; rcz=$?
-  [ "$rcz" -eq 0 ] \
-    || { echo "FAIL [T5]: a biblioteca tratou um ZUMBI como detentor vivo (rc $rcz) — o lock de um processo morto trava a máquina até alguém investigar: $out"; exit 1; }
-else
-  echo "  (nota: não foi possível construir zumbi nesta máquina — cenário inconclusivo)"
-fi
+[ -n "$ZP" ] \
+  || { echo "FAIL [T5]: não foi possível construir um zumbi — o cenário não mediu nada, e a troca de kill -0 por state fica sem prova nenhuma"; exit 1; }
+kill -0 "$ZP" 2>/dev/null \
+  || { echo "FAIL [T5]: kill -0 recusou o zumbi — a premissa que motiva trocar kill -0 por state estaria errada"; exit 1; }
+[ -n "$(tok_of "$ZP")" ] \
+  || { echo "FAIL [T5]: lstart não devolveu carimbo para o zumbi — a premissa do desenho estaria errada"; exit 1; }
+BOX="$(newbox)"; mk_lock "$BOX/w151res.lock" "$ZP"
+outz="$(FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res \
+        bash -c '. "$0"; forge_heavy_mutex_acquire --timeout 3 && printf "ADQUIRIU\n"' "$LIB" 2>&1)"; rcz=$?
+[ "$rcz" -eq 0 ] && grep -q ADQUIRIU <<<"$outz" \
+  || { echo "FAIL [T5]: um ZUMBI foi tratado como detentor vivo (rc $rcz) — o lock de um processo morto trava a máquina até alguém investigar: $outz"; exit 1; }
 kill -9 "$PERLP" 2>/dev/null
 echo "OK [T5]"
 
@@ -331,14 +333,23 @@ grep -qi "incompleto" <<<"$out9" \
   || { echo "FAIL [9]: reclamou sem nomear a anomalia — remover lock de quem acabou de vencer a corrida precisa ser dito em voz alta: $out9"; exit 1; }
 echo "OK [9]"
 
-scenario "[19] lock revogado na janela de escrita: a aquisição FALHA em vez de seguir como detentor"
+scenario "[19] lock revogado na janela de escrita: por remoção E por dono trocado"
 BOX="$(newbox)"
 out19="$(FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res FORGE_HEAVY_MUTEX_REVOKE_PROBE=1 \
          bash -c '. "$0"; forge_heavy_mutex_acquire --timeout 2; printf "RC=%s\n" "$?"' "$LIB" 2>&1)"
 grep -q "RC=0" <<<"$out19" \
-  && { echo "FAIL [19]: com o lock revogado entre o mkdir e a confirmação, a aquisição devolveu 0 — o processo segue como detentor de um lock que não existe, e duas suítes rodam: $out19"; exit 1; }
+  && { echo "FAIL [19]: com o lock REMOVIDO entre o mkdir e a confirmação, a aquisição devolveu 0 — o processo segue como detentor de um lock que não existe: $out19"; exit 1; }
 grep -qi "revogado" <<<"$out19" \
-  || { echo "FAIL [19]: a revogação não é nomeada — hoje ela produz só um 'No such file or directory' que ninguém lê: $out19"; exit 1; }
+  || { echo "FAIL [19]: a revogação por remoção não é nomeada: $out19"; exit 1; }
+# Segundo ramo: o lock EXISTE, com dono diferente. É o que as comparações de pid e nonce cobrem, e
+# sem este cenário removê-las não reprovava nada.
+BOX2="$(newbox)"
+out19b="$(FORGE_HEAVY_MUTEX_ROOT="$BOX2" FORGE_HEAVY_MUTEX_RESOURCE=w151res FORGE_HEAVY_MUTEX_STEAL_PROBE=1 \
+          bash -c '. "$0"; forge_heavy_mutex_acquire --timeout 2; printf "RC=%s\n" "$?"' "$LIB" 2>&1)"
+grep -q "RC=0" <<<"$out19b" \
+  && { echo "FAIL [19]: o lock foi RETOMADO por terceiro durante a janela (existe, com outro pid e outro nonce) e a aquisição devolveu 0 — duas cargas pesadas com o mesmo lock: $out19b"; exit 1; }
+grep -qi "revogado" <<<"$out19b" \
+  || { echo "FAIL [19]: a retomada por terceiro não é nomeada: $out19b"; exit 1; }
 echo "OK [19]"
 
 scenario "[20] interop legado→novo: lock do protocolo antigo (mkdir + pid) bloqueia o novo"
@@ -863,6 +874,140 @@ grep -q "CARGA-EXECUTOU" "$MARK36" 2>/dev/null \
 grep -qi "heavy-mutex" <<<"$out36" \
   || { echo "FAIL [36]: a saída não nomeia o mutex — quem lê o push não saberia por que travou: $out36"; exit 1; }
 echo "OK [36]"
+
+scenario "[15] reenfileiramento com destino OCUPADO: detecta o aninhamento e não vira absorvente"
+# `mv src dst` com `dst` existente devolve rc 0 e ANINHA. Sem a pós-verificação, o processo acredita
+# ter reenfileirado, o ticket no disco é de outro, ele nunca é cabeça, e volta ao timeout sobre um
+# recurso LIVRE — o estado absorvente reproduzido pelo código que o corrige.
+BOX="$(newbox)"; : > "$BOX/w151res.q.enabled"; mkdir -p "$BOX/w151res.q"
+OTHER="$(sleeper)"
+cat > "$BOX/v15.sh" <<'V15'
+set -uo pipefail
+. "$LIBP"
+forge_heavy_mutex_acquire --label v15 --timeout 12 && printf 'ADQUIRIU\n'
+V15
+FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res FORGE_HEAVY_MUTEX_POLL_S=1 \
+  LIBP="$LIB" bash "$BOX/v15.sh" > "$BOX/v15.out" 2>&1 &
+V15P=$!; track "$V15P"
+w=0; while [ $w -lt 40 ] && [ "$(q_count "$BOX/w151res.q")" -lt 1 ]; do sleep 0.2; w=$((w+1)); done
+# Ocupa o nome determinístico do ticket com conteúdo ALHEIO, e apaga o original: é a corrida real
+# entre a leitura e o mv (varredor no meio do seu próprio recolhimento).
+tk="$(ls "$BOX/w151res.q" 2>/dev/null | head -1)"
+if [ -n "$tk" ]; then
+  rm -rf "$BOX/w151res.q/$tk"
+  mkdir -p "$BOX/w151res.q/$tk"; printf '%s\n' "$OTHER" > "$BOX/w151res.q/$tk/pid"; tok_of "$OTHER" > "$BOX/w151res.q/$tk/token"
+fi
+w=0; while [ $w -lt 60 ] && kill -0 "$V15P" 2>/dev/null; do sleep 0.5; w=$((w+1)); done
+kill -9 "$OTHER" 2>/dev/null
+grep -q ADQUIRIU "$BOX/v15.out" 2>/dev/null \
+  || { echo "FAIL [15]: com o nome do próprio ticket ocupado por terceiro, o processo não se recuperou e esperou o teto sobre recurso livre: $(cat "$BOX/v15.out")"; exit 1; }
+kill -9 "$V15P" 2>/dev/null
+echo "OK [15]"
+
+scenario "[16] viés solta-e-retoma: com a fila, quem espera entra ANTES da segunda posse"
+# A propriedade-título. Sem fila, quem solta e retoma já está a poucas instruções do mkdir e vence
+# sistematicamente quem dorme num intervalo de polling. O CONTROLE é a outra metade: sem a fila, a
+# mesma corrida tem de mostrar o viés, senão o cenário não prova que a fila fez diferença.
+run_bias() {  # run_bias <fila-ligada 0|1> -> ecoa a ordem observada
+  local qon="$1" bx; bx="$(newbox)"; local W="$bx/wit"; : > "$W"
+  [ "$qon" = "1" ] && : > "$bx/w151res.q.enabled"
+  cat > "$bx/h.sh" <<'H'
+set -uo pipefail
+. "$LIBP"
+for i in 1 2 3; do
+  forge_heavy_mutex_acquire --label "H$i" --timeout 20 >/dev/null 2>&1 || exit $?
+  printf 'H\n' >> "$WIT"
+  sleep 1.2
+  forge_heavy_mutex_release
+done
+H
+  cat > "$bx/w.sh" <<'W'
+set -uo pipefail
+. "$LIBP"
+forge_heavy_mutex_acquire --label W --timeout 20 >/dev/null 2>&1 || exit $?
+printf 'W\n' >> "$WIT"
+forge_heavy_mutex_release
+W
+  FORGE_HEAVY_MUTEX_ROOT="$bx" FORGE_HEAVY_MUTEX_RESOURCE=w151res FORGE_HEAVY_MUTEX_POLL_S=1 \
+    LIBP="$LIB" WIT="$W" bash "$bx/h.sh" >/dev/null 2>&1 &
+  local hp=$!; track "$hp"
+  # O W entra DURANTE a primeira posse: se entrar depois da sequência inteira, o cenário mede
+  # "chegou tarde" em vez do viés, e a ordem justa vira indistinguível da injusta.
+  sleep 0.4
+  FORGE_HEAVY_MUTEX_ROOT="$bx" FORGE_HEAVY_MUTEX_RESOURCE=w151res FORGE_HEAVY_MUTEX_POLL_S=1 \
+    LIBP="$LIB" WIT="$W" bash "$bx/w.sh" >/dev/null 2>&1 &
+  local wp=$!; track "$wp"
+  wait "$hp" 2>/dev/null; wait "$wp" 2>/dev/null
+  tr -d '\n' < "$W"
+}
+ord_on="$(run_bias 1)"
+ord_off="$(run_bias 0)"
+case "$ord_on" in
+  *W*H*) : ;;
+  *) echo "FAIL [16]: com a fila LIGADA quem esperava só entrou no fim ('$ord_on') — é a inanição medida em campo, e a fila existe para removê-la"; exit 1 ;;
+esac
+# CONTROLE obrigatório: sem a fila, a mesma corrida TEM de mostrar o viés (quem espera entra no
+# fim). Se não mostrar, o cenário é inconclusivo — não se sabe se a fila fez diferença ou se a
+# corrida nunca teve viés — e inconclusivo é FAIL, nunca OK.
+case "$ord_off" in
+  *H*W) : ;;
+  *) echo "FAIL [16]: sem a fila a corrida NÃO mostrou o viés ('$ord_off') — o cenário fica inconclusivo, porque a ordem justa com fila deixa de provar que a fila fez diferença"; exit 1 ;;
+esac
+echo "OK [16]"
+
+scenario "[29] release confere a remoção em vez de assumir"
+BOX="$(newbox)"
+out29="$(FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res bash -c '
+  . "$0"
+  forge_heavy_mutex_acquire --timeout 5 >/dev/null 2>&1 || exit $?
+  L="$FORGE_HEAVY_MUTEX_HELD_PATH"
+  # Torna a remoção impossível de concluir limpando: um subdiretório criado por terceiro entre a
+  # decisão e o rm. O release TEM de conferir e diagnosticar, nunca assumir que removeu.
+  chmod 500 "$L" 2>/dev/null
+  forge_heavy_mutex_release
+  chmod 700 "$L" 2>/dev/null
+  [ -d "$L" ] && printf "LOCK-FICOU\n"
+' "$LIB" 2>&1)"
+if grep -q "LOCK-FICOU" <<<"$out29"; then
+  grep -qi "não consegui remover" <<<"$out29" \
+    || { echo "FAIL [29]: o lock ficou para trás e o release não disse nada — um lock que sobra bloqueia a máquina inteira, e o silêncio faz parecer liberado: $out29"; exit 1; }
+fi
+echo "OK [29]"
+
+scenario "[35] fail-closed: biblioteca ausente com lib/ presente BLOQUEIA o wrapper"
+BOX="$(newbox)"; mkdir -p "$BOX/fake/lib"
+cp "$WS/template/.forge/scripts/heavy-run.sh" "$BOX/fake/"
+out35="$(bash "$BOX/fake/heavy-run.sh" -- echo x 2>&1)"; rc35=$?
+[ "$rc35" -ne 0 ] \
+  || { echo "FAIL [35]: com lib/ presente e heavy-mutex.sh ausente, o wrapper rodou a carga DESPROTEGIDA (rc $rc35) — delegação em alvo ausente é erro, não no-op: $out35"; exit 1; }
+grep -qi "alvo ausente\|não encontrada" <<<"$out35" \
+  || { echo "FAIL [35]: bloqueou sem dizer que a delegação aponta para alvo ausente: $out35"; exit 1; }
+echo "OK [35]"
+
+scenario "[37] canal real SEM contenção: a carga executa e o lock não fica para trás"
+BOX="$(newbox)"; R="$BOX/repo"
+mkdir -p "$R/.forge/scripts/lib" "$R/.forge/hooks/git"
+cp "$WS/template/.forge/scripts/lib/heavy-mutex.sh" "$R/.forge/scripts/lib/"
+cp "$WS/template/.forge/hooks/git/pre-push" "$R/.forge/hooks/git/"
+for _stub in check-ai-attribution.sh check-liaison-acks.sh; do
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$R/.forge/scripts/$_stub"; chmod +x "$R/.forge/scripts/$_stub"
+done
+printf 'heavy_mutex:\n  enabled: true\n' > "$R/.forge/forge.yaml"
+MARK37="$BOX/mark37"; : > "$MARK37"
+printf 'runtime:\n  test: sh -c '"'"'echo CARGA-EXECUTOU >> "$MARK"'"'"'\n' > "$R/.forge/FORGE.md"
+git -C "$R" init -q -b main 2>/dev/null; git -C "$R" config user.email t@t; git -C "$R" config user.name t
+git -C "$R" config commit.gpgsign false; git -C "$R" add -A 2>/dev/null; git -C "$R" commit -qm init 2>/dev/null
+sha37="$(git -C "$R" rev-parse HEAD 2>/dev/null)"
+out37="$(cd "$R" && printf 'refs/heads/main %s refs/heads/main 0000000000000000000000000000000000000000\n' "$sha37" | \
+  FORGE_ROOT="$R" FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res \
+  MARK="$MARK37" bash "$R/.forge/hooks/git/pre-push" origin "file://$R" 2>&1)"; rc37=$?
+[ "$rc37" -eq 0 ] \
+  || { echo "FAIL [37]: sem contenção o pre-push reprovou (rc $rc37): $out37"; exit 1; }
+grep -q "CARGA-EXECUTOU" "$MARK37" 2>/dev/null \
+  || { echo "FAIL [37]: a carga NÃO executou sem contenção — o mutex estaria bloqueando quem não tem concorrente: $out37"; exit 1; }
+[ ! -d "$BOX/w151res.lock" ] \
+  || { echo "FAIL [37]: o lock ficou para trás depois do push — o próximo adquirente esperaria por um detentor que já saiu"; exit 1; }
+echo "OK [37]"
 
 [ "$SCENARIOS_RUN" -gt 0 ] \
   || { echo "FAIL [contador]: nenhum cenário executado — um gate que não roda nada não cobre nada"; exit 1; }

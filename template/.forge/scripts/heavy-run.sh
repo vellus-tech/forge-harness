@@ -51,7 +51,7 @@ _hr_alias() {  # _hr_alias <destino> <nome-a> <valor-a> <nome-b> <valor-b> [mult
   return 0
 }
 
-RES=""; LABEL=""; SUB=""
+RES=""; LABEL=""; SUB=""; TMO_NAME=""
 case "${1:-}" in
   status|sweep|queue) SUB="$1"; shift ;;
 esac
@@ -108,7 +108,18 @@ case "$SUB" in
         _FHM_LOCK="$HR_LOCK" _fhm_reclaim_orphan "$hp" && n=$((n+1))
       fi
     fi
-    echo "heavy-run: sweep — $n lock(s) órfão(s) removido(s)" >&2
+    # Evidências de reivindicação atropelada (`<lock>.reaping.<pid>.<ts>.<rand>`): preservadas na
+    # hora para não repetir o defeito de apagar o que não se provou ser lixo, e recolhidas aqui
+    # quando o processo que as criou já morreu. Sem isto, elas ficam em /tmp para sempre.
+    nr=0
+    for rp in "$HR_LOCK".reaping.*; do
+      [ -d "$rp" ] || continue
+      rpid="$(printf '%s' "${rp##*.reaping.}" | cut -d. -f1)"
+      if [ -n "$rpid" ] && [ -z "$(LC_ALL=C ps -o lstart= -p "$rpid" 2>/dev/null)" ]; then
+        rm -rf "$rp" 2>/dev/null && nr=$((nr + 1))
+      fi
+    done
+    echo "heavy-run: sweep — $n lock(s) órfão(s) e $nr evidência(s) de reivindicação recolhida(s)" >&2
     if [ "$LEGACY" = "1" ]; then
       # Caminhos LEGADOS derivados de TMPDIR. É o instrumento que teria transformado catorze horas
       # de bloqueio invisível numa linha: um lock em `$TMPDIR/...` não é visto por quem resolve
@@ -127,10 +138,39 @@ esac
 
 [ "$ARGS_OK" = "1" ] && [ $# -gt 0 ] || { echo "heavy-run: comando obrigatório após '--'" >&2; _hr_usage; exit 64; }
 
-TMO="$(_hr_alias FORGE_HEAVY_MUTEX_TIMEOUT_S FORGE_HEAVY_MUTEX_TIMEOUT_S "${FORGE_HEAVY_MUTEX_TIMEOUT_S:-}" HEAVY_RUN_TIMEOUT_SECONDS "${HEAVY_RUN_TIMEOUT_SECONDS:-}")" || exit 64
-[ -n "$TMO" ] || TMO="$(_hr_alias t x "" AXIS_HEAVY_SUITE_WAIT "${AXIS_HEAVY_SUITE_WAIT:-}" 60)" || exit 64
+# Confronto de TODOS contra TODOS, em segundos. Dois nomes da mesma grandeza com valores
+# diferentes é ERRO — escolher um em silêncio é como uma configuração deixa de ser lida sem
+# ninguém notar. `AXIS_HEAVY_SUITE_WAIT` é em MINUTOS e entra normalizado.
+_hr_num() {  # _hr_num <nome> <valor> — ecoa o valor, ou reprova se não for inteiro
+  case "${2:-}" in
+    '') return 0 ;;
+    *[!0-9]*) echo "heavy-run: $1='$2' não é um número inteiro de segundos" >&2; return 64 ;;
+    *) printf '%s' "$2" ;;
+  esac
+}
+_a="$(_hr_num FORGE_HEAVY_MUTEX_TIMEOUT_S "${FORGE_HEAVY_MUTEX_TIMEOUT_S:-}")" || exit 64
+_b="$(_hr_num HEAVY_RUN_TIMEOUT_SECONDS "${HEAVY_RUN_TIMEOUT_SECONDS:-}")" || exit 64
+_c_raw="$(_hr_num AXIS_HEAVY_SUITE_WAIT "${AXIS_HEAVY_SUITE_WAIT:-}")" || exit 64
+_c=""; [ -n "$_c_raw" ] && _c=$(( _c_raw * 60 ))
+TMO=""
+for _pair in "FORGE_HEAVY_MUTEX_TIMEOUT_S:$_a" "HEAVY_RUN_TIMEOUT_SECONDS:$_b" "AXIS_HEAVY_SUITE_WAIT:$_c"; do
+  _n="${_pair%%:*}"; _v="${_pair#*:}"
+  [ -n "$_v" ] || continue
+  if [ -n "$TMO" ] && [ "$TMO" != "$_v" ]; then
+    echo "heavy-run: $_n e $TMO_NAME dizem a mesma coisa com valores diferentes ($_v contra $TMO segundos) — corrija um dos dois." >&2
+    exit 64
+  fi
+  TMO="$_v"; TMO_NAME="$_n"
+done
 [ -n "$TMO" ] && { FORGE_HEAVY_MUTEX_TIMEOUT_S="$TMO"; export FORGE_HEAVY_MUTEX_TIMEOUT_S; }
-POLL="$(_hr_alias p FORGE_HEAVY_MUTEX_POLL_S "${FORGE_HEAVY_MUTEX_POLL_S:-}" HEAVY_RUN_POLL_SECONDS "${HEAVY_RUN_POLL_SECONDS:-}")" || exit 64
+
+_pa="$(_hr_num FORGE_HEAVY_MUTEX_POLL_S "${FORGE_HEAVY_MUTEX_POLL_S:-}")" || exit 64
+_pb="$(_hr_num HEAVY_RUN_POLL_SECONDS "${HEAVY_RUN_POLL_SECONDS:-}")" || exit 64
+if [ -n "$_pa" ] && [ -n "$_pb" ] && [ "$_pa" != "$_pb" ]; then
+  echo "heavy-run: FORGE_HEAVY_MUTEX_POLL_S e HEAVY_RUN_POLL_SECONDS dizem a mesma coisa com valores diferentes ($_pa contra $_pb) — corrija um dos dois." >&2
+  exit 64
+fi
+POLL="${_pa:-$_pb}"
 [ -n "$POLL" ] && { FORGE_HEAVY_MUTEX_POLL_S="$POLL"; export FORGE_HEAVY_MUTEX_POLL_S; }
 
 forge_heavy_mutex_acquire --label "${LABEL:-$*}" || exit $?
@@ -140,7 +180,9 @@ forge_heavy_mutex_acquire --label "${LABEL:-$*}" || exit $?
 # dentro do processo alheio, não pode ter a mesma regra: lá a transparência manda.
 HR_CHILD=""
 _hr_sig() {
-  [ -n "$HR_CHILD" ] && kill -"$1" "$HR_CHILD" 2>/dev/null
+  # Sinaliza o GRUPO do filho: com job control ele lidera o próprio, e uma suíte pesada tem netos
+  # (dotnet, docker) que sobreviveriam a um sinal dirigido só ao pid.
+  [ -n "$HR_CHILD" ] && { kill -"$1" "-$HR_CHILD" 2>/dev/null || kill -"$1" "$HR_CHILD" 2>/dev/null; }
   forge_heavy_mutex_release
   trap - "$1"
   kill -"$1" $$
@@ -148,8 +190,16 @@ _hr_sig() {
 trap 'forge_heavy_mutex_release' EXIT
 for s in INT TERM HUP; do trap "_hr_sig $s" "$s"; done
 
+# `set -m` ANTES de lançar, e o payload sem a herança de SIG_IGN. Por POSIX, um comando de lista
+# assíncrona lançado por shell SEM job control herda SIGINT/SIGQUIT como ignorados — a mesma
+# armadilha que a §8.13 catalogou para o consumidor, e que aqui o wrapper infligia à própria carga.
+# Medido: com Ctrl-C real (kill -INT no grupo), o wrapper morria com 130, liberava o lock, e o
+# payload SEGUIA RODANDO sem lock — o próximo push adquiria e rodava uma segunda suíte por cima,
+# que é exatamente o desfecho que este primitivo existe para impedir.
+set -m 2>/dev/null || true
 "$@" &
 HR_CHILD=$!
+set +m 2>/dev/null || true
 wait "$HR_CHILD"
 rc=$?
 forge_heavy_mutex_release

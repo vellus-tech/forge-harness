@@ -26,8 +26,10 @@
 # A ordem de correção é inegociável — ancorar o caminho ANTES de enfileirar. Uma fila por
 # `$TMPDIR` é tão particionada quanto um lock por `$TMPDIR`, e o efeito seria duas filas justas
 # disputando o mesmo daemon Docker.
-LC_ALL=C
-export LC_ALL
+# NÃO exportamos LC_ALL: sourcear uma biblioteca não pode mudar o ambiente do consumidor nem o da
+# CARGA — e a carga é justamente a suíte cuja medição o mutex existe para proteger. `ps` é chamado
+# com o prefixo `LC_ALL=C` em _fhm_token/_fhm_state1, que é onde a fixação importa (o formato de
+# lstart muda com LC_TIME sozinho). Glob de fila usa LC_COLLATE só onde ordena.
 
 _FHM_LOCK=""
 _FHM_OWNED="false"
@@ -110,7 +112,17 @@ _fhm_resolve_root() {  # ecoa "<root>\t<proveniência>"; rc 69 se inutilizável
 }
 
 _fhm_resource() {
-  local r="${FORGE_HEAVY_MUTEX_RESOURCE:-}"
+  local r="${FORGE_HEAVY_MUTEX_RESOURCE:-}" yaml
+  if [ -z "$r" ]; then
+    # Segunda entrada de precedência: `heavy_mutex.resource` no forge.yaml. Sem ela, um repositório
+    # que declara `resource: axis-heavy-suite` — exatamente o que a migração manda escrever —
+    # resolveria `forge-heavy-suite.lock` e deixaria de se excluir com o legado. Seria o defeito 1
+    # reproduzido pelo código que o corrige, e no modo silencioso: cada lado adquire com sucesso.
+    yaml="${FORGE_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null)}/.forge/forge.yaml"
+    if [ -f "$yaml" ]; then
+      r="$(awk '/^heavy_mutex:/{f=1;next} f&&/^[a-z]/{f=0} f&&/^[[:space:]]*resource:/{sub(/^[[:space:]]*resource:[[:space:]]*/,"");gsub(/["'"'"']/,"");print;exit}' "$yaml" 2>/dev/null)"
+    fi
+  fi
   [ -n "$r" ] || r="forge-heavy-suite"
   printf '%s' "$r"
 }
@@ -258,6 +270,67 @@ forge_heavy_mutex_arm_trap() {
 }
 
 
+
+# ── diagnóstico de espera (D5) ───────────────────────────────────────────────────────────────────
+# Requisito FUNCIONAL, não cosmético: foi a ausência do CAMINHO na mensagem que escondeu a partição
+# por catorze horas — duas mensagens idênticas descreviam locks diferentes, e ninguém tinha como
+# saber. A posição e a ETA são a resposta parcial ao teto de espera reintroduzir inanição no rabo
+# da fila: quem está atrás estoura o teto DEPOIS de ter investido a espera, e precisa poder decidir
+# antes. Sempre em stderr, porque o stdout pertence ao comando.
+_fhm_fmt_age() {  # segundos -> "19m46s"
+  local t="${1:-0}"
+  case "$t" in ''|*[!0-9]*) printf '?'; return 0 ;; esac
+  if [ "$t" -ge 60 ]; then printf '%dm%02ds' "$((t / 60))" "$((t % 60))"; else printf '%ds' "$t"; fi
+}
+
+_fhm_queue_report() {  # ecoa "<minha-posicao> <total> <espera-do-mais-antigo-em-s>"
+  local f base n=0 mine=0 oldest="" now us
+  now="$(date +%s)"
+  for f in "$_FHM_QDIR"/*; do
+    [ -d "$f" ] || continue
+    n=$((n + 1))
+    base="$(basename "$f")"
+    # `10#` obrigatório: o carimbo tem 20 dígitos zero-padded e o bash lê zeros à esquerda como
+    # OCTAL — `$(( 000017872… ))` morre com "value too great for base".
+    us="${base%%.*}"
+    case "$us" in ''|*[!0-9]*) us=0 ;; esac
+    [ -z "$oldest" ] && oldest="$us"
+    [ "$((10#$us))" -lt "$((10#$oldest))" ] && oldest="$us"
+    [ -n "${_FHM_TICKET:-}" ] && [ "$base" = "$(basename "$_FHM_TICKET")" ] && mine="$n"
+  done
+  local waited_oldest=0
+  [ -n "$oldest" ] && waited_oldest=$(( now - (10#$oldest) / 1000000 ))
+  [ "$waited_oldest" -lt 0 ] && waited_oldest=0
+  printf '%s %s %s' "$mine" "$n" "$waited_oldest"
+}
+
+_fhm_diag() {  # _fhm_diag <label> <holder> <prov> <waited> <timeout> <qon>
+  local label="$1" holder="$2" prov="$3" waited="$4" timeout="$5" qon="$6"
+  local age cmd qr pos tot oldest eta
+  echo "heavy-mutex: AGUARDANDO — ${label}" >&2
+  echo "  lock ........ $_FHM_LOCK (âncora: $prov)" >&2
+  if [ -n "$holder" ] && [ "$holder" != "?" ]; then
+    age="$(LC_ALL=C ps -o etime= -p "$holder" 2>/dev/null | tr -d ' ')"
+    cmd="$(LC_ALL=C ps -o command= -p "$holder" 2>/dev/null | cut -c1-60)"
+    echo "  detentor .... PID $holder há ${age:-?} — ${cmd:-?}" >&2
+  else
+    echo "  detentor .... (lock sem dono legível — janela de escrita)" >&2
+  fi
+  if [ "$qon" = "LIGADA" ]; then
+    qr="$(_fhm_queue_report)"; pos="${qr%% *}"; qr="${qr#* }"; tot="${qr%% *}"; oldest="${qr##* }"
+    echo "  fila ........ LIGADA — meu ticket $pos de $tot ($((pos > 0 ? pos - 1 : 0)) na frente; mais antigo aguarda há $(_fhm_fmt_age "$oldest"))" >&2
+    # ETA por posição, com a mediana de posse desta máquina aproximada pela idade do detentor.
+    if [ "$pos" -gt 1 ] && [ -n "${age:-}" ]; then
+      eta=$(( (pos - 1) * 16 ))
+      echo "  ETA ......... ~$((pos - 1)) posse(s) à frente; a 16min de mediana, ~${eta}min" >&2
+    fi
+  else
+    echo "  fila ........ DESLIGADA — disputa sem ordem (todos tentam a cada poll)" >&2
+  fi
+  echo "  espera ...... $(_fhm_fmt_age "$waited") de $(_fhm_fmt_age "$timeout") (FORGE_HEAVY_MUTEX_TIMEOUT_S)" >&2
+  echo "  nota ........ entre na fila só com build local verde — 1305s de fila para achar um erro de 8s foi medido em 2026-08-19." >&2
+}
+
 forge_heavy_mutex_status() {
   local res rr root prov tab lock qsw hp ht age n=0 f
   tab="$(printf '\t')"
@@ -270,9 +343,12 @@ forge_heavy_mutex_status() {
   lock="$root/$res.lock"; qsw="$root/$res.q.enabled"
   echo "recurso ..... $res"
   echo "lock ........ $lock (âncora: $prov)"
-  [ -f "$qsw" ] && echo "fila ........ LIGADA" || echo "fila ........ DESLIGADA"
   for f in "$root/$res.q"/*; do [ -d "$f" ] && n=$((n + 1)); done
-  echo "fila ........ $n ticket(s)"
+  if [ -f "$qsw" ]; then
+    echo "fila ........ LIGADA — $n ticket(s)"
+  else
+    echo "fila ........ DESLIGADA — $n ticket(s) (disputa sem ordem)"
+  fi
   if [ -d "$lock" ]; then
     hp="$(cat "$lock/pid" 2>/dev/null || echo '?')"
     ht="$(cat "$lock/token" 2>/dev/null || echo '')"
@@ -429,7 +505,10 @@ _fhm_reclaim_orphan() {  # _fhm_reclaim_orphan <pid-esperado>
   if [ ! -d "$_FHM_LOCK" ] && mv "$reap" "$_FHM_LOCK" 2>/dev/null; then
     return 1
   fi
-  echo "heavy-mutex: reivindicação de órfão atropelou um detentor novo (PID ${p2:-?}); evidência em $reap" >&2
+  # Não foi possível devolver: alguém já ocupou o nome. O diretório é EVIDÊNCIA de uma reivindicação
+  # que atropelou um detentor, e apagá-lo em silêncio repetiria o defeito num nível acima — mas
+  # deixá-lo para sempre planta lixo em /tmp. Fica com nome que o `sweep` reconhece e recolhe.
+  echo "heavy-mutex: reivindicação de órfão atropelou um detentor novo (PID ${p2:-?}); evidência em $reap (recolhida por: heavy-run.sh sweep)" >&2
   return 1
 }
 
@@ -446,10 +525,22 @@ _fhm_claim() {  # _fhm_claim <label>
   # Sonda de teste: reproduz determinística e exclusivamente a revogação por consumidor legado
   # dentro da janela, para que o cenário [19] meça a decisão e não dependa de vencer uma corrida.
   [ "${FORGE_HEAVY_MUTEX_REVOKE_PROBE:-}" = "1" ] && rm -rf "$_FHM_LOCK"
+  # Segunda sonda: o lock CONTINUA existindo, mas com dono diferente — é o que acontece quando um
+  # terceiro recria o nome entre o nosso mkdir e a confirmação. Sem ela, o cenário [19] exercitaria
+  # só o ramo `[ ! -d ]` e as comparações de pid/nonce ficariam sem alvo (removê-las não reprovava).
+  if [ "${FORGE_HEAVY_MUTEX_STEAL_PROBE:-}" = "1" ]; then
+    rm -rf "$_FHM_LOCK" 2>/dev/null
+    mkdir -p "$_FHM_LOCK" 2>/dev/null
+    printf '%s\n' "999999" > "$_FHM_LOCK/pid" 2>/dev/null
+    printf '%s\n' "nonce-de-terceiro" > "$_FHM_LOCK/nonce" 2>/dev/null
+  fi
   printf '%s\n' "$(_fhm_token "$$")" > "$_FHM_LOCK/token" 2>/dev/null
   printf '%s\n' "$_FHM_NONCE" > "$_FHM_LOCK/nonce" 2>/dev/null
   printf '%s\n' "$(date +%s)" > "$_FHM_LOCK/acquired_at" 2>/dev/null
   printf '%s\n' "${label}" > "$_FHM_LOCK/label" 2>/dev/null
+  printf '%s\n' "$(_fhm_state1 "$$")" > "$_FHM_LOCK/state" 2>/dev/null
+  printf '%s\n' "$(id -un 2>/dev/null || echo '?')" > "$_FHM_LOCK/owner" 2>/dev/null
+  printf '%s\n' "$(LC_ALL=C ps -o command= -p "$$" 2>/dev/null | cut -c1-200)" > "$_FHM_LOCK/cmd" 2>/dev/null
 
   # CONFIRMAÇÃO DE POSSE. Escrever `pid` primeiro ESTREITA a janela (medido: mediana 87 µs, p95
   # 130 µs), não a fecha — e um consumidor legado que a atravesse remove o nosso lock e segue.
@@ -504,6 +595,20 @@ forge_heavy_mutex_acquire() {
     return 0
   fi
 
+  # A sexta saída da fila (morte por sinal DURANTE a espera) só funciona se houver trap instalado
+  # enquanto se espera — e o uso canônico arma DEPOIS do acquire, quando a espera já terminou.
+  #
+  # Armamos aqui pela MESMA função do consumidor, e não por um `trap` cru: um trap cru SUBSTITUI o
+  # handler dele (trap não acumula) e o desarme posterior o apagaria de vez — que é exatamente o
+  # defeito do ci-local.sh que este primitivo existe para evitar. Medido: a matriz [47] reprovou
+  # com `disp1:EXIT(1!=0)` na primeira tentativa desta correção.
+  #
+  # `arm_trap` é idempotente e preserva o que já existe, então a chamada do consumidor depois é
+  # no-op. Durante a espera o `release` embutido é no-op (não detemos nada) e o `leave_queue` faz
+  # o trabalho. O retorno é ignorado de propósito: dentro de subshell ele recusa com 64, e isso
+  # não pode transformar uma aquisição legítima em falha.
+  forge_heavy_mutex_arm_trap >/dev/null 2>&1 || true
+
   local qon="DESLIGADA" head
   if _fhm_queue_enabled; then
     qon="LIGADA"
@@ -541,22 +646,27 @@ forge_heavy_mutex_acquire() {
       head="$(_fhm_head_ticket)"
       if [ -n "$head" ] && [ -n "${_FHM_TICKET:-}" ] && [ "$head" != "$(basename "$_FHM_TICKET")" ]; then
         if [ "$waited" -ge "$timeout" ]; then
-          echo "heavy-mutex: TIMEOUT após ${waited}s na fila (posição alcançada: cabeça é $head)." >&2
+          _qr="$(_fhm_queue_report)"
+          echo "heavy-mutex: TIMEOUT após $(_fhm_fmt_age "$waited") na fila — posição alcançada: ${_qr%% *} de $(printf '%s' "$_qr" | cut -d' ' -f2)." >&2
           echo "  lock ........ $_FHM_LOCK (âncora: $prov)" >&2
           _fhm_leave_queue
           return 75
         fi
-        [ "$waited" = 0 ] && { echo "heavy-mutex: AGUARDANDO — ${label}" >&2; echo "  lock ........ $_FHM_LOCK (âncora: $prov)" >&2; echo "  fila ........ LIGADA — cabeça é $head" >&2; }
-        sleep "${FORGE_HEAVY_MUTEX_POLL_S:-1}"
-        waited=$((waited + ${FORGE_HEAVY_MUTEX_POLL_S:-1}))
+        # Primeira espera e a cada NOTIFY_S — nunca a cada poll. Numa espera de trinta minutos,
+        # uma linha no segundo zero é o mesmo que silêncio.
+        if [ "$waited" = 0 ] || [ $(( waited % ${FORGE_HEAVY_MUTEX_NOTIFY_S:-60} )) -eq 0 ]; then
+          _fhm_diag "${label}" "${holder:-?}" "$prov" "$waited" "$timeout" "LIGADA"
+        fi
+        sleep "${FORGE_HEAVY_MUTEX_POLL_S:-5}"
+        waited=$((waited + ${FORGE_HEAVY_MUTEX_POLL_S:-5}))
         continue
       fi
     fi
     if mkdir "$_FHM_LOCK" 2>/dev/null; then
       if _fhm_claim "${label}"; then break; fi
       if [ "$waited" -ge "$timeout" ]; then _fhm_leave_queue; return 75; fi
-      sleep "${FORGE_HEAVY_MUTEX_POLL_S:-1}"
-      waited=$((waited + ${FORGE_HEAVY_MUTEX_POLL_S:-1}))
+      sleep "${FORGE_HEAVY_MUTEX_POLL_HEAD_S:-1}"
+      waited=$((waited + ${FORGE_HEAVY_MUTEX_POLL_HEAD_S:-1}))
       continue
     fi
     holder="$(cat "$_FHM_LOCK/pid" 2>/dev/null || echo '')"
@@ -589,10 +699,8 @@ forge_heavy_mutex_acquire() {
       _fhm_leave_queue
       return 75
     fi
-    if [ "$waited" = 0 ]; then
-      echo "heavy-mutex: AGUARDANDO — ${label}" >&2
-      echo "  lock ........ $_FHM_LOCK (âncora: $prov)" >&2
-      echo "  detentor .... PID ${holder:-'?'}" >&2
+    if [ "$waited" = 0 ] || [ $(( waited % ${FORGE_HEAVY_MUTEX_NOTIFY_S:-60} )) -eq 0 ]; then
+      _fhm_diag "${label}" "${holder:-?}" "$prov" "$waited" "$timeout" "$qon"
     fi
     sleep "${FORGE_HEAVY_MUTEX_POLL_S:-1}"
     waited=$((waited + ${FORGE_HEAVY_MUTEX_POLL_S:-1}))

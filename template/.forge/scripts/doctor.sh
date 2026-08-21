@@ -184,6 +184,27 @@ EOF_CHG
   # uma mensagem em quarentena esperando o thread-open, um ack pendente: nada disso é defeito desta
   # instalação, e reprovar o doctor por isso faria o operador aprender a ignorar o doctor.
   # Divergência e conflito aparecem aqui porque exigem decisão humana, mas com marcador `·`.
+  # Mutex de carga pesada (issue #52). Três coisas que só o doctor pode dizer: se o repositório
+  # declara `enabled: true` mas o interruptor da MÁQUINA está desligado (o interruptor mora em
+  # /tmp e some no reboot — é a mitigação declarada dessa incerteza), se há órfão, e se ainda há
+  # lock vivo em caminho LEGADO derivado de TMPDIR, que não serializa com o ancorado.
+  if [ -f "$ROOT/.forge/scripts/lib/heavy-mutex.sh" ]; then
+    hm_line="$(FORGE_ROOT="$ROOT" bash "$ROOT/.forge/scripts/lib/heavy-mutex.sh" 2>/dev/null; \
+               FORGE_ROOT="$ROOT" bash -c '. "$0"; forge_heavy_mutex_status 2>/dev/null | tr "\n" " "' \
+               "$ROOT/.forge/scripts/lib/heavy-mutex.sh" 2>/dev/null || true)"
+    [ -n "$hm_line" ] && echo "  · harness: HEAVY-MUTEX: $hm_line"
+    hm_res="$(awk '/^heavy_mutex:/{f=1;next} f&&/^[a-z]/{f=0} f&&/^[[:space:]]*resource:/{sub(/^[[:space:]]*resource:[[:space:]]*/,"");gsub(/["'"'"']/,"");print;exit}' "$ROOT/.forge/forge.yaml" 2>/dev/null)"
+    [ -n "$hm_res" ] || hm_res="forge-heavy-suite"
+    if awk '/^heavy_mutex:/{f=1;next} f&&/^[a-z]/{f=0} f&&/^[[:space:]]*enabled:[[:space:]]*true/{print "y";exit}' "$ROOT/.forge/forge.yaml" 2>/dev/null | grep -q y; then
+      [ -f "/tmp/$hm_res.q.enabled" ] \
+        || echo "  · harness: heavy_mutex habilitado no repo, mas a FILA da máquina está desligada (ligue com: heavy-run.sh queue enable)"
+    fi
+    for hm_leg in "${TMPDIR:-/tmp}/$hm_res.lock"; do
+      [ "$hm_leg" = "/tmp/$hm_res.lock" ] && continue
+      [ -d "$hm_leg" ] && echo "  ✗ harness: lock LEGADO vivo em $hm_leg — este caminho NÃO serializa com /tmp/$hm_res.lock (recolha com: heavy-run.sh sweep --legacy)"
+    done
+  fi
+
   if [ -d "$ROOT/.forge/liaison" ] && [ -f "$ROOT/.forge/scripts/liaison-ops.sh" ]; then
     liaison_line="$(FORGE_ROOT="$ROOT" bash "$ROOT/.forge/scripts/liaison-ops.sh" status 2>/dev/null || true)"
     if [ -n "$liaison_line" ] && [ "$liaison_line" != "LIAISON: não inicializado" ]; then

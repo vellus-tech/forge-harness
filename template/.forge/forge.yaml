@@ -88,3 +88,14 @@ autonomy:
     - promote_staging
     - adapter_removal
     - branch_cleanup
+
+# Mutex de carga pesada por MÁQUINA (issue #52). Chega DESLIGADO: o harness é publicado no npm e
+# instalado por terceiros, e chegar serializando o pre-push de repositórios não relacionados é como
+# um gate vira `--no-verify` de hábito. Ligue quando houver carga que dispute CPU ou daemon Docker.
+#
+# `resource` é o NOME do recurso, e ele define o caminho do lock (`/tmp/<resource>.lock`). Dois
+# repositórios que declaram o mesmo nome se serializam entre si; nomes diferentes não se veem.
+heavy_mutex:
+  enabled: false
+  resource: forge-heavy-suite
+  timeout_s: 1800

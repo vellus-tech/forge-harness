@@ -1267,6 +1267,30 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0052"
+    },
+    {
+      "id": "LDG-0053",
+      "type": "known-bug",
+      "title": "Mutex de suíte pesada: lock por TMPDIR e polling sem fila (issue #52)",
+      "detail": "Dois defeitos independentes que se compõem, medidos em campo no ecossistema Axis e usados por 37 arquivos em quatro repositórios. (a) O lock resolvia por $TMPDIR, que no macOS é por usuário E por contexto de invocação: quatro valores distintos ativos na mesma máquina, dois locks vivos simultâneos e um órfão de catorze horas que a detecção por kill -0 nunca alcançou porque olhava o outro arquivo. Modo de falha silencioso na direção pior — cada lado adquire com sucesso e acredita estar protegido. (b) 'while ! mkdir' garante exclusão e não garante ordem: quem solta e retoma está a poucas instruções do mkdir, quem espera dorme num intervalo de polling, e a chance não melhora com paciência. É inanição, não lentidão — medido, 1305s de fila para achar um erro de 8s. Resolvido com primitivo no template: lib/heavy-mutex.sh (âncora de três regimes, identidade por ps com deteccao de zumbi e PID reciclado, confirmação de posse com retry, reivindicação atômica de órfão, fila FIFO cujo portão de justiça é separado do gate de segurança, reentrância reavaliada por poll, interruptor de fila, traps transparentes), heavy-run.sh, check-heavy-mutex.sh e fiação no pre-push. Gate w151 com 45 cenários.",
+      "severity": null,
+      "priority": "P1",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-20T20:59:04-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0053"
     }
   ]
 }

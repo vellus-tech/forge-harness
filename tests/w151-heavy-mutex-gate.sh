@@ -66,6 +66,14 @@ q_count() { local n=0 f; for f in "$1"/*; do [ -d "$f" ] && n=$((n+1)); done; pr
 FORGE_HEAVY_MUTEX_TESTING=1
 export FORGE_HEAVY_MUTEX_TESTING
 
+# Teto de parede DECLARADO e asseverado. A suíte usa processos reais — sleepers, zumbi por fork,
+# cinco concorrentes disputando — porque simular escalonamento provaria outra coisa. O custo disso
+# é tempo, e tempo que ninguém mede vira suíte que ninguém roda. Se o teto for ultrapassado, o
+# gate reprova: encurtar espera que sustenta propriedade é como um cenário passa a medir outra
+# coisa (aconteceu duas vezes nesta suíte).
+GATE_START="$(date +%s)"
+GATE_BUDGET_S="${W151_BUDGET_S:-420}"
+
 SCENARIOS_RUN=0
 scenario() { SCENARIOS_RUN=$((SCENARIOS_RUN + 1)); echo "$1"; }
 
@@ -858,4 +866,7 @@ echo "OK [36]"
 
 [ "$SCENARIOS_RUN" -gt 0 ] \
   || { echo "FAIL [contador]: nenhum cenário executado — um gate que não roda nada não cobre nada"; exit 1; }
-echo "PASS w151-heavy-mutex ($SCENARIOS_RUN cenário(s))"
+GATE_ELAPSED=$(( $(date +%s) - GATE_START ))
+[ "$GATE_ELAPSED" -le "$GATE_BUDGET_S" ] \
+  || { echo "FAIL [orçamento]: a suíte levou ${GATE_ELAPSED}s, acima do teto declarado de ${GATE_BUDGET_S}s — reveja as esperas ou o teto, mas não deixe crescer em silêncio"; exit 1; }
+echo "PASS w151-heavy-mutex ($SCENARIOS_RUN cenário(s), ${GATE_ELAPSED}s de ${GATE_BUDGET_S}s)"

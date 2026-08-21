@@ -97,7 +97,7 @@ while IFS= read -r f; do
   fi
   # 7. Aritmética sobre ticket zero-padded sem `10#`: bash lê como octal e morre.
   if { grep -nE '^[^#]*\$\(\( *\$\{?[A-Za-z_]*(ticket|stamp|us20)[A-Za-z_]*\}? *\)\)' "$f" 2>/dev/null \
-       || grep -nE "^[^#]*printf +['\"]%d['\"] +\"?\$\{?[A-Za-z_]*(ticket|stamp|us20)" "$f" 2>/dev/null; } | grep -qv '10#'; then
+       || grep -nE '^[^#]*printf +.%d. +"?\$\{?[A-Za-z_]*(ticket|stamp|us20)' "$f" 2>/dev/null; } | grep -qv '10#'; then
     report "$f: aritmética sobre ticket sem '10#' — bash lê zeros à esquerda como octal e morre com 'value too great for base'."
   fi
   # 9. `mkdir -p` para materializar a âncora: aceita symlink pré-existente.

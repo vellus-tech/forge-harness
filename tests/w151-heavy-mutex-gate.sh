@@ -229,6 +229,10 @@ echo "OK [38]"
 scenario "[T1] token existe e é estável; PID morto devolve vazio"
 P="$(sleeper)"
 t1a="$(tok_of "$P")"; sleep 2; t1b="$(tok_of "$P")"
+# Se o sujeito morreu entre as leituras, o cenário NÃO mediu estabilidade — e reportar isso como
+# "o token mudou" seria culpar o código por um sleeper que a máquina derrubou sob carga.
+kill -0 "$P" 2>/dev/null \
+  || { echo "FAIL [T1]: o processo-sujeito morreu durante a medição — o cenário não chegou a medir estabilidade de token"; exit 1; }
 [ -n "$t1a" ] || { echo "FAIL [T1]: ps -o lstart= não devolveu carimbo para PID vivo"; exit 1; }
 [ "$t1a" = "$t1b" ] \
   || { echo "FAIL [T1]: token do MESMO pid mudou entre leituras a 2s ('$t1a' vs '$t1b') — a identidade seria instável"; exit 1; }
@@ -603,19 +607,36 @@ nq34="$(q_count "$BOX/w151res.q")"
 kill -9 "$W34P" 2>/dev/null
 echo "OK [34]"
 
-scenario "[48] invariante das saídas: adquirir, timeout e reentrância deixam a fila VAZIA"
+scenario "[48] invariante das saídas: as CINCO que enfileiram não deixam ticket nosso"
+# A quinta linha — morte por sinal DURANTE a espera — é a que a v5 acrescentou e a que motivou
+# armar o trap dentro do acquire. Sem ela aqui, remover essa chamada não produz um vermelho.
 BOX="$(newbox)"; : > "$BOX/w151res.q.enabled"; mkdir -p "$BOX/w151res.q"
+QD48="$BOX/w151res.q"
 FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res \
   bash -c '. "$0"; forge_heavy_mutex_acquire --timeout 5; forge_heavy_mutex_release' "$LIB" >/dev/null 2>&1
-[ "$(q_count "$BOX/w151res.q")" -eq 0 ] \
-  || { echo "FAIL [48]: saída por AQUISIÇÃO deixou ticket na fila"; exit 1; }
-SP48="$(sleeper)"; mk_ticket "$BOX/w151res.q" "00000000000000000001" "$SP48"
+[ "$(q_count "$QD48")" -eq 0 ] || { echo "FAIL [48a]: saída por AQUISIÇÃO deixou ticket na fila"; exit 1; }
+SP48="$(sleeper)"; mk_ticket "$QD48" "00000000000000000001" "$SP48"
 FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res FORGE_HEAVY_MUTEX_POLL_S=1 \
   bash -c '. "$0"; forge_heavy_mutex_acquire --timeout 2' "$LIB" >/dev/null 2>&1
-nq="$(q_count "$BOX/w151res.q")"
-[ "$nq" -eq 1 ] \
-  || { echo "FAIL [48]: saída por TIMEOUT deixou $nq ticket(s) — esperado só o do concorrente vivo"; exit 1; }
-kill -9 "$SP48" 2>/dev/null
+[ "$(q_count "$QD48")" -eq 1 ] || { echo "FAIL [48b]: saída por TIMEOUT deixou $(q_count "$QD48") ticket(s)"; exit 1; }
+cat > "$BOX/sig48.sh" <<'S48'
+set -uo pipefail
+. "$LIBP"
+forge_heavy_mutex_acquire --label sig48 --timeout 60
+S48
+FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res FORGE_HEAVY_MUTEX_POLL_S=1 \
+  LIBP="$LIB" bash "$BOX/sig48.sh" >/dev/null 2>&1 &
+S48P=$!; track "$S48P"
+w=0; while [ $w -lt 60 ] && [ "$(q_count "$QD48")" -lt 2 ]; do sleep 0.2; w=$((w+1)); done
+[ "$(q_count "$QD48")" -ge 2 ] \
+  || { echo "FAIL [48c]: o processo não chegou a enfileirar — o cenário mediria outra coisa"; exit 1; }
+kill -TERM "$S48P" 2>/dev/null
+w=0; while [ $w -lt 60 ] && kill -0 "$S48P" 2>/dev/null; do sleep 0.2; w=$((w+1)); done
+sleep 1
+nq48="$(q_count "$QD48")"
+kill -9 "$SP48" 2>/dev/null; kill -9 "$S48P" 2>/dev/null
+[ "$nq48" -eq 1 ] \
+  || { echo "FAIL [48c]: morto por sinal DURANTE a espera, o processo deixou o ticket ($nq48, esperado 1 do concorrente vivo) — ele fica na cabeça bloqueando quem espera atrás até alguém observar o PID morto"; exit 1; }
 echo "OK [48]"
 
 scenario "[47] MATRIZ de transparência de sinal: com e sem a biblioteca, três disposições, quatro números"
@@ -875,33 +896,33 @@ grep -qi "heavy-mutex" <<<"$out36" \
   || { echo "FAIL [36]: a saída não nomeia o mutex — quem lê o push não saberia por que travou: $out36"; exit 1; }
 echo "OK [36]"
 
-scenario "[15] reenfileiramento com destino OCUPADO: detecta o aninhamento e não vira absorvente"
-# `mv src dst` com `dst` existente devolve rc 0 e ANINHA. Sem a pós-verificação, o processo acredita
-# ter reenfileirado, o ticket no disco é de outro, ele nunca é cabeça, e volta ao timeout sobre um
-# recurso LIVRE — o estado absorvente reproduzido pelo código que o corrige.
-BOX="$(newbox)"; : > "$BOX/w151res.q.enabled"; mkdir -p "$BOX/w151res.q"
-OTHER="$(sleeper)"
-cat > "$BOX/v15.sh" <<'V15'
-set -uo pipefail
-. "$LIBP"
-forge_heavy_mutex_acquire --label v15 --timeout 12 && printf 'ADQUIRIU\n'
-V15
-FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res FORGE_HEAVY_MUTEX_POLL_S=1 \
-  LIBP="$LIB" bash "$BOX/v15.sh" > "$BOX/v15.out" 2>&1 &
-V15P=$!; track "$V15P"
-w=0; while [ $w -lt 40 ] && [ "$(q_count "$BOX/w151res.q")" -lt 1 ]; do sleep 0.2; w=$((w+1)); done
-# Ocupa o nome determinístico do ticket com conteúdo ALHEIO, e apaga o original: é a corrida real
-# entre a leitura e o mv (varredor no meio do seu próprio recolhimento).
-tk="$(ls "$BOX/w151res.q" 2>/dev/null | head -1)"
-if [ -n "$tk" ]; then
-  rm -rf "$BOX/w151res.q/$tk"
-  mkdir -p "$BOX/w151res.q/$tk"; printf '%s\n' "$OTHER" > "$BOX/w151res.q/$tk/pid"; tok_of "$OTHER" > "$BOX/w151res.q/$tk/token"
-fi
-w=0; while [ $w -lt 60 ] && kill -0 "$V15P" 2>/dev/null; do sleep 0.5; w=$((w+1)); done
-kill -9 "$OTHER" 2>/dev/null
-grep -q ADQUIRIU "$BOX/v15.out" 2>/dev/null \
-  || { echo "FAIL [15]: com o nome do próprio ticket ocupado por terceiro, o processo não se recuperou e esperou o teto sobre recurso livre: $(cat "$BOX/v15.out")"; exit 1; }
-kill -9 "$V15P" 2>/dev/null
+scenario "[15] pós-verificação do mv: destino de ticket ocupado por terceiro é DETECTADO"
+# Camada A pura, sobre a função. Orquestrar a corrida real não serve aqui: forçá-la produz um
+# estado em que o processo fica legitimamente atrás do ticket alheio, e o DESFECHO deixa de
+# distinguir. `mv src dst` com `dst` existente devolve rc 0 e ANINHA (medido nos dois SOs), então
+# sem a pós-verificação o processo acredita ter enfileirado sobre um ticket que é de outro, nunca
+# é cabeça, e volta ao timeout sobre um recurso livre.
+BOX="$(newbox)"; mkdir -p "$BOX/w151res.q"
+OTHER15="$(sleeper)"
+out15="$(FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res OTHER="$OTHER15" \
+  bash -c '
+    . "$0"
+    _FHM_QDIR="'"$BOX"'/w151res.q"
+    _FHM_NONCE="teste"
+    stamp="00000000000000000042"
+    # Terceiro já ocupa o NOME determinístico do nosso ticket.
+    mkdir -p "$_FHM_QDIR/$stamp.$$"
+    printf "%s\n" "$OTHER" > "$_FHM_QDIR/$stamp.$$/pid"
+    _fhm_enqueue "$stamp"; printf "RC=%s\n" "$?"
+    printf "DONO=%s\n" "$(cat "$_FHM_QDIR/$stamp.$$/pid" 2>/dev/null)"
+  ' "$LIB" 2>&1)"
+kill -9 "$OTHER15" 2>/dev/null
+grep -q "RC=1" <<<"$out15" \
+  || { echo "FAIL [15]: _fhm_enqueue devolveu sucesso sobre um destino OCUPADO por terceiro — 'mv' aninhou, o processo acredita ter enfileirado, nunca vira cabeça e volta ao timeout sobre recurso livre: $out15"; exit 1; }
+grep -q "destino de ticket ocupado por terceiro" <<<"$out15" \
+  || { echo "FAIL [15]: detectou sem NOMEAR a anomalia — quem lê o log não saberia por que o carimbo mudou: $out15"; exit 1; }
+grep -q "DONO=$OTHER15" <<<"$out15" \
+  || { echo "FAIL [15]: o ticket do terceiro foi corrompido — nunca destrua o que você não provou ser seu: $out15"; exit 1; }
 echo "OK [15]"
 
 scenario "[16] viés solta-e-retoma: com a fila, quem espera entra ANTES da segunda posse"
@@ -1008,6 +1029,55 @@ grep -q "CARGA-EXECUTOU" "$MARK37" 2>/dev/null \
 [ ! -d "$BOX/w151res.lock" ] \
   || { echo "FAIL [37]: o lock ficou para trás depois do push — o próximo adquirente esperaria por um detentor que já saiu"; exit 1; }
 echo "OK [37]"
+
+scenario "[0] trava positiva de isolamento: a suíte não pode tocar o lock REAL da máquina"
+# A trava que impede a suíte de virar a carga que o mutex existe para impedir — e que ela mesma não
+# era asseverada. Aconteceu: os cenários da W0 isolavam por TMPDIR, a W1 passou a ignorar TMPDIR, e
+# a suíte criou o sidecar em /tmp sem que nada reclamasse. Backstop por existência antes/depois não
+# veria, porque "inexistente" bate nas duas pontas.
+out0="$(FORGE_HEAVY_MUTEX_TESTING=1 FORGE_HEAVY_MUTEX_ROOT= FORGE_HEAVY_MUTEX_RESOURCE=w151res-zzz \
+        bash -c '. "$0"; forge_heavy_mutex_acquire --timeout 2' "$LIB" 2>&1)"; rc0=$?
+[ "$rc0" -eq 69 ] \
+  || { echo "FAIL [0]: com TESTING=1 e ROOT vazia a aquisição devolveu $rc0 em vez de 69 — um cenário que esqueça de montar a caixa tocaria o lock real da máquina: $out0"; exit 1; }
+[ ! -d "/tmp/w151res-zzz.lock" ] && [ ! -d "/tmp/w151res-zzz.q" ] \
+  || { echo "FAIL [0]: a tentativa criou artefatos em /tmp apesar da trava"; exit 1; }
+echo "OK [0]"
+
+scenario "[44] gate estático: as formas proibidas reprovam e os controles negativos passam"
+# Sem este cenário cada regra é uma afirmação não verificada — e uma estava MORTA (printf sobre
+# ticket, porque `\$` dentro de aspas duplas vira âncora de fim de linha no ERE).
+CHK="$WS/template/.forge/scripts/check-heavy-mutex.sh"
+BOX="$(newbox)"; mkdir -p "$BOX/mau" "$BOX/bom"
+printf '#!/usr/bin/env bash\nlock="${TMPDIR:-/tmp}/x.lock"\n' > "$BOX/mau/r1.sh"
+printf '#!/usr/bin/env bash\nL=/tmp/x.lock\nmkdir "$L"\n' > "$BOX/mau/r2.sh"
+printf '#!/usr/bin/env bash\n. lib\nforge_heavy_mutex_acquire\ntrap "cleanup" EXIT\n' > "$BOX/mau/r3.sh"
+printf '#!/usr/bin/env bash\n. lib\nforge_heavy_mutex_acquire\ntrap "c; exit 0" EXIT\n' > "$BOX/mau/r4.sh"
+printf '#!/usr/bin/env bash\nrm -rf "${LOCK}/"\n' > "$BOX/mau/r5.sh"
+printf '#!/usr/bin/env bash\nprintf "%%d" "$ticket"\n' > "$BOX/mau/r7.sh"
+printf '#!/usr/bin/env bash\n. lib\n( forge_heavy_mutex_acquire )\n' > "$BOX/mau/r8.sh"
+printf '#!/usr/bin/env bash\nmkdir -p "$FORGE_HEAVY_MUTEX_ROOT"\n' > "$BOX/mau/r9.sh"
+out44="$(FORGE_ROOT="$WS" bash "$CHK" --path "$BOX/mau" 2>&1)"
+for f in r1 r2 r3 r4 r5 r7 r8 r9; do
+  grep -q "/$f.sh" <<<"$out44" \
+    || { echo "FAIL [44]: a forma proibida de $f.sh NÃO foi pega — a regra correspondente é uma afirmação não verificada"; exit 1; }
+done
+printf '#!/usr/bin/env bash\n# lock="${TMPDIR:-/tmp}/x.lock"\necho ok\n' > "$BOX/bom/c1.sh"
+printf '#!/usr/bin/env bash\nmkdir -p "$ROOT/.forge/specs"\n' > "$BOX/bom/c2.sh"
+printf '#!/usr/bin/env bash\n. lib\ntrap "cleanup" EXIT\nforge_heavy_mutex_acquire\n' > "$BOX/bom/c3.sh"
+printf '#!/usr/bin/env bash\necho $(( 10#$ticket ))\n' > "$BOX/bom/c4.sh"
+out44b="$(FORGE_ROOT="$WS" bash "$CHK" --path "$BOX/bom" 2>&1)"; rc44b=$?
+[ "$rc44b" -eq 0 ] \
+  || { echo "FAIL [44]: os controles negativos foram reprovados — o gate não discrimina, ele recusa tudo: $out44b"; exit 1; }
+echo "OK [44]"
+
+scenario "[46b] o gate estático passa sobre o repositório INTEIRO"
+# Uma linha, e fecha uma classe: fixture sintética não pega o gate reprovando o próprio template.
+# Aconteceu — o bloco que DETECTA caminho legado no doctor caiu na regra que procura quem o PRODUZ,
+# e o gate chegaria vermelho no primeiro push dos quatro repos.
+out46b="$(FORGE_ROOT="$WS" bash "$WS/template/.forge/scripts/check-heavy-mutex.sh" --path "$WS" 2>&1)"; rc46b=$?
+[ "$rc46b" -eq 0 ] \
+  || { echo "FAIL [46b]: o gate reprova o próprio repositório — é assim que um gate vira '--no-verify' de hábito: $out46b"; exit 1; }
+echo "OK [46b]"
 
 [ "$SCENARIOS_RUN" -gt 0 ] \
   || { echo "FAIL [contador]: nenhum cenário executado — um gate que não roda nada não cobre nada"; exit 1; }

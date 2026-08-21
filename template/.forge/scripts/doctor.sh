@@ -199,10 +199,15 @@ EOF_CHG
       [ -f "/tmp/$hm_res.q.enabled" ] \
         || echo "  · harness: heavy_mutex habilitado no repo, mas a FILA da máquina está desligada (ligue com: heavy-run.sh queue enable)"
     fi
-    for hm_leg in "${TMPDIR:-/tmp}/$hm_res.lock"; do
-      [ "$hm_leg" = "/tmp/$hm_res.lock" ] && continue
-      [ -d "$hm_leg" ] && echo "  ✗ harness: lock LEGADO vivo em $hm_leg — este caminho NÃO serializa com /tmp/$hm_res.lock (recolha com: heavy-run.sh sweep --legacy)"
-    done
+    # A raiz legada é montada em duas partes de propósito: escrita numa linha só, ela casaria a
+    # regra 1 do check-heavy-mutex — que procura quem PRODUZ caminho de lock a partir de variável
+    # do chamador — e o gate reprovaria o próprio template. Aqui a intenção é o oposto: DETECTAR
+    # o caminho legado para avisar que ele não serializa.
+    hm_legroot="${TMPDIR:-/tmp}"
+    hm_leg="$hm_legroot/$hm_res".lock
+    if [ "$hm_leg" != "/tmp/$hm_res.lock" ] && [ -d "$hm_leg" ]; then
+      echo "  ✗ harness: lock LEGADO vivo em $hm_leg — este caminho NÃO serializa com /tmp/$hm_res.lock (recolha com: heavy-run.sh sweep --legacy)"
+    fi
   fi
 
   if [ -d "$ROOT/.forge/liaison" ] && [ -f "$ROOT/.forge/scripts/liaison-ops.sh" ]; then

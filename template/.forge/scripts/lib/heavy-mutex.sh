@@ -41,6 +41,7 @@ _FHM_WAIT_START=""
 _FHM_CLOCK="hires"
 _FHM_RELEASED=0
 _FHM_ANCESTOR=""
+_FHM_LAST_NOTIFY=0
 
 # 0 quando <pid> é ancestral deste processo. Reentrância por LINHAGEM, não por variável de
 # ambiente: quem empurra via `heavy-run.sh -- git push` já detém o lock, e o wrapper não exporta
@@ -413,6 +414,8 @@ _fhm_queue_enabled() { [ -f "$_FHM_QSWITCH" ]; }
 _fhm_leave_queue() {
   [ -n "${_FHM_TICKET:-}" ] || return 0
   [ -d "$_FHM_TICKET" ] || { _FHM_TICKET=""; return 0; }
+  # Nunca destrua o que você não provou ser seu — mesmo princípio do `release`.
+  [ "$(cat "$_FHM_TICKET/pid" 2>/dev/null)" = "$$" ] || { _FHM_TICKET=""; return 0; }
   local reap="$_FHM_QDIR/.reaping.$(basename "$_FHM_TICKET").${_FHM_NONCE:-x}"
   mv "$_FHM_TICKET" "$reap" 2>/dev/null && rm -rf "$reap" 2>/dev/null
   _FHM_TICKET=""
@@ -556,8 +559,22 @@ _fhm_claim() {  # _fhm_claim <label>
   return 0
 }
 
+# Terceira precedência do timeout: env > forge.yaml > 1800. Sem ela, a chave `timeout_s` que o
+# template entrega seria config publicada no npm que ninguém lê — pior que não ter a chave, porque
+# quem a ajusta acredita ter ajustado. É a frase que este arquivo aplica aos aliases do wrapper.
+_fhm_yaml_timeout() {
+  local yaml="${FORGE_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null)}/.forge/forge.yaml"
+  [ -f "$yaml" ] || return 0
+  awk '/^heavy_mutex:/{f=1;next} f&&/^[a-z]/{f=0} f&&/^[[:space:]]*timeout_s:/{sub(/^[[:space:]]*timeout_s:[[:space:]]*/,"");gsub(/["'"'"']/,"");print;exit}' "$yaml" 2>/dev/null
+}
+
 forge_heavy_mutex_acquire() {
-  local label="carga pesada" timeout="${FORGE_HEAVY_MUTEX_TIMEOUT_S:-1800}" waited=0 holder
+  local _t_env="${FORGE_HEAVY_MUTEX_TIMEOUT_S:-}" _t_yaml
+  if [ -z "$_t_env" ]; then
+    _t_yaml="$(_fhm_yaml_timeout)"
+    case "$_t_yaml" in ''|*[!0-9]*) _t_yaml="" ;; esac
+  fi
+  local label="carga pesada" timeout="${_t_env:-${_t_yaml:-1800}}" waited=0 holder
   while [ $# -gt 0 ]; do
     case "$1" in
       --label) label="$2"; shift 2 ;;
@@ -607,7 +624,7 @@ forge_heavy_mutex_acquire() {
   # no-op. Durante a espera o `release` embutido é no-op (não detemos nada) e o `leave_queue` faz
   # o trabalho. O retorno é ignorado de propósito: dentro de subshell ele recusa com 64, e isso
   # não pode transformar uma aquisição legítima em falha.
-  forge_heavy_mutex_arm_trap >/dev/null 2>&1 || true
+  forge_heavy_mutex_arm_trap >/dev/null || true
 
   local qon="DESLIGADA" head
   if _fhm_queue_enabled; then
@@ -639,7 +656,12 @@ forge_heavy_mutex_acquire() {
       qon="LIGADA"
       # O próprio ticket pode ter sido varrido por terceiro. Não reenfileirar tornaria "não sou
       # cabeça" um estado ABSORVENTE: medido, o processo espera o teto inteiro com o lock LIVRE.
-      if [ -z "${_FHM_TICKET:-}" ] || [ ! -d "$_FHM_TICKET" ]; then
+      # "existe?" NÃO basta: o nome do ticket é determinístico, então ele pode ter sido ocupado por
+      # terceiro entre a nossa leitura e agora. Adotá-lo faz o processo contar-se como cabeça pelo
+      # ticket alheio e, no leave_queue, DESTRUIR o ticket de um processo vivo — a proibição que
+      # este arquivo aplica com rigor ao lock (release confere pid e nonce) e não aplicava aqui.
+      if [ -z "${_FHM_TICKET:-}" ] || [ ! -d "$_FHM_TICKET" ] \
+         || [ "$(cat "$_FHM_TICKET/pid" 2>/dev/null)" != "$$" ]; then
         _FHM_TICKET=""
         _fhm_enqueue "$_FHM_WAIT_START" || _fhm_enqueue "$(_fhm_now_us20)" || true
       fi
@@ -654,8 +676,11 @@ forge_heavy_mutex_acquire() {
         fi
         # Primeira espera e a cada NOTIFY_S — nunca a cada poll. Numa espera de trinta minutos,
         # uma linha no segundo zero é o mesmo que silêncio.
-        if [ "$waited" = 0 ] || [ $(( waited % ${FORGE_HEAVY_MUTEX_NOTIFY_S:-60} )) -eq 0 ]; then
+        # Diferença desde a última impressão, não módulo: com POLL_S que não divide NOTIFY_S, o
+        # módulo pula reimpressões inteiras — medido, 2 em vez de 4 numa espera de 13s.
+        if [ "$waited" = 0 ] || [ $(( waited - _FHM_LAST_NOTIFY )) -ge "${FORGE_HEAVY_MUTEX_NOTIFY_S:-60}" ]; then
           _fhm_diag "${label}" "${holder:-?}" "$prov" "$waited" "$timeout" "LIGADA"
+          _FHM_LAST_NOTIFY="$waited"
         fi
         sleep "${FORGE_HEAVY_MUTEX_POLL_S:-5}"
         waited=$((waited + ${FORGE_HEAVY_MUTEX_POLL_S:-5}))
@@ -699,11 +724,15 @@ forge_heavy_mutex_acquire() {
       _fhm_leave_queue
       return 75
     fi
-    if [ "$waited" = 0 ] || [ $(( waited % ${FORGE_HEAVY_MUTEX_NOTIFY_S:-60} )) -eq 0 ]; then
+    if [ "$waited" = 0 ] || [ $(( waited - _FHM_LAST_NOTIFY )) -ge "${FORGE_HEAVY_MUTEX_NOTIFY_S:-60}" ]; then
       _fhm_diag "${label}" "${holder:-?}" "$prov" "$waited" "$timeout" "$qon"
+      _FHM_LAST_NOTIFY="$waited"
     fi
-    sleep "${FORGE_HEAVY_MUTEX_POLL_S:-1}"
-    waited=$((waited + ${FORGE_HEAVY_MUTEX_POLL_S:-1}))
+    # A CABEÇA dorme por POLL_HEAD_S (default 1s), não por POLL_S: é ela que decide a ociosidade do
+    # lock entre uma posse e a seguinte. Usar POLL_S aqui fazia POLL_HEAD_S ser inerte e a §D4 valer
+    # só por coincidência de dois literais diferentes para a mesma variável.
+    sleep "${FORGE_HEAVY_MUTEX_POLL_HEAD_S:-1}"
+    waited=$((waited + ${FORGE_HEAVY_MUTEX_POLL_HEAD_S:-1}))
   done
 
   _FHM_OWNED="true"

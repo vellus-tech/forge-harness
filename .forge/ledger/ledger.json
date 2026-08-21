@@ -1267,6 +1267,66 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0052"
+    },
+    {
+      "id": "LDG-0053",
+      "type": "known-bug",
+      "title": "Mutex de suíte pesada: lock por TMPDIR e polling sem fila (issue #52)",
+      "detail": "Dois defeitos independentes que se compõem, medidos em campo no ecossistema Axis e usados por 37 arquivos em quatro repositórios. (a) O lock resolvia por $TMPDIR, que no macOS é por usuário E por contexto de invocação: quatro valores distintos ativos na mesma máquina, dois locks vivos simultâneos e um órfão de catorze horas que a detecção por kill -0 nunca alcançou porque olhava o outro arquivo. Modo de falha silencioso na direção pior — cada lado adquire com sucesso e acredita estar protegido. (b) 'while ! mkdir' garante exclusão e não garante ordem: quem solta e retoma está a poucas instruções do mkdir, quem espera dorme num intervalo de polling, e a chance não melhora com paciência. É inanição, não lentidão — medido, 1305s de fila para achar um erro de 8s. Resolvido com primitivo no template: lib/heavy-mutex.sh (âncora de três regimes, identidade por ps com deteccao de zumbi e PID reciclado, confirmação de posse com retry, reivindicação atômica de órfão, fila FIFO cujo portão de justiça é separado do gate de segurança, reentrância reavaliada por poll, interruptor de fila, traps transparentes), heavy-run.sh, check-heavy-mutex.sh e fiação no pre-push. Gate w151 com 45 cenários.",
+      "severity": null,
+      "priority": "P1",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-20T20:59:04-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0053"
+    },
+    {
+      "id": "LDG-0054",
+      "type": "known-bug",
+      "title": "check-heavy-mutex regra 1: o predicado mede grafia, não intenção",
+      "detail": "A regra 1 procura a variável e a palavra 'lock' na MESMA linha, o que é um predicado sobre grafia. Quebrar a expressão em duas linhas desarma a regra sem mudar uma vírgula da semântica — foi o que o doctor.sh precisou fazer para detectar o caminho legado sem ser acusado de produzi-lo, e qualquer um pode repetir a quebra por acaso e perder a proteção sem saber. Correção proposta: uma válvula DECLARADA (um marcador na linha, ex. '# heavy-mutex: detecção') que o gate reconheça, para a intenção viver no código e não num comentário adjacente. Não foi feito agora porque muda o contrato de um gate que consumidores já declaram em runtime.gates, e o cenário [46b] já impede a regressão silenciosa que importa.",
+      "severity": "low",
+      "priority": "P3",
+      "status": "open",
+      "source": "code-review adversarial (issue #52, 4a rodada)",
+      "links": [
+        "https://github.com/vellus-tech/forge-harness/issues/52",
+        "https://github.com/vellus-tech/forge-harness/pull/68"
+      ],
+      "created_at": "2026-08-21T12:00:00-03:00",
+      "updated_at": "2026-08-21T12:00:00-03:00",
+      "resolved_at": null,
+      "dedup_key": "heavy-mutex-regra1-grafia"
+    },
+    {
+      "id": "LDG-0055",
+      "type": "known-bug",
+      "title": "w151 [15]: recuperação de ticket ocupado coberta por unidade, sem rede de integração",
+      "detail": "O caminho 6c -> reenfileirar com carimbo novo é exercitado como camada A determinística e foi verificado à mão ponta a ponta na revisão (terceiro ocupa o nome, a vítima NÃO adota, reenfileira, fica atrás, e o ticket alheio sai preservado). Falta o cenário de integração. Registrado com a ressalva que impede repetir o erro: a forma de integração que existia ANTES era vácua — a mutação MUT-H passava 50/50 com ela, porque a vítima adotava o ticket alheio e o cenário aprovava pelo motivo errado. Reexigi-la sem redesenhar seria pedir de volta um teste que não distinguia.",
+      "severity": "low",
+      "priority": "P3",
+      "status": "open",
+      "source": "code-review adversarial (issue #52, 4a rodada)",
+      "links": [
+        "https://github.com/vellus-tech/forge-harness/issues/52",
+        "https://github.com/vellus-tech/forge-harness/pull/68"
+      ],
+      "created_at": "2026-08-21T12:00:00-03:00",
+      "updated_at": "2026-08-21T12:00:00-03:00",
+      "resolved_at": null,
+      "dedup_key": "w151-15-integracao-ausente"
     }
   ]
 }

@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**24 itens ativos** · roadmap 4 · tech-debt 13 · known-bug 4 · follow-up 3 · (27 encerrados)
+**25 itens ativos** · roadmap 4 · tech-debt 13 · known-bug 5 · follow-up 3 · (27 encerrados)
 
 ## Roadmap
 
@@ -61,6 +61,8 @@ _Encerrados: 12 (promoted 1 · resolved 10 · wont-fix 1)_
 
 ## Bugs conhecidos
 
+- **LDG-0053** [open] (P1) — Mutex de suíte pesada: lock por TMPDIR e polling sem fila (issue #52)
+  Dois defeitos independentes que se compõem, medidos em campo no ecossistema Axis e usados por 37 arquivos em quatro repositórios. (a) O lock resolvia por $TMPDIR, que no macOS é por usuário E por contexto de invocação: quatro valores distintos ativos na mesma máquina, dois locks vivos simultâneos e um órfão de catorze horas que a detecção por kill -0 nunca alcançou porque olhava o outro arquivo. Modo de falha silencioso na direção pior — cada lado adquire com sucesso e acredita estar protegido. (b) 'while ! mkdir' garante exclusão e não garante ordem: quem solta e retoma está a poucas instruções do mkdir, quem espera dorme num intervalo de polling, e a chance não melhora com paciência. É inanição, não lentidão — medido, 1305s de fila para achar um erro de 8s. Resolvido com primitivo no template: lib/heavy-mutex.sh (âncora de três regimes, identidade por ps com deteccao de zumbi e PID reciclado, confirmação de posse com retry, reivindicação atômica de órfão, fila FIFO cujo portão de justiça é separado do gate de segurança, reentrância reavaliada por poll, interruptor de fila, traps transparentes), heavy-run.sh, check-heavy-mutex.sh e fiação no pre-push. Gate w151 com 45 cenários.
 - **LDG-0028** [open] (P3/LOW) — forge update: mensagem diz '.forge não encontrado' quando o ausente é o forge.yaml
   bin/forge.mjs:426-427 testa existsSync(.forge/forge.yaml) e, ao falhar, emite '.forge não encontrado em <target> — use npx forge-harness init'. Num projeto com .forge/ presente mas sem forge.yaml (harness parcialmente instalado, forge.yaml apagado, ou o dogfood deste repo), a mensagem manda reinstalar do zero quando o diagnóstico real é outro — e 'init' num .forge/ com specs e baseline é justamente o que o /forge:upgrade proíbe. O exit 3 e o não-escrever estão corretos (REQ-FHT-037); só a mensagem mente sobre a causa. Correção: distinguir os dois casos e, quando .forge/ existe, nomear o arquivo ausente. Achado ao rodar /forge:upgrade neste repo (2026-08-03).
 - **LDG-0031** [open] (P3) — C4: arquivo de boundary de arquivo único, cross-referenciado, não aparece em nenhum dos 3 níveis — e o C3 omite toda aresta cross-boundary

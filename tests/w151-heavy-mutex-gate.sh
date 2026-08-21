@@ -1029,8 +1029,21 @@ echo "     [16] fila LIGADA, ordem justa em $n_on/$N16 ($ord_on); fila DESLIGADA
 # CONTROLE obrigatório: se o viés NUNCA aparecer sem a fila, o cenário é inconclusivo — não se sabe
 # se a fila corrigiu alguma coisa ou se a corrida jamais teve viés para corrigir. Inconclusivo é
 # FAIL, nunca OK.
-[ "$n_off" -ge 2 ] \
-  || { echo "FAIL [16]: sem a fila o viés apareceu em apenas $n_off de $N16 execuções ($ord_off) — o controle não reproduziu o fenômeno, e sem ele a ordem justa com fila não prova que a fila fez diferença"; exit 1; }
+# O limiar é 1, e o número tem origem medida. Em 4 execuções × 7 corridas sobre este commit, o
+# controle mostrou o viés em 15 de 28 (54%) — as execuções deram 5, 4, 4 e 2 de 7, e a de 2/7 é a
+# que importa: com o limiar em 2 ela teria passado por um fio, e uma de 1/7 teria reprovado código
+# correto. Medição independente na revisão deu 8/12 (67%), o que põe a taxa real em algum lugar
+# entre 54% e 67%; adoto a pior. Com p=0,54, a chance de o controle inteiro não reproduzir o viés
+# e o gate reprovar código correto é:
+#     limiar >=1 -> 0,47%  (1 em 215)
+#     limiar >=2 -> 4,2%   (1 em 23)
+# Este gate roda em todo pre-push de todo consumidor que instalar o pacote. Um vermelho a cada 69
+# pushes não é rigor, é o mesmo sorteio de antes com dado menos viciado — e um vermelho que não
+# significa nada é como se ensina --no-verify. Uma ocorrência já satisfaz o que o controle precisa
+# afirmar, que é EXISTÊNCIA do fenômeno; exigir repetição seria confundir existência com medida de
+# frequência, e a frequência quem informa é a contagem impressa acima, sempre.
+[ "$n_off" -ge 1 ] \
+  || { echo "FAIL [16]: sem a fila o viés NÃO apareceu em nenhuma das $N16 execuções ($ord_off) — o controle não reproduziu o fenômeno, e sem ele a ordem justa com fila não prova que a fila fez diferença"; exit 1; }
 echo "OK [16]"
 
 scenario "[29] release confere a remoção em vez de assumir"

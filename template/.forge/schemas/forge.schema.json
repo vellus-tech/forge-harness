@@ -528,8 +528,8 @@
             },
             "timeout_s": {
               "type": "integer",
-              "minimum": 1,
-              "description": "Teto de espera na fila, em segundos. Precedência: FORGE_HEAVY_MUTEX_TIMEOUT_S > este campo > 1800."
+              "minimum": 0,
+              "description": "Teto de espera na fila, em SEGUNDOS. Precedência: FORGE_HEAVY_MUTEX_TIMEOUT_S > este campo > 1800. 0 é válido e significa recusa de imediato — não é erro. A unidade importa: o alias de compatibilidade AXIS_HEAVY_SUITE_WAIT é em minutos, e escrever aqui um valor pensado em minutos dá um teto 60 vezes menor que o pretendido."
             }
           }
         }

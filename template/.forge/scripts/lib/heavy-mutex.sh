@@ -420,7 +420,7 @@ _fhm_leave_queue() {
   # este mutex existe para conter. Abandonar aí largaria o NOSSO ticket vivo na cabeça da fila,
   # travando todo mundo atrás até o teto — perder o próprio lugar por escassez de recurso é o
   # oposto do que a fila promete.
-  _fhm_lq_pid="$(cat "$_FHM_TICKET/pid" 2>/dev/null)"
+  local _fhm_lq_pid; _fhm_lq_pid="$(cat "$_FHM_TICKET/pid" 2>/dev/null)"
   if [ "$_fhm_lq_pid" != "$$" ]; then
     if [ -n "$_fhm_lq_pid" ] || [ ! -f "$_FHM_TICKET/pid" ]; then _FHM_TICKET=""; return 0; fi
     # arquivo presente e leitura vazia ⇒ falha de leitura, não ticket alheio: seguimos e recolhemos.
@@ -584,17 +584,37 @@ _fhm_yaml_timeout() {
 }
 
 forge_heavy_mutex_acquire() {
-  local _t_env="${FORGE_HEAVY_MUTEX_TIMEOUT_S:-}" _t_yaml
+  # Precedência do teto: env > forge.yaml > 1800. Cada degrau é validado ANTES de o seguinte ser
+  # consultado, e essa ordem não é estética: validar o env depois de já ter decidido não ler o YAML
+  # faz um env inválido pular o YAML e cair direto no 1800 — medido, um `timeout_s: 4` declarado no
+  # repositório virava 1800s de espera porque alguém exportou `30m` no ambiente. Um valor inválido
+  # tem de ser tratado como AUSENTE, e ausente é exatamente o que devolve a vez ao degrau de baixo.
+  local _t_env _t_yaml=""
+  _t_env="${FORGE_HEAVY_MUTEX_TIMEOUT_S:-}"
+  # `0` é VÁLIDO nos três caminhos e significa "recusa de imediato", não erro. Antes ele era
+  # recusado no YAML e aceito pela variável de ambiente: a mesma grandeza com duas semânticas para
+  # o mesmo valor, dependendo de onde foi escrita.
+  case "$_t_env" in
+    '') : ;;
+    *[!0-9]*)
+      # SEM esta validação o valor cru chega em `[ "$waited" -ge "$timeout" ]`, o teste falha com
+      # "integer expression expected", o -ge NUNCA é verdade e o teto NUNCA dispara: o acquire fica
+      # preso para sempre. Num pre-push isso é um `git push` que não termina — e a issue que
+      # originou este arquivo nasceu de 1305 segundos de fila, então laço infinito é aquele mesmo
+      # sintoma sem fim e sem um 75 para explicar. O caso realista não é digitar letras ao acaso: o
+      # alias de compatibilidade AXIS_HEAVY_SUITE_WAIT é em MINUTOS, e quem tem "30" na memória
+      # muscular escreve `30m` numa variável que é em SEGUNDOS.
+      printf 'heavy-mutex: FORGE_HEAVY_MUTEX_TIMEOUT_S inválido (%s) — exigido inteiro >= 0 em SEGUNDOS; ignorando\n' "$_t_env" >&2
+      _t_env="" ;;
+  esac
   if [ -z "$_t_env" ]; then
     _t_yaml="$(_fhm_yaml_timeout)"
-    # Descartar em silêncio faria "não configurei" e "configurei errado" terminarem no mesmo lugar,
-    # com o mesmo 1800 e nenhum sinal — a vacuidade que esta suíte inteira existe para eliminar,
-    # aplicada à própria configuração. Valor ausente é legítimo e cala; valor PRESENTE e inválido
-    # avisa em stderr e segue com o default, porque config errada não deve travar um push.
+    # Valor ausente é legítimo e cala; valor PRESENTE e inválido avisa em stderr e segue para o
+    # degrau seguinte, porque config errada não deve travar um push.
     case "$_t_yaml" in
       '') : ;;
-      *[!0-9]*|0)
-        printf 'heavy-mutex: timeout_s inválido no forge.yaml (%s) — exigido inteiro positivo; usando 1800s\n' "$_t_yaml" >&2
+      *[!0-9]*)
+        printf 'heavy-mutex: timeout_s inválido no forge.yaml (%s) — exigido inteiro >= 0; usando 1800s\n' "$_t_yaml" >&2
         _t_yaml="" ;;
     esac
   fi
@@ -607,7 +627,13 @@ forge_heavy_mutex_acquire() {
   while [ $# -gt 0 ]; do
     case "$1" in
       --label) label="$2"; shift 2 ;;
-      --timeout) timeout="$2"; shift 2 ;;
+      --timeout)
+        case "${2:-}" in
+          ''|*[!0-9]*)
+            echo "heavy-mutex: --timeout inválido '${2:-}' — exigido inteiro >= 0 em segundos" >&2
+            return 64 ;;
+        esac
+        timeout="$2"; shift 2 ;;
       *) echo "heavy-mutex: argumento desconhecido '$1'" >&2; return 64 ;;
     esac
   done

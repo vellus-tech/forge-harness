@@ -72,7 +72,22 @@ export FORGE_HEAVY_MUTEX_TESTING
 # gate reprova: encurtar espera que sustenta propriedade é como um cenário passa a medir outra
 # coisa (aconteceu duas vezes nesta suíte).
 GATE_START="$(date +%s)"
-GATE_BUDGET_S="${W151_BUDGET_S:-420}"
+# O teto é DERIVADO, não escolhido, e a derivação fica aqui para poder ser refeita quando a suíte
+# mudar. Medido neste branch, com a máquina ociosa: 305s, 319s e 325s — dos quais o [16] sozinho
+# custa ~100s (14 corridas de viés) e o [49] ~45s (esperas de teto reais, não simuladas). O gasto
+# solo está, portanto, em torno de 330s.
+#
+# O teto anterior era 420s, e ele estava prestes a virar o defeito que o [16] acabou de deixar de
+# ser: sob duas suítes pesadas concorrendo na mesma máquina — que é literalmente o cenário que este
+# arquivo existe para tratar — a revisão mediu 445s na árvore ÍNTEGRA, ou seja, um vermelho que não
+# distinguia "a suíte cresceu" de "a máquina estava ocupada". Vermelho indiscriminado é como se
+# aprende a ignorar vermelho.
+#
+# 600s dá ~80% de margem sobre o gasto solo, o que cobre a concorrência medida sem tornar a
+# asserção decorativa: um crescimento real de escopo (dobrar as corridas de viés, por exemplo)
+# ainda estoura. Quem precisar apertar de novo tem duas alavancas expostas — W151_BUDGET_S para o
+# teto e W151_BIAS_N para o número de corridas do [16], que é o item mais caro do orçamento.
+GATE_BUDGET_S="${W151_BUDGET_S:-600}"
 
 SCENARIOS_RUN=0
 scenario() { SCENARIOS_RUN=$((SCENARIOS_RUN + 1)); echo "$1"; }
@@ -1139,6 +1154,69 @@ out44b="$(FORGE_ROOT="$WS" bash "$CHK" --path "$BOX/bom" 2>&1)"; rc44b=$?
 [ "$rc44b" -eq 0 ] \
   || { echo "FAIL [44]: os controles negativos foram reprovados — o gate não discrimina, ele recusa tudo: $out44b"; exit 1; }
 echo "OK [44]"
+
+scenario "[49] teto de espera: cada degrau da precedência é validado ANTES de o seguinte ser consultado"
+# Alvo morto do bloqueante da quarta revisão. `_t_yaml` ganhou validação e o MESMO valor pela
+# variável de ambiente e pelo argumento continuou entrando cru em `[ "$waited" -ge "$timeout" ]`:
+# o teste falha com "integer expression expected", o -ge nunca é verdade, o teto nunca dispara e o
+# acquire fica preso PARA SEMPRE. Num pre-push isso é um `git push` que não termina — a issue que
+# originou este arquivo nasceu de 1305 segundos de fila, e laço infinito é aquele sintoma sem fim e
+# sem um 75 para explicar. O caso realista não é digitar letras ao acaso: o alias de
+# compatibilidade AXIS_HEAVY_SUITE_WAIT é em MINUTOS, então quem tem "30" na memória muscular
+# escreve `30m` numa variável que é em SEGUNDOS.
+#
+# O cenário mede por TEMPO, e é isso que o torna capaz de distinguir. Um teste que só olhasse o rc
+# confundiria "ignorou o valor inválido e caiu no default de 1800s" com "pendurou", porque os dois
+# terminam iguais sob um alarme. Com um `timeout_s: 4` declarado no forge.yaml, cada degrau tem uma
+# assinatura de tempo distinta — e foi exatamente assim que se descobriu que a primeira correção
+# validava o env DEPOIS de já ter decidido não ler o YAML: o valor inválido pulava o YAML e caía no
+# 1800, trocando o laço infinito por meia hora de espera.
+B49="$(newbox)"; mkdir -p "$B49/.forge" "$B49/anc"
+printf 'heavy_mutex:\n  enabled: false\n  timeout_s: 4\n' > "$B49/.forge/forge.yaml"
+H49="$(sleeper)"
+mkdir -p "$B49/anc/w151res.lock"
+printf '%s\n' "$H49" > "$B49/anc/w151res.lock/pid"
+tok_of "$H49" > "$B49/anc/w151res.lock/token"
+printf 'fixture\n' > "$B49/anc/w151res.lock/nonce"
+p49() {  # p49 <env> [args...] -> ecoa "<rc> <segundos>"
+  local env="$1"; shift
+  local t0 t1 rc
+  t0="$(date +%s)"
+  FORGE_ROOT="$B49" FORGE_HEAVY_MUTEX_ROOT="$B49/anc" FORGE_HEAVY_MUTEX_RESOURCE=w151res \
+    FORGE_HEAVY_MUTEX_TIMEOUT_S="$env" \
+    perl -e 'alarm 25; exec @ARGV' -- bash -c '. "$0"; forge_heavy_mutex_acquire "$@"' "$LIB" "$@" \
+    >/dev/null 2>&1
+  rc=$?; t1="$(date +%s)"
+  printf '%s %s\n' "$rc" "$((t1 - t0))"
+}
+# (a) env inválido é tratado como AUSENTE: devolve a vez ao YAML, que declara 4s.
+for bad in abc 30m; do
+  r49="$(p49 "$bad")"; rc49="${r49% *}"; s49="${r49#* }"
+  [ "$rc49" = "75" ] && [ "$s49" -le 12 ] \
+    || { echo "FAIL [49]: com FORGE_HEAVY_MUTEX_TIMEOUT_S=$bad o acquire devolveu rc=$rc49 após ${s49}s — esperado 75 em ~4s (o teto do forge.yaml). rc 142 ou tempo alto significa que o valor cru chegou ao -ge e o teto nunca dispara: um push que não termina"; exit 1; }
+done
+# (b) CONTROLE do degrau: sem env, o YAML vale — mesma assinatura de tempo, o que confirma que (a)
+# caiu no YAML e não num default qualquer.
+r49="$(p49 "")"; [ "${r49% *}" = "75" ] && [ "${r49#* }" -le 12 ] \
+  || { echo "FAIL [49]: sem env o teto do forge.yaml (4s) não valeu — devolveu '$r49', e sem esse controle o caso (a) não prova em qual degrau caiu"; exit 1; }
+# (c) CONTRAPOSITIVA: env VÁLIDO tem de vencer o YAML, senão (a) passaria com o env sendo ignorado
+# sempre — o que tornaria a variável inerte em vez de validada.
+r49="$(p49 "9")"; s49="${r49#* }"
+[ "${r49% *}" = "75" ] && [ "$s49" -ge 8 ] \
+  || { echo "FAIL [49]: env=9 devolveu '$r49' — o env válido tem de VENCER o timeout_s: 4 do YAML; se não vence, a variável virou inerte e (a) não prova validação nenhuma"; exit 1; }
+# (d) `--timeout` é API pública (§4.2): valor inválido é uso inválido EXPLÍCITO, e recusar é melhor
+# que silenciosamente entregar outro teto a quem pediu um específico.
+r49="$(p49 "" --timeout 30m)"
+[ "${r49% *}" = "64" ] \
+  || { echo "FAIL [49]: --timeout 30m devolveu '$r49' — esperado rc 64 (uso inválido), nunca esperar com teto cru nem cair em outro valor sem dizer"; exit 1; }
+# (e) 0 é VÁLIDO nos dois caminhos e significa recusa de imediato — não erro. Antes era recusado no
+# YAML e aceito no ambiente: a mesma grandeza com duas semânticas para o mesmo valor.
+r49="$(p49 "0")"; [ "${r49% *}" = "75" ] && [ "${r49#* }" -le 3 ] \
+  || { echo "FAIL [49]: env=0 devolveu '$r49' — 0 é recusa de imediato, não erro nem espera"; exit 1; }
+r49="$(p49 "" --timeout 0)"; [ "${r49% *}" = "75" ] && [ "${r49#* }" -le 3 ] \
+  || { echo "FAIL [49]: --timeout 0 devolveu '$r49' — mesma semântica do env, senão o mesmo valor significa duas coisas conforme onde foi escrito"; exit 1; }
+kill -9 "$H49" 2>/dev/null
+echo "OK [49]"
 
 scenario "[46b] o gate estático passa sobre o repositório INTEIRO"
 # Uma linha, e fecha uma classe: fixture sintética não pega o gate reprovando o próprio template.

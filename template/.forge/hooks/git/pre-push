@@ -162,6 +162,32 @@ run_check() {  # run_check <label> <cmd>
   fi
 }
 
+# ── mutex de carga pesada (issue #52) ─────────────────────────────────────────────────────────
+# Adquirido em volta do que é CARO (typecheck, test, gates), nunca em volta dos checks baratos
+# acima: docs-reviewed, red-first estático e ai-attribution devem falhar rápido SEM ocupar a
+# máquina. A ordem do hook é a disciplina "build verde antes de entrar na fila" imposta por
+# construção — medido em campo, 1305 segundos de fila para descobrir um erro de 8 segundos.
+#
+# Só engaja com `heavy_mutex.enabled: true` no forge.yaml. O default é desligado porque o harness
+# é publicado no npm e instalado por terceiros: chegar serializando o pre-push de repositórios não
+# relacionados é como um gate vira `--no-verify` de hábito.
+HEAVY_LIB="$ROOT/.forge/scripts/lib/heavy-mutex.sh"
+if [ ! -f "$HEAVY_LIB" ] && [ -d "$ROOT/.forge/scripts/lib" ]; then
+  echo "pre-push BLOQUEADO: .forge/scripts/lib/ existe mas heavy-mutex.sh não — delegação em alvo ausente." >&2
+  exit 1
+fi
+_heavy_enabled() {
+  [ -f "$ROOT/.forge/forge.yaml" ] || return 1
+  awk '/^heavy_mutex:/{f=1;next} f&&/^[a-z]/{f=0} f&&/^[[:space:]]*enabled:[[:space:]]*true/{print "y";exit}' \
+    "$ROOT/.forge/forge.yaml" 2>/dev/null | grep -q y
+}
+if [ -f "$HEAVY_LIB" ] && _heavy_enabled; then
+  # shellcheck disable=SC1090
+  . "$HEAVY_LIB"
+  forge_heavy_mutex_acquire --label "pre-push de $(basename "$ROOT")" || exit $?
+  forge_heavy_mutex_arm_trap
+fi
+
 run_check "typecheck" "$(fm_field typecheck)"
 run_check "test" "$(fm_field test)"
 
@@ -207,6 +233,21 @@ elif [ -d "$ROOT/.forge/scripts/tests" ]; then
   echo "pre-push BLOQUEADO: .forge/scripts/tests/ existe mas run-all.sh não — a suíte do harness sumiu." >&2
   echo "  Guarda que ninguém roda não cobre nada; restaure o runner ou remova o diretório." >&2
   exit 1
+fi
+
+# ── tronco à frente do remoto (issue #67) ────────────────────────────────────────────────────────
+# POR ÚLTIMO, de propósito, e não no bloco de checks baratos. Este check INFORMA, nunca bloqueia —
+# então uma linha soterrada sob minutos de typecheck e test é a linha que ninguém lê. Aqui ela é a
+# última coisa antes de o push prosseguir. Bônus: push já reprovado acima custa rede zero.
+#
+# EXECUTADO, nunca sourceado: o script usa `set -m` para dar grupo de processos próprio ao filho
+# de rede, e sourceá-lo faria o job control vazar para o shell do hook.
+#
+# Recebe o remoto em "$1"/"$2" (que este hook não usava até agora) e o mesmo stdin de refs, porque
+# medir sempre `origin` erraria em `git push outro-remote` e em fluxo de fork.
+PUSH_AHEAD="$ROOT/.forge/scripts/check-push-ahead.sh"
+if [ -f "$PUSH_AHEAD" ]; then
+  printf '%s\n' "$INPUT" | bash "$PUSH_AHEAD" "${1:-}" "${2:-}" || true
 fi
 
 echo "pre-push OK"

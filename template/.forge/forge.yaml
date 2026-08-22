@@ -88,3 +88,33 @@ autonomy:
     - promote_staging
     - adapter_removal
     - branch_cleanup
+
+# Mutex de carga pesada por MÁQUINA (issue #52). Chega DESLIGADO: o harness é publicado no npm e
+# instalado por terceiros, e chegar serializando o pre-push de repositórios não relacionados é como
+# um gate vira `--no-verify` de hábito. Ligue quando houver carga que dispute CPU ou daemon Docker.
+#
+# `resource` é o NOME do recurso, e ele define o caminho do lock (`/tmp/<resource>.lock`). Dois
+# repositórios que declaram o mesmo nome se serializam entre si; nomes diferentes não se veem.
+heavy_mutex:
+  enabled: false
+  resource: forge-heavy-suite
+  timeout_s: 1800
+
+# Tronco à frente do remoto (issue #67). No `pre-push`, mede com `git ls-remote` — nunca por
+# `refs/remotes/*`, que é réplica local e pode estar desatualizada NAS DUAS DIREÇÕES — quantos
+# commits o tronco local tem a mais que o servidor, e quantos deles entram NESTE push.
+#
+# Por que importa: tronco local à frente infla o PR de OUTRA frente sem sinal nenhum para quem
+# rebaseou, porque o GitHub congela `baseRefOid` e só recalcula por evento. Medido em campo: um PR
+# mostrando 59 arquivos para o revisor, dos quais só 27 eram do autor.
+#
+# Este check INFORMA e NUNCA bloqueia, e não há chave para bloquear — foi decisão de projeto, não
+# omissão. Bloquear `feat/x` porque o TRONCO está atrasado é bloquear pela ref alheia (o mesmo que
+# o comentário de `liaison.enforce` acima proíbe), e seria deadlock: com tronco divergido ou branch
+# protegida o push do tronco é recusado, então a única saída viraria `--no-verify`.
+#
+# `enabled: false` NÃO silencia — imprime a classe "NÃO MEDIDO" com o motivo. Um caminho mudo
+# tornaria "desligado" indistinguível de "quebrado".
+push_ahead:
+  enabled: true
+  timeout_s: 5

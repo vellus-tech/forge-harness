@@ -207,14 +207,26 @@
               "items": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": ["path", "layer"],
+                "required": [
+                  "path",
+                  "layer"
+                ],
                 "properties": {
                   "path": {
                     "type": "string",
                     "description": "Glob relativo à raiz do repositório. Ex.: `platform/src/services/*/*.Api`, `packages/dotnet/*.Abstractions`, `src/*.DAL`, `platform/**/*.Kernel`."
                   },
                   "layer": {
-                    "enum": ["api", "application", "domain", "infrastructure", "contracts", "test", "config", "unknown"],
+                    "enum": [
+                      "api",
+                      "application",
+                      "domain",
+                      "infrastructure",
+                      "contracts",
+                      "test",
+                      "config",
+                      "unknown"
+                    ],
                     "description": "`unknown` aqui é DECLARAÇÃO, não lacuna: afirma que a taxonomia domain/application/infrastructure/api/contracts não descreve este path (frontend, tooling, conteúdo estático, MDX de doc). Esses nós ganham `taxonomy: \"out\"` no grafo e saem do denominador da cobertura de camada."
                   }
                 }
@@ -223,7 +235,9 @@
             "orphans_by_design": {
               "type": "array",
               "description": "Globs de arquivos cuja ausência de aresta é o estado CORRETO — marcador de assembly resolvido por reflexão, plugin carregado por DI, entrypoint descoberto por convenção. `forge validate graph` não os reporta como achado. Spec de E2E (layer test), configuração (layer config), migrations e o que estiver declarado fora da taxonomia já são reconhecidos sem declaração.",
-              "items": { "type": "string" }
+              "items": {
+                "type": "string"
+              }
             }
           }
         },
@@ -495,6 +509,44 @@
                   "branch_cleanup"
                 ]
               }
+            }
+          }
+        },
+        "heavy_mutex": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Serialização de carga pesada entre repositórios da MESMA máquina (issue #52). O lock mora em /tmp por caminho fixo, nunca em $TMPDIR: no macOS o TMPDIR é por usuário E por contexto de invocação, então um lock ancorado nele particiona a exclusão em tantos conjuntos quantos forem os contextos, e cada um serializa consigo mesmo achando que serializa com todos. Default desligado: o harness é publicado no npm e chegar serializando o pre-push de repositórios não relacionados é como um gate vira --no-verify de hábito.",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Engaja o mutex em volta do que é caro no pre-push (typecheck, test, gates), nunca em volta dos checks baratos. Default false."
+            },
+            "resource": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Nome do recurso disputado. Repositórios que disputam a MESMA máquina precisam do mesmo nome para serializar entre si; nomes distintos são conjuntos de exclusão distintos, de propósito. Default forge-heavy-suite."
+            },
+            "timeout_s": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Teto de espera na fila, em SEGUNDOS. Precedência: FORGE_HEAVY_MUTEX_TIMEOUT_S > este campo > 1800. 0 é válido e significa recusa de imediato — não é erro. A unidade importa: o alias de compatibilidade AXIS_HEAVY_SUITE_WAIT é em minutos, e escrever aqui um valor pensado em minutos dá um teto 60 vezes menor que o pretendido."
+            }
+          }
+        },
+        "push_ahead": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Mede e INFORMA, no pre-push, quando o tronco local está à frente do remoto real (issue #67). A leitura vem de `git ls-remote`, nunca de refs/remotes/*, que é réplica local e pode estar desatualizada nas duas direções. Nunca bloqueia, e não há chave para bloquear: travar um push de feature pelo estado do tronco seria bloquear pela ref alheia e, com tronco divergido ou branch protegida, seria deadlock.",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Default true. false NÃO silencia — imprime a classe NÃO MEDIDO com o motivo, para que 'desligado' não vire indistinguível de 'quebrado'."
+            },
+            "timeout_s": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 60,
+              "description": "Teto da leitura de rede, em segundos. Default 5. Medido em 2026-08-21 (GitHub HTTPS, 108 refs): ls-remote custa 0,55 a 0,73s em rede quente e 9,0s quando o DNS falha, daí o teto."
             }
           }
         }

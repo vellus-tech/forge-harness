@@ -53,24 +53,39 @@ INPUT="$(cat 2>/dev/null || true)"
 # seria cobrar rede por um push que não existe. `--delete` chega com o literal `(delete)` como ref
 # local, que não é um rev e não pode ir para `rev-parse`. `--mirror` chega com `refs/remotes/*`
 # entre as refs locais. Tag não tem tronco a comparar.
-[ -n "$INPUT" ] || fim
-PUSHED_SHAS=""
-while IFS=' ' read -r lref lsha _rref _rsha; do
+[ -n "$INPUT" ] || { say_nao "nada sendo publicado (stdin vazio)"; fim; }
+# O DESTINO de cada ref importa tanto quanto a origem, e ignorá-lo produziu o pior defeito desta
+# entrega em revisão: `grep` do sha do tronco entre os shas empurrados dizia "passivo sendo
+# resolvido" quando uma branch NOVA apontava para o tronco, ou num `git push origin develop:outro`,
+# ou num `--all` — casos em que `refs/heads/<tronco>` no servidor NÃO avança. Era a única das três
+# classes que diz "não há nada a fazer", dita sobre o estado exato que este check existe para
+# denunciar. Por isso o par (sha, destino) é guardado, não só o sha.
+PUSHED_PAIRS=""
+SKIP_WHY=""
+while IFS=' ' read -r lref lsha rref _rsha; do
+  lref="${lref%$(printf '\r')}"; rref="${rref%$(printf '\r')}"
   [ -n "${lref:-}" ] || continue
   case "$lref" in
-    '(delete)'|refs/tags/*|refs/remotes/*) continue ;;
+    '(delete)') SKIP_WHY="${SKIP_WHY:-remoção de ref}"; continue ;;
+    # Tag NÃO é inofensiva: ela arrasta os objetos que alcança, então um `git push origin v1.0.0`
+    # publica commits do tronco enquanto `refs/heads/<tronco>` no servidor continua atrás. Medir
+    # aqui custaria rede em todo push de tag; dizer NADA seria certificar o silêncio como correto,
+    # que é a vacuidade canônica deste repositório aplicada ao check que existe para combatê-la.
+    refs/tags/*) SKIP_WHY="${SKIP_WHY:-push de tag; ela pode arrastar commits do tronco sem avançar refs/heads}"; continue ;;
+    refs/remotes/*) SKIP_WHY="${SKIP_WHY:-push de refs/remotes (mirror)}"; continue ;;
+    HEAD) SKIP_WHY="${SKIP_WHY:-push a partir de detached HEAD}"; continue ;;
     refs/heads/*) : ;;
-    *) continue ;;
+    *) SKIP_WHY="${SKIP_WHY:-ref local '$lref' fora de refs/heads}"; continue ;;
   esac
   case "${lsha:-}" in
     ''|*[!0-9a-f]*) continue ;;
-    0000000000000000000000000000000000000000) continue ;;
+    0000000000000000000000000000000000000000) SKIP_WHY="${SKIP_WHY:-remoção de ref}"; continue ;;
   esac
-  PUSHED_SHAS="$PUSHED_SHAS $lsha"
+  PUSHED_PAIRS="$PUSHED_PAIRS $lsha:${rref:-?}"
 done <<EOF_IN
 $INPUT
 EOF_IN
-[ -n "${PUSHED_SHAS# }" ] || fim
+[ -n "${PUSHED_PAIRS# }" ] || { say_nao "${SKIP_WHY:-nada a medir neste push}"; fim; }
 
 FORGE_YAML="$ROOT/.forge/forge.yaml"
 # Mesmo idioma awk do `_yaml_auto` do hook de sessão e do `check-liaison-acks.sh`. Um leitor por
@@ -94,12 +109,35 @@ yaml_field() {  # yaml_field <bloco> <chave>
 # executa SEM teto algum. É a lição literal da issue #52 — timeout cru que faz o teto nunca disparar
 # e o push nunca terminar — no idioma que este harness já usa.
 TIMEOUT_S="$(yaml_field push_ahead timeout_s)"
+_t_raw="$TIMEOUT_S"
 case "${TIMEOUT_S:-}" in
   '') TIMEOUT_S=5 ;;
-  *[!0-9]*|0)
-    printf '%s aviso: push_ahead.timeout_s inválido (%s) — exigido inteiro de 1 a 60; usando 5s\n' "$PREFIX" "$TIMEOUT_S" >&2
+  *[!0-9]*)
+    printf '%s aviso: push_ahead.timeout_s inválido (%s) — exigido inteiro de 1 a 60; usando 5s\n' "$PREFIX" "$_t_raw" >&2
     TIMEOUT_S=5 ;;
-  *) [ "$TIMEOUT_S" -gt 60 ] && { printf '%s aviso: push_ahead.timeout_s %ss acima do máximo; usando 60s\n' "$PREFIX" "$TIMEOUT_S" >&2; TIMEOUT_S=60; } ;;
+  *)
+    # Só dígitos daqui para baixo, e ainda assim há três armadilhas, todas medidas em revisão:
+    #  · `08` e `09` são zero-padding plausível e MATAM o script em aritmética — o bash lê zero à
+    #    esquerda como octal e `8` não existe em base 8 ("value too great for base"). O `set -u` na
+    #    linha seguinte então aborta com MAXI unbound, e o push perde as três classes de saída.
+    #  · `00` passa por qualquer teste de "só dígitos" e vale ZERO: teto pela metade, sem aviso.
+    #  · um número de 20 dígitos estoura o inteiro do shell, `[ -gt ]` falha com "integer expression
+    #    expected", o cap de 60 NÃO é aplicado e o teto fica DESLIGADO.
+    # Limitar o comprimento ANTES de qualquer aritmética é o que fecha as três de uma vez, e o `10#`
+    # é o que impede a leitura octal.
+    if [ "${#TIMEOUT_S}" -gt 3 ]; then
+      printf '%s aviso: push_ahead.timeout_s (%s) acima do máximo; usando 60s\n' "$PREFIX" "$_t_raw" >&2
+      TIMEOUT_S=60
+    else
+      TIMEOUT_S=$(( 10#$TIMEOUT_S ))
+      if [ "$TIMEOUT_S" -lt 1 ]; then
+        printf '%s aviso: push_ahead.timeout_s inválido (%s) — exigido inteiro de 1 a 60; usando 5s\n' "$PREFIX" "$_t_raw" >&2
+        TIMEOUT_S=5
+      elif [ "$TIMEOUT_S" -gt 60 ]; then
+        printf '%s aviso: push_ahead.timeout_s %ss acima do máximo; usando 60s\n' "$PREFIX" "$_t_raw" >&2
+        TIMEOUT_S=60
+      fi
+    fi ;;
 esac
 
 # ── qual remoto ──────────────────────────────────────────────────────────────────────────────────
@@ -216,17 +254,32 @@ if [ "$AHEAD" -eq 0 ]; then
   fim
 fi
 
-# Se o próprio tronco está entre as refs publicadas, este push RESOLVE o passivo em vez de propagá-lo
-# — e não pode receber a mesma linha de acusação.
-if printf '%s\n' "$PUSHED_SHAS" | tr ' ' '\n' | grep -qx "$TRUNK_LOCAL"; then
-  say_ok "$TRUNK está $AHEAD commit(s) à frente de $REMOTE e ESTE push os publica — passivo sendo resolvido"
+# "Passivo sendo resolvido" exige que ESTE push atualize `refs/heads/<tronco>` NO REMOTO. Conferir
+# só o sha de origem dizia isso a `git push origin feat-nova` quando a branch nova apontava para o
+# tronco — e o tronco remoto continuava atrás. O destino é o que decide; o quanto sobra depois, o
+# que se afirma.
+TO_TRUNK=""
+for pair in $PUSHED_PAIRS; do
+  case "${pair#*:}" in
+    "refs/heads/$TRUNK"|"$TRUNK") TO_TRUNK="${pair%%:*}"; break ;;
+  esac
+done
+if [ -n "$TO_TRUNK" ]; then
+  rest="$(git -C "$ROOT" rev-list --count "$TO_TRUNK..$TRUNK_LOCAL" 2>/dev/null)"
+  case "$rest" in ''|*[!0-9]*) rest=0 ;; esac
+  if [ "$rest" -eq 0 ]; then
+    say_ok "$TRUNK está $AHEAD commit(s) à frente de $REMOTE e ESTE push os publica — passivo sendo resolvido"
+  else
+    say_ok "$TRUNK está $AHEAD commit(s) à frente de $REMOTE; este push publica parte deles e $rest continuará(ão) sem publicar"
+  fi
   fim
 fi
 
 # A INTERSEÇÃO é o que transforma um aviso genérico em previsão específica: destes commits, quantos
 # entram no diff de ESTE push. É o número que prevê o dano de 59-contra-27 relatado na issue.
 INTER=0
-for sha in $PUSHED_SHAS; do
+for pair in $PUSHED_PAIRS; do
+  sha="${pair%%:*}"
   mb="$(git -C "$ROOT" merge-base "$TRUNK_LOCAL" "$sha" 2>/dev/null)" || continue
   [ -n "$mb" ] || continue
   n="$(git -C "$ROOT" rev-list --count "$RSHA..$mb" 2>/dev/null)"

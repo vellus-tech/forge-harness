@@ -16,6 +16,7 @@
 # O gate existe porque um check que só sai 0 é indistinguível de um check que não faz nada. Toda
 # asserção aqui é sobre a STRING exata de uma das três classes, nunca sobre o código de saída.
 #
+#   [0]  trava ESTATICA, antes de qualquer execucao: nenhum sinal ao proprio grupo
 #   [1]  tronco adiantado: acusa, com a contagem certa e o tronco e o remoto nomeados
 #   [2]  tronco em dia: PASSA e DIZ que verificou — silêncio seria "não medi" disfarçado
 #   [3]  as três classes são textualmente distintas (em dia / adiantado / não medido)
@@ -37,6 +38,7 @@
 #  [19]  o script é EXECUTADO pelo hook, nunca sourceado (set -m não pode vazar)
 #  [20]  fiação: o despachante do pre-push invoca o check (padrão w135)
 #  [21]  não interatividade: as variáveis do ambiente não interativo são impostas
+#  [22]  o remoto medido é o do PUSH, nunca `origin` fixo
 set -uo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -76,7 +78,14 @@ commitn() {  # commitn <wt> <n> — n commits novos no branch corrente
 # Invoca o check como o hook invoca: EXECUTADO, com o remoto em $1 e stdin de refs.
 run_chk() {  # run_chk <wt> <remoto> <stdin> [env...] -> ecoa a saída
   local wt="$1" rem="$2" input="$3"; shift 3
-  ( cd "$wt" && printf '%s' "$input" | env "$@" FORGE_ROOT="$wt" bash "$CHK" "$rem" "$(git -C "$wt" remote get-url "$rem" 2>/dev/null || echo '')" 2>&1 )
+  # `set -m` dá grupo de processos PRÓPRIO ao subshell. Sem isso, um script que sinalize o próprio
+  # grupo derruba o gate inteiro — medido: rc=143, sem cenário algum reprovando. O verificador não
+  # pode compartilhar destino com o verificado.
+  local out
+  set -m
+  out="$( ( cd "$wt" && printf '%s' "$input" | env "$@" FORGE_ROOT="$wt" bash "$CHK" "$rem" "$(git -C "$wt" remote get-url "$rem" 2>/dev/null || echo '')" 2>&1 ) & wait $! )"
+  set +m
+  printf '%s\n' "$out"
 }
 # stdin real do pre-push: "<local ref> <local sha> <remote ref> <remote sha>"
 refline() {  # refline <wt> <branch-local> <branch-remoto>
@@ -85,6 +94,26 @@ refline() {  # refline <wt> <branch-local> <branch-remoto>
   rsha="$(git -C "$wt" rev-parse "origin/$rb" 2>/dev/null || echo 0000000000000000000000000000000000000000)"
   printf 'refs/heads/%s %s refs/heads/%s %s\n' "$lb" "$lsha" "$rb" "$rsha"
 }
+
+scenario "[0] trava estática: nenhum sinal dirigido ao PRÓPRIO grupo de processos"
+# ANTES de executar o script uma única vez. Dentro de um hook, o líder do grupo é o SHELL QUE
+# INVOCOU o `git push`: um sinal para o próprio grupo mata o push do usuário — e, aqui, mataria
+# este gate. Medido: com essa mutação o gate morria com rc=143 no [13], sem reprovar nada, e a
+# bateria de mutação interpretava o silêncio como aprovação.
+grep -q 'ISOLATED' "$CHK" \
+  || { echo "FAIL [0]: o script não tem guarda de isolamento nomeada"; exit 1; }
+grep -qE 'kill -(TERM|KILL) -- "-\$CHILD_PGID"' "$CHK" \
+  || { echo "FAIL [0]: o sinal não é dirigido explicitamente ao grupo do FILHO"; exit 1; }
+grep -qE '^[^#]*kill[^#]*-\$(SELF_PGID|\$)' "$CHK" \
+  && { echo "FAIL [0]: há sinal dirigido ao PRÓPRIO grupo em linha de código — dentro de um hook isso mata o git push do usuário, e neste gate mataria o próprio verificador antes de ele poder reprovar"; exit 1; }
+# A guarda tem de COMPARAR os dois pgid. Um `ISOLATED=1` incondicional passa em qualquer teste
+# executável onde o isolamento de fato funcione — e o caso perigoso é exatamente aquele em que ele
+# FALHA, que não se forja sem desmontar o `set -m`. Por isso a exigência aqui é sobre a FORMA.
+grep -qE '\[ "\$CHILD_PGID" != "\$SELF_PGID" \].*ISOLATED=1' "$CHK" \
+  || { echo "FAIL [0]: a guarda de isolamento não compara o pgid do filho com o nosso antes de habilitar o sinal — sem a comparação ela autoriza o kill mesmo quando o filho ficou no NOSSO grupo"; exit 1; }
+grep -qE '^[[:space:]]*ISOLATED=1[[:space:]]*$' "$CHK" \
+  && { echo "FAIL [0]: há atribuição INCONDICIONAL de ISOLATED=1 — a guarda deixa de ser guarda"; exit 1; }
+echo "OK [0]"
 
 scenario "[1] tronco adiantado: acusa, com a contagem certa e o tronco e o remoto nomeados"
 L="$(newlab)"; commitn "$L/wt" 3
@@ -260,6 +289,183 @@ ln_suite="$(grep -n 'HARNESS_SUITE=' "$HOOK" | head -1 | cut -d: -f1)"
 [ -n "$ln_chk" ] && [ -n "$ln_suite" ] && [ "$ln_chk" -gt "$ln_suite" ] \
   || { echo "FAIL [20]: o check está na linha $ln_chk e a rede de suítes na $ln_suite — ele tem de sair POR ÚLTIMO, senão o aviso fica soterrado sob minutos de teste e vira o aviso que ninguém lê"; exit 1; }
 echo "OK [20]"
+
+scenario "[5] réplica local À FRENTE do remoto real: mesma asserção, direção oposta"
+# A réplica desatualiza NAS DUAS DIREÇÕES. O [4] cobre "o servidor andou e o clone não sabe"; este
+# cobre o inverso, que é mais sutil: a réplica aponta para um commit que o servidor NÃO tem mais
+# (rollback, force-push, branch recriada). Medir por refs/remotes aqui subestima o passivo.
+L="$(newlab)"; commitn "$L/wt" 2
+# publica e sincroniza a réplica — sem isso ela nunca chega à frente de nada
+git -C "$L/wt" push -q origin develop; git -C "$L/wt" fetch -q origin
+# agora o SERVIDOR volta atrás (rollback / force-push / branch recriada) e a réplica local fica
+# apontando para um commit que o servidor não tem mais
+BACK="$(git -C "$L/wt" rev-parse develop~2)"
+git -C "$L/bare.git" update-ref refs/heads/develop "$BACK"
+rep5="$(git -C "$L/wt" rev-parse origin/develop)"
+real5="$(git ls-remote "$L/bare.git" refs/heads/develop | cut -f1)"
+[ "$rep5" != "$real5" ] \
+  || { echo "FAIL [5]: o laboratório não produziu réplica À FRENTE do remoto — sem isso o cenário não mede a direção oposta"; exit 1; }
+out5="$(run_chk "$L/wt" origin "$(refline "$L/wt" develop develop)")"
+n5="$(grep -oE '[0-9]+ commit' <<<"$out5" | head -1 | grep -oE '[0-9]+')"
+[ "${n5:-0}" -eq 2 ] \
+  || { echo "FAIL [5]: com a réplica À FRENTE do remoto real, a contagem devia vir do ls-remote e valer 2, veio '${n5:-vazio}': $out5"; exit 1; }
+echo "OK [5]"
+
+scenario "[7] objeto remoto desconhecido localmente: NÃO MEDIDO nomeando git fetch"
+L="$(newlab)"
+OTH7="$T/o7.$RANDOM"; git clone -q "$L/bare.git" "$OTH7"
+git -C "$OTH7" config user.email t@t; git -C "$OTH7" config user.name t
+git -C "$OTH7" config commit.gpgsign false; git -C "$OTH7" checkout -q develop
+commitn "$OTH7" 1; git -C "$OTH7" push -q origin develop
+out7="$(run_chk "$L/wt" origin "$(refline "$L/wt" develop develop)")"
+grep -qi 'não medido\|nao medido' <<<"$out7" \
+  || { echo "FAIL [7]: objeto remoto ausente localmente não produziu a classe 'não medido': $out7"; exit 1; }
+grep -qi 'fetch' <<<"$out7" \
+  || { echo "FAIL [7]: a linha não nomeia 'git fetch', que é o remédio DESTE caso — e é o que o distingue da ref inexistente do [6], onde fetch não resolve nada: $out7"; exit 1; }
+echo "OK [7]"
+
+scenario "[9] tronco local ausente: NÃO MEDIDO, sem travar"
+L="$(newlab)"; commitn "$L/wt" 1
+git -C "$L/wt" checkout -q -b feat
+git -C "$L/wt" branch -D develop >/dev/null 2>&1
+out9="$(run_chk "$L/wt" origin "refs/heads/feat $(git -C "$L/wt" rev-parse feat) refs/heads/feat 0000000000000000000000000000000000000000")"
+grep -qi 'não medido\|nao medido' <<<"$out9" \
+  || { echo "FAIL [9]: sem o tronco local o check não se declarou 'não medido': $out9"; exit 1; }
+echo "OK [9]"
+
+scenario "[10] detached HEAD: não mede por HEAD nem sai calado"
+L="$(newlab)"; commitn "$L/wt" 2
+out10="$(run_chk "$L/wt" origin "HEAD $(git -C "$L/wt" rev-parse develop) refs/heads/develop $(git -C "$L/wt" rev-parse origin/develop)")"
+grep -q "$PREFIX" <<<"$out10" \
+  || { echo "FAIL [10]: push de detached HEAD saiu CALADO — certificar silêncio como correto é a vacuidade que este check existe para combater: '$out10'"; exit 1; }
+grep -qi 'detached' <<<"$out10" \
+  || { echo "FAIL [10]: a linha não nomeia o motivo (detached HEAD): $out10"; exit 1; }
+echo "OK [10]"
+
+scenario "[12] interseção: separa 'commits do tronco que entram NESTE push' do total"
+# O número que transforma nag genérico em previsão específica. Ramificando ANTES dos commits do
+# tronco, nenhum deles entra no push; ramificando DEPOIS, entram.
+L="$(newlab)"
+git -C "$L/wt" checkout -q -b feat-antes
+commitn "$L/wt" 1
+git -C "$L/wt" checkout -q develop; commitn "$L/wt" 3
+out12a="$(run_chk "$L/wt" origin "refs/heads/feat-antes $(git -C "$L/wt" rev-parse feat-antes) refs/heads/feat-antes 0000000000000000000000000000000000000000")"
+grep -qE 'nenhum entra' <<<"$out12a" \
+  || { echo "FAIL [12]: branch ramificada ANTES dos commits do tronco recebeu previsão de interseção não-zero — o número perde o sentido se acusa quem não carrega nada: $out12a"; exit 1; }
+git -C "$L/wt" checkout -q -b feat-depois
+commitn "$L/wt" 1
+out12b="$(run_chk "$L/wt" origin "refs/heads/feat-depois $(git -C "$L/wt" rev-parse feat-depois) refs/heads/feat-depois 0000000000000000000000000000000000000000")"
+grep -qE '3 entra' <<<"$out12b" \
+  || { echo "FAIL [12]: branch ramificada DEPOIS dos 3 commits do tronco devia prever 3 na interseção: $out12b"; exit 1; }
+echo "OK [12]"
+
+scenario "[13] teto de tempo REAL contra host que não responde, medido por tempo de parede"
+# 192.0.2.0/24 é TEST-NET-1 (RFC 5737): roteável e sem resposta, que é o que produz a espera longa.
+# O git sozinho leva ~75s para desistir; o teto tem de cortar MUITO antes, e o que se mede aqui é
+# tempo de PAREDE — um teto que dispara no relógio mas cujo `$( )` só retorna aos 75s não é teto.
+L="$(newlab)"; commitn "$L/wt" 1
+git -C "$L/wt" remote set-url origin "https://192.0.2.1/x.git"
+mkdir -p "$L/wt/.forge"; printf 'push_ahead:\n  enabled: true\n  timeout_s: 3\n' > "$L/wt/.forge/forge.yaml"
+t0="$(date +%s)"
+out13="$(run_chk "$L/wt" origin "$(refline "$L/wt" develop develop)")"
+el13=$(( $(date +%s) - t0 ))
+[ "$el13" -le 20 ] \
+  || { echo "FAIL [13]: com teto de 3s o check levou ${el13}s de PAREDE — teto que não corta a espera real não é teto, e num pre-push isso é um push que parece travado: $out13"; exit 1; }
+grep -qi 'não medido\|nao medido' <<<"$out13" \
+  || { echo "FAIL [13]: o timeout não produziu a classe 'não medido' — dizer 'em dia' após não conseguir ler seria a pior saída possível: $out13"; exit 1; }
+echo "OK [13] (${el13}s de parede, teto 3s)"
+
+scenario "[14] isolamento: sem pgid próprio comprovado, NENHUM sinal é enviado"
+# O cenário mais importante deste gate. Dentro de um hook, o líder do grupo de processos é o SHELL
+# QUE INVOCOU o `git push` — sinalizar o grupo mataria o próprio push e o job do usuário. A guarda
+# só sinaliza quando o pgid do filho difere do nosso; com `ps` cego, ela tem de degradar para
+# "não sinaliza nada". O alvo morto é a mutação `kill -- -$SELF_PGID`, que sobrevivia ao gate.
+# A parte estática desta regra vive no [0], antes de qualquer execução — ver o porquê lá.
+# Alvo morto executável: com `ps` devolvendo lixo, o isolamento não se comprova e nada é sinalizado.
+PSDIR="$T/psblind.$RANDOM"; mkdir -p "$PSDIR"
+printf '#!/bin/sh\nexit 127\n' > "$PSDIR/ps"; chmod +x "$PSDIR/ps"
+L="$(newlab)"; commitn "$L/wt" 1
+git -C "$L/wt" remote set-url origin "https://192.0.2.1/x.git"
+mkdir -p "$L/wt/.forge"; printf 'push_ahead:\n  enabled: true\n  timeout_s: 2\n' > "$L/wt/.forge/forge.yaml"
+t14="$(date +%s)"
+out14="$(run_chk "$L/wt" origin "$(refline "$L/wt" develop develop)" PATH="$PSDIR:$PATH")"
+el14=$(( $(date +%s) - t14 ))
+grep -qi 'não medido\|nao medido' <<<"$out14" \
+  || { echo "FAIL [14]: com ps cego o check não degradou para 'não medido': $out14"; exit 1; }
+[ "$el14" -le 25 ] \
+  || { echo "FAIL [14]: com ps cego o check levou ${el14}s — degradar não pode virar espera indefinida"; exit 1; }
+echo "OK [14] (ps cego: não sinaliza, ${el14}s)"
+
+scenario "[15] timeout_s inválido não desliga o teto em silêncio"
+# Três escapes medidos em revisão: `08`/`09` matam o script em aritmética (bash lê zero à esquerda
+# como octal), `00` vale zero e reduz o teto pela metade, e vinte dígitos estouram o inteiro do
+# shell fazendo o cap de 60 NÃO ser aplicado — teto desligado.
+L="$(newlab)"; commitn "$L/wt" 1
+mkdir -p "$L/wt/.forge"
+for bad in 08 09 00 0 abc 99999999999999999999 18446744073709551646 90; do
+  printf 'push_ahead:\n  enabled: true\n  timeout_s: %s\n' "$bad" > "$L/wt/.forge/forge.yaml"
+  o="$(run_chk "$L/wt" origin "$(refline "$L/wt" develop develop)")"
+  grep -qiE 'value too great|unbound variable|integer expression' <<<"$o" \
+    && { echo "FAIL [15]: timeout_s=$bad produziu erro CRU de bash na saída de um push: $o"; exit 1; }
+  grep -q "$PREFIX" <<<"$o" \
+    || { echo "FAIL [15]: timeout_s=$bad fez o check perder as três classes de saída — o valor inválido desligou o check inteiro: '$o'"; exit 1; }
+done
+# O wrap tem de ser DENUNCIADO, nao apenas absorvido: 2^64+30 = 18446744073709551646 vira
+# exatamente 30 na aritmetica de 64 bits do bash, cai DENTRO da faixa 1..60 e passa por qualquer
+# validacao de VALOR sem um aviso — o operador recebe um teto de 30s achando que pediu outra
+# coisa. E o unico caso que so o cap de COMPRIMENTO pega: medido, a mutacao que remove o cap
+# sobrevivia a todo o resto do cenario.
+printf 'push_ahead:\n  enabled: true\n  timeout_s: 18446744073709551646\n' > "$L/wt/.forge/forge.yaml"
+ow="$(run_chk "$L/wt" origin "$(refline "$L/wt" develop develop)")"
+grep -qi 'aviso' <<<"$ow" \
+  || { echo "FAIL [15]: timeout_s=2^64+30 NAO produziu aviso — o wrap de 64 bits o transformou em 30 silenciosamente, e o teto virou um numero que ninguem pediu: $ow"; exit 1; }
+# CONTROLE: valor válido não produz aviso, senão o cenário passaria com um script que avisa sempre.
+printf 'push_ahead:\n  enabled: true\n  timeout_s: 5\n' > "$L/wt/.forge/forge.yaml"
+o15="$(run_chk "$L/wt" origin "$(refline "$L/wt" develop develop)")"
+grep -qi 'aviso' <<<"$o15" \
+  && { echo "FAIL [15]: timeout_s VÁLIDO produziu aviso — um script que avisa sempre passaria em todas as asserções acima sem validar nada: $o15"; exit 1; }
+echo "OK [15]"
+
+scenario "[16] o laço de espera tem cap de iterações além do relógio"
+# Se a espera fosse derivada só de `date`, um relógio andando para trás (NTP, laptop suspenso)
+# deixaria a diferença negativa e o laço NUNCA terminaria — um `git push` que não termina.
+grep -qE 'MAXI=' "$CHK" \
+  || { echo "FAIL [16]: não há cap de iterações no laço de espera"; exit 1; }
+grep -qE 'while \[ "\$i" -lt "\$MAXI" \]' "$CHK" \
+  || { echo "FAIL [16]: o laço não é limitado pelo cap de iterações"; exit 1; }
+grep -qE '\$\(\( *\$\(date' "$CHK" \
+  && { echo "FAIL [16]: o laço deriva a espera de aritmética sobre date — relógio para trás pendura o push"; exit 1; }
+echo "OK [16]"
+
+scenario "[21] não interatividade: o ambiente é imposto e o comando ssh é DERIVADO, não sobrescrito"
+for v in GIT_TERMINAL_PROMPT GIT_ASKPASS SSH_ASKPASS_REQUIRE; do
+  grep -q "$v" "$CHK" \
+    || { echo "FAIL [21]: $v não é imposto — o check pode abrir prompt e pendurar o push"; exit 1; }
+done
+grep -q 'BatchMode=yes' "$CHK" \
+  || { echo "FAIL [21]: sem BatchMode=yes o ssh ainda pergunta senha e confirmação de host key"; exit 1; }
+grep -qE 'GIT_SSH_COMMAND:-\$\(git .*core\.sshCommand' "$CHK" \
+  || { echo "FAIL [21]: o comando ssh não é DERIVADO do existente — sobrescrever quebra identidade dedicada e ProxyCommand corporativo"; exit 1; }
+grep -q '</dev/null' "$CHK" \
+  || { echo "FAIL [21]: a leitura de rede não fecha o stdin"; exit 1; }
+echo "OK [21]"
+
+scenario "[22] remoto medido é o do PUSH, não 'origin' fixo"
+# O hook recebe nome e URL do remoto em $1/$2. Fixar `origin` erraria em `git push outro-remote` e,
+# pior, em fluxo de fork — onde origin é o fork e o tronco de verdade mora no upstream. O cenário
+# monta um remoto com OUTRO nome e um `origin` que aponta para um bare DIFERENTE e em dia, para que
+# medir o remoto errado produza a classe errada.
+L="$(newlab)"; commitn "$L/wt" 4
+git -C "$L/wt" remote rename origin upstream
+git init -q --bare "$L/decoy.git"
+git -C "$L/wt" remote add origin "$L/decoy.git"
+git -C "$L/wt" push -q origin develop   # o decoy fica EM DIA de propósito
+out22="$(run_chk "$L/wt" upstream "refs/heads/develop $(git -C "$L/wt" rev-parse develop) refs/heads/develop $(git -C "$L/wt" rev-parse upstream/develop)")"
+grep -q 'upstream' <<<"$out22" \
+  || { echo "FAIL [22]: a linha não nomeia o remoto 'upstream' que estava sendo empurrado: $out22"; exit 1; }
+grep -qE '4 commit' <<<"$out22" \
+  || { echo "FAIL [22]: o check mediu o remoto errado — 'origin' aqui é um decoy EM DIA, e medir por ele esconde os 4 commits de passivo no remoto que realmente está sendo empurrado: $out22"; exit 1; }
+echo "OK [22]"
 
 GATE_ELAPSED=$(( $(date +%s) - GATE_START ))
 [ "$GATE_ELAPSED" -le "$GATE_BUDGET_S" ] \

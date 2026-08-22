@@ -148,7 +148,15 @@ echo "OK [2]"
 
 scenario "[3] as três classes são textualmente distintas"
 L="$(newlab)"; commitn "$L/wt" 1
-c_ahead="$(run_chk "$L/wt" origin "$(refline "$L/wt" develop develop)")"
+# Feature branch, NÃO o tronco: empurrar o tronco produz "passivo sendo resolvido", que é outra
+# classe. Amostrar a errada fazia toda a asserção de vocabulário abaixo rodar sobre uma linha que
+# ninguém filtra, e a acusação real — a que importa — ficava sem cobertura.
+git -C "$L/wt" checkout -q -b feat-c3
+c_ahead="$(run_chk "$L/wt" origin "refs/heads/feat-c3 $(git -C "$L/wt" rev-parse feat-c3) refs/heads/feat-c3 0000000000000000000000000000000000000000")"
+grep -qE 'à frente' <<<"$c_ahead" \
+  || { echo "FAIL [3]: o fixture não produziu a classe ADIANTADA — sem ela as asserções de vocabulário abaixo medem outra linha: $c_ahead"; exit 1; }
+grep -qi 'resolvid' <<<"$c_ahead" \
+  && { echo "FAIL [3]: o fixture produziu 'resolvido' em vez da acusação — é a classe errada: $c_ahead"; exit 1; }
 L2="$(newlab)"
 c_dia="$(run_chk "$L2/wt" origin "$(refline "$L2/wt" develop develop)")"
 L3="$(newlab)"; git -C "$L3/wt" remote remove origin
@@ -419,11 +427,33 @@ grep -qi 'não medido\|nao medido' <<<"$out14" \
 # CHILD_PGID que leia o nosso pgid passaria — a guarda faria o certo ao não sinalizar, mas o teto
 # deixaria órfão em TODA execução e nada acusaria.
 L14b="$(newlab)"; commitn "$L14b/wt" 1
-git -C "$L14b/wt" remote set-url origin "https://192.0.2.1/x.git"
+# URL ÚNICA por execução. Um padrão que casa `192.0.2.1` genérico conta processos de OUTRAS
+# execuções — medido: duas rodadas anteriores deixaram resíduo e o cenário acusou "2 órfãos" antes
+# de este teste rodar qualquer coisa. É a mesma cicatriz do `pgrep` casando o próprio shell, e ela
+# transforma um gate honesto em vermelho por motivo alheio, que é o defeito que esta suíte inteira
+# existe para eliminar.
+U14="w152-$$-${RANDOM}"
+git -C "$L14b/wt" remote set-url origin "https://192.0.2.1/$U14.git"
 mkdir -p "$L14b/wt/.forge"; printf 'push_ahead:\n  enabled: true\n  timeout_s: 2\n' > "$L14b/wt/.forge/forge.yaml"
-run_chk "$L14b/wt" origin "$(refline "$L14b/wt" develop develop)" >/dev/null 2>&1
+# O contador precisa de CONTROLE POSITIVO, no molde do [17]: um padrão que nunca casa nada mede
+# zero órfão tanto no código certo quanto no que deixa órfão sempre. O padrão anterior
+# (`ls-remote.*<url>`) não casava NENHUM dos dois processos reais — o `ls-remote` roda com remoto
+# NOMEADO, sem a URL no cmdline, e o neto `git-remote-https` tem a URL mas não a palavra
+# `ls-remote`. O único casamento possível era um processo alheio, que é a cicatriz de `pgrep -f`
+# casando o próprio shell já registrada neste repositório.
+conta14() { pgrep -f "remote-https.*$U14" 2>/dev/null | wc -l | tr -d ' '; }
+run_chk "$L14b/wt" origin "$(refline "$L14b/wt" develop develop)" >/dev/null 2>&1 &
+RC14=$!
+dur=0; viu=0
+while [ "$dur" -lt 20 ]; do
+  [ "$(conta14)" -gt 0 ] && { viu=1; break; }
+  sleep 0.2; dur=$((dur + 1))
+done
+wait "$RC14" 2>/dev/null
+[ "$viu" -eq 1 ] \
+  || { echo "FAIL [14]: o contador não enxergou o processo de rede NEM DURANTE a leitura — o instrumento está cego, e 'zero órfãos' depois seria zero sobre nada"; exit 1; }
 sleep 2
-orf="$(pgrep -f 'ls-remote.*192\.0\.2\.1' 2>/dev/null | wc -l | tr -d ' ')"
+orf="$(conta14)"
 [ "${orf:-0}" -eq 0 ] \
   || { echo "FAIL [14]: $orf processo(s) de rede sobreviveram ao teto — o sinal não alcançou o filho, e cada push deixaria um órfão segurando conexão"; exit 1; }
 echo "OK [14] (ps cego: não sinaliza, ${el14}s; ps normal: sem órfão)"

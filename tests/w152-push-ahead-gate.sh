@@ -39,6 +39,7 @@
 #  [20]  fiação: o despachante do pre-push invoca o check (padrão w135)
 #  [21]  não interatividade: as variáveis do ambiente não interativo são impostas
 #  [22]  o remoto medido é o do PUSH, nunca `origin` fixo
+#  [23]  destino da ref: sha do tronco para OUTRO destino nao e "resolvido"
 set -uo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -78,13 +79,23 @@ commitn() {  # commitn <wt> <n> — n commits novos no branch corrente
 # Invoca o check como o hook invoca: EXECUTADO, com o remoto em $1 e stdin de refs.
 run_chk() {  # run_chk <wt> <remoto> <stdin> [env...] -> ecoa a saída
   local wt="$1" rem="$2" input="$3"; shift 3
-  # `set -m` dá grupo de processos PRÓPRIO ao subshell. Sem isso, um script que sinalize o próprio
-  # grupo derruba o gate inteiro — medido: rc=143, sem cenário algum reprovando. O verificador não
-  # pode compartilhar destino com o verificado.
-  local out
+  # O verificador NÃO pode compartilhar grupo de processos com o verificado. Um script que sinalize
+  # o próprio grupo derruba o gate inteiro, e o gate sai sem reprovar nada — silêncio que uma
+  # bateria de mutação lê como aprovação. É a cicatriz deste repositório (um gate que assegura o
+  # próprio exploit) em forma nova.
+  #
+  # A forma ANTERIOR desta função tentava `set -m` dentro de `$( ... & wait $! )` e NÃO isolava:
+  # medido, filho e gate ficavam no mesmo pgid, porque o bash desliga job control dentro da
+  # substituição de comando. O que salvava o gate era o `set -m` do PRÓPRIO SCRIPT SOB TESTE —
+  # isto é, o verificador dependia do verificado para sobreviver, e essa dependência não era
+  # verificada por ninguém. O background tem de ser lançado na shell principal da função, com a
+  # saída capturada por ARQUIVO; só assim o filho ganha pgid próprio.
+  local out _f; _f="$(mktemp "$T/runchk.XXXXXX")"
   set -m
-  out="$( ( cd "$wt" && printf '%s' "$input" | env "$@" FORGE_ROOT="$wt" bash "$CHK" "$rem" "$(git -C "$wt" remote get-url "$rem" 2>/dev/null || echo '')" 2>&1 ) & wait $! )"
+  ( cd "$wt" && printf '%s' "$input" | env "$@" FORGE_ROOT="$wt" bash "$CHK" "$rem" "$(git -C "$wt" remote get-url "$rem" 2>/dev/null || echo '')" ) > "$_f" 2>&1 &
+  wait $! 2>/dev/null
   set +m
+  out="$(cat "$_f")"; rm -f "$_f"
   printf '%s\n' "$out"
 }
 # stdin real do pre-push: "<local ref> <local sha> <remote ref> <remote sha>"
@@ -146,6 +157,16 @@ c_nao="$(run_chk "$L3/wt" origin "$(refline "$L3/wt" develop develop)")"
   || { echo "FAIL [3]: duas das três classes produziram a MESMA saída — se 'em dia' e 'não medi' não se distinguem, o check informa nada com ar de rigor. adiantado='$c_ahead' emdia='$c_dia' naomedido='$c_nao'"; exit 1; }
 grep -qi 'não medido\|nao medido' <<<"$c_nao" \
   || { echo "FAIL [3]: a classe 'não medido' não se anuncia como tal: $c_nao"; exit 1; }
+# E não podem compartilhar VOCABULÁRIO: comparar as strings inteiras é satisfeito de graça pela
+# contagem e pelo carimbo de horário, então um mutante cuja linha de "adiantado" também diga
+# "em dia" passaria — e é essa colisão, não a diferença de bytes, que faz um operador (ou um agente
+# que consome a linha por grep) ler a classe errada.
+grep -qi 'em dia' <<<"$c_ahead" \
+  && { echo "FAIL [3]: a linha de ADIANTADO contém 'em dia' — quem filtra por essa expressão lê tranquilidade onde há passivo: $c_ahead"; exit 1; }
+grep -qi 'em dia' <<<"$c_nao" \
+  && { echo "FAIL [3]: a linha de NÃO MEDIDO contém 'em dia' — 'não verifiquei' passaria por 'verifiquei e está limpo': $c_nao"; exit 1; }
+grep -qi 'não medido\|nao medido' <<<"$c_dia" \
+  && { echo "FAIL [3]: a linha de EM DIA contém 'não medido': $c_dia"; exit 1; }
 echo "OK [3]"
 
 scenario "[4] réplica local DESATUALIZADA: o número vem do ls-remote, não de refs/remotes"
@@ -394,7 +415,18 @@ grep -qi 'não medido\|nao medido' <<<"$out14" \
   || { echo "FAIL [14]: com ps cego o check não degradou para 'não medido': $out14"; exit 1; }
 [ "$el14" -le 25 ] \
   || { echo "FAIL [14]: com ps cego o check levou ${el14}s — degradar não pode virar espera indefinida"; exit 1; }
-echo "OK [14] (ps cego: não sinaliza, ${el14}s)"
+# CONTRAPOSITIVA: com `ps` funcionando, o filho de rede TEM de morrer no teto. Sem esta metade, um
+# CHILD_PGID que leia o nosso pgid passaria — a guarda faria o certo ao não sinalizar, mas o teto
+# deixaria órfão em TODA execução e nada acusaria.
+L14b="$(newlab)"; commitn "$L14b/wt" 1
+git -C "$L14b/wt" remote set-url origin "https://192.0.2.1/x.git"
+mkdir -p "$L14b/wt/.forge"; printf 'push_ahead:\n  enabled: true\n  timeout_s: 2\n' > "$L14b/wt/.forge/forge.yaml"
+run_chk "$L14b/wt" origin "$(refline "$L14b/wt" develop develop)" >/dev/null 2>&1
+sleep 2
+orf="$(pgrep -f 'ls-remote.*192\.0\.2\.1' 2>/dev/null | wc -l | tr -d ' ')"
+[ "${orf:-0}" -eq 0 ] \
+  || { echo "FAIL [14]: $orf processo(s) de rede sobreviveram ao teto — o sinal não alcançou o filho, e cada push deixaria um órfão segurando conexão"; exit 1; }
+echo "OK [14] (ps cego: não sinaliza, ${el14}s; ps normal: sem órfão)"
 
 scenario "[15] timeout_s inválido não desliga o teto em silêncio"
 # Três escapes medidos em revisão: `08`/`09` matam o script em aritmética (bash lê zero à esquerda
@@ -419,6 +451,14 @@ printf 'push_ahead:\n  enabled: true\n  timeout_s: 18446744073709551646\n' > "$L
 ow="$(run_chk "$L/wt" origin "$(refline "$L/wt" develop develop)")"
 grep -qi 'aviso' <<<"$ow" \
   || { echo "FAIL [15]: timeout_s=2^64+30 NAO produziu aviso — o wrap de 64 bits o transformou em 30 silenciosamente, e o teto virou um numero que ninguem pediu: $ow"; exit 1; }
+# Zero com padding é ZERO, não um número grande: `0000` clampado para 60 daria ao operador o
+# diagnóstico oposto ao fato, dizendo "acima do máximo" sobre um valor nulo.
+for z in 0000 00000 0060; do
+  printf 'push_ahead:\n  enabled: true\n  timeout_s: %s\n' "$z" > "$L/wt/.forge/forge.yaml"
+  oz="$(run_chk "$L/wt" origin "$(refline "$L/wt" develop develop)")"
+  grep -qi 'acima do máximo\|acima do maximo' <<<"$oz" \
+    && { echo "FAIL [15]: timeout_s=$z foi diagnosticado como 'acima do máximo' — o valor é $(( 10#$z )), e o operador recebe o oposto do fato: $oz"; exit 1; }
+done
 # CONTROLE: valor válido não produz aviso, senão o cenário passaria com um script que avisa sempre.
 printf 'push_ahead:\n  enabled: true\n  timeout_s: 5\n' > "$L/wt/.forge/forge.yaml"
 o15="$(run_chk "$L/wt" origin "$(refline "$L/wt" develop develop)")"
@@ -466,6 +506,31 @@ grep -q 'upstream' <<<"$out22" \
 grep -qE '4 commit' <<<"$out22" \
   || { echo "FAIL [22]: o check mediu o remoto errado — 'origin' aqui é um decoy EM DIA, e medir por ele esconde os 4 commits de passivo no remoto que realmente está sendo empurrado: $out22"; exit 1; }
 echo "OK [22]"
+
+scenario "[23] destino da ref: sha IGUAL ao tip do tronco, publicado para OUTRO destino, NÃO é 'resolvido'"
+# Vermelho que faltava para a correção do pior bloqueante da revisão anterior. Casar apenas o SHA
+# entre as refs empurradas dizia "passivo sendo resolvido" para `git push origin feat-nova` quando
+# a branch nova apontava para o tip do tronco — e `refs/heads/<tronco>` no servidor NÃO avançava.
+# É a única das três classes que afirma "não há nada a fazer", dita sobre o estado exato que este
+# check existe para denunciar: pior que silêncio.
+#
+# Nenhum dos outros cenários alcança isso: o [12] usa branches com commit PRÓPRIO, então o sha
+# nunca coincide com o tip do tronco, e a correção passava sem vermelho — que é justamente o que a
+# regra red-first deste repositório existe para impedir.
+L="$(newlab)"; commitn "$L/wt" 3
+TIP23="$(git -C "$L/wt" rev-parse develop)"
+git -C "$L/wt" branch feat-nova develop     # mesma ponta, SEM commit próprio
+out23="$(run_chk "$L/wt" origin "refs/heads/feat-nova $TIP23 refs/heads/feat-nova 0000000000000000000000000000000000000000")"
+grep -qi 'resolvid' <<<"$out23" \
+  && { echo "FAIL [23]: publicar uma ref com o sha do tronco para um destino que NÃO é o tronco foi lido como 'passivo sendo resolvido' — refs/heads/develop no servidor continua atrás, e esta é a única classe que diz ao operador que não há nada a fazer: $out23"; exit 1; }
+grep -qE '3 commit' <<<"$out23" \
+  || { echo "FAIL [23]: o passivo de 3 commits não foi acusado: $out23"; exit 1; }
+# CONTRAPOSITIVA no mesmo fôlego: o MESMO sha, agora publicado PARA o tronco, TEM de dizer resolvido
+# — senão o cenário passaria com um script que nunca reconhece resolução alguma.
+out23b="$(run_chk "$L/wt" origin "refs/heads/develop $TIP23 refs/heads/develop $(git -C "$L/wt" rev-parse origin/develop)")"
+grep -qi 'resolvid' <<<"$out23b" \
+  || { echo "FAIL [23]: o mesmo sha publicado PARA o tronco deixou de ser reconhecido como resolução — a checagem de destino virou recusa indiscriminada: $out23b"; exit 1; }
+echo "OK [23]"
 
 GATE_ELAPSED=$(( $(date +%s) - GATE_START ))
 [ "$GATE_ELAPSED" -le "$GATE_BUDGET_S" ] \

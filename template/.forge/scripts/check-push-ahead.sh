@@ -60,10 +60,15 @@ INPUT="$(cat 2>/dev/null || true)"
 # ou num `--all` — casos em que `refs/heads/<tronco>` no servidor NÃO avança. Era a única das três
 # classes que diz "não há nada a fazer", dita sobre o estado exato que este check existe para
 # denunciar. Por isso o par (sha, destino) é guardado, não só o sha.
+CR="$(printf '\r')"   # uma vez, fora do laço
 PUSHED_PAIRS=""
 SKIP_WHY=""
 while IFS=' ' read -r lref lsha rref _rsha; do
-  lref="${lref%$(printf '\r')}"; rref="${rref%$(printf '\r')}"
+  # CR removido por FORMA, não por substituição de comando: dois forks por linha custam ~6,7s num
+  # push de 800 refs (medido), e um `git push --all` num repositório grande pagaria minutos por uma
+  # linha informativa.
+  case "$lref" in *"$CR") lref="${lref%"$CR"}" ;; esac
+  case "$rref" in *"$CR") rref="${rref%"$CR"}" ;; esac
   [ -n "${lref:-}" ] || continue
   case "$lref" in
     '(delete)') SKIP_WHY="${SKIP_WHY:-remoção de ref}"; continue ;;
@@ -125,6 +130,11 @@ case "${TIMEOUT_S:-}" in
     #    expected", o cap de 60 NÃO é aplicado e o teto fica DESLIGADO.
     # Limitar o comprimento ANTES de qualquer aritmética é o que fecha as três de uma vez, e o `10#`
     # é o que impede a leitura octal.
+    # Zeros à esquerda são removidos ANTES do cap de comprimento: `0000` é zero, não um número
+    # grande, e clampá-lo para 60 daria o diagnóstico errado ("acima do máximo") sobre um valor
+    # nulo. O que o cap de comprimento existe para pegar é magnitude real.
+    _t_trim="${TIMEOUT_S#"${TIMEOUT_S%%[!0]*}"}"; [ -n "$_t_trim" ] || _t_trim=0
+    TIMEOUT_S="$_t_trim"
     if [ "${#TIMEOUT_S}" -gt 3 ]; then
       printf '%s aviso: push_ahead.timeout_s (%s) acima do máximo; usando 60s\n' "$PREFIX" "$_t_raw" >&2
       TIMEOUT_S=60
@@ -221,6 +231,11 @@ while [ "$i" -lt "$MAXI" ]; do
 done
 if [ "$done_net" -eq 0 ]; then
   if [ "$ISOLATED" -eq 1 ]; then
+    # `disown` ANTES do sinal: o "Terminated: 15 (...)" que apareceria aqui é o notificador de job
+    # do bash no processo PAI, não o stderr do filho — que já é descartado na linha do ls-remote.
+    # Sem isso o usuário vê três linhas com o corpo inteiro do subshell logo abaixo de um
+    # "NÃO MEDIDO" limpo, e o que é uma degradação prevista parece um crash.
+    disown "$NETPID" 2>/dev/null || true
     kill -TERM -- "-$CHILD_PGID" 2>/dev/null
     sleep 0.3
     kill -KILL -- "-$CHILD_PGID" 2>/dev/null
@@ -266,7 +281,9 @@ for pair in $PUSHED_PAIRS; do
 done
 if [ -n "$TO_TRUNK" ]; then
   rest="$(git -C "$ROOT" rev-list --count "$TO_TRUNK..$TRUNK_LOCAL" 2>/dev/null)"
-  case "$rest" in ''|*[!0-9]*) rest=0 ;; esac
+  # 1, nunca 0: um `rev-list` que FALHOU não pode ser lido como "não sobrou nada", que é a classe
+  # tranquilizadora. Falha de medição roteia para a mensagem honesta de publicação parcial.
+  case "$rest" in ''|*[!0-9]*) rest=1 ;; esac
   if [ "$rest" -eq 0 ]; then
     say_ok "$TRUNK está $AHEAD commit(s) à frente de $REMOTE e ESTE push os publica — passivo sendo resolvido"
   else

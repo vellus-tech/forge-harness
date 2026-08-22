@@ -532,6 +532,23 @@
               "description": "Teto de espera na fila, em SEGUNDOS. Precedência: FORGE_HEAVY_MUTEX_TIMEOUT_S > este campo > 1800. 0 é válido e significa recusa de imediato — não é erro. A unidade importa: o alias de compatibilidade AXIS_HEAVY_SUITE_WAIT é em minutos, e escrever aqui um valor pensado em minutos dá um teto 60 vezes menor que o pretendido."
             }
           }
+        },
+        "push_ahead": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Mede e INFORMA, no pre-push, quando o tronco local está à frente do remoto real (issue #67). A leitura vem de `git ls-remote`, nunca de refs/remotes/*, que é réplica local e pode estar desatualizada nas duas direções. Nunca bloqueia, e não há chave para bloquear: travar um push de feature pelo estado do tronco seria bloquear pela ref alheia e, com tronco divergido ou branch protegida, seria deadlock.",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Default true. false NÃO silencia — imprime a classe NÃO MEDIDO com o motivo, para que 'desligado' não vire indistinguível de 'quebrado'."
+            },
+            "timeout_s": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 60,
+              "description": "Teto da leitura de rede, em segundos. Default 5. Medido em 2026-08-21 (GitHub HTTPS, 108 refs): ls-remote custa 0,55 a 0,73s em rede quente e 9,0s quando o DNS falha, daí o teto."
+            }
+          }
         }
       }
     }

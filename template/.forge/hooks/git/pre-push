@@ -235,4 +235,19 @@ elif [ -d "$ROOT/.forge/scripts/tests" ]; then
   exit 1
 fi
 
+# ── tronco à frente do remoto (issue #67) ────────────────────────────────────────────────────────
+# POR ÚLTIMO, de propósito, e não no bloco de checks baratos. Este check INFORMA, nunca bloqueia —
+# então uma linha soterrada sob minutos de typecheck e test é a linha que ninguém lê. Aqui ela é a
+# última coisa antes de o push prosseguir. Bônus: push já reprovado acima custa rede zero.
+#
+# EXECUTADO, nunca sourceado: o script usa `set -m` para dar grupo de processos próprio ao filho
+# de rede, e sourceá-lo faria o job control vazar para o shell do hook.
+#
+# Recebe o remoto em "$1"/"$2" (que este hook não usava até agora) e o mesmo stdin de refs, porque
+# medir sempre `origin` erraria em `git push outro-remote` e em fluxo de fork.
+PUSH_AHEAD="$ROOT/.forge/scripts/check-push-ahead.sh"
+if [ -f "$PUSH_AHEAD" ]; then
+  printf '%s\n' "$INPUT" | bash "$PUSH_AHEAD" "${1:-}" "${2:-}" || true
+fi
+
 echo "pre-push OK"

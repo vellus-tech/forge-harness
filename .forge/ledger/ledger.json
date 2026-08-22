@@ -1327,6 +1327,23 @@
       "updated_at": "2026-08-21T12:00:00-03:00",
       "resolved_at": null,
       "dedup_key": "w151-15-integracao-ausente"
+    },
+    {
+      "id": "LDG-0056",
+      "type": "known-bug",
+      "title": "worktree-reconcile mede adiantamento pela réplica local, não pelo remoto real",
+      "detail": "`template/.forge/scripts/worktree-reconcile.sh` resolve o upstream por `@{u}` na linha 41 e MEDE nas linhas 45-46 com `rev-list --count \"${upstream}..HEAD\"`. `refs/remotes/<remote>/*` é réplica local e pode estar desatualizada NAS DUAS DIREÇÕES: sem `fetch` recente ela ignora o que o servidor já tem, e após um `fetch` de outro processo ela pode estar à frente do que este worktree conhece. É exatamente o defeito que a issue #67 descreve — e que o `check-push-ahead.sh` resolve para o `pre-push` lendo `git ls-remote` na hora —, presente em outro script do MESMO harness. O sintoma é um relatório de reconciliação que informa 'ahead=0' com confiança sobre um estado que não conferiu. Fora do escopo da entrega da #67 para não misturar frentes; a correção é a mesma técnica, com a ressalva de que aqui há N worktrees e um `ls-remote` por worktree custaria caro (medido na #67: 0,55 a 0,73s por chamada, e 9,0s quando o DNS falha), então o desenho provavelmente é uma leitura só de remoto, compartilhada entre os worktrees.",
+      "severity": "low",
+      "priority": "P3",
+      "status": null,
+      "source": "achado durante a análise da issue #67",
+      "links": [
+        "https://github.com/vellus-tech/forge-harness/issues/67"
+      ],
+      "created_at": "2026-08-21T16:30:00-03:00",
+      "updated_at": "2026-08-21T16:30:00-03:00",
+      "resolved_at": null,
+      "dedup_key": "worktree-reconcile-replica-local"
     }
   ]
 }

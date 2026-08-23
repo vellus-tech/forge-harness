@@ -41,6 +41,7 @@ _FHM_WAIT_START=""
 _FHM_CLOCK="hires"
 _FHM_RELEASED=0
 _FHM_ANCESTOR=""
+_FHM_ROOT_FROM_YAML=0
 _FHM_LAST_NOTIFY=0
 
 # 0 quando <pid> é ancestral deste processo. Reentrância por LINHAGEM, não por variável de
@@ -69,9 +70,37 @@ _fhm_is_ancestor() {
 # âncora default, em toda instalação.
 _fhm_die69() { echo "heavy-mutex: $1" >&2; return 69; }
 
+# Raiz declarada no forge.yaml (issue #75). A variável de ambiente continua sendo a via de
+# ISOLAMENTO deliberado — e o código diz isso na proveniência —, enquanto esta chave é a via de
+# CONVERGÊNCIA: um host onde N repositórios já se serializam por um protocolo legado não conseguia
+# migrar um de cada vez, porque o primeiro a migrar partia a exclusão de todos os outros. Ou os N
+# migravam na mesma janela, ou nenhum migrava.
+#
+# E o modo de falha é o pior que esta biblioteca conhece, descrito no próprio cabeçalho dela: cada
+# lado adquire com sucesso, roda, e ACREDITA estar protegido. Medido em campo — quatro repositórios
+# resolvendo `$TMPDIR/axis-heavy-suite.lock` (que no macOS é `/var/folders/...`) enquanto o migrado
+# passaria a resolver `/tmp/forge-heavy-suite.lock`. Igualar só o `resource` resolve a metade
+# errada: os dois lados ficam em diretórios diferentes com o MESMO nome, o que torna o diagnóstico
+# ainda mais confuso para quem investigar.
+_fhm_yaml_root() {
+  local yaml="${FORGE_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null)}/.forge/forge.yaml"
+  [ -f "$yaml" ] || return 0
+  awk '/^heavy_mutex:/{f=1;next} f&&/^[a-z]/{f=0} f&&/^[[:space:]]*root:/{sub(/^[[:space:]]*root:[[:space:]]*/,"");sub(/[[:space:]]*#.*$/,"");gsub(/["'"'"']/,"");sub(/[[:space:]]+$/,"");print;exit}' "$yaml" 2>/dev/null
+}
+
 _fhm_resolve_root() {  # ecoa "<root>\t<proveniência>"; rc 69 se inutilizável
-  local root="${FORGE_HEAVY_MUTEX_ROOT:-}" tab
+  local root="${FORGE_HEAVY_MUTEX_ROOT:-}" tab _yr
   tab="$(printf '\t')"
+  # Precedência: env > forge.yaml > /tmp. A env vence porque é isolamento deliberado (e a suíte
+  # depende disso para não tocar o lock real da máquina); o yaml entra quando ninguém isolou.
+  if [ -z "$root" ]; then
+    _yr="$(_fhm_yaml_root)"
+    case "$_yr" in
+      ''|*[!/A-Za-z0-9._-]*) : ;;
+      /*) root="$_yr"; _FHM_ROOT_FROM_YAML=1 ;;
+      *) printf 'heavy-mutex: heavy_mutex.root inválido no forge.yaml (%s) — exigido caminho ABSOLUTO; usando /tmp\n' "$_yr" >&2 ;;
+    esac
+  fi
   # TRAVA DE TESTE — asserção POSITIVA, não backstop. Um backstop por "existência antes/depois" não
   # detecta um cenário que crie E remova o lock real, porque "inexistente" bate nas duas pontas.
   # Com esta trava, um cenário que esqueça de montar a caixa falha alto em vez de tocar o /tmp da
@@ -97,7 +126,14 @@ _fhm_resolve_root() {  # ecoa "<root>\t<proveniência>"; rc 69 se inutilizável
       [ -L "$root" ] && { _fhm_die69 "FORGE_HEAVY_MUTEX_ROOT '$root' virou symlink durante a criação — recusado."; return 69; }
     fi
     [ -O "$root" ] || { _fhm_die69 "FORGE_HEAVY_MUTEX_ROOT '$root' não pertence ao uid corrente — recusado."; return 69; }
-    printf '%s%sFORGE_HEAVY_MUTEX_ROOT (isolado — não serializa com o resto da máquina)\n' "$root" "$tab"
+    if [ "${_FHM_ROOT_FROM_YAML:-0}" = "1" ]; then
+      # Proveniência DIFERENTE de propósito: declarar a raiz no forge.yaml é o oposto de isolar —
+      # é convergir com quem já usa aquele caminho. Reportar as duas com a mesma frase faria o
+      # recibo mentir sobre o que está acontecendo.
+      printf '%s%sheavy_mutex.root do forge.yaml (convergência declarada)\n' "$root" "$tab"
+    else
+      printf '%s%sFORGE_HEAVY_MUTEX_ROOT (isolado — não serializa com o resto da máquina)\n' "$root" "$tab"
+    fi
     return 0
   fi
   # Default fornecido pelo sistema: exigir `-d`, `-w` e `-k` (sticky). NUNCA `-L`, NUNCA `-O`.

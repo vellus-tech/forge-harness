@@ -89,6 +89,9 @@ _fhm_yaml_root() {
 }
 
 _fhm_resolve_root() {  # ecoa "<root>\t<proveniência>"; rc 69 se inutilizável
+  # Reset explícito: o global é por RESOLUÇÃO, e herdá-lo faria a segunda chamada anunciar
+  # "convergência declarada" sobre uma raiz que veio da variável de ambiente.
+  _FHM_ROOT_FROM_YAML=0
   local root="${FORGE_HEAVY_MUTEX_ROOT:-}" tab _yr
   tab="$(printf '\t')"
   # Precedência: env > forge.yaml > /tmp. A env vence porque é isolamento deliberado (e a suíte
@@ -96,7 +99,7 @@ _fhm_resolve_root() {  # ecoa "<root>\t<proveniência>"; rc 69 se inutilizável
   if [ -z "$root" ]; then
     _yr="$(_fhm_yaml_root)"
     case "$_yr" in
-      ''|*[!/A-Za-z0-9._-]*) : ;;
+      '') : ;;
       /*) root="$_yr"; _FHM_ROOT_FROM_YAML=1 ;;
       *) printf 'heavy-mutex: heavy_mutex.root inválido no forge.yaml (%s) — exigido caminho ABSOLUTO; usando /tmp\n' "$_yr" >&2 ;;
     esac
@@ -107,9 +110,18 @@ _fhm_resolve_root() {  # ecoa "<root>\t<proveniência>"; rc 69 se inutilizável
   # máquina — e a suíte jamais vira a carga que o mutex existe para impedir. Aconteceu de verdade
   # durante a implementação: os cenários da onda W0 isolavam por TMPDIR, a W1 passou a ignorar
   # TMPDIR, e a suíte criou o sidecar no /tmp real sem que nada reclamasse.
-  if [ "${FORGE_HEAVY_MUTEX_TESTING:-}" = "1" ] && [ -z "$root" ]; then
+  # A trava vale contra a ENV, não contra o que o forge.yaml do repositório disser: um cenário que
+  # esqueça de montar a caixa não pode ser salvo por uma chave que ele não controla.
+  if [ "${FORGE_HEAVY_MUTEX_TESTING:-}" = "1" ] && [ -z "${FORGE_HEAVY_MUTEX_ROOT:-}" ]; then
     _fhm_die69 "FORGE_HEAVY_MUTEX_TESTING=1 exige FORGE_HEAVY_MUTEX_ROOT — recusado para não tocar o lock real da máquina."
     return 69
+  fi
+  # `/tmp` é SYMLINK no macOS (para `/private/tmp`), e o regime estrito recusa symlink por desenho.
+  # Declarar `root: /tmp` — o valor que a documentação chama de default — era portanto recusado com
+  # rc 69, que é o oposto do que a chave existe para fazer. Uma raiz do YAML que resolve para o
+  # mesmo lugar do default segue o caminho do default, não o estrito.
+  if [ "${_FHM_ROOT_FROM_YAML:-0}" = "1" ] && [ "$(cd "$root" 2>/dev/null && pwd -P)" = "$(cd /tmp 2>/dev/null && pwd -P)" ]; then
+    root=""; _FHM_ROOT_FROM_YAML=0
   fi
   if [ -n "$root" ]; then
     # Declarada por quem chama: regime ESTRITO. `-L` primeiro, porque `-d` e `-O` seguem symlink.

@@ -92,7 +92,7 @@ _fhm_resolve_root() {  # ecoa "<root>\t<proveniência>"; rc 69 se inutilizável
   # Reset explícito: o global é por RESOLUÇÃO, e herdá-lo faria a segunda chamada anunciar
   # "convergência declarada" sobre uma raiz que veio da variável de ambiente.
   _FHM_ROOT_FROM_YAML=0
-  local root="${FORGE_HEAVY_MUTEX_ROOT:-}" tab _yr
+  local root="${FORGE_HEAVY_MUTEX_ROOT:-}" tab _yr _yr_tmpdir=0 _rl conv=0
   tab="$(printf '\t')"
   # Precedência: env > forge.yaml > /tmp. A env vence porque é isolamento deliberado (e a suíte
   # depende disso para não tocar o lock real da máquina); o yaml entra quando ninguém isolou.
@@ -100,6 +100,21 @@ _fhm_resolve_root() {  # ecoa "<root>\t<proveniência>"; rc 69 se inutilizável
     _yr="$(_fhm_yaml_root)"
     case "$_yr" in
       '') : ;;
+      '${TMPDIR:-/tmp}')
+        # A EXPRESSÃO literal, reconhecida como token e resolvida em tempo de execução — nunca
+        # avaliada. `eval` sobre string vinda de arquivo VERSIONADO é injeção de comando com o
+        # privilégio de quem empurra, e bastaria um PR para obtê-la.
+        #
+        # E precisa ser a expressão, não o valor expandido: `$TMPDIR` no macOS é por usuário E por
+        # contexto de invocação (quatro valores distintos medidos ativos na mesma máquina), então
+        # congelar no arquivo versionado o valor de UMA máquina quebraria todas as outras — em
+        # silêncio, que é o modo de falha desta biblioteca inteira.
+        #
+        # É também o único valor que um repositório PODE versionar para convergir com o protocolo
+        # legado, que monta o caminho exatamente assim. Recusá-lo empurra esse repositório para o
+        # `/tmp` fixo e produz dois locks com o MESMO NOME em diretórios diferentes, cada lado
+        # adquirindo com sucesso e se achando protegido.
+        root="${TMPDIR:-/tmp}"; _FHM_ROOT_FROM_YAML=1; _yr_tmpdir=1 ;;
       /*) root="$_yr"; _FHM_ROOT_FROM_YAML=1 ;;
       *) printf 'heavy-mutex: heavy_mutex.root inválido no forge.yaml (%s) — exigido caminho ABSOLUTO; usando /tmp\n' "$_yr" >&2 ;;
     esac
@@ -116,12 +131,48 @@ _fhm_resolve_root() {  # ecoa "<root>\t<proveniência>"; rc 69 se inutilizável
     _fhm_die69 "FORGE_HEAVY_MUTEX_TESTING=1 exige FORGE_HEAVY_MUTEX_ROOT — recusado para não tocar o lock real da máquina."
     return 69
   fi
+  # Token `${TMPDIR:-/tmp}`: resolvido AQUI, e não dentro do `case`, de propósito — sair antes da
+  # trava de teste acima permitiria que um cenário com FORGE_HEAVY_MUTEX_TESTING=1 e sem
+  # FORGE_HEAVY_MUTEX_ROOT resolvesse o $TMPDIR REAL e tocasse o lock da máquina, que é exatamente
+  # o acidente que a trava existe para impedir (e que já aconteceu uma vez nesta biblioteca).
+  #
+  # Regime deliberadamente NÃO estrito, igual ao do default: a âncora é FORNECIDA pelo sistema, não
+  # criada por nós, então `-O` recusaria o próprio $TMPDIR em instalação legítima. Validamos o que
+  # o uso exige — existir e ser gravável.
+  if [ "$_yr_tmpdir" = "1" ]; then
+    [ -d "$root" ] || { _fhm_die69 "heavy_mutex.root resolveu '$root', que não existe"; return 69; }
+    [ -w "$root" ] || { _fhm_die69 "heavy_mutex.root resolveu '$root', que não é gravável"; return 69; }
+    # A barra final que o macOS põe em `$TMPDIR` é PRESERVADA de propósito: o legado monta
+    # "${TMPDIR:-/tmp}/<recurso>.lock" e produz `//` no meio. Normalizar daria um caminho que
+    # resolve para o mesmo inode e IMPRIME string diferente — e comparar recibos entre migrado e
+    # legado é o instrumento de detecção de partição. Recibo IDÊNTICO ao do consumidor, pela mesma
+    # razão: divergir aqui acusaria partição onde não há.
+    printf '%s%sheavy_mutex.root do forge.yaml (compartilhada com os repositórios legados)\n' "${root%/}/" "$tab"
+    return 0
+  fi
+  # Guarda de symlink ANTES de qualquer resolução, porque a convergência abaixo faz `cd`+`pwd -P` —
+  # que SEGUE o link, exatamente a operação que o `-L` do regime estrito existe para preceder. Sem
+  # esta linha, um valor do arquivo VERSIONADO que seja symlink apontando para o realpath de `/tmp`
+  # nunca chegava ao `-L`: convergia, era aceito, e o recibo ainda creditava o default.
+  #
+  # `${root%/}`, nunca `$root`: `[ -L "caminho/" ]` é sempre FALSO — a barra final força resolução
+  # de diretório —, e a guarda viraria textual, disparando só para quem não escreveu a barra.
+  #
+  # A exceção é `/tmp` LITERAL, e ela é textual de propósito: `/tmp` é symlink no macOS e é a
+  # âncora que o próprio default usa (por isso o bloco do default nunca aplica `-L`). A distinção
+  # entre "é o default do sistema" e "resolve para o mesmo lugar do default" é o que fecha o
+  # buraco: qualquer OUTRO caminho é recusado antes de ser resolvido, e não adianta apontar para lá.
+  _rl="${root%"${root##*[!/]}"}"; [ -n "$_rl" ] || _rl="/"
+  if [ "${_FHM_ROOT_FROM_YAML:-0}" = "1" ] && [ "$_rl" != "/tmp" ] && [ -L "$_rl" ]; then
+    _fhm_die69 "heavy_mutex.root '$root' do forge.yaml é um symlink — recusado. Um terceiro que plante o nome desvia o lock em silêncio, e apontar o link para o mesmo lugar do default não é exceção: a raiz é aceita pelo que ESTÁ escrita, não pelo que resolve."
+    return 69
+  fi
   # `/tmp` é SYMLINK no macOS (para `/private/tmp`), e o regime estrito recusa symlink por desenho.
   # Declarar `root: /tmp` — o valor que a documentação chama de default — era portanto recusado com
   # rc 69, que é o oposto do que a chave existe para fazer. Uma raiz do YAML que resolve para o
   # mesmo lugar do default segue o caminho do default, não o estrito.
   if [ "${_FHM_ROOT_FROM_YAML:-0}" = "1" ] && [ "$(cd "$root" 2>/dev/null && pwd -P)" = "$(cd /tmp 2>/dev/null && pwd -P)" ]; then
-    root=""; _FHM_ROOT_FROM_YAML=0
+    root=""; _FHM_ROOT_FROM_YAML=0; conv=1
   fi
   if [ -n "$root" ]; then
     # Declarada por quem chama: regime ESTRITO. `-L` primeiro, porque `-d` e `-O` seguem symlink.
@@ -156,7 +207,16 @@ _fhm_resolve_root() {  # ecoa "<root>\t<proveniência>"; rc 69 se inutilizável
   [ -d "$root" ] || { _fhm_die69 "'$root' não existe"; return 69; }
   [ -w "$root" ] || { _fhm_die69 "'$root' não é gravável"; return 69; }
   [ -k "$root" ] || { _fhm_die69 "'$root' não tem sticky bit — recusado: um diretório mundialmente gravável sem sticky permite que terceiro remova o lock alheio."; return 69; }
-  printf '%s%sdefault fixo /tmp\n' "$root" "$tab"
+  # Proveniência HONESTA. Uma âncora que veio do forge.yaml e convergiu para o default é reportada
+  # como tal: dizer "default fixo /tmp" para um valor DECLARADO faz o recibo mentir justamente sobre
+  # a origem que se quer auditar. O comentário acima diz que comparar recibos entre migrado e legado
+  # é o INSTRUMENTO de detecção de partição — e quem investigar uma partição real descartaria o
+  # forge.yaml como causa, porque o recibo o inocentou.
+  if [ "$conv" = "1" ]; then
+    printf '%s%sheavy_mutex.root do forge.yaml (convergiu para o default /tmp)\n' "$root" "$tab"
+  else
+    printf '%s%sdefault fixo /tmp\n' "$root" "$tab"
+  fi
   return 0
 }
 

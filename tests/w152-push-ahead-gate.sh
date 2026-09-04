@@ -40,6 +40,14 @@
 #  [21]  não interatividade: as variáveis do ambiente não interativo são impostas
 #  [22]  o remoto medido é o do PUSH, nunca `origin` fixo
 #  [23]  destino da ref: sha do tronco para OUTRO destino nao e "resolvido"
+#  [24]  LDG-0057 (disjuntas): interseção é a UNIÃO das refs publicadas, não o MÁXIMO (caso da issue)
+#  [25]  LDG-0057 (sobrepostas): prefixo comum não é contado em dobro nem por MÁXIMO
+#  [26]  LDG-0057 (contida): ref aninhada em outra não faz a união regredir
+#  [27]  LDG-0057 (vazia): ref sem contribuição não quebra nem reduz a união
+#  [28]  LDG-0057 canal real: `git push` de verdade, hook real, união correta pelo stdin do git
+#  [29]  LDG-0058: trap cobre morte por sinal (TERM/HUP aqui; INT só por FORMA — ver comentário)
+#  [30]  LDG-0060: falha do rev-list na publicação do próprio tronco cai na classe honesta (sha forjado)
+#  [31]  LDG-0059: guarda de regressão — 150 refs não voltam a duas chamadas de git por ref
 set -uo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -104,6 +112,36 @@ refline() {  # refline <wt> <branch-local> <branch-remoto>
   lsha="$(git -C "$wt" rev-parse "$lb" 2>/dev/null || echo 0000000000000000000000000000000000000000)"
   rsha="$(git -C "$wt" rev-parse "origin/$rb" 2>/dev/null || echo 0000000000000000000000000000000000000000)"
   printf 'refs/heads/%s %s refs/heads/%s %s\n' "$lb" "$lsha" "$rb" "$rsha"
+}
+
+# ── helpers do teste de propriedade LDG-0057 (união, não máximo) ────────────────────────────────
+# Cada "linha" é um ramo com N commits em ARQUIVO PRÓPRIO (nunca f.txt compartilhado): merges de
+# ramos concorrentes que tocam o mesmo arquivo podem produzir conflito de verdade, e o laboratório
+# existe para medir a interseção, não para testar resolução de merge.
+mkline_from() {  # mkline_from <wt> <branch> <start-ref> <n> -> cria n commits em <branch>.txt, ecoa o tip
+  local wt="$1" br="$2" start="$3" n="$4" i
+  git -C "$wt" checkout -q -b "$br" "$start"
+  for i in $(seq 1 "$n"); do
+    echo "$i-$RANDOM" >> "$wt/${br}.txt"
+    git -C "$wt" add -A; git -C "$wt" commit -q -m "$br-$i"
+  done
+  git -C "$wt" rev-parse "$br"
+}
+merge_into_develop() {  # merge_into_develop <wt> <branch>
+  git -C "$1" checkout -q develop
+  git -C "$1" merge -q --no-ff -m "merge $2" "$2" >/dev/null
+}
+multiref_stdin() {  # multiref_stdin <wt> <branch>... -> stdin de refs NOVAS (remoto = 0000...)
+  local wt="$1"; shift
+  local b
+  for b in "$@"; do
+    printf 'refs/heads/%s %s refs/heads/%s %s\n' "$b" "$(git -C "$wt" rev-parse "$b")" "$b" "0000000000000000000000000000000000000000"
+  done
+}
+extract_inter() {  # extract_inter <saída> -> ecoa N (ou 0 quando a linha diz "nenhum entra")
+  local out="$1"
+  if grep -q 'nenhum entra' <<<"$out"; then echo 0; return; fi
+  grep -oE 'dos quais [0-9]+ entra' <<<"$out" | head -1 | grep -oE '[0-9]+'
 }
 
 scenario "[0] trava estática: nenhum sinal dirigido ao PRÓPRIO grupo de processos"
@@ -561,6 +599,237 @@ out23b="$(run_chk "$L/wt" origin "refs/heads/develop $TIP23 refs/heads/develop $
 grep -qi 'resolvid' <<<"$out23b" \
   || { echo "FAIL [23]: o mesmo sha publicado PARA o tronco deixou de ser reconhecido como resolução — a checagem de destino virou recusa indiscriminada: $out23b"; exit 1; }
 echo "OK [23]"
+
+scenario "[24] LDG-0057 (disjuntas): a interseção é a UNIÃO das refs publicadas, não o MÁXIMO — caso da issue"
+# A issue, em números: se a ref A carrega os commits 1-2 e a ref B carrega o commit 3, a resposta
+# certa é 3 (a UNIÃO), e o laço antigo guardava só o maior valor visto (2). É conservação: o todo
+# não pode ser menor que qualquer parte.
+L="$(newlab)"
+R="$(git -C "$L/wt" rev-parse develop)"
+P_TIP="$(mkline_from "$L/wt" feat-p24 develop 2)"; merge_into_develop "$L/wt" feat-p24
+Q_TIP="$(mkline_from "$L/wt" feat-q24 "$R" 1)"; merge_into_develop "$L/wt" feat-q24
+stdin24="$(multiref_stdin "$L/wt" feat-p24 feat-q24)"
+out24="$(run_chk "$L/wt" origin "$stdin24")"
+expected24="$(git -C "$L/wt" rev-list --count "$P_TIP" "$Q_TIP" --not "$R")"
+[ "$expected24" = "3" ] \
+  || { echo "FAIL [24]: o laboratório não produziu o oráculo esperado (3): expected24=$expected24 — o desenho do cenário está errado, não o alvo"; exit 1; }
+got24="$(extract_inter "$out24")"
+[ -n "$got24" ] \
+  || { echo "FAIL [24]: a saída não trouxe nenhum número de interseção: $out24"; exit 1; }
+[ "$got24" -eq "$expected24" ] \
+  || { echo "FAIL [24]: interseção relatada foi $got24, a união real (oráculo independente via rev-list) é $expected24 — feat-p24 carrega 2 commits, feat-q24 carrega 1, disjuntos entre si, e o total tem de ser a UNIÃO (3), não o MÁXIMO entre as duas (2): $out24"; exit 1; }
+echo "OK [24] (relatado=$got24, união=$expected24)"
+
+scenario "[25] LDG-0057 (sobrepostas): prefixo comum não é contado em dobro nem por MÁXIMO"
+# feat-x25 e feat-y25 divergem do MESMO commit feat-m25 (não de develop diretamente): cada uma
+# sozinha soma 2, a SOMA das duas seria 4, o MÁXIMO seria 2 — só a união deduplicada dá 3.
+L="$(newlab)"
+R="$(git -C "$L/wt" rev-parse develop)"
+M_TIP="$(mkline_from "$L/wt" feat-m25 develop 1)"; merge_into_develop "$L/wt" feat-m25
+X_TIP="$(mkline_from "$L/wt" feat-x25 feat-m25 1)"; merge_into_develop "$L/wt" feat-x25
+Y_TIP="$(mkline_from "$L/wt" feat-y25 feat-m25 1)"; merge_into_develop "$L/wt" feat-y25
+stdin25="$(multiref_stdin "$L/wt" feat-x25 feat-y25)"
+out25="$(run_chk "$L/wt" origin "$stdin25")"
+expected25="$(git -C "$L/wt" rev-list --count "$X_TIP" "$Y_TIP" --not "$R")"
+[ "$expected25" = "3" ] \
+  || { echo "FAIL [25]: oráculo não bateu com o desenho esperado (3): expected25=$expected25"; exit 1; }
+got25="$(extract_inter "$out25")"
+[ -n "$got25" ] \
+  || { echo "FAIL [25]: sem número de interseção na saída: $out25"; exit 1; }
+[ "$got25" -eq "$expected25" ] \
+  || { echo "FAIL [25]: interseção relatada foi $got25, a união real (deduplicada) é $expected25 — feat-x25 e feat-y25 compartilham o commit de feat-m25 e cada uma soma 2 sozinha; nem SOMA (4) nem MÁXIMO (2) está certo, só a UNIÃO: $out25"; exit 1; }
+echo "OK [25] (relatado=$got25, união=$expected25)"
+
+scenario "[26] LDG-0057 (contida): ref aninhada em outra não faz a união regredir"
+L="$(newlab)"
+R="$(git -C "$L/wt" rev-parse develop)"
+git -C "$L/wt" checkout -q -b feat-a26 develop
+echo "1-$RANDOM" >> "$L/wt/feat-a26.txt"; git -C "$L/wt" add -A; git -C "$L/wt" commit -q -m feat-a26-1
+echo "2-$RANDOM" >> "$L/wt/feat-a26.txt"; git -C "$L/wt" add -A; git -C "$L/wt" commit -q -m feat-a26-2
+A2="$(git -C "$L/wt" rev-parse feat-a26)"
+echo "3-$RANDOM" >> "$L/wt/feat-a26.txt"; git -C "$L/wt" add -A; git -C "$L/wt" commit -q -m feat-a26-3
+A3_TIP="$(git -C "$L/wt" rev-parse feat-a26)"
+merge_into_develop "$L/wt" feat-a26
+git -C "$L/wt" branch feat-a2-26 "$A2"
+stdin26="$(multiref_stdin "$L/wt" feat-a2-26 feat-a26)"
+out26="$(run_chk "$L/wt" origin "$stdin26")"
+expected26="$(git -C "$L/wt" rev-list --count "$A2" "$A3_TIP" --not "$R")"
+[ "$expected26" = "3" ] \
+  || { echo "FAIL [26]: oráculo não bateu (esperava 3): expected26=$expected26"; exit 1; }
+got26="$(extract_inter "$out26")"
+[ -n "$got26" ] \
+  || { echo "FAIL [26]: sem número de interseção: $out26"; exit 1; }
+[ "$got26" -eq "$expected26" ] \
+  || { echo "FAIL [26]: interseção relatada $got26, união real $expected26 — feat-a2-26 está CONTIDA em feat-a26, e publicar as duas juntas não pode fazer a união regredir: $out26"; exit 1; }
+echo "OK [26] (relatado=$got26, união=$expected26)"
+
+scenario "[27] LDG-0057 (vazia): ref sem contribuição não quebra nem reduz a união"
+L="$(newlab)"
+R="$(git -C "$L/wt" rev-parse develop)"
+P_TIP="$(mkline_from "$L/wt" feat-p27 develop 2)"; merge_into_develop "$L/wt" feat-p27
+git -C "$L/wt" branch feat-empty27 "$R"
+stdin27="$(multiref_stdin "$L/wt" feat-p27 feat-empty27)"
+out27="$(run_chk "$L/wt" origin "$stdin27")"
+expected27="$(git -C "$L/wt" rev-list --count "$P_TIP" "$R" --not "$R")"
+[ "$expected27" = "2" ] \
+  || { echo "FAIL [27]: oráculo não bateu (esperava 2): expected27=$expected27"; exit 1; }
+got27="$(extract_inter "$out27")"
+[ -n "$got27" ] \
+  || { echo "FAIL [27]: sem número de interseção: $out27"; exit 1; }
+[ "$got27" -eq "$expected27" ] \
+  || { echo "FAIL [27]: interseção relatada $got27, esperado $expected27 — feat-empty27 (na ponta do próprio remoto, zero contribuição) não pode reduzir nem quebrar o cálculo: $out27"; exit 1; }
+echo "OK [27] (relatado=$got27, união=$expected27)"
+
+scenario "[28] LDG-0057 canal real: git push de verdade, hook real, união correta pelo stdin do git"
+# testing/gate-delivery-channel.md: a prova exercita o CANAL de entrega, não só o alvo isolado. O
+# check-push-ahead é invocado pelo pre-push, que recebe refs no STDIN do próprio git — este cenário
+# dirige um `git push` de verdade contra um bare local, com o hook real instalado, e lê o número
+# direto da saída do push, não de uma chamada isolada ao script.
+L="$(newlab)"
+R="$(git -C "$L/wt" rev-parse develop)"
+P_TIP="$(mkline_from "$L/wt" feat-p28 develop 2)"; merge_into_develop "$L/wt" feat-p28
+Q_TIP="$(mkline_from "$L/wt" feat-q28 "$R" 1)"; merge_into_develop "$L/wt" feat-q28
+expected28="$(git -C "$L/wt" rev-list --count "$P_TIP" "$Q_TIP" --not "$R")"
+[ "$expected28" = "3" ] \
+  || { echo "FAIL [28]: oráculo do laboratório não bateu (esperava 3): expected28=$expected28"; exit 1; }
+mkdir -p "$L/wt/.forge/scripts"
+printf '# FORGE.md (fixture minimal para canal real do w152)\n' > "$L/wt/.forge/FORGE.md"
+cp "$CHK" "$L/wt/.forge/scripts/check-push-ahead.sh"
+# ai-attribution e liaison-acks são gates ORTOGONAIS a este cenário — stubados como no-op, no mesmo
+# espírito do shim de git do [17]: isolar o canal que está sob teste, não simular o harness inteiro.
+printf '#!/bin/sh\nexit 0\n' > "$L/wt/.forge/scripts/check-ai-attribution.sh"
+printf '#!/bin/sh\nexit 0\n' > "$L/wt/.forge/scripts/check-liaison-acks.sh"
+chmod +x "$L/wt/.forge/scripts/"*.sh
+mkdir -p "$L/wt/.git/hooks"
+cp "$HOOK" "$L/wt/.git/hooks/pre-push"
+chmod +x "$L/wt/.git/hooks/pre-push"
+out28="$(git -C "$L/wt" push origin feat-p28 feat-q28 2>&1)"
+grep -q "$PREFIX" <<<"$out28" \
+  || { echo "FAIL [28]: o push real não produziu NENHUMA linha do check-push-ahead — o canal (hook -> script) não está de pé: $out28"; exit 1; }
+got28="$(extract_inter "$out28")"
+[ -n "$got28" ] \
+  || { echo "FAIL [28]: o push real não trouxe número de interseção: $out28"; exit 1; }
+[ "$got28" -eq "$expected28" ] \
+  || { echo "FAIL [28]: pelo CANAL REAL (git push -> pre-push -> check-push-ahead, refs no stdin do git) a interseção relatada foi $got28, a união real é $expected28 — o mesmo defeito de [24], agora observado pelo caminho de entrega de produção, não pela função isolada: $out28"; exit 1; }
+echo "OK [28] (canal real: relatado=$got28, união=$expected28)"
+
+scenario "[29] LDG-0058: o temporário não vaza quando o script morre por sinal"
+# Ambiente medido: SIGTERM e SIGHUP chegam normalmente a um processo em segundo plano NESTE
+# sandbox, mas SIGINT NÃO — verificado de forma isolada (até um `( sleep N ) &` puro, sem bash
+# script nenhum no meio, fica vivo após `kill -INT`, enquanto TERM e HUP o derrubam sem exceção).
+# Não é peculiaridade do alvo: é o ambiente de execução deste agente. A cobertura COMPORTAMENTAL
+# deste cenário fica em TERM/HUP; INT (o sinal do Ctrl-C real) é verificado por FORMA (grep).
+#
+# Achado da investigação, registrado para quem reabrir isto: `trap 'CMD' EXIT` sozinho (o código
+# ANTES da correção) já sobrevive a TERM/HUP sem vazar NESTE bash — a shell roda o trap de EXIT
+# antes de morrer por um sinal não tratado explicitamente. O que NÃO funciona é registrar
+# `trap 'rm -f "$OUT"' TERM` sem `exit` explícito: medido, o processo executa o rm e CONTINUA
+# vivo (a shell não sai sozinha de um trap de sinal sem `exit` embutido). Por isso a correção usa
+# um `exit` por sinal (128+n), e por isso o [29] também prova PRONTIDÃO (morre em <2s), não só
+# ausência de arquivo — sem essa prova um "fix" que só acrescenta os nomes ao trap (a forma
+# literal sugerida no ledger) passaria aqui sem realmente terminar o processo a tempo.
+run_signal_leak_case() {  # run_signal_leak_case <rótulo> <SINAL> -> "OK" | "LEAK:n" | "ALIVE" | "BLIND"
+  local label="$1" sig="$2" tmpd wt reflinef pid i n
+  tmpd="$(mktemp -d "$T/tmpd29-$label.XXXXXX")"
+  wt="$T/lab29-$label"
+  git init -q --bare "$T/bare29-$label.git"
+  git init -q "$wt"
+  git -C "$wt" config user.email t@t; git -C "$wt" config user.name t; git -C "$wt" config commit.gpgsign false
+  git -C "$wt" checkout -q -b develop
+  echo base > "$wt/base.txt"; git -C "$wt" add -A; git -C "$wt" commit -q -m base
+  git -C "$wt" remote add origin "$T/bare29-$label.git"
+  git -C "$wt" push -q origin develop
+  echo x >> "$wt/base.txt"; git -C "$wt" add -A; git -C "$wt" commit -q -m c1
+  git -C "$wt" remote set-url origin "https://192.0.2.1/x.git"
+  mkdir -p "$wt/.forge"; printf 'push_ahead:\n  enabled: true\n  timeout_s: 20\n' > "$wt/.forge/forge.yaml"
+  reflinef="$T/refline29-$label"; refline "$wt" develop develop > "$reflinef"
+  # SEM subshell/pipe: `$!` precisa ser o PID exato do check-push-ahead.sh, não de um wrapper.
+  TMPDIR="$tmpd" FORGE_ROOT="$wt" bash "$CHK" origin "https://192.0.2.1/x.git" < "$reflinef" >/dev/null 2>&1 &
+  pid=$!
+  i=0
+  while [ "$i" -lt 50 ]; do
+    ls "$tmpd"/forge-pushahead-* >/dev/null 2>&1 && break
+    sleep 0.1; i=$((i + 1))
+  done
+  if ! ls "$tmpd"/forge-pushahead-* >/dev/null 2>&1; then
+    kill -9 "$pid" 2>/dev/null
+    echo "BLIND"; return
+  fi
+  kill "-$sig" "$pid" 2>/dev/null
+  sleep 1.8
+  if kill -0 "$pid" 2>/dev/null; then
+    kill -9 "$pid" 2>/dev/null
+    echo "ALIVE"; return
+  fi
+  n="$(ls "$tmpd"/forge-pushahead-* 2>/dev/null | wc -l | tr -d ' ')"
+  [ "${n:-0}" -gt 0 ] && echo "LEAK:$n" || echo "OK"
+}
+r_term="$(run_signal_leak_case term TERM)"
+[ "$r_term" != "BLIND" ] \
+  || { echo "FAIL [29]: o instrumento não viu o temporário aparecer (TERM) — sem isso 'não vaza' seria decorativo"; exit 1; }
+[ "$r_term" != "ALIVE" ] \
+  || { echo "FAIL [29]: o script continuou vivo 1,8s depois do SIGTERM — o trap não terminou o processo a tempo"; exit 1; }
+[ "$r_term" = "OK" ] \
+  || { echo "FAIL [29]: SIGTERM vazou o temporário ($r_term) — o trap não cobre morte por este sinal"; exit 1; }
+r_hup="$(run_signal_leak_case hup HUP)"
+[ "$r_hup" != "BLIND" ] \
+  || { echo "FAIL [29]: o instrumento não viu o temporário aparecer (HUP)"; exit 1; }
+[ "$r_hup" != "ALIVE" ] \
+  || { echo "FAIL [29]: o script continuou vivo 1,8s depois do SIGHUP"; exit 1; }
+[ "$r_hup" = "OK" ] \
+  || { echo "FAIL [29]: SIGHUP vazou o temporário ($r_hup) — o trap não cobre morte por este sinal"; exit 1; }
+grep -qE 'trap .rm -f "\$OUT".*EXIT' "$CHK" \
+  || { echo "FAIL [29]: não há trap de limpeza no EXIT"; exit 1; }
+grep -qE "trap '[^']*rm -f \"\\\$OUT\"[^']*exit 130'[[:space:]]+INT" "$CHK" \
+  || { echo "FAIL [29]: não há trap para INT que limpe \$OUT E saia explicitamente — SIGINT é o sinal do Ctrl-C real, e este sandbox não permite comprová-lo em execução (verificado: nem um 'sleep &' puro morre de kill -INT aqui), então esta é a única prova possível de que a cobertura existe"; exit 1; }
+grep -qE "trap '[^']*rm -f \"\\\$OUT\"[^']*exit 143'[[:space:]]+TERM" "$CHK" \
+  || { echo "FAIL [29]: o trap de TERM não chama exit explícito — sem ele um sinal tratado sem sair deixa o processo vivo (medido nesta investigação)"; exit 1; }
+grep -qE "trap '[^']*rm -f \"\\\$OUT\"[^']*exit 129'[[:space:]]+HUP" "$CHK" \
+  || { echo "FAIL [29]: o trap de HUP não chama exit explícito"; exit 1; }
+echo "OK [29] (TERM: $r_term em <1,8s; HUP: $r_hup em <1,8s; INT verificado por forma — sandbox não entrega o sinal)"
+
+scenario "[30] LDG-0060: falha do rev-list na publicação do próprio tronco cai na classe honesta"
+# git NUNCA envia um sha que não possui — este caminho só é alcançável por INJEÇÃO DIRETA de
+# stdin (o próprio ledger documenta isso como a forma honesta de exercitá-lo). O sha é válido em
+# FORMA (hex) e o objeto não existe: `git rev-list --count $TO_TRUNK..$TRUNK_LOCAL` falha, e a
+# troca de rest=0 por rest=1 tem de rotear para a mensagem de publicação PARCIAL, não para
+# "passivo sendo resolvido" (a classe tranquilizadora, errada aqui).
+L="$(newlab)"; commitn "$L/wt" 2
+OLDR="$(git -C "$L/wt" rev-parse origin/develop)"
+FAKE="deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+git -C "$L/wt" cat-file -e "${FAKE}^{commit}" 2>/dev/null \
+  && { echo "FAIL [30]: o sha forjado existe como objeto real no laboratório — o cenário não isola o caminho de falha"; exit 1; }
+stdin30="$(printf 'refs/heads/develop %s refs/heads/develop %s\n' "$FAKE" "$OLDR")"
+out30="$(run_chk "$L/wt" origin "$stdin30")"
+grep -qE 'publica parte' <<<"$out30" \
+  || { echo "FAIL [30]: sha forjado (válido em forma, objeto inexistente) publicado PARA refs/heads/develop não caiu na classe honesta de publicação parcial: $out30"; exit 1; }
+grep -qi 'sendo resolvid' <<<"$out30" \
+  && { echo "FAIL [30]: o rev-list falhou e o check disse 'passivo sendo resolvido' mesmo assim — rest caiu como 0 (a classe tranquilizadora) em vez de 1 (a honesta): $out30"; exit 1; }
+echo "OK [30]: $out30"
+
+scenario "[31] LDG-0059: guarda de regressão — custo de push multi-ref não volta a duas chamadas de git por ref"
+# Medido nesta investigação (mesma máquina, mesma hora, A/B direto): o fix do LDG-0057 reduziu o
+# laço de interseção de DUAS invocações de git por ref (merge-base + rev-list) para UMA por ref
+# (só merge-base) mais uma única rev-list no final — 800 refs caiu de 60,98s para 26,33s (~2,3x).
+# Não é a otimização completa que o item original cogitava (teto de refs com truncagem DECLARADA
+# — adiada de propósito por risco de desenho, não improvisada aqui); é a guarda para que ninguém
+# reintroduza as duas chamadas por ref sem perceber. 150 refs: ~5,2s esperado depois do fix,
+# ~11,9s se a regressão voltar — 8s separa os dois com folga para variação de máquina.
+L="$(newlab)"; commitn "$L/wt" 2
+SAMESHA="$(git -C "$L/wt" rev-parse develop)"
+N31=150
+stdin31="$(i=1; while [ "$i" -le "$N31" ]; do
+  printf 'refs/heads/branch%d %s refs/heads/branch%d 0000000000000000000000000000000000000000\n' "$i" "$SAMESHA" "$i"
+  i=$((i + 1))
+done)"
+t0_31="$(date +%s)"
+out31="$(run_chk "$L/wt" origin "$stdin31")"
+el31=$(( $(date +%s) - t0_31 ))
+grep -qE 'entra' <<<"$out31" \
+  || { echo "FAIL [31]: push de $N31 refs não produziu a linha de interseção: $out31"; exit 1; }
+[ "$el31" -le 8 ] \
+  || { echo "FAIL [31]: push de $N31 refs levou ${el31}s (teto 8s) — o custo linear voltou a subir, possivelmente por uma regressão a duas chamadas de git por ref (LDG-0059): $out31"; exit 1; }
+echo "OK [31] ($N31 refs em ${el31}s, teto 8s)"
 
 GATE_ELAPSED=$(( $(date +%s) - GATE_START ))
 [ "$GATE_ELAPSED" -le "$GATE_BUDGET_S" ] \

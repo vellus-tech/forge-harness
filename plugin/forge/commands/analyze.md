@@ -52,13 +52,13 @@ bash .forge/scripts/check-data-governance.sh <change-id>
 
 Ele flagra divergências literais vs a matriz transversal (`.forge/rules/data/data-governance.md`) — ex.: um módulo declarando "RLS opcional"/"sem RLS" para tabela multi-tenant de domínio, ou cache sem namespace de tenant. Qualquer `CONFLICT` retornado é um achado **BLOCKER** de tipo `conflict` no `analysis.md` (decisão transversal tem dono único — `conflict-handling.md` G4).
 
-**Checagem determinista de frescor do grafo/impacto:** quando o change toca código (`affected_paths` não vazio) e há grafo construído, rode
+**Checagem determinista de frescor do grafo/impacto (guardrail G5 — `lsp-impact-analysis.md`):** quando o change toca código (`affected_paths` não vazio) e há grafo construído, rode
 
 ```bash
 node .forge/scripts/lib/impact-freshness.mjs .forge/specs/active/<change-id> .
 ```
 
-Mesma fórmula de fingerprint usada pelo pré-flight do `/forge:archive` (`impact-freshness.mjs`) — um só ponto de verdade para "o `impact.json` corresponde ao grafo atual?". `missing` ou `stale` é achado **BLOCKER** de tipo `risk`: "impact.json ausente/desatualizado — rode `/forge:update` e depois `/forge:impact --change <id>` antes de `/forge:implement`". `not-applicable` (sem grafo, ou change sem `affected_paths`) não gera achado. Um BLOCKER aqui já é bloqueante pelo mecanismo determinista descrito acima (`spec-transition.sh` recusa `implementing` com BLOCKER aberto em `analysis.md`) — o que ainda depende do agente é a própria execução desta checagem durante `/forge:analyze`, não a força do achado depois de escrito; wiring de execução obrigatória e a rule que ancora este check ficam registrados no ledger como follow-up.
+Mesma fórmula de fingerprint usada pelo pré-flight do `/forge:archive` (`impact-freshness.mjs`) — um só ponto de verdade para "o `impact.json` corresponde ao grafo atual?". `missing` ou `stale` é achado **BLOCKER** de tipo `risk`: "impact.json ausente/desatualizado — rode `/forge:update` e depois `/forge:impact --change <id>` antes de `/forge:implement`". `not-applicable` (sem grafo, ou change sem `affected_paths`) não gera achado. Desde LDG-0036, isto **não depende mais do agente lembrar**: `spec-transition.sh` já chama `impact-freshness.mjs` diretamente na transição para `implementing` e recusa `missing`/`stale` por conta própria — o mesmo mecanismo determinista de G1, um nível abaixo. A checagem aqui em `/forge:analyze` continua valendo por rodar MAIS CEDO no ciclo (item 4 do protocolo, antes de tasks/implement) e por produzir o achado registrado em `analysis.md`, mas o bloqueio real já não depende de ninguém rodar este comando manualmente.
 
 ## Regras
 

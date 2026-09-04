@@ -25,14 +25,19 @@ echo "[1] greenfield install (sem git)"
 [ "$(grep -rl '<PROJECT_[A-Z_]*>' "$T1/.forge" | grep -v '/templates/' | wc -l | tr -d ' ')" -eq 0 ]
 grep -q '<PROJECT_SLUG>' "$T1/.forge/templates/FORGE.md"
 # default install = claude only: AGENTS.md (core) + CLAUDE.md; NO QWEN/GEMINI/.agents/.cursor/.kiro
-[ -f "$T1/AGENTS.md" ] && [ -L "$T1/CLAUDE.md" ] \
-  || { echo "FAIL [1]: AGENTS.md ausente ou CLAUDE.md não é symlink"; exit 1; }
-[ ! -e "$T1/QWEN.md" ] && [ ! -e "$T1/GEMINI.md" ] \
-  || { echo "FAIL [1]: QWEN.md/GEMINI.md presentes num install default (claude-only)"; exit 1; }
-[ ! -d "$T1/.agents" ] && [ ! -d "$T1/.cursor" ] && [ ! -d "$T1/.kiro" ] \
-  || { echo "FAIL [1]: .agents/.cursor/.kiro presentes num install default (claude-only)"; exit 1; }
-[ -f "$T1/.claude/settings.json" ] && [ -f "$T1/.forge/adapters/claude.lock.yaml" ] && [ -f "$T1/.forge/adapters/core.lock.yaml" ] \
-  || { echo "FAIL [1]: settings.json/claude.lock.yaml/core.lock.yaml ausentes"; exit 1; }
+# LDG-0034: cada condição reprova com a SUA mensagem — agrupar N arquivos numa asserção só
+# ("FAIL: A/B/C ausentes") não diz qual dos três falhou, e quem lê a reprovação tem de reproduzir
+# à mão para descobrir.
+[ -f "$T1/AGENTS.md" ] || { echo "FAIL [1]: AGENTS.md ausente"; exit 1; }
+[ -L "$T1/CLAUDE.md" ] || { echo "FAIL [1]: CLAUDE.md não é symlink"; exit 1; }
+[ ! -e "$T1/QWEN.md" ] || { echo "FAIL [1]: QWEN.md presente num install default (claude-only)"; exit 1; }
+[ ! -e "$T1/GEMINI.md" ] || { echo "FAIL [1]: GEMINI.md presente num install default (claude-only)"; exit 1; }
+[ ! -d "$T1/.agents" ] || { echo "FAIL [1]: .agents presente num install default (claude-only)"; exit 1; }
+[ ! -d "$T1/.cursor" ] || { echo "FAIL [1]: .cursor presente num install default (claude-only)"; exit 1; }
+[ ! -d "$T1/.kiro" ] || { echo "FAIL [1]: .kiro presente num install default (claude-only)"; exit 1; }
+[ -f "$T1/.claude/settings.json" ] || { echo "FAIL [1]: .claude/settings.json ausente"; exit 1; }
+[ -f "$T1/.forge/adapters/claude.lock.yaml" ] || { echo "FAIL [1]: .forge/adapters/claude.lock.yaml ausente"; exit 1; }
+[ -f "$T1/.forge/adapters/core.lock.yaml" ] || { echo "FAIL [1]: .forge/adapters/core.lock.yaml ausente"; exit 1; }
 grep -q '>>> forge (managed) >>>' "$T1/.gitignore"
 # O harness precisa ignorar TUDO que ele mesmo gera e que não é fonte. O caso que motivou:
 # o `update` cria .forge.bak-N e o template não o ignorava — num workspace real isso levou o

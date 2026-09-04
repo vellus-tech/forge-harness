@@ -76,7 +76,37 @@ function isAncestorOrEqual(root, a, b) {
 }
 
 function parentOf(root, sha) {
-  try { return git(root, ['rev-parse', `${sha}^`]).trim(); } catch { return null; }
+  // stderr silenciado deliberadamente: um commit sem pai (raiz de verdade, ou fronteira de clone
+  // raso — LDG-0038) é esperado aqui, não um erro de execução — o `git rev-parse` "ambiguous
+  // argument" cru vazando para o terminal do autor por cima da mensagem já traduzida e acionável
+  // (deriveBase/applyRevert) seria ruído contradizendo o próprio propósito deste item.
+  try { return git(root, ['rev-parse', `${sha}^`], { stdio: ['ignore', 'pipe', 'ignore'] }).trim(); }
+  catch { return null; }
+}
+
+// isShallowClone: repositório é um clone RASO (fetch-depth < histórico completo)? Barato — um
+// único `git rev-parse` — LDG-0038. O commit-fronteira de um clone raso tem o pai
+// deliberadamente escondido: para `git log -- <path>`, ele se comporta como se fosse o commit
+// RAIZ do projeto e aparece como autor de todo arquivo presente na sua árvore, mesmo quando o
+// arquivo foi introduzido bem antes (fora da janela do fetch). `parentOf()` sobre esse commit
+// falha do mesmo jeito que falharia sobre uma raiz de verdade — sem esta distinção, a mensagem
+// de not-possible diz "é commit raiz (sem pai)" também quando NÃO é, e a ação sugerida (rodar de
+// novo) nunca muda nada, porque o problema é do AMBIENTE (profundidade do fetch), não do comando.
+function isShallowClone(root) {
+  try { return git(root, ['rev-parse', '--is-shallow-repository']).trim() === 'true'; }
+  catch { return false; }
+}
+
+// noParentReason: mensagem para quando um commit escolhido para revert-synthesis não tem pai
+// resolvível. Em clone raso, nomeia a causa provável (commit-fronteira, não raiz de verdade) e a
+// ação corretiva (`git fetch --unshallow`); fora de um clone raso, mantém a leitura literal (é
+// mesmo um commit raiz — não há o que reverter). Compartilhada por deriveBase (decide a
+// estratégia, nunca chega a tentar o revert) e applyRevert (defesa em profundidade, caso algum
+// caminho futuro chegue lá com um commit sem pai por outro motivo).
+function noParentReason(commit, file, isShallow) {
+  return isShallow
+    ? `revert-synthesis: ${commit} não tem pai resolvível em ${file} — repositório é um clone RASO (shallow): git só enxerga até o commit-fronteira do fetch, que se comporta como raiz do projeto mesmo sem ser. Rode 'git fetch --unshallow' (ou aumente fetch-depth no CI) e tente de novo — repetir /forge:red replay sem isso não muda nada, o problema é do ambiente`
+    : `revert-synthesis: ${commit} é commit raiz (sem pai) — não há o que reverter em ${file}`;
 }
 
 function fileExistsAt(root, ref, relPath) {
@@ -204,6 +234,17 @@ export function deriveBase({ root, testPath, fixFiles, testId }) {
       if (graft) return graft;
       return { strategy: 'not-possible', reason: `fix_files '${f}' sem histórico git — revert-synthesis inviável` };
     }
+    // LDG-0038 — confere AQUI, ainda em fase de decisão (nenhum worktree criado, nenhum revert
+    // tentado), se `c` tem pai resolvível. Num clone raso, `findFixLastCommit`/`commitTouches`
+    // acima podem atribuir `c` ao commit-fronteira do fetch (ele se comporta como raiz de tudo
+    // que está na sua árvore) — sem esta checagem, deriveBase devolvia 'revert-synthesis' como
+    // se fosse uma estratégia válida, e só mais tarde, já dentro de applyRevert() no meio do
+    // worktree efêmero, o revert falhava com uma mensagem genérica ("é commit raiz, sem pai").
+    // Detectar aqui é estritamente melhor: nem chega a criar worktree para uma base inválida.
+    if (!parentOf(root, c)) {
+      if (graft) return graft;
+      return { strategy: 'not-possible', reason: noParentReason(c, f, isShallowClone(root)) };
+    }
     reverts.push({ file: f, commit: c });
   }
   let head;
@@ -280,7 +321,11 @@ function applyRevert(root, worktreeDir, reverts) {
   const applied = [];
   for (const { file, commit } of reverts) {
     const parent = parentOf(root, commit);
-    if (!parent) throw new Error(`revert-synthesis: ${commit} é commit raiz (sem pai) — não há o que reverter em ${file}`);
+    // LDG-0038 — defesa em profundidade: deriveBase() já filtra este caso antes de chegar aqui
+    // (não escolhe mais um `c` sem pai resolvível), mas o guard fica — barato e evita que um
+    // caminho futuro reintroduza o mesmo "é commit raiz (sem pai)" genérico sem o diagnóstico
+    // de clone raso.
+    if (!parent) throw new Error(noParentReason(commit, file, isShallowClone(root)));
     let diff;
     try { diff = git(root, ['diff', commit, parent, '--', file]); }
     catch (e) { throw new Error(`revert-synthesis: git diff falhou para ${file} (${e.message})`); }

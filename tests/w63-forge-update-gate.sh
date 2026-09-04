@@ -176,8 +176,8 @@ BAK1="$(ls -d "$T/.git/forge-backups/"forge-1 2>/dev/null || true)"
   || { echo "FAIL [f] (o backup aparece em git status)"; exit 1; }
 node "$WS/bin/forge.mjs" update --target "$T" --no-plugin --no-backup --source "$WS/template/.forge" >"$T/update2.log" 2>&1 \
   || { echo "FAIL (segundo update --no-backup falhou)"; cat "$T/update2.log"; exit 1; }
-[ ! -d "$T/.git/forge-backups/forge-2" ] && [ ! -d "$T/.forge.bak-2" ] \
-  || { echo "FAIL [f] (--no-backup criou backup mesmo assim)"; exit 1; }
+[ ! -d "$T/.git/forge-backups/forge-2" ] || { echo "FAIL [f] (--no-backup criou backup em .git/forge-backups/forge-2 mesmo assim)"; exit 1; }
+[ ! -d "$T/.forge.bak-2" ] || { echo "FAIL [f] (--no-backup criou backup em .forge.bak-2 mesmo assim)"; exit 1; }
 echo "OK [f] (backup fora da árvore no 1º run; --no-backup pula no 2º)"
 
 # [g] doctor --report limpo, sem falso-positivo por causa do texto ".claude/" na spec

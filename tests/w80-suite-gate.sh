@@ -22,8 +22,8 @@ B="$WS/tests/fixtures/brownfield"
 [ -f "$B/package.json" ]
 grep -q '"name"' "$B/package.json"
 [ -f "$B/tsconfig.json" ]
-[ -f "$B/src/money.ts" ] && [ -f "$B/src/billing.ts" ] \
-  || { echo "FAIL [2]: fixture brownfield sem src/money.ts e/ou src/billing.ts"; exit 1; }
+[ -f "$B/src/money.ts" ] || { echo "FAIL [2]: fixture brownfield sem src/money.ts"; exit 1; }
+[ -f "$B/src/billing.ts" ] || { echo "FAIL [2]: fixture brownfield sem src/billing.ts"; exit 1; }
 [ -f "$B/docs/product/modules/billing/requirements.md" ]
 grep -qi 'LEGADO' "$B/docs/product/modules/billing/requirements.md"
 [ -f "$B/contracts/billing.contract.md" ]

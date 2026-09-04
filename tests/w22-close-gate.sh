@@ -75,8 +75,8 @@ echo "[3] close abandoned de tasks-ready"
 H_BEFORE="$(hash_outside_specs)"
 (cd "$T" && bash "$CL" chg-g --reason abandoned --note "prioridade mudou no quarter" >/dev/null)
 ARCH="$T/.forge/specs/archived/$(date +%F)-chg-g"
-[ -d "$ARCH" ] && [ ! -e "$T/.forge/specs/active/chg-g" ] \
-  || { echo "FAIL [3]: close abandoned não moveu chg-g para archived/ (ou não removeu de active/)"; exit 1; }
+[ -d "$ARCH" ] || { echo "FAIL [3]: close abandoned não criou chg-g em archived/"; exit 1; }
+[ ! -e "$T/.forge/specs/active/chg-g" ] || { echo "FAIL [3]: close abandoned não removeu chg-g de active/"; exit 1; }
 grep -q '^status: abandoned$' "$ARCH/manifest.yaml"
 grep -q '^  kind: closed_without_baseline_update$' "$ARCH/manifest.yaml"
 grep -q 'decision: abandon' "$ARCH/approvals.yaml"

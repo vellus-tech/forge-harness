@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**27 itens ativos** · roadmap 6 · tech-debt 10 · known-bug 8 · follow-up 3 · (35 encerrados)
+**26 itens ativos** · roadmap 6 · tech-debt 10 · known-bug 7 · follow-up 3 · (36 encerrados)
 
 ## Roadmap
 
@@ -59,8 +59,6 @@ _Encerrados: 15 (promoted 1 · resolved 13 · wont-fix 1)_
 
 ## Bugs conhecidos
 
-- **LDG-0028** [open] (P3/LOW) — forge update: mensagem diz '.forge não encontrado' quando o ausente é o forge.yaml
-  bin/forge.mjs:426-427 testa existsSync(.forge/forge.yaml) e, ao falhar, emite '.forge não encontrado em <target> — use npx forge-harness init'. Num projeto com .forge/ presente mas sem forge.yaml (harness parcialmente instalado, forge.yaml apagado, ou o dogfood deste repo), a mensagem manda reinstalar do zero quando o diagnóstico real é outro — e 'init' num .forge/ com specs e baseline é justamente o que o /forge:upgrade proíbe. O exit 3 e o não-escrever estão corretos (REQ-FHT-037); só a mensagem mente sobre a causa. Correção: distinguir os dois casos e, quando .forge/ existe, nomear o arquivo ausente. Achado ao rodar /forge:upgrade neste repo (2026-08-03).
 - **LDG-0054** [open] (P3/low) — check-heavy-mutex regra 1: o predicado mede grafia, não intenção
   A regra 1 procura a variável e a palavra 'lock' na MESMA linha, o que é um predicado sobre grafia. Quebrar a expressão em duas linhas desarma a regra sem mudar uma vírgula da semântica — foi o que o doctor.sh precisou fazer para detectar o caminho legado sem ser acusado de produzi-lo, e qualquer um pode repetir a quebra por acaso e perder a proteção sem saber. Correção proposta: uma válvula DECLARADA (um marcador na linha, ex. '# heavy-mutex: detecção') que o gate reconheça, para a intenção viver no código e não num comentário adjacente. Não foi feito agora porque muda o contrato de um gate que consumidores já declaram em runtime.gates, e o cenário [46b] já impede a regressão silenciosa que importa.
 - **LDG-0055** [open] (P3/low) — w151 [15]: recuperação de ticket ocupado coberta por unidade, sem rede de integração
@@ -76,7 +74,7 @@ _Encerrados: 15 (promoted 1 · resolved 13 · wont-fix 1)_
 - **LDG-0060** [open] (P3/low) — check-push-ahead: falha de rev-list na intersecao nao tem cobertura de teste
   A troca de `rest=0` por `rest=1` roteia um `rev-list` que falhou para a mensagem honesta de publicacao parcial, em vez da classe tranquilizadora. A mudanca esta certa e nao tem teste: o caminho e inalcancavel por `git push` real, porque o git so envia sha que possui — so se atinge com stdin forjado (sha valido em FORMA, objeto inexistente, destino refs/heads/<tronco>). Registrado como mudanca correta SEM cobertura, e nao como defeito: a mutacao que reverte `rest=1` para `rest=0` sobrevive a suite, e quem reencontrar isso precisa saber que a ausencia de vermelho aqui foi decidida, nao esquecida.
 
-_Encerrados: 14 (resolved 14)_
+_Encerrados: 15 (resolved 15)_
 
 ## Follow-ups
 

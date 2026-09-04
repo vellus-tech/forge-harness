@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**22 itens ativos** · roadmap 6 · tech-debt 10 · known-bug 3 · follow-up 3 · (40 encerrados)
+**24 itens ativos** · roadmap 6 · tech-debt 13 · known-bug 3 · follow-up 2 · (41 encerrados)
 
 ## Roadmap
 
@@ -54,6 +54,9 @@ _Encerrados: 1 (resolved 1)_
   Achado da revisão adversarial (PR #45): o change gate-assert-visibility está status:verified, archive.eligible:false, e permanece em .forge/specs/active/ por decisão registrada no manifest (não há baseline a atualizar). Consequência: red-evidence.sh ci reexecuta o replay desse bugfix já encerrado em TODO PR, para sempre, e já houve deriva silenciosa entre o base_strategy commitado (ancestry/944c9582, inalcançável a partir de origin/develop) e a estratégia real observada (revert-synthesis). Se um commit futuro tocar tests/w80-suite-gate.sh nos mesmos trechos, o patch reverso deixa de aplicar. Remédio: /forge:close esse change (delivered-externally) para sair do escopo do ci, ou fazer red-evidence.sh ci ignorar changes já verified.
 - **LDG-0038** [open] (P3/low) — red-replay.mjs não detecta clone shallow — devolve not-possible genérico em vez de mensagem acionável
   Achado da revisão adversarial (PR #45): deriveBase() em red-replay.mjs devolve not-possible com razão genérica quando o histórico git é insuficiente (clone shallow), mandando o autor rodar /forge:red replay de novo — conselho errado, já que o problema é do ambiente (fetch-depth), não do comando. Um git rev-parse --is-shallow-repository no início da função daria a mensagem certa ('repositório raso — configure fetch-depth: 0').
+- **LDG-0100** [open] (P3) — check-liaison-acks.sh não lê o hub para transporte git/gh (issue #84, escopo deliberado)
+- **LDG-0101** [open] (P3) — liaison-message.schema.json descreve body/body_ref como mutuamente obrigatório, mas validateEnvelope aceita os dois ausentes
+- **LDG-0102** [open] (P3) — contracts/claude-adapter-contract.md: tabela de topo (Versão) presa em 1.2 enquanto o changelog do documento já chegou a 1.5
 
 _Encerrados: 15 (promoted 1 · resolved 13 · wont-fix 1)_
 
@@ -72,9 +75,8 @@ _Encerrados: 19 (resolved 18 · wont-fix 1)_
 
 - **LDG-0001** [open] — Runtime cross-repo da capability authz/observability (PEP libs Go/Kotlin/TS, repo de política OPA, wrappers OTel, authz-console UI)
 - **LDG-0002** [open] — Piloto do gate authz/observability no axis-go-cloud (provar gate quebrando o build ao adicionar rota sem PEP)
-- **LDG-0022** [open] — O contrato C5 não foi estendido para asserir o estado `+2 Session hooks`; essa cobertura vive no · via `add-portable-handoff`#verify-1
 
-_Encerrados: 3 (resolved 3)_
+_Encerrados: 4 (resolved 4)_
 
 ## Notas
 

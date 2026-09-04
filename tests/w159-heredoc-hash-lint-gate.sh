@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Gate W156 — lint de sustenido dentro de heredoc aninhado em $( ) (LDG-0052).
+# Gate W159 — lint de sustenido dentro de heredoc aninhado em $( ) (LDG-0052).
 #
 # Um heredoc que chama `node`/`python` — o idioma que todo script do harness usa — normalmente
 # vive dentro de `$( … )`: `var="$(node - <<'EOF' … EOF)"`. Isso NÃO torna o corpo do heredoc
@@ -27,7 +27,7 @@ set -uo pipefail
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LINT="$WS/template/.forge/scripts/check-heredoc-hash.sh"
 
-T="$(mktemp -d /tmp/forge-w156.XXXXXX)"
+T="$(mktemp -d /tmp/forge-w159.XXXXXX)"
 trap 'rm -rf "$T"' EXIT
 
 run_lint() { # run_lint <args...> — saída em $out, rc em $rc
@@ -153,4 +153,4 @@ case "$out" in
 esac
 echo "OK [8]"
 
-echo "PASS w156-heredoc-hash-lint"
+echo "PASS w159-heredoc-hash-lint"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Gate W155 — escopo da varredura de placeholders <PROJECT_*> do doctor (LDG-0040).
+# Gate W158 — escopo da varredura de placeholders <PROJECT_*> do doctor (LDG-0040).
 #
 # O guard de `doctor.sh` (linha ~105, orphans) varre "$ROOT/.forge" procurando
 # `<PROJECT_[A-Z_]*>` órfão — o sinal de que alguém instalou o harness (/forge:init) e não
@@ -34,7 +34,7 @@
 set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-T="$(mktemp -d /tmp/forge-w155.XXXXXX)"
+T="$(mktemp -d /tmp/forge-w158.XXXXXX)"
 trap 'rm -rf "$T"' EXIT
 
 echo "[0] instala projeto real via forge.mjs init"
@@ -93,4 +93,4 @@ out5="$(FORGE_ROOT="$T" bash "$T/template/.forge/scripts/doctor.sh" --report 2>&
 grep -q "sem placeholders" <<<"$out5" || { echo "FAIL [5]: restauração não voltou a 'sem placeholders': $out5"; exit 1; }
 echo "OK [5]"
 
-echo "PASS w155-doctor-placeholder-scope-gate"
+echo "PASS w158-doctor-placeholder-scope-gate"

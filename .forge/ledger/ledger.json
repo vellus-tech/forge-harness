@@ -1416,6 +1416,126 @@
       "updated_at": "2026-09-04T15:40:04-03:00",
       "resolved_at": null,
       "dedup_key": "push-ahead-rest-sem-cobertura"
+    },
+    {
+      "id": "LDG-0061",
+      "type": "debt",
+      "title": "Enforcement mecanico so existe para .NET — Node/TS sem assets, script de auditoria nem scan",
+      "detail": "Escopo decidido em 2026-09-04 após parecer sobre o vibe-coding-toolkit (soumatheusgomes, MIT). O pack backend-dotnet-relational ganhou assets/ + dotnet-baseline.sh + dotnet-quality-scan; Node/TS fecha adaptando as tres regras ESLint em AST daquele repo (quality/max-lines, quality/no-direct-console, quality/no-direct-data-access) mais utils.cjs e verify.mjs, que sao testadas com o RuleTester do proprio ESLint e sem dependencia alem dele. Elas pegam o que grep nao pega: alias de import (db as database), import default vs namespace. Vendorizar como copia unica que passa a ser nossa (preservar aviso MIT), nunca dependencia de upstream — autor unico, repo de tres semanas, sem CI, regras escritas num unico dia. NAO herdar MAX_LINES=350 como error bloqueante: conflita com conventions/code-style.md (tamanho e smell, nao portao) e o proprio material do repo documenta o fatiamento cosmetico perto do limite sem resolve-lo no desenho do gate; se houver gatilho mecanico, que seja sinal nao bloqueante. Java e Python seguem em prosa. Implementacao segue TDD red-first com PBT, teste de contrato e teste de integracao.",
+      "severity": "low",
+      "priority": "P2",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-22T13:20:32-03:00",
+      "updated_at": "2026-08-22T13:20:32-03:00",
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0061"
+    },
+    {
+      "id": "LDG-0062",
+      "type": "debt",
+      "title": "single-impl-interface do dotnet-quality-scan é heurística de grep, não análise sintática",
+      "detail": "A regra conta declarações 'interface IX' e ocorrências de ': IX' por texto. Ela não distingue comentário, string literal nem declaração multi-linha, e conta a própria declaração quando a implementação está no mesmo arquivo em formato inesperado. Em base grande isso produz falso positivo e falso negativo silenciosos. A saída correta é um analisador Roslyn (Microsoft.CodeAnalysis.CSharp) operando sobre a árvore sintática e entrando no build — primeira camada, não segunda. Enquanto isso, a regra é MEDIUM e o SKILL.md declara que ela aponta e não decide.",
+      "severity": "low",
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-22T13:20:32-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0062"
+    },
+    {
+      "id": "LDG-0063",
+      "type": "roadmap",
+      "title": "Estrategia de corte de arquivo grande: a rule para em 'e smell, revise' e nao oferece caminho",
+      "detail": "conventions/code-style.md trata tamanho como smell e nao como portao — decisao correta —, mas nao diz COMO cortar quando o corte e devido, e o agente sem estrategia inventa helpers.ts/utils.ts como deposito do que sobrou. A coreografia do prompt 09 do vibe-coding-toolkit (MIT) e adotavel como orientacao: quatro costuras em ordem (logica de negocio embutida em UI/rota -> servico de dominio; bloco de UI repetido -> sub-componente; acesso a dados -> repositorio/adaptador; aglomerado de helpers -> modulo utilitario de dominio); escape hatch nomeado 'sem costura natural, pare e siga para o proximo' como preferivel a inventar abstracao; preservacao da interface publica com o arquivo original virando barril fino que reexporta, em vez de editar todo import site; ritmo de um arquivo por commit com typecheck+teste+lint entre cada. Duas armadilhas a registrar: a extracao pode empurrar o arquivo de DESTINO acima do proprio teto, e pode alargar em silencio o tipo de retorno inferido, virando erro de tipo num call site distante. Entrada como skill ou playbook cabeado a gate-runner/verify-build, nunca prompt solto. Implementacao segue TDD red-first com PBT, teste de contrato e teste de integracao.",
+      "severity": "low",
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-22T13:20:32-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0063"
+    },
+    {
+      "id": "LDG-0064",
+      "type": "roadmap",
+      "title": "Burndown de lint sem portao de decisao: afrouxar a regra e apresentado como codigo mais limpo",
+      "detail": "Nao existe no harness norma sobre como queimar um passivo de avisos herdado. O portao de decisao do prompt 02 do vibe-coding-toolkit (MIT) e adotavel como texto de processo: antes de implementar, identificar o trecho mais caro/arriscado com numeros reais e apresentar tres opcoes — (A) corrigir tudo, padrao na ausencia de resposta; (B) corrigir a maioria barata e rastrear o resto como divida VISIVEL (comentario + referencia de issue, nunca supressao silenciosa); (C) reescopar ou afrouxar a propria regra, marcado explicitamente como MUDANCA DE CONFIG e nunca apresentado como se o codigo tivesse ficado mais limpo. Complementos uteis: severidade derivada de contagem medida (regra com zero violacoes nasce error; com violacoes nasce warn com a contagem anotada como linha de base, e o criterio de parada e essa contagem voltar a zero) e ignore curto e nomeado em vez de rebaixar a regra inteira. Cabe em testing/quality-gates.md, valendo para qualquer stack. Implementacao segue TDD red-first com PBT, teste de contrato e teste de integracao.",
+      "severity": "low",
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-22T13:20:32-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0064"
+    },
+    {
+      "id": "LDG-0065",
+      "type": "debt",
+      "title": "Enforcement mecanico ausente em Java e Python — os packs seguem so em prosa",
+      "detail": "Separado de LDG-0061 em 2026-09-04 por revisao adversarial: o DoD daquele item passou a ser o pack Node (as tres regras ESLint em AST do vibe-coding-toolkit), e Java e Python sumiriam em silencio quando ele fechasse como resolved — fabricando um falso resolvido no mesmo plano que existe porque LDG-0053 e um falso pendente. Os equivalentes existem: em Java, Error Prone/SpotBugs/Checkstyle com failOnViolation mais o enforcer de versao; em Python, ruff e mypy strict declarados em pyproject com exit nao-zero. O padrao a replicar e o do w155: asset no capability pack, script de auditoria com check/apply, fiacao em doctor/verify-build/reviewer e gate com controle e recontrole. Implementacao segue TDD red-first com PBT, teste de contrato e teste de integracao.",
+      "severity": "low",
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-22T13:20:32-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0065"
     }
   ]
 }

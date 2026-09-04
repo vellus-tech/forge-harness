@@ -183,7 +183,9 @@ echo "OK [6]"
 echo "[7] ack --reason wont-adopt acka e registra tech-debt no ledger"
 CHECK pad
 [ "$ACK_RC" -ne 0 ] || { echo "FAIL [7]: pré-condição — pad deveria estar bloqueado"; exit 1; }
-LG pad ack "$CH" "$MSGID" --reason wont-adopt >/dev/null
+# --reason wont-adopt exige --body/--body-file desde a issue #83 (w166 cobre a reprovação em si:
+# recusa sem justificativa é o próprio drift que o canal existe para evitar).
+LG pad ack "$CH" "$MSGID" --reason wont-adopt --body "avaliamos e decidimos não adotar" >/dev/null
 CHECK pad
 [ "$ACK_RC" -eq 0 ] || { echo "FAIL [7]: wont-adopt não desbloqueou: $ACK_OUT"; exit 1; }
 [ -f "$T/pad/.forge/ledger/ledger.json" ] || { echo "FAIL [7]: ledger não foi criado"; exit 1; }

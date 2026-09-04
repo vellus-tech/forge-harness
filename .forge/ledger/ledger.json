@@ -1418,7 +1418,7 @@
       "dedup_key": "push-ahead-rest-sem-cobertura"
     },
     {
-      "id": "LDG-0061",
+      "id": "LDG-0066",
       "type": "known-bug",
       "title": "ledger-ops.sh: add/update --status resolved deixava resolved_at nulo em silêncio (issue #78)",
       "detail": "Três caminhos levavam uma entrada a um estado terminal (resolved/wont-fix) e só o subcomando resolve carimbava resolved_at; add --status resolved e update --status resolved nasciam/passavam ao estado terminal com o carimbo nulo, rc 0, sem aviso. As duas portas erradas eram exatamente as que a pessoa procura primeiro. Medido: 45/143 num consumidor (crescendo 39/135 -> 42/138 -> 45/143), 11/59 no proprio harness. Fechado recusando --status resolved/wont-fix em add/update, apontando para resolve (que agora tambem aceita --status wont-fix). Backfill das 11 entradas locais com resolved_at retroativo rastreado ao commit que fechou cada issue. Gate tests/w157-ledger-integrity-gate.sh, 9 cenarios (portas, controle/recontrole com cmp, vacuidade, propriedade). — Resolvido: Onda 0b: portas fechadas em ledger-ops.sh (add/update recusam --status resolved|wont-fix, resolve aceita --status wont-fix), backfill das 11 entradas historicas com resolved_at rastreado por commit, gate tests/w157-ledger-integrity-gate.sh criado red-first (9 cenarios) e verde.",

@@ -10,6 +10,7 @@
     "bin/",
     "template/",
     "installer/gitignore.patch",
+    "installer/gitattributes.patch",
     "installer/install.sh",
     "installer/removed-files.txt",
     "CHANGELOG.md"

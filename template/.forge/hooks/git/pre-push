@@ -120,6 +120,22 @@ if [ -f "$ACKS" ]; then
   fi
 fi
 
+# liaison log integrity (issue #80) — o BLOQUEIO do único modo de falha do merge=union: nada
+# duplicado sai da máquina. post-merge (abaixo, neste mesmo diretório) já DETECTA no instante em
+# que a duplicata nasce e roda em qualquer branch; este é o segundo dos dois pontos de fiação que
+# a issue pede — nenhum dos dois basta sozinho.
+LOG_INTEGRITY="$ROOT/.forge/scripts/check-liaison-log-integrity.sh"
+if [ ! -f "$LOG_INTEGRITY" ] && [ -d "$ROOT/.forge/scripts" ]; then
+  echo "pre-push BLOQUEADO: .forge/scripts/ existe mas check-liaison-log-integrity.sh não — delegação em alvo ausente" >&2
+  exit 1
+fi
+if [ -f "$LOG_INTEGRITY" ]; then
+  if ! FORGE_ROOT="$ROOT" bash "$LOG_INTEGRITY"; then
+    echo "pre-push BLOQUEADO: liaison — log duplicado pelo merge=union (issue #80)" >&2
+    exit 1
+  fi
+fi
+
 FORGE_MD="$ROOT/.forge/FORGE.md"
 [ -f "$FORGE_MD" ] || { echo "pre-push OK (sem harness)"; exit 0; }
 

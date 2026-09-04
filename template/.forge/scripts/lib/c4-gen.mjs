@@ -67,7 +67,12 @@ const LAYER_STYLE = {
   config: 'fill:#fffde7,stroke:#f9a825,color:#f57f17',
   unknown: 'fill:#fafafa,stroke:#bdbdbd,color:#616161',
 };
-const classDefs = () => Object.entries(LAYER_STYLE).map(([l, s]) => `  classDef ${l} ${s};`);
+// nó EXTERNO a um boundary (LDG-0031): o C3 canônico mostra os componentes/containers com que o
+// boundary conversa, não só os de dentro. Estilo tracejado, deliberadamente fora de LAYER_STYLE —
+// não é "não classificado", é "não pertence a este boundary".
+const EXTERNAL_STYLE = 'fill:#ffffff,stroke:#9e9e9e,stroke-width:1px,stroke-dasharray: 3 3,color:#616161';
+const classDefs = (extra) => Object.entries(LAYER_STYLE).map(([l, s]) => `  classDef ${l} ${s};`)
+  .concat(extra ? [`  classDef external ${EXTERNAL_STYLE};`] : []);
 function dominantLayer(ids) {
   const c = {};
   for (const id of ids) { const l = layerOf.get(id) || 'unknown'; c[l] = (c[l] || 0) + 1; }
@@ -124,9 +129,13 @@ for (const n of g.nodes) {
 }
 let c3count = 0;
 for (const [b, allFiles] of [...byBoundary.entries()].sort()) {
-  if (allFiles.length < 2) continue;
+  // LDG-0031: boundary de UM arquivo também gera C3 — antes disto ele não aparecia em NENHUM
+  // dos 3 níveis (C1 só mostra sistema+externals, C2 agrega por boundary como "src/domain (1)",
+  // e o C3 era pulado aqui). Contradiz o espírito já declarado deste gerador para boundary
+  // grande — "nenhum arquivo some, só sobe de abstração" — e era assimétrico: 2 arquivos
+  // expunham os nomes, 1 arquivo sumia.
   const slug = b.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase();
-  let title, lines;
+  let title, lines, hasExternal = false;
   if (allFiles.length <= C3_MAX_NODES) {
     // pequeno → detalhe por arquivo
     const inset = new Set(allFiles);
@@ -134,9 +143,29 @@ for (const [b, allFiles] of [...byBoundary.entries()].sort()) {
     title = `C3 — Componentes: ${san(b)} (cor = camada)`;
     lines = ['flowchart TD', `  %% component view: ${san(b)}`];
     for (const f of [...allFiles].sort()) lines.push(`  ${nid.get(f)}["${san(f.split('/').pop())}"]:::${layerOf.get(f) || 'unknown'}`);
+    // arestas intra-boundary normalmente; aresta CROSS-boundary para um nó EXTERNO tracejado
+    // representando o outro lado (LDG-0031). Antes, `inset.has(from) && inset.has(to)` exigia
+    // os dois extremos dentro do boundary e toda dependência de SAÍDA era descartada — o C3
+    // ficava afirmativamente enganoso (parecia que o componente não conversava com nada de
+    // fora), não só incompleto. Um nó externo por ARQUIVO-alvo distinto (dedup por id), não
+    // por aresta — evita duplicar o mesmo alvo quando há várias arestas para ele.
+    const outside = new Map(); // outside file id -> mermaid node id (x0, x1, …)
+    const outsideId = (fid) => {
+      if (!outside.has(fid)) outside.set(fid, `x${outside.size}`);
+      return outside.get(fid);
+    };
+    const crossLines = [];
     for (const e of g.edges) {
       if (!e.resolved) continue;
-      if (inset.has(e.from) && inset.has(e.to)) lines.push(`  ${nid.get(e.from)} --> ${nid.get(e.to)}`);
+      const fromIn = inset.has(e.from), toIn = inset.has(e.to);
+      if (fromIn && toIn) { lines.push(`  ${nid.get(e.from)} --> ${nid.get(e.to)}`); continue; }
+      if (fromIn && !toIn) crossLines.push(`  ${nid.get(e.from)} --> ${outsideId(e.to)}`);
+      else if (!fromIn && toIn) crossLines.push(`  ${outsideId(e.from)} --> ${nid.get(e.to)}`);
+    }
+    if (outside.size) {
+      hasExternal = true;
+      for (const [fid, xid] of outside) lines.push(`  ${xid}["${san(boundaryOf(fid))}: ${san(fid.split('/').pop())}"]:::external`);
+      lines.push(...crossLines);
     }
   } else {
     // grande → agregado por submódulo (renderável + completo; nenhum arquivo some)
@@ -156,15 +185,17 @@ for (const [b, allFiles] of [...byBoundary.entries()].sort()) {
     for (const gp of groups) lines.push(`  ${gid.get(gp)}["${san(gp.slice(b.length + 1) || gp)} (${gfiles.get(gp).length})"]:::${dominantLayer(gfiles.get(gp))}`);
     for (const k of [...gedge.keys()].sort()) { const [a, c] = k.split('>'); lines.push(`  ${gid.get(a)} --> ${gid.get(c)}`); }
   }
-  lines.push(...classDefs());
+  lines.push(...classDefs(hasExternal));
   writeDiagram(`c3-component-${slug}`, title, lines.join('\n'));
   c3count++;
 }
 
 // clean stale c3 files from previous runs that no longer correspond to a boundary,
-// plus any legacy .mmd files from versions that emitted bare Mermaid.
-const wanted = new Set([...byBoundary.entries()].filter(([, f]) => f.length >= 2)
-  .map(([b]) => `c3-component-${b.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase()}.md`));
+// plus any legacy .mmd files from versions that emitted bare Mermaid. Every boundary in
+// byBoundary now gets a C3 (LDG-0031 — includes 1-file boundaries), so `wanted` is every
+// boundary, no length filter.
+const wanted = new Set([...byBoundary.keys()]
+  .map((b) => `c3-component-${b.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase()}.md`));
 for (const f of readdirSync(c4Dir)) {
   if (f.endsWith('.mmd')) { rmSync(join(c4Dir, f)); continue; }
   if (f.startsWith('c3-component-') && f.endsWith('.md') && !wanted.has(f)) rmSync(join(c4Dir, f));

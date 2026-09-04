@@ -238,6 +238,13 @@
               "items": {
                 "type": "string"
               }
+            },
+            "include_paths": {
+              "type": "array",
+              "description": "Globs (mesmo dialeto de `layers`) de caminhos que são código-fonte de verdade mesmo quando o nome bateria com o default de \"pular\" — prefixo de ponto (`.forge/`, `.config/`) ou a lista fixa SKIP_DIRS (LDG-0027). Existe para o repositório que PRODUZ um harness/scaffold cujo próprio produto vive sob um diretório assim (ex.: `template/.forge/scripts/**`), sem precisar de exceção com nome de projeto embutida no engine. Bloco ausente = nenhum caminho forçado = o walk de hoje, byte a byte.",
+              "items": {
+                "type": "string"
+              }
             }
           }
         },

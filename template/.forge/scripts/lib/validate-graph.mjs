@@ -29,7 +29,10 @@ if (!Array.isArray(g.nodes)) errors.push('nodes must be an array');
 if (!Array.isArray(g.edges)) errors.push('edges must be an array');
 if (errors.length) { console.log(`FAIL (${errors.join('; ')})`); process.exit(1); }
 
-const LANGS = new Set(['js', 'ts', 'csharp', 'go', 'python', 'kotlin', 'java', 'other']);
+// 'shell' (LDG-0027): produz NÓ, nunca aresta (SCRIPT_DIR/variáveis tornam a extração estática
+// pouco confiável — ver graph-build.mjs). Continua em EXTRACTOR_SUPPORTED porque a regra abaixo
+// (§19.5) só olha para "tem nó?", não para "tem aresta?" — e todo arquivo .sh sempre vira nó.
+const LANGS = new Set(['js', 'ts', 'csharp', 'go', 'python', 'kotlin', 'java', 'shell', 'other']);
 // languages the native extractor produces graph nodes for — every LANGS value except the
 // 'other' catch-all. Derived (not re-typed) so it never drifts from the enum above.
 const EXTRACTOR_SUPPORTED = new Set([...LANGS].filter((l) => l !== 'other'));

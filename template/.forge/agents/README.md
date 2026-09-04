@@ -31,7 +31,7 @@ Vale para **todos** os agents (specification, architecture, review, coding, engi
 
 | Agent | Quando Usar |
 |---|---|
-| [dotnet-reviewer](./code-review/dotnet-reviewer.md) | Revisar C# .NET 8+/10+: estilo, DI, async/await, EF Core, nullable |
+| [dotnet-reviewer](./code-review/dotnet-reviewer.md) | Revisar paths C#/.NET: roda antes o baseline de build (`dotnet-baseline.sh`) e a skill `dotnet-quality-scan`, e gasta julgamento só no que elas não decidem — domínio, EF Core, ciclo de vida de dependência, fronteira de camada |
 | [node-reviewer](./code-review/node-reviewer.md) | Revisar paths Node/TypeScript: validação runtime, erros assíncronos, dependências e persistência |
 | [java-reviewer](./code-review/java-reviewer.md) | Revisar paths Java: build existente, transações, persistência e contratos |
 | [python-reviewer](./code-review/python-reviewer.md) | Revisar paths Python: tipos, concorrência, ambiente e persistência |

@@ -112,6 +112,7 @@ Estilo é majoritariamente **julgamento**, não mecanizável por completo — po
 
 - **Checklist de revisão:** o `quality-reviewer` (e o code-review em geral) confere estas diretrizes; os engineering agents leem esta rule **antes de codificar**; o `task-coder` a inclui no contexto passado aos specialists.
 - **Braço mecânico (quando o linter da stack estiver configurado no projeto):** parte é automatizável como *smell* — ESLint `max-depth`/`complexity`/`no-magic-numbers` (TS/React), analisadores Roslyn / `dotnet format` (.NET), `detekt`/`ktlint` (Kotlin). **Não** é um novo gate bloqueante de CI: o template não presume esses limites ligados, então trate-os como sinal, não como portão — o gate de qualidade permanece o de `quality-gates.md`.
+- **Quando a stack permite, prefira o braço mecânico ao julgamento.** Regra que o compilador pode provar não deveria estar disputando atenção com o resto do contexto: em .NET, `TreatWarningsAsErrors` + `EnforceCodeStyleInBuild` + severidade por ID de regra no `.editorconfig` convertem boa parte desta rule em erro de compilação (ver o capability pack `backend-dotnet-relational` e `.forge/scripts/dotnet-baseline.sh`). O que sobra para leitura humana — responsabilidade única, nível de abstração, nome que revela intenção — é o que nenhum analisador decide.
 
 ## Anti-Patterns
 

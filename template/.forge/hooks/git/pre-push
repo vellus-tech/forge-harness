@@ -123,6 +123,28 @@ fi
 FORGE_MD="$ROOT/.forge/FORGE.md"
 [ -f "$FORGE_MD" ] || { echo "pre-push OK (sem harness)"; exit 0; }
 
+# ── pré-condições de worktree (issue #81) ────────────────────────────────────────────────────
+# ANTES de qualquer suíte, e ANTES do mutex de carga pesada: enumera de uma vez todo artefato de
+# árvore (deps instaladas, build declarado) que os gates abaixo vão precisar e este hook não
+# produz. Medido em campanha real: sem isto, cada pendência só aparece depois que a anterior é
+# corrigida e um NOVO ciclo de push é gasto para descobri-la — 9 tentativas, 0 por defeito de
+# código. Três saídas foram comparadas (produzir o artefato; degradar para aviso; revelar todas
+# de uma vez) — revelar todas é a única que corta o custo medido sem herdar o risco de rodar
+# install/build como efeito colateral de um push. Só `existsSync`/`readFileSync` — nunca install,
+# nunca build — para não ficar mais caro que o hook que substitui no caminho feliz.
+PREREQS="$ROOT/.forge/scripts/check-worktree-prereqs.sh"
+if [ ! -f "$PREREQS" ] && [ -d "$ROOT/.forge/scripts" ]; then
+  echo "pre-push BLOQUEADO: .forge/scripts/ existe mas check-worktree-prereqs.sh não — delegação em alvo ausente." >&2
+  exit 1
+fi
+if [ -f "$PREREQS" ]; then
+  if ! PREREQS_OUT="$(bash "$PREREQS" --path "$ROOT" 2>&1)"; then
+    echo "pre-push BLOQUEADO: pré-condições de worktree ausentes (issue #81) —"
+    echo "$PREREQS_OUT"
+    exit 1
+  fi
+fi
+
 fm_field() {  # fm_field <key> — value of "  <key>:" inside the runtime: block
   awk -v key="$1" '
     /^runtime:/ { inblk=1; next }

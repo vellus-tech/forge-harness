@@ -99,6 +99,23 @@ if [ "$TARGET" = "implementing" ] && [ -f "$DIR/analysis.md" ]; then
   fi
 fi
 
+# G5 guardrail (frescor de grafo/impacto — lsp-impact-analysis.md, LDG-0036/#82): a mesma
+# fórmula que o pré-flight do archive já usa (archive-spec.sh) e que analyze.md item 6 manda o
+# AGENTE rodar manualmente, aqui é EXECUTADA — não instrução para lembrar. Um change que toca
+# código (affected_paths não vazio) com grafo construído e impact.json ausente/desatualizado não
+# avança para implementing: por definição, ninguém ainda mapeou o raio de impacto da mudança que
+# está prestes a começar. not-applicable (sem grafo, ou change sem affected_paths — a maioria)
+# nunca bloqueia, mesma régua do impact-freshness.mjs em qualquer outro chamador.
+if [ "$TARGET" = "implementing" ] && command -v node >/dev/null 2>&1 && [ -f "$SCRIPT_DIR/lib/impact-freshness.mjs" ]; then
+  impact_status="$(node "$SCRIPT_DIR/lib/impact-freshness.mjs" "$DIR" "$ROOT" 2>/dev/null || echo not-applicable)"
+  case "$impact_status" in
+    missing|stale)
+      echo "FAIL (impact.json $impact_status — rode /forge:update e depois /forge:impact --change $ID antes de implementing; lsp-impact-analysis.md guardrail G5)"
+      exit 1
+      ;;
+  esac
+fi
+
 TODAY="$(date +%F)"
 cp "$MAN" "$MAN.bak"
 perl -pi -e "s/^status: .*/status: $TARGET/; s/^updated_at: .*/updated_at: \"$TODAY\"/" "$MAN"

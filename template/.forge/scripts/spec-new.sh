@@ -88,6 +88,12 @@ fill "$TPL/spec/tasks.md" "$DEST/tasks.md"
 [ "$SCALE" -ge 1 ] && fill "$TPL/spec/spec-delta.yaml" "$DEST/spec-delta.yaml"
 
 # ── manifest (doc §10.2) ──────────────────────────────────────────────────────
+# Nota (LDG-0033, resolvido): os campos de lista abaixo (`affected_capabilities`,
+# `affected_paths`, `dependencies.specs/code`, `quick_plan.skipped_phases`) nascem em flow
+# style (`[]`). yaml-lite.mjs agora parseia flow style não-vazio corretamente (`[a, b]` vira
+# array de verdade, não string literal) — mantido como default deliberado: continua sendo o
+# formato mais compacto para editar `skipped_phases: [story-sharding]` à mão, e não há mais
+# armadilha em fazê-lo (block style `- item` também funciona; ver tests/w162-yaml-lite-flow-array-gate.sh).
 cat > "$DEST/manifest.yaml" <<EOF
 id: $ID
 type: $TYPE

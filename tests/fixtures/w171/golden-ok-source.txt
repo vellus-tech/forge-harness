@@ -1,0 +1,2 @@
+  fixture-gate: passed (log: <LOGDIR>/fixture-gate.log)
+OK

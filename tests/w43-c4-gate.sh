@@ -30,8 +30,8 @@ FORGE_ROOT="$T" bash "$S/graph.sh" build >/dev/null
 
 echo "[1] geração dos 3 níveis"
 FORGE_ROOT="$T" bash "$S/c4.sh" >/dev/null
-[ -f "$C4/c1-context.md" ] && [ -f "$C4/c2-container.md" ] \
-  || { echo "FAIL [1]: c1-context.md ou c2-container.md ausente"; exit 1; }
+[ -f "$C4/c1-context.md" ] || { echo "FAIL [1]: c1-context.md ausente"; exit 1; }
+[ -f "$C4/c2-container.md" ] || { echo "FAIL [1]: c2-container.md ausente"; exit 1; }
 ls "$C4"/c3-component-*.md >/dev/null
 grep -q '^flowchart' "$C4/c2-container.md"
 echo "OK [1]"

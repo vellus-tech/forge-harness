@@ -526,6 +526,11 @@
               "minLength": 1,
               "description": "Nome do recurso disputado. Repositórios que disputam a MESMA máquina precisam do mesmo nome para serializar entre si; nomes distintos são conjuntos de exclusão distintos, de propósito. Default forge-heavy-suite."
             },
+            "root": {
+              "type": "string",
+              "pattern": "^/",
+              "description": "Raiz ABSOLUTA onde o lock é criado. Default /tmp. Precedência: FORGE_HEAVY_MUTEX_ROOT > este campo > /tmp. A variável de ambiente é a via de ISOLAMENTO deliberado; esta chave é a via de CONVERGÊNCIA, para um host onde vários repositórios já se serializam por um protocolo legado poder migrar UM de cada vez. Sem ela a migração é atômica sobre o conjunto: o primeiro a migrar parte a exclusão de todos os outros, e cada lado adquire o próprio lock com sucesso acreditando estar protegido."
+            },
             "timeout_s": {
               "type": "integer",
               "minimum": 0,

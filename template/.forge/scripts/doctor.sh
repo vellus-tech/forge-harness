@@ -41,6 +41,7 @@ have() { command -v "$1" >/dev/null 2>&1; }
 ok()    { printf "  %s✓%s %s\n" "$GREEN" "$RST" "$1"; }
 miss()  { printf "  %s✗%s %s\n" "$RED" "$RST" "$1"; }
 info()  { printf "  %s·%s %s\n" "$YEL" "$RST" "$1"; }
+warn()  { printf "  %s!%s %s\n" "$YEL" "$RST" "$1"; }
 hint()  { printf "      %s↳ %s%s\n" "$DIM" "$1" "$RST"; }
 
 # Detecta stacks por marcadores no repo (ignora node_modules/bin/obj/.git).
@@ -326,8 +327,36 @@ EOF_ORPHAN
       hint "corrija com: npx forge-harness update   (grava o caminho absoluto do tronco)"
       MISSING_DIAG=1
     else
-      info "harness: core.hooksPath customizado ('$hp_cur') — os hooks do Forge não estão ativos"
-      hint "encadeie .forge/hooks/git/* no seu hook customizado se quiser os gates do Forge"
+      # VERIFICA o encadeamento em vez de confiar (issue #74). `info` era a severidade certa para
+      # quem encadeou e a errada para quem não encadeou, e o doctor não distinguia os dois porque
+      # não olhava — então "instalei o harness, ele está inerte, e o doctor diz que está tudo bem"
+      # ficava indistinguível de "instalei e encadeei tudo". A régua já existe: a issue #41 fez o
+      # hooksPath relativo virar defeito exatamente porque hook que não executa é indistinguível de
+      # hook ausente, e uma árvore customizada sem encadeamento produz o MESMO estado.
+      #
+      # O caso mais valioso é o parcial, e é o mais provável: quem tem hooks próprios encadeia o
+      # que precisava no dia em que precisou, e cada upgrade acrescenta gates que ninguém liga.
+      # Sem esta linha, todo `update` amplia em silêncio a distância entre o que o harness entrega
+      # e o que o repositório executa.
+      hp_ref=0; hp_orfaos=""
+      if [ -d "$hp_cur" ]; then
+        grep -rqE '\.forge/hooks/git|check-[a-z-]+\.sh' "$hp_cur" 2>/dev/null && hp_ref=1
+        for hp_g in "$ROOT"/.forge/scripts/check-*.sh "$ROOT/.forge/scripts/tests/run-all.sh"; do
+          [ -f "$hp_g" ] || continue
+          hp_n="$(basename "$hp_g")"
+          grep -rq "$hp_n" "$hp_cur" 2>/dev/null || hp_orfaos="$hp_orfaos $hp_n"
+        done
+      fi
+      if [ "$hp_ref" -eq 0 ]; then
+        miss "harness: core.hooksPath customizado ('$hp_cur') e NENHUMA referência aos gates do Forge — a árvore .forge/hooks/git/ está inerte"
+        hint "encadeie .forge/hooks/git/* nos seus hooks, ou rode: npx forge-harness update"
+        MISSING_DIAG=1
+      elif [ -n "$hp_orfaos" ]; then
+        warn "harness: core.hooksPath customizado com encadeamento PARCIAL — gates que ninguém invoca:$hp_orfaos"
+        hint "encadeie os acima em '$hp_cur' — cada upgrade acrescenta gates novos, e os que ninguém liga não rodam"
+      else
+        ok "harness: core.hooksPath customizado ('$hp_cur') com os gates do Forge encadeados"
+      fi
     fi
 
     # Divergência de maquinaria por worktree. Maquinaria versionada dentro da árvore não se

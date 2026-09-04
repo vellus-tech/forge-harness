@@ -159,12 +159,26 @@ echo "OK [d3] (chave de topo nova mesclada — merge aditivo de forge.yaml)"
 [ -f "$T/.forge/scripts/handoff-gen.sh" ] || { echo "FAIL [e] (handoff-gen.sh não chegou pelo overlay)"; exit 1; }
 echo "OK [e] (maquinaria nova aplicada)"
 
-# [f] backup: .forge.bak-1 criado; segundo run com --no-backup não cria .bak-2
-[ -d "$T/.forge.bak-1" ] || { echo "FAIL [f] (.forge.bak-1 não foi criado)"; exit 1; }
+# [f] backup FORA da árvore de trabalho (issue #76); --no-backup continua pulando.
+# O backup morava em `.forge.bak-N`, DENTRO do repositório, e todo gate que aceita `--path` varria
+# também a cópia — reprovando por conteúdo que era duplicata do próprio repo. Medido em consumidor
+# real: `check-data-governance.sh --path .` acusava conflito de RLS logo após o update, e passava
+# ao mover só o backup para fora. O pior caso era o `check-secrets.sh`, onde um segredo já
+# corrigido no original seguia presente na cópia.
+BAK1="$(ls -d "$T/.git/forge-backups/"forge-1 2>/dev/null || true)"
+[ -n "$BAK1" ] && [ -d "$BAK1" ] \
+  || { echo "FAIL [f] (backup não foi criado em .git/forge-backups/)"; exit 1; }
+[ ! -d "$T/.forge.bak-1" ] \
+  || { echo "FAIL [f] (backup criado DENTRO da árvore — é varrido pelos gates e aparece em git status)"; exit 1; }
+# E não pode aparecer como não-rastreado: um repositório que use `git add -A` levaria o backup
+# inteiro para dentro de um commit.
+[ -z "$(git -C "$T" status --porcelain 2>/dev/null | grep -c 'forge-backups' | grep -v '^0$')" ] \
+  || { echo "FAIL [f] (o backup aparece em git status)"; exit 1; }
 node "$WS/bin/forge.mjs" update --target "$T" --no-plugin --no-backup --source "$WS/template/.forge" >"$T/update2.log" 2>&1 \
   || { echo "FAIL (segundo update --no-backup falhou)"; cat "$T/update2.log"; exit 1; }
-[ ! -d "$T/.forge.bak-2" ] || { echo "FAIL [f] (--no-backup criou backup mesmo assim)"; exit 1; }
-echo "OK [f] (backup no 1º run; --no-backup pula no 2º)"
+[ ! -d "$T/.git/forge-backups/forge-2" ] && [ ! -d "$T/.forge.bak-2" ] \
+  || { echo "FAIL [f] (--no-backup criou backup mesmo assim)"; exit 1; }
+echo "OK [f] (backup fora da árvore no 1º run; --no-backup pula no 2º)"
 
 # [g] doctor --report limpo, sem falso-positivo por causa do texto ".claude/" na spec
 doctor_out="$(bash "$T/.forge/scripts/doctor.sh" --report)"

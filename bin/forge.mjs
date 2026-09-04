@@ -492,8 +492,16 @@ function mergeNewForgeKeys(src, forge) {
 async function updateHarness() {
   const target = resolve(vals.target || process.cwd());
   const forge = join(target, '.forge');
-  if (!existsSync(join(forge, 'forge.yaml')))
+  // Dois diagnósticos diferentes por trás do mesmo exit 3 (REQ-FHT-037: nunca escreve neste
+  // caminho, nos dois casos). `.forge/` ausente é "nunca instalado" — `init` é o remédio certo.
+  // `.forge/` PRESENTE sem forge.yaml é instalação parcial, arquivo apagado, ou o dogfood do
+  // próprio harness (LDG-0028) — `init` exigiria --force e faria backup+sobrescrita de specs/
+  // baseline que podem existir ali, a ação errada quando só um arquivo sumiu. Nomear o artefato
+  // que falta de verdade, sem prescrever a rota destrutiva.
+  if (!existsSync(forge))
     fail(`.forge não encontrado em ${target} — use \`npx forge-harness init\` para instalar`, 3);
+  if (!existsSync(join(forge, 'forge.yaml')))
+    fail(`${target}/.forge existe mas forge.yaml não — instalação parcial, arquivo apagado, ou harness sem esse arquivo (ex.: dogfood). Não rode init (exigiria --force e sobrescreveria specs/baseline existentes) — restaure .forge/forge.yaml (do template ou do histórico do git) e rode update de novo`, 3);
 
   // Passo zero: recusa rodar de dentro de um worktree linkado. A maquinaria é versionada DENTRO da
   // árvore, então um update aplicado num worktree escreve `.forge/**` novo apenas naquela branch —

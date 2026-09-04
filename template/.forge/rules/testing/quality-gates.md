@@ -61,7 +61,8 @@ Ver `tdd.md` para exemplos de FsCheck e fast-check.
 
 | Ferramenta | Stack | Gate |
 |------------|-------|------|
-| `dotnet format` + Roslyn analyzers | .NET | Bloqueante em CI |
+| `dotnet format --verify-no-changes` + Roslyn analyzers | .NET | Bloqueante em CI (executado pela skill `verify-build`) |
+| `dotnet-baseline.sh --check` | .NET | Bloqueante em CI — `TreatWarningsAsErrors`, severidade por ID de regra e CPM presentes no repositório |
 | ESLint | TypeScript/React | Bloqueante em CI |
 | commitlint | Todos | Bloqueante em hook |
 
@@ -82,6 +83,7 @@ Ver `tdd.md` para exemplos de FsCheck e fast-check.
 | Gate | Trigger | Bloqueante |
 |------|---------|-----------|
 | Unit + Integration tests | Todo PR | Sim |
+| Baseline de build .NET (`dotnet-baseline.sh --check`) | PR que toca `.cs`/`.csproj`/`.sln` | Sim |
 | Contract tests | PR com mudança de contrato | Sim |
 | ESLint / dotnet format | Todo PR | Sim |
 | Coverage thresholds | Todo PR | Sim |

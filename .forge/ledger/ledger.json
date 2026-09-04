@@ -936,7 +936,7 @@
       "id": "LDG-0039",
       "type": "known-bug",
       "title": "pre-push não expunha as refs publicadas aos gates de runtime.gates (FORGE_PUSH_REFS_FILE)",
-      "detail": "O git entrega ao pre-push, por stdin, uma linha \"<local ref> <local sha> <remote ref> <remote sha>\" por ref. O hook consome esse stdin uma única vez em INPUT=$(cat), então um gate de runtime.gates invocado depois não tinha como relê-lo e só via o que estava em checkout — que diverge do publicado em 'git push origin outra-branch:main' e em push de múltiplas refs. Corrigido re-exportando as linhas cruas num arquivo temporário apontado por FORGE_PUSH_REFS_FILE, removido no EXIT do hook. A primeira versão da correção punha o payload dentro da própria variável de ambiente, e a revisão adversarial mostrou que isso falha ABERTO: acima de MAX_ARG_STRLEN (128 KB no Linux, ~1 MB de argv+envp no macOS) todo exec do hook morre com E2BIG, inclusive o awk que lê o FORGE.md, e o hook imprime 'pre-push OK' sem ter rodado typecheck, teste nem gate algum. Coberto por tests/w135-push-refs-export-gate.sh (Red observado contra o hook anterior; o cenário [3], com 12000 refs, prova a regressão do E2BIG nos dois sistemas). Pendência remanescente: REQ-FHT-015/SCN-FHT-015-A do baseline descreve o contrato de execução dos gates e ainda não menciona FORGE_PUSH_REFS_FILE como parte do ambiente — atualizar no próximo /forge:archive que tocar essa capability. [Backfill issue #78: resolved_at retroativo = data do commit 2e848f8, que fechou #44 (LDG-0039 citado no commit).]",
+      "detail": "O git entrega ao pre-push, por stdin, uma linha \"<local ref> <local sha> <remote ref> <remote sha>\" por ref. O hook consome esse stdin uma única vez em INPUT=$(cat), então um gate de runtime.gates invocado depois não tinha como relê-lo e só via o que estava em checkout — que diverge do publicado em 'git push origin outra-branch:main' e em push de múltiplas refs. Corrigido re-exportando as linhas cruas num arquivo temporário apontado por FORGE_PUSH_REFS_FILE, removido no EXIT do hook. A primeira versão da correção punha o payload dentro da própria variável de ambiente, e a revisão adversarial mostrou que isso falha ABERTO: acima de MAX_ARG_STRLEN (128 KB no Linux, ~1 MB de argv+envp no macOS) todo exec do hook morre com E2BIG, inclusive o awk que lê o FORGE.md, e o hook imprime 'pre-push OK' sem ter rodado typecheck, teste nem gate algum. Coberto por tests/w135-push-refs-export-gate.sh (Red observado contra o hook anterior; o cenário [3], com 12000 refs, prova a regressão do E2BIG nos dois sistemas). Pendência remanescente: REQ-FHT-015/SCN-FHT-015-A do baseline descreve o contrato de execução dos gates e ainda não menciona FORGE_PUSH_REFS_FILE como parte do ambiente — atualizar no próximo /forge:archive que tocar essa capability.",
       "severity": null,
       "priority": "P2",
       "status": "resolved",
@@ -988,7 +988,7 @@
       "id": "LDG-0041",
       "type": "known-bug",
       "title": "SessionStart misturava acks pendentes de liaison com ruído agregado (issue #47)",
-      "detail": "on-session-start.sh resumia o inbox do liaison como contagem agregada por canal, misturando mensagem própria, ack já emitido e nota sem ação com o subconjunto que exige resposta real (requires_ack sem ack). check-liaison-acks.sh já calculava esse subconjunto mas só rodava no pre-push e no pré-flight do archive. Efeito medido em axis-go-cloud: 2 mensagens requires_ack ficaram sem resposta por mais de 24h, invisíveis numa contagem de 34. Corrigido: o hook roda check-liaison-acks.sh logo após o summary e, só com débito real (WARN/FAIL), imprime um bloco rotulado 'ação necessária' antes do resumo agregado. O guard é -f e não -x, porque o script é invocado por bash e exigir o bit de execução transformaria um checkout que perdeu o modo num pulo silencioso. Gate tests/w136-session-start-liaison-acks-gate.sh, cenários [1], [1b], [2] e [3]. [Backfill issue #78: resolved_at retroativo = data do commit 2be6b49, que fechou #47.]",
+      "detail": "on-session-start.sh resumia o inbox do liaison como contagem agregada por canal, misturando mensagem própria, ack já emitido e nota sem ação com o subconjunto que exige resposta real (requires_ack sem ack). check-liaison-acks.sh já calculava esse subconjunto mas só rodava no pre-push e no pré-flight do archive. Efeito medido em axis-go-cloud: 2 mensagens requires_ack ficaram sem resposta por mais de 24h, invisíveis numa contagem de 34. Corrigido: o hook roda check-liaison-acks.sh logo após o summary e, só com débito real (WARN/FAIL), imprime um bloco rotulado 'ação necessária' antes do resumo agregado. O guard é -f e não -x, porque o script é invocado por bash e exigir o bit de execução transformaria um checkout que perdeu o modo num pulo silencioso. Gate tests/w136-session-start-liaison-acks-gate.sh, cenários [1], [1b], [2] e [3].",
       "severity": null,
       "priority": "P2",
       "status": "resolved",
@@ -1014,7 +1014,7 @@
       "id": "LDG-0042",
       "type": "known-bug",
       "title": "Maquinaria versionada na árvore não se propaga para worktrees (ledger ROOT, hooksPath relativo, update de dentro do worktree)",
-      "detail": "Issue #41. Três defeitos independentes com a mesma causa. (a) ledger-ops.sh resolvia ROOT por --show-toplevel, que dentro de um worktree devolve o próprio worktree: registro nascia no ledger.json da branch e toda branch que tocasse o ledger colidia no merge (cinco reconciliações num dia no axis-go-cloud, dez entradas presas numa branch no axis-fare-validator). Passou a resolver por --git-common-dir absoluto. (b) core.hooksPath era gravado relativo por bin/forge.mjs e installer/install.sh; ele vive no .git/config comum e valor relativo é resolvido por cada worktree contra a própria árvore, então hook novo mergeado não bloqueava nada em worktree nenhum. Passou a ser o caminho absoluto do tronco, migrando o legado relativo e preservando customização real. (c) forge update aceitava rodar de dentro de um worktree; agora recusa sem flag de escape. Além disso o doctor passou a verificar o hooksPath e a medir a divergência de maquinaria por worktree, e duas rules foram escritas (conventions/machinery-propagation.md e testing/gate-delivery-channel.md). Coberto por tests/w137-worktree-machinery-gate.sh (5 cenários, Red observado em cada um antes da respectiva correção) e por w94 estendido com o cenário de migração do valor legado. [Backfill issue #78: resolved_at retroativo = data do commit 0de361a, que fechou #41.]",
+      "detail": "Issue #41. Três defeitos independentes com a mesma causa. (a) ledger-ops.sh resolvia ROOT por --show-toplevel, que dentro de um worktree devolve o próprio worktree: registro nascia no ledger.json da branch e toda branch que tocasse o ledger colidia no merge (cinco reconciliações num dia no axis-go-cloud, dez entradas presas numa branch no axis-fare-validator). Passou a resolver por --git-common-dir absoluto. (b) core.hooksPath era gravado relativo por bin/forge.mjs e installer/install.sh; ele vive no .git/config comum e valor relativo é resolvido por cada worktree contra a própria árvore, então hook novo mergeado não bloqueava nada em worktree nenhum. Passou a ser o caminho absoluto do tronco, migrando o legado relativo e preservando customização real. (c) forge update aceitava rodar de dentro de um worktree; agora recusa sem flag de escape. Além disso o doctor passou a verificar o hooksPath e a medir a divergência de maquinaria por worktree, e duas rules foram escritas (conventions/machinery-propagation.md e testing/gate-delivery-channel.md). Coberto por tests/w137-worktree-machinery-gate.sh (5 cenários, Red observado em cada um antes da respectiva correção) e por w94 estendido com o cenário de migração do valor legado.",
       "severity": null,
       "priority": "P1",
       "status": "resolved",
@@ -1040,7 +1040,7 @@
       "id": "LDG-0043",
       "type": "known-bug",
       "title": "scale >= 3 entrava em implementing sem story sharding, em silêncio (issue #35)",
-      "detail": "O contrato scale-adaptive declarava story sharding como parte de scale >= 3 (spec.md, tasks.md), mas o pré-flight de implement.md só exigia analysis.md sem BLOCKER e worktree dedicado: com dev_loop.sharded em false a implementação entrava no loop TASK a TASK sem epic_context.md nem stories auto-contidas. validate-spec.mjs (com lib/story-shard.mjs novo) passa a reprovar fechado, a partir de status implementing em scale >= 3, quando dev_loop.sharded/epic_context_compiled não forem true, ou quando stories/ não cobrir cada TASK exatamente uma vez, ou quando o grafo depends_on tiver ciclo. Cobre a transição tasks-ready->implementing e a retomada idempotente do pré-flight. Dispensa só via quick_plan.skipped_phases incluindo story-sharding, em block style — flow style não é parseado pelo yaml-lite (LDG-0033) e reprova fechado, nunca concede a dispensa em silêncio. Guard é código, não instrução em markdown (anti-padrão registrado no LDG-0036). Gate tests/w138-story-shard-guard-gate.sh, 12 cenários. [Backfill issue #78: resolved_at retroativo = data do commit db07e33, que fechou #35.]",
+      "detail": "O contrato scale-adaptive declarava story sharding como parte de scale >= 3 (spec.md, tasks.md), mas o pré-flight de implement.md só exigia analysis.md sem BLOCKER e worktree dedicado: com dev_loop.sharded em false a implementação entrava no loop TASK a TASK sem epic_context.md nem stories auto-contidas. validate-spec.mjs (com lib/story-shard.mjs novo) passa a reprovar fechado, a partir de status implementing em scale >= 3, quando dev_loop.sharded/epic_context_compiled não forem true, ou quando stories/ não cobrir cada TASK exatamente uma vez, ou quando o grafo depends_on tiver ciclo. Cobre a transição tasks-ready->implementing e a retomada idempotente do pré-flight. Dispensa só via quick_plan.skipped_phases incluindo story-sharding, em block style — flow style não é parseado pelo yaml-lite (LDG-0033) e reprova fechado, nunca concede a dispensa em silêncio. Guard é código, não instrução em markdown (anti-padrão registrado no LDG-0036). Gate tests/w138-story-shard-guard-gate.sh, 12 cenários.",
       "severity": null,
       "priority": "P2",
       "status": "resolved",
@@ -1066,7 +1066,7 @@
       "id": "LDG-0044",
       "type": "roadmap",
       "title": "Gate mecânico contra segredo hardcoded em arquivo versionado (issue #37)",
-      "detail": "A família de gates deterministas do harness não tinha equivalente para credencial versionada, apesar de o modo de falha ser o mais silencioso de todos: a credencial entra num arquivo de configuração, o build funciona, nada quebra, e ela permanece rastreada indefinidamente. check-secrets.sh detecta quatro classes sobre o conjunto VERSIONADO (git ls-files): credencial de conexão, chave privada PEM, token de provedor com prefixo reconhecível e Authorization Basic literal. Linha comentada é varrida como linha ativa. Modos staged, range, path e report. Conjunto varrido vazio reprova SEMPRE, inclusive em warn e em report. Allowlist com justificativa obrigatória na linha; entrada sem justificativa reprova, e allowlist que esvazia o conjunto reprova por vacuidade. Ausência do bloco secrets: resolve para warn porque o gate está fiado no pre-commit e no CI e não é opt-in: brownfield com passivo herdaria trava no dia da atualização. Template entrega block explícito. Gate tests/w139-secrets-gate.sh, 15 cenários, com prova de mutação por classe. Nota: o push protection do GitHub barrou o próprio PR por causa das fixtures, que passaram a ser montadas em runtime. [Backfill issue #78: resolved_at retroativo = data do commit 71b3689, que fechou #37.]",
+      "detail": "A família de gates deterministas do harness não tinha equivalente para credencial versionada, apesar de o modo de falha ser o mais silencioso de todos: a credencial entra num arquivo de configuração, o build funciona, nada quebra, e ela permanece rastreada indefinidamente. check-secrets.sh detecta quatro classes sobre o conjunto VERSIONADO (git ls-files): credencial de conexão, chave privada PEM, token de provedor com prefixo reconhecível e Authorization Basic literal. Linha comentada é varrida como linha ativa. Modos staged, range, path e report. Conjunto varrido vazio reprova SEMPRE, inclusive em warn e em report. Allowlist com justificativa obrigatória na linha; entrada sem justificativa reprova, e allowlist que esvazia o conjunto reprova por vacuidade. Ausência do bloco secrets: resolve para warn porque o gate está fiado no pre-commit e no CI e não é opt-in: brownfield com passivo herdaria trava no dia da atualização. Template entrega block explícito. Gate tests/w139-secrets-gate.sh, 15 cenários, com prova de mutação por classe. Nota: o push protection do GitHub barrou o próprio PR por causa das fixtures, que passaram a ser montadas em runtime.",
       "severity": null,
       "priority": "P2",
       "status": "resolved",
@@ -1089,62 +1089,10 @@
       "dedup_key": "manual:LDG-0044"
     },
     {
-      "id": "LDG-0047",
-      "type": "known-bug",
-      "title": "liaison: divergência calava o remetente inteiro e o teto de 200 travava a recuperação",
-      "detail": "applyBundle devolvia a primeira divergência e descartava todas as mensagens do remetente — uma reescrita em duas posições reteve 73 mensagens posteriores íntegras em três réplicas por dias. Passa a quarentenar a POSIÇÃO (registro por posição em conflicts/<sender>.seq-<n>.divergence.json, removido quando a origem resolve) e a aplicar o excedente do teto em LOTES ordenados por prefixo de seq, com status/render nomeando as posições retidas. Issue #48; gate w140. [Backfill issue #78: resolved_at retroativo = data do commit 836232f, que fechou #48.]",
-      "severity": null,
-      "priority": "P1",
-      "status": "resolved",
-      "source": {
-        "change_id": null,
-        "origin": "manual",
-        "ref": null
-      },
-      "links": {
-        "adr": [],
-        "capability": [
-          "forge-harness-template"
-        ],
-        "change": [],
-        "promoted_to": null
-      },
-      "created_at": "2026-08-19T16:33:24-03:00",
-      "updated_at": "2026-08-19T18:29:53-03:00",
-      "resolved_at": "2026-08-19T18:29:53-03:00",
-      "dedup_key": "manual:LDG-0047"
-    },
-    {
-      "id": "LDG-0046",
-      "type": "feature-idea",
-      "title": "/forge:pentest — toolchain de pentest mobile containerizado sob demanda",
-      "detail": "Comando manual (espelha /forge:dev) que orquestra um toolchain de pentest Android containerizado: activate/scan/status/deactivate, config no bloco runtime.pentest do FORGE.md, engine bash-3.2-compat pentest-ops.sh, timeout via perl alarm. Trade-off de segurança do adb (porta 5037 exposta na LAN durante a janela de teste) explícito na UX; deactivate reverte para localhost-only. Só bancada/dev, nunca device fielded. Gate tests/w142-pentest-gate.sh. Issue #34. [Backfill issue #78: resolved_at retroativo = data do commit b134a03, que fechou #34.]",
-      "severity": null,
-      "priority": "P3",
-      "status": "resolved",
-      "source": {
-        "change_id": null,
-        "origin": "manual",
-        "ref": null
-      },
-      "links": {
-        "adr": [],
-        "capability": [
-          "forge-harness-template"
-        ],
-        "change": [],
-        "promoted_to": null
-      },
-      "created_at": "2026-08-19T16:33:24-03:00",
-      "updated_at": "2026-08-19T18:35:56-03:00",
-      "resolved_at": "2026-08-19T18:35:56-03:00",
-      "dedup_key": "manual:LDG-0046"
-    },
-    {
       "id": "LDG-0045",
       "type": "tech-debt",
       "title": "Heurística de camada do code graph não cobria layouts .NET não-de-serviço nem frontend",
-      "detail": "A atribuição de camada estava ancorada na convenção services/<x>/src/<X>.{Domain,Application,Infrastructure,Api,Contracts} e todo código fora dessa forma caía em unknown — 403 arquivos C# em três layouts (plataforma satélite, packages/dotnet, monólito legado pré-Clean-Architecture) e 1.259 nós de frontend num repositório medido, 18% do grafo. Resolvido pelo bloco codegraph.layers no frontmatter do FORGE.md (mapa declarável path→camada, primeiro match vence, heurística embutida como default), por unknown declarado virar taxonomy:out fora do denominador de stats.layer_coverage, e pela classificação de órfãos do validate graph (por design × candidato) antes do alerta. Gate tests/w141-codegraph-layer-map-gate.sh, com prova de compatibilidade contra golden do engine pré-mudança. Issue #38. [Backfill issue #78: resolved_at retroativo = data do commit d31b018, que fechou #38.]",
+      "detail": "A atribuição de camada estava ancorada na convenção services/<x>/src/<X>.{Domain,Application,Infrastructure,Api,Contracts} e todo código fora dessa forma caía em unknown — 403 arquivos C# em três layouts (plataforma satélite, packages/dotnet, monólito legado pré-Clean-Architecture) e 1.259 nós de frontend num repositório medido, 18% do grafo. Resolvido pelo bloco codegraph.layers no frontmatter do FORGE.md (mapa declarável path→camada, primeiro match vence, heurística embutida como default), por unknown declarado virar taxonomy:out fora do denominador de stats.layer_coverage, e pela classificação de órfãos do validate graph (por design × candidato) antes do alerta. Gate tests/w141-codegraph-layer-map-gate.sh, com prova de compatibilidade contra golden do engine pré-mudança. Issue #38.",
       "severity": null,
       "priority": "P2",
       "status": "resolved",
@@ -1167,10 +1115,62 @@
       "dedup_key": "manual:LDG-0045"
     },
     {
+      "id": "LDG-0046",
+      "type": "feature-idea",
+      "title": "/forge:pentest — toolchain de pentest mobile containerizado sob demanda",
+      "detail": "Comando manual (espelha /forge:dev) que orquestra um toolchain de pentest Android containerizado: activate/scan/status/deactivate, config no bloco runtime.pentest do FORGE.md, engine bash-3.2-compat pentest-ops.sh, timeout via perl alarm. Trade-off de segurança do adb (porta 5037 exposta na LAN durante a janela de teste) explícito na UX; deactivate reverte para localhost-only. Só bancada/dev, nunca device fielded. Gate tests/w142-pentest-gate.sh. Issue #34.",
+      "severity": null,
+      "priority": "P3",
+      "status": "resolved",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [
+          "forge-harness-template"
+        ],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-19T16:33:24-03:00",
+      "updated_at": "2026-08-19T18:35:56-03:00",
+      "resolved_at": "2026-08-19T18:35:56-03:00",
+      "dedup_key": "manual:LDG-0046"
+    },
+    {
+      "id": "LDG-0047",
+      "type": "known-bug",
+      "title": "liaison: divergência calava o remetente inteiro e o teto de 200 travava a recuperação",
+      "detail": "applyBundle devolvia a primeira divergência e descartava todas as mensagens do remetente — uma reescrita em duas posições reteve 73 mensagens posteriores íntegras em três réplicas por dias. Passa a quarentenar a POSIÇÃO (registro por posição em conflicts/<sender>.seq-<n>.divergence.json, removido quando a origem resolve) e a aplicar o excedente do teto em LOTES ordenados por prefixo de seq, com status/render nomeando as posições retidas. Issue #48; gate w140.",
+      "severity": null,
+      "priority": "P1",
+      "status": "resolved",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [
+          "forge-harness-template"
+        ],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-19T16:33:24-03:00",
+      "updated_at": "2026-08-19T18:29:53-03:00",
+      "resolved_at": "2026-08-19T18:29:53-03:00",
+      "dedup_key": "manual:LDG-0047"
+    },
+    {
       "id": "LDG-0048",
       "type": "known-bug",
       "title": "Liaison: colisão de seq passava em silêncio e o ack retido não tinha caminho de volta (issue #36)",
-      "detail": "Três lacunas independentes. (a) created_at incoerente com a causalidade não era sinalizado: o ack recusado era quase um dia anterior à mensagem que ele responde, Lamport coerente e relógio de parede não. status e render passam a nomear toda mensagem cujo created_at anteceda o da referência em in_reply_to, como diagnóstico NÃO bloqueante. (b) A causa-raiz era duas cópias do mesmo log de remetente com contadores locais; dentro de um clone a fonte era o ROOT resolvido por --show-toplevel, que dá a cada worktree linkado sua cópia de log/<self>.jsonl. liaison-ops.sh, check-liaison-acks.sh e o bloco de liaison do SessionStart passam a resolver pelo --git-common-dir absoluto (mesmo idioma de ledger-ops.sh, rule machinery-propagation.md da issue #41); o invariante de escritor único ficou documentado em conventions/liaison-protocol.md, porque entre máquinas nenhuma verificação local alcança. (c) O conteúdo de uma posição retida nunca entra no log local: conflicts list enumera as posições retidas e conflicts resolve republica o conteúdo em sequência nova do próprio log, com authored_by e o campo resolves, sempre como kind note para não falsificar autoria de decisão. Gate w143, nove cenários. [Backfill issue #78: resolved_at retroativo = data do commit ba396ee, que fechou #36.]",
+      "detail": "Três lacunas independentes. (a) created_at incoerente com a causalidade não era sinalizado: o ack recusado era quase um dia anterior à mensagem que ele responde, Lamport coerente e relógio de parede não. status e render passam a nomear toda mensagem cujo created_at anteceda o da referência em in_reply_to, como diagnóstico NÃO bloqueante. (b) A causa-raiz era duas cópias do mesmo log de remetente com contadores locais; dentro de um clone a fonte era o ROOT resolvido por --show-toplevel, que dá a cada worktree linkado sua cópia de log/<self>.jsonl. liaison-ops.sh, check-liaison-acks.sh e o bloco de liaison do SessionStart passam a resolver pelo --git-common-dir absoluto (mesmo idioma de ledger-ops.sh, rule machinery-propagation.md da issue #41); o invariante de escritor único ficou documentado em conventions/liaison-protocol.md, porque entre máquinas nenhuma verificação local alcança. (c) O conteúdo de uma posição retida nunca entra no log local: conflicts list enumera as posições retidas e conflicts resolve republica o conteúdo em sequência nova do próprio log, com authored_by e o campo resolves, sempre como kind note para não falsificar autoria de decisão. Gate w143, nove cenários.",
       "severity": null,
       "priority": "P2",
       "status": "resolved",
@@ -1193,36 +1193,10 @@
       "dedup_key": "manual:LDG-0048"
     },
     {
-      "id": "LDG-0051",
-      "type": "known-bug",
-      "title": "Liaison: flag desconhecida descartada em silêncio e campo trust sem verificação (issue #51)",
-      "detail": "Dois defeitos independentes que corrompiam mensagem ou metadado sem aviso, erro ou exit diferente de zero, ambos medidos no ecossistema Axis. (a) Todo parser de flags de liaison-ops.sh terminava num caso curinga que só descartava o argumento: ack ... --body-file corpo.md publicava o ack SEM corpo nenhum, com rc 0 e sem uma linha de aviso (--body-file só existe no send), e --subjet publicava mensagem sem assunto. Os 20 subcomandos passam a reprovar argumento desconhecido nomeando a flag, o subcomando que a recusou e as flags aceitas por ele; o ack continua sem aceitar corpo e a mensagem diz o que usar no lugar. (b) O campo trust era atribuído na escrita e nenhum instrumento o verificava depois: content_sha o exclui por desenho, então verificação por hash é estruturalmente cega a ele, e uma restauração de log truncado que copiou a réplica de um peer sobre o log próprio fez 172 mensagens próprias se declararem untrusted-peer sem que nada reprovasse. trust passa a ser derivado de fato observável (qual arquivo de remetente carrega a linha, mais a presença de authored_by) e a derivação é conferida a cada pre-push por check-liaison-acks.sh via lib/liaison-trust.mjs. Gate w150, dez cenários, incluindo o caminho em que a derivação não é possível (liaison.yaml sem self sobre store não vazio), que reprova em vez de sair calado. [Backfill issue #78: resolved_at retroativo = data do commit 25e5907, que fechou #51.]",
-      "severity": null,
-      "priority": "P2",
-      "status": "resolved",
-      "source": {
-        "change_id": null,
-        "origin": "manual",
-        "ref": null
-      },
-      "links": {
-        "adr": [],
-        "capability": [
-          "forge-harness-template"
-        ],
-        "change": [],
-        "promoted_to": null
-      },
-      "created_at": "2026-08-19T19:50:53-03:00",
-      "updated_at": "2026-08-20T10:52:05-03:00",
-      "resolved_at": "2026-08-20T10:52:05-03:00",
-      "dedup_key": "manual:LDG-0051"
-    },
-    {
       "id": "LDG-0049",
       "type": "tech-debt",
       "title": "Gates colapsavam 'não executei' e 'executei limpo' no mesmo exit 0 (issue #49)",
-      "detail": "Quatro instâncias da mesma forma, medidas em quatro repositórios do ecossistema Axis entre 2026-08-12 e 2026-08-19: red-first imprimindo 'OK — 0 change(s) examinado(s)' no push de um bugfix; run-all.sh sem nenhum ponto de entrada que o invocasse (doze suítes de guarda só rodavam à mão); 'cmd | grep -q ... || continue' sob pipefail virando linha pulada em silêncio (57 exit codes anômalos em 300 execuções com pipe, zero em 300 sem); e post-merge concluindo com sucesso ao delegar para alvo inexistente. Correção de harness, não de cada repositório: contador de controle obrigatório com universo vazio como estado próprio e reprovável (lib/gate-universe.sh + .mjs, allowlist declarada em .forge/empty-universe-allowlist.txt), lint check-shell-pipeline.sh, prova de invocação check-suite-wiring.sh (+ fiação da rede de suítes no pre-push do template) e regra de delegação nos quatro hooks do git. Gates w144-w147. [Backfill issue #78: resolved_at retroativo = data do commit efe99e9, que fechou #49.]",
+      "detail": "Quatro instâncias da mesma forma, medidas em quatro repositórios do ecossistema Axis entre 2026-08-12 e 2026-08-19: red-first imprimindo 'OK — 0 change(s) examinado(s)' no push de um bugfix; run-all.sh sem nenhum ponto de entrada que o invocasse (doze suítes de guarda só rodavam à mão); 'cmd | grep -q ... || continue' sob pipefail virando linha pulada em silêncio (57 exit codes anômalos em 300 execuções com pipe, zero em 300 sem); e post-merge concluindo com sucesso ao delegar para alvo inexistente. Correção de harness, não de cada repositório: contador de controle obrigatório com universo vazio como estado próprio e reprovável (lib/gate-universe.sh + .mjs, allowlist declarada em .forge/empty-universe-allowlist.txt), lint check-shell-pipeline.sh, prova de invocação check-suite-wiring.sh (+ fiação da rede de suítes no pre-push do template) e regra de delegação nos quatro hooks do git. Gates w144-w147.",
       "severity": null,
       "priority": "P1",
       "status": "resolved",
@@ -1243,6 +1217,32 @@
       "updated_at": "2026-08-20T11:14:12-03:00",
       "resolved_at": "2026-08-20T11:14:12-03:00",
       "dedup_key": "manual:LDG-0049"
+    },
+    {
+      "id": "LDG-0051",
+      "type": "known-bug",
+      "title": "Liaison: flag desconhecida descartada em silêncio e campo trust sem verificação (issue #51)",
+      "detail": "Dois defeitos independentes que corrompiam mensagem ou metadado sem aviso, erro ou exit diferente de zero, ambos medidos no ecossistema Axis. (a) Todo parser de flags de liaison-ops.sh terminava num caso curinga que só descartava o argumento: ack ... --body-file corpo.md publicava o ack SEM corpo nenhum, com rc 0 e sem uma linha de aviso (--body-file só existe no send), e --subjet publicava mensagem sem assunto. Os 20 subcomandos passam a reprovar argumento desconhecido nomeando a flag, o subcomando que a recusou e as flags aceitas por ele; o ack continua sem aceitar corpo e a mensagem diz o que usar no lugar. (b) O campo trust era atribuído na escrita e nenhum instrumento o verificava depois: content_sha o exclui por desenho, então verificação por hash é estruturalmente cega a ele, e uma restauração de log truncado que copiou a réplica de um peer sobre o log próprio fez 172 mensagens próprias se declararem untrusted-peer sem que nada reprovasse. trust passa a ser derivado de fato observável (qual arquivo de remetente carrega a linha, mais a presença de authored_by) e a derivação é conferida a cada pre-push por check-liaison-acks.sh via lib/liaison-trust.mjs. Gate w150, dez cenários, incluindo o caminho em que a derivação não é possível (liaison.yaml sem self sobre store não vazio), que reprova em vez de sair calado.",
+      "severity": null,
+      "priority": "P2",
+      "status": "resolved",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [
+          "forge-harness-template"
+        ],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-19T19:50:53-03:00",
+      "updated_at": "2026-08-20T10:52:05-03:00",
+      "resolved_at": "2026-08-20T10:52:05-03:00",
+      "dedup_key": "manual:LDG-0051"
     },
     {
       "id": "LDG-0052",
@@ -1416,6 +1416,126 @@
       "updated_at": "2026-09-04T15:40:04-03:00",
       "resolved_at": null,
       "dedup_key": "push-ahead-rest-sem-cobertura"
+    },
+    {
+      "id": "LDG-0061",
+      "type": "debt",
+      "title": "Enforcement mecanico so existe para .NET — Node/TS sem assets, script de auditoria nem scan",
+      "detail": "Escopo decidido em 2026-09-04 após parecer sobre o vibe-coding-toolkit (soumatheusgomes, MIT). O pack backend-dotnet-relational ganhou assets/ + dotnet-baseline.sh + dotnet-quality-scan; Node/TS fecha adaptando as tres regras ESLint em AST daquele repo (quality/max-lines, quality/no-direct-console, quality/no-direct-data-access) mais utils.cjs e verify.mjs, que sao testadas com o RuleTester do proprio ESLint e sem dependencia alem dele. Elas pegam o que grep nao pega: alias de import (db as database), import default vs namespace. Vendorizar como copia unica que passa a ser nossa (preservar aviso MIT), nunca dependencia de upstream — autor unico, repo de tres semanas, sem CI, regras escritas num unico dia. NAO herdar MAX_LINES=350 como error bloqueante: conflita com conventions/code-style.md (tamanho e smell, nao portao) e o proprio material do repo documenta o fatiamento cosmetico perto do limite sem resolve-lo no desenho do gate; se houver gatilho mecanico, que seja sinal nao bloqueante. Java e Python seguem em prosa. Implementacao segue TDD red-first com PBT, teste de contrato e teste de integracao.",
+      "severity": "low",
+      "priority": "P2",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-22T13:20:32-03:00",
+      "updated_at": "2026-08-22T13:20:32-03:00",
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0061"
+    },
+    {
+      "id": "LDG-0062",
+      "type": "debt",
+      "title": "single-impl-interface do dotnet-quality-scan é heurística de grep, não análise sintática",
+      "detail": "A regra conta declarações 'interface IX' e ocorrências de ': IX' por texto. Ela não distingue comentário, string literal nem declaração multi-linha, e conta a própria declaração quando a implementação está no mesmo arquivo em formato inesperado. Em base grande isso produz falso positivo e falso negativo silenciosos. A saída correta é um analisador Roslyn (Microsoft.CodeAnalysis.CSharp) operando sobre a árvore sintática e entrando no build — primeira camada, não segunda. Enquanto isso, a regra é MEDIUM e o SKILL.md declara que ela aponta e não decide.",
+      "severity": "low",
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-22T13:20:32-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0062"
+    },
+    {
+      "id": "LDG-0063",
+      "type": "roadmap",
+      "title": "Estrategia de corte de arquivo grande: a rule para em 'e smell, revise' e nao oferece caminho",
+      "detail": "conventions/code-style.md trata tamanho como smell e nao como portao — decisao correta —, mas nao diz COMO cortar quando o corte e devido, e o agente sem estrategia inventa helpers.ts/utils.ts como deposito do que sobrou. A coreografia do prompt 09 do vibe-coding-toolkit (MIT) e adotavel como orientacao: quatro costuras em ordem (logica de negocio embutida em UI/rota -> servico de dominio; bloco de UI repetido -> sub-componente; acesso a dados -> repositorio/adaptador; aglomerado de helpers -> modulo utilitario de dominio); escape hatch nomeado 'sem costura natural, pare e siga para o proximo' como preferivel a inventar abstracao; preservacao da interface publica com o arquivo original virando barril fino que reexporta, em vez de editar todo import site; ritmo de um arquivo por commit com typecheck+teste+lint entre cada. Duas armadilhas a registrar: a extracao pode empurrar o arquivo de DESTINO acima do proprio teto, e pode alargar em silencio o tipo de retorno inferido, virando erro de tipo num call site distante. Entrada como skill ou playbook cabeado a gate-runner/verify-build, nunca prompt solto. Implementacao segue TDD red-first com PBT, teste de contrato e teste de integracao.",
+      "severity": "low",
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-22T13:20:32-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0063"
+    },
+    {
+      "id": "LDG-0064",
+      "type": "roadmap",
+      "title": "Burndown de lint sem portao de decisao: afrouxar a regra e apresentado como codigo mais limpo",
+      "detail": "Nao existe no harness norma sobre como queimar um passivo de avisos herdado. O portao de decisao do prompt 02 do vibe-coding-toolkit (MIT) e adotavel como texto de processo: antes de implementar, identificar o trecho mais caro/arriscado com numeros reais e apresentar tres opcoes — (A) corrigir tudo, padrao na ausencia de resposta; (B) corrigir a maioria barata e rastrear o resto como divida VISIVEL (comentario + referencia de issue, nunca supressao silenciosa); (C) reescopar ou afrouxar a propria regra, marcado explicitamente como MUDANCA DE CONFIG e nunca apresentado como se o codigo tivesse ficado mais limpo. Complementos uteis: severidade derivada de contagem medida (regra com zero violacoes nasce error; com violacoes nasce warn com a contagem anotada como linha de base, e o criterio de parada e essa contagem voltar a zero) e ignore curto e nomeado em vez de rebaixar a regra inteira. Cabe em testing/quality-gates.md, valendo para qualquer stack. Implementacao segue TDD red-first com PBT, teste de contrato e teste de integracao.",
+      "severity": "low",
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-22T13:20:32-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0064"
+    },
+    {
+      "id": "LDG-0065",
+      "type": "debt",
+      "title": "Enforcement mecanico ausente em Java e Python — os packs seguem so em prosa",
+      "detail": "Separado de LDG-0061 em 2026-09-04 por revisao adversarial: o DoD daquele item passou a ser o pack Node (as tres regras ESLint em AST do vibe-coding-toolkit), e Java e Python sumiriam em silencio quando ele fechasse como resolved — fabricando um falso resolvido no mesmo plano que existe porque LDG-0053 e um falso pendente. Os equivalentes existem: em Java, Error Prone/SpotBugs/Checkstyle com failOnViolation mais o enforcer de versao; em Python, ruff e mypy strict declarados em pyproject com exit nao-zero. O padrao a replicar e o do w155: asset no capability pack, script de auditoria com check/apply, fiacao em doctor/verify-build/reviewer e gate com controle e recontrole. Implementacao segue TDD red-first com PBT, teste de contrato e teste de integracao.",
+      "severity": "low",
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-22T13:20:32-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0065"
     },
     {
       "id": "LDG-0066",

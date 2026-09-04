@@ -63,10 +63,20 @@ except ImportError:
     sys.exit(0)
 # Valida que TODO frontmatter de agent/skill projetado parseia como YAML e tem description —
 # pega quebradores comuns (": " mapping, "&" anchor) que impedem o carregamento.
+#
+# O ponto de entrada de uma skill é o SKILL.md, e só ele carrega frontmatter. Uma skill pode
+# trazer `references/*.md` — material lido sob demanda, que é o mecanismo de progressive
+# disclosure e não deve entrar no contexto junto com a descrição. Exigir frontmatter deles
+# reprovaria a própria estrutura que o formato de skill prevê (primeiro caso:
+# `dotnet-quality-scan`). Em agents/, ao contrário, todo .md É um agent.
 bad = []
+agents_dir = pathlib.Path(sys.argv[1])
 for d in sys.argv[1:]:
-    for f in pathlib.Path(d).rglob('*.md'):
+    root = pathlib.Path(d)
+    for f in root.rglob('*.md'):
         if f.name == 'README.md':
+            continue
+        if root != agents_dir and f.name != 'SKILL.md':
             continue
         text = f.read_text()
         m = re.match(r'^---\n(.*?)\n---', text, re.S)

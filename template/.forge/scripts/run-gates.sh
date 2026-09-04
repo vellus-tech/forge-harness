@@ -12,10 +12,20 @@
 # não havia como não mentir.
 #
 # Uso:
-#   run-gates.sh <change-id> [wave-id]
+#   run-gates.sh <change-id> [wave-id] [--phase <fase>]
+# `--phase` é o seletor de fase do #82 (issue: "runtime.gates só sabe agendar gate de árvore de
+# fontes"). Default: "source" — a fase implícita de toda declaração já existente (CSV escalar,
+# sem fase nenhuma), então quem NUNCA passar `--phase` continua vendo exatamente o comportamento
+# de sempre (retrocompat literal — golden capturado em tests/fixtures/w171). Um pipeline de
+# deploy chama `run-gates.sh <id> --phase pre-deploy` / `--phase post-deploy` explicitamente,
+# depois que o artefato existe — é a peça que faltava para o harness distinguir "o código está
+# certo" de "o que vai para produção está certo".
 # Saída: uma linha por gate, e a ÚLTIMA linha é o veredito agregado — `OK`, `FAIL` ou
-# `NO-GATES` (nenhum gate declarado no FORGE.md). O `| tail -1` da doc depende disso.
-# Exit: 0 quando todos passam ou não há gate declarado; 1 quando algum reprova.
+# `NO-GATES` (nenhuma gate declarado para a fase pedida). O `| tail -1` da doc depende disso.
+# Exit: 0 quando todos passam ou não há gate declarado para a fase; 1 quando algum reprova, ou
+# quando `--phase` foi passado EXPLICITAMENTE e zero gates casaram essa fase sem uma isenção
+# declarada (guarda de vacuidade, lib/gate-universe.sh — issue #49 um nível acima: só a chamada
+# SEM --phase preserva o silêncio de sempre; pedir uma fase é declarar que ela importa).
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -23,22 +33,52 @@ ROOT="${FORGE_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 export FORGE_ROOT="$ROOT"
 # shellcheck source=lib/forge-runtime.sh
 . "$SCRIPT_DIR/lib/forge-runtime.sh"
+# shellcheck source=lib/gate-universe.sh
+. "$SCRIPT_DIR/lib/gate-universe.sh"
 
-ID="${1:-}"
-WAVE="${2:-}"
-[ -n "$ID" ] || { echo "FAIL (usage: run-gates.sh <change-id> [wave-id])" >&2; echo "FAIL"; exit 1; }
+PHASE="source"
+PHASE_EXPLICIT=0
+pos=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --phase)
+      [ $# -ge 2 ] || { echo "FAIL (usage: --phase requires a value)" >&2; echo "FAIL"; exit 1; }
+      PHASE="$2"; PHASE_EXPLICIT=1; shift 2 ;;
+    *) pos+=("$1"); shift ;;
+  esac
+done
+ID="${pos[0]:-}"
+WAVE="${pos[1]:-}"
+[ -n "$ID" ] || { echo "FAIL (usage: run-gates.sh <change-id> [wave-id] [--phase <fase>])" >&2; echo "FAIL"; exit 1; }
 
 label="$ID"
 [ -n "$WAVE" ] && label="$ID/$WAVE"
 
 gates=()
-while IFS= read -r g; do [ -n "$g" ] && gates+=("$g"); done < <(forge_runtime_gates "$ROOT")
+while IFS= read -r g; do [ -n "$g" ] && gates+=("$g"); done < <(forge_runtime_gates_phase "$PHASE" "$ROOT")
+
+# Guarda de vacuidade — só quando a fase foi pedida EXPLICITAMENTE. A chamada sem --phase (o
+# caminho que todo consumidor já usa hoje) nunca passa por aqui: universo vazio ali continua
+# sendo o NO-GATES de sempre, sem exigir isenção nenhuma (LDG-0013 — fechar essa porta para todo
+# mundo é decisão de produto, fora do escopo desta mudança). Pedir uma fase é, em si, dizer que
+# ela é esperada; zero gates casando essa fase é exatamente o "não examinei nada" que o gate de
+# red-first também não podia mais confundir com "examinei e estava limpo".
+if [ "$PHASE_EXPLICIT" -eq 1 ]; then
+  if ! forge_universe_check "run-gates-phase-$PHASE" "${#gates[@]}" "gate(s)" "change:$label,phase:$PHASE" "$ROOT"; then
+    echo "FAIL"
+    exit 1
+  fi
+fi
 
 if [ "${#gates[@]}" -eq 0 ]; then
   # Nenhum gate declarado é estado legítimo (projeto que ainda não adotou), mas tem de ser DITO:
   # "NO-GATES" é auditável, e quem lê o waves.json depois consegue distinguir "passou nos gates" de
   # "não havia gate". `OK` aqui apagaria essa diferença — é a ambiguidade que este script remove.
-  echo "  (nenhum gate declarado em runtime.gates do FORGE.md — nada a executar)"
+  if [ "$PHASE_EXPLICIT" -eq 0 ] && [ "$PHASE" = "source" ]; then
+    echo "  (nenhum gate declarado em runtime.gates do FORGE.md — nada a executar)"
+  else
+    echo "  (nenhum gate declarado para a fase '$PHASE' em runtime.gates do FORGE.md — nada a executar)"
+  fi
   echo "NO-GATES"
   exit 0
 fi

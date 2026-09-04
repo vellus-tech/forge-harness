@@ -294,7 +294,7 @@
       "id": "LDG-0013",
       "type": "tech-debt",
       "title": "Wave fecha sem gate quando o projeto nao declara runtime.gates (registrado como NO-GATES)",
-      "detail": "A Onda B fechou a autocertificacao (wave close agora EXECUTA os gates em vez de aceitar o veredito do chamador), mas deixou uma porta legitima aberta por compatibilidade: projeto sem 'runtime.gates' no FORGE.md fecha a wave sem executar nada. O waves.json registra 'executed:NO-GATES' — auditavel, e o gate w131 assere que esse registro difere do de gate verde, para que 'nao havia gate' nunca se confunda com 'passou'. Fechar de vez exigiria obrigar todo projeto adotante a declarar ao menos um gate, o que e decisao de produto: e a mesma classe do SRF-00 (opt-out por omissao), um nivel acima.",
+      "detail": "A Onda B fechou a autocertificacao (wave close agora EXECUTA os gates em vez de aceitar o veredito do chamador), mas deixou uma porta legitima aberta por compatibilidade: projeto sem 'runtime.gates' no FORGE.md fecha a wave sem executar nada. O waves.json registra 'executed:NO-GATES' — auditavel, e o gate w131 assere que esse registro difere do de gate verde, para que 'nao havia gate' nunca se confunda com 'passou'. Fechar de vez exigiria obrigar todo projeto adotante a declarar ao menos um gate, o que e decisao de produto: e a mesma classe do SRF-00 (opt-out por omissao), um nivel acima. Onda 3 do #82 (run-gates.sh --phase) fechou a fatia que não era decisão de produto: pedir uma fase explicitamente (--phase pre-deploy/post-deploy) com zero gates casando essa fase agora REPROVA por padrão (guarda de vacuidade, lib/gate-universe.sh), com isenção declarável em empty-universe-allowlist.txt — nunca mais NO-GATES silencioso para quem pede uma fase de propósito (gate w171). O caso literal deste item — chamada SEM --phase, projeto sem runtime.gates nenhum declarado — continua intocado, por design: é a mesma decisão de produto que este item já registrava como fora de escopo, e mudar isso quebraria retrocompat para todo consumidor que nunca declarou gate algum. Permanece aberto.",
       "severity": null,
       "priority": "P2",
       "status": "open",
@@ -310,7 +310,7 @@
         "promoted_to": null
       },
       "created_at": "2026-07-29T21:46:51-03:00",
-      "updated_at": null,
+      "updated_at": "2026-09-04T18:44:45-03:00",
       "resolved_at": null,
       "dedup_key": "manual:LDG-0013"
     },
@@ -318,10 +318,10 @@
       "id": "LDG-0014",
       "type": "tech-debt",
       "title": "spec-verify.sh mantem copia propria de get_runtime/run_check em vez de usar lib/forge-runtime.sh",
-      "detail": "A Onda B extraiu a leitura do bloco runtime: do FORGE.md e a execucao com teto de tempo para lib/forge-runtime.sh, porque o run-gates.sh precisava delas e a logica so existia inline no spec-verify.sh. O spec-verify NAO foi migrado para a lib nesta onda — decisao de escopo, para nao arriscar o caminho de /forge:verify no mesmo PR. Enquanto nao migrar, ha duas copias que podem divergir: o skip-com-WARN de gate declarado e inexistente ficou apenas no spec-verify (o run-gates.sh REPROVA nesse caso, que e o comportamento correto pela norma da casa). Migrar e apagar a copia.",
+      "detail": "A Onda B extraiu a leitura do bloco runtime: do FORGE.md e a execucao com teto de tempo para lib/forge-runtime.sh, porque o run-gates.sh precisava delas e a logica so existia inline no spec-verify.sh. O spec-verify NAO foi migrado para a lib nesta onda — decisao de escopo, para nao arriscar o caminho de /forge:verify no mesmo PR. Enquanto nao migrar, ha duas copias que podem divergir: o skip-com-WARN de gate declarado e inexistente ficou apenas no spec-verify (o run-gates.sh REPROVA nesse caso, que e o comportamento correto pela norma da casa). Migrar e apagar a copia. — Resolvido: Migrado para lib/forge-runtime.sh (forge_get_runtime/forge_run_gate/forge_runtime_gates_phase) — cópia própria removida, gate declarado com script ausente agora reprova (era WARN+skip), igualando run-gates.sh. Pré-requisito da Onda 3 do #82 (evita dois contratos de fase divergentes). Gate w170.",
       "severity": null,
       "priority": "P3",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -334,8 +334,8 @@
         "promoted_to": null
       },
       "created_at": "2026-07-29T21:46:51-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-09-04T18:44:45-03:00",
+      "resolved_at": "2026-09-04T18:44:45-03:00",
       "dedup_key": "manual:LDG-0014"
     },
     {
@@ -838,10 +838,10 @@
       "id": "LDG-0035",
       "type": "tech-debt",
       "title": "Nenhum gate confronta archive-state-machine.yaml (definição canônica) com a cadeia executável de spec-transition.sh",
-      "detail": "Achado pelo harness-integrity-reviewer no code-evaluator do PR #42, atualizado após 2ª rodada de revisão (R2-004): a evidência original citava uma isenção de design-ready por type:bugfix em validate-spec.mjs que foi revertida no mesmo PR (design-ready voltou a exigir design.md incondicionalmente, para qualquer type). O drift real e atual é outro: a rota lateral requirements-ready -> tasks-ready (pulo de design-ready, só para type:bugfix scale>=2) não consta como transição nenhuma em template/.forge/schemas/archive-state-machine.yaml, cuja cadeia declarada só prevê requirements-ready -> design-ready -> tasks-ready linear. tools/validate-forge.mjs e w30-schemas-gate.sh só validam o YAML contra seu próprio JSON schema — nenhum gate deriva a cadeia real de spec-transition.sh e confere contra as transições declaradas. Adicionar a aresta lateral ao schema (ex.: um campo type_conditional ou uma transição extra explícita) + um gate que derive (scale,type) -> next esperado do script e compare com o YAML fecharia a classe inteira de drift silencioso.",
+      "detail": "Achado pelo harness-integrity-reviewer no code-evaluator do PR #42, atualizado após 2ª rodada de revisão (R2-004): a evidência original citava uma isenção de design-ready por type:bugfix em validate-spec.mjs que foi revertida no mesmo PR (design-ready voltou a exigir design.md incondicionalmente, para qualquer type). O drift real e atual é outro: a rota lateral requirements-ready -> tasks-ready (pulo de design-ready, só para type:bugfix scale>=2) não consta como transição nenhuma em template/.forge/schemas/archive-state-machine.yaml, cuja cadeia declarada só prevê requirements-ready -> design-ready -> tasks-ready linear. tools/validate-forge.mjs e w30-schemas-gate.sh só validam o YAML contra seu próprio JSON schema — nenhum gate deriva a cadeia real de spec-transition.sh e confere contra as transições declaradas. Adicionar a aresta lateral ao schema (ex.: um campo type_conditional ou uma transição extra explícita) + um gate que derive (scale,type) -> next esperado do script e compare com o YAML fecharia a classe inteira de drift silencioso. — Resolvido: archive-state-machine.yaml ganhou a transição requirements-ready -> tasks-ready (type_conditional: bugfix, scale_gte: 2 — dois campos novos no schema); teste de contrato deriva o veredito do YAML (não do script) e confere contra a execução real de spec-transition.sh, positivo e negativo. Gate w173.",
       "severity": null,
       "priority": "P3",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": "gate-assert-visibility",
         "origin": "gate-assert-visibility PR #42 code-evaluator (INTEG-007)",
@@ -856,18 +856,18 @@
         "promoted_to": null
       },
       "created_at": "2026-08-04T17:22:38-03:00",
-      "updated_at": "2026-08-04T18:51:20-03:00",
-      "resolved_at": null,
+      "updated_at": "2026-09-04T18:44:45-03:00",
+      "resolved_at": "2026-09-04T18:44:45-03:00",
       "dedup_key": "manual:LDG-0035"
     },
     {
       "id": "LDG-0036",
       "type": "tech-debt",
       "title": "G5 (frescor de grafo/impacto em /forge:analyze) é instrução, não gate executável",
-      "detail": "PR #43 introduziu G5 em analyze.md (checagem determinista de impact-freshness.mjs), mas nada em spec-transition.sh/validate-spec.mjs chama esse script — depende do agente rodar /forge:analyze de fato. Achado HIGH da revisão adversarial (Opus) do PR #43: fazer (a) spec-transition.sh implementing chamar impact-freshness.mjs diretamente, e (b) um gate que confirme a presença/execução de G5 (padrão w130-tasks-graph-gate.sh), e (c) ancorar G5 a uma rule (G1-G4 têm rule dona; G5 não).",
+      "detail": "PR #43 introduziu G5 em analyze.md (checagem determinista de impact-freshness.mjs), mas nada em spec-transition.sh/validate-spec.mjs chama esse script — depende do agente rodar /forge:analyze de fato. Achado HIGH da revisão adversarial (Opus) do PR #43: fazer (a) spec-transition.sh implementing chamar impact-freshness.mjs diretamente, e (b) um gate que confirme a presença/execução de G5 (padrão w130-tasks-graph-gate.sh), e (c) ancorar G5 a uma rule (G1-G4 têm rule dona; G5 não). — Resolvido: spec-transition.sh chama impact-freshness.mjs diretamente na transição para implementing e recusa missing/stale (mesmo tratamento do guardrail G1); G5 ancorado em lsp-impact-analysis.md e nomeado em analyze.md. Gate w172.",
       "severity": "medium",
       "priority": "P3",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "PR #43 review",
@@ -880,8 +880,8 @@
         "promoted_to": null
       },
       "created_at": "2026-08-05T15:22:23-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-09-04T18:44:45-03:00",
+      "resolved_at": "2026-09-04T18:44:45-03:00",
       "dedup_key": "manual:LDG-0036"
     },
     {
@@ -1560,6 +1560,30 @@
       "updated_at": "2026-09-04T15:42:51-03:00",
       "resolved_at": "2026-09-04T15:42:51-03:00",
       "dedup_key": "manual:LDG-0061"
+    },
+    {
+      "id": "LDG-0110",
+      "type": "feature-idea",
+      "title": "doctor sem check de gate orfao (check-*.sh sem hook nem runtime.gates) — proposta original do #82, não implementada nesta onda",
+      "detail": "A issue #82 propunha duas pecas alem da fase: um doctor que denuncie check-*.sh presente em .forge/scripts/, nao invocado por nenhum hook e nao declarado em runtime.gates — no consumidor medido (azim-crm) isso apontaria dez gates de uma vez, sete deles de deploy, meses antes do incidente que motivou a issue. Barato e independente da adocao de fase (nao depende do consumidor declarar phase nenhuma). A Onda 3 entregou o nucleo estrutural (fase em runtime.gates, run-gates.sh --phase, guarda de vacuidade, LDG-0014/0035/0036) e julgou o doctor check como peca separada, de escopo proprio (tocar doctor.sh — 600 linhas, muitos checks existentes — com risco de regressao que merece o proprio ciclo red-first e cobertura, nao um adendo apressado ao final de uma sessao ja grande). Ainda vale: cruzar .forge/scripts/check-*.sh contra (a) referencias em .forge/hooks/git/** e no hooksPath customizado (o check hp_orfaos ja existente em doctor.sh so cobre o caso de hooksPath customizado, nao o default) e (b) runtime.gates de qualquer fase (forge_runtime_gates, todas as fases) — advisory, nao load-bearing, no mesmo espirito dos demais checks informativos de check_harness.",
+      "severity": "medium",
+      "priority": "P2",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "issue #82 (Onda 3, gate-phase-contract) — parte proposta não implementada",
+        "ref": "issue-82/doctor-orphan-gate"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-04T18:44:45-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0110"
     }
   ]
 }

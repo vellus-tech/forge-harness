@@ -287,6 +287,8 @@ Para .NET:
 - `nuget.config`
 - arquivos de teste
 
+Ao corrigir um finding em .NET, jamais faça o build passar desligando o que o reprovou: `TreatWarningsAsErrors=false`, `<NoWarn>` largo na raiz e `#pragma warning disable` sem justificativa em comentário apagam o sinal em vez do defeito. Se a supressão for mesmo a decisão certa, ela é pontual, comentada e entra no relatório. `bash .forge/scripts/dotnet-baseline.sh --check` mostra o estado dessa camada.
+
 Para Java/Kotlin:
 
 - `build.gradle`

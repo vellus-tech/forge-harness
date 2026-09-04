@@ -66,6 +66,25 @@ cmd="${1:-}"; shift || true
 [ -n "$cmd" ] || { echo "Usage: ledger-ops.sh add|update|resolve|promote|harvest|render|status|list [args...]" >&2; exit 1; }
 
 _git_date() { git -C "$ROOT" log -1 --format=%cI 2>/dev/null || echo ""; }
+# _require_git_date — busca a data e RECUSA no caller se vier vazia (fora de git, ou git sem
+# nenhum commit ainda). NUNCA chamar `_git_date` diretamente dentro de `"$(...)"` aninhado num
+# comando maior (ex.: argumento de `node - ... "$(_git_date)"`): um `exit` disparado ali dentro só
+# mata o subshell da substituição, o valor vazio segue para o comando de fora, e a recusa nunca
+# acontece — foi exatamente assim que 'resolve' (a porta que esta issue corrigiu) carimbava
+# resolved_at="" com rc=0 sob FORGE_ROOT apontando para um diretório sem commit algum. Por isso
+# esta função grava o resultado numa variável no shell PRINCIPAL antes de decidir. Fecha fechado
+# em vez de cair para wall clock em silêncio, porque o cabeçalho promete "created_at = data do
+# commit HEAD, não wall clock" — silenciosamente trocar a fonte quebraria essa promessa sem avisar
+# ninguém, e diretório sem commit é raro e trivial de sair (um commit resolve).
+_require_git_date() {
+  local d
+  d="$(_git_date)"
+  if [ -z "$d" ]; then
+    echo "FAIL: ledger-ops: sem data de commit HEAD em '$ROOT' — fora de um repositório git, ou repositório git sem nenhum commit ainda. O ledger não carimba por relógio de parede (contradiria 'created_at = data do commit HEAD, não wall clock'). Faça um commit no projeto (mesmo 'git commit --allow-empty -m init') e tente de novo." >&2
+    exit 1
+  fi
+  GIT_DATE_NOW="$d"
+}
 _write_json() { local f="$1"; local tmp; tmp="$(mktemp "${f}.XXXXXX")"; printf '%s\n' "$2" > "$tmp"; mv "$tmp" "$f"; }
 _init_ledger() { mkdir -p "$LEDGER_DIR"; [ -f "$LF" ] || _write_json "$LF" '{"entries":[]}'; }
 _render() {
@@ -101,8 +120,9 @@ add)
       exit 1
       ;;
   esac
+  _require_git_date
   _init_ledger
-  result="$(node - "$LF" "$type" "$title" "$detail" "$severity" "$priority" "$status" "$origin" "$change" "$ref" "$adr" "$capability" "$(_git_date)" <<'NODEEOF'
+  result="$(node - "$LF" "$type" "$title" "$detail" "$severity" "$priority" "$status" "$origin" "$change" "$ref" "$adr" "$capability" "$GIT_DATE_NOW" <<'NODEEOF'
 const { readFileSync } = require('fs');
 const [, , lf, type, title, detail, severity, priority, status, origin, change, ref, adr, capability, now] = process.argv;
 const data = JSON.parse(readFileSync(lf, 'utf8'));
@@ -149,8 +169,9 @@ update)
       exit 1
       ;;
   esac
+  _require_git_date
   _init_ledger
-  result="$(node - "$LF" "$id" "$n_status" "$n_priority" "$n_severity" "$n_title" "$n_detail" "$(_git_date)" <<'NODEEOF'
+  result="$(node - "$LF" "$id" "$n_status" "$n_priority" "$n_severity" "$n_title" "$n_detail" "$GIT_DATE_NOW" <<'NODEEOF'
 const { readFileSync } = require('fs');
 const [, , lf, id, st, pr, sv, ti, de, now] = process.argv;
 const data = JSON.parse(readFileSync(lf, 'utf8'));
@@ -184,8 +205,9 @@ resolve)
     resolved|wont-fix) : ;;
     *) echo "FAIL: --status inválido para 'resolve' ('$new_status') — use 'resolved' (padrão) ou 'wont-fix'" >&2; exit 1 ;;
   esac
+  _require_git_date
   _init_ledger
-  result="$(node - "$LF" "$id" "$note" "$new_status" "$(_git_date)" <<'NODEEOF'
+  result="$(node - "$LF" "$id" "$note" "$new_status" "$GIT_DATE_NOW" <<'NODEEOF'
 const { readFileSync } = require('fs');
 const [, , lf, id, note, newStatus, now] = process.argv;
 const data = JSON.parse(readFileSync(lf, 'utf8'));
@@ -210,8 +232,9 @@ promote)
   to=""
   while [ $# -gt 0 ]; do case "$1" in --to) to="$2"; shift 2 ;; *) shift ;; esac; done
   [ -n "$to" ] || { echo "FAIL: --to <change-id> obrigatório" >&2; exit 1; }
+  _require_git_date
   _init_ledger
-  result="$(node - "$LF" "$id" "$to" "$(_git_date)" <<'NODEEOF'
+  result="$(node - "$LF" "$id" "$to" "$GIT_DATE_NOW" <<'NODEEOF'
 const { readFileSync } = require('fs');
 const [, , lf, id, to, now] = process.argv;
 const data = JSON.parse(readFileSync(lf, 'utf8'));
@@ -239,9 +262,15 @@ harvest)
   spec_dir="$ROOT/.forge/specs/active/$change_id"
   # best-effort: sem pasta do change, não há o que colher — nunca falha o caller (close/archive).
   [ -d "$spec_dir" ] || { echo "OK harvest $change_id — 0 nova(s) (change não encontrado)"; exit 0; }
+  now="$(_git_date)"
+  # harvest NUNCA falha o caller (close/archive dependem disso) — mas gravar created_at="" seria a
+  # MESMA classe de falha que esta issue existe para eliminar. Sem data de commit HEAD, degrada
+  # para "0 nova(s)" honesto sobre a causa, em vez de recusar (quebraria o contrato) ou carimbar em
+  # branco (reintroduziria o defeito).
+  [ -n "$now" ] || { echo "OK harvest $change_id — 0 nova(s) (sem data de commit HEAD em '$ROOT' — repositório git sem nenhum commit ainda)"; exit 0; }
   _init_ledger
   before="$(node -e "const d=JSON.parse(require('fs').readFileSync('$LF','utf8'));console.log((d.entries||[]).length)")"
-  result="$(node - "$LF" "$change_id" "$origin" "$spec_dir" "$(_git_date)" <<'NODEEOF'
+  result="$(node - "$LF" "$change_id" "$origin" "$spec_dir" "$now" <<'NODEEOF'
 const { readFileSync, existsSync } = require('fs');
 const { join } = require('path');
 const [, , lf, changeId, origin, specDir, now] = process.argv;

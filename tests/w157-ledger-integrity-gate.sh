@@ -16,11 +16,20 @@
 #       ausente reprova (nunca passa por omissão)
 #   [9] propriedade: "resolved implica resolved_at" vale para uma matriz gerada de combinações de
 #       status x resolved_at x campos irrelevantes (type/severity/priority) — não só o caso feliz
+#   [10] diretório fora de um repositório git: add/update/resolve/promote recusam, ledger intocado
+#   [11] repositório git sem nenhum commit ainda: idem — _git_date devolve vazio nos dois casos, e
+#        as quatro portas que a chamam (inclusive 'resolve', a porta CERTA) tinham rc=0 carimbando
+#        a string vazia em created_at/updated_at/resolved_at antes desta correção
 set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 T="$(mktemp -d /tmp/forge-w157.XXXXXX)"
-trap 'rm -rf "$T"' EXIT
+# [10]/[11] precisam de raízes INDEPENDENTES de qualquer repositório git — uma subpasta de $T
+# herdaria o `git init` feito abaixo para a fixture das portas (git -C sobe até achar o .git mais
+# próximo), e "fora de git" deixaria de ser verdade. Alocadas fora de $T, com limpeza própria.
+T10="$(mktemp -d /tmp/forge-w157-nogit.XXXXXX)"
+T11="$(mktemp -d /tmp/forge-w157-nocommit.XXXXXX)"
+trap 'rm -rf "$T" "$T10" "$T11"' EXIT
 
 # Todo comando externo roda sob teto de tempo — idioma já usado em check-push-ahead.sh /
 # pentest-ops.sh (perl -e 'alarm ...') porque macOS não tem `timeout` de coreutils por padrão.
@@ -238,5 +247,65 @@ else
   [ "$rc9" -eq 0 ] || { echo "FAIL: propriedade não deveria reprovar — got: $out9"; exit 1; }
   echo "OK [9] — $expected_n entradas geradas, 0 violações, checker concordou"
 fi
+
+# ── [10]/[11] _git_date degradado: fora de git, e git sem nenhum commit ────────────────────────
+# Achado do coordenador: a porta CERTA ('resolve') também passava por _git_date, e fora de um
+# repositório git (ou com repositório git sem nenhum commit) essa função devolve string vazia via
+# 'git log -1 ... || echo ""' — as quatro portas que a chamam (add/update/resolve/promote)
+# carimbavam "" com rc=0, a mesma classe de falha que a onda inteira existe para eliminar.
+_assert_git_date_guard() { # _assert_git_date_guard <rótulo> <root-dir>
+  local label="$1" root="$2"
+  mkdir -p "$root/.forge/ledger"
+  node -e '
+    const fs = require("fs");
+    fs.writeFileSync(process.argv[1], JSON.stringify({ entries: [
+      { id: "LDG-0001", type: "known-bug", title: "baseline", status: "open",
+        severity: null, priority: null, source: { origin: "manual" },
+        links: { adr: [], capability: [], change: [], promoted_to: null },
+        created_at: "2026-01-01T00:00:00Z", updated_at: null, resolved_at: null,
+        dedup_key: "manual:LDG-0001" },
+    ] }, null, 2));
+  ' "$root/.forge/ledger/ledger.json"
+  cp "$root/.forge/ledger/ledger.json" "$root/.forge/ledger/ledger.json.orig"
+
+  set +e
+  out_add="$(_run_to 10 -- env FORGE_ROOT="$root" bash "$LG" add --type known-bug --title "x" 2>&1)"; rc_add=$?
+  set -e
+  [ "$rc_add" -ne 0 ] || { echo "FAIL: [$label] 'add' deveria recusar sem data de commit HEAD — got rc=0: $out_add"; exit 1; }
+  echo "  add     -> rc=$rc_add: $out_add"
+
+  set +e
+  out_upd="$(_run_to 10 -- env FORGE_ROOT="$root" bash "$LG" update LDG-0001 --priority P1 2>&1)"; rc_upd=$?
+  set -e
+  [ "$rc_upd" -ne 0 ] || { echo "FAIL: [$label] 'update' deveria recusar sem data de commit HEAD — got rc=0: $out_upd"; exit 1; }
+  echo "  update  -> rc=$rc_upd: $out_upd"
+
+  set +e
+  out_res="$(_run_to 10 -- env FORGE_ROOT="$root" bash "$LG" resolve LDG-0001 --note "x" 2>&1)"; rc_res=$?
+  set -e
+  [ "$rc_res" -ne 0 ] || { echo "FAIL: [$label] 'resolve' deveria recusar sem data de commit HEAD — got rc=0: $out_res"; exit 1; }
+  echo "  resolve -> rc=$rc_res: $out_res"
+
+  set +e
+  out_pro="$(_run_to 10 -- env FORGE_ROOT="$root" bash "$LG" promote LDG-0001 --to change-x 2>&1)"; rc_pro=$?
+  set -e
+  [ "$rc_pro" -ne 0 ] || { echo "FAIL: [$label] 'promote' deveria recusar sem data de commit HEAD — got rc=0: $out_pro"; exit 1; }
+  echo "  promote -> rc=$rc_pro: $out_pro"
+
+  cmp -s "$root/.forge/ledger/ledger.json" "$root/.forge/ledger/ledger.json.orig"     || { echo "FAIL: [$label] ledger foi alterado apesar das recusas (cmp)"; exit 1; }
+
+  for out in "$out_add" "$out_upd" "$out_res" "$out_pro"; do
+    grep -qi "commit" <<<"$out" || { echo "FAIL: [$label] mensagem de recusa não menciona a causa (commit HEAD) — got: $out"; exit 1; }
+  done
+}
+
+echo "[10] diretório fora de um repositório git — as quatro portas recusam, ledger intocado"
+_assert_git_date_guard "10-fora-de-git" "$T10"
+echo "OK [10]"
+
+echo "[11] repositório git sem nenhum commit ainda — as quatro portas recusam, ledger intocado"
+git -C "$T11" init -q
+_assert_git_date_guard "11-git-sem-commit" "$T11"
+echo "OK [11]"
 
 echo "PASS w157-ledger-integrity-gate"

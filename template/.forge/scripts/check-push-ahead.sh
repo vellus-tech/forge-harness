@@ -198,8 +198,13 @@ TRUNK_LOCAL="$(git -C "$ROOT" rev-parse --verify -q "refs/heads/$TRUNK" 2>/dev/n
 #     job do usuário. `set -m` dá pgid próprio ao job em background, e só esse pgid é sinalizado.
 # (3) Se o isolamento falhar, NÃO se sinaliza nada. Um `curl` órfão de 75s é o pior desfecho
 #     aceitável; matar o push que se prometeu apenas informar nunca é.
-OUT="$(mktemp "${TMPDIR:-/tmp}/forge-pushahead-XXXXXX")"
-trap 'rm -f "$OUT"' EXIT
+# Os traps são registrados ANTES do mktemp, de propósito: entre "o arquivo existe" e "o trap está
+# de pé" não pode haver janela nenhuma — um sinal chegando bem no meio dessa janela usaria a
+# disposição padrão do sinal (sem trap nenhum ainda registrado) e vazaria o arquivo do mesmo jeito
+# que a correção existe para evitar. `${OUT:-}` cobre o instante entre o registro do trap e a
+# atribuição de OUT: `rm -f ""` é no-op seguro, e `set -u` não aborta por causa de uma variável
+# ainda não atribuída dentro de um trap que só roda depois.
+trap 'rm -f "${OUT:-}"' EXIT
 # EXIT sozinho cobre saída normal, mas Ctrl-C (INT) no meio do push mata este script sem passar
 # por ali (LDG-0058) — lixo pequeno (uma linha de sha) que acumula em silêncio em quem interrompe
 # push com frequência. TERM e HUP entram pela mesma razão (defesa em profundidade: nem toda shell
@@ -209,9 +214,18 @@ trap 'rm -f "$OUT"' EXIT
 # para EXIT) que só limpa e não sai deixa o processo VIVO, retomando de onde foi interrompido; é a
 # shell que decide encerrar sozinha ao herdar a disposição padrão de um sinal SEM trap nenhum, não
 # ao rodar um trap custom. `exit N` aqui dispara o trap de EXIT acima também (idempotente).
-trap 'rm -f "$OUT"; exit 130' INT
-trap 'rm -f "$OUT"; exit 143' TERM
-trap 'rm -f "$OUT"; exit 129' HUP
+trap 'rm -f "${OUT:-}"; exit 130' INT
+trap 'rm -f "${OUT:-}"; exit 143' TERM
+trap 'rm -f "${OUT:-}"; exit 129' HUP
+# Resíduo medido e aceito, não corrigido: mesmo com os traps de pé, existe uma corrida estreita
+# (dezenas de ms) entre a entrega do sinal e a transição de `set -m` logo abaixo, que isola o
+# filho de rede em pgid próprio — sinalizar EXATAMENTE nesse instante pode matar o processo pela
+# disposição padrão antes de qualquer trap correr. Confirmado PRÉ-EXISTENTE: o código só-EXIT (de
+# antes desta correção) mostra a MESMA corrida, na mesma ordem de grandeza, sob a mesma sonda.
+# Nenhum Ctrl-C humano nem sinal de hook de git chega sincronizado a essa janela; fechá-la por
+# completo exigiria abrir mão do `set -m` (perdendo o isolamento de pgid do parágrafo acima) ou
+# bloqueio de sinal em nível de processo que bash não expõe por trap. Ver tests/w152 [29].
+OUT="$(mktemp "${TMPDIR:-/tmp}/forge-pushahead-XXXXXX")"
 
 set -m
 (

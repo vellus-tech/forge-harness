@@ -375,6 +375,10 @@ Use práticas modernas de C# e .NET:
 - extension methods apenas quando melhorarem clareza;
 - analyzers e warnings tratados com seriedade.
 
+**Warning não é opinião, é erro adiado.** Antes de escrever código num repositório .NET, rode `bash .forge/scripts/dotnet-baseline.sh --check`: ele diz se `TreatWarningsAsErrors`, `AnalysisMode`, `EnforceCodeStyleInBuild`, a severidade por ID de regra no `.editorconfig` e o Central Package Management estão declarados. Onde estão, o build reprova você antes de qualquer revisor — e isso é a intenção: a correção sai mais barata no seu próprio loop do que num round de review. Onde não estão, reporte a lacuna ao concluir a tarefa (`--apply` materializa) em vez de compensar à mão, e não desligue a propriedade para fazer o build passar: `TreatWarningsAsErrors=false`, `#pragma warning disable` sem justificativa e `<NoWarn>` largo na raiz são o mesmo defeito com três nomes.
+
+Antes de devolver a tarefa, rode também `bash .forge/skills/dotnet-quality-scan/scripts/scan.sh --root <path>` no que você tocou. Ele cobre o que o compilador não vê (`async void`, `.Result`, `new HttpClient()`, nome genérico, parâmetro booleano de modo) e custa segundos — encontrar isso agora é diferente de encontrar depois do `code-evaluator` abrir um round de correção.
+
 Evite:
 
 - service locator;

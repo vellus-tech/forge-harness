@@ -492,6 +492,17 @@ check_dotnet() {
   else info "lsp: csharp-ls/OmniSharp ausente (opcional — VS Code C# Dev Kit já provê)"
        try_install "csharp-ls" dotnet tool install -g csharp-ls || true
   fi
+  # Baseline de enforcement de build: o que faz convenção virar erro de compilação.
+  # Informativo por decisão — materializar arquivo na raiz do projeto é ato do humano
+  # (ou de `--apply`), nunca efeito colateral de um diagnóstico.
+  if [ -x "$ROOT/.forge/scripts/dotnet-baseline.sh" ]; then
+    if bash "$ROOT/.forge/scripts/dotnet-baseline.sh" --root "$ROOT" --check >/dev/null 2>&1; then
+      ok "baseline de build: Directory.Build.props + .editorconfig + CPM no lugar"
+    else
+      info "baseline de build incompleto (regra em prosa não vira erro de compilação)"
+      hint "audite com: bash .forge/scripts/dotnet-baseline.sh --check · materialize com --apply"
+    fi
+  fi
 }
 
 # ── Node / TypeScript ─────────────────────────────────────────────────────────

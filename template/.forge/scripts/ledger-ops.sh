@@ -8,7 +8,7 @@
 #   ledger-ops.sh add     --type <t> --title "<txt>" [--detail "<txt>"] [--severity S] [--priority P]
 #                         [--status ST] [--origin O] [--change <id>] [--ref R] [--adr A] [--capability C]
 #   ledger-ops.sh update  <LDG-NNNN> [--status ST] [--priority P] [--severity S] [--title "<txt>"] [--detail "<txt>"]
-#   ledger-ops.sh resolve <LDG-NNNN> --note "<txt>"
+#   ledger-ops.sh resolve <LDG-NNNN> --note "<txt>" [--status resolved|wont-fix]   # default: resolved
 #   ledger-ops.sh promote <LDG-NNNN> --to <change-id>
 #   ledger-ops.sh harvest <change-id> --origin close|archive   # colhe deferrals/findings antes do mv
 #   ledger-ops.sh render                                        # regenera LEDGER.md
@@ -17,6 +17,23 @@
 #
 # Determinístico: created_at = data do commit HEAD (não wall clock); harvest é idempotente (dedup_key)
 # e best-effort (NUNCA falha o caller). Ver deferral-ops.sh / handoff-gen.sh para os idiomas.
+#
+# resolved_at (issue #78): 'add --status resolved' e 'update --status resolved' são RECUSADOS de
+# propósito — são as duas portas que quem quer marcar estado natural digita primeiro ("quero mudar
+# o status" -> update; "estou registrando algo que já acabou" -> add), e as duas deixavam
+# resolved_at nulo em silêncio porque só o 'resolve' o carimbava. Medido: 45/143 entradas resolvidas
+# sem resolved_at num consumidor, crescendo entre medições (39/135 -> 42/138 -> 45/143); 11/59 no
+# próprio harness. A alternativa cogitada — carimbar resolved_at também em add/update — foi
+# descartada porque manteria DUAS fontes de verdade para o mesmo carimbo (drift já provou não ser
+# hipotético) e deixaria 'resolved' sem exigir motivo (o 'resolve' já exige --note; add/update não
+# pedem justificativa nenhuma para encerrar algo). Recusar e apontar para 'resolve' fecha a porta
+# errada em vez de tentar consertar as duas entradas por ela. 'wont-fix' tem o mesmo defeito na
+# prática — hoje só nasce via 'update --status wont-fix', sem carimbo e sem nota — então entra na
+# mesma recusa; 'resolve' passa a aceitar '--status wont-fix' como a porta certa para os dois
+# desfechos terminais. 'promoted' NÃO tem esse problema: o item promovido ainda não foi resolvido,
+# está sob rastreio de um change ativo (ver ledger-consultation.md) — carimbar resolved_at nele
+# seria afirmar algo falso. Ele só ganha resolved_at de fato quando o change que o promoveu chega a
+# archive/close-delivered-externally, e aí passa pelo 'resolve' como qualquer outro.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -77,6 +94,13 @@ add)
   esac; done
   [ -n "$type" ] || { echo "FAIL: --type obrigatório (roadmap|tech-debt|known-bug|follow-up|feature-idea)" >&2; exit 1; }
   [ -n "$title" ] || { echo "FAIL: --title obrigatório" >&2; exit 1; }
+  case "$status" in
+    resolved|wont-fix)
+      echo "FAIL: ledger-ops: 'add --status $status' não carimba resolved_at (issue #78) — registre com 'add' (nasce 'open') e feche com:" >&2
+      echo "  ledger-ops.sh resolve <LDG-NNNN> --note \"<motivo>\"$([ "$status" = wont-fix ] && echo " --status wont-fix")" >&2
+      exit 1
+      ;;
+  esac
   _init_ledger
   result="$(node - "$LF" "$type" "$title" "$detail" "$severity" "$priority" "$status" "$origin" "$change" "$ref" "$adr" "$capability" "$(_git_date)" <<'NODEEOF'
 const { readFileSync } = require('fs');
@@ -118,6 +142,13 @@ update)
     --detail) n_detail="$2"; shift 2 ;;
     *) shift ;;
   esac; done
+  case "$n_status" in
+    resolved|wont-fix)
+      echo "FAIL: ledger-ops: 'update --status $n_status' não carimba resolved_at (issue #78) — use:" >&2
+      echo "  ledger-ops.sh resolve $id --note \"<motivo>\"$([ "$n_status" = wont-fix ] && echo " --status wont-fix")" >&2
+      exit 1
+      ;;
+  esac
   _init_ledger
   result="$(node - "$LF" "$id" "$n_status" "$n_priority" "$n_severity" "$n_title" "$n_detail" "$(_git_date)" <<'NODEEOF'
 const { readFileSync } = require('fs');
@@ -142,26 +173,35 @@ NODEEOF
 resolve)
   id="${1:-}"; shift || true
   [ -n "$id" ] || { echo "FAIL: LDG-id obrigatório" >&2; exit 1; }
-  note=""
-  while [ $# -gt 0 ]; do case "$1" in --note) note="$2"; shift 2 ;; *) shift ;; esac; done
+  note=""; new_status="resolved"
+  while [ $# -gt 0 ]; do case "$1" in
+    --note) note="$2"; shift 2 ;;
+    --status) new_status="$2"; shift 2 ;;
+    *) shift ;;
+  esac; done
   [ -n "$note" ] || { echo "FAIL: --note obrigatório" >&2; exit 1; }
+  case "$new_status" in
+    resolved|wont-fix) : ;;
+    *) echo "FAIL: --status inválido para 'resolve' ('$new_status') — use 'resolved' (padrão) ou 'wont-fix'" >&2; exit 1 ;;
+  esac
   _init_ledger
-  result="$(node - "$LF" "$id" "$note" "$(_git_date)" <<'NODEEOF'
+  result="$(node - "$LF" "$id" "$note" "$new_status" "$(_git_date)" <<'NODEEOF'
 const { readFileSync } = require('fs');
-const [, , lf, id, note, now] = process.argv;
+const [, , lf, id, note, newStatus, now] = process.argv;
 const data = JSON.parse(readFileSync(lf, 'utf8'));
 const e = (data.entries || []).find((x) => x.id === id);
 if (!e) { console.error('entrada ' + id + ' não encontrada'); process.exit(1); }
-e.status = 'resolved';
+e.status = newStatus;
 e.resolved_at = now;
 e.updated_at = now;
-e.detail = (e.detail ? e.detail + ' — ' : '') + 'Resolvido: ' + note;
+const label = newStatus === 'wont-fix' ? 'Wont-fix' : 'Resolvido';
+e.detail = (e.detail ? e.detail + ' — ' : '') + label + ': ' + note;
 console.log(JSON.stringify(data, null, 2));
 NODEEOF
 )"
   _write_json "$LF" "$result"
   _render
-  echo "OK resolve — $id marcado como resolved"
+  echo "OK resolve — $id marcado como $new_status"
   ;;
 
 promote)

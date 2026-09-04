@@ -638,10 +638,10 @@
       "id": "LDG-0027",
       "type": "tech-debt",
       "title": "Grafo de código é cego no dogfood: o motor do harness vive em bin/ e template/.forge/, ambos pulados",
-      "detail": "SKIP_DIRS pula 'bin' e '.forge', e .sh não está no mapa LANG — então /forge:codegraph neste repositório enxerga 19 nós (16 fixtures de tests/fixtures/**, 3 de tools/) e nenhum dos 107 arquivos de template/.forge/scripts/** nem bin/forge.mjs. Pular .forge/ é correto por design (num consumidor é o harness instalado, não o produto); o problema é específico do repo que PRODUZ o template. Consequência: /forge:onboard, /forge:c4 e /forge:impact não têm valor aqui, e a auto-avaliação do harness sobre si mesmo não cobre o próprio motor. Saídas possíveis: raiz de varredura configurável no FORGE.md, ou tratar template/.forge/ como código-fonte quando o package.json declara o pacote forge-harness. Distinto do LDG-0026, que afeta qualquer projeto Node.",
+      "detail": "SKIP_DIRS pula 'bin' e '.forge', e .sh não está no mapa LANG — então /forge:codegraph neste repositório enxerga 19 nós (16 fixtures de tests/fixtures/**, 3 de tools/) e nenhum dos 107 arquivos de template/.forge/scripts/** nem bin/forge.mjs. Pular .forge/ é correto por design (num consumidor é o harness instalado, não o produto); o problema é específico do repo que PRODUZ o template. Consequência: /forge:onboard, /forge:c4 e /forge:impact não têm valor aqui, e a auto-avaliação do harness sobre si mesmo não cobre o próprio motor. Saídas possíveis: raiz de varredura configurável no FORGE.md, ou tratar template/.forge/ como código-fonte quando o package.json declara o pacote forge-harness. Distinto do LDG-0026, que afeta qualquer projeto Node. — Resolvido: Motor ganhou codegraph.include_paths (mesmo bloco codegraph: do FORGE.md, mesmo dialeto de glob de codegraph.layers) para o repositório declarar caminhos que são código-fonte mesmo quando o nome bateria com o default de pular (prefixo de ponto ou SKIP_DIRS) — sem exceção com nome de projeto embutida no motor. .sh/.bash entram no mapa de linguagens como nó (lang: shell), deliberadamente SEM extração de aresta (SCRIPT_DIR/variáveis tornam a resolução estática pouco confiável). Aplicado ao próprio forge-harness via .forge/FORGE.md (include_paths: template/.forge/**): grafo do repositório saiu de 20 nós/2 arestas para 256 nós/51 arestas (bin/ e todo .sh do repo, inclusive template/.forge/scripts/** e tests/*.sh, agora visíveis). Coberto por tests/w165-codegraph-scan-roots-gate.sh (TDD red-first + mutação com controle/recontrole via cmp); w141[2] (golden de compatibilidade sem codegraph: declarado) confirmado intacto.",
       "severity": "LOW",
       "priority": "P3",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -654,18 +654,18 @@
         "promoted_to": null
       },
       "created_at": "2026-08-03T18:14:22-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-09-04T16:11:07-03:00",
+      "resolved_at": "2026-09-04T16:11:07-03:00",
       "dedup_key": "manual:LDG-0027"
     },
     {
       "id": "LDG-0028",
       "type": "known-bug",
       "title": "forge update: mensagem diz '.forge não encontrado' quando o ausente é o forge.yaml",
-      "detail": "bin/forge.mjs:426-427 testa existsSync(.forge/forge.yaml) e, ao falhar, emite '.forge não encontrado em <target> — use npx forge-harness init'. Num projeto com .forge/ presente mas sem forge.yaml (harness parcialmente instalado, forge.yaml apagado, ou o dogfood deste repo), a mensagem manda reinstalar do zero quando o diagnóstico real é outro — e 'init' num .forge/ com specs e baseline é justamente o que o /forge:upgrade proíbe. O exit 3 e o não-escrever estão corretos (REQ-FHT-037); só a mensagem mente sobre a causa. Correção: distinguir os dois casos e, quando .forge/ existe, nomear o arquivo ausente. Achado ao rodar /forge:upgrade neste repo (2026-08-03).",
+      "detail": "bin/forge.mjs:426-427 testa existsSync(.forge/forge.yaml) e, ao falhar, emite '.forge não encontrado em <target> — use npx forge-harness init'. Num projeto com .forge/ presente mas sem forge.yaml (harness parcialmente instalado, forge.yaml apagado, ou o dogfood deste repo), a mensagem manda reinstalar do zero quando o diagnóstico real é outro — e 'init' num .forge/ com specs e baseline é justamente o que o /forge:upgrade proíbe. O exit 3 e o não-escrever estão corretos (REQ-FHT-037); só a mensagem mente sobre a causa. Correção: distinguir os dois casos e, quando .forge/ existe, nomear o arquivo ausente. Achado ao rodar /forge:upgrade neste repo (2026-08-03). — Resolvido: bin/forge.mjs:updateHarness distingue .forge ausente (sugere init) de .forge presente sem forge.yaml (nomeia o arquivo, não sugere init — LDG-0028). Gate w161, red observado contra a mensagem antiga.",
       "severity": "LOW",
       "priority": "P3",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -678,8 +678,8 @@
         "promoted_to": null
       },
       "created_at": "2026-08-03T18:14:22-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-09-04T16:00:29-03:00",
+      "resolved_at": "2026-09-04T16:00:29-03:00",
       "dedup_key": "manual:LDG-0028"
     },
     {
@@ -736,10 +736,10 @@
       "id": "LDG-0031",
       "type": "known-bug",
       "title": "C4: arquivo de boundary de arquivo único, cross-referenciado, não aparece em nenhum dos 3 níveis — e o C3 omite toda aresta cross-boundary",
-      "detail": "Achado incidental na TASK-17 do change gate-assert-visibility, ao converter a asserção bare do cenário [5] de tests/w43-c4-gate.sh (a asserção mascarava a própria reprovação: 'grep -rq A && ! grep -rEq B' sob set -e — quando A falha, A não é o último comando da lista && e fica isento de set -e, então o gate seguia para OK [5] sem nunca avaliar B). Duas lacunas distintas em template/.forge/scripts/lib/c4-gen.mjs, ambas reproduzidas por execução direta, não inferidas. (1) Boundary de arquivo único não gera component view: a linha 'if (allFiles.length < 2) continue;' (c4-gen.mjs:127, presente desde a introdução em cda9ecb) pula o C3 do boundary, e como C1 só mostra sistema+externals e C2 agrega por boundary ('src/domain (1)'), o nome do arquivo nunca é renderizado em nível nenhum. Comportamento assimétrico: boundary de 2 arquivos expõe os nomes, o de 1 arquivo some — e contradiz o espírito declarado do próprio gerador para o caminho de boundary grande (c4-gen.mjs:30, 'nenhum arquivo some, só sobe de abstração'). (2) O C3 de boundary pequeno desenha APENAS arestas intra-boundary: c4-gen.mjs:137-140 exige que AMBOS os extremos estejam em 'inset' (os arquivos do próprio boundary), então toda dependência de saída é descartada. Esta é a metade mais consequente, porque o diagrama fica afirmativamente enganoso, não só incompleto: no C4 canônico a Component view mostra os componentes/containers externos com que o boundary conversa. REPRODUÇÃO: mini-repo TS com src/domain/money.ts (único arquivo do boundary) e services/billing/{invoice.ts,payment.ts}, onde invoice.ts importa '../../src/domain/money'; rodar graph.sh build + c4.sh. Resultado observado: gera só c1-context.md, c2-container.md e c3-component-services-billing.md; 'grep -r money .forge/graph/c4/' não retorna NADA; e c3-component-services-billing.md sai com f0[\"invoice ts\"] e f1[\"payment ts\"] e ZERO arestas, apesar de a única aresta resolvida do grafo (invoice.ts -> money.ts) partir dali. O rastro da dependência sobrevive só no C2, como 'c0 --> c1' entre boundaries. NOTA DE COBERTURA: enquanto (2) valer, o ramo de renderização de aresta intra-boundary (c4-gen.mjs:139) era código morto no gate w43 — a fixture só tinha aresta cross-boundary e o cenário [7] exercita o ramo agregado. A TASK-17 passou a cobri-lo ao dar 2 arquivos a src/domain (currency.ts importando ./money), que é também o que destrava o cenário [5]. Corrigir o gerador ficou FORA de escopo do gate-assert-visibility (change puramente mecânico de visibilidade de falha): mudaria o artefato gerado de todo projeto consumidor e exige decisão de design sobre o que uma Component view deve mostrar (nó externo tracejado? C3 de nó único?).",
+      "detail": "Achado incidental na TASK-17 do change gate-assert-visibility, ao converter a asserção bare do cenário [5] de tests/w43-c4-gate.sh (a asserção mascarava a própria reprovação: 'grep -rq A && ! grep -rEq B' sob set -e — quando A falha, A não é o último comando da lista && e fica isento de set -e, então o gate seguia para OK [5] sem nunca avaliar B). Duas lacunas distintas em template/.forge/scripts/lib/c4-gen.mjs, ambas reproduzidas por execução direta, não inferidas. (1) Boundary de arquivo único não gera component view: a linha 'if (allFiles.length < 2) continue;' (c4-gen.mjs:127, presente desde a introdução em cda9ecb) pula o C3 do boundary, e como C1 só mostra sistema+externals e C2 agrega por boundary ('src/domain (1)'), o nome do arquivo nunca é renderizado em nível nenhum. Comportamento assimétrico: boundary de 2 arquivos expõe os nomes, o de 1 arquivo some — e contradiz o espírito declarado do próprio gerador para o caminho de boundary grande (c4-gen.mjs:30, 'nenhum arquivo some, só sobe de abstração'). (2) O C3 de boundary pequeno desenha APENAS arestas intra-boundary: c4-gen.mjs:137-140 exige que AMBOS os extremos estejam em 'inset' (os arquivos do próprio boundary), então toda dependência de saída é descartada. Esta é a metade mais consequente, porque o diagrama fica afirmativamente enganoso, não só incompleto: no C4 canônico a Component view mostra os componentes/containers externos com que o boundary conversa. REPRODUÇÃO: mini-repo TS com src/domain/money.ts (único arquivo do boundary) e services/billing/{invoice.ts,payment.ts}, onde invoice.ts importa '../../src/domain/money'; rodar graph.sh build + c4.sh. Resultado observado: gera só c1-context.md, c2-container.md e c3-component-services-billing.md; 'grep -r money .forge/graph/c4/' não retorna NADA; e c3-component-services-billing.md sai com f0[\"invoice ts\"] e f1[\"payment ts\"] e ZERO arestas, apesar de a única aresta resolvida do grafo (invoice.ts -> money.ts) partir dali. O rastro da dependência sobrevive só no C2, como 'c0 --> c1' entre boundaries. NOTA DE COBERTURA: enquanto (2) valer, o ramo de renderização de aresta intra-boundary (c4-gen.mjs:139) era código morto no gate w43 — a fixture só tinha aresta cross-boundary e o cenário [7] exercita o ramo agregado. A TASK-17 passou a cobri-lo ao dar 2 arquivos a src/domain (currency.ts importando ./money), que é também o que destrava o cenário [5]. Corrigir o gerador ficou FORA de escopo do gate-assert-visibility (change puramente mecânico de visibilidade de falha): mudaria o artefato gerado de todo projeto consumidor e exige decisão de design sobre o que uma Component view deve mostrar (nó externo tracejado? C3 de nó único?). — Resolvido: c4-gen.mjs corrigido nas duas lacunas: (1) boundary de UM arquivo agora gera C3 (removido o 'if (allFiles.length < 2) continue' que o pulava nos 3 níveis do C4); (2) o C3 de boundary pequeno passa a desenhar a aresta CROSS-boundary, representando o lado de fora como nó externo tracejado (classDef external), em vez de só arestas intra-boundary. Reproduzido e provado com o mini-repo exato da issue (src/domain/money.ts de arquivo único + services/billing important-o) em tests/w43-c4-gate.sh cenário [8], TDD red-first (FAIL capturado antes do fix) + mutação com controle/recontrole via cmp. Fixação do gerador estava fora de escopo do change gate-assert-visibility que achou o bug incidentalmente; resolvido aqui.",
       "severity": null,
       "priority": "P3",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -752,18 +752,18 @@
         "promoted_to": null
       },
       "created_at": "2026-08-04T15:18:28-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-09-04T16:11:07-03:00",
+      "resolved_at": "2026-09-04T16:11:07-03:00",
       "dedup_key": "manual:LDG-0031"
     },
     {
       "id": "LDG-0032",
       "type": "known-bug",
       "title": "tests/w111-liaison-sync-gate.sh:259 é uma asserção vazia (grep ... && true — sempre verdadeira)",
-      "detail": "Achado durante a varredura completa do LDG-0012 no bugfix.md do change gate-assert-visibility. A linha 'grep -rn \"gh \" \"...transports/gh.sh\" | grep -vq \"^.*#\" && true' sempre avalia para true (o '&& true' descarta qualquer status de saída), então esta asserção nunca reprova, independentemente do conteúdo real de transports/gh.sh. Tem marcador de cenário '[12]' acima (linha 258), então bateria com o critério objetivo do LDG-0012 (marcador [n] presente = candidato a conversão), mas é uma classe de defeito DIFERENTE — não é morte/passagem silenciosa sob set -e, é uma asserção estruturalmente vazia. Fora do escopo do gate-assert-visibility (que corrige só o idioma bare && sob set -e). Corrigir provavelmente remove o '&& true' redundante, deixando o grep -vq como a asserção real (o script já continua com o if seguinte que faz a checagem de verdade — avaliar se a linha é vestigial e pode ser removida, ou se faltou uma checagem que ela deveria fazer).",
+      "detail": "Achado durante a varredura completa do LDG-0012 no bugfix.md do change gate-assert-visibility. A linha 'grep -rn \"gh \" \"...transports/gh.sh\" | grep -vq \"^.*#\" && true' sempre avalia para true (o '&& true' descarta qualquer status de saída), então esta asserção nunca reprova, independentemente do conteúdo real de transports/gh.sh. Tem marcador de cenário '[12]' acima (linha 258), então bateria com o critério objetivo do LDG-0012 (marcador [n] presente = candidato a conversão), mas é uma classe de defeito DIFERENTE — não é morte/passagem silenciosa sob set -e, é uma asserção estruturalmente vazia. Fora do escopo do gate-assert-visibility (que corrige só o idioma bare && sob set -e). Corrigir provavelmente remove o '&& true' redundante, deixando o grep -vq como a asserção real (o script já continua com o if seguinte que faz a checagem de verdade — avaliar se a linha é vestigial e pode ser removida, ou se faltou uma checagem que ela deveria fazer). — Resolvido: Já corrigido no commit 836232f (#48/#59, 2026-08-19): a linha 'grep ... && true' foi removida e substituída por 'grep -Eq ...' real. Confirmado que não há mais nenhuma ocorrência da forma vazia no repo (git log --all + grep). Adicionada prova por mutação (controle/recontrole com cmp) em tests/w111-liaison-sync-gate.sh: injetar 'gh issue comment' em transports/gh.sh faz o cenário [12] reprovar corretamente; restaurar volta a OK. Gate w111 verde. Sem mudança de código — só a prova que faltava.",
       "severity": null,
       "priority": "P3",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": "gate-assert-visibility",
         "origin": "gate-assert-visibility (TASK-24)",
@@ -778,8 +778,8 @@
         "promoted_to": null
       },
       "created_at": "2026-08-04T16:36:39-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-09-04T15:40:04-03:00",
+      "resolved_at": "2026-09-04T15:40:04-03:00",
       "dedup_key": "manual:LDG-0032"
     },
     {
@@ -954,18 +954,18 @@
         "promoted_to": null
       },
       "created_at": "2026-08-19T16:12:57-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-08-19T16:33:24-03:00",
+      "resolved_at": "2026-08-19T16:33:24-03:00",
       "dedup_key": "manual:LDG-0039"
     },
     {
       "id": "LDG-0040",
       "type": "known-bug",
       "title": "doctor: guard de placeholders varre specs arquivadas e o baseline, e acusa <PROJECT_*> literal",
-      "detail": "No próprio forge-harness o doctor reporta '3 arquivo(s) com placeholders <PROJECT_*> não preenchidos'. Os arquivos são .forge/specs/archived/2026-08-03-forge-update-command/{design,requirements,spec-delta} e .forge/product/current/capabilities/forge-harness-template/spec.yaml, onde <PROJECT_*> aparece como TEXTO descrevendo o template, não como placeholder a preencher. O guard deve restringir a varredura ao que o init materializa (raiz do harness instalado) e excluir specs arquivadas, worktrees e o baseline — hoje ele produz um vermelho permanente que ensina a ignorar o doctor. Relacionado: o mesmo doctor acusa AGENTS.md ausente e CLAUDE.md que não resolve, que é o dogfood raiz deliberadamente incompleto deste repositório.",
+      "detail": "No próprio forge-harness o doctor reporta '3 arquivo(s) com placeholders <PROJECT_*> não preenchidos'. Os arquivos são .forge/specs/archived/2026-08-03-forge-update-command/{design,requirements,spec-delta} e .forge/product/current/capabilities/forge-harness-template/spec.yaml, onde <PROJECT_*> aparece como TEXTO descrevendo o template, não como placeholder a preencher. O guard deve restringir a varredura ao que o init materializa (raiz do harness instalado) e excluir specs arquivadas, worktrees e o baseline — hoje ele produz um vermelho permanente que ensina a ignorar o doctor. Relacionado: o mesmo doctor acusa AGENTS.md ausente e CLAUDE.md que não resolve, que é o dogfood raiz deliberadamente incompleto deste repositório. — Resolvido: Causa real: doctor.sh (ROOT calculado só de $0, nunca lia FORGE_ROOT ao contrário dos scripts irmãos) se autoflagra ao rodar 'bash template/.forge/scripts/doctor.sh --report' (único doctor.sh existente no dogfood parcial deste repo), pois ROOT resolve para template/ — o pacote-fonte, cujos FORGE.md/context.md/constitution.md carregam <PROJECT_*> não preenchido por desenho. O próprio spec arquivado 2026-08-03-forge-update-command/verification.md já documentava esse sintoma e o descartara como 'não é caminho de execução real' — a issue voltou porque a invocação documentada continuava reproduzindo. Fix: ROOT honra FORGE_ROOT quando setado (como lib/gate-universe.sh e lib/forge-runtime.sh). FORGE_ROOT=<repo> bash template/.forge/scripts/doctor.sh --report agora reporta 'sem placeholders' contra o repo real (specs/archived + product/current já eram corretamente excluídos via USER_DATA desde 3e8c0995, 2026-07-09 — isso não mudou). Gate w158 novo, 6 cenários com controle/recontrole (cmp): specs arquivadas e baseline em prosa nunca reprovam; placeholder real no FORGE.md do projeto continua reprovando, nomeando exatamente 1 arquivo.",
       "severity": null,
       "priority": "P3",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -980,8 +980,8 @@
         "promoted_to": null
       },
       "created_at": "2026-08-19T16:33:24-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-09-04T15:40:04-03:00",
+      "resolved_at": "2026-09-04T15:40:04-03:00",
       "dedup_key": "manual:LDG-0040"
     },
     {
@@ -1006,8 +1006,8 @@
         "promoted_to": null
       },
       "created_at": "2026-08-19T17:34:27-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-08-19T17:38:59-03:00",
+      "resolved_at": "2026-08-19T17:38:59-03:00",
       "dedup_key": "manual:LDG-0041"
     },
     {
@@ -1032,8 +1032,8 @@
         "promoted_to": null
       },
       "created_at": "2026-08-19T17:38:59-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-08-19T17:44:57-03:00",
+      "resolved_at": "2026-08-19T17:44:57-03:00",
       "dedup_key": "manual:LDG-0042"
     },
     {
@@ -1058,8 +1058,8 @@
         "promoted_to": null
       },
       "created_at": "2026-08-19T17:44:57-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-08-19T17:55:49-03:00",
+      "resolved_at": "2026-08-19T17:55:49-03:00",
       "dedup_key": "manual:LDG-0043"
     },
     {
@@ -1084,61 +1084,9 @@
         "promoted_to": null
       },
       "created_at": "2026-08-19T17:44:57-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-08-19T18:12:41-03:00",
+      "resolved_at": "2026-08-19T18:12:41-03:00",
       "dedup_key": "manual:LDG-0044"
-    },
-    {
-      "id": "LDG-0047",
-      "type": "known-bug",
-      "title": "liaison: divergência calava o remetente inteiro e o teto de 200 travava a recuperação",
-      "detail": "applyBundle devolvia a primeira divergência e descartava todas as mensagens do remetente — uma reescrita em duas posições reteve 73 mensagens posteriores íntegras em três réplicas por dias. Passa a quarentenar a POSIÇÃO (registro por posição em conflicts/<sender>.seq-<n>.divergence.json, removido quando a origem resolve) e a aplicar o excedente do teto em LOTES ordenados por prefixo de seq, com status/render nomeando as posições retidas. Issue #48; gate w140.",
-      "severity": null,
-      "priority": "P1",
-      "status": "resolved",
-      "source": {
-        "change_id": null,
-        "origin": "manual",
-        "ref": null
-      },
-      "links": {
-        "adr": [],
-        "capability": [
-          "forge-harness-template"
-        ],
-        "change": [],
-        "promoted_to": null
-      },
-      "created_at": "2026-08-19T16:33:24-03:00",
-      "updated_at": null,
-      "resolved_at": null,
-      "dedup_key": "manual:LDG-0047"
-    },
-    {
-      "id": "LDG-0046",
-      "type": "feature-idea",
-      "title": "/forge:pentest — toolchain de pentest mobile containerizado sob demanda",
-      "detail": "Comando manual (espelha /forge:dev) que orquestra um toolchain de pentest Android containerizado: activate/scan/status/deactivate, config no bloco runtime.pentest do FORGE.md, engine bash-3.2-compat pentest-ops.sh, timeout via perl alarm. Trade-off de segurança do adb (porta 5037 exposta na LAN durante a janela de teste) explícito na UX; deactivate reverte para localhost-only. Só bancada/dev, nunca device fielded. Gate tests/w142-pentest-gate.sh. Issue #34.",
-      "severity": null,
-      "priority": "P3",
-      "status": "resolved",
-      "source": {
-        "change_id": null,
-        "origin": "manual",
-        "ref": null
-      },
-      "links": {
-        "adr": [],
-        "capability": [
-          "forge-harness-template"
-        ],
-        "change": [],
-        "promoted_to": null
-      },
-      "created_at": "2026-08-19T16:33:24-03:00",
-      "updated_at": null,
-      "resolved_at": null,
-      "dedup_key": "manual:LDG-0046"
     },
     {
       "id": "LDG-0045",
@@ -1162,9 +1110,61 @@
         "promoted_to": null
       },
       "created_at": "2026-08-19T16:33:24-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-08-19T19:02:55-03:00",
+      "resolved_at": "2026-08-19T19:02:55-03:00",
       "dedup_key": "manual:LDG-0045"
+    },
+    {
+      "id": "LDG-0046",
+      "type": "feature-idea",
+      "title": "/forge:pentest — toolchain de pentest mobile containerizado sob demanda",
+      "detail": "Comando manual (espelha /forge:dev) que orquestra um toolchain de pentest Android containerizado: activate/scan/status/deactivate, config no bloco runtime.pentest do FORGE.md, engine bash-3.2-compat pentest-ops.sh, timeout via perl alarm. Trade-off de segurança do adb (porta 5037 exposta na LAN durante a janela de teste) explícito na UX; deactivate reverte para localhost-only. Só bancada/dev, nunca device fielded. Gate tests/w142-pentest-gate.sh. Issue #34.",
+      "severity": null,
+      "priority": "P3",
+      "status": "resolved",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [
+          "forge-harness-template"
+        ],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-19T16:33:24-03:00",
+      "updated_at": "2026-08-19T18:35:56-03:00",
+      "resolved_at": "2026-08-19T18:35:56-03:00",
+      "dedup_key": "manual:LDG-0046"
+    },
+    {
+      "id": "LDG-0047",
+      "type": "known-bug",
+      "title": "liaison: divergência calava o remetente inteiro e o teto de 200 travava a recuperação",
+      "detail": "applyBundle devolvia a primeira divergência e descartava todas as mensagens do remetente — uma reescrita em duas posições reteve 73 mensagens posteriores íntegras em três réplicas por dias. Passa a quarentenar a POSIÇÃO (registro por posição em conflicts/<sender>.seq-<n>.divergence.json, removido quando a origem resolve) e a aplicar o excedente do teto em LOTES ordenados por prefixo de seq, com status/render nomeando as posições retidas. Issue #48; gate w140.",
+      "severity": null,
+      "priority": "P1",
+      "status": "resolved",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [
+          "forge-harness-template"
+        ],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-19T16:33:24-03:00",
+      "updated_at": "2026-08-19T18:29:53-03:00",
+      "resolved_at": "2026-08-19T18:29:53-03:00",
+      "dedup_key": "manual:LDG-0047"
     },
     {
       "id": "LDG-0048",
@@ -1188,35 +1188,9 @@
         "promoted_to": null
       },
       "created_at": "2026-08-19T17:52:11-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-08-19T19:27:05-03:00",
+      "resolved_at": "2026-08-19T19:27:05-03:00",
       "dedup_key": "manual:LDG-0048"
-    },
-    {
-      "id": "LDG-0051",
-      "type": "known-bug",
-      "title": "Liaison: flag desconhecida descartada em silêncio e campo trust sem verificação (issue #51)",
-      "detail": "Dois defeitos independentes que corrompiam mensagem ou metadado sem aviso, erro ou exit diferente de zero, ambos medidos no ecossistema Axis. (a) Todo parser de flags de liaison-ops.sh terminava num caso curinga que só descartava o argumento: ack ... --body-file corpo.md publicava o ack SEM corpo nenhum, com rc 0 e sem uma linha de aviso (--body-file só existe no send), e --subjet publicava mensagem sem assunto. Os 20 subcomandos passam a reprovar argumento desconhecido nomeando a flag, o subcomando que a recusou e as flags aceitas por ele; o ack continua sem aceitar corpo e a mensagem diz o que usar no lugar. (b) O campo trust era atribuído na escrita e nenhum instrumento o verificava depois: content_sha o exclui por desenho, então verificação por hash é estruturalmente cega a ele, e uma restauração de log truncado que copiou a réplica de um peer sobre o log próprio fez 172 mensagens próprias se declararem untrusted-peer sem que nada reprovasse. trust passa a ser derivado de fato observável (qual arquivo de remetente carrega a linha, mais a presença de authored_by) e a derivação é conferida a cada pre-push por check-liaison-acks.sh via lib/liaison-trust.mjs. Gate w150, dez cenários, incluindo o caminho em que a derivação não é possível (liaison.yaml sem self sobre store não vazio), que reprova em vez de sair calado.",
-      "severity": null,
-      "priority": "P2",
-      "status": "resolved",
-      "source": {
-        "change_id": null,
-        "origin": "manual",
-        "ref": null
-      },
-      "links": {
-        "adr": [],
-        "capability": [
-          "forge-harness-template"
-        ],
-        "change": [],
-        "promoted_to": null
-      },
-      "created_at": "2026-08-19T19:50:53-03:00",
-      "updated_at": null,
-      "resolved_at": null,
-      "dedup_key": "manual:LDG-0051"
     },
     {
       "id": "LDG-0049",
@@ -1240,18 +1214,44 @@
         "promoted_to": null
       },
       "created_at": "2026-08-19T19:50:53-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-08-20T11:14:12-03:00",
+      "resolved_at": "2026-08-20T11:14:12-03:00",
       "dedup_key": "manual:LDG-0049"
+    },
+    {
+      "id": "LDG-0051",
+      "type": "known-bug",
+      "title": "Liaison: flag desconhecida descartada em silêncio e campo trust sem verificação (issue #51)",
+      "detail": "Dois defeitos independentes que corrompiam mensagem ou metadado sem aviso, erro ou exit diferente de zero, ambos medidos no ecossistema Axis. (a) Todo parser de flags de liaison-ops.sh terminava num caso curinga que só descartava o argumento: ack ... --body-file corpo.md publicava o ack SEM corpo nenhum, com rc 0 e sem uma linha de aviso (--body-file só existe no send), e --subjet publicava mensagem sem assunto. Os 20 subcomandos passam a reprovar argumento desconhecido nomeando a flag, o subcomando que a recusou e as flags aceitas por ele; o ack continua sem aceitar corpo e a mensagem diz o que usar no lugar. (b) O campo trust era atribuído na escrita e nenhum instrumento o verificava depois: content_sha o exclui por desenho, então verificação por hash é estruturalmente cega a ele, e uma restauração de log truncado que copiou a réplica de um peer sobre o log próprio fez 172 mensagens próprias se declararem untrusted-peer sem que nada reprovasse. trust passa a ser derivado de fato observável (qual arquivo de remetente carrega a linha, mais a presença de authored_by) e a derivação é conferida a cada pre-push por check-liaison-acks.sh via lib/liaison-trust.mjs. Gate w150, dez cenários, incluindo o caminho em que a derivação não é possível (liaison.yaml sem self sobre store não vazio), que reprova em vez de sair calado.",
+      "severity": null,
+      "priority": "P2",
+      "status": "resolved",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [
+          "forge-harness-template"
+        ],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-08-19T19:50:53-03:00",
+      "updated_at": "2026-08-20T10:52:05-03:00",
+      "resolved_at": "2026-08-20T10:52:05-03:00",
+      "dedup_key": "manual:LDG-0051"
     },
     {
       "id": "LDG-0052",
       "type": "tech-debt",
       "title": "bash: sustenido dentro de $( ) engole o resto da linha e o script morre com bad substitution, e o bash -n não vê",
-      "detail": "Descoberto ao instrumentar check-liaison-acks.sh (issue #49, instância 1). Um comentário JS dentro de um heredoc que vive dentro de $( ) — o idioma que todo script do harness usa para chamar node — não pode conter sustenido: o bash trata o sustenido como início de comentário DELE, engole o resto da linha e leva junto o parêntese de fechamento ou a crase do template literal. O script inteiro morre em runtime com 'bad substitution: no closing )', apontando a linha da substituição e não a do comentário. O 'bash -n' passa: a sintaxe é válida, o que quebra é o balanceamento depois da expansão. Aconteceu duas vezes na mesma edição, uma com '(issue #49, instância 1)' e outra com um template literal iniciado por sustenido. Candidato a cenário no check-shell-pipeline.sh, que já varre os .sh do harness: sustenido dentro de heredoc contido em $( ) é forma proibida.",
+      "detail": "Descoberto ao instrumentar check-liaison-acks.sh (issue #49, instância 1). Um comentário JS dentro de um heredoc que vive dentro de $( ) — o idioma que todo script do harness usa para chamar node — não pode conter sustenido: o bash trata o sustenido como início de comentário DELE, engole o resto da linha e leva junto o parêntese de fechamento ou a crase do template literal. O script inteiro morre em runtime com 'bad substitution: no closing )', apontando a linha da substituição e não a do comentário. O 'bash -n' passa: a sintaxe é válida, o que quebra é o balanceamento depois da expansão. Aconteceu duas vezes na mesma edição, uma com '(issue #49, instância 1)' e outra com um template literal iniciado por sustenido. Candidato a cenário no check-shell-pipeline.sh, que já varre os .sh do harness: sustenido dentro de heredoc contido em $( ) é forma proibida. — Resolvido: Lint mecânico entregue: check-heredoc-hash.sh + lib/heredoc-hash-lint.mjs, no espírito/formato do check-shell-pipeline.sh precedente, com contador de controle via lib/gate-universe.sh. Medição precisa do gatilho (11+ repros isolados): um heredoc dentro de $( ) quebra quando o corpo tem, na mesma linha, '(' sem aspas antes de '#' sem aspas antes de ')' sem aspas — a quotação do DELIMITADOR do heredoc (nenhuma/'EOF'/\"EOF\"/\\EOF) não protege nada, contrariando a hipótese inicial; só protege quando o '#' está dentro de string aspeada no corpo. Confirmado ponta-a-ponta reintroduzindo o padrão em check-liaison-acks.sh (onde foi descoberto e já corrigido): crash reproduzido byte a byte ('bad substitution: no closing )'), restauração verificada por cmp. Gate w159 novo, 8 cenários. Corpus atual (template/+tests/+bin/, 171 arquivos .sh): 0 ocorrências — a única instância conhecida já estava corrigida antes deste lint existir.",
       "severity": null,
       "priority": "P3",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -1264,8 +1264,8 @@
         "promoted_to": null
       },
       "created_at": "2026-08-20T10:56:09-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-09-04T15:40:04-03:00",
+      "resolved_at": "2026-09-04T15:40:04-03:00",
       "dedup_key": "manual:LDG-0052"
     },
     {
@@ -1349,72 +1349,72 @@
       "id": "LDG-0057",
       "type": "known-bug",
       "title": "check-push-ahead: intersecao reporta o MAXIMO entre as refs, nao a uniao",
-      "detail": "Em push multi-ref (`--all`, `--mirror`, varias branches numa invocacao), o laco de intersecao guarda o maior valor encontrado em vez da uniao dos commits que entram no push. O numero SUBESTIMA: se a ref A carrega os commits 1-2 e a ref B carrega o commit 3, a linha informa 2 quando o push publica 3. Nao bloqueia porque o caso comum e uma ref por push, e porque o numero errado e conservador (nunca acusa a mais). A correcao e acumular os shas num conjunto e contar uma vez, ao custo de mais invocacoes de git.",
+      "detail": "Em push multi-ref (`--all`, `--mirror`, varias branches numa invocacao), o laco de intersecao guarda o maior valor encontrado em vez da uniao dos commits que entram no push. O numero SUBESTIMA: se a ref A carrega os commits 1-2 e a ref B carrega o commit 3, a linha informa 2 quando o push publica 3. Nao bloqueia porque o caso comum e uma ref por push, e porque o numero errado e conservador (nunca acusa a mais). A correcao e acumular os shas num conjunto e contar uma vez, ao custo de mais invocacoes de git. — Resolvido: Corrigido: interseção agora é a união dos merge-base de cada ref publicada (git rev-list --count <merge-bases...> --not RSHA, dedup automático), não o máximo. Gate w152 [24]-[28] (propriedade + canal real via git push de verdade).",
       "severity": "low",
       "priority": "P3",
-      "status": "open",
+      "status": "resolved",
       "source": "code-review adversarial (issue #67, 2a rodada de codigo)",
       "links": [
         "https://github.com/vellus-tech/forge-harness/issues/67",
         "https://github.com/vellus-tech/forge-harness/pull/69"
       ],
       "created_at": "2026-08-22T11:00:00-03:00",
-      "updated_at": "2026-09-04T15:40:04-03:00",
-      "resolved_at": null,
+      "updated_at": "2026-09-04T16:00:59-03:00",
+      "resolved_at": "2026-09-04T16:00:59-03:00",
       "dedup_key": "push-ahead-intersecao-maximo"
     },
     {
       "id": "LDG-0058",
       "type": "known-bug",
       "title": "check-push-ahead: arquivo temporario vaza quando o script morre por sinal",
-      "detail": "O `trap 'rm -f \"$OUT\"' EXIT` cobre a saida normal e a saida por `fim`, mas nao cobre morte por sinal — um Ctrl-C no meio do push deixa o arquivo em TMPDIR. E lixo pequeno (uma linha de sha) e o mktemp nao colide, entao nao ha corrupcao; o custo e acumulo silencioso em maquina de quem interrompe push com frequencia. Correcao: acrescentar INT TERM HUP ao trap.",
+      "detail": "O `trap 'rm -f \"$OUT\"' EXIT` cobre a saida normal e a saida por `fim`, mas nao cobre morte por sinal — um Ctrl-C no meio do push deixa o arquivo em TMPDIR. E lixo pequeno (uma linha de sha) e o mktemp nao colide, entao nao ha corrupcao; o custo e acumulo silencioso em maquina de quem interrompe push com frequencia. Correcao: acrescentar INT TERM HUP ao trap. — Resolvido: Corrigido: trap por sinal (INT/TERM/HUP) além de EXIT, cada um limpando $OUT e saindo explicitamente com exit 128+n — achado adicional na investigação: sem exit explícito o processo sobrevive ao sinal e continua rodando. Gate w152 [29] (comportamental para TERM/HUP; INT verificado por forma — sandbox de execução não entrega SIGINT a processo em segundo plano, verificado de forma isolada).",
       "severity": "low",
       "priority": "P3",
-      "status": "open",
+      "status": "resolved",
       "source": "code-review adversarial (issue #67, 2a rodada de codigo)",
       "links": [
         "https://github.com/vellus-tech/forge-harness/issues/67",
         "https://github.com/vellus-tech/forge-harness/pull/69"
       ],
       "created_at": "2026-08-22T11:00:00-03:00",
-      "updated_at": "2026-09-04T15:40:04-03:00",
-      "resolved_at": null,
+      "updated_at": "2026-09-04T16:00:59-03:00",
+      "resolved_at": "2026-09-04T16:00:59-03:00",
       "dedup_key": "push-ahead-out-vaza-sinal"
     },
     {
       "id": "LDG-0059",
       "type": "known-bug",
       "title": "check-push-ahead: custo linear em push multi-ref (~35ms por ref)",
-      "detail": "O laco de intersecao faz duas invocacoes de git por ref publicada. Medido em c03b24f: 1 ref 0,24s (o caminho comum), 100 refs 3,9s, 400 refs ~15s, 800 refs 27,9s — linear em N. Um `git push --all` ou `--mirror` em repositorio grande paga MINUTOS por uma linha informativa. Nao bloqueia porque o caminho comum e uma ref, o check nunca recusa push e sempre sai 0. Alternativas: um unico `rev-list --count \"$RSHA..$TRUNK_LOCAL\" --not <shas>`, ou teto de refs no laco com a truncagem DECLARADA na saida (silenciar o corte seria a vacuidade que este check combate). Nao improvisado na vespera da release por risco de desenho. Registro com a forma medida, nao com adjetivo: linear, ~35ms/ref.",
+      "detail": "O laco de intersecao fazia duas invocacoes de git por ref publicada. Medido em c03b24f: 1 ref 0,24s, 100 refs 3,9s, 400 refs ~15s, 800 refs 27,9s — linear em N. Nao bloqueia porque o caminho comum e uma ref, o check nunca recusa push e sempre sai 0. WONT-FIX (remedido 2026-09-04, mesma maquina, A/B antes/depois do fix do LDG-0057): o fix da uniao (LDG-0057) elimina metade das invocacoes de git do laco (de merge-base+rev-list por ref para so merge-base por ref mais um rev-list final) — 800 refs caiu de 60,98s para 26,33s (~2,3x), 400 refs de 28,71s para 10,34s. O teto de refs com truncagem DECLARADA que este item cogitava continua adiado por risco de desenho, nao improvisado aqui. Guarda de regressao: gate w152 [31], 150 refs sob teto de 8s.",
       "severity": "low",
       "priority": "P3",
-      "status": "open",
+      "status": "wont-fix",
       "source": "code-review adversarial (issue #67, 3a rodada)",
       "links": [
         "https://github.com/vellus-tech/forge-harness/issues/67",
         "https://github.com/vellus-tech/forge-harness/pull/69"
       ],
       "created_at": "2026-08-22T12:20:00-03:00",
-      "updated_at": "2026-09-04T15:40:04-03:00",
-      "resolved_at": null,
+      "updated_at": "2026-09-04T16:00:59-03:00",
+      "resolved_at": "2026-09-04T16:00:59-03:00",
       "dedup_key": "push-ahead-custo-linear-multiref"
     },
     {
       "id": "LDG-0060",
       "type": "known-bug",
       "title": "check-push-ahead: falha de rev-list na intersecao nao tem cobertura de teste",
-      "detail": "A troca de `rest=0` por `rest=1` roteia um `rev-list` que falhou para a mensagem honesta de publicacao parcial, em vez da classe tranquilizadora. A mudanca esta certa e nao tem teste: o caminho e inalcancavel por `git push` real, porque o git so envia sha que possui — so se atinge com stdin forjado (sha valido em FORMA, objeto inexistente, destino refs/heads/<tronco>). Registrado como mudanca correta SEM cobertura, e nao como defeito: a mutacao que reverte `rest=1` para `rest=0` sobrevive a suite, e quem reencontrar isso precisa saber que a ausencia de vermelho aqui foi decidida, nao esquecida.",
+      "detail": "A troca de `rest=0` por `rest=1` roteia um `rev-list` que falhou para a mensagem honesta de publicacao parcial, em vez da classe tranquilizadora. A mudanca esta certa e nao tem teste: o caminho e inalcancavel por `git push` real, porque o git so envia sha que possui — so se atinge com stdin forjado (sha valido em FORMA, objeto inexistente, destino refs/heads/<tronco>). Registrado como mudanca correta SEM cobertura, e nao como defeito: a mutacao que reverte `rest=1` para `rest=0` sobrevive a suite, e quem reencontrar isso precisa saber que a ausencia de vermelho aqui foi decidida, nao esquecida. — Resolvido: Coberto: injeção direta de stdin com sha válido em forma e objeto inexistente, publicado para refs/heads/<tronco> — única forma alcançável, já que git push real nunca envia sha que não possui. Gate w152 [30], com mutação de controle (rest=1 -> rest=0) confirmando que o teste reprova a regressão exata que o item descreve.",
       "severity": "low",
       "priority": "P3",
-      "status": "open",
+      "status": "resolved",
       "source": "code-review adversarial (issue #67, 3a rodada)",
       "links": [
         "https://github.com/vellus-tech/forge-harness/issues/67",
         "https://github.com/vellus-tech/forge-harness/pull/69"
       ],
       "created_at": "2026-08-22T12:20:00-03:00",
-      "updated_at": "2026-09-04T15:40:04-03:00",
-      "resolved_at": null,
+      "updated_at": "2026-09-04T16:00:59-03:00",
+      "resolved_at": "2026-09-04T16:00:59-03:00",
       "dedup_key": "push-ahead-rest-sem-cobertura"
     },
     {
@@ -1536,6 +1536,102 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0065"
+    },
+    {
+      "id": "LDG-0066",
+      "type": "known-bug",
+      "title": "ledger-ops.sh: add/update --status resolved deixava resolved_at nulo em silêncio (issue #78)",
+      "detail": "Três caminhos levavam uma entrada a um estado terminal (resolved/wont-fix) e só o subcomando resolve carimbava resolved_at; add --status resolved e update --status resolved nasciam/passavam ao estado terminal com o carimbo nulo, rc 0, sem aviso. As duas portas erradas eram exatamente as que a pessoa procura primeiro. Medido: 45/143 num consumidor (crescendo 39/135 -> 42/138 -> 45/143), 11/59 no proprio harness. Fechado recusando --status resolved/wont-fix em add/update, apontando para resolve (que agora tambem aceita --status wont-fix). Backfill das 11 entradas locais com resolved_at retroativo rastreado ao commit que fechou cada issue. Gate tests/w157-ledger-integrity-gate.sh, 9 cenarios (portas, controle/recontrole com cmp, vacuidade, propriedade). — Resolvido: Onda 0b: portas fechadas em ledger-ops.sh (add/update recusam --status resolved|wont-fix, resolve aceita --status wont-fix), backfill das 11 entradas historicas com resolved_at rastreado por commit, gate tests/w157-ledger-integrity-gate.sh criado red-first (9 cenarios) e verde.",
+      "severity": null,
+      "priority": "P1",
+      "status": "resolved",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-04T15:42:51-03:00",
+      "updated_at": "2026-09-04T15:42:51-03:00",
+      "resolved_at": "2026-09-04T15:42:51-03:00",
+      "dedup_key": "manual:LDG-0061"
+    },
+    {
+      "id": "LDG-0067",
+      "type": "known-bug",
+      "title": "Ordinal de gate (wNNN) colide entre branches paralelas pelo mesmo mecanismo do id de ledger",
+      "detail": "Medido em 2026-09-04, duas vezes na mesma rodada: uma branch criou w153/w154 enquanto outra ja os tinha, e outra criou w155/w156 depois que o PR #85 os mergeou em develop. Quem escolhe o proximo ordinal olha 'ls tests/*-gate.sh' da propria arvore. run-all.sh varre tests/*-gate.sh ordenado por nome, entao dois arquivos com o mesmo ordinal se encontram no merge e um deles perde a identidade. Agravante: o plano e o CHANGELOG referenciam gates por ordinal ('w151 [15]', 'w111:259'), entao renumerar depois quebra referencia publicada. Mesma familia do item de numeracao de ledger; a saida provavelmente e a mesma decisao.",
+      "severity": "low",
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-04T16:11:07-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0067"
+    },
+    {
+      "id": "LDG-0068",
+      "type": "tech-debt",
+      "title": "ledger-ops escreve no checkout principal e contamina a branch que o tronco tiver em check-out",
+      "detail": "Comportamento por desenho e documentado ('o ledger e artefato duravel de PROJETO, nao de branch': _forge_main_root resolve por --git-common-dir). O efeito colateral aparece em trabalho paralelo: um agente que resolve itens de dentro de uma worktree grava no ledger do TRONCO, que pode estar noutra branch. Medido em 2026-09-04: quatro resolucoes da Onda 4 (LDG-0057 a LDG-0060) nasceram em fix/ledger-reconciliation, branch alheia ao trabalho, e tiveram de ser transferidas a mao. FORGE_ROOT apontando para a worktree contorna, mas nada obriga nem avisa — a operacao e' silenciosa e o autor so descobre por 'git status' no tronco. Saida minima: quando ROOT resolvido difere do cwd do invocador, dizer isso na saida.",
+      "severity": "low",
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-04T16:11:07-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0068"
+    },
+    {
+      "id": "LDG-0069",
+      "type": "tech-debt",
+      "title": "check-shell-pipeline e check-heredoc-hash existem e nenhum hook os invoca",
+      "detail": "Achado em 2026-09-04 ao revisar a entrega do LDG-0052. O lint novo (check-heredoc-hash.sh) seguiu corretamente o formato do precedente (check-shell-pipeline.sh, issue #49) — inclusive em nao ser cabeado: 'grep -rln check-shell-pipeline template/.forge/hooks/' nao retorna nada. Os dois sao exatamente o 'gate que ninguem invoca' que a issue #82 mediu num consumidor (dez gates orfaos, sete deles de deploy). Um lint que so roda quando alguem lembra nao previne a reintroducao do defeito que ele existe para pegar. Depende da decisao de #82 sobre onde declarar gate por fase; ate la, o minimo e' o pre-push chamar os dois quando o diff toca .sh.",
+      "severity": "low",
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-04T16:11:07-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0069"
     }
   ]
 }

@@ -2,7 +2,7 @@
 // zero-dep, SEM entrada CLI própria; consumida por graph-build.mjs (classificação + métrica)
 // e por validate-graph.mjs (classificação de órfãos).
 //
-// Três responsabilidades, na ordem em que a issue as coloca:
+// Quatro responsabilidades, na ordem em que a issue as coloca (a quarta é do LDG-0027):
 //
 // 1. MAPA DE CAMADAS DECLARÁVEL. A heurística embutida (`builtinLayerOf`) nasceu ancorada na
 //    convenção `services/<x>/src/<X>.{Domain,Application,…}` e todo código .NET fora dessa
@@ -31,6 +31,17 @@
 //    descoberta por varredura de assembly, spec de E2E de browser e conteúdo estático são
 //    órfãos CORRETOS. No repositório medido, dos 926 órfãos apenas 4 eram código morto — o
 //    warning de "926 órfãos" não ajudava a chegar a esses 4. `classifyOrphans` separa os dois.
+//
+// 4. RAIZ DE VARREDURA DECLARÁVEL (LDG-0027). `graph-build.mjs` pula diretório de nome oculto
+//    (prefixo `.`) e uma lista fixa de nomes de saída de build (SKIP_DIRS) — correto por
+//    default: em projeto CONSUMIDOR, `.forge/` é o harness instalado, não o produto. Mas o
+//    repositório que PRODUZ o harness tem seu produto sob um diretório assim (`template/.forge/
+//    scripts/**`), e ficava invisível para /forge:codegraph, /forge:onboard, /forge:c4 e
+//    /forge:impact rodando sobre si mesmo. Em vez de uma exceção com o nome do projeto embutida
+//    no motor, o repositório DECLARA: `codegraph.include_paths` no frontmatter do FORGE.md —
+//    mesmo bloco, mesmo dialeto de glob de `codegraph.layers` — lista caminhos que são
+//    código-fonte mesmo quando o nome bateria com o default de "pular". Bloco ausente = nenhum
+//    caminho forçado = o walk de hoje, byte a byte (compatibilidade — gate w141).
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseYamlSubset } from './yaml-lite.mjs';
@@ -125,7 +136,10 @@ export function compileLayerMap(frontmatter) {
   }
   const orphanGlobs = (Array.isArray(block.orphans_by_design) ? block.orphans_by_design : [])
     .map((g) => layerGlobToRegExp(g)).filter(Boolean);
-  return { rules, orphanGlobs };
+  // include_paths (LDG-0027): mesmo dialeto de glob, mesma degradação item a item.
+  const includeGlobs = (Array.isArray(block.include_paths) ? block.include_paths : [])
+    .map((g) => layerGlobToRegExp(g)).filter(Boolean);
+  return { rules, orphanGlobs, includeGlobs };
 }
 
 export function readLayerMap(repoRoot) {

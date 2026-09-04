@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**26 itens ativos** · roadmap 6 · tech-debt 10 · known-bug 7 · follow-up 3 · (36 encerrados)
+**22 itens ativos** · roadmap 6 · tech-debt 10 · known-bug 3 · follow-up 3 · (40 encerrados)
 
 ## Roadmap
 
@@ -65,16 +65,8 @@ _Encerrados: 15 (promoted 1 · resolved 13 · wont-fix 1)_
   O caminho 6c -> reenfileirar com carimbo novo é exercitado como camada A determinística e foi verificado à mão ponta a ponta na revisão (terceiro ocupa o nome, a vítima NÃO adota, reenfileira, fica atrás, e o ticket alheio sai preservado). Falta o cenário de integração. Registrado com a ressalva que impede repetir o erro: a forma de integração que existia ANTES era vácua — a mutação MUT-H passava 50/50 com ela, porque a vítima adotava o ticket alheio e o cenário aprovava pelo motivo errado. Reexigi-la sem redesenhar seria pedir de volta um teste que não distinguia.
 - **LDG-0056** [open] (P3/low) — worktree-reconcile mede adiantamento pela réplica local, não pelo remoto real
   `template/.forge/scripts/worktree-reconcile.sh` resolve o upstream por `@{u}` na linha 41 e MEDE nas linhas 45-46 com `rev-list --count "${upstream}..HEAD"`. `refs/remotes/<remote>/*` é réplica local e pode estar desatualizada NAS DUAS DIREÇÕES: sem `fetch` recente ela ignora o que o servidor já tem, e após um `fetch` de outro processo ela pode estar à frente do que este worktree conhece. É exatamente o defeito que a issue #67 descreve — e que o `check-push-ahead.sh` resolve para o `pre-push` lendo `git ls-remote` na hora —, presente em outro script do MESMO harness. O sintoma é um relatório de reconciliação que informa 'ahead=0' com confiança sobre um estado que não conferiu. Fora do escopo da entrega da #67 para não misturar frentes; a correção é a mesma técnica, com a ressalva de que aqui há N worktrees e um `ls-remote` por worktree custaria caro (medido na #67: 0,55 a 0,73s por chamada, e 9,0s quando o DNS falha), então o desenho provavelmente é uma leitura só de remoto, compartilhada entre os worktrees.
-- **LDG-0057** [open] (P3/low) — check-push-ahead: intersecao reporta o MAXIMO entre as refs, nao a uniao
-  Em push multi-ref (`--all`, `--mirror`, varias branches numa invocacao), o laco de intersecao guarda o maior valor encontrado em vez da uniao dos commits que entram no push. O numero SUBESTIMA: se a ref A carrega os commits 1-2 e a ref B carrega o commit 3, a linha informa 2 quando o push publica 3. Nao bloqueia porque o caso comum e uma ref por push, e porque o numero errado e conservador (nunca acusa a mais). A correcao e acumular os shas num conjunto e contar uma vez, ao custo de mais invocacoes de git.
-- **LDG-0058** [open] (P3/low) — check-push-ahead: arquivo temporario vaza quando o script morre por sinal
-  O `trap 'rm -f "$OUT"' EXIT` cobre a saida normal e a saida por `fim`, mas nao cobre morte por sinal — um Ctrl-C no meio do push deixa o arquivo em TMPDIR. E lixo pequeno (uma linha de sha) e o mktemp nao colide, entao nao ha corrupcao; o custo e acumulo silencioso em maquina de quem interrompe push com frequencia. Correcao: acrescentar INT TERM HUP ao trap.
-- **LDG-0059** [open] (P3/low) — check-push-ahead: custo linear em push multi-ref (~35ms por ref)
-  O laco de intersecao faz duas invocacoes de git por ref publicada. Medido em c03b24f: 1 ref 0,24s (o caminho comum), 100 refs 3,9s, 400 refs ~15s, 800 refs 27,9s — linear em N. Um `git push --all` ou `--mirror` em repositorio grande paga MINUTOS por uma linha informativa. Nao bloqueia porque o caminho comum e uma ref, o check nunca recusa push e sempre sai 0. Alternativas: um unico `rev-list --count "$RSHA..$TRUNK_LOCAL" --not <shas>`, ou teto de refs no laco com a truncagem DECLARADA na saida (silenciar o corte seria a vacuidade que este check combate). Nao improvisado na vespera da release por risco de desenho. Registro com a forma medida, nao com adjetivo: linear, ~35ms/ref.
-- **LDG-0060** [open] (P3/low) — check-push-ahead: falha de rev-list na intersecao nao tem cobertura de teste
-  A troca de `rest=0` por `rest=1` roteia um `rev-list` que falhou para a mensagem honesta de publicacao parcial, em vez da classe tranquilizadora. A mudanca esta certa e nao tem teste: o caminho e inalcancavel por `git push` real, porque o git so envia sha que possui — so se atinge com stdin forjado (sha valido em FORMA, objeto inexistente, destino refs/heads/<tronco>). Registrado como mudanca correta SEM cobertura, e nao como defeito: a mutacao que reverte `rest=1` para `rest=0` sobrevive a suite, e quem reencontrar isso precisa saber que a ausencia de vermelho aqui foi decidida, nao esquecida.
 
-_Encerrados: 15 (resolved 15)_
+_Encerrados: 19 (resolved 18 · wont-fix 1)_
 
 ## Follow-ups
 

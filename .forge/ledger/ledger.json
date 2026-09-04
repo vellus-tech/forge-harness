@@ -1349,72 +1349,72 @@
       "id": "LDG-0057",
       "type": "known-bug",
       "title": "check-push-ahead: intersecao reporta o MAXIMO entre as refs, nao a uniao",
-      "detail": "Em push multi-ref (`--all`, `--mirror`, varias branches numa invocacao), o laco de intersecao guarda o maior valor encontrado em vez da uniao dos commits que entram no push. O numero SUBESTIMA: se a ref A carrega os commits 1-2 e a ref B carrega o commit 3, a linha informa 2 quando o push publica 3. Nao bloqueia porque o caso comum e uma ref por push, e porque o numero errado e conservador (nunca acusa a mais). A correcao e acumular os shas num conjunto e contar uma vez, ao custo de mais invocacoes de git.",
+      "detail": "Em push multi-ref (`--all`, `--mirror`, varias branches numa invocacao), o laco de intersecao guarda o maior valor encontrado em vez da uniao dos commits que entram no push. O numero SUBESTIMA: se a ref A carrega os commits 1-2 e a ref B carrega o commit 3, a linha informa 2 quando o push publica 3. Nao bloqueia porque o caso comum e uma ref por push, e porque o numero errado e conservador (nunca acusa a mais). A correcao e acumular os shas num conjunto e contar uma vez, ao custo de mais invocacoes de git. — Resolvido: Corrigido: interseção agora é a união dos merge-base de cada ref publicada (git rev-list --count <merge-bases...> --not RSHA, dedup automático), não o máximo. Gate w152 [24]-[28] (propriedade + canal real via git push de verdade).",
       "severity": "low",
       "priority": "P3",
-      "status": "open",
+      "status": "resolved",
       "source": "code-review adversarial (issue #67, 2a rodada de codigo)",
       "links": [
         "https://github.com/vellus-tech/forge-harness/issues/67",
         "https://github.com/vellus-tech/forge-harness/pull/69"
       ],
       "created_at": "2026-08-22T11:00:00-03:00",
-      "updated_at": "2026-09-04T15:40:04-03:00",
-      "resolved_at": null,
+      "updated_at": "2026-09-04T16:00:59-03:00",
+      "resolved_at": "2026-09-04T16:00:59-03:00",
       "dedup_key": "push-ahead-intersecao-maximo"
     },
     {
       "id": "LDG-0058",
       "type": "known-bug",
       "title": "check-push-ahead: arquivo temporario vaza quando o script morre por sinal",
-      "detail": "O `trap 'rm -f \"$OUT\"' EXIT` cobre a saida normal e a saida por `fim`, mas nao cobre morte por sinal — um Ctrl-C no meio do push deixa o arquivo em TMPDIR. E lixo pequeno (uma linha de sha) e o mktemp nao colide, entao nao ha corrupcao; o custo e acumulo silencioso em maquina de quem interrompe push com frequencia. Correcao: acrescentar INT TERM HUP ao trap.",
+      "detail": "O `trap 'rm -f \"$OUT\"' EXIT` cobre a saida normal e a saida por `fim`, mas nao cobre morte por sinal — um Ctrl-C no meio do push deixa o arquivo em TMPDIR. E lixo pequeno (uma linha de sha) e o mktemp nao colide, entao nao ha corrupcao; o custo e acumulo silencioso em maquina de quem interrompe push com frequencia. Correcao: acrescentar INT TERM HUP ao trap. — Resolvido: Corrigido: trap por sinal (INT/TERM/HUP) além de EXIT, cada um limpando $OUT e saindo explicitamente com exit 128+n — achado adicional na investigação: sem exit explícito o processo sobrevive ao sinal e continua rodando. Gate w152 [29] (comportamental para TERM/HUP; INT verificado por forma — sandbox de execução não entrega SIGINT a processo em segundo plano, verificado de forma isolada).",
       "severity": "low",
       "priority": "P3",
-      "status": "open",
+      "status": "resolved",
       "source": "code-review adversarial (issue #67, 2a rodada de codigo)",
       "links": [
         "https://github.com/vellus-tech/forge-harness/issues/67",
         "https://github.com/vellus-tech/forge-harness/pull/69"
       ],
       "created_at": "2026-08-22T11:00:00-03:00",
-      "updated_at": "2026-09-04T15:40:04-03:00",
-      "resolved_at": null,
+      "updated_at": "2026-09-04T16:00:59-03:00",
+      "resolved_at": "2026-09-04T16:00:59-03:00",
       "dedup_key": "push-ahead-out-vaza-sinal"
     },
     {
       "id": "LDG-0059",
       "type": "known-bug",
       "title": "check-push-ahead: custo linear em push multi-ref (~35ms por ref)",
-      "detail": "O laco de intersecao faz duas invocacoes de git por ref publicada. Medido em c03b24f: 1 ref 0,24s (o caminho comum), 100 refs 3,9s, 400 refs ~15s, 800 refs 27,9s — linear em N. Um `git push --all` ou `--mirror` em repositorio grande paga MINUTOS por uma linha informativa. Nao bloqueia porque o caminho comum e uma ref, o check nunca recusa push e sempre sai 0. Alternativas: um unico `rev-list --count \"$RSHA..$TRUNK_LOCAL\" --not <shas>`, ou teto de refs no laco com a truncagem DECLARADA na saida (silenciar o corte seria a vacuidade que este check combate). Nao improvisado na vespera da release por risco de desenho. Registro com a forma medida, nao com adjetivo: linear, ~35ms/ref.",
+      "detail": "O laco de intersecao fazia duas invocacoes de git por ref publicada. Medido em c03b24f: 1 ref 0,24s, 100 refs 3,9s, 400 refs ~15s, 800 refs 27,9s — linear em N. Nao bloqueia porque o caminho comum e uma ref, o check nunca recusa push e sempre sai 0. WONT-FIX (remedido 2026-09-04, mesma maquina, A/B antes/depois do fix do LDG-0057): o fix da uniao (LDG-0057) elimina metade das invocacoes de git do laco (de merge-base+rev-list por ref para so merge-base por ref mais um rev-list final) — 800 refs caiu de 60,98s para 26,33s (~2,3x), 400 refs de 28,71s para 10,34s. O teto de refs com truncagem DECLARADA que este item cogitava continua adiado por risco de desenho, nao improvisado aqui. Guarda de regressao: gate w152 [31], 150 refs sob teto de 8s.",
       "severity": "low",
       "priority": "P3",
-      "status": "open",
+      "status": "wont-fix",
       "source": "code-review adversarial (issue #67, 3a rodada)",
       "links": [
         "https://github.com/vellus-tech/forge-harness/issues/67",
         "https://github.com/vellus-tech/forge-harness/pull/69"
       ],
       "created_at": "2026-08-22T12:20:00-03:00",
-      "updated_at": "2026-09-04T15:40:04-03:00",
-      "resolved_at": null,
+      "updated_at": "2026-09-04T16:00:59-03:00",
+      "resolved_at": "2026-09-04T16:00:59-03:00",
       "dedup_key": "push-ahead-custo-linear-multiref"
     },
     {
       "id": "LDG-0060",
       "type": "known-bug",
       "title": "check-push-ahead: falha de rev-list na intersecao nao tem cobertura de teste",
-      "detail": "A troca de `rest=0` por `rest=1` roteia um `rev-list` que falhou para a mensagem honesta de publicacao parcial, em vez da classe tranquilizadora. A mudanca esta certa e nao tem teste: o caminho e inalcancavel por `git push` real, porque o git so envia sha que possui — so se atinge com stdin forjado (sha valido em FORMA, objeto inexistente, destino refs/heads/<tronco>). Registrado como mudanca correta SEM cobertura, e nao como defeito: a mutacao que reverte `rest=1` para `rest=0` sobrevive a suite, e quem reencontrar isso precisa saber que a ausencia de vermelho aqui foi decidida, nao esquecida.",
+      "detail": "A troca de `rest=0` por `rest=1` roteia um `rev-list` que falhou para a mensagem honesta de publicacao parcial, em vez da classe tranquilizadora. A mudanca esta certa e nao tem teste: o caminho e inalcancavel por `git push` real, porque o git so envia sha que possui — so se atinge com stdin forjado (sha valido em FORMA, objeto inexistente, destino refs/heads/<tronco>). Registrado como mudanca correta SEM cobertura, e nao como defeito: a mutacao que reverte `rest=1` para `rest=0` sobrevive a suite, e quem reencontrar isso precisa saber que a ausencia de vermelho aqui foi decidida, nao esquecida. — Resolvido: Coberto: injeção direta de stdin com sha válido em forma e objeto inexistente, publicado para refs/heads/<tronco> — única forma alcançável, já que git push real nunca envia sha que não possui. Gate w152 [30], com mutação de controle (rest=1 -> rest=0) confirmando que o teste reprova a regressão exata que o item descreve.",
       "severity": "low",
       "priority": "P3",
-      "status": "open",
+      "status": "resolved",
       "source": "code-review adversarial (issue #67, 3a rodada)",
       "links": [
         "https://github.com/vellus-tech/forge-harness/issues/67",
         "https://github.com/vellus-tech/forge-harness/pull/69"
       ],
       "created_at": "2026-08-22T12:20:00-03:00",
-      "updated_at": "2026-09-04T15:40:04-03:00",
-      "resolved_at": null,
+      "updated_at": "2026-09-04T16:00:59-03:00",
+      "resolved_at": "2026-09-04T16:00:59-03:00",
       "dedup_key": "push-ahead-rest-sem-cobertura"
     },
     {

@@ -198,8 +198,34 @@ TRUNK_LOCAL="$(git -C "$ROOT" rev-parse --verify -q "refs/heads/$TRUNK" 2>/dev/n
 #     job do usuário. `set -m` dá pgid próprio ao job em background, e só esse pgid é sinalizado.
 # (3) Se o isolamento falhar, NÃO se sinaliza nada. Um `curl` órfão de 75s é o pior desfecho
 #     aceitável; matar o push que se prometeu apenas informar nunca é.
+# Os traps são registrados ANTES do mktemp, de propósito: entre "o arquivo existe" e "o trap está
+# de pé" não pode haver janela nenhuma — um sinal chegando bem no meio dessa janela usaria a
+# disposição padrão do sinal (sem trap nenhum ainda registrado) e vazaria o arquivo do mesmo jeito
+# que a correção existe para evitar. `${OUT:-}` cobre o instante entre o registro do trap e a
+# atribuição de OUT: `rm -f ""` é no-op seguro, e `set -u` não aborta por causa de uma variável
+# ainda não atribuída dentro de um trap que só roda depois.
+trap 'rm -f "${OUT:-}"' EXIT
+# EXIT sozinho cobre saída normal, mas Ctrl-C (INT) no meio do push mata este script sem passar
+# por ali (LDG-0058) — lixo pequeno (uma linha de sha) que acumula em silêncio em quem interrompe
+# push com frequência. TERM e HUP entram pela mesma razão (defesa em profundidade: nem toda shell
+# que executa este script garante o mesmo comportamento de EXIT-ao-morrer-por-sinal).
+#
+# Cada sinal precisa do PRÓPRIO `exit` explícito — medido: um trap registrado para um SINAL (não
+# para EXIT) que só limpa e não sai deixa o processo VIVO, retomando de onde foi interrompido; é a
+# shell que decide encerrar sozinha ao herdar a disposição padrão de um sinal SEM trap nenhum, não
+# ao rodar um trap custom. `exit N` aqui dispara o trap de EXIT acima também (idempotente).
+trap 'rm -f "${OUT:-}"; exit 130' INT
+trap 'rm -f "${OUT:-}"; exit 143' TERM
+trap 'rm -f "${OUT:-}"; exit 129' HUP
+# Resíduo medido e aceito, não corrigido: mesmo com os traps de pé, existe uma corrida estreita
+# (dezenas de ms) entre a entrega do sinal e a transição de `set -m` logo abaixo, que isola o
+# filho de rede em pgid próprio — sinalizar EXATAMENTE nesse instante pode matar o processo pela
+# disposição padrão antes de qualquer trap correr. Confirmado PRÉ-EXISTENTE: o código só-EXIT (de
+# antes desta correção) mostra a MESMA corrida, na mesma ordem de grandeza, sob a mesma sonda.
+# Nenhum Ctrl-C humano nem sinal de hook de git chega sincronizado a essa janela; fechá-la por
+# completo exigiria abrir mão do `set -m` (perdendo o isolamento de pgid do parágrafo acima) ou
+# bloqueio de sinal em nível de processo que bash não expõe por trap. Ver tests/w152 [29].
 OUT="$(mktemp "${TMPDIR:-/tmp}/forge-pushahead-XXXXXX")"
-trap 'rm -f "$OUT"' EXIT
 
 set -m
 (
@@ -294,15 +320,31 @@ fi
 
 # A INTERSEÇÃO é o que transforma um aviso genérico em previsão específica: destes commits, quantos
 # entram no diff de ESTE push. É o número que prevê o dano de 59-contra-27 relatado na issue.
+#
+# É a UNIÃO dos commits alcançados por cada ref publicada, não o MÁXIMO entre elas (LDG-0057). Em
+# push multi-ref, cada ref pode carregar um subconjunto DIFERENTE do passivo — uma branch que
+# divergiu cedo carrega parte, outra que divergiu tarde carrega outra parte, e nenhuma das duas
+# sozinha é o total. O máximo SUBESTIMA sempre que os subconjuntos não são um o prefixo do outro
+# (ex.: duas branches em lados opostos de um merge do próprio tronco). Conservação: a união nunca
+# é menor que a maior parte isolada, e é exatamente o tamanho do conjunto combinado.
+#
+# Implementação: um merge-base por ref (como antes), mas o rev-list --count final é UM SÓ, sobre
+# TODOS os merge-base coletados de uma vez — `git rev-list` deduplica objetos alcançáveis por mais
+# de um positivo automaticamente, então a união sai de graça sem contar nada em dobro. Isso também
+# elimina metade das invocações de `git` do laço antigo (LDG-0059): de duas por ref (merge-base +
+# rev-list) para uma por ref (só merge-base) mais uma única rev-list no final.
 INTER=0
+MERGE_BASES=""
 for pair in $PUSHED_PAIRS; do
   sha="${pair%%:*}"
   mb="$(git -C "$ROOT" merge-base "$TRUNK_LOCAL" "$sha" 2>/dev/null)" || continue
   [ -n "$mb" ] || continue
-  n="$(git -C "$ROOT" rev-list --count "$RSHA..$mb" 2>/dev/null)"
-  case "$n" in ''|*[!0-9]*) continue ;; esac
-  [ "$n" -gt "$INTER" ] && INTER="$n"
+  MERGE_BASES="$MERGE_BASES $mb"
 done
+if [ -n "${MERGE_BASES# }" ]; then
+  INTER="$(git -C "$ROOT" rev-list --count $MERGE_BASES --not "$RSHA" 2>/dev/null)"
+  case "$INTER" in ''|*[!0-9]*) INTER=0 ;; esac
+fi
 
 if [ "$INTER" -gt 0 ]; then
   say_ok "$TRUNK está $AHEAD commit(s) à frente de $REMOTE, dos quais $INTER entra(m) NESTE push — eles aparecerão no diff de qualquer PR aberto contra $TRUNK"

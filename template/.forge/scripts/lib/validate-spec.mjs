@@ -316,11 +316,12 @@ if (reached('tasks-ready')) {
 // transição `tasks-ready -> implementing`.
 //
 // Dispensa excepcional: `quick_plan.enabled: true` com "story-sharding" em
-// `quick_plan.skipped_phases` (bloco já validado acima — array não-vazio + justification). Tem
-// de ser em BLOCK STYLE: yaml-lite.mjs não parseia array flow-style não-vazio (LDG-0033) — uma
-// tentativa em `skipped_phases: [story-sharding]` vira string literal, falha o
-// `Array.isArray(sp)` do bloco de quick_plan acima e reprova fechado, nunca concede a dispensa
-// em silêncio.
+// `quick_plan.skipped_phases` (bloco já validado acima — array não-vazio + justification).
+// Aceita tanto block style (`- story-sharding`) quanto flow style (`[story-sharding]`) — desde
+// que o LDG-0033 fechou, yaml-lite.mjs parseia as duas formas como array; antes disso, flow
+// style virava string literal, falhava o `Array.isArray(sp)` do bloco de quick_plan acima e
+// reprovava fechado (nunca concedia a dispensa em silêncio — mas também não a concedia em
+// flow style). ver tests/w162-yaml-lite-flow-array-gate.sh e w138 [10]/[11] (as duas formas).
 const skipsStorySharding = !!(man.quick_plan && man.quick_plan.enabled === true
   && Array.isArray(man.quick_plan.skipped_phases) && man.quick_plan.skipped_phases.includes('story-sharding'));
 if (reached('implementing') && scale >= 3 && !skipsStorySharding) {

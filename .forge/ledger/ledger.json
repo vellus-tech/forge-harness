@@ -786,10 +786,10 @@
       "id": "LDG-0033",
       "type": "tech-debt",
       "title": "yaml-lite.mjs não parseia array em flow style — quick_plan.skipped_phases: [design] vira string literal",
-      "detail": "Residual do LDG-0030 (agora resolvido), citado como nota lateral no item original. spec-new.sh grava skipped_phases em flow style ([]) por padrão, induzindo o autor ao formato que o parser não entende; block style (- design) funciona. Corrigir yaml-lite.mjs para suportar flow style, ou spec-new.sh para gravar block style por padrão.",
+      "detail": "Residual do LDG-0030 (agora resolvido), citado como nota lateral no item original. spec-new.sh grava skipped_phases em flow style ([]) por padrão, induzindo o autor ao formato que o parser não entende; block style (- design) funciona. Corrigir yaml-lite.mjs para suportar flow style, ou spec-new.sh para gravar block style por padrão. — Resolvido: yaml-lite.mjs passa a parsear array flow-style não-vazio (parseFlowSequence/splitFlowItems); quick_plan.skipped_phases: [design] agora vira lista, não string. spec-new.sh mantido em flow style. Prova: tests/w162-yaml-lite-flow-array-gate.sh (PBT round-trip, 209 casos) + w138 [10]/[11] (as duas formas concedem a dispensa).",
       "severity": null,
       "priority": "P3",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": "gate-assert-visibility",
         "origin": "gate-assert-visibility PR #42 code-evaluator",
@@ -804,18 +804,18 @@
         "promoted_to": null
       },
       "created_at": "2026-08-04T17:22:38-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-09-04T16:11:07-03:00",
+      "resolved_at": "2026-09-04T16:11:07-03:00",
       "dedup_key": "manual:LDG-0033"
     },
     {
       "id": "LDG-0034",
       "type": "tech-debt",
       "title": "Mensagens FAIL de algumas conversões do LDG-0012 agrupam 2-3 condições sem indicar qual falhou",
-      "detail": "Achado pelo quality-reviewer no code-evaluator do PR #42. Exemplos: w13-init-gate.sh/w14-adapters-gate.sh 'FAIL [1]: settings.json/claude.lock.yaml/core.lock.yaml ausentes' (3 arquivos bundled), w30-schemas-gate.sh:377 'CHANGELOG.md do baseline ou product/published ausente' (OR vago). Fora do escopo da correção mecânica original (converter, não redesenhar diagnóstico). Separar em ifs com mensagem por cláusula numa iteração futura.",
+      "detail": "Achado pelo quality-reviewer no code-evaluator do PR #42. Exemplos: w13-init-gate.sh/w14-adapters-gate.sh 'FAIL [1]: settings.json/claude.lock.yaml/core.lock.yaml ausentes' (3 arquivos bundled), w30-schemas-gate.sh:377 'CHANGELOG.md do baseline ou product/published ausente' (OR vago). Fora do escopo da correção mecânica original (converter, não redesenhar diagnóstico). Separar em ifs com mensagem por cláusula numa iteração futura. — Resolvido: corpo de tests/*.sh varrido (103 candidatos examinados por heurística automatizada); 30 ocorrências genuínas de condições agrupadas corrigidas em 10 gates (w13, w14, w30, w20, w43, w80, w63, w22, gw3, check-authz), cada condição com FAIL próprio. Prova por mutação em 8 arquivos representativos: quebrar uma condição isolada produz exatamente a mensagem daquela condição.",
       "severity": null,
       "priority": "P3",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": "gate-assert-visibility",
         "origin": "gate-assert-visibility PR #42 code-evaluator (QUAL-005)",
@@ -830,8 +830,8 @@
         "promoted_to": null
       },
       "created_at": "2026-08-04T17:22:38-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-09-04T16:11:07-03:00",
+      "resolved_at": "2026-09-04T16:11:07-03:00",
       "dedup_key": "manual:LDG-0034"
     },
     {
@@ -912,10 +912,10 @@
       "id": "LDG-0038",
       "type": "tech-debt",
       "title": "red-replay.mjs não detecta clone shallow — devolve not-possible genérico em vez de mensagem acionável",
-      "detail": "Achado da revisão adversarial (PR #45): deriveBase() em red-replay.mjs devolve not-possible com razão genérica quando o histórico git é insuficiente (clone shallow), mandando o autor rodar /forge:red replay de novo — conselho errado, já que o problema é do ambiente (fetch-depth), não do comando. Um git rev-parse --is-shallow-repository no início da função daria a mensagem certa ('repositório raso — configure fetch-depth: 0').",
+      "detail": "Achado da revisão adversarial (PR #45): deriveBase() em red-replay.mjs devolve not-possible com razão genérica quando o histórico git é insuficiente (clone shallow), mandando o autor rodar /forge:red replay de novo — conselho errado, já que o problema é do ambiente (fetch-depth), não do comando. Um git rev-parse --is-shallow-repository no início da função daria a mensagem certa ('repositório raso — configure fetch-depth: 0'). — Resolvido: deriveBase() agora detecta git rev-parse --is-shallow-repository e, quando um commit escolhido para revert-synthesis não tem pai resolvível (comportamento típico do commit-fronteira de um clone raso), devolve not-possible nomeando a causa e a ação (git fetch --unshallow) em vez da mensagem genérica 'é commit raiz (sem pai)'. Mesma correção replicada em applyRevert() (defesa em profundidade). Achado na investigação: em clone raso o defeito real observado era PIOR que o descrito — deriveBase reportava revert-synthesis como sucesso usando o commit-fronteira errado (falso positivo), só falhando depois dentro do worktree efêmero; a correção detecta isso ainda na fase de decisão, sem sequer criar worktree. Prova: tests/w163-red-replay-shallow-clone-gate.sh (clone raso real via git clone --depth, controle com clone completo).",
       "severity": "low",
       "priority": "P3",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "PR #45 review",
@@ -928,8 +928,8 @@
         "promoted_to": null
       },
       "created_at": "2026-08-05T15:22:23-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-09-04T16:11:07-03:00",
+      "resolved_at": "2026-09-04T16:11:07-03:00",
       "dedup_key": "manual:LDG-0038"
     },
     {
@@ -1560,6 +1560,78 @@
       "updated_at": "2026-09-04T15:42:51-03:00",
       "resolved_at": "2026-09-04T15:42:51-03:00",
       "dedup_key": "manual:LDG-0061"
+    },
+    {
+      "id": "LDG-0067",
+      "type": "known-bug",
+      "title": "Ordinal de gate (wNNN) colide entre branches paralelas pelo mesmo mecanismo do id de ledger",
+      "detail": "Medido em 2026-09-04, duas vezes na mesma rodada: uma branch criou w153/w154 enquanto outra ja os tinha, e outra criou w155/w156 depois que o PR #85 os mergeou em develop. Quem escolhe o proximo ordinal olha 'ls tests/*-gate.sh' da propria arvore. run-all.sh varre tests/*-gate.sh ordenado por nome, entao dois arquivos com o mesmo ordinal se encontram no merge e um deles perde a identidade. Agravante: o plano e o CHANGELOG referenciam gates por ordinal ('w151 [15]', 'w111:259'), entao renumerar depois quebra referencia publicada. Mesma familia do item de numeracao de ledger; a saida provavelmente e a mesma decisao.",
+      "severity": "low",
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-04T16:11:07-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0067"
+    },
+    {
+      "id": "LDG-0068",
+      "type": "tech-debt",
+      "title": "ledger-ops escreve no checkout principal e contamina a branch que o tronco tiver em check-out",
+      "detail": "Comportamento por desenho e documentado ('o ledger e artefato duravel de PROJETO, nao de branch': _forge_main_root resolve por --git-common-dir). O efeito colateral aparece em trabalho paralelo: um agente que resolve itens de dentro de uma worktree grava no ledger do TRONCO, que pode estar noutra branch. Medido em 2026-09-04: quatro resolucoes da Onda 4 (LDG-0057 a LDG-0060) nasceram em fix/ledger-reconciliation, branch alheia ao trabalho, e tiveram de ser transferidas a mao. FORGE_ROOT apontando para a worktree contorna, mas nada obriga nem avisa — a operacao e' silenciosa e o autor so descobre por 'git status' no tronco. Saida minima: quando ROOT resolvido difere do cwd do invocador, dizer isso na saida.",
+      "severity": "low",
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-04T16:11:07-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0068"
+    },
+    {
+      "id": "LDG-0069",
+      "type": "tech-debt",
+      "title": "check-shell-pipeline e check-heredoc-hash existem e nenhum hook os invoca",
+      "detail": "Achado em 2026-09-04 ao revisar a entrega do LDG-0052. O lint novo (check-heredoc-hash.sh) seguiu corretamente o formato do precedente (check-shell-pipeline.sh, issue #49) — inclusive em nao ser cabeado: 'grep -rln check-shell-pipeline template/.forge/hooks/' nao retorna nada. Os dois sao exatamente o 'gate que ninguem invoca' que a issue #82 mediu num consumidor (dez gates orfaos, sete deles de deploy). Um lint que so roda quando alguem lembra nao previne a reintroducao do defeito que ele existe para pegar. Depende da decisao de #82 sobre onde declarar gate por fase; ate la, o minimo e' o pre-push chamar os dois quando o diff toca .sh.",
+      "severity": "low",
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-04T16:11:07-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0069"
     },
     {
       "id": "LDG-0110",

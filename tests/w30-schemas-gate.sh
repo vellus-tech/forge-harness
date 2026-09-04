@@ -72,8 +72,11 @@ done
 for d in capabilities prd frd-nfrd ddd trd adr glossary; do
   [ -d "$WS/template/.forge/product/current/$d" ]
 done
-[ -f "$WS/template/.forge/product/current/CHANGELOG.md" ] && [ -d "$WS/template/.forge/product/published" ] \
-  || { echo "FAIL [4]: CHANGELOG.md do baseline ou product/published ausente"; exit 1; }
+# LDG-0034: cada condição reprova com a SUA mensagem, não uma reprovação com "ou" que não diz qual.
+[ -f "$WS/template/.forge/product/current/CHANGELOG.md" ] \
+  || { echo "FAIL [4]: CHANGELOG.md do baseline ausente"; exit 1; }
+[ -d "$WS/template/.forge/product/published" ] \
+  || { echo "FAIL [4]: product/published ausente"; exit 1; }
 echo "OK [4]"
 
 echo "[5] templates de delta/traceability validam contra os schemas"

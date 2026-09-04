@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**26 itens ativos** · roadmap 6 · tech-debt 10 · known-bug 7 · follow-up 3 · (35 encerrados)
+**26 itens ativos** · roadmap 6 · tech-debt 10 · known-bug 7 · follow-up 3 · (36 encerrados)
 
 ## Roadmap
 
@@ -74,7 +74,7 @@ _Encerrados: 15 (promoted 1 · resolved 13 · wont-fix 1)_
 - **LDG-0060** [open] (P3/low) — check-push-ahead: falha de rev-list na intersecao nao tem cobertura de teste
   A troca de `rest=0` por `rest=1` roteia um `rev-list` que falhou para a mensagem honesta de publicacao parcial, em vez da classe tranquilizadora. A mudanca esta certa e nao tem teste: o caminho e inalcancavel por `git push` real, porque o git so envia sha que possui — so se atinge com stdin forjado (sha valido em FORMA, objeto inexistente, destino refs/heads/<tronco>). Registrado como mudanca correta SEM cobertura, e nao como defeito: a mutacao que reverte `rest=1` para `rest=0` sobrevive a suite, e quem reencontrar isso precisa saber que a ausencia de vermelho aqui foi decidida, nao esquecida.
 
-_Encerrados: 14 (resolved 14)_
+_Encerrados: 15 (resolved 15)_
 
 ## Follow-ups
 

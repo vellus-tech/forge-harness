@@ -366,10 +366,10 @@
       "id": "LDG-0016",
       "type": "tech-debt",
       "title": "Suite: 11 gates criam repo git em /tmp e o gc em background derruba o rm -rf do fixture",
-      "detail": "Corrigido no run-all.sh via GIT_CONFIG_COUNT (gc.auto/maintenance.auto/gc.autoDetach = 0) com assercao no w80, mas a causa raiz merece nota: 'git commit' dispara 'git gc --auto' em background, que continua escrevendo em .git depois do commit retornar. O 'rm -rf' do fixture corre contra esse processo e, quando perde, mata o gate DEPOIS de todas as assercoes passarem. Nao reproduz no macOS (APFS+timing), reproduz no CI Linux (overlayfs). Assinatura identica a do SIGPIPE ja corrigido: gate verde isolado, vermelho na suite, gates DIFERENTES a cada execucao — o que significa que parte das 'falhas fantasma' historicas pode ter sido esta, e nao SIGPIPE. Se voltar a aparecer, checar tambem 'git maintenance' e processos filhos do gate.",
+      "detail": "Corrigido no run-all.sh via GIT_CONFIG_COUNT (gc.auto/maintenance.auto/gc.autoDetach = 0) com assercao no w80, mas a causa raiz merece nota: 'git commit' dispara 'git gc --auto' em background, que continua escrevendo em .git depois do commit retornar. O 'rm -rf' do fixture corre contra esse processo e, quando perde, mata o gate DEPOIS de todas as assercoes passarem. Nao reproduz no macOS (APFS+timing), reproduz no CI Linux (overlayfs). Assinatura identica a do SIGPIPE ja corrigido: gate verde isolado, vermelho na suite, gates DIFERENTES a cada execucao — o que significa que parte das 'falhas fantasma' historicas pode ter sido esta, e nao SIGPIPE. Se voltar a aparecer, checar tambem 'git maintenance' e processos filhos do gate. — Resolvido: Corrigido em run-all.sh via GIT_CONFIG_COUNT (gc.auto/maintenance.auto/gc.autoDetach = 0) com assercao no w80. O detalhe da propria entrada ja comecava com 'Corrigido' — o conteudo remanescente e nota tecnica sobre git gc --auto em background, nao divida aberta.",
       "severity": null,
       "priority": "P2",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -382,8 +382,8 @@
         "promoted_to": null
       },
       "created_at": "2026-07-30T11:05:18-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-09-04T15:40:04-03:00",
+      "resolved_at": "2026-09-04T15:40:04-03:00",
       "dedup_key": "manual:LDG-0016"
     },
     {
@@ -1272,10 +1272,10 @@
       "id": "LDG-0053",
       "type": "known-bug",
       "title": "Mutex de suíte pesada: lock por TMPDIR e polling sem fila (issue #52)",
-      "detail": "Dois defeitos independentes que se compõem, medidos em campo no ecossistema Axis e usados por 37 arquivos em quatro repositórios. (a) O lock resolvia por $TMPDIR, que no macOS é por usuário E por contexto de invocação: quatro valores distintos ativos na mesma máquina, dois locks vivos simultâneos e um órfão de catorze horas que a detecção por kill -0 nunca alcançou porque olhava o outro arquivo. Modo de falha silencioso na direção pior — cada lado adquire com sucesso e acredita estar protegido. (b) 'while ! mkdir' garante exclusão e não garante ordem: quem solta e retoma está a poucas instruções do mkdir, quem espera dorme num intervalo de polling, e a chance não melhora com paciência. É inanição, não lentidão — medido, 1305s de fila para achar um erro de 8s. Resolvido com primitivo no template: lib/heavy-mutex.sh (âncora de três regimes, identidade por ps com deteccao de zumbi e PID reciclado, confirmação de posse com retry, reivindicação atômica de órfão, fila FIFO cujo portão de justiça é separado do gate de segurança, reentrância reavaliada por poll, interruptor de fila, traps transparentes), heavy-run.sh, check-heavy-mutex.sh e fiação no pre-push. Gate w151 com 45 cenários.",
+      "detail": "Dois defeitos independentes que se compõem, medidos em campo no ecossistema Axis e usados por 37 arquivos em quatro repositórios. (a) O lock resolvia por $TMPDIR, que no macOS é por usuário E por contexto de invocação: quatro valores distintos ativos na mesma máquina, dois locks vivos simultâneos e um órfão de catorze horas que a detecção por kill -0 nunca alcançou porque olhava o outro arquivo. Modo de falha silencioso na direção pior — cada lado adquire com sucesso e acredita estar protegido. (b) 'while ! mkdir' garante exclusão e não garante ordem: quem solta e retoma está a poucas instruções do mkdir, quem espera dorme num intervalo de polling, e a chance não melhora com paciência. É inanição, não lentidão — medido, 1305s de fila para achar um erro de 8s. Resolvido com primitivo no template: lib/heavy-mutex.sh (âncora de três regimes, identidade por ps com deteccao de zumbi e PID reciclado, confirmação de posse com retry, reivindicação atômica de órfão, fila FIFO cujo portão de justiça é separado do gate de segurança, reentrância reavaliada por poll, interruptor de fila, traps transparentes), heavy-run.sh, check-heavy-mutex.sh e fiação no pre-push. Gate w151 com 45 cenários. — Resolvido: Entregue na 0.10.0 (PR #68, squash 4db2826): lib/heavy-mutex.sh, heavy-run.sh, check-heavy-mutex.sh, rule conventions/heavy-resource-serialization.md e gate w151 com 53 cenarios. Issue #52 CLOSED em 2026-08-21. O item permaneceu open e, por ser o unico P1, distorcia a resposta a pergunta que o ledger existe para responder. Residuos ficaram em LDG-0054 e LDG-0055.",
       "severity": null,
       "priority": "P1",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -1288,8 +1288,8 @@
         "promoted_to": null
       },
       "created_at": "2026-08-20T20:59:04-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-09-04T15:40:04-03:00",
+      "resolved_at": "2026-09-04T15:40:04-03:00",
       "dedup_key": "manual:LDG-0053"
     },
     {
@@ -1335,13 +1335,13 @@
       "detail": "`template/.forge/scripts/worktree-reconcile.sh` resolve o upstream por `@{u}` na linha 41 e MEDE nas linhas 45-46 com `rev-list --count \"${upstream}..HEAD\"`. `refs/remotes/<remote>/*` é réplica local e pode estar desatualizada NAS DUAS DIREÇÕES: sem `fetch` recente ela ignora o que o servidor já tem, e após um `fetch` de outro processo ela pode estar à frente do que este worktree conhece. É exatamente o defeito que a issue #67 descreve — e que o `check-push-ahead.sh` resolve para o `pre-push` lendo `git ls-remote` na hora —, presente em outro script do MESMO harness. O sintoma é um relatório de reconciliação que informa 'ahead=0' com confiança sobre um estado que não conferiu. Fora do escopo da entrega da #67 para não misturar frentes; a correção é a mesma técnica, com a ressalva de que aqui há N worktrees e um `ls-remote` por worktree custaria caro (medido na #67: 0,55 a 0,73s por chamada, e 9,0s quando o DNS falha), então o desenho provavelmente é uma leitura só de remoto, compartilhada entre os worktrees.",
       "severity": "low",
       "priority": "P3",
-      "status": null,
+      "status": "open",
       "source": "achado durante a análise da issue #67",
       "links": [
         "https://github.com/vellus-tech/forge-harness/issues/67"
       ],
       "created_at": "2026-08-21T16:30:00-03:00",
-      "updated_at": "2026-08-21T16:30:00-03:00",
+      "updated_at": "2026-09-04T15:40:04-03:00",
       "resolved_at": null,
       "dedup_key": "worktree-reconcile-replica-local"
     },
@@ -1352,14 +1352,14 @@
       "detail": "Em push multi-ref (`--all`, `--mirror`, varias branches numa invocacao), o laco de intersecao guarda o maior valor encontrado em vez da uniao dos commits que entram no push. O numero SUBESTIMA: se a ref A carrega os commits 1-2 e a ref B carrega o commit 3, a linha informa 2 quando o push publica 3. Nao bloqueia porque o caso comum e uma ref por push, e porque o numero errado e conservador (nunca acusa a mais). A correcao e acumular os shas num conjunto e contar uma vez, ao custo de mais invocacoes de git.",
       "severity": "low",
       "priority": "P3",
-      "status": null,
+      "status": "open",
       "source": "code-review adversarial (issue #67, 2a rodada de codigo)",
       "links": [
         "https://github.com/vellus-tech/forge-harness/issues/67",
         "https://github.com/vellus-tech/forge-harness/pull/69"
       ],
       "created_at": "2026-08-22T11:00:00-03:00",
-      "updated_at": "2026-08-22T11:00:00-03:00",
+      "updated_at": "2026-09-04T15:40:04-03:00",
       "resolved_at": null,
       "dedup_key": "push-ahead-intersecao-maximo"
     },
@@ -1370,14 +1370,14 @@
       "detail": "O `trap 'rm -f \"$OUT\"' EXIT` cobre a saida normal e a saida por `fim`, mas nao cobre morte por sinal — um Ctrl-C no meio do push deixa o arquivo em TMPDIR. E lixo pequeno (uma linha de sha) e o mktemp nao colide, entao nao ha corrupcao; o custo e acumulo silencioso em maquina de quem interrompe push com frequencia. Correcao: acrescentar INT TERM HUP ao trap.",
       "severity": "low",
       "priority": "P3",
-      "status": null,
+      "status": "open",
       "source": "code-review adversarial (issue #67, 2a rodada de codigo)",
       "links": [
         "https://github.com/vellus-tech/forge-harness/issues/67",
         "https://github.com/vellus-tech/forge-harness/pull/69"
       ],
       "created_at": "2026-08-22T11:00:00-03:00",
-      "updated_at": "2026-08-22T11:00:00-03:00",
+      "updated_at": "2026-09-04T15:40:04-03:00",
       "resolved_at": null,
       "dedup_key": "push-ahead-out-vaza-sinal"
     },
@@ -1388,14 +1388,14 @@
       "detail": "O laco de intersecao faz duas invocacoes de git por ref publicada. Medido em c03b24f: 1 ref 0,24s (o caminho comum), 100 refs 3,9s, 400 refs ~15s, 800 refs 27,9s — linear em N. Um `git push --all` ou `--mirror` em repositorio grande paga MINUTOS por uma linha informativa. Nao bloqueia porque o caminho comum e uma ref, o check nunca recusa push e sempre sai 0. Alternativas: um unico `rev-list --count \"$RSHA..$TRUNK_LOCAL\" --not <shas>`, ou teto de refs no laco com a truncagem DECLARADA na saida (silenciar o corte seria a vacuidade que este check combate). Nao improvisado na vespera da release por risco de desenho. Registro com a forma medida, nao com adjetivo: linear, ~35ms/ref.",
       "severity": "low",
       "priority": "P3",
-      "status": null,
+      "status": "open",
       "source": "code-review adversarial (issue #67, 3a rodada)",
       "links": [
         "https://github.com/vellus-tech/forge-harness/issues/67",
         "https://github.com/vellus-tech/forge-harness/pull/69"
       ],
       "created_at": "2026-08-22T12:20:00-03:00",
-      "updated_at": "2026-08-22T12:20:00-03:00",
+      "updated_at": "2026-09-04T15:40:04-03:00",
       "resolved_at": null,
       "dedup_key": "push-ahead-custo-linear-multiref"
     },
@@ -1406,14 +1406,14 @@
       "detail": "A troca de `rest=0` por `rest=1` roteia um `rev-list` que falhou para a mensagem honesta de publicacao parcial, em vez da classe tranquilizadora. A mudanca esta certa e nao tem teste: o caminho e inalcancavel por `git push` real, porque o git so envia sha que possui — so se atinge com stdin forjado (sha valido em FORMA, objeto inexistente, destino refs/heads/<tronco>). Registrado como mudanca correta SEM cobertura, e nao como defeito: a mutacao que reverte `rest=1` para `rest=0` sobrevive a suite, e quem reencontrar isso precisa saber que a ausencia de vermelho aqui foi decidida, nao esquecida.",
       "severity": "low",
       "priority": "P3",
-      "status": null,
+      "status": "open",
       "source": "code-review adversarial (issue #67, 3a rodada)",
       "links": [
         "https://github.com/vellus-tech/forge-harness/issues/67",
         "https://github.com/vellus-tech/forge-harness/pull/69"
       ],
       "created_at": "2026-08-22T12:20:00-03:00",
-      "updated_at": "2026-08-22T12:20:00-03:00",
+      "updated_at": "2026-09-04T15:40:04-03:00",
       "resolved_at": null,
       "dedup_key": "push-ahead-rest-sem-cobertura"
     }

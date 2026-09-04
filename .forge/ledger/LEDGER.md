@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**22 itens ativos** · roadmap 6 · tech-debt 10 · known-bug 3 · follow-up 3 · (39 encerrados)
+**22 itens ativos** · roadmap 6 · tech-debt 10 · known-bug 3 · follow-up 3 · (40 encerrados)
 
 ## Roadmap
 
@@ -66,7 +66,7 @@ _Encerrados: 15 (promoted 1 · resolved 13 · wont-fix 1)_
 - **LDG-0056** [open] (P3/low) — worktree-reconcile mede adiantamento pela réplica local, não pelo remoto real
   `template/.forge/scripts/worktree-reconcile.sh` resolve o upstream por `@{u}` na linha 41 e MEDE nas linhas 45-46 com `rev-list --count "${upstream}..HEAD"`. `refs/remotes/<remote>/*` é réplica local e pode estar desatualizada NAS DUAS DIREÇÕES: sem `fetch` recente ela ignora o que o servidor já tem, e após um `fetch` de outro processo ela pode estar à frente do que este worktree conhece. É exatamente o defeito que a issue #67 descreve — e que o `check-push-ahead.sh` resolve para o `pre-push` lendo `git ls-remote` na hora —, presente em outro script do MESMO harness. O sintoma é um relatório de reconciliação que informa 'ahead=0' com confiança sobre um estado que não conferiu. Fora do escopo da entrega da #67 para não misturar frentes; a correção é a mesma técnica, com a ressalva de que aqui há N worktrees e um `ls-remote` por worktree custaria caro (medido na #67: 0,55 a 0,73s por chamada, e 9,0s quando o DNS falha), então o desenho provavelmente é uma leitura só de remoto, compartilhada entre os worktrees.
 
-_Encerrados: 18 (resolved 17 · wont-fix 1)_
+_Encerrados: 19 (resolved 18 · wont-fix 1)_
 
 ## Follow-ups
 

@@ -24,6 +24,16 @@ trap 'rm -rf "$T"' EXIT
 cp -R "$WS/template/.forge" "$T/.forge"
 S="$T/.forge/scripts"
 TODAY="$(date +%F)"
+# A fixture precisa de um commit real: created_at/resolved_at do ledger vêm de `git log -1
+# --format=%cI` (determinístico, nunca wall clock — ver ledger-ops.sh), e desde a issue #78 as
+# portas recusam fechado quando não há commit HEAD para carimbar, em vez de gravar data vazia em
+# silêncio. Nenhum projeto real roda /forge:archive fora de um repositório git; todo outro fixture
+# que também dirige archive-spec.sh/ledger-ops.sh (w98, w137) já commita antes de chamar qualquer
+# um dos dois, e este é o único que não commitava — achado pelo CI do PR #87, gate w32 reprovando
+# no cenário [1] com "sem data de commit HEAD" ao semear o item de ledger de origem.
+git -C "$T" init -q
+git -C "$T" add -A
+git -C "$T" -c user.email=w32@t -c user.name=w32 commit -q -m init
 
 mk_verified() { # mk_verified <id>  — drive a scale-0 change to verified with archive gate approved
   (cd "$T" && bash "$S/spec-new.sh" "$1" --type feature --scale 0 >/dev/null

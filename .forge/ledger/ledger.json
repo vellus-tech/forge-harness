@@ -1560,6 +1560,78 @@
       "updated_at": "2026-09-04T15:42:51-03:00",
       "resolved_at": "2026-09-04T15:42:51-03:00",
       "dedup_key": "manual:LDG-0061"
+    },
+    {
+      "id": "LDG-0067",
+      "type": "known-bug",
+      "title": "Ordinal de gate (wNNN) colide entre branches paralelas pelo mesmo mecanismo do id de ledger",
+      "detail": "Medido em 2026-09-04, duas vezes na mesma rodada: uma branch criou w153/w154 enquanto outra ja os tinha, e outra criou w155/w156 depois que o PR #85 os mergeou em develop. Quem escolhe o proximo ordinal olha 'ls tests/*-gate.sh' da propria arvore. run-all.sh varre tests/*-gate.sh ordenado por nome, entao dois arquivos com o mesmo ordinal se encontram no merge e um deles perde a identidade. Agravante: o plano e o CHANGELOG referenciam gates por ordinal ('w151 [15]', 'w111:259'), entao renumerar depois quebra referencia publicada. Mesma familia do item de numeracao de ledger; a saida provavelmente e a mesma decisao.",
+      "severity": "low",
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-04T16:11:07-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0067"
+    },
+    {
+      "id": "LDG-0068",
+      "type": "tech-debt",
+      "title": "ledger-ops escreve no checkout principal e contamina a branch que o tronco tiver em check-out",
+      "detail": "Comportamento por desenho e documentado ('o ledger e artefato duravel de PROJETO, nao de branch': _forge_main_root resolve por --git-common-dir). O efeito colateral aparece em trabalho paralelo: um agente que resolve itens de dentro de uma worktree grava no ledger do TRONCO, que pode estar noutra branch. Medido em 2026-09-04: quatro resolucoes da Onda 4 (LDG-0057 a LDG-0060) nasceram em fix/ledger-reconciliation, branch alheia ao trabalho, e tiveram de ser transferidas a mao. FORGE_ROOT apontando para a worktree contorna, mas nada obriga nem avisa — a operacao e' silenciosa e o autor so descobre por 'git status' no tronco. Saida minima: quando ROOT resolvido difere do cwd do invocador, dizer isso na saida.",
+      "severity": "low",
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-04T16:11:07-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0068"
+    },
+    {
+      "id": "LDG-0069",
+      "type": "tech-debt",
+      "title": "check-shell-pipeline e check-heredoc-hash existem e nenhum hook os invoca",
+      "detail": "Achado em 2026-09-04 ao revisar a entrega do LDG-0052. O lint novo (check-heredoc-hash.sh) seguiu corretamente o formato do precedente (check-shell-pipeline.sh, issue #49) — inclusive em nao ser cabeado: 'grep -rln check-shell-pipeline template/.forge/hooks/' nao retorna nada. Os dois sao exatamente o 'gate que ninguem invoca' que a issue #82 mediu num consumidor (dez gates orfaos, sete deles de deploy). Um lint que so roda quando alguem lembra nao previne a reintroducao do defeito que ele existe para pegar. Depende da decisao de #82 sobre onde declarar gate por fase; ate la, o minimo e' o pre-push chamar os dois quando o diff toca .sh.",
+      "severity": "low",
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-04T16:11:07-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0069"
     }
   ]
 }

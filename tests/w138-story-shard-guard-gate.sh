@@ -25,10 +25,10 @@
 #        atual preservado para scale < 3)
 #   [10] scale 3, dispensa explícita via quick_plan.skipped_phases (block style) incluindo
 #        "story-sharding" + justification → PASSA sem stories/ (dispensa não é omissão silenciosa)
-#   [11] scale 3, mesma dispensa tentada em FLOW STYLE (`skipped_phases: [story-sharding]`) → FAIL
-#        fechado — decisão registrada (LDG-0033): yaml-lite.mjs não parseia array flow-style não
-#        vazio, então a tentativa vira string literal e reprova no formato de quick_plan já
-#        existente (Array.isArray falha) em vez de conceder a dispensa em silêncio
+#   [11] scale 3, mesma dispensa em FLOW STYLE (`skipped_phases: [story-sharding]`) → também
+#        PASSA (LDG-0033 resolvido: yaml-lite.mjs agora parseia array flow-style não vazio, então
+#        as duas formas — bloco e flow — chegam ao mesmo array em `quick_plan.skipped_phases` e
+#        concedem a mesma dispensa; nenhuma das duas é omissão silenciosa)
 #   [12] FIAÇÃO — spec-transition.sh reprova a transição tasks-ready -> implementing (scale 3, sem
 #        shard) e faz rollback do manifest; após corrigir (sharded/epic_context_compiled + stories
 #        válidas), a mesma transição passa
@@ -400,8 +400,8 @@ grep -q '^OK change' <<< "$out" \
   || { echo "FAIL [10]: dispensa explícita e válida não foi honrada: $out"; exit 1; }
 echo "OK [10]"
 
-# ── [11] dispensa em flow style → reprova fechado (LDG-0033) ────────────────────────────────
-echo "[11] scale 3, dispensa em flow style [story-sharding] → FAIL fechado (yaml-lite não parseia flow array)"
+# ── [11] dispensa em flow style (LDG-0033 resolvido) ─────────────────────────────────────────
+echo "[11] scale 3, dispensa em flow style [story-sharding] → PASSA (mesma dispensa de [10], estilo diferente)"
 CH="$T/c11/change"; mkdir -p "$CH"
 cat > "$CH/manifest.yaml" <<EOF
 $MANIFEST_HEADER
@@ -417,11 +417,8 @@ quick_plan:
 EOF
 write_common_artifacts "$CH"
 out="$(run_validate "$CH")"
-case "$out" in
-  *FAIL*) : ;;
-  *) echo "FAIL [11]: dispensa em flow style foi concedida em silêncio (LDG-0033 não fecha aqui): $out"; exit 1 ;;
-esac
-grep -qi 'skipped_phases' <<< "$out" || { echo "FAIL [11]: FAIL não aponta a causa (skipped_phases malformado): $out"; exit 1; }
+grep -q '^OK change' <<< "$out" \
+  || { echo "FAIL [11]: dispensa em flow style não foi honrada (LDG-0033 deveria estar resolvido): $out"; exit 1; }
 echo "OK [11]"
 
 # ── [12] FIAÇÃO no lifecycle ──────────────────────────────────────────────────────────────────

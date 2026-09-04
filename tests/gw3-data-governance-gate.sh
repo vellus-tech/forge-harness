@@ -25,10 +25,14 @@ echo "OK [1]"
 
 echo "[2] matriz transversal: 3 mecanismos por store"
 M="$T/.forge/rules/data/data-governance.md"
-grep -q 'PostgreSQL' "$M" && grep -q 'MongoDB' "$M" && grep -qi 'redis' "$M" \
-  || { echo "FAIL [2]: data-governance.md não cita PostgreSQL+MongoDB+redis"; exit 1; }
-grep -qi 'RLS' "$M" && grep -qi 'filtro de repositório\|interceptor' "$M" && grep -qi 'namespacing de chave\|namespace' "$M" \
-  || { echo "FAIL [2]: data-governance.md não cita RLS+filtro/interceptor+namespace"; exit 1; }
+grep -q 'PostgreSQL' "$M" || { echo "FAIL [2]: data-governance.md não cita PostgreSQL"; exit 1; }
+grep -q 'MongoDB' "$M" || { echo "FAIL [2]: data-governance.md não cita MongoDB"; exit 1; }
+grep -qi 'redis' "$M" || { echo "FAIL [2]: data-governance.md não cita redis"; exit 1; }
+grep -qi 'RLS' "$M" || { echo "FAIL [2]: data-governance.md não cita RLS"; exit 1; }
+grep -qi 'filtro de repositório\|interceptor' "$M" \
+  || { echo "FAIL [2]: data-governance.md não cita filtro de repositório/interceptor"; exit 1; }
+grep -qi 'namespacing de chave\|namespace' "$M" \
+  || { echo "FAIL [2]: data-governance.md não cita namespacing de chave/namespace"; exit 1; }
 echo "OK [2]"
 
 echo "[3] database-naming saneada (não afirma mais 'sem RLS conforme ADR')"

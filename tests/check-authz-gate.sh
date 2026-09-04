@@ -94,12 +94,16 @@ out="$(bash "$SH" --path "$T/services/orders")"; rc=$?
 set -e
 [ "$rc" -ne 0 ]
 grep -q 'CONFLICT' <<<"$out"
-grep -q 'services/orders/handler.go' <<<"$out" && grep -q 'hasRole(...)' <<<"$out" \
-  || { echo "FAIL [5]: saída não nomeia handler.go + hasRole(...) ($out)"; exit 1; }
-grep -q 'services/orders/CancelOrderHandler.kt' <<<"$out" && grep -q 'decorator de role ad-hoc' <<<"$out" \
-  || { echo "FAIL [5]: saída não nomeia CancelOrderHandler.kt + decorator de role ad-hoc ($out)"; exit 1; }
-grep -q 'services/orders/cancelOrder.ts' <<<"$out" && grep -q 'claims\["permissions"\]' <<<"$out" \
-  || { echo "FAIL [5]: saída não nomeia cancelOrder.ts + claims[\"permissions\"] ($out)"; exit 1; }
+grep -q 'services/orders/handler.go' <<<"$out" || { echo "FAIL [5]: saída não nomeia handler.go ($out)"; exit 1; }
+grep -q 'hasRole(...)' <<<"$out" || { echo "FAIL [5]: saída não nomeia hasRole(...) ($out)"; exit 1; }
+grep -q 'services/orders/CancelOrderHandler.kt' <<<"$out" \
+  || { echo "FAIL [5]: saída não nomeia CancelOrderHandler.kt ($out)"; exit 1; }
+grep -q 'decorator de role ad-hoc' <<<"$out" \
+  || { echo "FAIL [5]: saída não nomeia decorator de role ad-hoc ($out)"; exit 1; }
+grep -q 'services/orders/cancelOrder.ts' <<<"$out" \
+  || { echo "FAIL [5]: saída não nomeia cancelOrder.ts ($out)"; exit 1; }
+grep -q 'claims\["permissions"\]' <<<"$out" \
+  || { echo "FAIL [5]: saída não nomeia claims[\"permissions\"] ($out)"; exit 1; }
 echo "OK [5]"
 
 echo "[6] REQ-06: mesma decisão, mode:warn → WARN, não bloqueia (exit 0) — rebaixável"
@@ -124,8 +128,8 @@ out="$(bash "$SH" --path "$T/policy/pass-deny-by-default.rego" --coverage-report
 set -e
 [ "$rc" -ne 0 ]
 grep -q 'CONFLICT' <<<"$out"
-grep -q '0.42' <<<"$out" && grep -q '0.9' <<<"$out" \
-  || { echo "FAIL [8]: saída não cita cobertura 0.42 e threshold 0.9 juntos ($out)"; exit 1; }
+grep -q '0.42' <<<"$out" || { echo "FAIL [8]: saída não cita a cobertura 0.42 ($out)"; exit 1; }
+grep -q '0.9' <<<"$out" || { echo "FAIL [8]: saída não cita o threshold 0.9 ($out)"; exit 1; }
 echo "OK [8]"
 
 echo "[9] REQ-07: sem policy_coverage_threshold declarado → no-op (não falso-positivo)"

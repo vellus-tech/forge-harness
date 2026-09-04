@@ -81,7 +81,7 @@ echo "OK [3]"
 
 echo "[4] controle: placeholder real no FORGE.md do projeto continua reprovando sob FORGE_ROOT"
 cp "$T/.forge/FORGE.md" "$T/FORGE.md.pristine"
-sed -i '' 's/name: demo/name: <PROJECT_SLUG>/' "$T/.forge/FORGE.md"
+sed 's/name: demo/name: <PROJECT_SLUG>/' "$T/.forge/FORGE.md" > "$T/FORGE.md.tmp" && mv "$T/FORGE.md.tmp" "$T/.forge/FORGE.md"
 out4="$(FORGE_ROOT="$T" bash "$T/template/.forge/scripts/doctor.sh" --report 2>&1)" || true
 grep -q "1 arquivo(s) com placeholders" <<<"$out4" || { echo "FAIL [4]: placeholder real injetado não reprovou (ou contou errado — deveria ser exatamente 1, não os 3 do template/ nem os do histórico/baseline): $out4"; exit 1; }
 echo "OK [4]"

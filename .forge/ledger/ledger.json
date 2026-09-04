@@ -760,10 +760,10 @@
       "id": "LDG-0032",
       "type": "known-bug",
       "title": "tests/w111-liaison-sync-gate.sh:259 é uma asserção vazia (grep ... && true — sempre verdadeira)",
-      "detail": "Achado durante a varredura completa do LDG-0012 no bugfix.md do change gate-assert-visibility. A linha 'grep -rn \"gh \" \"...transports/gh.sh\" | grep -vq \"^.*#\" && true' sempre avalia para true (o '&& true' descarta qualquer status de saída), então esta asserção nunca reprova, independentemente do conteúdo real de transports/gh.sh. Tem marcador de cenário '[12]' acima (linha 258), então bateria com o critério objetivo do LDG-0012 (marcador [n] presente = candidato a conversão), mas é uma classe de defeito DIFERENTE — não é morte/passagem silenciosa sob set -e, é uma asserção estruturalmente vazia. Fora do escopo do gate-assert-visibility (que corrige só o idioma bare && sob set -e). Corrigir provavelmente remove o '&& true' redundante, deixando o grep -vq como a asserção real (o script já continua com o if seguinte que faz a checagem de verdade — avaliar se a linha é vestigial e pode ser removida, ou se faltou uma checagem que ela deveria fazer).",
+      "detail": "Achado durante a varredura completa do LDG-0012 no bugfix.md do change gate-assert-visibility. A linha 'grep -rn \"gh \" \"...transports/gh.sh\" | grep -vq \"^.*#\" && true' sempre avalia para true (o '&& true' descarta qualquer status de saída), então esta asserção nunca reprova, independentemente do conteúdo real de transports/gh.sh. Tem marcador de cenário '[12]' acima (linha 258), então bateria com o critério objetivo do LDG-0012 (marcador [n] presente = candidato a conversão), mas é uma classe de defeito DIFERENTE — não é morte/passagem silenciosa sob set -e, é uma asserção estruturalmente vazia. Fora do escopo do gate-assert-visibility (que corrige só o idioma bare && sob set -e). Corrigir provavelmente remove o '&& true' redundante, deixando o grep -vq como a asserção real (o script já continua com o if seguinte que faz a checagem de verdade — avaliar se a linha é vestigial e pode ser removida, ou se faltou uma checagem que ela deveria fazer). — Resolvido: Já corrigido no commit 836232f (#48/#59, 2026-08-19): a linha 'grep ... && true' foi removida e substituída por 'grep -Eq ...' real. Confirmado que não há mais nenhuma ocorrência da forma vazia no repo (git log --all + grep). Adicionada prova por mutação (controle/recontrole com cmp) em tests/w111-liaison-sync-gate.sh: injetar 'gh issue comment' em transports/gh.sh faz o cenário [12] reprovar corretamente; restaurar volta a OK. Gate w111 verde. Sem mudança de código — só a prova que faltava.",
       "severity": null,
       "priority": "P3",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": "gate-assert-visibility",
         "origin": "gate-assert-visibility (TASK-24)",
@@ -778,8 +778,8 @@
         "promoted_to": null
       },
       "created_at": "2026-08-04T16:36:39-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-09-04T15:40:04-03:00",
+      "resolved_at": "2026-09-04T15:40:04-03:00",
       "dedup_key": "manual:LDG-0032"
     },
     {
@@ -962,10 +962,10 @@
       "id": "LDG-0040",
       "type": "known-bug",
       "title": "doctor: guard de placeholders varre specs arquivadas e o baseline, e acusa <PROJECT_*> literal",
-      "detail": "No próprio forge-harness o doctor reporta '3 arquivo(s) com placeholders <PROJECT_*> não preenchidos'. Os arquivos são .forge/specs/archived/2026-08-03-forge-update-command/{design,requirements,spec-delta} e .forge/product/current/capabilities/forge-harness-template/spec.yaml, onde <PROJECT_*> aparece como TEXTO descrevendo o template, não como placeholder a preencher. O guard deve restringir a varredura ao que o init materializa (raiz do harness instalado) e excluir specs arquivadas, worktrees e o baseline — hoje ele produz um vermelho permanente que ensina a ignorar o doctor. Relacionado: o mesmo doctor acusa AGENTS.md ausente e CLAUDE.md que não resolve, que é o dogfood raiz deliberadamente incompleto deste repositório.",
+      "detail": "No próprio forge-harness o doctor reporta '3 arquivo(s) com placeholders <PROJECT_*> não preenchidos'. Os arquivos são .forge/specs/archived/2026-08-03-forge-update-command/{design,requirements,spec-delta} e .forge/product/current/capabilities/forge-harness-template/spec.yaml, onde <PROJECT_*> aparece como TEXTO descrevendo o template, não como placeholder a preencher. O guard deve restringir a varredura ao que o init materializa (raiz do harness instalado) e excluir specs arquivadas, worktrees e o baseline — hoje ele produz um vermelho permanente que ensina a ignorar o doctor. Relacionado: o mesmo doctor acusa AGENTS.md ausente e CLAUDE.md que não resolve, que é o dogfood raiz deliberadamente incompleto deste repositório. — Resolvido: Causa real: doctor.sh (ROOT calculado só de $0, nunca lia FORGE_ROOT ao contrário dos scripts irmãos) se autoflagra ao rodar 'bash template/.forge/scripts/doctor.sh --report' (único doctor.sh existente no dogfood parcial deste repo), pois ROOT resolve para template/ — o pacote-fonte, cujos FORGE.md/context.md/constitution.md carregam <PROJECT_*> não preenchido por desenho. O próprio spec arquivado 2026-08-03-forge-update-command/verification.md já documentava esse sintoma e o descartara como 'não é caminho de execução real' — a issue voltou porque a invocação documentada continuava reproduzindo. Fix: ROOT honra FORGE_ROOT quando setado (como lib/gate-universe.sh e lib/forge-runtime.sh). FORGE_ROOT=<repo> bash template/.forge/scripts/doctor.sh --report agora reporta 'sem placeholders' contra o repo real (specs/archived + product/current já eram corretamente excluídos via USER_DATA desde 3e8c0995, 2026-07-09 — isso não mudou). Gate w155 novo, 6 cenários com controle/recontrole (cmp): specs arquivadas e baseline em prosa nunca reprovam; placeholder real no FORGE.md do projeto continua reprovando, nomeando exatamente 1 arquivo.",
       "severity": null,
       "priority": "P3",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -980,8 +980,8 @@
         "promoted_to": null
       },
       "created_at": "2026-08-19T16:33:24-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-09-04T15:40:04-03:00",
+      "resolved_at": "2026-09-04T15:40:04-03:00",
       "dedup_key": "manual:LDG-0040"
     },
     {
@@ -1248,10 +1248,10 @@
       "id": "LDG-0052",
       "type": "tech-debt",
       "title": "bash: sustenido dentro de $( ) engole o resto da linha e o script morre com bad substitution, e o bash -n não vê",
-      "detail": "Descoberto ao instrumentar check-liaison-acks.sh (issue #49, instância 1). Um comentário JS dentro de um heredoc que vive dentro de $( ) — o idioma que todo script do harness usa para chamar node — não pode conter sustenido: o bash trata o sustenido como início de comentário DELE, engole o resto da linha e leva junto o parêntese de fechamento ou a crase do template literal. O script inteiro morre em runtime com 'bad substitution: no closing )', apontando a linha da substituição e não a do comentário. O 'bash -n' passa: a sintaxe é válida, o que quebra é o balanceamento depois da expansão. Aconteceu duas vezes na mesma edição, uma com '(issue #49, instância 1)' e outra com um template literal iniciado por sustenido. Candidato a cenário no check-shell-pipeline.sh, que já varre os .sh do harness: sustenido dentro de heredoc contido em $( ) é forma proibida.",
+      "detail": "Descoberto ao instrumentar check-liaison-acks.sh (issue #49, instância 1). Um comentário JS dentro de um heredoc que vive dentro de $( ) — o idioma que todo script do harness usa para chamar node — não pode conter sustenido: o bash trata o sustenido como início de comentário DELE, engole o resto da linha e leva junto o parêntese de fechamento ou a crase do template literal. O script inteiro morre em runtime com 'bad substitution: no closing )', apontando a linha da substituição e não a do comentário. O 'bash -n' passa: a sintaxe é válida, o que quebra é o balanceamento depois da expansão. Aconteceu duas vezes na mesma edição, uma com '(issue #49, instância 1)' e outra com um template literal iniciado por sustenido. Candidato a cenário no check-shell-pipeline.sh, que já varre os .sh do harness: sustenido dentro de heredoc contido em $( ) é forma proibida. — Resolvido: Lint mecânico entregue: check-heredoc-hash.sh + lib/heredoc-hash-lint.mjs, no espírito/formato do check-shell-pipeline.sh precedente, com contador de controle via lib/gate-universe.sh. Medição precisa do gatilho (11+ repros isolados): um heredoc dentro de $( ) quebra quando o corpo tem, na mesma linha, '(' sem aspas antes de '#' sem aspas antes de ')' sem aspas — a quotação do DELIMITADOR do heredoc (nenhuma/'EOF'/\"EOF\"/\\EOF) não protege nada, contrariando a hipótese inicial; só protege quando o '#' está dentro de string aspeada no corpo. Confirmado ponta-a-ponta reintroduzindo o padrão em check-liaison-acks.sh (onde foi descoberto e já corrigido): crash reproduzido byte a byte ('bad substitution: no closing )'), restauração verificada por cmp. Gate w156 novo, 8 cenários. Corpus atual (template/+tests/+bin/, 171 arquivos .sh): 0 ocorrências — a única instância conhecida já estava corrigida antes deste lint existir.",
       "severity": null,
       "priority": "P3",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -1264,8 +1264,8 @@
         "promoted_to": null
       },
       "created_at": "2026-08-20T10:56:09-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-09-04T15:40:04-03:00",
+      "resolved_at": "2026-09-04T15:40:04-03:00",
       "dedup_key": "manual:LDG-0052"
     },
     {

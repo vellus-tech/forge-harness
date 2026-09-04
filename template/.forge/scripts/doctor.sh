@@ -28,7 +28,21 @@ case "${1:-}" in
   *) echo "Argumento desconhecido: $1 (use --install ou --report)"; exit 2 ;;
 esac
 
-ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+#
+# ROOT honra FORGE_ROOT quando setado (convenção compartilhada com heavy-mutex.sh,
+# forge-runtime.sh etc. — ver lib/forge-runtime.sh e o mecanismo de dogfood). Sem isso, rodar
+# `template/.forge/scripts/doctor.sh` (única cópia existente no dogfood incompleto da raiz deste
+# próprio repositório — vd. LDG-0040) sempre resolve ROOT para `template/`, o diretório-fonte do
+# pacote — e então o guard de placeholders <PROJECT_*> se autoflagra: FORGE.md/context.md/
+# constitution.md em template/.forge SÃO o scaffold ainda não preenchido, por design, o mesmo
+# motivo pelo qual .forge/templates/ já é excluído da varredura. Nunca é o projeto que o autor
+# pretendia checar. Com FORGE_ROOT setado, `FORGE_ROOT=<repo> bash template/.forge/scripts/
+# doctor.sh --report` aponta para o projeto de verdade.
+if [ -n "${FORGE_ROOT:-}" ]; then
+  ROOT="$(cd "$FORGE_ROOT" && pwd)"
+else
+  ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+fi
 cd "$ROOT"
 
 # ── helpers ────────────────────────────────────────────────────────────────

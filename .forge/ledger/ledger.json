@@ -662,10 +662,10 @@
       "id": "LDG-0028",
       "type": "known-bug",
       "title": "forge update: mensagem diz '.forge não encontrado' quando o ausente é o forge.yaml",
-      "detail": "bin/forge.mjs:426-427 testa existsSync(.forge/forge.yaml) e, ao falhar, emite '.forge não encontrado em <target> — use npx forge-harness init'. Num projeto com .forge/ presente mas sem forge.yaml (harness parcialmente instalado, forge.yaml apagado, ou o dogfood deste repo), a mensagem manda reinstalar do zero quando o diagnóstico real é outro — e 'init' num .forge/ com specs e baseline é justamente o que o /forge:upgrade proíbe. O exit 3 e o não-escrever estão corretos (REQ-FHT-037); só a mensagem mente sobre a causa. Correção: distinguir os dois casos e, quando .forge/ existe, nomear o arquivo ausente. Achado ao rodar /forge:upgrade neste repo (2026-08-03).",
+      "detail": "bin/forge.mjs:426-427 testa existsSync(.forge/forge.yaml) e, ao falhar, emite '.forge não encontrado em <target> — use npx forge-harness init'. Num projeto com .forge/ presente mas sem forge.yaml (harness parcialmente instalado, forge.yaml apagado, ou o dogfood deste repo), a mensagem manda reinstalar do zero quando o diagnóstico real é outro — e 'init' num .forge/ com specs e baseline é justamente o que o /forge:upgrade proíbe. O exit 3 e o não-escrever estão corretos (REQ-FHT-037); só a mensagem mente sobre a causa. Correção: distinguir os dois casos e, quando .forge/ existe, nomear o arquivo ausente. Achado ao rodar /forge:upgrade neste repo (2026-08-03). — Resolvido: bin/forge.mjs:updateHarness distingue .forge ausente (sugere init) de .forge presente sem forge.yaml (nomeia o arquivo, não sugere init — LDG-0028). Gate w161, red observado contra a mensagem antiga.",
       "severity": "LOW",
       "priority": "P3",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -678,8 +678,8 @@
         "promoted_to": null
       },
       "created_at": "2026-08-03T18:14:22-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-09-04T16:00:29-03:00",
+      "resolved_at": "2026-09-04T16:00:29-03:00",
       "dedup_key": "manual:LDG-0028"
     },
     {

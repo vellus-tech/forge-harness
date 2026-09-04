@@ -132,17 +132,30 @@ FORGE_MD="$ROOT/.forge/FORGE.md"
 # de uma vez) — revelar todas é a única que corta o custo medido sem herdar o risco de rodar
 # install/build como efeito colateral de um push. Só `existsSync`/`readFileSync` — nunca install,
 # nunca build — para não ficar mais caro que o hook que substitui no caminho feliz.
+#
+# Alvo ausente aqui NÃO bloqueia (diferente de DOCS_LIB/RED_LIB/AI_CHECK/ACKS/HARNESS_SUITE acima
+# e abaixo). A diferença não é capricho: aqueles enforçam POLÍTICA — se o alvo sumir, uma checagem
+# real deixa de rodar e algo passaria que não devia (issue #49: silêncio ali é dano). Este preflight
+# não enforça política nenhuma própria — só antecipa, de forma consolidada, o que os gates ABAIXO
+# (typecheck/test/gates/harness-tests) já reprovariam um de cada vez se algo faltar. Ausente, a
+# cobertura de correção não muda: só se perde a conveniência de ver tudo junto — voltar ao
+# comportamento pré-#81, nunca pior que ele. E bloquear aqui reintroduziria a #73 por outro
+# caminho: `check-worktree-prereqs.sh` chega junto com este hook num `forge update` completo (os
+# dois moram em MACHINERY_DIRS e são copiados no mesmo passo), mas hooks podem ser compartilhados
+# entre worktrees por `core.hooksPath` absoluto enquanto `.forge/scripts/` é conteúdo PRÓPRIO de
+# cada worktree (issue #41) — uma worktree que ainda não trouxe o commit com o script novo, mas
+# herda o hook novo de outra, bloquearia por causa alheia. `warn`, não `block`: nomeia a lacuna em
+# voz alta (nunca silêncio — o "não verifiquei" de #49 continua visível), mas não trava quem não
+# tem como resolvê-la só empurrando de novo.
 PREREQS="$ROOT/.forge/scripts/check-worktree-prereqs.sh"
-if [ ! -f "$PREREQS" ] && [ -d "$ROOT/.forge/scripts" ]; then
-  echo "pre-push BLOQUEADO: .forge/scripts/ existe mas check-worktree-prereqs.sh não — delegação em alvo ausente." >&2
-  exit 1
-fi
 if [ -f "$PREREQS" ]; then
   if ! PREREQS_OUT="$(bash "$PREREQS" --path "$ROOT" 2>&1)"; then
     echo "pre-push BLOQUEADO: pré-condições de worktree ausentes (issue #81) —"
     echo "$PREREQS_OUT"
     exit 1
   fi
+elif [ -d "$ROOT/.forge/scripts" ]; then
+  echo "pre-push: worktree-prereqs (issue #81) NÃO VERIFICADO — check-worktree-prereqs.sh ausente em .forge/scripts/ (rode 'npx forge-harness update' para instalar). Os gates abaixo ainda reprovam se algo faltar — só não juntos."
 fi
 
 fm_field() {  # fm_field <key> — value of "  <key>:" inside the runtime: block

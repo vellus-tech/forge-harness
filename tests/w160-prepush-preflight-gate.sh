@@ -15,7 +15,9 @@
 #       sem package.json não é workspace pnpm) não gera ruído
 #   [2] controle: resolver só a de deps ainda reprova, e só a de build sobra na saída
 #   [3] recontrole: resolver a segunda também faz passar — restauração verificada com cmp
-#   [4] delegação (issue #49 instância 4): .forge/scripts/ presente e o script ausente → ERRO, não silêncio
+#   [4] script ausente com .forge/scripts/ presente → AVISO explícito e push segue (nunca BLOQUEIA e nunca
+#       fica em silêncio — issue #49 sem reintroduzir a #73: este preflight não enforça política
+#       própria, só antecipa o que os gates abaixo já reprovariam)
 #   [5] repositório sem pnpm-workspace.yaml/package.json: preflight é NO-OP — sem falso positivo
 #   [6] custo do caminho feliz: o preflight sozinho roda em milissegundos (stat, não suíte)
 set -uo pipefail
@@ -114,16 +116,23 @@ cmp -s "$R/apps/dev-portal/build-public/index.js" "$T/golden-index.js" \
 case "$out3" in *"pre-push OK"*) : ;; *) echo "FAIL [3]: passou sem a linha final 'pre-push OK' — saída: '$out3'"; exit 1 ;; esac
 echo "OK [3] — restauração verificada com cmp"
 
-# ── [4] delegação (issue #49 instância 4): script ausente com .forge/scripts/ presente → ERRO ─
-echo "[4] .forge/scripts/ presente e check-worktree-prereqs.sh ausente → ERRO visível, não silêncio"
+# ── [4] script ausente com .forge/scripts/ presente → AVISO, nunca bloqueio, nunca silêncio ──
+# Decisão revisada (CI do PR #89 pegou a primeira versão bloqueando push legítimo em fixtures
+# alheias que montam .forge/scripts/ parcial — w135 é uma delas, documentado no próprio arquivo
+# como deliberado: "sem transformar isto num teste de integridade da instalação"). O preflight de
+# #81 não enforça política própria — só antecipa em conjunto o que os gates abaixo já reprovam um
+# a um se algo faltar — então script ausente não pode custar o push: warn nomeando a lacuna, nunca
+# block, nunca silêncio (issue #49).
+echo "[4] .forge/scripts/ presente e check-worktree-prereqs.sh ausente → aviso explícito, push segue"
 mv "$R/.forge/scripts/check-worktree-prereqs.sh" "$T/check-worktree-prereqs.sh.bak"
 out4="$(push_out "$R" "$SHA")"; rc4=$?
 mv "$T/check-worktree-prereqs.sh.bak" "$R/.forge/scripts/check-worktree-prereqs.sh"
-if [ "$rc4" -eq 0 ]; then
-  echo "FAIL [4]: pre-push passou com o script de prereqs removido (saída: '$out4')"
+if [ "$rc4" -ne 0 ]; then
+  echo "FAIL [4]: pre-push bloqueou (rc=$rc4) com o script de prereqs ausente — deveria degradar, não travar (saída: '$out4')"
   exit 1
 fi
-case "$out4" in *check-worktree-prereqs.sh*) : ;; *) echo "FAIL [4]: não nomeou o alvo de delegação ausente — saída: '$out4'"; exit 1 ;; esac
+case "$out4" in *check-worktree-prereqs.sh*"NÃO VERIFICADO"*|*"NÃO VERIFICADO"*check-worktree-prereqs.sh*) : ;; *) echo "FAIL [4]: passou sem avisar em voz alta que não verificou (saída: '$out4')"; exit 1 ;; esac
+case "$out4" in *"pre-push OK"*) : ;; *) echo "FAIL [4]: passou sem chegar ao fim do hook (saída: '$out4')"; exit 1 ;; esac
 echo "OK [4]"
 
 # ── [5] sem pnpm-workspace.yaml/package.json: preflight é NO-OP — sem falso positivo ──────────

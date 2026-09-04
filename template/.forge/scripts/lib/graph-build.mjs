@@ -37,7 +37,14 @@ const SKIP_DIRS = new Set([
 // `src/Debug/` of someone's own making is not touched. This is what keeps generated `.cs`
 // (which matches LANG) out of the graph now that `bin` itself is walked.
 const SKIP_UNDER_BIN = /^(Debug|Release|x64|x86|AnyCPU|Any CPU|net[0-9]|netstandard|netcoreapp)/i;
-const LANG = { '.js': 'js', '.mjs': 'js', '.cjs': 'js', '.jsx': 'js', '.ts': 'ts', '.tsx': 'ts', '.cs': 'csharp', '.go': 'go', '.py': 'python', '.kt': 'kotlin', '.kts': 'kotlin', '.java': 'java' };
+// `.sh`/`.bash` entram como NÓ (lang: shell) e nada além disso (LDG-0027). Um script chamando
+// outro por `bash caminho/x.sh` é dependência real, mas quase sempre via variável resolvida em
+// runtime (`$SCRIPT_DIR/x.sh`, `$ROOT/.forge/scripts/x.sh`) — medido neste próprio repositório,
+// é o idioma dominante em template/.forge/scripts/**. Uma aresta "resolvida" contra um literal de
+// variável não resolvida seria precisão fingida (o oposto do que GO_IMPORT/PY_IMPORT fazem hoje,
+// que ao menos preservam o identificador real, ainda que não resolvido). Nó sem aresta e dito
+// aqui é honesto; aresta fantasma não é. Ver tests/w165-codegraph-scan-roots-gate.sh [3].
+const LANG = { '.js': 'js', '.mjs': 'js', '.cjs': 'js', '.jsx': 'js', '.ts': 'ts', '.tsx': 'ts', '.cs': 'csharp', '.go': 'go', '.py': 'python', '.kt': 'kotlin', '.kts': 'kotlin', '.java': 'java', '.sh': 'shell', '.bash': 'shell' };
 // Broader census map for the coverage rule (§19.5): every programming language worth
 // counting, INCLUDING ones the extractor does not model (swift/rust/…), so `validate
 // graph` can name a dominant language that has no nodes (issue #18). Header-only C/C++
@@ -83,6 +90,11 @@ function globToRegExp(glob) {
 const forgeFrontmatter = readForgeFrontmatter(root);
 const governanceBlocks = readGovernanceBlocks(forgeFrontmatter);
 const layerMap = compileLayerMap(forgeFrontmatter);
+// codegraph.include_paths (LDG-0027): caminhos que são código-fonte mesmo quando o nome bateria
+// com o default de "pular" (prefixo de ponto ou SKIP_DIRS) — ver walk() abaixo e o cabeçalho de
+// lib/graph-layers.mjs (responsabilidade 4). Vazio (bloco/arquivo ausente) = walk de hoje, byte
+// a byte — é o que o gate w141[2] compara contra o golden pré-mudança.
+const includeGlobs = layerMap.includeGlobs || [];
 const pepPatterns = (governanceBlocks.authz && Array.isArray(governanceBlocks.authz.pep_paths)
   ? governanceBlocks.authz.pep_paths : []).map(globToRegExp);
 const wrapperPatterns = (governanceBlocks.observability && Array.isArray(governanceBlocks.observability.wrapper_paths)
@@ -101,12 +113,20 @@ function walk(dir, acc = []) {
   let entries;
   try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return acc; }
   for (const e of entries) {
-    if (e.name.startsWith('.') && e.name !== '.') continue;
     const p = join(dir, e.name);
+    // LDG-0027: um caminho declarado em codegraph.include_paths vence o default de "pular" —
+    // tanto o prefixo de ponto quanto SKIP_DIRS/SKIP_UNDER_BIN. Sem declaração (includeGlobs
+    // vazio, o caso de todo projeto consumidor) forcedInclude é sempre false e o walk abaixo é
+    // idêntico ao de antes desta chave existir.
+    const relId = relative(root, p);
+    const forcedInclude = includeGlobs.length > 0 && includeGlobs.some((re) => re.test(relId));
+    if (!forcedInclude && e.name.startsWith('.') && e.name !== '.') continue;
     if (e.isDirectory()) {
-      if (SKIP_DIRS.has(e.name)) continue;
-      // contextual: só poda saída de compilação quando o pai é um `bin/` de verdade
-      if (basename(dir) === 'bin' && SKIP_UNDER_BIN.test(e.name)) continue;
+      if (!forcedInclude) {
+        if (SKIP_DIRS.has(e.name)) continue;
+        // contextual: só poda saída de compilação quando o pai é um `bin/` de verdade
+        if (basename(dir) === 'bin' && SKIP_UNDER_BIN.test(e.name)) continue;
+      }
       walk(p, acc);
     }
     else if (!SKIP_FILE.test(e.name)) {

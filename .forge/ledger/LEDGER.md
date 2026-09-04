@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**30 itens ativos** · roadmap 6 · tech-debt 11 · known-bug 10 · follow-up 3 · (32 encerrados)
+**27 itens ativos** · roadmap 6 · tech-debt 10 · known-bug 8 · follow-up 3 · (35 encerrados)
 
 ## Roadmap
 
@@ -54,19 +54,13 @@ _Encerrados: 1 (resolved 1)_
   Achado da revisão adversarial (PR #45): o change gate-assert-visibility está status:verified, archive.eligible:false, e permanece em .forge/specs/active/ por decisão registrada no manifest (não há baseline a atualizar). Consequência: red-evidence.sh ci reexecuta o replay desse bugfix já encerrado em TODO PR, para sempre, e já houve deriva silenciosa entre o base_strategy commitado (ancestry/944c9582, inalcançável a partir de origin/develop) e a estratégia real observada (revert-synthesis). Se um commit futuro tocar tests/w80-suite-gate.sh nos mesmos trechos, o patch reverso deixa de aplicar. Remédio: /forge:close esse change (delivered-externally) para sair do escopo do ci, ou fazer red-evidence.sh ci ignorar changes já verified.
 - **LDG-0038** [open] (P3/low) — red-replay.mjs não detecta clone shallow — devolve not-possible genérico em vez de mensagem acionável
   Achado da revisão adversarial (PR #45): deriveBase() em red-replay.mjs devolve not-possible com razão genérica quando o histórico git é insuficiente (clone shallow), mandando o autor rodar /forge:red replay de novo — conselho errado, já que o problema é do ambiente (fetch-depth), não do comando. Um git rev-parse --is-shallow-repository no início da função daria a mensagem certa ('repositório raso — configure fetch-depth: 0').
-- **LDG-0052** [open] (P3) — bash: sustenido dentro de $( ) engole o resto da linha e o script morre com bad substitution, e o bash -n não vê
-  Descoberto ao instrumentar check-liaison-acks.sh (issue #49, instância 1). Um comentário JS dentro de um heredoc que vive dentro de $( ) — o idioma que todo script do harness usa para chamar node — não pode conter sustenido: o bash trata o sustenido como início de comentário DELE, engole o resto da linha e leva junto o parêntese de fechamento ou a crase do template literal. O script inteiro morre em runtime com 'bad substitution: no closing )', apontando a linha da substituição e não a do comentário. O 'bash -n' passa: a sintaxe é válida, o que quebra é o balanceamento depois da expansão. Aconteceu duas vezes na mesma edição, uma com '(issue #49, instância 1)' e outra com um template literal iniciado por sustenido. Candidato a cenário no check-shell-pipeline.sh, que já varre os .sh do harness: sustenido dentro de heredoc contido em $( ) é forma proibida.
 
-_Encerrados: 14 (promoted 1 · resolved 12 · wont-fix 1)_
+_Encerrados: 15 (promoted 1 · resolved 13 · wont-fix 1)_
 
 ## Bugs conhecidos
 
 - **LDG-0028** [open] (P3/LOW) — forge update: mensagem diz '.forge não encontrado' quando o ausente é o forge.yaml
   bin/forge.mjs:426-427 testa existsSync(.forge/forge.yaml) e, ao falhar, emite '.forge não encontrado em <target> — use npx forge-harness init'. Num projeto com .forge/ presente mas sem forge.yaml (harness parcialmente instalado, forge.yaml apagado, ou o dogfood deste repo), a mensagem manda reinstalar do zero quando o diagnóstico real é outro — e 'init' num .forge/ com specs e baseline é justamente o que o /forge:upgrade proíbe. O exit 3 e o não-escrever estão corretos (REQ-FHT-037); só a mensagem mente sobre a causa. Correção: distinguir os dois casos e, quando .forge/ existe, nomear o arquivo ausente. Achado ao rodar /forge:upgrade neste repo (2026-08-03).
-- **LDG-0032** [open] (P3) — tests/w111-liaison-sync-gate.sh:259 é uma asserção vazia (grep ... && true — sempre verdadeira) · via `gate-assert-visibility`
-  Achado durante a varredura completa do LDG-0012 no bugfix.md do change gate-assert-visibility. A linha 'grep -rn "gh " "...transports/gh.sh" | grep -vq "^.*#" && true' sempre avalia para true (o '&& true' descarta qualquer status de saída), então esta asserção nunca reprova, independentemente do conteúdo real de transports/gh.sh. Tem marcador de cenário '[12]' acima (linha 258), então bateria com o critério objetivo do LDG-0012 (marcador [n] presente = candidato a conversão), mas é uma classe de defeito DIFERENTE — não é morte/passagem silenciosa sob set -e, é uma asserção estruturalmente vazia. Fora do escopo do gate-assert-visibility (que corrige só o idioma bare && sob set -e). Corrigir provavelmente remove o '&& true' redundante, deixando o grep -vq como a asserção real (o script já continua com o if seguinte que faz a checagem de verdade — avaliar se a linha é vestigial e pode ser removida, ou se faltou uma checagem que ela deveria fazer).
-- **LDG-0040** [open] (P3) — doctor: guard de placeholders varre specs arquivadas e o baseline, e acusa <PROJECT_*> literal
-  No próprio forge-harness o doctor reporta '3 arquivo(s) com placeholders <PROJECT_*> não preenchidos'. Os arquivos são .forge/specs/archived/2026-08-03-forge-update-command/{design,requirements,spec-delta} e .forge/product/current/capabilities/forge-harness-template/spec.yaml, onde <PROJECT_*> aparece como TEXTO descrevendo o template, não como placeholder a preencher. O guard deve restringir a varredura ao que o init materializa (raiz do harness instalado) e excluir specs arquivadas, worktrees e o baseline — hoje ele produz um vermelho permanente que ensina a ignorar o doctor. Relacionado: o mesmo doctor acusa AGENTS.md ausente e CLAUDE.md que não resolve, que é o dogfood raiz deliberadamente incompleto deste repositório.
 - **LDG-0054** [open] (P3/low) — check-heavy-mutex regra 1: o predicado mede grafia, não intenção
   A regra 1 procura a variável e a palavra 'lock' na MESMA linha, o que é um predicado sobre grafia. Quebrar a expressão em duas linhas desarma a regra sem mudar uma vírgula da semântica — foi o que o doctor.sh precisou fazer para detectar o caminho legado sem ser acusado de produzi-lo, e qualquer um pode repetir a quebra por acaso e perder a proteção sem saber. Correção proposta: uma válvula DECLARADA (um marcador na linha, ex. '# heavy-mutex: detecção') que o gate reconheça, para a intenção viver no código e não num comentário adjacente. Não foi feito agora porque muda o contrato de um gate que consumidores já declaram em runtime.gates, e o cenário [46b] já impede a regressão silenciosa que importa.
 - **LDG-0055** [open] (P3/low) — w151 [15]: recuperação de ticket ocupado coberta por unidade, sem rede de integração
@@ -82,7 +76,7 @@ _Encerrados: 14 (promoted 1 · resolved 12 · wont-fix 1)_
 - **LDG-0060** [open] (P3/low) — check-push-ahead: falha de rev-list na intersecao nao tem cobertura de teste
   A troca de `rest=0` por `rest=1` roteia um `rev-list` que falhou para a mensagem honesta de publicacao parcial, em vez da classe tranquilizadora. A mudanca esta certa e nao tem teste: o caminho e inalcancavel por `git push` real, porque o git so envia sha que possui — so se atinge com stdin forjado (sha valido em FORMA, objeto inexistente, destino refs/heads/<tronco>). Registrado como mudanca correta SEM cobertura, e nao como defeito: a mutacao que reverte `rest=1` para `rest=0` sobrevive a suite, e quem reencontrar isso precisa saber que a ausencia de vermelho aqui foi decidida, nao esquecida.
 
-_Encerrados: 12 (resolved 12)_
+_Encerrados: 14 (resolved 14)_
 
 ## Follow-ups
 

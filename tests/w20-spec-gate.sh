@@ -96,7 +96,17 @@ echo "[6] dogfooding valida"
 # code-evaluator do PR do LDG-0012). Sem degradar para "OK ... SKIP" quando não há change ativo
 # (mesma classe de defeito que este change existe pra eliminar) — cai para uma fixture sintética
 # num tmpdir à parte, sempre validada de verdade.
-DOGFOOD_IDS="$(ls -1 "$WS/.forge/specs/active" 2>/dev/null | sort)"
+# `ls` de diretório inexistente falha, e sob `pipefail` o pipeline inteiro falha com ele — o
+# `2>/dev/null` esconde a mensagem e o `set -e` mata o gate SEM saída nenhuma. E o diretório
+# inexiste no caso que importa: o git não versiona diretório vazio, então um clone limpo (o CI)
+# não tem `specs/active/` quando não há change ativo, enquanto a árvore de quem trabalhou nela
+# tem o diretório como resíduo. Passava na máquina de todo mundo e morria calado no CI.
+# Família da issue #49: pipeline sob pipefail, aqui com `| sort` em vez de `| grep -q`.
+if [ -d "$WS/.forge/specs/active" ]; then
+  DOGFOOD_IDS="$(ls -1 "$WS/.forge/specs/active" | sort || true)"
+else
+  DOGFOOD_IDS=""
+fi
 if [ -z "$DOGFOOD_IDS" ]; then
   TSYN="$(mktemp -d /tmp/forge-w20-dogfood-syn.XXXXXX)"
   # Sem `>/dev/null` cego: sob `set -e` um erro aqui matava o gate SEM mensagem, e a reprovação

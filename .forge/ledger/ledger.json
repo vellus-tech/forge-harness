@@ -1906,6 +1906,30 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0140"
+    },
+    {
+      "id": "LDG-0141",
+      "type": "tech-debt",
+      "title": "check-shell-pipeline nao pega 'ls | sort' sob pipefail, so o idioma com grep -q",
+      "detail": "Medido em 2026-09-05 no w20-spec-gate. A linha 'X=$(ls -1 DIR 2>/dev/null | sort)' sob 'set -euo pipefail' mata o script SEM SAIDA quando DIR nao existe: o ls falha, o pipefail propaga, o set -e encerra, e o 2>/dev/null esconde a unica pista. O caso que importa e' invisivel em desenvolvimento: o git nao versiona diretorio vazio, entao specs/active/ nao existe num clone limpo (o CI) e existe como residuo na arvore de quem trabalhou nela — passava na maquina de todo mundo e morria calado no CI, tres execucoes seguidas. O lint check-shell-pipeline.sh existe desde a issue #49 exatamente para esta familia, mas so reconhece '<produtor> | grep -q' seguido de ||/&&; nao cobre pipeline em substituicao de comando com outro consumidor (sort, head, wc). Estender o lint para: atribuicao via $( ) cujo pipeline tem produtor que pode falhar, sob pipefail, sem '|| true'.",
+      "severity": "low",
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-05T00:15:29-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0141"
     }
   ]
 }

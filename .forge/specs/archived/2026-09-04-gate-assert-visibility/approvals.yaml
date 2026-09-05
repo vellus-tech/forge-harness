@@ -31,3 +31,9 @@ approvals:
     commit: "2f12a52"
     scope: "verification.md"
     notes: "red-first: defeito relatado (não quebra adjacente) — silêncio de set -e na cláusula final do AND em w80-suite-gate.sh:25, exatamente §1(a) do bugfix.md"
+  - gate: close
+    decision: deliver-external
+    reason: "Change verificado (75/75) e mergeado em develop via PR #42 (squash 08acf9f); permanece verified sem /forge:archive porque não há baseline de produto a atualizar (bugfix puro de idioma bash na suíte de testes). Fechando via /forge:close para sair de specs/active/ e destravar o acoplamento de red-evidence.sh ci a este change (LDG-0037) — a entrega já está no código real (tests/*.sh, 08acf9f), baseline intocado."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-09-04T21:03:13-03:00"
+    commit: "15ce493"

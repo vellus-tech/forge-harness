@@ -3,9 +3,9 @@ type: bugfix
 mode: brownfield
 rigor: spec-anchored
 scale: 2
-status: verified
+status: delivered-externally
 created_at: "2026-08-04"
-updated_at: "2026-08-04"
+updated_at: "2026-09-04"
 owner: "Milton Antonio da Silva Jr"
 ledger_origin: LDG-0012
 parent:
@@ -36,5 +36,6 @@ quick_plan:
     - design
   justification: "bugfix dispensa design.md — a root cause já vive no bugfix.md §4 (regra de set -e sobre listas AND-OR, verificada por execução) e a correção é mecânica de idioma bash (converter 52 sites bare para o idioma A `cond || { echo FAIL [n]; exit 1; }`, já dominante na suíte com 713 ocorrências em 40 arquivos). Não há decisão arquitetural a tomar: o idioma-alvo, o critério objetivo de triagem (marcador [n] de cenário, com as duas exceções documentadas no §1) e a estratégia de teste (Red-first no site canônico w80-suite-gate.sh:25 + suíte completa antes/depois como guarda do §3) já estão fixados no próprio bugfix.md."
 archive:
+  kind: closed_without_baseline_update
   eligible: false
-  reason: "sem baseline de produto a atualizar — bugfix puramente de idioma bash na suíte de testes do harness (ver verification.md); permanece verified sem /forge:archive"
+  reason: "Change verificado (75/75) e mergeado em develop via PR #42 (squash 08acf9f); permanece verified sem /forge:archive porque não há baseline de produto a atualizar (bugfix puro de idioma bash na suíte de testes). Fechando via /forge:close para sair de specs/active/ e destravar o acoplamento de red-evidence.sh ci a este change (LDG-0037) — a entrega já está no código real (tests/*.sh, 08acf9f), baseline intocado."

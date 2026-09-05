@@ -58,6 +58,13 @@ cp "$WS/template/.forge/scripts/lib/yaml-lite.mjs" "$T/.forge/scripts/lib/yaml-l
 # completa, ou não tem lib/ nenhuma.
 cp "$WS/template/.forge/scripts/lib/heavy-mutex.sh" "$T/.forge/scripts/lib/heavy-mutex.sh"
 cp "$WS/template/.forge/scripts/lib/gate-universe.sh" "$T/.forge/scripts/lib/gate-universe.sh"
+# Lints de shell fiados no push por diff (LDG-0069): esta fixture publica .sh, então a ausência
+# do lint que os varreria passa a bloquear. Os reais entram, não stubs — o que se quer medir é
+# a re-exportação do stdin, e um lint falso mudaria o caminho medido.
+cp "$WS/template/.forge/scripts/check-shell-pipeline.sh" "$T/.forge/scripts/check-shell-pipeline.sh"
+cp "$WS/template/.forge/scripts/check-heredoc-hash.sh" "$T/.forge/scripts/check-heredoc-hash.sh"
+cp "$WS/template/.forge/scripts/lib/shell-pipeline-lint.mjs" "$T/.forge/scripts/lib/shell-pipeline-lint.mjs"
+cp "$WS/template/.forge/scripts/lib/heredoc-hash-lint.mjs" "$T/.forge/scripts/lib/heredoc-hash-lint.mjs"
 
 # O gate espia o que o hook lhe passou. Escreve em arquivo porque run_check desvia a saída
 # do gate para um log temporário — o arquivo é o único canal observável pelo teste.

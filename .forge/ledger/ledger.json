@@ -1613,10 +1613,10 @@
       "id": "LDG-0069",
       "type": "tech-debt",
       "title": "check-shell-pipeline e check-heredoc-hash existem e nenhum hook os invoca",
-      "detail": "Achado em 2026-09-04 ao revisar a entrega do LDG-0052. O lint novo (check-heredoc-hash.sh) seguiu corretamente o formato do precedente (check-shell-pipeline.sh, issue #49) — inclusive em nao ser cabeado: 'grep -rln check-shell-pipeline template/.forge/hooks/' nao retorna nada. Os dois sao exatamente o 'gate que ninguem invoca' que a issue #82 mediu num consumidor (dez gates orfaos, sete deles de deploy). Um lint que so roda quando alguem lembra nao previne a reintroducao do defeito que ele existe para pegar. Depende da decisao de #82 sobre onde declarar gate por fase; ate la, o minimo e' o pre-push chamar os dois quando o diff toca .sh.",
+      "detail": "ESCOPO CORRIGIDO EM 2026-09-05 por medição: o item estava registrado MAIOR do que era. 'Nenhum hook os invoca' é literalmente verdadeiro, mas 'o gate que ninguém invoca' não: check-shell-pipeline.sh tem gate próprio (tests/w145, cenário [8] varrendo template/ + tests/ com rc 0 exigido) e passo dedicado no CI (.github/workflows/ci.yml:67-68); check-heredoc-hash.sh tem tests/w159 (cenário [8] com três --path e contador de controle) e roda via ci.yml:49 -> tests/run-all.sh, que varre tests/*-gate.sh. Os dois rodavam contra o corpus REAL do harness em toda execução de CI, deterministicamente e com veredito bloqueante. O que faltava não era execução, era LATÊNCIA: o autor descobria a violação depois de empurrar. Rebaixado de P2 para P3 por isso. CORRIGIDO: o pre-push passa a invocar os dois por DIFF (só os .sh que o push publica — varrer a árvore bloquearia as fixtures de w145/w159, que contêm de propósito a forma proibida), com sinal positivo em ambos os ramos e delegação em alvo ausente bloqueando quando há .sh no diff. NÃO entra no pre-commit por desenho. Gate: w190 cenários [9], [10] e [11]. — Resolvido: fiado no pre-push por diff, depois de LDG-0141 limpar o corpus; w190[9..11] verdes",
       "severity": "low",
       "priority": "P3",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -1629,8 +1629,8 @@
         "promoted_to": null
       },
       "created_at": "2026-09-04T16:11:07-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-09-05T16:53:15-03:00",
+      "resolved_at": "2026-09-05T16:53:15-03:00",
       "dedup_key": "manual:LDG-0069"
     },
     {
@@ -1709,10 +1709,10 @@
       "id": "LDG-0110",
       "type": "feature-idea",
       "title": "doctor sem check de gate orfao (check-*.sh sem hook nem runtime.gates) — proposta original do #82, não implementada nesta onda",
-      "detail": "A issue #82 propunha duas pecas alem da fase: um doctor que denuncie check-*.sh presente em .forge/scripts/, nao invocado por nenhum hook e nao declarado em runtime.gates — no consumidor medido (azim-crm) isso apontaria dez gates de uma vez, sete deles de deploy, meses antes do incidente que motivou a issue. Barato e independente da adocao de fase (nao depende do consumidor declarar phase nenhuma). A Onda 3 entregou o nucleo estrutural (fase em runtime.gates, run-gates.sh --phase, guarda de vacuidade, LDG-0014/0035/0036) e julgou o doctor check como peca separada, de escopo proprio (tocar doctor.sh — 600 linhas, muitos checks existentes — com risco de regressao que merece o proprio ciclo red-first e cobertura, nao um adendo apressado ao final de uma sessao ja grande). Ainda vale: cruzar .forge/scripts/check-*.sh contra (a) referencias em .forge/hooks/git/** e no hooksPath customizado (o check hp_orfaos ja existente em doctor.sh so cobre o caso de hooksPath customizado, nao o default) e (b) runtime.gates de qualquer fase (forge_runtime_gates, todas as fases) — advisory, nao load-bearing, no mesmo espirito dos demais checks informativos de check_harness.\n\nADENDO DE ESCOPO (2026-09-05, decisão sobre LDG-0013): este item herda também o aviso de \"projeto sem gate NENHUM declarado em runtime.gates\". LDG-0013 foi encerrado como wont-fix — obrigar todo adotante a declarar um gate quebra retrocompatibilidade para quem nunca declarou, inclusive este repositório —, e o remédio proporcional ao que sobrava lá é visibilidade, que é exatamente a capacidade deste item. Escrever nos dois lugares recriaria por construção o defeito de LDG-0014 (duas implementações do mesmo contrato divergindo em silêncio), então o cruzamento fica aqui, uma vez só: além de check-*.sh presente e não invocado, o mesmo check deve dizer, como informação e nunca como bloqueio, quando runtime.gates está vazio em todas as fases.",
+      "detail": "A issue #82 propunha duas pecas alem da fase: um doctor que denuncie check-*.sh presente em .forge/scripts/, nao invocado por nenhum hook e nao declarado em runtime.gates — no consumidor medido (azim-crm) isso apontaria dez gates de uma vez, sete deles de deploy, meses antes do incidente que motivou a issue. Barato e independente da adocao de fase (nao depende do consumidor declarar phase nenhuma). A Onda 3 entregou o nucleo estrutural (fase em runtime.gates, run-gates.sh --phase, guarda de vacuidade, LDG-0014/0035/0036) e julgou o doctor check como peca separada, de escopo proprio (tocar doctor.sh — 600 linhas, muitos checks existentes — com risco de regressao que merece o proprio ciclo red-first e cobertura, nao um adendo apressado ao final de uma sessao ja grande). Ainda vale: cruzar .forge/scripts/check-*.sh contra (a) referencias em .forge/hooks/git/** e no hooksPath customizado (o check hp_orfaos ja existente em doctor.sh so cobre o caso de hooksPath customizado, nao o default) e (b) runtime.gates de qualquer fase (forge_runtime_gates, todas as fases) — advisory, nao load-bearing, no mesmo espirito dos demais checks informativos de check_harness.\n\nADENDO DE ESCOPO (2026-09-05, decisão sobre LDG-0013): este item herda também o aviso de \"projeto sem gate NENHUM declarado em runtime.gates\". LDG-0013 foi encerrado como wont-fix — obrigar todo adotante a declarar um gate quebra retrocompatibilidade para quem nunca declarou, inclusive este repositório —, e o remédio proporcional ao que sobrava lá é visibilidade, que é exatamente a capacidade deste item. Escrever nos dois lugares recriaria por construção o defeito de LDG-0014 (duas implementações do mesmo contrato divergindo em silêncio), então o cruzamento fica aqui, uma vez só: além de check-*.sh presente e não invocado, o mesmo check deve dizer, como informação e nunca como bloqueio, quando runtime.gates está vazio em todas as fases. — Resolvido: doctor.sh ganhou o cruzamento de gate órfão dentro de check_harness(), informativo por construção (info/warn, nunca toca MISSING_DIAG). Cruza três fontes: o universo .forge/scripts/check-*.sh, as referências por nome-base em .forge/hooks/** e no hooksPath resolvido, e runtime.gates de TODAS as fases pelo leitor único forge_runtime_gate_entries (nunca por awk novo — seria o terceiro leitor do mesmo contrato, o defeito que LDG-0150 fechou). Isenção de check-heavy-mutex em condição no código, não em allowlist textual nova: empty-universe-allowlist.txt resolve outro problema e reusá-la confundiria dois contratos. Medido no próprio harness: 14 check-*.sh, 4 órfãos (check-authz, check-data-governance, check-observability, check-suite-wiring); exit code do doctor inalterado (1 antes, 1 depois, mesmo conjunto de defeitos). Gate w191, 8 cenários; w153[74] preservado.",
       "severity": "medium",
       "priority": "P2",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "issue #82 (Onda 3, gate-phase-contract) — parte proposta não implementada",
@@ -1725,8 +1725,8 @@
         "promoted_to": null
       },
       "created_at": "2026-09-04T18:44:45-03:00",
-      "updated_at": "2026-09-05T09:07:01-03:00",
-      "resolved_at": null,
+      "updated_at": "2026-09-05T16:53:15-03:00",
+      "resolved_at": "2026-09-05T16:53:15-03:00",
       "dedup_key": "manual:LDG-0110"
     },
     {

@@ -910,7 +910,7 @@ cp "$WS/template/.forge/hooks/git/pre-push" "$R/.forge/hooks/git/"
 # Stubs neutros dos alvos que o pre-push declara. Sem eles o hook bloqueia por delegação em alvo
 # ausente (issue #49) ANTES de chegar ao mutex, e o cenário mediria integridade de instalação em
 # vez de exclusão mútua — passando pelo motivo errado.
-for _stub in check-ai-attribution.sh check-liaison-acks.sh; do
+for _stub in check-ai-attribution.sh check-liaison-acks.sh check-shell-pipeline.sh check-heredoc-hash.sh; do
   printf '#!/usr/bin/env bash\nexit 0\n' > "$R/.forge/scripts/$_stub"
   chmod +x "$R/.forge/scripts/$_stub"
 done
@@ -1178,7 +1178,7 @@ BOX="$(newbox)"; R="$BOX/repo"
 mkdir -p "$R/.forge/scripts/lib" "$R/.forge/hooks/git"
 cp "$WS/template/.forge/scripts/lib/heavy-mutex.sh" "$R/.forge/scripts/lib/"
 cp "$WS/template/.forge/hooks/git/pre-push" "$R/.forge/hooks/git/"
-for _stub in check-ai-attribution.sh check-liaison-acks.sh; do
+for _stub in check-ai-attribution.sh check-liaison-acks.sh check-shell-pipeline.sh check-heredoc-hash.sh; do
   printf '#!/usr/bin/env bash\nexit 0\n' > "$R/.forge/scripts/$_stub"; chmod +x "$R/.forge/scripts/$_stub"
 done
 printf 'heavy_mutex:\n  enabled: true\n' > "$R/.forge/forge.yaml"

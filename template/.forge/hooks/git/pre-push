@@ -246,6 +246,81 @@ if [ -f "$HEAVY_LIB" ] && _heavy_enabled; then
   forge_heavy_mutex_arm_trap
 fi
 
+# ── lints de shell, por DIFF (LDG-0069) ──────────────────────────────────────────────────────
+# `check-shell-pipeline.sh` e `check-heredoc-hash.sh` já rodavam no CI contra o corpus real —
+# `w145[8]`, `w159[8]` e o passo dedicado do `ci.yml`. O que faltava não era cobertura, era
+# LATÊNCIA: o autor descobria a violação depois de empurrar. Aqui a descoberta passa a ser antes.
+#
+# Por DIFF, nunca pela árvore: os próprios gates `w145`/`w159` montam fixtures que CONTÊM de
+# propósito a forma proibida (construídas por concatenação, para não se autodetectarem), e um
+# hook que varresse tudo indiscriminadamente bloquearia o push da própria entrega. Só os `.sh`
+# que este push publica são varridos.
+#
+# NÃO entra no `pre-commit`: varrer o corpus a cada commit não se justifica para uma classe que o
+# CI já pega, e um hook lento é um hook desativado.
+SHELL_LINTS="check-shell-pipeline check-heredoc-hash"
+if [ -d "$ROOT/.forge/scripts" ]; then
+  _sh_list="$(mktemp "${TMPDIR:-/tmp}/forge-shlint-XXXXXX")"
+  # UMA chamada de git para o push inteiro, nunca uma por ref. `git log` aceita vários intervalos
+  # de revisão de uma vez e devolve a união — e o custo por ref é justamente o que `w152[31]`
+  # guarda por RAZÃO (medido: um `git` a mais por ref levou a suíte daquele gate de dentro do
+  # orçamento para 313s de um teto de 240s). Um `git push --all` com centenas de refs continua
+  # custando uma invocação.
+  _revs=()
+  while read -r _lref lsha _rref rsha; do
+    [ -n "${lsha:-}" ] || continue
+    case "$lsha" in *[!0]*) : ;; *) continue ;; esac   # deleção de ref: nada a varrer
+    if [ -z "${rsha:-}" ] || [ "$rsha" = "0000000000000000000000000000000000000000" ]; then
+      _revs+=("$lsha")            # ref nova: tudo que ela alcança
+    else
+      _revs+=("$rsha..$lsha")     # ref existente: só o que este push acrescenta
+    fi
+  done <<EOF_SHL
+$INPUT
+EOF_SHL
+  if [ "${#_revs[@]}" -gt 0 ]; then
+    git -C "$ROOT" log --format= --name-only "${_revs[@]}" -- '*.sh' '*.bash' > "$_sh_list" 2>/dev/null || : > "$_sh_list"
+  fi
+  _sh_n=0
+  _sh_args=()
+  while IFS= read -r _f; do
+    [ -n "$_f" ] || continue
+    [ -f "$ROOT/$_f" ] || continue          # arquivo apagado pelo push não tem o que linTar
+    case " ${_sh_args[*]:-} " in *" $ROOT/$_f "*) continue ;; esac
+    _sh_args+=("--path" "$ROOT/$_f")
+    _sh_n=$((_sh_n + 1))
+  done < "$_sh_list"
+  rm -f "$_sh_list"
+  if [ "$_sh_n" -eq 0 ]; then
+    # Sinal POSITIVO do caminho "não havia o que varrer": "não rodei" e "rodei e estava limpo"
+    # não podem terminar no mesmo silêncio (issue #49).
+    echo "pre-push: shell-lints — 0 arquivo(s) .sh no diff publicado; nada a varrer"
+  else
+    echo "pre-push: shell-lints — $_sh_n arquivo(s) .sh no diff publicado"
+    # Delegação em alvo ausente é ERRO — mas só quando há o que varrer. A guarda vive AQUI, e não
+    # no topo do bloco, de propósito: um push que não publica `.sh` nenhum não tem cobertura a
+    # perder por o lint estar ausente, e bloqueá-lo transformaria a instalação parcial de uma
+    # worktree (issue #73: hooks compartilhados por `core.hooksPath` absoluto, `.forge/scripts/`
+    # conteúdo próprio de cada uma) em push travado por causa alheia. Com `.sh` no diff, a
+    # ausência do lint é cobertura que some em silêncio, e aí bloqueia.
+    for _l in $SHELL_LINTS; do
+      _s="$ROOT/.forge/scripts/$_l.sh"
+      if [ ! -f "$_s" ]; then
+        echo "pre-push BLOQUEADO: este push publica $_sh_n arquivo(s) .sh e .forge/scripts/$_l.sh não existe." >&2
+        echo "  Delegação em alvo ausente: o lint que varreria esses arquivos sumiu, e seguir devolveria" >&2
+        echo "  push verde sem varredura nenhuma. Rode 'npx forge-harness update' ou restaure o lint." >&2
+        exit 1
+      fi
+      if ! _lint_out="$(FORGE_ROOT="$ROOT" bash "$_s" "${_sh_args[@]}" 2>&1)"; then
+        echo "pre-push BLOQUEADO: $_l reprovou nos .sh que este push publica —" >&2
+        printf '%s\n' "$_lint_out" >&2
+        exit 1
+      fi
+    done
+    echo "pre-push: shell-lints OK — $_sh_n arquivo(s) .sh varrido(s) por $SHELL_LINTS"
+  fi
+fi
+
 run_check "typecheck" "$(fm_field typecheck)"
 run_check "test" "$(fm_field test)"
 

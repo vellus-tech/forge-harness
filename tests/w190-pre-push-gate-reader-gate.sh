@@ -29,6 +29,15 @@
 #   [7] mutação de canal: com `core.hooksPath` apontando para um diretório sem o hook, [2] volta a
 #       falhar — prova que o cenário mede o CANAL, não o script
 #   [8] contador de controle: zero cenário executado reprova
+#
+# Fiação dos dois lints de shell no push (LDG-0069). Eles rodam no CI contra o corpus real desde
+# sempre — `w145[8]`/`w159[8]` mais `ci.yml` —, mas nenhum hook local os invocava: o defeito não é
+# ausência de cobertura, é LATÊNCIA, e o autor descobria a violação depois de empurrar.
+#
+#   [9]  push cujo diff toca um .sh com a forma proibida é BLOQUEADO
+#   [10] push cujo diff não toca .sh nenhum não paga o custo do lint — verificado pela linha que o
+#        hook imprime, não por tempo
+#   [11] check-heredoc-hash.sh ausente com .forge/scripts/ presente BLOQUEIA o push
 set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -67,6 +76,13 @@ _fixture() {
     chmod +x "$r/.forge/scripts/check-w190marker.sh"
   fi
 
+  printf '# %s\n' "$name" > "$r/README.md"
+  printf '# Changelog\n\n## [Unreleased]\n' > "$r/CHANGELOG.md"
+  # `.forge/` fora do controle de versão da FIXTURE, de propósito. Os hooks leem `.forge` do
+  # DISCO, nunca do índice do git — versioná-la só faria cada push carregar ~200 `.sh` do template
+  # para os lints de `LDG-0069` varrerem, o que multiplica o custo do gate por dez sem mudar uma
+  # asserção. O que cada cenário publica é escrito explicitamente por ele.
+  printf '.forge/\n' > "$r/.gitignore"
   git -C "$r" init -q -b main
   git -C "$r" config user.email w190@t
   git -C "$r" config user.name w190
@@ -91,6 +107,16 @@ _push() {
   local r="$1" rc=0
   _run_to 180 -- git -C "$r" push origin main > "$T/out.txt" 2>&1 || rc=$?
   return $rc
+}
+
+# O `pre-push` do harness também cobra documentação revisada em todo push que toque código. Os
+# cenários abaixo empurram commits novos, então cada um leva README.md e CHANGELOG.md junto — do
+# contrário o push é bloqueado por um gate que não é o que está sob teste.
+_commit_docs() { # _commit_docs <repo> <mensagem>
+  printf 'nota: %s\n' "$2" >> "$1/README.md"
+  printf -- '- %s\n' "$2" >> "$1/CHANGELOG.md"
+  git -C "$1" add -A >/dev/null
+  git -C "$1" commit -q --no-verify -m "$2"
 }
 
 GB_CSV='  gates: check-w190marker
@@ -160,7 +186,7 @@ echo "[6] leitor da forma mapeada indisponível — push BLOQUEADO nomeando a de
 # (a) gate-phase.mjs ausente
 R6a="$(_fixture noreader "$GB_SEQ_NAMED")"
 rm -f "$R6a/.forge/scripts/lib/gate-phase.mjs"
-git -C "$R6a" add -A >/dev/null; git -C "$R6a" commit -q --no-verify -m "sem gate-phase.mjs"
+_commit_docs "$R6a" "sem gate-phase.mjs"
 set +e
 _push "$R6a"; rc6a=$?
 set -e
@@ -177,7 +203,7 @@ for d in "${_pathdirs[@]}"; do
   [ -d "$d" ] || continue
   for f in "$d"/*; do
     [ -x "$f" ] && [ ! -d "$f" ] || continue
-    b="$(basename "$f")"
+    b="${f##*/}"   # expansão do próprio bash: `basename` aqui seriam milhares de forks
     case "$b" in node|nodejs|npm|npx|corepack|yarn|pnpm) continue ;; esac
     [ -e "$NB/$b" ] || ln -s "$f" "$NB/$b" 2>/dev/null || true
   done
@@ -209,11 +235,51 @@ _push "$R7" || { echo "FAIL [7]: push reprovou sem hook algum — saída:"; cat 
 # Recontrole: devolver o hooksPath faz o gate voltar a rodar. Sem isto, [7] seria satisfeito por
 # um gate que nunca roda em canal nenhum.
 git -C "$R7" config core.hooksPath "$R7/.forge/hooks/git"
-git -C "$R7" commit -q --no-verify --allow-empty -m "recontrole de canal"
+_commit_docs "$R7" "recontrole de canal"
 _push "$R7" || { echo "FAIL [7]: push reprovou no recontrole — saída:"; cat "$T/out.txt"; exit 1; }
 [ -f "$T/marker-canal" ] || { echo "FAIL [7]: recontrole — com o hook de volta o gate não rodou. Saída:"; cat "$T/out.txt"; exit 1; }
 SCEN=$((SCEN + 1))
 echo "OK [7] — sem hook o marcador não aparece; com o hook de volta, aparece"
+
+# ── fiação dos lints de shell no push (LDG-0069) ─────────────────────────────────────────────
+# A forma proibida entra na fixture por CONCATENAÇÃO: escrita literal aqui, o cenário [14] de
+# w145 (que varre tests/) acusaria este próprio arquivo.
+PIPE='|'
+
+echo "[9] push cujo diff toca um .sh com a forma proibida é BLOQUEADO"
+R9="$(_fixture lints "$GB_CSV")"
+printf '#!/usr/bin/env bash\nset -euo pipefail\nsed -n 1,200p "$f" %s grep -q pat || continue\n' "$PIPE" > "$R9/sujo.sh"
+_commit_docs "$R9" "acrescenta script com a forma proibida"
+rc9=0
+_push "$R9" || rc9=$?
+[ "$rc9" -ne 0 ] || { echo "FAIL [9]: push com .sh violando o lint de pipeline NÃO foi bloqueado — saída:"; cat "$T/out.txt"; exit 1; }
+grep -qi "shell-pipeline" "$T/out.txt" || { echo "FAIL [9]: o bloqueio não nomeia o lint que reprovou — saída:"; cat "$T/out.txt"; exit 1; }
+SCEN=$((SCEN + 1))
+echo "OK [9] — $(grep -m1 -i 'BLOQUEADO' "$T/out.txt")"
+
+echo "[10] push cujo diff não toca .sh nenhum não paga o custo do lint"
+git -C "$R9" rm -q "$R9/sujo.sh"
+_commit_docs "$R9" "remove o script sujo"
+_push "$R9" || { echo "FAIL [10]: push de limpeza reprovou — saída:"; cat "$T/out.txt"; exit 1; }
+_commit_docs "$R9" "so documentacao"
+_push "$R9" || { echo "FAIL [10]: push só de .md reprovou — saída:"; cat "$T/out.txt"; exit 1; }
+# Sinal POSITIVO, nunca a mera ausência: o hook declara que examinou zero .sh e por isso pulou.
+grep -qi "shell-lints" "$T/out.txt" || { echo "FAIL [10]: o hook não disse nada sobre os lints de shell — 'não rodei' e 'rodei e passou' colapsam. Saída:"; cat "$T/out.txt"; exit 1; }
+grep -qi "0 arquivo(s) .sh\|nenhum .sh" "$T/out.txt" || { echo "FAIL [10]: o hook não declarou que o diff não trouxe .sh — saída:"; cat "$T/out.txt"; exit 1; }
+SCEN=$((SCEN + 1))
+echo "OK [10] — $(grep -m1 -i 'shell-lints' "$T/out.txt")"
+
+echo "[11] check-heredoc-hash.sh ausente com .forge/scripts/ presente BLOQUEIA o push"
+R11="$(_fixture lintausente "$GB_CSV")"
+rm -f "$R11/.forge/scripts/check-heredoc-hash.sh"
+printf '#!/usr/bin/env bash\nset -euo pipefail\necho limpo\n' > "$R11/limpo.sh"
+_commit_docs "$R11" "publica um .sh com o lint de heredoc ausente"
+rc11=0
+_push "$R11" || rc11=$?
+[ "$rc11" -ne 0 ] || { echo "FAIL [11]: lint declarado e ausente não bloqueou — delegação em alvo ausente virou no-op. Saída:"; cat "$T/out.txt"; exit 1; }
+grep -q "check-heredoc-hash" "$T/out.txt" || { echo "FAIL [11]: o bloqueio não nomeia o alvo ausente — saída:"; cat "$T/out.txt"; exit 1; }
+SCEN=$((SCEN + 1))
+echo "OK [11] — $(grep -m1 'BLOQUEADO' "$T/out.txt")"
 
 echo "[8] contador de controle — zero cenário executado reprova"
 # shellcheck source=/dev/null

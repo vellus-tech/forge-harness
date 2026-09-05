@@ -95,7 +95,7 @@ reinstala do zero). Use o **update cirúrgico**, que faz overlay aditivo da maqu
 
 ```bash
 npx forge-harness@latest update --dry-run   # mostra o que mudaria
-npx forge-harness@latest update             # aplica (cria .forge.bak-N; --no-backup para pular)
+npx forge-harness@latest update             # aplica (backup em .git/forge-backups/; --no-backup para pular)
 ```
 
 Dentro do Claude Code, o mesmo via `/forge:upgrade`. Órfãos (arquivos que o template removeu entre

@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**18 itens ativos** · roadmap 6 · feature-idea 1 · tech-debt 8 · known-bug 1 · follow-up 2 · (52 encerrados)
+**19 itens ativos** · roadmap 6 · feature-idea 1 · tech-debt 9 · known-bug 1 · follow-up 2 · (52 encerrados)
 
 ## Roadmap
 
@@ -48,6 +48,8 @@ _Encerrados: 1 (resolved 1)_
 - **LDG-0100** [open] (P3) — check-liaison-acks.sh não lê o hub para transporte git/gh (issue #84, escopo deliberado)
 - **LDG-0101** [open] (P3) — liaison-message.schema.json descreve body/body_ref como mutuamente obrigatório, mas validateEnvelope aceita os dois ausentes
 - **LDG-0102** [open] (P3) — contracts/claude-adapter-contract.md: tabela de topo (Versão) presa em 1.2 enquanto o changelog do documento já chegou a 1.5
+- **LDG-0131** [open] (P3/low) — Trabalho nao commitado de feat/upgrade-safety preservado, sem revisao de completude
+  Achado no cleanup das worktrees da rodada de 2026-09-04/05. O working tree de feat/upgrade-safety tinha ~430 linhas nao commitadas, posteriores ao push que originou o PR #79 e nunca incorporadas a develop. A guarda de worktree suja (issue #72, entregue nesta mesma sessao) impediu a remocao e expos o material — sem ela, o trabalho e este achado teriam sumido. Commitado em ff4578a na propria branch, sem juizo de completude. Parte e' claramente correta e ja foi extraida em separado: cinco pontos de documentacao diziam .forge.bak-N enquanto o codigo (bin/forge.mjs:598) ja gravava em .git/forge-backups/. O resto e' mudanca de codigo em bin/forge.mjs, doctor.sh, source-scan.mjs, tests/run-all.sh e w153 (~380 linhas), incluindo a REMOCAO de lib/scan-exclude.sh que develop tem — possivelmente consolidacao em source-scan.mjs, possivelmente trabalho pela metade. Nao foi mergeado. Decidir com o material na mao: revisar o diff de ff4578a contra develop e incorporar o que estiver completo, ou descartar declarando o motivo.
 
 _Encerrados: 22 (promoted 1 · resolved 19 · wont-fix 2)_
 

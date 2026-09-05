@@ -27,6 +27,22 @@ export const DEFAULT_SKIP = new Set([
   '.vs', '.idea', '.venv', '__pycache__', '.turbo', '.cache',
 ]);
 
+// Backups que o próprio `update` deixou na árvore (issue #76). O nome é VARIÁVEL (`.forge.bak-1`,
+// `.forge.bak-2`, …), então não cabe no Set de nomes fixos acima e precisa de padrão.
+//
+// Enquanto um backup existir, todo gate que varre por caminho varre também a CÓPIA e reprova por
+// conteúdo que é duplicata do próprio repositório. Medido em consumidor real: logo após o upgrade,
+// `check-data-governance.sh --path .` acusava conflito de RLS, e passava movendo só o backup para
+// fora — mesmo commit, nada mais alterado. O `check-secrets.sh` é o pior caso: um segredo já
+// corrigido no original continua presente na cópia e reprova para sempre.
+//
+// O `update` passou a criar o backup em `.git/forge-backups/`, o que resolve o futuro. Este padrão
+// cobre o RESÍDUO, que é a população que a issue mediu: todo consumidor que já rodou uma versão
+// anterior tem um `.forge.bak-N` na árvore, e para ele o primeiro push após o upgrade continuaria
+// bloqueado.
+export const SKIP_PATTERNS = [/^\.forge\.bak-\d+$/];
+const skipDir = (name, skipDirs) => skipDirs.has(name) || SKIP_PATTERNS.some((re) => re.test(name));
+
 export function collect(paths, { exts = new Set(['.md']), skipDirs = DEFAULT_SKIP } = {}) {
   const acc = [];
   function walk(p) {
@@ -34,7 +50,7 @@ export function collect(paths, { exts = new Set(['.md']), skipDirs = DEFAULT_SKI
     if (!existsSync(rp)) return;
     if (statSync(rp).isDirectory()) {
       for (const e of readdirSync(rp, { withFileTypes: true })) {
-        if (e.isDirectory()) { if (!skipDirs.has(e.name)) walk(join(rp, e.name)); }
+        if (e.isDirectory()) { if (!skipDir(e.name, skipDirs)) walk(join(rp, e.name)); }
         else if (exts.has(extname(e.name))) acc.push(join(rp, e.name));
       }
     } else if (exts.has(extname(rp))) acc.push(rp);

@@ -338,16 +338,40 @@ EOF_ORPHAN
       # que precisava no dia em que precisou, e cada upgrade acrescenta gates que ninguém liga.
       # Sem esta linha, todo `update` amplia em silêncio a distância entre o que o harness entrega
       # e o que o repositório executa.
-      hp_ref=0; hp_orfaos=""
+      # DELEGAÇÃO conta como cobertura COMPLETA. Um hook que faz `exec .forge/hooks/git/pre-push`
+      # — que é literalmente o que a hint manda fazer — invoca por transitividade tudo o que aquele
+      # hook invoca, e exigir cada gate NOMINALMENTE no diretório customizado tornava o estado `ok`
+      # inalcançável pelo caminho recomendado. Medido: 6 dos 11 `check-*.sh` não aparecem por nome
+      # nem nos hooks do próprio template, então a lista de "órfãos" acusava gates que ninguém
+      # jamais invoca por nome em lugar nenhum. Aviso que não some quando o problema some é ruído,
+      # e ruído é o que ensina a ignorar aviso.
+      #
+      # A busca também ignora Markdown: um README de uma linha citando `.forge/hooks/git/` bastava
+      # para promover uma árvore 100% inerte de defeito para aviso.
+      hp_ref=0; hp_deleg=0; hp_orfaos=""
       if [ -d "$hp_cur" ]; then
-        grep -rqE '\.forge/hooks/git|check-[a-z-]+\.sh' "$hp_cur" 2>/dev/null && hp_ref=1
-        for hp_g in "$ROOT"/.forge/scripts/check-*.sh "$ROOT/.forge/scripts/tests/run-all.sh"; do
-          [ -f "$hp_g" ] || continue
-          hp_n="$(basename "$hp_g")"
-          grep -rq "$hp_n" "$hp_cur" 2>/dev/null || hp_orfaos="$hp_orfaos $hp_n"
+        hp_scan="$(find "$hp_cur" -type f ! -name '*.md' 2>/dev/null)"
+        for hp_f in $hp_scan; do
+          grep -qE '\.forge/hooks/git' "$hp_f" 2>/dev/null && { hp_ref=1; hp_deleg=1; break; }
+          grep -qE 'check-[a-z-]+\.sh|run-all\.sh' "$hp_f" 2>/dev/null && hp_ref=1
         done
+        if [ "$hp_deleg" -eq 0 ] && [ "$hp_ref" -eq 1 ]; then
+          for hp_g in "$ROOT"/.forge/scripts/check-*.sh "$ROOT/.forge/scripts/tests/run-all.sh"; do
+            [ -f "$hp_g" ] || continue
+            hp_n="$(basename "$hp_g")"
+            # Só cobra o que os hooks do PRÓPRIO template invocam: cobrar gate que nem o template
+            # chama por nome seria exigir do consumidor mais do que o harness faz de si mesmo.
+            grep -rqF "$hp_n" "$ROOT/.forge/hooks/git" 2>/dev/null || continue
+            printf '%s\n' "$hp_scan" | while IFS= read -r hp_f2; do
+              [ -n "$hp_f2" ] && grep -qF "$hp_n" "$hp_f2" 2>/dev/null && exit 7
+            done
+            [ $? -eq 7 ] || hp_orfaos="$hp_orfaos $hp_n"
+          done
+        fi
       fi
-      if [ "$hp_ref" -eq 0 ]; then
+      if [ "$hp_deleg" -eq 1 ]; then
+        ok "harness: core.hooksPath customizado ('$hp_cur') delega para .forge/hooks/git/ — os gates do Forge rodam"
+      elif [ "$hp_ref" -eq 0 ]; then
         miss "harness: core.hooksPath customizado ('$hp_cur') e NENHUMA referência aos gates do Forge — a árvore .forge/hooks/git/ está inerte"
         hint "encadeie .forge/hooks/git/* nos seus hooks, ou rode: npx forge-harness update"
         MISSING_DIAG=1

@@ -337,7 +337,20 @@ function machineryFiles(src) {
 // de disciplina de entrega próprias, na mesma execução em que três arquivos de `rules/` e
 // `skills/` eram corretamente preservados.
 const ENRICHABLE_DIRS = ['agents', 'rules', 'skills', 'templates'];
-const isEnrichable = (rel) => ENRICHABLE_DIRS.includes(rel.split(sep)[0]);
+// Além dos diretórios, ARQUIVOS específicos cuja customização é esperada (issue #73 + #71).
+// `scripts/` inteiro NÃO pode ser enriquecível — é maquinaria que precisa poder ser corrigida —,
+// mas `scripts/tests/run-all.sh` é o runner da suíte DO CONSUMIDOR, e sobrescrevê-lo é a perda
+// silenciosa da #71 cometida pela correção da #73.
+//
+// O alvo é real e foi medido: um consumidor tem um `run-all.sh` próprio de 81 linhas cujo
+// cabeçalho documenta três coisas que o do template não tem — cobertura de `*.pbt.mjs`, sentinela
+// de FORGE_ROOT (para que um teste que esqueça de apontar não grave no ledger e no canal reais) e
+// hermetismo contra o hub do liaison. Dos 19 arquivos daquele diretório, o padrão do runner do
+// template casa 17: o upgrade tiraria DUAS suítes do veredito e o contador novo diria
+// "17 arquivo(s) examinado(s)" com ar de completude. É a issue #49 — guarda que ninguém roda —
+// reintroduzida pela correção que existe para fechá-la.
+const ENRICHABLE_FILES = new Set([join('scripts', 'tests', 'run-all.sh')]);
+const isEnrichable = (rel) => ENRICHABLE_DIRS.includes(rel.split(sep)[0]) || ENRICHABLE_FILES.has(rel);
 
 const sha256File = (p) => createHash('sha256').update(readFileSync(p)).digest('hex');
 
@@ -551,6 +564,7 @@ async function updateHarness() {
   // backup por CÓPIA (o update edita in place; não move como o init --force). Pulável com --no-backup.
   // Exclui worktrees/ (working trees de git worktrees linkados — potencialmente enormes e com ponteiros
   // gitdir que quebram numa cópia) além do cruft do macOS.
+  let bakOutside = false;
   if (!flags.noBackup) {
     // FORA da árvore de trabalho (issue #76). O backup vivia em `.forge.bak-N`, dentro do repo, e
     // todo gate que aceita `--path` e varre recursivamente passava a varrer também a CÓPIA — e a
@@ -582,6 +596,7 @@ async function updateHarness() {
       recursive: true,
       filter: (p) => basename(p) !== '.DS_Store' && !relative(forge, p).split(sep).includes('worktrees'),
     });
+    bakOutside = Boolean(gitDir);
     const mostra = gitDir ? relative(target, bakDir) : `.forge.bak-${n}`;
     console.log(`backup: .forge copiado para ${mostra}`);
     if (!gitDir) console.log('  (fora de um repositório git: o backup ficou DENTRO da árvore — remova-o antes de rodar gates com --path)');
@@ -693,7 +708,14 @@ async function updateHarness() {
   const preserved = work.total > 0 ? `${work.specsActive} spec(s) ativo(s), ${work.specsArchived} arquivado(s), ${work.productDocs} doc(s) de produto preservados` : 'sem trabalho de produto a preservar';
   console.log(`\n✔ Forge atualizado em ${target} (template v${version})`);
   console.log(`  ${preserved}`);
-  if (!flags.noBackup) console.log('  backup fora da árvore, em .git/forge-backups/ (não é varrido por gate nem aparece em git status)');
+  if (!flags.noBackup) {
+    // O recibo tem de dizer a verdade sobre ONDE o backup ficou. Fora de um repositório git não há
+    // `.git/` para onde mandá-lo, e a linha anterior afirmava categoricamente "fora da árvore" —
+    // na mesma execução em que o backup tinha ido para dentro dela.
+    console.log(bakOutside
+      ? '  backup fora da árvore, em .git/forge-backups/ (não é varrido por gate nem aparece em git status)'
+      : '  backup DENTRO da árvore (fora de um repositório git) — remova antes de rodar gates com --path');
+  }
 }
 
 async function main() {

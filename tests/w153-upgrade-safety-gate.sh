@@ -36,13 +36,24 @@ consumidor() {  # consumidor [versão-lock] -> ecoa <dir>
 }
 
 scenario "[71] templates/ é enriquecível: o AGENTS.md customizado sobrevive ao update"
-# `.forge/templates/AGENTS.md` não é um template qualquer: sync-adapters o lê e gera o AGENTS.md da
-# RAIZ a partir dele. Como o update roda sync-adapters no fim, um comando apagava a customização e
-# regenerava o arquivo sem ela — sem conflito, sem aviso, e aparecendo no output como um `~` igual
-# a qualquer atualização de maquinaria. Perder em silêncio o arquivo que governa os agentes é a
-# classe de defeito mais cara: o repositório segue funcionando e as regras deixam de ser lidas.
-grep -qE "^const ENRICHABLE_DIRS = \[[^]]*'templates'" "$FORGE" \
-  || { echo "FAIL [71]: 'templates' não está em ENRICHABLE_DIRS — o AGENTS.md customizado do consumidor é sobrescrito e regenerado sem a customização"; exit 1; }
+# COMPORTAMENTAL: a versão textual sobrevivia a `isEnrichable => false`, que mata o mecanismo
+# inteiro mantendo a string na lista. Testar a lista é testar a grafia; o que importa é o arquivo
+# sobreviver ao update — e `.forge/templates/AGENTS.md` é a FONTE do AGENTS.md da raiz, que o
+# sync-adapters regenera no fim do próprio update.
+D71="$(mktemp -d "$T/e71.XXXXXX")"
+git init -q "$D71"; git -C "$D71" config user.email t@t; git -C "$D71" config user.name t
+node "$FORGE" init --target "$D71" --no-plugin >/dev/null 2>&1
+printf 'MARCA-LOCAL-TEMPLATES\n' >> "$D71/.forge/templates/AGENTS.md"
+printf 'MARCA-LOCAL-RULES\n' >> "$D71/.forge/rules/README.md"
+printf 'MARCA-LOCAL-RUNNER\n' >> "$D71/.forge/scripts/tests/run-all.sh"
+( cd "$D71" && git add -A >/dev/null 2>&1 && git commit -qm base >/dev/null 2>&1 )
+node "$FORGE" update --target "$D71" --no-plugin --source "$WS/template/.forge" >/dev/null 2>&1
+grep -q 'MARCA-LOCAL-TEMPLATES' "$D71/.forge/templates/AGENTS.md" \
+  || { echo "FAIL [71]: a customização de templates/AGENTS.md foi apagada pelo update — e é dela que o AGENTS.md da raiz é gerado, então as regras que alguém escreveu deixam de ser lidas sem uma linha de aviso"; exit 1; }
+grep -q 'MARCA-LOCAL-RUNNER' "$D71/.forge/scripts/tests/run-all.sh" \
+  || { echo "FAIL [71]: o runner customizado do consumidor foi sobrescrito — é a perda silenciosa desta issue cometida pela correção da #73, e o alvo é real: um consumidor tem um run-all.sh próprio que cobre suítes que o padrão do template não casa"; exit 1; }
+grep -q 'MARCA-LOCAL-RULES' "$D71/.forge/rules/README.md" \
+  || { echo "FAIL [71]: o CONTROLE falhou — rules/ já era preservado antes desta issue; se ele quebrou, o defeito é outro"; exit 1; }
 echo "OK [71]"
 
 scenario "[72] post-merge PROPÕE em vez de remover, e nunca toca worktree com arquivo ignorado"
@@ -103,61 +114,103 @@ out73="$(cd "$T" && mkdir -p vazio && bash "$RUNNER" --path "$T/vazio" 2>&1)"; r
   || { echo "FAIL [73]: o runner reprova num diretório sem testes (rc $rc73) — isso reintroduz o bloqueio que a issue relata: $out73"; exit 1; }
 grep -qE '0 ' <<<"$out73" \
   || { echo "FAIL [73]: o runner não diz QUANTOS arquivos examinou — 'não rodou' e 'rodou e passou' terminando iguais é o defeito canônico deste repositório: $out73"; exit 1; }
+# A capacidade de REPROVAR não estava coberta: um runner que conte PASS sempre, ou que saia 0
+# sempre, passava por "existe o arquivo" e "diretório vazio sai zero". Runner que nunca reprova é a
+# guarda-que-ninguém-roda da issue #49 com outro nome.
+DT="$(mktemp -d "$T/rn.XXXXXX")"
+printf 'process.exit(0)\n' > "$DT/ok.test.mjs"; printf 'process.exit(1)\n' > "$DT/mau.test.mjs"
+bash "$RUNNER" --path "$DT" >/dev/null 2>&1 \
+  && { echo "FAIL [73]: o runner PASSOU com um teste que falha — nunca reprovar é o mesmo que não rodar"; exit 1; }
+o73b="$(bash "$RUNNER" --path "$DT" 2>&1)"
+grep -q 'PASS=1' <<<"$o73b" && grep -q 'FAIL=1' <<<"$o73b" \
+  || { echo "FAIL [73]: o runner não contou 1 que passou e 1 que falhou: $o73b"; exit 1; }
+# Varredura que FALHA não pode sair verde: "não consegui ler" e "não há testes" no mesmo lugar é a
+# vacuidade contra a qual este arquivo se anuncia como antídoto.
+DE="$(mktemp -d "$T/rerr.XXXXXX")"; mkdir -p "$DE/sub"; printf 'process.exit(0)\n' > "$DE/sub/a.test.mjs"
+chmod 000 "$DE/sub"
+bash "$RUNNER" --path "$DE" >/dev/null 2>&1 \
+  && { chmod 755 "$DE/sub"; echo "FAIL [73]: varredura ILEGÍVEL saiu verde — o resultado seria sobre universo incompleto e ninguém saberia"; exit 1; }
+chmod 755 "$DE/sub"
 echo "OK [73]"
 
 scenario "[74] doctor verifica encadeamento em hooksPath customizado e nomeia gates órfãos"
-# Três estados que ANTES eram um só `info`. A régua já existia: a issue #41 fez o hooksPath
-# relativo virar defeito porque hook que não executa é indistinguível de hook ausente — e uma
-# árvore customizada sem encadeamento produz exatamente o mesmo estado.
-DOC="$WS/template/.forge/scripts/doctor.sh"
-lab74() {  # lab74 <conteúdo-do-hook-customizado> -> ecoa <dir>
+# Fixture com `init` COMPLETO, de propósito. A versão anterior copiava dois `check-*.sh` para o
+# consumidor, fabricando um universo de gates artificialmente reduzido no qual o estado `ok` era
+# fácil — a mesma classe do fixture do w146 que este PR corrige, só que na direção oposta: em vez
+# de testar o estado bom, construía um mundo onde o estado bom existe.
+lab74() {  # lab74 <corpo-do-hook> [readme] -> ecoa <dir>
   local d; d="$(mktemp -d "$T/dr.XXXXXX")"
   git init -q "$d"; git -C "$d" config user.email t@t; git -C "$d" config user.name t
-  mkdir -p "$d/.forge/scripts" "$d/.forge/hooks/git" "$d/.githooks"
-  cp "$WS/template/.forge/scripts/doctor.sh" "$d/.forge/scripts/"
-  cp "$WS/template/.forge/scripts/check-secrets.sh" "$d/.forge/scripts/" 2>/dev/null || true
-  cp "$WS/template/.forge/scripts/check-ai-attribution.sh" "$d/.forge/scripts/" 2>/dev/null || true
-  printf '#!/bin/sh\n%s\n' "$1" > "$d/.githooks/pre-push"; chmod +x "$d/.githooks/pre-push"
+  node "$FORGE" init --target "$d" --no-plugin >/dev/null 2>&1
+  mkdir -p "$d/.githooks"; printf '#!/bin/sh\n%s\n' "$1" > "$d/.githooks/pre-push"; chmod +x "$d/.githooks/pre-push"
+  [ -n "${2:-}" ] && printf '%s\n' "$2" > "$d/.githooks/README.md"
   git -C "$d" config core.hooksPath "$d/.githooks"
   printf '%s\n' "$d"
 }
-roda74() { ( cd "$1" && bash .forge/scripts/doctor.sh 2>&1 ); }
-# (a) NENHUMA referência: é defeito, não informação.
-D74="$(lab74 'echo nada a ver')"
-o74="$(roda74 "$D74")"
-grep -qiE '✗|miss' <<<"$(grep -i 'hookspath' <<<"$o74")" \
-  || { echo "FAIL [74]: árvore customizada SEM nenhuma referência aos gates saiu como informação — 'instalei o harness, ele está inerte, e o doctor diz que está tudo bem' fica indistinguível de 'instalei e encadeei tudo': $(grep -i hookspath <<<"$o74")"; exit 1; }
-# (b) PARCIAL: avisa E NOMEIA o que ninguém invoca. É o caso mais provável e o mais valioso —
-# quem tem hooks próprios encadeia o que precisava no dia em que precisou, e cada upgrade
-# acrescenta gates que ninguém liga.
-D74b="$(lab74 'bash .forge/scripts/check-secrets.sh')"
-o74b="$(roda74 "$D74b")"
-grep -qi 'check-ai-attribution' <<<"$o74b" \
-  || { echo "FAIL [74]: encadeamento PARCIAL não nomeou o gate órfão (check-ai-attribution.sh) — a lista do que ninguém invoca é a única informação acionável aqui, e sem ela todo update amplia em silêncio a distância entre o que o harness entrega e o que o repositório executa: $(grep -i hookspath <<<"$o74b")"; exit 1; }
-# (c) COMPLETO: não pode virar ruído permanente, senão quem encadeou tudo aprende a ignorar.
-D74c="$(lab74 'bash .forge/scripts/check-secrets.sh; bash .forge/scripts/check-ai-attribution.sh')"
-o74c="$(roda74 "$D74c")"
-grep -qi 'check-ai-attribution' <<<"$(grep -i 'hookspath\|órfão\|orfao\|parcial' <<<"$o74c")" \
-  && { echo "FAIL [74]: com TUDO encadeado o doctor ainda reclama — aviso que não some quando o problema some é ruído, e ruído é o que ensina a ignorar aviso: $o74c"; exit 1; }
+roda74() { ( cd "$1" && bash .forge/scripts/doctor.sh 2>&1 | grep -i 'hookspath' | head -1 ); }
+# (a) DELEGAÇÃO é cobertura completa. É o que a própria hint manda fazer, e exigir cada gate
+# nominalmente tornava o estado `ok` inalcançável pelo caminho recomendado — aviso que não some
+# quando o problema some é ruído, e ruído é o que ensina a ignorar aviso.
+o74a="$(roda74 "$(lab74 'exec .forge/hooks/git/pre-push "$@"')")"
+grep -q '✓' <<<"$o74a" \
+  || { echo "FAIL [74]: delegação canônica para .forge/hooks/git/ não foi reconhecida como cobertura — é exatamente o que a hint do doctor manda fazer: $o74a"; exit 1; }
+grep -qi 'delega' <<<"$o74a" \
+  || { echo "FAIL [74]: a linha não diz que a cobertura vem da DELEGAÇÃO — um ✓ genérico não distingue delegação de encadeamento nominal, e o operador não sabe o que precisa preservar ao mexer no hook: $o74a"; exit 1; }
+# (b) NENHUMA referência é DEFEITO, e um README citando o caminho não pode promover árvore inerte.
+o74b="$(roda74 "$(lab74 'echo nada' 'Veja .forge/hooks/git/ e o check-secrets.sh')")"
+grep -q '✗' <<<"$o74b" \
+  || { echo "FAIL [74]: árvore 100% inerte com um README citando o caminho saiu como algo melhor que defeito — documentação não executa hook: $o74b"; exit 1; }
+# (c) PARCIAL nomeia os órfãos. É o caso mais provável e o único com informação acionável.
+o74c="$(roda74 "$(lab74 'bash .forge/scripts/check-secrets.sh')")"
+grep -q '!' <<<"$o74c" && grep -qE 'check-[a-z-]+\.sh' <<<"$o74c" \
+  || { echo "FAIL [74]: encadeamento PARCIAL não foi reportado com a lista de gates que ninguém invoca: $o74c"; exit 1; }
+grep -q 'check-secrets.sh' <<<"$o74c" \
+  && { echo "FAIL [74]: o gate que ESTÁ encadeado apareceu na lista de órfãos: $o74c"; exit 1; }
 echo "OK [74]"
 
 scenario "[75] heavy_mutex.root existe, com precedência env > forge.yaml > /tmp"
+# COMPORTAMENTAL: a versão textual (`grep '_fhm_yaml_root'`) sobrevivia à função virar no-op.
 LIB="$WS/template/.forge/scripts/lib/heavy-mutex.sh"
-grep -qE '_fhm_yaml_root|yaml.*root' "$LIB" \
-  || { echo "FAIL [75]: a raiz do lock não é lida do forge.yaml — um ecossistema com protocolo legado não consegue migrar UM repositório sem partir a exclusão dos outros, e lock particionado é pior que nenhum porque parece um lock"; exit 1; }
-python3 - "$WS/template/.forge/schemas/forge.schema.json" <<'PY' || exit 1
-import json,sys
-d=json.load(open(sys.argv[1]))
-hm=d['$defs']['forgeManifest']['properties'].get('heavy_mutex',{})
-if 'root' not in hm.get('properties',{}):
-    print("FAIL [75]: heavy_mutex.root não está declarado no schema — chave que o código lê e o schema recusa é config que reprova o próprio template"); sys.exit(1)
-PY
+r75() {  # r75 <valor-de-root> -> ecoa "<rc>|<root-resolvida>|<proveniência>"
+  local B; B="$(mktemp -d "$T/hm.XXXXXX")"; mkdir -p "$B/.forge"
+  if [ -n "$1" ]; then printf 'heavy_mutex:\n  enabled: true\n  root: %s\n' "$1" > "$B/.forge/forge.yaml"
+  else printf 'heavy_mutex:\n  enabled: true\n' > "$B/.forge/forge.yaml"; fi
+  local o rc; o="$(FORGE_ROOT="$B" bash -c '. "$0"; _fhm_resolve_root' "$LIB" 2>&1)"; rc=$?
+  printf '%s|%s\n' "$rc" "$(printf '%s' "$o" | tr '\t' '|' | head -1)"
+}
+CONV="$T/conv75"; mkdir -p "$CONV"
+out75="$(r75 "$CONV")"
+grep -q "$CONV" <<<"$out75" \
+  || { echo "FAIL [75]: a raiz declarada em heavy_mutex.root NÃO foi usada — sem ela um host com N repositórios já serializados não migra UM de cada vez, porque o primeiro a migrar parte a exclusão de todos os outros e cada lado adquire o próprio lock ACREDITANDO estar protegido: $out75"; exit 1; }
+grep -qi 'convergência\|convergencia' <<<"$out75" \
+  || { echo "FAIL [75]: a proveniência não distingue a raiz do YAML da variável de ambiente — a env significa ISOLAMENTO e a chave significa CONVERGÊNCIA, e reportar as duas igual faz o recibo mentir sobre o que está acontecendo: $out75"; exit 1; }
+# `/tmp` é o default DOCUMENTADO e é symlink no macOS: recusá-lo seria recusar o próprio default.
+out75b="$(r75 "/tmp")"
+grep -q '^0|' <<<"$out75b" \
+  || { echo "FAIL [75]: declarar root: /tmp — o valor que a documentação chama de default — foi RECUSADO: $out75b"; exit 1; }
+# Valor inválido não pode ser descartado em silêncio: seria a partição silenciosa que esta issue
+# existe para impedir, produzida pelo mecanismo dela.
+out75c="$(r75 "relativo/x")"
+grep -qi 'inválido\|invalido' <<<"$out75c" \
+  || { echo "FAIL [75]: root relativo foi descartado SEM aviso — o operador declara a raiz de convergência, o recibo diz outra coisa, e ninguém sabe: $out75c"; exit 1; }
+# CONTROLE: sem a chave, o default continua valendo.
+out75d="$(r75 "")"
+grep -q '/tmp' <<<"$out75d" \
+  || { echo "FAIL [75]: sem a chave o default /tmp deixou de valer: $out75d"; exit 1; }
 echo "OK [75]"
 
 scenario "[76] a varredura de gates exclui .forge.bak-*"
-SCAN="$(grep -rln 'forge.bak' "$WS/template/.forge/scripts/lib/" 2>/dev/null | head -1)"
-[ -n "$SCAN" ] \
-  || { echo "FAIL [76]: nenhuma biblioteca de varredura exclui .forge.bak-* — o backup que o próprio update cria é varrido pelos gates, e o primeiro push após o upgrade é bloqueado por conteúdo que é cópia do repositório"; exit 1; }
+# COMPORTAMENTAL, com controle na mesma execução. A versão textual (`grep -rln 'forge.bak' lib/`)
+# aprovava com os COMENTÁRIOS e sobrevivia a remover o padrão da lista de exclusão — o que é o
+# mesmo defeito que este PR corrige em outros três cenários.
+D76="$(mktemp -d "$T/e76.XXXXXX")"
+git init -q "$D76"; git -C "$D76" config user.email t@t; git -C "$D76" config user.name t
+node "$FORGE" init --target "$D76" --no-plugin >/dev/null 2>&1
+( cd "$D76" && bash .forge/scripts/check-data-governance.sh --path . >/dev/null 2>&1 ) \
+  || { echo "FAIL [76]: o CONTROLE falhou — consumidor recém-instalado já reprova SEM backup nenhum, então o cenário não distinguiria a presença do backup de qualquer outra causa"; exit 1; }
+cp -R "$D76/.forge" "$D76/.forge.bak-1"
+( cd "$D76" && bash .forge/scripts/check-data-governance.sh --path . >/dev/null 2>&1 ) \
+  || { echo "FAIL [76]: com .forge.bak-1 presente o gate REPROVA — é o falso positivo self-referencial medido em campo, e a instrução do próprio update é manter o backup até validar, então o caminho RECOMENDADO é o que produz o bloqueio"; exit 1; }
 echo "OK [76]"
 
 scenario "[77] update acrescentando 'secrets' a forge.yaml existente escreve warn, não block"

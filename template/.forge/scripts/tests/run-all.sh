@@ -31,30 +31,51 @@ while [ $# -gt 0 ]; do
   esac
 done
 [ -d "$DIR" ] || { echo "run-all.sh: '$DIR' não é um diretório" >&2; exit 66; }
+ERRF="$(mktemp "${TMPDIR:-/tmp}/forge-runall-err.XXXXXX")"
+LISTF="$(mktemp "${TMPDIR:-/tmp}/forge-runall-list.XXXXXX")"
+trap 'rm -f "$ERRF" "$LISTF"' EXIT INT TERM HUP
+# `-L` segue symlink: um diretório de testes que é link simbólico varria zero e saía verde.
+find -L "$DIR" -type f \( -name '*.test.mjs' -o -name '*.test.sh' -o -name '*-test.sh' -o -name '*.bats' \) -print 2>"$ERRF" | sort > "$LISTF"
 
 pass=0; fail=0; failed=""
 run_one() {  # run_one <arquivo> <comando...>
+  # UMA execução, com a saída capturada. A versão anterior rodava o comando de novo para exibir o
+  # log, o que dobra o custo de toda suíte que sobe container, cria repositório ou disputa o
+  # heavy-mutex — e, num teste não-determinístico, exibe o log de uma execução DIFERENTE daquela
+  # que produziu o veredito.
   local nome="$1"; shift
-  if "$@" >/dev/null 2>&1; then
+  local out; out="$(mktemp "${TMPDIR:-/tmp}/forge-runall.XXXXXX")"
+  if "$@" >"$out" 2>&1; then
     pass=$((pass + 1)); printf '  ✓ %s\n' "$nome"
   else
     fail=$((fail + 1)); failed="$failed $nome"; printf '  ✗ %s\n' "$nome"
-    "$@" 2>&1 | sed 's/^/      /' | tail -20
+    sed 's/^/      /' "$out" | tail -20
   fi
+  rm -f "$out"
 }
 
 # `find` em vez de glob: glob que não casa nada devolve o próprio padrão como literal em bash, e
 # isso vira "arquivo inexistente" contado como teste. O `-print0`/`read -d ''` cobre caminho com
 # espaço; `mapfile -d` não existe no bash 3.2 do macOS.
 total=0
-while IFS= read -r -d '' f; do
+while IFS= read -r f; do
+  [ -n "$f" ] || continue
   total=$((total + 1))
   case "$f" in
     *.test.mjs|*.mjs) run_one "$(basename "$f")" node "$f" ;;
     *.test.sh|*-test.sh|*.bats) run_one "$(basename "$f")" bash "$f" ;;
     *) total=$((total - 1)) ;;
   esac
-done < <(find "$DIR" -type f \( -name '*.test.mjs' -o -name '*.test.sh' -o -name '*-test.sh' -o -name '*.bats' \) -print0 2>/dev/null | sort -z)
+done < "$LISTF"
+# "Não consegui varrer" e "não há teste nenhum" NÃO podem terminar no mesmo verde — é o defeito
+# que o cabeçalho deste arquivo diz existir para eliminar, e o `2>/dev/null` anterior o cometia
+# aqui dentro. Medido: um subdiretório sem permissão de leitura produzia
+# "0 arquivo(s) examinado(s)" com rc=0.
+if [ -s "$ERRF" ]; then
+  echo "FAIL harness-tests — a varredura de $DIR falhou; o resultado seria sobre um universo incompleto:" >&2
+  sed 's/^/  /' "$ERRF" >&2
+  exit 1
+fi
 
 # O contador é a asserção, não o enfeite: sem ele, um diretório vazio e uma suíte inteira que não
 # foi encontrada por erro de padrão produzem a mesma linha verde.

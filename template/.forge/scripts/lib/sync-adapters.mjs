@@ -19,7 +19,7 @@
 // via targeted extraction for a structure the Forge owns and schema-validates — not generic YAML.
 // Deterministic: no timestamps; lockfile entries sorted; running twice is byte-identical.
 import {
-  readFileSync, writeFileSync, mkdirSync, readdirSync, statSync,
+  readFileSync, writeFileSync, mkdirSync, readdirSync, statSync, chmodSync,
   existsSync, symlinkSync, lstatSync, unlinkSync, readlinkSync, rmdirSync
 } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -152,6 +152,14 @@ function makeLock() {
     entries,
     emit(destAbs, content, srcAbs = null) {
       writeIfChanged(destAbs, content);
+      // O bit de execução é parte do artefato, não metadado descartável. Uma skill pode trazer
+      // `scripts/` (o motor determinístico que ela invoca); projetado sem +x, o script funciona
+      // no canônico `.forge/` e falha com "permission denied" no adapter — maquinaria entregue
+      // quebrada, e a diferença só aparece quando alguém a executa. Espelha SÓ o bit de
+      // execução do fonte; nunca amplia permissão de leitura ou escrita.
+      if (srcAbs && existsSync(srcAbs) && (statSync(srcAbs).mode & 0o111)) {
+        chmodSync(destAbs, statSync(destAbs).mode | 0o111);
+      }
       entries.push({ dest: relative(ROOT, destAbs), src: srcAbs ? relative(ROOT, srcAbs) : null, sha256: sha256(Buffer.from(content)) });
     },
     linkToAgentsMd(linkName) {

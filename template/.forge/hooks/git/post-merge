@@ -41,31 +41,92 @@ elif [ -d "$ROOT/.forge/scripts/lib" ]; then
   delegation_failed=1
 fi
 
-removed=0
+# liaison log integrity (issue #80) — o DETECTOR do único modo de falha do merge=union: dispara no
+# instante em que a duplicata NASCE (é o merge automático que a produz, e é ele que dispara este
+# hook — pre-commit NÃO roda num merge automático). Roda em QUALQUER branch, deliberadamente: um
+# merge que duplica e nunca chega a ser empurrado corrompe o canal do mesmo jeito, e o bloqueio no
+# push (pre-push, mesmo diretório) jamais o veria. Este hook é informacional — o git ignora seu
+# exit status — então o que muda com a falha é o DESFECHO OBSERVÁVEL (delegation_failed), nunca a
+# conclusão do merge em si.
+LOG_INTEGRITY="$ROOT/.forge/scripts/check-liaison-log-integrity.sh"
+if [ -f "$LOG_INTEGRITY" ]; then
+  if ! li_out="$(FORGE_ROOT="$ROOT" bash "$LOG_INTEGRITY" 2>&1)"; then
+    echo "post-merge FALHOU: liaison — log duplicado pelo merge=union (issue #80):" >&2
+    printf '%s\n' "$li_out" | sed 's/^/  /' >&2
+    delegation_failed=1
+  fi
+elif [ -d "$ROOT/.forge/scripts" ]; then
+  echo "post-merge FALHOU: .forge/scripts/ existe mas check-liaison-log-integrity.sh não —" >&2
+  echo "  a delegação aponta para um alvo ausente, e isso não pode sair como sucesso." >&2
+  delegation_failed=1
+fi
+
+# ── worktrees mergeadas (issue #72) ──────────────────────────────────────────────────────────────
+# PROPÕE, não remove. O default era remover, e isso destruiu trabalho de verdade: no merge de um PR
+# real, uma worktree e a branch local sumiram sozinhas, levando junto `local.properties` e `build/`.
+#
+# A raiz do defeito está numa frase que parece verdadeira e não é: "worktree limpa". `git status
+# --porcelain` NÃO vê arquivo ignorado, e `git branch -d` não protege o que não está no índice —
+# então uma worktree cheia de estado local irrecuperável satisfaz o critério de "limpa" e é
+# removida. O que o git rastreia e o que existe no disco são conjuntos diferentes, e a remoção
+# destrói a diferença.
+#
+# O default invertido também é o que a comunidade escolheu sozinha: três de quatro consumidores de
+# um mesmo ecossistema desligaram esta limpeza por conta própria, em formulações mutuamente
+# incompatíveis. Como `hooks/` é sobrescrito pelo overlay do `update`, cada upgrade REVERTIA essa
+# decisão em silêncio — e ninguém revisa diff de maquinaria depois de um upgrade.
+#
+# Ligar de volta é `FORGE_WORKTREE_AUTOCLEAN=1`, e mesmo ligado a guarda de arquivo ignorado
+# permanece: é exatamente ali que o dano ocorreu, e ele não é detectável depois.
+autoclean="${FORGE_WORKTREE_AUTOCLEAN:-0}"
+removed=0; proposed=0; proposta=""
 while IFS= read -r wt; do
   [ -n "$wt" ] || continue
   case "$wt" in
     "$ROOT"/.forge/worktrees/*)
       branch="$(git -C "$wt" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
       [ -n "$branch" ] && [ "$branch" != "HEAD" ] || continue
-      if git merge-base --is-ancestor "$branch" HEAD 2>/dev/null && [ -z "$(git -C "$wt" status --porcelain 2>/dev/null)" ]; then
+      git merge-base --is-ancestor "$branch" HEAD 2>/dev/null || continue
+      [ -z "$(git -C "$wt" status --porcelain 2>/dev/null)" ] || continue
+      # A guarda que faltava. `git clean -ndX` lista o que está IGNORADO e presente — o estado que
+      # `status --porcelain` não enxerga e que a remoção apagaria sem recuperação possível.
+      ign="$(git -C "$wt" clean -ndX 2>/dev/null | head -3)"
+      if [ -n "$ign" ]; then
+        proposed=$((proposed + 1))
+        proposta="$proposta
+  · $wt (branch $branch, já em HEAD) — NÃO removida: tem arquivo ignorado presente
+    $(printf '%s' "$ign" | sed 's/^/      /')
+      remover mesmo assim: git worktree remove --force '$wt' && git branch -d '$branch'"
+        continue
+      fi
+      if [ "$autoclean" = "1" ]; then
         if git worktree remove "$wt" 2>/dev/null; then
           removed=$((removed + 1))
           git branch -d "$branch" 2>/dev/null || true
         fi
+      else
+        proposed=$((proposed + 1))
+        proposta="$proposta
+  · $wt (branch $branch, já em HEAD)
+      git worktree remove '$wt' && git branch -d '$branch'"
       fi
       ;;
   esac
 done <<EOF_WT
 $(git worktree list --porcelain 2>/dev/null | awk '/^worktree /{print $2}' | tail -n +2)
 EOF_WT
+if [ "$proposed" -gt 0 ]; then
+  echo "post-merge: $proposed worktree(s) mergeada(s) — proponho remover (nada foi removido):"
+  printf '%s\n' "$proposta"
+  [ "$autoclean" = "1" ] || echo "  (remover automaticamente: FORGE_WORKTREE_AUTOCLEAN=1)"
+fi
 
 current="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
 if [ "$delegation_failed" -ne 0 ]; then
-  echo "post-merge INCOMPLETO (worktrees removidas: $removed) — ver a falha de delegação acima." >&2
+  echo "post-merge INCOMPLETO (worktrees removidas: $removed, propostas: $proposed) — ver a falha de delegação acima." >&2
   exit 1
 fi
-msg="post-merge OK (worktrees removidas: $removed)"
+msg="post-merge OK (worktrees removidas: $removed, propostas: $proposed)"
 [ "$current" = "develop" ] && msg="$msg — considere /forge:promote-staging quando develop estiver estável"
 echo "$msg"
 exit 0

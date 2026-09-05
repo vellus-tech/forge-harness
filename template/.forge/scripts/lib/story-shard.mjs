@@ -14,13 +14,14 @@
 // DECISÃO: frontmatter de STORY.md tem parser PRÓPRIO, não reaproveita yaml-lite.mjs.
 //
 // `depends_on` em STORY.md é sempre flow-style (`[]`, `[STORY-01]` — é o que o template
-// `.forge/templates/story/STORY.md` e o comando `/forge:shard` emitem). yaml-lite.mjs NÃO
-// parseia array flow-style não-vazio (LDG-0033: vira string literal) — então reusá-lo aqui
-// quebraria silenciosamente a leitura de `depends_on: [STORY-01]` sempre que houvesse UMA
-// dependência declarada, que é exatamente o caso que a checagem de ciclo precisa enxergar. Um
-// regex dedicado para os três campos que este arquivo lê (story_id, depends_on, status) é mais
-// barato e mais correto do que estender o parser genérico para um caso que ele não foi desenhado
-// para cobrir.
+// `.forge/templates/story/STORY.md` e o comando `/forge:shard` emitem). yaml-lite.mjs já
+// parseia array flow-style não-vazio (LDG-0033 resolvido — ver lib/yaml-lite.mjs e
+// tests/w162-yaml-lite-flow-array-gate.sh), então a razão original para o parser próprio não
+// se aplica mais. Mesmo assim ele fica: um regex dedicado para os três campos que este arquivo
+// lê (story_id, depends_on, status) de um frontmatter isolado é mais barato do que carregar o
+// parser de DOCUMENTO inteiro (`parseYamlSubset`) só para três linhas — trocar exigiria reescrever
+// o frontmatter como um mini-documento YAML e perderia a leitura tolerante a Markdown ao redor
+// que este parser próprio já tem.
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 

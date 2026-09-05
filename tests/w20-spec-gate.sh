@@ -25,13 +25,14 @@ echo "[1] spec-new para os 5 tipos"
             bash "$SPEC_NEW" brown-v --type brownfield --scale 0 >/dev/null)
 out="$(cd "$T" && bash "$VALIDATE" --all)"
 [ "$(echo "$out" | grep -c '^OK ')" -eq 5 ]
-# artifact shape by type/scale
-[ -f "$T/.forge/specs/active/feat-x/design.md" ] && [ -f "$T/.forge/specs/active/feat-x/requirements.md" ] \
-  || { echo "FAIL [1]: feat-x (feature scale 2) sem design.md+requirements.md"; exit 1; }
-[ -f "$T/.forge/specs/active/fix-y/bugfix.md" ] && [ ! -e "$T/.forge/specs/active/fix-y/design.md" ] && [ ! -e "$T/.forge/specs/active/fix-y/requirements.md" ] \
-  || { echo "FAIL [1]: fix-y (bugfix) sem bugfix.md, ou com design.md/requirements.md indevidos"; exit 1; }
-[ -f "$T/.forge/specs/active/ref-z/refactor.md" ] && [ -f "$T/.forge/specs/active/ref-z/design.md" ] \
-  || { echo "FAIL [1]: ref-z (refactor scale 2) sem refactor.md+design.md"; exit 1; }
+# artifact shape by type/scale — LDG-0034: cada arquivo reprova com a SUA mensagem.
+[ -f "$T/.forge/specs/active/feat-x/design.md" ] || { echo "FAIL [1]: feat-x (feature scale 2) sem design.md"; exit 1; }
+[ -f "$T/.forge/specs/active/feat-x/requirements.md" ] || { echo "FAIL [1]: feat-x (feature scale 2) sem requirements.md"; exit 1; }
+[ -f "$T/.forge/specs/active/fix-y/bugfix.md" ] || { echo "FAIL [1]: fix-y (bugfix) sem bugfix.md"; exit 1; }
+[ ! -e "$T/.forge/specs/active/fix-y/design.md" ] || { echo "FAIL [1]: fix-y (bugfix) com design.md indevido"; exit 1; }
+[ ! -e "$T/.forge/specs/active/fix-y/requirements.md" ] || { echo "FAIL [1]: fix-y (bugfix) com requirements.md indevido"; exit 1; }
+[ -f "$T/.forge/specs/active/ref-z/refactor.md" ] || { echo "FAIL [1]: ref-z (refactor scale 2) sem refactor.md"; exit 1; }
+[ -f "$T/.forge/specs/active/ref-z/design.md" ] || { echo "FAIL [1]: ref-z (refactor scale 2) sem design.md"; exit 1; }
 [ ! -e "$T/.forge/specs/active/brown-v/requirements.md" ]   # scale 0: only proposal+tasks
 grep -q '^status: proposed$' "$T/.forge/specs/active/feat-x/manifest.yaml"
 grep -q 'feat-x' "$T/.forge/specs/active/feat-x/proposal.md"   # placeholders filled
@@ -95,11 +96,30 @@ echo "[6] dogfooding valida"
 # code-evaluator do PR do LDG-0012). Sem degradar para "OK ... SKIP" quando não há change ativo
 # (mesma classe de defeito que este change existe pra eliminar) — cai para uma fixture sintética
 # num tmpdir à parte, sempre validada de verdade.
-DOGFOOD_IDS="$(ls -1 "$WS/.forge/specs/active" 2>/dev/null | sort)"
+# `ls` de diretório inexistente falha, e sob `pipefail` o pipeline inteiro falha com ele — o
+# `2>/dev/null` esconde a mensagem e o `set -e` mata o gate SEM saída nenhuma. E o diretório
+# inexiste no caso que importa: o git não versiona diretório vazio, então um clone limpo (o CI)
+# não tem `specs/active/` quando não há change ativo, enquanto a árvore de quem trabalhou nela
+# tem o diretório como resíduo. Passava na máquina de todo mundo e morria calado no CI.
+# Família da issue #49: pipeline sob pipefail, aqui com `| sort` em vez de `| grep -q`.
+if [ -d "$WS/.forge/specs/active" ]; then
+  DOGFOOD_IDS="$(ls -1 "$WS/.forge/specs/active" | sort || true)"
+else
+  DOGFOOD_IDS=""
+fi
 if [ -z "$DOGFOOD_IDS" ]; then
   TSYN="$(mktemp -d /tmp/forge-w20-dogfood-syn.XXXXXX)"
-  (cd "$TSYN" && FORGE_ROOT="$TSYN" bash "$WS/template/.forge/scripts/spec-new.sh" synthetic-dogfood --type feature --scale 2 >/dev/null)
-  bash "$WS/template/.forge/scripts/validate-spec.sh" --path "$TSYN/.forge/specs/active/synthetic-dogfood" >/dev/null
+  # Sem `>/dev/null` cego: sob `set -e` um erro aqui matava o gate SEM mensagem, e a reprovação
+  # chegava ao CI como um cenário que simplesmente para. Captura a saída e a mostra na falha —
+  # "morreu" e "reprovou por X" não podem ser indistinguíveis num gate.
+  if ! syn_out="$( (cd "$TSYN" && FORGE_ROOT="$TSYN" bash "$WS/template/.forge/scripts/spec-new.sh" synthetic-dogfood --type feature --scale 2) 2>&1 )"; then
+    echo "FAIL [6]: spec-new sintético falhou (rc=$?) — saída:"; printf '%s\n' "$syn_out" | sed 's/^/      /'
+    rm -rf "$TSYN"; exit 1
+  fi
+  if ! syn_val="$(bash "$WS/template/.forge/scripts/validate-spec.sh" --path "$TSYN/.forge/specs/active/synthetic-dogfood" 2>&1)"; then
+    echo "FAIL [6]: validate do change sintético falhou — saída:"; printf '%s\n' "$syn_val" | sed 's/^/      /'
+    rm -rf "$TSYN"; exit 1
+  fi
   rm -rf "$TSYN"
   echo "OK [6] (sintético, sem change real ativo)"
 else

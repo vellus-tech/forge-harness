@@ -43,6 +43,23 @@ export const ROUTE_EXTS = new Set(['.cs', '.java', '.kt', '.ts', '.js', '.mjs', 
 
 const HTTP_VERBS = ['get', 'post', 'put', 'delete', 'patch', 'head', 'options'];
 
+// Métodos `Map<Nome>()` conhecidos que NÃO são produtor de rota definido pela APLICAÇÃO — ou são
+// endpoint de INFRAESTRUTURA do próprio framework .NET (OpenAPI, métricas Prometheus, health
+// checks, reflection gRPC, MVC attribute-routing), que este scanner não rastreia por design porque
+// não é rota de NEGÓCIO que um contrato declararia, ou colidem por NOME com o padrão
+// `Map<Capitalizado>()` sem ser rota nenhuma (`System.Net.IPAddress.MapToIPv4/MapToIPv6` do BCL).
+// LDG-0029: medido no repositório de referência (axis-go-cloud, 2026-09-04), 100% dos 47
+// `producer-not-found` daquela varredura eram exatamente estes nomes — nenhum produtor de
+// aplicação genuinamente ausente. A lista é por NOME, o mesmo idioma já usado para excluir os
+// verbos HTTP e `MapGroup` desta mesma checagem — o scanner não tem tipos, só léxico.
+const KNOWN_NON_PRODUCER_CALLS = new Set([
+  // ASP.NET Core — endpoints de infraestrutura do próprio framework, sem corpo de aplicação.
+  'MapControllers', 'MapRazorPages', 'MapBlazorHub', 'MapOpenApi', 'MapSwagger',
+  'MapPrometheusScrapingEndpoint', 'MapMetrics', 'MapGrpcReflectionService',
+  // System.Net.IPAddress (BCL) — falso positivo por nome, não é registro de rota.
+  'MapToIPv4', 'MapToIPv6',
+]);
+
 /** Tipos .NET que representam a RAIZ da aplicação, não um grupo já prefixado. */
 const ROOT_BUILDER_TYPES = /^(WebApplication|IEndpointRouteBuilder)$/;
 
@@ -444,6 +461,7 @@ function indexDotnetMinimal(text, struct, file, idx) {
   for (let m; (m = fluentCallRe.exec(text)); ) {
     const [, recv, chainSrc, producer] = m;
     if (/^Map(Get|Post|Put|Delete|Patch|Head|Options|Group)$/.test(producer)) continue;
+    if (KNOWN_NON_PRODUCER_CALLS.has(producer)) continue;
     const scope = scopeAt(m.index);
     const line = lineOf(text, m.index);
     ancorar(m.index + recv.length, m.index + recv.length + chainSrc.length);
@@ -471,6 +489,7 @@ function indexDotnetMinimal(text, struct, file, idx) {
   for (let m; (m = callRe.exec(text)); ) {
     if (emLiteral(m.index)) continue;
     if (/^Map(Get|Post|Put|Delete|Patch|Head|Options|Group)$/.test(m[2])) continue;
+    if (KNOWN_NON_PRODUCER_CALLS.has(m[2])) continue;
     idx.calls.push({ owner: `${scopeAt(m.index)}:${m[1]}`, producer: m[2], file, line: lineOf(text, m.index) });
   }
 

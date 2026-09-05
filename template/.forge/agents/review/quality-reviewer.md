@@ -162,7 +162,11 @@ dotnet format --verify-no-changes services/<modulo>/ 2>&1 | head -20
 npx eslint --no-eslintrc -c apps/web/.eslintrc.json $(git diff $base..HEAD --name-only | grep -E "\.(ts|tsx)$") 2>&1 | head -20
 ```
 
-Lint error (não warning) → HIGH.
+Lint error (não warning) → HIGH. Se o diff **rebaixa severidade** de uma regra existente (`error`→`warn`/`off`) ou introduz supressão em massa sem o portão A/B/C de `quality-gates.md` ("Portão de decisão para burndown de lint") registrado no PR → HIGH; supressão pontual (`eslint-disable-next-line`/`#pragma warning disable`) sem referência de issue → MEDIUM (já coberto por §9).
+
+### 11. Tamanho de arquivo
+
+Arquivo tocado pelo diff que já ultrapassa visivelmente o razoável (smell de `code-style.md` §2) precisa de estratégia, não só de aviso. Se o autor extraiu conteúdo para um `helpers.ts`/`utils.ts`/`Helpers.cs` novo sem seguir nenhuma das quatro costuras nomeadas — aponte `code-style.md` ("Corte de arquivo grande") em vez de aprovar o depósito genérico. `"sem costura natural, pare e siga para o próximo"` documentado no PR é aceitável; um `helpers.ts` sem essa justificativa não é.
 
 ---
 
@@ -171,8 +175,8 @@ Lint error (não warning) → HIGH.
 | Severidade | Quando |
 |---|---|
 | `BLOCKER` | Co-autoria de IA em commit; PostgreSQL PascalCase/camelCase; arquivo `*-summary.md` proibido; PBT obrigatório ausente em código monetário; coverage Domain < 95%/90%; `.kiro/specs/` criado |
-| `HIGH` | Identifier em pt-BR; scope de commit fora da lista; teste correspondente ausente; ADR com nome errado; lint error; `// @ts-ignore` sem justificativa |
-| `MEDIUM` | `.md` em UPPERCASE; subject > 72 chars; TODO sem owner; doc sem diacríticos; booleano sem prefixo `is_`; comentário ausente em workaround |
+| `HIGH` | Identifier em pt-BR; scope de commit fora da lista; teste correspondente ausente; ADR com nome errado; lint error; `// @ts-ignore` sem justificativa; regra de lint rebaixada sem o portão A/B/C de `quality-gates.md` |
+| `MEDIUM` | `.md` em UPPERCASE; subject > 72 chars; TODO sem owner; doc sem diacríticos; booleano sem prefixo `is_`; comentário ausente em workaround; `helpers.ts`/`utils.ts` novo como depósito sem seguir a estratégia de corte |
 | `LOW` | Comentário redundante; nome poderia ser mais expressivo; espaçamento inconsistente |
 
 ---

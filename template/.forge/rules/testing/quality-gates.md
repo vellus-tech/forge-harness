@@ -61,9 +61,24 @@ Ver `tdd.md` para exemplos de FsCheck e fast-check.
 
 | Ferramenta | Stack | Gate |
 |------------|-------|------|
-| `dotnet format` + Roslyn analyzers | .NET | Bloqueante em CI |
+| `dotnet format --verify-no-changes` + Roslyn analyzers | .NET | Bloqueante em CI (executado pela skill `verify-build`) |
+| `dotnet-baseline.sh --check` | .NET | Bloqueante em CI — `TreatWarningsAsErrors`, severidade por ID de regra e CPM presentes no repositório |
 | ESLint | TypeScript/React | Bloqueante em CI |
 | commitlint | Todos | Bloqueante em hook |
+
+## Portão de decisão para burndown de lint
+
+Passivo de avisos herdado — regra existente virando obrigatória, ou lint novo habilitado sobre código já grande — não se resolve por decreto silencioso. Antes de implementar a correção, meça o trecho mais caro/arriscado com números reais (contagem de violações por regra, por arquivo) e apresente três opções ao dono do repositório:
+
+- **(A) Corrigir tudo.** Padrão na ausência de resposta.
+- **(B) Corrigir a maioria barata e rastrear o resto como dívida VISÍVEL.** Supressão pontual com comentário e referência de issue (`// eslint-disable-next-line <regra> -- ver ISSUE-123`, ou equivalente da stack) — nunca supressão silenciosa sem essa referência.
+- **(C) Reescopar ou afrouxar a própria regra.** Marcado explicitamente como **MUDANÇA DE CONFIG** — nunca apresentado como se o código tivesse ficado mais limpo.
+
+**Severidade derivada de contagem medida:** regra sem nenhuma violação existente nasce `error`; regra com violações nasce `warn`, com a contagem anotada como linha de base no commit que a introduziu. O critério de parada é essa contagem voltar a zero — só então a regra sobe para `error`.
+
+**`ignore` curto e nomeado, nunca a regra inteira rebaixada:** silenciar uma linha/arquivo específico com o motivo e a referência de issue, em vez de desligar a regra para o projeto inteiro — a mesma disciplina do `TODO`/`FIXME` de `code-style.md` §8.
+
+Fonte: portão de decisão adaptado do prompt 02 do `vibe-coding-toolkit` (MIT).
 
 ## Testes de Acessibilidade
 
@@ -82,6 +97,7 @@ Ver `tdd.md` para exemplos de FsCheck e fast-check.
 | Gate | Trigger | Bloqueante |
 |------|---------|-----------|
 | Unit + Integration tests | Todo PR | Sim |
+| Baseline de build .NET (`dotnet-baseline.sh --check`) | PR que toca `.cs`/`.csproj`/`.sln` | Sim |
 | Contract tests | PR com mudança de contrato | Sim |
 | ESLint / dotnet format | Todo PR | Sim |
 | Coverage thresholds | Todo PR | Sim |

@@ -6,6 +6,8 @@
 #   [4] determinismo: 2 execuções geram .md idênticos
 #   [5] arquivos com nomes contendo pontos (money.ts) viram labels sanitizados
 #   [6] c3 stale é removido quando o boundary deixa de existir
+#   [8] LDG-0031: boundary de arquivo único gera C3 (não some em nenhum dos 3 níveis) e o C3 de
+#       um boundary pequeno desenha a aresta CROSS-boundary (não só intra-boundary)
 set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -14,6 +16,7 @@ trap 'rm -rf "$T"' EXIT
 cp -R "$WS/template/.forge" "$T/.forge"
 S="$T/.forge/scripts"
 C4="$T/.forge/graph/c4"
+. "$T/.forge/scripts/lib/gate-universe.sh"
 
 # fixture: src/domain + services/billing, AMBOS com 2 arquivos. O gerador só emite
 # component view para boundary com >= 2 arquivos (c4-gen.mjs, `if (allFiles.length < 2) continue`),
@@ -30,8 +33,8 @@ FORGE_ROOT="$T" bash "$S/graph.sh" build >/dev/null
 
 echo "[1] geração dos 3 níveis"
 FORGE_ROOT="$T" bash "$S/c4.sh" >/dev/null
-[ -f "$C4/c1-context.md" ] && [ -f "$C4/c2-container.md" ] \
-  || { echo "FAIL [1]: c1-context.md ou c2-container.md ausente"; exit 1; }
+[ -f "$C4/c1-context.md" ] || { echo "FAIL [1]: c1-context.md ausente"; exit 1; }
+[ -f "$C4/c2-container.md" ] || { echo "FAIL [1]: c2-container.md ausente"; exit 1; }
 ls "$C4"/c3-component-*.md >/dev/null
 grep -q '^flowchart' "$C4/c2-container.md"
 echo "OK [1]"
@@ -91,5 +94,32 @@ grep -q 'agregado' "$BIG"
 grep -q '60 arquivos' "$BIG"
 rm -rf "$T2"
 echo "OK [7] (agregado em $cnt submódulos)"
+
+echo "[8] LDG-0031: boundary de arquivo único aparece + aresta cross-boundary aparece no C3"
+T3="$(mktemp -d /tmp/forge-w43single.XXXXXX)"
+mkdir -p "$T3/.forge/graph"
+node -e '
+  const n = [
+    { id: "src/domain/money.ts", layer: "domain" },
+    { id: "services/billing/invoice.ts", layer: "application" },
+    { id: "services/billing/payment.ts", layer: "application" },
+  ];
+  const e = [{ from: "services/billing/invoice.ts", to: "src/domain/money.ts", kind: "import", resolved: true }];
+  require("fs").writeFileSync(process.argv[1], JSON.stringify({ schema: "graph/v0", nodes: n, edges: e }));
+' "$T3/.forge/graph/graph.json"
+n3="$(node -e 'console.log(JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).nodes.length)' "$T3/.forge/graph/graph.json")"
+e3="$(node -e 'console.log(JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).edges.length)' "$T3/.forge/graph/graph.json")"
+forge_universe_check "w43-single-boundary-nodes" "$n3" "node(s)" "fixture do repro do LDG-0031" "$T3"
+forge_universe_check "w43-single-boundary-edges" "$e3" "edge(s)" "fixture do repro do LDG-0031" "$T3"
+FORGE_ROOT="$T3" node "$S/lib/c4-gen.mjs" "$T3" >/dev/null
+SINGLE="$T3/.forge/graph/c4/c3-component-src-domain.md"
+BILL="$T3/.forge/graph/c4/c3-component-services-billing.md"
+[ -f "$SINGLE" ] || { echo "FAIL [8]: boundary de arquivo único (src/domain, 1 arquivo) não gerou C3 — money.ts some dos 3 níveis do C4"; exit 1; }
+grep -q 'money ts' "$SINGLE" || { echo "FAIL [8]: c3-component-src-domain.md existe mas não contém o nó money.ts"; exit 1; }
+[ -f "$BILL" ] || { echo "FAIL [8]: services/billing (2 arquivos) não gerou C3"; exit 1; }
+grep -q 'money ts' "$BILL" || { echo "FAIL [8]: c3-component-services-billing.md não mostra a aresta cross-boundary para money.ts (C3 desenhando só arestas intra-boundary)"; exit 1; }
+grep -qE -- '-->' "$BILL" || { echo "FAIL [8]: c3-component-services-billing.md não desenha NENHUMA aresta, nem a cross-boundary"; exit 1; }
+rm -rf "$T3"
+echo "OK [8]"
 
 echo "OK"

@@ -95,7 +95,7 @@ reinstala do zero). Use o **update cirúrgico**, que faz overlay aditivo da maqu
 
 ```bash
 npx forge-harness@latest update --dry-run   # mostra o que mudaria
-npx forge-harness@latest update             # aplica (cria .forge.bak-N; --no-backup para pular)
+npx forge-harness@latest update             # aplica (backup em .git/forge-backups/; --no-backup para pular)
 ```
 
 Dentro do Claude Code, o mesmo via `/forge:upgrade`. Órfãos (arquivos que o template removeu entre
@@ -229,7 +229,7 @@ template/.forge/        # o harness instalável (fonte única)
 ├── commands/ (54)      # comandos /forge:* (specs, waves, graph, quality, git, …) — relação completa em docs/refer/slash-commands.md
 ├── contracts/ (5)      # contratos de I/O por estágio (verify, archive, eval, …)
 ├── capabilities/       # packs opt-in por stack (C#/.NET, Node, Java, Python)
-├── skills/   (11)      # skills especialistas (gate-runner, capability-dispatcher, …)
+├── skills/   (12)      # skills especialistas (gate-runner, capability-dispatcher, dotnet-quality-scan, …)
 ├── rules/   (33)       # convenções (arquitetura, domínio, testing, …)
 ├── schemas/ (19)       # JSON Schemas (manifest, run-manifest, benchmark, graph, …)
 └── scripts/ (63)       # engine determinista (graph, archive, eval, provenance, hooks, …)

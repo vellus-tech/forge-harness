@@ -35,6 +35,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));     // <pkg>/bin
 const PKG_ROOT = resolve(HERE, '..');                     // <pkg>
 const TEMPLATE_FORGE = join(PKG_ROOT, 'template', '.forge');
 const GITIGNORE_PATCH = join(PKG_ROOT, 'installer', 'gitignore.patch');
+const GITATTRIBUTES_PATCH = join(PKG_ROOT, 'installer', 'gitattributes.patch');
 // FORGE_REMOVED_MANIFEST: override para os gates de teste injetarem tombstones sintéticas.
 const REMOVED_MANIFEST = process.env.FORGE_REMOVED_MANIFEST || join(PKG_ROOT, 'installer', 'removed-files.txt');
 const STAGING_YML = join(PKG_ROOT, 'template', 'github', 'workflows', 'staging.yml');
@@ -44,40 +45,41 @@ const GI_MARKER_END = '# <<< forge (managed) <<<';
 const ADAPTERS = ['claude', 'codex', 'gemini', 'qwen', 'cursor', 'kiro', 'forge-cli', 'agents-skills'];
 
 /**
- * Aplica o managed-block do .gitignore RECONCILIANDO, não só acrescentando.
+ * Aplica um managed-block (mesmo mecanismo para .gitignore e .gitattributes — issue #80)
+ * RECONCILIANDO, não só acrescentando.
  *
- * O comportamento anterior era append-once (`if (!cur.includes(MARKER)) append`): quem já tinha o
- * bloco nunca recebia padrão novo, e o harness passou a depender disso para entregar correções —
- * o backup do update, o cache local e as negações do store do liaison ficaram presos no template,
- * sem chegar a nenhum consumidor instalado. Um bloco marcado como "managed" que congela na
- * primeira escrita não é gerenciado; é um comentário.
+ * O comportamento anterior do .gitignore era append-once (`if (!cur.includes(MARKER)) append`):
+ * quem já tinha o bloco nunca recebia padrão novo, e o harness passou a depender disso para
+ * entregar correções — o backup do update, o cache local e as negações do store do liaison
+ * ficaram presos no template, sem chegar a nenhum consumidor instalado. Um bloco marcado como
+ * "managed" que congela na primeira escrita não é gerenciado; é um comentário.
  *
  * O que fica fora dos marcadores é do usuário e nunca é tocado — inclusive para dedup: padrão que
  * o projeto já lista por conta própria não é repetido dentro do bloco.
  */
-function applyGitignoreBlock(target) {
-  const gi = join(target, '.gitignore');
-  const patch = readFileSync(GITIGNORE_PATCH, 'utf8');
-  const cur = existsSync(gi) ? readFileSync(gi, 'utf8') : '';
+function applyManagedBlock(target, filename, patchPath, label) {
+  const fp = join(target, filename);
+  const patch = readFileSync(patchPath, 'utf8');
+  const cur = existsSync(fp) ? readFileSync(fp, 'utf8') : '';
 
   const pIni = patch.indexOf(GI_MARKER);
   const pFim = patch.indexOf(GI_MARKER_END);
-  if (pIni === -1 || pFim === -1) { console.log('gitignore: patch sem marcadores — bloco não aplicado'); return; }
+  if (pIni === -1 || pFim === -1) { console.log(`${label}: patch sem marcadores — bloco não aplicado`); return; }
   const blocoPatch = patch.slice(pIni, pFim + GI_MARKER_END.length);
 
   const ini = cur.indexOf(GI_MARKER);
   const fim = cur.indexOf(GI_MARKER_END);
   if (ini !== -1 && (fim === -1 || fim < ini)) {
     // Marcador de abertura sem fechamento: reescrever aqui poderia comer regra do projeto.
-    console.log('gitignore: bloco forge com marcadores inconsistentes — não reconciliado (conserte à mão)');
+    console.log(`${label}: bloco forge com marcadores inconsistentes — não reconciliado (conserte à mão)`);
     return;
   }
 
   const antes = ini === -1 ? cur : cur.slice(0, ini);
   const depois = ini === -1 ? '' : cur.slice(fim + GI_MARKER_END.length);
 
-  // Dedup só contra o que está FORA do bloco: um brownfield que já lista `.DS_Store` não ganha
-  // entrada duplicada.
+  // Dedup só contra o que está FORA do bloco: um brownfield que já lista `.DS_Store` (ou já
+  // declara `merge=union` num path equivalente) não ganha entrada duplicada.
   const fora = new Set(
     `${antes}\n${depois}`.split('\n').map((l) => l.replace(/\s+$/, '')).filter((l) => l.trim() && !l.trimStart().startsWith('#')),
   );
@@ -92,14 +94,25 @@ function applyGitignoreBlock(target) {
 
   if (ini === -1) {
     const sep = !cur || cur.endsWith('\n') ? '' : '\n';
-    writeFileSync(gi, `${cur}${sep}\n${bloco}\n`);
-    console.log('gitignore: bloco forge adicionado');
+    writeFileSync(fp, `${cur}${sep}\n${bloco}\n`);
+    console.log(`${label}: bloco forge adicionado`);
     return;
   }
   const novo = `${antes}${bloco}${depois}`;
   if (novo === cur) return;
-  writeFileSync(gi, novo);
-  console.log('gitignore: bloco forge reconciliado');
+  writeFileSync(fp, novo);
+  console.log(`${label}: bloco forge reconciliado`);
+}
+
+function applyGitignoreBlock(target) {
+  applyManagedBlock(target, '.gitignore', GITIGNORE_PATCH, 'gitignore');
+}
+
+// .gitattributes (issue #80) — merge=union no log append-only do liaison, POR REMETENTE. O gate
+// que detecta (post-merge) e bloqueia (pre-push) a duplicação — o único modo de falha do union —
+// mora em .forge/scripts/check-liaison-log-integrity.sh; ver installer/gitattributes.patch.
+function applyGitattributesBlock(target) {
+  applyManagedBlock(target, '.gitattributes', GITATTRIBUTES_PATCH, 'gitattributes');
 }
 
 const pkgVersion = () => {
@@ -326,7 +339,17 @@ function machineryFiles(src) {
 //   dst == hash do template ANTERIOR (lock) ..... escreve (upgrade limpo — nunca foi customizado)
 //   qualquer outro caso ......................... PRESERVA e reporta (customização local)
 // Sem lock (consumidor pré-rc20), o fallback é conservador: divergiu do template novo → preserva.
-const ENRICHABLE_DIRS = ['agents', 'rules', 'skills'];
+// `templates` entrou pela issue #71, e não é um diretório qualquer: `.forge/templates/AGENTS.md` é
+// a FONTE do `AGENTS.md` da raiz — `sync-adapters.mjs` o lê e emite o arquivo do projeto a partir
+// dele. Como o `update` roda `sync-adapters --adapter all` no fim, um único comando apagava a
+// customização e, em seguida, regenerava o `AGENTS.md` sem ela: sem conflito, sem aviso, e
+// aparecendo no output como um `~` indistinguível de qualquer atualização de maquinaria.
+// Perder em silêncio o arquivo que governa o comportamento dos agentes é a classe de defeito mais
+// cara que existe — o repositório continua funcionando e as regras que alguém escreveu deixam de
+// ser lidas. Medido num consumidor real: 63 linhas locais contra 54 do template, com quatro regras
+// de disciplina de entrega próprias, na mesma execução em que três arquivos de `rules/` e
+// `skills/` eram corretamente preservados.
+const ENRICHABLE_DIRS = ['agents', 'rules', 'skills', 'templates'];
 const isEnrichable = (rel) => ENRICHABLE_DIRS.includes(rel.split(sep)[0]);
 
 const sha256File = (p) => createHash('sha256').update(readFileSync(p)).digest('hex');
@@ -440,23 +463,58 @@ function newForgeKeys(src, forge) {
 // blocos inteiros que faltam, preservando byte-a-byte tudo que o projeto já tinha. NÃO toca chaves
 // existentes nem sub-chaves (limite honesto: só seções de topo ausentes — o caso comum de feature
 // nova). Retorna { added, skipped } — added mescladas, skipped puladas por placeholder (o chamador avisa).
+// Blocos cujo valor do TEMPLATE é para repositório NOVO e seria hostil num repositório existente
+// (issue #77). O comentário do bloco `secrets` no forge.yaml do template já documentava a regra —
+// `block` é o modo de repositório novo ou já saneado, e um repositório existente "HERDA warn ao
+// atualizar o harness, porque o gate não é opt-in e chegar travando o time no primeiro dia é como
+// um gate vira --no-verify de hábito". O mecanismo que deveria produzir esse `warn` pela AUSÊNCIA
+// do bloco era justamente o que criava o bloco, com `block` dentro.
+//
+// Medido em quatro consumidores reais: nenhum tinha o bloco antes, e num deles o gate acusa seis
+// ocorrências pré-existentes — credenciais em `.env.example`, `docker-compose.yml`, um YAML de
+// contrato, e um cabeçalho PEM num arquivo de teste. Hoje não bloqueiam; depois do upgrade o
+// pre-commit passaria a reprovar assim que qualquer um desses arquivos fosse tocado, e o autor não
+// fez nada errado nem sabe que a política mudou, porque a mudança veio embutida num upgrade de
+// maquinaria.
+const APPEND_SOFTEN = new Map([
+  ['secrets', [[/^(\s*enforce:\s*)block\b/m, '$1warn']]],
+]);
+
 function mergeNewForgeKeys(src, forge) {
   const { blocks, keys, skipped } = newForgeKeys(src, forge);
+  const softened = [];
   if (keys.length) {
     const dstPath = join(forge, 'forge.yaml');
     const dstText = readFileSync(dstPath, 'utf8');
     let next = dstText.endsWith('\n') ? dstText : `${dstText}\n`;
-    next += `${keys.map((k) => blocks.get(k).replace(/\n+$/, '')).join('\n')}\n`;
+    next += `${keys.map((k) => {
+      let body = blocks.get(k).replace(/\n+$/, '');
+      // ACRESCENTAR a um forge.yaml que já existia é upgrade, não init: o default hostil é
+      // amaciado e o fato é REPORTADO. Um bloco que passa a bloquear algo que antes não bloqueava
+      // não pode entrar em silêncio — hoje era preciso ler o YAML gerado para descobrir.
+      for (const [re, rep] of (APPEND_SOFTEN.get(k) || [])) {
+        if (re.test(body)) { body = body.replace(re, rep); softened.push(k); }
+      }
+      return body;
+    }).join('\n')}\n`;
     writeFileSync(dstPath, next);
   }
-  return { added: keys, skipped };
+  return { added: keys, skipped, softened };
 }
 
 async function updateHarness() {
   const target = resolve(vals.target || process.cwd());
   const forge = join(target, '.forge');
-  if (!existsSync(join(forge, 'forge.yaml')))
+  // Dois diagnósticos diferentes por trás do mesmo exit 3 (REQ-FHT-037: nunca escreve neste
+  // caminho, nos dois casos). `.forge/` ausente é "nunca instalado" — `init` é o remédio certo.
+  // `.forge/` PRESENTE sem forge.yaml é instalação parcial, arquivo apagado, ou o dogfood do
+  // próprio harness (LDG-0028) — `init` exigiria --force e faria backup+sobrescrita de specs/
+  // baseline que podem existir ali, a ação errada quando só um arquivo sumiu. Nomear o artefato
+  // que falta de verdade, sem prescrever a rota destrutiva.
+  if (!existsSync(forge))
     fail(`.forge não encontrado em ${target} — use \`npx forge-harness init\` para instalar`, 3);
+  if (!existsSync(join(forge, 'forge.yaml')))
+    fail(`${target}/.forge existe mas forge.yaml não — instalação parcial, arquivo apagado, ou harness sem esse arquivo (ex.: dogfood). Não rode init (exigiria --force e sobrescreveria specs/baseline existentes) — restaure .forge/forge.yaml (do template ou do histórico do git) e rode update de novo`, 3);
 
   // Passo zero: recusa rodar de dentro de um worktree linkado. A maquinaria é versionada DENTRO da
   // árvore, então um update aplicado num worktree escreve `.forge/**` novo apenas naquela branch —
@@ -515,12 +573,39 @@ async function updateHarness() {
   // Exclui worktrees/ (working trees de git worktrees linkados — potencialmente enormes e com ponteiros
   // gitdir que quebram numa cópia) além do cruft do macOS.
   if (!flags.noBackup) {
-    let n = 1; while (existsSync(`${forge}.bak-${n}`)) n++;
-    cpSync(forge, `${forge}.bak-${n}`, {
+    // FORA da árvore de trabalho (issue #76). O backup vivia em `.forge.bak-N`, dentro do repo, e
+    // todo gate que aceita `--path` e varre recursivamente passava a varrer também a CÓPIA — e a
+    // reprovar por conteúdo que é duplicata dele mesmo. Medido num consumidor real: logo após o
+    // update, `check-data-governance.sh --path .` acusava conflito de RLS; movendo o backup para
+    // fora e sem mudar mais nada no mesmo commit, passava.
+    //
+    // O efeito chegava ao `pre-push`: o primeiro bloqueio depois do upgrade era um gate de
+    // governança de dados apontando conflito, e a leitura natural do operador é que o upgrade
+    // quebrou algo ou que existe um problema de conformidade real. A causa — o backup — não
+    // aparecia em lugar nenhum da mensagem, e a instrução do próprio update é manter o backup até
+    // validar: o caminho recomendado era o que produzia o falso positivo.
+    //
+    // `check-secrets.sh` era o caso mais desconfortável: um segredo já corrigido no original
+    // continuava presente na cópia. E o backup também não era coberto pelo .gitignore gerenciado,
+    // então num repositório que use `git add -A` ele era candidato a entrar num commit.
+    //
+    // `.git/` resolve tudo isso de uma vez: fora do universo de qualquer gate, fora do `git
+    // status`, e continua ao lado do repositório para quem precisar restaurar.
+    let gitDir = null;
+    try {
+      gitDir = resolve(target, execFileSync('git', ['-C', target, 'rev-parse', '--git-dir'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim());
+    } catch { gitDir = null; }
+    const bakRoot = gitDir ? join(gitDir, 'forge-backups') : target;
+    let n = 1; while (existsSync(join(bakRoot, `forge-${n}`)) || (!gitDir && existsSync(`${forge}.bak-${n}`))) n++;
+    const bakDir = gitDir ? join(bakRoot, `forge-${n}`) : `${forge}.bak-${n}`;
+    mkdirSync(dirname(bakDir), { recursive: true });
+    cpSync(forge, bakDir, {
       recursive: true,
       filter: (p) => basename(p) !== '.DS_Store' && !relative(forge, p).split(sep).includes('worktrees'),
     });
-    console.log(`backup: .forge copiado para .forge.bak-${n}`);
+    const mostra = gitDir ? relative(target, bakDir) : `.forge.bak-${n}`;
+    console.log(`backup: .forge copiado para ${mostra}`);
+    if (!gitDir) console.log('  (fora de um repositório git: o backup ficou DENTRO da árvore — remova-o antes de rodar gates com --path)');
   }
 
   // overlay aditivo: sobrescreve mesmos paths, adiciona novos, NUNCA deleta extras do projeto.
@@ -598,12 +683,18 @@ async function updateHarness() {
 
   // forge.yaml: template_version + merge aditivo de chaves de topo novas do template (ex.: autonomy:)
   if (bumpTemplateVersion(forge, version)) console.log(`forge.yaml: template_version -> ${version}`);
-  const { added, skipped } = mergeNewForgeKeys(src, forge);
+  const { added, skipped, softened } = mergeNewForgeKeys(src, forge);
   if (added.length) console.log(`forge.yaml: ${added.length} chave(s) de topo nova(s) do template mescladas: ${added.join(', ')}`);
+  // Em voz alta: um bloco que muda POLÍTICA não pode entrar calado num upgrade de maquinaria.
+  for (const key of (softened || [])) {
+    console.log(`forge.yaml: '${key}:' entrou com enforce: warn (não block) — este repositório já existia e pode ter passivo.`);
+    console.log(`  revise com: .forge/scripts/check-${key}.sh report   e troque para block quando estiver saneado`);
+  }
   for (const key of skipped) console.log(`forge.yaml: seção nova '${key}:' NÃO mesclada (contém placeholder — exige preenchimento manual); revise o template`);
 
   // gitignore managed block — reconcilia (não é append-once; ver applyGitignoreBlock)
   applyGitignoreBlock(target);
+  applyGitattributesBlock(target);
 
   wireHooksPath(target);
 
@@ -624,7 +715,7 @@ async function updateHarness() {
   const preserved = work.total > 0 ? `${work.specsActive} spec(s) ativo(s), ${work.specsArchived} arquivado(s), ${work.productDocs} doc(s) de produto preservados` : 'sem trabalho de produto a preservar';
   console.log(`\n✔ Forge atualizado em ${target} (template v${version})`);
   console.log(`  ${preserved}`);
-  if (!flags.noBackup) console.log('  backup em .forge.bak-N (remova quando validar; o .forge é versionado em git)');
+  if (!flags.noBackup) console.log('  backup fora da árvore, em .git/forge-backups/ (não é varrido por gate nem aparece em git status)');
 }
 
 async function main() {
@@ -729,8 +820,9 @@ async function main() {
   const orphans = walk(forge).filter((f) => isTemplated(f) && !underTemplates(f) && /<PROJECT_[A-Z_]*>/.test(readFileSync(f, 'utf8')));
   if (orphans.length) fail(`${orphans.length} arquivo(s) ainda contêm placeholders <PROJECT_*>`, 1);
 
-  // 4. .gitignore managed block (reconcilia; ver applyGitignoreBlock)
+  // 4. .gitignore / .gitattributes managed blocks (reconciliam; ver applyManagedBlock)
   applyGitignoreBlock(target);
+  applyGitattributesBlock(target);
 
   // 5. git hooks path (only when the target is a git repo)
   wireHooksPath(target);

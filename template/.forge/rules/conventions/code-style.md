@@ -104,6 +104,27 @@ Extraia uma abstração na **terceira** repetição, não na primeira. Duas ocor
 
 Valide e normalize dado na **borda** (entrada de API, IO, mensageria, deserialização) — uma vez, no ponto de entrada. **Dentro** do domínio, confie nas invariantes já garantidas: não espalhe null-check paranoico em toda função interna. A garantia vem de o dado inválido não conseguir entrar, não de revalidar em todo lugar. A versão arquitetural (anti-corruption, validação antes do handler) está em `clean-architecture.md`.
 
+### 11. Corte de arquivo grande: as quatro costuras
+
+§2 trata tamanho como *smell*, não como portão — decisão correta, mas incompleta: dizer "revise" sem dizer *como cortar* deixa quem revisa sem estratégia, e o resultado mais comum é um `helpers.ts`/`utils.ts` novo virando depósito do que sobrou, trocando um arquivo grande por um arquivo grande com nome que não nomeia nada (mesmo defeito do §4 "generic-name", um nível de arquivo acima). A costura certa segue o domínio do conteúdo, nesta ordem — tente a primeira que se aplicar, não pule para inventar:
+
+1. **Lógica de negócio embutida em UI/rota → serviço de domínio.** Regra de negócio, cálculo ou decisão que vive dentro de um componente de UI ou de um handler de rota migra para um serviço/caso de uso do domínio; a UI/rota fica só com orquestração fina.
+2. **Bloco de UI repetido → sub-componente.** Markup/lógica de apresentação que se repete (ou que já cresceu além do que cabe na tela, §2) vira um sub-componente nomeado pelo que ele mostra, não pela posição na árvore.
+3. **Acesso a dados → repositório/adaptador.** Query, chamada HTTP ou leitura de storage embutida na lógica de negócio migra para um repositório/adaptador dedicado — o mesmo limite que `clean-architecture.md` já define entre `Infrastructure` e `Domain`/`Application`.
+4. **Aglomerado de helpers → módulo utilitário de domínio.** Só depois de esgotar as três costuras acima: funções auxiliares que sobraram viram um módulo nomeado pelo domínio que resolvem (`money-formatting.ts`, não `utils.ts`) — nomear pelo domínio é o que distingue esta costura de reinventar o depósito genérico que este parágrafo existe para evitar.
+
+**Escape hatch nomeado:** se nenhuma das quatro costuras se encaixa no trecho que sobrou, declarar **"sem costura natural, pare e siga para o próximo"** é preferível a inventar uma abstração só para justificar o corte — abstração forçada é mais cara de desfazer do que o arquivo grande que ela pretendia resolver (§9, regra de três).
+
+**Preservação de interface pública:** o arquivo original vira um **barril fino** que reexporta o que saiu, em vez de editar cada import site na mesma tacada. Migrar os import sites para o caminho novo é trabalho separado, sem pressa, e pode esperar um commit próprio.
+
+**Ritmo:** um arquivo extraído por commit, com typecheck + teste + lint rodando entre cada um — nunca uma extração monolítica de vários arquivos num commit só. É o bite-sized (ver `Princípio` acima) aplicado ao corte em si.
+
+**Duas armadilhas a checar a cada extração:**
+- A extração pode empurrar o arquivo de **destino** acima do próprio teto — meça o destino depois do corte, não só a redução na origem.
+- A extração pode alargar em silêncio o tipo de retorno inferido: a função, fora do contexto que antes restringia o tipo, passa a inferir um tipo mais amplo — e o erro só aparece como erro de tipo num call site distante, sem relação aparente com o corte.
+
+Fonte: coreografia adaptada do prompt 09 do `vibe-coding-toolkit` (MIT).
+
 ---
 
 ## Verificação
@@ -112,6 +133,7 @@ Estilo é majoritariamente **julgamento**, não mecanizável por completo — po
 
 - **Checklist de revisão:** o `quality-reviewer` (e o code-review em geral) confere estas diretrizes; os engineering agents leem esta rule **antes de codificar**; o `task-coder` a inclui no contexto passado aos specialists.
 - **Braço mecânico (quando o linter da stack estiver configurado no projeto):** parte é automatizável como *smell* — ESLint `max-depth`/`complexity`/`no-magic-numbers` (TS/React), analisadores Roslyn / `dotnet format` (.NET), `detekt`/`ktlint` (Kotlin). **Não** é um novo gate bloqueante de CI: o template não presume esses limites ligados, então trate-os como sinal, não como portão — o gate de qualidade permanece o de `quality-gates.md`.
+- **Quando a stack permite, prefira o braço mecânico ao julgamento.** Regra que o compilador pode provar não deveria estar disputando atenção com o resto do contexto: em .NET, `TreatWarningsAsErrors` + `EnforceCodeStyleInBuild` + severidade por ID de regra no `.editorconfig` convertem boa parte desta rule em erro de compilação (ver o capability pack `backend-dotnet-relational` e `.forge/scripts/dotnet-baseline.sh`). O que sobra para leitura humana — responsabilidade única, nível de abstração, nome que revela intenção — é o que nenhum analisador decide.
 
 ## Anti-Patterns
 

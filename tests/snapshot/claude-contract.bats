@@ -63,10 +63,20 @@ except ImportError:
     sys.exit(0)
 # Valida que TODO frontmatter de agent/skill projetado parseia como YAML e tem description —
 # pega quebradores comuns (": " mapping, "&" anchor) que impedem o carregamento.
+#
+# O ponto de entrada de uma skill é o SKILL.md, e só ele carrega frontmatter. Uma skill pode
+# trazer `references/*.md` — material lido sob demanda, que é o mecanismo de progressive
+# disclosure e não deve entrar no contexto junto com a descrição. Exigir frontmatter deles
+# reprovaria a própria estrutura que o formato de skill prevê (primeiro caso:
+# `dotnet-quality-scan`). Em agents/, ao contrário, todo .md É um agent.
 bad = []
+agents_dir = pathlib.Path(sys.argv[1])
 for d in sys.argv[1:]:
-    for f in pathlib.Path(d).rglob('*.md'):
+    root = pathlib.Path(d)
+    for f in root.rglob('*.md'):
         if f.name == 'README.md':
+            continue
+        if root != agents_dir and f.name != 'SKILL.md':
             continue
         text = f.read_text()
         m = re.match(r'^---\n(.*?)\n---', text, re.S)
@@ -166,6 +176,35 @@ PYEOF
   grep -q '"matcher": "Bash"' "$CLAUDE_DIR/settings.json"
   wired=$(grep -c '"command":' "$CLAUDE_DIR/settings.json")
   [ "$wired" -eq 1 ]
+}
+
+@test "C5: handoff.auto: true wires +2 Session hooks (SessionStart/SessionEnd) — consolidates w62 into C5 (LDG-0022)" {
+  # Baseline (previous test) only asserts the auto:false state the generated tree ships with. The
+  # opt-in state (+2 Session hooks) was covered only by tests/w62-handoff-hook-gate.sh — functionally
+  # equivalent to the AC ("C5 accepts both states"), but the literal coverage stayed split across
+  # two tests (verification.md, add-portable-handoff, deferral). This test closes that gap: it
+  # builds a private copy of TARGET, flips handoff.auto to true, re-syncs the claude adapter, and
+  # asserts the +2 state — self-contained, so it needs no new CLAUDE_CONTRACT_* env from callers.
+  [ "$MODE" = "generated" ] || skip "baseline snapshot ships auto:false by design; this asserts the opt-in state"
+  command -v python3 >/dev/null || skip "python3 unavailable"
+  [ -f "$TARGET/.forge/scripts/sync-adapters.sh" ] || skip "TARGET has no live .forge/ tree to re-sync (not a full install)"
+
+  AUTO_T="$BATS_TEST_TMPDIR/handoff-auto"
+  cp -R "$TARGET" "$AUTO_T"
+  sed -i.bak 's/auto: false/auto: true/' "$AUTO_T/.forge/forge.yaml"
+  rm -f "$AUTO_T/.forge/forge.yaml.bak"
+  grep -q 'auto: true' "$AUTO_T/.forge/forge.yaml"
+
+  (cd "$AUTO_T" && bash .forge/scripts/sync-adapters.sh --adapter claude >/dev/null)
+
+  AUTO_SETTINGS="$AUTO_T/.claude/settings.json"
+  python3 -m json.tool "$AUTO_SETTINGS" >/dev/null
+  grep -q '"SessionStart"' "$AUTO_SETTINGS"
+  grep -q '"SessionEnd"' "$AUTO_SETTINGS"
+  grep -q 'on-session-start.sh' "$AUTO_SETTINGS"
+  grep -q 'on-session-end.sh' "$AUTO_SETTINGS"
+  wired=$(grep -c '"command":' "$AUTO_SETTINGS")
+  [ "$wired" -eq 3 ]
 }
 
 @test "C5: worktree-guard blocks outside the canonical worktree path (generated mode only)" {

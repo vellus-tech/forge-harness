@@ -90,6 +90,12 @@ FEED5="refs/heads/main $SHA5 refs/heads/main 00000000000000000000000000000000000
 # (a) diretório de suítes presente e runner ausente → o hook BLOQUEIA
 mkdir -p "$R5/.forge/scripts/tests"
 printf '#!/usr/bin/env bash\necho gate\n' > "$R5/.forge/scripts/tests/w01-x-gate.sh"
+# O `rm` é obrigatório desde a issue #73: o template passou a ENTREGAR o runner, então a condição
+# que este cenário mede — diretório presente, runner ausente — deixou de se montar sozinha ao
+# copiar o template. Sem remover, o fixture testava o estado bom e aprovava sem medir.
+# A asserção segue valendo: é a proteção da issue #49, e a #73 corrigiu a outra ponta (o template
+# não entregar o arquivo que o próprio hook exige) sem revogar a exigência.
+rm -f "$R5/.forge/scripts/tests/run-all.sh"
 out="$(cd "$R5" && printf '%s\n' "$FEED5" | bash .forge/hooks/git/pre-push origin "file://$R5" 2>&1)"; rc=$?
 [ "$rc" -ne 0 ] || { echo "FAIL [5a]: pre-push passou com .forge/scripts/tests/ presente e run-all.sh ausente (saída: '$out')"; exit 1; }
 case "$out" in

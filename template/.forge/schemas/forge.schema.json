@@ -238,6 +238,13 @@
               "items": {
                 "type": "string"
               }
+            },
+            "include_paths": {
+              "type": "array",
+              "description": "Globs (mesmo dialeto de `layers`) de caminhos que são código-fonte de verdade mesmo quando o nome bateria com o default de \"pular\" — prefixo de ponto (`.forge/`, `.config/`) ou a lista fixa SKIP_DIRS (LDG-0027). Existe para o repositório que PRODUZ um harness/scaffold cujo próprio produto vive sob um diretório assim (ex.: `template/.forge/scripts/**`), sem precisar de exceção com nome de projeto embutida no engine. Bloco ausente = nenhum caminho forçado = o walk de hoje, byte a byte.",
+              "items": {
+                "type": "string"
+              }
             }
           }
         },
@@ -526,6 +533,11 @@
               "minLength": 1,
               "description": "Nome do recurso disputado. Repositórios que disputam a MESMA máquina precisam do mesmo nome para serializar entre si; nomes distintos são conjuntos de exclusão distintos, de propósito. Default forge-heavy-suite."
             },
+            "root": {
+              "type": "string",
+              "pattern": "^/",
+              "description": "Raiz ABSOLUTA onde o lock é criado. Default /tmp. Precedência: FORGE_HEAVY_MUTEX_ROOT > este campo > /tmp. A variável de ambiente é a via de ISOLAMENTO deliberado; esta chave é a via de CONVERGÊNCIA, para um host onde vários repositórios já se serializam por um protocolo legado poder migrar UM de cada vez. Sem ela a migração é atômica sobre o conjunto: o primeiro a migrar parte a exclusão de todos os outros, e cada lado adquire o próprio lock com sucesso acreditando estar protegido."
+            },
             "timeout_s": {
               "type": "integer",
               "minimum": 0,
@@ -547,6 +559,18 @@
               "minimum": 1,
               "maximum": 60,
               "description": "Teto da leitura de rede, em segundos. Default 5. Medido em 2026-08-21 (GitHub HTTPS, 108 refs): ls-remote custa 0,55 a 0,73s em rede quente e 9,0s quando o DNS falha, daí o teto."
+            }
+          }
+        },
+        "worktree_reconcile": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Reconciliação de worktrees contra o remoto REAL. A medição por `@{u}` lê `refs/remotes/*`, que é réplica local e pode estar desatualizada nas duas direções — sem `fetch` recente ignora o que o servidor já tem, e depois de um `fetch` alheio pode estar à frente do que este worktree conhece. É o mesmo defeito que o `check-push-ahead` corrigiu usando `ls-remote`, e que sobrevivia aqui (LDG-0056).",
+          "properties": {
+            "timeout_s": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Teto em SEGUNDOS para consultar o remoto. Esgotado o teto, a medição degrada para NÃO MEDIDO explícito — nunca finge sincronia, porque 'não consegui perguntar' e 'perguntei e está em dia' não podem terminar no mesmo lugar. Default 5."
             }
           }
         }

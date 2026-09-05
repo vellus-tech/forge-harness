@@ -28,7 +28,21 @@ case "${1:-}" in
   *) echo "Argumento desconhecido: $1 (use --install ou --report)"; exit 2 ;;
 esac
 
-ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+#
+# ROOT honra FORGE_ROOT quando setado (convenção compartilhada com heavy-mutex.sh,
+# forge-runtime.sh etc. — ver lib/forge-runtime.sh e o mecanismo de dogfood). Sem isso, rodar
+# `template/.forge/scripts/doctor.sh` (única cópia existente no dogfood incompleto da raiz deste
+# próprio repositório — vd. LDG-0040) sempre resolve ROOT para `template/`, o diretório-fonte do
+# pacote — e então o guard de placeholders <PROJECT_*> se autoflagra: FORGE.md/context.md/
+# constitution.md em template/.forge SÃO o scaffold ainda não preenchido, por design, o mesmo
+# motivo pelo qual .forge/templates/ já é excluído da varredura. Nunca é o projeto que o autor
+# pretendia checar. Com FORGE_ROOT setado, `FORGE_ROOT=<repo> bash template/.forge/scripts/
+# doctor.sh --report` aponta para o projeto de verdade.
+if [ -n "${FORGE_ROOT:-}" ]; then
+  ROOT="$(cd "$FORGE_ROOT" && pwd)"
+else
+  ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+fi
 cd "$ROOT"
 
 # ── helpers ────────────────────────────────────────────────────────────────
@@ -41,6 +55,7 @@ have() { command -v "$1" >/dev/null 2>&1; }
 ok()    { printf "  %s✓%s %s\n" "$GREEN" "$RST" "$1"; }
 miss()  { printf "  %s✗%s %s\n" "$RED" "$RST" "$1"; }
 info()  { printf "  %s·%s %s\n" "$YEL" "$RST" "$1"; }
+warn()  { printf "  %s!%s %s\n" "$YEL" "$RST" "$1"; }
 hint()  { printf "      %s↳ %s%s\n" "$DIM" "$1" "$RST"; }
 
 # Detecta stacks por marcadores no repo (ignora node_modules/bin/obj/.git).
@@ -199,11 +214,13 @@ EOF_CHG
       [ -f "/tmp/$hm_res.q.enabled" ] \
         || echo "  · harness: heavy_mutex habilitado no repo, mas a FILA da máquina está desligada (ligue com: heavy-run.sh queue enable)"
     fi
-    # A raiz legada é montada em duas partes de propósito: escrita numa linha só, ela casaria a
-    # regra 1 do check-heavy-mutex — que procura quem PRODUZ caminho de lock a partir de variável
-    # do chamador — e o gate reprovaria o próprio template. Aqui a intenção é o oposto: DETECTAR
-    # o caminho legado para avisar que ele não serializa.
-    hm_legroot="${TMPDIR:-/tmp}"
+    # A raiz legada é montada em duas partes porque a intenção aqui é o OPOSTO da regra 1 do
+    # check-heavy-mutex: este bloco DETECTA o caminho legado para avisar que ele não serializa, não
+    # o PRODUZ. Quebrar em duas linhas costumava desarmar a regra por acaso (LDG-0054: ela media
+    # grafia — variável e 'lock' na mesma linha — e não intenção); agora a regra mede por janela e
+    # pegaria este bloco também, então a válvula é DECLARADA em vez de acidental: o marcador abaixo
+    # é o que o gate reconhece, e a intenção passa a viver no código, não num comentário adjacente.
+    hm_legroot="${TMPDIR:-/tmp}"  # heavy-mutex: detecção
     hm_leg="$hm_legroot/$hm_res".lock
     if [ "$hm_leg" != "/tmp/$hm_res.lock" ] && [ -d "$hm_leg" ]; then
       echo "  ✗ harness: lock LEGADO vivo em $hm_leg — este caminho NÃO serializa com /tmp/$hm_res.lock (recolha com: heavy-run.sh sweep --legacy)"
@@ -326,8 +343,36 @@ EOF_ORPHAN
       hint "corrija com: npx forge-harness update   (grava o caminho absoluto do tronco)"
       MISSING_DIAG=1
     else
-      info "harness: core.hooksPath customizado ('$hp_cur') — os hooks do Forge não estão ativos"
-      hint "encadeie .forge/hooks/git/* no seu hook customizado se quiser os gates do Forge"
+      # VERIFICA o encadeamento em vez de confiar (issue #74). `info` era a severidade certa para
+      # quem encadeou e a errada para quem não encadeou, e o doctor não distinguia os dois porque
+      # não olhava — então "instalei o harness, ele está inerte, e o doctor diz que está tudo bem"
+      # ficava indistinguível de "instalei e encadeei tudo". A régua já existe: a issue #41 fez o
+      # hooksPath relativo virar defeito exatamente porque hook que não executa é indistinguível de
+      # hook ausente, e uma árvore customizada sem encadeamento produz o MESMO estado.
+      #
+      # O caso mais valioso é o parcial, e é o mais provável: quem tem hooks próprios encadeia o
+      # que precisava no dia em que precisou, e cada upgrade acrescenta gates que ninguém liga.
+      # Sem esta linha, todo `update` amplia em silêncio a distância entre o que o harness entrega
+      # e o que o repositório executa.
+      hp_ref=0; hp_orfaos=""
+      if [ -d "$hp_cur" ]; then
+        grep -rqE '\.forge/hooks/git|check-[a-z-]+\.sh' "$hp_cur" 2>/dev/null && hp_ref=1
+        for hp_g in "$ROOT"/.forge/scripts/check-*.sh "$ROOT/.forge/scripts/tests/run-all.sh"; do
+          [ -f "$hp_g" ] || continue
+          hp_n="$(basename "$hp_g")"
+          grep -rq "$hp_n" "$hp_cur" 2>/dev/null || hp_orfaos="$hp_orfaos $hp_n"
+        done
+      fi
+      if [ "$hp_ref" -eq 0 ]; then
+        miss "harness: core.hooksPath customizado ('$hp_cur') e NENHUMA referência aos gates do Forge — a árvore .forge/hooks/git/ está inerte"
+        hint "encadeie .forge/hooks/git/* nos seus hooks, ou rode: npx forge-harness update"
+        MISSING_DIAG=1
+      elif [ -n "$hp_orfaos" ]; then
+        warn "harness: core.hooksPath customizado com encadeamento PARCIAL — gates que ninguém invoca:$hp_orfaos"
+        hint "encadeie os acima em '$hp_cur' — cada upgrade acrescenta gates novos, e os que ninguém liga não rodam"
+      else
+        ok "harness: core.hooksPath customizado ('$hp_cur') com os gates do Forge encadeados"
+      fi
     fi
 
     # Divergência de maquinaria por worktree. Maquinaria versionada dentro da árvore não se
@@ -449,6 +494,17 @@ check_dotnet() {
   else info "lsp: csharp-ls/OmniSharp ausente (opcional — VS Code C# Dev Kit já provê)"
        try_install "csharp-ls" dotnet tool install -g csharp-ls || true
   fi
+  # Baseline de enforcement de build: o que faz convenção virar erro de compilação.
+  # Informativo por decisão — materializar arquivo na raiz do projeto é ato do humano
+  # (ou de `--apply`), nunca efeito colateral de um diagnóstico.
+  if [ -x "$ROOT/.forge/scripts/dotnet-baseline.sh" ]; then
+    if bash "$ROOT/.forge/scripts/dotnet-baseline.sh" --root "$ROOT" --check >/dev/null 2>&1; then
+      ok "baseline de build: Directory.Build.props + .editorconfig + CPM no lugar"
+    else
+      info "baseline de build incompleto (regra em prosa não vira erro de compilação)"
+      hint "audite com: bash .forge/scripts/dotnet-baseline.sh --check · materialize com --apply"
+    fi
+  fi
 }
 
 # ── Node / TypeScript ─────────────────────────────────────────────────────────
@@ -471,6 +527,18 @@ check_node() {
   if have typescript-language-server; then ok "lsp: typescript-language-server presente"
   else info "lsp: typescript-language-server ausente (opcional)"
        try_install "typescript-language-server" npm install -g typescript-language-server || true
+  fi
+  # Baseline de qualidade de lint: o que faz console.log/import direto de banco/tamanho de
+  # arquivo virarem sinal verificável em ESLint em vez de regra em prosa. Informativo por
+  # decisão — materializar eslint.config.mjs na raiz do projeto é ato do humano (ou de
+  # --apply), nunca efeito colateral de um diagnóstico.
+  if [ -x "$ROOT/.forge/scripts/node-baseline.sh" ]; then
+    if bash "$ROOT/.forge/scripts/node-baseline.sh" --root "$ROOT" --check >/dev/null 2>&1; then
+      ok "baseline de qualidade: eslint.config + forge-quality/* no lugar"
+    else
+      info "baseline de qualidade incompleto (regra em prosa não vira aviso de lint)"
+      hint "audite com: bash .forge/scripts/node-baseline.sh --check · materialize com --apply"
+    fi
   fi
 }
 

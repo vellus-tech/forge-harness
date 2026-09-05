@@ -24,9 +24,34 @@ quality:
   enabled: false
   evals_root: .forge/evals
   runners: .forge/runners.yaml
+  # Cobrados no pré-flight §13.1 do /forge:archive (lib/validate-archive.mjs):
+  #   require_tests_before_archive        -> exige um check 'test' com status 'passed' no
+  #                                          verification.yaml (declare 'test:' em runtime).
+  #   require_traceability_before_archive -> exige que todo requirement que o spec-delta.yaml
+  #                                          introduz/modifica apareça no traceability.yaml
+  #                                          ligado a ao menos uma TASK.
+  # Pôr em `false` é dispensa DECLARADA: o archive segue e ANUNCIA a dispensa no log.
   require_tests_before_archive: true
-  require_traceability_before_archive: true
-  require_human_approval_before_archive: true
+  # Default OFF, e o motivo é MEDIDO, não preferência: ligá-la exige que todo change que
+  # introduz/modifica requirement carregue `traceability.yaml` PREENCHIDO, e o artefato nasce
+  # como scaffold. Ligada por default, o primeiro /forge:archive de todo adotante — e cinco
+  # fixtures da suíte deste repositório — passariam a reprovar por um artefato que o pipeline
+  # nunca exigiu antes. A chave é REAL (o pré-flight a lê e a honra, provado por w192); virar o
+  # default é fatia própria, depois de uma passagem de curadoria sobre os artefatos de change.
+  require_traceability_before_archive: false
+  # NÃO existe 'require_human_approval_before_archive'. A aprovação humana antes do archive é
+  # real e já é cobrada, sob outro nome: o gate de manifesto `gates.human_archive_approval`
+  # (schemas/spec-manifest.schema.json), exigido por lib/validate-archive.mjs e escrito por
+  # approval-log.sh. Uma chave aqui seria a SEGUNDA verdade sobre o mesmo fato — e quem a
+  # pusesse em `false` esperando pular o gate encontraria o gate mesmo assim, sem explicação.
+rules:
+  # Rule-packs de domínio ATIVOS (LDG-0003). Simetria explícita com capabilities.active: pack
+  # listado aqui passa a ser CONTRATO do projeto e `validate-rules.sh` o afirma; rule cujo `pack:`
+  # não está listado continua disponível como REFERÊNCIA, nunca gate imposto — que é exatamente o
+  # que rules/README.md sempre prometeu e nada lia. Ativar pack sem nenhuma rule que o declare
+  # REPROVA: ativação sem conteúdo é a forma de acreditar ter contratado uma política sem ter.
+  # Ex.: [security-authz, data-classification]
+  packs: []
 handoff:
   # Quando true, sync-adapters liga hooks SessionStart/SessionEnd no settings.json do adapter
   # ativo: regeneram e injetam o .forge/HANDOFF.md automaticamente (rule-based, sem LLM). Default off.

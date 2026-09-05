@@ -47,6 +47,11 @@ forge_resolve_root() {
 # que rode tudo do tronco nunca o vê.
 forge_warn_root_divergence() {
   local root="$1" artefato="${2:-estado durável}" porta="${3:-}"
+  # FORGE_ROOT explícito é DECLARAÇÃO, não acidente: quem o exportou já disse onde quer gravar, e
+  # avisá-lo seria ruído em todo fixture, todo CI e toda invocação deliberada — ruído que treina o
+  # operador a ignorar a linha justamente quando ela importa. O aviso existe para a resolução
+  # AUTOMÁTICA que cai no tronco sem ninguém ter pedido.
+  [ -n "${FORGE_ROOT:-}" ] && return 0
   local here
   here="$(git -C "$(pwd)" rev-parse --show-toplevel 2>/dev/null)" || return 0
   [ -n "$here" ] || return 0

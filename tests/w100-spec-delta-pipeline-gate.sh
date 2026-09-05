@@ -21,8 +21,11 @@ SN="$T/.forge/scripts/spec-new.sh"; ST="$T/.forge/scripts/spec-transition.sh"
 SV="$T/.forge/scripts/spec-verify.sh"; AS="$T/.forge/scripts/archive-spec.sh"
 VS="$T/.forge/scripts/validate-spec.sh"; VA="$T/.forge/scripts/lib/validate-archive.mjs"
 SC="$T/.forge/scripts/lib/spec-delta-scaffold.mjs"
-# FORGE.md mínimo sem runtime: (spec-verify pula a fase de checks deterministicamente)
-printf -- '---\nproject: w100\n---\n# FORGE\n' > "$T/.forge/FORGE.md"
+# FORGE.md mínimo, com um único check declarado. Era "sem runtime:" — mas desde que
+# quality.require_tests_before_archive virou enforcement real no pré-flight §13.1 (LDG-0008),
+# um change sem NENHUM check `test` com status `passed` reprova no archive, e este gate mede o
+# pipeline de spec-delta, não a política de evidência de teste.
+printf -- '---\nproject: w100\nruntime:\n  test: true\n---\n# FORGE\n' > "$T/.forge/FORGE.md"
 git -C "$T" init -q
 git -C "$T" -c user.email=t@t -c user.name=t add -A >/dev/null
 git -C "$T" -c user.email=t@t -c user.name=t commit -qm init >/dev/null

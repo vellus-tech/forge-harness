@@ -214,12 +214,16 @@ bash "$SCAN" --root "$T/clean" >/dev/null 2>&1 || fail "[9]: scanner devolveu rc
 echo "OK [9] controle e recontrole"
 
 # ── [10] sem ripgrep no PATH ────────────────────────────────────────────────────────────────
+# `command -v` direto, sem `env -i`: `env -i PATH=... command -v <x>` só funciona onde `command`
+# também existe como BINÁRIO externo (macOS tem /usr/bin/command; Debian/Ubuntu não — lá
+# `command` é builtin puro, `env` não invoca builtin, e o `command -v` fica mudo para TODAS as
+# ferramentas, o stub nasce vazio, e nem o `bash` do stub é resolvido depois). Mesmo idioma do
+# w155 (dotnet), já portátil nos dois SOs.
 stub="$T/stubbin"; mkdir -p "$stub"
 for c in bash grep sed awk find cat printf sort head wc tr; do
-  p="$(env -i PATH="/usr/bin:/bin" command -v "$c" 2>/dev/null)"
-  [ -n "$p" ] && ln -sf "$p" "$stub/$c"
+  p="$(command -v "$c" 2>/dev/null)" && ln -sf "$p" "$stub/$c"
 done
-norg_out="$(env -i PATH="$stub" bash "$SCAN" --root "$T/dirty" 2>&1)"
+norg_out="$(PATH="$stub" bash "$SCAN" --root "$T/dirty" 2>&1)"
 grep -q '^FOUND empty-catch' <<<"$norg_out" || fail "[10]: sem rg no PATH o scanner deixa de achar (falso verde)"
 [ "$(grep -cE '^(OK|FOUND) ' <<<"$norg_out")" = "$n_dirty" ] || fail "[10]: sem rg o scanner perde regras"
 echo "OK [10] portabilidade"

@@ -34,6 +34,10 @@ rg -n --glob '*.cs' '(FromSqlRaw|ExecuteSqlRaw|CommandText[[:space:]]*=|new[[:sp
 
 # estado estático mutável (o filtro remove readonly/const e assinaturas de método)
 rg -n --glob '*.cs' '(public|internal)[[:space:]]+static[[:space:]]' | grep -vE '(readonly|const|\(|class|record|struct|interface|enum)'
+
+# interface com implementação única (duas passadas: declara IX, depois conta ": IX" / ", IX")
+rg -n --glob '*.cs' '(public|internal)[[:space:]]+(partial[[:space:]]+)?interface[[:space:]]+I[A-Z]'
+rg -n --glob '*.cs' '(:|,)[[:space:]]*IFoo([^A-Za-z0-9_]|$)'   # IFoo = cada nome achado no passo anterior
 ```
 
 Equivalente sem `rg`: troque `rg -n --glob '*.cs'` por `grep -rnE --include='*.cs'` e acrescente o diretório alvo no fim.
@@ -41,5 +45,7 @@ Equivalente sem `rg`: troque `rg -n --glob '*.cs'` por `grep -rnE --include='*.c
 ## Limites destes comandos
 
 São regex sobre texto, não análise sintática. Eles não sabem o que é comentário, o que é string literal e o que atravessa mais de uma linha — uma assinatura quebrada em várias linhas escapa do `bool-param`, e `// new HttpClient()` num comentário aparece como achado. É o preço de ser barato e portátil; a triagem é de quem lê.
+
+`single-impl-interface` é o caso onde isso mais custa, porque o achado é uma conclusão sobre arquitetura, não um estilo pontual (LDG-0062). Os dois erros são silenciosos e em direções opostas: uma implementação **comentada** (`// class Old : IFoo`) conta como ocorrência real e pode esconder uma interface que hoje tem exatamente uma implementação de verdade (falso negativo — a regra não acha o que devia); e uma declaração `interface IFoo` dentro de comentário ou string literal é tratada como interface existente, cuja única "implementação" real infla a contagem para uma conclusão que não existe no código compilável (falso positivo). Declaração de base partida em mais de uma linha (`class Foo :\n    IFoo`) tampouco é contada, na mesma direção do falso negativo. Nenhum desses três casos é raro em base grande — são exatamente o "comentário, string literal, declaração multi-linha" que esta seção já nomeia para as outras nove regras.
 
 Quando a precisão importar mais que o custo, a ferramenta certa é um analisador Roslyn de verdade: uma regra customizada em `Microsoft.CodeAnalysis.CSharp` opera sobre a árvore sintática, entra no build e reprova o PR — que é a primeira camada, não esta.

@@ -68,6 +68,8 @@ Interface com uma única implementação e nenhum outro consumidor costuma ser a
 
 **Exceção legítima:** porta de arquitetura hexagonal deliberada (o domínio declara a interface, a infraestrutura implementa — a segunda implementação é o teste), ou fronteira de módulo onde a interface é o contrato publicado. Essa distinção é de julgamento; o scanner só aponta.
 
+**Limite do scanner (LDG-0062):** a contagem é `grep`, não árvore sintática — não distingue comentário, string literal nem declaração de base partida em múltiplas linhas. Implementação comentada infla a contagem e esconde um single-impl real (falso negativo); declaração ou uso dentro de comentário/string cria interface ou implementação fantasma (falso positivo). Em base grande os dois acontecem em silêncio. A saída com precisão real é um analisador Roslyn operando sobre a árvore sintática, na camada de build — não esta skill; ver `references/detection-commands.md`.
+
 ## O que fica de fora do scanner
 
 Herança profunda, tipo de retorno permissivo (`IEnumerable<T>` devolvido sobre coleção já materializada, que permite ao chamador enumerar duas vezes e disparar a query de novo), nome que mente sobre o que a função faz, invariante de domínio ausente e teste sem asserção. Nenhum grep decide isso com precisão aceitável — é leitura do diff, e é por isso que a skill não substitui o reviewer.

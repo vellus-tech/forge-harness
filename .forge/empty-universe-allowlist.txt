@@ -1,0 +1,8 @@
+# Isenções de universo vazio (rule testing/quality-gates.md, issue #49).
+#
+# Universo vazio NÃO é sucesso por padrão: "não encontrei violação" e "não examinei nada" são
+# estados distintos, e um gate que aprova por não ter olhado compra confiança sem entregar
+# verificação. Cada isenção aqui é declarada, versionada e revisável, e entrada sem `# motivo:`
+# reprova por integridade — é exatamente por aí que um gate é esvaziado na prática.
+
+red-first-ci  # motivo: o forge-harness é o repositório que PRODUZ o harness, e o seu próprio ciclo SDD só tem change ativo enquanto uma obra está em curso. Desde que o último residual foi encerrado (LDG-0037, delivered-externally), `.forge/specs/active/` está legitimamente vazio, e o git não versiona diretório vazio. O gate de Red-first não tem o que examinar — o que é diferente de examinar e não achar. A isenção cai sozinha no instante em que um change ativo voltar a existir: o gate volta a ter universo e a allowlist deixa de ser consultada.

@@ -486,7 +486,7 @@
       "id": "LDG-0021",
       "type": "tech-debt",
       "title": "Prova de mutação mede as regras que existem, não a superfície de entrada que elas deixam passar — pede change SDD próprio, não faxina de ledger",
-      "detail": "Limite estrutural exposto pelas CINCO rodadas de revisao do PR #40, e vale registrar porque e' generalizavel a todo gate deste harness. As provas de mutacao do w132 (15) sao fortes no que fazem: mutar a regra que implementa cada correcao faz o caso reprovar, com controle, recontrole, mutador que falha se o alvo textual sumir e checksum do lib de origem. Mas elas medem apenas as regras JA ESCRITAS. NENHUM dos ~25 defeitos das cinco rodadas foi encontrado por mutacao — todos nasceram de alguem construir uma ENTRADA que o reconhecedor nao previa (produtor homonimo, subgrupo dentro de produtor, interpolacao no meio do path, data class sem corpo, 'where T : class', DSL kotlinx.html com nome de verbo, literal com '//' ou chave, emoji dessincronizando code point x UTF-16, verbatim C# terminado em barra, raw string do Kotlin com DSL de exemplo, @Controller sem flag global). E' a mesma forma do defeito que o proprio modulo descreve para o 'unresolved': o que o regex nao reconhece e' invisivel por construcao. PARCIALMENTE ATACADO nesta entrega: (a) o caso [41] virou propriedade POSICIONAL (code[i] e struct[i] so podem ser o original ou espaco; newline nunca some; struct e' sempre mais mascarada que code) medida sobre corpus de DIALETO (.cs/.kt/.java/.ts com comentario de bloco, verbatim multilinha, raw string, emoji), e nao mais sobre os .mjs do proprio harness — a primeira versao media o harness em vez dos dialetos e com a propriedade mais fraca possivel (comprimento); (b) o caso [43] e' PARAMETRICO: 'duas unidades de roteamento no mesmo arquivo' testado nos seis dialetos de uma vez, porque essa classe unica foi descoberta TRES vezes por tres revisoes diferentes (.NET atributos, Spring, e Nest ainda vivo na 5a rodada). O QUE FALTA: fuzzing guiado por gramatica de cada dialeto, e corpus de arquivos REAIS dos repos adotantes — que e' o que de fato pegaria idiomas como o kotlinx.html. Enquanto nao existir, a cobertura de dialeto e' hipotese, nao fato, o que reforca LDG-0017. NOTA (Onda 7/8, 2026-09-04): permanece open por decisao explicita. O plano de resolucao (docs/plans/2026-09-04-plano-resolucao-issues-e-ledger.md, Onda 7) e o mandato desta sessao sao explicitos: mudar a regua de prova de mutacao afeta os ~94 gates do repositorio e PEDE change SDD proprio (scale >= 2, com design.md decidindo o eixo de fuzzing guiado por gramatica e a estrategia de corpus real dos repos adotantes) — nao e item de faxina de ledger. Nenhum codigo foi escrito para este item nesta sessao.\n\nDECISÃO (2026-09-05, dono do repositório): permanece open, prioridade REBAIXADA de P2 para P3, e o escopo deixa de ser nota conceitual para virar change SDD com primeira fatia nomeada.\n\nRazão medida do rebaixamento: nada em campo está bloqueado por este item, e a mitigação que de fato encontrou os ~25 defeitos foi revisão adversarial humana — não a prova de mutação —, que continua disponível e foi exercida cinco vezes no PR #40 e três no PR #42. A fatia mais barata já entrou (caso [41], propriedade posicional sobre corpus de dialeto; caso [43], paramétrico nos seis dialetos). Mantê-lo em P2 o faz competir com itens que travam trabalho de consumidor, e um P2 que ninguém pega há um mês descreve mal a urgência.\n\nCORREÇÃO DE NÚMERO: este registro e o plano de 2026-09-04 falam em mudar a régua \"de todos os 94 gates\". Medido hoje: a suíte tem 116 gates (93 arquivos tests/w*.sh, 115 .sh no diretório). O custo da mudança é maior do que o item afirmava, não menor — o que reforça o change SDD e desaconselha o adendo apressado.\n\nESCOPO PARA O CHANGE SDD (scale >= 2, com design.md decidindo): eixo 1, fuzzing guiado por GRAMÁTICA por dialeto, gerando entrada que o reconhecedor não previu, em vez de mutar a regra já escrita — é a forma do defeito que este item descreve; eixo 2, corpus de arquivos REAIS dos repositórios adotantes (axis-go-cloud, axis-device-platform, azim-crm), que é o que pegaria idiomas como o kotlinx.html; eixo 3, o critério de aceitação do próprio change — o que conta como cobertura de dialeto MEDIDA, já que hoje ela é hipótese (é o que reforça LDG-0017). Não executar como item de faxina.",
+      "detail": "COMPOSIÇÃO DO 116 CORRIGIDA EM 2026-09-05 (o total estava certo; o que o compõe, não — a glosa dizia '115 .sh no diretório'). Medido: tests/run-all.sh executa 114 arquivos tests/*-gate.sh, dos quais 93 casavam w* antes desta leva, MAIS 2 suítes bats (validators.bats e snapshot/claude-contract.bats). 114 + 2 = 116. Depois desta leva a régua muda: 6 gates novos (w190, w191, w192, w193, w194, w195, w197). O item permanece OPEN, P3, e o escopo de change SDD próprio que ele já registra continua valendo: exige decidir o eixo de fuzzing guiado por gramática e a estratégia de corpus real dos repositórios adotantes, com design.md.",
       "severity": null,
       "priority": "P3",
       "status": "open",
@@ -502,7 +502,7 @@
         "promoted_to": null
       },
       "created_at": "2026-08-03T15:35:34-03:00",
-      "updated_at": "2026-09-05T09:07:01-03:00",
+      "updated_at": "2026-09-05T20:10:11-03:00",
       "resolved_at": null,
       "dedup_key": "manual:LDG-0021"
     },
@@ -1637,7 +1637,7 @@
       "id": "LDG-0100",
       "type": "tech-debt",
       "title": "check-liaison-acks.sh não lê o hub para transporte git/gh (issue #84, escopo deliberado)",
-      "detail": "",
+      "detail": "FORA DESTA LEVA POR ZERO EXPOSIÇÃO EM CAMPO, medido em 2026-09-05. check-liaison-acks.sh só lê o hub para os transportes fs e manual, caindo na réplica local para git/gh — o que está correto e é decisão deliberada, documentada no cabeçalho do próprio script (linhas 38-42). Censo dos liaison.yaml do ecossistema: TODO canal declarado, em TODAS as árvores, usa kind: fs. Nenhum usa git nem gh (medição do produtor da spec: cinco arquivos; a revisão adversarial contou quatro vivos e sete incluindo .bak — a conclusão se sustenta em todos os recortes). A lacuna é real no código e não alcança ninguém hoje. CONDIÇÃO QUE REABRE O ITEM: o primeiro canal declarado como kind: git ou kind: gh em qualquer árvore do ecossistema. Até lá, implementá-lo seria escrever leitura de hub sem hub para exercitá-la.",
       "severity": null,
       "priority": "P3",
       "status": "open",
@@ -1653,7 +1653,7 @@
         "promoted_to": null
       },
       "created_at": "2026-09-04T18:44:45-03:00",
-      "updated_at": null,
+      "updated_at": "2026-09-05T20:10:11-03:00",
       "resolved_at": null,
       "dedup_key": "manual:LDG-0100"
     },
@@ -1661,10 +1661,10 @@
       "id": "LDG-0101",
       "type": "tech-debt",
       "title": "liaison-message.schema.json descreve body/body_ref como mutuamente obrigatório, mas validateEnvelope aceita os dois ausentes",
-      "detail": "",
+      "detail": "MEDIDO EM 2026-09-05: são DUAS divergências, e a registrada estava INVERTIDA (o item falava em 'mutuamente obrigatório' como se o schema exigisse ambos). (1) A DESCRIÇÃO de body afirmava 'Mutuamente exclusivo com body_ref — exatamente um dos dois é obrigatório'. A ESTRUTURA do schema não afirmava nada disso: nem body nem body_ref estão em required, e o allOf tinha apenas duas cláusulas if/then sobre kind. validateEnvelope (liaison-merge.mjs:273-292) implementa 'ambos opcionais, mutuamente exclusivos quando presentes', com justificativa escrita — ali quem mentia era a DESCRIÇÃO, e o código estava certo. (2) A exclusão mútua que o validador DE FATO cobra não estava codificada no schema de forma alguma: uma mensagem com os DOIS campos PASSAVA no schema e REPROVAVA no validador — divergência de direção oposta, com consequência real para quem valida por ajv antes de enviar. CORRIGIDAS AS DUAS: descrição reescrita para dizer o que o validador faz, e allOf ganhou 'not: {required: [body, body_ref]}'. Gate: w197 cenários [4] e [5]. — Resolvido: as duas divergências fechadas (descrição e codificação da exclusão mútua); w197[4]/[5] verdes",
       "severity": null,
       "priority": "P3",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -1677,18 +1677,18 @@
         "promoted_to": null
       },
       "created_at": "2026-09-04T18:44:45-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-09-05T20:10:11-03:00",
+      "resolved_at": "2026-09-05T20:10:11-03:00",
       "dedup_key": "manual:LDG-0101"
     },
     {
       "id": "LDG-0102",
       "type": "tech-debt",
       "title": "contracts/claude-adapter-contract.md: tabela de topo (Versão) presa em 1.2 enquanto o changelog do documento já chegou a 1.5",
-      "detail": "",
+      "detail": "MEDIDO E CORRIGIDO EM 2026-09-05: a tabela de topo de contracts/claude-adapter-contract.md dizia Versão 1.2 / Data 2026-06-10 enquanto o 'Controle de versão do documento' no rodapé já chegara a 1.5, datada 2026-09-04 — quatro entradas de changelog depois. Corrigir os dois campos é trivial; o que impede a repetição é o CHECK, e é ele que fecha o item: w197[1]/[2]/[3] compara a tabela de topo com a última ENTRADA DE VERSÃO do changelog, como propriedade sobre todo .md de contracts/ com tabela de topo. Armadilha medida e evitada no desenho do cenário: comparado com a última LINHA da seção, o cenário seria VERDE antes e depois da correção — a última linha do documento é a decisão de gate W0.3, datada 2026-06-10, idêntica à tabela de topo. — Resolvido: tabela de topo em 1.5/2026-09-04 e check de paridade fiado em w197",
       "severity": null,
       "priority": "P3",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -1701,8 +1701,8 @@
         "promoted_to": null
       },
       "created_at": "2026-09-04T18:44:45-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-09-05T20:10:11-03:00",
+      "resolved_at": "2026-09-05T20:10:11-03:00",
       "dedup_key": "manual:LDG-0102"
     },
     {
@@ -1861,7 +1861,7 @@
       "id": "LDG-0131",
       "type": "tech-debt",
       "title": "Trabalho nao commitado de feat/upgrade-safety preservado, sem revisao de completude",
-      "detail": "Achado no cleanup das worktrees da rodada de 2026-09-04/05. O working tree de feat/upgrade-safety tinha ~430 linhas nao commitadas, posteriores ao push que originou o PR #79 e nunca incorporadas a develop. A guarda de worktree suja (issue #72, entregue nesta mesma sessao) impediu a remocao e expos o material — sem ela, o trabalho e este achado teriam sumido. Commitado em ff4578a e PRESERVADO NO REMOTO em refs/heads/wip/upgrade-safety-ldg-0131 (2026-09-05), porque ate entao o commit existia so na maquina local. A parte claramente correta ja foi extraida e mergeada (PR #99): cinco pontos de documentacao diziam .forge.bak-N enquanto o codigo ja gravava em .git/forge-backups/. O resto sao ~380 linhas em bin/forge.mjs, doctor.sh, source-scan.mjs, scripts/tests/run-all.sh e w153, incluindo a REMOCAO de lib/scan-exclude.sh que develop tem — possivelmente consolidacao em source-scan.mjs, possivelmente trabalho pela metade. Decidir com o diff na mao: git diff origin/develop..origin/wip/upgrade-safety-ldg-0131.",
+      "detail": "INSTRUMENTO DE MEDIÇÃO CORRIGIDO EM 2026-09-05 — o comando que o item prescrevia é o errado. 'git diff origin/develop..origin/wip/upgrade-safety-ldg-0131' devolve 154 arquivos, 873 inserções e 13.303 remoções, porque a branch está 20 commits ATRÁS de develop: quase tudo o que aparece como remoção é trabalho posterior de develop (w168 a w186, tools/plan-progress.mjs) que a branch simplesmente não tem. Quem rodar aquele comando vai concluir que há 13 mil linhas a avaliar. Os números corretos: o que a branch PROPÕE é 'git diff $(git merge-base origin/develop origin/wip/…)..origin/wip/…' = 15 arquivos, 911 inserções, 29 remoções, 10 commits; e o que AINDA NÃO FOI AVALIADO é 'git show ff4578a' = 9 arquivos, 202 inserções, 112 remoções. Os nove commits anteriores correspondem ao material do PR #79, já em develop (os gates w153 e w154 estão lá; git cherry não os reconhece porque o merge foi por squash). A dúvida que o item levanta como o ponto mais delicado — a remoção de lib/scan-exclude.sh — JÁ ESTÁ RESPONDIDA: em develop, 'grep -rn scan-exclude' no repositório inteiro devolve DUAS ocorrências, ambas dentro do próprio arquivo (cabeçalho na linha 2 e exemplo de uso na linha 14). Zero chamadores; o substituto (SKIP_PATTERNS + skipDir() em lib/source-scan.mjs) está no mesmo commit ff4578a. É código morto cuja remoção não órfã ninguém. O item continua FORA de qualquer leva de implementação porque continua sendo DECISÃO, não implementação: alguém tem de julgar se o commit entra, entra em partes, ou é descartado. O que mudou é o custo dessa decisão — de 'avaliar 380 linhas com uma incógnita estrutural' para 'revisar um commit de 202 linhas cuja única incógnita já foi respondida'.",
       "severity": "low",
       "priority": "P3",
       "status": "open",
@@ -1877,7 +1877,7 @@
         "promoted_to": null
       },
       "created_at": "2026-09-04T22:30:07-03:00",
-      "updated_at": "2026-09-05T10:29:40-03:00",
+      "updated_at": "2026-09-05T20:10:11-03:00",
       "resolved_at": null,
       "dedup_key": "manual:LDG-0131"
     },
@@ -1885,7 +1885,7 @@
       "id": "LDG-0140",
       "type": "tech-debt",
       "title": "ledger-ops harvest captura narrativa historica de verification.md como follow-up novo",
-      "detail": "Observado ao fechar gate-assert-visibility via /forge:close --reason delivered-externally (LDG-0037): a etapa (3) do harvest em ledger-ops.sh (secao 'verification.md — bullets sob Desvios e observacoes / RESSALVAS -> follow-up') casa QUALQUER bullet sob um heading que combine /desvios|ressalvas|observa/i, sem distinguir uma ressalva realmente aberta de uma linha que apenas NARRA algo ja concluido dentro do proprio verification.md (ex.: 'X corrigido fora do escopo original', 'divida de processo resolvida nesta rodada'). Nesta execucao produziu 4 entradas (LDG-0111..LDG-0114) 100% duplicadas de itens ja existentes/resolvidos (LDG-0030, LDG-0031..0035) ou de fatos historicos sem acao pendente — todas teem de ser resolvidas manualmente pelo operador do close, o oposto do 'nao-bloqueante' que o harvest promete. Mesma familia de defeito do LDG-0062 (heuristica de texto sem entender semantica do conteudo). Correcao provavel: exigir um marcador explicito (ex.: prefixo 'PENDENTE:' ou secao dedicada 'Follow-ups abertos') em vez de casar qualquer bullet da secao inteira; ou dedupe semantico contra ids de ledger ja citados na propria linha (a maioria dos 4 casos cita LDG-00NN entre crases). Fora de escopo desta sessao (Onda 7/8) — nao e um dos itens designados.",
+      "detail": "PRIMEIRA METADE ENTREGUE EM 2026-09-05: a etapa (3) do harvest deixa de casar QUALQUER bullet sob um heading /desvios|ressalvas|observa/i e passa a exigir MARCADOR EXPLÍCITO — bullet prefixado por PENDENTE: sob qualquer heading de ressalva, ou qualquer bullet sob um heading dedicado 'Follow-ups abertos'. Mesma classe de LDG-0062 (heurística de texto sem entender semântica) e mesma saída daquele item: pedir que o autor MARQUE em vez de adivinhar. Complemento barato entregue junto: bullet que cita um LDG-00NN entre crases é descartado por dedupe, porque a maioria dos quatro casos reais (LDG-0111..LDG-0114) o fazia. SEGUNDA METADE, EXPLICITADA E NÃO ENTREGUE: harvest continua criando entradas com detail vazio e priority nula (ledger-ops.sh, etapa de escrita) — a mesma porta de entrada de item sem conteúdo da issue #103, por um terceiro caminho. Corrigir a heurística REDUZ o volume; não FECHA a porta. Fechá-la é decisão de produto (o harvest é best-effort e nunca falha o caller; exigir detail nele exigiria decidir o que fazer quando não há de onde tirar) e esta leva não a toma. Gate: w194 cenários [9]-[12].",
       "severity": "low",
       "priority": "P3",
       "status": "open",
@@ -1903,7 +1903,7 @@
         "promoted_to": null
       },
       "created_at": "2026-09-04T20:51:40-03:00",
-      "updated_at": null,
+      "updated_at": "2026-09-05T20:10:11-03:00",
       "resolved_at": null,
       "dedup_key": "manual:LDG-0140"
     },

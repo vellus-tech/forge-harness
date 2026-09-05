@@ -526,6 +526,18 @@ check_node() {
   else info "lsp: typescript-language-server ausente (opcional)"
        try_install "typescript-language-server" npm install -g typescript-language-server || true
   fi
+  # Baseline de qualidade de lint: o que faz console.log/import direto de banco/tamanho de
+  # arquivo virarem sinal verificável em ESLint em vez de regra em prosa. Informativo por
+  # decisão — materializar eslint.config.mjs na raiz do projeto é ato do humano (ou de
+  # --apply), nunca efeito colateral de um diagnóstico.
+  if [ -x "$ROOT/.forge/scripts/node-baseline.sh" ]; then
+    if bash "$ROOT/.forge/scripts/node-baseline.sh" --root "$ROOT" --check >/dev/null 2>&1; then
+      ok "baseline de qualidade: eslint.config + forge-quality/* no lugar"
+    else
+      info "baseline de qualidade incompleto (regra em prosa não vira aviso de lint)"
+      hint "audite com: bash .forge/scripts/node-baseline.sh --check · materialize com --apply"
+    fi
+  fi
 }
 
 # ── Python ────────────────────────────────────────────────────────────────────

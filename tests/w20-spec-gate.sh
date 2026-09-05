@@ -99,8 +99,17 @@ echo "[6] dogfooding valida"
 DOGFOOD_IDS="$(ls -1 "$WS/.forge/specs/active" 2>/dev/null | sort)"
 if [ -z "$DOGFOOD_IDS" ]; then
   TSYN="$(mktemp -d /tmp/forge-w20-dogfood-syn.XXXXXX)"
-  (cd "$TSYN" && FORGE_ROOT="$TSYN" bash "$WS/template/.forge/scripts/spec-new.sh" synthetic-dogfood --type feature --scale 2 >/dev/null)
-  bash "$WS/template/.forge/scripts/validate-spec.sh" --path "$TSYN/.forge/specs/active/synthetic-dogfood" >/dev/null
+  # Sem `>/dev/null` cego: sob `set -e` um erro aqui matava o gate SEM mensagem, e a reprovação
+  # chegava ao CI como um cenário que simplesmente para. Captura a saída e a mostra na falha —
+  # "morreu" e "reprovou por X" não podem ser indistinguíveis num gate.
+  if ! syn_out="$( (cd "$TSYN" && FORGE_ROOT="$TSYN" bash "$WS/template/.forge/scripts/spec-new.sh" synthetic-dogfood --type feature --scale 2) 2>&1 )"; then
+    echo "FAIL [6]: spec-new sintético falhou (rc=$?) — saída:"; printf '%s\n' "$syn_out" | sed 's/^/      /'
+    rm -rf "$TSYN"; exit 1
+  fi
+  if ! syn_val="$(bash "$WS/template/.forge/scripts/validate-spec.sh" --path "$TSYN/.forge/specs/active/synthetic-dogfood" 2>&1)"; then
+    echo "FAIL [6]: validate do change sintético falhou — saída:"; printf '%s\n' "$syn_val" | sed 's/^/      /'
+    rm -rf "$TSYN"; exit 1
+  fi
   rm -rf "$TSYN"
   echo "OK [6] (sintético, sem change real ativo)"
 else

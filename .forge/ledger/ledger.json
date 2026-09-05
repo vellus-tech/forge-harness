@@ -1930,6 +1930,78 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0141"
+    },
+    {
+      "id": "LDG-0150",
+      "type": "known-bug",
+      "title": "pre-push cego à forma mapeada de runtime.gates",
+      "detail": "O pre-push lia runtime.gates com um awk próprio (fm_field) que só entendia CSV escalar numa linha; com a forma mapeada que a 0.11.0 publicou (block-sequence com phase:), GATES_CSV ficava vazio, o laço não rodava e o hook não imprimia uma linha. Consequência integral e silenciosa: adotar phase: — inclusive tudo como phase: source — desligava TODOS os gates no push, com push verde. Terceiro clone do mesmo leitor (pre-push:184, handoff-gen.sh:42, on-session-start.sh:11), a classe de LDG-0014 já materializada três vezes. Corrigido: o hook passa a usar lib/forge-runtime.sh, declara em voz alta quantos gates leu e de que fase, e bloqueia quando a declaração existe e o leitor não. Gate w190, canal real.",
+      "severity": null,
+      "priority": "P2",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-05T16:01:58-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0150"
+    },
+    {
+      "id": "LDG-0151",
+      "type": "tech-debt",
+      "title": "Chaves de schema sem leitor que prometem default (não cobrança)",
+      "detail": "Varredura das chaves-folha de forgeManifest/forgeFrontmatter contra scripts/, hooks/ e bin/: sdd.default_mode, sdd.default_rigor, sdd.default_scale, sdd.archive_policy, sdd.human_gate_required e quality.evals_root não têm leitor em lugar nenhum — nem em commands/, agents/ ou rules/. A ofensa é de OUTRA natureza que a das quality.require_* (LDG-0008): estas prometem um DEFAULT, cuja ausência é inofensiva, não um ENFORCEMENT, cuja ausência é afirmação falsa sobre o que o harness cobra. Varrê-las junto transformaria correção de honestidade em limpeza de schema com risco de retrocompatibilidade desproporcional. Decidir por chave, em change próprio.",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-05T16:01:58-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0151"
+    },
+    {
+      "id": "LDG-0152",
+      "type": "tech-debt",
+      "title": "fm_field triplicado — três leitores do frontmatter do FORGE.md",
+      "detail": "O mesmo awk de leitura de campo escalar do bloco runtime: existe em template/.forge/hooks/git/pre-push, em handoff-gen.sh:42 e como idioma declarado em hooks/session/on-session-start.sh:11. A correção de LDG-0150 eliminou o clone do pre-push como LEITOR DE GATES (que passou a usar lib/forge-runtime.sh), mas o pre-push mantém fm_field para typecheck/test e mantém uma sonda local de presença da chave gates:. Os outros dois leem chaves escalares onde a forma mapeada não se aplica. Consolidar os três num lib é trabalho próprio: fazê-lo junto ampliaria o diff do item mais crítico da leva sem fechar risco nenhum.",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-05T16:01:58-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0152"
     }
   ]
 }

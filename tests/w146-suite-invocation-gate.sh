@@ -13,7 +13,7 @@
 #   [4] AUTO-IRONIA: zero pontos de entrada examinados REPROVA (universo vazio)
 #   [5] o pre-push do TEMPLATE invoca a rede de suítes do harness e trata alvo ausente como erro
 #   [6] ESTE repositório passa: tests/run-all.sh é de fato invocado pelos pontos de entrada
-#   [7] os gates desta entrega (w144–w147) estão dentro da rede que tests/run-all.sh executa
+#   [7] os gates de w144–w147 e da leva w190–w198 estão dentro da rede que run-all.sh executa
 set -uo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -121,14 +121,28 @@ $out"; exit 1; }
 echo "OK [6]"
 
 # ── [7] ──────────────────────────────────────────────────────────────────────────────────────
-echo "[7] os gates w144–w147 estão dentro da rede que tests/run-all.sh executa"
+echo "[7] os gates de w144–w147 e da leva w190–w198 estão na rede que tests/run-all.sh executa"
 listed="$(bash "$WS/tests/run-all.sh" --list 2>&1)"
-for g in w144-gate-control-counter-gate w145-shell-pipeline-lint-gate w146-suite-invocation-gate w147-hook-delegation-gate; do
+# A faixa w190+ é enumerada POR DESCOBERTA, não por lista fixa: uma lista escrita à mão envelhece
+# no commit seguinte ao próprio (a versão anterior deste cenário fixava quatro nomes). O que se
+# cobra é a propriedade — todo tests/w19*-*-gate.sh em disco aparece no --list.
+_wired=0
+for f in "$WS"/tests/w19[0-9]-*-gate.sh; do
+  [ -f "$f" ] || continue
+  g="$(basename "$f" .sh)"
   case "$listed" in
-    *"$g"*) : ;;
+    *"$g"*) _wired=$((_wired + 1)) ;;
     *) echo "FAIL [7]: $g.sh existe mas não é executado por tests/run-all.sh — guarda que ninguém roda não cobre nada"; exit 1 ;;
   esac
 done
-echo "OK [7]"
+for g in w144-gate-control-counter-gate w145-shell-pipeline-lint-gate w146-suite-invocation-gate w147-hook-delegation-gate; do
+  case "$listed" in
+    *"$g"*) _wired=$((_wired + 1)) ;;
+    *) echo "FAIL [7]: $g.sh existe mas não é executado por tests/run-all.sh — guarda que ninguém roda não cobre nada"; exit 1 ;;
+  esac
+done
+# Contador de controle: universo vazio aprovaria o laço em silêncio.
+[ "$_wired" -ge 4 ] || { echo "FAIL [7]: só $_wired gate(s) examinado(s) — o glob não casou nada e o cenário aprovaria vazio"; exit 1; }
+echo "OK [7] — $_wired gate(s) verificados na rede do run-all.sh"
 
 echo "PASS w146-suite-invocation"

@@ -46,6 +46,19 @@ for _stub in check-ai-attribution.sh check-liaison-acks.sh; do
   printf '#!/usr/bin/env bash\nexit 0\n' > "$T/.forge/scripts/$_stub"
 done
 
+# Leitor canônico de runtime.gates (LDG-0150). Desde que o hook parou de ter um awk próprio para
+# `gates:`, declarar gates e não ter a lib é instalação quebrada e bloqueia — a fixture instala a
+# lib real, não um stub, porque é ela que decide quais gates o push executa.
+mkdir -p "$T/.forge/scripts/lib"
+cp "$WS/template/.forge/scripts/lib/forge-runtime.sh" "$T/.forge/scripts/lib/forge-runtime.sh"
+cp "$WS/template/.forge/scripts/lib/gate-phase.mjs" "$T/.forge/scripts/lib/gate-phase.mjs"
+cp "$WS/template/.forge/scripts/lib/yaml-lite.mjs" "$T/.forge/scripts/lib/yaml-lite.mjs"
+# Criar lib/ liga a guarda de delegação do heavy-mutex (que olha o DIRETÓRIO lib/): a lib real
+# entra junto. É o meio-termo que essas guardas existem para reprovar — ou a fixture tem lib/
+# completa, ou não tem lib/ nenhuma.
+cp "$WS/template/.forge/scripts/lib/heavy-mutex.sh" "$T/.forge/scripts/lib/heavy-mutex.sh"
+cp "$WS/template/.forge/scripts/lib/gate-universe.sh" "$T/.forge/scripts/lib/gate-universe.sh"
+
 # O gate espia o que o hook lhe passou. Escreve em arquivo porque run_check desvia a saída
 # do gate para um log temporário — o arquivo é o único canal observável pelo teste.
 cat > "$T/.forge/scripts/check-pushrefs.sh" <<'EOF'

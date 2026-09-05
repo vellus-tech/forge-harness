@@ -249,29 +249,109 @@ fi
 run_check "typecheck" "$(fm_field typecheck)"
 run_check "test" "$(fm_field test)"
 
-# ── gates declared in FORGE.md runtime: gates (REQ-15/TASK-17, design.md §2.6) ──
-# CSV escalar numa única linha (ex.: "gates: check-authz,check-observability,check-data-governance"),
-# lida por fm_field (mesmo awk de typecheck/test) + split por vírgula. Ausência de "gates:" ⇒
-# nada roda (compat). Cada gate roda sobre o repo inteiro (--path) e respeita seu próprio
-# mode: warn|enforce internamente — os warn reportam sem bloquear o push.
-GATES_CSV="$(fm_field gates)"
-if [ -n "$GATES_CSV" ]; then
-  IFS=',' read -ra _forge_gates <<< "$GATES_CSV"
-  for gate in "${_forge_gates[@]}"; do
-    gate="$(printf '%s' "$gate" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
-    [ -n "$gate" ] || continue
-    gate_script="$ROOT/.forge/scripts/${gate}.sh"
-    if [ -f "$gate_script" ]; then
-      run_check "$gate" "bash '$gate_script' --path '$ROOT'"
-    else
-      # Era `skip` com exit 0 — declarar um gate e ele não existir virava silêncio verde, a forma
-      # exata do risco que a issue #49 descreve. `run-gates.sh` já tratava isso como MISSING e
-      # reprovava; o hook estava fora de sincronia com o próprio harness.
-      echo "pre-push BLOQUEADO: gate '$gate' declarado em runtime.gates e $gate_script não existe." >&2
-      echo "  Declarar e não existir é delegação em alvo ausente — corrija runtime.gates ou instale o gate." >&2
+# ── gates declarados em FORGE.md runtime.gates (issue #82; LDG-0150) ─────────────────────────
+# DUAS formas declaráveis, UM leitor só:
+#
+#   gates: check-authz,check-observability          # CSV escalar (forma histórica)
+#   gates:                                          # block-sequence com fase (0.11.0+)
+#     - check-authz                                 #   item escalar ⇒ phase: source
+#     - name: check-image-digest
+#       phase: pre-deploy
+#
+# Este bloco tinha um leitor PRÓPRIO — um `awk` bespoke que só extraía o valor escalar da linha
+# `  gates:`. Com a forma mapeada, o valor inline é vazio: `GATES_CSV` ficava vazio, o laço não
+# rodava, e o hook não imprimia uma linha sobre isso. Um consumidor que adotasse `phase:` —
+# inclusive declarando tudo como `phase: source`, que é a fase que o push executa — deixava de
+# rodar TODOS os gates no push, com o push verde. Adotar a fase DESLIGAVA a cobrança que existia
+# antes. E era o terceiro clone do mesmo leitor no repositório (a classe de LDG-0014, duas
+# implementações do mesmo contrato divergindo em silêncio, já materializada três vezes).
+#
+# Agora o hook usa `lib/forge-runtime.sh`, o mesmo leitor de `run-gates.sh` e de `spec-verify.sh`.
+# "chave gates: presente" != "gates: com valor inline". A distinção é o que separa "nada
+# declarado" (nenhuma linha `  gates:` — o hook não tem o que ler, e é o estado de todo projeto
+# que nunca declarou gate) de "declarado numa forma que eu não consegui ler". Este awk NÃO lê os
+# NOMES dos gates — isso é do leitor canônico e só dele; ele responde uma pergunta que o leitor
+# canônico não expõe: a chave existe?
+gates_key_present() {
+  awk '
+    /^runtime:/ { inblk=1; next }
+    inblk && /^[a-z_]+:/ { exit }
+    inblk && $0 ~ "^  gates:" { print "y"; exit }
+  ' "$FORGE_MD"
+}
+
+RUNTIME_LIB="$ROOT/.forge/scripts/lib/forge-runtime.sh"
+if [ -n "$(gates_key_present)" ]; then
+  if [ ! -f "$RUNTIME_LIB" ]; then
+    echo "pre-push BLOQUEADO: 'runtime.gates' está declarado no FORGE.md e .forge/scripts/lib/forge-runtime.sh não existe." >&2
+    echo "  É o leitor ÚNICO de runtime.gates (o mesmo de run-gates.sh e spec-verify.sh); sem ele" >&2
+    echo "  o hook não sabe o que foi declarado, e seguir devolveria zero gates com push verde." >&2
+    echo "  Rode 'npx forge-harness update' ou restaure a lib." >&2
+    exit 1
+  fi
+  # shellcheck disable=SC1090
+  . "$RUNTIME_LIB"
+  # Pelo leitor canônico, nunca por um awk local: é justamente a segunda implementação do mesmo
+  # contrato que este item existe para eliminar.
+  _gates_inline="$(forge_get_runtime gates "$ROOT" || true)"
+
+  # Guarda do leitor indisponível. `forge_runtime_gate_entries` delega a forma mapeada a
+  # `node lib/gate-phase.mjs` e devolve VAZIO, calada, quando node não existe — e vazio é
+  # indistinguível de "nenhum gate declarado". O gatilho do bloqueio é a INDISPONIBILIDADE DO
+  # LEITOR, nunca a forma do frontmatter: `  gates:` sem valor inline é o estado de FÁBRICA de
+  # todo projeto novo (templates/FORGE.md), e bloquear por essa forma recusaria o primeiro push
+  # de todo adotante.
+  #
+  # Esta guarda CONTRARIA POR DESENHO o contrato escrito de lib/forge-runtime.sh ("ausência de
+  # node ⇒ a forma mapeada simplesmente não é lida … nunca trava o script"). A severidade é do
+  # CHAMADOR, e o hook é o chamador que bloqueia: `run-gates.sh` e `spec-verify.sh` seguem
+  # silenciosos no mesmo estado. Duas severidades para o mesmo fato, declaradas — o inaceitável
+  # seria ficarem implícitas.
+  if [ -z "$_gates_inline" ]; then
+    if ! command -v node >/dev/null 2>&1 || [ ! -f "$ROOT/.forge/scripts/lib/gate-phase.mjs" ]; then
+      echo "pre-push BLOQUEADO: 'runtime.gates' está declarado sem valor inline (forma mapeada) e a declaração NÃO PÔDE SER LIDA." >&2
+      command -v node >/dev/null 2>&1 \
+        || echo "  Causa: 'node' não está no PATH — a forma mapeada é lida por lib/gate-phase.mjs." >&2
+      [ -f "$ROOT/.forge/scripts/lib/gate-phase.mjs" ] \
+        || echo "  Causa: .forge/scripts/lib/gate-phase.mjs ausente — rode 'npx forge-harness update'." >&2
+      echo "  Não bloquear aqui devolveria ZERO gates e um push verde, indistinguível de um projeto" >&2
+      echo "  sem gate algum. Instale o leitor, ou declare os gates na forma CSV escalar." >&2
       exit 1
     fi
-  done
+  fi
+
+  _gate_entries="$(forge_runtime_gate_entries "$ROOT" || true)"
+  _src_gates="$(printf '%s\n' "$_gate_entries" | awk -F'\t' '$2=="source" && $1!=""{print $1}')"
+  _n_all=0; _n_src=0
+  [ -z "$_gate_entries" ] || _n_all="$(printf '%s\n' "$_gate_entries" | grep -c . || true)"
+  [ -z "$_src_gates" ] || _n_src="$(printf '%s\n' "$_src_gates" | grep -c . || true)"
+
+  if [ "$_n_all" -eq 0 ]; then
+    # NO-GATES declarado em voz alta: "não examinei" e "examinei e estava limpo" não podem
+    # terminar no mesmo silêncio (issue #49).
+    echo "pre-push: runtime.gates NO-GATES — 0 gate(s) declarado(s) no FORGE.md"
+  elif [ "$_n_src" -eq 0 ]; then
+    _other_phases="$(printf '%s\n' "$_gate_entries" | awk -F'\t' '$1!=""{print $2}' | sort -u | tr '\n' ' ')"
+    echo "pre-push: runtime.gates — $_n_all gate(s) declarado(s), 0 de fase 'source'; o push não executa fase(s): ${_other_phases% }"
+  else
+    echo "pre-push: runtime.gates — $_n_src gate(s) de fase 'source' de $_n_all declarado(s)"
+    while IFS= read -r gate; do
+      [ -n "$gate" ] || continue
+      gate_script="$ROOT/.forge/scripts/${gate}.sh"
+      if [ -f "$gate_script" ]; then
+        run_check "$gate" "bash '$gate_script' --path '$ROOT'"
+      else
+        # Era `skip` com exit 0 — declarar um gate e ele não existir virava silêncio verde, a forma
+        # exata do risco que a issue #49 descreve. `run-gates.sh` já tratava isso como MISSING e
+        # reprovava; o hook estava fora de sincronia com o próprio harness.
+        echo "pre-push BLOQUEADO: gate '$gate' declarado em runtime.gates e $gate_script não existe." >&2
+        echo "  Declarar e não existir é delegação em alvo ausente — corrija runtime.gates ou instale o gate." >&2
+        exit 1
+      fi
+    done <<EOF_GATES
+$_src_gates
+EOF_GATES
+  fi
 fi
 
 # ── rede de suítes do harness (issue #49, instância 2) ───────────────────────────────────────

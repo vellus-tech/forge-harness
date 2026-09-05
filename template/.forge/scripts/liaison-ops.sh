@@ -709,7 +709,7 @@ NODEEOF
     if [ -f "$ledger_ops" ]; then
       FORGE_ROOT="$ROOT" bash "$ledger_ops" add --type tech-debt --priority P2 \
         --title "Contract-change recusado no liaison: $msg_id" \
-        --body "Este repositório ackou $msg_id (canal $channel) com --reason wont-adopt: reconheceu a mudança de contrato e decidiu NÃO adotá-la. A divergência resultante é conhecida e assumida, não acidental. Reabra quando a adoção entrar em roadmap, ou feche registrando por que a divergência é permanente." >/dev/null \
+        --detail "Este repositório ackou $msg_id (canal $channel) com --reason wont-adopt: reconheceu a mudança de contrato e decidiu NÃO adotá-la. A divergência resultante é conhecida e assumida, não acidental. Reabra quando a adoção entrar em roadmap, ou feche registrando por que a divergência é permanente." >/dev/null \
         || echo "WARN: ack gravado, mas o registro no ledger falhou — registre a dívida à mão" >&2
     else
       echo "WARN: ledger-ops.sh ausente — a recusa não foi registrada como dívida" >&2

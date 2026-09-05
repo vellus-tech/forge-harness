@@ -41,6 +41,26 @@ elif [ -d "$ROOT/.forge/scripts/lib" ]; then
   delegation_failed=1
 fi
 
+# liaison log integrity (issue #80) — o DETECTOR do único modo de falha do merge=union: dispara no
+# instante em que a duplicata NASCE (é o merge automático que a produz, e é ele que dispara este
+# hook — pre-commit NÃO roda num merge automático). Roda em QUALQUER branch, deliberadamente: um
+# merge que duplica e nunca chega a ser empurrado corrompe o canal do mesmo jeito, e o bloqueio no
+# push (pre-push, mesmo diretório) jamais o veria. Este hook é informacional — o git ignora seu
+# exit status — então o que muda com a falha é o DESFECHO OBSERVÁVEL (delegation_failed), nunca a
+# conclusão do merge em si.
+LOG_INTEGRITY="$ROOT/.forge/scripts/check-liaison-log-integrity.sh"
+if [ -f "$LOG_INTEGRITY" ]; then
+  if ! li_out="$(FORGE_ROOT="$ROOT" bash "$LOG_INTEGRITY" 2>&1)"; then
+    echo "post-merge FALHOU: liaison — log duplicado pelo merge=union (issue #80):" >&2
+    printf '%s\n' "$li_out" | sed 's/^/  /' >&2
+    delegation_failed=1
+  fi
+elif [ -d "$ROOT/.forge/scripts" ]; then
+  echo "post-merge FALHOU: .forge/scripts/ existe mas check-liaison-log-integrity.sh não —" >&2
+  echo "  a delegação aponta para um alvo ausente, e isso não pode sair como sucesso." >&2
+  delegation_failed=1
+fi
+
 # ── worktrees mergeadas (issue #72) ──────────────────────────────────────────────────────────────
 # PROPÕE, não remove. O default era remover, e isso destruiu trabalho de verdade: no merge de um PR
 # real, uma worktree e a branch local sumiram sozinhas, levando junto `local.properties` e `build/`.

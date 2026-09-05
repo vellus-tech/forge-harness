@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**16 itens ativos** · roadmap 6 · feature-idea 1 · tech-debt 5 · known-bug 1 · follow-up 3 · (51 encerrados)
+**18 itens ativos** · roadmap 6 · feature-idea 1 · tech-debt 8 · known-bug 1 · follow-up 2 · (52 encerrados)
 
 ## Roadmap
 
@@ -45,6 +45,9 @@ _Encerrados: 1 (resolved 1)_
   Comportamento por desenho e documentado ('o ledger e artefato duravel de PROJETO, nao de branch': _forge_main_root resolve por --git-common-dir). O efeito colateral aparece em trabalho paralelo: um agente que resolve itens de dentro de uma worktree grava no ledger do TRONCO, que pode estar noutra branch. Medido em 2026-09-04: quatro resolucoes da Onda 4 (LDG-0057 a LDG-0060) nasceram em fix/ledger-reconciliation, branch alheia ao trabalho, e tiveram de ser transferidas a mao. FORGE_ROOT apontando para a worktree contorna, mas nada obriga nem avisa — a operacao e' silenciosa e o autor so descobre por 'git status' no tronco. Saida minima: quando ROOT resolvido difere do cwd do invocador, dizer isso na saida.
 - **LDG-0069** [open] (P3/low) — check-shell-pipeline e check-heredoc-hash existem e nenhum hook os invoca
   Achado em 2026-09-04 ao revisar a entrega do LDG-0052. O lint novo (check-heredoc-hash.sh) seguiu corretamente o formato do precedente (check-shell-pipeline.sh, issue #49) — inclusive em nao ser cabeado: 'grep -rln check-shell-pipeline template/.forge/hooks/' nao retorna nada. Os dois sao exatamente o 'gate que ninguem invoca' que a issue #82 mediu num consumidor (dez gates orfaos, sete deles de deploy). Um lint que so roda quando alguem lembra nao previne a reintroducao do defeito que ele existe para pegar. Depende da decisao de #82 sobre onde declarar gate por fase; ate la, o minimo e' o pre-push chamar os dois quando o diff toca .sh.
+- **LDG-0100** [open] (P3) — check-liaison-acks.sh não lê o hub para transporte git/gh (issue #84, escopo deliberado)
+- **LDG-0101** [open] (P3) — liaison-message.schema.json descreve body/body_ref como mutuamente obrigatório, mas validateEnvelope aceita os dois ausentes
+- **LDG-0102** [open] (P3) — contracts/claude-adapter-contract.md: tabela de topo (Versão) presa em 1.2 enquanto o changelog do documento já chegou a 1.5
 
 _Encerrados: 22 (promoted 1 · resolved 19 · wont-fix 2)_
 
@@ -59,9 +62,8 @@ _Encerrados: 22 (resolved 21 · wont-fix 1)_
 
 - **LDG-0001** [open] — Runtime cross-repo da capability authz/observability (PEP libs Go/Kotlin/TS, repo de política OPA, wrappers OTel, authz-console UI)
 - **LDG-0002** [open] — Piloto do gate authz/observability no axis-go-cloud (provar gate quebrando o build ao adicionar rota sem PEP)
-- **LDG-0022** [open] — O contrato C5 não foi estendido para asserir o estado `+2 Session hooks`; essa cobertura vive no · via `add-portable-handoff`#verify-1
 
-_Encerrados: 3 (resolved 3)_
+_Encerrados: 4 (resolved 4)_
 
 ## Notas
 

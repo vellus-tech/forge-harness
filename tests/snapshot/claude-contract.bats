@@ -178,6 +178,35 @@ PYEOF
   [ "$wired" -eq 1 ]
 }
 
+@test "C5: handoff.auto: true wires +2 Session hooks (SessionStart/SessionEnd) — consolidates w62 into C5 (LDG-0022)" {
+  # Baseline (previous test) only asserts the auto:false state the generated tree ships with. The
+  # opt-in state (+2 Session hooks) was covered only by tests/w62-handoff-hook-gate.sh — functionally
+  # equivalent to the AC ("C5 accepts both states"), but the literal coverage stayed split across
+  # two tests (verification.md, add-portable-handoff, deferral). This test closes that gap: it
+  # builds a private copy of TARGET, flips handoff.auto to true, re-syncs the claude adapter, and
+  # asserts the +2 state — self-contained, so it needs no new CLAUDE_CONTRACT_* env from callers.
+  [ "$MODE" = "generated" ] || skip "baseline snapshot ships auto:false by design; this asserts the opt-in state"
+  command -v python3 >/dev/null || skip "python3 unavailable"
+  [ -f "$TARGET/.forge/scripts/sync-adapters.sh" ] || skip "TARGET has no live .forge/ tree to re-sync (not a full install)"
+
+  AUTO_T="$BATS_TEST_TMPDIR/handoff-auto"
+  cp -R "$TARGET" "$AUTO_T"
+  sed -i.bak 's/auto: false/auto: true/' "$AUTO_T/.forge/forge.yaml"
+  rm -f "$AUTO_T/.forge/forge.yaml.bak"
+  grep -q 'auto: true' "$AUTO_T/.forge/forge.yaml"
+
+  (cd "$AUTO_T" && bash .forge/scripts/sync-adapters.sh --adapter claude >/dev/null)
+
+  AUTO_SETTINGS="$AUTO_T/.claude/settings.json"
+  python3 -m json.tool "$AUTO_SETTINGS" >/dev/null
+  grep -q '"SessionStart"' "$AUTO_SETTINGS"
+  grep -q '"SessionEnd"' "$AUTO_SETTINGS"
+  grep -q 'on-session-start.sh' "$AUTO_SETTINGS"
+  grep -q 'on-session-end.sh' "$AUTO_SETTINGS"
+  wired=$(grep -c '"command":' "$AUTO_SETTINGS")
+  [ "$wired" -eq 3 ]
+}
+
 @test "C5: worktree-guard blocks outside the canonical worktree path (generated mode only)" {
   [ "$MODE" = "generated" ] || skip "behavioral check runs against generated tree"
   run bash -c "printf '%s' '{\"tool_input\":{\"command\":\"git worktree add /tmp/foo -b feat/x\"}}' | bash '$HOOKS_DIR/pre-tool-use/enforce-worktree-location.sh'"

@@ -72,59 +72,70 @@ SLUG="$SLUG" NAME="$NAME" DESC="$DESC" find "$TARGET/.forge" -type f \( -name '*
 orphans=$(grep -rl '<PROJECT_[A-Z_]*>' "$TARGET/.forge" 2>/dev/null | grep -v '/templates/' | wc -l | tr -d ' ' || true)
 [ "$orphans" -eq 0 ] || { echo "FAIL ($orphans files still carry <PROJECT_*> placeholders)"; exit 1; }
 
-# 4. gitignore patch (idempotent via markers + dedup por padrão)
-# Só acrescenta padrões ainda AUSENTES no alvo: um repo brownfield que já lista .DS_Store
-# (ou qualquer padrão do bloco) não deve ganhar entrada duplicada. Comentários, marcadores e
-# linhas em branco do bloco são preservados; linhas de padrão já presentes verbatim são omitidas.
-GI="$TARGET/.gitignore"
-touch "$GI"
-GI_INI='# >>> forge (managed) >>>'
-GI_FIM='# <<< forge (managed) <<<'
-
-# O bloco RECONCILIA em vez de só ser acrescido. Append-once (o comportamento anterior) faz o
-# bloco congelar na primeira escrita: quem já o tem nunca recebe padrão novo, e o harness passou
-# a depender disso para entregar correções — o backup do update, o cache local e as negações do
-# store do liaison ficavam presos no template. Bloco "managed" que congela não é gerenciado.
-# O que está FORA dos marcadores é do usuário e não é tocado, inclusive para dedup.
-ANTES="$(mktemp)"; DEPOIS="$(mktemp)"; EXISTING="$(mktemp)"; BLOCK="$(mktemp)"
-if grep -qF "$GI_INI" "$GI" 2>/dev/null; then
-  awk -v ini="$GI_INI" 'index($0,ini){exit} {print}' "$GI" > "$ANTES"
-  awk -v fim="$GI_FIM" 'vis{print} index($0,fim){vis=1}' "$GI" > "$DEPOIS"
-  RECONCILIOU=1
-else
-  cat "$GI" > "$ANTES"
-  : > "$DEPOIS"
-  RECONCILIOU=0
-fi
-
-cat "$ANTES" "$DEPOIS" | grep -v '^[[:space:]]*#' | sed 's/[[:space:]]*$//' | grep -v '^[[:space:]]*$' | sort -u > "$EXISTING" || true
-IN_BLOCK=0
-while IFS= read -r line || [ -n "$line" ]; do
-  case "$line" in
-    "$GI_INI"*) IN_BLOCK=1 ;;
-  esac
-  [ "$IN_BLOCK" -eq 1 ] || continue
-  trimmed="${line%"${line##*[![:space:]]}"}"   # rstrip
-  if printf '%s' "$trimmed" | grep -qE '^[[:space:]]*(#|$)'; then
-    printf '%s\n' "$line" >> "$BLOCK"           # comentário/marcador/branco: preserva
-  elif grep -qxF "$trimmed" "$EXISTING"; then
-    :                                            # padrão já existe fora do bloco: pula (dedup)
+# 4. managed-block patch (idempotent via markers + dedup por padrão) — .gitignore E .gitattributes
+# compartilham o MESMO mecanismo: só acrescenta linhas ainda AUSENTES no alvo (um repo brownfield
+# que já lista `.DS_Store`, ou já tem `merge=union` num path equivalente, não ganha entrada
+# duplicada). Comentários, marcadores e linhas em branco do bloco são preservados; linhas de
+# padrão já presentes verbatim são omitidas.
+#
+# O bloco RECONCILIA em vez de só ser acrescido. Append-once (o comportamento anterior do
+# .gitignore) faz o bloco congelar na primeira escrita: quem já o tem nunca recebe padrão novo, e
+# o harness passou a depender disso para entregar correções — o backup do update, o cache local e
+# as negações do store do liaison ficavam presos no template. Bloco "managed" que congela não é
+# gerenciado. O que está FORA dos marcadores é do usuário e não é tocado, inclusive para dedup.
+_reconcile_managed_block() {  # _reconcile_managed_block <arquivo-alvo> <patch> <rótulo>
+  local alvo="$1" patch="$2" rotulo="$3"
+  local ini='# >>> forge (managed) >>>'
+  local fim='# <<< forge (managed) <<<'
+  touch "$alvo"
+  local antes depois existing block
+  antes="$(mktemp)"; depois="$(mktemp)"; existing="$(mktemp)"; block="$(mktemp)"
+  local reconciliou
+  if grep -qF "$ini" "$alvo" 2>/dev/null; then
+    awk -v ini="$ini" 'index($0,ini){exit} {print}' "$alvo" > "$antes"
+    awk -v fim="$fim" 'vis{print} index($0,fim){vis=1}' "$alvo" > "$depois"
+    reconciliou=1
   else
-    printf '%s\n' "$line" >> "$BLOCK"
+    cat "$alvo" > "$antes"
+    : > "$depois"
+    reconciliou=0
   fi
-  case "$line" in
-    "$GI_FIM"*) IN_BLOCK=0 ;;
-  esac
-done < "$SCRIPT_DIR/gitignore.patch"
 
-if [ "$RECONCILIOU" -eq 1 ]; then
-  cat "$ANTES" "$BLOCK" "$DEPOIS" > "$GI"
-  echo "gitignore: forge block reconciled (dedup)"
-else
-  { [ -s "$ANTES" ] && printf '\n'; cat "$BLOCK"; } >> "$GI"
-  echo "gitignore: forge block appended (dedup)"
-fi
-rm -f "$ANTES" "$DEPOIS" "$EXISTING" "$BLOCK"
+  cat "$antes" "$depois" | grep -v '^[[:space:]]*#' | sed 's/[[:space:]]*$//' | grep -v '^[[:space:]]*$' | sort -u > "$existing" || true
+  local in_block=0 line trimmed
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      "$ini"*) in_block=1 ;;
+    esac
+    [ "$in_block" -eq 1 ] || continue
+    trimmed="${line%"${line##*[![:space:]]}"}"   # rstrip
+    if printf '%s' "$trimmed" | grep -qE '^[[:space:]]*(#|$)'; then
+      printf '%s\n' "$line" >> "$block"           # comentário/marcador/branco: preserva
+    elif grep -qxF "$trimmed" "$existing"; then
+      :                                            # padrão já existe fora do bloco: pula (dedup)
+    else
+      printf '%s\n' "$line" >> "$block"
+    fi
+    case "$line" in
+      "$fim"*) in_block=0 ;;
+    esac
+  done < "$patch"
+
+  if [ "$reconciliou" -eq 1 ]; then
+    cat "$antes" "$block" "$depois" > "$alvo"
+    echo "$rotulo: forge block reconciled (dedup)"
+  else
+    { [ -s "$antes" ] && printf '\n'; cat "$block"; } >> "$alvo"
+    echo "$rotulo: forge block appended (dedup)"
+  fi
+  rm -f "$antes" "$depois" "$existing" "$block"
+}
+
+_reconcile_managed_block "$TARGET/.gitignore" "$SCRIPT_DIR/gitignore.patch" "gitignore"
+# .gitattributes (issue #80) — merge=union no log append-only do liaison, POR REMETENTE. O gate
+# que detecta (post-merge) e bloqueia (pre-push) a duplicação — o único modo de falha do union —
+# mora em .forge/scripts/check-liaison-log-integrity.sh; ver installer/gitattributes.patch.
+_reconcile_managed_block "$TARGET/.gitattributes" "$SCRIPT_DIR/gitattributes.patch" "gitattributes"
 
 # 5. git hooks path (only when target is a git repo) — ABSOLUTO, apontando para os hooks do
 # CHECKOUT PRINCIPAL. core.hooksPath vive no .git/config, compartilhado por todos os worktrees, e

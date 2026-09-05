@@ -1,0 +1,22 @@
+# >>> forge (managed) >>>
+# liaison — merge=union no log append-only, POR REMETENTE (issue #80).
+#
+# O invariante "um escritor por arquivo" vale ENTRE repositórios, não dentro de um clone sob
+# branch/tronco divergentes: branch paralela do mesmo remetente e réplica que chega por `sync`
+# reproduzem conflito de merge em qualquer PR de longa duração contra um tronco ativo. `--theirs`
+# e `--ours` destroem mensagens PUBLICADAS em silêncio, com rc=0 e sem marcador remanescente —
+# nada no diff parece perda. `merge=union` publica a UNIÃO das duas versões, sem perder nenhuma.
+#
+# Escopo DELIBERADO — só os arquivos de MENSAGEM:
+#   - ledger.json / state.json ficam de fora: são JSON estruturado, e união por linha produz
+#     documento inválido que sai com rc=0 e deixa de parsear.
+#   - LEDGER.md / CHANNEL.md ficam de fora: são RENDERS, regenerados pela fonte — resolvido à mão
+#     vira um índice que descreve um estado que não existe.
+#
+# O DRIVER SOZINHO É INSUFICIENTE. O modo de falha do union é SEMPRE duplicação (nunca perda) —
+# mas duplicação silenciosa (rc=0, sem marcador de conflito) corrompe contagem, ack e
+# reconciliação de todo mundo que sincronizar com o log duplicado. O gate que detecta
+# (post-merge, roda em qualquer branch) e bloqueia (pre-push, nada duplicado sai da máquina) mora
+# em .forge/scripts/check-liaison-log-integrity.sh — NUNCA adote só o driver.
+.forge/liaison/*/log/*.jsonl merge=union
+# <<< forge (managed) <<<

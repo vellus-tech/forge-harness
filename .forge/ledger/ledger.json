@@ -510,10 +510,10 @@
       "id": "LDG-0022",
       "type": "follow-up",
       "title": "O contrato C5 não foi estendido para asserir o estado `+2 Session hooks`; essa cobertura vive no",
-      "detail": "",
+      "detail": "Resolvido: C5 estendida em claude-contract.bats (teste self-contained, modo generated) + contrato v1.5 documentando o estado +2 Session hooks; w62 preservado como cobertura de fluxo ponta a ponta.",
       "severity": null,
       "priority": null,
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": "add-portable-handoff",
         "origin": "archive",
@@ -528,8 +528,8 @@
         "promoted_to": null
       },
       "created_at": "2026-08-03T17:51:02-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-09-04T18:44:45-03:00",
+      "resolved_at": "2026-09-04T18:44:45-03:00",
       "dedup_key": "add-portable-handoff:verify-1"
     },
     {
@@ -1632,6 +1632,78 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0069"
+    },
+    {
+      "id": "LDG-0100",
+      "type": "tech-debt",
+      "title": "check-liaison-acks.sh não lê o hub para transporte git/gh (issue #84, escopo deliberado)",
+      "detail": "",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-04T18:44:45-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0100"
+    },
+    {
+      "id": "LDG-0101",
+      "type": "tech-debt",
+      "title": "liaison-message.schema.json descreve body/body_ref como mutuamente obrigatório, mas validateEnvelope aceita os dois ausentes",
+      "detail": "",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-04T18:44:45-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0101"
+    },
+    {
+      "id": "LDG-0102",
+      "type": "tech-debt",
+      "title": "contracts/claude-adapter-contract.md: tabela de topo (Versão) presa em 1.2 enquanto o changelog do documento já chegou a 1.5",
+      "detail": "",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-04T18:44:45-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0102"
     },
     {
       "id": "LDG-0110",

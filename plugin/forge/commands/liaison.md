@@ -53,7 +53,9 @@ bash .forge/scripts/liaison-ops.sh thread list <channel>
 bash .forge/scripts/liaison-ops.sh send <channel> --thread <id> --kind <k> --subject "<txt>" \
   [--body "<txt>" | --body-file <path>] [--requires-ack] [--in-reply-to <msg_id>] \
   [--change <change-id>] [--contract-files <a,b>] [--commit <sha>]
-bash .forge/scripts/liaison-ops.sh ack <channel> <msg_id> [--subject "<txt>"]
+bash .forge/scripts/liaison-ops.sh ack <channel> <msg_id> [--subject "<txt>"] \
+  [--body "<txt>" | --body-file <path>] [--reason wont-adopt|acknowledged]
+# --reason wont-adopt exige --body/--body-file: recusa sem justificativa é o defeito, não o ack em si
 
 # consultar
 bash .forge/scripts/liaison-ops.sh inbox  <channel> [--thread <id>]   # não lido por thread

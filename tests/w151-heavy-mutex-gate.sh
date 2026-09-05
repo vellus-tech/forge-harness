@@ -971,6 +971,89 @@ grep -q "DONO=$OTHER15" <<<"$out15" \
   || { echo "FAIL [15]: o ticket do terceiro foi corrompido — nunca destrua o que você não provou ser seu: $out15"; exit 1; }
 echo "OK [15]"
 
+scenario "[55] integração (LDG-0055): recuperação de ticket ocupado por terceiro, com forge_heavy_mutex_acquire REAL de ponta a ponta"
+# O [15] prova a FUNÇÃO isolada (camada A). Falta o cenário de INTEGRAÇÃO: o `acquire` público,
+# real, com um processo VIVO e distinto disputando o mesmo nome de ticket — sem o qual a rede que
+# liga _fhm_enqueue ao resto do primitivo (fila, cabeça, mkdir do lock) nunca é exercitada com o
+# defeito 6c em jogo.
+#
+# Por que não é uma corrida por relógio de parede: dois PIDs reais nunca colidem no NOME do ticket
+# (ele é `carimbo.$$`, e `$$` é único por processo), então plantar um "terceiro" no nome exato que
+# a vítima vai compor exige saber o PID dela ANTES de ela chegar ao acquire — e isso é conhecido
+# assim que ela nasce (`$!` do `bash … &`), não depois de uma corrida vencida. A vítima bloqueia
+# num arquivo-sinal (poll limitado, nunca sleep de duração fixa) até o harness plantar o terceiro e
+# liberá-la; a máquina sob carga atrasa o poll, nunca reprova por isso.
+#
+# Por que o relógio da biblioteca é substituído por um contador em ARQUIVO, não em variável: a
+# chamada real é sempre por substituição de comando — `_fhm_enqueue "$(_fhm_now_us20)"` —, e
+# comando substituído roda em SUBSHELL. Uma variável incrementada dentro do stub não sobrevive ao
+# fim da subshell (medido nesta própria sessão, montando o cenário: duas chamadas sucessivas
+# devolviam o MESMO carimbo com um contador em memória, porque cada `$( )` começa de novo a partir
+# do valor herdado do pai). Só um efeito em disco atravessa a fronteira.
+#
+# A ressalva registrada no ledger: a integração ANTERIOR era vácua — a mutação MUT-H (a vítima
+# ADOTA o ticket alheio em vez de detectar a colisão) passava por ela, porque a asserção só media
+# "adquiriu no fim", e adquirir no fim acontece nos dois casos por caminhos diferentes. Este
+# cenário assevera a MENSAGEM de recuperação, a PRESERVAÇÃO do ticket alheio e a criação de um
+# ticket PRÓPRIO sob carimbo novo — as três coisas que MUT-H (validado manualmente durante a
+# escrita deste cenário, removendo a pós-verificação de `_fhm_enqueue`) faz desaparecer.
+BOX="$(newbox)"; QDIR="$BOX/w151res.q"
+mkdir -p "$QDIR"; : > "$BOX/w151res.q.enabled"
+GOFILE="$BOX/go"; LOG55="$BOX/vitima.log"; SEQFILE="$BOX/seq"
+OTHER55="$(sleeper)"
+cat > "$BOX/victim55.sh" <<'VICTIM55'
+set -uo pipefail
+. "$LIBP"
+# Contador em ARQUIVO: sobrevive à subshell de "$( )" que o site real de chamada usa.
+_fhm_now_us20() {
+  local n
+  n="$(cat "$SEQFILE" 2>/dev/null || echo 0)"
+  n=$((n + 1))
+  printf '%s' "$n" > "$SEQFILE"
+  printf '%020d' $((10#$BASE55 + n))
+}
+while [ ! -f "$GOFILE" ]; do sleep 0.05; done
+forge_heavy_mutex_acquire --label "vitima" --timeout 15
+printf 'RC=%s\n' "$?"
+VICTIM55
+BASE55="00000000000000100000"
+FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w151res FORGE_HEAVY_MUTEX_POLL_S=1 \
+  LIBP="$LIB" GOFILE="$GOFILE" BASE55="$BASE55" SEQFILE="$SEQFILE" \
+  bash "$BOX/victim55.sh" > "$LOG55" 2>&1 &
+V55=$!; track "$V55"
+# O PID real já é conhecido — plantamos o terceiro no nome EXATO que a vítima vai compor sozinha.
+STAMP1_55="$(printf '%020d' $((10#$BASE55 + 1)))"
+FOREIGN55="$QDIR/$STAMP1_55.$V55"
+mkdir -p "$FOREIGN55"
+printf '%s\n' "$OTHER55" > "$FOREIGN55/pid"
+tok_of "$OTHER55" > "$FOREIGN55/token"
+: > "$GOFILE"
+w=0
+while [ $w -lt 100 ] && ! grep -q "destino de ticket ocupado por terceiro" "$LOG55" 2>/dev/null; do
+  sleep 0.05; w=$((w + 1))
+done
+grep -q "destino de ticket ocupado por terceiro" "$LOG55" 2>/dev/null \
+  || { kill -9 "$V55" "$OTHER55" 2>/dev/null; echo "FAIL [55]: a colisão REAL (acquire ponta a ponta) não produziu a mensagem de recuperação — o cenário não chegou a exercitar o caminho 6c: $(cat "$LOG55" 2>/dev/null)"; exit 1; }
+[ -d "$FOREIGN55" ] \
+  || { kill -9 "$V55" "$OTHER55" 2>/dev/null; echo "FAIL [55]: o ticket do terceiro foi removido pela vítima — nunca destrua o que você não provou ser seu"; exit 1; }
+[ "$(cat "$FOREIGN55/pid" 2>/dev/null)" = "$OTHER55" ] \
+  || { kill -9 "$V55" "$OTHER55" 2>/dev/null; echo "FAIL [55]: o pid do ticket alheio foi sobrescrito ('$(cat "$FOREIGN55/pid" 2>/dev/null)') — é exatamente o que a mutação MUT-H produz: a vítima ADOTOU o ticket de terceiro"; exit 1; }
+STAMP2_55="$(printf '%020d' $((10#$BASE55 + 2)))"
+OWN55="$QDIR/$STAMP2_55.$V55"
+w=0
+while [ $w -lt 100 ] && [ ! -d "$OWN55" ]; do sleep 0.05; w=$((w + 1)); done
+[ -d "$OWN55" ] \
+  || { kill -9 "$V55" "$OTHER55" 2>/dev/null; echo "FAIL [55]: a vítima não reenfileirou sob carimbo novo em $OWN55 — a recuperação não chegou a criar o ticket próprio"; exit 1; }
+[ "$(cat "$OWN55/pid" 2>/dev/null)" = "$V55" ] \
+  || { kill -9 "$V55" "$OTHER55" 2>/dev/null; echo "FAIL [55]: o ticket reenfileirado não pertence à vítima"; exit 1; }
+# O terceiro sai de cena (equivalente a liberar normalmente) — só então a vítima pode virar cabeça
+# e a asserção final prova que a recuperação termina em POSSE, não em espera presa.
+kill -9 "$OTHER55" 2>/dev/null; wait "$OTHER55" 2>/dev/null
+wait "$V55" 2>/dev/null
+grep -q "^RC=0$" "$LOG55" 2>/dev/null \
+  || { echo "FAIL [55]: a vítima não adquiriu depois de recuperar — a recuperação não pode terminar em posse presa: $(cat "$LOG55" 2>/dev/null)"; exit 1; }
+echo "OK [55]"
+
 scenario "[16] viés solta-e-retoma: com a fila, quem espera entra ANTES da segunda posse"
 # A propriedade-título. Sem fila, quem solta e retoma já está a poucas instruções do mkdir e vence
 # sistematicamente quem dorme num intervalo de polling. O CONTROLE é a outra metade: sem a fila, a
@@ -1217,6 +1300,36 @@ r49="$(p49 "" --timeout 0)"; [ "${r49% *}" = "75" ] && [ "${r49#* }" -le 3 ] \
   || { echo "FAIL [49]: --timeout 0 devolveu '$r49' — mesma semântica do env, senão o mesmo valor significa duas coisas conforme onde foi escrito"; exit 1; }
 kill -9 "$H49" 2>/dev/null
 echo "OK [49]"
+
+scenario "[54] regra 1 mede intenção, não grafia (LDG-0054): reformatar em duas linhas não desarma mais, e a válvula declarada distingue detecção de produção"
+# O predicado antigo procurava a variável e a palavra 'lock' na MESMA linha — um predicado sobre
+# GRAFIA. Quebrar a composição em duas atribuições desarma esse predicado sem mudar uma vírgula da
+# semântica, e foi exatamente o que o doctor.sh precisou fazer para DETECTAR o caminho legado sem
+# ser acusado de PRODUZI-lo. As três fixtures abaixo têm a MESMA composição semântica — só a quebra
+# de linha e o marcador mudam — para que a diferença de veredito só possa ser atribuída a eles.
+CHK="$WS/template/.forge/scripts/check-heavy-mutex.sh"
+BOX54="$(newbox)"; mkdir -p "$BOX54/uma-linha" "$BOX54/quebrado" "$BOX54/marcado"
+printf '#!/usr/bin/env bash\nstage="${TMPDIR:-/tmp}"; path="$stage/x.lock"\n' > "$BOX54/uma-linha/s.sh"
+printf '#!/usr/bin/env bash\nstage="${TMPDIR:-/tmp}"\npath="$stage/x.lock"\n' > "$BOX54/quebrado/s.sh"
+printf '#!/usr/bin/env bash\nstage="${TMPDIR:-/tmp}"  # heavy-mutex: detecção\npath="$stage/x.lock"\n' > "$BOX54/marcado/s.sh"
+# Pré-condição: a forma de UMA linha continua pega — se não pegasse, o cenário não provaria nada
+# sobre a quebra de linha, só que a fixture está errada.
+out54u="$(FORGE_ROOT="$WS" bash "$CHK" --path "$BOX54/uma-linha" 2>&1)"; rc54u=$?
+[ "$rc54u" -ne 0 ] \
+  || { echo "FAIL [54]: a forma de UMA linha não foi pega — a pré-condição do cenário não se sustenta, nada abaixo prova o que deveria: $out54u"; exit 1; }
+# A prova por mutação: a MESMA composição, só reformatada em duas linhas, tem de continuar pega.
+out54q="$(FORGE_ROOT="$WS" bash "$CHK" --path "$BOX54/quebrado" 2>&1)"; rc54q=$?
+[ "$rc54q" -ne 0 ] \
+  || { echo "FAIL [54]: a forma QUEBRADA EM DUAS LINHAS passou — a regra mede grafia (linha), não intenção (composição): mesma semântica, quebra de linha desarma. $out54q"; exit 1; }
+grep -q "s.sh" <<<"$out54q" \
+  || { echo "FAIL [54]: reprovou, mas não nomeou o arquivo quebrado: $out54q"; exit 1; }
+# Contrapositiva: a MESMA forma quebrada, com a válvula declarada, passa — é o que o doctor.sh
+# precisa para detectar o caminho legado sem ser acusado de produzi-lo. Sem esta metade, fechar a
+# regra 1 sem válvula obrigaria todo detector legítimo a voltar a escapar por acidente.
+out54m="$(FORGE_ROOT="$WS" bash "$CHK" --path "$BOX54/marcado" 2>&1)"; rc54m=$?
+[ "$rc54m" -eq 0 ] \
+  || { echo "FAIL [54]: a mesma composição quebrada, com '# heavy-mutex: detecção', foi reprovada — a válvula declarada não é reconhecida: $out54m"; exit 1; }
+echo "OK [54]"
 
 scenario "[46b] o gate estático passa sobre o repositório INTEIRO"
 # Uma linha, e fecha uma classe: fixture sintética não pega o gate reprovando o próprio template.

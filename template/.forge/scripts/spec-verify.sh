@@ -13,6 +13,12 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="${FORGE_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
+# LDG-0014: fonte ÚNICA de leitura do bloco runtime: e de execução de check com teto de tempo —
+# antes deste fix, spec-verify.sh mantinha cópia própria (get_runtime/run_check) enquanto
+# run-gates.sh já usava lib/forge-runtime.sh, e as duas cópias divergiam na norma mais importante
+# (gate declarado com script ausente: aqui virava WARN+skip; lá já reprovava). Ver lib/
+# forge-runtime.sh para forge_get_runtime/forge_run_gate/forge_runtime_gates.
+. "$SCRIPT_DIR/lib/forge-runtime.sh"
 
 ID="${1:-}"
 [ -n "$ID" ] || { echo "FAIL (usage: spec-verify.sh <change-id>)"; exit 2; }
@@ -42,19 +48,10 @@ else
 fi
 
 # ── checks from FORGE.md runtime: block ──────────────────────────────────────
-get_runtime() { # get_runtime <key> — value of "  <key>:" inside the runtime: block
-  [ -f "$ROOT/.forge/FORGE.md" ] || return 0
-  awk -v key="$1" '
-    /^runtime:/ { inb=1; next }
-    inb && /^[^ ]/ { inb=0 }
-    inb { sub(/^  /, ""); if (index($0, key ":") == 1) { sub(key ":", ""); gsub(/^ +| +$/, ""); print; exit } }
-  ' "$ROOT/.forge/FORGE.md"
-}
-
 CHECKS_YAML=""
 run_check() { # run_check <name> <command>
   local name="$1" cmd="$2" log="/tmp/forge-verify-$ID-$1.log" status
-  if perl -e 'alarm 300; exec @ARGV' -- bash -c "cd '$ROOT' && $cmd" >"$log" 2>&1; then
+  if forge_run_gate "$name" "$cmd" "$log" "$ROOT"; then
     status="passed"
   else
     status="failed"; fail=1
@@ -64,28 +61,35 @@ run_check() { # run_check <name> <command>
 }
 
 for check in test typecheck lint; do
-  cmd="$(get_runtime "$check" || true)"
+  cmd="$(forge_get_runtime "$check" "$ROOT" || true)"
   [ -n "$cmd" ] && run_check "$check" "$cmd"
 done
 
 # ── gates declared in FORGE.md runtime: gates (REQ-15/TASK-17, design.md §2.6) ──
-# CSV escalar numa única linha, ex.: "gates: check-authz,check-observability,check-data-governance"
-# (nunca block-sequence — get_runtime só lê "key: value" de uma linha). Ausência de
-# "gates:" ⇒ nada roda (compat retroativa, no-op por padrão).
-GATES_CSV="$(get_runtime "gates" || true)"
-if [ -n "$GATES_CSV" ]; then
-  IFS=',' read -ra _forge_gates <<< "$GATES_CSV"
-  for gate in "${_forge_gates[@]}"; do
-    gate="$(printf '%s' "$gate" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
-    [ -n "$gate" ] || continue
-    gate_script="$SCRIPT_DIR/${gate}.sh"
-    if [ -f "$gate_script" ]; then
-      run_check "$gate" "bash '$gate_script' '$ID'"
-    else
-      echo "  WARN: gate '$gate' declarado em runtime.gates mas $gate_script não existe — skip"
-    fi
-  done
-fi
+# forge_runtime_gates_phase (lib/forge-runtime.sh) é a MESMA extração usada por run-gates.sh,
+# filtrada para a fase "source" — CSV escalar numa única linha (ex.: "gates: check-authz,
+# check-observability") OU block-sequence YAML, ambas com fase "source" implícita quando não
+# declaram outra (issue #82). /forge:verify roda ANTES do artefato implantável existir — a
+# mesma razão pela qual os hooks e o fechamento de wave só executam gates de source hoje — então
+# um gate declarado com `phase: pre-deploy`/`post-deploy` é ignorado aqui de propósito (não é
+# lacuna: rodar um gate de artefato publicado contra a árvore de fontes, sem artefato nenhum,
+# só produziria FAIL sistemático de algo que não é o defeito do change). Ausência de "gates:" ⇒
+# nada roda (compat retroativa, no-op por padrão). Script declarado e AUSENTE em disco REPROVA
+# (LDG-0014) — era WARN+skip só aqui, silêncio verde para um pré-requisito faltando, enquanto
+# run-gates.sh já reprovava o mesmo cenário; as duas cópias divergiam justamente na norma que
+# mais importa. "MISSING" é a mesma palavra e a mesma forma de mensagem que run-gates.sh usa, de
+# propósito — um só vocabulário para os dois caminhos.
+while IFS= read -r gate; do
+  [ -n "$gate" ] || continue
+  gate_script="$SCRIPT_DIR/${gate}.sh"
+  if [ -f "$gate_script" ]; then
+    run_check "$gate" "bash '$gate_script' '$ID'"
+  else
+    echo "  $gate: MISSING ($gate_script não existe)"
+    notes="${notes:+$notes; }gate '$gate' declarado em runtime.gates mas $gate_script não existe"
+    fail=1
+  fi
+done < <(forge_runtime_gates_phase source "$ROOT")
 [ -n "$CHECKS_YAML" ] || echo "  (no checks declared in FORGE.md runtime: — skipping check phase)"
 
 # ── spec-delta.yaml (§10.4): esqueleto nasce AQUI, não no improviso do archive ──

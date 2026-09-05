@@ -59,6 +59,31 @@ O harness constrói um grafo de imports/refs determinista e zero-tokens (`/forge
 
 Não dispensa o passo 3 (diagnóstico da stack) nem os limites descritos acima — SQL↔ORM, `.proto`↔stub, schema↔consumidor continuam exigindo confronto manual das fontes, porque o grafo mapeia imports/refs de código, não esses vínculos declarativos.
 
+## Guardrail G5 — frescor de grafo/impacto é EXECUTADO, não lembrado (LDG-0036)
+
+`impact-freshness.mjs` (fonte única da fórmula de fingerprint, `.forge/scripts/lib/`) julga o
+`impact.json` de um change em quatro estados: `not-applicable` (change sem `affected_paths` de
+código, ou sem grafo construído — nunca bloqueia), `missing` (grafo existe, o change toca código,
+não há `impact.json`), `stale` (existe mas o fingerprint não bate com o grafo atual) e `fresh`.
+
+`missing`/`stale` é **BLOQUEANTE** em dois pontos, com o mesmo julgamento:
+
+- **`spec-transition.sh`**, na transição para `implementing` — chama `impact-freshness.mjs`
+  diretamente e recusa a transição. É aqui que o guardrail vale de verdade: começar a
+  implementar sem saber o raio de impacto é a mesma classe de risco que G1 (conflito não
+  resolvido) e G4 (governança de dados divergente), e recebe o mesmo tratamento — bloqueio
+  determinístico, não confiança em o agente lembrar de rodar `/forge:analyze` item 6.
+- **`archive-spec.sh`**, no pré-flight do archive — mesma fórmula, mais tarde no ciclo (defesa em
+  profundidade: cobre o caso do grafo mudar DEPOIS de `implementing`, sem novo `/forge:impact`).
+
+Antes deste guardrail existir como gate, a única execução real era o pré-flight do archive —
+tarde demais para mudar como a implementação foi feita — e `analyze.md` item 6 dependia do
+agente rodar `node .forge/scripts/lib/impact-freshness.mjs` manualmente durante `/forge:analyze`.
+Um achado escrito em `analysis.md` sem a checagem ter rodado é achado que não existe.
+
+Para destravar: `/forge:update` (grafo atual) e depois `/forge:impact --change <id>` (grava
+`impact.json` fresco) antes de `implementing`.
+
 ## Anti-patterns
 
 - Renomear via find/replace textual cego (atinge string literal e homônimos de outro escopo).

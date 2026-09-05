@@ -56,8 +56,15 @@ echo "[4] archive sem impact.json (change toca codigo) → FAIL"
 # change verified scale-0 que declara affected_paths de código
 (cd "$T" && bash "$S/spec-new.sh" feat-impact --type feature --scale 0 >/dev/null)
 perl -0pi -e 's/^affected_paths: \[\]$/affected_paths:\n  - services\/billing/m' "$T/.forge/specs/active/feat-impact/manifest.yaml"
-(cd "$T" && bash "$S/spec-transition.sh" feat-impact tasks-ready >/dev/null
-            bash "$S/spec-transition.sh" feat-impact implementing >/dev/null)
+(cd "$T" && bash "$S/spec-transition.sh" feat-impact tasks-ready >/dev/null)
+# G5 (LDG-0036/#82, spec-transition.sh) já exige impact.json fresco ANTES de implementing — o
+# mesmo julgamento que este caso testa no archive, só que mais cedo. Roda /forge:impact aqui só
+# para destravar a transição, e REMOVE o impact.json de novo logo abaixo — o que este caso [4]
+# prova é o pré-flight do ARCHIVE, que precisa continuar reprovando quando o arquivo não existe
+# nesse momento (ex.: alguém apagou, ou o grafo mudou depois de implementing sem novo /forge:impact).
+(cd "$T" && bash "$S/impact.sh" --change feat-impact >/dev/null)
+(cd "$T" && bash "$S/spec-transition.sh" feat-impact implementing >/dev/null)
+rm -f "$T/.forge/specs/active/feat-impact/impact.json"
 perl -pi -e 's/^(\s*)- \[ \] /$1- [X] /' "$T/.forge/specs/active/feat-impact/tasks.md"
 (cd "$T" && bash "$S/spec-transition.sh" feat-impact implemented >/dev/null
             bash "$S/spec-verify.sh" feat-impact >/dev/null

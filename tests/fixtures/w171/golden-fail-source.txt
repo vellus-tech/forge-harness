@@ -1,0 +1,2 @@
+  fixture-gate: failed (log: <LOGDIR>/fixture-gate.log)
+FAIL

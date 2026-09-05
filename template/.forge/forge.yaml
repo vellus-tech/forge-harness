@@ -118,3 +118,10 @@ heavy_mutex:
 push_ahead:
   enabled: true
   timeout_s: 5
+
+# worktree-reconcile.sh media ahead/behind por refs/remotes/<remote>/* (LDG-0056) — reflexo LOCAL
+# do remoto, que pode estar desatualizado NAS DUAS DIREÇÕES, o mesmo defeito que o push_ahead acima
+# corrigiu com `git ls-remote`. `git worktree` compartilha refs/remotes/* entre TODOS os worktrees
+# do mesmo repositório, então uma leitura de rede POR REMOTO (nunca por worktree) já cobre todos.
+worktree_reconcile:
+  timeout_s: 5

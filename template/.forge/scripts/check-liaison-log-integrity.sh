@@ -25,7 +25,9 @@
 #   - post-merge é DETECTOR: dispara no instante em que a duplicata NASCE (merge automático roda
 #     post-merge, nunca pre-commit) e precisa rodar em QUALQUER branch — um merge que duplica e
 #     nunca é empurrado corrompe o canal do mesmo jeito, e o bloqueio no push jamais o veria.
-#   - pre-push é o BLOQUEIO: nada duplicado sai da máquina.
+#   - pre-push é o BLOQUEIO quando roda e acha duplicata; alvo ausente aqui avisa e segue,
+#     nunca bloqueia — mesma classe de check-worktree-prereqs.sh (issue #81/#73): hooksPath é
+#     compartilhado por todo worktree, .forge/scripts/ não é.
 # Nenhum dos dois basta sozinho — ver installer/gitattributes.patch e os dois hooks git/*.
 set -euo pipefail
 

@@ -13,8 +13,10 @@
 #   [3] escopo DELIBERADO: ledger.json/state.json/LEDGER.md/CHANNEL.md ficam FORA do driver
 #   [4] check-liaison-log-integrity.sh: log limpo passa; canal configurado com log vazio reprova
 #       (controle positivo); msg_id duplicado reprova nomeando o arquivo
-#   [5] delegação ausente (issue #49): script sumido com .forge/scripts/ presente → pre-push
-#       BLOQUEIA e post-merge FALHA, nunca terminam como sucesso silencioso
+#   [5] delegação ausente (issue #49): script sumido com .forge/scripts/ presente → post-merge
+#       FALHA (nunca sucesso silencioso); pre-push AVISA e segue, nunca bloqueia por alvo ausente
+#       (mesma classe de check-worktree-prereqs.sh, issue #81/#73 — hooksPath é compartilhado
+#       entre worktrees, .forge/scripts/ não é)
 #   [6] CANAL REAL — pre-push: log com msg_id duplicado (fabricado, simulando o merge=union que já
 #       rodou antes deste commit) faz o hook BLOQUEAR citando o defeito
 #   [7] CANAL REAL — post-merge: um `git merge` de verdade que aciona o union e duplica uma
@@ -116,8 +118,14 @@ head5="$(git -C "$T5" rev-parse HEAD)"
 set +e
 pp5_out="$(cd "$T5" && printf '%s\n' "refs/heads/main $head5 refs/heads/main $ZERO" | bash .forge/hooks/git/pre-push origin "file://$T5" 2>&1)"; pp5_rc=$?
 set -e
-[ "$pp5_rc" -ne 0 ] || { echo "FAIL [5]: pre-push concluiu com sucesso delegando para alvo ausente: $pp5_out"; exit 1; }
+# pre-push, diferente do post-merge, NÃO bloqueia por alvo ausente aqui — mesma classe de
+# check-worktree-prereqs.sh (issue #81): core.hooksPath é compartilhado por TODOS os worktrees,
+# mas .forge/scripts/ é conteúdo próprio de cada um (issue #41); bloquear travaria uma worktree
+# que ainda não trouxe o commit deste script por causa alheia (a classe que a issue #73 corrigiu).
+# O aviso nomeando o alvo ausente é o que substitui o bloqueio — nunca silêncio.
+[ "$pp5_rc" -eq 0 ] || { echo "FAIL [5]: pre-push bloqueou por alvo ausente — deveria avisar e seguir (issue #73/#81): $pp5_out"; exit 1; }
 grep -q "check-liaison-log-integrity" <<<"$pp5_out" || { echo "FAIL [5]: pre-push não nomeia o alvo ausente: $pp5_out"; exit 1; }
+grep -qi "NÃO VERIFICADO" <<<"$pp5_out" || { echo "FAIL [5]: pre-push não sinaliza explicitamente a checagem não verificada: $pp5_out"; exit 1; }
 echo "OK [5]"
 
 echo "[6] CANAL REAL — pre-push BLOQUEIA log duplicado (dirigido pelo hook, stdin no formato do git)"

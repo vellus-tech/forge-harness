@@ -1421,10 +1421,10 @@
       "id": "LDG-0061",
       "type": "debt",
       "title": "Enforcement mecanico so existe para .NET — Node/TS sem assets, script de auditoria nem scan",
-      "detail": "Escopo decidido em 2026-09-04 após parecer sobre o vibe-coding-toolkit (soumatheusgomes, MIT). O pack backend-dotnet-relational ganhou assets/ + dotnet-baseline.sh + dotnet-quality-scan; Node/TS fecha adaptando as tres regras ESLint em AST daquele repo (quality/max-lines, quality/no-direct-console, quality/no-direct-data-access) mais utils.cjs e verify.mjs, que sao testadas com o RuleTester do proprio ESLint e sem dependencia alem dele. Elas pegam o que grep nao pega: alias de import (db as database), import default vs namespace. Vendorizar como copia unica que passa a ser nossa (preservar aviso MIT), nunca dependencia de upstream — autor unico, repo de tres semanas, sem CI, regras escritas num unico dia. NAO herdar MAX_LINES=350 como error bloqueante: conflita com conventions/code-style.md (tamanho e smell, nao portao) e o proprio material do repo documenta o fatiamento cosmetico perto do limite sem resolve-lo no desenho do gate; se houver gatilho mecanico, que seja sinal nao bloqueante. Java e Python seguem em prosa. Implementacao segue TDD red-first com PBT, teste de contrato e teste de integracao.",
+      "detail": "Escopo decidido em 2026-09-04 após parecer sobre o vibe-coding-toolkit (soumatheusgomes, MIT). O pack backend-dotnet-relational ganhou assets/ + dotnet-baseline.sh + dotnet-quality-scan; Node/TS fecha adaptando as tres regras ESLint em AST daquele repo (quality/max-lines, quality/no-direct-console, quality/no-direct-data-access) mais utils.cjs e verify.mjs, que sao testadas com o RuleTester do proprio ESLint e sem dependencia alem dele. Elas pegam o que grep nao pega: alias de import (db as database), import default vs namespace. Vendorizar como copia unica que passa a ser nossa (preservar aviso MIT), nunca dependencia de upstream — autor unico, repo de tres semanas, sem CI, regras escritas num unico dia. NAO herdar MAX_LINES=350 como error bloqueante: conflita com conventions/code-style.md (tamanho e smell, nao portao) e o proprio material do repo documenta o fatiamento cosmetico perto do limite sem resolve-lo no desenho do gate; se houver gatilho mecanico, que seja sinal nao bloqueante. Java e Python seguem em prosa. Implementacao segue TDD red-first com PBT, teste de contrato e teste de integracao. — Resolvido: Enforcement mecânico Node/TS entregue: node-baseline.sh (--check/--apply, greenfield error / brownfield warn para no-direct-console, nunca error para max-lines) + pack backend-node-postgres/assets (eslint.config.mjs + eslint-rules/ vendorizado de soumatheusgomes/vibe-coding-toolkit sob forge-quality/*, MIT preservado) + skill node-quality-scan (11 regras, uma linha por regra sempre) + fiacao em node-reviewer/verify-build/doctor/forge-init/PROFILE. max-lines materializado como warn, nunca error — decisao preservada e provada pelo gate (cenario [6]). Gate tests/w180-node-enforcement-gate.sh, 16 cenarios, red-first confirmado (MISS de eslint-rules/utils.cjs) antes do GREEN. Java/Python seguem em prosa — rastreado em LDG-0130.",
       "severity": "low",
       "priority": "P2",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -1437,8 +1437,8 @@
         "promoted_to": null
       },
       "created_at": "2026-08-22T13:20:32-03:00",
-      "updated_at": "2026-08-22T13:20:32-03:00",
-      "resolved_at": null,
+      "updated_at": "2026-09-04T20:00:59-03:00",
+      "resolved_at": "2026-09-04T20:00:59-03:00",
       "dedup_key": "manual:LDG-0061"
     },
     {
@@ -1728,6 +1728,30 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0110"
+    },
+    {
+      "id": "LDG-0130",
+      "type": "debt",
+      "title": "Enforcement mecânico ainda não existe para Java nem Python",
+      "detail": "LDG-0061 fechou .NET (dotnet-baseline.sh + dotnet-quality-scan) e este item fecha Node/TS (node-baseline.sh + node-quality-scan, vendorizando as tres regras ESLint de soumatheusgomes/vibe-coding-toolkit sob o namespace forge-quality/*, MIT preservado). Java e Python seguem cobertos só em prosa (PROFILE.md dos packs backend-java-relational e backend-python-relational) — decisao explicita registrada ao fechar LDG-0061, nao omissao. Para replicar o padrao: Java tem Checkstyle/PMD/ErrorProne como equivalente do par TreatWarningsAsErrors+AnalysisMode, e Python tem ruff/mypy --strict; nenhum dos dois foi investigado ainda quanto a armadilhas equivalentes ao IDE1006 (.NET) ou ao max-lines nao-bloqueante (Node). Prioridade baixa: nenhum change ativo bloqueado por isso.",
+      "severity": "low",
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-04T20:00:59-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0130"
     }
   ]
 }

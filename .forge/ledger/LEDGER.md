@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**18 itens ativos** · roadmap 6 · feature-idea 1 · tech-debt 8 · known-bug 1 · follow-up 2 · (51 encerrados)
+**18 itens ativos** · roadmap 6 · feature-idea 1 · tech-debt 8 · known-bug 1 · follow-up 2 · (52 encerrados)
 
 ## Roadmap
 

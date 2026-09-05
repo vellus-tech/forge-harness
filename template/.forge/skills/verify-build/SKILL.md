@@ -79,7 +79,13 @@ find /tmp/coverage-dotnet -name "coverage.cobertura.xml" -exec \
 
 ### 3. Pipeline Node/TypeScript
 
+O rigor por regra vem do `eslint.config.*` do **repositório**, não deste comando. `bash .forge/scripts/node-baseline.sh --check` responde se as regras `forge-quality/*` (vendorizadas, AST via ESLint) estão registradas com a severidade certa — `no-direct-console` e `no-direct-data-access` load-bearing, `max-lines` deliberadamente **não bloqueante** (decisão registrada, ledger `LDG-0061`/`LDG-0130`: tamanho de arquivo é sinal, não portão). Se reprovar, emite `NODE-BASELINE` como finding `HIGH` antes mesmo de rodar o lint.
+
 ```bash
+# Baseline de enforcement (barato, determinístico, roda antes do lint)
+bash .forge/scripts/node-baseline.sh --check 2>&1
+BASELINE_EXIT=$?
+
 # Detectar package manager
 if [ -f pnpm-lock.yaml ]; then PM=pnpm
 elif [ -f yarn.lock ]; then PM=yarn
@@ -93,8 +99,13 @@ INSTALL_EXIT=$?
 $PM exec tsc --noEmit 2>&1
 TSC_EXIT=$?
 
-# Lint (ESLint)
-$PM exec eslint --max-warnings=0 . 2>&1
+# Lint (ESLint) — SEM --max-warnings=0. Essa flag conta TODO warning do projeto, sem exceção
+# por regra, e `forge-quality/max-lines` é warning por decisão deliberada (não bloqueante);
+# `--max-warnings=0` reprovaria o build por um sinal que o harness decidiu não ser portão.
+# Erro de severidade "error" (inclusive forge-quality/no-direct-console e
+# forge-quality/no-direct-data-access quando ligadas) já derruba o exit code sozinho — não
+# precisa do --max-warnings para isso.
+$PM exec eslint . 2>&1
 LINT_EXIT=$?
 
 # Test com coverage
@@ -219,6 +230,7 @@ Escrever em `/tmp/verify-build-output.json`:
 | `COVERAGE-NNN` | HIGH | Application < 85%/80%, Infra < 70%, Frontend < 80%/75% |
 | `LINT-NNN` | HIGH | ESLint error (não warning) ou `dotnet format --verify-no-changes` divergente |
 | `DOTNET-BASELINE` | HIGH | `dotnet-baseline.sh --check` reprovou: enforcement de build ausente ou incompleto |
+| `NODE-BASELINE` | HIGH | `node-baseline.sh --check` reprovou: `forge-quality/*` ausente, desligada ou `max-lines` declarada `"error"` |
 | `TYPECHECK-NNN` | BLOCKER | `tsc --noEmit` falhou |
 
 ## Anti-Patterns

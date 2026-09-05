@@ -62,14 +62,17 @@ _require_value() { forge_require_value "$@"; }
 # contém é o tronco. `--path-format=absolute` é necessário porque, no próprio checkout principal,
 # `--git-common-dir` devolveria `.git` relativo — e `dirname .git` daria `.`, que é justamente o
 # worktree corrente que se quer evitar. O mesmo idioma já é usado em hooks/git/pre-commit.
-_forge_main_root() {
-  local common
-  common="$(git -C "$(pwd)" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || return 1
-  [ -n "$common" ] || return 1
-  case "$common" in /*) : ;; *) return 1 ;; esac
-  dirname "$common"
-}
-ROOT="${FORGE_ROOT:-$(_forge_main_root || git -C "$(pwd)" rev-parse --show-toplevel 2>/dev/null || pwd)}"
+# Resolução do checkout principal e o aviso de divergência vivem em lib/forge-root.sh — UM sítio,
+# consumido pelos quatro scripts que antes carregavam este corpo copiado (LDG-0068). Delegação em
+# alvo ausente é erro: sem a lib, o script não segue resolvendo ROOT por conta própria.
+if [ -f "$SCRIPT_DIR/lib/forge-root.sh" ]; then
+  # shellcheck source=lib/forge-root.sh
+  . "$SCRIPT_DIR/lib/forge-root.sh"
+else
+  echo "FAIL: $SCRIPT_DIR/lib/forge-root.sh ausente — é a resolução única do checkout principal; sem ela o script gravaria estado durável num lugar que ninguém declarou." >&2
+  exit 1
+fi
+ROOT="$(forge_resolve_root)"
 LEDGER_DIR="$ROOT/.forge/ledger"
 LF="$LEDGER_DIR/ledger.json"
 TPL="$(cd "$SCRIPT_DIR/.." && pwd)/templates/ledger/LEDGER.md"
@@ -105,6 +108,14 @@ _render() {
   LEDGER_ROOT="$ROOT" LEDGER_JSON="$LF" LEDGER_TPL="$TPL" LEDGER_OUT="$OUT" \
     node "$SCRIPT_DIR/lib/ledger-render.mjs"
 }
+
+# LDG-0068: as portas que ESCREVEM anunciam quando o ROOT resolvido difere do repositório de
+# trabalho de quem invocou. `render`, `status` e `list` só leem e ficam de fora — aviso em porta de
+# leitura é ruído que treina o operador a ignorar a linha quando ela importa.
+case "$cmd" in
+  add|update|resolve|promote|harvest)
+    forge_warn_root_divergence "$ROOT" "ledger" "ledger-ops" ;;
+esac
 
 case "$cmd" in
 

@@ -1565,10 +1565,10 @@
       "id": "LDG-0067",
       "type": "known-bug",
       "title": "Ordinal de gate (wNNN) colide entre branches paralelas pelo mesmo mecanismo do id de ledger",
-      "detail": "Medido em 2026-09-04, duas vezes na mesma rodada: uma branch criou w153/w154 enquanto outra ja os tinha, e outra criou w155/w156 depois que o PR #85 os mergeou em develop. Quem escolhe o proximo ordinal olha 'ls tests/*-gate.sh' da propria arvore. run-all.sh varre tests/*-gate.sh ordenado por nome, entao dois arquivos com o mesmo ordinal se encontram no merge e um deles perde a identidade. Agravante: o plano e o CHANGELOG referenciam gates por ordinal ('w151 [15]', 'w111:259'), entao renumerar depois quebra referencia publicada. Mesma familia do item de numeracao de ledger; a saida provavelmente e a mesma decisao.",
+      "detail": "MEDIÇÃO QUE CONTRADIZ A CONCLUSÃO REGISTRADA (2026-09-05): 'a saída provavelmente é a mesma decisão' do id de ledger NÃO se sustenta. Os dois mecanismos não são paralelos: o ledger tem UM arquivo físico que vive no tronco por desenho (_forge_main_root resolve por --git-common-dir) e 'add' calcula max+1 sobre ele — a serialização é por construção, e machinery-propagation.md a declara norma. Ordinais de gate são N arquivos que vivem POR BRANCH em tests/, sem autoridade compartilhada onde escrever; não há para onde transferir a decisão. CORRIGIDO com duas peças: (a) template/.forge/scripts/gate-ordinal.sh next deriva do tronco REMOTO (git ls-tree origin/develop) e DECLARA quando degradou para a árvore local; (b) gate-ordinal.sh check reprova dois arquivos com o mesmo ordinal, com contador de controle. Limitação registrada por escrito: nada disto IMPEDE duas branches que nunca se viram de escolher o mesmo número — o que muda é o momento da descoberta (push do autor, não merge de terceiro). Documentado em rules/testing/quality-gates.md. Gate: w193 cenários [1]-[5]. — Resolvido: gate-ordinal.sh next/check entregue; w193[1..5] verdes",
       "severity": "low",
       "priority": "P3",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -1581,18 +1581,18 @@
         "promoted_to": null
       },
       "created_at": "2026-09-04T16:11:07-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-09-05T18:45:15-03:00",
+      "resolved_at": "2026-09-05T18:45:15-03:00",
       "dedup_key": "manual:LDG-0067"
     },
     {
       "id": "LDG-0068",
       "type": "tech-debt",
       "title": "ledger-ops escreve no checkout principal e contamina a branch que o tronco tiver em check-out",
-      "detail": "Comportamento por desenho e documentado ('o ledger e artefato duravel de PROJETO, nao de branch': _forge_main_root resolve por --git-common-dir). O efeito colateral aparece em trabalho paralelo: um agente que resolve itens de dentro de uma worktree grava no ledger do TRONCO, que pode estar noutra branch. Medido em 2026-09-04: quatro resolucoes da Onda 4 (LDG-0057 a LDG-0060) nasceram em fix/ledger-reconciliation, branch alheia ao trabalho, e tiveram de ser transferidas a mao. FORGE_ROOT apontando para a worktree contorna, mas nada obriga nem avisa — a operacao e' silenciosa e o autor so descobre por 'git status' no tronco. Saida minima: quando ROOT resolvido difere do cwd do invocador, dizer isso na saida.",
+      "detail": "CORRIGIDO por VISIBILIDADE, não por mudança de comportamento (2026-09-05). O comportamento é norma escrita (machinery-propagation.md: 'estado de projeto mora no tronco, não na branch') e alterá-lo faria toda branch que toca o ledger colidir no merge por construção. O que faltava era dizer em voz alta. Detalhe que o registro não trazia e que muda o desenho da correção: _forge_main_root() estava COPIADO em quatro scripts (ledger-ops.sh, liaison-ops.sh, check-liaison-acks.sh, check-liaison-log-integrity.sh), corpo idêntico — escrever o aviso quatro vezes reinstalaria LDG-0014 dentro do change que existe para combater essa classe. Os quatro passam a consumir lib/forge-root.sh (forge_main_root, forge_resolve_root, forge_warn_root_divergence), e a contagem de _forge_main_root() em template/ cai de 4 para 0. O aviso sai nas CINCO portas que escrevem (add, update, resolve, promote, harvest) e em nenhuma das que só leem. Gate: w193 cenários [6]-[10], com [10] provando por mutação que há um sítio e não quatro. — Resolvido: aviso de divergência de ROOT em lib/forge-root.sh, consumido pelos quatro scripts; w193[6..10] verdes",
       "severity": "low",
       "priority": "P3",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -1605,8 +1605,8 @@
         "promoted_to": null
       },
       "created_at": "2026-09-04T16:11:07-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-09-05T18:45:15-03:00",
+      "resolved_at": "2026-09-05T18:45:15-03:00",
       "dedup_key": "manual:LDG-0068"
     },
     {

@@ -30,7 +30,7 @@ argument-hint: "[--no-backup]"
    --target "$(pwd)" --source <repo-forge>/template/.forge`.)
 
 2. **Confirme** com o usuário a lista de mudanças (é uma ação que reescreve arquivos de maquinaria;
-   um backup `.forge.bak-N` é criado por padrão, salvo `--no-backup`).
+   um backup é criado por padrão em `.git/forge-backups/`, fora da árvore de trabalho, salvo `--no-backup`).
 
 3. **Aplique**:
 
@@ -51,7 +51,7 @@ argument-hint: "[--no-backup]"
 5. **Meça a propagação para os worktrees existentes.** O `doctor` (que o `update` roda no fim) lista, por worktree linkado, quantos arquivos de maquinaria divergem do tronco e quantos commits aquele worktree está à frente. Use a tabela para decidir: sincronize primeiro os que estão com **zero commits à frente** (rebase/merge do tronco é trivial ali) e escale os que estão muito à frente ou em `HEAD` destacado, onde a sincronização é decisão de quem tem o contexto da branch.
 
 6. **Resuma** o resultado: o que foi atualizado, o que foi preservado (specs/baseline), o estado do `core.hooksPath`, a divergência dos worktrees e o backup.
-   Sugira remover o `.forge.bak-N` após validar (o `.forge` é versionado em git).
+   O backup fica em `.git/forge-backups/` e não precisa ser removido para rodar gates: fora da árvore, ele não é varrido por `--path` nem aparece em `git status`. Antes ele vivia em `.forge.bak-N` e era varrido pelos próprios gates, bloqueando o primeiro push após o upgrade por conteúdo que era cópia do repositório (issue #76).
 
 ## Regras
 

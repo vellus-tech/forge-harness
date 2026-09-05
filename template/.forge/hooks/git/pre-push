@@ -120,6 +120,29 @@ if [ -f "$ACKS" ]; then
   fi
 fi
 
+# liaison log integrity (issue #80) — o BLOQUEIO do único modo de falha do merge=union: nada
+# duplicado sai da máquina QUANDO o check roda e acha duplicata. post-merge (abaixo, neste mesmo
+# diretório) já DETECTA no instante em que a duplicata nasce e roda em qualquer branch; este é o
+# segundo dos dois pontos de fiação que a issue pede — nenhum dos dois basta sozinho.
+#
+# Alvo AUSENTE aqui NÃO bloqueia (mesma classe de check-worktree-prereqs.sh acima, issue #81, e
+# pelo MESMO motivo: `core.hooksPath` absoluto compartilha este hook entre TODOS os worktrees, mas
+# `.forge/scripts/` é conteúdo PRÓPRIO de cada um (issue #41) — uma worktree que ainda não trouxe
+# o commit deste script, mas herda o hook novo de outra, bloquearia por causa alheia, e é
+# exatamente a classe que a issue #73 corrigiu. `warn`, não `block`: nomeia a lacuna em voz alta
+# (o "não verifiquei" de #49 continua visível, nunca silêncio), mas não trava quem não tem como
+# resolvê-la só empurrando de novo. Quando o script EXISTE e RODA, a política é enforçada de
+# verdade — é só a ausência do alvo que degrada para aviso.
+LOG_INTEGRITY="$ROOT/.forge/scripts/check-liaison-log-integrity.sh"
+if [ -f "$LOG_INTEGRITY" ]; then
+  if ! FORGE_ROOT="$ROOT" bash "$LOG_INTEGRITY"; then
+    echo "pre-push BLOQUEADO: liaison — log duplicado pelo merge=union (issue #80)" >&2
+    exit 1
+  fi
+elif [ -d "$ROOT/.forge/scripts" ]; then
+  echo "pre-push: liaison-log-integrity (issue #80) NÃO VERIFICADO — check-liaison-log-integrity.sh ausente em .forge/scripts/ (rode 'npx forge-harness update' para instalar). merge=union nunca perde mensagem, só duplica, e post-merge (quando presente) já teria sinalizado — mas esta checagem específica não rodou agora."
+fi
+
 FORGE_MD="$ROOT/.forge/FORGE.md"
 [ -f "$FORGE_MD" ] || { echo "pre-push OK (sem harness)"; exit 0; }
 

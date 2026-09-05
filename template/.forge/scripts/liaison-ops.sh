@@ -22,7 +22,8 @@
 #   liaison-ops.sh send     <channel> --thread <id> --kind note|question|answer|contract-change \
 #                            --subject "<txt>" [--body "<txt>" | --body-file <path>] [--requires-ack] \
 #                            [--in-reply-to <msg_id>] [--change <id>] [--contract-files <a,b>] [--commit <sha>]
-#   liaison-ops.sh ack      <channel> <msg_id> [--subject "<txt>"] [--reason wont-adopt|acknowledged]
+#   liaison-ops.sh ack      <channel> <msg_id> [--subject "<txt>"] [--body "<txt>" | --body-file <path>] \
+#                            [--reason wont-adopt|acknowledged]
 #   liaison-ops.sh inbox    <channel> [--thread <id>]
 #   liaison-ops.sh read     <channel> --upto <msg_id>
 #   liaison-ops.sh status   [<channel>]
@@ -53,8 +54,13 @@
 # chamada no pre-push por check-liaison-acks.sh.
 #
 # Nenhum subcomando aceita flag que não conheça: argumento desconhecido REPROVA nomeando a flag,
-# o subcomando e as flags aceitas por ele (ver _reject_unknown). O `ack` não aceita corpo — ele é
-# recibo, e o corpo tem um caminho único de escrita, o `send`.
+# o subcomando e as flags aceitas por ele (ver _reject_unknown). O `ack` aceita corpo (--body /
+# --body-file, issue #83) pelo MESMO caminho do `send` — _scan_secret_or_fail/_write_body_blob são
+# funções compartilhadas, não uma segunda implementação: duas portas para o mesmo efeito é
+# exatamente o que este comentário avisava antes de existirem funções para reusar. Medido em
+# campo: 1138 de 1138 mensagens kind=ack sem body_ref, porque a ferramenta não oferecia onde
+# escrever — o ack é, por desenho do protocolo, a mensagem que carrega POSIÇÃO (concorda/discorda/
+# não se aplica), e sem corpo um recibo não informa nada a quem esperava a decisão.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -230,6 +236,59 @@ _render() {
   LIAISON_ROOT="$ROOT" LIAISON_CHANNEL="$ch" LIAISON_CHANNEL_DIR="$ch_dir" LIAISON_TPL="$TPL" \
     LIAISON_OUT="$ch_dir/CHANNEL.md" LIAISON_SELF="$self" \
     node "$LIBDIR/liaison-render.mjs"
+}
+
+# Segredo no corpo é segredo vazado: a mensagem sai do repositório e, com transporte por hub
+# compartilhado ou branch remota, não volta atrás. Barra antes de escrever no log, não depois.
+# Compartilhada por `send` e `ack` (issue #83) — um único ponto de varredura, nunca dois: se cada
+# porta de escrita de corpo reimplementasse a checagem, bastaria uma esquecer para virar a mais
+# frouxa, exatamente o raciocínio já registrado acima sobre por que o `ack` não tinha porta própria.
+_scan_secret_or_fail() {  # _scan_secret_or_fail <body> <body_file>
+  local body="$1" body_file="$2"
+  [ -n "$body" ] || [ -n "$body_file" ] || return 0
+  local scan_target="$body"
+  [ -n "$body_file" ] && scan_target="$(cat "$body_file" 2>/dev/null || true)"
+  local hits
+  hits="$(SCAN_TEXT="$scan_target" node - "$LIBDIR" <<'NODEEOF'
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib] = process.argv;
+  const { findSecrets } = await import(pathToFileURL(join(lib, 'secret-scan.mjs')).href);
+  process.stdout.write(findSecrets(process.env.SCAN_TEXT || '').join(', '));
+})();
+NODEEOF
+)"
+  if [ -n "$hits" ]; then
+    echo "FAIL: possível segredo no corpo da mensagem ($hits) — o liaison publica fora deste repositório; use uma referência (--change, --commit) em vez do valor" >&2
+    return 1
+  fi
+  return 0
+}
+
+# Grava --body-file como blob (teto de tamanho + dedup por sha) e imprime `blobs/<nome>` em
+# stdout. Compartilhada por `send` e `ack` pelo mesmo motivo do scan acima.
+_write_body_blob() {  # _write_body_blob <ch_dir> <body_file>
+  local ch_dir="$1" body_file="$2"
+  [ -f "$body_file" ] || { echo "FAIL: --body-file '$body_file' não encontrado" >&2; return 1; }
+  mkdir -p "$ch_dir/blobs"
+  node - "$LIBDIR" "$body_file" "$ch_dir/blobs" <<'NODEEOF'
+const { readFileSync, writeFileSync, existsSync } = require('fs');
+const { join, basename } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, file, blobsDir] = process.argv;
+  const M = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
+  const buf = readFileSync(file);
+  if (buf.length > M.BLOB_MAX_BYTES) { console.error(`blob excede ${M.BLOB_MAX_BYTES} bytes (${buf.length})`); process.exit(1); }
+  const sha = M.sha256Hex(buf.toString('binary'));
+  const safeBase = basename(file).replace(/[^A-Za-z0-9._-]/g, '_');
+  const name = `${sha}-${safeBase}`;
+  const dest = join(blobsDir, name);
+  if (!existsSync(dest)) writeFileSync(dest, buf);
+  process.stdout.write(`blobs/${name}`);
+})();
+NODEEOF
 }
 
 case "$cmd" in
@@ -498,50 +557,11 @@ send)
     echo "FAIL: requires_ack proibido em kind=answer" >&2; exit 1
   fi
 
-  # Segredo no corpo é segredo vazado: a mensagem sai do repositório e, com transporte por hub
-  # compartilhado ou branch remota, não volta atrás. Barra antes de escrever no log, não depois.
-  if [ -n "$body" ] || [ -n "$body_file" ]; then
-    scan_target="$body"
-    [ -n "$body_file" ] && scan_target="$(cat "$body_file" 2>/dev/null || true)"
-    hits="$(SCAN_TEXT="$scan_target" node - "$LIBDIR" <<'NODEEOF'
-const { join } = require('path');
-const { pathToFileURL } = require('url');
-(async () => {
-  const [, , lib] = process.argv;
-  const { findSecrets } = await import(pathToFileURL(join(lib, 'secret-scan.mjs')).href);
-  process.stdout.write(findSecrets(process.env.SCAN_TEXT || '').join(', '));
-})();
-NODEEOF
-)"
-    if [ -n "$hits" ]; then
-      echo "FAIL: possível segredo no corpo da mensagem ($hits) — o liaison publica fora deste repositório; use uma referência (--change, --commit) em vez do valor" >&2
-      exit 1
-    fi
-  fi
+  _scan_secret_or_fail "$body" "$body_file" || exit 1
 
   body_ref=""
   if [ -n "$body_file" ]; then
-    [ -f "$body_file" ] || { echo "FAIL: --body-file '$body_file' não encontrado" >&2; exit 1; }
-    mkdir -p "$ch_dir/blobs"
-    blob_out="$(node - "$LIBDIR" "$body_file" "$ch_dir/blobs" <<'NODEEOF'
-const { readFileSync, writeFileSync, existsSync } = require('fs');
-const { join, basename } = require('path');
-const { pathToFileURL } = require('url');
-(async () => {
-  const [, , lib, file, blobsDir] = process.argv;
-  const M = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
-  const buf = readFileSync(file);
-  if (buf.length > M.BLOB_MAX_BYTES) { console.error(`blob excede ${M.BLOB_MAX_BYTES} bytes (${buf.length})`); process.exit(1); }
-  const sha = M.sha256Hex(buf.toString('binary'));
-  const safeBase = basename(file).replace(/[^A-Za-z0-9._-]/g, '_');
-  const name = `${sha}-${safeBase}`;
-  const dest = join(blobsDir, name);
-  if (!existsSync(dest)) writeFileSync(dest, buf);
-  process.stdout.write(`blobs/${name}`);
-})();
-NODEEOF
-)"
-    body_ref="$blob_out"
+    body_ref="$(_write_body_blob "$ch_dir" "$body_file")" || exit 1
     body=""
   fi
 
@@ -603,30 +623,47 @@ NODEEOF
 ack)
   channel="${1:-}"; shift || true
   msg_id="${1:-}"; shift || true
-  [ -n "$channel" ] && [ -n "$msg_id" ] || { echo "FAIL: uso: ack <channel> <msg_id> [--subject <txt>]" >&2; exit 1; }
+  [ -n "$channel" ] && [ -n "$msg_id" ] || { echo "FAIL: uso: ack <channel> <msg_id> [--subject <txt>] [--body <txt> | --body-file <path>] [--reason wont-adopt|acknowledged]" >&2; exit 1; }
   ch_dir="$LIAISON_DIR/$channel"
   [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado" >&2; exit 1; }
   self="$(_read_self)"
   [ -n "$self" ] || { echo "FAIL: self não configurado" >&2; exit 1; }
-  subject=""; reason=""
+  subject=""; reason=""; body=""; body_file=""
   while [ $# -gt 0 ]; do case "$1" in
     --subject) subject="$2"; shift 2 ;;
     --reason) reason="$2"; shift 2 ;;
-    --body|--body-file) _reject_unknown "ack" "--subject, --reason" "$1" "o ack é um RECIBO, não conteúdo: o corpo tem um único caminho de escrita, o send (varredura de segredo, teto de blob e body_ref moram lá; uma segunda porta viraria a mais frouxa). Publique o conteúdo com: liaison-ops.sh send $channel --thread <thread> --kind note --in-reply-to $msg_id --body-file <arquivo> — e então acke." ;;
-    *) _reject_unknown "ack" "--subject, --reason" "$1" ;;
+    --body) body="$2"; shift 2 ;;
+    --body-file) body_file="$2"; shift 2 ;;
+    *) _reject_unknown "ack" "--subject, --body, --body-file, --reason" "$1" ;;
   esac; done
   case "${reason:-}" in
     ''|wont-adopt|acknowledged) ;;
     *) echo "FAIL: --reason inválido '$reason' (use wont-adopt | acknowledged)" >&2; exit 1 ;;
   esac
   [ -n "$subject" ] || [ -z "$reason" ] || subject="ack ($reason)"
+  if [ -n "$body" ] && [ -n "$body_file" ]; then echo "FAIL: use --body OU --body-file, não os dois" >&2; exit 1; fi
+  # `wont-adopt` sem corpo é exatamente o caso em que a ausência de justificativa É o defeito
+  # (issue #83): o --reason distingue "reconheço e recuso" de "recebido, sem posição a tomar", e só
+  # o primeiro exige posição por escrito. `acknowledged` e ack sem --reason continuam aceitando
+  # recibo puro — não existe obrigação geral de corpo, só condicionada à recusa.
+  if [ "${reason:-}" = "wont-adopt" ] && [ -z "$body" ] && [ -z "$body_file" ]; then
+    echo "FAIL: --reason wont-adopt exige --body ou --body-file — recusa sem justificativa é o drift que este canal existe para evitar" >&2
+    exit 1
+  fi
 
-  out="$(node - "$LIBDIR" "$ch_dir" "$self" "$channel" "$msg_id" "$subject" "$(_git_date)" <<'NODEEOF'
+  _scan_secret_or_fail "$body" "$body_file" || exit 1
+  body_ref=""
+  if [ -n "$body_file" ]; then
+    body_ref="$(_write_body_blob "$ch_dir" "$body_file")" || exit 1
+    body=""
+  fi
+
+  out="$(node - "$LIBDIR" "$ch_dir" "$self" "$channel" "$msg_id" "$subject" "$body" "$body_ref" "$(_git_date)" <<'NODEEOF'
 const { readFileSync, writeFileSync, readdirSync, existsSync, renameSync } = require('fs');
 const { join } = require('path');
 const { pathToFileURL } = require('url');
 (async () => {
-  const [, , lib, chDir, self, channel, targetId, subjectArg, now] = process.argv;
+  const [, , lib, chDir, self, channel, targetId, subjectArg, body, bodyRef, now] = process.argv;
   const M = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
   const logDir = join(chDir, 'log');
   const files = existsSync(logDir) ? readdirSync(logDir).filter((f) => f.endsWith('.jsonl')) : [];
@@ -647,7 +684,7 @@ const { pathToFileURL } = require('url');
   const msg = {
     msg_id: msgId, channel, thread_id: threadId, sender: self, seq, lamport,
     kind: 'ack', in_reply_to: targetId, requires_ack: false,
-    subject,
+    subject, ...(body ? { body } : {}), ...(bodyRef ? { body_ref: bodyRef } : {}),
     refs: { change_id: null, contract_files: [], commit: null },
     created_at: now, trust: 'self',
   };

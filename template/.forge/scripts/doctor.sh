@@ -214,11 +214,13 @@ EOF_CHG
       [ -f "/tmp/$hm_res.q.enabled" ] \
         || echo "  · harness: heavy_mutex habilitado no repo, mas a FILA da máquina está desligada (ligue com: heavy-run.sh queue enable)"
     fi
-    # A raiz legada é montada em duas partes de propósito: escrita numa linha só, ela casaria a
-    # regra 1 do check-heavy-mutex — que procura quem PRODUZ caminho de lock a partir de variável
-    # do chamador — e o gate reprovaria o próprio template. Aqui a intenção é o oposto: DETECTAR
-    # o caminho legado para avisar que ele não serializa.
-    hm_legroot="${TMPDIR:-/tmp}"
+    # A raiz legada é montada em duas partes porque a intenção aqui é o OPOSTO da regra 1 do
+    # check-heavy-mutex: este bloco DETECTA o caminho legado para avisar que ele não serializa, não
+    # o PRODUZ. Quebrar em duas linhas costumava desarmar a regra por acaso (LDG-0054: ela media
+    # grafia — variável e 'lock' na mesma linha — e não intenção); agora a regra mede por janela e
+    # pegaria este bloco também, então a válvula é DECLARADA em vez de acidental: o marcador abaixo
+    # é o que o gate reconhece, e a intenção passa a viver no código, não num comentário adjacente.
+    hm_legroot="${TMPDIR:-/tmp}"  # heavy-mutex: detecção
     hm_leg="$hm_legroot/$hm_res".lock
     if [ "$hm_leg" != "/tmp/$hm_res.lock" ] && [ -d "$hm_leg" ]; then
       echo "  ✗ harness: lock LEGADO vivo em $hm_leg — este caminho NÃO serializa com /tmp/$hm_res.lock (recolha com: heavy-run.sh sweep --legacy)"
@@ -525,6 +527,18 @@ check_node() {
   if have typescript-language-server; then ok "lsp: typescript-language-server presente"
   else info "lsp: typescript-language-server ausente (opcional)"
        try_install "typescript-language-server" npm install -g typescript-language-server || true
+  fi
+  # Baseline de qualidade de lint: o que faz console.log/import direto de banco/tamanho de
+  # arquivo virarem sinal verificável em ESLint em vez de regra em prosa. Informativo por
+  # decisão — materializar eslint.config.mjs na raiz do projeto é ato do humano (ou de
+  # --apply), nunca efeito colateral de um diagnóstico.
+  if [ -x "$ROOT/.forge/scripts/node-baseline.sh" ]; then
+    if bash "$ROOT/.forge/scripts/node-baseline.sh" --root "$ROOT" --check >/dev/null 2>&1; then
+      ok "baseline de qualidade: eslint.config + forge-quality/* no lugar"
+    else
+      info "baseline de qualidade incompleto (regra em prosa não vira aviso de lint)"
+      hint "audite com: bash .forge/scripts/node-baseline.sh --check · materialize com --apply"
+    fi
   fi
 }
 

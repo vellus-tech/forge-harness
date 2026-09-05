@@ -561,6 +561,18 @@
               "description": "Teto da leitura de rede, em segundos. Default 5. Medido em 2026-08-21 (GitHub HTTPS, 108 refs): ls-remote custa 0,55 a 0,73s em rede quente e 9,0s quando o DNS falha, daí o teto."
             }
           }
+        },
+        "worktree_reconcile": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Reconciliação de worktrees contra o remoto REAL. A medição por `@{u}` lê `refs/remotes/*`, que é réplica local e pode estar desatualizada nas duas direções — sem `fetch` recente ignora o que o servidor já tem, e depois de um `fetch` alheio pode estar à frente do que este worktree conhece. É o mesmo defeito que o `check-push-ahead` corrigiu usando `ls-remote`, e que sobrevivia aqui (LDG-0056).",
+          "properties": {
+            "timeout_s": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Teto em SEGUNDOS para consultar o remoto. Esgotado o teto, a medição degrada para NÃO MEDIDO explícito — nunca finge sincronia, porque 'não consegui perguntar' e 'perguntei e está em dia' não podem terminar no mesmo lugar. Default 5."
+            }
+          }
         }
       }
     }

@@ -4,10 +4,13 @@
 # Dois defeitos que corrompiam mensagem ou metadado SEM aviso, erro ou exit diferente de zero.
 #
 # (a) Todo parser de flags de `liaison-ops.sh` terminava em `*) shift ;;` — qualquer argumento que
-#     o subcomando não conhecesse era descartado calado. O caso de campo: `ack ... --body-file
-#     corpo.md` publicava o ack com rc 0 e SEM corpo nenhum (só `send` aceita `--body-file`), e a
-#     sessão que o publicou acreditou ter anexado o relatório. O mesmo caminho engolia typo:
-#     `--subjet` publicava mensagem sem assunto.
+#     o subcomando não conhecesse era descartado calado. O caso de campo original desta issue era
+#     `ack ... --body-file corpo.md`: na época só `send` aceitava `--body-file`, e o ack publicava
+#     com rc 0 e SEM corpo nenhum. A issue #83 deu ao `ack` seu próprio caminho de corpo (ver w166)
+#     — `--body-file` deixou de reproduzir o defeito. O teste [1] abaixo usa uma flag genuinamente
+#     inexistente para continuar cobrindo a MESMA classe de defeito (flag desconhecida engolida em
+#     silêncio); a cobertura específica de `ack --body-file` mora em w166. O mesmo caminho engolia
+#     typo: `--subjet` publicava mensagem sem assunto.
 #
 # (b) O campo `trust` era atribuído na escrita e não havia instrumento que o verificasse depois.
 #     `content_sha` o exclui DELIBERADAMENTE (varia entre cópias, por desenho), então verificação
@@ -152,22 +155,20 @@ grep -q "\"msg_id\":\"$TARGET\"" "$PEER_LOG" \
 
 printf 'relatório de adoção do tenant_id\n' > "$T/corpo.md"
 
-echo "[1] ack --body-file reprova nomeando a flag e não publica ack (caso de campo)"
-out1="$(LG consumer ack "$CH" "$TARGET" --subject "ack com relatório" --body-file "$T/corpo.md" 2>&1)"; rc1=$?
+echo "[1] ack --attachment (flag inexistente) reprova nomeando a flag e não publica ack"
+out1="$(LG consumer ack "$CH" "$TARGET" --subject "ack com relatório" --attachment "$T/corpo.md" 2>&1)"; rc1=$?
 if [ "$rc1" -eq 0 ]; then
-  echo "FAIL [1]: 'ack --body-file' publicou com rc 0 e sem aviso — $(body_state "$OWN_LOG" ack); é o silêncio do caso de campo: a sessão acreditou ter anexado o corpo e o corpo não existe no destino. Saída: $out1"
+  echo "FAIL [1]: 'ack --attachment' publicou com rc 0 e sem aviso — $(body_state "$OWN_LOG" ack); é o silêncio do caso de campo original: a sessão acreditaria ter anexado o corpo por uma flag que não existe. Saída: $out1"
   exit 1
 fi
 grep -q "flag desconhecida" <<<"$out1" \
   || { echo "FAIL [1]: a reprovação não diz que a flag é desconhecida: $out1"; exit 1; }
-grep -q -- "--body-file" <<<"$out1" \
+grep -q -- "--attachment" <<<"$out1" \
   || { echo "FAIL [1]: a reprovação não NOMEIA a flag rejeitada: $out1"; exit 1; }
 grep -q "subcomando 'ack'" <<<"$out1" \
-  || { echo "FAIL [1]: a reprovação não diz QUAL subcomando não aceita a flag — quem escreveu --body-file num ack conclui que ela não existe em lugar nenhum: $out1"; exit 1; }
+  || { echo "FAIL [1]: a reprovação não diz QUAL subcomando não aceita a flag: $out1"; exit 1; }
 grep -q -- "--subject" <<<"$out1" \
   || { echo "FAIL [1]: a reprovação não lista as flags aceitas pelo ack: $out1"; exit 1; }
-grep -q "send" <<<"$out1" \
-  || { echo "FAIL [1]: a reprovação não diz o que usar no lugar (o corpo tem um único caminho de escrita, o send): $out1"; exit 1; }
 n_ack1="$(count_kind "$OWN_LOG" ack)"
 [ "${n_ack1:-0}" -eq 0 ] \
   || { echo "FAIL [1]: a chamada reprovada AINDA publicou ${n_ack1} ack(s) — reprovar depois de escrever não corrige o caso"; exit 1; }

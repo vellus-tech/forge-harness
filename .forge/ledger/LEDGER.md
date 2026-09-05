@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**12 itens ativos** · roadmap 3 · tech-debt 8 · known-bug 1 · (70 encerrados)
+**13 itens ativos** · roadmap 3 · tech-debt 9 · known-bug 1 · (70 encerrados)
 
 ## Roadmap
 
@@ -43,6 +43,8 @@ _Encerrados: 2 (resolved 2)_
   Varredura das chaves-folha de forgeManifest/forgeFrontmatter contra scripts/, hooks/ e bin/: sdd.default_mode, sdd.default_rigor, sdd.default_scale, sdd.archive_policy, sdd.human_gate_required e quality.evals_root não têm leitor em lugar nenhum — nem em commands/, agents/ ou rules/. A ofensa é de OUTRA natureza que a das quality.require_* (LDG-0008): estas prometem um DEFAULT, cuja ausência é inofensiva, não um ENFORCEMENT, cuja ausência é afirmação falsa sobre o que o harness cobra. Varrê-las junto transformaria correção de honestidade em limpeza de schema com risco de retrocompatibilidade desproporcional. Decidir por chave, em change próprio.
 - **LDG-0152** [open] (P3) — fm_field triplicado — três leitores do frontmatter do FORGE.md
   O mesmo awk de leitura de campo escalar do bloco runtime: existe em template/.forge/hooks/git/pre-push, em handoff-gen.sh:42 e como idioma declarado em hooks/session/on-session-start.sh:11. A correção de LDG-0150 eliminou o clone do pre-push como LEITOR DE GATES (que passou a usar lib/forge-runtime.sh), mas o pre-push mantém fm_field para typecheck/test e mantém uma sonda local de presença da chave gates:. Os outros dois leem chaves escalares onde a forma mapeada não se aplica. Consolidar os três num lib é trabalho próprio: fazê-lo junto ampliaria o diff do item mais crítico da leva sem fechar risco nenhum.
+- **LDG-0153** [open] (P3) — Doctor não informa divergência do _common.sh do liaison contra o template
+  A issue #101 propunha, além do fast-forward-ou-recusa, que o doctor do consumidor informasse quando o _common.sh local diverge do que o template entrega — a informação que o censo da issue produziu à mão. NÃO IMPLEMENTADO, e a medição diz por quê: não há referência local contra a qual comparar (a cópia instalada É a do template; um hash de referência teria de viajar no pacote e envelhecer junto), e scripts/ NÃO está em ENRICHABLE_DIRS (bin/forge.mjs:352), de modo que todo 'forge update' SOBRESCREVE o diretório — a divergência é transitória por construção e o próprio update é o remédio. A peça cross-repositório da mesma issue (gate de paridade de transporte entre árvores) fica fora do alcance do harness pelo motivo já registrado na spec: o harness não enxerga a árvore do consumidor, e um gate sem universo é o que a guarda de vacuidade existe para reprovar. Reabrir se aparecer um caso em que a divergência sobreviva a um update.
 
 _Encerrados: 27 (resolved 24 · wont-fix 3)_
 

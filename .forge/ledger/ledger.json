@@ -2002,6 +2002,30 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0152"
+    },
+    {
+      "id": "LDG-0153",
+      "type": "tech-debt",
+      "title": "Doctor não informa divergência do _common.sh do liaison contra o template",
+      "detail": "A issue #101 propunha, além do fast-forward-ou-recusa, que o doctor do consumidor informasse quando o _common.sh local diverge do que o template entrega — a informação que o censo da issue produziu à mão. NÃO IMPLEMENTADO, e a medição diz por quê: não há referência local contra a qual comparar (a cópia instalada É a do template; um hash de referência teria de viajar no pacote e envelhecer junto), e scripts/ NÃO está em ENRICHABLE_DIRS (bin/forge.mjs:352), de modo que todo 'forge update' SOBRESCREVE o diretório — a divergência é transitória por construção e o próprio update é o remédio. A peça cross-repositório da mesma issue (gate de paridade de transporte entre árvores) fica fora do alcance do harness pelo motivo já registrado na spec: o harness não enxerga a árvore do consumidor, e um gate sem universo é o que a guarda de vacuidade existe para reprovar. Reabrir se aparecer um caso em que a divergência sobreviva a um update.",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-05T19:55:23-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0153"
     }
   ]
 }

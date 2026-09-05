@@ -698,6 +698,30 @@ const { pathToFileURL } = require('url');
   const senderMsgs = own.concat([msg]).sort((a, b) => a.seq - b.seq);
   writeFileSync(targetFile + '.tmp', senderMsgs.map((m) => JSON.stringify(m)).join('\n') + '\n');
   renameSync(targetFile + '.tmp', targetFile);
+
+  // O ack AVANÇA o cursor da thread até a mensagem ackada — issue #102. Antes desta linha, o ato
+  // mais forte de leitura do protocolo não marcava nada como lido, e `read --upto` era o único
+  // caminho por onde um cursor avançava — toda mensagem ackada permanecia não lida.
+  //
+  // Só para mensagem de TERCEIRO. Ackar a própria mensagem é PARTICIPAÇÃO, não leitura: mover o
+  // cursor ali marcaria como lidas as mensagens alheias que ficaram entre o cursor e a própria,
+  // que ninguém leu. É a invariante que separa os dois atos.
+  //
+  // Não-regressão em modo NÃO estrito: ackar algo já lido é legítimo, e transformar isso em erro
+  // faria um ato de protocolo falhar por um cursor que já estava adiante.
+  if (target.sender !== self) {
+    try {
+      const { mergeLogs } = M;
+      const { threads } = mergeLogs(all.concat([msg]));
+      if (threads[threadId] && threads[threadId].order.includes(targetId)) {
+        const { advanceCursor } = await import(pathToFileURL(join(lib, 'liaison-cursor.mjs')).href);
+        advanceCursor({
+          chDir, threads, threadId, upto: targetId,
+          nowWall: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'), strict: false,
+        });
+      }
+    } catch { /* o ack já está publicado; o cursor é conveniência, nunca desfaz a publicação */ }
+  }
   process.stdout.write(msgId);
 })();
 NODEEOF
@@ -809,18 +833,12 @@ const { pathToFileURL } = require('url');
   const { threads } = mergeLogs(all);
   const threadId = Object.keys(threads).find((id) => threads[id].order.includes(upto));
   if (!threadId) { console.error(`mensagem '${upto}' desconhecida localmente (fora de qualquer thread resolvida)`); process.exit(1); }
-  const idx = threads[threadId].order.indexOf(upto);
-  const stateFile = join(chDir, 'state.json');
-  const state = existsSync(stateFile) ? JSON.parse(readFileSync(stateFile, 'utf8')) : { cursors: {} };
-  if (!state.cursors) state.cursors = {};
-  const prev = state.cursors[threadId];
-  if (prev && threads[threadId].order.includes(prev.msg_id)) {
-    const prevIdx = threads[threadId].order.indexOf(prev.msg_id);
-    if (idx < prevIdx) { console.error(`cursor não pode regredir (atual: ${prev.msg_id}, pedido: ${upto})`); process.exit(1); }
-  }
-  state.cursors[threadId] = { msg_id: upto, read_at: nowWall };
-  writeFileSync(stateFile + '.tmp', JSON.stringify(state, null, 2) + '\n');
-  renameSync(stateFile + '.tmp', stateFile);
+  // A regra de não-regressão vive em lib/liaison-cursor.mjs, e é a MESMA que `ack` usa. Aqui em
+  // modo estrito: o operador PEDIU um alvo, e um pedido inválido tem de ser dito.
+  const { advanceCursor } = await import(pathToFileURL(join(lib, 'liaison-cursor.mjs')).href);
+  try {
+    advanceCursor({ chDir, threads, threadId, upto, nowWall, strict: true });
+  } catch (e) { console.error(e.message); process.exit(1); }
   process.stdout.write(threadId);
 })();
 NODEEOF

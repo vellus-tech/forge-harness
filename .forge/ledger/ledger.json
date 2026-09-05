@@ -1837,10 +1837,10 @@
       "id": "LDG-0130",
       "type": "debt",
       "title": "Enforcement mecânico ainda não existe para Java nem Python",
-      "detail": "LDG-0061 fechou .NET (dotnet-baseline.sh + dotnet-quality-scan) e este item fecha Node/TS (node-baseline.sh + node-quality-scan, vendorizando as tres regras ESLint de soumatheusgomes/vibe-coding-toolkit sob o namespace forge-quality/*, MIT preservado). Java e Python seguem cobertos só em prosa (PROFILE.md dos packs backend-java-relational e backend-python-relational) — decisao explicita registrada ao fechar LDG-0061, nao omissao. Para replicar o padrao: Java tem Checkstyle/PMD/ErrorProne como equivalente do par TreatWarningsAsErrors+AnalysisMode, e Python tem ruff/mypy --strict; nenhum dos dois foi investigado ainda quanto a armadilhas equivalentes ao IDE1006 (.NET) ou ao max-lines nao-bloqueante (Node). Prioridade baixa: nenhum change ativo bloqueado por isso.",
+      "detail": "LDG-0061 fechou .NET (dotnet-baseline.sh + dotnet-quality-scan) e este item fecha Node/TS (node-baseline.sh + node-quality-scan, vendorizando as tres regras ESLint de soumatheusgomes/vibe-coding-toolkit sob o namespace forge-quality/*, MIT preservado). Java e Python seguem cobertos só em prosa (PROFILE.md dos packs backend-java-relational e backend-python-relational) — decisao explicita registrada ao fechar LDG-0061, nao omissao. Para replicar o padrao: Java tem Checkstyle/PMD/ErrorProne como equivalente do par TreatWarningsAsErrors+AnalysisMode, e Python tem ruff/mypy --strict; nenhum dos dois foi investigado ainda quanto a armadilhas equivalentes ao IDE1006 (.NET) ou ao max-lines nao-bloqueante (Node). Prioridade baixa: nenhum change ativo bloqueado por isso. — Wont-fix: Duplicata de LDG-0065, registrada por outro agente na mesma rodada por nao enxergar o ledger da branch vizinha — a colisao que LDG-0066 descreve, agora manifesta em CONTEUDO e nao so em id. O item vivo e' LDG-0065, que ja carrega o escopo (Error Prone/SpotBugs/Checkstyle em Java; ruff e mypy strict em Python) e o padrao a replicar (w155/w180). Encerrado como duplicata, nao como decisao de nao fazer.",
       "severity": "low",
       "priority": "P3",
-      "status": "open",
+      "status": "wont-fix",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -1853,8 +1853,8 @@
         "promoted_to": null
       },
       "created_at": "2026-09-04T20:00:59-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-09-05T09:43:23-03:00",
+      "resolved_at": "2026-09-05T09:43:23-03:00",
       "dedup_key": "manual:LDG-0130"
     },
     {

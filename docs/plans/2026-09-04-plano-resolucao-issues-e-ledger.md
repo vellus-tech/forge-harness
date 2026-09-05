@@ -209,6 +209,40 @@ Oito itens que a própria entrega da 0.10.0 registrou como pendência. Cinco del
 
 **DoD da onda:** LDG-0061 — cujo título foi estreitado para Node/TS — fecha quando o pack Node tiver assets, script de auditoria e `node-quality-scan` com gate espelhando o `w155`; LDG-0065 (Java e Python) fecha por conta própria e não é arrastado por ele — controle e recontrole inclusos, e o `MAX_LINES` entrando como sinal não bloqueante ou não entrando; LDG-0062 fecha quando a regra virar analisador Roslyn na primeira camada, ou `wont-fix` com a limitação documentada; LDG-0063 e LDG-0064 fecham como rule/skill com asserção de que o texto é lido por quem deve lê-lo, não como arquivo órfão. LDG-0003 e LDG-0008 são projeto e pedem change SDD próprio, e os dois tiveram o escopo reescrito em 2026-09-05 (LDG-0003 é ativação de rule-pack, não maquinaria de capability pack; LDG-0008 começa pelos dois interruptores de `quality` que ninguém lê). LDG-0001 e LDG-0002 fecharam como `wont-fix` — trabalho de outro repositório, e `promoted` neste ledger significa change local, não transferência entre repositórios (ver Reclassificação decidida).
 
+## Onda 9 — O que a execução do plano produziu
+
+Trabalho gera trabalho, e um plano que não registra o que a própria execução descobriu volta a mentir sobre o tamanho do backlog. Estes treze itens nasceram entre 04 e 05/09, enquanto as ondas 0 a 8 eram executadas, e o placar os acusou por reconciliação bidirecional — que é exatamente o que ele existe para fazer.
+
+**Três defeitos de campo, achados por agentes durante o trabalho:**
+
+| Item | Achado |
+|---|---|
+| **#101** | O template ainda traz o `_dir_push` que sobrescreve o log do hub. |
+| **#102** | O ack não avança o cursor da thread: 148 mensagens ficam "respondidas e não lidas". |
+| **#103** | `ledger-ops update` com valor vazio devolve `OK` sem gravar, e o commit anuncia o que não aconteceu. |
+
+**As armadilhas do trabalho paralelo** — três instâncias da mesma família, estado derivado da própria árvore numa operação que precisa de visão global:
+
+| Item | Achado |
+|---|---|
+| **LDG-0067** | O ordinal de gate (`wNNN`) colide entre branches paralelas; aconteceu duas vezes nesta rodada. |
+| **LDG-0068** | `ledger-ops` escreve no checkout principal e contamina a branch que o tronco tiver em check-out. |
+| **LDG-0141** | `check-shell-pipeline` não pega `ls | sort` sob `pipefail`, só o idioma com `grep -q` — o defeito que matou o `w20` em silêncio no CI, três execuções seguidas. |
+
+**Gates e contratos que não fecham o círculo:**
+
+| Item | Achado |
+|---|---|
+| **LDG-0069** | `check-shell-pipeline` e `check-heredoc-hash` existem e nenhum hook os invoca — o "gate que ninguém invoca" da issue #82, dentro do próprio harness. |
+| **LDG-0110** | O `doctor` não tem check de gate órfão; é a segunda peça de #82, separada para ter ciclo próprio. |
+| **LDG-0100** | `check-liaison-acks` não lê o hub em transporte `git`/`gh` — escopo deliberadamente adiado. |
+| **LDG-0101** | O schema do liaison descreve `body`/`body_ref` como mutuamente obrigatórios e o validador aceita ambos ausentes. |
+| **LDG-0102** | A tabela de topo do contrato do adapter está presa na v1.2 enquanto o rodapé já vai na v1.5. |
+| **LDG-0140** | O `harvest` do `ledger-ops` captura narrativa histórica de `verification.md` como follow-up novo. |
+| **LDG-0131** | ~380 linhas não commitadas de `feat/upgrade-safety`, preservadas pela guarda de worktree suja, com completude não avaliada. |
+
+**DoD da onda:** nenhum, e é deliberado. Esta onda **não é para executar agora** — ela existe para que o backlog diga a verdade sobre o próprio tamanho, e para que a próxima sessão decida a partir de um plano que os inclui, em vez de encontrá-los soltos. Quando a decisão vier, `LDG-0141` e `LDG-0067` têm precedência: os dois já custaram tempo de CI nesta rodada e são a classe de defeito que se repete sozinha.
+
 ## Reclassificação decidida (2026-09-05)
 
 > Esta seção substitui a "Reclassificação proposta" da v2. As decisões abaixo foram tomadas com autoridade delegada pelo dono do repositório, cada uma medida contra o código atual antes de ser registrada, e estão aplicadas no `.forge/ledger/ledger.json` — o placar lê de lá, nunca daqui. As duas reclassificações que a v2 propunha e que já haviam sido executadas em ondas anteriores (LDG-0016 a `resolved`, LDG-0020 a `wont-fix`) saem daqui por estarem encerradas.

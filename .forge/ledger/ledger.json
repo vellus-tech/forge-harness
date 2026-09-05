@@ -268,10 +268,10 @@
       "id": "LDG-0012",
       "type": "tech-debt",
       "title": "Assercoes na forma '[ cond ] && cmd' sob set -e reprovam sem imprimir mensagem",
-      "detail": "Custou um ciclo de diagnostico nesta sessao: o w32-archive-gate morreu no meio do passo [2] sem uma linha de saida, e a causa real (um check novo reprovando por outro motivo) ficou invisivel. A forma funciona como assercao — set -e mata o gate — mas engole a razao, e o proximo diagnostico comeca do zero. Varredura encontra o padrao em ~15 gates (w14-adapters com 10 ocorrencias, gw1/gw2/gw3, changelog-merge, w33, w50, w80, w102, w112, w32:168). Distinguir os casos de CONTROLE DE FLUXO legitimo (run-all.sh:31/37/38, copia condicional de fixture) dos de ASSERCAO, e converter apenas os segundos para a forma '|| { echo FAIL ...; exit 1; }'. Corrigido nesta sessao apenas w32:138, o que a regressao atingiu.",
+      "detail": "Custou um ciclo de diagnostico nesta sessao: o w32-archive-gate morreu no meio do passo [2] sem uma linha de saida, e a causa real (um check novo reprovando por outro motivo) ficou invisivel. A forma funciona como assercao — set -e mata o gate — mas engole a razao, e o proximo diagnostico comeca do zero. Varredura encontra o padrao em ~15 gates (w14-adapters com 10 ocorrencias, gw1/gw2/gw3, changelog-merge, w33, w50, w80, w102, w112, w32:168). Distinguir os casos de CONTROLE DE FLUXO legitimo (run-all.sh:31/37/38, copia condicional de fixture) dos de ASSERCAO, e converter apenas os segundos para a forma '|| { echo FAIL ...; exit 1; }'. Corrigido nesta sessao apenas w32:138, o que a regressao atingiu. — Resolvido: entregue externamente via gate-assert-visibility",
       "severity": null,
       "priority": "P2",
-      "status": "promoted",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -286,8 +286,8 @@
         "promoted_to": "gate-assert-visibility"
       },
       "created_at": "2026-07-29T20:21:33-03:00",
-      "updated_at": "2026-08-04T11:52:45-03:00",
-      "resolved_at": null,
+      "updated_at": "2026-09-04T20:51:40-03:00",
+      "resolved_at": "2026-09-04T20:51:40-03:00",
       "dedup_key": "manual:LDG-0012"
     },
     {
@@ -486,7 +486,7 @@
       "id": "LDG-0021",
       "type": "tech-debt",
       "title": "Prova de mutacao mede as regras que existem, nao a superficie de entrada que elas deixam passar",
-      "detail": "Limite estrutural exposto pelas CINCO rodadas de revisao do PR #40, e vale registrar porque e' generalizavel a todo gate deste harness. As provas de mutacao do w132 (15) sao fortes no que fazem: mutar a regra que implementa cada correcao faz o caso reprovar, com controle, recontrole, mutador que falha se o alvo textual sumir e checksum do lib de origem. Mas elas medem apenas as regras JA ESCRITAS. NENHUM dos ~25 defeitos das cinco rodadas foi encontrado por mutacao — todos nasceram de alguem construir uma ENTRADA que o reconhecedor nao previa (produtor homonimo, subgrupo dentro de produtor, interpolacao no meio do path, data class sem corpo, 'where T : class', DSL kotlinx.html com nome de verbo, literal com '//' ou chave, emoji dessincronizando code point x UTF-16, verbatim C# terminado em barra, raw string do Kotlin com DSL de exemplo, @Controller sem flag global). E' a mesma forma do defeito que o proprio modulo descreve para o 'unresolved': o que o regex nao reconhece e' invisivel por construcao. PARCIALMENTE ATACADO nesta entrega: (a) o caso [41] virou propriedade POSICIONAL (code[i] e struct[i] so podem ser o original ou espaco; newline nunca some; struct e' sempre mais mascarada que code) medida sobre corpus de DIALETO (.cs/.kt/.java/.ts com comentario de bloco, verbatim multilinha, raw string, emoji), e nao mais sobre os .mjs do proprio harness — a primeira versao media o harness em vez dos dialetos e com a propriedade mais fraca possivel (comprimento); (b) o caso [43] e' PARAMETRICO: 'duas unidades de roteamento no mesmo arquivo' testado nos seis dialetos de uma vez, porque essa classe unica foi descoberta TRES vezes por tres revisoes diferentes (.NET atributos, Spring, e Nest ainda vivo na 5a rodada). O QUE FALTA: fuzzing guiado por gramatica de cada dialeto, e corpus de arquivos REAIS dos repos adotantes — que e' o que de fato pegaria idiomas como o kotlinx.html. Enquanto nao existir, a cobertura de dialeto e' hipotese, nao fato, o que reforca LDG-0017.",
+      "detail": "Limite estrutural exposto pelas CINCO rodadas de revisao do PR #40, e vale registrar porque e' generalizavel a todo gate deste harness. As provas de mutacao do w132 (15) sao fortes no que fazem: mutar a regra que implementa cada correcao faz o caso reprovar, com controle, recontrole, mutador que falha se o alvo textual sumir e checksum do lib de origem. Mas elas medem apenas as regras JA ESCRITAS. NENHUM dos ~25 defeitos das cinco rodadas foi encontrado por mutacao — todos nasceram de alguem construir uma ENTRADA que o reconhecedor nao previa (produtor homonimo, subgrupo dentro de produtor, interpolacao no meio do path, data class sem corpo, 'where T : class', DSL kotlinx.html com nome de verbo, literal com '//' ou chave, emoji dessincronizando code point x UTF-16, verbatim C# terminado em barra, raw string do Kotlin com DSL de exemplo, @Controller sem flag global). E' a mesma forma do defeito que o proprio modulo descreve para o 'unresolved': o que o regex nao reconhece e' invisivel por construcao. PARCIALMENTE ATACADO nesta entrega: (a) o caso [41] virou propriedade POSICIONAL (code[i] e struct[i] so podem ser o original ou espaco; newline nunca some; struct e' sempre mais mascarada que code) medida sobre corpus de DIALETO (.cs/.kt/.java/.ts com comentario de bloco, verbatim multilinha, raw string, emoji), e nao mais sobre os .mjs do proprio harness — a primeira versao media o harness em vez dos dialetos e com a propriedade mais fraca possivel (comprimento); (b) o caso [43] e' PARAMETRICO: 'duas unidades de roteamento no mesmo arquivo' testado nos seis dialetos de uma vez, porque essa classe unica foi descoberta TRES vezes por tres revisoes diferentes (.NET atributos, Spring, e Nest ainda vivo na 5a rodada). O QUE FALTA: fuzzing guiado por gramatica de cada dialeto, e corpus de arquivos REAIS dos repos adotantes — que e' o que de fato pegaria idiomas como o kotlinx.html. Enquanto nao existir, a cobertura de dialeto e' hipotese, nao fato, o que reforca LDG-0017. NOTA (Onda 7/8, 2026-09-04): permanece open por decisao explicita. O plano de resolucao (docs/plans/2026-09-04-plano-resolucao-issues-e-ledger.md, Onda 7) e o mandato desta sessao sao explicitos: mudar a regua de prova de mutacao afeta os ~94 gates do repositorio e PEDE change SDD proprio (scale >= 2, com design.md decidindo o eixo de fuzzing guiado por gramatica e a estrategia de corpus real dos repos adotantes) — nao e item de faxina de ledger. Nenhum codigo foi escrito para este item nesta sessao.",
       "severity": null,
       "priority": "P2",
       "status": "open",
@@ -502,7 +502,7 @@
         "promoted_to": null
       },
       "created_at": "2026-08-03T15:35:34-03:00",
-      "updated_at": "2026-08-03T16:00:16-03:00",
+      "updated_at": "2026-09-04T20:51:40-03:00",
       "resolved_at": null,
       "dedup_key": "manual:LDG-0021"
     },
@@ -888,10 +888,10 @@
       "id": "LDG-0037",
       "type": "tech-debt",
       "title": "gate-assert-visibility fica active indefinidamente e trava red-evidence.sh ci a um formato de histórico",
-      "detail": "Achado da revisão adversarial (PR #45): o change gate-assert-visibility está status:verified, archive.eligible:false, e permanece em .forge/specs/active/ por decisão registrada no manifest (não há baseline a atualizar). Consequência: red-evidence.sh ci reexecuta o replay desse bugfix já encerrado em TODO PR, para sempre, e já houve deriva silenciosa entre o base_strategy commitado (ancestry/944c9582, inalcançável a partir de origin/develop) e a estratégia real observada (revert-synthesis). Se um commit futuro tocar tests/w80-suite-gate.sh nos mesmos trechos, o patch reverso deixa de aplicar. Remédio: /forge:close esse change (delivered-externally) para sair do escopo do ci, ou fazer red-evidence.sh ci ignorar changes já verified.",
+      "detail": "Achado da revisão adversarial (PR #45): o change gate-assert-visibility está status:verified, archive.eligible:false, e permanece em .forge/specs/active/ por decisão registrada no manifest (não há baseline a atualizar). Consequência: red-evidence.sh ci reexecuta o replay desse bugfix já encerrado em TODO PR, para sempre, e já houve deriva silenciosa entre o base_strategy commitado (ancestry/944c9582, inalcançável a partir de origin/develop) e a estratégia real observada (revert-synthesis). Se um commit futuro tocar tests/w80-suite-gate.sh nos mesmos trechos, o patch reverso deixa de aplicar. Remédio: /forge:close esse change (delivered-externally) para sair do escopo do ci, ou fazer red-evidence.sh ci ignorar changes já verified. — Resolvido: Decisao: fechado o change gate-assert-visibility via /forge:close --reason delivered-externally (nao 'ignorar verified' dentro do red-evidence.sh). Motivo: a decisao registrada no manifest so cobria NAO rodar /forge:archive (sem baseline de produto a atualizar) — nunca disse que o change precisava permanecer para sempre em specs/active/; o proprio orphan-changes.mjs ja o classificava como merged_unarchived, sinal aceito mas nao um requisito de ficar ativo. Trabalho ja estava mergeado em develop (PR #42, squash 08acf9f, suite 75/75) — 'entrega no codigo real, baseline intocado' e exatamente a semantica de delivered-externally. Efeito: pasta movida para .forge/specs/archived/2026-09-04-gate-assert-visibility/; red-evidence.sh ci deixa de reexecutar o replay desse bugfix (o loop so varre specs/active/*/manifest.yaml com type:bugfix). LDG-0012 (origem) fechado para resolved via o proprio close. Efeito colateral encontrado e tratado: o harvest do close capturou 4 bullets historicos de verification.md como follow-up novo (LDG-0111..0114, resolvidos como duplicados/nao-acionaveis) — heuristica de harvest registrada como novo item LDG-0140, fora de escopo desta sessao.",
       "severity": "medium",
       "priority": "P3",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "PR #45 review",
@@ -904,8 +904,8 @@
         "promoted_to": null
       },
       "created_at": "2026-08-05T15:22:23-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-09-04T20:51:40-03:00",
+      "resolved_at": "2026-09-04T20:51:40-03:00",
       "dedup_key": "manual:LDG-0037"
     },
     {
@@ -1445,10 +1445,10 @@
       "id": "LDG-0062",
       "type": "debt",
       "title": "single-impl-interface do dotnet-quality-scan é heurística de grep, não análise sintática",
-      "detail": "A regra conta declarações 'interface IX' e ocorrências de ': IX' por texto. Ela não distingue comentário, string literal nem declaração multi-linha, e conta a própria declaração quando a implementação está no mesmo arquivo em formato inesperado. Em base grande isso produz falso positivo e falso negativo silenciosos. A saída correta é um analisador Roslyn (Microsoft.CodeAnalysis.CSharp) operando sobre a árvore sintática e entrando no build — primeira camada, não segunda. Enquanto isso, a regra é MEDIUM e o SKILL.md declara que ela aponta e não decide.",
+      "detail": "A regra conta declarações 'interface IX' e ocorrências de ': IX' por texto. Ela não distingue comentário, string literal nem declaração multi-linha, e conta a própria declaração quando a implementação está no mesmo arquivo em formato inesperado. Em base grande isso produz falso positivo e falso negativo silenciosos. A saída correta é um analisador Roslyn (Microsoft.CodeAnalysis.CSharp) operando sobre a árvore sintática e entrando no build — primeira camada, não segunda. Enquanto isso, a regra é MEDIUM e o SKILL.md declara que ela aponta e não decide. — Wont-fix: Decisao: wont-fix, nao 'melhoria delimitada'. Argumento: a limitacao que o item descreve (nao distingue comentario/string/declaracao multi-linha) ja e' um TRADE-OFF ARQUITETURAL DECLARADO do scan.sh inteiro, nao um descuido isolado desta regra — references/detection-commands.md ja tinha secao 'Limites destes comandos' dizendo isso para as outras 9 regras ('e o preco de ser barato e portatil; a triagem e de quem le') e ja apontava o Roslyn como saida real. Corrigir SO single-impl-interface (ex.: filtrar linha 100% comentario) deixaria essa regra com precisao inconsistente em relacao as 9 irmas com o MESMO defeito de classe, sem eliminar os outros dois vetores citados no item (string literal, declaracao partida) — troca uma heuristica fraca por outra heuristica ainda incompleta, so que agora parecendo mais confiavel do que e. Fingir precisao parcial e' pior que declarar o limite. Feito nesta sessao (documentacao, sem mudanca de logica/severidade): clean-code-rules.md ganhou paragrafo 'Limite do scanner' concreto para esta regra (exemplos dos dois sentidos de erro) e detection-commands.md passou a listar o comando cru de single-impl-interface (fatlava no arquivo) com o mesmo caso nomeado na secao de limites gerais. Severidade permanece MEDIUM; SKILL.md e clean-code-rules.md ja deixavam explicito que 'o scanner so aponta'. Caminho real permanece analisador Roslyn (Microsoft.CodeAnalysis.CSharp) na camada de build, fora de escopo desta sessao.",
       "severity": "low",
       "priority": "P3",
-      "status": "open",
+      "status": "wont-fix",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -1461,18 +1461,18 @@
         "promoted_to": null
       },
       "created_at": "2026-08-22T13:20:32-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-09-04T20:51:40-03:00",
+      "resolved_at": "2026-09-04T20:51:40-03:00",
       "dedup_key": "manual:LDG-0062"
     },
     {
       "id": "LDG-0063",
       "type": "roadmap",
       "title": "Estrategia de corte de arquivo grande: a rule para em 'e smell, revise' e nao oferece caminho",
-      "detail": "conventions/code-style.md trata tamanho como smell e nao como portao — decisao correta —, mas nao diz COMO cortar quando o corte e devido, e o agente sem estrategia inventa helpers.ts/utils.ts como deposito do que sobrou. A coreografia do prompt 09 do vibe-coding-toolkit (MIT) e adotavel como orientacao: quatro costuras em ordem (logica de negocio embutida em UI/rota -> servico de dominio; bloco de UI repetido -> sub-componente; acesso a dados -> repositorio/adaptador; aglomerado de helpers -> modulo utilitario de dominio); escape hatch nomeado 'sem costura natural, pare e siga para o proximo' como preferivel a inventar abstracao; preservacao da interface publica com o arquivo original virando barril fino que reexporta, em vez de editar todo import site; ritmo de um arquivo por commit com typecheck+teste+lint entre cada. Duas armadilhas a registrar: a extracao pode empurrar o arquivo de DESTINO acima do proprio teto, e pode alargar em silencio o tipo de retorno inferido, virando erro de tipo num call site distante. Entrada como skill ou playbook cabeado a gate-runner/verify-build, nunca prompt solto. Implementacao segue TDD red-first com PBT, teste de contrato e teste de integracao.",
+      "detail": "conventions/code-style.md trata tamanho como smell e nao como portao — decisao correta —, mas nao diz COMO cortar quando o corte e devido, e o agente sem estrategia inventa helpers.ts/utils.ts como deposito do que sobrou. A coreografia do prompt 09 do vibe-coding-toolkit (MIT) e adotavel como orientacao: quatro costuras em ordem (logica de negocio embutida em UI/rota -> servico de dominio; bloco de UI repetido -> sub-componente; acesso a dados -> repositorio/adaptador; aglomerado de helpers -> modulo utilitario de dominio); escape hatch nomeado 'sem costura natural, pare e siga para o proximo' como preferivel a inventar abstracao; preservacao da interface publica com o arquivo original virando barril fino que reexporta, em vez de editar todo import site; ritmo de um arquivo por commit com typecheck+teste+lint entre cada. Duas armadilhas a registrar: a extracao pode empurrar o arquivo de DESTINO acima do proprio teto, e pode alargar em silencio o tipo de retorno inferido, virando erro de tipo num call site distante. Entrada como skill ou playbook cabeado a gate-runner/verify-build, nunca prompt solto. Implementacao segue TDD red-first com PBT, teste de contrato e teste de integracao. — Resolvido: Entregue: nova secao 'template/.forge/rules/conventions/code-style.md#11 Corte de arquivo grande: as quatro costuras' com as quatro costuras EM ORDEM (UI/rota->servico de dominio; bloco de UI repetido->sub-componente; acesso a dados->repositorio/adaptador; helpers->utilitario de dominio), escape hatch nomeado ('sem costura natural, pare e siga para o proximo'), preservacao de interface publica via barril fino (reexporta em vez de editar cada import site), ritmo de um arquivo extraido por commit com typecheck+teste+lint entre cada, e as duas armadilhas (arquivo de destino pode passar do proprio teto; tipo de retorno pode alargar em silencio por inferencia). Atribuicao preservada: prompt 09 do vibe-coding-toolkit (MIT). Fiacao: template/.forge/agents/review/quality-reviewer.md ganhou o passo '11. Tamanho de arquivo' (mais uma linha na tabela de Severidades) apontando literalmente para o heading 'Corte de arquivo grande' e nomeando o anti-padrao (helpers.ts como deposito) a nao aprovar. Asserção: tests/w185-file-cut-strategy-gate.sh (8 cenarios) — TDD red-first (vermelho confirmado antes do conteudo existir, cenario [1] falhando), controle e recontrole por mutacao (removida a frase do escape hatch -> [2] reprova; restaurado -> cmp identico -> verde de novo).",
       "severity": "low",
       "priority": "P3",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -1485,18 +1485,18 @@
         "promoted_to": null
       },
       "created_at": "2026-08-22T13:20:32-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-09-04T20:51:40-03:00",
+      "resolved_at": "2026-09-04T20:51:40-03:00",
       "dedup_key": "manual:LDG-0063"
     },
     {
       "id": "LDG-0064",
       "type": "roadmap",
       "title": "Burndown de lint sem portao de decisao: afrouxar a regra e apresentado como codigo mais limpo",
-      "detail": "Nao existe no harness norma sobre como queimar um passivo de avisos herdado. O portao de decisao do prompt 02 do vibe-coding-toolkit (MIT) e adotavel como texto de processo: antes de implementar, identificar o trecho mais caro/arriscado com numeros reais e apresentar tres opcoes — (A) corrigir tudo, padrao na ausencia de resposta; (B) corrigir a maioria barata e rastrear o resto como divida VISIVEL (comentario + referencia de issue, nunca supressao silenciosa); (C) reescopar ou afrouxar a propria regra, marcado explicitamente como MUDANCA DE CONFIG e nunca apresentado como se o codigo tivesse ficado mais limpo. Complementos uteis: severidade derivada de contagem medida (regra com zero violacoes nasce error; com violacoes nasce warn com a contagem anotada como linha de base, e o criterio de parada e essa contagem voltar a zero) e ignore curto e nomeado em vez de rebaixar a regra inteira. Cabe em testing/quality-gates.md, valendo para qualquer stack. Implementacao segue TDD red-first com PBT, teste de contrato e teste de integracao.",
+      "detail": "Nao existe no harness norma sobre como queimar um passivo de avisos herdado. O portao de decisao do prompt 02 do vibe-coding-toolkit (MIT) e adotavel como texto de processo: antes de implementar, identificar o trecho mais caro/arriscado com numeros reais e apresentar tres opcoes — (A) corrigir tudo, padrao na ausencia de resposta; (B) corrigir a maioria barata e rastrear o resto como divida VISIVEL (comentario + referencia de issue, nunca supressao silenciosa); (C) reescopar ou afrouxar a propria regra, marcado explicitamente como MUDANCA DE CONFIG e nunca apresentado como se o codigo tivesse ficado mais limpo. Complementos uteis: severidade derivada de contagem medida (regra com zero violacoes nasce error; com violacoes nasce warn com a contagem anotada como linha de base, e o criterio de parada e essa contagem voltar a zero) e ignore curto e nomeado em vez de rebaixar a regra inteira. Cabe em testing/quality-gates.md, valendo para qualquer stack. Implementacao segue TDD red-first com PBT, teste de contrato e teste de integracao. — Resolvido: Entregue: nova secao 'template/.forge/rules/testing/quality-gates.md#Portao de decisao para burndown de lint' com o portao A (corrigir tudo, padrao na ausencia de resposta) / B (corrigir a maioria barata + rastrear o resto como divida VISIVEL com comentario e referencia de issue, nunca supressao silenciosa) / C (reescopar/afrouxar a regra, marcado explicitamente como MUDANCA DE CONFIG, nunca como codigo mais limpo); severidade derivada de contagem medida (regra sem violacao nasce error; com violacao nasce warn com a contagem como linha de base; criterio de parada e' a contagem voltar a zero); e ignore curto e nomeado em vez de rebaixar a regra inteira. Valido para qualquer stack (nao amarrado a ESLint/Roslyn). Atribuicao preservada: prompt 02 do vibe-coding-toolkit (MIT). Fiacao: quality-reviewer.md#10 Lints passou a elevar a HIGH o rebaixamento de severidade de regra ou supressao em massa sem o portao A/B/C registrado no PR, apontando literalmente para o heading 'Portao de decisao para burndown de lint' (mais uma entrada na tabela de Severidades). Asserção: tests/w186-lint-burndown-gate.sh (8 cenarios) — TDD red-first (vermelho confirmado antes do conteudo existir, cenario [1] falhando), controle e recontrole por mutacao (alterado o criterio de parada 'voltar a zero' -> [4] reprova; restaurado -> cmp identico -> verde de novo).",
       "severity": "low",
       "priority": "P3",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -1509,8 +1509,8 @@
         "promoted_to": null
       },
       "created_at": "2026-08-22T13:20:32-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-09-04T20:51:40-03:00",
+      "resolved_at": "2026-09-04T20:51:40-03:00",
       "dedup_key": "manual:LDG-0064"
     },
     {
@@ -1656,6 +1656,136 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0110"
+    },
+    {
+      "id": "LDG-0111",
+      "type": "follow-up",
+      "title": "**`LDG-0030` corrigido fora do escopo original**, durante o gate `design_reviewed`: `spec-transition.sh`/`validate-spec.mjs` não permitiam um `bugfix` scale≥2 pular `design-ready` mesmo com `quick_pla",
+      "detail": "Resolvido: Harvest de close (gate-assert-visibility, delivered-externally) capturou bullet de 'Desvios e observações' do verification.md como follow-up novo, mas o conteúdo é narrativa histórica de algo já concluído/já rastreado por outro item do ledger (ver LDG-0030 e LDG-0031..0035). Sem ação pendente aqui — registrado o defeito da heurística de harvest em item novo.",
+      "severity": null,
+      "priority": null,
+      "status": "resolved",
+      "source": {
+        "change_id": "gate-assert-visibility",
+        "origin": "close",
+        "ref": "verify-1"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "gate-assert-visibility"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-04T20:51:40-03:00",
+      "updated_at": "2026-09-04T20:51:40-03:00",
+      "resolved_at": "2026-09-04T20:51:40-03:00",
+      "dedup_key": "gate-assert-visibility:verify-1"
+    },
+    {
+      "id": "LDG-0112",
+      "type": "follow-up",
+      "title": "**Escopo do catálogo cresceu de \"~15 gates\" (LDG-0012 original) para 52 sites/20 arquivos**, medido por execução em 3 iterações de validação adversarial antes da implementação (não durante) — document",
+      "detail": "Resolvido: Harvest de close (gate-assert-visibility, delivered-externally) capturou bullet de 'Desvios e observações' do verification.md como follow-up novo, mas o conteúdo é narrativa histórica de algo já concluído/já rastreado por outro item do ledger (ver LDG-0030 e LDG-0031..0035). Sem ação pendente aqui — registrado o defeito da heurística de harvest em item novo.",
+      "severity": null,
+      "priority": null,
+      "status": "resolved",
+      "source": {
+        "change_id": "gate-assert-visibility",
+        "origin": "close",
+        "ref": "verify-2"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "gate-assert-visibility"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-04T20:51:40-03:00",
+      "updated_at": "2026-09-04T20:51:40-03:00",
+      "resolved_at": "2026-09-04T20:51:40-03:00",
+      "dedup_key": "gate-assert-visibility:verify-2"
+    },
+    {
+      "id": "LDG-0113",
+      "type": "follow-up",
+      "title": "**Cinco achados incidentais viraram itens de ledger** (`LDG-0031`, `LDG-0032` da implementação original; `LDG-0033`/`0034`/`0035` do `code-evaluator`) em vez de correções neste change — disciplina de ",
+      "detail": "Resolvido: Harvest de close (gate-assert-visibility, delivered-externally) capturou bullet de 'Desvios e observações' do verification.md como follow-up novo, mas o conteúdo é narrativa histórica de algo já concluído/já rastreado por outro item do ledger (ver LDG-0030 e LDG-0031..0035). Sem ação pendente aqui — registrado o defeito da heurística de harvest em item novo.",
+      "severity": null,
+      "priority": null,
+      "status": "resolved",
+      "source": {
+        "change_id": "gate-assert-visibility",
+        "origin": "close",
+        "ref": "verify-3"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "gate-assert-visibility"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-04T20:51:40-03:00",
+      "updated_at": "2026-09-04T20:51:40-03:00",
+      "resolved_at": "2026-09-04T20:51:40-03:00",
+      "dedup_key": "gate-assert-visibility:verify-3"
+    },
+    {
+      "id": "LDG-0114",
+      "type": "follow-up",
+      "title": "**Dívida de processo resolvida nesta rodada**: os 32 commits desta sessão foram retroativamente movidos de `develop` direto para a branch `fix/tests/gate-assert-visibility` (PR #42), revisados por um ",
+      "detail": "Resolvido: Harvest de close (gate-assert-visibility, delivered-externally) capturou bullet de 'Desvios e observações' do verification.md como follow-up novo, mas o conteúdo é narrativa histórica de algo já concluído/já rastreado por outro item do ledger (ver LDG-0030 e LDG-0031..0035). Sem ação pendente aqui — registrado o defeito da heurística de harvest em item novo.",
+      "severity": null,
+      "priority": null,
+      "status": "resolved",
+      "source": {
+        "change_id": "gate-assert-visibility",
+        "origin": "close",
+        "ref": "verify-4"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "gate-assert-visibility"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-04T20:51:40-03:00",
+      "updated_at": "2026-09-04T20:51:40-03:00",
+      "resolved_at": "2026-09-04T20:51:40-03:00",
+      "dedup_key": "gate-assert-visibility:verify-4"
+    },
+    {
+      "id": "LDG-0140",
+      "type": "tech-debt",
+      "title": "ledger-ops harvest captura narrativa historica de verification.md como follow-up novo",
+      "detail": "Observado ao fechar gate-assert-visibility via /forge:close --reason delivered-externally (LDG-0037): a etapa (3) do harvest em ledger-ops.sh (secao 'verification.md — bullets sob Desvios e observacoes / RESSALVAS -> follow-up') casa QUALQUER bullet sob um heading que combine /desvios|ressalvas|observa/i, sem distinguir uma ressalva realmente aberta de uma linha que apenas NARRA algo ja concluido dentro do proprio verification.md (ex.: 'X corrigido fora do escopo original', 'divida de processo resolvida nesta rodada'). Nesta execucao produziu 4 entradas (LDG-0111..LDG-0114) 100% duplicadas de itens ja existentes/resolvidos (LDG-0030, LDG-0031..0035) ou de fatos historicos sem acao pendente — todas teem de ser resolvidas manualmente pelo operador do close, o oposto do 'nao-bloqueante' que o harvest promete. Mesma familia de defeito do LDG-0062 (heuristica de texto sem entender semantica do conteudo). Correcao provavel: exigir um marcador explicito (ex.: prefixo 'PENDENTE:' ou secao dedicada 'Follow-ups abertos') em vez de casar qualquer bullet da secao inteira; ou dedupe semantico contra ids de ledger ja citados na propria linha (a maioria dos 4 casos cita LDG-00NN entre crases). Fora de escopo desta sessao (Onda 7/8) — nao e um dos itens designados.",
+      "severity": "low",
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": "gate-assert-visibility",
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "gate-assert-visibility"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-04T20:51:40-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0140"
     }
   ]
 }

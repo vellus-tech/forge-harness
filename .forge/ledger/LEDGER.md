@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**11 itens ativos** · roadmap 3 · tech-debt 7 · known-bug 1 · (72 encerrados)
+**10 itens ativos** · roadmap 3 · tech-debt 7 · (73 encerrados)
 
 ## Roadmap
 
@@ -49,10 +49,9 @@ _Encerrados: 29 (resolved 26 · wont-fix 3)_
 
 ## Bugs conhecidos
 
-- **LDG-0150** [open] (P2) — pre-push cego à forma mapeada de runtime.gates
-  O pre-push lia runtime.gates com um awk próprio (fm_field) que só entendia CSV escalar numa linha; com a forma mapeada que a 0.11.0 publicou (block-sequence com phase:), GATES_CSV ficava vazio, o laço não rodava e o hook não imprimia uma linha. Consequência integral e silenciosa: adotar phase: — inclusive tudo como phase: source — desligava TODOS os gates no push, com push verde. Terceiro clone do mesmo leitor (pre-push:184, handoff-gen.sh:42, on-session-start.sh:11), a classe de LDG-0014 já materializada três vezes. Corrigido: o hook passa a usar lib/forge-runtime.sh, declara em voz alta quantos gates leu e de que fase, e bloqueia quando a declaração existe e o leitor não. Gate w190, canal real.
+_(nenhum ativo)_
 
-_Encerrados: 23 (resolved 22 · wont-fix 1)_
+_Encerrados: 24 (resolved 23 · wont-fix 1)_
 
 ## Follow-ups
 

@@ -1,0 +1,2 @@
+  (nenhum gate declarado em runtime.gates do FORGE.md — nada a executar)
+NO-GATES

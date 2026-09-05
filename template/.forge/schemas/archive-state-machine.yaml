@@ -3,7 +3,10 @@
 # spec-transition.sh (chain + blocked), spec-close.sh (abandoned/rejected/
 # superseded), archive-spec.sh (archived). v1.1 closes plan gap L3: 'rejected'
 # is reachable from every review-gated state (proposed..tasks-ready), like
-# 'abandoned'.
+# 'abandoned'. v1.2 closes LDG-0035: the requirements-ready -> tasks-ready
+# lateral (design-ready skip for type:bugfix at scale>=2, LDG-0030) existed in
+# spec-transition.sh's executable chain without a matching entry here — a
+# transition tests/w173 asserts against, not just documents.
 states:
   - name: idea
     kind: chain
@@ -59,6 +62,13 @@ transitions:
   - { from: proposed, to: requirements-ready, via: spec-transition, gate: requirements_reviewed, scale_skippable: true }
   - { from: requirements-ready, to: design-ready, via: spec-transition, gate: design_reviewed, scale_skippable: true }
   - { from: design-ready, to: tasks-ready, via: spec-transition, gate: tasks_reviewed }
+  # lateral: design-ready skip for type:bugfix at scale>=2 (LDG-0030 — a fix that reached
+  # tasks-ready without design-ready broke legacy manifests parked there; design-ready stays a
+  # valid chain target for anyone who reaches it by any other path). NOT generalized to
+  # quick_plan.skipped_phases — validate-spec.mjs's design.md guard from tasks-ready onward
+  # doesn't honor quick_plan today (a prior attempt authorized this here and the validator
+  # rejected it right after, a feature announced as working that never ran).
+  - { from: requirements-ready, to: tasks-ready, via: spec-transition, type_conditional: bugfix, scale_gte: 2 }
   - { from: tasks-ready, to: implementing, via: spec-transition }
   - { from: implementing, to: implemented, via: spec-transition }
   - { from: implemented, to: verified, via: spec-transition, gate: implementation_verified }

@@ -34,7 +34,9 @@
           "gate": { "type": "string", "description": "Manifest gate that must be true (e.g. human_archive_approval)" },
           "via": { "enum": ["spec-transition", "close", "archive", "manual"], "description": "Which mechanism owns the transition" },
           "requires_reason": { "type": "boolean" },
-          "scale_skippable": { "type": "boolean", "description": "Chain state may be skipped when the scale does not require its phase (§10.3)" }
+          "scale_skippable": { "type": "boolean", "description": "Chain state may be skipped when the scale does not require its phase (§10.3)" },
+          "type_conditional": { "type": "string", "description": "This transition is only valid when the change's manifest 'type' equals this value (e.g. bugfix skip-design lateral, LDG-0030/0035). Absent: applies regardless of type." },
+          "scale_gte": { "type": "integer", "minimum": 0, "description": "This transition is only valid when the change's manifest 'scale' is >= this value. Absent: no additional scale floor beyond the normal chain rules." }
         }
       }
     }

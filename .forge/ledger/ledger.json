@@ -1911,10 +1911,10 @@
       "id": "LDG-0141",
       "type": "tech-debt",
       "title": "check-shell-pipeline nao pega 'ls | sort' sob pipefail, so o idioma com grep -q",
-      "detail": "Medido em 2026-09-05 no w20-spec-gate. A linha 'X=$(ls -1 DIR 2>/dev/null | sort)' sob 'set -euo pipefail' mata o script SEM SAIDA quando DIR nao existe: o ls falha, o pipefail propaga, o set -e encerra, e o 2>/dev/null esconde a unica pista. O caso que importa e' invisivel em desenvolvimento: o git nao versiona diretorio vazio, entao specs/active/ nao existe num clone limpo (o CI) e existe como residuo na arvore de quem trabalhou nela — passava na maquina de todo mundo e morria calado no CI, tres execucoes seguidas. O lint check-shell-pipeline.sh existe desde a issue #49 exatamente para esta familia, mas so reconhece '<produtor> | grep -q' seguido de ||/&&; nao cobre pipeline em substituicao de comando com outro consumidor (sort, head, wc). Estender o lint para: atribuicao via $( ) cujo pipeline tem produtor que pode falhar, sob pipefail, sem '|| true'.",
+      "detail": "Medido e corrigido: o reconhecedor de lib/shell-pipeline-lint.mjs ganhou lintCmdSubst(), que acusa atribuição por substituição de comando cujo pipeline tem produtor da família falível (ls/find/grep/git/rg/jq/comm/diff) silenciado com 2>/dev/null, SÓ em arquivo que declara set -e junto com pipefail. O predicado ingênuo do registro original ('qualquer atribuição via $( ) cujo pipeline tem produtor que pode falhar') acusa 46 linhas do próprio harness e esvaziaria o lint; a interseção acusa exatamente 6, todas corrigidas neste change: impact.sh:20 E :21, ingest-legacy.sh:18, liaison-ops.sh:938, w50:208, w90:66. O escape aceito é o || que governa a PRÓPRIA substituição — '[ -n $x ] || X=$( … )' NÃO protege (impact.sh:21), e consertar só a linha 20 transferiria a morte silenciosa para a 21 no mesmo arquivo. Substituição de PROCESSO ('< <(…)') fica de fora por desenho: não mata o pai, e tests/run-all.sh a usa. Gate: w145 cenários [9]-[15] mais [11b]. — Resolvido: reconhecedor estendido (lintCmdSubst) e os seis sítios medidos corrigidos; w145 verde nos dezesseis cenários",
       "severity": "low",
       "priority": "P3",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -1927,8 +1927,8 @@
         "promoted_to": null
       },
       "created_at": "2026-09-05T00:15:29-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-09-05T16:48:12-03:00",
+      "resolved_at": "2026-09-05T16:48:12-03:00",
       "dedup_key": "manual:LDG-0141"
     },
     {

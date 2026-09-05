@@ -935,7 +935,7 @@ export)
   mkdir -p "$out_dir/log" "$out_dir/blobs"
   if [ -d "$ch_dir/log" ]; then find "$ch_dir/log" -type f -name '*.jsonl' -exec cp {} "$out_dir/log/" \; ; fi
   if [ -d "$ch_dir/blobs" ]; then find "$ch_dir/blobs" -type f -exec cp {} "$out_dir/blobs/" \; 2>/dev/null || true; fi
-  n="$(find "$out_dir/log" -type f -name '*.jsonl' 2>/dev/null | wc -l | tr -d ' ')"
+  n="$(find "$out_dir/log" -type f -name '*.jsonl' 2>/dev/null | wc -l | tr -d ' ')" || n=0
   echo "OK export — canal $channel exportado para $out_dir ($n arquivo(s) de log)"
   ;;
 

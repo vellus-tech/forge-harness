@@ -106,8 +106,16 @@ grep -qi "não os dois\|use --body ou --body-file" <<<"$OUT3" || { echo "FAIL [3
 echo "OK [3]"
 
 echo "[4] segredo no corpo do ack reprova (mesma varredura do send)"
+# O valor é montado em tempo de EXECUÇÃO (prefixo + sufixo), nunca escrito por extenso na fonte:
+# um literal "AKIA" + 16 caracteres versionado neste arquivo é achado pelo w139-secrets-gate (que
+# varre .sh rastreados pelo git, sem saber distinguir teste de segredo real). A detecção do ack
+# continua exercitada de verdade porque ela roda sobre o valor JÁ CONCATENADO — nenhuma das duas
+# metades isoladas casa o padrão AKIA[0-9A-Z]{16} de secret-scan.mjs.
+FAKE_AWS_KEY_PREFIX="AKIA"
+FAKE_AWS_KEY_SUFFIX="ABCDEFGHIJKLMNOP"
+FAKE_AWS_KEY="${FAKE_AWS_KEY_PREFIX}${FAKE_AWS_KEY_SUFFIX}"
 set +e
-OUT4="$(LG fv ack "$CH" "$MSGID2" --body "AKIAABCDEFGHIJKLMNOP" 2>&1)"; RC4=$?
+OUT4="$(LG fv ack "$CH" "$MSGID2" --body "$FAKE_AWS_KEY" 2>&1)"; RC4=$?
 set -e
 [ "$RC4" -ne 0 ] || { echo "FAIL [4]: ack com segredo no corpo passou: $OUT4"; exit 1; }
 grep -qi "segredo" <<<"$OUT4" || { echo "FAIL [4]: mensagem não cita segredo: $OUT4"; exit 1; }

@@ -55,9 +55,41 @@ while IFS= read -r f; do
     tests/w151-heavy-mutex-gate.sh) continue ;;
   esac
 
-  # 1. Caminho de lock derivado de variável do chamador — o defeito 1 codificado.
-  if grep -nE '^[^#]*\$(\{)?(TMPDIR|HOME|PWD)([:}/-]|$)' "$f" 2>/dev/null | grep -qi 'lock'; then
-    report "$f: caminho de lock derivado de variável do chamador — no macOS TMPDIR é por usuário E por contexto, e o lock deixa de ser por máquina. Use lib/heavy-mutex.sh."
+  # 1. Caminho de lock derivado de variável do chamador — o defeito 1 codificado. Mede INTENÇÃO,
+  #    não grafia (LDG-0054): a versão anterior procurava a variável e a palavra 'lock' na MESMA
+  #    linha, e bastava quebrar a composição em duas atribuições para desarmar a regra sem mudar
+  #    uma vírgula da semântica — foi o que o próprio doctor.sh precisou fazer para DETECTAR o
+  #    caminho legado sem ser acusado de PRODUZI-lo (ver o comentário ao lado da chamada, abaixo).
+  #    Agora a janela também cobre a linha de código seguinte (pulando linha em branco ou
+  #    inteiramente comentário), então a composição fatiada continua visível. A válvula é
+  #    DECLARADA, nunca por acaso: quem precisa compor esse caminho para DETECTAR — não produzir —
+  #    marca a linha com '# heavy-mutex: detecção', e a intenção passa a viver no código, não num
+  #    comentário adjacente que o gate não lê.
+  hits1="$(awk '
+    function codepart(s,   i) { i = index(s, "#"); return (i == 0) ? s : substr(s, 1, i - 1) }
+    function blank(s,   t) { t = s; gsub(/[ \t]/, "", t); return t == "" }
+    function has_var(s) { return codepart(s) ~ /\$\{?(TMPDIR|HOME|PWD)([:}\/-]|$)/ }
+    function has_lock(s) { return tolower(codepart(s)) ~ /lock/ }
+    function marked(s) { return s ~ /heavy-mutex: detec/ }
+    { if (!blank(codepart($0))) { n++; L[n] = $0; NO[n] = NR } }
+    END {
+      for (i = 1; i <= n; i++) {
+        if (has_var(L[i]) && has_lock(L[i])) {
+          if (!marked(L[i])) print NO[i]
+          continue
+        }
+        if (i < n) {
+          a = L[i]; b = L[i + 1]
+          if ((has_var(a) && has_lock(b)) || (has_lock(a) && has_var(b))) {
+            if (!marked(a) && !marked(b)) print NO[i] "-" NO[i + 1]
+          }
+        }
+      }
+    }
+  ' "$f" 2>/dev/null)"
+  if [ -n "$hits1" ]; then
+    first1="$(printf '%s\n' "$hits1" | head -1)"
+    report "$f:$first1: caminho de lock derivado de variável do chamador — no macOS TMPDIR é por usuário E por contexto, e o lock deixa de ser por máquina. Use lib/heavy-mutex.sh. Se a linha só DETECTA o caminho legado (não produz), marque com '# heavy-mutex: detecção'."
   fi
   # 2. Protocolo paralelo: mkdir/ln -s direto sobre nome de lock. Dois mecanismos diferentes sobre
   #    o mesmo recurso não se excluem — e PARECEM protegidos, que é pior que não ter lock.

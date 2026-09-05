@@ -1908,4 +1908,51 @@ if (!unresolved.some((u) => u.kind === 'route-prefix-unresolved')) { console.err
 EOF
 echo "OK [56]"
 
+echo "[57] Map*() de infraestrutura do framework (.NET) não é tratado como produtor ausente (LDG-0029)"
+# Medido no repositório de referência (axis-go-cloud, 2026-09-04): 100% dos 47 'producer-not-found'
+# eram cinco chamadas de framework/BCL sem definição de APLICAÇÃO nenhuma para achar —
+# MapOpenApi (18), MapPrometheusScrapingEndpoint (17), MapControllers (8),
+# MapGrpcReflectionService (2, ASP.NET Core) e MapToIPv4 (2, System.Net.IPAddress do BCL,
+# colidindo por nome com o padrão Map<Nome>() que o scanner usa para achar produtores). Nenhum
+# desses 47 era produtor de aplicação genuinamente ausente — e nenhum é rota de NEGÓCIO que um
+# contrato declararia, então suprimi-los também é correto do lado do que importa ao SUR-01.
+mkdir -p "$T/infra"
+cat > "$T/infra/Program.cs" <<'CS'
+var app = builder.Build();
+app.MapControllers();
+app.MapOpenApi();
+app.MapPrometheusScrapingEndpoint();
+app.MapGrpcReflectionService();
+var ip = IPAddress.Parse("::ffff:1.2.3.4");
+var v4 = ip.MapToIPv4();
+app.MapGet("/health", () => "ok");
+CS
+run_node <<'EOF' || { echo "FAIL [57]: Map*() de framework/BCL virou producer-not-found"; exit 1; }
+const [lib, , tmp] = process.argv.slice(2);
+const { scanRoutes } = await import(`${lib}/route-scan.mjs`);
+const { routes, unresolved } = scanRoutes([`${tmp}/infra`], { root: tmp });
+const paths = routes.map((r) => `${r.method} ${r.path}`).sort();
+if (!paths.includes('GET /health')) { console.error(`rota real perdida: ${JSON.stringify(paths)}`); process.exit(1); }
+const found = unresolved.filter((u) => u.kind === 'producer-not-found');
+if (found.length) { console.error(`chamadas de framework/BCL viraram producer-not-found: ${JSON.stringify(found.map((u) => u.detail))}`); process.exit(1); }
+EOF
+echo "OK [57]"
+
+echo "[58] CONTRAPOSITIVA do [57]: produtor de app de verdade, AUSENTE, continua reprovando — a lista não virou passe livre"
+mkdir -p "$T/infra2"
+cat > "$T/infra2/Program.cs" <<'CS'
+var app = builder.Build();
+app.MapMinhaFeatureQueNaoExiste();
+app.MapGet("/health", () => "ok");
+CS
+run_node <<'EOF' || { echo "FAIL [58]: a denylist virou passe livre — um produtor de app REALMENTE ausente parou de ser acusado"; exit 1; }
+const [lib, , tmp] = process.argv.slice(2);
+const { scanRoutes } = await import(`${lib}/route-scan.mjs`);
+const { unresolved } = scanRoutes([`${tmp}/infra2`], { root: tmp });
+if (!unresolved.some((u) => u.kind === 'producer-not-found' && /MapMinhaFeatureQueNaoExiste/.test(u.detail || ''))) {
+  console.error(`produtor de app ausente deixou de ser reportado: ${JSON.stringify(unresolved)}`); process.exit(1);
+}
+EOF
+echo "OK [58]"
+
 echo "OK"

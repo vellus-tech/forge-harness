@@ -3,6 +3,114 @@
     "template-distribui-transporte-destrutivo": {
       "msg_id": "axis-go-cloud-0086",
       "read_at": "2026-09-06T17:24:37Z"
+    },
+    "session-start-hook-requires-settings-json-registration": {
+      "msg_id": "axis-device-platform-0054",
+      "read_at": "2026-09-06T19:04:14Z"
+    },
+    "heavy-suite-lock-neutral-name": {
+      "msg_id": "axis-go-cloud-0034",
+      "read_at": "2026-09-06T19:04:14Z"
+    },
+    "guardas-medem-forma-do-texto-e-aprovam-o-vazio": {
+      "msg_id": "axis-pad-simulator-0033",
+      "read_at": "2026-09-06T19:04:15Z"
+    },
+    "heavy-run-detector-mede-vocabulario": {
+      "msg_id": "axis-fare-validator-0015",
+      "read_at": "2026-09-06T19:04:15Z"
+    },
+    "liaison-blob-addressing": {
+      "msg_id": "axis-device-platform-0095",
+      "read_at": "2026-09-06T19:04:15Z"
+    },
+    "upgrade-sobrescreve-maquinaria-e-particiona-o-mutex": {
+      "msg_id": "axis-pad-simulator-0005",
+      "read_at": "2026-09-06T19:04:15Z"
+    },
+    "upgrade-desarma-o-proprio-ponto-de-entrada": {
+      "msg_id": "axis-device-platform-0020",
+      "read_at": "2026-09-06T19:04:16Z"
+    },
+    "heranca-de-evidencia-por-ancestral-allowlist": {
+      "msg_id": "axis-pad-simulator-0021",
+      "read_at": "2026-09-06T19:04:16Z"
+    },
+    "exit-1-nao-bloqueia-no-pretooluse": {
+      "msg_id": "axis-fare-validator-0051",
+      "read_at": "2026-09-06T19:04:16Z"
+    },
+    "find-sem-quit-mata-o-script-na-linha-da-recusa": {
+      "msg_id": "axis-go-cloud-0038",
+      "read_at": "2026-09-06T19:04:17Z"
+    },
+    "branch-parada-e-julgada-pela-maquinaria-da-epoca": {
+      "msg_id": "axis-pad-simulator-0010",
+      "read_at": "2026-09-06T19:04:17Z"
+    },
+    "ledger-ops-hardening": {
+      "msg_id": "axis-device-platform-0033",
+      "read_at": "2026-09-06T19:04:17Z"
+    },
+    "gates-do-template-cegos-a-java-e-dominio-ausente": {
+      "msg_id": "axis-go-cloud-0014",
+      "read_at": "2026-09-06T19:04:17Z"
+    },
+    "orfao-de-fixture-isolar-grupo-antes-de-limpar": {
+      "msg_id": "axis-pad-simulator-0018",
+      "read_at": "2026-09-06T19:04:17Z"
+    },
+    "o-gerador-tambem-esta-no-lock": {
+      "msg_id": "axis-pad-simulator-0019",
+      "read_at": "2026-09-06T19:04:18Z"
+    },
+    "gate-de-delta-contra-artefato-de-estado": {
+      "msg_id": "axis-pad-simulator-0022",
+      "read_at": "2026-09-06T19:04:18Z"
+    },
+    "gate-de-atribuicao-reprova-por-defeito-proprio": {
+      "msg_id": "axis-pad-simulator-0020",
+      "read_at": "2026-09-06T19:04:18Z"
+    },
+    "mutex-nao-atravessa-a-fronteira-do-harness": {
+      "msg_id": "axis-fare-validator-0062",
+      "read_at": "2026-09-06T19:04:18Z"
+    },
+    "guarda-de-git-dir-em-sandbox-de-teste": {
+      "msg_id": "axis-fare-validator-0072",
+      "read_at": "2026-09-06T19:04:18Z"
+    },
+    "interpretador-de-script-e-o-vermelho-que-esconde-o-seguinte": {
+      "msg_id": "axis-go-cloud-0079",
+      "read_at": "2026-09-06T19:04:18Z"
+    },
+    "red-classify-reconhece-2-de-24-suites-shell": {
+      "msg_id": "axis-device-platform-0098",
+      "read_at": "2026-09-06T19:04:19Z"
+    },
+    "mutex-particionado-desde-o-0-11-0": {
+      "msg_id": "axis-device-platform-0087",
+      "read_at": "2026-09-06T19:04:19Z"
+    },
+    "run-check-nao-distingue-nao-declarado-de-vazio": {
+      "msg_id": "axis-device-platform-0090",
+      "read_at": "2026-09-06T19:04:19Z"
+    },
+    "onda3-t10-visual-verification-items": {
+      "msg_id": "axis-fare-validator-0005",
+      "read_at": "2026-09-06T19:04:19Z"
+    },
+    "ledger-id-reservation-before-citation": {
+      "msg_id": "axis-fare-validator-0006",
+      "read_at": "2026-09-06T19:04:20Z"
+    },
+    "sem-branch-protection-a-maioria-entra-server-side": {
+      "msg_id": "axis-go-cloud-0065",
+      "read_at": "2026-09-06T19:04:20Z"
+    },
+    "log-de-remetente-nasce-fora-do-indice": {
+      "msg_id": "axis-go-cloud-0090",
+      "read_at": "2026-09-06T19:04:20Z"
     }
   }
 }

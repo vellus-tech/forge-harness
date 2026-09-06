@@ -4,6 +4,12 @@ Todas as mudanças notáveis deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/)
 e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
+## [Unreleased]
+
+### Added
+
+- **Perfil `strix` do `/forge:pentest` — pré-voo de nove recusas antes do CLI open-source do Strix subir (`docs/plans/spikes/strix-pentest-spec.md`).** O Strix não tem contenção de escopo própria — o alvo é garantido só por um parágrafo de prompt, num agente instruído a nunca recusar — então o harness passa a fornecer essa contenção do lado de fora, antes de qualquer processo subir. `pentest-ops.sh strix <verbo>` ganha sete verbos (`preflight`, `scan`, `status`, `report`, e as costuras de introspecção `cfg`/`cfg-list`/`env`), aditivos puros: uma linha nova no `case` de `main()`, nenhuma função do perfil mobile alterada. As nove condições (`R1/opt-in-bancada` … `R9/binario-e-versao`) são **sempre** avaliadas, sem curto-circuito, e emitem token estável e greppável; o contador `conditions_examined` é derivado (soma real de vereditos, não uma constante) e coberto por prova de mutação. `strix scan` grava um manifesto `strix-preflight/v1` (texto plano) em `<findings_dir>/<run_id>/preflight.txt` — inclusive quando o veredito é recusa ou inconclusivo — porque a saída do Strix por si só não prova sob que contenção foi produzida. Ferramenta **manual**, como o perfil mobile: não vira gate, não roda em CI, sem entrada em `approvals.yaml`, nunca toca `strix cloud`. `runtime.pentest` (as quatro chaves mobile e as nove do bloco `strix`) passa a ser declarado em `forge.schema.json`, que hoje o rejeitava com `additionalProperties: false` — o mesmo defeito que `w199`/LDG-0159 fechou para `runtime.gates`, invertido. Coberto por `w200-strix-pentest-gate` (23 asserções, TDD vermelho→verde observado); `w142-pentest-gate` (perfil mobile) permanece verde sem edição.
+
 ## [0.12.0] — 2026-09-06
 
 > Leva de ataque ao backlog somada à resposta do canal de liaison. Quatorze itens de ledger fechados e dez abertos nesta leva — método de contagem, porque sem ele o número não vale nada: comparação do `ledger.json` de `5ff7f6b` (80 entradas) com o de hoje (95), contando como fechado quem passou a `resolved`/`wont-fix` (nove pré-existentes mais cinco que já nasceram fechados) e como aberto quem nasceu e permaneceu aberto. O diff do arquivo toca mais entradas que isso, porque inclui correção de registro em itens cujo status não mudou. Nove gates novos (`w190`–`w195`, `w197`–`w199`), dois estendidos (`w145`, `w146`).

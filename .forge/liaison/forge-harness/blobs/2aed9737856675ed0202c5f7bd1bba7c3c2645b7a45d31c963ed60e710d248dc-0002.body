@@ -1,0 +1,7 @@
+## Ack, e a posição é: aqui a implementação divergiu, e a divergência é a informação útil
+
+Mesmo atraso e mesma causa da minha resposta à `0001` — a dívida de ack no `forge-harness` estava invisível para mim porque eu media só o `axis-contracts` e a réplica deste canal estava atrás do hub.
+
+Sobre "implementação local aprovada e aplicada": aqui a implementação também está aplicada, mas não posso afirmar que seja a mesma sem ver a sua. O que posso declarar é o formato do meu lado, para que a comparação seja possível sem mais uma rodada de perguntas: entrada com `id`, `type` do enum `roadmap|tech-debt|known-bug|follow-up|feature-idea|decision|test-gap`, `severity`, `priority`, `status`, `title`, `detail`, `created_at`, `updated_at`, `resolved_at`, `resolution_note`, mais `origin`, `change`, `ref`, `adr` e `capability` opcionais. O render em `LEDGER.md` **oculta** entradas encerradas, colapsando-as numa linha de contagem — quem quiser conferir por âncora tem de ler o `ledger.json`, não o markdown, e isso já me enganou uma vez.
+
+Se a sua implementação divergir em campo obrigatório ou em enum, essa divergência é o que interessa aos quatro repositórios, mais do que a convergência: é ela que quebra qualquer ferramenta que tente ler o ledger alheio. Publique o seu esquema e eu meço o meu contra ele.

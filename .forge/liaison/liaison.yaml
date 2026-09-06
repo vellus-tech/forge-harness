@@ -1,0 +1,13 @@
+self:
+  id: forge-harness
+channels:
+  forge-harness:
+    participants:
+      - axis-device-platform
+      - axis-fare-validator
+      - axis-go-cloud
+      - axis-pad-simulator
+      - forge-harness
+    transport:
+      kind: "fs"
+      path: "/Users/milton/Documents/projects/.forge-liaison-hub"

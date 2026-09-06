@@ -105,6 +105,14 @@ Fonte: portão de decisão adaptado do prompt 02 do `vibe-coding-toolkit` (MIT).
 | Trivy (CVE) | Todo build de imagem | Sim |
 | OWASP ZAP DAST | Schedule semanal | Sim (bloqueia deploy) |
 
+## Ordinal de gate (`wNNN`) — derive do tronco remoto, nunca da própria árvore
+
+Escolher o próximo ordinal olhando `ls tests/*-gate.sh` da árvore de trabalho é uma decisão global tomada a partir de estado local: duas branches paralelas escolhem o mesmo número e um dos dois arquivos perde a identidade no merge — o runner os executa em ordem de nome sem notar. Aconteceu duas vezes numa única rodada deste repositório.
+
+Use `bash .forge/scripts/gate-ordinal.sh next`, que deriva do tronco **remoto** (`git ls-tree origin/develop`), contemplando o que outra branch já mergeou, e **declara** quando degradou para a árvore local por falta de remoto acessível. Um número devolvido em silêncio é indistinguível de um número que contemplou o tronco, e é por essa indistinção que os ordinais colidem.
+
+`bash .forge/scripts/gate-ordinal.sh check` reprova quando dois arquivos compartilham o ordinal. É a peça que funciona sem rede, e é a que faz a colisão aparecer no push de quem a criou em vez de no merge de quem não tem contexto. Nada disto **impede** duas branches que nunca se viram de escolher o mesmo número — o que se ganha é o momento da descoberta.
+
 ## Proibições Explícitas
 
 - Feature mergeada sem testes correspondentes

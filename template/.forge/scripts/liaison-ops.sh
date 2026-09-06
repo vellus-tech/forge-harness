@@ -36,7 +36,7 @@
 #   liaison-ops.sh transport set   <channel> --kind manual|fs|git|gh [--path <dir>] [--remote <url>] [--branch <b>]
 #   liaison-ops.sh transport show  <channel>
 #   liaison-ops.sh transport probe <channel>
-#   liaison-ops.sh sync     <channel> [--push-only | --pull-only]
+#   liaison-ops.sh sync     <channel> [--push-only | --pull-only] [--repair-own-log]
 #   liaison-ops.sh render   <channel>
 #
 # TRANSPORTE (Onda 2): plugável, em lib/transports/<kind>.sh, com o contrato t_probe/t_push/t_pull.
@@ -77,14 +77,17 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # contém é o tronco. `--path-format=absolute` é necessário porque, no próprio checkout principal,
 # `--git-common-dir` devolveria `.git` relativo — e `dirname .git` daria `.`, que é justamente o
 # worktree corrente que se quer evitar. Mesmo idioma de ledger-ops.sh e de hooks/git/pre-commit.
-_forge_main_root() {
-  local common
-  common="$(git -C "$(pwd)" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || return 1
-  [ -n "$common" ] || return 1
-  case "$common" in /*) : ;; *) return 1 ;; esac
-  dirname "$common"
-}
-ROOT="${FORGE_ROOT:-$(_forge_main_root || git -C "$(pwd)" rev-parse --show-toplevel 2>/dev/null || pwd)}"
+# Resolução do checkout principal e o aviso de divergência vivem em lib/forge-root.sh — UM sítio,
+# consumido pelos quatro scripts que antes carregavam este corpo copiado (LDG-0068). Delegação em
+# alvo ausente é erro: sem a lib, o script não segue resolvendo ROOT por conta própria.
+if [ -f "$SCRIPT_DIR/lib/forge-root.sh" ]; then
+  # shellcheck source=lib/forge-root.sh
+  . "$SCRIPT_DIR/lib/forge-root.sh"
+else
+  echo "FAIL: $SCRIPT_DIR/lib/forge-root.sh ausente — é a resolução única do checkout principal; sem ela o script gravaria estado durável num lugar que ninguém declarou." >&2
+  exit 1
+fi
+ROOT="$(forge_resolve_root)"
 export FORGE_ROOT="$ROOT"
 LIBDIR="$SCRIPT_DIR/lib"
 LIAISON_DIR="$ROOT/.forge/liaison"
@@ -695,6 +698,30 @@ const { pathToFileURL } = require('url');
   const senderMsgs = own.concat([msg]).sort((a, b) => a.seq - b.seq);
   writeFileSync(targetFile + '.tmp', senderMsgs.map((m) => JSON.stringify(m)).join('\n') + '\n');
   renameSync(targetFile + '.tmp', targetFile);
+
+  // O ack AVANÇA o cursor da thread até a mensagem ackada — issue #102. Antes desta linha, o ato
+  // mais forte de leitura do protocolo não marcava nada como lido, e `read --upto` era o único
+  // caminho por onde um cursor avançava — toda mensagem ackada permanecia não lida.
+  //
+  // Só para mensagem de TERCEIRO. Ackar a própria mensagem é PARTICIPAÇÃO, não leitura: mover o
+  // cursor ali marcaria como lidas as mensagens alheias que ficaram entre o cursor e a própria,
+  // que ninguém leu. É a invariante que separa os dois atos.
+  //
+  // Não-regressão em modo NÃO estrito: ackar algo já lido é legítimo, e transformar isso em erro
+  // faria um ato de protocolo falhar por um cursor que já estava adiante.
+  if (target.sender !== self) {
+    try {
+      const { mergeLogs } = M;
+      const { threads } = mergeLogs(all.concat([msg]));
+      if (threads[threadId] && threads[threadId].order.includes(targetId)) {
+        const { advanceCursor } = await import(pathToFileURL(join(lib, 'liaison-cursor.mjs')).href);
+        advanceCursor({
+          chDir, threads, threadId, upto: targetId,
+          nowWall: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'), strict: false,
+        });
+      }
+    } catch { /* o ack já está publicado; o cursor é conveniência, nunca desfaz a publicação */ }
+  }
   process.stdout.write(msgId);
 })();
 NODEEOF
@@ -709,7 +736,7 @@ NODEEOF
     if [ -f "$ledger_ops" ]; then
       FORGE_ROOT="$ROOT" bash "$ledger_ops" add --type tech-debt --priority P2 \
         --title "Contract-change recusado no liaison: $msg_id" \
-        --body "Este repositório ackou $msg_id (canal $channel) com --reason wont-adopt: reconheceu a mudança de contrato e decidiu NÃO adotá-la. A divergência resultante é conhecida e assumida, não acidental. Reabra quando a adoção entrar em roadmap, ou feche registrando por que a divergência é permanente." >/dev/null \
+        --detail "Este repositório ackou $msg_id (canal $channel) com --reason wont-adopt: reconheceu a mudança de contrato e decidiu NÃO adotá-la. A divergência resultante é conhecida e assumida, não acidental. Reabra quando a adoção entrar em roadmap, ou feche registrando por que a divergência é permanente." >/dev/null \
         || echo "WARN: ack gravado, mas o registro no ledger falhou — registre a dívida à mão" >&2
     else
       echo "WARN: ledger-ops.sh ausente — a recusa não foi registrada como dívida" >&2
@@ -806,18 +833,12 @@ const { pathToFileURL } = require('url');
   const { threads } = mergeLogs(all);
   const threadId = Object.keys(threads).find((id) => threads[id].order.includes(upto));
   if (!threadId) { console.error(`mensagem '${upto}' desconhecida localmente (fora de qualquer thread resolvida)`); process.exit(1); }
-  const idx = threads[threadId].order.indexOf(upto);
-  const stateFile = join(chDir, 'state.json');
-  const state = existsSync(stateFile) ? JSON.parse(readFileSync(stateFile, 'utf8')) : { cursors: {} };
-  if (!state.cursors) state.cursors = {};
-  const prev = state.cursors[threadId];
-  if (prev && threads[threadId].order.includes(prev.msg_id)) {
-    const prevIdx = threads[threadId].order.indexOf(prev.msg_id);
-    if (idx < prevIdx) { console.error(`cursor não pode regredir (atual: ${prev.msg_id}, pedido: ${upto})`); process.exit(1); }
-  }
-  state.cursors[threadId] = { msg_id: upto, read_at: nowWall };
-  writeFileSync(stateFile + '.tmp', JSON.stringify(state, null, 2) + '\n');
-  renameSync(stateFile + '.tmp', stateFile);
+  // A regra de não-regressão vive em lib/liaison-cursor.mjs, e é a MESMA que `ack` usa. Aqui em
+  // modo estrito: o operador PEDIU um alvo, e um pedido inválido tem de ser dito.
+  const { advanceCursor } = await import(pathToFileURL(join(lib, 'liaison-cursor.mjs')).href);
+  try {
+    advanceCursor({ chDir, threads, threadId, upto, nowWall, strict: true });
+  } catch (e) { console.error(e.message); process.exit(1); }
   process.stdout.write(threadId);
 })();
 NODEEOF
@@ -935,7 +956,7 @@ export)
   mkdir -p "$out_dir/log" "$out_dir/blobs"
   if [ -d "$ch_dir/log" ]; then find "$ch_dir/log" -type f -name '*.jsonl' -exec cp {} "$out_dir/log/" \; ; fi
   if [ -d "$ch_dir/blobs" ]; then find "$ch_dir/blobs" -type f -exec cp {} "$out_dir/blobs/" \; 2>/dev/null || true; fi
-  n="$(find "$out_dir/log" -type f -name '*.jsonl' 2>/dev/null | wc -l | tr -d ' ')"
+  n="$(find "$out_dir/log" -type f -name '*.jsonl' 2>/dev/null | wc -l | tr -d ' ')" || n=0
   echo "OK export — canal $channel exportado para $out_dir ($n arquivo(s) de log)"
   ;;
 
@@ -1207,12 +1228,23 @@ sync)
   [ -n "$channel" ] || { echo "FAIL: <channel> obrigatório" >&2; exit 1; }
   ch_dir="$LIAISON_DIR/$channel"
   [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado (rode 'open' primeiro)" >&2; exit 1; }
-  do_push=1; do_pull=1
+  do_push=1; do_pull=1; repair_own=0
   while [ $# -gt 0 ]; do case "$1" in
     --push-only) do_pull=0; shift ;;
     --pull-only) do_push=0; shift ;;
-    *) _reject_unknown "sync" "--push-only, --pull-only" "$1" ;;
+    # --repair-own-log: ato EXPLÍCITO do dono sobre o próprio log. Quando o hub tem conteúdo
+    # diferente num msg_id que esta árvore também tem, nada nos dois logs distingue "um terceiro
+    # reescreveu a história" de "outra réplica minha publicou mensagem distinta no mesmo seq" — o
+    # primeiro se repara republicando, o segundo se DESTRÓI republicando. Só o dono sabe qual é,
+    # e por isso a saída é uma declaração dele, nunca uma inferência do transporte.
+    #
+    # NÃO é um --force: réplica ATRASADA (o hub tem mensagem que esta árvore não tem) continua
+    # recusada mesmo com a flag. Aquilo é perda de dado, não ambiguidade — a propriedade da
+    # issue #101 não é negociável por flag.
+    --repair-own-log) repair_own=1; shift ;;
+    *) _reject_unknown "sync" "--push-only, --pull-only, --repair-own-log" "$1" ;;
   esac; done
+  export LIAISON_PUSH_REPAIR="$repair_own"
 
   _load_transport "$channel" || exit 1
   t_probe || { echo "FAIL: transporte $LIAISON_T_KIND indisponível — sync abortado" >&2; exit 1; }

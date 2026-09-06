@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Versão** | 1.2 |
-| **Data** | 2026-06-10 |
+| **Versão** | 1.5 |
+| **Data** | 2026-09-04 |
 | **Status** | Aprovado |
 | **Wave** | W0.3 (docs/plans/01-mvp1-forge-canonico.md) |
 | **Referência** | §22.1 do doc de projeto (Fase 0 — contrato de compatibilidade) |

@@ -38,14 +38,35 @@ bash .forge/scripts/ledger-ops.sh promote <LDG-NNNN> --to <change-id>   # virou 
 bash .forge/scripts/ledger-ops.sh render                      # .forge/ledger/LEDGER.md
 ```
 
+**Disciplina de escrita (issue #103).** As três recusas abaixo são do script, não do agente:
+
+- **Flag desconhecida reprova.** Todos os seis subcomandos (`add`, `update`, `resolve`, `promote`,
+  `harvest`, `list`) recusam argumento que não conhecem, nomeando o subcomando. Antes, o `case`
+  terminava em `*) shift ;;`, que engolia a flag **e** o valor dela: um `--details "texto"` (typo
+  em `--detail`) desaparecia inteiro, a entrada nascia com `detail` vazio e a saída dizia `OK`.
+- **Valor vazio reprova.** `--detail ""`, `--title ""` e afins são erro de uso, não apagamento de
+  campo. Antes, `update --detail ""` imprimia `OK`, gravava o arquivo e avançava `updated_at` sem
+  alterar o campo — o commit anunciava um conteúdo que o ledger não carregava.
+- **`update` que não muda nada reprova.** Se nenhum campo de conteúdo (`title`, `detail`,
+  `status`, `priority`, `severity`) mudou, não há `OK`: o único efeito seria fazer a entrada
+  parecer recente sem carregar informação nova.
+
+E `add` sem `--detail` **avisa** (não reprova): título sem conteúdo é a forma de item que envelhece
+pior. Complete com `update <id> --detail "…"`.
+
 ## Captura automática (o ledger se alimenta sozinho)
 
 Você **não** precisa lembrar de registrar findings — o harness colhe por construção:
 
 - `/forge:close` e `/forge:archive` rodam `ledger-ops.sh harvest <id>` **antes de mover a pasta do
   change** (onde o dado morreria): deferrals `open` → `follow-up`, `wont-fix` → `tech-debt`,
-  findings `MEDIUM`/`LOW` do `analysis.md` → `tech-debt`, desvios/RESSALVAS do `verification.md`
-  → `follow-up`. Idempotente (dedup por `${change_id}:${ref}`).
+  findings `MEDIUM`/`LOW` do `analysis.md` → `tech-debt`, e do `verification.md` os follow-ups
+  **explicitamente marcados** → `follow-up`. Idempotente (dedup por `${change_id}:${ref}`).
+  A marcação é obrigatória (LDG-0140): bullet prefixado por `PENDENTE:` sob qualquer heading de
+  ressalva, ou qualquer bullet sob um heading dedicado `Follow-ups abertos`. Casar a seção inteira
+  capturava narrativa de algo já concluído — nasceram quatro entradas 100% duplicadas de itens já
+  resolvidos, para o operador do `close` desfazer à mão. Bullet que cita um `LDG-00NN` entre
+  crases é descartado: já tem registro próprio.
 - Como decidir manualmente vs. deixar automático: use `add` para **semear** roadmap/features/
   arquitetura planejados (ex.: os módulos de um redesign) e para capturar uma descoberta na hora;
   deixe o harvest cuidar do que sai de `analyze`/`verify`/`defer`.

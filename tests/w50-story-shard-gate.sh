@@ -205,7 +205,7 @@ echo "[7] cobertura de tasks: todas aparecem em exatamente uma story"
 TASK_IDS="$(grep -oE 'TASK-[0-9]+' "$T/.forge/specs/active/epic-auth/tasks.md" | grep -v 'depende' | sort -u)"
 for tid in $TASK_IDS; do
   # Conta stories onde a task é *assignada* (linha `- [ ] TASK-NN`), não apenas referenciada
-  count="$(grep -rl "^- \[.\] $tid" "$T/.forge/specs/active/epic-auth/stories/" 2>/dev/null | wc -l | tr -d ' ')"
+  count="$(grep -rl "^- \[.\] $tid" "$T/.forge/specs/active/epic-auth/stories/" 2>/dev/null | wc -l | tr -d ' ')" || count=0
   if [ "$count" -ne 1 ]; then
     echo "FAIL: $tid assignada em $count stories (esperado 1)"
     exit 1

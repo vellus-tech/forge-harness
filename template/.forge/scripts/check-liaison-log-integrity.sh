@@ -34,14 +34,17 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Mesmo ROOT de liaison-ops.sh/check-liaison-acks.sh: o canal é estado durável de PROJETO e mora
 # no tronco (rule conventions/machinery-propagation.md), nunca no worktree corrente.
-_forge_main_root() {
-  local common
-  common="$(git -C "$(pwd)" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || return 1
-  [ -n "$common" ] || return 1
-  case "$common" in /*) : ;; *) return 1 ;; esac
-  dirname "$common"
-}
-ROOT="${FORGE_ROOT:-$(_forge_main_root || git -C "$(pwd)" rev-parse --show-toplevel 2>/dev/null || pwd)}"
+# Resolução do checkout principal e o aviso de divergência vivem em lib/forge-root.sh — UM sítio,
+# consumido pelos quatro scripts que antes carregavam este corpo copiado (LDG-0068). Delegação em
+# alvo ausente é erro: sem a lib, o script não segue resolvendo ROOT por conta própria.
+if [ -f "$SCRIPT_DIR/lib/forge-root.sh" ]; then
+  # shellcheck source=lib/forge-root.sh
+  . "$SCRIPT_DIR/lib/forge-root.sh"
+else
+  echo "FAIL: $SCRIPT_DIR/lib/forge-root.sh ausente — é a resolução única do checkout principal; sem ela o script gravaria estado durável num lugar que ninguém declarou." >&2
+  exit 1
+fi
+ROOT="$(forge_resolve_root)"
 LIAISON_DIR="$ROOT/.forge/liaison"
 CONFIG="$LIAISON_DIR/liaison.yaml"
 

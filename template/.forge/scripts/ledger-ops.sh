@@ -38,6 +38,19 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Disciplina de parsing (issue #103): flag desconhecida REPROVA e valor vazio REPROVA. Delegação
+# em alvo ausente é erro, nunca silêncio — o mesmo idioma que os hooks já aplicam aos check-*.sh:
+# se a lib sumiu, o script não segue rodando sem as guardas que ele afirma ter.
+if [ -f "$SCRIPT_DIR/lib/arg-guards.sh" ]; then
+  # shellcheck source=lib/arg-guards.sh
+  . "$SCRIPT_DIR/lib/arg-guards.sh"
+else
+  echo "FAIL: ledger-ops: '$SCRIPT_DIR/lib/arg-guards.sh' ausente — as guardas de flag desconhecida e de valor vazio são parte do contrato deste script; rodar sem elas reinstala a escrita silenciosa que a issue #103 fechou." >&2
+  exit 1
+fi
+_reject_unknown() { forge_reject_unknown "$@"; }
+_require_value() { forge_require_value "$@"; }
+
 # ROOT é o CHECKOUT PRINCIPAL, nunca o worktree de onde o script foi chamado. O ledger é artefato
 # durável de PROJETO, não de branch: resolvido por `--show-toplevel`, um registro feito de dentro
 # de um worktree nasce no ledger.json daquela branch, e toda branch que toca o ledger passa a
@@ -49,14 +62,17 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # contém é o tronco. `--path-format=absolute` é necessário porque, no próprio checkout principal,
 # `--git-common-dir` devolveria `.git` relativo — e `dirname .git` daria `.`, que é justamente o
 # worktree corrente que se quer evitar. O mesmo idioma já é usado em hooks/git/pre-commit.
-_forge_main_root() {
-  local common
-  common="$(git -C "$(pwd)" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || return 1
-  [ -n "$common" ] || return 1
-  case "$common" in /*) : ;; *) return 1 ;; esac
-  dirname "$common"
-}
-ROOT="${FORGE_ROOT:-$(_forge_main_root || git -C "$(pwd)" rev-parse --show-toplevel 2>/dev/null || pwd)}"
+# Resolução do checkout principal e o aviso de divergência vivem em lib/forge-root.sh — UM sítio,
+# consumido pelos quatro scripts que antes carregavam este corpo copiado (LDG-0068). Delegação em
+# alvo ausente é erro: sem a lib, o script não segue resolvendo ROOT por conta própria.
+if [ -f "$SCRIPT_DIR/lib/forge-root.sh" ]; then
+  # shellcheck source=lib/forge-root.sh
+  . "$SCRIPT_DIR/lib/forge-root.sh"
+else
+  echo "FAIL: $SCRIPT_DIR/lib/forge-root.sh ausente — é a resolução única do checkout principal; sem ela o script gravaria estado durável num lugar que ninguém declarou." >&2
+  exit 1
+fi
+ROOT="$(forge_resolve_root)"
 LEDGER_DIR="$ROOT/.forge/ledger"
 LF="$LEDGER_DIR/ledger.json"
 TPL="$(cd "$SCRIPT_DIR/.." && pwd)/templates/ledger/LEDGER.md"
@@ -93,23 +109,32 @@ _render() {
     node "$SCRIPT_DIR/lib/ledger-render.mjs"
 }
 
+# LDG-0068: as portas que ESCREVEM anunciam quando o ROOT resolvido difere do repositório de
+# trabalho de quem invocou. `render`, `status` e `list` só leem e ficam de fora — aviso em porta de
+# leitura é ruído que treina o operador a ignorar a linha quando ela importa.
+case "$cmd" in
+  add|update|resolve|promote|harvest)
+    forge_warn_root_divergence "$ROOT" "ledger" "ledger-ops" ;;
+esac
+
 case "$cmd" in
 
 add)
   type=""; title=""; detail=""; severity=""; priority=""; status="open"; origin="manual"; change=""; ref=""; adr=""; capability=""
+  ADD_FLAGS="--type --title --detail --severity --priority --status --origin --change --ref --adr --capability"
   while [ $# -gt 0 ]; do case "$1" in
-    --type) type="$2"; shift 2 ;;
-    --title) title="$2"; shift 2 ;;
-    --detail) detail="$2"; shift 2 ;;
-    --severity) severity="$2"; shift 2 ;;
-    --priority) priority="$2"; shift 2 ;;
-    --status) status="$2"; shift 2 ;;
-    --origin) origin="$2"; shift 2 ;;
-    --change) change="$2"; shift 2 ;;
-    --ref) ref="$2"; shift 2 ;;
-    --adr) adr="$2"; shift 2 ;;
-    --capability) capability="$2"; shift 2 ;;
-    *) shift ;;
+    --type) _require_value "add" --type "${2-}"; type="$2"; shift 2 ;;
+    --title) _require_value "add" --title "${2-}"; title="$2"; shift 2 ;;
+    --detail) _require_value "add" --detail "${2-}"; detail="$2"; shift 2 ;;
+    --severity) _require_value "add" --severity "${2-}"; severity="$2"; shift 2 ;;
+    --priority) _require_value "add" --priority "${2-}"; priority="$2"; shift 2 ;;
+    --status) _require_value "add" --status "${2-}"; status="$2"; shift 2 ;;
+    --origin) _require_value "add" --origin "${2-}"; origin="$2"; shift 2 ;;
+    --change) _require_value "add" --change "${2-}"; change="$2"; shift 2 ;;
+    --ref) _require_value "add" --ref "${2-}"; ref="$2"; shift 2 ;;
+    --adr) _require_value "add" --adr "${2-}"; adr="$2"; shift 2 ;;
+    --capability) _require_value "add" --capability "${2-}"; capability="$2"; shift 2 ;;
+    *) _reject_unknown "add" "$ADD_FLAGS" "$1" ;;
   esac; done
   [ -n "$type" ] || { echo "FAIL: --type obrigatório (roadmap|tech-debt|known-bug|follow-up|feature-idea)" >&2; exit 1; }
   [ -n "$title" ] || { echo "FAIL: --title obrigatório" >&2; exit 1; }
@@ -148,20 +173,26 @@ NODEEOF
   _render
   new_id="$(node -e "const d=JSON.parse(require('fs').readFileSync('$LF','utf8'));console.log(d.entries[d.entries.length-1].id)")"
   echo "OK add — $new_id registrado ($type)"
+  # Entrada sem --detail nasce como título sem conteúdo, que é a forma de item que envelhece pior:
+  # daqui a dois meses ninguém reconstrói o que ela queria dizer. AVISA, não reprova — reprovar
+  # quebraria todo consumidor com script que já chama `add` sem `--detail`.
+  [ -n "$detail" ] || echo "WARN: ledger-ops: $new_id nasceu SEM CONTEÚDO (nenhum --detail) — título sem detalhe é a forma de item que envelhece pior. Complete com: ledger-ops.sh update $new_id --detail \"<o que é, como medir, o que fecha>\"" >&2
   ;;
 
 update)
   id="${1:-}"; shift || true
   [ -n "$id" ] || { echo "FAIL: LDG-id obrigatório" >&2; exit 1; }
-  n_status=""; n_priority=""; n_severity=""; n_title=""; n_detail=""
+  n_status=""; n_priority=""; n_severity=""; n_title=""; n_detail=""; n_flags=0
+  UPDATE_FLAGS="--status --priority --severity --title --detail"
   while [ $# -gt 0 ]; do case "$1" in
-    --status) n_status="$2"; shift 2 ;;
-    --priority) n_priority="$2"; shift 2 ;;
-    --severity) n_severity="$2"; shift 2 ;;
-    --title) n_title="$2"; shift 2 ;;
-    --detail) n_detail="$2"; shift 2 ;;
-    *) shift ;;
+    --status) _require_value "update" --status "${2-}"; n_status="$2"; n_flags=$((n_flags + 1)); shift 2 ;;
+    --priority) _require_value "update" --priority "${2-}"; n_priority="$2"; n_flags=$((n_flags + 1)); shift 2 ;;
+    --severity) _require_value "update" --severity "${2-}"; n_severity="$2"; n_flags=$((n_flags + 1)); shift 2 ;;
+    --title) _require_value "update" --title "${2-}"; n_title="$2"; n_flags=$((n_flags + 1)); shift 2 ;;
+    --detail) _require_value "update" --detail "${2-}"; n_detail="$2"; n_flags=$((n_flags + 1)); shift 2 ;;
+    *) _reject_unknown "update" "$UPDATE_FLAGS" "$1" ;;
   esac; done
+  [ "$n_flags" -gt 0 ] || { echo "FAIL: ledger-ops: 'update $id' sem flag alguma não tem o que gravar — o único efeito seria avançar 'updated_at', o que faz a entrada parecer recente sem carregar informação nova. Flags aceitas em 'update': $UPDATE_FLAGS" >&2; exit 1; }
   case "$n_status" in
     resolved|wont-fix)
       echo "FAIL: ledger-ops: 'update --status $n_status' não carimba resolved_at (issue #78) — use:" >&2
@@ -171,21 +202,34 @@ update)
   esac
   _require_git_date
   _init_ledger
+  set +e
   result="$(node - "$LF" "$id" "$n_status" "$n_priority" "$n_severity" "$n_title" "$n_detail" "$GIT_DATE_NOW" <<'NODEEOF'
 const { readFileSync } = require('fs');
 const [, , lf, id, st, pr, sv, ti, de, now] = process.argv;
 const data = JSON.parse(readFileSync(lf, 'utf8'));
 const e = (data.entries || []).find((x) => x.id === id);
 if (!e) { console.error('entrada ' + id + ' não encontrada'); process.exit(1); }
+// Assinatura de CONTEÚDO antes e depois: `updated_at` deliberadamente fora dela. Um update cujo
+// único efeito é mexer no carimbo faz a entrada parecer recente sem carregar informação nova, e
+// era indistinguível de um update que gravou de fato — os dois imprimiam `OK`.
+const sig = () => JSON.stringify([e.title, e.detail, e.status, e.priority, e.severity]);
+const before = sig();
 if (st) e.status = st;
 if (pr) e.priority = pr;
 if (sv) e.severity = sv;
 if (ti) e.title = ti;
 if (de) e.detail = de;
+if (sig() === before) { console.error('NOCHANGE'); process.exit(3); }
 e.updated_at = now;
 console.log(JSON.stringify(data, null, 2));
 NODEEOF
-)"
+)"; node_rc=$?
+  set -e
+  if [ "$node_rc" -eq 3 ]; then
+    echo "FAIL: ledger-ops: 'update $id' não alterou nenhum campo — os valores passados já são os que a entrada carrega. Nada foi gravado (nem 'updated_at'): um update sem efeito devolvendo 'OK' é a forma pela qual um commit anuncia conteúdo que o ledger não tem." >&2
+    exit 1
+  fi
+  [ "$node_rc" -eq 0 ] || exit "$node_rc"
   _write_json "$LF" "$result"
   _render
   echo "OK update — $id atualizado"
@@ -195,10 +239,11 @@ resolve)
   id="${1:-}"; shift || true
   [ -n "$id" ] || { echo "FAIL: LDG-id obrigatório" >&2; exit 1; }
   note=""; new_status="resolved"
+  RESOLVE_FLAGS="--note --status"
   while [ $# -gt 0 ]; do case "$1" in
-    --note) note="$2"; shift 2 ;;
-    --status) new_status="$2"; shift 2 ;;
-    *) shift ;;
+    --note) _require_value "resolve" --note "${2-}"; note="$2"; shift 2 ;;
+    --status) _require_value "resolve" --status "${2-}"; new_status="$2"; shift 2 ;;
+    *) _reject_unknown "resolve" "$RESOLVE_FLAGS" "$1" ;;
   esac; done
   [ -n "$note" ] || { echo "FAIL: --note obrigatório" >&2; exit 1; }
   case "$new_status" in
@@ -230,7 +275,10 @@ promote)
   id="${1:-}"; shift || true
   [ -n "$id" ] || { echo "FAIL: LDG-id obrigatório" >&2; exit 1; }
   to=""
-  while [ $# -gt 0 ]; do case "$1" in --to) to="$2"; shift 2 ;; *) shift ;; esac; done
+  while [ $# -gt 0 ]; do case "$1" in
+    --to) _require_value "promote" --to "${2-}"; to="$2"; shift 2 ;;
+    *) _reject_unknown "promote" "--to" "$1" ;;
+  esac; done
   [ -n "$to" ] || { echo "FAIL: --to <change-id> obrigatório" >&2; exit 1; }
   _require_git_date
   _init_ledger
@@ -258,7 +306,10 @@ harvest)
   change_id="${1:-}"; shift || true
   [ -n "$change_id" ] || { echo "WARN: harvest sem change-id — nada colhido" >&2; exit 0; }
   origin="close"
-  while [ $# -gt 0 ]; do case "$1" in --origin) origin="$2"; shift 2 ;; *) shift ;; esac; done
+  while [ $# -gt 0 ]; do case "$1" in
+    --origin) _require_value "harvest" --origin "${2-}"; origin="$2"; shift 2 ;;
+    *) _reject_unknown "harvest" "--origin" "$1" "harvest é best-effort quanto ao CONTEÚDO (change ausente devolve 0 e rc 0), nunca quanto ao USO: flag desconhecida é erro de quem chama, e engoli-la publicaria a colheita sob a origem errada." ;;
+  esac; done
   spec_dir="$ROOT/.forge/specs/active/$change_id"
   # best-effort: sem pasta do change, não há o que colher — nunca falha o caller (close/archive).
   [ -d "$spec_dir" ] || { echo "OK harvest $change_id — 0 nova(s) (change não encontrado)"; exit 0; }
@@ -309,17 +360,34 @@ if (analysis) {
   }
 }
 
-// (3) verification.md — bullets sob "Desvios e observações" / "RESSALVAS" -> follow-up.
+// (3) verification.md — follow-up EXPLICITAMENTE marcado. Antes (LDG-0140), qualquer bullet sob
+// um heading que casasse /desvios|ressalvas|observa/i virava entrada, sem distinguir uma ressalva
+// ABERTA de uma linha que apenas NARRA algo já concluído: foi assim que LDG-0111..LDG-0114
+// nasceram 100% duplicadas de itens já resolvidos, para o operador do `close` desfazer à mão —
+// o oposto do "não-bloqueante" que o harvest promete. É a mesma classe de LDG-0062 (heurística
+// de texto sem entender semântica), e a saída é a mesma daquele item: pedir que o autor MARQUE,
+// em vez de adivinhar. Duas portas de marcação, nenhuma inferida:
+//   - bullet prefixado por `PENDENTE:` sob qualquer heading de ressalva; ou
+//   - qualquer bullet sob um heading dedicado `Follow-ups abertos`.
+// Mais um dedupe barato: bullet que cita um `LDG-00NN` entre crases já tem registro próprio.
 const verification = readText(join(specDir, 'verification.md'));
 if (verification) {
   const lines = verification.split('\n');
-  let capturing = false, n = 0;
+  let mode = 'none', n = 0;
   for (const line of lines) {
-    if (/^#{1,6}\s/.test(line)) capturing = /desvios|ressalvas|observa/i.test(line);
-    else if (capturing && /^\s*[-*]\s+/.test(line)) {
-      const title = line.replace(/^\s*[-*]\s+/, '').trim().slice(0, 200);
-      if (title) candidates.push({ type: 'follow-up', title, detail: '', severity: null, ref: `verify-${++n}` });
+    if (/^#{1,6}\s/.test(line)) {
+      if (/follow-?ups?\s+abertos/i.test(line)) mode = 'dedicated';
+      else if (/desvios|ressalvas|observa/i.test(line)) mode = 'loose';
+      else mode = 'none';
+      continue;
     }
+    if (mode === 'none' || !/^\s*[-*]\s+/.test(line)) continue;
+    let title = line.replace(/^\s*[-*]\s+/, '').trim();
+    const marked = /^(\*\*|__)?PENDENTE(\*\*|__)?\s*:/i.test(title);
+    if (mode === 'loose' && !marked) continue;
+    if (/`LDG-\d{4}`/.test(title)) continue;
+    title = title.replace(/^(\*\*|__)?PENDENTE(\*\*|__)?\s*:\s*/i, '').trim().slice(0, 200);
+    if (title) candidates.push({ type: 'follow-up', title, detail: '', severity: null, ref: `verify-${++n}` });
   }
 }
 
@@ -368,12 +436,13 @@ NODEEOF
 
 list)
   f_status=""; f_type=""; top=""; by_priority=""
+  LIST_FLAGS="--status --type --top --by-priority"
   while [ $# -gt 0 ]; do case "$1" in
-    --status) f_status="$2"; shift 2 ;;
-    --type) f_type="$2"; shift 2 ;;
-    --top) top="$2"; shift 2 ;;
+    --status) _require_value "list" --status "${2-}"; f_status="$2"; shift 2 ;;
+    --type) _require_value "list" --type "${2-}"; f_type="$2"; shift 2 ;;
+    --top) _require_value "list" --top "${2-}"; top="$2"; shift 2 ;;
     --by-priority) by_priority="1"; shift ;;
-    *) shift ;;
+    *) _reject_unknown "list" "$LIST_FLAGS" "$1" ;;
   esac; done
   _init_ledger
   node - "$LF" "$f_status" "$f_type" "$top" "$by_priority" <<'NODEEOF'

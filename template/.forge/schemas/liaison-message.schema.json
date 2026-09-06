@@ -78,7 +78,7 @@
     "body": {
       "type": "string",
       "maxLength": 2048,
-      "description": "Corpo inline, ≤2 KB. Mutuamente exclusivo com body_ref — exatamente um dos dois é obrigatório."
+      "description": "Corpo inline, ≤2 KB. Mutuamente exclusivo com body_ref: no máximo um dos dois está presente, e AMBOS podem estar ausentes — um recibo puro (ack sem justificativa) é mensagem legítima. A descrição anterior afirmava que exatamente um dos dois era obrigatório; o schema nunca o exigiu (nenhum dos dois está em `required`) e `validateEnvelope` implementa 'ambos opcionais, mutuamente exclusivos quando presentes'. Ali quem mentia era a descrição."
     },
     "body_ref": {
       "type": "string",
@@ -217,6 +217,15 @@
             "const": false
           }
         }
+      }
+    },
+    {
+      "$comment": "Exclusão mútua body/body_ref (LDG-0101). validateEnvelope já a cobrava e o schema não a codificava de forma alguma: uma mensagem com os DOIS campos passava no schema e reprovava no validador — divergência de direção oposta à registrada, e a que tem consequência real para quem valida por ajv antes de enviar.",
+      "not": {
+        "required": [
+          "body",
+          "body_ref"
+        ]
       }
     }
   ]

@@ -116,13 +116,34 @@ const { pathToFileURL } = require('url');
 (async () => {
   const [, , schemaPath, lib] = process.argv;
   const schema = JSON.parse(readFileSync(schemaPath, 'utf8'));
-  // A exclusão mútua que o validador COBRA tem de estar codificada no schema. Sem ela, uma
-  // mensagem com os dois campos PASSA no schema e REPROVA no validador — a divergência de direção
-  // oposta à registrada, e a que tem consequência real para quem valida por ajv antes de enviar.
-  const clauses = JSON.stringify(schema.allOf || []);
-  const hasNot = clauses.includes('"not"') && clauses.includes('body_ref') && clauses.includes('"body"');
-  if (!hasNot) {
-    console.error('FAIL [4]: o schema NÃO codifica a exclusão mútua body/body_ref — uma mensagem com os dois passa no schema e reprova em validateEnvelope');
+  // Com AJV DE VERDADE, não com `includes()` sobre o JSON do `allOf`. A versão anterior deste
+  // cenário afirmava no cabeçalho "reprova no schema por ajv" e comparava strings — não era falso
+  // verde (a sensibilidade foi testada), era descrição inflada, e descrição inflada é como uma
+  // asserção fraca sobrevive à revisão seguinte. `ajv` já é devDependency deste repositório.
+  // `ajv/dist/2020.js`, não o export default: o schema declara draft 2020-12, e o Ajv default é
+  // draft-07 — compilar com ele morre em "no schema with key or ref .../2020-12/schema".
+  const Ajv2020 = (await import('ajv/dist/2020.js')).default;
+  const ajv = new Ajv2020({ strict: false, allErrors: true });
+  const validate = ajv.compile(schema);
+  // Envelope VÁLIDO em tudo o mais — content_sha de 64 hex, body_ref sob `blobs/`. O primeiro
+  // esboço deste cenário usava `content_sha: 'x'`, e o ajv de verdade o reprovou pelo padrão do
+  // sha antes de chegar perto da exclusão mútua: com `includes()` isso teria passado despercebido
+  // para sempre, porque `includes()` nunca validou envelope nenhum.
+  const SHA = 'a'.repeat(64);
+  const base = {
+    msg_id: 'a-0001', channel: 'c', thread_id: 't', sender: 'a', seq: 1, lamport: 1,
+    kind: 'note', requires_ack: false, subject: 's',
+    refs: { change_id: null, contract_files: [], commit: null },
+    created_at: '2026-01-01T00:00:00Z', trust: 'self', content_sha: SHA,
+  };
+  if (validate({ ...base, body: 'x', body_ref: 'blobs/y.md' })) {
+    console.error('FAIL [4]: ajv APROVOU um envelope com body E body_ref — o schema não codifica a exclusão mútua que validateEnvelope cobra, e quem valida por ajv antes de enviar publica mensagem que o outro lado recusa');
+    process.exit(1);
+  }
+  // Controle: o mesmo envelope com apenas UM dos dois tem de PASSAR. Sem ele, a reprovação acima
+  // poderia vir de qualquer outra cláusula e não provaria nada sobre a exclusão mútua.
+  if (!validate({ ...base, body: 'x' })) {
+    console.error('FAIL [4]: ajv reprovou um envelope válido com apenas `body` — a reprovação acima não isola a exclusão mútua: ' + ajv.errorsText(validate.errors));
     process.exit(1);
   }
   const M = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
@@ -137,7 +158,7 @@ const { pathToFileURL } = require('url');
     console.error('FAIL [4]: validateEnvelope aceitou body E body_ref — o controle do cenário caiu');
     process.exit(1);
   }
-  console.log('OK [4] — schema codifica a exclusão mútua; validateEnvelope: ' + errs[0]);
+  console.log('OK [4] — ajv reprova body+body_ref e aceita só body; validateEnvelope: ' + errs[0]);
 })();
 NODEEOF
 [ $? -eq 0 ] || exit 1

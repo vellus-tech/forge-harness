@@ -355,15 +355,48 @@ gates_key_present() {
   ' "$FORGE_MD"
 }
 
+# Valor INLINE da chave, quando há um. Usado SÓ no caminho degradado abaixo, onde o leitor
+# canônico é, por definição, indisponível — não é um segundo leitor do contrato concorrendo com
+# ele, é o que resta quando ele não está lá.
+gates_inline_raw() {
+  awk '
+    /^runtime:/ { inblk=1; next }
+    inblk && /^[a-z_]+:/ { exit }
+    inblk && $0 ~ "^  gates:" { sub("^  gates:[[:space:]]*", ""); print; exit }
+  ' "$FORGE_MD"
+}
+
 RUNTIME_LIB="$ROOT/.forge/scripts/lib/forge-runtime.sh"
 if [ -n "$(gates_key_present)" ]; then
   if [ ! -f "$RUNTIME_LIB" ]; then
-    echo "pre-push BLOQUEADO: 'runtime.gates' está declarado no FORGE.md e .forge/scripts/lib/forge-runtime.sh não existe." >&2
-    echo "  É o leitor ÚNICO de runtime.gates (o mesmo de run-gates.sh e spec-verify.sh); sem ele" >&2
-    echo "  o hook não sabe o que foi declarado, e seguir devolveria zero gates com push verde." >&2
-    echo "  Rode 'npx forge-harness update' ou restaure a lib." >&2
-    exit 1
-  fi
+    # Pré-condição de DIRETÓRIO, como todas as guardas irmãs deste arquivo (AI_CHECK, ACKS,
+    # HEAVY_LIB, require_hook_lib e o bloco de lints de shell) e como o comentário do topo declara:
+    # "o no-op só é legítimo quando o harness NÃO está instalado — se o DIRETÓRIO que hospeda o
+    # alvo existe, a ausência do alvo significa harness atualizado pela metade". Sem
+    # `.forge/scripts/` não há harness instalado NESTE checkout, e não há contrato a cobrar.
+    #
+    # Mas alinhar não é afrouxar: com `.forge/scripts/` ausente E gates declarados INLINE, nenhum
+    # dos scripts declarados pode existir, e o push é recusado do mesmo jeito — é o que o hook
+    # anterior já fazia por outro caminho (o `[ -f "$gate_script" ]` do laço), e perder isso seria
+    # uma regressão de cobertura disfarçada de consistência.
+    if [ -d "$ROOT/.forge/scripts" ]; then
+      echo "pre-push BLOQUEADO: .forge/scripts/ existe e .forge/scripts/lib/forge-runtime.sh não." >&2
+      echo "  É o leitor ÚNICO de runtime.gates (o mesmo de run-gates.sh e spec-verify.sh); sem ele" >&2
+      echo "  o hook não sabe o que foi declarado, e seguir devolveria zero gates com push verde." >&2
+      echo "  Rode 'npx forge-harness update' ou restaure a lib." >&2
+      exit 1
+    fi
+    _gates_inline_degraded="$(gates_inline_raw)"
+    if [ -n "$_gates_inline_degraded" ]; then
+      echo "pre-push BLOQUEADO: runtime.gates declara '$_gates_inline_degraded' e .forge/scripts/ não existe neste checkout." >&2
+      echo "  Nenhum dos gates declarados pode estar instalado, então declarar e seguir seria" >&2
+      echo "  silêncio verde sobre gate nenhum. Corrija runtime.gates ou instale o harness." >&2
+      exit 1
+    fi
+    # NO-GATES honesto, dito em voz alta: nada declarado inline e nenhum script onde um gate
+    # pudesse morar. "Não examinei" continua visível (issue #49) sem travar quem não instalou.
+    echo "pre-push: runtime.gates NO-GATES — .forge/scripts/ ausente neste checkout e nenhum gate declarado inline"
+  else   # leitor presente: caminho normal, com o leitor canônico
   # shellcheck disable=SC1090
   . "$RUNTIME_LIB"
   # Pelo leitor canônico, nunca por um awk local: é justamente a segunda implementação do mesmo
@@ -426,6 +459,7 @@ if [ -n "$(gates_key_present)" ]; then
     done <<EOF_GATES
 $_src_gates
 EOF_GATES
+    fi
   fi
 fi
 

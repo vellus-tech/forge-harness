@@ -126,10 +126,14 @@ listed="$(bash "$WS/tests/run-all.sh" --list 2>&1)"
 # A faixa w190+ é enumerada POR DESCOBERTA, não por lista fixa: uma lista escrita à mão envelhece
 # no commit seguinte ao próprio (a versão anterior deste cenário fixava quatro nomes). O que se
 # cobra é a propriedade — todo tests/w19*-*-gate.sh em disco aparece no --list.
-_wired=0
+# DOIS contadores, não um: um só era satisfeito pelos quatro nomes fixos de w144-w147 mesmo se o
+# glob da faixa nova não casasse arquivo nenhum — o contador de controle aprovaria em silêncio
+# exatamente o universo que ele existe para vigiar.
+_wired=0; _wired_faixa=0
 for f in "$WS"/tests/w19[0-9]-*-gate.sh; do
   [ -f "$f" ] || continue
   g="$(basename "$f" .sh)"
+  _wired_faixa=$((_wired_faixa + 1))
   case "$listed" in
     *"$g"*) _wired=$((_wired + 1)) ;;
     *) echo "FAIL [7]: $g.sh existe mas não é executado por tests/run-all.sh — guarda que ninguém roda não cobre nada"; exit 1 ;;
@@ -141,8 +145,11 @@ for g in w144-gate-control-counter-gate w145-shell-pipeline-lint-gate w146-suite
     *) echo "FAIL [7]: $g.sh existe mas não é executado por tests/run-all.sh — guarda que ninguém roda não cobre nada"; exit 1 ;;
   esac
 done
-# Contador de controle: universo vazio aprovaria o laço em silêncio.
-[ "$_wired" -ge 4 ] || { echo "FAIL [7]: só $_wired gate(s) examinado(s) — o glob não casou nada e o cenário aprovaria vazio"; exit 1; }
-echo "OK [7] — $_wired gate(s) verificados na rede do run-all.sh"
+# Contador de controle, com os dois universos declarados separadamente.
+[ "$_wired_faixa" -gt 0 ] \
+  || { echo "FAIL [7]: o glob tests/w19[0-9]-*-gate.sh não casou NENHUM arquivo — a faixa desta leva não está sendo examinada, e os quatro nomes fixos de w144-w147 satisfariam o contador sozinhos"; exit 1; }
+[ "$_wired" -ge $((_wired_faixa + 4)) ] \
+  || { echo "FAIL [7]: $_wired confirmado(s) para $_wired_faixa da faixa + 4 fixos"; exit 1; }
+echo "OK [7] — $_wired gate(s) verificados na rede do run-all.sh ($_wired_faixa da faixa w19*, 4 fixos)"
 
 echo "PASS w146-suite-invocation"

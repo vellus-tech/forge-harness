@@ -31,6 +31,11 @@
 #       qualquer também acontece no pre-push de origin/develop, que não tem guarda nenhuma
 #   [7] mutação de canal: com `core.hooksPath` apontando para um diretório sem o hook, [2] volta a
 #       falhar — prova que o cenário mede o CANAL, não o script
+#   [7b] `.forge/scripts/` AUSENTE com `gates:` vazio de fábrica: push ACEITO, e o hook diz
+#        NO-GATES. A guarda do leitor ganha a pré-condição de DIRETÓRIO que as cinco guardas
+#        irmãs do arquivo já têm — sem `.forge/scripts/` não há harness instalado neste checkout
+#   [7c] `.forge/scripts/` ausente com gates declarados INLINE: BLOQUEADO — alinhar as guardas
+#        não pode virar regressão de cobertura, e nenhum dos scripts declarados pode existir ali
 #   [8] contador de controle: zero cenário executado reprova
 #
 # Fiação dos dois lints de shell no push (LDG-0069). Eles rodam no CI contra o corpus real desde
@@ -294,6 +299,31 @@ _push "$R11" || rc11=$?
 grep -q "check-heredoc-hash" "$T/out.txt" || { echo "FAIL [11]: o bloqueio não nomeia o alvo ausente — saída:"; cat "$T/out.txt"; exit 1; }
 SCEN=$((SCEN + 1))
 echo "OK [11] — $(grep -m1 'BLOQUEADO' "$T/out.txt")"
+
+echo "[7b] sem .forge/scripts/ e com 'gates:' vazio de fábrica: push ACEITO, e o hook diz NO-GATES"
+GB_VAZIO='  gates:
+'
+R7B="$(_fixture semscripts "$GB_VAZIO")"
+rm -rf "$R7B/.forge/scripts"
+_commit_docs "$R7B" "remove .forge/scripts inteiro"
+_push "$R7B" || { echo "FAIL [7b]: push BLOQUEADO num checkout sem .forge/scripts/. A guarda do leitor é a única do arquivo sem pré-condição de diretório — AI_CHECK, ACKS, HEAVY_LIB, require_hook_lib e o bloco de lints todos condicionam, e o comentário do topo declara a regra. Saída:"; cat "$T/out.txt"; exit 1; }
+# Sinal POSITIVO pareado: "não bloqueou" é satisfeito por um hook que não olha nada. O que se
+# cobra é o hook DIZENDO que examinou e não achou gate — o "não verifiquei" da issue #49 continua
+# visível sem travar quem não instalou.
+grep -qi "NO-GATES" "$T/out.txt" || { echo "FAIL [7b]: push aceito em SILÊNCIO sobre os gates — saída:"; cat "$T/out.txt"; exit 1; }
+SCEN=$((SCEN + 1))
+echo "OK [7b] — $(grep -i 'NO-GATES' "$T/out.txt" | head -1)"
+
+echo "[7c] sem .forge/scripts/ e com gates declarados INLINE: BLOQUEADO"
+R7C="$(_fixture semscripts-csv "$GB_CSV")"
+rm -rf "$R7C/.forge/scripts"
+_commit_docs "$R7C" "remove .forge/scripts com gate declarado inline"
+rc7c=0
+_push "$R7C" || rc7c=$?
+[ "$rc7c" -ne 0 ] || { echo "FAIL [7c]: gate declarado inline e .forge/scripts/ inexistente passou — alinhar a guarda com as irmãs virou regressão de cobertura: o hook anterior recusava isto pelo laço de gate ausente. Saída:"; cat "$T/out.txt"; exit 1; }
+grep -q "check-w190marker" "$T/out.txt" || { echo "FAIL [7c]: o bloqueio não nomeia o gate declarado — saída:"; cat "$T/out.txt"; exit 1; }
+SCEN=$((SCEN + 1))
+echo "OK [7c] — $(grep -m1 'BLOQUEADO' "$T/out.txt")"
 
 echo "[8] contador de controle — zero cenário executado reprova"
 # shellcheck source=/dev/null

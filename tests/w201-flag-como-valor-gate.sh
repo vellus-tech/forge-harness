@@ -148,7 +148,7 @@ set -e
 [ "$rc3u" -ne 0 ] || { echo "FAIL [3]: universo vazio aprovou — got: $out3u"; exit 1; }
 echo "OK [3] — $sub3_n subcomandos de ledger-ops examinados, todos recusam flag como valor"
 
-_dfj_snapshot() { [ -f "$DFJ" ] && cp "$DFJ" "$1" || rm -f "$1"; }
+_dfj_snapshot() { if [ -f "$DFJ" ]; then cp "$DFJ" "$1"; else rm -f "$1"; fi; }
 _dfj_unchanged() { # _dfj_unchanged <snapshot> — true quando deferrals.json não mudou (existência + conteúdo)
   if [ -f "$1" ]; then [ -f "$DFJ" ] && cmp -s "$DFJ" "$1"; else [ ! -f "$DFJ" ]; fi
 }

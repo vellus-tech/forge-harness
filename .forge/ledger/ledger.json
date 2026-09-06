@@ -220,7 +220,7 @@
       "id": "LDG-0010",
       "type": "roadmap",
       "title": "Promover SRF-01 a bloqueante — BLOQUEADO por LDG-0029 (cegueira do scanner) e pelo insumo em prosa, nunca pelo oráculo",
-      "detail": "SRF-01 hoje sai como WARN porque, sem varredura das rotas reais, não distingue \"a rota não existe\" (defeito de código) de \"a task declarou paths: incompleto\" (defeito de declaração).\n\nMEDIÇÃO 2026-08-04 (route-scan-multifile-mounts + route-scan-dialect-coverage), axis-go-cloud: 343 rotas resolvidas, 83 irresolúveis. Lado declarado: 172 endpoints, 43 irresolúveis (41 contract-without-paths). Cruzamento: SUR-01 inconclusive, 49 abstidos. Em changes reais: 35 changes, 11 achados, dos quais só 4 (36%) seriam decididos pelo oráculo — o resto é célula de checklist em prosa (7) ou route-scan sem cobertura suficiente para afirmar código-ausente-vs-fora-do-escopo (2). Promoção NÃO recomendada.\n\nREMEDIÇÃO 2026-09-04 (LDG-0029, na mesma sessão que reavaliou este item): 352 rotas resolvidas, 122 irresolúveis brutos → 75 após eliminar 100% dos producer-not-found (framework/BCL, LDG-0029). cegueira.length = 75 > 0 — SUR-01 permanece \"inconclusive\" em axis-go-cloud HOJE, mesmo depois da correção mais barata e mais segura que este ciclo produziu. Os 75 restantes (32 group-path-not-literal + 22 route-path-not-literal, majoritariamente constantes de rota estáticas não resolvidas; 11 producer-never-invoked; 10 mapgroup/route-site-unindexed) não caíram — ver LDG-0029 para o porquê de cada categoria não ter sido atacada nesta sessão.\n\nDECISÃO: NÃO promover. A cegueira do scanner caiu (122→75, -38,5%) mas não caiu O SUFICIENTE — continua distinguindo mal \"rota não existe\" de \"declaração incompleta\" no repositório de referência, e o próprio critério do item (o oráculo só decide 36% dos achados reais medidos em agosto) não foi reavaliado nesta sessão porque exigiria reprocessar os 35 changes com o scanner novo, fora do escopo desta rodada. Item permanece open, com o número novo (75) como a régua para a próxima reavaliação: promover quando cegueira.length cair a um patamar que permita reprocessar a amostra de changes reais e mostrar que o oráculo passa a decidir a maioria dos achados, não 36% deles.\n\nDECISÃO E CRITÉRIO REVISTO (2026-09-05, dono do repositório). NÃO promover, confirmado por remedição feita hoje e não pelo texto do item: 370 rotas resolvidas e 75 irresolúveis no axis-go-cloud, cegueira > 0.\n\nO que muda no registro é o CRITÉRIO. O anterior era inauditável — \"promover quando cegueira.length cair a um patamar que permita reprocessar a amostra\" não diz a ninguém se foi atingido. Passa a ter duas pré-condições explícitas e medíveis, ambas necessárias: (1) o índice de constante literal descrito em LDG-0029 entra e a cegueira no repositório de referência é REMEDIDA — a projeção do protótipo desta sessão é 75 → 24, dos quais 11 são producer-never-invoked que o próprio LDG-0029 decidiu não reduzir, de modo que ~24 pode ser o piso honesto e não um fracasso; (2) os 35 changes reais da amostra de 2026-08-04 são REPROCESSADOS com o scanner novo e o oráculo passa a decidir a MAIORIA dos achados (>50%), contra os 36% medidos em agosto — sem esse reprocessamento a promoção seria feita sobre um número que ninguém reviu desde então.\n\nEnquanto (1) não fechar, este item não deve ser pego por ninguém: é DEPENDÊNCIA, não prioridade baixa. Permanece P3, agora com o bloqueio dito no título.",
+      "detail": "Pré-condição (1) REESCRITA: o que destrava o SUR-01 no repositório de referência não é o índice de constante literal de LDG-0029 (alvo zero lá), e sim as MapGroup() não ancoradas — item próprio. Pré-condição (2), registro do que o código já diz: promover a bloqueante exige validate-spec.mjs:302 passar rota real em vez de apiPaths() (heurística de path derivada de graph.json, nunca de rota) e enforceable:true na chamada de checkSurfaceCoverage. Isso é a IMPLEMENTAÇÃO deste item, não um bloqueio novo — tasks-graph.mjs:474-478 e validate-spec.mjs:299-301 já registram a intenção em comentário desde sempre.",
       "severity": null,
       "priority": "P3",
       "status": "open",
@@ -236,7 +236,7 @@
         "promoted_to": null
       },
       "created_at": "2026-07-29T20:21:33-03:00",
-      "updated_at": "2026-09-05T09:07:01-03:00",
+      "updated_at": "2026-09-06T12:15:55-03:00",
       "resolved_at": null,
       "dedup_key": "manual:LDG-0010"
     },
@@ -685,8 +685,8 @@
     {
       "id": "LDG-0029",
       "type": "roadmap",
-      "title": "Reduzir a cegueira do route-scan: 75 irresolúveis no repositório de referência, 51 deles ao alcance de um índice de constante literal",
-      "detail": "EXIGE CHANGE SDD PRÓPRIO — decidido em 2026-09-05, depois de abrir o item e medir, e é a mesma conclusão da revisão adversarial da spec de ataque ao backlog (§9.4). NÃO improvisado nesta leva.\n\nMEDIÇÃO DE LINHA DE BASE, reproduzida nesta sessão (o número que circulava era de terceiro): route-scan contra ~/Documents/projects/axis-go-cloud devolve 372 rotas resolvidas e 77 irresolúveis em 84 segundos, particionadas em group-path-not-literal 32, route-path-not-literal 23, producer-never-invoked 11, mapgroup-unindexed 5, route-site-unindexed 5 e route-prefix-unresolved 1. A medição de terceiro dizia 370/75 em ~185s com CINCO categorias — o total bate de perto, o tempo não, e há uma SEXTA categoria (route-prefix-unresolved) que a partição de terceiro omitia. Isto é a linha de base do 'antes'; sem ela o 'depois' não significa nada.\n\nANCORAGENS CONFIRMADAS na fonte: api-surface.mjs:476 tem 'const NAO_SUPRIME = new Set([])' e a linha 479 é o 'if (cegueira.length === 0)' que decide conclusive contra inconclusive — qualquer categoria de irresolúvel derruba o SUR-01 inteiro, o que mantém o oráculo mudo e bloqueia LDG-0010. route-scan.mjs tem scanRoutes em 1217, a leitura de disco no laço da 1222 e compose(idx) na 1253, então o índice pode ser populado dentro do laço (com text/struct já em memória, custo marginal zero) e consultado em compose(), sem segunda varredura de disco. O precedente de resolução cross-arquivo com abstenção já existe no mesmo arquivo (candidatasVisiveis, 988-996).\n\nCINCO DECISÕES DE DESENHO QUE A SPEC NÃO TOMOU, e é por elas que isto é change próprio, não fatia:\n(1) Gramática de interpolação aceita. A spec diz 'interpolação simples da forma $\"{X.Y}/sufixo\"'. C# real tem $\"{A.B}/{id}\", $\"{A.B}{C.D}\", string verbatim $@\"...\", concatenação e aninhamento. Qual subconjunto entra, e o que acontece com o que fica fora (abster ou ignorar) — indecidido.\n(2) Escopo do índice de constantes. Só 'const string' em classe? 'static readonly string' conta? Membro herdado, classe partial, const de interface? Indecidido.\n(3) Resolução da chave 'Classe.Membro'. route-scan.mjs JÁ tem csScope e csGlobalUsings; fiar o índice a eles (using por arquivo, using static, alias, namespace) é decisão de desenho, e é ela que define o que 'chave não única' significa. A spec fixa a POLÍTICA (abster quando não é única) e não o ESCOPO em que a unicidade é avaliada — sem o escopo, a política não é implementável.\n(4) Vocabulário de saída dos TRÊS estados (resolver / abster por ambiguidade / não conhecer a chave). Eles têm de ser distinguíveis, o que significa kinds novos em idx.unresolved — e todo kind novo alimenta NAO_SUPRIME em api-surface.mjs, mudando a semântica do veredito SUR-01. Quais kinds, e se algum deles pertence a NAO_SUPRIME, é decisão que a spec não toma e que tem consequência direta em LDG-0010.\n(5) Critério de pronto fora do alcance do CI. 'Remedição no axis-go-cloud com o número de antes e o de depois' depende de um repositório EXTERNO; nenhum gate do harness pode provar o 'depois'. A projeção de 51 dos 75 sítios (68%) e a colisão medida em zero das 34 referências efetivamente usadas continuam sendo do dono daquele repositório, não reproduzidas aqui.\n\nINSUMO PRONTO para o change: docs/plans/2026-09-05-spec-ataque-backlog.md §5.7 (mecanismo, encaixe estrutural, a diferença Set binário × Map ternário, e os dez cenários de w198), mais esta linha de base. O ordinal w198 fica RESERVADO para o gate desse change. LDG-0010 continua bloqueado por este item, e continua NÃO promovido — a segunda pré-condição dele (reprocessar os 35 changes da amostra de 2026-08-04) é trabalho de medição próprio.",
+      "title": "route-scan: corrigir o universo da varredura antes de decidir o índice de constante literal (a cegueira medida é quase toda de repositório forasteiro)",
+      "detail": "CORREÇÃO DE REGISTRO. O título anterior dizia '75 irresolúveis, 51 ao alcance' enquanto o detail do mesmo item dizia 77 — o item se contradizia. E a partição, recomputada na revisão adversarial: dos 77 irresolúveis, 69 (89,6%) vêm de axis-device-platform, repositório ANINHADO e git-excluído que entrou na varredura por engano de escopo, e apenas 8 (10,4%) do repositório de referência. Os 8 são mapgroup-unindexed 4 + route-site-unindexed 4, em quatro arquivos, aos pares com contagem idêntica — uma causa-raiz por arquivo vista por dois diagnósticos. group-path-not-literal e route-path-not-literal, as duas categorias que o índice de constante resolveria, somam ZERO no repositório de referência: o mecanismo proposto por este item tem alvo zero onde ele promete destravar. Rodado o oráculo real restrito ao repositório de referência, SUR-01 devolve inconclusive com blockers mapgroup-unindexed e route-site-unindexed mesmo DEPOIS da correção de escopo. PRÓXIMO PASSO, e é o escopo deste item agora: pular a subárvore git-excluída, REMEDIR, e só então decidir. A partição 69/8 foi recomputada sobre saída de terceiro, NÃO regenerada — se a remedição não a confirmar, o índice de constante volta à mesa. Nota: os três .forge.bak-* do próprio repositório de referência contribuíram ZERO registros; pular .forge.bak* é higiene defensiva, não correção medida. E a projeção de 51 sítios está ACIMA do teto medido da variante Classe.Membro qualificada (49); só o modo com identificador nu chega a 54.",
       "severity": null,
       "priority": "P2",
       "status": "open",
@@ -702,7 +702,7 @@
         "promoted_to": null
       },
       "created_at": "2026-08-04T11:20:07-03:00",
-      "updated_at": "2026-09-05T20:13:55-03:00",
+      "updated_at": "2026-09-06T12:15:55-03:00",
       "resolved_at": null,
       "dedup_key": "manual:LDG-0029"
     },
@@ -2007,7 +2007,7 @@
       "id": "LDG-0153",
       "type": "tech-debt",
       "title": "Doctor não informa divergência do _common.sh do liaison contra o template",
-      "detail": "A issue #101 propunha, além do fast-forward-ou-recusa, que o doctor do consumidor informasse quando o _common.sh local diverge do que o template entrega — a informação que o censo da issue produziu à mão. NÃO IMPLEMENTADO, e a medição diz por quê: não há referência local contra a qual comparar (a cópia instalada É a do template; um hash de referência teria de viajar no pacote e envelhecer junto), e scripts/ NÃO está em ENRICHABLE_DIRS (bin/forge.mjs:352), de modo que todo 'forge update' SOBRESCREVE o diretório — a divergência é transitória por construção e o próprio update é o remédio. A peça cross-repositório da mesma issue (gate de paridade de transporte entre árvores) fica fora do alcance do harness pelo motivo já registrado na spec: o harness não enxerga a árvore do consumidor, e um gate sem universo é o que a guarda de vacuidade existe para reprovar. Reabrir se aparecer um caso em que a divergência sobreviva a um update.",
+      "detail": "A issue #101 propunha que o doctor do consumidor informasse quando o _common.sh local diverge do que o template entrega. NÃO IMPLEMENTADO — e a justificativa registrada antes estava ERRADA em ambas as pernas, corrigida aqui. (a) 'Não há referência local contra a qual comparar' é falso: .forge/cache/machinery.lock grava o sha256 do TEMPLATE por path (bin/forge.mjs:361,384) e bin/forge.mjs:617-643 já computa exatamente essa comparação em driftWarned para imprimir o WARN de drift. O harness calcula o fato que este item dizia não ser calculável. (b) 'A divergência é transitória por construção e o próprio update é o remédio' só vale quando o template está à frente; nesta issue o template estava ATRÁS das árvores consumidoras, e o update era a doença, não o remédio. RESTRIÇÃO REAL, essa sim medida: machinery.lock só existe depois do primeiro update, então em consumidor que rodou apenas init não há referência — e é justamente nesse caso que a perda hoje é totalmente muda (rc=0, nenhum WARN). A peça cross-repositório continua fora do alcance pelo motivo já registrado (o harness não enxerga a árvore do consumidor); essa recusa NÃO cobre o check local, que é viável.",
       "severity": null,
       "priority": "P3",
       "status": "open",
@@ -2023,7 +2023,7 @@
         "promoted_to": null
       },
       "created_at": "2026-09-05T19:55:23-03:00",
-      "updated_at": null,
+      "updated_at": "2026-09-06T12:15:55-03:00",
       "resolved_at": null,
       "dedup_key": "manual:LDG-0153"
     },
@@ -2146,6 +2146,102 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0158"
+    },
+    {
+      "id": "LDG-0159",
+      "type": "tech-debt",
+      "title": "runtime.gates publicado como string|null contra a block-sequence que o harness lê e documenta",
+      "detail": "forge.schema.json declara runtime.gates como $ref nullableString, então o schema ACEITA a forma CSV escalar e REJEITA tanto a forma mapeada com phase: quanto a block-sequence de escalares puros (- check-authz) — que é justamente a forma retrocompatível que a #82 prometeu manter válida. As duas falham com '/runtime/gates must be string,null'. Enquanto isso o leitor canônico forge_runtime_gate_entries lê as três formas e a documentação entregue no PR #105 ensina a mapeada. Nenhum gate exercita forma alguma de block-sequence contra o schema: w20[7], único cenário que valida gates:, usa CSV. Alargar de string|null para aceitar também array é PURAMENTE ADITIVO — nada que validava antes deixa de validar. Adiado do PR #105 pela norma red-first (o vermelho precisa vir primeiro), NÃO por risco de retrocompatibilidade e NÃO por não se mexer em objeto additionalProperties:false: o próprio PR #105 já edita forge.schema.json adicionando rules.packs. Quatro arquivos de teste tocam o schema: w20, w112, w153, w192. É o espelho exato da propriedade que w192 passa a afirmar (toda chave declarada tem leitor): aqui há leitor e documentação publicada sem chave que os aceite, e nada cobre esse sentido. LDG-0151 NÃO serve de casa — cobre o caso inverso.",
+      "severity": null,
+      "priority": "P2",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-06T12:15:55-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0159"
+    },
+    {
+      "id": "LDG-0160",
+      "type": "bug",
+      "title": "Declarar phase: pre-deploy/post-deploy remove o gate da contagem de órfãos do doctor sem que nada passe a executá-lo",
+      "detail": "Medido em projeto instalado de verdade: 14 check-*.sh, 4 órfãos acusados com gates: vazio; declarando check-authz como phase: pre-deploy e check-observability como phase: post-deploy, os órfãos caem para 2 e sai a linha info 'rodam SÓ por runtime.gates'. Mas no MESMO projeto, run-gates.sh sem --phase devolve NO-GATES rc=0, e nenhum chamador do harness passa --phase: wave-ops.sh:161 invoca sem a flag, e grep por '--phase' em template/plugin/snapshot/installer/bin/.github devolve zero. Ou seja: a peça que a #82 chama de 'a que teria evitado o incidente sozinha' ganha, na mesma entrega, uma forma de ser silenciada por declaração de uma fase que o harness não sabe agendar. A linha info mitiga, mas o alarme sai da contagem.",
+      "severity": null,
+      "priority": "P2",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-06T12:15:55-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0160"
+    },
+    {
+      "id": "LDG-0161",
+      "type": "tech-debt",
+      "title": "template/.forge/FORGE.md e template/.forge/templates/FORGE.md divergem, e nenhum caminho gera um a partir do outro",
+      "detail": "As duas cópias do scaffold são entregues ao consumidor pelo mesmo cp -R do installer (install.sh:63), mas só a primeira vira o .forge/FORGE.md do projeto: o installer exclui deliberadamente */templates/* da substituição de placeholders (linhas 68 e 72) e o w13:23-26 assere que .forge/FORGE.md não tem placeholder e que .forge/templates/FORGE.md MANTÉM <PROJECT_SLUG>. Documentação depositada só na segunda não chega ao arquivo que o adotante abre — foi exatamente o que aconteceu com o bloco de phase: do PR #105 antes da correção, com o gate de paridade w197[6] mirando a cópia errada. Definir qual é a fonte, ou fazer uma ser gerada da outra, ou asserir paridade entre as duas.",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-06T12:15:55-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0161"
+    },
+    {
+      "id": "LDG-0162",
+      "type": "tech-debt",
+      "title": "route-scan: MapGroup() não ancorado — elo não adjacente com receptor composto deixa 4 chamadas fora do índice no repositório de referência",
+      "detail": "Depois de corrigir o universo da varredura (LDG-0029), o SUR-01 do repositório de referência continua inconclusive, e os blockers são mapgroup-unindexed e route-site-unindexed, nenhum dos quais o índice de constante literal toca. São 4 chamadas MapGroup() em quatro arquivos, sempre com o par mapgroup/route-site carregando a mesma contagem por arquivo. Este — e NÃO o índice de constante — é o mecanismo que a pré-condição (1) de LDG-0010 deveria nomear: como está redigida ('o índice de constante entra e a cegueira é remedida'), ela é insatisfazível no repositório de referência, porque o índice tem alvo zero lá. Ao especificar, manter w132[16] verde: ele já assere, como linha vermelha, que literal interpolado com buraco de runtime produz group-path-not-literal e NENHUMA rota.",
+      "severity": null,
+      "priority": "P2",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-06T12:15:55-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0162"
     }
   ]
 }

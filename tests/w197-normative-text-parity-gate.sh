@@ -201,7 +201,7 @@ NODEEOF
 # ── #82, peça documental ─────────────────────────────────────────────────────────────────────
 echo "[6] phase:/pre-deploy/post-deploy aparecem em rule E no FORGE.md do template"
 RULES_DIR="$WS/template/.forge/rules"
-TPL_FORGE="$WS/template/.forge/templates/FORGE.md"
+TPL_FORGE="$WS/template/.forge/FORGE.md"
 # `phase:` como CHAVE, nunca `phase` como substring: medido, há ocorrências de "phase" dentro de
 # "phases" em prosa sobre scale-adaptive levels, e um grep solto produziria falso verde.
 grep -rqE '(^|[^A-Za-z])phase:' "$RULES_DIR" \

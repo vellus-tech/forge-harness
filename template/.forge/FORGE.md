@@ -21,6 +21,20 @@ runtime:
   test:
   typecheck:
   lint:
+  # gates — nomes de script em .forge/scripts/<nome>.sh. Duas formas, um leitor só:
+  #
+  #   gates: check-authz,check-observability     # CSV escalar: tudo em phase: source
+  #
+  #   gates:                                     # block-sequence com FASE
+  #     - check-authz                            #   item escalar ⇒ phase: source
+  #     - name: check-image-digest
+  #       phase: pre-deploy
+  #     - name: check-rollout-health
+  #       phase: post-deploy
+  #
+  # `source` é a fase da árvore de fontes — a única que o pre-push e o fechamento de wave
+  # executam. Ela NÃO cobre o artefato implantável: digest publicado, manifesto renderizado,
+  # cluster no ar. Ver rules/testing/gate-delivery-channel.md.
   gates:
 codegraph:
   # Mapa de camadas do code graph. Vazio = heurística embutida do engine (convenções de pasta +

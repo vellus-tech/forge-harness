@@ -24,8 +24,11 @@
 #   [4] forma mapeada só com `phase: pre-deploy`: o gate NÃO roda e o hook DIZ que não há gate de
 #       fase 'source' — asserção negativa pareada com sinal positivo, nunca sozinha
 #   [5] gate declarado cujo script não existe: push BLOQUEADO, nas duas formas
-#   [6] leitor da forma mapeada indisponível (node fora do PATH; e gate-phase.mjs ausente):
-#       push BLOQUEADO nomeando que a declaração não pôde ser lida
+#   [6] leitor da forma mapeada indisponível: push BLOQUEADO nomeando que a declaração não pôde
+#       ser lida. [6a] (gate-phase.mjs ausente, node presente) é o cenário que ISOLA a guarda;
+#       [6b] (node fora do PATH) cobra só o fecho — sem o leitor o push nunca segue verde — e
+#       vira SKIP declarado quando outro check se antecipa, porque um `rc != 0` com `BLOQUEADO`
+#       qualquer também acontece no pre-push de origin/develop, que não tem guarda nenhuma
 #   [7] mutação de canal: com `core.hooksPath` apontando para um diretório sem o hook, [2] volta a
 #       falhar — prova que o cenário mede o CANAL, não o script
 #   [8] contador de controle: zero cenário executado reprova
@@ -214,15 +217,26 @@ else
   R6b="$(_fixture nonode "$GB_SEQ_NAMED")"
   rc6b=0
   _run_to 180 -- env PATH="$NB" git -C "$R6b" push origin main > "$T/out.txt" 2>&1 || rc6b=$?
-  # A propriedade que importa: sem o leitor, o push NUNCA segue em silêncio. Medido nesta base, o
-  # bloqueio num harness COMPLETO vem antes do bloco de gates — `check-ai-attribution.sh` chama
-  # node e falha FECHADO —, então o `git push` não consegue isolar a mensagem da guarda do leitor.
-  # A guarda em si está provada por [6a], pelo mesmo canal real. Aqui prova-se o fecho: rc ≠ 0 e a
-  # razão nomeada na saída, nunca um push verde com zero gates.
+  # `rc != 0` mais um `BLOQUEADO` qualquer NÃO prova esta guarda, e a medição o mostra: com o
+  # `pre-push` de `origin/develop` — que NÃO tem guarda de leitor alguma — este mesmo cenário
+  # termina `rc=1` com `BLOQUEADO` na saída. Num harness COMPLETO sem `node`, quem bloqueia
+  # primeiro é `check-ai-attribution.sh`, que invoca `node`, falha fechado e ainda reporta
+  # "assinatura de IA detectada" — um diagnóstico falso, sobre um commit limpo. Uma asserção
+  # satisfeita por um harness em que o mecanismo não existe é verde vacuoso, que é exatamente o
+  # que a §5 desta leva proíbe.
+  #
+  # Então: a propriedade de fecho (o push NUNCA segue verde sem o leitor) continua cobrada; mas o
+  # cenário só CONTA como prova da guarda quando a razão do bloqueio é a guarda. Quando outro
+  # check se antecipa, isto é um SKIP declarado — [6a] prova a guarda pelo mesmo canal real, com
+  # `node` presente e `gate-phase.mjs` ausente, e ali a mensagem é isolável.
   [ "$rc6b" -ne 0 ] || { echo "FAIL [6b]: com 'node' fora do PATH o push passou — zero gates e verde é o pior desfecho possível. Saída:"; cat "$T/out.txt"; exit 1; }
   grep -q "BLOQUEADO" "$T/out.txt" || { echo "FAIL [6b]: o push falhou sem uma linha 'BLOQUEADO' nomeando a causa — saída:"; cat "$T/out.txt"; exit 1; }
-  SCEN=$((SCEN + 1))
-  echo "OK [6b] — sem node o push é bloqueado: $(grep -m1 'BLOQUEADO' "$T/out.txt")"
+  if grep -qi "não pôde ser lida\|nao pode ser lida" "$T/out.txt"; then
+    SCEN=$((SCEN + 1))
+    echo "OK [6b] — sem node o bloqueio é o da guarda do leitor: $(grep -m1 'BLOQUEADO' "$T/out.txt")"
+  else
+    echo "SKIP [6b]: o push foi bloqueado ANTES do bloco de gates ($(grep -m1 'BLOQUEADO' "$T/out.txt")) — o cenário não isola a guarda do leitor e NÃO conta como prova dela; [6a] a prova pelo mesmo canal real."
+  fi
 fi
 echo "OK [6] — leitor indisponível bloqueia e nomeia a causa"
 

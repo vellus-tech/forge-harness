@@ -250,4 +250,49 @@ if [ "$rc5rec" -ne 0 ]; then
   overall_rc=1
 fi
 
+# ── [6] o badge de gates do README casa com a árvore ────────────────────────────────────────
+# O inventário de Estrutura não era a única contagem mantida à mão neste README: o badge do topo
+# dizia 66 quando a árvore tinha 124 gates — defasagem de 58, encontrada pela revisão adversarial
+# DEPOIS que esta entrega já corrigia as outras sete. Corrigir a contagem e deixar o badge de fora
+# seria consertar o sintoma e preservar a causa, que é contagem sem quem a reconfira.
+echo "[6] o badge de gates do README casa com a contagem de tests/*-gate.sh"
+badge_n="$(grep -oE 'gates-[0-9]+' "$WS/README.md" | head -1 | cut -d- -f2)"
+arvore_n="$(find "$WS/tests" -maxdepth 1 -name '*-gate.sh' | wc -l | tr -d ' ')"
+if [ -z "$badge_n" ]; then
+  echo "FAIL [6]: não achei o badge de gates no README — o predicado ficou sem universo, e universo vazio não aprova"
+  overall_rc=1
+elif [ "$arvore_n" -eq 0 ]; then
+  echo "FAIL [6]: zero gate encontrado em tests/ — universo vazio, o cenário aprovaria por vacuidade"
+  overall_rc=1
+elif [ "$badge_n" != "$arvore_n" ]; then
+  echo "FAIL [6]: o badge do README diz $badge_n gate(s) e a árvore tem $arvore_n — a mesma contagem à mão que este gate existe para impedir"
+  overall_rc=1
+else
+  echo "OK [6] — badge e árvore concordam em $arvore_n gate(s)"
+fi
+
+# mutação do [6]: rebaixar o badge tem de reprovar, e restaurar tem de voltar a passar.
+cp "$WS/README.md" "$T/readme.orig"
+sed -i.bak "s/gates-${arvore_n}%20passing/gates-1%20passing/" "$WS/README.md" && rm -f "$WS/README.md.bak"
+mut_badge="$(grep -oE 'gates-[0-9]+' "$WS/README.md" | head -1 | cut -d- -f2)"
+if [ "$mut_badge" = "$arvore_n" ]; then
+  echo "FAIL [6]: a mutação não alterou o badge — o alvo do sed não casou, e a prova mediria o próprio engano"
+  overall_rc=1
+elif [ "$mut_badge" = "$arvore_n" ] || [ "$mut_badge" != "1" ]; then
+  echo "FAIL [6]: a mutação produziu badge inesperado ('$mut_badge')"
+  overall_rc=1
+fi
+cp "$T/readme.orig" "$WS/README.md"
+if ! cmp -s "$WS/README.md" "$T/readme.orig"; then
+  echo "FAIL [6]: restauração do README não bateu byte a byte"
+  overall_rc=1
+fi
+rec_badge="$(grep -oE 'gates-[0-9]+' "$WS/README.md" | head -1 | cut -d- -f2)"
+if [ "$rec_badge" != "$arvore_n" ]; then
+  echo "FAIL [6]: recontrole — depois da restauração o badge não voltou a $arvore_n (ficou '$rec_badge')"
+  overall_rc=1
+else
+  echo "OK [6] mutação — rebaixar o badge é detectável; restauração e recontrole verificados"
+fi
+
 exit "$overall_rc"

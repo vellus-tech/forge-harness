@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**17 itens ativos** · roadmap 3 · tech-debt 12 · known-bug 2 · (76 encerrados)
+**16 itens ativos** · roadmap 3 · tech-debt 11 · known-bug 2 · (77 encerrados)
 
 ## Roadmap
 
@@ -30,8 +30,6 @@ _Encerrados: 2 (resolved 2)_
 
 ## Dívida técnica
 
-- **LDG-0159** [open] (P2) — runtime.gates publicado como string|null contra a block-sequence que o harness lê e documenta
-  forge.schema.json declara runtime.gates como $ref nullableString, então o schema ACEITA a forma CSV escalar e REJEITA tanto a forma mapeada com phase: quanto a block-sequence de escalares puros (- check-authz) — que é justamente a forma retrocompatível que a #82 prometeu manter válida. As duas falham com '/runtime/gates must be string,null'. Enquanto isso o leitor canônico forge_runtime_gate_entries lê as três formas e a documentação entregue no PR #105 ensina a mapeada. Nenhum gate exercita forma alguma de block-sequence contra o schema: w20[7], único cenário que valida gates:, usa CSV. Alargar de string|null para aceitar também array é PURAMENTE ADITIVO — nada que validava antes deixa de validar. Adiado do PR #105 pela norma red-first (o vermelho precisa vir primeiro), NÃO por risco de retrocompatibilidade e NÃO por não se mexer em objeto additionalProperties:false: o próprio PR #105 já edita forge.schema.json adicionando rules.packs. Quatro arquivos de teste tocam o schema: w20, w112, w153, w192. É o espelho exato da propriedade que w192 passa a afirmar (toda chave declarada tem leitor): aqui há leitor e documentação publicada sem chave que os aceite, e nada cobre esse sentido. LDG-0151 NÃO serve de casa — cobre o caso inverso.
 - **LDG-0162** [open] (P2) — route-scan: MapGroup() não ancorado — elo não adjacente com receptor composto deixa 4 chamadas fora do índice no repositório de referência
   Depois de corrigir o universo da varredura (LDG-0029), o SUR-01 do repositório de referência continua inconclusive, e os blockers são mapgroup-unindexed e route-site-unindexed, nenhum dos quais o índice de constante literal toca. São 4 chamadas MapGroup() em quatro arquivos, sempre com o par mapgroup/route-site carregando a mesma contagem por arquivo. Este — e NÃO o índice de constante — é o mecanismo que a pré-condição (1) de LDG-0010 deveria nomear: como está redigida ('o índice de constante entra e a cegueira é remedida'), ela é insatisfazível no repositório de referência, porque o índice tem alvo zero lá. Ao especificar, manter w132[16] verde: ele já assere, como linha vermelha, que literal interpolado com buraco de runtime produz group-path-not-literal e NENHUMA rota.
 - **LDG-0164** [open] (P2) — Prova de mutação do w195[11] estava malformada: os $ do lado direito do perl eram variáveis do perl, e a mutação virava cp vazio
@@ -55,7 +53,7 @@ _Encerrados: 2 (resolved 2)_
 - **LDG-0161** [open] (P3) — template/.forge/FORGE.md e template/.forge/templates/FORGE.md divergem, e nenhum caminho gera um a partir do outro
   As duas cópias do scaffold são entregues ao consumidor pelo mesmo cp -R do installer (install.sh:63), mas só a primeira vira o .forge/FORGE.md do projeto: o installer exclui deliberadamente */templates/* da substituição de placeholders (linhas 68 e 72) e o w13:23-26 assere que .forge/FORGE.md não tem placeholder e que .forge/templates/FORGE.md MANTÉM <PROJECT_SLUG>. Documentação depositada só na segunda não chega ao arquivo que o adotante abre — foi exatamente o que aconteceu com o bloco de phase: do PR #105 antes da correção, com o gate de paridade w197[6] mirando a cópia errada. Definir qual é a fonte, ou fazer uma ser gerada da outra, ou asserir paridade entre as duas.
 
-_Encerrados: 30 (resolved 27 · wont-fix 3)_
+_Encerrados: 31 (resolved 28 · wont-fix 3)_
 
 ## Bugs conhecidos
 

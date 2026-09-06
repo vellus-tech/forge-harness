@@ -225,14 +225,14 @@ Trocar/adicionar um agente reconcilia o workspace (gera os ausentes, poda os rem
 ```text
 template/.forge/        # o harness instalável (fonte única)
 ├── FORGE.md            # governança + frontmatter de runtime
-├── agents/  (43)       # subagentes por categoria (specifications, architecture, review, …)
-├── commands/ (54)      # comandos /forge:* (specs, waves, graph, quality, git, …) — relação completa em docs/refer/slash-commands.md
+├── agents/  (47)       # subagentes por categoria (specifications, architecture, review, …)
+├── commands/ (56)      # comandos /forge:* (specs, waves, graph, quality, git, …) — relação completa em docs/refer/slash-commands.md
 ├── contracts/ (5)      # contratos de I/O por estágio (verify, archive, eval, …)
 ├── capabilities/       # packs opt-in por stack (C#/.NET, Node, Java, Python)
-├── skills/   (12)      # skills especialistas (gate-runner, capability-dispatcher, dotnet-quality-scan, …)
-├── rules/   (33)       # convenções (arquitetura, domínio, testing, …)
-├── schemas/ (19)       # JSON Schemas (manifest, run-manifest, benchmark, graph, …)
-└── scripts/ (63)       # engine determinista (graph, archive, eval, provenance, hooks, …)
+├── skills/   (20)      # skills especialistas (gate-runner, capability-dispatcher, dotnet-quality-scan, …)
+├── rules/   (50)       # convenções (arquitetura, domínio, testing, …)
+├── schemas/ (27)       # JSON Schemas (manifest, run-manifest, benchmark, graph, …)
+└── scripts/ (136)      # engine determinista (graph, archive, eval, provenance, hooks, …) — inclui lib/ e tests/
 bin/forge.mjs           # CLI do npx (forge-harness init) — porta cross-platform do install.sh
 installer/              # install.sh + gitignore.patch + delegação global do /init-project
 tests/                  # gates deterministas + run-all.sh

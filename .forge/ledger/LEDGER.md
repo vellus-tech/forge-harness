@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**16 itens ativos** · roadmap 3 · tech-debt 10 · known-bug 2 · follow-up 1 · (78 encerrados)
+**16 itens ativos** · roadmap 3 · tech-debt 10 · known-bug 3 · (80 encerrados)
 
 ## Roadmap
 
@@ -51,12 +51,14 @@ _Encerrados: 2 (resolved 2)_
 - **LDG-0161** [open] (P3) — template/.forge/FORGE.md e template/.forge/templates/FORGE.md divergem, e nenhum caminho gera um a partir do outro
   As duas cópias do scaffold são entregues ao consumidor pelo mesmo cp -R do installer (install.sh:63), mas só a primeira vira o .forge/FORGE.md do projeto: o installer exclui deliberadamente */templates/* da substituição de placeholders (linhas 68 e 72) e o w13:23-26 assere que .forge/FORGE.md não tem placeholder e que .forge/templates/FORGE.md MANTÉM <PROJECT_SLUG>. Documentação depositada só na segunda não chega ao arquivo que o adotante abre — foi exatamente o que aconteceu com o bloco de phase: do PR #105 antes da correção, com o gate de paridade w197[6] mirando a cópia errada. Definir qual é a fonte, ou fazer uma ser gerada da outra, ou asserir paridade entre as duas.
 
-_Encerrados: 32 (resolved 29 · wont-fix 3)_
+_Encerrados: 33 (resolved 30 · wont-fix 3)_
 
 ## Bugs conhecidos
 
 - **LDG-0163** [open] (P2) — O caminho ff do _dir_push publicava log próprio contaminado com mensagem de terceiro, com rc 0
   Achado pelo cenário [5] do w198, escrito para a mudança de recusa-para-união e não para este defeito. O _dir_push classificava o hub e, no caso ff (local é superconjunto), publicava por cp/mv sem validar NADA sobre o conteúdo. Um log próprio contendo linha com sender de terceiro — corrupção alcançável por merge malfeito, por edição manual e por import defeituoso — era publicado com rc 0, sobrescrevendo no hub a versão do dono por uma cópia alheia possivelmente atrasada. É o mesmo dano que o cabeçalho do _common.sh promete não causar, por uma porta que a issue #101 não enumerou. RESOLVIDO no mesmo commit que trouxe a união: o caminho ff passa pelo liaison-push-union.mjs, que recusa com exit 4 nomeando a linha e o sender inesperado. Registro aqui porque o defeito existia em develop e na 0.11.0 publicada, e ninguém o tinha visto.
+- **LDG-0167** [open] (P2) — Duas frentes em paralelo reservaram o MESMO ordinal de gate (w200) — e o mesmo id de ledger
+  Medido em 2026-09-06, na rodada de dois pipelines paralelos, e a colisão aconteceu DUAS vezes na mesma rodada, por duas maquinarias diferentes. (1) ORDINAL DE GATE: as duas frentes rodaram 'gate-ordinal.sh next' antes de qualquer push e ambas receberam w200 — uma criou tests/w200-readme-inventory-gate.sh e a outra tests/w200-flag-como-valor-gate.sh. Nenhuma errou o procedimento: as duas reservaram PELO SCRIPT, como a norma manda. A causa é que o ordinal deriva do máximo já PUBLICADO no tronco remoto, e portanto não reserva nada — é uma leitura, não uma alocação, e duas leituras concorrentes devolvem o mesmo valor por construção. Mesma raiz de LDG-0158, consequência não registrada até aqui. Resolvido à mão renomeando o segundo para w201, com dois commits de acerto, porque o rename não alcançou o diretório temporário da fixture nem os nomes de canal. (2) ID DE LEDGER: o orquestrador criou um LDG-0166 em develop para registrar (1) enquanto esta branch já tinha aberto o seu próprio LDG-0166 para o drift do README — 'ledger-ops.sh add' atribui max+1 do ledger LOCAL e não enxerga branch alguma. É o defeito que axis-fare-validator já reportou no canal na thread ledger-id-reservation-before-citation, com a mesma causa e o mesmo desfecho lá (LDG-0304 citado em commit e depois reatribuído). Resolvido revertendo o item de develop e recriando-o AQUI, onde o 0166 desta branch já ocupa a posição. DESENHO POSSÍVEL, não implementado, e vale para os dois: trocar leitura por alocação real, considerando também branches remotas não mergeadas (git ls-remote + ls-tree). Enquanto não houver, rodada com frentes paralelas precisa distribuir ordinais e ids a partir de UM ponto antes de despachar as frentes.
 - **LDG-0157** [open] (P3) — check-ai-attribution.sh reporta 'assinatura de IA detectada' quando o que falta é o node
   Pré-existente (também em origin/develop), achado ao medir w190[6b]. _scan_file invoca 'node -' e o chamador trata QUALQUER rc != 0 como 'houve violação'. Sem node no PATH o rc é 127 e o hook imprime o banner de falso positivo — 'FAIL: assinatura de IA detectada (rule conventions/no-ai-attribution.md)' — sobre um commit limpo, junto de um 'node: command not found' solto em stderr. Consequência de segunda ordem: é esse bloqueio que torna w190[6b] incapaz de isolar a guarda de leitor da issue #82 (medido: o mesmo cenário termina rc != 0 com 'BLOQUEADO' também no pre-push de origin/develop, que não tem guarda nenhuma). Correção candidata: separar rc 127 / erro de execução de rc 1 / violação encontrada, e reportar 'NÃO VERIFICADO — node ausente' como terceira classe, que é a disciplina que o resto do harness já aplica.
 
@@ -64,10 +66,9 @@ _Encerrados: 26 (resolved 25 · wont-fix 1)_
 
 ## Follow-ups
 
-- **LDG-0165** [open] (P3) — Stash de feat/forge-update preservado na pilha, com 23 arquivos e 241 inserções nunca avaliados
-  stash@{0}, sha 21474c59b04b26b03c002545ae4a7b78f0cbd3d4, mensagem 'On feat/forge-update: wip: deepspec run-manifest/contracts/benchmark plan (codex handoff, thread 019f477d)'. A branch feat/forge-update NÃO existe mais — nem local nem remota — então a pilha de stash é o único lugar onde este trabalho existe. Conteúdo medido por 'git stash show --stat', sem aplicar: 23 arquivos, 241 inserções, 23 remoções, tocando template/.forge/schemas/README.md, archive-spec.sh, eval-aggregate.sh, meta-aggregate.sh, spec-verify.sh, validate-harness.sh e tests/w80-suite-gate.sh. NÃO foi descartado na faxina da rodada de 2026-09-06 justamente por ser volume não avaliado: descartar 241 linhas sem revisão é a mesma classe de perda silenciosa que a leva inteira existiu para fechar. ARMADILHA AO OPERAR: a pilha de stash é COMPARTILHADA entre todos os worktrees deste repositório, então 'git stash pop' pode derrubar entrada de outra sessão — restaure por 'git stash apply 21474c59' e só então descarte, re-localizando o índice pela mensagem. PRÓXIMO PASSO: triar como se triou o ff4578a em LDG-0131 — fatia a fatia, nomeando o que tem valor e o que exige revisão própria — ou declarar wont-fix com motivo escrito.
+_(nenhum ativo)_
 
-_Encerrados: 10 (resolved 8 · wont-fix 2)_
+_Encerrados: 11 (resolved 9 · wont-fix 2)_
 
 ## Notas
 

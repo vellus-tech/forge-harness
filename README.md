@@ -9,7 +9,7 @@
 [![CI](https://github.com/vellus-tech/forge-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/vellus-tech/forge-harness/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![npm](https://img.shields.io/npm/v/forge-harness?color=blue&label=npm)](https://www.npmjs.com/package/forge-harness)
-[![Gates](https://img.shields.io/badge/gates-66%20passing-brightgreen.svg)](./tests)
+[![Gates](https://img.shields.io/badge/gates-124%20passing-brightgreen.svg)](./tests)
 [![Runtime](https://img.shields.io/badge/runtime-zero--dependency-success.svg)](#)
 [![Node](https://img.shields.io/badge/node-%E2%89%A520-339933.svg)](#)
 [![Adapters](https://img.shields.io/badge/adapters-claude%20%C2%B7%20codex%20%C2%B7%20cursor%20%C2%B7%20%2B5-8A2BE2.svg)](#adapters-multi-agente)
@@ -225,14 +225,14 @@ Trocar/adicionar um agente reconcilia o workspace (gera os ausentes, poda os rem
 ```text
 template/.forge/        # o harness instalável (fonte única)
 ├── FORGE.md            # governança + frontmatter de runtime
-├── agents/  (43)       # subagentes por categoria (specifications, architecture, review, …)
-├── commands/ (54)      # comandos /forge:* (specs, waves, graph, quality, git, …) — relação completa em docs/refer/slash-commands.md
+├── agents/  (47)       # subagentes por categoria (specifications, architecture, review, …)
+├── commands/ (56)      # comandos /forge:* (specs, waves, graph, quality, git, …) — relação completa em docs/refer/slash-commands.md
 ├── contracts/ (5)      # contratos de I/O por estágio (verify, archive, eval, …)
 ├── capabilities/       # packs opt-in por stack (C#/.NET, Node, Java, Python)
-├── skills/   (12)      # skills especialistas (gate-runner, capability-dispatcher, dotnet-quality-scan, …)
-├── rules/   (33)       # convenções (arquitetura, domínio, testing, …)
-├── schemas/ (19)       # JSON Schemas (manifest, run-manifest, benchmark, graph, …)
-└── scripts/ (63)       # engine determinista (graph, archive, eval, provenance, hooks, …)
+├── skills/   (20)      # skills especialistas (gate-runner, capability-dispatcher, dotnet-quality-scan, …)
+├── rules/   (50)       # convenções (arquitetura, domínio, testing, …)
+├── schemas/ (27)       # JSON Schemas (manifest, run-manifest, benchmark, graph, …)
+└── scripts/ (136)      # engine determinista (graph, archive, eval, provenance, hooks, …) — inclui lib/ e tests/
 bin/forge.mjs           # CLI do npx (forge-harness init) — porta cross-platform do install.sh
 installer/              # install.sh + gitignore.patch + delegação global do /init-project
 tests/                  # gates deterministas + run-all.sh

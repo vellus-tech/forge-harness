@@ -31,7 +31,23 @@ quality:
   #                                          introduz/modifica apareça no traceability.yaml
   #                                          ligado a ao menos uma TASK.
   # Pôr em `false` é dispensa DECLARADA: o archive segue e ANUNCIA a dispensa no log.
-  require_tests_before_archive: true
+  #
+  # Default OFF, pelo MESMO motivo medido da chave irmã abaixo — e a primeira escrita desta leva
+  # errou justamente por não medi-lo aqui. `templates/FORGE.md` entrega `test:` VAZIO de fábrica,
+  # então `spec-verify` grava `verification.yaml` com um único check `name: none / status:
+  # skipped`: ligada por default, a chave reprova o /forge:archive de TODO projeto greenfield, no
+  # primeiro change, antes de o projeto ter tido chance de declarar um comando de teste. Medido:
+  # cinco gates da suíte reprovam com ela ligada (w31, w32, w33, w42, w100), e w31 é o decisivo —
+  # é o único montado a partir dos templates DE FÁBRICA, e por isso o único que não podia ser
+  # calado editando a fixture. Foi exatamente o que a primeira escrita fez com os outros quatro:
+  # deixou a suíte verde sem tocar no adotante real, que é a definição de prova que não exercita
+  # o canal real.
+  #
+  # A chave continua REAL: ligada, ela reprova nas quatro ramificações (sem check `test`; com
+  # `test` reprovando; com `test` passando ela aprova e declara; desligada ela aprova e declara a
+  # dispensa), provado por w192. Ligue-a no dia em que o projeto declarar `test:` no bloco
+  # `runtime` — é uma linha, e a partir dali o archive passa a exigir a evidência.
+  require_tests_before_archive: false
   # Default OFF, e o motivo é MEDIDO, não preferência: ligá-la exige que todo change que
   # introduz/modifica requirement carregue `traceability.yaml` PREENCHIDO, e o artefato nasce
   # como scaffold. Ligada por default, o primeiro /forge:archive de todo adotante — e cinco

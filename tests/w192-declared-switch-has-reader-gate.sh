@@ -26,6 +26,11 @@
 #   [4]  change sem sinal de teste com require_tests_before_archive: true reprova, nomeando a chave
 #   [5]  o mesmo change com a chave em false passa, e o archive DIZ que passou por dispensa
 #   [6]  contador de controle: lista de interruptores vazia reprova o gate
+#   [4b] a chave em `true` com um check `test` que REPROVOU também reprova o archive
+#   [4c] a chave em `true` com um check `test` que PASSOU aprova, e o pré-flight declara isso
+#   [4d] o DEFAULT de fábrica da chave é `false`, e o motivo está escrito ao lado do da irmã —
+#        `templates/FORGE.md` entrega `test:` vazio, então ligada por default ela reprovaria o
+#        primeiro archive de todo projeto greenfield
 #   [7]  mutação: remover a consulta à chave no pré-flight faz [4] reprovar; restaurar volta
 #   [8]  rules.packs declarado ATIVA a rule do pack como contrato, e o validador o AFIRMA
 #   [9]  rule com pack: NÃO ativado continua válida e disponível como referência — pareado com o
@@ -158,6 +163,51 @@ out5="$( _run_to 120 -- env FORGE_ROOT="$D4" node "$S/lib/validate-archive.mjs" 
 grep -qi "dispensa\|require_tests_before_archive: false" <<<"$out5" \
   || { echo "FAIL [5]: passou em SILÊNCIO sobre a dispensa. Uma chave que só bloqueia e nunca reporta a dispensa é indistinguível de uma chave que não existe, do ponto de vista de quem audita depois. Saída: $out5"; exit 1; }
 echo "OK [5] — $(grep -i 'dispensa' <<<"$out5" | head -1)"
+
+# As QUATRO ramificações da chave, todas exercitadas: sem check `test` ([4]), com `test` que
+# reprovou ([4b]), com `test` que passou ([4c]) e desligada ([5]). Um default `false` só é honesto
+# se o enforcement estiver provado LIGADO — do contrário a chave volta a ser decoração, que é o
+# defeito que LDG-0008 existe para fechar.
+_set_check() { # _set_check <root> <change> <nome> <status>
+  node -e '
+    const fs = require("fs");
+    const [f, nome, status] = process.argv.slice(1);
+    let y = fs.readFileSync(f, "utf8");
+    y = y.replace(/  checks:\n(?:.*\n)*?(?=  evidence:|  red_first:|$)/,
+      `  checks:\n    - name: ${nome}\n      command: "cmd"\n      status: ${status}\n`);
+    fs.writeFileSync(f, y);
+  ' "$1/.forge/specs/active/$2/verification.yaml" "$3" "$4"
+}
+
+echo "[4b] chave em true com um check 'test' que REPROVOU: o archive reprova"
+_set_switch "$D4" require_tests_before_archive true
+_set_check "$D4" ch-semteste test failed
+out4b="$( _run_to 120 -- env FORGE_ROOT="$D4" node "$S/lib/validate-archive.mjs" "$D4/.forge/specs/active/ch-semteste" "$D4" 2>&1 )"; rc4b=$?
+[ "$rc4b" -ne 0 ] || { echo "FAIL [4b]: archive aprovado com o check 'test' em 'failed' — saída: $out4b"; exit 1; }
+echo "OK [4b] — $(tr '\n' ' ' <<<"$out4b" | cut -c1-120)"
+
+echo "[4c] chave em true com um check 'test' que PASSOU: aprova, e o pré-flight declara"
+_set_check "$D4" ch-semteste test passed
+out4c="$( _run_to 120 -- env FORGE_ROOT="$D4" node "$S/lib/validate-archive.mjs" "$D4/.forge/specs/active/ch-semteste" "$D4" 2>&1 )"; rc4c=$?
+[ "$rc4c" -eq 0 ] || { echo "FAIL [4c]: archive reprovado com o check 'test' em 'passed' — a chave virou intransponível. Saída: $out4c"; exit 1; }
+# Sinal POSITIVO: aprovar em silêncio é indistinguível de a chave não existir.
+grep -q "require_tests_before_archive: true" <<<"$out4c" \
+  || { echo "FAIL [4c]: aprovou sem declarar que a exigência foi satisfeita — saída: $out4c"; exit 1; }
+echo "OK [4c] — $(grep 'require_tests' <<<"$out4c" | head -1)"
+_set_check "$D4" ch-semteste none skipped
+
+echo "[4d] o DEFAULT de fábrica da chave é false, pelo mesmo motivo medido da irmã"
+FY="$WS/template/.forge/forge.yaml"
+grep -qE '^[[:space:]]*require_tests_before_archive:[[:space:]]*false' "$FY" \
+  || { echo "FAIL [4d]: o default de fábrica não é 'false'. templates/FORGE.md entrega 'test:' VAZIO, então spec-verify grava um único check 'name: none / status: skipped' e a chave ligada reprova o /forge:archive de todo projeto greenfield no primeiro change. Medido: cinco gates da suíte reprovam com ela ligada (w31, w32, w33, w42, w100), e w31 é o único montado a partir dos templates de fábrica — o único que não dá para calar editando a fixture."; exit 1; }
+# Pareado com o sinal positivo de que o motivo está ESCRITO, e ao lado do da irmã: um default
+# mudado sem justificativa registrada é indistinguível de um default mudado para calar a suíte.
+grep -q "greenfield" "$FY" \
+  || { echo "FAIL [4d]: o default é 'false' e o motivo não está escrito no forge.yaml, ao lado do da chave irmã"; exit 1; }
+# E o de fábrica de templates/FORGE.md continua sendo 'test:' vazio — é a premissa da decisão.
+grep -qE '^[[:space:]]*test:[[:space:]]*$' "$WS/template/.forge/templates/FORGE.md" \
+  || { echo "FAIL [4d]: templates/FORGE.md deixou de entregar 'test:' vazio — a premissa medida da decisão mudou, e a decisão precisa ser remedida"; exit 1; }
+echo "OK [4d] — default 'false', motivo escrito, e 'test:' de fábrica continua vazio"
 
 echo "[7] mutação — remover a consulta à chave no pré-flight faz [4] reprovar"
 VA="$D4/.forge/scripts/lib/validate-archive.mjs"

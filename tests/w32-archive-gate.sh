@@ -22,11 +22,6 @@ WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 T="$(mktemp -d /tmp/forge-w32.XXXXXX)"
 trap 'rm -rf "$T"' EXIT
 cp -R "$WS/template/.forge" "$T/.forge"
-# quality.require_tests_before_archive passou a ser ENFORCEMENT REAL no pré-flight §13.1
-# (LDG-0008): sem um check `test` com status `passed` no verification.yaml, o archive
-# reprova. A fixture declara um comando de teste que passa — é o que um projeto real tem,
-# e desligar a chave aqui faria o gate medir a dispensa em vez do mecanismo.
-perl -pi -e 's/^  test:$/  test: true/' "$T/.forge/FORGE.md"
 S="$T/.forge/scripts"
 TODAY="$(date +%F)"
 # A fixture precisa de um commit real: created_at/resolved_at do ledger vêm de `git log -1
@@ -231,7 +226,6 @@ echo "OK [5]"
 echo "[6] ingest-legacy preserva original e recusa segunda rodada"
 T2="$(mktemp -d /tmp/forge-w32b.XXXXXX)"
 cp -R "$WS/template/.forge" "$T2/.forge"
-perl -pi -e 's/^  test:$/  test: true/' "$T2/.forge/FORGE.md"
 mkdir -p "$T2/docs/product/prd" "$T2/docs/product/adr"
 echo "# PRD legado" > "$T2/docs/product/prd/prd.md"
 echo "# ADR legado" > "$T2/docs/product/adr/0001-legacy.md"

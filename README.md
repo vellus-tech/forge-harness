@@ -249,6 +249,8 @@ bash tests/run-all.sh          # roda os gates + suítes bats; saída agregada
 Cada wave de desenvolvimento entrega seu gate junto (shift-left). O contrato do adapter Claude
 (`tests/snapshot/claude-contract.bats`) garante compatibilidade do início (snapshot) ao fim.
 
+Os scripts que gravam estado durável — `ledger-ops.sh`, `deferral-ops.sh` e `liaison-ops.sh` — recusam três formas de escrita silenciosa: valor vazio, flag desconhecida e flag engolida como valor de outra flag. A terceira era a mais difícil de ver, porque produzia `rc 0` com mensagem de sucesso: `ledger-ops.sh update LDG-0001 --detail --title` gravava `detail = "--title"`. A guarda recusa quando o valor é membro do conjunto de flags daquele subcomando, por token exato — `--top -3` e `--detail '---frontmatter'` continuam válidos.
+
 ## 🗺️ Status & roadmap
 
 `v0.1.0-rc17` — MVP1–MVP5 completos + consolidação (Fase 8) + code graph + entrega dos `/forge:*` via

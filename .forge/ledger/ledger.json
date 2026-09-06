@@ -2290,6 +2290,30 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0164"
+    },
+    {
+      "id": "LDG-0165",
+      "type": "follow-up",
+      "title": "Stash de feat/forge-update preservado na pilha, com 23 arquivos e 241 inserções nunca avaliados",
+      "detail": "stash@{0}, sha 21474c59b04b26b03c002545ae4a7b78f0cbd3d4, mensagem 'On feat/forge-update: wip: deepspec run-manifest/contracts/benchmark plan (codex handoff, thread 019f477d)'. A branch feat/forge-update NÃO existe mais — nem local nem remota — então a pilha de stash é o único lugar onde este trabalho existe. Conteúdo medido por 'git stash show --stat', sem aplicar: 23 arquivos, 241 inserções, 23 remoções, tocando template/.forge/schemas/README.md, archive-spec.sh, eval-aggregate.sh, meta-aggregate.sh, spec-verify.sh, validate-harness.sh e tests/w80-suite-gate.sh. NÃO foi descartado na faxina da rodada de 2026-09-06 justamente por ser volume não avaliado: descartar 241 linhas sem revisão é a mesma classe de perda silenciosa que a leva inteira existiu para fechar. ARMADILHA AO OPERAR: a pilha de stash é COMPARTILHADA entre todos os worktrees deste repositório, então 'git stash pop' pode derrubar entrada de outra sessão — restaure por 'git stash apply 21474c59' e só então descarte, re-localizando o índice pela mensagem. PRÓXIMO PASSO: triar como se triou o ff4578a em LDG-0131 — fatia a fatia, nomeando o que tem valor e o que exige revisão própria — ou declarar wont-fix com motivo escrito.",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-06T16:00:55-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0165"
     }
   ]
 }

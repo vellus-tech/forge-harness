@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**15 itens ativos** · roadmap 3 · tech-debt 10 · known-bug 2 · (78 encerrados)
+**16 itens ativos** · roadmap 3 · tech-debt 10 · known-bug 2 · follow-up 1 · (78 encerrados)
 
 ## Roadmap
 
@@ -64,7 +64,8 @@ _Encerrados: 26 (resolved 25 · wont-fix 1)_
 
 ## Follow-ups
 
-_(nenhum ativo)_
+- **LDG-0165** [open] (P3) — Stash de feat/forge-update preservado na pilha, com 23 arquivos e 241 inserções nunca avaliados
+  stash@{0}, sha 21474c59b04b26b03c002545ae4a7b78f0cbd3d4, mensagem 'On feat/forge-update: wip: deepspec run-manifest/contracts/benchmark plan (codex handoff, thread 019f477d)'. A branch feat/forge-update NÃO existe mais — nem local nem remota — então a pilha de stash é o único lugar onde este trabalho existe. Conteúdo medido por 'git stash show --stat', sem aplicar: 23 arquivos, 241 inserções, 23 remoções, tocando template/.forge/schemas/README.md, archive-spec.sh, eval-aggregate.sh, meta-aggregate.sh, spec-verify.sh, validate-harness.sh e tests/w80-suite-gate.sh. NÃO foi descartado na faxina da rodada de 2026-09-06 justamente por ser volume não avaliado: descartar 241 linhas sem revisão é a mesma classe de perda silenciosa que a leva inteira existiu para fechar. ARMADILHA AO OPERAR: a pilha de stash é COMPARTILHADA entre todos os worktrees deste repositório, então 'git stash pop' pode derrubar entrada de outra sessão — restaure por 'git stash apply 21474c59' e só então descarte, re-localizando o índice pela mensagem. PRÓXIMO PASSO: triar como se triou o ff4578a em LDG-0131 — fatia a fatia, nomeando o que tem valor e o que exige revisão própria — ou declarar wont-fix com motivo escrito.
 
 _Encerrados: 10 (resolved 8 · wont-fix 2)_
 

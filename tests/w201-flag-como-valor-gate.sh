@@ -34,7 +34,7 @@ WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # ── sentinela do repositório real: nenhuma escrita fora do sandbox ─────────────────────────────
 REPO_SNAPSHOT_BEFORE="$(git -C "$WS" status --porcelain)"
 
-T="$(mktemp -d /tmp/forge-w200.XXXXXX)"
+T="$(mktemp -d /tmp/forge-w201.XXXXXX)"
 trap 'rm -rf "$T"' EXIT
 
 _run_to() { # _run_to <segundos> -- <cmd...>  — teto de tempo (macOS não tem `timeout` por padrão)
@@ -53,9 +53,9 @@ LG="$T/.forge/scripts/ledger-ops.sh"
 DFO="$T/.forge/scripts/deferral-ops.sh"
 LO="$T/.forge/scripts/liaison-ops.sh"
 LF="$T/.forge/ledger/ledger.json"
-CH="ch-w200"
+CH="ch-w201"
 DFJ="$T/.forge/specs/active/$CH/deferrals.json"
-CHAN="canal-w200"
+CHAN="canal-w201"
 SELFLOG="$T/.forge/liaison/$CHAN/log/repo-a.jsonl"
 
 _lg()  { _run_to 20 -- env FORGE_ROOT="$T" bash "$LG" "$@"; }
@@ -113,7 +113,7 @@ SUB3_CASES=(
   "add|add --type roadmap --title --detail|--title|--detail"
   "resolve|resolve $R3ID --note --status|--note|--status"
   "promote|promote $PR3ID --to --to|--to|--to"
-  "harvest|harvest ch-fake-w200 --origin --origin|--origin|--origin"
+  "harvest|harvest ch-fake-w201 --origin --origin|--origin|--origin"
   "list|list --status --type|--status|--type"
 )
 sub3_n=0; sub3_bad=0

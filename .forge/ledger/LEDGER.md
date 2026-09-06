@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**16 itens ativos** · roadmap 3 · tech-debt 10 · known-bug 3 · (80 encerrados)
+**16 itens ativos** · roadmap 3 · tech-debt 10 · known-bug 3 · (81 encerrados)
 
 ## Roadmap
 
@@ -62,7 +62,7 @@ _Encerrados: 33 (resolved 30 · wont-fix 3)_
 - **LDG-0157** [open] (P3) — check-ai-attribution.sh reporta 'assinatura de IA detectada' quando o que falta é o node
   Pré-existente (também em origin/develop), achado ao medir w190[6b]. _scan_file invoca 'node -' e o chamador trata QUALQUER rc != 0 como 'houve violação'. Sem node no PATH o rc é 127 e o hook imprime o banner de falso positivo — 'FAIL: assinatura de IA detectada (rule conventions/no-ai-attribution.md)' — sobre um commit limpo, junto de um 'node: command not found' solto em stderr. Consequência de segunda ordem: é esse bloqueio que torna w190[6b] incapaz de isolar a guarda de leitor da issue #82 (medido: o mesmo cenário termina rc != 0 com 'BLOQUEADO' também no pre-push de origin/develop, que não tem guarda nenhuma). Correção candidata: separar rc 127 / erro de execução de rc 1 / violação encontrada, e reportar 'NÃO VERIFICADO — node ausente' como terceira classe, que é a disciplina que o resto do harness já aplica.
 
-_Encerrados: 26 (resolved 25 · wont-fix 1)_
+_Encerrados: 27 (resolved 26 · wont-fix 1)_
 
 ## Follow-ups
 

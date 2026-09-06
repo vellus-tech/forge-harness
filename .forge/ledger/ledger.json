@@ -2362,6 +2362,30 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0167"
+    },
+    {
+      "id": "LDG-0168",
+      "type": "known-bug",
+      "title": "develop ficava vermelha por conflito semântico entre PRs e a prova de mutação do w200 mentia",
+      "detail": "O PR #113 corrigiu o badge de gates do README de 66 para 124; o PR #114, aberto de uma develop que ainda não tinha esse badge, somou o gate w201 sem tocar nele — e o merge dos dois, cada um verde sozinho no CI, ficou vermelho, porque nenhuma execução de CI por branch podia enxergar o conflito semântico (nenhum arquivo colidiu textualmente). Badge corrigido para 125. Além disso, o bloco de mutação do cenário [6] do w200-readme-inventory-gate.sh tinha o alvo do sed construído a partir da contagem REAL da árvore, então só casava quando o badge já estava correto — com o badge defasado a mutação virava no-op e o gate acusava falsamente que a restauração não tinha funcionado; e mutava o README.md rastreado da árvore de trabalho, restaurando por cp de um backup em vez de git checkout --, a mesma classe do LDG-0164. Corrigido: o bloco de mutação passou a rodar sobre um README-fixture e um tests-fixture herméticos em diretório temporário, com o alvo do sed casando a classe gates-[0-9]+%20passing e não o valor corrente, e a restauração reescrevendo o fixture do heredoc original. Cenário [7], novo, varre a própria fonte do gate por sítio de escrita no README rastreado e reprova nomeando a linha, com contador de controle positivo provando que a varredura enxergou algo. — Resolvido: develop verde novamente; badge corrigido para 125 e prova de mutação do w200 reescrita hermética (cenário [7] novo), verificado por env -u FORGE_ROOT bash tests/w200-readme-inventory-gate.sh rc=0",
+      "severity": "P2",
+      "priority": "P2",
+      "status": "resolved",
+      "source": {
+        "change_id": null,
+        "origin": "session",
+        "ref": "tests/w200-readme-inventory-gate.sh"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-06T19:39:53-03:00",
+      "updated_at": "2026-09-06T19:39:53-03:00",
+      "resolved_at": "2026-09-06T19:39:53-03:00",
+      "dedup_key": "manual:LDG-0168"
     }
   ]
 }

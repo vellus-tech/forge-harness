@@ -271,28 +271,97 @@ else
   echo "OK [6] — badge e árvore concordam em $arvore_n gate(s)"
 fi
 
-# mutação do [6]: rebaixar o badge tem de reprovar, e restaurar tem de voltar a passar.
-cp "$WS/README.md" "$T/readme.orig"
-sed -i.bak "s/gates-${arvore_n}%20passing/gates-1%20passing/" "$WS/README.md" && rm -f "$WS/README.md.bak"
-mut_badge="$(grep -oE 'gates-[0-9]+' "$WS/README.md" | head -1 | cut -d- -f2)"
-if [ "$mut_badge" = "$arvore_n" ]; then
-  echo "FAIL [6]: a mutação não alterou o badge — o alvo do sed não casou, e a prova mediria o próprio engano"
-  overall_rc=1
-elif [ "$mut_badge" = "$arvore_n" ] || [ "$mut_badge" != "1" ]; then
-  echo "FAIL [6]: a mutação produziu badge inesperado ('$mut_badge')"
-  overall_rc=1
-fi
-cp "$T/readme.orig" "$WS/README.md"
-if ! cmp -s "$WS/README.md" "$T/readme.orig"; then
-  echo "FAIL [6]: restauração do README não bateu byte a byte"
-  overall_rc=1
-fi
-rec_badge="$(grep -oE 'gates-[0-9]+' "$WS/README.md" | head -1 | cut -d- -f2)"
-if [ "$rec_badge" != "$arvore_n" ]; then
-  echo "FAIL [6]: recontrole — depois da restauração o badge não voltou a $arvore_n (ficou '$rec_badge')"
+# mutação do [6], hermética (LDG-0168): o gate NUNCA escreve no README.md rastreado — controle,
+# mutação e recontrole rodam sobre um README-fixture e um tests-fixture criados em $T. O alvo do
+# sed casa com a CLASSE `gates-[0-9]+%20passing` (não com o valor corrente do badge real), então a
+# prova não depende do badge real já estar correto para funcionar — ao contrário do bloco antigo,
+# em que o alvo era construído a partir da contagem REAL da árvore e só casava quando o badge já
+# estava certo (LDG-0168, defeito ii).
+confere_badge() {
+  local readme="$1" testsdir="$2" badge arvore
+  badge="$(grep -oE 'gates-[0-9]+' "$readme" | head -1 | cut -d- -f2)"
+  arvore="$(find "$testsdir" -maxdepth 1 -name '*-gate.sh' | wc -l | tr -d ' ')"
+  if [ -z "$badge" ]; then
+    echo "FAIL: não achei o badge de gates no fixture"
+    return 1
+  fi
+  if [ "$arvore" -eq 0 ]; then
+    echo "FAIL: zero gate no tests-fixture — universo vazio"
+    return 1
+  fi
+  if [ "$badge" != "$arvore" ]; then
+    echo "FAIL: o badge diz $badge gate(s) e a árvore tem $arvore — declarado ($badge), real ($arvore)"
+    return 1
+  fi
+  echo "OK: badge ($badge) e árvore ($arvore) concordam"
+  return 0
+}
+mk_readme_badge() {
+  # heredoc original do fixture de badge — reescrever a partir daqui é RESTAURAÇÃO legítima
+  # (arquivo não rastreado, criado pelo próprio gate nesta execução), não edição inversa.
+  cat >"$1" <<'EOF'
+[![Gates](https://img.shields.io/badge/gates-7%20passing-brightgreen.svg)](./tests)
+EOF
+}
+mk_tests_fixture_7() {
+  rm -rf "$T/tests-fixture"; mkdir -p "$T/tests-fixture"
+  local i=1
+  while [ "$i" -le 7 ]; do : >"$T/tests-fixture/g${i}-gate.sh"; i=$((i + 1)); done
+}
+mk_readme_badge "$T/readme-fixture.md"
+mk_tests_fixture_7
+out6ctrl="$(confere_badge "$T/readme-fixture.md" "$T/tests-fixture")"; rc6ctrl=$?
+if [ "$rc6ctrl" -ne 0 ]; then
+  echo "FAIL [6]: controle — badge-fixture íntegro (7) reprovou antes da mutação ('$out6ctrl')"
   overall_rc=1
 else
-  echo "OK [6] mutação — rebaixar o badge é detectável; restauração e recontrole verificados"
+  echo "OK [6] mutação controle — badge-fixture (7) e tests-fixture (7) concordam"
+fi
+sed -E 's/gates-[0-9]+%20passing/gates-1%20passing/' "$T/readme-fixture.md" >"$T/readme-fixture.mut"
+mv "$T/readme-fixture.mut" "$T/readme-fixture.md"
+out6mut="$(confere_badge "$T/readme-fixture.md" "$T/tests-fixture")"; rc6mut=$?
+esperado6mut="o badge diz 1 gate(s) e a árvore tem 7 — declarado (1), real (7)"
+if [ "$rc6mut" -eq 0 ]; then
+  echo "FAIL [6]: confere_badge aprovou com badge-fixture mutado para 1 ('$out6mut')"
+  overall_rc=1
+elif ! printf '%s\n' "$out6mut" | grep -qF -- "$esperado6mut"; then
+  echo "FAIL [6]: mutação reprovou, mas sem a mensagem esperada — esperado conter '$esperado6mut', obtido '$out6mut'"
+  overall_rc=1
+else
+  echo "OK [6] mutação — rebaixar o badge-fixture é detectável (declarado 1, real 7)"
+fi
+mk_readme_badge "$T/readme-fixture.md"
+out6rec="$(confere_badge "$T/readme-fixture.md" "$T/tests-fixture")"; rc6rec=$?
+if [ "$rc6rec" -ne 0 ]; then
+  echo "FAIL [6]: recontrole — depois de reescrever o fixture do heredoc original, confere_badge continuou reprovando ('$out6rec')"
+  overall_rc=1
+else
+  echo "OK [6] mutação — recontrole confirmado, badge-fixture restaurado a 7"
+fi
+
+# ── [7] a fonte do gate não escreve no README rastreado (LDG-0168) ──────────────────────────
+# ASSERÇÃO NEGATIVA EXIGE CONTADOR DE CONTROLE POSITIVO: "não achei escrita" só prova algo se a
+# MESMA varredura, sobre o MESMO arquivo, também achar ao menos um sítio de LEITURA conhecido —
+# senão a negativa é trivialmente satisfeita por uma varredura cega, que não enxergou nada.
+echo "[7] a fonte do gate não escreve no README.md rastreado."
+fonte="${BASH_SOURCE[0]}"
+n_leituras="$(grep -cF "grep -oE 'gates-[0-9]+' \"\$WS/README.md\"" "$fonte")"
+escritas_sed="$(grep -nE 'sed -i[a-zA-Z.]* .*"\$WS/README\.md"' "$fonte")"
+escritas_cp="$(grep -nE '(^|[;&|]) *cp .*"\$WS/README\.md"[[:space:]]*$' "$fonte")"
+n_sed=0; n_cp=0
+[ -n "$escritas_sed" ] && n_sed="$(printf '%s\n' "$escritas_sed" | grep -c .)"
+[ -n "$escritas_cp" ] && n_cp="$(printf '%s\n' "$escritas_cp" | grep -c .)"
+n_escritas=$((n_sed + n_cp))
+echo "-- universo: $n_leituras sítio(s) de leitura do README rastreado encontrado(s) na fonte do gate; $n_escritas sítio(s) de escrita"
+if [ "$n_leituras" -eq 0 ]; then
+  echo "FAIL [7]: a varredura não achou nenhum sítio de leitura conhecido no README rastreado — contador de controle zerado, a asserção negativa não prova nada"
+  overall_rc=1
+elif [ "$n_escritas" -gt 0 ]; then
+  linhas="$(printf '%s\n%s\n' "$escritas_sed" "$escritas_cp" | grep . | cut -d: -f1 | sort -n | paste -sd, -)"
+  echo "FAIL [7]: a fonte do gate ainda escreve no README rastreado — $n_escritas sítio(s) de escrita encontrado(s) (linha(s) $linhas)"
+  overall_rc=1
+else
+  echo "OK [7] — nenhum sítio de escrita no README rastreado; $n_leituras sítio(s) de leitura confirmam que a varredura enxergou algo"
 fi
 
 exit "$overall_rc"

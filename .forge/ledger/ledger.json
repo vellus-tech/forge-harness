@@ -2242,6 +2242,54 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0162"
+    },
+    {
+      "id": "LDG-0163",
+      "type": "known-bug",
+      "title": "O caminho ff do _dir_push publicava log próprio contaminado com mensagem de terceiro, com rc 0",
+      "detail": "Achado pelo cenário [5] do w198, escrito para a mudança de recusa-para-união e não para este defeito. O _dir_push classificava o hub e, no caso ff (local é superconjunto), publicava por cp/mv sem validar NADA sobre o conteúdo. Um log próprio contendo linha com sender de terceiro — corrupção alcançável por merge malfeito, por edição manual e por import defeituoso — era publicado com rc 0, sobrescrevendo no hub a versão do dono por uma cópia alheia possivelmente atrasada. É o mesmo dano que o cabeçalho do _common.sh promete não causar, por uma porta que a issue #101 não enumerou. RESOLVIDO no mesmo commit que trouxe a união: o caminho ff passa pelo liaison-push-union.mjs, que recusa com exit 4 nomeando a linha e o sender inesperado. Registro aqui porque o defeito existia em develop e na 0.11.0 publicada, e ninguém o tinha visto.",
+      "severity": null,
+      "priority": "P2",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-06T14:56:38-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0163"
+    },
+    {
+      "id": "LDG-0164",
+      "type": "tech-debt",
+      "title": "Prova de mutação do w195[11] estava malformada: os $ do lado direito do perl eram variáveis do perl, e a mutação virava cp vazio",
+      "detail": "A linha era perl -0pi -e 's/.../cp \"$own\" \"$tmp\"; if false; then/' — com os $ do lado DIREITO sem escape. Em perl, $own e $tmp ali são variáveis do PERL, não do shell, e ambas são vazias: a substituição produzia cp \"\" \"\", que não copia nada. O cmp confirmava que o arquivo MUDOU (e portanto o gate seguia), mas o defeito nunca era reintroduzido — a asserção media o próprio engano em vez do mecanismo. Detectado porque, depois da troca de recusa por união, a mutação antiga passou a ser tautológica e a nova não produzia a perda esperada. Corrigido com escape no lado direito, e agora a mutação mede perda real (hub de 5 para 1). MESMA CLASSE da mutação fantasma já registrada no programa. Varrer os demais gates que usam perl -0pi para mutação atrás do mesmo padrão é trabalho que este item não fez.",
+      "severity": null,
+      "priority": "P2",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-06T14:56:38-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0164"
     }
   ]
 }

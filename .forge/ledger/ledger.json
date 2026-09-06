@@ -2319,10 +2319,10 @@
       "id": "LDG-0166",
       "type": "tech-debt",
       "title": "Inventário do README envelhece à mão — 6 de 7 contagens defasadas",
-      "detail": "Achado colateral da triagem do stash em LDG-0165: o stash também tocava a tabela de inventário do README (trocava 'commands/ (50)' por '(51)'), e essa tabela mantida à mão envelheceu de novo. Vermelho medido hoje contra o bloco fenceado da seção '## 📁 Estrutura' do README.md, sob o critério find <root>/<dir> -type f ! -name 'README.md' (recursivo, descontando o README do próprio diretório): universo de 7 linhas com contagem declarada, 6 divergentes — agents/ declarado (43) real (47); commands/ declarado (54) real (56); contracts/ declarado (5) real (5), a única correta; skills/ declarado (12) real (20); rules/ declarado (33) real (50); schemas/ declarado (19) real (27); scripts/ declarado (63) real (136). O caso scripts/ é o mais instrutivo: 63 não bate com critério nenhum — 61 arquivos no topo do diretório, 136 recursivo (61 no topo + 74 em scripts/lib/ + 1 em scripts/tests/) — prova de que a ambiguidade de critério é parte do defeito e não desculpa para não medir. Correção durável aplicada nesta rodada: gate w200 (tests/w200-readme-inventory-gate.sh) passa a defender as 7 contagens com o critério find fixado. Nota registrada à parte, fora do escopo deste item: o cenário [7] do w146-suite-invocation-gate.sh usa o glob 'w19[0-9]-*-gate.sh', que não alcança w200 — não é regressão, porque o run-all.sh descobre gates pelo glob 'tests/*-gate.sh', mas a faixa examinada por aquele cenário virou estreita e merece revisão própria numa rodada futura.",
+      "detail": "Achado colateral da triagem do stash em LDG-0165: o stash também tocava a tabela de inventário do README (trocava 'commands/ (50)' por '(51)'), e essa tabela mantida à mão envelheceu de novo. Vermelho medido hoje contra o bloco fenceado da seção '## 📁 Estrutura' do README.md, sob o critério find <root>/<dir> -type f ! -name 'README.md' (recursivo, descontando o README do próprio diretório): universo de 7 linhas com contagem declarada, 6 divergentes — agents/ declarado (43) real (47); commands/ declarado (54) real (56); contracts/ declarado (5) real (5), a única correta; skills/ declarado (12) real (20); rules/ declarado (33) real (50); schemas/ declarado (19) real (27); scripts/ declarado (63) real (136). O caso scripts/ é o mais instrutivo: 63 não bate com critério nenhum — 61 arquivos no topo do diretório, 136 recursivo (61 no topo + 74 em scripts/lib/ + 1 em scripts/tests/) — prova de que a ambiguidade de critério é parte do defeito e não desculpa para não medir. Correção durável aplicada nesta rodada: gate w200 (tests/w200-readme-inventory-gate.sh) passa a defender as 7 contagens com o critério find fixado. Nota registrada à parte, fora do escopo deste item: o cenário [7] do w146-suite-invocation-gate.sh usa o glob 'w19[0-9]-*-gate.sh', que não alcança w200 — não é regressão, porque o run-all.sh descobre gates pelo glob 'tests/*-gate.sh', mas a faixa examinada por aquele cenário virou estreita e merece revisão própria numa rodada futura. — Resolvido: Corrigido. Declarado→real por diretório, com o critério find \"<dir>\" -type f ! -name 'README.md' (recursivo): agents/ (43→47), commands/ (54→56), contracts/ (5, já correto), skills/ (12→20), rules/ (33→50), schemas/ (19→27), scripts/ (63→136, decompondo em 61 no topo + 74 em scripts/lib/ + 1 em scripts/tests/). Defendido por gate w200-readme-inventory-gate.sh, com prova de mutação (texto e árvore, cada uma com controle e recontrole).",
       "severity": null,
       "priority": "P3",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -2335,8 +2335,8 @@
         "promoted_to": null
       },
       "created_at": "2026-09-06T16:04:40-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-09-06T16:04:40-03:00",
+      "resolved_at": "2026-09-06T16:04:40-03:00",
       "dedup_key": "manual:LDG-0166"
     }
   ]

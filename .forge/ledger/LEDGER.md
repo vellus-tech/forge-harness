@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**16 itens ativos** · roadmap 3 · tech-debt 11 · known-bug 2 · (79 encerrados)
+**15 itens ativos** · roadmap 3 · tech-debt 10 · known-bug 2 · (80 encerrados)
 
 ## Roadmap
 
@@ -50,10 +50,8 @@ _Encerrados: 2 (resolved 2)_
   Em 'next', 'git rev-parse --verify $ref' e 'git ls-tree $ref $rel/' rodam sem '-C', logo consultam o repositório do diretório corrente, enquanto o máximo LOCAL vem de --path. Com '--path' apontando para outra árvore, o ordinal devolvido mistura o remoto de um repositório com a árvore de outro — e 'rel' cai no fallback 'tests' sempre que --path está fora de ROOT, o que reforça a mistura. Não morde no uso real (--path omitido resolve para $ROOT/tests) nem em w193[4]/[5], que fazem 'cd' para a fixture antes de chamar. Correção: 'git -C $(dirname do --path resolvido)' explícito nas duas invocações, conforme a convenção do repositório.
 - **LDG-0161** [open] (P3) — template/.forge/FORGE.md e template/.forge/templates/FORGE.md divergem, e nenhum caminho gera um a partir do outro
   As duas cópias do scaffold são entregues ao consumidor pelo mesmo cp -R do installer (install.sh:63), mas só a primeira vira o .forge/FORGE.md do projeto: o installer exclui deliberadamente */templates/* da substituição de placeholders (linhas 68 e 72) e o w13:23-26 assere que .forge/FORGE.md não tem placeholder e que .forge/templates/FORGE.md MANTÉM <PROJECT_SLUG>. Documentação depositada só na segunda não chega ao arquivo que o adotante abre — foi exatamente o que aconteceu com o bloco de phase: do PR #105 antes da correção, com o gate de paridade w197[6] mirando a cópia errada. Definir qual é a fonte, ou fazer uma ser gerada da outra, ou asserir paridade entre as duas.
-- **LDG-0166** [open] (P3) — Inventário do README envelhece à mão — 6 de 7 contagens defasadas
-  Achado colateral da triagem do stash em LDG-0165: o stash também tocava a tabela de inventário do README (trocava 'commands/ (50)' por '(51)'), e essa tabela mantida à mão envelheceu de novo. Vermelho medido hoje contra o bloco fenceado da seção '## 📁 Estrutura' do README.md, sob o critério find <root>/<dir> -type f ! -name 'README.md' (recursivo, descontando o README do próprio diretório): universo de 7 linhas com contagem declarada, 6 divergentes — agents/ declarado (43) real (47); commands/ declarado (54) real (56); contracts/ declarado (5) real (5), a única correta; skills/ declarado (12) real (20); rules/ declarado (33) real (50); schemas/ declarado (19) real (27); scripts/ declarado (63) real (136). O caso scripts/ é o mais instrutivo: 63 não bate com critério nenhum — 61 arquivos no topo do diretório, 136 recursivo (61 no topo + 74 em scripts/lib/ + 1 em scripts/tests/) — prova de que a ambiguidade de critério é parte do defeito e não desculpa para não medir. Correção durável aplicada nesta rodada: gate w200 (tests/w200-readme-inventory-gate.sh) passa a defender as 7 contagens com o critério find fixado. Nota registrada à parte, fora do escopo deste item: o cenário [7] do w146-suite-invocation-gate.sh usa o glob 'w19[0-9]-*-gate.sh', que não alcança w200 — não é regressão, porque o run-all.sh descobre gates pelo glob 'tests/*-gate.sh', mas a faixa examinada por aquele cenário virou estreita e merece revisão própria numa rodada futura.
 
-_Encerrados: 32 (resolved 29 · wont-fix 3)_
+_Encerrados: 33 (resolved 30 · wont-fix 3)_
 
 ## Bugs conhecidos
 

@@ -31,7 +31,16 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIBDIR="$SCRIPT_DIR/lib"
-ROOT="${FORGE_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
+# Ordinal de gate é decisão POR BRANCH (`tests/` vive na árvore de quem invoca, não no tronco) — a
+# raiz certa é `forge_worktree_root`, nunca `forge_resolve_root` (LDG-0171, lib/forge-root.sh).
+if [ -f "$LIBDIR/forge-root.sh" ]; then
+  # shellcheck source=lib/forge-root.sh
+  . "$LIBDIR/forge-root.sh"
+else
+  echo "FAIL gate-ordinal — $LIBDIR/forge-root.sh ausente: sem forge_worktree_root o script cairia de volta na subida cega de diretórios que gerou 'w1' no layout de dogfood." >&2
+  exit 2
+fi
+ROOT="${FORGE_ROOT:-$(forge_worktree_root "$SCRIPT_DIR")}"
 if [ -f "$LIBDIR/gate-universe.sh" ]; then
   # shellcheck source=lib/gate-universe.sh
   . "$LIBDIR/gate-universe.sh"

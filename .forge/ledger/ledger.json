@@ -2338,6 +2338,30 @@
       "updated_at": "2026-09-06T16:04:40-03:00",
       "resolved_at": "2026-09-06T16:04:40-03:00",
       "dedup_key": "manual:LDG-0166"
+    },
+    {
+      "id": "LDG-0167",
+      "type": "known-bug",
+      "title": "Duas frentes em paralelo reservaram o MESMO ordinal de gate (w200) — e o mesmo id de ledger",
+      "detail": "Medido em 2026-09-06, na rodada de dois pipelines paralelos, e a colisão aconteceu DUAS vezes na mesma rodada, por duas maquinarias diferentes. (1) ORDINAL DE GATE: as duas frentes rodaram 'gate-ordinal.sh next' antes de qualquer push e ambas receberam w200 — uma criou tests/w200-readme-inventory-gate.sh e a outra tests/w200-flag-como-valor-gate.sh. Nenhuma errou o procedimento: as duas reservaram PELO SCRIPT, como a norma manda. A causa é que o ordinal deriva do máximo já PUBLICADO no tronco remoto, e portanto não reserva nada — é uma leitura, não uma alocação, e duas leituras concorrentes devolvem o mesmo valor por construção. Mesma raiz de LDG-0158, consequência não registrada até aqui. Resolvido à mão renomeando o segundo para w201, com dois commits de acerto, porque o rename não alcançou o diretório temporário da fixture nem os nomes de canal. (2) ID DE LEDGER: o orquestrador criou um LDG-0166 em develop para registrar (1) enquanto esta branch já tinha aberto o seu próprio LDG-0166 para o drift do README — 'ledger-ops.sh add' atribui max+1 do ledger LOCAL e não enxerga branch alguma. É o defeito que axis-fare-validator já reportou no canal na thread ledger-id-reservation-before-citation, com a mesma causa e o mesmo desfecho lá (LDG-0304 citado em commit e depois reatribuído). Resolvido revertendo o item de develop e recriando-o AQUI, onde o 0166 desta branch já ocupa a posição. DESENHO POSSÍVEL, não implementado, e vale para os dois: trocar leitura por alocação real, considerando também branches remotas não mergeadas (git ls-remote + ls-tree). Enquanto não houver, rodada com frentes paralelas precisa distribuir ordinais e ids a partir de UM ponto antes de despachar as frentes.",
+      "severity": null,
+      "priority": "P2",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-06T16:52:39-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0167"
     }
   ]
 }

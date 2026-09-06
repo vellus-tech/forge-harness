@@ -36,7 +36,7 @@
 #   liaison-ops.sh transport set   <channel> --kind manual|fs|git|gh [--path <dir>] [--remote <url>] [--branch <b>]
 #   liaison-ops.sh transport show  <channel>
 #   liaison-ops.sh transport probe <channel>
-#   liaison-ops.sh sync     <channel> [--push-only | --pull-only]
+#   liaison-ops.sh sync     <channel> [--push-only | --pull-only] [--repair-own-log]
 #   liaison-ops.sh render   <channel>
 #
 # TRANSPORTE (Onda 2): plugável, em lib/transports/<kind>.sh, com o contrato t_probe/t_push/t_pull.
@@ -1228,12 +1228,23 @@ sync)
   [ -n "$channel" ] || { echo "FAIL: <channel> obrigatório" >&2; exit 1; }
   ch_dir="$LIAISON_DIR/$channel"
   [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado (rode 'open' primeiro)" >&2; exit 1; }
-  do_push=1; do_pull=1
+  do_push=1; do_pull=1; repair_own=0
   while [ $# -gt 0 ]; do case "$1" in
     --push-only) do_pull=0; shift ;;
     --pull-only) do_push=0; shift ;;
-    *) _reject_unknown "sync" "--push-only, --pull-only" "$1" ;;
+    # --repair-own-log: ato EXPLÍCITO do dono sobre o próprio log. Quando o hub tem conteúdo
+    # diferente num msg_id que esta árvore também tem, nada nos dois logs distingue "um terceiro
+    # reescreveu a história" de "outra réplica minha publicou mensagem distinta no mesmo seq" — o
+    # primeiro se repara republicando, o segundo se DESTRÓI republicando. Só o dono sabe qual é,
+    # e por isso a saída é uma declaração dele, nunca uma inferência do transporte.
+    #
+    # NÃO é um --force: réplica ATRASADA (o hub tem mensagem que esta árvore não tem) continua
+    # recusada mesmo com a flag. Aquilo é perda de dado, não ambiguidade — a propriedade da
+    # issue #101 não é negociável por flag.
+    --repair-own-log) repair_own=1; shift ;;
+    *) _reject_unknown "sync" "--push-only, --pull-only, --repair-own-log" "$1" ;;
   esac; done
+  export LIAISON_PUSH_REPAIR="$repair_own"
 
   _load_transport "$channel" || exit 1
   t_probe || { echo "FAIL: transporte $LIAISON_T_KIND indisponível — sync abortado" >&2; exit 1; }

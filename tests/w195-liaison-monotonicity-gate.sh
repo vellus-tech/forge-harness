@@ -18,6 +18,11 @@
 #   [1]  A publica, B publica, A publica de novo: o hub contém as mensagens das duas (controle)
 #   [2]  duas árvores com a MESMA identidade, uma atrasada: o push da atrasada é RECUSADO com
 #        rc != 0 e o hub fica byte a byte idêntico
+#   [2b] divergência em posição CONHECIDA (mesmo msg_id, content_sha diferente) é recusada sem
+#        reparo explícito, e a mensagem NOMEIA o caminho de reparo
+#   [2c] a mesma divergência COM o reparo explícito é aceita, e o hub passa a ser o log local
+#   [2d] réplica ATRASADA com o reparo explícito continua RECUSADA — o reparo não é um `--force`
+#        universal, e a propriedade da issue #101 não é negociável
 #   [3]  a mesma árvore atrasada, depois de um sync que a põe em dia: o push é aceito e o hub avança
 #   [4]  propriedade (fast-forward): o push tem êxito SE E SOMENTE SE o log do hub é prefixo do
 #        local; em êxito o hub passa a ser o local, em recusa o hub é idêntico ao anterior
@@ -122,6 +127,87 @@ cmp -s "$HUB/log/$A.jsonl" "$T/hub-antes.jsonl" \
 grep -qi "diverg\|recusad\|fast-forward" <<<"$out2" \
   || { echo "FAIL [2]: recusou sem dizer por quê — saída: $out2"; exit 1; }
 echo "OK [2] — $(grep -i 'diverg\|recusad\|fast-forward' <<<"$out2" | head -1)"
+
+# ── divergência em posição conhecida × réplica atrasada: dois casos, remédios OPOSTOS ────────
+# O predicado de PREFIXO ESTRITO não os separava, e recusava os dois. Eles não são o mesmo fato:
+#
+#   ATRASADA  — o hub tem um msg_id que esta réplica NÃO tem. Publicar apaga uma mensagem que só
+#               existe lá. É a issue #101, e recusar é a única saída.
+#   DIVERGIDA — o hub tem uma linha DIFERENTE num msg_id que esta réplica TAMBÉM tem.
+#
+# O segundo caso é ambíguo POR CONSTRUÇÃO, e a ambiguidade é medível: ou um terceiro reescreveu a
+# história (e o dono é a única autoridade sobre `log/<self>.jsonl` — republicar REPARA), ou duas
+# réplicas da mesma identidade compuseram mensagens DIFERENTES no mesmo `seq` (e republicar
+# DESTRÓI a da outra). As duas situações produzem exatamente o mesmo par de logs; nada nos dados
+# as distingue. Por isso o default é recusar, e existe um ato EXPLÍCITO do dono para reparar.
+# Reescreve a mensagem daquele seq no hub com conteúdo diferente E content_sha RECOMPUTADO — a
+# mesma tampering de w111[8]. Recomputar importa: sem isso o par (msg_id, content_sha) fica
+# idêntico e não há divergência nenhuma a detectar; e é assim que a divergência REAL se apresenta
+# nos dois casos que a classificação separa (terceiro reescrevendo com envelope válido, e outra
+# réplica compondo mensagem distinta no mesmo seq — que nasce com sha próprio por construção).
+_tamper_hub_seq() { # _tamper_hub_seq <arquivo-de-log> <seq>
+  node - "$WS/template/.forge/scripts/lib" "$1" "$2" <<'NODEEOF'
+const { readFileSync, writeFileSync } = require('fs');
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, file, seq] = process.argv;
+  const M = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
+  const msgs = readFileSync(file, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+  const i = msgs.findIndex((m) => String(m.seq) === String(seq));
+  if (i < 0) { console.error('seq ' + seq + ' não encontrado'); process.exit(1); }
+  const { content_sha, trust, ...rest } = msgs[i];
+  const tampered = { ...rest, subject: 'HISTÓRIA REESCRITA POR TERCEIRO', trust: 'self' };
+  tampered.content_sha = M.computeContentSha(tampered);
+  msgs[i] = tampered;
+  writeFileSync(file, msgs.map((m) => JSON.stringify(m)).join('\n') + '\n');
+})();
+NODEEOF
+}
+_push_as() { # _push_as <dir-replica> <hub> [repair] -> rc do _dir_push, saída em $T/push.txt
+  local rep="$1" hub="$2" repair="${3:-}" rc=0
+  ( LIAISON_CHANNEL_DIR="$rep/.forge/liaison/$CH" LIAISON_SELF="$A" \
+      LIAISON_PUSH_REPAIR="$([ "$repair" = repair ] && echo 1 || echo 0)" \
+      bash -c '. "'"$WS"'/template/.forge/scripts/lib/transports/_common.sh"; _dir_push "'"$hub"'"' \
+  ) > "$T/push.txt" 2>&1 || rc=$?
+  return $rc
+}
+
+echo "[2b] divergência em posição conhecida é RECUSADA sem reparo, e a mensagem nomeia o reparo"
+DIV="$T/div"; rm -rf "$DIV"; mkdir -p "$DIV/hub/log" "$DIV/rep/.forge/liaison/$CH/log"
+cp "$HUB/log/$A.jsonl" "$DIV/hub/log/$A.jsonl"
+cp "$HUB/log/$A.jsonl" "$DIV/rep/.forge/liaison/$CH/log/$A.jsonl"
+_tamper_hub_seq "$DIV/hub/log/$A.jsonl" 1
+cp "$DIV/hub/log/$A.jsonl" "$T/div-hub-antes.jsonl"
+rc2b=0; _push_as "$DIV/rep" "$DIV/hub" || rc2b=$?
+[ "$rc2b" -ne 0 ] || { echo "FAIL [2b]: divergência publicada sem ato explícito do dono — indistinguível de duas réplicas colidindo no mesmo seq, onde republicar DESTRÓI a mensagem da outra. Saída: $(cat "$T/push.txt")"; exit 1; }
+cmp -s "$DIV/hub/log/$A.jsonl" "$T/div-hub-antes.jsonl" || { echo "FAIL [2b]: o hub foi alterado por um push recusado"; exit 1; }
+grep -qi "repair-own-log" "$T/push.txt" \
+  || { echo "FAIL [2b]: a recusa não nomeia o caminho de reparo. As duas saídas antigas ('sync na árvore em dia', 'traga o log do hub') são ERRADAS para história reescrita — não há como reparar por elas, e o operador fica sem caminho. Saída: $(cat "$T/push.txt")"; exit 1; }
+grep -qi "diverg" "$T/push.txt" \
+  || { echo "FAIL [2b]: a recusa não distingue divergência de réplica atrasada — os dois casos têm remédios opostos. Saída: $(cat "$T/push.txt")"; exit 1; }
+echo "OK [2b] — $(grep -i 'RECUSADO' "$T/push.txt" | head -1)"
+
+echo "[2c] a mesma divergência COM reparo explícito é aceita, e o hub passa a ser o log local"
+rc2c=0; _push_as "$DIV/rep" "$DIV/hub" repair || rc2c=$?
+[ "$rc2c" -eq 0 ] || { echo "FAIL [2c]: o reparo explícito do dono foi recusado — sem ele não há caminho pelo comando para desfazer história reescrita por terceiro. Saída: $(cat "$T/push.txt")"; exit 1; }
+# Sinal POSITIVO pareado: não basta o rc 0 — o hub tem de ter passado a ser o log local.
+cmp -s "$DIV/hub/log/$A.jsonl" "$DIV/rep/.forge/liaison/$CH/log/$A.jsonl" \
+  || { echo "FAIL [2c]: reparo aceito (rc 0) e o hub NÃO recebeu o log local — aceitar sem publicar é pior que recusar"; exit 1; }
+grep -qi "descartando\|descartad" "$T/push.txt" \
+  || { echo "FAIL [2c]: o reparo não DECLARA o que descartou. Reparo silencioso é indistinguível da sobrescrita que a issue #101 fechou. Saída: $(cat "$T/push.txt")"; exit 1; }
+echo "OK [2c] — $(grep -i 'descart' "$T/push.txt" | head -1)"
+
+echo "[2d] réplica ATRASADA com reparo explícito continua RECUSADA — o reparo não é --force"
+ATR="$T/atrasada-repair"; rm -rf "$ATR"; mkdir -p "$ATR/hub/log" "$ATR/rep/.forge/liaison/$CH/log"
+cp "$HUB/log/$A.jsonl" "$ATR/hub/log/$A.jsonl"
+head -2 "$HUB/log/$A.jsonl" > "$ATR/rep/.forge/liaison/$CH/log/$A.jsonl"
+cp "$ATR/hub/log/$A.jsonl" "$T/atr-hub-antes.jsonl"
+rc2d=0; _push_as "$ATR/rep" "$ATR/hub" repair || rc2d=$?
+[ "$rc2d" -ne 0 ] \
+  || { echo "FAIL [2d]: o reparo virou um --force universal e apagou mensagem que só existia no hub — é exatamente a issue #101 reaberta por uma porta nova. Saída: $(cat "$T/push.txt")"; exit 1; }
+cmp -s "$ATR/hub/log/$A.jsonl" "$T/atr-hub-antes.jsonl" || { echo "FAIL [2d]: o hub foi alterado por um push recusado"; exit 1; }
+echo "OK [2d] — reparo recusado sobre réplica atrasada: a propriedade da #101 não é negociável"
 
 echo "[3] a mesma réplica, depois de posta em dia: push aceito e o hub avança"
 cp "$HUB/log/$A.jsonl" "$T/$A-atrasada/.forge/liaison/$CH/log/$A.jsonl"
@@ -311,7 +397,7 @@ rec_cur="$(_cursor_of "$STATE" "$TH")"
 
 COMMON="$T/$A-atrasada/.forge/scripts/lib/transports/_common.sh"
 cp "$COMMON" "$T/common.orig"
-perl -0pi -e 's/_dir_push_is_fast_forward "\$hub" "\$own" \|\|/false \&\&/' "$COMMON"
+perl -0pi -e 's/verdict="\$\(_dir_push_classify "\$hub" "\$own"\)" \|\| cls_rc=\$\?/verdict=ff/' "$COMMON"
 cmp -s "$COMMON" "$T/common.orig" && { echo "FAIL [11]: a mutação não alterou _common.sh"; exit 1; }
 head -2 "$HUB/log/$A.jsonl" > "$T/$A-atrasada/.forge/liaison/$CH/log/$A.jsonl"
 set +e

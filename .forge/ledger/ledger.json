@@ -2467,6 +2467,30 @@
       "updated_at": "2026-09-06T20:14:39-03:00",
       "resolved_at": "2026-09-06T20:14:39-03:00",
       "dedup_key": "manual:LDG-0169"
+    },
+    {
+      "id": "LDG-0170",
+      "type": "known-bug",
+      "title": "Renderizador do ledger descartava em silêncio entradas de type fora do enum, e o resumo divergia do ledger.json",
+      "detail": "lib/ledger-render.mjs fixa SECTIONS nos cinco tipos válidos do schema; entradas de type fora dele (debt, bug — os mesmos que este repositório carregava antes do LDG-0169) eram descartadas sem contador, sem aviso, sem vestígio na saída, e totalActive somava só sobre as seções conhecidas, então o resumo podia declarar menos itens ativos do que o ledger.json de fato tinha. Corrigido: entradas fora do enum vão para o balde \"### Fora do enum do schema\" (omitido quando vazio, para não sujar acervo normalizado) e totalActive soma sobre o arquivo inteiro, incapaz de divergir da contagem real do JSON. Deliberadamente NÃO falha alto em type desconhecido — falhar alto quebraria adotantes com enum estendido (axis-go-cloud roda decision/test-gap) no primeiro forge update. Coberto por w203-ledger-render-bucket-gate.sh, hermético, com prova de mutação sobre o próprio arquivo rastreado. O guard de escrita (ledger-ops.sh add/update recusando type fora do enum) foi cortado desta rodada por ser a única quebra de rc para os quatro adotantes — fica para a próxima rodada, com aviso pelo canal de liaison. — Resolvido: Corrigido em template/.forge/scripts/lib/ledger-render.mjs: entradas fora do enum vão para o balde \"### Fora do enum do schema\" (omitido quando vazio) e totalActive soma sobre o arquivo inteiro. Verificado por w203-ledger-render-bucket-gate.sh (controle, propriedade, contador de controle do balde vazio, prova de mutação de quatro passos).",
+      "severity": "LOW",
+      "priority": "P3",
+      "status": "resolved",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-06T20:36:58-03:00",
+      "updated_at": "2026-09-06T20:36:58-03:00",
+      "resolved_at": "2026-09-06T20:36:58-03:00",
+      "dedup_key": "manual:LDG-0170"
     }
   ]
 }

@@ -16,16 +16,17 @@
 #          toda mensagem ackada permanecia não lida a menos que alguém rodasse um segundo comando.
 #
 #   [1]  A publica, B publica, A publica de novo: o hub contém as mensagens das duas (controle)
-#   [2]  duas árvores com a MESMA identidade, uma atrasada: o push da atrasada é RECUSADO com
-#        rc != 0 e o hub fica byte a byte idêntico
+#   [2]  duas árvores com a MESMA identidade, uma atrasada: o push da atrasada é ACEITO por UNIÃO
+#        e NENHUMA mensagem que estava no hub desaparece (a propriedade da #101; o mecanismo
+#        passou de recusa para união depois da medição de campo em `axis-go-cloud-0086`)
 #   [2b] divergência em posição CONHECIDA (mesmo msg_id, content_sha diferente) é recusada sem
 #        reparo explícito, e a mensagem NOMEIA o caminho de reparo
 #   [2c] a mesma divergência COM o reparo explícito é aceita, e o hub passa a ser o log local
-#   [2d] réplica ATRASADA com o reparo explícito continua RECUSADA — o reparo não é um `--force`
-#        universal, e a propriedade da issue #101 não é negociável
+#   [2d] réplica ATRASADA sob o reparo explícito não faz o hub perder mensagem — o reparo não é
+#        um `--force` universal, e a propriedade da issue #101 não é negociável
 #   [3]  a mesma árvore atrasada, depois de um sync que a põe em dia: o push é aceito e o hub avança
-#   [4]  propriedade (fast-forward): o push tem êxito SE E SOMENTE SE o log do hub é prefixo do
-#        local; em êxito o hub passa a ser o local, em recusa o hub é idêntico ao anterior
+#   [4]  propriedade (união): para QUALQUER par de prefixos (hub, local) o push tem êxito — unir
+#        prefixos nunca é ambíguo — e NENHUMA mensagem que estava no hub desaparece
 #   [4b] contorno da propriedade: log do hub PRESENTE e VAZIO é prefixo de qualquer log — o push
 #        é aceito e o hub passa a ser o local
 #   [5]  `ack` de mensagem de terceiro avança o cursor da thread até ela
@@ -116,17 +117,28 @@ LG "$A-atrasada" transport set "$CH" --kind fs --path "$HUBROOT" >/dev/null
 mkdir -p "$T/$A-atrasada/.forge/liaison/$CH/log"
 head -2 "$HUB/log/$A.jsonl" > "$T/$A-atrasada/.forge/liaison/$CH/log/$A.jsonl"
 
-echo "[2] réplica ATRASADA: push RECUSADO e o hub byte a byte idêntico"
+echo "[2] réplica ATRASADA: push ACEITO por UNIÃO e NENHUMA mensagem do hub perdida"
+# A propriedade da issue #101 é NÃO PERDER MENSAGEM; a recusa era o mecanismo, e foi trocada pela
+# união depois que o campo mediu que recusar trava o estado normal de uma máquina com worktrees
+# (axis-go-cloud-0086). O que este cenário afirma é a propriedade, não o mecanismo — por isso ele
+# conta as mensagens do hub ANTES e exige que TODAS continuem lá DEPOIS, em vez de exigir rc != 0.
 cp "$HUB/log/$A.jsonl" "$T/hub-antes.jsonl"
 set +e
 out2="$(LG "$A-atrasada" sync "$CH" 2>&1)"; rc2=$?
 set -e
-[ "$rc2" -ne 0 ] || { echo "FAIL [2]: o push da réplica atrasada foi ACEITO (rc 0) — o hub acabou de perder mensagens publicadas, num log append-only de onde não há como restaurar. Saída: $out2"; exit 1; }
-cmp -s "$HUB/log/$A.jsonl" "$T/hub-antes.jsonl" \
-  || { echo "FAIL [2]: o hub foi ALTERADO por um push recusado"; exit 1; }
-grep -qi "diverg\|recusad\|fast-forward" <<<"$out2" \
-  || { echo "FAIL [2]: recusou sem dizer por quê — saída: $out2"; exit 1; }
-echo "OK [2] — $(grep -i 'diverg\|recusad\|fast-forward' <<<"$out2" | head -1)"
+[ "$rc2" -eq 0 ] || { echo "FAIL [2]: o push da réplica atrasada foi RECUSADO (rc $rc2) — a união não está fiada. Saída: $out2"; exit 1; }
+perdidas2=0
+while IFS= read -r id2; do
+  [ -n "$id2" ] || continue
+  grep -q "\"msg_id\"[[:space:]]*:[[:space:]]*\"$id2\"" "$HUB/log/$A.jsonl" || perdidas2=$((perdidas2 + 1))
+done < <(node -e 'const fs=require("fs");for(const l of fs.readFileSync(process.argv[1],"utf8").trim().split("\n"))if(l.trim())console.log(JSON.parse(l).msg_id)' "$T/hub-antes.jsonl")
+[ "$perdidas2" -eq 0 ] \
+  || { echo "FAIL [2]: $perdidas2 mensagem(ns) que estavam no hub sumiram na união — é exatamente a perda que a issue #101 fechou"; exit 1; }
+n_antes2="$(grep -c . "$T/hub-antes.jsonl")"
+n_depois2="$(grep -c . "$HUB/log/$A.jsonl")"
+[ "$n_depois2" -ge "$n_antes2" ] \
+  || { echo "FAIL [2]: o hub ENCOLHEU de $n_antes2 para $n_depois2 linha(s)"; exit 1; }
+echo "OK [2] — união aceita, hub de $n_antes2 para $n_depois2 linha(s), zero perdida"
 
 # ── divergência em posição conhecida × réplica atrasada: dois casos, remédios OPOSTOS ────────
 # O predicado de PREFIXO ESTRITO não os separava, e recusava os dois. Eles não são o mesmo fato:
@@ -204,10 +216,19 @@ cp "$HUB/log/$A.jsonl" "$ATR/hub/log/$A.jsonl"
 head -2 "$HUB/log/$A.jsonl" > "$ATR/rep/.forge/liaison/$CH/log/$A.jsonl"
 cp "$ATR/hub/log/$A.jsonl" "$T/atr-hub-antes.jsonl"
 rc2d=0; _push_as "$ATR/rep" "$ATR/hub" repair || rc2d=$?
-[ "$rc2d" -ne 0 ] \
-  || { echo "FAIL [2d]: o reparo virou um --force universal e apagou mensagem que só existia no hub — é exatamente a issue #101 reaberta por uma porta nova. Saída: $(cat "$T/push.txt")"; exit 1; }
-cmp -s "$ATR/hub/log/$A.jsonl" "$T/atr-hub-antes.jsonl" || { echo "FAIL [2d]: o hub foi alterado por um push recusado"; exit 1; }
-echo "OK [2d] — reparo recusado sobre réplica atrasada: a propriedade da #101 não é negociável"
+# Com a união no lugar da recusa, a réplica atrasada nem alcança o caminho de reparo: ela é
+# resolvida antes, sem descartar nada. O que este cenário guarda continua sendo a linha vermelha
+# da issue #101, e ela NÃO é negociável — `--repair-own-log` não pode ser a porta pela qual uma
+# réplica atrasada faz o hub perder mensagem. Por isso a asserção mede a PERDA, não o rc: um
+# reparo que apagasse o que só existia no hub reprovaria aqui mesmo saindo com rc 0.
+perdidas2d=0
+while IFS= read -r id2d; do
+  [ -n "$id2d" ] || continue
+  grep -q "\"msg_id\"[[:space:]]*:[[:space:]]*\"$id2d\"" "$ATR/hub/log/$A.jsonl" || perdidas2d=$((perdidas2d + 1))
+done < <(node -e 'const fs=require("fs");for(const l of fs.readFileSync(process.argv[1],"utf8").trim().split("\n"))if(l.trim())console.log(JSON.parse(l).msg_id)' "$T/atr-hub-antes.jsonl")
+[ "$perdidas2d" -eq 0 ] \
+  || { echo "FAIL [2d]: sob --repair-own-log, $perdidas2d mensagem(ns) que só existiam no hub foram apagadas por uma réplica ATRASADA — é a issue #101 reaberta por uma porta nova (rc foi $rc2d). Saída: $(cat "$T/push.txt")"; exit 1; }
+echo "OK [2d] — réplica atrasada sob reparo explícito: zero mensagem do hub perdida (rc $rc2d)"
 
 echo "[3] a mesma réplica, depois de posta em dia: push aceito e o hub avança"
 cp "$HUB/log/$A.jsonl" "$T/$A-atrasada/.forge/liaison/$CH/log/$A.jsonl"
@@ -216,7 +237,7 @@ LG "$A-atrasada" sync "$CH" >/dev/null || { echo "FAIL [3]: push de réplica em 
 grep -q "$M4" "$HUB/log/$A.jsonl" || { echo "FAIL [3]: o hub não avançou com a mensagem nova ($M4)"; exit 1; }
 echo "OK [3] — hub avançou até $M4"
 
-echo "[4] propriedade (fast-forward) — êxito SE E SOMENTE SE o hub é prefixo do local"
+echo "[4] propriedade (união) — prefixos sempre publicam, e o hub NUNCA perde mensagem"
 PROPDIR="$T/prop"; mkdir -p "$PROPDIR"
 _prop_push() { # _prop_push <linhas-hub> <linhas-local> -> imprime "rc <0|1> mudou <0|1>"
   local nh="$1" nl="$2" d="$PROPDIR/case-$nh-$nl"
@@ -232,6 +253,7 @@ _prop_push() { # _prop_push <linhas-hub> <linhas-local> -> imprime "rc <0|1> mud
   rc="$(cat "$d/rc")"
   local mudou=0
   cmp -s "$d/hub/log/$A.jsonl" "$d/hub-antes.jsonl" || mudou=1
+  d_atual="$d"
   echo "rc $rc mudou $mudou"
 }
 total_hub="$(grep -c . "$HUB/log/$A.jsonl")"
@@ -243,19 +265,23 @@ for nh in 1 2 3; do
     rc="${r#rc }"; rc="${rc%% *}"
     mudou="${r##*mudou }"
     prop_n=$((prop_n + 1))
-    if [ "$nl" -ge "$nh" ]; then
-      # hub é prefixo do local: tem de ACEITAR e o hub passa a ser o local
-      [ "$rc" -eq 0 ] || { echo "  hub=$nh local=$nl: avanço legítimo RECUSADO (rc=$rc)"; prop_bad=$((prop_bad + 1)); }
-    else
-      # local atrasado: tem de RECUSAR e NÃO tocar o hub
-      [ "$rc" -ne 0 ] || { echo "  hub=$nh local=$nl: push de réplica atrasada ACEITO"; prop_bad=$((prop_bad + 1)); }
-      [ "$mudou" -eq 0 ] || { echo "  hub=$nh local=$nl: hub ALTERADO por push recusado"; prop_bad=$((prop_bad + 1)); }
-    fi
+    # A propriedade NÃO é mais "fast-forward ou recusa": com a união, prefixo em qualquer direção
+    # é publicável, porque unir prefixos nunca é ambíguo. O que precisa valer para QUALQUER par é
+    # (a) o push tem êxito — não há bifurcação entre prefixos do mesmo log — e (b) NENHUMA
+    # mensagem que estava no hub desaparece, que é a propriedade da issue #101 e o motivo de tudo.
+    [ "$rc" -eq 0 ] || { echo "  hub=$nh local=$nl: push de prefixos RECUSADO (rc=$rc) — não há bifurcação aqui"; prop_bad=$((prop_bad + 1)); }
+    perdidas_p=0
+    while IFS= read -r idp; do
+      [ -n "$idp" ] || continue
+      grep -q "\"msg_id\"[[:space:]]*:[[:space:]]*\"$idp\"" "$d_atual/hub/log/$A.jsonl" || perdidas_p=$((perdidas_p + 1))
+    done < <(node -e 'const fs=require("fs");for(const l of fs.readFileSync(process.argv[1],"utf8").trim().split("\n"))if(l.trim())console.log(JSON.parse(l).msg_id)' "$d_atual/hub-antes.jsonl")
+    [ "$perdidas_p" -eq 0 ] \
+      || { echo "  hub=$nh local=$nl: $perdidas_p mensagem(ns) do hub PERDIDA(S) — issue #101"; prop_bad=$((prop_bad + 1)); }
   done
 done
 [ "$prop_n" -gt 0 ] || { echo "FAIL [4]: matriz vazia"; exit 1; }
 [ "$prop_bad" -eq 0 ] || { echo "FAIL [4]: $prop_bad violação(ões) em $prop_n pares"; exit 1; }
-echo "OK [4] — $prop_n pares (hub, local) examinados, propriedade fast-forward válida"
+echo "OK [4] — $prop_n pares (hub, local) examinados, zero perda em todos"
 
 echo "[4b] hub com log PRESENTE e VAZIO: qualquer publicação avança, e o push é ACEITO"
 # A matriz de [4] varre `nh` a partir de 1 e nunca chega ao contorno onde o log do hub existe com
@@ -395,17 +421,39 @@ set -e
 rec_cur="$(_cursor_of "$STATE" "$TH")"
 [ "$rec_cur" != "$M1" ] || { echo "FAIL [11]: recontrole — depois da restauração o cursor voltou a regredir"; exit 1; }
 
+# A mutação que importa agora NÃO é a que faz o push ser aceito — com a união ele já é aceito
+# sem mutação nenhuma, e uma asserção de "rc 0 depois de mutar" seria satisfeita pelo estado
+# correto, medindo nada. O que decide é a UNIÃO: trocá-la por substituição tem de fazer o hub
+# PERDER a mensagem que só ele tinha.
 COMMON="$T/$A-atrasada/.forge/scripts/lib/transports/_common.sh"
 cp "$COMMON" "$T/common.orig"
-perl -0pi -e 's/verdict="\$\(_dir_push_classify "\$hub" "\$own"\)" \|\| cls_rc=\$\?/verdict=ff/' "$COMMON"
-cmp -s "$COMMON" "$T/common.orig" && { echo "FAIL [11]: a mutação não alterou _common.sh"; exit 1; }
-head -2 "$HUB/log/$A.jsonl" > "$T/$A-atrasada/.forge/liaison/$CH/log/$A.jsonl"
+perl -0pi -e 's/if ! node "\$mod" "\$own" "\$hubf" "\$tmp" "\$LIAISON_SELF"; then/cp "\$own" "\$tmp"; if false; then/' "$COMMON"
+cmp -s "$COMMON" "$T/common.orig" && { echo "FAIL [11]: a mutação não alterou _common.sh — o alvo do perl não casou"; exit 1; }
+MUT="$T/mut-hub"; rm -rf "$MUT"; mkdir -p "$MUT/log"
+cp "$HUB/log/$A.jsonl" "$MUT/log/$A.jsonl"
+cp "$MUT/log/$A.jsonl" "$T/mut-hub-antes.jsonl"
+head -1 "$HUB/log/$A.jsonl" > "$T/$A-atrasada/.forge/liaison/$CH/log/$A.jsonl"
 set +e
-LG "$A-atrasada" sync "$CH" >/dev/null 2>&1; rc11=$?
+( LIAISON_CHANNEL_DIR="$T/$A-atrasada/.forge/liaison/$CH" LIAISON_SELF="$A" \
+    bash -c '. "'"$COMMON"'"; _dir_push "'"$MUT"'"' ) >/dev/null 2>&1
 set -e
-[ "$rc11" -eq 0 ] || { echo "FAIL [11]: a mutação não reintroduziu a sobrescrita — [2] não mede a união"; exit 1; }
+n_mut_antes="$(grep -c . "$T/mut-hub-antes.jsonl")"
+n_mut_depois="$(grep -c . "$MUT/log/$A.jsonl")"
+[ "$n_mut_depois" -lt "$n_mut_antes" ] \
+  || { echo "FAIL [11]: sem a união o hub NÃO perdeu mensagem (antes $n_mut_antes, depois $n_mut_depois) — [2] não mede a união"; exit 1; }
 cp "$T/common.orig" "$COMMON"
 cmp -s "$COMMON" "$T/common.orig" || { echo "FAIL [11]: restauração de _common.sh não bateu byte a byte"; exit 1; }
-echo "OK [11] — duas mutações reintroduziram os defeitos; restaurações verificadas com cmp"
+# RECONTROLE: com o arquivo restaurado, o mesmo push volta a preservar tudo.
+rm -rf "$MUT"; mkdir -p "$MUT/log"
+cp "$HUB/log/$A.jsonl" "$MUT/log/$A.jsonl"
+head -1 "$HUB/log/$A.jsonl" > "$T/$A-atrasada/.forge/liaison/$CH/log/$A.jsonl"
+set +e
+( LIAISON_CHANNEL_DIR="$T/$A-atrasada/.forge/liaison/$CH" LIAISON_SELF="$A" \
+    bash -c '. "'"$COMMON"'"; _dir_push "'"$MUT"'"' ) >/dev/null 2>&1
+set -e
+n_rec="$(grep -c . "$MUT/log/$A.jsonl")"
+[ "$n_rec" -ge "$n_mut_antes" ] \
+  || { echo "FAIL [11]: recontrole — depois da restauração o hub ainda perde ($n_rec < $n_mut_antes)"; exit 1; }
+echo "OK [11] — duas mutações reintroduziram os defeitos (a segunda com perda medida: $n_mut_antes para $n_mut_depois), restauração e recontrole verificados"
 
 echo "PASS w195-liaison-monotonicity"

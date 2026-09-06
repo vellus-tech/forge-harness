@@ -90,6 +90,49 @@ _dir_push_classify() {
   ' "$hubf" "$own"
 }
 
+# _dir_push_union <hub_dir> <own_file> — publica a UNIÃO do log do hub com o local, atomicamente.
+# Delega o cálculo (e a detecção de bifurcação) a lib/liaison-push-union.mjs: um só predicado de
+# divergência no repositório, o mesmo que o `import` usa para decidir quarentena. Sem `node` não
+# há união possível, e publicar sem unir é justamente o dano da issue #101 — então recusa.
+_dir_push_union() {
+  local hub="$1" own="$2"
+  local hubf="$hub/log/$LIAISON_SELF.jsonl"
+  # O `lib/` é o diretório-pai deste arquivo (`lib/transports/_common.sh`) — derivado do próprio
+  # BASH_SOURCE em vez de variável exportada, para não depender de quem fez o source.
+  local libdir; libdir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  local mod="$libdir/liaison-push-union.mjs"
+  if ! command -v node >/dev/null 2>&1 || [ ! -f "$mod" ]; then
+    echo "FAIL: push RECUSADO — a união do log exige node e '$mod', e um dos dois não está disponível." >&2
+    echo "      Publicar sem unir SUBSTITUIRIA o log do hub por esta réplica, apagando mensagem já" >&2
+    echo "      publicada por outra réplica da mesma identidade (issue #101). Não saber unir é" >&2
+    echo "      motivo de rigor, não de publicação." >&2
+    return 1
+  fi
+  local tmp="$hub/log/.$LIAISON_SELF.jsonl.tmp"
+  if ! node "$mod" "$own" "$hubf" "$tmp" "$LIAISON_SELF"; then
+    rm -f "$tmp"
+    return 1
+  fi
+  mv "$tmp" "$hubf"
+  # A réplica local passa a conter a união também: sem isso ela continuaria atrás do hub que ela
+  # mesma acabou de escrever, e o próximo push repetiria o trabalho.
+  cp "$hubf" "$own"
+  return 0
+}
+
+# _dir_push_blobs <hub_dir> <src> — copia os blobs locais que o hub ainda não tem.
+_dir_push_blobs() {
+  local hub="$1" src="$2"
+  [ -d "$src/blobs" ] || return 0
+  local b name
+  while IFS= read -r b; do
+    [ -n "$b" ] || continue
+    name="$(basename "$b")"
+    [ -f "$hub/blobs/$name" ] && continue
+    cp "$b" "$hub/blobs/.$name.tmp" && mv "$hub/blobs/.$name.tmp" "$hub/blobs/$name"
+  done < <(find "$src/blobs" -type f 2>/dev/null | LC_ALL=C sort)
+}
+
 # _dir_push <hub_dir> — publica log/<self>.jsonl e os blobs locais no ponto de encontro.
 # Escrita atômica (tmp + mv) porque outro participante pode estar lendo o hub ao mesmo tempo.
 _dir_push() {
@@ -101,16 +144,30 @@ _dir_push() {
     local verdict cls_rc=0
     verdict="$(_dir_push_classify "$hub" "$own")" || cls_rc=$?
     case "$cls_rc" in
-      0) : ;;
+      0)
+        # `ff` também passa pela união. Quando o local é superconjunto do hub o resultado é o
+        # mesmo do `cp` que havia aqui — mas o caminho ganha a validação de UM ESCRITOR POR
+        # ARQUIVO, que o `cp` nunca fez: um log próprio contaminado com mensagem de terceiro era
+        # publicado com rc 0, sobrescrevendo no hub a versão do dono por uma cópia alheia.
+        if ! _dir_push_union "$hub" "$own"; then
+          return 1
+        fi
+        _dir_push_blobs "$hub" "$src"
+        return 0
+        ;;
       1)
-        echo "FAIL: push RECUSADO — réplica ATRASADA: o log de '$LIAISON_SELF' no hub tem mensagem(ns) que esta árvore não tem:" >&2
-        echo "     ${verdict#behind}" >&2
-        echo "      Publicar aqui SUBSTITUIRIA o log do hub pelo desta árvore, apagando mensagem já" >&2
-        echo "      publicada por outra réplica da mesma identidade. Log append-only não se reescreve," >&2
-        echo "      e não há de onde restaurar o que se perde." >&2
-        echo "      Rode 'liaison-ops.sh sync <canal>' na árvore que está em dia, ou traga o log do hub" >&2
-        echo "      para esta réplica antes de publicar. Hub: $hub/log/$LIAISON_SELF.jsonl" >&2
-        return 1
+        # Réplica ATRASADA: o hub tem mensagem que esta árvore não tem. NÃO se recusa — UNE-SE.
+        # Recusar também evitaria a perda, mas transformaria toda réplica atrasada em push que
+        # reprova, e réplica atrasada é o estado NORMAL de uma máquina com worktrees; além disso
+        # "sincronize primeiro" não é operação que o participante consiga executar sozinho,
+        # porque `_dir_pull` não traz o próprio log de volta, por desenho. A união publica o que
+        # esta árvore tem de novo sem derrubar o que só o hub tem, e a recusa fica reservada à
+        # bifurcação real, que o próprio módulo detecta por `detectForks`.
+        if ! _dir_push_union "$hub" "$own"; then
+          return 1
+        fi
+        _dir_push_blobs "$hub" "$src"
+        return 0
         ;;
       2)
         if [ "${LIAISON_PUSH_REPAIR:-0}" = "1" ]; then
@@ -143,6 +200,9 @@ _dir_push() {
         return 1
         ;;
     esac
+    # Só o REPARO DECLARADO (caso 2 sob --repair-own-log) chega aqui: é o único caminho em que a
+    # substituição integral é o efeito pretendido, porque o operador afirmou por flag que esta
+    # árvore é a autoridade sobre o log e viu por extenso o que está descartando.
     cp "$own" "$hub/log/.$LIAISON_SELF.jsonl.tmp"
     mv "$hub/log/.$LIAISON_SELF.jsonl.tmp" "$hub/log/$LIAISON_SELF.jsonl"
   fi

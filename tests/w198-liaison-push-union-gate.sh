@@ -176,4 +176,42 @@ cmp -s "$HUB/log/$A.jsonl" "$T/hub-antes-terceiro.jsonl" \
   || { echo "FAIL [5]: o hub foi alterado por um push que deveria ser recusado"; exit 1; }
 echo "OK [5] — recusado, hub intacto"
 
+echo "[7] mutação — trocar a união por substituição faz o hub PERDER mensagem"
+# A mutação que prova [2] não é a que faz o push ser aceito (ele já é aceito no estado correto),
+# e sim a que troca a UNIÃO por substituição: o hub tem de ENCOLHER. Os `$` do lado direito do
+# perl vão escapados de propósito — sem isso eles seriam variáveis do PERL, a substituição viraria
+# `cp "" ""` e a prova mediria o próprio engano em vez do mecanismo.
+MCOMMON="$T/$A/.forge/scripts/lib/transports/_common.sh"
+cp "$MCOMMON" "$T/common.orig"
+perl -0pi -e 's/if ! node "\$mod" "\$own" "\$hubf" "\$tmp" "\$LIAISON_SELF"; then/cp "\$own" "\$tmp"; if false; then/' "$MCOMMON"
+cmp -s "$MCOMMON" "$T/common.orig" && { echo "FAIL [7]: a mutação não alterou _common.sh — o alvo do perl não casou"; exit 1; }
+grep -q 'cp "$own" "$tmp"; if false' "$MCOMMON" \
+  || { echo "FAIL [7]: a mutação foi aplicada mas não produziu o texto esperado — provavelmente os \$ do lado direito viraram variáveis do perl"; exit 1; }
+MHUB="$T/mut-hub"; rm -rf "$MHUB"; mkdir -p "$MHUB/log"
+cp "$HUB/log/$A.jsonl" "$MHUB/log/$A.jsonl"
+n_mut_antes="$(grep -c . "$MHUB/log/$A.jsonl")"
+MREP="$T/mut-rep"; rm -rf "$MREP"; mkdir -p "$MREP/log"
+head -1 "$HUB/log/$A.jsonl" > "$MREP/log/$A.jsonl"
+set +e
+( LIAISON_CHANNEL_DIR="$MREP" LIAISON_SELF="$A" \
+    bash -c ". \"$MCOMMON\"; _dir_push \"$MHUB\"" ) >/dev/null 2>&1
+set -e
+n_mut_depois="$(grep -c . "$MHUB/log/$A.jsonl")"
+[ "$n_mut_depois" -lt "$n_mut_antes" ] \
+  || { echo "FAIL [7]: sem a união o hub NÃO perdeu mensagem (antes $n_mut_antes, depois $n_mut_depois) — [2] não mede a união"; exit 1; }
+cp "$T/common.orig" "$MCOMMON"
+cmp -s "$MCOMMON" "$T/common.orig" || { echo "FAIL [7]: restauração não bateu byte a byte"; exit 1; }
+# RECONTROLE: restaurado, o mesmo push volta a preservar tudo.
+rm -rf "$MHUB"; mkdir -p "$MHUB/log"
+cp "$HUB/log/$A.jsonl" "$MHUB/log/$A.jsonl"
+head -1 "$HUB/log/$A.jsonl" > "$MREP/log/$A.jsonl"
+set +e
+( LIAISON_CHANNEL_DIR="$MREP" LIAISON_SELF="$A" \
+    bash -c ". \"$MCOMMON\"; _dir_push \"$MHUB\"" ) >/dev/null 2>&1
+set -e
+n_rec="$(grep -c . "$MHUB/log/$A.jsonl")"
+[ "$n_rec" -ge "$n_mut_antes" ] \
+  || { echo "FAIL [7]: recontrole — depois da restauração o hub ainda perde ($n_rec < $n_mut_antes)"; exit 1; }
+echo "OK [7] — sem a união o hub caiu de $n_mut_antes para $n_mut_depois; restaurado, voltou a $n_rec"
+
 echo "PASS w198-liaison-push-union"

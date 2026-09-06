@@ -2314,6 +2314,30 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0165"
+    },
+    {
+      "id": "LDG-0166",
+      "type": "known-bug",
+      "title": "Duas frentes em paralelo reservaram o MESMO ordinal de gate (w200) — LDG-0158 reproduzido em campo",
+      "detail": "Medido em 2026-09-06, na rodada de dois pipelines paralelos. Duas frentes independentes rodaram 'gate-ordinal.sh next' antes de qualquer push e ambas receberam w200: uma criou tests/w200-readme-inventory-gate.sh e a outra tests/w200-flag-como-valor-gate.sh. Nenhuma das duas errou o procedimento — as duas reservaram PELO SCRIPT, como a norma manda. A causa é que o ordinal deriva do máximo já PUBLICADO no tronco remoto, e portanto não reserva nada: é uma leitura, não uma alocação, e duas leituras concorrentes devolvem o mesmo valor por construção. É a mesma raiz de LDG-0158 (o next resolve o remoto pelo CWD e não pelo repositório de --path), mas a consequência aqui é pior e não estava registrada: colisão silenciosa entre frentes, detectável só quando as duas branches se encontram. Resolvido à mão nesta rodada renomeando o segundo para w201, com dois commits de acerto — o rename automático não alcançou o diretório temporário da fixture nem os nomes de canal, que continuavam citando w200. DESENHO POSSÍVEL, não implementado: 'next' passar a considerar também os ordinais presentes em branches remotas não mergeadas (git ls-remote + ls-tree), ou trocar leitura por alocação real com registro versionado. Enquanto não houver, toda rodada com frentes paralelas precisa distribuir os ordinais a partir de UM ponto antes de despachar as frentes.",
+      "severity": null,
+      "priority": "P2",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-06T16:04:40-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0166"
     }
   ]
 }

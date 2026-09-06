@@ -21,6 +21,8 @@
 #   [3]  a mesma árvore atrasada, depois de um sync que a põe em dia: o push é aceito e o hub avança
 #   [4]  propriedade (fast-forward): o push tem êxito SE E SOMENTE SE o log do hub é prefixo do
 #        local; em êxito o hub passa a ser o local, em recusa o hub é idêntico ao anterior
+#   [4b] contorno da propriedade: log do hub PRESENTE e VAZIO é prefixo de qualquer log — o push
+#        é aceito e o hub passa a ser o local
 #   [5]  `ack` de mensagem de terceiro avança o cursor da thread até ela
 #   [6]  `ack` de mensagem ANTERIOR ao cursor não faz o cursor regredir, e a operação não falha —
 #        pareado com o valor do cursor LIDO do state.json e comparado com o índice esperado
@@ -168,6 +170,29 @@ done
 [ "$prop_n" -gt 0 ] || { echo "FAIL [4]: matriz vazia"; exit 1; }
 [ "$prop_bad" -eq 0 ] || { echo "FAIL [4]: $prop_bad violação(ões) em $prop_n pares"; exit 1; }
 echo "OK [4] — $prop_n pares (hub, local) examinados, propriedade fast-forward válida"
+
+echo "[4b] hub com log PRESENTE e VAZIO: qualquer publicação avança, e o push é ACEITO"
+# A matriz de [4] varre `nh` a partir de 1 e nunca chega ao contorno onde o log do hub existe com
+# ZERO linha — o estado em que um `mv` interrompido, um arquivo commitado vazio no hub `git` ou uma
+# cópia manual deixam o ponto de encontro. Ali o predicado do fast-forward tinha o clássico
+# `NR == FNR` do awk: com o PRIMEIRO arquivo vazio, `NR == FNR` continua verdadeiro na primeira
+# linha do SEGUNDO, e o log local inteiro era carregado como se fosse o do hub — `nh > nl` e a
+# publicação recusada para sempre, com uma mensagem que afirma que o hub tem linhas que a réplica
+# não tem quando o hub não tem linha nenhuma. Um log vazio é prefixo de qualquer log.
+D4B="$T/vazio"; rm -rf "$D4B"; mkdir -p "$D4B/hub/log" "$D4B/rep/.forge/liaison/$CH/log"
+: > "$D4B/hub/log/$A.jsonl"
+cp "$HUB/log/$A.jsonl" "$D4B/rep/.forge/liaison/$CH/log/$A.jsonl"
+set +e
+( LIAISON_CHANNEL_DIR="$D4B/rep/.forge/liaison/$CH" LIAISON_SELF="$A" \
+    bash -c '. "'"$WS"'/template/.forge/scripts/lib/transports/_common.sh"; _dir_push "'"$D4B"'/hub"' ) > "$T/out4b.txt" 2>&1
+rc4b=$?
+set -e
+[ "$rc4b" -eq 0 ] \
+  || { echo "FAIL [4b]: push RECUSADO contra um hub cujo log está vazio — log vazio é prefixo de qualquer log, e recusar aqui tranca a publicação para sempre sem caminho de saída. Saída: $(cat "$T/out4b.txt")"; exit 1; }
+# Sinal POSITIVO pareado: não basta o rc — o hub tem de ter passado a ser o local.
+cmp -s "$D4B/hub/log/$A.jsonl" "$HUB/log/$A.jsonl" \
+  || { echo "FAIL [4b]: push aceito (rc 0) e o hub NÃO recebeu o log local — aceitar sem publicar é pior que recusar"; exit 1; }
+echo "OK [4b] — hub vazio aceita a publicação e passa a conter $(grep -c . "$D4B/hub/log/$A.jsonl") linha(s)"
 
 # ── #102: o ack avança o cursor ──────────────────────────────────────────────────────────────
 STATE="$T/$B/.forge/liaison/$CH/state.json"

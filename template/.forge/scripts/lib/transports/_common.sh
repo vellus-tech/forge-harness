@@ -25,7 +25,14 @@
 _dir_push_is_fast_forward() {
   local hub="$1" own="$2"
   local hubf="$hub/log/$LIAISON_SELF.jsonl"
-  [ -f "$hubf" ] || return 0        # hub ainda sem log deste remetente: qualquer publicação avança
+  # `-s`, não `-f`: log AUSENTE e log presente com ZERO byte são o mesmo fato — o hub não tem
+  # linha nenhuma deste remetente, e um log vazio é prefixo de qualquer log. A distinção não é
+  # teórica: o `awk` abaixo usa `NR == FNR` para separar os dois arquivos, e com o PRIMEIRO
+  # vazio esse teste continua verdadeiro na primeira linha do SEGUNDO — o log local inteiro
+  # entraria como se fosse o do hub, `nh > nl`, e a publicação ficaria recusada para sempre,
+  # com uma mensagem afirmando que o hub tem linhas que a réplica não tem. Estado alcançável por
+  # `mv` interrompido, por arquivo vazio commitado num hub `git` e por cópia manual.
+  [ -s "$hubf" ] || return 0
   awk '
     NR == FNR { if ($0 != "") h[++nh] = $0; next }
     { if ($0 != "") l[++nl] = $0 }

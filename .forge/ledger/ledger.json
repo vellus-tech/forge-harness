@@ -2151,10 +2151,10 @@
       "id": "LDG-0159",
       "type": "tech-debt",
       "title": "runtime.gates publicado como string|null contra a block-sequence que o harness lê e documenta",
-      "detail": "forge.schema.json declara runtime.gates como $ref nullableString, então o schema ACEITA a forma CSV escalar e REJEITA tanto a forma mapeada com phase: quanto a block-sequence de escalares puros (- check-authz) — que é justamente a forma retrocompatível que a #82 prometeu manter válida. As duas falham com '/runtime/gates must be string,null'. Enquanto isso o leitor canônico forge_runtime_gate_entries lê as três formas e a documentação entregue no PR #105 ensina a mapeada. Nenhum gate exercita forma alguma de block-sequence contra o schema: w20[7], único cenário que valida gates:, usa CSV. Alargar de string|null para aceitar também array é PURAMENTE ADITIVO — nada que validava antes deixa de validar. Adiado do PR #105 pela norma red-first (o vermelho precisa vir primeiro), NÃO por risco de retrocompatibilidade e NÃO por não se mexer em objeto additionalProperties:false: o próprio PR #105 já edita forge.schema.json adicionando rules.packs. Quatro arquivos de teste tocam o schema: w20, w112, w153, w192. É o espelho exato da propriedade que w192 passa a afirmar (toda chave declarada tem leitor): aqui há leitor e documentação publicada sem chave que os aceite, e nada cobre esse sentido. LDG-0151 NÃO serve de casa — cobre o caso inverso.",
+      "detail": "forge.schema.json declara runtime.gates como $ref nullableString, então o schema ACEITA a forma CSV escalar e REJEITA tanto a forma mapeada com phase: quanto a block-sequence de escalares puros (- check-authz) — que é justamente a forma retrocompatível que a #82 prometeu manter válida. As duas falham com '/runtime/gates must be string,null'. Enquanto isso o leitor canônico forge_runtime_gate_entries lê as três formas e a documentação entregue no PR #105 ensina a mapeada. Nenhum gate exercita forma alguma de block-sequence contra o schema: w20[7], único cenário que valida gates:, usa CSV. Alargar de string|null para aceitar também array é PURAMENTE ADITIVO — nada que validava antes deixa de validar. Adiado do PR #105 pela norma red-first (o vermelho precisa vir primeiro), NÃO por risco de retrocompatibilidade e NÃO por não se mexer em objeto additionalProperties:false: o próprio PR #105 já edita forge.schema.json adicionando rules.packs. Quatro arquivos de teste tocam o schema: w20, w112, w153, w192. É o espelho exato da propriedade que w192 passa a afirmar (toda chave declarada tem leitor): aqui há leitor e documentação publicada sem chave que os aceite, e nada cobre esse sentido. LDG-0151 NÃO serve de casa — cobre o caso inverso. — Resolvido: Alargado runtime.gates de $ref nullableString para anyOf[nullableString, array[string|{name,phase}]], em paridade estrita com o leitor canônico. Coberto por w199-schema-reader-parity, com prova de mutação (reverter para nullableString faz [2] e [3] reprovarem). Duas decisões de desenho registradas: (a) o item mapeado EXIGE name e proíbe propriedade adicional, porque gate-phase.mjs:69 descarta em silêncio o item sem name — aceitar '- id: x' publicaria como válida uma declaração que o harness joga fora, que é LDG-0159 invertido; (b) phase é string LIVRE e não enum, porque o leitor aceita qualquer valor (gate-phase.mjs:70) — impor enum aqui reprovaria declaração que o harness lê. As asserções medem /runtime/gates isoladamente e nunca 'o documento valida': cinco dos treze FORGE.md instalados nesta máquina já reprovam contra forgeFrontmatter e nenhum por gates.",
       "severity": null,
       "priority": "P2",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -2167,15 +2167,15 @@
         "promoted_to": null
       },
       "created_at": "2026-09-06T12:15:55-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-09-06T15:10:05-03:00",
+      "resolved_at": "2026-09-06T15:10:05-03:00",
       "dedup_key": "manual:LDG-0159"
     },
     {
       "id": "LDG-0160",
       "type": "bug",
       "title": "Declarar phase: pre-deploy/post-deploy remove o gate da contagem de órfãos do doctor sem que nada passe a executá-lo",
-      "detail": "Medido em projeto instalado de verdade: 14 check-*.sh, 4 órfãos acusados com gates: vazio; declarando check-authz como phase: pre-deploy e check-observability como phase: post-deploy, os órfãos caem para 2 e sai a linha info 'rodam SÓ por runtime.gates'. Mas no MESMO projeto, run-gates.sh sem --phase devolve NO-GATES rc=0, e nenhum chamador do harness passa --phase: wave-ops.sh:161 invoca sem a flag, e grep por '--phase' em template/plugin/snapshot/installer/bin/.github devolve zero. Ou seja: a peça que a #82 chama de 'a que teria evitado o incidente sozinha' ganha, na mesma entrega, uma forma de ser silenciada por declaração de uma fase que o harness não sabe agendar. A linha info mitiga, mas o alarme sai da contagem.",
+      "detail": "ESCOPO CONFIRMADO E SEPARADO DE LDG-0159 (fechado). O defeito reproduz: nenhum chamador de produção passa --phase para run-gates.sh — wave-ops.sh:161 invoca sem a flag, e o grep por '--phase' em template/, bin/, installer/ e .github/ devolve só a definição da flag no próprio run-gates.sh e o gate w171 que a testa isoladamente. Logo, gate declarado com phase pre-deploy ou post-deploy não é executado por caminho nenhum. CORREÇÃO DE PREMISSA, medida na revisão adversarial: o doctor NÃO mente sobre isso — ele já emite linha própria e dedicada nomeando os gates que rodam só por runtime.gates (doctor.sh:472-473, incondicional para essa classe), e numa instalação stock imprime '4 gate(s) órfão(s)', nunca '0'. Portanto um gate escrito como 'o doctor passa a nomear os dois' nasceria VERDE sobre o defeito. O vermelho verdadeiro é sobre AUSÊNCIA DE EXECUTOR, e fechá-lo significa implementar o agendamento de fase pre-deploy/post-deploy em algum chamador real — trabalho de desenho com decisão de produto (quem agenda, em que momento do ciclo, com que artefato), não uma linha de aviso. Fica FORA da rodada que fechou LDG-0159 por isso, e não por custo. Nota adicional de contrato: o schema alargado por LDG-0159 aceita qualquer string em phase, deliberadamente, para não reprovar o que o leitor lê — quando existir executor, o enum de fases passa a ser possível e desejável.",
       "severity": null,
       "priority": "P2",
       "status": "open",
@@ -2191,7 +2191,7 @@
         "promoted_to": null
       },
       "created_at": "2026-09-06T12:15:55-03:00",
-      "updated_at": null,
+      "updated_at": "2026-09-06T15:10:05-03:00",
       "resolved_at": null,
       "dedup_key": "manual:LDG-0160"
     },

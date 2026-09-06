@@ -136,7 +136,37 @@
               "$ref": "#/$defs/nullableString"
             },
             "gates": {
-              "$ref": "#/$defs/nullableString"
+              "description": "Gates de artefato deste projeto. TRÊS formas, um leitor só (lib/gate-phase.mjs e forge_runtime_gate_entries): CSV escalar (tudo em phase source), block-sequence de escalares (idem) e block-sequence mapeada com name e phase. A chave do item mapeado é name — gate-phase.mjs:69 exige item.name e DESCARTA em silêncio o item sem ela, por isso o schema também a exige. phase é string livre, e não um enum, porque o leitor aceita qualquer valor: restringir aqui reprovaria declaração que o harness lê, invertendo o defeito que LDG-0159 fechou. Que uma fase declarada possa não ter executor é LDG-0160, e é outro problema.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/nullableString"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "object",
+                        "required": [
+                          "name"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "phase": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
             }
           }
         },
@@ -421,7 +451,9 @@
           "properties": {
             "packs": {
               "type": "array",
-              "items": { "type": "string" }
+              "items": {
+                "type": "string"
+              }
             }
           }
         },

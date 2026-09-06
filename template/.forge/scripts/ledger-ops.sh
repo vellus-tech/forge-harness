@@ -123,17 +123,17 @@ add)
   type=""; title=""; detail=""; severity=""; priority=""; status="open"; origin="manual"; change=""; ref=""; adr=""; capability=""
   ADD_FLAGS="--type --title --detail --severity --priority --status --origin --change --ref --adr --capability"
   while [ $# -gt 0 ]; do case "$1" in
-    --type) _require_value "add" --type "${2-}"; type="$2"; shift 2 ;;
-    --title) _require_value "add" --title "${2-}"; title="$2"; shift 2 ;;
-    --detail) _require_value "add" --detail "${2-}"; detail="$2"; shift 2 ;;
-    --severity) _require_value "add" --severity "${2-}"; severity="$2"; shift 2 ;;
-    --priority) _require_value "add" --priority "${2-}"; priority="$2"; shift 2 ;;
-    --status) _require_value "add" --status "${2-}"; status="$2"; shift 2 ;;
-    --origin) _require_value "add" --origin "${2-}"; origin="$2"; shift 2 ;;
-    --change) _require_value "add" --change "${2-}"; change="$2"; shift 2 ;;
-    --ref) _require_value "add" --ref "${2-}"; ref="$2"; shift 2 ;;
-    --adr) _require_value "add" --adr "${2-}"; adr="$2"; shift 2 ;;
-    --capability) _require_value "add" --capability "${2-}"; capability="$2"; shift 2 ;;
+    --type) _require_value "add" --type "${2-}" "$ADD_FLAGS"; type="$2"; shift 2 ;;
+    --title) _require_value "add" --title "${2-}" "$ADD_FLAGS"; title="$2"; shift 2 ;;
+    --detail) _require_value "add" --detail "${2-}" "$ADD_FLAGS"; detail="$2"; shift 2 ;;
+    --severity) _require_value "add" --severity "${2-}" "$ADD_FLAGS"; severity="$2"; shift 2 ;;
+    --priority) _require_value "add" --priority "${2-}" "$ADD_FLAGS"; priority="$2"; shift 2 ;;
+    --status) _require_value "add" --status "${2-}" "$ADD_FLAGS"; status="$2"; shift 2 ;;
+    --origin) _require_value "add" --origin "${2-}" "$ADD_FLAGS"; origin="$2"; shift 2 ;;
+    --change) _require_value "add" --change "${2-}" "$ADD_FLAGS"; change="$2"; shift 2 ;;
+    --ref) _require_value "add" --ref "${2-}" "$ADD_FLAGS"; ref="$2"; shift 2 ;;
+    --adr) _require_value "add" --adr "${2-}" "$ADD_FLAGS"; adr="$2"; shift 2 ;;
+    --capability) _require_value "add" --capability "${2-}" "$ADD_FLAGS"; capability="$2"; shift 2 ;;
     *) _reject_unknown "add" "$ADD_FLAGS" "$1" ;;
   esac; done
   [ -n "$type" ] || { echo "FAIL: --type obrigatório (roadmap|tech-debt|known-bug|follow-up|feature-idea)" >&2; exit 1; }
@@ -185,11 +185,11 @@ update)
   n_status=""; n_priority=""; n_severity=""; n_title=""; n_detail=""; n_flags=0
   UPDATE_FLAGS="--status --priority --severity --title --detail"
   while [ $# -gt 0 ]; do case "$1" in
-    --status) _require_value "update" --status "${2-}"; n_status="$2"; n_flags=$((n_flags + 1)); shift 2 ;;
-    --priority) _require_value "update" --priority "${2-}"; n_priority="$2"; n_flags=$((n_flags + 1)); shift 2 ;;
-    --severity) _require_value "update" --severity "${2-}"; n_severity="$2"; n_flags=$((n_flags + 1)); shift 2 ;;
-    --title) _require_value "update" --title "${2-}"; n_title="$2"; n_flags=$((n_flags + 1)); shift 2 ;;
-    --detail) _require_value "update" --detail "${2-}"; n_detail="$2"; n_flags=$((n_flags + 1)); shift 2 ;;
+    --status) _require_value "update" --status "${2-}" "$UPDATE_FLAGS"; n_status="$2"; n_flags=$((n_flags + 1)); shift 2 ;;
+    --priority) _require_value "update" --priority "${2-}" "$UPDATE_FLAGS"; n_priority="$2"; n_flags=$((n_flags + 1)); shift 2 ;;
+    --severity) _require_value "update" --severity "${2-}" "$UPDATE_FLAGS"; n_severity="$2"; n_flags=$((n_flags + 1)); shift 2 ;;
+    --title) _require_value "update" --title "${2-}" "$UPDATE_FLAGS"; n_title="$2"; n_flags=$((n_flags + 1)); shift 2 ;;
+    --detail) _require_value "update" --detail "${2-}" "$UPDATE_FLAGS"; n_detail="$2"; n_flags=$((n_flags + 1)); shift 2 ;;
     *) _reject_unknown "update" "$UPDATE_FLAGS" "$1" ;;
   esac; done
   [ "$n_flags" -gt 0 ] || { echo "FAIL: ledger-ops: 'update $id' sem flag alguma não tem o que gravar — o único efeito seria avançar 'updated_at', o que faz a entrada parecer recente sem carregar informação nova. Flags aceitas em 'update': $UPDATE_FLAGS" >&2; exit 1; }
@@ -241,8 +241,8 @@ resolve)
   note=""; new_status="resolved"
   RESOLVE_FLAGS="--note --status"
   while [ $# -gt 0 ]; do case "$1" in
-    --note) _require_value "resolve" --note "${2-}"; note="$2"; shift 2 ;;
-    --status) _require_value "resolve" --status "${2-}"; new_status="$2"; shift 2 ;;
+    --note) _require_value "resolve" --note "${2-}" "$RESOLVE_FLAGS"; note="$2"; shift 2 ;;
+    --status) _require_value "resolve" --status "${2-}" "$RESOLVE_FLAGS"; new_status="$2"; shift 2 ;;
     *) _reject_unknown "resolve" "$RESOLVE_FLAGS" "$1" ;;
   esac; done
   [ -n "$note" ] || { echo "FAIL: --note obrigatório" >&2; exit 1; }
@@ -276,7 +276,7 @@ promote)
   [ -n "$id" ] || { echo "FAIL: LDG-id obrigatório" >&2; exit 1; }
   to=""
   while [ $# -gt 0 ]; do case "$1" in
-    --to) _require_value "promote" --to "${2-}"; to="$2"; shift 2 ;;
+    --to) _require_value "promote" --to "${2-}" "--to"; to="$2"; shift 2 ;;
     *) _reject_unknown "promote" "--to" "$1" ;;
   esac; done
   [ -n "$to" ] || { echo "FAIL: --to <change-id> obrigatório" >&2; exit 1; }
@@ -307,7 +307,7 @@ harvest)
   [ -n "$change_id" ] || { echo "WARN: harvest sem change-id — nada colhido" >&2; exit 0; }
   origin="close"
   while [ $# -gt 0 ]; do case "$1" in
-    --origin) _require_value "harvest" --origin "${2-}"; origin="$2"; shift 2 ;;
+    --origin) _require_value "harvest" --origin "${2-}" "--origin"; origin="$2"; shift 2 ;;
     *) _reject_unknown "harvest" "--origin" "$1" "harvest é best-effort quanto ao CONTEÚDO (change ausente devolve 0 e rc 0), nunca quanto ao USO: flag desconhecida é erro de quem chama, e engoli-la publicaria a colheita sob a origem errada." ;;
   esac; done
   spec_dir="$ROOT/.forge/specs/active/$change_id"
@@ -438,9 +438,9 @@ list)
   f_status=""; f_type=""; top=""; by_priority=""
   LIST_FLAGS="--status --type --top --by-priority"
   while [ $# -gt 0 ]; do case "$1" in
-    --status) _require_value "list" --status "${2-}"; f_status="$2"; shift 2 ;;
-    --type) _require_value "list" --type "${2-}"; f_type="$2"; shift 2 ;;
-    --top) _require_value "list" --top "${2-}"; top="$2"; shift 2 ;;
+    --status) _require_value "list" --status "${2-}" "$LIST_FLAGS"; f_status="$2"; shift 2 ;;
+    --type) _require_value "list" --type "${2-}" "$LIST_FLAGS"; f_type="$2"; shift 2 ;;
+    --top) _require_value "list" --top "${2-}" "$LIST_FLAGS"; top="$2"; shift 2 ;;
     --by-priority) by_priority="1"; shift ;;
     *) _reject_unknown "list" "$LIST_FLAGS" "$1" ;;
   esac; done

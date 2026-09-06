@@ -4,6 +4,12 @@ Todas as mudanças notáveis deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/)
 e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
+## [Unreleased]
+
+### Fixed
+
+- **Flag engolida como valor de outra flag (issue #103).** Todo parser de `ledger-ops.sh`, `deferral-ops.sh` e `liaison-ops.sh` lia o valor como `"$2"` sem perguntar o que `"$2"` era: quando o operador esquecia o valor, a flag SEGUINTE ocupava o lugar dele e o comando respondia `OK` gravando o nome de uma flag como conteúdo — `ledger-ops.sh update LDG-0001 --detail --title` devolvia rc 0 e gravava `detail = "--title"`. `lib/arg-guards.sh` ganha `forge_reject_flag_as_value`, que recusa quando o valor é **membro** do conjunto de flags declaradas daquele subcomando — pertencimento por token exato, nunca prefixo, para que `list --top -3` e `add --detail '---frontmatter'` continuem válidos. Fiado nos 23 sítios de `ledger-ops.sh`, no `raise` de `deferral-ops.sh` e nos quatro subcomandos de `liaison-ops.sh` que gravam no log append-only. Coberto por `w201-flag-como-valor`, com prova de mutação. A issue segue aberta: `transport set` do `liaison-ops.sh` continua fora do recorte.
+
 ## [0.12.0] — 2026-09-06
 
 > Leva de ataque ao backlog somada à resposta do canal de liaison. Quatorze itens de ledger fechados e dez abertos nesta leva — método de contagem, porque sem ele o número não vale nada: comparação do `ledger.json` de `5ff7f6b` (80 entradas) com o de hoje (95), contando como fechado quem passou a `resolved`/`wont-fix` (nove pré-existentes mais cinco que já nasceram fechados) e como aberto quem nasceu e permaneceu aberto. O diff do arquivo toca mais entradas que isso, porque inclui correção de registro em itens cujo status não mudou. Nove gates novos (`w190`–`w195`, `w197`–`w199`), dois estendidos (`w145`, `w146`).

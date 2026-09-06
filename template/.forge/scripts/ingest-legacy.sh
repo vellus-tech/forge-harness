@@ -15,7 +15,9 @@ DST="$ROOT/.forge/product/current"
 
 [ -d "$SRC" ] || { echo "OK (no docs/product to ingest)"; exit 0; }
 
-existing="$(find "$DST" -type f ! -name '.gitkeep' ! -name 'CHANGELOG.md' 2>/dev/null | head -1)"
+# `|| existing=""`: baseline ausente faz o `find` falhar, o `pipefail` promove, e `set -e` mata o
+# script sem dizer nada — o `2>/dev/null` já declara que a falha é esperada aqui.
+existing="$(find "$DST" -type f ! -name '.gitkeep' ! -name 'CHANGELOG.md' 2>/dev/null | head -1)" || existing=""
 [ -z "$existing" ] || { echo "FAIL (product/current already has content — ingestion only runs on an empty baseline; resolve manually)"; exit 3; }
 
 count=0

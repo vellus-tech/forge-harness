@@ -246,32 +246,221 @@ if [ -f "$HEAVY_LIB" ] && _heavy_enabled; then
   forge_heavy_mutex_arm_trap
 fi
 
+# ── lints de shell, por DIFF (LDG-0069) ──────────────────────────────────────────────────────
+# `check-shell-pipeline.sh` e `check-heredoc-hash.sh` já rodavam no CI contra o corpus real —
+# `w145[8]`, `w159[8]` e o passo dedicado do `ci.yml`. O que faltava não era cobertura, era
+# LATÊNCIA: o autor descobria a violação depois de empurrar. Aqui a descoberta passa a ser antes.
+#
+# Por DIFF, nunca pela árvore: os próprios gates `w145`/`w159` montam fixtures que CONTÊM de
+# propósito a forma proibida (construídas por concatenação, para não se autodetectarem), e um
+# hook que varresse tudo indiscriminadamente bloquearia o push da própria entrega. Só os `.sh`
+# que este push publica são varridos.
+#
+# NÃO entra no `pre-commit`: varrer o corpus a cada commit não se justifica para uma classe que o
+# CI já pega, e um hook lento é um hook desativado.
+SHELL_LINTS="check-shell-pipeline check-heredoc-hash"
+if [ -d "$ROOT/.forge/scripts" ]; then
+  _sh_list="$(mktemp "${TMPDIR:-/tmp}/forge-shlint-XXXXXX")"
+  # UMA chamada de git para o push inteiro, nunca uma por ref. `git log` aceita vários intervalos
+  # de revisão de uma vez e devolve a união — e o custo por ref é justamente o que `w152[31]`
+  # guarda por RAZÃO (medido: um `git` a mais por ref levou a suíte daquele gate de dentro do
+  # orçamento para 313s de um teto de 240s). Um `git push --all` com centenas de refs continua
+  # custando uma invocação.
+  _revs=()
+  while read -r _lref lsha _rref rsha; do
+    [ -n "${lsha:-}" ] || continue
+    case "$lsha" in *[!0]*) : ;; *) continue ;; esac   # deleção de ref: nada a varrer
+    if [ -z "${rsha:-}" ] || [ "$rsha" = "0000000000000000000000000000000000000000" ]; then
+      _revs+=("$lsha")            # ref nova: tudo que ela alcança
+    else
+      _revs+=("$rsha..$lsha")     # ref existente: só o que este push acrescenta
+    fi
+  done <<EOF_SHL
+$INPUT
+EOF_SHL
+  if [ "${#_revs[@]}" -gt 0 ]; then
+    git -C "$ROOT" log --format= --name-only "${_revs[@]}" -- '*.sh' '*.bash' > "$_sh_list" 2>/dev/null || : > "$_sh_list"
+  fi
+  _sh_n=0
+  _sh_args=()
+  while IFS= read -r _f; do
+    [ -n "$_f" ] || continue
+    [ -f "$ROOT/$_f" ] || continue          # arquivo apagado pelo push não tem o que linTar
+    case " ${_sh_args[*]:-} " in *" $ROOT/$_f "*) continue ;; esac
+    _sh_args+=("--path" "$ROOT/$_f")
+    _sh_n=$((_sh_n + 1))
+  done < "$_sh_list"
+  rm -f "$_sh_list"
+  if [ "$_sh_n" -eq 0 ]; then
+    # Sinal POSITIVO do caminho "não havia o que varrer": "não rodei" e "rodei e estava limpo"
+    # não podem terminar no mesmo silêncio (issue #49).
+    echo "pre-push: shell-lints — 0 arquivo(s) .sh no diff publicado; nada a varrer"
+  else
+    echo "pre-push: shell-lints — $_sh_n arquivo(s) .sh no diff publicado"
+    # Delegação em alvo ausente é ERRO — mas só quando há o que varrer. A guarda vive AQUI, e não
+    # no topo do bloco, de propósito: um push que não publica `.sh` nenhum não tem cobertura a
+    # perder por o lint estar ausente, e bloqueá-lo transformaria a instalação parcial de uma
+    # worktree (issue #73: hooks compartilhados por `core.hooksPath` absoluto, `.forge/scripts/`
+    # conteúdo próprio de cada uma) em push travado por causa alheia. Com `.sh` no diff, a
+    # ausência do lint é cobertura que some em silêncio, e aí bloqueia.
+    for _l in $SHELL_LINTS; do
+      _s="$ROOT/.forge/scripts/$_l.sh"
+      if [ ! -f "$_s" ]; then
+        echo "pre-push BLOQUEADO: este push publica $_sh_n arquivo(s) .sh e .forge/scripts/$_l.sh não existe." >&2
+        echo "  Delegação em alvo ausente: o lint que varreria esses arquivos sumiu, e seguir devolveria" >&2
+        echo "  push verde sem varredura nenhuma. Rode 'npx forge-harness update' ou restaure o lint." >&2
+        exit 1
+      fi
+      if ! _lint_out="$(FORGE_ROOT="$ROOT" bash "$_s" "${_sh_args[@]}" 2>&1)"; then
+        echo "pre-push BLOQUEADO: $_l reprovou nos .sh que este push publica —" >&2
+        printf '%s\n' "$_lint_out" >&2
+        exit 1
+      fi
+    done
+    echo "pre-push: shell-lints OK — $_sh_n arquivo(s) .sh varrido(s) por $SHELL_LINTS"
+  fi
+fi
+
 run_check "typecheck" "$(fm_field typecheck)"
 run_check "test" "$(fm_field test)"
 
-# ── gates declared in FORGE.md runtime: gates (REQ-15/TASK-17, design.md §2.6) ──
-# CSV escalar numa única linha (ex.: "gates: check-authz,check-observability,check-data-governance"),
-# lida por fm_field (mesmo awk de typecheck/test) + split por vírgula. Ausência de "gates:" ⇒
-# nada roda (compat). Cada gate roda sobre o repo inteiro (--path) e respeita seu próprio
-# mode: warn|enforce internamente — os warn reportam sem bloquear o push.
-GATES_CSV="$(fm_field gates)"
-if [ -n "$GATES_CSV" ]; then
-  IFS=',' read -ra _forge_gates <<< "$GATES_CSV"
-  for gate in "${_forge_gates[@]}"; do
-    gate="$(printf '%s' "$gate" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
-    [ -n "$gate" ] || continue
-    gate_script="$ROOT/.forge/scripts/${gate}.sh"
-    if [ -f "$gate_script" ]; then
-      run_check "$gate" "bash '$gate_script' --path '$ROOT'"
-    else
-      # Era `skip` com exit 0 — declarar um gate e ele não existir virava silêncio verde, a forma
-      # exata do risco que a issue #49 descreve. `run-gates.sh` já tratava isso como MISSING e
-      # reprovava; o hook estava fora de sincronia com o próprio harness.
-      echo "pre-push BLOQUEADO: gate '$gate' declarado em runtime.gates e $gate_script não existe." >&2
-      echo "  Declarar e não existir é delegação em alvo ausente — corrija runtime.gates ou instale o gate." >&2
+# ── gates declarados em FORGE.md runtime.gates (issue #82; LDG-0150) ─────────────────────────
+# DUAS formas declaráveis, UM leitor só:
+#
+#   gates: check-authz,check-observability          # CSV escalar (forma histórica)
+#   gates:                                          # block-sequence com fase (0.11.0+)
+#     - check-authz                                 #   item escalar ⇒ phase: source
+#     - name: check-image-digest
+#       phase: pre-deploy
+#
+# Este bloco tinha um leitor PRÓPRIO — um `awk` bespoke que só extraía o valor escalar da linha
+# `  gates:`. Com a forma mapeada, o valor inline é vazio: `GATES_CSV` ficava vazio, o laço não
+# rodava, e o hook não imprimia uma linha sobre isso. Um consumidor que adotasse `phase:` —
+# inclusive declarando tudo como `phase: source`, que é a fase que o push executa — deixava de
+# rodar TODOS os gates no push, com o push verde. Adotar a fase DESLIGAVA a cobrança que existia
+# antes. E era o terceiro clone do mesmo leitor no repositório (a classe de LDG-0014, duas
+# implementações do mesmo contrato divergindo em silêncio, já materializada três vezes).
+#
+# Agora o hook usa `lib/forge-runtime.sh`, o mesmo leitor de `run-gates.sh` e de `spec-verify.sh`.
+# "chave gates: presente" != "gates: com valor inline". A distinção é o que separa "nada
+# declarado" (nenhuma linha `  gates:` — o hook não tem o que ler, e é o estado de todo projeto
+# que nunca declarou gate) de "declarado numa forma que eu não consegui ler". Este awk NÃO lê os
+# NOMES dos gates — isso é do leitor canônico e só dele; ele responde uma pergunta que o leitor
+# canônico não expõe: a chave existe?
+gates_key_present() {
+  awk '
+    /^runtime:/ { inblk=1; next }
+    inblk && /^[a-z_]+:/ { exit }
+    inblk && $0 ~ "^  gates:" { print "y"; exit }
+  ' "$FORGE_MD"
+}
+
+# Valor INLINE da chave, quando há um. Usado SÓ no caminho degradado abaixo, onde o leitor
+# canônico é, por definição, indisponível — não é um segundo leitor do contrato concorrendo com
+# ele, é o que resta quando ele não está lá.
+gates_inline_raw() {
+  awk '
+    /^runtime:/ { inblk=1; next }
+    inblk && /^[a-z_]+:/ { exit }
+    inblk && $0 ~ "^  gates:" { sub("^  gates:[[:space:]]*", ""); print; exit }
+  ' "$FORGE_MD"
+}
+
+RUNTIME_LIB="$ROOT/.forge/scripts/lib/forge-runtime.sh"
+if [ -n "$(gates_key_present)" ]; then
+  if [ ! -f "$RUNTIME_LIB" ]; then
+    # Pré-condição de DIRETÓRIO, como todas as guardas irmãs deste arquivo (AI_CHECK, ACKS,
+    # HEAVY_LIB, require_hook_lib e o bloco de lints de shell) e como o comentário do topo declara:
+    # "o no-op só é legítimo quando o harness NÃO está instalado — se o DIRETÓRIO que hospeda o
+    # alvo existe, a ausência do alvo significa harness atualizado pela metade". Sem
+    # `.forge/scripts/` não há harness instalado NESTE checkout, e não há contrato a cobrar.
+    #
+    # Mas alinhar não é afrouxar: com `.forge/scripts/` ausente E gates declarados INLINE, nenhum
+    # dos scripts declarados pode existir, e o push é recusado do mesmo jeito — é o que o hook
+    # anterior já fazia por outro caminho (o `[ -f "$gate_script" ]` do laço), e perder isso seria
+    # uma regressão de cobertura disfarçada de consistência.
+    if [ -d "$ROOT/.forge/scripts" ]; then
+      echo "pre-push BLOQUEADO: .forge/scripts/ existe e .forge/scripts/lib/forge-runtime.sh não." >&2
+      echo "  É o leitor ÚNICO de runtime.gates (o mesmo de run-gates.sh e spec-verify.sh); sem ele" >&2
+      echo "  o hook não sabe o que foi declarado, e seguir devolveria zero gates com push verde." >&2
+      echo "  Rode 'npx forge-harness update' ou restaure a lib." >&2
       exit 1
     fi
-  done
+    _gates_inline_degraded="$(gates_inline_raw)"
+    if [ -n "$_gates_inline_degraded" ]; then
+      echo "pre-push BLOQUEADO: runtime.gates declara '$_gates_inline_degraded' e .forge/scripts/ não existe neste checkout." >&2
+      echo "  Nenhum dos gates declarados pode estar instalado, então declarar e seguir seria" >&2
+      echo "  silêncio verde sobre gate nenhum. Corrija runtime.gates ou instale o harness." >&2
+      exit 1
+    fi
+    # NO-GATES honesto, dito em voz alta: nada declarado inline e nenhum script onde um gate
+    # pudesse morar. "Não examinei" continua visível (issue #49) sem travar quem não instalou.
+    echo "pre-push: runtime.gates NO-GATES — .forge/scripts/ ausente neste checkout e nenhum gate declarado inline"
+  else   # leitor presente: caminho normal, com o leitor canônico
+  # shellcheck disable=SC1090
+  . "$RUNTIME_LIB"
+  # Pelo leitor canônico, nunca por um awk local: é justamente a segunda implementação do mesmo
+  # contrato que este item existe para eliminar.
+  _gates_inline="$(forge_get_runtime gates "$ROOT" || true)"
+
+  # Guarda do leitor indisponível. `forge_runtime_gate_entries` delega a forma mapeada a
+  # `node lib/gate-phase.mjs` e devolve VAZIO, calada, quando node não existe — e vazio é
+  # indistinguível de "nenhum gate declarado". O gatilho do bloqueio é a INDISPONIBILIDADE DO
+  # LEITOR, nunca a forma do frontmatter: `  gates:` sem valor inline é o estado de FÁBRICA de
+  # todo projeto novo (templates/FORGE.md), e bloquear por essa forma recusaria o primeiro push
+  # de todo adotante.
+  #
+  # Esta guarda CONTRARIA POR DESENHO o contrato escrito de lib/forge-runtime.sh ("ausência de
+  # node ⇒ a forma mapeada simplesmente não é lida … nunca trava o script"). A severidade é do
+  # CHAMADOR, e o hook é o chamador que bloqueia: `run-gates.sh` e `spec-verify.sh` seguem
+  # silenciosos no mesmo estado. Duas severidades para o mesmo fato, declaradas — o inaceitável
+  # seria ficarem implícitas.
+  if [ -z "$_gates_inline" ]; then
+    if ! command -v node >/dev/null 2>&1 || [ ! -f "$ROOT/.forge/scripts/lib/gate-phase.mjs" ]; then
+      echo "pre-push BLOQUEADO: 'runtime.gates' está declarado sem valor inline (forma mapeada) e a declaração NÃO PÔDE SER LIDA." >&2
+      command -v node >/dev/null 2>&1 \
+        || echo "  Causa: 'node' não está no PATH — a forma mapeada é lida por lib/gate-phase.mjs." >&2
+      [ -f "$ROOT/.forge/scripts/lib/gate-phase.mjs" ] \
+        || echo "  Causa: .forge/scripts/lib/gate-phase.mjs ausente — rode 'npx forge-harness update'." >&2
+      echo "  Não bloquear aqui devolveria ZERO gates e um push verde, indistinguível de um projeto" >&2
+      echo "  sem gate algum. Instale o leitor, ou declare os gates na forma CSV escalar." >&2
+      exit 1
+    fi
+  fi
+
+  _gate_entries="$(forge_runtime_gate_entries "$ROOT" || true)"
+  _src_gates="$(printf '%s\n' "$_gate_entries" | awk -F'\t' '$2=="source" && $1!=""{print $1}')"
+  _n_all=0; _n_src=0
+  [ -z "$_gate_entries" ] || _n_all="$(printf '%s\n' "$_gate_entries" | grep -c . || true)"
+  [ -z "$_src_gates" ] || _n_src="$(printf '%s\n' "$_src_gates" | grep -c . || true)"
+
+  if [ "$_n_all" -eq 0 ]; then
+    # NO-GATES declarado em voz alta: "não examinei" e "examinei e estava limpo" não podem
+    # terminar no mesmo silêncio (issue #49).
+    echo "pre-push: runtime.gates NO-GATES — 0 gate(s) declarado(s) no FORGE.md"
+  elif [ "$_n_src" -eq 0 ]; then
+    _other_phases="$(printf '%s\n' "$_gate_entries" | awk -F'\t' '$1!=""{print $2}' | sort -u | tr '\n' ' ')"
+    echo "pre-push: runtime.gates — $_n_all gate(s) declarado(s), 0 de fase 'source'; o push não executa fase(s): ${_other_phases% }"
+  else
+    echo "pre-push: runtime.gates — $_n_src gate(s) de fase 'source' de $_n_all declarado(s)"
+    while IFS= read -r gate; do
+      [ -n "$gate" ] || continue
+      gate_script="$ROOT/.forge/scripts/${gate}.sh"
+      if [ -f "$gate_script" ]; then
+        run_check "$gate" "bash '$gate_script' --path '$ROOT'"
+      else
+        # Era `skip` com exit 0 — declarar um gate e ele não existir virava silêncio verde, a forma
+        # exata do risco que a issue #49 descreve. `run-gates.sh` já tratava isso como MISSING e
+        # reprovava; o hook estava fora de sincronia com o próprio harness.
+        echo "pre-push BLOQUEADO: gate '$gate' declarado em runtime.gates e $gate_script não existe." >&2
+        echo "  Declarar e não existir é delegação em alvo ausente — corrija runtime.gates ou instale o gate." >&2
+        exit 1
+      fi
+    done <<EOF_GATES
+$_src_gates
+EOF_GATES
+    fi
+  fi
 fi
 
 # ── rede de suítes do harness (issue #49, instância 2) ───────────────────────────────────────

@@ -63,7 +63,7 @@ perl -pi -e 's/^(\s*)- \[ \] /$1- [X] /' "$T/.forge/specs/active/rm-evidence/tas
   || { echo "FAIL [3]: transição para implemented falhou"; tail -5 $LOGDIR/t3.log; exit 1; }
 (cd "$T" && FORGE_ROOT="$T" bash "$S/spec-verify.sh" rm-evidence >$LOGDIR/vf.log 2>&1) \
   || { echo "FAIL [3]: spec-verify falhou"; tail -8 $LOGDIR/vf.log; exit 1; }
-VRM="$(find "$T/.forge/specs/active/rm-evidence/evidence/runs" -name run-manifest.json 2>/dev/null | head -1)"
+VRM="$(find "$T/.forge/specs/active/rm-evidence/evidence/runs" -name run-manifest.json 2>/dev/null | head -1)" || VRM=""
 [ -n "$VRM" ] && [ -f "$VRM" ] || { echo "FAIL [3]: spec-verify não gravou run-manifest em evidence/runs"; exit 1; }
 node "$WS/tools/validate-yaml.mjs" "$WS/template/.forge/schemas/run-manifest.schema.json" "$VRM" >/dev/null
 node -e "const m=require('$VRM'); if (m.stage !== 'verify' || m.status !== 'passed') throw new Error('verify manifest mismatch')"

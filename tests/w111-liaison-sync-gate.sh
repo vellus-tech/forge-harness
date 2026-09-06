@@ -207,8 +207,14 @@ after_sha="$(sha_of "$T/gc/.forge/liaison/$CH/log/axis-fare-validator.jsonl")"
   || { echo "FAIL [8]: posição divergente não registrada em conflicts/"; ls "$T/gc/.forge/liaison/$CH/conflicts/"; exit 1; }
 [ ! -f "$T/gc/.forge/liaison/$CH/conflicts/axis-fare-validator.divergence.json" ] \
   || { echo "FAIL [8]: registro agregado por remetente — quarentena é por posição (issue #48)"; exit 1; }
-# restaura o hub para não contaminar os passos seguintes
-LG fv sync "$CH" --push-only >/dev/null
+# Restaura o hub para não contaminar os passos seguintes. `--repair-own-log` porque é exatamente
+# o caso que a flag existe para atender (issue #101, LDG-0154): o hub tem conteúdo DIFERENTE numa
+# posição que a réplica do dono também tem — história reescrita por terceiro, e não réplica
+# atrasada. Sem o ato explícito o push é recusado, e com razão: nada nos dois logs distingue
+# "reescreveram minha história" de "outra réplica minha publicou mensagem distinta no mesmo seq",
+# e o segundo caso perde dado ao republicar. Aqui quem chama SABE qual é — o próprio cenário
+# adulterou o hub três linhas acima.
+LG fv sync "$CH" --push-only --repair-own-log >/dev/null 2>&1
 echo "OK [8]"
 
 echo "[9] mensagem órfã de thread fica retida no sync e é liberada quando o thread-open chega"

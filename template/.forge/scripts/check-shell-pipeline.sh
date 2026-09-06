@@ -56,6 +56,9 @@ const { pathToFileURL } = require('url');
     for (const v of L.lintText(text)) {
       console.log(`HIT\t${f}\t${v.lineNo}\t${v.producer}\t${v.op}\t${v.line}`);
     }
+    for (const v of L.lintCmdSubst(text)) {
+      console.log(`SUBST\t${f}\t${v.lineNo}\t${v.producer}\t${v.line}`);
+    }
   }
   console.log(`SCANNED\t${files.length}`);
 })();
@@ -72,6 +75,20 @@ scanned="$(awk -F'\t' '$1=="SCANNED"{print $2}' "$OUT" | tail -1)"; : "${scanned
 
 # Contador de controle ANTES do veredito: sem arquivo varrido não há veredito a dar.
 if ! forge_universe_check "shell-pipeline" "$scanned" "arquivo(s) .sh" "$(printf '%s ' "${targets[@]}")" "$ROOT"; then
+  exit 1
+fi
+
+substs="$(awk -F'\t' '$1=="SUBST"' "$OUT" | awk 'END{print NR+0}')"
+if [ "${substs:-0}" -ne 0 ]; then
+  echo "FAIL shell-pipeline — $substs atribuição(ões) por substituição de comando cujo pipeline tem produtor falível silenciado, em arquivo com 'set -e' E 'pipefail':" >&2
+  awk -F'\t' '$1=="SUBST"{printf "      %s:%s: produtor \"%s\" com 2>/dev/null dentro de $( ) com pipeline\n        %s\n", $2, $3, $4, $5}' "$OUT" >&2
+  echo "      Sob 'set -e' + 'pipefail' a falha do produtor mata o script SEM UMA LINHA de saída —" >&2
+  echo "      foi assim que o w20-spec-gate morreu no CI três execuções seguidas. O 2>/dev/null é a" >&2
+  echo "      assinatura: o autor espera falha ali e, no mesmo gesto, esconde a única pista que" >&2
+  echo "      restaria. Corrija com um escape que governe a PRÓPRIA substituição:" >&2
+  echo "        X=\"\$(ls -1 \"\$D\" 2>/dev/null | sort)\" || true" >&2
+  echo "      Atenção: um '||' que governa um TESTE anterior ('[ -n \"\$x\" ] || X=\"\$( … )\"') NÃO" >&2
+  echo "      protege — ali a atribuição é o último comando da lista OR e o script morre igual." >&2
   exit 1
 fi
 

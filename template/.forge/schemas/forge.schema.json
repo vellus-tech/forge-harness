@@ -411,9 +411,17 @@
             },
             "require_traceability_before_archive": {
               "type": "boolean"
-            },
-            "require_human_approval_before_archive": {
-              "type": "boolean"
+            }
+          }
+        },
+        "rules": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Ativação de rule-packs de domínio (LDG-0003). Simetria explícita com capabilities.active: pack listado aqui passa a ser CONTRATO do projeto; rule de pack não listado continua disponível como referência, nunca gate imposto.",
+          "properties": {
+            "packs": {
+              "type": "array",
+              "items": { "type": "string" }
             }
           }
         },

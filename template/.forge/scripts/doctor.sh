@@ -397,6 +397,85 @@ EOF_ORPHAN
     fi
   fi
 
+  # ── gate órfão: check-*.sh que ninguém invoca (LDG-0110 + peça executável da issue #82) ─────
+  # Um `check-*.sh` presente em `.forge/scripts/`, não invocado por hook nenhum e não declarado em
+  # `runtime.gates` de FASE ALGUMA, é um gate que ninguém roda — e conta como cobertura em todo
+  # relatório. O único check que existia (`hp_orfaos`, acima) só roda no ramo `else` da cascata de
+  # `core.hooksPath`: APENAS com hooksPath customizado e diferente do canônico. No caso comum — o
+  # hooksPath default instalado pelo próprio harness — nunca executava.
+  #
+  # INFORMATIVO POR CONSTRUÇÃO: usa `info`/`warn` e NUNCA toca `MISSING_DIAG`. Gate declarado e
+  # não invocado é decisão legítima em muitos projetos (um `check-authz` só faz sentido onde há
+  # autorização), e `LDG-0013` foi encerrado como `wont-fix` justamente por retrocompatibilidade.
+  # O que não é legítimo é o harness não DIZER.
+  #
+  # Três fontes cruzadas, e a terceira é a que exige o leitor único:
+  #   1. o universo `$ROOT/.forge/scripts/check-*.sh`;
+  #   2. as referências por nome-base em `.forge/hooks/**` (inclusive `hooks/git/lib/`, porque
+  #      `check-red-first.sh` é invocado por wrapper) e no `hooksPath` resolvido, seja ele qual for;
+  #   3. `runtime.gates` de TODAS as fases, por `forge_runtime_gate_entries` — sem filtro de fase,
+  #      e pelo leitor canônico, nunca por um `awk` novo. Um `awk` local aqui seria o TERCEIRO
+  #      leitor do mesmo contrato, que é literalmente o defeito que `LDG-0150` acabou de fechar.
+  og_lib="$ROOT/.forge/scripts/lib/forge-runtime.sh"
+  if [ ! -f "$og_lib" ] && [ -d "$ROOT/.forge/scripts/lib" ]; then
+    info "harness: gates: leitor de runtime.gates (lib/forge-runtime.sh) ausente — cruzamento de gate órfão não executado"
+  elif [ -d "$ROOT/.forge/scripts" ]; then
+    # shellcheck disable=SC1090
+    [ -f "$og_lib" ] && . "$og_lib"
+    og_declarados=""
+    if [ -f "$og_lib" ]; then
+      og_declarados="$(FORGE_ROOT="$ROOT" forge_runtime_gate_entries "$ROOT" 2>/dev/null | awk -F'\t' '$1!=""{print $1}' || true)"
+    fi
+    og_hookdirs="$ROOT/.forge/hooks"
+    og_hp="$(git config --get core.hooksPath 2>/dev/null || true)"
+    [ -n "$og_hp" ] && [ -d "$og_hp" ] && og_hookdirs="$og_hookdirs $og_hp"
+    og_total=0; og_orfaos=""; og_so_declarados=""
+    for og_f in "$ROOT"/.forge/scripts/check-*.sh; do
+      [ -f "$og_f" ] || continue
+      og_total=$((og_total + 1))
+      og_base="$(basename "$og_f")"
+      og_name="${og_base%.sh}"
+      og_in_hook=0
+      for og_d in $og_hookdirs; do
+        [ -d "$og_d" ] || continue
+        if grep -rq "$og_base" "$og_d" 2>/dev/null; then og_in_hook=1; break; fi
+      done
+      [ "$og_in_hook" -eq 1 ] && continue
+      # Declarado em runtime.gates (qualquer fase) não é órfão: é gate de contrato do projeto.
+      case "
+$og_declarados
+" in
+        *"
+$og_name
+"*) og_so_declarados="$og_so_declarados $og_name"; continue ;;
+      esac
+      # Órfão legítimo por condição, justificado em código e não em allowlist textual nova:
+      # `check-heavy-mutex.sh` só faz sentido com `heavy_mutex.enabled: true`, e o harness já tem
+      # uma allowlist (`empty-universe-allowlist.txt`) que resolve OUTRO problema — reusá-la aqui
+      # confundiria dois contratos. Com catorze `check-*.sh` no template, a exceção cabe numa
+      # condição legível; se o universo crescer além disso, a allowlist volta a ser a resposta.
+      if [ "$og_name" = "check-heavy-mutex" ]; then continue; fi
+      og_orfaos="$og_orfaos $og_name"
+    done
+    og_n_orf=0
+    for og_x in $og_orfaos; do og_n_orf=$((og_n_orf + 1)); done
+    # Contador de controle SEMPRE, inclusive (e principalmente) quando não há órfão: sem esta
+    # linha, "examinei e estava limpo" e "não examinei nada" terminam no mesmo silêncio.
+    if [ "$og_total" -eq 0 ]; then
+      info "harness: gates: 0 check-*.sh examinado(s) em .forge/scripts/ — nenhum gate instalado"
+    elif [ "$og_n_orf" -eq 0 ]; then
+      ok "harness: gates: $og_total check-*.sh examinado(s), 0 órfão(s)"
+    else
+      warn "harness: gates: $og_total check-*.sh examinado(s), $og_n_orf gate(s) órfão(s) — nenhum hook os invoca e runtime.gates não os declara:$og_orfaos"
+      hint "declare em runtime.gates (com phase:, se for de deploy) ou remova — gate que ninguém roda conta como cobertura e não cobre nada"
+    fi
+    [ -z "$og_so_declarados" ] \
+      || info "harness: gates: rodam SÓ por runtime.gates (nenhum hook os invoca):$og_so_declarados"
+    if [ -z "$og_declarados" ]; then
+      info "harness: runtime.gates vazio em todas as fases — nenhum gate declarado (informativo; não reprova, LDG-0013)"
+    fi
+  fi
+
   # plugin /forge:* instalado no Claude Code (best-effort; puramente informativo — NUNCA
   # contribui para MISSING_DIAG/exit 1). Sintoma real que motivou o check: usuário colando o
   # CORPO dos comandos como texto porque /forge:* silenciosamente não existia (plugin nunca

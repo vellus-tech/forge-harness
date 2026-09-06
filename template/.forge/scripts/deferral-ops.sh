@@ -10,6 +10,19 @@ set -euo pipefail
 FORGE_ROOT="${FORGE_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 ACTIVE="$FORGE_ROOT/.forge/specs/active"
 
+# Disciplina de parsing (issue #103): flag desconhecida REPROVA e flag engolida como valor de
+# outra REPROVA. Delegação em alvo ausente é erro, nunca silêncio — mesmo idioma de
+# ledger-ops.sh e liaison-ops.sh. NÃO mexe na resolução de FORGE_ROOT acima (por diretório do
+# script, não por git): esse invariante é de outro change.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "$SCRIPT_DIR/lib/arg-guards.sh" ]; then
+  # shellcheck source=lib/arg-guards.sh
+  . "$SCRIPT_DIR/lib/arg-guards.sh"
+else
+  echo "FAIL: deferral-ops: '$SCRIPT_DIR/lib/arg-guards.sh' ausente — as guardas de flag desconhecida e de flag engolida como valor são parte do contrato deste script; rodar sem elas reinstala a escrita silenciosa que a issue #103 fechou." >&2
+  exit 1
+fi
+
 cmd="${1:-}"; shift || true
 change_id="${1:-}"; shift || true
 
@@ -45,11 +58,12 @@ case "$cmd" in
 raise)
   reason=""
   blocks=()
+  RAISE_FLAGS="--reason --blocks"
   while [ $# -gt 0 ]; do
     case "$1" in
-      --reason) reason="$2"; shift 2 ;;
-      --blocks) IFS=',' read -ra blocks <<< "$2"; shift 2 ;;
-      *) shift ;;
+      --reason) forge_reject_flag_as_value raise --reason "${2-}" "$RAISE_FLAGS"; reason="$2"; shift 2 ;;
+      --blocks) forge_reject_flag_as_value raise --blocks "${2-}" "$RAISE_FLAGS"; IFS=',' read -ra blocks <<< "$2"; shift 2 ;;
+      *) forge_reject_unknown raise "$RAISE_FLAGS" "$1" ;;
     esac
   done
   [ -n "$reason" ] || { echo "FAIL: --reason obrigatório" >&2; exit 1; }
@@ -75,7 +89,8 @@ resolve)
   deferral_id="${1:-}"; shift || true
   [ -n "$deferral_id" ] || { echo "FAIL: deferral-id obrigatório" >&2; exit 1; }
   note=""
-  while [ $# -gt 0 ]; do case "$1" in --note) note="$2"; shift 2 ;; *) shift ;; esac; done
+  RESOLVE_FLAGS="--note"
+  while [ $# -gt 0 ]; do case "$1" in --note) forge_reject_flag_as_value resolve --note "${2-}" "$RESOLVE_FLAGS"; note="$2"; shift 2 ;; *) forge_reject_unknown resolve "$RESOLVE_FLAGS" "$1" ;; esac; done
   [ -n "$note" ] || { echo "FAIL: --note obrigatório" >&2; exit 1; }
   _init_deferrals
   result="$(node - "$df" "$deferral_id" "$note" "$(_now)" <<'NODEEOF'

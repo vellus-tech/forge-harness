@@ -148,25 +148,30 @@ set -e
 [ "$rc3u" -ne 0 ] || { echo "FAIL [3]: universo vazio aprovou — got: $out3u"; exit 1; }
 echo "OK [3] — $sub3_n subcomandos de ledger-ops examinados, todos recusam flag como valor"
 
+_dfj_snapshot() { [ -f "$DFJ" ] && cp "$DFJ" "$1" || rm -f "$1"; }
+_dfj_unchanged() { # _dfj_unchanged <snapshot> — true quando deferrals.json não mudou (existência + conteúdo)
+  if [ -f "$1" ]; then [ -f "$DFJ" ] && cmp -s "$DFJ" "$1"; else [ ! -f "$DFJ" ]; fi
+}
+
 echo "[4] deferral-ops raise --reason --blocks (mesma família)"
-cp "$DFJ" "$T/snap4.json" 2>/dev/null || echo '{"change_id":"'"$CH"'","deferrals":[]}' > "$T/snap4.json"
+_dfj_snapshot "$T/snap4.json"
 set +e
 out4="$(_dfo raise "$CH" --reason --blocks 2>&1)"; rc4=$?
 set -e
 [ "$rc4" -ne 0 ] || { echo "FAIL [4]: 'raise --reason --blocks' devolveu rc=0 — got: $out4"; exit 1; }
 grep -q -- "--reason" <<<"$out4" || { echo "FAIL [4]: mensagem não nomeia '--reason' — got: $out4"; exit 1; }
 grep -q -- "--blocks" <<<"$out4" || { echo "FAIL [4]: mensagem não nomeia '--blocks' — got: $out4"; exit 1; }
-cmp -s "$DFJ" "$T/snap4.json" 2>/dev/null || { echo "FAIL [4]: deferrals.json ganhou entrada apesar da recusa"; exit 1; }
+_dfj_unchanged "$T/snap4.json" || { echo "FAIL [4]: deferrals.json ganhou entrada apesar da recusa"; exit 1; }
 echo "OK [4] — $out4"
 
 echo "[5] deferral-ops raise --blockss (flag DESCONHECIDA — guarda diferente da de [4])"
-cp "$DFJ" "$T/snap5.json" 2>/dev/null || echo '{"change_id":"'"$CH"'","deferrals":[]}' > "$T/snap5.json"
+_dfj_snapshot "$T/snap5.json"
 set +e
 out5="$(_dfo raise "$CH" --reason "trava o archive" --blockss archive 2>&1)"; rc5=$?
 set -e
 [ "$rc5" -ne 0 ] || { echo "FAIL [5]: 'raise --blockss' (flag desconhecida) devolveu rc=0 — got: $out5"; exit 1; }
 grep -q -- "--blockss" <<<"$out5" || { echo "FAIL [5]: mensagem não nomeia a flag desconhecida '--blockss' — got: $out5"; exit 1; }
-cmp -s "$DFJ" "$T/snap5.json" 2>/dev/null || { echo "FAIL [5]: deferrals.json ganhou entrada apesar da recusa"; exit 1; }
+_dfj_unchanged "$T/snap5.json" || { echo "FAIL [5]: deferrals.json ganhou entrada apesar da recusa"; exit 1; }
 echo "OK [5] — $out5"
 
 echo "[6] liaison send --subject --requires-ack"
@@ -330,8 +335,12 @@ for scn in _scn1_rejects _scn2_rejects _scn4_rejects _scn5_rejects _scn6_rejects
 done
 
 # (a) remover a linha de PERTENCIMENTO em lib/arg-guards.sh — o único sítio que decide.
-# Escapar os $ do LADO DIREITO: são texto literal, não variáveis do Perl.
-perl -0pi -e 's/\Q    if [ "$tok" = "$value" ]; then\E/    if false; then/' "$AG"
+# ARMADILHA MEDIDA NESTE PROGRAMA: os `$` são interpolados pelo PERL tanto no lado de BUSCA quanto
+# no de SUBSTITUIÇÃO de um `s///` — sem escapar `\$tok`/`\$value` na busca, o Perl interpola as
+# duas variáveis (indefinidas no seu escopo) como string vazia, o padrão vira
+# `if [ "" = "" ]; then` e NUNCA casa a linha real do arquivo. `\[` e `\]` também precisam de
+# escape (classe de caractere em regex).
+perl -0pi -e 's/    if \[ "\$tok" = "\$value" \]; then/    if false; then/' "$AG"
 cmp -s "$AG" "$T/arg-guards.orig" && { echo "FAIL [11a]: perl não alterou arg-guards.sh — regex não casou"; exit 1; }
 
 mut_a_bad=0

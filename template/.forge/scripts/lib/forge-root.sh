@@ -37,6 +37,36 @@ forge_resolve_root() {
   forge_main_root || git -C "$(pwd)" rev-parse --show-toplevel 2>/dev/null || pwd
 }
 
+# forge_worktree_root <script-dir> — a ÁRVORE DE TRABALHO corrente, NUNCA o tronco (LDG-0171).
+#
+# Existe porque `forge_resolve_root`/`forge_main_root` resolvem para o TRONCO por desenho — correto
+# para ledger e liaison, que são estado de PROJETO e por isso moram num lugar só. Ordinal de gate
+# é decisão POR BRANCH: `tests/` é N arquivos que vivem na árvore de quem invoca, e usar
+# `forge_resolve_root` aqui faria `check`/`next` examinar o `tests/` de OUTRA branch — o tronco
+# pode estar em `main` enquanto quem chama está numa feature branch com gates que o tronco nunca
+# viu. Errado por construção, não por acidente.
+#
+# Precedência, nesta ordem:
+#   (1) $FORGE_ROOT, se definido e não vazio — declaração explícita de quem invoca, nunca
+#       sobrescrita.
+#   (2) `git -C "$script_dir" rev-parse --show-toplevel` — ancorado em ONDE O SCRIPT MORA, não no
+#       cwd de quem chama. É este detalhe que acerta nos dois layouts do harness: tanto
+#       `template/.forge/scripts` (dogfood, o script mora dentro do próprio repositório) quanto
+#       `.forge/scripts` (instalado num adotante) estão dentro de ALGUM repositório git, e
+#       `--show-toplevel` sobe até a raiz DESSE repositório — a árvore de trabalho corrente, nunca
+#       o tronco de outra branch.
+#   (3) fallback para a subida `$script_dir/../..` de sempre, para instalação fora de git (nenhum
+#       `.git` alcançável) — preserva exatamente o comportamento anterior a este arquivo, e por
+#       isso não pode piorar o caso que já funcionava.
+forge_worktree_root() {
+  local script_dir="${1:?forge_worktree_root exige o diretório do script chamador}"
+  if [ -n "${FORGE_ROOT:-}" ]; then printf '%s\n' "$FORGE_ROOT"; return 0; fi
+  local top
+  top="$(git -C "$script_dir" rev-parse --show-toplevel 2>/dev/null)"
+  if [ -n "$top" ]; then printf '%s\n' "$top"; return 0; fi
+  ( cd "$script_dir/../.." && pwd )
+}
+
 # forge_warn_root_divergence <root> <rótulo do artefato> [porta]
 #
 # Emite UMA linha em stderr quando o ROOT resolvido difere do repositório de trabalho de quem

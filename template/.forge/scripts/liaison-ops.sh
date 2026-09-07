@@ -87,6 +87,17 @@ else
   echo "FAIL: $SCRIPT_DIR/lib/forge-root.sh ausente — é a resolução única do checkout principal; sem ela o script gravaria estado durável num lugar que ninguém declarou." >&2
   exit 1
 fi
+
+# Disciplina de flag engolida como valor (issue #103), só nos quatro sítios que gravam no log
+# append-only — thread open/join, send e ack. NÃO substitui `_reject_unknown` (cópia local logo
+# abaixo): consolidar as duas é trabalho próprio, fora do escopo desta correção.
+if [ -f "$SCRIPT_DIR/lib/arg-guards.sh" ]; then
+  # shellcheck source=lib/arg-guards.sh
+  . "$SCRIPT_DIR/lib/arg-guards.sh"
+else
+  echo "FAIL: $SCRIPT_DIR/lib/arg-guards.sh ausente — a guarda de flag engolida como valor é parte do contrato de thread open/join, send e ack; sem ela esses quatro sítios voltam a aceitar flag como valor em silêncio." >&2
+  exit 1
+fi
 ROOT="$(forge_resolve_root)"
 export FORGE_ROOT="$ROOT"
 LIBDIR="$SCRIPT_DIR/lib"
@@ -370,12 +381,13 @@ thread)
     [ -n "$thread_id" ] || { echo "FAIL: <thread-id> obrigatório" >&2; exit 1; }
     _chan_ok "$thread_id" || { echo "FAIL: thread-id inválido '$thread_id'" >&2; exit 1; }
     subject=""; body=""; participants=""; requires_ack="false"
+    THREAD_OPEN_FLAGS="--subject, --body, --participants, --requires-ack"
     while [ $# -gt 0 ]; do case "$1" in
-      --subject) subject="$2"; shift 2 ;;
-      --body) body="$2"; shift 2 ;;
-      --participants) participants="$2"; shift 2 ;;
+      --subject) forge_reject_flag_as_value "thread open" --subject "${2-}" "$THREAD_OPEN_FLAGS"; subject="$2"; shift 2 ;;
+      --body) forge_reject_flag_as_value "thread open" --body "${2-}" "$THREAD_OPEN_FLAGS"; body="$2"; shift 2 ;;
+      --participants) forge_reject_flag_as_value "thread open" --participants "${2-}" "$THREAD_OPEN_FLAGS"; participants="$2"; shift 2 ;;
       --requires-ack) requires_ack="true"; shift ;;
-      *) _reject_unknown "thread open" "--subject, --body, --participants, --requires-ack" "$1" ;;
+      *) _reject_unknown "thread open" "$THREAD_OPEN_FLAGS" "$1" ;;
     esac; done
     [ -n "$subject" ] || { echo "FAIL: --subject obrigatório" >&2; exit 1; }
     [ -n "$participants" ] || { echo "FAIL: --participants obrigatório" >&2; exit 1; }
@@ -431,11 +443,12 @@ NODEEOF
     thread_id="${1:-}"; shift || true
     [ -n "$thread_id" ] || { echo "FAIL: <thread-id> obrigatório" >&2; exit 1; }
     subject=""; body=""; requires_ack="false"
+    THREAD_JOIN_FLAGS="--subject, --body, --requires-ack"
     while [ $# -gt 0 ]; do case "$1" in
-      --subject) subject="$2"; shift 2 ;;
-      --body) body="$2"; shift 2 ;;
+      --subject) forge_reject_flag_as_value "thread join" --subject "${2-}" "$THREAD_JOIN_FLAGS"; subject="$2"; shift 2 ;;
+      --body) forge_reject_flag_as_value "thread join" --body "${2-}" "$THREAD_JOIN_FLAGS"; body="$2"; shift 2 ;;
       --requires-ack) requires_ack="true"; shift ;;
-      *) _reject_unknown "thread join" "--subject, --body, --requires-ack" "$1" ;;
+      *) _reject_unknown "thread join" "$THREAD_JOIN_FLAGS" "$1" ;;
     esac; done
     [ -n "$subject" ] || subject="$self entrou na thread"
     out="$(node - "$LIBDIR" "$ch_dir" "$self" "$channel" "$thread_id" "$subject" "$body" "$requires_ack" "$(_git_date)" <<'NODEEOF'
@@ -524,20 +537,21 @@ send)
 
   thread_id=""; kind=""; subject=""; body=""; body_file=""; requires_ack="false"; authored_by=""; via=""
   in_reply_to=""; change=""; contract_files=""; commit=""
+  SEND_FLAGS="--thread, --kind, --subject, --body, --body-file, --requires-ack, --in-reply-to, --change, --contract-files, --commit, --authored-by, --via"
   while [ $# -gt 0 ]; do case "$1" in
-    --thread) thread_id="$2"; shift 2 ;;
-    --kind) kind="$2"; shift 2 ;;
-    --subject) subject="$2"; shift 2 ;;
-    --body) body="$2"; shift 2 ;;
-    --body-file) body_file="$2"; shift 2 ;;
+    --thread) forge_reject_flag_as_value send --thread "${2-}" "$SEND_FLAGS"; thread_id="$2"; shift 2 ;;
+    --kind) forge_reject_flag_as_value send --kind "${2-}" "$SEND_FLAGS"; kind="$2"; shift 2 ;;
+    --subject) forge_reject_flag_as_value send --subject "${2-}" "$SEND_FLAGS"; subject="$2"; shift 2 ;;
+    --body) forge_reject_flag_as_value send --body "${2-}" "$SEND_FLAGS" "Corpo real que coincide com o nome de uma flag? use --body-file <path> — o arquivo escapa do pertencimento porque o conteúdo não passa pela linha de comando."; body="$2"; shift 2 ;;
+    --body-file) forge_reject_flag_as_value send --body-file "${2-}" "$SEND_FLAGS"; body_file="$2"; shift 2 ;;
     --requires-ack) requires_ack="true"; shift ;;
-    --in-reply-to) in_reply_to="$2"; shift 2 ;;
-    --change) change="$2"; shift 2 ;;
-    --contract-files) contract_files="$2"; shift 2 ;;
-    --commit) commit="$2"; shift 2 ;;
-    --authored-by) authored_by="$2"; shift 2 ;;
-    --via) via="$2"; shift 2 ;;
-    *) _reject_unknown "send" "--thread, --kind, --subject, --body, --body-file, --requires-ack, --in-reply-to, --change, --contract-files, --commit, --authored-by, --via" "$1" ;;
+    --in-reply-to) forge_reject_flag_as_value send --in-reply-to "${2-}" "$SEND_FLAGS"; in_reply_to="$2"; shift 2 ;;
+    --change) forge_reject_flag_as_value send --change "${2-}" "$SEND_FLAGS"; change="$2"; shift 2 ;;
+    --contract-files) forge_reject_flag_as_value send --contract-files "${2-}" "$SEND_FLAGS"; contract_files="$2"; shift 2 ;;
+    --commit) forge_reject_flag_as_value send --commit "${2-}" "$SEND_FLAGS"; commit="$2"; shift 2 ;;
+    --authored-by) forge_reject_flag_as_value send --authored-by "${2-}" "$SEND_FLAGS"; authored_by="$2"; shift 2 ;;
+    --via) forge_reject_flag_as_value send --via "${2-}" "$SEND_FLAGS"; via="$2"; shift 2 ;;
+    *) _reject_unknown "send" "$SEND_FLAGS" "$1" ;;
   esac; done
   # authored_by registra a autoria REAL quando o conteúdo veio de outro repositório (o caso do
   # /forge:liaison ask). O sender continua sendo este repositório — é o invariante de um escritor por
@@ -632,12 +646,13 @@ ack)
   self="$(_read_self)"
   [ -n "$self" ] || { echo "FAIL: self não configurado" >&2; exit 1; }
   subject=""; reason=""; body=""; body_file=""
+  ACK_FLAGS="--subject, --body, --body-file, --reason"
   while [ $# -gt 0 ]; do case "$1" in
-    --subject) subject="$2"; shift 2 ;;
-    --reason) reason="$2"; shift 2 ;;
-    --body) body="$2"; shift 2 ;;
-    --body-file) body_file="$2"; shift 2 ;;
-    *) _reject_unknown "ack" "--subject, --body, --body-file, --reason" "$1" ;;
+    --subject) forge_reject_flag_as_value ack --subject "${2-}" "$ACK_FLAGS"; subject="$2"; shift 2 ;;
+    --reason) forge_reject_flag_as_value ack --reason "${2-}" "$ACK_FLAGS"; reason="$2"; shift 2 ;;
+    --body) forge_reject_flag_as_value ack --body "${2-}" "$ACK_FLAGS" "Corpo real que coincide com o nome de uma flag? use --body-file <path> — o arquivo escapa do pertencimento porque o conteúdo não passa pela linha de comando."; body="$2"; shift 2 ;;
+    --body-file) forge_reject_flag_as_value ack --body-file "${2-}" "$ACK_FLAGS"; body_file="$2"; shift 2 ;;
+    *) _reject_unknown "ack" "$ACK_FLAGS" "$1" ;;
   esac; done
   case "${reason:-}" in
     ''|wont-adopt|acknowledged) ;;

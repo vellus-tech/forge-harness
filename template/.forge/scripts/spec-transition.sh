@@ -57,17 +57,31 @@ chain="$chain tasks-ready implementing implemented verified"
 
 in_chain() { printf ' %s ' $chain | grep -q " $1 "; }
 
-# LDG-0030: pulo lateral requirements-ready -> tasks-ready só para type:bugfix (root cause
-# vive no bugfix.md; ver design.md command doc) — design-ready permanece um alvo válido da
-# cadeia normal para quem o alcançar por qualquer outro caminho (opt-in com design.md real,
-# ou manifest legado já parado lá). NÃO generalizado para quick_plan.skipped_phases: uma
-# tentativa anterior fazia isso, mas validate-spec.mjs (guard de design.md a partir de
-# tasks-ready) não honra quick_plan hoje — o pulo ficaria autorizado aqui e reprovado logo
-# depois pelo validador, código morto anunciado como recurso (achado em revisão de PR,
-# corrigido). Extensão a quick_plan fica para quando o guard do validador também honrar.
+# LDG-0030 + LDG-0172 (gate w205): pulo lateral requirements-ready -> tasks-ready para
+# type:bugfix (root cause vive no bugfix.md; ver design.md command doc) OU para qualquer type
+# cujo manifest declare `quick_plan.enabled: true` com "design" em `skipped_phases` — design-ready
+# permanece um alvo válido da cadeia normal para quem o alcançar por qualquer outro caminho
+# (opt-in com design.md real, ou manifest legado já parado lá). A condição que faltava para
+# generalizar a `quick_plan` (validate-spec.mjs honrar a dispensa no guard de design.md a partir
+# de tasks-ready) foi cumprida — sem isso o pulo autorizado aqui seria reprovado logo depois pelo
+# validador, código morto anunciado como recurso (a versão anterior deste comentário registrava
+# essa lacuna; achado em revisão de PR, corrigido).
+QUICK_PLAN_SKIPS_DESIGN=0
+if command -v node >/dev/null 2>&1; then
+  QUICK_PLAN_SKIPS_DESIGN="$(FORGE_QP_MANIFEST="$MAN" node --input-type=module -e "
+    import { parseYamlSubset } from '$SCRIPT_DIR/lib/yaml-lite.mjs';
+    import { readFileSync } from 'node:fs';
+    const man = parseYamlSubset(readFileSync(process.env.FORGE_QP_MANIFEST, 'utf8'));
+    const sp = man.quick_plan && man.quick_plan.skipped_phases;
+    const skips = !!(man.quick_plan && man.quick_plan.enabled === true && Array.isArray(sp) && sp.includes('design'));
+    process.stdout.write(skips ? '1' : '0');
+  " 2>/dev/null || echo 0)"
+fi
 SKIP_DESIGN=0
-if [ "$SCALE" -ge 2 ] 2>/dev/null && [ "$TYPE" = "bugfix" ] && [ "$CURRENT" = "requirements-ready" ] && [ "$TARGET" = "tasks-ready" ]; then
-  SKIP_DESIGN=1
+if [ "$SCALE" -ge 2 ] 2>/dev/null && [ "$CURRENT" = "requirements-ready" ] && [ "$TARGET" = "tasks-ready" ]; then
+  if [ "$TYPE" = "bugfix" ] || [ "$QUICK_PLAN_SKIPS_DESIGN" = "1" ]; then
+    SKIP_DESIGN=1
+  fi
 fi
 
 if [ "$TARGET" = "blocked" ]; then

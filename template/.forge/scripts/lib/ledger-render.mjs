@@ -5,6 +5,20 @@
 // The "Notas" narrative block (between FORGE:NARRATIVE markers) is preserved across regenerations,
 // so automatic capture (harvest) never destroys hand-curated notes.
 //
+// Entradas cujo "type" não está no enum de SECTIONS (schema em .forge/schemas/ledger.schema.json)
+// NÃO são descartadas em silêncio: vão para um balde final, "### Fora do enum do schema", que só
+// aparece quando não está vazio, e a contagem ativa desse balde entra na soma de totalActive — o
+// resumo nunca pode divergir da contagem real do arquivo (LDG-0170; mesma classe de defeito do
+// W202, agora dentro do próprio renderer).
+//
+// O QUE ESTE RENDERIZADOR EXPLICITAMENTE NÃO FAZ: não falha alto em "type" desconhecido. Falhar
+// alto travaria a renderização de qualquer árvore que carregue uma entrada legada — inclusive a de
+// um adotante, no primeiro `forge update`, como quebra imediata e não como aviso. O canal de
+// liaison já registrou que o schema publicado por axis-go-cloud roda um enum ESTENDIDO, com
+// "decision" e "test-gap" além dos cinco tipos daqui — um renderizador que falhasse alto quebraria
+// aquele adotante em toda entrada desses dois tipos. O dano medido era invisibilidade; a cura da
+// invisibilidade é mostrar num balde nomeado, não parar a máquina.
+//
 // Driven by env (set by ledger-ops.sh): LEDGER_ROOT (FORGE_ROOT), LEDGER_JSON, LEDGER_TPL, LEDGER_OUT.
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 
@@ -95,8 +109,19 @@ for (const e of entries) if (byType[e.type]) byType[e.type].push(e);
 const activeCounts = SECTIONS
   .map(([type]) => [TYPE_LABEL[type], byType[type].filter((e) => !CLOSED.has(e.status)).length])
   .filter(([, n]) => n > 0);
-const totalActive = activeCounts.reduce((s, [, n]) => s + n, 0);
+let totalActive = activeCounts.reduce((s, [, n]) => s + n, 0);
+let unknownBlock = '';
 const totalClosed = entries.filter((e) => CLOSED.has(e.status)).length;
+
+// BALDE:START — soma o balde de "fora do enum" ao resumo e monta o bloco a anexar ao final do
+// arquivo, para que totalActive nunca divirja da contagem real de ativos do ledger.json.
+const knownTypes = new Set(SECTIONS.map(([type]) => type));
+const unknownEntries = entries.filter((e) => !knownTypes.has(e.type));
+totalActive += unknownEntries.filter((e) => !CLOSED.has(e.status)).length;
+if (unknownEntries.length) {
+  unknownBlock = `\n### Fora do enum do schema\n\n${renderSection(unknownEntries)}\n`;
+}
+// BALDE:END
 const summary = totalActive || totalClosed
   ? `**${totalActive} ${totalActive === 1 ? 'item ativo' : 'itens ativos'}**`
       + (activeCounts.length ? ' · ' + activeCounts.map(([l, n]) => `${l} ${n}`).join(' · ') : '')
@@ -124,5 +149,9 @@ if (existsSync(out)) {
     }
   }
 }
+
+// Anexa o balde de "fora do enum" ao final do arquivo — omitido quando vazio, para que o acervo
+// normalizado (sem entradas fora do enum) nunca ganhe uma seção morta.
+if (unknownBlock) content += unknownBlock;
 
 writeFileSync(out, content);

@@ -110,6 +110,18 @@ const onMainPath = STATUS_ORDER.includes(man.status);
 const reached = (s) => onMainPath && STATUS_ORDER.indexOf(man.status) >= STATUS_ORDER.indexOf(s);
 const scale = Number.isInteger(man.scale) ? man.scale : 2;
 
+// Dispensa excepcional para a fase de design (LDG-0172; gate w205): mesmo idioma de
+// `skipsStorySharding` abaixo, com "design" no lugar de "story-sharding" — a mesma pergunta não
+// ganha um segundo dialeto. `quick_plan.enabled: true` com "design" em `skipped_phases` (bloco já
+// validado acima — array não-vazio + justification) libera o guard de `design.md` a partir de
+// `tasks-ready`. Antes desta dispensa, as quatro superfícies entregues ao adotante davam três
+// respostas incompatíveis sobre se o mecanismo existia (validador nunca consultava `quick_plan`
+// aqui, `spec-transition.sh` recusava a rota lateral para qualquer `type` que não fosse `bugfix`
+// citando esta mesma ausência, o comando `/forge:design` dizia ao adotante que o mecanismo não
+// existe, e o CHANGELOG publicado da 0.7.0 afirmava o contrário) — as quatro agora concordam.
+const skipsDesign = !!(man.quick_plan && man.quick_plan.enabled === true
+  && Array.isArray(man.quick_plan.skipped_phases) && man.quick_plan.skipped_phases.includes('design'));
+
 if (onMainPath && man.status !== 'idea' && !has('proposal.md'))
   errors.push('proposal.md missing (required from status=proposed onward)');
 if (reached('requirements-ready') && scale >= 1 && !has(reqArtifact))
@@ -118,7 +130,7 @@ if (man.status === 'design-ready' && !has('design.md'))
   errors.push('design.md missing (status design-ready requires it)');
 if (reached('tasks-ready')) {
   if (!has('tasks.md')) errors.push('tasks.md missing (required from tasks-ready onward)');
-  if (scale >= 2 && man.type !== 'bugfix' && !has('design.md'))
+  if (scale >= 2 && man.type !== 'bugfix' && !has('design.md') && !skipsDesign)
     errors.push(`design.md missing (scale ${scale} requires the design phase from tasks-ready onward)`);
   if (scale >= 1 && !has(reqArtifact))
     errors.push(`${reqArtifact} missing (scale ${scale} requires the requirements phase from tasks-ready onward)`);

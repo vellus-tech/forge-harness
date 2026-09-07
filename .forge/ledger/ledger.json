@@ -2587,6 +2587,54 @@
       "updated_at": "2026-09-06T23:00:29-03:00",
       "resolved_at": "2026-09-06T23:00:29-03:00",
       "dedup_key": "manual:LDG-0174"
+    },
+    {
+      "id": "LDG-0175",
+      "type": "known-bug",
+      "title": "Gate destrói arquivo RASTREADO do template como fixture e não restaura — o defeito viaja no pacote",
+      "detail": "Encontrado em 2026-09-07 ao preparar o commit dos três achados médios do perfil strix: a árvore de trabalho chegou com dois arquivos rastreados de template/ corrompidos, ambos com mtime 09:26, anterior ao início da sessão. (1) template/.forge/scripts/tests/run-all.sh, de 70 linhas, sobrescrito por um stub de 3 linhas que imprime MARCA-SUITE-INVOCADA e sai 1 — a marca é do w146-suite-invocation-gate.sh, que usa o arquivo real como fixture de invocação. (2) template/.forge/empty-universe-allowlist.txt, de 32 linhas, reduzido a 1 — e a ironia é que esse é justamente o arquivo cuja documentação explica que 'não encontrei violação' e 'não examinei nada' não podem colapsar no mesmo verde. Sobraram ainda dois não rastreados: template/.forge/scripts/tests/w01-x-gate.sh e template/.forge/specs/active/chg-verify/. Gravidade: os dois arquivos são distribuídos aos consumidores no pacote npm, então um commit feito por cima desse estado publica um run-all.sh que sempre falha e uma allowlist vazia. O commit desta rodada escapou porque a sujeira foi notada e revertida com git checkout antes do add, mas nada no harness impediria — nenhum gate compara a árvore de template/ contra HEAD. A correção tem duas metades: o gate que usa arquivo rastreado como fixture deve operar sobre CÓPIA em diretório temporário, nunca sobre a árvore, e deve restaurar com verificação por checksum caso insista na árvore; e vale um guard que reprove commit quando template/ tem modificação não intencional, no espírito da prova de mutação com controle e recontrole que o repositório já exige.",
+      "severity": null,
+      "priority": "P2",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-07T01:15:37-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0175"
+    },
+    {
+      "id": "LDG-0176",
+      "type": "tech-debt",
+      "title": "graph.json commitado está defasado: 256 nodes de 2026-09-04 contra 310 na árvore de hoje, e nada reprova a defasagem",
+      "detail": "Medido em 2026-09-07 ao revisar a especificação da Fase 1. O .forge/graph/graph.json rastreado traz generated_at 2026-09-04T19:53:54.648Z e 256 nodes, com tests=114; a árvore tem 132 arquivos tests/*.sh e a regeneração devolve 310 nodes e 59 edges, distribuição template 153, tests 150, tools 5, bin 1, installer 1. Ou seja, 36 gates criados desde então não estão no grafo, entre eles w157 a w206. Consequências medidas: (1) qualquer asserção que cite contagem do grafo commitado nasce vermelha contra a árvore real, e uma especificação desta rodada quase entregou exatamente isso; (2) o grafo é insumo de /forge:impact e do índice de superfície, então a defasagem silencia impacto de tudo que foi criado depois da última geração. Achado de segunda ordem, e é o que torna isto tech-debt e não só higiene: nenhum gate compara o grafo commitado contra o que a regeneração produziria, então a defasagem não tem detector — ela só apareceu porque um revisor foi conferir um número. Correção candidata: gate que regenera em tmp e compara o conjunto de ids (não a contagem, que envelhece a cada gate novo), com o terceiro estado para quando o motor não puder rodar.",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-07T01:15:37-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0176"
     }
   ]
 }

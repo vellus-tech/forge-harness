@@ -766,8 +766,8 @@
       "status": "resolved",
       "source": {
         "change_id": "gate-assert-visibility",
-        "origin": "gate-assert-visibility (TASK-24)",
-        "ref": null
+        "origin": "manual",
+        "ref": "gate-assert-visibility (TASK-24)"
       },
       "links": {
         "adr": [],
@@ -792,8 +792,8 @@
       "status": "resolved",
       "source": {
         "change_id": "gate-assert-visibility",
-        "origin": "gate-assert-visibility PR #42 code-evaluator",
-        "ref": null
+        "origin": "manual",
+        "ref": "gate-assert-visibility PR #42 code-evaluator"
       },
       "links": {
         "adr": [],
@@ -818,8 +818,8 @@
       "status": "resolved",
       "source": {
         "change_id": "gate-assert-visibility",
-        "origin": "gate-assert-visibility PR #42 code-evaluator (QUAL-005)",
-        "ref": null
+        "origin": "manual",
+        "ref": "gate-assert-visibility PR #42 code-evaluator (QUAL-005)"
       },
       "links": {
         "adr": [],
@@ -844,8 +844,8 @@
       "status": "resolved",
       "source": {
         "change_id": "gate-assert-visibility",
-        "origin": "gate-assert-visibility PR #42 code-evaluator (INTEG-007)",
-        "ref": null
+        "origin": "manual",
+        "ref": "gate-assert-visibility PR #42 code-evaluator (INTEG-007)"
       },
       "links": {
         "adr": [],
@@ -865,13 +865,13 @@
       "type": "tech-debt",
       "title": "G5 (frescor de grafo/impacto em /forge:analyze) é instrução, não gate executável",
       "detail": "PR #43 introduziu G5 em analyze.md (checagem determinista de impact-freshness.mjs), mas nada em spec-transition.sh/validate-spec.mjs chama esse script — depende do agente rodar /forge:analyze de fato. Achado HIGH da revisão adversarial (Opus) do PR #43: fazer (a) spec-transition.sh implementing chamar impact-freshness.mjs diretamente, e (b) um gate que confirme a presença/execução de G5 (padrão w130-tasks-graph-gate.sh), e (c) ancorar G5 a uma rule (G1-G4 têm rule dona; G5 não). — Resolvido: spec-transition.sh chama impact-freshness.mjs diretamente na transição para implementing e recusa missing/stale (mesmo tratamento do guardrail G1); G5 ancorado em lsp-impact-analysis.md e nomeado em analyze.md. Gate w172.",
-      "severity": "medium",
+      "severity": "MEDIUM",
       "priority": "P3",
       "status": "resolved",
       "source": {
         "change_id": null,
-        "origin": "PR #43 review",
-        "ref": null
+        "origin": "manual",
+        "ref": "PR #43 review"
       },
       "links": {
         "adr": [],
@@ -889,13 +889,13 @@
       "type": "tech-debt",
       "title": "gate-assert-visibility fica active indefinidamente e trava red-evidence.sh ci a um formato de histórico",
       "detail": "Achado da revisão adversarial (PR #45): o change gate-assert-visibility está status:verified, archive.eligible:false, e permanece em .forge/specs/active/ por decisão registrada no manifest (não há baseline a atualizar). Consequência: red-evidence.sh ci reexecuta o replay desse bugfix já encerrado em TODO PR, para sempre, e já houve deriva silenciosa entre o base_strategy commitado (ancestry/944c9582, inalcançável a partir de origin/develop) e a estratégia real observada (revert-synthesis). Se um commit futuro tocar tests/w80-suite-gate.sh nos mesmos trechos, o patch reverso deixa de aplicar. Remédio: /forge:close esse change (delivered-externally) para sair do escopo do ci, ou fazer red-evidence.sh ci ignorar changes já verified. — Resolvido: Decisao: fechado o change gate-assert-visibility via /forge:close --reason delivered-externally (nao 'ignorar verified' dentro do red-evidence.sh). Motivo: a decisao registrada no manifest so cobria NAO rodar /forge:archive (sem baseline de produto a atualizar) — nunca disse que o change precisava permanecer para sempre em specs/active/; o proprio orphan-changes.mjs ja o classificava como merged_unarchived, sinal aceito mas nao um requisito de ficar ativo. Trabalho ja estava mergeado em develop (PR #42, squash 08acf9f, suite 75/75) — 'entrega no codigo real, baseline intocado' e exatamente a semantica de delivered-externally. Efeito: pasta movida para .forge/specs/archived/2026-09-04-gate-assert-visibility/; red-evidence.sh ci deixa de reexecutar o replay desse bugfix (o loop so varre specs/active/*/manifest.yaml com type:bugfix). LDG-0012 (origem) fechado para resolved via o proprio close. Efeito colateral encontrado e tratado: o harvest do close capturou 4 bullets historicos de verification.md como follow-up novo (LDG-0111..0114, resolvidos como duplicados/nao-acionaveis) — heuristica de harvest registrada como novo item LDG-0140, fora de escopo desta sessao.",
-      "severity": "medium",
+      "severity": "MEDIUM",
       "priority": "P3",
       "status": "resolved",
       "source": {
         "change_id": null,
-        "origin": "PR #45 review",
-        "ref": null
+        "origin": "manual",
+        "ref": "PR #45 review"
       },
       "links": {
         "adr": [],
@@ -913,13 +913,13 @@
       "type": "tech-debt",
       "title": "red-replay.mjs não detecta clone shallow — devolve not-possible genérico em vez de mensagem acionável",
       "detail": "Achado da revisão adversarial (PR #45): deriveBase() em red-replay.mjs devolve not-possible com razão genérica quando o histórico git é insuficiente (clone shallow), mandando o autor rodar /forge:red replay de novo — conselho errado, já que o problema é do ambiente (fetch-depth), não do comando. Um git rev-parse --is-shallow-repository no início da função daria a mensagem certa ('repositório raso — configure fetch-depth: 0'). — Resolvido: deriveBase() agora detecta git rev-parse --is-shallow-repository e, quando um commit escolhido para revert-synthesis não tem pai resolvível (comportamento típico do commit-fronteira de um clone raso), devolve not-possible nomeando a causa e a ação (git fetch --unshallow) em vez da mensagem genérica 'é commit raiz (sem pai)'. Mesma correção replicada em applyRevert() (defesa em profundidade). Achado na investigação: em clone raso o defeito real observado era PIOR que o descrito — deriveBase reportava revert-synthesis como sucesso usando o commit-fronteira errado (falso positivo), só falhando depois dentro do worktree efêmero; a correção detecta isso ainda na fase de decisão, sem sequer criar worktree. Prova: tests/w163-red-replay-shallow-clone-gate.sh (clone raso real via git clone --depth, controle com clone completo).",
-      "severity": "low",
+      "severity": "LOW",
       "priority": "P3",
       "status": "resolved",
       "source": {
         "change_id": null,
-        "origin": "PR #45 review",
-        "ref": null
+        "origin": "manual",
+        "ref": "PR #45 review"
       },
       "links": {
         "adr": [],
@@ -1296,15 +1296,23 @@
       "id": "LDG-0054",
       "type": "known-bug",
       "title": "check-heavy-mutex regra 1: o predicado mede grafia, não intenção",
-      "detail": "A regra 1 procura a variável e a palavra 'lock' na MESMA linha, o que é um predicado sobre grafia. Quebrar a expressão em duas linhas desarma a regra sem mudar uma vírgula da semântica — foi o que o doctor.sh precisou fazer para detectar o caminho legado sem ser acusado de produzi-lo, e qualquer um pode repetir a quebra por acaso e perder a proteção sem saber. Correção proposta: uma válvula DECLARADA (um marcador na linha, ex. '# heavy-mutex: detecção') que o gate reconheça, para a intenção viver no código e não num comentário adjacente. Não foi feito agora porque muda o contrato de um gate que consumidores já declaram em runtime.gates, e o cenário [46b] já impede a regressão silenciosa que importa. — Resolvido: regra 1 do check-heavy-mutex.sh passou a medir por janela de 2 linhas de código (pulando comentário/branco), não mais só a mesma linha — a reformatação em duas linhas que desarmava a regra (tests/w151-heavy-mutex-gate.sh cenário [54]) agora é pega. Válvula declarada '# heavy-mutex: detecção' criada para o caso legítimo (detectar sem produzir), aplicada em doctor.sh no lugar do escape acidental por quebra de linha. Prova por mutação: mesma composição em uma linha (pega), quebrada em duas (agora pega, antes escapava — RED confirmado contra o código anterior via swap+diff), quebrada em duas com a válvula (passa). Gate w151 cenário [54].",
-      "severity": "low",
+      "detail": "A regra 1 procura a variável e a palavra 'lock' na MESMA linha, o que é um predicado sobre grafia. Quebrar a expressão em duas linhas desarma a regra sem mudar uma vírgula da semântica — foi o que o doctor.sh precisou fazer para detectar o caminho legado sem ser acusado de produzi-lo, e qualquer um pode repetir a quebra por acaso e perder a proteção sem saber. Correção proposta: uma válvula DECLARADA (um marcador na linha, ex. '# heavy-mutex: detecção') que o gate reconheça, para a intenção viver no código e não num comentário adjacente. Não foi feito agora porque muda o contrato de um gate que consumidores já declaram em runtime.gates, e o cenário [46b] já impede a regressão silenciosa que importa. — Resolvido: regra 1 do check-heavy-mutex.sh passou a medir por janela de 2 linhas de código (pulando comentário/branco), não mais só a mesma linha — a reformatação em duas linhas que desarmava a regra (tests/w151-heavy-mutex-gate.sh cenário [54]) agora é pega. Válvula declarada '# heavy-mutex: detecção' criada para o caso legítimo (detectar sem produzir), aplicada em doctor.sh no lugar do escape acidental por quebra de linha. Prova por mutação: mesma composição em uma linha (pega), quebrada em duas (agora pega, antes escapava — RED confirmado contra o código anterior via swap+diff), quebrada em duas com a válvula (passa). Gate w151 cenário [54]. Links preservados na normalização: https://github.com/vellus-tech/forge-harness/pull/68",
+      "severity": "LOW",
       "priority": "P3",
       "status": "resolved",
-      "source": "code-review adversarial (issue #52, 4a rodada)",
-      "links": [
-        "https://github.com/vellus-tech/forge-harness/issues/52",
-        "https://github.com/vellus-tech/forge-harness/pull/68"
-      ],
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": "code-review adversarial (issue #52, 4a rodada)"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "https://github.com/vellus-tech/forge-harness/issues/52"
+        ],
+        "promoted_to": null
+      },
       "created_at": "2026-08-21T12:00:00-03:00",
       "updated_at": "2026-09-04T18:44:45-03:00",
       "resolved_at": "2026-09-04T18:44:45-03:00",
@@ -1314,15 +1322,23 @@
       "id": "LDG-0055",
       "type": "known-bug",
       "title": "w151 [15]: recuperação de ticket ocupado coberta por unidade, sem rede de integração",
-      "detail": "O caminho 6c -> reenfileirar com carimbo novo é exercitado como camada A determinística e foi verificado à mão ponta a ponta na revisão (terceiro ocupa o nome, a vítima NÃO adota, reenfileira, fica atrás, e o ticket alheio sai preservado). Falta o cenário de integração. Registrado com a ressalva que impede repetir o erro: a forma de integração que existia ANTES era vácua — a mutação MUT-H passava 50/50 com ela, porque a vítima adotava o ticket alheio e o cenário aprovava pelo motivo errado. Reexigi-la sem redesenhar seria pedir de volta um teste que não distinguia. — Resolvido: cenário de integração acrescentado ao w151 ([55]): forge_heavy_mutex_acquire() real, de ponta a ponta, com um terceiro (processo vivo real) plantado sob o nome EXATO que a vítima vai compor sozinha — o PID da vítima é conhecido pelo harness assim que ela nasce ($! do fork), antes de ela alcançar o acquire, então o plantio não depende de vencer corrida nenhuma; a vítima bloqueia num arquivo-sinal (poll limitado) até ser liberada, nunca por sleep de duração fixa. O relógio da biblioteca (_fhm_now_us20) é substituído por um contador em ARQUIVO (não em variável — a chamada real é por $( ) e uma variável de memória não sobrevive à subshell, medido durante a escrita do cenário). Asserções: mensagem real de recuperação aparece, o ticket do terceiro sai preservado (nome e pid intactos), a vítima reenfileira sob carimbo novo e termina adquirindo. Validado por mutação (MUT-H, fora do gate): removendo a pós-verificação de _fhm_enqueue que detecta o destino ocupado, o cenário [55] vai a RED corretamente (mensagem ausente) — a integração deixou de ser vácua.",
-      "severity": "low",
+      "detail": "O caminho 6c -> reenfileirar com carimbo novo é exercitado como camada A determinística e foi verificado à mão ponta a ponta na revisão (terceiro ocupa o nome, a vítima NÃO adota, reenfileira, fica atrás, e o ticket alheio sai preservado). Falta o cenário de integração. Registrado com a ressalva que impede repetir o erro: a forma de integração que existia ANTES era vácua — a mutação MUT-H passava 50/50 com ela, porque a vítima adotava o ticket alheio e o cenário aprovava pelo motivo errado. Reexigi-la sem redesenhar seria pedir de volta um teste que não distinguia. — Resolvido: cenário de integração acrescentado ao w151 ([55]): forge_heavy_mutex_acquire() real, de ponta a ponta, com um terceiro (processo vivo real) plantado sob o nome EXATO que a vítima vai compor sozinha — o PID da vítima é conhecido pelo harness assim que ela nasce ($! do fork), antes de ela alcançar o acquire, então o plantio não depende de vencer corrida nenhuma; a vítima bloqueia num arquivo-sinal (poll limitado) até ser liberada, nunca por sleep de duração fixa. O relógio da biblioteca (_fhm_now_us20) é substituído por um contador em ARQUIVO (não em variável — a chamada real é por $( ) e uma variável de memória não sobrevive à subshell, medido durante a escrita do cenário). Asserções: mensagem real de recuperação aparece, o ticket do terceiro sai preservado (nome e pid intactos), a vítima reenfileira sob carimbo novo e termina adquirindo. Validado por mutação (MUT-H, fora do gate): removendo a pós-verificação de _fhm_enqueue que detecta o destino ocupado, o cenário [55] vai a RED corretamente (mensagem ausente) — a integração deixou de ser vácua. Links preservados na normalização: https://github.com/vellus-tech/forge-harness/pull/68",
+      "severity": "LOW",
       "priority": "P3",
       "status": "resolved",
-      "source": "code-review adversarial (issue #52, 4a rodada)",
-      "links": [
-        "https://github.com/vellus-tech/forge-harness/issues/52",
-        "https://github.com/vellus-tech/forge-harness/pull/68"
-      ],
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": "code-review adversarial (issue #52, 4a rodada)"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "https://github.com/vellus-tech/forge-harness/issues/52"
+        ],
+        "promoted_to": null
+      },
       "created_at": "2026-08-21T12:00:00-03:00",
       "updated_at": "2026-09-04T18:44:45-03:00",
       "resolved_at": "2026-09-04T18:44:45-03:00",
@@ -1333,13 +1349,22 @@
       "type": "known-bug",
       "title": "worktree-reconcile mede adiantamento pela réplica local, não pelo remoto real",
       "detail": "`template/.forge/scripts/worktree-reconcile.sh` resolve o upstream por `@{u}` na linha 41 e MEDE nas linhas 45-46 com `rev-list --count \"${upstream}..HEAD\"`. `refs/remotes/<remote>/*` é réplica local e pode estar desatualizada NAS DUAS DIREÇÕES: sem `fetch` recente ela ignora o que o servidor já tem, e após um `fetch` de outro processo ela pode estar à frente do que este worktree conhece. É exatamente o defeito que a issue #67 descreve — e que o `check-push-ahead.sh` resolve para o `pre-push` lendo `git ls-remote` na hora —, presente em outro script do MESMO harness. O sintoma é um relatório de reconciliação que informa 'ahead=0' com confiança sobre um estado que não conferiu. Fora do escopo da entrega da #67 para não misturar frentes; a correção é a mesma técnica, com a ressalva de que aqui há N worktrees e um `ls-remote` por worktree custaria caro (medido na #67: 0,55 a 0,73s por chamada, e 9,0s quando o DNS falha), então o desenho provavelmente é uma leitura só de remoto, compartilhada entre os worktrees. — Resolvido: worktree-reconcile.sh passa a medir ahead/behind por 'git ls-remote', nunca mais por refs/remotes/<remote>/* — mesma técnica do check-push-ahead.sh (issue #67), com o desenho previsto na análise: UMA leitura de rede POR REMOTO (nunca por worktree), compartilhada entre todos os worktrees do repositório via cache indexado por nome de remoto, porque git worktree compartilha refs/remotes/* e o banco de objetos entre todos eles. Medido com 3 worktrees reais do mesmo remoto: exatamente 1 chamada real a 'git ls-remote' (antes seriam 3 leituras locais potencialmente divergentes). Degrada honesto para 'NÃO MEDIDO' (nunca finge 'ahead=0 behind=0') quando o sha do ls-remote é desconhecido localmente ou a leitura falha/expira — timeout configurável via forge.yaml worktree_reconcile.timeout_s (default 5s), nunca trava indefinidamente mesmo com remoto inalcançável. Novo gate tests/w175-worktree-reconcile-remote-gate.sh, 6 cenários, com RED histórico reproduzido contra a versão HEAD (pré-correção) mentindo 'ahead=0 behind=0' com o servidor à frente — e controle/recontrole por cmp confirmando que nenhum cenário mutou o script do repositório.",
-      "severity": "low",
+      "severity": "LOW",
       "priority": "P3",
       "status": "resolved",
-      "source": "achado durante a análise da issue #67",
-      "links": [
-        "https://github.com/vellus-tech/forge-harness/issues/67"
-      ],
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": "achado durante a análise da issue #67"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "https://github.com/vellus-tech/forge-harness/issues/67"
+        ],
+        "promoted_to": null
+      },
       "created_at": "2026-08-21T16:30:00-03:00",
       "updated_at": "2026-09-04T18:44:45-03:00",
       "resolved_at": "2026-09-04T18:44:45-03:00",
@@ -1349,15 +1374,23 @@
       "id": "LDG-0057",
       "type": "known-bug",
       "title": "check-push-ahead: intersecao reporta o MAXIMO entre as refs, nao a uniao",
-      "detail": "Em push multi-ref (`--all`, `--mirror`, varias branches numa invocacao), o laco de intersecao guarda o maior valor encontrado em vez da uniao dos commits que entram no push. O numero SUBESTIMA: se a ref A carrega os commits 1-2 e a ref B carrega o commit 3, a linha informa 2 quando o push publica 3. Nao bloqueia porque o caso comum e uma ref por push, e porque o numero errado e conservador (nunca acusa a mais). A correcao e acumular os shas num conjunto e contar uma vez, ao custo de mais invocacoes de git. — Resolvido: Corrigido: interseção agora é a união dos merge-base de cada ref publicada (git rev-list --count <merge-bases...> --not RSHA, dedup automático), não o máximo. Gate w152 [24]-[28] (propriedade + canal real via git push de verdade).",
-      "severity": "low",
+      "detail": "Em push multi-ref (`--all`, `--mirror`, varias branches numa invocacao), o laco de intersecao guarda o maior valor encontrado em vez da uniao dos commits que entram no push. O numero SUBESTIMA: se a ref A carrega os commits 1-2 e a ref B carrega o commit 3, a linha informa 2 quando o push publica 3. Nao bloqueia porque o caso comum e uma ref por push, e porque o numero errado e conservador (nunca acusa a mais). A correcao e acumular os shas num conjunto e contar uma vez, ao custo de mais invocacoes de git. — Resolvido: Corrigido: interseção agora é a união dos merge-base de cada ref publicada (git rev-list --count <merge-bases...> --not RSHA, dedup automático), não o máximo. Gate w152 [24]-[28] (propriedade + canal real via git push de verdade). Links preservados na normalização: https://github.com/vellus-tech/forge-harness/pull/69",
+      "severity": "LOW",
       "priority": "P3",
       "status": "resolved",
-      "source": "code-review adversarial (issue #67, 2a rodada de codigo)",
-      "links": [
-        "https://github.com/vellus-tech/forge-harness/issues/67",
-        "https://github.com/vellus-tech/forge-harness/pull/69"
-      ],
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": "code-review adversarial (issue #67, 2a rodada de codigo)"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "https://github.com/vellus-tech/forge-harness/issues/67"
+        ],
+        "promoted_to": null
+      },
       "created_at": "2026-08-22T11:00:00-03:00",
       "updated_at": "2026-09-04T16:00:59-03:00",
       "resolved_at": "2026-09-04T16:00:59-03:00",
@@ -1367,15 +1400,23 @@
       "id": "LDG-0058",
       "type": "known-bug",
       "title": "check-push-ahead: arquivo temporario vaza quando o script morre por sinal",
-      "detail": "O `trap 'rm -f \"$OUT\"' EXIT` cobre a saida normal e a saida por `fim`, mas nao cobre morte por sinal — um Ctrl-C no meio do push deixa o arquivo em TMPDIR. E lixo pequeno (uma linha de sha) e o mktemp nao colide, entao nao ha corrupcao; o custo e acumulo silencioso em maquina de quem interrompe push com frequencia. Correcao: acrescentar INT TERM HUP ao trap. — Resolvido: Corrigido: trap por sinal (INT/TERM/HUP) além de EXIT, cada um limpando $OUT e saindo explicitamente com exit 128+n — achado adicional na investigação: sem exit explícito o processo sobrevive ao sinal e continua rodando. Gate w152 [29] (comportamental para TERM/HUP; INT verificado por forma — sandbox de execução não entrega SIGINT a processo em segundo plano, verificado de forma isolada).",
-      "severity": "low",
+      "detail": "O `trap 'rm -f \"$OUT\"' EXIT` cobre a saida normal e a saida por `fim`, mas nao cobre morte por sinal — um Ctrl-C no meio do push deixa o arquivo em TMPDIR. E lixo pequeno (uma linha de sha) e o mktemp nao colide, entao nao ha corrupcao; o custo e acumulo silencioso em maquina de quem interrompe push com frequencia. Correcao: acrescentar INT TERM HUP ao trap. — Resolvido: Corrigido: trap por sinal (INT/TERM/HUP) além de EXIT, cada um limpando $OUT e saindo explicitamente com exit 128+n — achado adicional na investigação: sem exit explícito o processo sobrevive ao sinal e continua rodando. Gate w152 [29] (comportamental para TERM/HUP; INT verificado por forma — sandbox de execução não entrega SIGINT a processo em segundo plano, verificado de forma isolada). Links preservados na normalização: https://github.com/vellus-tech/forge-harness/pull/69",
+      "severity": "LOW",
       "priority": "P3",
       "status": "resolved",
-      "source": "code-review adversarial (issue #67, 2a rodada de codigo)",
-      "links": [
-        "https://github.com/vellus-tech/forge-harness/issues/67",
-        "https://github.com/vellus-tech/forge-harness/pull/69"
-      ],
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": "code-review adversarial (issue #67, 2a rodada de codigo)"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "https://github.com/vellus-tech/forge-harness/issues/67"
+        ],
+        "promoted_to": null
+      },
       "created_at": "2026-08-22T11:00:00-03:00",
       "updated_at": "2026-09-04T16:00:59-03:00",
       "resolved_at": "2026-09-04T16:00:59-03:00",
@@ -1385,15 +1426,23 @@
       "id": "LDG-0059",
       "type": "known-bug",
       "title": "check-push-ahead: custo linear em push multi-ref (~35ms por ref)",
-      "detail": "O laco de intersecao fazia duas invocacoes de git por ref publicada. Medido em c03b24f: 1 ref 0,24s, 100 refs 3,9s, 400 refs ~15s, 800 refs 27,9s — linear em N. Nao bloqueia porque o caminho comum e uma ref, o check nunca recusa push e sempre sai 0. WONT-FIX (remedido 2026-09-04, mesma maquina, A/B antes/depois do fix do LDG-0057): o fix da uniao (LDG-0057) elimina metade das invocacoes de git do laco (de merge-base+rev-list por ref para so merge-base por ref mais um rev-list final) — 800 refs caiu de 60,98s para 26,33s (~2,3x), 400 refs de 28,71s para 10,34s. O teto de refs com truncagem DECLARADA que este item cogitava continua adiado por risco de desenho, nao improvisado aqui. Guarda de regressao: gate w152 [31], 150 refs sob teto de 8s.",
-      "severity": "low",
+      "detail": "O laco de intersecao fazia duas invocacoes de git por ref publicada. Medido em c03b24f: 1 ref 0,24s, 100 refs 3,9s, 400 refs ~15s, 800 refs 27,9s — linear em N. Nao bloqueia porque o caminho comum e uma ref, o check nunca recusa push e sempre sai 0. WONT-FIX (remedido 2026-09-04, mesma maquina, A/B antes/depois do fix do LDG-0057): o fix da uniao (LDG-0057) elimina metade das invocacoes de git do laco (de merge-base+rev-list por ref para so merge-base por ref mais um rev-list final) — 800 refs caiu de 60,98s para 26,33s (~2,3x), 400 refs de 28,71s para 10,34s. O teto de refs com truncagem DECLARADA que este item cogitava continua adiado por risco de desenho, nao improvisado aqui. Guarda de regressao: gate w152 [31], 150 refs sob teto de 8s. Links preservados na normalização: https://github.com/vellus-tech/forge-harness/pull/69",
+      "severity": "LOW",
       "priority": "P3",
       "status": "wont-fix",
-      "source": "code-review adversarial (issue #67, 3a rodada)",
-      "links": [
-        "https://github.com/vellus-tech/forge-harness/issues/67",
-        "https://github.com/vellus-tech/forge-harness/pull/69"
-      ],
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": "code-review adversarial (issue #67, 3a rodada)"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "https://github.com/vellus-tech/forge-harness/issues/67"
+        ],
+        "promoted_to": null
+      },
       "created_at": "2026-08-22T12:20:00-03:00",
       "updated_at": "2026-09-04T16:00:59-03:00",
       "resolved_at": "2026-09-04T16:00:59-03:00",
@@ -1403,15 +1452,23 @@
       "id": "LDG-0060",
       "type": "known-bug",
       "title": "check-push-ahead: falha de rev-list na intersecao nao tem cobertura de teste",
-      "detail": "A troca de `rest=0` por `rest=1` roteia um `rev-list` que falhou para a mensagem honesta de publicacao parcial, em vez da classe tranquilizadora. A mudanca esta certa e nao tem teste: o caminho e inalcancavel por `git push` real, porque o git so envia sha que possui — so se atinge com stdin forjado (sha valido em FORMA, objeto inexistente, destino refs/heads/<tronco>). Registrado como mudanca correta SEM cobertura, e nao como defeito: a mutacao que reverte `rest=1` para `rest=0` sobrevive a suite, e quem reencontrar isso precisa saber que a ausencia de vermelho aqui foi decidida, nao esquecida. — Resolvido: Coberto: injeção direta de stdin com sha válido em forma e objeto inexistente, publicado para refs/heads/<tronco> — única forma alcançável, já que git push real nunca envia sha que não possui. Gate w152 [30], com mutação de controle (rest=1 -> rest=0) confirmando que o teste reprova a regressão exata que o item descreve.",
-      "severity": "low",
+      "detail": "A troca de `rest=0` por `rest=1` roteia um `rev-list` que falhou para a mensagem honesta de publicacao parcial, em vez da classe tranquilizadora. A mudanca esta certa e nao tem teste: o caminho e inalcancavel por `git push` real, porque o git so envia sha que possui — so se atinge com stdin forjado (sha valido em FORMA, objeto inexistente, destino refs/heads/<tronco>). Registrado como mudanca correta SEM cobertura, e nao como defeito: a mutacao que reverte `rest=1` para `rest=0` sobrevive a suite, e quem reencontrar isso precisa saber que a ausencia de vermelho aqui foi decidida, nao esquecida. — Resolvido: Coberto: injeção direta de stdin com sha válido em forma e objeto inexistente, publicado para refs/heads/<tronco> — única forma alcançável, já que git push real nunca envia sha que não possui. Gate w152 [30], com mutação de controle (rest=1 -> rest=0) confirmando que o teste reprova a regressão exata que o item descreve. Links preservados na normalização: https://github.com/vellus-tech/forge-harness/pull/69",
+      "severity": "LOW",
       "priority": "P3",
       "status": "resolved",
-      "source": "code-review adversarial (issue #67, 3a rodada)",
-      "links": [
-        "https://github.com/vellus-tech/forge-harness/issues/67",
-        "https://github.com/vellus-tech/forge-harness/pull/69"
-      ],
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": "code-review adversarial (issue #67, 3a rodada)"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "https://github.com/vellus-tech/forge-harness/issues/67"
+        ],
+        "promoted_to": null
+      },
       "created_at": "2026-08-22T12:20:00-03:00",
       "updated_at": "2026-09-04T16:00:59-03:00",
       "resolved_at": "2026-09-04T16:00:59-03:00",
@@ -1419,10 +1476,10 @@
     },
     {
       "id": "LDG-0061",
-      "type": "debt",
+      "type": "tech-debt",
       "title": "Enforcement mecanico so existe para .NET — Node/TS sem assets, script de auditoria nem scan",
       "detail": "Escopo decidido em 2026-09-04 após parecer sobre o vibe-coding-toolkit (soumatheusgomes, MIT). O pack backend-dotnet-relational ganhou assets/ + dotnet-baseline.sh + dotnet-quality-scan; Node/TS fecha adaptando as tres regras ESLint em AST daquele repo (quality/max-lines, quality/no-direct-console, quality/no-direct-data-access) mais utils.cjs e verify.mjs, que sao testadas com o RuleTester do proprio ESLint e sem dependencia alem dele. Elas pegam o que grep nao pega: alias de import (db as database), import default vs namespace. Vendorizar como copia unica que passa a ser nossa (preservar aviso MIT), nunca dependencia de upstream — autor unico, repo de tres semanas, sem CI, regras escritas num unico dia. NAO herdar MAX_LINES=350 como error bloqueante: conflita com conventions/code-style.md (tamanho e smell, nao portao) e o proprio material do repo documenta o fatiamento cosmetico perto do limite sem resolve-lo no desenho do gate; se houver gatilho mecanico, que seja sinal nao bloqueante. Java e Python seguem em prosa. Implementacao segue TDD red-first com PBT, teste de contrato e teste de integracao. — Resolvido: Enforcement mecânico Node/TS entregue: node-baseline.sh (--check/--apply, greenfield error / brownfield warn para no-direct-console, nunca error para max-lines) + pack backend-node-postgres/assets (eslint.config.mjs + eslint-rules/ vendorizado de soumatheusgomes/vibe-coding-toolkit sob forge-quality/*, MIT preservado) + skill node-quality-scan (11 regras, uma linha por regra sempre) + fiacao em node-reviewer/verify-build/doctor/forge-init/PROFILE. max-lines materializado como warn, nunca error — decisao preservada e provada pelo gate (cenario [6]). Gate tests/w180-node-enforcement-gate.sh, 16 cenarios, red-first confirmado (MISS de eslint-rules/utils.cjs) antes do GREEN. Java/Python seguem em prosa — rastreado em LDG-0130.",
-      "severity": "low",
+      "severity": "LOW",
       "priority": "P2",
       "status": "resolved",
       "source": {
@@ -1443,10 +1500,10 @@
     },
     {
       "id": "LDG-0062",
-      "type": "debt",
+      "type": "tech-debt",
       "title": "single-impl-interface do dotnet-quality-scan é heurística de grep, não análise sintática",
       "detail": "A regra conta declarações 'interface IX' e ocorrências de ': IX' por texto. Ela não distingue comentário, string literal nem declaração multi-linha, e conta a própria declaração quando a implementação está no mesmo arquivo em formato inesperado. Em base grande isso produz falso positivo e falso negativo silenciosos. A saída correta é um analisador Roslyn (Microsoft.CodeAnalysis.CSharp) operando sobre a árvore sintática e entrando no build — primeira camada, não segunda. Enquanto isso, a regra é MEDIUM e o SKILL.md declara que ela aponta e não decide. — Wont-fix: Decisao: wont-fix, nao 'melhoria delimitada'. Argumento: a limitacao que o item descreve (nao distingue comentario/string/declaracao multi-linha) ja e' um TRADE-OFF ARQUITETURAL DECLARADO do scan.sh inteiro, nao um descuido isolado desta regra — references/detection-commands.md ja tinha secao 'Limites destes comandos' dizendo isso para as outras 9 regras ('e o preco de ser barato e portatil; a triagem e de quem le') e ja apontava o Roslyn como saida real. Corrigir SO single-impl-interface (ex.: filtrar linha 100% comentario) deixaria essa regra com precisao inconsistente em relacao as 9 irmas com o MESMO defeito de classe, sem eliminar os outros dois vetores citados no item (string literal, declaracao partida) — troca uma heuristica fraca por outra heuristica ainda incompleta, so que agora parecendo mais confiavel do que e. Fingir precisao parcial e' pior que declarar o limite. Feito nesta sessao (documentacao, sem mudanca de logica/severidade): clean-code-rules.md ganhou paragrafo 'Limite do scanner' concreto para esta regra (exemplos dos dois sentidos de erro) e detection-commands.md passou a listar o comando cru de single-impl-interface (fatlava no arquivo) com o mesmo caso nomeado na secao de limites gerais. Severidade permanece MEDIUM; SKILL.md e clean-code-rules.md ja deixavam explicito que 'o scanner so aponta'. Caminho real permanece analisador Roslyn (Microsoft.CodeAnalysis.CSharp) na camada de build, fora de escopo desta sessao.",
-      "severity": "low",
+      "severity": "LOW",
       "priority": "P3",
       "status": "wont-fix",
       "source": {
@@ -1470,7 +1527,7 @@
       "type": "roadmap",
       "title": "Estrategia de corte de arquivo grande: a rule para em 'e smell, revise' e nao oferece caminho",
       "detail": "conventions/code-style.md trata tamanho como smell e nao como portao — decisao correta —, mas nao diz COMO cortar quando o corte e devido, e o agente sem estrategia inventa helpers.ts/utils.ts como deposito do que sobrou. A coreografia do prompt 09 do vibe-coding-toolkit (MIT) e adotavel como orientacao: quatro costuras em ordem (logica de negocio embutida em UI/rota -> servico de dominio; bloco de UI repetido -> sub-componente; acesso a dados -> repositorio/adaptador; aglomerado de helpers -> modulo utilitario de dominio); escape hatch nomeado 'sem costura natural, pare e siga para o proximo' como preferivel a inventar abstracao; preservacao da interface publica com o arquivo original virando barril fino que reexporta, em vez de editar todo import site; ritmo de um arquivo por commit com typecheck+teste+lint entre cada. Duas armadilhas a registrar: a extracao pode empurrar o arquivo de DESTINO acima do proprio teto, e pode alargar em silencio o tipo de retorno inferido, virando erro de tipo num call site distante. Entrada como skill ou playbook cabeado a gate-runner/verify-build, nunca prompt solto. Implementacao segue TDD red-first com PBT, teste de contrato e teste de integracao. — Resolvido: Entregue: nova secao 'template/.forge/rules/conventions/code-style.md#11 Corte de arquivo grande: as quatro costuras' com as quatro costuras EM ORDEM (UI/rota->servico de dominio; bloco de UI repetido->sub-componente; acesso a dados->repositorio/adaptador; helpers->utilitario de dominio), escape hatch nomeado ('sem costura natural, pare e siga para o proximo'), preservacao de interface publica via barril fino (reexporta em vez de editar cada import site), ritmo de um arquivo extraido por commit com typecheck+teste+lint entre cada, e as duas armadilhas (arquivo de destino pode passar do proprio teto; tipo de retorno pode alargar em silencio por inferencia). Atribuicao preservada: prompt 09 do vibe-coding-toolkit (MIT). Fiacao: template/.forge/agents/review/quality-reviewer.md ganhou o passo '11. Tamanho de arquivo' (mais uma linha na tabela de Severidades) apontando literalmente para o heading 'Corte de arquivo grande' e nomeando o anti-padrao (helpers.ts como deposito) a nao aprovar. Asserção: tests/w185-file-cut-strategy-gate.sh (8 cenarios) — TDD red-first (vermelho confirmado antes do conteudo existir, cenario [1] falhando), controle e recontrole por mutacao (removida a frase do escape hatch -> [2] reprova; restaurado -> cmp identico -> verde de novo).",
-      "severity": "low",
+      "severity": "LOW",
       "priority": "P3",
       "status": "resolved",
       "source": {
@@ -1494,7 +1551,7 @@
       "type": "roadmap",
       "title": "Burndown de lint sem portao de decisao: afrouxar a regra e apresentado como codigo mais limpo",
       "detail": "Nao existe no harness norma sobre como queimar um passivo de avisos herdado. O portao de decisao do prompt 02 do vibe-coding-toolkit (MIT) e adotavel como texto de processo: antes de implementar, identificar o trecho mais caro/arriscado com numeros reais e apresentar tres opcoes — (A) corrigir tudo, padrao na ausencia de resposta; (B) corrigir a maioria barata e rastrear o resto como divida VISIVEL (comentario + referencia de issue, nunca supressao silenciosa); (C) reescopar ou afrouxar a propria regra, marcado explicitamente como MUDANCA DE CONFIG e nunca apresentado como se o codigo tivesse ficado mais limpo. Complementos uteis: severidade derivada de contagem medida (regra com zero violacoes nasce error; com violacoes nasce warn com a contagem anotada como linha de base, e o criterio de parada e essa contagem voltar a zero) e ignore curto e nomeado em vez de rebaixar a regra inteira. Cabe em testing/quality-gates.md, valendo para qualquer stack. Implementacao segue TDD red-first com PBT, teste de contrato e teste de integracao. — Resolvido: Entregue: nova secao 'template/.forge/rules/testing/quality-gates.md#Portao de decisao para burndown de lint' com o portao A (corrigir tudo, padrao na ausencia de resposta) / B (corrigir a maioria barata + rastrear o resto como divida VISIVEL com comentario e referencia de issue, nunca supressao silenciosa) / C (reescopar/afrouxar a regra, marcado explicitamente como MUDANCA DE CONFIG, nunca como codigo mais limpo); severidade derivada de contagem medida (regra sem violacao nasce error; com violacao nasce warn com a contagem como linha de base; criterio de parada e' a contagem voltar a zero); e ignore curto e nomeado em vez de rebaixar a regra inteira. Valido para qualquer stack (nao amarrado a ESLint/Roslyn). Atribuicao preservada: prompt 02 do vibe-coding-toolkit (MIT). Fiacao: quality-reviewer.md#10 Lints passou a elevar a HIGH o rebaixamento de severidade de regra ou supressao em massa sem o portao A/B/C registrado no PR, apontando literalmente para o heading 'Portao de decisao para burndown de lint' (mais uma entrada na tabela de Severidades). Asserção: tests/w186-lint-burndown-gate.sh (8 cenarios) — TDD red-first (vermelho confirmado antes do conteudo existir, cenario [1] falhando), controle e recontrole por mutacao (alterado o criterio de parada 'voltar a zero' -> [4] reprova; restaurado -> cmp identico -> verde de novo).",
-      "severity": "low",
+      "severity": "LOW",
       "priority": "P3",
       "status": "resolved",
       "source": {
@@ -1515,10 +1572,10 @@
     },
     {
       "id": "LDG-0065",
-      "type": "debt",
+      "type": "tech-debt",
       "title": "Enforcement mecanico ausente em Java e Python — os packs seguem so em prosa",
       "detail": "Separado de LDG-0061 em 2026-09-04 por revisao adversarial: o DoD daquele item passou a ser o pack Node (as tres regras ESLint em AST do vibe-coding-toolkit), e Java e Python sumiriam em silencio quando ele fechasse como resolved — fabricando um falso resolvido no mesmo plano que existe porque LDG-0053 e um falso pendente. Os equivalentes existem: em Java, Error Prone/SpotBugs/Checkstyle com failOnViolation mais o enforcer de versao; em Python, ruff e mypy strict declarados em pyproject com exit nao-zero. O padrao a replicar e o do w155: asset no capability pack, script de auditoria com check/apply, fiacao em doctor/verify-build/reviewer e gate com controle e recontrole. Implementacao segue TDD red-first com PBT, teste de contrato e teste de integracao.\n\nRE-MEDIDO EM 2026-09-05 (decisão do dono do repositório: permanece open, P3, escopo inalterado — o registro descreve corretamente o defeito, e isso é raro o bastante para valer o carimbo). Conferido contra o código atual: template/.forge/capabilities/backend-java-relational/ e backend-python-relational/ contêm APENAS PROFILE.md, zero assets, e nenhum dos dois cita ruff, mypy, Error Prone, SpotBugs ou Checkstyle; os únicos packs com enforcement material continuam sendo backend-dotnet-relational (assets + dotnet-baseline.sh + w155) e backend-node-postgres (assets + eslint-rules + node-baseline.sh + w180).\n\nO que a 0.11.0 muda para este item não é o escopo, é o RISCO: com w155 e w180 no ar, o padrão a replicar está provado duas vezes — asset no pack, script de auditoria com check/apply, fiação em doctor/verify-build/reviewer, gate com controle e recontrole —, inclusive a decisão mais cara dele, a severidade derivada do estado do repositório (greenfield `error`, brownfield `warn`, decidida por presença de código-fonte e não por contagem de violação), que vale igual para ruff e para Error Prone. Isto é replicação com as decisões de desenho já tomadas, não desenho novo.\n\nPermanece P3 por uma razão declarada: a prioridade sobe no dia em que houver adotante Java ou Python exercitando o pack. Escrever enforcement sem repositório onde rodá-lo é como um gate nasce órfão — que é precisamente o defeito de LDG-0110 e do incidente que originou a issue #82.",
-      "severity": "low",
+      "severity": "LOW",
       "priority": "P3",
       "status": "open",
       "source": {
@@ -1566,7 +1623,7 @@
       "type": "known-bug",
       "title": "Ordinal de gate (wNNN) colide entre branches paralelas pelo mesmo mecanismo do id de ledger",
       "detail": "MEDIÇÃO QUE CONTRADIZ A CONCLUSÃO REGISTRADA (2026-09-05): 'a saída provavelmente é a mesma decisão' do id de ledger NÃO se sustenta. Os dois mecanismos não são paralelos: o ledger tem UM arquivo físico que vive no tronco por desenho (_forge_main_root resolve por --git-common-dir) e 'add' calcula max+1 sobre ele — a serialização é por construção, e machinery-propagation.md a declara norma. Ordinais de gate são N arquivos que vivem POR BRANCH em tests/, sem autoridade compartilhada onde escrever; não há para onde transferir a decisão. CORRIGIDO com duas peças: (a) template/.forge/scripts/gate-ordinal.sh next deriva do tronco REMOTO (git ls-tree origin/develop) e DECLARA quando degradou para a árvore local; (b) gate-ordinal.sh check reprova dois arquivos com o mesmo ordinal, com contador de controle. Limitação registrada por escrito: nada disto IMPEDE duas branches que nunca se viram de escolher o mesmo número — o que muda é o momento da descoberta (push do autor, não merge de terceiro). Documentado em rules/testing/quality-gates.md. Gate: w193 cenários [1]-[5]. — Resolvido: gate-ordinal.sh next/check entregue; w193[1..5] verdes",
-      "severity": "low",
+      "severity": "LOW",
       "priority": "P3",
       "status": "resolved",
       "source": {
@@ -1590,7 +1647,7 @@
       "type": "tech-debt",
       "title": "ledger-ops escreve no checkout principal e contamina a branch que o tronco tiver em check-out",
       "detail": "CORRIGIDO por VISIBILIDADE, não por mudança de comportamento (2026-09-05). O comportamento é norma escrita (machinery-propagation.md: 'estado de projeto mora no tronco, não na branch') e alterá-lo faria toda branch que toca o ledger colidir no merge por construção. O que faltava era dizer em voz alta. Detalhe que o registro não trazia e que muda o desenho da correção: _forge_main_root() estava COPIADO em quatro scripts (ledger-ops.sh, liaison-ops.sh, check-liaison-acks.sh, check-liaison-log-integrity.sh), corpo idêntico — escrever o aviso quatro vezes reinstalaria LDG-0014 dentro do change que existe para combater essa classe. Os quatro passam a consumir lib/forge-root.sh (forge_main_root, forge_resolve_root, forge_warn_root_divergence), e a contagem de _forge_main_root() em template/ cai de 4 para 0. O aviso sai nas CINCO portas que escrevem (add, update, resolve, promote, harvest) e em nenhuma das que só leem. Gate: w193 cenários [6]-[10], com [10] provando por mutação que há um sítio e não quatro. — Resolvido: aviso de divergência de ROOT em lib/forge-root.sh, consumido pelos quatro scripts; w193[6..10] verdes",
-      "severity": "low",
+      "severity": "LOW",
       "priority": "P3",
       "status": "resolved",
       "source": {
@@ -1614,7 +1671,7 @@
       "type": "tech-debt",
       "title": "check-shell-pipeline e check-heredoc-hash existem e nenhum hook os invoca",
       "detail": "ESCOPO CORRIGIDO EM 2026-09-05 por medição: o item estava registrado MAIOR do que era. 'Nenhum hook os invoca' é literalmente verdadeiro, mas 'o gate que ninguém invoca' não: check-shell-pipeline.sh tem gate próprio (tests/w145, cenário [8] varrendo template/ + tests/ com rc 0 exigido) e passo dedicado no CI (.github/workflows/ci.yml:67-68); check-heredoc-hash.sh tem tests/w159 (cenário [8] com três --path e contador de controle) e roda via ci.yml:49 -> tests/run-all.sh, que varre tests/*-gate.sh. Os dois rodavam contra o corpus REAL do harness em toda execução de CI, deterministicamente e com veredito bloqueante. O que faltava não era execução, era LATÊNCIA: o autor descobria a violação depois de empurrar. Rebaixado de P2 para P3 por isso. CORRIGIDO: o pre-push passa a invocar os dois por DIFF (só os .sh que o push publica — varrer a árvore bloquearia as fixtures de w145/w159, que contêm de propósito a forma proibida), com sinal positivo em ambos os ramos e delegação em alvo ausente bloqueando quando há .sh no diff. NÃO entra no pre-commit por desenho. Gate: w190 cenários [9], [10] e [11]. — Resolvido: fiado no pre-push por diff, depois de LDG-0141 limpar o corpus; w190[9..11] verdes",
-      "severity": "low",
+      "severity": "LOW",
       "priority": "P3",
       "status": "resolved",
       "source": {
@@ -1709,13 +1766,13 @@
       "id": "LDG-0110",
       "type": "feature-idea",
       "title": "doctor sem check de gate orfao (check-*.sh sem hook nem runtime.gates) — proposta original do #82, não implementada nesta onda",
-      "detail": "A issue #82 propunha duas pecas alem da fase: um doctor que denuncie check-*.sh presente em .forge/scripts/, nao invocado por nenhum hook e nao declarado em runtime.gates — no consumidor medido (azim-crm) isso apontaria dez gates de uma vez, sete deles de deploy, meses antes do incidente que motivou a issue. Barato e independente da adocao de fase (nao depende do consumidor declarar phase nenhuma). A Onda 3 entregou o nucleo estrutural (fase em runtime.gates, run-gates.sh --phase, guarda de vacuidade, LDG-0014/0035/0036) e julgou o doctor check como peca separada, de escopo proprio (tocar doctor.sh — 600 linhas, muitos checks existentes — com risco de regressao que merece o proprio ciclo red-first e cobertura, nao um adendo apressado ao final de uma sessao ja grande). Ainda vale: cruzar .forge/scripts/check-*.sh contra (a) referencias em .forge/hooks/git/** e no hooksPath customizado (o check hp_orfaos ja existente em doctor.sh so cobre o caso de hooksPath customizado, nao o default) e (b) runtime.gates de qualquer fase (forge_runtime_gates, todas as fases) — advisory, nao load-bearing, no mesmo espirito dos demais checks informativos de check_harness.\n\nADENDO DE ESCOPO (2026-09-05, decisão sobre LDG-0013): este item herda também o aviso de \"projeto sem gate NENHUM declarado em runtime.gates\". LDG-0013 foi encerrado como wont-fix — obrigar todo adotante a declarar um gate quebra retrocompatibilidade para quem nunca declarou, inclusive este repositório —, e o remédio proporcional ao que sobrava lá é visibilidade, que é exatamente a capacidade deste item. Escrever nos dois lugares recriaria por construção o defeito de LDG-0014 (duas implementações do mesmo contrato divergindo em silêncio), então o cruzamento fica aqui, uma vez só: além de check-*.sh presente e não invocado, o mesmo check deve dizer, como informação e nunca como bloqueio, quando runtime.gates está vazio em todas as fases. — Resolvido: doctor.sh ganhou o cruzamento de gate órfão dentro de check_harness(), informativo por construção (info/warn, nunca toca MISSING_DIAG). Cruza três fontes: o universo .forge/scripts/check-*.sh, as referências por nome-base em .forge/hooks/** e no hooksPath resolvido, e runtime.gates de TODAS as fases pelo leitor único forge_runtime_gate_entries (nunca por awk novo — seria o terceiro leitor do mesmo contrato, o defeito que LDG-0150 fechou). Isenção de check-heavy-mutex em condição no código, não em allowlist textual nova: empty-universe-allowlist.txt resolve outro problema e reusá-la confundiria dois contratos. Medido no próprio harness: 14 check-*.sh, 4 órfãos (check-authz, check-data-governance, check-observability, check-suite-wiring); exit code do doctor inalterado (1 antes, 1 depois, mesmo conjunto de defeitos). Gate w191, 8 cenários; w153[74] preservado.",
-      "severity": "medium",
+      "detail": "A issue #82 propunha duas pecas alem da fase: um doctor que denuncie check-*.sh presente em .forge/scripts/, nao invocado por nenhum hook e nao declarado em runtime.gates — no consumidor medido (azim-crm) isso apontaria dez gates de uma vez, sete deles de deploy, meses antes do incidente que motivou a issue. Barato e independente da adocao de fase (nao depende do consumidor declarar phase nenhuma). A Onda 3 entregou o nucleo estrutural (fase em runtime.gates, run-gates.sh --phase, guarda de vacuidade, LDG-0014/0035/0036) e julgou o doctor check como peca separada, de escopo proprio (tocar doctor.sh — 600 linhas, muitos checks existentes — com risco de regressao que merece o proprio ciclo red-first e cobertura, nao um adendo apressado ao final de uma sessao ja grande). Ainda vale: cruzar .forge/scripts/check-*.sh contra (a) referencias em .forge/hooks/git/** e no hooksPath customizado (o check hp_orfaos ja existente em doctor.sh so cobre o caso de hooksPath customizado, nao o default) e (b) runtime.gates de qualquer fase (forge_runtime_gates, todas as fases) — advisory, nao load-bearing, no mesmo espirito dos demais checks informativos de check_harness.\n\nADENDO DE ESCOPO (2026-09-05, decisão sobre LDG-0013): este item herda também o aviso de \"projeto sem gate NENHUM declarado em runtime.gates\". LDG-0013 foi encerrado como wont-fix — obrigar todo adotante a declarar um gate quebra retrocompatibilidade para quem nunca declarou, inclusive este repositório —, e o remédio proporcional ao que sobrava lá é visibilidade, que é exatamente a capacidade deste item. Escrever nos dois lugares recriaria por construção o defeito de LDG-0014 (duas implementações do mesmo contrato divergindo em silêncio), então o cruzamento fica aqui, uma vez só: além de check-*.sh presente e não invocado, o mesmo check deve dizer, como informação e nunca como bloqueio, quando runtime.gates está vazio em todas as fases. — Resolvido: doctor.sh ganhou o cruzamento de gate órfão dentro de check_harness(), informativo por construção (info/warn, nunca toca MISSING_DIAG). Cruza três fontes: o universo .forge/scripts/check-*.sh, as referências por nome-base em .forge/hooks/** e no hooksPath resolvido, e runtime.gates de TODAS as fases pelo leitor único forge_runtime_gate_entries (nunca por awk novo — seria o terceiro leitor do mesmo contrato, o defeito que LDG-0150 fechou). Isenção de check-heavy-mutex em condição no código, não em allowlist textual nova: empty-universe-allowlist.txt resolve outro problema e reusá-la confundiria dois contratos. Medido no próprio harness: 14 check-*.sh, 4 órfãos (check-authz, check-data-governance, check-observability, check-suite-wiring); exit code do doctor inalterado (1 antes, 1 depois, mesmo conjunto de defeitos). Gate w191, 8 cenários; w153[74] preservado. Origem original preservada na normalização (source.ref já ocupado por issue-82/doctor-orphan-gate): issue #82 (Onda 3, gate-phase-contract) — parte proposta não implementada",
+      "severity": "MEDIUM",
       "priority": "P2",
       "status": "resolved",
       "source": {
         "change_id": null,
-        "origin": "issue #82 (Onda 3, gate-phase-contract) — parte proposta não implementada",
+        "origin": "manual",
         "ref": "issue-82/doctor-orphan-gate"
       },
       "links": {
@@ -1835,10 +1892,10 @@
     },
     {
       "id": "LDG-0130",
-      "type": "debt",
+      "type": "tech-debt",
       "title": "Enforcement mecânico ainda não existe para Java nem Python",
       "detail": "LDG-0061 fechou .NET (dotnet-baseline.sh + dotnet-quality-scan) e este item fecha Node/TS (node-baseline.sh + node-quality-scan, vendorizando as tres regras ESLint de soumatheusgomes/vibe-coding-toolkit sob o namespace forge-quality/*, MIT preservado). Java e Python seguem cobertos só em prosa (PROFILE.md dos packs backend-java-relational e backend-python-relational) — decisao explicita registrada ao fechar LDG-0061, nao omissao. Para replicar o padrao: Java tem Checkstyle/PMD/ErrorProne como equivalente do par TreatWarningsAsErrors+AnalysisMode, e Python tem ruff/mypy --strict; nenhum dos dois foi investigado ainda quanto a armadilhas equivalentes ao IDE1006 (.NET) ou ao max-lines nao-bloqueante (Node). Prioridade baixa: nenhum change ativo bloqueado por isso. — Wont-fix: Duplicata de LDG-0065, registrada por outro agente na mesma rodada por nao enxergar o ledger da branch vizinha — a colisao que LDG-0066 descreve, agora manifesta em CONTEUDO e nao so em id. O item vivo e' LDG-0065, que ja carrega o escopo (Error Prone/SpotBugs/Checkstyle em Java; ruff e mypy strict em Python) e o padrao a replicar (w155/w180). Encerrado como duplicata, nao como decisao de nao fazer.",
-      "severity": "low",
+      "severity": "LOW",
       "priority": "P3",
       "status": "wont-fix",
       "source": {
@@ -1862,7 +1919,7 @@
       "type": "tech-debt",
       "title": "Trabalho nao commitado de feat/upgrade-safety preservado, sem revisao de completude",
       "detail": "INSTRUMENTO DE MEDIÇÃO CORRIGIDO EM 2026-09-05 — o comando que o item prescrevia é o errado. 'git diff origin/develop..origin/wip/upgrade-safety-ldg-0131' devolve 154 arquivos, 873 inserções e 13.303 remoções, porque a branch está 20 commits ATRÁS de develop: quase tudo o que aparece como remoção é trabalho posterior de develop (w168 a w186, tools/plan-progress.mjs) que a branch simplesmente não tem. Quem rodar aquele comando vai concluir que há 13 mil linhas a avaliar. Os números corretos: o que a branch PROPÕE é 'git diff $(git merge-base origin/develop origin/wip/…)..origin/wip/…' = 15 arquivos, 911 inserções, 29 remoções, 10 commits; e o que AINDA NÃO FOI AVALIADO é 'git show ff4578a' = 9 arquivos, 202 inserções, 112 remoções. Os nove commits anteriores correspondem ao material do PR #79, já em develop (os gates w153 e w154 estão lá; git cherry não os reconhece porque o merge foi por squash). A dúvida que o item levanta como o ponto mais delicado — a remoção de lib/scan-exclude.sh — JÁ ESTÁ RESPONDIDA: em develop, 'grep -rn scan-exclude' no repositório inteiro devolve DUAS ocorrências, ambas dentro do próprio arquivo (cabeçalho na linha 2 e exemplo de uso na linha 14). Zero chamadores; o substituto (SKIP_PATTERNS + skipDir() em lib/source-scan.mjs) está no mesmo commit ff4578a. É código morto cuja remoção não órfã ninguém. O item continua FORA de qualquer leva de implementação porque continua sendo DECISÃO, não implementação: alguém tem de julgar se o commit entra, entra em partes, ou é descartado. O que mudou é o custo dessa decisão — de 'avaliar 380 linhas com uma incógnita estrutural' para 'revisar um commit de 202 linhas cuja única incógnita já foi respondida'. — Resolvido: REVISÃO DE COMPLETUDE FEITA, item a item, sobre 'git show ff4578a' (9 arquivos, 202+/112−) — que é o instrumento correto, e não o diff contra a branch, já corrigido neste item em 2026-09-05. O commit NÃO é descartável: três das quatro fatias têm valor e uma exige revisão própria. (1) DOCUMENTAL, correta e verificada: cinco pontos ainda mandam o operador para .forge.bak-N enquanto bin/forge.mjs:598 grava em .git/forge-backups/ desde a issue #76 — medido hoje em develop, as menções sobrevivem em bin/forge.mjs:182,189,640,643 e nos dois upgrade.md. (2) ENRICHABLE_FILES, a peça de mais valor e que ninguém tinha nomeado: acrescenta scripts/tests/run-all.sh ao conjunto preservado pelo update, com raciocínio medido no próprio commit — um consumidor tem runner próprio de 81 linhas cobrindo *.pbt.mjs, sentinela de FORGE_ROOT e hermetismo contra o hub, e o padrão do runner do template casa 17 dos 19 arquivos, de modo que o upgrade tiraria DUAS suítes do veredito exibindo '17 examinado(s)' com ar de completude. Isso é fatia direta da issue #101, cujo escopo atual é exatamente 'scripts/ é overwrite'. (3) REMOÇÃO DE lib/scan-exclude.sh: segura, e a dúvida está respondida — grep no repositório inteiro devolve duas ocorrências, ambas dentro do próprio arquivo; zero chamadores, e o substituto (SKIP_PATTERNS + skipDir em lib/source-scan.mjs) vem no mesmo commit. (4) REESCRITA DE tests/w153 (100+/47−): É a fatia que exige revisão própria, porque é um gate preexistente sendo reescrito pelo MESMO commit que muda o comportamento que ele mede — e o canal já registrou que o cenário [76] daquele gate é tautológico, passando contra develop sem a entrega que ele diz provar. RESOLVIDO como item de ledger porque a decisão que ele pedia foi tomada: o material vai para a issue #101, que está aberta e é a casa certa dele. Nada se perde — o commit está preservado em origin/wip/upgrade-safety-ldg-0131, verificado por git ls-remote, e o worktree local pode ser removido na faxina.",
-      "severity": "low",
+      "severity": "LOW",
       "priority": "P3",
       "status": "resolved",
       "source": {
@@ -1886,7 +1943,7 @@
       "type": "tech-debt",
       "title": "ledger-ops harvest captura narrativa historica de verification.md como follow-up novo",
       "detail": "PRIMEIRA METADE ENTREGUE EM 2026-09-05: a etapa (3) do harvest deixa de casar QUALQUER bullet sob um heading /desvios|ressalvas|observa/i e passa a exigir MARCADOR EXPLÍCITO — bullet prefixado por PENDENTE: sob qualquer heading de ressalva, ou qualquer bullet sob um heading dedicado 'Follow-ups abertos'. Mesma classe de LDG-0062 (heurística de texto sem entender semântica) e mesma saída daquele item: pedir que o autor MARQUE em vez de adivinhar. Complemento barato entregue junto: bullet que cita um LDG-00NN entre crases é descartado por dedupe, porque a maioria dos quatro casos reais (LDG-0111..LDG-0114) o fazia. SEGUNDA METADE, EXPLICITADA E NÃO ENTREGUE: harvest continua criando entradas com detail vazio e priority nula (ledger-ops.sh, etapa de escrita) — a mesma porta de entrada de item sem conteúdo da issue #103, por um terceiro caminho. Corrigir a heurística REDUZ o volume; não FECHA a porta. Fechá-la é decisão de produto (o harvest é best-effort e nunca falha o caller; exigir detail nele exigiria decidir o que fazer quando não há de onde tirar) e esta leva não a toma. Gate: w194 cenários [9]-[12].",
-      "severity": "low",
+      "severity": "LOW",
       "priority": "P3",
       "status": "open",
       "source": {
@@ -1912,7 +1969,7 @@
       "type": "tech-debt",
       "title": "check-shell-pipeline nao pega 'ls | sort' sob pipefail, so o idioma com grep -q",
       "detail": "Medido e corrigido: o reconhecedor de lib/shell-pipeline-lint.mjs ganhou lintCmdSubst(), que acusa atribuição por substituição de comando cujo pipeline tem produtor da família falível (ls/find/grep/git/rg/jq/comm/diff) silenciado com 2>/dev/null, SÓ em arquivo que declara set -e junto com pipefail. O predicado ingênuo do registro original ('qualquer atribuição via $( ) cujo pipeline tem produtor que pode falhar') acusa 46 linhas do próprio harness e esvaziaria o lint; a interseção acusa exatamente 6, todas corrigidas neste change: impact.sh:20 E :21, ingest-legacy.sh:18, liaison-ops.sh:938, w50:208, w90:66. O escape aceito é o || que governa a PRÓPRIA substituição — '[ -n $x ] || X=$( … )' NÃO protege (impact.sh:21), e consertar só a linha 20 transferiria a morte silenciosa para a 21 no mesmo arquivo. Substituição de PROCESSO ('< <(…)') fica de fora por desenho: não mata o pai, e tests/run-all.sh a usa. Gate: w145 cenários [9]-[15] mais [11b]. — Resolvido: reconhecedor estendido (lintCmdSubst) e os seis sítios medidos corrigidos; w145 verde nos dezesseis cenários",
-      "severity": "low",
+      "severity": "LOW",
       "priority": "P3",
       "status": "resolved",
       "source": {
@@ -2173,7 +2230,7 @@
     },
     {
       "id": "LDG-0160",
-      "type": "bug",
+      "type": "known-bug",
       "title": "Declarar phase: pre-deploy/post-deploy remove o gate da contagem de órfãos do doctor sem que nada passe a executá-lo",
       "detail": "ESCOPO CONFIRMADO E SEPARADO DE LDG-0159 (fechado). O defeito reproduz: nenhum chamador de produção passa --phase para run-gates.sh — wave-ops.sh:161 invoca sem a flag, e o grep por '--phase' em template/, bin/, installer/ e .github/ devolve só a definição da flag no próprio run-gates.sh e o gate w171 que a testa isoladamente. Logo, gate declarado com phase pre-deploy ou post-deploy não é executado por caminho nenhum. CORREÇÃO DE PREMISSA, medida na revisão adversarial: o doctor NÃO mente sobre isso — ele já emite linha própria e dedicada nomeando os gates que rodam só por runtime.gates (doctor.sh:472-473, incondicional para essa classe), e numa instalação stock imprime '4 gate(s) órfão(s)', nunca '0'. Portanto um gate escrito como 'o doctor passa a nomear os dois' nasceria VERDE sobre o defeito. O vermelho verdadeiro é sobre AUSÊNCIA DE EXECUTOR, e fechá-lo significa implementar o agendamento de fase pre-deploy/post-deploy em algum chamador real — trabalho de desenho com decisão de produto (quem agenda, em que momento do ciclo, com que artefato), não uma linha de aviso. Fica FORA da rodada que fechou LDG-0159 por isso, e não por custo. Nota adicional de contrato: o schema alargado por LDG-0159 aceita qualquer string em phase, deliberadamente, para não reprovar o que o leitor lê — quando existir executor, o enum de fases passa a ser possível e desejável.",
       "severity": null,
@@ -2362,6 +2419,126 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0167"
+    },
+    {
+      "id": "LDG-0168",
+      "type": "known-bug",
+      "title": "develop ficava vermelha por conflito semântico entre PRs e a prova de mutação do w200 mentia",
+      "detail": "O PR #113 corrigiu o badge de gates do README de 66 para 124; o PR #114, aberto de uma develop que ainda não tinha esse badge, somou o gate w201 sem tocar nele — e o merge dos dois, cada um verde sozinho no CI, ficou vermelho, porque nenhuma execução de CI por branch podia enxergar o conflito semântico (nenhum arquivo colidiu textualmente). Badge corrigido para 125. Além disso, o bloco de mutação do cenário [6] do w200-readme-inventory-gate.sh tinha o alvo do sed construído a partir da contagem REAL da árvore, então só casava quando o badge já estava correto — com o badge defasado a mutação virava no-op e o gate acusava falsamente que a restauração não tinha funcionado; e mutava o README.md rastreado da árvore de trabalho, restaurando por cp de um backup em vez de git checkout --, a mesma classe do LDG-0164. Corrigido: o bloco de mutação passou a rodar sobre um README-fixture e um tests-fixture herméticos em diretório temporário, com o alvo do sed casando a classe gates-[0-9]+%20passing e não o valor corrente, e a restauração reescrevendo o fixture do heredoc original. Cenário [7], novo, varre a própria fonte do gate por sítio de escrita no README rastreado e reprova nomeando a linha, com contador de controle positivo provando que a varredura enxergou algo. — Resolvido: develop verde novamente; badge corrigido para 125 e prova de mutação do w200 reescrita hermética (cenário [7] novo), verificado por env -u FORGE_ROOT bash tests/w200-readme-inventory-gate.sh rc=0",
+      "severity": null,
+      "priority": "P2",
+      "status": "resolved",
+      "source": {
+        "change_id": null,
+        "origin": "session",
+        "ref": "tests/w200-readme-inventory-gate.sh"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-06T19:39:53-03:00",
+      "updated_at": "2026-09-06T19:39:53-03:00",
+      "resolved_at": "2026-09-06T19:39:53-03:00",
+      "dedup_key": "manual:LDG-0168"
+    },
+    {
+      "id": "LDG-0169",
+      "type": "known-bug",
+      "title": "ledger.json reprovava contra o próprio schema, e o P2 aberto de LDG-0160 ficava invisível em LEDGER.md",
+      "detail": "Medido com ajv contra properties.entries.items de ledger.schema.json: 28 entradas fora do universo declarado de 98 reprovavam em cinco classes que se sobrepõem — severity minúsculo (23), type fora do enum debt/bug (5), source como string solta (7), source.origin em prosa livre (8) e links como array de URLs (7). ledger-render.mjs descarta em silêncio toda entrada de type inválido, então LEDGER.md declarava 16 itens ativos onde o JSON tinha 18 — LDG-0160 (bug/open/P2) e LDG-0065 (debt/open/P3) ficavam fora da view canônica que /forge:resume manda consultar. Uma sexta entrada, LDG-0168 (registrada por commit anterior nesta mesma branch), somou-se ao universo entre a medição original e esta normalização, com severity=P2 (valor de prioridade vazado para o campo de severidade) — fora das cinco classes descritas, corrigida também para severity=null (priority=P2 preservado) para que o DoD de 0 reprovando cobrisse o ledger.json inteiro, não só as 28 entradas originais. Normalização só de FORMA: nenhuma entrada mudou de status, título, detalhe ou prioridade — 13 URLs preservadas antes e depois (a primeira de cada grupo de links foi para links.change, as demais anexadas ao detail). — Resolvido: As 29 entradas passaram a conformar com o schema (ajv, 0 reprovando, universo 99); LEDGER.md e ledger.json concordam em 18 itens ativos; grep por LDG-0160 em LEDGER.md passou de 0 para 1. Gate tests/w202-ledger-schema-conformance-gate.sh: conformidade com universo declarado, guarda de piso anti-vacuidade (<50), acordo entre os dois leitores (estados ativos lidos de ledger-render.mjs, nunca redigitados) e prova de mutação por cópia (controle, mutação de type para 'debt', restauração por nova cópia nunca escrita, recontrole).",
+      "severity": "MEDIUM",
+      "priority": "P2",
+      "status": "resolved",
+      "source": {
+        "change_id": null,
+        "origin": "session",
+        "ref": "tests/w202-ledger-schema-conformance-gate.sh"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-06T20:14:39-03:00",
+      "updated_at": "2026-09-06T20:14:39-03:00",
+      "resolved_at": "2026-09-06T20:14:39-03:00",
+      "dedup_key": "manual:LDG-0169"
+    },
+    {
+      "id": "LDG-0170",
+      "type": "known-bug",
+      "title": "Renderizador do ledger descartava em silêncio entradas de type fora do enum, e o resumo divergia do ledger.json",
+      "detail": "lib/ledger-render.mjs fixa SECTIONS nos cinco tipos válidos do schema; entradas de type fora dele (debt, bug — os mesmos que este repositório carregava antes do LDG-0169) eram descartadas sem contador, sem aviso, sem vestígio na saída, e totalActive somava só sobre as seções conhecidas, então o resumo podia declarar menos itens ativos do que o ledger.json de fato tinha. Corrigido: entradas fora do enum vão para o balde \"### Fora do enum do schema\" (omitido quando vazio, para não sujar acervo normalizado) e totalActive soma sobre o arquivo inteiro, incapaz de divergir da contagem real do JSON. Deliberadamente NÃO falha alto em type desconhecido — falhar alto quebraria adotantes com enum estendido (axis-go-cloud roda decision/test-gap) no primeiro forge update. Coberto por w203-ledger-render-bucket-gate.sh, hermético, com prova de mutação sobre o próprio arquivo rastreado. O guard de escrita (ledger-ops.sh add/update recusando type fora do enum) foi cortado desta rodada por ser a única quebra de rc para os quatro adotantes — fica para a próxima rodada, com aviso pelo canal de liaison. — Resolvido: Corrigido em template/.forge/scripts/lib/ledger-render.mjs: entradas fora do enum vão para o balde \"### Fora do enum do schema\" (omitido quando vazio) e totalActive soma sobre o arquivo inteiro. Verificado por w203-ledger-render-bucket-gate.sh (controle, propriedade, contador de controle do balde vazio, prova de mutação de quatro passos).",
+      "severity": "LOW",
+      "priority": "P3",
+      "status": "resolved",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-06T20:36:58-03:00",
+      "updated_at": "2026-09-06T20:36:58-03:00",
+      "resolved_at": "2026-09-06T20:36:58-03:00",
+      "dedup_key": "manual:LDG-0170"
+    },
+    {
+      "id": "LDG-0171",
+      "type": "tech-debt",
+      "title": "Alocador de ordinais devolvia w1 no layout de dogfood — corrigido, mas o padrão SCRIPT_DIR/../.. segue em 34 sítios",
+      "detail": "gate-ordinal.sh:34 subia dois níveis fixos a partir de SCRIPT_DIR; no layout de dogfood isso para em <repo>/template, não na raiz, e o alocador devolvia w1 tanto no modo local quanto no derivado do tronco remoto (mesma causa). Corrigido com forge_worktree_root (lib/forge-root.sh): FORGE_ROOT explícito, depois git -C SCRIPT_DIR rev-parse --show-toplevel ancorado em onde o script mora, com fallback para a subida antiga fora de git. Gate novo w204-ordinal-root-resolution-gate.sh com propriedade, contador de controle, fixture do layout instalado e prova de mutação de quatro passos. O QUE FICA ABERTO, por medição explícita: o mesmo padrão SCRIPT_DIR/../.. aparece em 38 arquivos de template/.forge/scripts/ (34 na forma exata, incluindo doctor.sh:44), e esta correção tocou só o sítio com dano medido (gate-ordinal.sh). Não foi avaliado se os outros 33 têm o mesmo dano ou se a subida fixa é correta neles por deriva de layout diferente — precisa de varredura dedicada antes de generalizar o fix.",
+      "severity": "MEDIUM",
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-06T20:44:48-03:00",
+      "updated_at": "2026-09-06T20:44:48-03:00",
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0171"
+    },
+    {
+      "id": "LDG-0172",
+      "type": "known-bug",
+      "title": "quick_plan não afrouxava a exigência de design.md, e quatro superfícies davam três respostas incompatíveis sobre isso",
+      "detail": "lib/validate-spec.mjs reprovava com design.md missing sem consultar quick_plan; spec-transition.sh concedia a rota lateral requirements-ready -> tasks-ready só a type:bugfix, com o comentário do arquivo dizendo por escrito que não generalizava porque o validador não honrava; commands/specs/design.md apontava para LDG-0035 (referência errada, item de outro assunto, já resolvido pelo gate w173); e o CHANGELOG publicado da 0.7.0 afirmava o contrário do primeiro item. — Resolvido: Guard de design.md em validate-spec.mjs passa a honrar quick_plan.enabled com design em skipped_phases (mesmo idioma de skipsStorySharding); spec-transition.sh generaliza a rota lateral requirements-ready -> tasks-ready para qualquer type sob a mesma condição; commands/specs/design.md e o plugin regenerado param de citar LDG-0035 (errado) e descrevem o comportamento real. Afrouxamento estrito e declarado — só remove uma condição de erro, sob as três contenções já existentes. Gate w205-quick-plan-design-skip-gate.sh, seis cenários, prova de mutação.",
+      "severity": null,
+      "priority": "P2",
+      "status": "resolved",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": "gate:w205"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-06T20:55:33-03:00",
+      "updated_at": "2026-09-06T20:55:33-03:00",
+      "resolved_at": "2026-09-06T20:55:33-03:00",
+      "dedup_key": "manual:LDG-0172"
     }
   ]
 }

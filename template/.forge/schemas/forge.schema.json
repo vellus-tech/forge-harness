@@ -167,6 +167,62 @@
                   }
                 }
               ]
+            },
+            "pentest": {
+              "description": "Config do /forge:pentest (template/.forge/scripts/pentest-ops.sh). O bloco já era lido pelo engine sem estar declarado aqui — o mesmo defeito que w199/LDG-0159 fechou para runtime.gates, invertido: bloco que o harness lê e o próprio schema rejeitava. 'skill'/'bench_device'/'apk_path'/'tool_dir' são o perfil mobile (inalterado). 'strix' é o perfil novo — nove chaves, ver docs/plans/spikes/strix-pentest-spec.md §3.1/§6. additionalProperties:false nos dois níveis pelo mesmo argumento do w199: chave que o leitor ignora não pode ser publicada como válida.",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "skill": {
+                  "$ref": "#/$defs/nullableString"
+                },
+                "bench_device": {
+                  "$ref": "#/$defs/nullableString"
+                },
+                "apk_path": {
+                  "$ref": "#/$defs/nullableString"
+                },
+                "tool_dir": {
+                  "$ref": "#/$defs/nullableString"
+                },
+                "strix": {
+                  "description": "Perfil strix — alvo web/API/código-fonte via CLI open-source do Strix. image_digest e cli_version são obrigatórias NA PRÁTICA (ausentes, R4/R9 recusam no pré-voo), mas não são 'required' aqui porque o bloco strix inteiro pode estar ausente (projeto sem o perfil strix habilitado) sem reprovar o FORGE.md.",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "image_digest": {
+                      "$ref": "#/$defs/nullableString"
+                    },
+                    "cli_version": {
+                      "$ref": "#/$defs/nullableString"
+                    },
+                    "authorized_targets": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "authorization_ref": {
+                      "$ref": "#/$defs/nullableString"
+                    },
+                    "max_budget_usd": {
+                      "$ref": "#/$defs/nullableString"
+                    },
+                    "sandbox_network": {
+                      "$ref": "#/$defs/nullableString"
+                    },
+                    "scan_mode": {
+                      "$ref": "#/$defs/nullableString"
+                    },
+                    "findings_dir": {
+                      "$ref": "#/$defs/nullableString"
+                    },
+                    "timeout_s": {
+                      "$ref": "#/$defs/nullableString"
+                    }
+                  }
+                }
+              }
             }
           }
         },

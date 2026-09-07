@@ -6,7 +6,9 @@
 # 'abandoned'. v1.2 closes LDG-0035: the requirements-ready -> tasks-ready
 # lateral (design-ready skip for type:bugfix at scale>=2, LDG-0030) existed in
 # spec-transition.sh's executable chain without a matching entry here — a
-# transition tests/w173 asserts against, not just documents.
+# transition tests/w173 asserts against, not just documents. v1.3 closes
+# LDG-0172: the same lateral generalized to any type whose manifest declares
+# quick_plan.skips_design, now that validate-spec.mjs honors the waiver.
 states:
   - name: idea
     kind: chain
@@ -62,13 +64,17 @@ transitions:
   - { from: proposed, to: requirements-ready, via: spec-transition, gate: requirements_reviewed, scale_skippable: true }
   - { from: requirements-ready, to: design-ready, via: spec-transition, gate: design_reviewed, scale_skippable: true }
   - { from: design-ready, to: tasks-ready, via: spec-transition, gate: tasks_reviewed }
-  # lateral: design-ready skip for type:bugfix at scale>=2 (LDG-0030 — a fix that reached
+  # lateral 1: design-ready skip for type:bugfix at scale>=2 (LDG-0030 — a fix that reached
   # tasks-ready without design-ready broke legacy manifests parked there; design-ready stays a
-  # valid chain target for anyone who reaches it by any other path). NOT generalized to
-  # quick_plan.skipped_phases — validate-spec.mjs's design.md guard from tasks-ready onward
-  # doesn't honor quick_plan today (a prior attempt authorized this here and the validator
-  # rejected it right after, a feature announced as working that never ran).
+  # valid chain target for anyone who reaches it by any other path).
   - { from: requirements-ready, to: tasks-ready, via: spec-transition, type_conditional: bugfix, scale_gte: 2 }
+  # lateral 2 (v1.3, LDG-0172): the same skip for ANY type whose manifest declares
+  # quick_plan.enabled true with 'design' in skipped_phases. The condition that blocked this
+  # generalization is now met — validate-spec.mjs's design.md guard from tasks-ready onward honors
+  # quick_plan, so the skip authorized here is no longer rejected by the validator right after.
+  # An earlier version of this comment recorded the gap; the gap is closed, and w173 asserts both
+  # laterals against the real script instead of only the bugfix one.
+  - { from: requirements-ready, to: tasks-ready, via: spec-transition, manifest_conditional: quick_plan.skips_design, scale_gte: 2 }
   - { from: tasks-ready, to: implementing, via: spec-transition }
   - { from: implementing, to: implemented, via: spec-transition }
   - { from: implemented, to: verified, via: spec-transition, gate: implementation_verified }

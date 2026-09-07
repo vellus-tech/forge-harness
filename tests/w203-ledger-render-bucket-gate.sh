@@ -33,7 +33,12 @@ RENDERER="$WS/template/.forge/scripts/lib/ledger-render.mjs"
 [ -f "$RENDERER" ] || { echo "FAIL: arquivo esperado ausente: $RENDERER"; exit 1; }
 
 T="$(mktemp -d /tmp/forge-w203.XXXXXX)"
-trap 'rm -rf "$T"' EXIT
+# MUTATED é a guarda de restauração: o cenário [4] muta o RENDERER, que é arquivo rastreado, e um
+# sinal recebido dentro dessa janela deixaria o fix removido na árvore de trabalho — a classe do
+# LDG-0164, que esta própria rodada existe para eliminar. Os gates irmãos w204 e w205 já carregam
+# a mesma guarda; a ausência dela aqui foi achado de code-review adversarial.
+MUTATED=0
+trap 'rm -rf "$T"; [ "$MUTATED" = "1" ] && git -C "$WS" checkout -- "$RENDERER"' EXIT
 
 TPL="$T/LEDGER.tpl.md"
 cat >"$TPL" <<'EOF'
@@ -179,6 +184,7 @@ n4a="$(_extract_n "$(cat "$T/LEDGER-4a.md")")"
 [ "$n4a" = "5" ] || { echo "FAIL [4] controle: esperava 5 itens ativos antes de mutar — got: ${n4a:-(nenhum)}"; exit 1; }
 echo "OK [4] controle — 5 itens ativos antes de mutar"
 
+MUTATED=1
 node -e '
   const fs = require("fs");
   const p = process.argv[1];
@@ -203,7 +209,7 @@ if [ "$rc4b" -eq 0 ]; then
   if [ "$n4b" = "3" ]; then
     echo "OK [4] mutação — resumo caiu para 3 itens ativos contra fixture de 5 (balde removido)"
   else
-    git checkout -- "$RENDERER"
+    git checkout -- "$RENDERER"; MUTATED=0
     echo "FAIL [4] mutação: esperava resumo com 3 itens ativos (balde removido, entradas fora do enum descartadas) — got: ${n4b:-(nenhum)}"
     exit 1
   fi
@@ -211,7 +217,7 @@ else
   echo "OK [4] mutação — remover o balde quebrou a execução do renderizador (rc=$rc4b): $out4b"
 fi
 
-git checkout -- "$RENDERER"
+git checkout -- "$RENDERER"; MUTATED=0
 
 set +e
 out4c="$(_run_render "$J2" "$T/LEDGER-4c.md" 2>&1)"; rc4c=$?

@@ -2515,6 +2515,30 @@
       "updated_at": "2026-09-06T20:44:48-03:00",
       "resolved_at": null,
       "dedup_key": "manual:LDG-0171"
+    },
+    {
+      "id": "LDG-0172",
+      "type": "known-bug",
+      "title": "quick_plan não afrouxava a exigência de design.md, e quatro superfícies davam três respostas incompatíveis sobre isso",
+      "detail": "lib/validate-spec.mjs reprovava com design.md missing sem consultar quick_plan; spec-transition.sh concedia a rota lateral requirements-ready -> tasks-ready só a type:bugfix, com o comentário do arquivo dizendo por escrito que não generalizava porque o validador não honrava; commands/specs/design.md apontava para LDG-0035 (referência errada, item de outro assunto, já resolvido pelo gate w173); e o CHANGELOG publicado da 0.7.0 afirmava o contrário do primeiro item. — Resolvido: Guard de design.md em validate-spec.mjs passa a honrar quick_plan.enabled com design em skipped_phases (mesmo idioma de skipsStorySharding); spec-transition.sh generaliza a rota lateral requirements-ready -> tasks-ready para qualquer type sob a mesma condição; commands/specs/design.md e o plugin regenerado param de citar LDG-0035 (errado) e descrevem o comportamento real. Afrouxamento estrito e declarado — só remove uma condição de erro, sob as três contenções já existentes. Gate w205-quick-plan-design-skip-gate.sh, seis cenários, prova de mutação.",
+      "severity": null,
+      "priority": "P2",
+      "status": "resolved",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": "gate:w205"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-06T20:55:33-03:00",
+      "updated_at": "2026-09-06T20:55:33-03:00",
+      "resolved_at": "2026-09-06T20:55:33-03:00",
+      "dedup_key": "manual:LDG-0172"
     }
   ]
 }

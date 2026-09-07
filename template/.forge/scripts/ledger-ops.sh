@@ -110,10 +110,18 @@ _render() {
 }
 
 # LDG-0068: as portas que ESCREVEM anunciam quando o ROOT resolvido difere do repositório de
-# trabalho de quem invocou. `render`, `status` e `list` só leem e ficam de fora — aviso em porta de
-# leitura é ruído que treina o operador a ignorar a linha quando ela importa.
+# trabalho de quem invocou. Só `status` e `list` ficam de fora — aviso em porta de leitura é ruído
+# que treina o operador a ignorar a linha quando ela importa.
+#
+# LDG-0174: `render` estava nessa lista de fora, por uma premissa falsa. Ele NÃO só lê: `_render()`
+# grava `$OUT`, isto é, o `LEDGER.md`, que é arquivo rastreado. Invocado de uma árvore de trabalho
+# sem `FORGE_ROOT`, `forge_resolve_root` cai em `forge_main_root` (o TRONCO, via `--git-common-dir`)
+# e o comando reescrevia o `LEDGER.md` do checkout principal — que pode estar noutra branch, com
+# outro `ledger.json` e outro renderizador — respondendo `OK <caminho do tronco>` e nenhuma linha de
+# aviso. O operador lia `OK` e não tinha como saber que gravou fora da árvore em que trabalhava.
+# Coberto por `tests/w207-ledger-render-write-port-gate.sh`.
 case "$cmd" in
-  add|update|resolve|promote|harvest)
+  add|update|resolve|promote|harvest|render)
     forge_warn_root_divergence "$ROOT" "ledger" "ledger-ops" ;;
 esac
 

@@ -6,6 +6,10 @@ e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **`ledger-ops.sh render` era classificado como porta de leitura e reescrevia o `LEDGER.md` do tronco em silêncio (LDG-0174).** O `case` de portas que anunciam divergência de raiz deixava `render` de fora, com o comentário afirmando que "`render`, `status` e `list` só leem". A premissa vale para `status` e `list` e é falsa para `render`: `_render()` grava `$OUT`, que é o `LEDGER.md`, arquivo rastreado. Invocado de dentro de uma árvore de trabalho sem `FORGE_ROOT` explícito, `forge_resolve_root` cai em `forge_main_root` — que resolve pelo `--git-common-dir`, ou seja, o tronco — e o comando reescreve o `LEDGER.md` do checkout principal, que pode estar noutra branch, com outro `ledger.json` e outro renderizador. A resposta é `OK <caminho do tronco>` e nenhuma linha de aviso: o operador lê `OK` e não tem como saber que gravou fora da árvore em que trabalha. Reproduzido com o checkout principal ocupado por uma branch alheia — o md5 do `LEDGER.md` do tronco mudou e zero `WARN` foi emitido. A correção é `render` entrando na lista de portas; o aviso segue silencioso quando as raízes coincidem e quando `FORGE_ROOT` foi declarado, e `status`/`list` continuam de fora. Novo `w207-ledger-render-write-port-gate.sh`, hermético sobre fixture com árvore de trabalho própria: contador de controle positivo na porta `add`, que já avisava desde o LDG-0068, para que o cenário negativo não seja vazio; a propriedade; a prova por mudança de conteúdo de que `render` de fato escreve; `list` seguindo silenciosa; `FORGE_ROOT` declarado silenciando; e prova de mutação de quatro passos sobre o arquivo rastreado, com guarda de restauração no trap.
+
 ## [0.13.0] — 2026-09-06
 
 ### Changed

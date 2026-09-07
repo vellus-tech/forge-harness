@@ -113,7 +113,7 @@ _render() {
 # trabalho de quem invocou. Só `status` e `list` ficam de fora — aviso em porta de leitura é ruído
 # que treina o operador a ignorar a linha quando ela importa.
 #
-# LDG-0173: `render` estava nessa lista de fora, por uma premissa falsa. Ele NÃO só lê: `_render()`
+# LDG-0174: `render` estava nessa lista de fora, por uma premissa falsa. Ele NÃO só lê: `_render()`
 # grava `$OUT`, isto é, o `LEDGER.md`, que é arquivo rastreado. Invocado de uma árvore de trabalho
 # sem `FORGE_ROOT`, `forge_resolve_root` cai em `forge_main_root` (o TRONCO, via `--git-common-dir`)
 # e o comando reescrevia o `LEDGER.md` do checkout principal — que pode estar noutra branch, com

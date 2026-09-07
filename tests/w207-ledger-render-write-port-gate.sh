@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Gate W207 — `ledger-ops.sh render` é porta de ESCRITA e passa a anunciar divergência de raiz (LDG-0173).
+# Gate W207 — `ledger-ops.sh render` é porta de ESCRITA e passa a anunciar divergência de raiz (LDG-0174).
 #
 # POR QUE ESTE GATE EXISTE. O comentário de `ledger-ops.sh` classificava as portas assim: "`render`,
 # `status` e `list` só leem e ficam de fora — aviso em porta de leitura é ruído que treina o
@@ -96,7 +96,7 @@ echo "OK [1] — a fixture avisa na porta de escrita conhecida, então a varredu
 echo "[2] PROPRIEDADE — 'render' invocado da árvore de trabalho divergente emite o aviso"
 out2="$(_run render)"
 grep -q 'WARN' <<<"$out2" || {
-  echo "FAIL [2]: 'render' escreveu o LEDGER.md da raiz resolvida sem uma única linha de aviso — é a porta de escrita classificada como leitura (LDG-0173). stderr: ${out2:-(vazio)}"; exit 1; }
+  echo "FAIL [2]: 'render' escreveu o LEDGER.md da raiz resolvida sem uma única linha de aviso — é a porta de escrita classificada como leitura (LDG-0174). stderr: ${out2:-(vazio)}"; exit 1; }
 grep -q 'invocado de' <<<"$out2" || {
   echo "FAIL [2]: o aviso não nomeia a árvore de onde veio a invocação — sem isso o operador não consegue comparar as duas raízes. stderr: $out2"; exit 1; }
 echo "OK [2] — 'render' anuncia a divergência antes de gravar fora da árvore de trabalho"

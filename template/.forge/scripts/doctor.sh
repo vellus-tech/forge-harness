@@ -395,6 +395,54 @@ EOF_ORPHAN
         printf "  %s·%s %s\n" "$YEL" "$RST" "harness: worktree $(basename "$wt") com $n arquivo(s) de maquinaria divergentes do tronco ($ahead commit(s) à frente)"
       done
     fi
+
+    # Triagem BARATA de worktrees (fiação da onda "worktree nasce com branch"). Sem esta chamada a
+    # triagem seria mais uma superfície que ninguém invoca — o defeito puro de LDG-0160 —, porque o
+    # `post-merge` só fala no instante de um merge no tronco e ninguém que acumulou 29 worktrees
+    # estava olhando naquele instante.
+    #
+    # BARATA por medição, e com ORÇAMENTO por medição. O predicado de arquivo ignorado
+    # (`git clean -ndX`) fica de fora: sobre 145 worktrees ele não terminou em 590 segundos. E mesmo
+    # o predicado barato não é grátis a frio: medido em `axis-go-cloud`, cujo `.git` tem 2,3 GB,
+    # `status --porcelain` mais `symbolic-ref` em 10 worktrees levou 57,9 s na primeira passada e
+    # 87 ms na segunda — ou seja, quem medir a quente vai concluir que é grátis e quem rodar a frio
+    # vai esperar minutos. Por isso a varredura tem teto de tempo e DIZ quantas ficaram de fora, em
+    # vez de fingir que examinou tudo.
+    WTC_LIB="$ROOT/.forge/scripts/lib/worktree-classify.sh"
+    [ -f "$WTC_LIB" ] || WTC_LIB="$(dirname "$0")/lib/worktree-classify.sh"
+    if [ -f "$WTC_LIB" ]; then
+      # shellcheck source=/dev/null
+      . "$WTC_LIB"
+      wt_budget="${FORGE_WT_TRIAGE_BUDGET_S:-5}"
+      case "$wt_budget" in ''|*[!0-9]*) wt_budget=5 ;; esac
+      wt_deadline=$(( $(date +%s) + wt_budget ))
+      wt_refs="$(forge_wt_default_refs "$hp_main")"
+      wt_ref_local="${wt_refs%% *}"; wt_ref_remota="${wt_refs##* }"
+      wt_n=0; wt_destacada=0; wt_suja=0; wt_viva=0; wt_naoverif=0; wt_fora=0
+      while IFS= read -r wtp; do
+        [ -n "$wtp" ] || continue
+        [ "$wtp" = "$hp_main" ] && continue
+        wt_n=$((wt_n + 1))
+        if [ "$(date +%s)" -ge "$wt_deadline" ]; then wt_fora=$((wt_fora + 1)); continue; fi
+        case "$(forge_wt_classify "$hp_main" "$wtp" "$wt_ref_local" "$wt_ref_remota" barato)" in
+          destacada) wt_destacada=$((wt_destacada + 1)) ;;
+          mergeada-suja) wt_suja=$((wt_suja + 1)) ;;
+          viva) wt_viva=$((wt_viva + 1)) ;;
+          *) wt_naoverif=$((wt_naoverif + 1)) ;;
+        esac
+      done <<EOF_WT_TRIAGE
+$(git -C "$hp_main" worktree list --porcelain 2>/dev/null | awk '/^worktree /{print substr($0,10)}')
+EOF_WT_TRIAGE
+      if [ "$wt_n" -eq 0 ]; then
+        info "harness: triagem de worktrees — 0 worktree linkada neste repositório (nada a classificar)"
+      else
+        wt_examinadas=$((wt_n - wt_fora))
+        info "harness: triagem de worktrees — $wt_examinadas de $wt_n examinada(s): destacada=$wt_destacada mergeada-suja=$wt_suja viva=$wt_viva nao-verificado=$wt_naoverif"
+        [ "$wt_fora" -gt 0 ] && hint "$wt_fora worktree(s) NÃO examinada(s): o orçamento de ${wt_budget}s acabou (FORGE_WT_TRIAGE_BUDGET_S ajusta)"
+        [ "$wt_destacada" -gt 0 ] && hint "worktree destacada não tem branch para empurrar: o veredito e o comando de conserto saem em 'bash .forge/scripts/worktree-reconcile.sh --triage'"
+        hint "veredito completo, com o predicado de arquivo ignorado que este resumo omite por custo: bash .forge/scripts/worktree-reconcile.sh --triage"
+      fi
+    fi
   fi
 
   # ── gate órfão: check-*.sh que ninguém invoca (LDG-0110 + peça executável da issue #82) ─────

@@ -18,16 +18,41 @@
 # leitura de rede POR REMOTO — nunca por worktree — já cobre todos eles. Ver `worktree_reconcile.
 # timeout_s` no forge.yaml.
 #
+# TRIAGEM (--triage): classifica cada worktree linkada num dos seis desfechos de
+# `lib/worktree-classify.sh` e imprime, para cada um, o comando exato — sem executar nenhum. Ela
+# existe porque o `post-merge` só fala no instante de um merge no tronco, e ninguém que acumulou 29
+# worktrees num repositório estava olhando naquele instante. Ela NUNCA remove e NUNCA commita:
+# medido em 2026-09-08, 23 das 36 worktrees mergeadas do ecossistema satisfazem "limpa" por
+# `git status --porcelain` e carregam estado ignorado irrecuperável — uma varredura que agisse sobre
+# essa população destruiria 23 árvores e sairia com código zero.
+#
 # Uso:
 #   worktree-reconcile.sh                # lista todos os worktrees do repo atual
 #   worktree-reconcile.sh --root <path>  # repo alternativo (default: cwd)
+#   worktree-reconcile.sh --triage       # classifica e PROPÕE (não executa nada)
+#   worktree-reconcile.sh --triage --barato   # sem o predicado de arquivo ignorado (caro)
 set -u
 
 ROOT="."
+TRIAGE=0
+TRIAGE_MODO="completo"
+TRIAGE_REF_LOCAL=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --root) ROOT="$2"; shift 2 ;;
-    *) echo "Uso: worktree-reconcile.sh [--root <path>]" >&2; exit 1 ;;
+    --triage) TRIAGE=1; shift ;;
+    --barato) TRIAGE_MODO="barato"; shift ;;
+    --ref)
+      # O critério de recusa é ser MEMBRO do conjunto de flags declaradas, nunca "começa com hífen":
+      # é a lição de #103, em que `[ -n "$value" ]` gravava a string `--title` no campo e respondia
+      # OK com rc 0. Uma branch chamada `-x` é nome ruim, mas não é uma flag deste script.
+      case "${2:-}" in
+        ''|--root|--triage|--barato|--ref)
+          echo "FAIL: --ref exige o nome de uma branch, e recebeu '${2:-<nada>}', que é uma flag deste próprio script." >&2
+          exit 1 ;;
+      esac
+      TRIAGE_REF_LOCAL="$2"; shift 2 ;;
+    *) echo "Uso: worktree-reconcile.sh [--root <path>] [--triage [--barato] [--ref <branch>]]" >&2; exit 1 ;;
   esac
 done
 
@@ -38,6 +63,123 @@ ROOT="$(git -C "$ROOT" rev-parse --show-toplevel 2>/dev/null)" || {
 
 porcelain="$(git -C "$ROOT" worktree list --porcelain 2>/dev/null)"
 [ -n "$porcelain" ] || { echo "Nenhum worktree encontrado."; exit 0; }
+
+# ── triagem ─────────────────────────────────────────────────────────────────────────────────────
+if [ "$TRIAGE" -eq 1 ]; then
+  WTC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/worktree-classify.sh"
+  if [ ! -f "$WTC" ]; then
+    echo "FAIL: lib/worktree-classify.sh não encontrado ao lado deste script ($WTC) — a triagem delega os predicados a ele, e delegar para um alvo ausente é erro, nunca no-op." >&2
+    exit 2
+  fi
+  # shellcheck source=/dev/null
+  . "$WTC"
+
+  if [ -n "$TRIAGE_REF_LOCAL" ]; then
+    REF_LOCAL="$TRIAGE_REF_LOCAL"; REF_REMOTA="origin/$TRIAGE_REF_LOCAL"
+  else
+    _refs="$(forge_wt_default_refs "$ROOT")"
+    REF_LOCAL="${_refs%% *}"; REF_REMOTA="${_refs##* }"
+  fi
+
+  echo "triagem de worktrees — $ROOT"
+  echo "refs de integração: '$REF_LOCAL' (réplica local) e '$REF_REMOTA' (o que o servidor tinha no último fetch)"
+  [ "$TRIAGE_MODO" = "barato" ] && echo "modo BARATO: o predicado de arquivo ignorado não foi executado, e por isso nenhuma worktree recebe veredito de remoção segura"
+  echo
+
+  n_viva=0; n_destacada=0; n_limpa=0; n_ign=0; n_suja=0; n_naoverif=0; n_total=0
+  while IFS= read -r wtline; do
+    case "$wtline" in "worktree "*) : ;; *) continue ;; esac
+    wtpath="${wtline#worktree }"
+    [ -n "$wtpath" ] || continue
+    # O checkout principal não é população desta triagem: ele não se remove nem se renomeia aqui.
+    [ "$wtpath" = "$ROOT" ] && continue
+    n_total=$((n_total + 1))
+    classe="$(forge_wt_classify "$ROOT" "$wtpath" "$REF_LOCAL" "$REF_REMOTA" "$TRIAGE_MODO")"
+    branch="$(forge_wt_head_branch "$wtpath" 2>/dev/null || true)"
+    echo "$classe  $wtpath"
+    [ -n "$branch" ] && echo "    branch: $branch"
+    case "$classe" in
+      viva)
+        n_viva=$((n_viva + 1))
+        echo "    nada a fazer — não é ancestral de '$REF_LOCAL' nem de '$REF_REMOTA'"
+        ;;
+      destacada)
+        n_destacada=$((n_destacada + 1))
+        echo "    sem branch: o trabalho daqui não vira PR e o rastro morre com a worktree"
+        # A classe `destacada` é decidida ANTES de qualquer predicado de sujeira, e sem esta leitura
+        # ela absorveria em silêncio a face 2 do problema — trabalho não commitado. É a população
+        # onde a perda de dado de fato acontece: as worktrees sujas medidas em campo eram todas
+        # destacadas, e o conserto desta onda não as alcança retroativamente. Dizer "sem branch" e
+        # calar sobre o arquivo que a remoção apaga seria informar a metade barata do problema.
+        if sujo_d="$(forge_wt_tracked_dirty "$wtpath")"; then
+          echo "    e há trabalho NÃO COMMITADO aqui, que a branch sozinha não salva:"
+          printf '%s\n' "$sujo_d" | sed 's/^/        · /'
+          echo "    resgatar ANTES de remover: git -C '$wtpath' switch -c <tipo>/<escopo>/<descricao> && git -C '$wtpath' add -A && git -C '$wtpath' commit -m 'wip($(basename "$wtpath")): resgate antes de remover a worktree'"
+        else
+          echo "    dar nome: git -C '$wtpath' switch -c <tipo>/<escopo>/<descricao>"
+        fi
+        ;;
+      mergeada-limpa)
+        n_limpa=$((n_limpa + 1))
+        echo "    índice limpo e disco sem arquivo ignorado presente — removível sem perda"
+        echo "    git worktree remove '$wtpath'${branch:+ && git branch -d '$branch'}"
+        ;;
+      mergeada-com-ignorados)
+        n_ign=$((n_ign + 1))
+        echo "    NÃO removível em silêncio: há arquivo IGNORADO presente, que 'git status' não enxerga e a remoção apaga sem recuperação possível"
+        forge_wt_ignored_present "$wtpath" | sed 's/^/        · /'
+        echo "    remover mesmo assim, ciente do que se perde: git worktree remove --force '$wtpath'${branch:+ && git branch -d '$branch'}"
+        ;;
+      mergeada-suja)
+        n_suja=$((n_suja + 1))
+        echo "    há trabalho NÃO COMMITADO aqui, e branch nenhuma o salva:"
+        forge_wt_tracked_dirty "$wtpath" | sed 's/^/        · /'
+        echo "    resgatar primeiro: git -C '$wtpath' add -A && git -C '$wtpath' commit -m 'wip($(basename "$wtpath")): resgate antes de remover a worktree'"
+        echo "    só então: git worktree remove '$wtpath'"
+        ;;
+      nao-verificado)
+        n_naoverif=$((n_naoverif + 1))
+        # A explicação sai da CAUSA, nunca do MODO. No modo barato as duas causas ocorrem, e
+        # explicar uma pela outra faria a triagem afirmar "mergeada e de índice limpo" sobre uma
+        # worktree cujo estado de merge é indeterminado e cujo índice nunca foi medido — as duas
+        # metades falsas, dentro do terceiro estado que esta triagem existe para proteger.
+        case "$(forge_wt_naoverificado_causa "$ROOT" "$wtpath" "$REF_LOCAL" "$REF_REMOTA" "$TRIAGE_MODO")" in
+          caminho-inexistente)
+            echo "    o caminho não existe mais no disco — nada a classificar"
+            echo "    limpar a referência morta: git -C '$ROOT' worktree prune"
+            ;;
+          predicado-omitido)
+            echo "    mergeada e de índice limpo, mas o predicado de arquivo ignorado não foi executado neste modo — sem ele não há veredito de remoção segura"
+            echo "    veredito completo: bash .forge/scripts/worktree-reconcile.sh --triage"
+            ;;
+          refs-nao-decidem)
+            d_local="?"; d_remota="?"
+            forge_wt_ref_exists "$ROOT" "$REF_LOCAL" && d_local="existe" || d_local="NÃO resolve"
+            forge_wt_ref_exists "$ROOT" "$REF_REMOTA" && d_remota="existe" || d_remota="NÃO resolve"
+            div="$(git -C "$ROOT" rev-list --count --left-right "$REF_LOCAL...$REF_REMOTA" 2>/dev/null || true)"
+            echo "    NÃO CONSEGUI VERIFICAR: '$REF_LOCAL' ($d_local) e '$REF_REMOTA' ($d_remota) não concordam sobre esta worktree${div:+, e divergem em $div commit(s) (local/remota)}"
+            echo "    resolver a divergência antes de decidir: git -C '$ROOT' fetch origin"
+            ;;
+          *)
+            echo "    NÃO CONSEGUI VERIFICAR: e não consegui nomear a causa — nada aqui é veredito de mergeada nem de limpa"
+            echo "    veredito completo: bash .forge/scripts/worktree-reconcile.sh --triage"
+            ;;
+        esac
+        ;;
+    esac
+    echo
+  done <<EOF_TRIAGE
+$porcelain
+EOF_TRIAGE
+
+  if [ "$n_total" -eq 0 ]; then
+    echo "universo-vazio: nenhuma worktree linkada — a triagem não examinou nada, e nada aqui é veredito."
+    exit 0
+  fi
+  echo "resumo: viva=$n_viva destacada=$n_destacada mergeada-limpa=$n_limpa mergeada-com-ignorados=$n_ign mergeada-suja=$n_suja nao-verificado=$n_naoverif (total=$n_total)"
+  echo "nada foi executado: a triagem classifica e propõe, e a decisão de remover é de quem tem o contexto da branch."
+  exit 0
+fi
 
 # ── leitura de rede, uma vez por REMOTO, nunca por worktree ─────────────────────────────────────
 CACHE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/forge-wtreconcile.XXXXXX")" || {

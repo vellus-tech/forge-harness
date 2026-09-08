@@ -38,14 +38,27 @@ não feito". Operado por `/forge:ledger` (script `ledger-ops.sh`); ver o comando
    - `superseded` → permanece `promoted` (o sucessor carrega o item).
 
    Se o change já foi criado sem o flag, ligue manualmente com `/forge:ledger promote <LDG-NNNN>
-   --to <change-id>` (mas aí a baixa/reabertura no fim vira manual — prefira `--from-ledger`). Para
-   marcar "comecei a mexer" sem abrir change ainda: `/forge:ledger update <LDG-NNNN> --status
-   in-progress`. O `/forge:doctor` sinaliza itens `promoted` cujo change de destino sumiu sem baixa.
+   --to <change-id>` (mas aí a baixa/reabertura no fim vira manual — prefira `--from-ledger`). O
+   `/forge:doctor` sinaliza itens `promoted` cujo change de destino sumiu sem baixa.
 
 4. **Semeadura** — o ledger pode **nascer** com o plano do projeto: módulos, features e decisões de
    arquitetura previstos entram como entradas `roadmap`/`feature-idea` (`/forge:ledger add`). Num
    redesign amplo, as entradas de módulos planejados são o esqueleto do roadmap. (Integração
    automática do pipeline de spec → ledger é evolução futura; hoje a semeadura é explícita.)
+
+5. **Progresso se registra com `note`, e quem fecha é o arquivamento.** Pagamento parcial de uma
+   dívida — "fiz a fatia A, a fatia B continua aberta" — entra por `/forge:ledger note <LDG-NNNN>
+   --kind progress --text "<o que foi feito, o que sobrou>"`, que acrescenta um bloco datado ao fim
+   do `detail` e **não** mexe no `status`. Não use `--status in-progress` como veículo de
+   progresso: os leitores do ledger não concordam sobre esse estado (`list --status open` e
+   qualquer contagem por `status == open` deixam de ver o item), e um item com dívida em aberto
+   sairia do denominador sem ter sido pago — que é fechar por reclassificação silenciosa. O
+   `status` terminal é do `resolve`, no arquivamento ou na baixa explícita.
+
+6. **Nunca reescreva um `detail` por cima.** `update --detail` recusa texto que não preserve o
+   `detail` corrente, e aponta os dois caminhos: `note` para acrescentar, `--replace-detail` para
+   substituir de propósito, com a perda anunciada em bytes. A medição que sustenta um item é o que
+   permite decidir sobre ele meses depois; seis blocos já foram perdidos assim neste repositório.
 
 ## Fronteira com outros mecanismos (não confundir)
 

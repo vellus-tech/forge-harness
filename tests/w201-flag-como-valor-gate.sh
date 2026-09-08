@@ -6,9 +6,9 @@
 # lugar dele: o comando devolvia rc=0, imprimia `OK`, e gravava no registro durável o NOME de uma
 # flag no lugar do conteúdo.
 #
-#   [1]  ledger-ops update  --detail --title              (flag consome nome de outra flag)
+#   [1]  ledger-ops update  --title --detail               (flag consome nome de outra flag)
 #   [2]  ledger-ops add     --title --detail               (idem, subcomando diferente)
-#   [3]  os 6 subcomandos de ledger-ops, parametrizado (universo contado — contrapositiva)
+#   [3]  os 7 subcomandos de ledger-ops, parametrizado (universo contado — contrapositiva)
 #   [4]  deferral-ops raise --reason --blocks               (mesma família)
 #   [5]  deferral-ops raise --blockss (flag DESCONHECIDA — guarda DIFERENTE da de [4])
 #   [6]  liaison send        --subject --requires-ack
@@ -83,12 +83,17 @@ ack_target="$(_lo send "$CHAN" --thread th-base --kind note --subject "mensagem 
 # CENÁRIOS NEGATIVOS — asserção TRIPLA: rc≠0 E mensagem nomeia a flag ofensora E registro intacto.
 # =================================================================================================
 
-echo "[1] ledger-ops update --detail --title (flag consome nome de outra flag)"
+echo "[1] ledger-ops update --title --detail (flag consome nome de outra flag)"
+# A flag ENGOLIDORA é `--title`, e não `--detail`, de propósito. Desde a onda w211, `--detail`
+# carrega uma segunda guarda — a de preservação — que também recusaria `--detail --title` sobre uma
+# entrada com detail não-vazio: a recusa continuaria acontecendo mesmo com o pertencimento
+# desligado, e a mutação [11a] deixaria de provar o que afirma provar. `--title` não tem guarda
+# nenhuma além do pertencimento, então é por ele que o pertencimento é observado isoladamente.
 cp "$LF" "$T/snap1.json"
 set +e
-out1="$(_lg update LDG-0001 --detail --title 2>&1)"; rc1=$?
+out1="$(_lg update LDG-0001 --title --detail 2>&1)"; rc1=$?
 set -e
-[ "$rc1" -ne 0 ] || { echo "FAIL [1]: 'update --detail --title' devolveu rc=0 — got: $out1"; exit 1; }
+[ "$rc1" -ne 0 ] || { echo "FAIL [1]: 'update --title --detail' devolveu rc=0 — got: $out1"; exit 1; }
 grep -q -- "--detail" <<<"$out1" || { echo "FAIL [1]: mensagem não nomeia '--detail' — got: $out1"; exit 1; }
 grep -q -- "--title" <<<"$out1" || { echo "FAIL [1]: mensagem não nomeia '--title' — got: $out1"; exit 1; }
 cmp -s "$LF" "$T/snap1.json" || { echo "FAIL [1]: ledger.json foi alterado por um update recusado"; exit 1; }
@@ -105,11 +110,14 @@ grep -q -- "--detail" <<<"$out2" || { echo "FAIL [2]: mensagem não nomeia '--de
 cmp -s "$LF" "$T/snap2.json" || { echo "FAIL [2]: ledger.json ganhou entrada apesar da recusa"; exit 1; }
 echo "OK [2] — $out2"
 
-echo "[3] pertencimento parametrizado sobre os 6 subcomandos de ledger-ops"
+echo "[3] pertencimento parametrizado sobre os 7 subcomandos de ledger-ops"
 # promote e harvest declaram UMA flag cada (--to / --origin): o único caso de pertencimento
 # possível neles é a flag repetindo a si mesma (degenerado, mas válido — não falta caso nenhum).
+# `note` nasceu na onda w211 e entra na lista: a varredura de flag-como-valor é sobre TODAS as
+# portas, e uma lista fixa que não acompanha o script deixa a porta nova de fora em silêncio.
 SUB3_CASES=(
   "update|update $U3ID --detail --title|--detail|--title"
+  "note|note $U3ID --kind --text|--kind|--text"
   "add|add --type roadmap --title --detail|--title|--detail"
   "resolve|resolve $R3ID --note --status|--note|--status"
   "promote|promote $PR3ID --to --to|--to|--to"
@@ -254,9 +262,13 @@ echo "[P3] caminho feliz de cada subcomando fiado continua rc=0 e grava certo (p
 p3_fail=0
 
 set +e
-outp3u="$(_lg update "$U3ID" --detail "detalhe legítimo do P3" 2>&1)"; rcp3u=$?
+# O texto PRESERVA o detail semeado ('x'), porque desde a onda w211 `update --detail` recusa a
+# substituição que não preserva. O que [P3] mede — caminho feliz com rc 0 e conteúdo exato, para
+# pegar o aborto MUDO da restrição (i) — continua medido byte a byte.
+P3_UPDATE_TEXTO="x — detalhe legítimo do P3"
+outp3u="$(_lg update "$U3ID" --detail "$P3_UPDATE_TEXTO" 2>&1)"; rcp3u=$?
 set -e
-if [ "$rcp3u" -ne 0 ] || [ "$(_field_of "$LF" "$U3ID" detail)" != "detalhe legítimo do P3" ]; then
+if [ "$rcp3u" -ne 0 ] || [ "$(_field_of "$LF" "$U3ID" detail)" != "$P3_UPDATE_TEXTO" ]; then
   echo "FAIL [P3]: update caminho feliz quebrou — got rc=$rcp3u: $outp3u"; p3_fail=1
 fi
 
@@ -323,7 +335,7 @@ cp "$AG" "$T/arg-guards.orig"
 DFOORIG="$T/deferral-ops.orig"
 cp "$DFO" "$DFOORIG"
 
-_scn1_rejects() { set +e; local o r; o="$(_lg update LDG-0001 --detail --title 2>&1)"; r=$?; set -e; [ "$r" -ne 0 ] && grep -q -- "--title" <<<"$o"; }
+_scn1_rejects() { set +e; local o r; o="$(_lg update LDG-0001 --title --detail 2>&1)"; r=$?; set -e; [ "$r" -ne 0 ] && grep -q -- "--detail" <<<"$o"; }
 _scn2_rejects() { set +e; local o r; o="$(_lg add --type roadmap --title --detail 2>&1)"; r=$?; set -e; [ "$r" -ne 0 ] && grep -q -- "--detail" <<<"$o"; }
 _scn4_rejects() { set +e; local o r; o="$(_dfo raise "$CH" --reason --blocks 2>&1)"; r=$?; set -e; [ "$r" -ne 0 ] && grep -q -- "--blocks" <<<"$o"; }
 _scn5_rejects() { set +e; local o r; o="$(_dfo raise "$CH" --reason "x" --blockss archive 2>&1)"; r=$?; set -e; [ "$r" -ne 0 ] && grep -q -- "--blockss" <<<"$o"; }

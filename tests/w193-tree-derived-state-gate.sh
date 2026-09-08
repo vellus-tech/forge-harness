@@ -32,10 +32,11 @@
 #        divergência, não sobre worktree (pareado com sinal positivo: a entrada nasce no ledger
 #        da worktree, e é isso que se confere)
 #   [8]  ledger-ops list (porta de LEITURA) não emite aviso nenhum
-#   [9]  propriedade: para as CINCO portas de escrita, ROOT != repositório do invocador implica
+#   [9]  propriedade: para as portas de escrita DERIVADAS de ledger-ops.sh (nunca lista literal),
+#        ROOT != repositório do invocador implica
 #        aviso; ROOT == repositório do invocador implica ausência de aviso
-#   [10] mutação: remover o aviso do lib faz [6] e [9] reprovarem nas cinco portas DE UMA VEZ —
-#        prova que há UM sítio, não quatro
+#   [10] mutação: remover o aviso do lib faz [6] e [9] reprovarem em TODAS as portas derivadas DE
+#        UMA VEZ — prova que há UM sítio, não quatro
 set -uo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -157,19 +158,41 @@ grep -q "item-w193" <<<"$out8" \
   || { echo "FAIL [8]: porta de LEITURA emitiu o aviso de escrita. Saída: $out8"; exit 1; }
 echo "OK [8] — leitura silenciosa, e leu o ledger do tronco"
 
-echo "[9] propriedade — para as CINCO portas de escrita: ROOT != invocador implica aviso"
-_prop() { # _prop -> imprime "porta rc_div rc_igual" por linha; 0 quando a propriedade vale
+# O universo das portas de escrita é DERIVADO do próprio `ledger-ops.sh`, nunca escrito à mão. A
+# matriz iterava a lista literal `add update resolve promote harvest` e fechava com
+# `[ "$n" -eq 5 ]`, e o número envelheceu por dois itens: `render` entrou na lista com o LDG-0174 e
+# `note` com a onda w211, enquanto o gate seguia verde afirmando um universo que a árvore não tinha.
+# É a invariante 14 aplicada a um contador de universo. Derivado, a próxima porta de escrita ou
+# ganha um caso na matriz ou reprova aqui, nominalmente — nunca nasce invisível em silêncio.
+_portas_de_escrita() { # ecoa, uma por linha, as portas da lista de forge_warn_root_divergence
+  sed -n 's/^  \(add|[a-z|]*\))$/\1/p' "$LG" | head -1 | tr '|' '\n' | sed '/^$/d'
+}
+PORTAS_ESCRITA="$(_portas_de_escrita)"
+N_PORTAS="$(printf '%s\n' "$PORTAS_ESCRITA" | sed '/^$/d' | wc -l | tr -d ' ')"
+[ "$N_PORTAS" -ge 2 ] || { echo "FAIL [9]: a lista de portas derivada de $LG tem $N_PORTAS entrada(s) — o alvo do sed mudou e o universo ficou vazio, o que faria a matriz iterar sobre nada e passar por vacuidade"; exit 1; }
+case "
+$PORTAS_ESCRITA
+" in *"
+add
+"*) : ;; *) echo "FAIL [9]: 'add', a porta que avisa desde o LDG-0068, não aparece no universo derivado ($PORTAS_ESCRITA) — a derivação não está lendo a lista certa"; exit 1 ;; esac
+echo "[9] propriedade — para as $N_PORTAS portas de escrita DERIVADAS de ledger-ops.sh: ROOT != invocador implica aviso"
+_prop() { # _prop -> imprime uma linha por violação; rc 0 quando a propriedade vale
   local bad=0 n=0 out id
   id="$(node -e 'const d=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));console.log(d.entries[d.entries.length-1].id)' "$MAIN/.forge/ledger/ledger.json")"
   local porta
-  for porta in add update resolve promote harvest; do
+  for porta in $PORTAS_ESCRITA; do
     n=$((n + 1))
     case "$porta" in
       add)     args=(add --type follow-up --title "prop-$RANDOM" --detail "x") ;;
       update)  args=(update "$id" --detail "prop $RANDOM") ;;
+      note)    args=(note "$id" --kind progress --text "prop $RANDOM") ;;
       resolve) args=(resolve "$id" --note "prop $RANDOM") ;;
       promote) args=(promote "$id" --to "ch-prop-$RANDOM") ;;
       harvest) args=(harvest ch-inexistente --origin close) ;;
+      render)  args=(render) ;;
+      *)
+        echo "  porta '$porta' está na lista de escrita de ledger-ops.sh e NÃO tem caso nesta matriz — porta nova entrou sem cobertura de divergência de raiz (LDG-0068/LDG-0174)"
+        bad=$((bad + 1)); continue ;;
     esac
     out="$( (cd "$WT" && _run_to 60 -- bash "$LG" "${args[@]}") 2>&1 )"
     if [ "$(_root_warn "$out")" -lt 1 ]; then
@@ -182,14 +205,14 @@ _prop() { # _prop -> imprime "porta rc_div rc_igual" por linha; 0 quando a propr
       bad=$((bad + 1))
     fi
   done
-  [ "$n" -eq 5 ] || { echo "  matriz com $n portas, esperado 5"; bad=$((bad + 1)); }
+  [ "$n" -eq "$N_PORTAS" ] || { echo "  matriz percorreu $n portas, universo derivado tem $N_PORTAS"; bad=$((bad + 1)); }
   return "$bad"
 }
 prop_out="$(_prop)"; prop_rc=$?
 [ "$prop_rc" -eq 0 ] || { echo "FAIL [9]: $prop_rc violação(ões) da propriedade:"; echo "$prop_out"; exit 1; }
-echo "OK [9] — 5 portas de escrita, propriedade válida nas duas direções"
+echo "OK [9] — $N_PORTAS portas de escrita derivadas ($(printf '%s' "$PORTAS_ESCRITA" | tr '\n' ' ')), propriedade válida nas duas direções"
 
-echo "[10] mutação — remover o aviso do LIB reprova [6] e [9] nas cinco portas de uma vez"
+echo "[10] mutação — remover o aviso do LIB reprova [6] e [9] nas $N_PORTAS portas derivadas de uma vez"
 LIBROOT="$WT/.forge/scripts/lib/forge-root.sh"
 [ -f "$LIBROOT" ] || { echo "FAIL [10]: o aviso não vive num lib único ($LIBROOT ausente) — escrevê-lo quatro vezes reinstala LDG-0014 no change que existe para combatê-la"; exit 1; }
 cp "$LIBROOT" "$T/forge-root.orig"
@@ -205,6 +228,6 @@ cp "$T/forge-root.orig" "$LIBROOT"
 cmp -s "$LIBROOT" "$T/forge-root.orig" || { echo "FAIL [10]: restauração não bateu byte a byte (cmp)"; exit 1; }
 prop_out="$(_prop)"; prop_rc=$?
 [ "$prop_rc" -eq 0 ] || { echo "FAIL [10]: recontrole — a propriedade não voltou a valer:"; echo "$prop_out"; exit 1; }
-echo "OK [10] — um sítio só; mutou, silenciou as cinco portas, restaurou (cmp ok), voltou"
+echo "OK [10] — um sítio só; mutou, silenciou as $N_PORTAS portas derivadas, restaurou (cmp ok), voltou"
 
 echo "PASS w193-tree-derived-state"

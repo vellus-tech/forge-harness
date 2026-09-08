@@ -33,8 +33,21 @@
 #   [5] Com `FORGE_ROOT` explícito não há aviso, nem em `render`: quem declarou onde gravar já sabe.
 #   [6] PROVA DE MUTAÇÃO sobre o arquivo RASTREADO real: (a) controle — [2] passa; (b) mutação —
 #       remove `render` da lista de portas em `ledger-ops.sh` e vê [2] reprovar; (c) restauração
-#       por `git checkout --`, NUNCA edição inversa; (d) recontrole — [2] passa de novo. Trap com
-#       guarda MUTATED garante a restauração mesmo em saída inesperada por sinal.
+#       por CÓPIA do arquivo preservado antes da mutação, conferida com `cmp`, NUNCA edição
+#       inversa; (d) recontrole — [2] passa de novo. Trap com guarda MUTATED garante a restauração
+#       mesmo em saída inesperada por sinal — e a cópia preservada vive FORA do diretório temporário
+#       que o próprio trap apaga, porque guardá-la dentro dele fazia o `rm -rf` destruir a
+#       referência de restauração antes de usá-la.
+#
+#       A restauração era `git checkout -- "$LEDGER_OPS"`, e isso DESTRUÍA trabalho não commitado:
+#       o gate roda sobre a árvore de trabalho, e quem estivesse editando `ledger-ops.sh` sem ter
+#       commitado perdia a edição inteira ao rodá-lo — medido nesta rodada, com a implementação de
+#       uma onda apagada por uma execução deste gate. Pior, a guarda de "a mutação mudou mesmo o
+#       arquivo?" era `git diff --quiet`, isto é, comparação com o HEAD e não com o estado ANTES
+#       da mutação: com o arquivo já sujo por uma edição legítima, ela aprovava mesmo quando o
+#       `perl` não casava nada — que é exatamente a mutação fantasma do LDG-0164 que ela existe
+#       para impedir. As duas correções são a mesma: preservar uma cópia antes de mutar e usá-la
+#       como referência das duas decisões.
 set -uo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -48,7 +61,16 @@ T="$(mktemp -d /tmp/forge-w207.XXXXXX)"
 # Sem ela, um sinal recebido dentro da janela deixaria o fix removido na árvore de trabalho — a
 # classe do LDG-0164, e o mesmo achado que o code-review adversarial levantou contra o w203.
 MUTATED=0
-trap 'rm -rf "$T"; [ "$MUTATED" = "1" ] && git -C "$WS" checkout -- "$LEDGER_OPS"' EXIT
+# O PRISTINE mora FORA de `$T`, e a restauração vem ANTES do `rm -rf`. A ordem anterior
+# (`rm -rf "$T"` primeiro, com `PRISTINE="$T/ledger-ops.pristine"`) apagava a própria referência de
+# restauração: um sinal recebido dentro da janela em que `MUTATED=1` deixava `ledger-ops.sh` com a
+# lista de portas mutada — isto é, sem `render` em `forge_warn_root_divergence`, que é o defeito do
+# LDG-0174 reintroduzido em silêncio num arquivo RASTREADO, distribuído no tarball. Medido: SIGTERM
+# na janela levava o sha de 60a8beac… para f6f94967…, com `cp: …/ledger-ops.pristine: No such file
+# or directory` no fim do log. É a classe do LDG-0175, e a restauração à prova de interrupção é a
+# única forma de um gate usar arquivo rastreado como fixture.
+PRISTINE="$(mktemp "${TMPDIR:-/tmp}/forge-w207-pristine.XXXXXX")"
+trap '[ "$MUTATED" = "1" ] && cp "$PRISTINE" "$LEDGER_OPS"; rm -f "$PRISTINE"; rm -rf "$T"' EXIT
 
 # ── fixture hermética: um repositório com layout .forge/ instalado, mais uma árvore de trabalho ──
 # A fixture nunca lê nem escreve o `.forge/ledger/` real deste repositório.
@@ -127,32 +149,37 @@ grep -q 'WARN' <<<"$out5" && {
 echo "OK [5] — FORGE_ROOT declarado silencia o aviso"
 
 # ── [6] prova de mutação sobre o arquivo rastreado ───────────────────────────────────────────────
-echo "[6] PROVA DE MUTAÇÃO — controle, mutação, git checkout --, recontrole"
+echo "[6] PROVA DE MUTAÇÃO — controle, mutação, restauração por cópia conferida com cmp, recontrole"
 out6a="$(_run render)"
 grep -q 'WARN' <<<"$out6a" || { echo "FAIL [6] controle: [2] deveria passar antes de mutar"; exit 1; }
 echo "OK [6] controle — o aviso está presente antes da mutação"
 
+cp "$LEDGER_OPS" "$PRISTINE"
 MUTATED=1
-# a mutação remove `render` da lista de portas que avisam, que é exatamente o estado anterior à
-# correção; o `sed` casa a linha do `case` pelo conjunto de portas, não por número de linha.
-perl -0pi -e 's/\badd\|update\|resolve\|promote\|harvest\|render\)/add|update|resolve|promote|harvest)/' "$LEDGER_OPS"
-if git -C "$WS" diff --quiet -- "$LEDGER_OPS"; then
+# A mutação remove `render` da lista de portas que avisam, que é exatamente o estado anterior à
+# correção; o `perl` casa a linha do `case` pelo conjunto de portas, não por número de linha. O
+# `note` está na lista desde a onda w211 — o padrão é ancorado em `render)` com o fecho de
+# parêntese, e o que ele remove é apenas o `|render`, para que a entrada de outras portas na lista
+# não exija reescrever este alvo a cada onda.
+perl -0pi -e 's/^(  add\|[a-z|]*)\|render\)/$1)/m' "$LEDGER_OPS"
+if cmp -s "$LEDGER_OPS" "$PRISTINE"; then
   MUTATED=0
   echo "FAIL [6] mutação: o comando de mutação não alterou $LEDGER_OPS — a prova seria fantasma (LDG-0164). Ajuste o alvo do perl."; exit 1
 fi
 cp "$LEDGER_OPS" "$FX/.forge/scripts/ledger-ops.sh"
 out6b="$(_run render)"
 if grep -q 'WARN' <<<"$out6b"; then
-  git -C "$WS" checkout -- "$LEDGER_OPS"; MUTATED=0
+  cp "$PRISTINE" "$LEDGER_OPS"; MUTATED=0
   echo "FAIL [6] mutação: mesmo sem 'render' na lista de portas o aviso apareceu — o cenário [2] não está medindo esta lista. stderr: $out6b"; exit 1
 fi
 echo "OK [6] mutação — sem 'render' na lista, o aviso desaparece (o cenário [2] mede a lista de portas)"
 
-git -C "$WS" checkout -- "$LEDGER_OPS"; MUTATED=0
+cp "$PRISTINE" "$LEDGER_OPS"; MUTATED=0
+cmp -s "$LEDGER_OPS" "$PRISTINE" || { echo "FAIL [6] recontrole: a restauração por cópia não bateu byte a byte com o arquivo preservado antes da mutação"; exit 1; }
 cp "$LEDGER_OPS" "$FX/.forge/scripts/ledger-ops.sh"
 out6c="$(_run render)"
 grep -q 'WARN' <<<"$out6c" || {
-  echo "FAIL [6] recontrole: depois do 'git checkout --' o aviso não voltou — a restauração não funcionou e a mutação anterior não provou nada. stderr: ${out6c:-(vazio)}"; exit 1; }
-echo "OK [6] recontrole — git checkout -- restaurou o aviso"
+  echo "FAIL [6] recontrole: depois da restauração por cópia o aviso não voltou — a restauração não funcionou e a mutação anterior não provou nada. stderr: ${out6c:-(vazio)}"; exit 1; }
+echo "OK [6] recontrole — a cópia preservada restaurou o aviso, conferida byte a byte"
 
 echo "TODOS OS CENÁRIOS OK — w207-ledger-render-write-port-gate"

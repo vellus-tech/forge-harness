@@ -21,7 +21,7 @@ Um item sai de `open` por duas portas legítimas, e só por essas duas: `resolve
 | Fonte | Aberto | Onde |
 |---|---|---|
 | Ledger | 22 itens (9 P2, 11 P3, 2 LOW/MEDIUM) — 21 no levantamento inicial mais o LDG-0176, achado durante a revisão das especificações | `.forge/ledger/ledger.json` |
-| Issues | 10 abertas, 6 delas de liaison | `gh issue list` |
+| Issues | **30 abertas** — 10 do levantamento inicial mais as 20 de campo da 0.14.0 (Onda L), abertas em 2h30 na noite de 2026-09-07 | `gh issue list` |
 | Liaison | 37 mensagens em 22 threads, de 4 repositórios | `check-liaison-acks.sh` |
 | Em voo | 3 achados médios do perfil strix, não commitados | branch `fix/strix-achados-medios` |
 | Fora de registro | piloto do Strix nunca executado contra alvo real | artifact de backlog, 2026-09-07 |
@@ -199,6 +199,66 @@ Esta onda entrou no plano por decisão do dono em 2026-09-07, depois da pergunta
 
 **O que a onda não faz, e por quê:** não remove o `red-first.yml` nem tenta reimplementar em shell a garantia que ele oferece. Rodar o replay num runner que o autor não controla é uma propriedade do *ambiente*, não do script — um `deploy.sh` executado pelo próprio autor, na máquina do próprio autor, não a reproduz. O que a onda faz é documentar essa fronteira e oferecer, para quem não usa Actions, o mesmo contrato num adaptador equivalente.
 
+### Onda L — os achados de campo da 0.14.0
+
+Esta onda entrou no plano em 2026-09-07, às 21h30, por decisão do dono, depois que **vinte issues novas** apareceram no repositório em duas horas e meia — `#125` a `#145`, sem a `#143`, todas criadas entre 19h09 e 21h30. Elas não vêm de auditoria interna: são medições de campo dos quatro repositórios consumidores, que aplicaram a 0.14.0 no mesmo dia e mediram o que ela fez com as árvores deles. O canal de liaison deixou de ser o veículo e o registro passou a ser a issue direta, o que por si só é informação: o campo julgou que a coisa era grave o bastante para não esperar a próxima rodada de leitura do canal.
+
+O total de issues abertas foi de dez para trinta, e a definição de pronto deste plano — zero issues abertas — não muda por isso. O que muda é o volume de trabalho antes de ela ser alcançável.
+
+**Sobre a régua desta onda:** os itens são medições de terceiro, e nenhum deles foi reproduzido por este plano ainda. A primeira obrigação de cada subgrupo é REPRODUZIR o defeito na árvore do produtor antes de especificar a correção — não porque o campo seja pouco confiável, mas porque várias destas issues descrevem o comportamento da cópia INSTALADA no consumidor, que pode divergir do template por caminhos que o próprio backlog registra (LDG-0161, issue #101, issue #131). Aceitar a medição sem reproduzir é o erro que a invariante 19 nomeia, com o sinal invertido.
+
+#### L1 — o `forge update` desarma a configuração do consumidor
+
+| Item | O que fecha |
+|---|---|
+| #125 | `hooks/` está fora de `ENRICHABLE_DIRS` e o `sync-adapters` tem gancho fixo, então todo update **desarma o detector de segredos do consumidor**. Quatro repositórios mediram a mesma consequência no mesmo dia. |
+| #131 | O updater ignora `.forge/machinery-exceptions.txt`: as divergências que o consumidor declarou deliberadamente, com o sha do template para que a exceção expire, são sobrescritas com rc 0 e um WARN genérico. O `check-machinery-drift.sh` honra o arquivo; o updater não sabe que ele existe. |
+| #130 | `sync-adapters.mjs` **executa no import** — sem guarda de principal, importar o módulo para ler uma função reconcilia 70 arquivos do consumidor como efeito colateral. Encontrado por quem escrevia um gate para o módulo. |
+| #142 | O update troca o `resource` do mutex de carga pesada e **particiona silenciosamente o lock compartilhado**: as árvores atualizadas deixam de se serializar com as que resistiram. |
+
+O mecanismo comum, e é o mesmo da issue #101 que a Onda C já trata: o update tem autoridade sobre arquivos que o consumidor tem razão legítima para ter mudado, e não distingue conserto local de defasagem. A diferença é que aqui a consequência é **desarme de guarda de segurança**, não perda de conveniência.
+
+#### L2 — heavy-mutex: os dois relógios e a posse órfã
+
+| Item | O que fecha |
+|---|---|
+| #137 | O timeout de quem **espera** (1800 s) é metade do teto de **posse** (3600 s), então quem entra na primeira metade da posse alheia SEMPRE desiste antes que o reclaim possa agir. Dois relógios com propósitos opostos e defaults que se anulam. |
+| #144 | O `pre-push` órfão continua segurando o lock depois que o `git push` que o invocou morre: ele é reparentado para `launchd` e segue rodando a suíte pesada para um destinatário que não existe mais. A detecção de dono morto não pega dono **órfão**. |
+
+#### L3 — `pre-push`: custo, instrumentação e worktree
+
+| Item | O que fecha |
+|---|---|
+| #132 | Push de deleção pura roda `typecheck` e `test`: a sentinela `_viu_ref` colapsa "entrada vazia" e "só deleções", e apagar uma branch morta passa a custar a suíte completa. |
+| #134 | O mesmo push de deleção roda a suíte inteira do harness — medindo a árvore de trabalho para uma operação que não publica árvore nenhuma — e deixa um manifesto órfão por deleção. |
+| #135 | `run_check` não tem teto de tempo (o `forge_run_gate` tem 300 s) e a suíte é muda: oito minutos sem uma linha são indistinguíveis de travamento. Cinco pushes morreram no `harness-tests` sem nenhum FAIL, e a hipótese de deadlock estava errada — era custo acumulado sem instrumentação. |
+| #141 | `core.hooksPath` é instalado como caminho **absoluto do checkout principal**, mas os hooks resolvem o que delegam por `$ROOT`. Atualizar o harness no principal quebra o commit em todos os worktrees — no fluxo que o próprio `FORGE.md` recomenda. |
+
+#### L4 — parsing e interface dos scripts de operação
+
+| Item | O que fecha |
+|---|---|
+| #133 | A 0.14.0 trocou `lib/argparse.sh` por `lib/arg-guards.sh` no `liaison-ops.sh` e no `deferral-ops.sh`, e as duas cobrem propriedades **diferentes**: a troca perdeu comportamento, e flag desconhecida passou a ser aceita em silêncio com rc 0. **Interage diretamente com a Onda E**, que já foi aprovada especificando trabalho sobre `arg-guards.sh` — a Onda E precisa ser reconciliada com esta issue antes de ser implementada, e é a única interação entre lotes que este plano registra. |
+| #136 | `--help` e `-h` caem no ramo de comando desconhecido em `liaison-ops` e `ledger-ops`; nos outros dois o usage aparece por acidente do ramo de erro, não por tratamento. |
+| #128 | `run-manifest.sh` anexa o próprio `--root` **depois** de `"$@"` e o parser deixa a última ocorrência vencer: o `--root` do chamador é descartado em silêncio e o manifesto carimba a árvore errada. |
+| #129 | `validate-naming-conventions.sh` reprova todo `.cs` sob `src/` quando o caminho chega **relativo** — que é exatamente a forma que `git diff --cached --name-only` entrega. Medido: 60 de 60 reprovam com `src/...`, 0 de 60 com caminho absoluto. |
+
+#### L5 — red-first e a evidência que não acumula
+
+| Item | O que fecha |
+|---|---|
+| #138 | O protocolo Red-first é escopado por `type: bugfix` no manifesto, mas a norma que ele implementa é escopada por **defeito corrigido**. Um change `type: feature` que corrige defeitos — o caso comum, porque redesenhar uma tela carrega a correção dos defeitos dela — fica sem instrumento e sem cobrança. |
+| #139 | `/forge:red record` escreve por atribuição direta em campos escalares no topo do `red-evidence.json`: um segundo `record` no mesmo change apaga integralmente o primeiro, e um `type: bugfix` com N defeitos só consegue provar o Red de um deles. |
+
+#### L6 — prosa que contradiz o código, e três defeitos isolados
+
+| Item | O que fecha |
+|---|---|
+| #126 | O cabeçalho do `_common.sh` afirma que `behind` é **recusado** e o código o **une**. A prosa desatualizada induziu fixture invertida em quem escreveu teste a partir dela — o defeito custa mais pelo que ensina errado do que pelo que faz. |
+| #127 | A varredura de vazamento do doctor desce em `.forge/worktrees/` (98,7% do universo) e o predicado mede **menção de texto** como se fosse configuração: um gate que não termina, e depois um gate cronicamente vermelho pelo motivo errado. |
+| #140 | O gate A4 `native-control` reprova, com rc 1, exatamente o componente criado para pagar a dívida que ele mede — e a única saída é `--no-verify`, que desliga tudo. |
+| #145 | `/forge:pentest scan` não alcança o toolchain vendorizado pelo consumidor: nome de imagem fixo no engine, tag `latest` proibida pelas próprias rules, e um entrypoint `pentest-scan` que é contrato implícito. São três defeitos independentes no mesmo caminho, e nenhum aparece como erro claro. |
+
 ### Onda J — release
 
 Bump, `CHANGELOG.md`, PR de release para `main`, tag, back-merge para `develop`, publicação no npm com `.npmrc` temporário a partir do item "Npmjs" do 1Password, vault Operations, sem persistir credencial em disco.
@@ -221,4 +281,4 @@ O orquestrador valida cada retorno com execução real da suíte. Relatório de 
 
 ## Ordem de execução e por quê
 
-Fase 0 primeiro, porque a árvore está suja e nada mais pode começar sobre trabalho não commitado. Fase 1 em seguida, porque ela muda o universo dos gates e toda onda posterior precisa medir contra o universo novo, não contra o antigo. Depois A (destrói dado), D (falso-verde, que é o mecanismo que mais nos mordeu), B e C (liaison, a maior concentração isolada), E (barato e já cobrou pedágio duas vezes), F, G, H. K entra depois de E, porque ela cria maquinaria nova em vez de consertar maquinaria existente e merece uma bancada estável embaixo; ela é também a única onda cujo produto precisa de piloto num consumidor real antes de virar contrato do template. I acompanha as ondas cujo pedido ela responde. J fecha.
+Fase 0 primeiro, porque a árvore está suja e nada mais pode começar sobre trabalho não commitado. Fase 1 em seguida, porque ela muda o universo dos gates e toda onda posterior precisa medir contra o universo novo, não contra o antigo. Depois A (destrói dado), D (falso-verde, que é o mecanismo que mais nos mordeu), B e C (liaison, a maior concentração isolada), E (barato e já cobrou pedágio duas vezes), F, G, H. A Onda L entrou depois de todas essas terem sido especificadas, e a ordem dela é por SUBGRUPO, não por número de issue: L1 e L2 primeiro, porque desarmam guarda de segurança e travam operação em quatro repositórios ao mesmo tempo; L3 e L4 em seguida, porque cobram custo e silêncio de quem opera; L5 e L6 por último. Uma reconciliação obrigatória antes de qualquer implementação: a issue #133 mede que a 0.14.0 perdeu comportamento ao trocar `lib/argparse.sh` por `lib/arg-guards.sh`, e a Onda E — já aprovada — especifica trabalho sobre `arg-guards.sh` sem saber disso. Implementar a Onda E como está escrita reintroduziria o defeito que #133 descreve, então a especificação da Onda E volta à bancada assim que L4 for especificada, e as duas são implementadas juntas ou em ordem declarada. K entra depois de E, porque ela cria maquinaria nova em vez de consertar maquinaria existente e merece uma bancada estável embaixo; ela é também a única onda cujo produto precisa de piloto num consumidor real antes de virar contrato do template. I acompanha as ondas cujo pedido ela responde. J fecha.

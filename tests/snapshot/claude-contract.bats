@@ -139,7 +139,7 @@ PYEOF
 
 @test "C3: no stale .claude/ refs in canonical rules (generated mode only)" {
   [ "$MODE" = "generated" ] || skip "source mode keeps .claude refs by definition"
-  count=$(grep -r '\.claude/' "$RULES_DIR" | wc -l | tr -d ' ')
+  count=$(grep -ar '\.claude/' "$RULES_DIR" | wc -l | tr -d ' ')
   [ "$count" -eq 0 ]
 }
 

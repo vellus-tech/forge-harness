@@ -337,7 +337,7 @@ done
 # todo script citado como `.forge/scripts/<nome>.sh` nas docs de wave tem de existir
 while IFS= read -r ref; do
   [ -f "$WS/template/.forge/scripts/$ref" ] || { echo "FAIL [13]: doc de wave cita .forge/scripts/$ref, que não existe"; exit 1; }
-done < <(grep -rhoE '\.forge/scripts/[a-z0-9-]+\.sh' "$WS/template/.forge/commands/waves/" "$WS/template/.forge/skills/wave-advance/" | sed 's|.forge/scripts/||' | sort -u)
+done < <(grep -arhoE '\.forge/scripts/[a-z0-9-]+\.sh' "$WS/template/.forge/commands/waves/" "$WS/template/.forge/skills/wave-advance/" | sed 's|.forge/scripts/||' | sort -u)
 echo "OK [13]"
 
 # ── [14] logs de gate não colidem entre execuções concorrentes ──────────────────────────────

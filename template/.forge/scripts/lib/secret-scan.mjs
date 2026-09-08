@@ -146,7 +146,7 @@ function decodedBasicPair(b64) {
     return null;
   }
   if (!decoded) return null;                             // decodificação vazia: nada a comparar
-  if (/[ --]/.test(decoded)) return null;  // binário: não é par de texto
+  if (/[\x00-\x08\x0e-\x1f]/.test(decoded)) return null;  // binário: não é par de texto
   const sep = decoded.indexOf(':');
   if (sep <= 0) return null;                             // sem `:`, ou usuário vazio
   const user = decoded.slice(0, sep);

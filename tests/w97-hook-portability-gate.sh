@@ -12,7 +12,7 @@ HOOKS="$WS/template/.forge/hooks"
 
 echo "[1] mktemp portável (template termina nos X) em todos os hooks"
 # procura `mktemp ... XXXX<algo>` onde <algo> não é X nem fim-de-token (aspas/espaço/paren/fim de linha)
-if grep -rn 'mktemp' "$HOOKS" 2>/dev/null | grep -E 'X{3,}[^X[:space:]"'"'"')]'; then
+if grep -arn 'mktemp' "$HOOKS" 2>/dev/null | grep -E 'X{3,}[^X[:space:]"'"'"')]'; then
   echo "FAIL [1] (mktemp com sufixo após os X — quebra no BSD/macOS; mova a extensão ou remova-a)"
   exit 1
 fi

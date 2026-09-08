@@ -69,7 +69,7 @@ git diff $base..HEAD --name-only | grep -E "\.env$|\.env\.[a-z]+$" | grep -v "\.
 ### 2. PII em logs
 
 ```bash
-grep -rnE "_logger\.|Log\.|logger\.|console\.log" $(git diff $base..HEAD --name-only) | grep -iE "cpf|email|phone|telefone|pan|card.?number|cvv|senha|password|nome.?completo"
+grep -arnE "_logger\.|Log\.|logger\.|console\.log" $(git diff $base..HEAD --name-only) | grep -iE "cpf|email|phone|telefone|pan|card.?number|cvv|senha|password|nome.?completo"
 ```
 
 Match → BLOCKER. Mensagem deve mascarar PII (`***`, hash, etc.).
@@ -83,7 +83,7 @@ Verifique também:
 Para cada novo middleware/handler de auth:
 
 ```bash
-grep -rE "TokenValidationParameters|ValidateIssuer|ValidateAudience|ClockSkew" $(git diff $base..HEAD --name-only) 2>/dev/null
+grep -arE "TokenValidationParameters|ValidateIssuer|ValidateAudience|ClockSkew" $(git diff $base..HEAD --name-only) 2>/dev/null
 ```
 
 Verificar (conforme `jwt-authentication.md`):
@@ -99,7 +99,7 @@ Verificar (conforme `jwt-authentication.md`):
 Se o diff cria novo `HttpClient` para outro serviço interno:
 
 ```bash
-grep -rE "new HttpClient|HttpClientFactory.*CreateClient" $(git diff $base..HEAD --name-only) | grep -v Tests
+grep -arE "new HttpClient|HttpClientFactory.*CreateClient" $(git diff $base..HEAD --name-only) | grep -v Tests
 ```
 
 Verificar (conforme `mtls-internal-services.md`):
@@ -118,7 +118,7 @@ Para endpoints novos com `[Authorize]`:
 Se o projeto possui rule de permissões JWT (ex.: `jwt-permissions.md`), verifique se o símbolo que carrega permissões é chamado no fluxo de login. Identifique no repositório o serviço de autenticação e os símbolos reais; exemplo do projeto de referência (adapte símbolos e path antes de executar):
 
 ```bash
-grep -rE "LoadPermissionsAsync|role\.Permissions" services/<auth-service>/src/
+grep -arE "LoadPermissionsAsync|role\.Permissions" services/<auth-service>/src/
 ```
 
 Ausência em fluxo de login → BLOCKER (frontend não vai funcionar).

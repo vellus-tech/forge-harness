@@ -38,7 +38,7 @@ git rev-parse --show-superproject-working-tree 2>/dev/null
 
 Reporte com o estado da branch:
 - Numa branch: "Já estou em workspace isolado em `<path>`, na branch `<nome>`."
-- HEAD destacado: "Já estou em workspace isolado em `<path>` (HEAD destacado, gerenciado externamente). Será preciso criar a branch no momento de finalizar."
+- HEAD destacado: "Já estou em workspace isolado em `<path>`, com HEAD destacado — worktree sem branch não tem o que empurrar, não admite PR, e o rastro do trabalho morre com a árvore." Dê nome a ela AGORA, antes de trabalhar: `git switch -c <tipo>/<escopo>/<descricao>`. O hook `post-checkout` do harness já faz isso sozinho nas worktrees criadas sob `.forge/worktrees/` depois que o harness foi instalado, com o nome de partida `wt/<slug>`; uma worktree que ainda esteja destacada é anterior ao hook, foi criada fora do território, ou veio de `git worktree add --no-checkout`, que não dispara gancho nenhum.
 
 **Se `GIT_DIR == GIT_COMMON` (ou for submódulo):** você está em um checkout normal do repositório.
 

@@ -102,7 +102,7 @@ Para namespace `prd-*`:
 Para cada serviço backend modificado:
 
 ```bash
-grep -rE "AddOpenTelemetry|ConfigureLogging|UseSerilog|/metrics|MapHealthChecks" services/<modulo>/src/*.Api/
+grep -arE "AddOpenTelemetry|ConfigureLogging|UseSerilog|/metrics|MapHealthChecks" services/<modulo>/src/*.Api/
 ```
 
 - OpenTelemetry SDK configurado (traces + metrics) → ausência = HIGH

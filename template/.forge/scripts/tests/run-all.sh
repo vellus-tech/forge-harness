@@ -32,10 +32,59 @@ while [ $# -gt 0 ]; do
 done
 [ -d "$DIR" ] || { echo "run-all.sh: '$DIR' não é um diretório" >&2; exit 66; }
 
+# Sentinela da árvore RASTREADA (LDG-0179). Um teste que muta arquivo rastreado do repositório e
+# restaura no trap não sobrevive a `SIGKILL`, e quando restaura com `git checkout --` apaga trabalho
+# não commitado com o teste saindo verde. Aqui a guarda mede o EFEITO: retrato da árvore rastreada
+# antes e depois de cada alvo, e a divergência vira veredito próprio, distinto de "reprovou".
+#
+# Repositório ausente ou `git` ausente NÃO viram verde silencioso, e a promessa é CUMPRIDA em código,
+# não só em comentário: a primeira redação deste bloco guardava tudo por `if [ -n "$REPO" ]`, de modo
+# que sem repositório não havia snapshot, o ramo do aviso ficava inalcançável e um teste que sujava a
+# árvore saía com `✓` e o runner com rc 0 — medido. Agora a impossibilidade de medir é ela própria um
+# estado: aviso explícito na cabeça, marcação por alvo e rc 3 no fecho, o MESMO contrato de rc 3 do
+# runner da suíte. Duas implementações do mesmo contrato divergindo em silêncio é o LDG-0014.
+LIB_ARVORE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../lib" 2>/dev/null && pwd)/arvore-rastreada.sh"
+SENTINELA=0
+REPO=""
+if [ -f "$LIB_ARVORE" ]; then
+  # shellcheck source=/dev/null
+  . "$LIB_ARVORE"
+  SENTINELA=1
+  REPO="$(git -C "$DIR" rev-parse --show-toplevel 2>/dev/null)" || REPO=""
+  if [ -z "$REPO" ]; then
+    SENTINELA=0
+    echo "run-all.sh: aviso — '$DIR' não está em repositório git (ou 'git' está ausente); a sentinela da árvore rastreada NÃO pôde medir nada, e um teste que sujar a árvore passará sem ser visto" >&2
+  fi
+else
+  echo "run-all.sh: aviso — sentinela da árvore rastreada ausente ($LIB_ARVORE); os testes rodam SEM ela" >&2
+fi
+# Contador por ALVO, não por condição global: com a sentinela desligada cada alvo já entra em
+# `rc_sentinela=3` e se conta sozinho, e semear o contador aqui somaria um ponto que não existe.
+nao_medidos=0
+
 pass=0; fail=0; failed=""
 run_one() {  # run_one <arquivo> <comando...>
   local nome="$1"; shift
-  if "$@" >/dev/null 2>&1; then
+  local antes="" rc_sentinela=0 alvo_ok=0
+  # `antes="$(arvore_snapshot ...)"` herdaria o rc 3 da biblioteca; `arvore_retrato` devolve sempre
+  # rc 0 e carrega o estado no VALOR, que é o que impede a morte muda sob `set -e` no adotante.
+  if [ "$SENTINELA" -eq 1 ]; then antes="$(arvore_retrato "$REPO")"; else rc_sentinela=3; fi
+  if "$@" >/dev/null 2>&1; then alvo_ok=1; fi
+  if [ "$SENTINELA" -eq 1 ]; then
+    arvore_confere "$REPO" "$antes" "$nome" >/dev/null 2>&1
+    rc_sentinela=$?
+  fi
+  if [ "$rc_sentinela" -eq 1 ]; then
+    fail=$((fail + 1)); failed="$failed $nome"
+    printf '  ✗ %s — o teste sujou a árvore rastreada do repositório\n' "$nome"
+    arvore_confere "$REPO" "$antes" "$nome" 2>&1 | sed 's/^/      /' | tail -20
+    return 0
+  fi
+  if [ "$rc_sentinela" -eq 3 ]; then
+    nao_medidos=$((nao_medidos + 1))
+    printf '  ⚠ %s — árvore rastreada NÃO MEDIDA (sem git ou fora de repositório); o ✓ abaixo vale pelas asserções do teste, não pelo efeito dele na árvore\n' "$nome"
+  fi
+  if [ "$alvo_ok" -eq 1 ]; then
     pass=$((pass + 1)); printf '  ✓ %s\n' "$nome"
   else
     fail=$((fail + 1)); failed="$failed $nome"; printf '  ✗ %s\n' "$nome"
@@ -62,9 +111,16 @@ if [ "$total" -eq 0 ]; then
   echo "OK harness-tests — 0 arquivo(s) de teste examinado(s) em $DIR (nada a rodar)"
   exit 0
 fi
-echo "harness-tests: $total arquivo(s) examinado(s) — PASS=$pass FAIL=$fail"
+echo "harness-tests: $total arquivo(s) examinado(s) — PASS=$pass FAIL=$fail NÃO-MEDIDOS=$nao_medidos"
 if [ "$fail" -ne 0 ]; then
   printf 'FALHARAM:\n'; printf '  - %s\n' $failed
   exit 1
+fi
+# Reprovação tem precedência; o terceiro estado sai 3, como no runner da suíte deste harness. Não sai
+# 0 porque "rodei e não pude medir se sujaram a árvore" não é "rodei e nada sujou" — é o falso-verde
+# que esta guarda existe para eliminar — e não sai 1 porque não houve reprovação de asserção alguma.
+if [ "$nao_medidos" -ne 0 ]; then
+  echo "NÃO VERIFICADO harness-tests — os testes passaram, mas a árvore rastreada não pôde ser medida em $nao_medidos ponto(s)"
+  exit 3
 fi
 echo "OK harness-tests"

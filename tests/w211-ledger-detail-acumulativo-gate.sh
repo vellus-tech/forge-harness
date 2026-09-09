@@ -65,7 +65,11 @@ WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REAL_LEDGER="$WS/.forge/ledger/ledger.json"
 _sha() { if [ -f "$1" ]; then shasum -a 256 "$1" | awk '{print $1}'; else echo "AUSENTE"; fi; }
 REAL_SHA_BEFORE="$(_sha "$REAL_LEDGER")"
-REPO_SNAPSHOT_BEFORE="$(git -C "$WS" status --porcelain)"
+# shellcheck source=/dev/null
+. "$WS/template/.forge/scripts/lib/arvore-rastreada.sh"
+# Modo `tudo`: este sítio afirma "nada vazou do sandbox", que é mais forte do que "a árvore
+# rastreada não mudou", e a adoção da biblioteca (LDG-0179) preserva a semântica que ele já tinha.
+REPO_SNAPSHOT_BEFORE="$(arvore_retrato "$WS" tudo)"
 
 command -v node >/dev/null 2>&1 || { echo "NÃO VERIFICADO: 'node' ausente — o gate não roda sem ele, e ausência de verificação não é ausência de violação"; exit 3; }
 command -v git  >/dev/null 2>&1 || { echo "NÃO VERIFICADO: 'git' ausente — a fixture precisa de um commit para a data determinística"; exit 3; }
@@ -671,11 +675,9 @@ echo "OK [20] — $mut_n mutações produziram o contrafactual declarado; restau
 
 REAL_SHA_AFTER="$(_sha "$REAL_LEDGER")"
 [ "$REAL_SHA_BEFORE" = "$REAL_SHA_AFTER" ] || { echo "FAIL sentinela: o .forge/ledger/ledger.json REAL mudou durante o gate ($REAL_SHA_BEFORE -> $REAL_SHA_AFTER)"; exit 1; }
-REPO_SNAPSHOT_AFTER="$(git -C "$WS" status --porcelain)"
-[ "$REPO_SNAPSHOT_BEFORE" = "$REPO_SNAPSHOT_AFTER" ] || {
-  echo "FAIL sentinela: a árvore do repositório real mudou durante o gate (o gate só pode escrever em \$T)"
-  diff <(echo "$REPO_SNAPSHOT_BEFORE") <(echo "$REPO_SNAPSHOT_AFTER") >&2 || true
-  exit 1
-}
+# Fecho pelos TRÊS estados (modo `tudo`, que é a semântica forte que este sítio já praticava):
+# rc 0 limpo, rc 1 acusação, rc 3 NÃO VERIFICADO. O `||` único de antes colapsava rc 1 e rc 3 e
+# acusava a árvore de ter mudado quando o que houve foi não conseguir medir.
+arvore_sentinela_fim "$WS" "$REPO_SNAPSHOT_BEFORE" "w211-ledger-detail-acumulativo" tudo || exit $?
 
 echo "PASS w211-ledger-detail-acumulativo — $SCN_RUN cenários declarados e executados; ledger real intacto ($REAL_SHA_AFTER)"

@@ -36,8 +36,21 @@ T="$(mktemp -d /tmp/forge-w199.XXXXXX)"
 T="$(cd "$T" && pwd -P)"
 trap 'rm -rf "$T"' EXIT
 
-SCHEMA="$WS/template/.forge/schemas/forge.schema.json"
-[ -f "$SCHEMA" ] || { echo "FAIL: $SCHEMA ausente"; exit 1; }
+# shellcheck source=/dev/null
+. "$WS/template/.forge/scripts/lib/arvore-rastreada.sh"
+ARVORE_ANTES="$(arvore_retrato "$WS")"
+
+# Conversão do LDG-0179: o cenário [7] muta o schema, e até aqui ele mutava o arquivo RASTREADO
+# `template/.forge/schemas/forge.schema.json`. Era o pior dos seis sítios da suíte: a única cópia de
+# referência morava DENTRO do `$T` que o trap apaga, de modo que qualquer morte na janela — sinal ou
+# caminho de erro — deixava o schema mutado na árvore de trabalho sem nada para restaurá-lo. Agora o
+# sistema sob teste é uma CÓPIA em `$T`, conferida byte a byte com o original antes do uso; o que se
+# mede é a propriedade do schema, não a do inode, e sem mutação do rastreado não há janela.
+SCHEMA_REAL="$WS/template/.forge/schemas/forge.schema.json"
+[ -f "$SCHEMA_REAL" ] || { echo "FAIL: $SCHEMA_REAL ausente"; exit 1; }
+SCHEMA="$T/forge.schema.json"
+copia_conferida "$SCHEMA_REAL" "$SCHEMA" \
+  || { echo "NÃO VERIFICADO: a cópia do schema em \$T não bate byte a byte com o original"; exit 3; }
 
 # valida <json-do-valor-de-gates> -> imprime "ok" ou a mensagem de erro de /runtime/gates
 valida_gates() {
@@ -141,3 +154,7 @@ set -e
 echo "OK [7] — revertido, [2] e [3] reprovam; restaurado, voltam a passar"
 
 echo "PASS w199-schema-reader-parity"
+# Fecho da sentinela pelos TRÊS estados: rc 0 limpo, rc 1 acusação, rc 3 NÃO VERIFICADO. O idioma
+# anterior (`arvore_confere ... || { echo "a árvore mudou"; exit 1; }`) colapsava rc 1 e rc 3 no mesmo
+# `||` e imprimia, em árvore sem `.git`, a acusação FALSA de que a árvore rastreada mudou.
+arvore_sentinela_fim "$WS" "$ARVORE_ANTES" "w199-schema-reader-parity" || exit $?

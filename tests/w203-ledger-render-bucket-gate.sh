@@ -22,23 +22,36 @@
 #       trivialmente o "não apareceu").
 #   [4] prova de mutação sobre o arquivo RASTREADO ledger-render.mjs: (a) controle — roda [2] e vê
 #       passar; (b) mutação — remove o balde do renderizador e vê [2] reprovar acusando resumo 3
-#       contra fixture 5; (c) recontrole — `git checkout --`, nunca edição inversa, e vê [2] passar
+#       contra fixture 5; (c) recontrole — restauração por CÓPIA, nunca edição inversa, e vê [2] passar
 #       de novo.
 set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$WS" || { echo "FAIL: não foi possível entrar em '$WS'"; exit 2; }
 
-RENDERER="$WS/template/.forge/scripts/lib/ledger-render.mjs"
-[ -f "$RENDERER" ] || { echo "FAIL: arquivo esperado ausente: $RENDERER"; exit 1; }
+RENDERER_REAL="$WS/template/.forge/scripts/lib/ledger-render.mjs"
+[ -f "$RENDERER_REAL" ] || { echo "FAIL: arquivo esperado ausente: $RENDERER_REAL"; exit 1; }
 
 T="$(mktemp -d /tmp/forge-w203.XXXXXX)"
-# MUTATED é a guarda de restauração: o cenário [4] muta o RENDERER, que é arquivo rastreado, e um
-# sinal recebido dentro dessa janela deixaria o fix removido na árvore de trabalho — a classe do
-# LDG-0164, que esta própria rodada existe para eliminar. Os gates irmãos w204 e w205 já carregam
-# a mesma guarda; a ausência dela aqui foi achado de code-review adversarial.
-MUTATED=0
-trap 'rm -rf "$T"; [ "$MUTATED" = "1" ] && git -C "$WS" checkout -- "$RENDERER"' EXIT
+trap 'rm -rf "$T"' EXIT
+
+# shellcheck source=/dev/null
+. "$WS/template/.forge/scripts/lib/arvore-rastreada.sh"
+ARVORE_ANTES="$(arvore_retrato "$WS")"
+
+# Conversão do LDG-0179: o cenário [4] muta o renderizador, e até aqui a mutação caía sobre o arquivo
+# RASTREADO, com a guarda `MUTATED` restaurando por `git checkout --` no trap. Duas falhas medidas:
+# sob `SIGKILL` nenhum trap roda e o renderizador ficava mutado na árvore de trabalho; e o
+# `git checkout --` APAGA trabalho não commitado do operador, com o gate saindo VERDE — medido neste
+# gate, uma edição legítima plantada no renderizador sumia e a saída era "TODOS OS CENÁRIOS OK".
+# Agora o sistema sob teste é uma CÓPIA em `$T`, conferida byte a byte com o original antes do uso,
+# e a restauração é `cp` da segunda cópia. Sem mutação do rastreado não há janela e não há checkout.
+RENDERER="$T/ledger-render.mjs"
+RENDERER_PRISTINE="$T/ledger-render.pristine.mjs"
+copia_conferida "$RENDERER_REAL" "$RENDERER" \
+  || { echo "NÃO VERIFICADO: a cópia do renderizador em \$T não bate byte a byte com o original"; exit 3; }
+copia_conferida "$RENDERER_REAL" "$RENDERER_PRISTINE" \
+  || { echo "NÃO VERIFICADO: a cópia de referência do renderizador em \$T não bate byte a byte com o original"; exit 3; }
 
 TPL="$T/LEDGER.tpl.md"
 cat >"$TPL" <<'EOF'
@@ -175,7 +188,7 @@ if [ "$FAILED" -eq 1 ]; then
   exit 1
 fi
 
-echo "[4] prova de mutação — controle, mutação, git checkout --, recontrole"
+echo "[4] prova de mutação — controle, mutação da CÓPIA, restauração por cópia, recontrole"
 set +e
 out4a="$(_run_render "$J2" "$T/LEDGER-4a.md" 2>&1)"; rc4a=$?
 set -e
@@ -184,7 +197,6 @@ n4a="$(_extract_n "$(cat "$T/LEDGER-4a.md")")"
 [ "$n4a" = "5" ] || { echo "FAIL [4] controle: esperava 5 itens ativos antes de mutar — got: ${n4a:-(nenhum)}"; exit 1; }
 echo "OK [4] controle — 5 itens ativos antes de mutar"
 
-MUTATED=1
 node -e '
   const fs = require("fs");
   const p = process.argv[1];
@@ -209,7 +221,7 @@ if [ "$rc4b" -eq 0 ]; then
   if [ "$n4b" = "3" ]; then
     echo "OK [4] mutação — resumo caiu para 3 itens ativos contra fixture de 5 (balde removido)"
   else
-    git checkout -- "$RENDERER"; MUTATED=0
+    cp "$RENDERER_PRISTINE" "$RENDERER"
     echo "FAIL [4] mutação: esperava resumo com 3 itens ativos (balde removido, entradas fora do enum descartadas) — got: ${n4b:-(nenhum)}"
     exit 1
   fi
@@ -217,14 +229,21 @@ else
   echo "OK [4] mutação — remover o balde quebrou a execução do renderizador (rc=$rc4b): $out4b"
 fi
 
-git checkout -- "$RENDERER"; MUTATED=0
+cp "$RENDERER_PRISTINE" "$RENDERER"
+cmp -s "$RENDERER" "$RENDERER_PRISTINE" \
+  || { echo "FAIL [4] recontrole: a restauração por cópia não bateu byte a byte com a referência"; exit 1; }
 
 set +e
 out4c="$(_run_render "$J2" "$T/LEDGER-4c.md" 2>&1)"; rc4c=$?
 set -e
-[ "$rc4c" -eq 0 ] || { echo "FAIL [4] recontrole: após git checkout -- o render de [2] voltou a falhar — $out4c"; exit 1; }
+[ "$rc4c" -eq 0 ] || { echo "FAIL [4] recontrole: após a restauração por cópia o render de [2] voltou a falhar — $out4c"; exit 1; }
 n4c="$(_extract_n "$(cat "$T/LEDGER-4c.md")")"
-[ "$n4c" = "5" ] || { echo "FAIL [4] recontrole: após git checkout -- esperava 5 itens ativos de novo — got: ${n4c:-(nenhum)}"; exit 1; }
-echo "OK [4] recontrole — git checkout -- restaurou 5 itens ativos"
+[ "$n4c" = "5" ] || { echo "FAIL [4] recontrole: após a restauração por cópia esperava 5 itens ativos de novo — got: ${n4c:-(nenhum)}"; exit 1; }
+echo "OK [4] recontrole — a restauração por cópia devolveu 5 itens ativos"
 
 echo "TODOS OS CENÁRIOS OK — w203-ledger-render-bucket-gate"
+
+# Fecho da sentinela pelos TRÊS estados: rc 0 limpo, rc 1 acusação, rc 3 NÃO VERIFICADO. O idioma
+# anterior (`arvore_confere ... || { echo "a árvore mudou"; exit 1; }`) colapsava rc 1 e rc 3 no mesmo
+# `||` e imprimia, em árvore sem `.git`, a acusação FALSA de que a árvore rastreada mudou.
+arvore_sentinela_fim "$WS" "$ARVORE_ANTES" "w203-ledger-render-bucket" || exit $?

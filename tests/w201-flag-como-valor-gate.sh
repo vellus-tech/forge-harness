@@ -31,8 +31,16 @@ set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+# shellcheck source=/dev/null
+. "$WS/template/.forge/scripts/lib/arvore-rastreada.sh"
+
 # ── sentinela do repositório real: nenhuma escrita fora do sandbox ─────────────────────────────
-REPO_SNAPSHOT_BEFORE="$(git -C "$WS" status --porcelain)"
+# O idioma vive agora em lib/arvore-rastreada.sh (LDG-0179): este gate e o w211 carregavam duas
+# cópias praticamente idênticas dele, e duas implementações do mesmo contrato divergindo em silêncio
+# é o LDG-0014. O modo `tudo` preserva a semântica FORTE que este sítio já praticava — não rastreados
+# incluídos, porque aqui a asserção é "nada vazou do sandbox", e não só "a árvore rastreada não
+# mudou". São duas chamadas por execução, então o custo do walk de não rastreados é irrelevante.
+REPO_SNAPSHOT_BEFORE="$(arvore_retrato "$WS" tudo)"
 
 T="$(mktemp -d /tmp/forge-w201.XXXXXX)"
 trap 'rm -rf "$T"' EXIT
@@ -387,11 +395,9 @@ _scn5_rejects || { echo "FAIL [11b]: recontrole — [5] não voltou a reprovar d
 echo "OK [11] — duas mutações reintroduziram os defeitos isoladamente; restauração e recontrole OK"
 
 # ── sentinela do repositório real: nada vazou do sandbox ───────────────────────────────────────
-REPO_SNAPSHOT_AFTER="$(git -C "$WS" status --porcelain)"
-[ "$REPO_SNAPSHOT_BEFORE" = "$REPO_SNAPSHOT_AFTER" ] || {
-  echo "FAIL sentinela — a árvore do repositório real mudou durante o gate (o gate só pode escrever em \$T)"
-  diff <(echo "$REPO_SNAPSHOT_BEFORE") <(echo "$REPO_SNAPSHOT_AFTER") >&2 || true
-  exit 1
-}
+# Fecho pelos TRÊS estados (modo `tudo`, que é a semântica forte que este sítio já praticava):
+# rc 0 limpo, rc 1 acusação, rc 3 NÃO VERIFICADO. O `||` único de antes colapsava rc 1 e rc 3 e
+# acusava a árvore de ter mudado quando o que houve foi não conseguir medir.
+arvore_sentinela_fim "$WS" "$REPO_SNAPSHOT_BEFORE" "w201-flag-como-valor" tudo || exit $?
 
 echo "PASS w201-flag-como-valor"

@@ -31,7 +31,7 @@
 #       ruído que o comentário original temia.
 #   [4] `list` continua SEM aviso: a correção não vale para porta de leitura de verdade.
 #   [5] Com `FORGE_ROOT` explícito não há aviso, nem em `render`: quem declarou onde gravar já sabe.
-#   [6] PROVA DE MUTAÇÃO sobre o arquivo RASTREADO real: (a) controle — [2] passa; (b) mutação —
+#   [6] PROVA DE MUTAÇÃO sobre a CÓPIA da fixture (o sistema sob teste), nunca sobre o rastreado: (a) controle — [2] passa; (b) mutação —
 #       remove `render` da lista de portas em `ledger-ops.sh` e vê [2] reprovar; (c) restauração
 #       por CÓPIA do arquivo preservado antes da mutação, conferida com `cmp`, NUNCA edição
 #       inversa; (d) recontrole — [2] passa de novo. Trap com guarda MUTATED garante a restauração
@@ -57,26 +57,35 @@ LEDGER_OPS="$WS/template/.forge/scripts/ledger-ops.sh"
 [ -f "$LEDGER_OPS" ] || { echo "FAIL: arquivo esperado ausente: $LEDGER_OPS"; exit 1; }
 
 T="$(mktemp -d /tmp/forge-w207.XXXXXX)"
-# MUTATED é a guarda de restauração: o cenário [6] muta `ledger-ops.sh`, que é arquivo rastreado.
-# Sem ela, um sinal recebido dentro da janela deixaria o fix removido na árvore de trabalho — a
-# classe do LDG-0164, e o mesmo achado que o code-review adversarial levantou contra o w203.
-MUTATED=0
-# O PRISTINE mora FORA de `$T`, e a restauração vem ANTES do `rm -rf`. A ordem anterior
-# (`rm -rf "$T"` primeiro, com `PRISTINE="$T/ledger-ops.pristine"`) apagava a própria referência de
-# restauração: um sinal recebido dentro da janela em que `MUTATED=1` deixava `ledger-ops.sh` com a
-# lista de portas mutada — isto é, sem `render` em `forge_warn_root_divergence`, que é o defeito do
-# LDG-0174 reintroduzido em silêncio num arquivo RASTREADO, distribuído no tarball. Medido: SIGTERM
-# na janela levava o sha de 60a8beac… para f6f94967…, com `cp: …/ledger-ops.pristine: No such file
-# or directory` no fim do log. É a classe do LDG-0175, e a restauração à prova de interrupção é a
-# única forma de um gate usar arquivo rastreado como fixture.
-PRISTINE="$(mktemp "${TMPDIR:-/tmp}/forge-w207-pristine.XXXXXX")"
-trap '[ "$MUTATED" = "1" ] && cp "$PRISTINE" "$LEDGER_OPS"; rm -f "$PRISTINE"; rm -rf "$T"' EXIT
+trap 'rm -rf "$T"' EXIT
+
+# shellcheck source=/dev/null
+. "$WS/template/.forge/scripts/lib/arvore-rastreada.sh"
+ARVORE_ANTES="$(arvore_retrato "$WS")"
+
+# Conversão do LDG-0179. A onda anterior (commit 1c82c73) consertou a ORDEM do trap deste gate —
+# cópia de referência fora do `$T` que o próprio trap apaga, restauração antes do `rm -rf` — e isso
+# fechou o `SIGTERM`. Não fechou a CLASSE: o gate continuava mutando o `ledger-ops.sh` RASTREADO, e
+# continuava corrompendo sob `SIGKILL`, que não executa trap nenhum. Medido: o sha ia de 60a8beac…
+# para f6f94967… e sobrava um `forge-w207-pristine.*` órfão em `$TMPDIR`.
+#
+# A mutação do arquivo rastreado era, além de perigosa, SUPÉRFLUA: o sistema sob teste deste gate já
+# é `$FX/.forge/scripts/ledger-ops.sh`, dentro da fixture hermética — o rastreado era mutado apenas
+# para ser copiado para lá. Agora a mutação cai direto sobre a cópia da fixture, com a referência de
+# restauração em `$T`. Sem mutação do rastreado não há janela, não há `PRISTINE` fora de `$T` e não
+# há trap de restauração: o trap volta a ser só `rm -rf "$T"`.
 
 # ── fixture hermética: um repositório com layout .forge/ instalado, mais uma árvore de trabalho ──
 # A fixture nunca lê nem escreve o `.forge/ledger/` real deste repositório.
 FX="$T/repo"
 mkdir -p "$FX/.forge/scripts/lib" "$FX/.forge/ledger" "$FX/.forge/templates/ledger"
 cp "$LEDGER_OPS" "$FX/.forge/scripts/"
+FXOPS="$FX/.forge/scripts/ledger-ops.sh"
+FXOPS_PRISTINE="$T/ledger-ops.pristine"
+cmp -s "$LEDGER_OPS" "$FXOPS" \
+  || { echo "NÃO VERIFICADO: a cópia de ledger-ops.sh na fixture não bate byte a byte com o rastreado"; exit 3; }
+copia_conferida "$LEDGER_OPS" "$FXOPS_PRISTINE" \
+  || { echo "NÃO VERIFICADO: a cópia de referência de ledger-ops.sh em \$T não bate byte a byte com o rastreado"; exit 3; }
 cp "$WS/template/.forge/scripts/lib/forge-root.sh" "$FX/.forge/scripts/lib/"
 cp "$WS/template/.forge/scripts/lib/arg-guards.sh" "$FX/.forge/scripts/lib/"
 cp "$WS/template/.forge/scripts/lib/ledger-render.mjs" "$FX/.forge/scripts/lib/"
@@ -148,38 +157,37 @@ grep -q 'WARN' <<<"$out5" && {
   echo "FAIL [5]: avisou mesmo com FORGE_ROOT declarado — quem exportou já disse onde quer gravar, e avisá-lo é ruído em todo fixture e todo CI. stderr: $out5"; exit 1; }
 echo "OK [5] — FORGE_ROOT declarado silencia o aviso"
 
-# ── [6] prova de mutação sobre o arquivo rastreado ───────────────────────────────────────────────
+# ── [6] prova de mutação sobre a CÓPIA da fixture ───────────────────────────────────────────────
 echo "[6] PROVA DE MUTAÇÃO — controle, mutação, restauração por cópia conferida com cmp, recontrole"
 out6a="$(_run render)"
 grep -q 'WARN' <<<"$out6a" || { echo "FAIL [6] controle: [2] deveria passar antes de mutar"; exit 1; }
 echo "OK [6] controle — o aviso está presente antes da mutação"
 
-cp "$LEDGER_OPS" "$PRISTINE"
-MUTATED=1
 # A mutação remove `render` da lista de portas que avisam, que é exatamente o estado anterior à
 # correção; o `perl` casa a linha do `case` pelo conjunto de portas, não por número de linha. O
 # `note` está na lista desde a onda w211 — o padrão é ancorado em `render)` com o fecho de
 # parêntese, e o que ele remove é apenas o `|render`, para que a entrada de outras portas na lista
 # não exija reescrever este alvo a cada onda.
-perl -0pi -e 's/^(  add\|[a-z|]*)\|render\)/$1)/m' "$LEDGER_OPS"
-if cmp -s "$LEDGER_OPS" "$PRISTINE"; then
-  MUTATED=0
-  echo "FAIL [6] mutação: o comando de mutação não alterou $LEDGER_OPS — a prova seria fantasma (LDG-0164). Ajuste o alvo do perl."; exit 1
+perl -0pi -e 's/^(  add\|[a-z|]*)\|render\)/$1)/m' "$FXOPS"
+if cmp -s "$FXOPS" "$FXOPS_PRISTINE"; then
+  echo "FAIL [6] mutação: o comando de mutação não alterou $FXOPS — a prova seria fantasma (LDG-0164). Ajuste o alvo do perl."; exit 1
 fi
-cp "$LEDGER_OPS" "$FX/.forge/scripts/ledger-ops.sh"
 out6b="$(_run render)"
 if grep -q 'WARN' <<<"$out6b"; then
-  cp "$PRISTINE" "$LEDGER_OPS"; MUTATED=0
   echo "FAIL [6] mutação: mesmo sem 'render' na lista de portas o aviso apareceu — o cenário [2] não está medindo esta lista. stderr: $out6b"; exit 1
 fi
 echo "OK [6] mutação — sem 'render' na lista, o aviso desaparece (o cenário [2] mede a lista de portas)"
 
-cp "$PRISTINE" "$LEDGER_OPS"; MUTATED=0
-cmp -s "$LEDGER_OPS" "$PRISTINE" || { echo "FAIL [6] recontrole: a restauração por cópia não bateu byte a byte com o arquivo preservado antes da mutação"; exit 1; }
-cp "$LEDGER_OPS" "$FX/.forge/scripts/ledger-ops.sh"
+cp "$FXOPS_PRISTINE" "$FXOPS"
+cmp -s "$FXOPS" "$FXOPS_PRISTINE" || { echo "FAIL [6] recontrole: a restauração por cópia não bateu byte a byte com o arquivo preservado antes da mutação"; exit 1; }
 out6c="$(_run render)"
 grep -q 'WARN' <<<"$out6c" || {
   echo "FAIL [6] recontrole: depois da restauração por cópia o aviso não voltou — a restauração não funcionou e a mutação anterior não provou nada. stderr: ${out6c:-(vazio)}"; exit 1; }
 echo "OK [6] recontrole — a cópia preservada restaurou o aviso, conferida byte a byte"
 
 echo "TODOS OS CENÁRIOS OK — w207-ledger-render-write-port-gate"
+
+# Fecho da sentinela pelos TRÊS estados: rc 0 limpo, rc 1 acusação, rc 3 NÃO VERIFICADO. O idioma
+# anterior (`arvore_confere ... || { echo "a árvore mudou"; exit 1; }`) colapsava rc 1 e rc 3 no mesmo
+# `||` e imprimia, em árvore sem `.git`, a acusação FALSA de que a árvore rastreada mudou.
+arvore_sentinela_fim "$WS" "$ARVORE_ANTES" "w207-ledger-render-write-port" || exit $?

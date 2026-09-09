@@ -55,14 +55,15 @@ search() {
       --glob '*.ts' --glob '*.tsx' --glob '*.js' --glob '*.jsx' --glob '*.mjs' --glob '*.cjs' \
       -e "$pattern" "$ROOT" 2>/dev/null)"
   else
-    raw="$(grep -rnE --include='*.ts' --include='*.tsx' --include='*.js' --include='*.jsx' \
+    raw="$(grep -arnE --include='*.ts' --include='*.tsx' --include='*.js' --include='*.jsx' \
       --include='*.mjs' --include='*.cjs' -e "$pattern" "$ROOT" 2>/dev/null)"
   fi
   # Lookahead não existe em ERE nem no regex do rg: o que a regra precisa NEGAR sai por filtro.
   if [ -n "$exclude" ]; then
     raw="$(printf '%s\n' "$raw" | grep -vE "$exclude")"
   fi
-  printf '%s\n' "$raw" | grep -vE "$EXCLUDE_DIRS" | grep -v '^$' | sed "s|^$ROOT/||"
+  # O `-a` acima faz a varredura entregar a linha casada mesmo em arquivo com byte de controle — sem ele o achado vira `Binary file … matches`, sem caminho nem número de linha. O preço é que os bytes crus passariam para o relatório e para o JSON, onde byte de controle é inválido; por isso a última etapa os remove e preserva a localização, que é o que o relatório precisa.
+  printf '%s\n' "$raw" | grep -vE "$EXCLUDE_DIRS" | grep -v '^$' | sed "s|^$ROOT/||" | LC_ALL=C tr -d "\000-\010\013\014\016-\037"
 }
 
 FINDINGS=0

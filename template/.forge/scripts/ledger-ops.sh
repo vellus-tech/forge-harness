@@ -7,7 +7,9 @@
 # Uso:
 #   ledger-ops.sh add     --type <t> --title "<txt>" [--detail "<txt>"] [--severity S] [--priority P]
 #                         [--status ST] [--origin O] [--change <id>] [--ref R] [--adr A] [--capability C]
-#   ledger-ops.sh update  <LDG-NNNN> [--status ST] [--priority P] [--severity S] [--title "<txt>"] [--detail "<txt>"]
+#   ledger-ops.sh update  <LDG-NNNN> [--status ST] [--priority P] [--severity S] [--title "<txt>"]
+#                         [--detail "<txt>"] [--replace-detail]
+#   ledger-ops.sh note    <LDG-NNNN> --kind progress|measurement|correction|decision --text "<txt>"
 #   ledger-ops.sh resolve <LDG-NNNN> --note "<txt>" [--status resolved|wont-fix]   # default: resolved
 #   ledger-ops.sh promote <LDG-NNNN> --to <change-id>
 #   ledger-ops.sh harvest <change-id> --origin close|archive   # colhe deferrals/findings antes do mv
@@ -34,6 +36,38 @@
 # está sob rastreio de um change ativo (ver ledger-consultation.md) — carimbar resolved_at nele
 # seria afirmar algo falso. Ele só ganha resolved_at de fato quando o change que o promoveu chega a
 # archive/close-delivered-externally, e aí passa pelo 'resolve' como qualquer outro.
+#
+# detail ACUMULATIVO (onda w211): o `detail` deixou de ser campo que se substitui e passou a ser
+# registro que acumula. A razão é medida na história deste próprio arquivo: das 92 mutações de
+# `detail`, 24 não preservaram o texto anterior, e SEIS delas destruíram mais de 25% do campo —
+# 3.497 bytes num único item, 86 de 86 frases longas do texto antigo ausentes do texto novo, todas
+# com `rc 0` e `OK` na saída. A porta responsável era `if (de) e.detail = de;`: atribuição direta,
+# sem aviso e sem backup. Duas peças, e as duas são necessárias:
+#
+#   (1) `note` — verbo novo que SÓ acrescenta, com `--kind` de enum fechado. Um verbo sozinho não
+#       impediria a próxima perda (ninguém é obrigado a usá-lo: as seis perdas foram cometidas por
+#       autores que aplicavam a convenção de append à mão em outros itens no mesmo dia).
+#   (2) a guarda de PRESERVAÇÃO em `update --detail` — recusa a substituição destrutiva a menos
+#       que ela seja pedida em letra com `--replace-detail`. Uma guarda sozinha, sem verbo, viraria
+#       um beco: quem quisesse registrar progresso seria recusado sem ter para onde ir.
+#
+# 'Preserva' é CONTAINMENT NÃO-ESTRITO: o detail corrente é subcadeia do texto novo, incluindo o
+# caso de igualdade. A escolha não é cosmética — sob containment estrito (exigir crescer), o texto
+# idêntico passaria a ser recusado PELA GUARDA em vez de pela detecção de no-op, e a prova de
+# mutação do `w194` deixaria de discriminar a detecção de no-op. Por isso a guarda entra DEPOIS da
+# detecção de no-op, nunca antes, e `w211[12]` afirma essa ordem.
+#
+# O progresso NÃO é registrado pelo `status`, e a razão é medida: `--status in-progress` já é
+# aceito e já existe no enum do schema, mas tira o item da contagem `open` que a definição de
+# pronto usa — os quatro leitores do ledger discordam sobre o que é um item ativo (`status` e
+# `render` tratam `in-progress` como ativo; `list --status open` e a contagem por `status == open`
+# não o veem). Registrar pagamento parcial mudando o status seria fechar por reclassificação
+# silenciosa. `note` nunca toca `status` nem `resolved_at`.
+#
+# `note` é PORTA DE ESCRITA como as outras cinco, e herda as duas obrigações transversais delas:
+# chama `_render` (paridade `ledger.json` <-> `LEDGER.md`, que nenhum gate confere sozinho) e entra
+# na lista de `forge_warn_root_divergence` (LDG-0068/LDG-0174 — porta invocada de dentro de um
+# worktree grava no ledger do TRONCO e tem de anunciar). Coberto por `tests/w211-...[18]` e `[19]`.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -79,7 +113,7 @@ TPL="$(cd "$SCRIPT_DIR/.." && pwd)/templates/ledger/LEDGER.md"
 OUT="$LEDGER_DIR/LEDGER.md"
 
 cmd="${1:-}"; shift || true
-[ -n "$cmd" ] || { echo "Usage: ledger-ops.sh add|update|resolve|promote|harvest|render|status|list [args...]" >&2; exit 1; }
+[ -n "$cmd" ] || { echo "Usage: ledger-ops.sh add|update|note|resolve|promote|harvest|render|status|list [args...]" >&2; exit 1; }
 
 _git_date() { git -C "$ROOT" log -1 --format=%cI 2>/dev/null || echo ""; }
 # _require_git_date — busca a data e RECUSA no caller se vier vazia (fora de git, ou git sem
@@ -121,7 +155,7 @@ _render() {
 # aviso. O operador lia `OK` e não tinha como saber que gravou fora da árvore em que trabalhava.
 # Coberto por `tests/w207-ledger-render-write-port-gate.sh`.
 case "$cmd" in
-  add|update|resolve|promote|harvest|render)
+  add|update|note|resolve|promote|harvest|render)
     forge_warn_root_divergence "$ROOT" "ledger" "ledger-ops" ;;
 esac
 
@@ -190,16 +224,25 @@ NODEEOF
 update)
   id="${1:-}"; shift || true
   [ -n "$id" ] || { echo "FAIL: LDG-id obrigatório" >&2; exit 1; }
-  n_status=""; n_priority=""; n_severity=""; n_title=""; n_detail=""; n_flags=0
-  UPDATE_FLAGS="--status --priority --severity --title --detail"
+  n_status=""; n_priority=""; n_severity=""; n_title=""; n_detail=""; n_replace=""; n_flags=0
+  # `--replace-detail` entra em UPDATE_FLAGS para que o teste de PERTENCIMENTO de
+  # `forge_reject_flag_as_value` a reconheça como flag, e não como conteúdo legítimo.
+  UPDATE_FLAGS="--status --priority --severity --title --detail --replace-detail"
   while [ $# -gt 0 ]; do case "$1" in
     --status) _require_value "update" --status "${2-}" "$UPDATE_FLAGS"; n_status="$2"; n_flags=$((n_flags + 1)); shift 2 ;;
     --priority) _require_value "update" --priority "${2-}" "$UPDATE_FLAGS"; n_priority="$2"; n_flags=$((n_flags + 1)); shift 2 ;;
     --severity) _require_value "update" --severity "${2-}" "$UPDATE_FLAGS"; n_severity="$2"; n_flags=$((n_flags + 1)); shift 2 ;;
     --title) _require_value "update" --title "${2-}" "$UPDATE_FLAGS"; n_title="$2"; n_flags=$((n_flags + 1)); shift 2 ;;
     --detail) _require_value "update" --detail "${2-}" "$UPDATE_FLAGS"; n_detail="$2"; n_flags=$((n_flags + 1)); shift 2 ;;
+    # Booleana, sem valor, no idioma de `--by-priority` do `list`. NÃO conta em `n_flags`: ela diz
+    # COMO gravar o `detail`, nunca O QUÊ — sozinha não tem o que gravar.
+    --replace-detail) n_replace="1"; shift ;;
     *) _reject_unknown "update" "$UPDATE_FLAGS" "$1" ;;
   esac; done
+  if [ "$n_replace" = "1" ] && [ -z "$n_detail" ]; then
+    echo "FAIL: ledger-ops: '--replace-detail' sem '--detail' não tem o que substituir — a flag diz COMO gravar o detail, nunca o quê. Passe '--detail \"<texto>\"' junto dela, ou use 'ledger-ops.sh note $id --kind <k> --text \"<txt>\"' para acrescentar sem substituir." >&2
+    exit 1
+  fi
   [ "$n_flags" -gt 0 ] || { echo "FAIL: ledger-ops: 'update $id' sem flag alguma não tem o que gravar — o único efeito seria avançar 'updated_at', o que faz a entrada parecer recente sem carregar informação nova. Flags aceitas em 'update': $UPDATE_FLAGS" >&2; exit 1; }
   case "$n_status" in
     resolved|wont-fix)
@@ -211,9 +254,9 @@ update)
   _require_git_date
   _init_ledger
   set +e
-  result="$(node - "$LF" "$id" "$n_status" "$n_priority" "$n_severity" "$n_title" "$n_detail" "$GIT_DATE_NOW" <<'NODEEOF'
+  result="$(node - "$LF" "$id" "$n_status" "$n_priority" "$n_severity" "$n_title" "$n_detail" "$GIT_DATE_NOW" "$n_replace" <<'NODEEOF'
 const { readFileSync } = require('fs');
-const [, , lf, id, st, pr, sv, ti, de, now] = process.argv;
+const [, , lf, id, st, pr, sv, ti, de, now, repl] = process.argv;
 const data = JSON.parse(readFileSync(lf, 'utf8'));
 const e = (data.entries || []).find((x) => x.id === id);
 if (!e) { console.error('entrada ' + id + ' não encontrada'); process.exit(1); }
@@ -222,12 +265,28 @@ if (!e) { console.error('entrada ' + id + ' não encontrada'); process.exit(1); 
 // era indistinguível de um update que gravou de fato — os dois imprimiam `OK`.
 const sig = () => JSON.stringify([e.title, e.detail, e.status, e.priority, e.severity]);
 const before = sig();
+const prev = e.detail || '';
 if (st) e.status = st;
 if (pr) e.priority = pr;
 if (sv) e.severity = sv;
 if (ti) e.title = ti;
 if (de) e.detail = de;
 if (sig() === before) { console.error('NOCHANGE'); process.exit(3); }
+// Guarda de PRESERVAÇÃO, aplicada DEPOIS da detecção de no-op e nunca antes: 'preserva' é
+// containment NÃO-ESTRITO (o texto corrente é subcadeia do novo, igualdade inclusa), de modo que
+// o texto idêntico continua sendo recusado como NOCHANGE, pela guarda que já existia.
+const destroi = de !== '' && prev !== '' && de.indexOf(prev) === -1;
+if (destroi && repl !== '1') {
+  console.error("FAIL: ledger-ops: 'update " + id + " --detail' descartaria " + Buffer.byteLength(prev, 'utf8') + " byte(s) de detail que o texto novo não preserva. Nada foi gravado. Seis perdas assim já aconteceram neste ledger, com rc 0 e OK na saída. Os dois caminhos legítimos:");
+  console.error("  para ACRESCENTAR (pagamento parcial, medição nova, correção, decisão):");
+  console.error("    ledger-ops.sh note " + id + " --kind progress|measurement|correction|decision --text \"<txt>\"");
+  console.error("  para SUBSTITUIR de propósito, assumindo a perda:");
+  console.error("    ledger-ops.sh update " + id + " --detail \"<txt>\" --replace-detail");
+  process.exit(4);
+}
+if (destroi && repl === '1') {
+  console.error('WARN: ledger-ops: ' + id + ' — ' + Buffer.byteLength(prev, 'utf8') + ' byte(s) do detail anterior foram DESCARTADOS por --replace-detail. A substituição continua possível; ela deixou de ser silenciosa.');
+}
 e.updated_at = now;
 console.log(JSON.stringify(data, null, 2));
 NODEEOF
@@ -241,6 +300,69 @@ NODEEOF
   _write_json "$LF" "$result"
   _render
   echo "OK update — $id atualizado"
+  ;;
+
+# note — a porta que só ACRESCENTA. O enum de `--kind` é fechado, e cada valor é lastreado num
+# marcador que os autores deste ledger já escreviam à mão (medido: cinco dos itens ativos carregam
+# ao menos um bloco dessa família). Rótulo livre não é contrato, não é legível por gate e
+# produziria em dois meses a mesma variedade que só um humano reconhece. A leitura do marcador é
+# de PRESENÇA e ORDEM, nunca de contagem: um `--text` do usuário pode conter uma sequência
+# idêntica à do marcador gerado, e contar marcadores contaria os dele junto.
+note)
+  id="${1:-}"; shift || true
+  [ -n "$id" ] || { echo "FAIL: LDG-id obrigatório" >&2; exit 1; }
+  kind=""; text=""
+  NOTE_FLAGS="--kind --text"
+  while [ $# -gt 0 ]; do case "$1" in
+    --kind) _require_value "note" --kind "${2-}" "$NOTE_FLAGS"; kind="$2"; shift 2 ;;
+    --text) _require_value "note" --text "${2-}" "$NOTE_FLAGS"; text="$2"; shift 2 ;;
+    *) _reject_unknown "note" "$NOTE_FLAGS" "$1" ;;
+  esac; done
+  NOTE_KINDS="progress measurement correction decision"
+  [ -n "$kind" ] || { echo "FAIL: ledger-ops: '--kind' é obrigatório em 'note' — o rótulo é enum fechado, um dos quatro: $NOTE_KINDS. Flags aceitas em 'note': $NOTE_FLAGS" >&2; exit 1; }
+  [ -n "$text" ] || { echo "FAIL: ledger-ops: '--text' é obrigatório em 'note' — uma nota sem texto não acrescenta nada ao registro. Flags aceitas em 'note': $NOTE_FLAGS" >&2; exit 1; }
+  case "$kind" in
+    progress|measurement|correction|decision) : ;;
+    *) echo "FAIL: ledger-ops: '--kind $kind' não é rótulo aceito em 'note' — o enum é fechado e tem quatro valores: $NOTE_KINDS" >&2; exit 1 ;;
+  esac
+  _require_git_date
+  _init_ledger
+  set +e
+  result="$(node - "$LF" "$id" "$kind" "$text" "$GIT_DATE_NOW" <<'NODEEOF'
+const { readFileSync } = require('fs');
+const [, , lf, id, kind, text, now] = process.argv;
+const data = JSON.parse(readFileSync(lf, 'utf8'));
+const e = (data.entries || []).find((x) => x.id === id);
+if (!e) { console.error("FAIL: ledger-ops: entrada '" + id + "' não encontrada — 'note' anota entrada que existe; para registrar algo novo use 'add'."); process.exit(1); }
+const LABEL = { progress: 'PROGRESSO', measurement: 'MEDIÇÃO', correction: 'CORREÇÃO DE REGISTRO', decision: 'DECISÃO' };
+// A data é a do commit HEAD, a mesma fonte de `created_at`, e nunca o relógio de parede: o
+// cabeçalho deste arquivo promete uma noção de tempo só, e um verbo novo com outra fonte criaria
+// duas dentro do mesmo registro.
+const day = String(now).slice(0, 10);
+const marker = LABEL[kind] + ' (' + day + '): ';
+const prev = e.detail || '';
+if (prev && prev.indexOf(text) !== -1) {
+  console.error("WARN: ledger-ops: o texto de '--text' já aparece no detail de " + id + " — 'note' é acumulativo por desenho e vai acrescentar assim mesmo, deixando o bloco duplicado no registro durável. Confira se a nota já não foi registrada antes de repetir o comando.");
+}
+const CLOSED = ['resolved', 'wont-fix', 'promoted'];
+if (CLOSED.indexOf(e.status) !== -1) {
+  console.error('WARN: ledger-ops: ' + id + " está em '" + e.status + "' — a nota foi acrescentada e o status NÃO mudou. Anotar um item encerrado é legítimo (voltou a reproduzir, chegou medição nova); refechá-lo não seria, e 'note' nunca fecha nem reabre.");
+}
+// Append, separador de linha em branco, cabeçalho com data: é a convenção que os autores deste
+// ledger já praticavam. Medido na história do arquivo: de todas as mutações em que o texto
+// anterior sobreviveu literalmente, 68 são append, 0 são prepend e 0 põem o texto antigo no meio.
+const SEP = '\n\n';
+const bloco = marker + text;
+e.detail = prev ? prev + SEP + bloco : bloco;
+e.updated_at = now;
+console.log(JSON.stringify(data, null, 2));
+NODEEOF
+)"; node_rc=$?
+  set -e
+  [ "$node_rc" -eq 0 ] || exit "$node_rc"
+  _write_json "$LF" "$result"
+  _render
+  echo "OK note — $id anotado ($kind)"
   ;;
 
 resolve)

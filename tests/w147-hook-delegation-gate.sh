@@ -18,6 +18,8 @@
 #   [7] repositório SEM .forge/ nenhum: os hooks seguem no-op (a degradação legítima)
 #   [8] AUTO-IRONIA: o universo de hooks varrido por este gate é contado e não pode ser vazio,
 #       e um hook novo em template/.forge/hooks/git/ sem cenário aqui reprova
+#   [9] post-checkout: ele NÃO delega para script nenhum, e o cenário prova isso pelo desfecho —
+#       com .forge/scripts/ presente e vazio ele se comporta exatamente como sem .forge/ nenhum
 set -uo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -147,7 +149,7 @@ echo "OK [7]"
 
 # ── [8] AUTO-IRONIA ──────────────────────────────────────────────────────────────────────────
 echo "[8] o universo de hooks é contado, não pode ser vazio, e hook novo sem cenário reprova"
-COBERTOS="commit-msg post-merge pre-commit pre-push"
+COBERTOS="commit-msg post-checkout post-merge pre-commit pre-push"
 n_hooks=0
 for f in "$HOOKS"/*; do
   [ -f "$f" ] || continue
@@ -164,5 +166,38 @@ if [ "$n_hooks" -eq 0 ]; then
   exit 1
 fi
 echo "OK [8] — $n_hooks hook(s) examinado(s)"
+
+# ── [9] ──────────────────────────────────────────────────────────────────────────────────────
+echo "[9] post-checkout: não delega para script nenhum, e o desfecho é o mesmo com e sem .forge/scripts/"
+# A regra deste gate é que delegação para alvo ausente é ERRO quando o diretório que hospeda o alvo
+# existe. O `post-checkout` é o hook que NÃO delega: ele resolve tudo com o próprio git, e é por
+# isso que ele alcança worktree criada a partir de branch antiga, cuja árvore carrega a maquinaria
+# da versão anterior. O cenário prova a ausência de delegação pelo DESFECHO — um `grep` por
+# `.forge/scripts` no fonte casaria com comentário e não com comportamento.
+PC="$HOOKS/post-checkout"
+[ -f "$PC" ] || { echo "FAIL [9]: template/.forge/hooks/git/post-checkout não existe — o cenário [8] exige cenário para todo hook, e este é o dele"; exit 1; }
+lab9() {  # lab9 <dir> <com-scripts|sem-scripts> -> ecoa a branch resultante da worktree, ou DESTACADO
+  local d="$1" modo="$2" s
+  mkdir -p "$d/.forge/worktrees" "$d/hooks"
+  [ "$modo" = "com-scripts" ] && mkdir -p "$d/.forge/scripts/lib"
+  git -C "$d" init -q -b main >/dev/null 2>&1 || git init -q -b main "$d"
+  git -C "$d" config user.email t@t; git -C "$d" config user.name t; git -C "$d" config commit.gpgsign false
+  cp "$PC" "$d/hooks/post-checkout"
+  git -C "$d" config core.hooksPath "$d/hooks"
+  printf '.forge/worktrees/\n' > "$d/.gitignore"
+  printf 'x\n' > "$d/a.txt"
+  git -C "$d" add -A >/dev/null 2>&1
+  git -C "$d" commit -qm base >/dev/null 2>&1
+  git -C "$d" worktree add -q "$d/.forge/worktrees/w" HEAD >/dev/null 2>&1
+  s="$(git -C "$d/.forge/worktrees/w" symbolic-ref -q HEAD 2>/dev/null || true)"
+  [ -n "$s" ] && printf '%s\n' "${s#refs/heads/}" || printf 'DESTACADO\n'
+}
+b9a="$(lab9 "$T/r9a" com-scripts)"
+b9b="$(lab9 "$T/r9b" sem-scripts)"
+[ "$b9a" = "$b9b" ] \
+  || { echo "FAIL [9]: o post-checkout mudou de desfecho conforme a presença de .forge/scripts/ ('$b9a' contra '$b9b') — ele passou a delegar, e delegação neste hook é justamente o que o torna inútil na worktree de branch antiga, que carrega a maquinaria velha"; exit 1; }
+[ "$b9a" != "DESTACADO" ] \
+  || { echo "FAIL [9]: o post-checkout não deu nome à worktree em nenhum dos dois laboratórios — o cenário ficaria verde por vacuidade"; exit 1; }
+echo "OK [9] — mesmo desfecho nos dois laboratórios: $b9a"
 
 echo "PASS w147-hook-delegation"

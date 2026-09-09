@@ -1,6 +1,6 @@
 ---
 description: Ledger durável de projeto (roadmap & dívida técnica). Registra e consulta trabalho conhecido que sobrevive entre changes — roadmap, dívida técnica, bugs conhecidos, follow-ups, ideias de feature. Alimentado por captura automática (harvest no close/archive) + curadoria manual. NÃO-BLOQUEANTE. Operado por script determinista.
-argument-hint: "[list|add|update|resolve|promote|render|status] [flags]"
+argument-hint: "[list|add|update|note|resolve|promote|render|status] [flags]"
 ---
 
 # /forge:ledger — ledger durável de projeto
@@ -30,18 +30,44 @@ bash .forge/scripts/ledger-ops.sh add --type <t> --title "<txt>" \
   [--change <change-id>] [--ref <ref>] [--adr <ADR>] [--capability <cap>]
 
 # ciclo de vida de uma entrada
-bash .forge/scripts/ledger-ops.sh update  <LDG-NNNN> [--status <s>] [--priority P1] [--severity HIGH] [--title "<txt>"] [--detail "<txt>"]
+bash .forge/scripts/ledger-ops.sh update  <LDG-NNNN> [--status <s>] [--priority P1] [--severity HIGH] [--title "<txt>"] [--detail "<txt>"] [--replace-detail]
 bash .forge/scripts/ledger-ops.sh resolve <LDG-NNNN> --note "<como foi resolvido>"
 bash .forge/scripts/ledger-ops.sh promote <LDG-NNNN> --to <change-id>   # virou um change (status: promoted)
+
+# registrar PROGRESSO, medição nova, correção ou decisão SEM apagar o que já está lá
+bash .forge/scripts/ledger-ops.sh note <LDG-NNNN> --kind progress|measurement|correction|decision --text "<txt>"
 
 # regenerar a view mestre
 bash .forge/scripts/ledger-ops.sh render                      # .forge/ledger/LEDGER.md
 ```
 
+## O `detail` acumula: `note` acrescenta, `update --detail` não destrói em silêncio
+
+O `detail` de uma entrada é **registro que acumula**, não campo que se substitui. A regra nasceu de
+medição na história deste próprio ledger: das 92 mutações de `detail`, 24 não preservaram o texto
+anterior, e seis destruíram mais de 25% do campo — 3.497 bytes num único item, 86 de 86 frases
+longas ausentes, todas com `rc 0` e `OK` na saída.
+
+- **Progresso se registra com `note`, e quem fecha é o arquivamento.** `note` acrescenta um bloco
+  datado ao fim do `detail`, com um marcador gerado pelo script (`PROGRESSO (<data>): `,
+  `MEDIÇÃO (<data>): `, `CORREÇÃO DE REGISTRO (<data>): `, `DECISÃO (<data>): `), e **não toca o
+  `status` nem o `resolved_at`**. Registrar pagamento parcial mudando o status para `in-progress`
+  tiraria o item da contagem de `open` sem que a dívida tivesse sido paga — é fechar por
+  reclassificação silenciosa. Anotar item já encerrado é legítimo (avisa e não muda status);
+  refechá-lo não é.
+- **`--kind` é enum fechado de quatro valores.** Rótulo livre não é contrato e não é legível por
+  gate. Um valor fora do enum reprova nomeando os quatro.
+- **`update --detail` recusa a substituição destrutiva.** Se o `detail` corrente é não-vazio e o
+  texto novo não o preserva (o corrente precisa ser subcadeia do novo), o comando reprova sem
+  gravar nada e aponta os dois caminhos legítimos: `note` para acrescentar, `--replace-detail` para
+  substituir de propósito. Com `--replace-detail`, a substituição acontece e o script **anuncia em
+  stderr quantos bytes foram descartados** — continua possível, deixou de ser silenciosa. Detail
+  vazio e texto que preserva continuam gravando como sempre.
+
 **Disciplina de escrita (issue #103).** As três recusas abaixo são do script, não do agente:
 
-- **Flag desconhecida reprova.** Todos os seis subcomandos (`add`, `update`, `resolve`, `promote`,
-  `harvest`, `list`) recusam argumento que não conhecem, nomeando o subcomando. Antes, o `case`
+- **Flag desconhecida reprova.** Todos os sete subcomandos (`add`, `update`, `note`, `resolve`,
+  `promote`, `harvest`, `list`) recusam argumento que não conhecem, nomeando o subcomando. Antes, o `case`
   terminava em `*) shift ;;`, que engolia a flag **e** o valor dela: um `--details "texto"` (typo
   em `--detail`) desaparecia inteiro, a entrada nascia com `detail` vazio e a saída dizia `OK`.
 - **Valor vazio reprova.** `--detail ""`, `--title ""` e afins são erro de uso, não apagamento de

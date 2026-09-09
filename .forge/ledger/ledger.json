@@ -2635,6 +2635,150 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0176"
+    },
+    {
+      "id": "LDG-0177",
+      "type": "known-bug",
+      "title": "secret-scan.mjs é o único arquivo de CÓDIGO não-texto do repositório, e o grep do PATH (ugrep) silencia sobre ele — 118 gates medem com uma ferramenta que difere da do CI",
+      "detail": "CORREÇÃO DE CAUSA em 2026-09-08, feita pelo próprio autor do item algumas horas depois de abri-lo, porque a causa registrada estava ERRADA e a conclusão que ela sustentava foi distribuída como regra normativa a vários agentes. O FATO permanece: template/.forge/scripts/lib/secret-scan.mjs contém bytes de controle LITERAIS (1 NUL no offset 8521, mais 0x08, 0x0e, 0x1f) dentro do literal de regex do próprio detector de conteúdo binário, o arquivo é UTF-8 válido, o node o executa certo, e ele é o ÚNICO arquivo de código não-texto entre os 1168 rastreados (os outros 19 não-texto são .gitkeep vazios e um PNG). A CAUSA registrada antes dizia 'grep sem -a pula o arquivo e devolve silêncio', e isso é falso como afirmação geral: /usr/bin/grep (BSD) ACHA e AVISA ('Binary file ... matches', rc 0, e 'grep -c' devolve 3). Quem silencia é o grep do PATH desta máquina, que é ugrep 7.8.4 — medido: 'grep -c AKIA <arquivo>' devolve saída VAZIA com rc 1, indistinguível de 'não há ocorrência', enquanto '/usr/bin/grep -c' no mesmo arquivo devolve 3. A CONSEQUÊNCIA REAL, maior que a registrada antes: 118 dos 132 gates da suíte usam grep, o CI roda ubuntu-latest (GNU grep) e a máquina de desenvolvimento roda ugrep, de modo que o comportamento de qualquer gate que grepe conteúdo binário DIVERGE entre as duas — e diverge em silêncio, no sentido que mais importa (o ugrep responde 'não achei' onde o BSD responde 'achei, e é binário'). Isso é a invariante 2 do plano aplicada à ferramenta de medição, e o dano já ocorreu duas vezes nesta sessão: o especificador do subgrupo L1 concluiu que o canal de commit não tem detector para AWS Access Key ID, e eu mesmo confirmei a conclusão errada por um segundo caminho ao grepar o leitor canônico com o grep do PATH. A correção tem três metades e a terceira é nova: escapar os bytes de controle no literal de regex (devolve o arquivo à auditabilidade por qualquer grep); decidir se a varredura de auditoria do harness passa a usar -a; e decidir o que o harness faz quando a implementação de grep do ambiente difere da do CI, porque hoje nada mede isso e a divergência é silenciosa. — Resolvido: Fechado em 2026-09-08. Implementado no commit 2b45fd7 (PR #147, branch feat/fase1-dogfood-completo): secret-scan.mjs teve os quatro bytes de controle literais escapados, com prova de equivalência exaustiva da regex sobre 1.112.064 code points e zero divergências; e o gate tests/w209-varredura-cega-gate.sh nasceu para fechar a classe, medindo 506 arquivos e 21 sítios de invocação em 14 caminhos, com contador indeterminados para token de opção ilegível (terceiro estado aplicado ao próprio instrumento). Nove mutações provadas, duas delas as que o review adversarial mediu como indetectáveis na primeira versão do detector. Suíte 137/137 verde.",
+      "severity": null,
+      "priority": "P2",
+      "status": "resolved",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-07T21:11:46-03:00",
+      "updated_at": "2026-09-08T18:26:41-03:00",
+      "resolved_at": "2026-09-08T18:26:41-03:00",
+      "dedup_key": "manual:LDG-0177"
+    },
+    {
+      "id": "LDG-0178",
+      "type": "tech-debt",
+      "title": "Dois consumidores já implementaram hooks.manifest em esquemas INCOMPATÍVEIS, e o produtor não tem nenhum — quem especificar o formato canônico chega por último",
+      "detail": "Medido em 2026-09-08, ao conferir um bloqueador da revisão 2 do subgrupo L1 da Onda L. O produtor NÃO distribui .forge/hooks/pre-tool-use/hooks.manifest, e dois dos cinco consumidores o criaram por conta própria, com esquemas de coluna que não conversam: axis-fare-validator tem 63 linhas e 6 declarações no formato 'hook TAB matcher TAB contrato TAB universo TAB razao', em que o quarto campo é o UNIVERSO ('.cs,.java', 'comando', '*') e o quinto é prosa de justificativa; Axis.PadSimulator tem 38 linhas e 4 declarações no formato 'hook TAB matcher TAB contrato TAB estado', em que o quarto campo é ESTADO ('armado' ou 'retido:<razao>'). Os outros três (axis-go-cloud, azim-crm, axis-device-platform) não têm o arquivo. O PadSimulator, portanto, JÁ implementa o mecanismo de ativação por gancho que a especificação da Onda L estava inventando do zero, e o fez com razão escrita por gancho retido — inclusive um retido por 'portao invertido que le o disco', com 28 falsos positivos estruturais medidos. CONSEQUÊNCIA DE DESENHO, e é o que torna isto um item e não uma curiosidade: qualquer leitor que o produtor escreva para a quarta coluna interpreta mal AS DUAS árvores — leria '.cs,.java' e 'comando' como estado no axis-fare-validator, e 'retido:...' como token desconhecido no PadSimulator. Se desconhecido cair para ativo, os ganchos que o PadSimulator reteve deliberadamente voltam a ser fiados, que é exatamente o dano que a onda existe para evitar. O produtor chega por último a um contrato que o campo já escreveu duas vezes, e escolher um dos dois esquemas ou um terceiro é decisão de produto que precisa ser tomada com os dois adotantes na mesa, não por leitura de um só. Fica registrado separado da Onda L porque a onda pode entregar a ponte de despacho sem resolver o formato, e resolver o formato exige conversa com o campo pelo canal de liaison.",
+      "severity": null,
+      "priority": "P2",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-07T21:11:46-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0178"
+    },
+    {
+      "id": "LDG-0179",
+      "type": "known-bug",
+      "title": "w203-ledger-render-bucket-gate carrega a mesma classe do LDG-0175: restaura arquivo rastreado por trap que não sobrevive a sinal",
+      "detail": "Achado em 2026-09-08 pelo corretor dos achados adversariais da onda do ledger, FORA do escopo autorizado dele, e por isso registrado em vez de consertado na hora. O tests/w203-ledger-render-bucket-gate.sh muta um arquivo RASTREADO da árvore e confia a restauração a 'trap ... EXIT' na linha 41, mais 'git checkout -- $RENDERER' nas linhas 212 e seguintes. É exatamente o mecanismo que o LDG-0175 descreve e que o achado ALTA-1 desta mesma rodada corrigiu no w207: um sinal recebido na janela entre a mutação e a restauração deixa o arquivo rastreado CORROMPIDO na árvore de trabalho, e o dano viaja no pacote npm se alguém commitar por cima. A correção do w207 nesta rodada é o modelo: restauração que não depende de cópia que o próprio gate apagou, e prova de que ela sobrevive a interrupção. CONDIÇÃO PARA FECHAR: o mesmo tratamento aplicado ao w203, com o cenário que prova a sobrevivência a sinal. VARREDURA QUE FALTA, e é o que torna isto P2 e não P3: ninguém varreu os 135 gates atrás de outros sítios da mesma classe — o w207 foi achado por review adversarial e o w203 por acaso, durante a correção, o que sugere que a população real é maior que dois.\n\nMEDIÇÃO (2026-09-08): Re-medição antes de implementar: o item descreve o defeito errado. Medido no w203 com a janela alargada e o sinal entregue dentro dela, SIGTERM NÃO corrompe — o trap EXIT do bash roda quando o sinal chega com um filho em primeiro plano, rc=143 e o sha volta de dfd25ddc78f2 para 35c89cf7f97e com git status limpo. Quem corrompe é SIGKILL, que não executa trap nenhum: rc=137 e o sha fica em dfd25ddc78f2. E o defeito mais caro não é sinal nenhum: a restauração por 'git checkout -- <arquivo>' DESTRÓI trabalho não commitado com o gate saindo verde, medido em w203, w204 e w205. O w199, que ninguém tinha olhado, era o pior dos seis: a única cópia de referência morava dentro do $T que o próprio trap apaga. Quem fechar este item pelo enunciado antigo vai perseguir SIGTERM no w203 e não vai achar nada.\n\nCORREÇÃO DE REGISTRO (2026-09-08): Correções da implementação sobre a spec docs/plans/spikes/ldg-0179-restauracao-a-prova-de-sinal.md, seção 13, todas medidas: (1) a spec descartava o detector estático em 5.3 e 11 e o especificava como os cenários 1 a 4 do gate novo — resolvido em letra, o detector FICA como trava de regressão de forma com falso-negativo estrutural declarado, e a rede da classe é a sentinela dinâmica; (2) o custo declarado da sentinela estava errado por mais de uma ordem de grandeza — 'git status --porcelain' custa 0,832 a 1,338 s por chamada nesta árvore e não 0,06 a 0,08, e com 136 gates e dois retratos por gate seriam mais de 200 segundos, então o primitivo passou a ser '-uno' (0,042 a 0,050 s), que além de barato é o que mede a propriedade afirmada; (3) o desfecho 'rc 8 — janela nunca alcançada' era satisfeito por vacuidade, e uma isca que não executa nada devolve o mesmo rc 8 com árvore limpa — o cenário 5 ganhou uma terceira isca, a vazia, e exige o trio rc 8 + árvore limpa + marcador de execução; (4) o ordinal w212 foi consumido pela onda do LDG-0180 na mesma árvore durante a revisão, então o gate novo é w213. — Resolvido: Fechado pela conversão dos SEIS sítios da suíte que usavam arquivo rastreado como fixture — w199, w203, w204, w205, w207 e gate-assert-visibility — mais a biblioteca template/.forge/scripts/lib/arvore-rastreada.sh e a sentinela dinâmica nos dois runners. A correção não melhora a restauração: elimina a mutação do rastreado, então não há janela para sinal nenhum. O gate que morde se a classe voltar é tests/w213-arvore-rastreada-gate.sh, com oito cenários: a trava de forma (detector estático sobre 'git ls-files tests/', com falso-negativo estrutural declarado), a sobrevivência a sinal com isca defeituosa, isca corrigida e isca vazia, os três estados da sentinela e a prova de invocação comportamental nos dois runners.",
+      "severity": null,
+      "priority": "P2",
+      "status": "resolved",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-07T21:11:46-03:00",
+      "updated_at": "2026-09-08T18:26:41-03:00",
+      "resolved_at": "2026-09-08T18:26:41-03:00",
+      "dedup_key": "manual:LDG-0179"
+    },
+    {
+      "id": "LDG-0180",
+      "type": "known-bug",
+      "title": "run-all.sh colapsa 'gate reprovou' e 'gate foi morto' no mesmo vermelho — falso-VERMELHO que manda consertar código correto",
+      "detail": "Medido em 2026-09-08, no fechamento da rodada das quatro ondas. A suíte foi executada gate a gate com progresso durável, porque a máquina estava sem memória, e dois gates terminaram marcados como falha: w94-hookspath-preserve e w99-orphan-lifecycle. Nenhum dos dois imprimiu uma linha 'FAIL' — e foi essa AUSÊNCIA, não o veredito, que levantou a suspeita. Rodados isoladamente, os dois passam: 'PASS w94-hookspath-preserve-gate' com rc 0 e zero ocorrências de FAIL no log, 'PASS w99-orphan-lifecycle-gate' com rc 0. Os dois tinham sido mortos por falta de memória, e a primeira tentativa de reproduzir também morreu antes de imprimir qualquer coisa. O DEFEITO É DE CLASSE E ESTÁ NO RUNNER DE PRODUÇÃO: tests/run-all.sh trata todo rc diferente de zero como reprovação e imprime o mesmo marcador de falha, de modo que gate morto por OOM, por SIGKILL do supervisor, por teto de tempo estourado ou por interpretador ausente fica indistinguível de gate que reprovou por asserção. É a invariante 2 do plano-mestre — três estados, nunca dois — violada pelo instrumento que a cobra de todos os outros, e com o sinal INVERTIDO em relação ao falso-verde que o harness persegue: aqui o resultado é falso-VERMELHO, que faz alguém procurar defeito onde não há e, no limite, 'consertar' código correto. Num runner de CI apertado o efeito é o mesmo. CORREÇÃO CANDIDATA, e o vocabulário já existe no repositório: separar rc de morte por sinal (128+N, com 137 = SIGKILL) e rc de teto de tempo (142 do ITIMER usado pelo run_to) do rc de asserção, e reportar a terceira classe como NÃO VERIFICADO, nunca como FAIL — com o contador da linha-resumo publicando as três parcelas. Nota de método que vale registrar junto: um gate reprovado por asserção SEMPRE imprime FAIL, e essa regularidade é o discriminador barato que existe hoje e que ninguém usa.",
+      "severity": null,
+      "priority": "P2",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-07T21:11:46-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0180"
+    },
+    {
+      "id": "LDG-0181",
+      "type": "tech-debt",
+      "title": "O runner do TEMPLATE, entregue aos consumidores, continua com dois desfechos por alvo",
+      "detail": "Aberto em 2026-09-08 pela onda de LDG-0180, que corrigiu tests/run-all.sh (o runner INTERNO deste repositório) e deixou template/.forge/scripts/tests/run-all.sh de fora por decisão explícita — D7 da especificação docs/plans/spikes/ldg-0180-tres-estados-no-runner.md. O runner do template é o que o harness ENTREGA no pacote npm e o que os consumidores executam, e ele tem o mesmo defeito de classe: todo rc diferente de zero vira a mesma parcela, o mesmo marcador e o mesmo código de saída, de modo que gate morto por OOM, por SIGKILL, por teto de tempo estourado ou por interpretador ausente fica indistinguível de gate que reprovou por asserção. A partir desta onda os dois programas se comportam DIFERENTE diante da mesma morte, e é o do template que roda na máquina dos consumidores. POR QUE NÃO ENTROU DE CARONA, com os fatos medidos na especificação: (1) ele já ocupa os códigos de saída 64 e 66, então o 3 escolhido no runner interno não é transponível sem conferir colisão; (2) ele aceita --path, superfície que o interno não tem; (3) ele já tem guarda de vacuidade própria, pelo contador total, que precisa ser reconciliada com o terceiro estado em vez de duplicada; (4) e o que exige análise separada de verdade, ele REEXECUTA o comando no ramo de falha para imprimir a saída, de modo que um alvo morto por falta de memória seria morto DUAS vezes, e a segunda morte pode até mudar de classe. Emendar isso numa onda sobre o runner interno é o tipo de escopo que a revisão adversarial derruba, e a correção lá muda o comportamento de quatro consumidores instalados. CONDIÇÃO PARA FECHAR: o runner do template classifica os três estados, com gate próprio que prove a distinção de ponta a ponta sobre uma cópia conferida por checksum, com o mapa de códigos de saída reconciliado contra 64/66 e com decisão registrada sobre a reexecução no ramo de falha.\n\nMEDIÇÃO (2026-09-08): Vacuidade também no runner INTERNO, medida em 2026-09-08 na correção dos achados da revisão de LDG-0180. Ao ganhar guarda de contagem antes das expansões de array (os três sítios pré-existentes: as duas listagens do --list, o laço dos gates e o laço dos bats, que sob set -u no bash 3.2 abortavam com 'unbound variable' e matavam a suíte sem publicar o resumo), tests/run-all.sh passou a atravessar a árvore vazia sem morrer — e a atravessar publicando 'PASS=0 FAIL=0 SKIP=0 UNVERIFIED=0' seguido de 'OK — suíte 100% verde', com rc 0. Ou seja: uma árvore sem gate algum e sem suíte .bats agora sai VERDE. É exatamente o buraco que o fato (3) deste item nomeia no runner do template ('ele já tem guarda de vacuidade própria, pelo contador total'), e o runner interno não tem nenhuma. Não foi corrigido nesta onda por estar fora do escopo autorizado dela e por exigir a mesma decisão do outro lado — qual é o piso de alvos abaixo do qual a suíte recusa em vez de aprovar. Quem fechar este item decide para os dois runners de uma vez; a guarda de vacuidade do interno é asserção que ainda falta ao w212.",
+      "severity": null,
+      "priority": "P2",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-08T18:26:41-03:00",
+      "updated_at": "2026-09-08T18:26:41-03:00",
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0181"
+    },
+    {
+      "id": "LDG-0182",
+      "type": "known-bug",
+      "title": "O guarda anti-recursão do w80 está MORTO: as asserções [4] e [5] são pipelines com '!' e são isentas do set -e",
+      "detail": "Medido em 2026-09-08 pela revisão adversarial da especificação de LDG-0180 e reproduzido pela implementação com controle, mutação e recontrole. As asserções [4] e [5] do tests/w80-suite-gate.sh são da forma '! grep -E … >/dev/null' sob 'set -euo pipefail'. O bash, como o POSIX manda, NÃO sai por set -e quando o valor de retorno do comando está sendo invertido por '!' — logo as duas asserções calculam um valor e o descartam, e o gate imprime 'OK [4]' e 'OK [5]' sempre. Três medições independentes: (i) 'set -euo pipefail; ! true; echo depois' imprime depois e sai 0; (ii) prova de ponta a ponta numa bancada em TMPDIR onde tests/ é reproduzido por symlinks e só run-all.sh e w80 são cópias — controle com o runner idêntico (sha e7d8db47) sai rc 0 com OK [4] e OK [5], mutação acrescentando uma linha não-comentário citando o runner muda o sha para 7a32d857 e o gate CONTINUA saindo rc 0 com OK [4] e OK [5], e o recontrole devolve o sha original com rc 0. O sha muda, logo a mutação não é fantasma; o rc não muda, logo o gate não acusa. AGRAVANTE QUE MUDA A ORDEM DO CONSERTO: a segunda asserção do [4], '! grep -E \"(bash|sh|exec).*run-all\"', JÁ CASA hoje sobre o runner de produção, na linha 43, que é comentário e que a lista de exceções da PRIMEIRA asserção isentaria mas a segunda não consulta. Consertar o '!' sem mais nada deixa o w80 vermelho no mesmo instante — por isso isto é item próprio e não carona da onda de LDG-0180. CONSEQUÊNCIA JÁ MITIGADA EM PARTE: a restrição de forma que o [4] pretendia impor sobre o texto do runner passou a ser afirmada pelo cenário 24 do tests/w212-runner-tres-estados-gate.sh — reescrito para afirmar a propriedade anti-recursão (invocação), e não a mera presença do token, porque a redação por token reprovaria a mensagem de diagnóstico legítima que a onda LDG-0179 acrescentou ao runner —, com as mutações M9 e M10 provando que ele acusa. O que continua descoberto é a recursão pelo próprio w80, que era o objeto do [5]. VARREDURA QUE FALTA, e é o que torna isto P2: ninguém varreu os 137 gates atrás de outras asserções na forma '! comando' sob set -e — a população real é desconhecida, e a classe é exatamente a do falso-verde que este harness existe para eliminar. CONDIÇÃO PARA FECHAR: as duas asserções do w80 reprovam de fato (por exemplo com '|| { echo FAIL; exit 1; }' em vez de '!' nu), a linha 43 do runner ou o padrão da segunda asserção ajustados para que o verde volte por acerto e não por omissão, e a varredura dos gates atrás da mesma forma feita e registrada.",
+      "severity": null,
+      "priority": "P2",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-08T18:26:41-03:00",
+      "updated_at": "2026-09-08T18:26:41-03:00",
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0182"
     }
   ]
 }

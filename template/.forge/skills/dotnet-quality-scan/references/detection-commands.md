@@ -2,7 +2,7 @@
 
 O `scripts/scan.sh` roda tudo isto de uma vez e formata a saída. Esta página existe para auditar o que ele faz e para uso pontual quando você quer uma regra só.
 
-Dois motores, o mesmo padrão: `rg` quando está instalado, `grep -rnE` quando não. Nenhum padrão usa `\b`, porque o `grep` BSD do macOS não o reconhece e o scanner passaria a achar menos na máquina de quem revisa — falso verde silencioso. `[[:space:]]` e `([^A-Za-z0-9_]|$)` fazem o mesmo trabalho nos dois.
+Dois motores, o mesmo padrão: `rg` quando está instalado, `grep -arnE` quando não. Nenhum padrão usa `\b`, porque o `grep` BSD do macOS não o reconhece e o scanner passaria a achar menos na máquina de quem revisa — falso verde silencioso. `[[:space:]]` e `([^A-Za-z0-9_]|$)` fazem o mesmo trabalho nos dois.
 
 ```bash
 # async void
@@ -40,7 +40,7 @@ rg -n --glob '*.cs' '(public|internal)[[:space:]]+(partial[[:space:]]+)?interfac
 rg -n --glob '*.cs' '(:|,)[[:space:]]*IFoo([^A-Za-z0-9_]|$)'   # IFoo = cada nome achado no passo anterior
 ```
 
-Equivalente sem `rg`: troque `rg -n --glob '*.cs'` por `grep -rnE --include='*.cs'` e acrescente o diretório alvo no fim.
+Equivalente sem `rg`: troque `rg -n --glob '*.cs'` por `grep -arnE --include='*.cs'` e acrescente o diretório alvo no fim.
 
 ## Limites destes comandos
 

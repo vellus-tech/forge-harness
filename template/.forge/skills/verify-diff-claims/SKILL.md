@@ -53,10 +53,10 @@ Comandos sugeridos:
 
 ```bash
 # Claim: "adicionei IPaymentRepository"
-grep -rE "interface IPaymentRepository" --include="*.cs" $(git diff $base..HEAD --name-only)
+grep -arE "interface IPaymentRepository" --include="*.cs" $(git diff $base..HEAD --name-only)
 
 # Claim: "endpoint POST /api/v1/payments"
-grep -rE "\[HttpPost\(\"v1/payments|MapPost\(\"v1/payments|@PostMapping.*payments" \
+grep -arE "\[HttpPost\(\"v1/payments|MapPost\(\"v1/payments|@PostMapping.*payments" \
   $(git diff $base..HEAD --name-only)
 
 # Claim: "teste cobrindo Split"

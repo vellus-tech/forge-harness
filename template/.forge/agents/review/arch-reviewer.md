@@ -72,7 +72,7 @@ Violação → BLOCKER.
 ### 2. Detectar tipos proibidos em Domain
 
 ```bash
-grep -rE "using Microsoft\.EntityFrameworkCore|using AWSSDK|using MassTransit|using System\.Web" services/*/src/*.Domain/
+grep -arE "using Microsoft\.EntityFrameworkCore|using AWSSDK|using MassTransit|using System\.Web" services/*/src/*.Domain/
 ```
 
 Domain referenciando EF Core, AWS SDK, MassTransit, ASP.NET Core, Microsoft.Extensions.* → BLOCKER.
@@ -91,7 +91,7 @@ Para cada classe nova/modificada em `<Modulo>.Domain/`:
 Prefixo de tecnologia em classe de domínio → HIGH:
 
 ```bash
-grep -rE "class (Sql|Kafka|Mongo|Redis|Ef|Dynamo|S3)\w+Repository|class (Sql|Kafka|Mongo)\w+Publisher" services/*/src/*.Domain/
+grep -arE "class (Sql|Kafka|Mongo|Redis|Ef|Dynamo|S3)\w+Repository|class (Sql|Kafka|Mongo)\w+Publisher" services/*/src/*.Domain/
 ```
 
 `PaymentRepository` (correto) vs `SqlPaymentRepository` (errado em Domain). Em Infrastructure só é aceitável quando coexistem múltiplas implementações ativas, com sufixo de contexto de negócio (`CachedPaymentRepository`).

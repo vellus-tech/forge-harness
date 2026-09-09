@@ -119,7 +119,7 @@ git diff $base..HEAD --stat
 
 Verifica se os arquivos/funções/símbolos mencionados existem de fato:
 
-- Claim "adicionei `IPaymentRepository`" → `grep -r "IPaymentRepository" --include="*.cs"`
+- Claim "adicionei `IPaymentRepository`" → `grep -ar "IPaymentRepository" --include="*.cs"`
 - Claim "novo endpoint POST /api/v1/payments" → buscar controller/route
 - Claim "teste cobrindo X" → confirmar arquivo `*Tests.cs` no diff
 

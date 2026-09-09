@@ -21,10 +21,13 @@
 #   [1]  update --detail "" reprova, nomeia a flag, e o ledger.json fica byte a byte idêntico
 #   [2]  update --title "" idem
 #   [3]  update sem flag alguma reprova e não imprime OK
-#   [4]  update --detail "texto" grava e imprime OK — o caminho feliz não regride (controle)
+#   [4]  update --detail "<texto que PRESERVA o detail corrente>" grava e imprime OK — o caminho
+#        feliz não regride (controle). O texto preserva porque a guarda de preservação da onda
+#        w211 recusa a substituição destrutiva: o que este cenário mede é que o update que GRAVA
+#        continua gravando, e essa medição não perde poder ao trocar o texto por um preservador.
 #   [5]  propriedade (OK implica gravação): rc=0 implica ao menos um campo de CONTEÚDO alterado
 #   [6]  flag desconhecida em `add` reprova nomeando a flag, sem criar entrada
-#   [7]  o mesmo para os outros cinco subcomandos, parametrizado
+#   [7]  o mesmo para os outros seis subcomandos, parametrizado (inclui `note`, da onda w211)
 #   [8]  `add` sem --detail cria a entrada, imprime o id e AVISA que ela nasce sem conteúdo
 #   [9]  harvest sobre bullet narrativo sob "Desvios e observações", sem marcador: zero entradas
 #   [10] o mesmo com um bullet `PENDENTE:`: exatamente uma entrada
@@ -92,14 +95,18 @@ grep -q "^OK" <<<"$out3" && { echo "FAIL [3]: update sem flag imprimiu OK — go
 cmp -s "$LF" "$T/snap3.json" || { echo "FAIL [3]: ledger.json foi alterado por um update sem flag"; exit 1; }
 echo "OK [3] — $out3"
 
-echo "[4] update --detail \"texto\" grava e imprime OK (controle: o caminho feliz não regride)"
+echo "[4] update --detail \"texto que preserva\" grava e imprime OK (controle: o caminho feliz não regride)"
+# O texto PRESERVA o detail corrente ('conteúdo inicial'), porque desde a onda w211 a substituição
+# destrutiva é recusada em `update --detail`. O cenário continua medindo exatamente o que media —
+# que o caminho de GRAVAÇÃO do update não regride — e o cenário [8] do w211 é quem mede a recusa.
+CENARIO4_TEXTO="conteúdo inicial — detalhe novo do cenário 4"
 set +e
-out4="$(_lg update LDG-0001 --detail "detalhe novo do cenário 4" 2>&1)"; rc4=$?
+out4="$(_lg update LDG-0001 --detail "$CENARIO4_TEXTO" 2>&1)"; rc4=$?
 set -e
 [ "$rc4" -eq 0 ] || { echo "FAIL [4]: caminho feliz do update reprovou — got rc=$rc4: $out4"; exit 1; }
 grep -q "^OK" <<<"$out4" || { echo "FAIL [4]: caminho feliz não imprimiu OK — got: $out4"; exit 1; }
 got4="$(_field_of "$LF" LDG-0001 detail)"
-[ "$got4" = "detalhe novo do cenário 4" ] || { echo "FAIL [4]: detail não gravado (got '$got4')"; exit 1; }
+[ "$got4" = "$CENARIO4_TEXTO" ] || { echo "FAIL [4]: detail não gravado (got '$got4')"; exit 1; }
 echo "OK [4] — detail='$got4'"
 
 echo "[5] propriedade — rc=0 implica que ao menos um campo de CONTEÚDO mudou"
@@ -113,6 +120,10 @@ _content_sig() { node -e '
 
 prop_n=0; prop_bad=0
 # Cada linha: <rótulo>|<args separados por espaço, com \x1f entre eles>
+# Os dois casos de `detail` carregam texto que PRESERVA o detail corrente (o de [4]). Sem isso a
+# guarda de preservação da onda w211 os recusaria com rc≠0, e a asserção deste cenário — 'rc=0 com
+# assinatura inalterada é violação' — seria satisfeita trivialmente: os dois casos ficariam verdes
+# sem exercitar nada, e nenhum dos doze seria sobre `detail`.
 PROP_CASES=(
   "detail-vazio|--detail|"
   "title-vazio|--title|"
@@ -120,8 +131,8 @@ PROP_CASES=(
   "severity-vazio|--severity|"
   "status-vazio|--status|"
   "sem-flag|"
-  "detail-novo|--detail|propriedade cenário 5 valor A"
-  "detail-repetido|--detail|propriedade cenário 5 valor A"
+  "detail-novo|--detail|conteúdo inicial — detalhe novo do cenário 4 · propriedade cenário 5 valor A"
+  "detail-repetido|--detail|conteúdo inicial — detalhe novo do cenário 4 · propriedade cenário 5 valor A"
   "priority-nova|--priority|P2"
   "priority-repetida|--priority|P2"
   "title-novo|--title|título da propriedade"
@@ -157,13 +168,17 @@ after6="$(_entries "$LF")"
 [ "$before6" = "$after6" ] || { echo "FAIL [6]: 'add' recusado mas criou entrada ($before6 -> $after6)"; exit 1; }
 echo "OK [6] — $out6"
 
-echo "[7] flag desconhecida nos outros cinco subcomandos (parametrizado)"
+echo "[7] flag desconhecida nos outros seis subcomandos (parametrizado)"
 _lg add --type follow-up --title "alvo do cenário 7" --detail "conteúdo" >/dev/null   # LDG-0002
-SUBCOMMANDS=(update resolve promote harvest list)
+# `note` nasceu na onda w211 e entra aqui: a varredura de flag desconhecida é sobre TODAS as
+# portas, e uma lista fixa que não acompanha o script deixa a porta nova fora da promessa de
+# universo deste cenário em silêncio.
+SUBCOMMANDS=(update note resolve promote harvest list)
 sub_n=0; sub_bad=0
 for sub in "${SUBCOMMANDS[@]}"; do
   case "$sub" in
     update)  args=(update LDG-0002 --detail "x" --bogus-flag "valor engolido") ;;
+    note)    args=(note LDG-0002 --kind progress --text "nota" --bogus-flag "valor engolido") ;;
     resolve) args=(resolve LDG-0002 --note "nota" --bogus-flag "valor engolido") ;;
     promote) args=(promote LDG-0002 --to ch-fake --bogus-flag "valor engolido") ;;
     harvest) args=(harvest ch-fake --origin close --bogus-flag "valor engolido") ;;

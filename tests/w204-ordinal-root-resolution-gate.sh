@@ -37,8 +37,8 @@
 #   [4] PROVA DE MUTAÇÃO sobre o arquivo RASTREADO real (o mesmo padrão de w203): (a) controle —
 #       roda [1] e vê passar; (b) mutação — reverte a linha 34 de gate-ordinal.sh para a forma
 #       antiga e vê [1] reprovar (as duas saídas divergem); (c) recontrole — `git checkout --`,
-#       NUNCA edição inversa, e vê [1] passar de novo. Trap garante a restauração mesmo em saída
-#       inesperada.
+#       NUNCA edição inversa, e vê [1] passar de novo. A mutação cai sobre CÓPIA em $T, num
+#       repositório-fixture com layout de dogfood — o rastreado nunca é tocado (LDG-0179).
 set -uo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -52,12 +52,21 @@ for f in "$GATEORD" "$FORGEROOT_LIB" "$UNIVERSE_LIB"; do
 done
 
 T="$(mktemp -d /tmp/forge-w204.XXXXXX)"
-# MUTATED é um marcador, não um `git diff` genérico contra HEAD: o cenário [4] é o ÚNICO ponto
-# deste gate que muta $GATEORD, e o gate pode rodar sobre um $GATEORD com a correção ainda não
-# commitada (trabalho em curso) — um trap que restaurasse por "há diff contra HEAD" desfaria essa
-# correção legítima. O marcador garante que só a mutação que ESTA execução iniciou é desfeita.
-MUTATED=0
-trap 'rm -rf "$T"; [ "$MUTATED" = "1" ] && git -C "$WS" checkout -- "$GATEORD"' EXIT
+trap 'rm -rf "$T"' EXIT
+
+# shellcheck source=/dev/null
+. "$WS/template/.forge/scripts/lib/arvore-rastreada.sh"
+ARVORE_ANTES="$(arvore_retrato "$WS")"
+
+# Conversão do LDG-0179: o cenário [4] mutava o `gate-ordinal.sh` RASTREADO e restaurava com
+# `git checkout --` sob a guarda `MUTATED`. Sob `SIGKILL` nenhum trap roda e o alocador ficava
+# mutado na árvore; e o `git checkout --` apaga trabalho não commitado do operador com o gate saindo
+# verde. Agora a mutação cai sobre uma CÓPIA, num repositório-fixture em `$T` que reproduz o LAYOUT
+# DE DOGFOOD (`template/.forge/scripts/…` + `tests/`) — e o layout importa: o que este gate mede é a
+# RESOLUÇÃO DE RAIZ, então copiar só o arquivo não bastaria, a árvore em volta é parte do sistema
+# sob teste. Medido, a prova sobre a cópia é mais nítida que a anterior: íntegro devolve w12 dos dois
+# lados, mutado devolve w1 sem FORGE_ROOT contra w12 com FORGE_ROOT — e o w1 é literalmente o defeito
+# que o LDG-0171 descreve no cabeçalho do alocador.
 
 # _next_no_root — 'next' sem FORGE_ROOT, invocado do repositório real. Primeira linha de stdout.
 _next_no_root() {
@@ -135,36 +144,79 @@ if [ "$out_fx" != "w12" ]; then
 fi
 echo "OK [3] — fixture devolveu '$out_fx'"
 
-echo "[4] prova de mutação — controle, mutação sobre o arquivo rastreado, git checkout --, recontrole"
-out4a_no="$(_next_no_root)"
-out4a_yes="$(_next_with_root)"
-[ "$out4a_no" = "$out4a_yes" ] || { echo "FAIL [4] controle: '$out4a_no' != '$out4a_yes' antes de qualquer mutação"; exit 1; }
-echo "OK [4] controle — '$out4a_no' == '$out4a_yes'"
+echo "[4] prova de mutação — controle, mutação da CÓPIA, restauração por cópia, recontrole"
+DF="$T/dogfood"
+mkdir -p "$DF/template/.forge/scripts/lib" "$DF/tests"
+GATEORD_FX="$DF/template/.forge/scripts/gate-ordinal.sh"
+GATEORD_PRISTINE="$T/gate-ordinal.pristine.sh"
+copia_conferida "$GATEORD" "$GATEORD_FX" \
+  || { echo "NÃO VERIFICADO: a cópia do alocador em \$T não bate byte a byte com o original"; exit 3; }
+copia_conferida "$GATEORD" "$GATEORD_PRISTINE" \
+  || { echo "NÃO VERIFICADO: a cópia de referência do alocador em \$T não bate byte a byte com o original"; exit 3; }
+copia_conferida "$FORGEROOT_LIB" "$DF/template/.forge/scripts/lib/forge-root.sh" \
+  || { echo "NÃO VERIFICADO: a cópia de forge-root.sh em \$T não bate byte a byte com o original"; exit 3; }
+copia_conferida "$UNIVERSE_LIB" "$DF/template/.forge/scripts/lib/gate-universe.sh" \
+  || { echo "NÃO VERIFICADO: a cópia de gate-universe.sh em \$T não bate byte a byte com o original"; exit 3; }
+chmod +x "$GATEORD_FX"
+cat > "$DF/tests/w010-alfa-gate.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "OK fixture w010-alfa"
+EOF
+cat > "$DF/tests/w011-beta-gate.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "OK fixture w011-beta"
+EOF
+chmod +x "$DF"/tests/*.sh
+git -C "$DF" init -q
+git -C "$DF" config user.email t@t
+git -C "$DF" config user.name t
+git -C "$DF" config commit.gpgsign false
+( cd "$DF" && git add -A >/dev/null 2>&1 && git commit -qm dogfood >/dev/null 2>&1 )
 
-MUTATED=1
-sed -i.bak 's|ROOT="\${FORGE_ROOT:-\$(forge_worktree_root "\$SCRIPT_DIR")}"|ROOT="${FORGE_ROOT:-$(cd "$SCRIPT_DIR/../.." \&\& pwd)}"|' "$GATEORD"
-rm -f "$GATEORD.bak"
-if ! grep -q 'cd "\$SCRIPT_DIR/\.\./\.\." && pwd' "$GATEORD"; then
-  echo "FAIL [4] mutação: o sed não conseguiu reverter a linha 34 para a forma antiga — ajuste o padrão do gate"
-  git checkout -- "$GATEORD"
-  MUTATED=0
+# A invocação NÃO pode passar `--path`: `--path` é relativo ao cwd e curto-circuita justamente o
+# ROOT que se quer medir — com `--path tests` os dois lados devolvem o mesmo ordinal e a mutação
+# fica invisível. Isso foi medido, e é a armadilha deste sítio.
+_fx_no_root()   { ( cd "$DF" && env -u FORGE_ROOT bash "$GATEORD_FX" next 2>/dev/null | head -1 ); }
+_fx_with_root() { ( cd "$DF" && FORGE_ROOT="$DF" bash "$GATEORD_FX" next 2>/dev/null | head -1 ); }
+
+out4a_no="$(_fx_no_root)"
+out4a_yes="$(_fx_with_root)"
+if [[ ! "$out4a_no" =~ ^w[0-9]+$ ]]; then
+  echo "FAIL [4] controle: a cópia íntegra devolveu '$out4a_no', que não casa com ^w[0-9]+\$ — duas respostas vazias seriam 'iguais' por vacuidade"
   exit 1
 fi
-out4b_no="$(_next_no_root)"
-out4b_yes="$(_next_with_root)"
+[ "$out4a_no" = "$out4a_yes" ] || { echo "FAIL [4] controle: '$out4a_no' != '$out4a_yes' antes de qualquer mutação"; exit 1; }
+echo "OK [4] controle — cópia íntegra: '$out4a_no' == '$out4a_yes'"
+
+sed -i.bak 's|ROOT="\${FORGE_ROOT:-\$(forge_worktree_root "\$SCRIPT_DIR")}"|ROOT="${FORGE_ROOT:-$(cd "$SCRIPT_DIR/../.." \&\& pwd)}"|' "$GATEORD_FX"
+rm -f "$GATEORD_FX.bak"
+if ! grep -q 'cd "\$SCRIPT_DIR/\.\./\.\." && pwd' "$GATEORD_FX"; then
+  echo "FAIL [4] mutação: o sed não conseguiu reverter a resolução de raiz para a forma antiga na cópia — ajuste o padrão do gate"
+  exit 1
+fi
+if cmp -s "$GATEORD_FX" "$GATEORD_PRISTINE"; then
+  echo "FAIL [4] mutação: a mutação não alterou a cópia — a prova mediria o próprio engano"
+  exit 1
+fi
+out4b_no="$(_fx_no_root)"
+out4b_yes="$(_fx_with_root)"
 if [ "$out4b_no" = "$out4b_yes" ]; then
-  git checkout -- "$GATEORD"
-  MUTATED=0
-  echo "FAIL [4] mutação: com a linha 34 revertida para a forma antiga, sem FORGE_ROOT e com FORGE_ROOT continuaram iguais ('$out4b_no') — a mutação não afetou a propriedade que [1] verifica"
+  echo "FAIL [4] mutação: com a resolução de raiz revertida para a forma antiga, sem FORGE_ROOT e com FORGE_ROOT continuaram iguais ('$out4b_no') — a mutação não afetou a propriedade que [1] verifica"
   exit 1
 fi
 echo "OK [4] mutação — sem FORGE_ROOT ('$out4b_no') diverge de com FORGE_ROOT ('$out4b_yes'), como esperado da forma antiga"
 
-git checkout -- "$GATEORD"
-MUTATED=0
-out4c_no="$(_next_no_root)"
-out4c_yes="$(_next_with_root)"
-[ "$out4c_no" = "$out4c_yes" ] || { echo "FAIL [4] recontrole: após git checkout -- '$out4c_no' != '$out4c_yes'"; exit 1; }
-echo "OK [4] recontrole — git checkout -- restaurou a igualdade ('$out4c_no' == '$out4c_yes')"
+cp "$GATEORD_PRISTINE" "$GATEORD_FX"
+cmp -s "$GATEORD_FX" "$GATEORD_PRISTINE" \
+  || { echo "FAIL [4] recontrole: a restauração por cópia não bateu byte a byte com a referência"; exit 1; }
+out4c_no="$(_fx_no_root)"
+out4c_yes="$(_fx_with_root)"
+[ "$out4c_no" = "$out4c_yes" ] || { echo "FAIL [4] recontrole: após a restauração por cópia '$out4c_no' != '$out4c_yes'"; exit 1; }
+echo "OK [4] recontrole — a restauração por cópia devolveu a igualdade ('$out4c_no' == '$out4c_yes')"
 
 echo "TODOS OS CENÁRIOS OK — w204-ordinal-root-resolution-gate"
+
+# Fecho da sentinela pelos TRÊS estados: rc 0 limpo, rc 1 acusação, rc 3 NÃO VERIFICADO. O idioma
+# anterior (`arvore_confere ... || { echo "a árvore mudou"; exit 1; }`) colapsava rc 1 e rc 3 no mesmo
+# `||` e imprimia, em árvore sem `.git`, a acusação FALSA de que a árvore rastreada mudou.
+arvore_sentinela_fim "$WS" "$ARVORE_ANTES" "w204-ordinal-root-resolution" || exit $?

@@ -34,7 +34,7 @@ semântica depois** (julgamento). O barato e infalível filtra antes do caro e o
 ## Fase A — Gates determinísticos (bloqueiam o merge)
 
 > Rode sobre a **superfície inteira**, não só o diff (ver Gate A5). Emita **uma linha OK/FAIL por
-> gate**. Qualquer FAIL bloqueia. Os scans usam `rg` (ripgrep); onde faltar, `grep -rn` equivalente.
+> gate**. Qualquer FAIL bloqueia. Os scans usam `rg` (ripgrep); onde faltar, `grep -arn` equivalente.
 
 ### A0 — Estabeleça a fonte da verdade
 Localize o arquivo de tokens (`tokens.css`/`colors-and-type.css` ou equivalente) e o catálogo de

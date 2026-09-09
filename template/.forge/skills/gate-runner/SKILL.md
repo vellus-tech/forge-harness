@@ -36,7 +36,7 @@ grep -l "$PATTERN" "${FILES[@]}" >/dev/null && echo "OK grep+:$PATTERN" || echo 
 **Grep negativo (NOT cross-file)** — nenhum padrão proibido sobra:
 
 ```bash
-out=$(grep -rnE 'TODO|FIXME|not implemented|console\.log\(|HACK' "${FILES[@]}" 2>/dev/null | head -5)
+out=$(grep -arnE 'TODO|FIXME|not implemented|console\.log\(|HACK' "${FILES[@]}" 2>/dev/null | head -5)
 [ -z "$out" ] && echo "OK grep-:residuos" || { echo "$out" >/tmp/gate-grepneg.log; echo "FAIL grep-:residuos (tail -5 em /tmp/gate-grepneg.log)"; }
 ```
 

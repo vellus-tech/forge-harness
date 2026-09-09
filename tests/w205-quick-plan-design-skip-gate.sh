@@ -32,21 +32,39 @@
 #       tasks-ready.
 #   [6] PROVA DE MUTAÇÃO sobre o arquivo RASTREADO real: (a) controle — roda [2] e vê passar;
 #       (b) mutação — remove o `&& !skipsDesign` da condição do guard e vê [2] reprovar com
-#       "design.md missing"; (c) recontrole — `git checkout --`, NUNCA edição inversa, e vê [2]
+#       "design.md missing"; (c) recontrole — restauração por CÓPIA, NUNCA edição inversa, e vê [2]
 #       passar de novo.
 set -uo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-S="$WS/template/.forge/scripts"
-VALIDATE_MJS="$S/lib/validate-spec.mjs"
-[ -f "$VALIDATE_MJS" ] || { echo "FAIL: arquivo esperado ausente: $VALIDATE_MJS"; exit 1; }
+S_REAL="$WS/template/.forge/scripts"
+VALIDATE_REAL="$S_REAL/lib/validate-spec.mjs"
+[ -f "$VALIDATE_REAL" ] || { echo "FAIL: arquivo esperado ausente: $VALIDATE_REAL"; exit 1; }
 
-# Fixtures rodam contra os scripts REAIS (rastreados) via FORGE_ROOT apontando para um tmpdir
-# efêmero — nunca uma cópia de .forge/: é o que faz a prova de mutação do cenário [6] valer, pois
-# mutar o arquivo rastreado afeta diretamente as chamadas de validate-spec.sh feitas aqui.
 T="$(mktemp -d /tmp/forge-w205.XXXXXX)"
-MUTATED=0
-trap 'rm -rf "$T"; [ "$MUTATED" = "1" ] && git -C "$WS" checkout -- "$VALIDATE_MJS"' EXIT
+trap 'rm -rf "$T"' EXIT
+
+# shellcheck source=/dev/null
+. "$WS/template/.forge/scripts/lib/arvore-rastreada.sh"
+ARVORE_ANTES="$(arvore_retrato "$WS")"
+
+# Conversão do LDG-0179: as fixtures rodavam contra os scripts RASTREADOS, e o cenário [6] mutava o
+# `validate-spec.mjs` real, restaurando com `git checkout --` sob a guarda `MUTATED` — que sob
+# `SIGKILL` não roda, e que apaga trabalho não commitado do operador quando roda. Agora `template/
+# .forge` inteiro é copiado para `$T` e `$S` aponta para a cópia: copiar só `scripts/` NÃO basta,
+# porque o `spec-new.sh` falha com "Can't open .../tpl/templates/spec/proposal.md" — a árvore em
+# volta é parte do sistema sob teste. É o que `w194`, `w201` e `w211` já fazem.
+#
+# A prova de mutação continua valendo: o `validate-spec.mjs` da cópia é conferido byte a byte com o
+# rastreado antes do uso, e o que se mede é a propriedade do CÓDIGO, não a do inode.
+cp -R "$WS/template/.forge" "$T/.forge"
+S="$T/.forge/scripts"
+VALIDATE_MJS="$S/lib/validate-spec.mjs"
+VALIDATE_PRISTINE="$T/validate-spec.pristine.mjs"
+cmp -s "$VALIDATE_REAL" "$VALIDATE_MJS" \
+  || { echo "NÃO VERIFICADO: a cópia de validate-spec.mjs em \$T não bate byte a byte com o original"; exit 3; }
+copia_conferida "$VALIDATE_REAL" "$VALIDATE_PRISTINE" \
+  || { echo "NÃO VERIFICADO: a cópia de referência de validate-spec.mjs em \$T não bate byte a byte com o original"; exit 3; }
 
 # _mk_change <id> — spec-new.sh feature/scale 2 real, sob FORGE_ROOT="$T". Devolve o path do change.
 _mk_change() {
@@ -151,7 +169,7 @@ if [ "$FINAL_STATUS" != "tasks-ready" ]; then
 fi
 echo "OK [5] — $OUT5B (manifest em '$FINAL_STATUS')"
 
-echo "[6] prova de mutação — controle, mutação sobre o arquivo rastreado, git checkout --, recontrole"
+echo "[6] prova de mutação — controle, mutação da CÓPIA, restauração por cópia, recontrole"
 D6="$(_mk_change c6-mutacao)" || exit 1
 rm -f "$D6/design.md"
 _set_quick_plan "$D6" block "pulo intencional de design para exercitar o gate w205"
@@ -164,36 +182,35 @@ if ! grep -q '^OK ' <<<"$OUT6A"; then
 fi
 echo "OK [6] controle — $OUT6A"
 
-MUTATED=1
 perl -pi -e "s/scale >= 2 && man\.type !== 'bugfix' && !has\('design\.md'\) && !skipsDesign\)/scale >= 2 \&\& man.type !== 'bugfix' \&\& !has('design.md'))/" "$VALIDATE_MJS"
 if ! grep -q "man.type !== 'bugfix' && !has('design.md'))" "$VALIDATE_MJS"; then
-  echo "FAIL [6] mutação: o perl não conseguiu remover '&& !skipsDesign' da condição do guard — ajuste o padrão do gate"
-  git -C "$WS" checkout -- "$VALIDATE_MJS"
-  MUTATED=0
+  echo "FAIL [6] mutação: o perl não conseguiu remover '&& !skipsDesign' da condição do guard na CÓPIA — ajuste o padrão do gate"
   exit 1
 fi
 OUT6B="$(_validate "$D6")"
 if grep -q '^OK ' <<<"$OUT6B"; then
-  git -C "$WS" checkout -- "$VALIDATE_MJS"
-  MUTATED=0
   echo "FAIL [6] mutação: com '&& !skipsDesign' removido da condição, o cenário [2] continuou passando — a mutação não afetou a propriedade testada: $OUT6B"
   exit 1
 fi
 if ! grep -q 'design.md missing' <<<"$OUT6B"; then
-  git -C "$WS" checkout -- "$VALIDATE_MJS"
-  MUTATED=0
   echo "FAIL [6] mutação: reprovou mas sem 'design.md missing' na mensagem: $OUT6B"
   exit 1
 fi
 echo "OK [6] mutação — $OUT6B"
 
-git -C "$WS" checkout -- "$VALIDATE_MJS"
-MUTATED=0
+cp "$VALIDATE_PRISTINE" "$VALIDATE_MJS"
+cmp -s "$VALIDATE_MJS" "$VALIDATE_PRISTINE" \
+  || { echo "FAIL [6] recontrole: a restauração por cópia não bateu byte a byte com a referência"; exit 1; }
 OUT6C="$(_validate "$D6")"
 if ! grep -q '^OK ' <<<"$OUT6C"; then
-  echo "FAIL [6] recontrole: após git checkout -- o cenário [2] deveria voltar a passar — $OUT6C"
+  echo "FAIL [6] recontrole: após a restauração por cópia o cenário [2] deveria voltar a passar — $OUT6C"
   exit 1
 fi
 echo "OK [6] recontrole — $OUT6C"
 
 echo "TODOS OS CENÁRIOS OK — w205-quick-plan-design-skip-gate"
+
+# Fecho da sentinela pelos TRÊS estados: rc 0 limpo, rc 1 acusação, rc 3 NÃO VERIFICADO. O idioma
+# anterior (`arvore_confere ... || { echo "a árvore mudou"; exit 1; }`) colapsava rc 1 e rc 3 no mesmo
+# `||` e imprimia, em árvore sem `.git`, a acusação FALSA de que a árvore rastreada mudou.
+arvore_sentinela_fim "$WS" "$ARVORE_ANTES" "w205-quick-plan-design-skip" || exit $?

@@ -764,8 +764,9 @@ Pares de PR que tocam o mesmo arquivo de maquinaria, na ordem em que devem entra
 | `template/.forge/scripts/liaison-ops.sh` | #117 → #108 → #109 → #133 → #136 | do trecho mais baixo e isolado (`:298`) para o dispatcher (`:1295`), que a #136 reescreve. A #123 não edita `liaison-ops.sh` (seus arquivos são `liaison-config.mjs`, `transports/` e o schema) — sua dependência de rodar depois de #133 é de ordem, não de arquivo comum, e está na seção de dependências de ordem abaixo |
 | `template/.forge/scripts/deferral-ops.sh` | #133 → #136 | o laço de recusa em `status` e `test` precisa existir antes do ramo de help no dispatcher |
 | `template/.forge/scripts/ledger-ops.sh` | #103 → #136 | a recusa de `resolve` repetido é local; o help reescreve o dispatcher |
-| `template/.forge/scripts/red-evidence.sh`, `lib/red-evidence-ops.mjs`, `lib/check-red-first.mjs` | #139 → #138 → #136 | a #138 itera `entries` criadas pela #139; o help da #136 toca o dispatcher de `red-evidence.sh` |
-| `template/.forge/scripts/lib/red-replay.mjs` e `schemas/red-evidence.schema.json` | #139 → #150 | os dois acrescentam propriedades ao mesmo schema estrito |
+| `template/.forge/scripts/lib/red-evidence-ops.mjs`, `lib/check-red-first.mjs` | #139 → #138 | a #138 itera `entries` criadas pela #139 |
+| `template/.forge/scripts/red-evidence.sh` | #138 → #136 | o help da #136 toca o dispatcher de `red-evidence.sh` |
+| `template/.forge/schemas/red-evidence.schema.json` | #139 → #150 | os dois acrescentam propriedades ao mesmo schema estrito |
 | `template/.forge/scripts/doctor.sh` | #127 → #108 → #149 → #153 → #142 | universo de varredura primeiro; a lib órfã da #153 é medida depois que a #149 dá invocador à `scan-exclude.sh`; a linha do recurso da #142 entra no bloco `HEAVY-MUTEX` por último |
 | `template/.forge/scripts/lib/transports/` | #126 → #109 → #123 | cabeçalho alinhado antes de o retorno do push (#109) e o roteamento do kind (#123) editarem o mesmo diretório |
 | `README.md` (badge `gates-N`) | ordem de merge de todos os PRs com gate novo | o w200 exige a igualdade no mesmo commit; cada PR recalcula o badge contra a base em que entra |

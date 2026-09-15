@@ -206,7 +206,7 @@ kind inválido: fs-union (use manual|fs|git|gh)
 
 Gate que fica: `tests/w<NNN>-liaison-fs-union-gate.sh`: `transport set --kind fs-union` rc 0 e `sync` publica com união (positiva); uma árvore com o `liaison-config.mjs` de `821178e` (copiado como fixture) lendo esse yaml sai rc≠0 e o sha do hub fica idêntico antes e depois. Propriedade PBT: não se aplica, os estados são enumeráveis (kind novo ou antigo × leitor novo ou antigo). Mutação: remover `'fs-union'` de `TRANSPORT_KINDS` faz o `transport set` sair rc 1.
 
-Arquivos: `template/.forge/scripts/lib/liaison-config.mjs`, `template/.forge/scripts/lib/transports/` (roteamento do kind), `template/.forge/schemas/liaison-config.schema.json`, gate novo, README, CHANGELOG.
+Arquivos: `template/.forge/scripts/lib/liaison-config.mjs`, `template/.forge/scripts/lib/transports/fs-union.sh` (novo — `liaison-ops.sh:195` resolve o backend por `$LIBDIR/transports/$LIAISON_T_KIND.sh`, então o kind exige arquivo próprio; reexporta `t_probe/t_push/t_pull` de `fs.sh`), `template/.forge/schemas/liaison-config.schema.json`, gate novo, README, CHANGELOG.
 
 **DoD da Onda 2:** um HANDOFF sem marcadores regenerado deixa backup byte-idêntico e o WARN com o caminho; dois `record` no mesmo change deixam as duas entradas legíveis por `check-red-first.mjs status`; um blob apagado volta depois de um `sync` com a linha de recuperação impressa; e `transport set --kind fs-union` sai rc 0 enquanto o leitor de `821178e` recusa o mesmo yaml sem alterar o hub. Toda asserção de "não perdeu" é provada pela presença do dado recuperado, nunca só pela ausência de erro.
 
@@ -539,7 +539,7 @@ Vermelho, executado (`/tmp/fh-R02-Bliaison.sh`): `send` sem `sync`, depois `stat
 
 Gate que fica: `tests/w<NNN>-liaison-outbox-watermark-gate.sh`: antes do `sync` a linha aparece com a contagem certa (positiva), depois do `sync` desaparece e `published` aponta o último id. Propriedade PBT: para sequências geradas de `send` e `sync` intercaladas, a contagem de não publicadas é igual ao número de mensagens próprias ausentes do log do hub. Mutação: não gravar `published` no `sync` faz a contagem pós-sync ficar maior que zero.
 
-Arquivos: `template/.forge/scripts/liaison-ops.sh`, `template/.forge/scripts/lib/transports/` (retorno do push), gate novo, README, CHANGELOG.
+Arquivos: `template/.forge/scripts/liaison-ops.sh` (grava `published` após `t_push` retornar 0, lendo o último `msg_id` do próprio log em `LIAISON_CHANNEL_DIR`), gate novo, README, CHANGELOG.
 
 ### #117 — o nome do blob não é o sha256 dos bytes
 
@@ -768,7 +768,6 @@ Pares de PR que tocam o mesmo arquivo de maquinaria, na ordem em que devem entra
 | `template/.forge/scripts/red-evidence.sh` | #138 → #136 | o help da #136 toca o dispatcher de `red-evidence.sh` |
 | `template/.forge/schemas/red-evidence.schema.json` | #139 → #150 | os dois acrescentam propriedades ao mesmo schema estrito |
 | `template/.forge/scripts/doctor.sh` | #127 → #108 → #149 → #153 → #142 | universo de varredura primeiro; a lib órfã da #153 é medida depois que a #149 dá invocador à `scan-exclude.sh`; a linha do recurso da #142 entra no bloco `HEAVY-MUTEX` por último |
-| `template/.forge/scripts/lib/transports/` | #126 → #109 → #123 | cabeçalho alinhado antes de o retorno do push (#109) e o roteamento do kind (#123) editarem o mesmo diretório |
 | `README.md` (badge `gates-N`) | ordem de merge de todos os PRs com gate novo | o w200 exige a igualdade no mesmo commit; cada PR recalcula o badge contra a base em que entra |
 
 ## Dependências de ordem sem arquivo compartilhado

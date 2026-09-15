@@ -246,7 +246,7 @@ Arquivos: `template/.forge/scripts/lib/heavy-mutex.sh`, `template/.forge/hooks/g
 
 Causa raiz: bash não interativo não arma `trap` sobre sinal ignorado na entrada. `template/.forge/scripts/heavy-run.sh:191` (`trap "_hr_sig $s" "$s"`) vira no-op quando o wrapper é lançado com `SIGINT=SIG_IGN` herdado (`( nohup ... & ) &`), e a carga herda a mesma disposição.
 
-Desenho: depois de armar, o wrapper confere `trap -p INT`; se veio vazio, ele se reexecuta uma vez com a disposição resetada por um processo não bash (`perl -e '$SIG{INT}=$SIG{TERM}=$SIG{HUP}="DEFAULT"; exec @ARGV'`, com uma variável de guarda contra laço), e a carga é lançada com a disposição padrão. Sem `perl`, recusa com rc 70 e diagnóstico em vez de rodar sem trap. Alternativa descartada: ignorar o problema e documentar o lançamento, que é exatamente o modo `nohup` do campo; e `set -m` no wrapper, que não reverte `SIG_IGN` herdado (medido na triagem).
+Desenho: depois de armar, o wrapper confere `trap -p INT`; se veio vazio, ele se reexecuta uma vez com a disposição resetada por um processo não bash (`perl -e '$SIG{INT}=$SIG{TERM}="DEFAULT"; exec @ARGV'`, com uma variável de guarda contra laço), e a carga é lançada com INT e TERM na disposição padrão. HUP fica de fora do reset, herdado como veio: resetar HUP também mataria, no fechamento do terminal, o processo que o lançamento em `nohup` do campo existe para proteger — exatamente o invariante que a Onda 3/#144 exige preservar (dono em `nohup` sem beneficiário declarado não é reclamado). Se HUP precisar de tratamento próprio no wrapper, é decisão separada, fora deste PR. Sem `perl`, recusa com rc 70 e diagnóstico em vez de rodar sem trap. Alternativa descartada: ignorar o problema e documentar o lançamento, que é exatamente o modo `nohup` do campo; e `set -m` no wrapper, que não reverte `SIG_IGN` herdado (medido na triagem).
 
 Vermelho, executado (`/tmp/fh-A-146.sh`, `FORGE_HEAVY_MUTEX_ROOT` em mktemp): `bash -c "trap '' INT; exec bash heavy-run.sh --resource r -- sleep 12" &` e `kill -INT` aos 2 s; esperado rc 130 em menos de 3 s. Hoje:
 
@@ -255,7 +255,7 @@ Vermelho, executado (`/tmp/fh-A-146.sh`, `FORGE_HEAVY_MUTEX_ROOT` em mktemp): `b
 [caso] set -m, INT IGNORADO na entrada   : rc=0 elapsed=13s lock_restante=0 sleep_12_vivo=0
 ```
 
-Gate que fica: `tests/w<NNN>-heavy-run-signal-disposition-gate.sh`, positiva rc 130 e `sleep` morto em menos de 3 s no caso ignorado, e controle idêntico no caso padrão. Propriedade PBT: não se aplica; o espaço é a tabela exaustiva {INT, TERM, HUP} × {padrão, ignorado}, seis casos, todos exercitados. Mutação: remover a reexecução faz o caso ignorado voltar a rc 0 com ~13 s.
+Gate que fica: `tests/w<NNN>-heavy-run-signal-disposition-gate.sh`, positiva rc 130 e `sleep` morto em menos de 3 s no caso ignorado, e controle idêntico no caso padrão. Propriedade PBT: não se aplica; o espaço exercitado é {INT, TERM} × {padrão, ignorado}, quatro casos — HUP não entra no reset e por isso não faz parte deste espaço (ver desenho acima); um cenário à parte confirma que a disposição de HUP herdada (ignorada ou padrão) atravessa a reexecução sem ser alterada. Mutação: remover a reexecução faz o caso ignorado voltar a rc 0 com ~13 s.
 
 Arquivos: `template/.forge/scripts/heavy-run.sh`, gate novo, README, CHANGELOG.
 
@@ -758,19 +758,26 @@ Pares de PR que tocam o mesmo arquivo de maquinaria, na ordem em que devem entra
 
 | Arquivo | Ordem | Por quê |
 |---|---|---|
-| `bin/forge.mjs` | #101/#131 → #125 → #142 | as linhas `SOBRESCRITO` e o leitor de exceções que a #125 usa para `hooks/` nascem no primeiro; a mensagem de merge da #142 fica no relatório que os dois anteriores reformatam |
+| `bin/forge.mjs` | #101/#131 → #142 | as linhas `SOBRESCRITO` e o leitor de exceções nascem no primeiro; a mensagem de merge da #142 fica no relatório que o primeiro já reformata. A #125 não edita `bin/forge.mjs` (seus arquivos são `sync-adapters.mjs` e os hooks de `pre-tool-use/`) — sua dependência de #101/#131 é de ordem, não de arquivo comum, e está na seção de dependências de ordem abaixo |
 | `template/.forge/scripts/lib/sync-adapters.mjs` | #130 → #125 | a #125 importa a função exportada pela guarda de principal; sem ela, o gate da #125 reconcilia a fixture ao importar |
 | `template/.forge/hooks/git/pre-push` | #132/#134 → #135 → #141 → #144/#137 → #119 → #106 | o curto-circuito de deleção antecede `run_check`, que a #135 reescreve; a #141 muda a resolução dos sítios delegados que a #144 e a #119 editam em volta; a #106 acrescenta o aviso ao lado da linha `:325` já estável |
-| `template/.forge/scripts/lib/heavy-mutex.sh` | #144/#137 → #146 | a #146 confere a armação de trap que o laço de aquisição reformado continua chamando (`:790`) |
-| `template/.forge/scripts/liaison-ops.sh` | #117 → #108 → #109 → #133 → #136 → #123 | do trecho mais baixo e isolado (`:298`) para o dispatcher (`:1295`), que a #136 reescreve; a #123 toca `transport set` por último porque as guardas da #133 alcançam `--kind` |
+| `template/.forge/scripts/liaison-ops.sh` | #117 → #108 → #109 → #133 → #136 | do trecho mais baixo e isolado (`:298`) para o dispatcher (`:1295`), que a #136 reescreve. A #123 não edita `liaison-ops.sh` (seus arquivos são `liaison-config.mjs`, `transports/` e o schema) — sua dependência de rodar depois de #133 é de ordem, não de arquivo comum, e está na seção de dependências de ordem abaixo |
 | `template/.forge/scripts/deferral-ops.sh` | #133 → #136 | o laço de recusa em `status` e `test` precisa existir antes do ramo de help no dispatcher |
 | `template/.forge/scripts/ledger-ops.sh` | #103 → #136 | a recusa de `resolve` repetido é local; o help reescreve o dispatcher |
 | `template/.forge/scripts/red-evidence.sh`, `lib/red-evidence-ops.mjs`, `lib/check-red-first.mjs` | #139 → #138 → #136 | a #138 itera `entries` criadas pela #139; o help da #136 toca o dispatcher de `red-evidence.sh` |
 | `template/.forge/scripts/lib/red-replay.mjs` e `schemas/red-evidence.schema.json` | #139 → #150 | os dois acrescentam propriedades ao mesmo schema estrito |
 | `template/.forge/scripts/doctor.sh` | #127 → #108 → #149 → #153 → #142 | universo de varredura primeiro; a lib órfã da #153 é medida depois que a #149 dá invocador à `scan-exclude.sh`; a linha do recurso da #142 entra no bloco `HEAVY-MUTEX` por último |
 | `template/.forge/scripts/lib/transports/` | #126 → #109 → #123 | cabeçalho alinhado antes de o retorno do push (#109) e o roteamento do kind (#123) editarem o mesmo diretório |
-| `template/.forge/rules/testing/change-test-contract.md` | #138 → #151 | L5 edita a rule para citar `fixes_defects`; a reordenação das saídas vem sobre o texto já alterado |
 | `README.md` (badge `gates-N`) | ordem de merge de todos os PRs com gate novo | o w200 exige a igualdade no mesmo commit; cada PR recalcula o badge contra a base em que entra |
+
+## Dependências de ordem sem arquivo compartilhado
+
+Pares que precisam entrar nesta ordem, mas não editam o mesmo arquivo — por isso não estão na tabela "Ordem de merge", que é só para pares com arquivo literal em comum.
+
+| Depende de | Deve entrar depois | Por quê |
+|---|---|---|
+| #144/#137 | #146 | a #146 confere a armação de trap que o laço de aquisição reformado por #144/#137 continua chamando (`heavy-mutex.sh:790`), mas #146 só edita `heavy-run.sh` — não toca `heavy-mutex.sh` |
+| #133 | #123 | a #123 toca `transport set` depois de #133 alcançar `--kind` com a guarda de flag-como-valor, mas #123 só edita `liaison-config.mjs`, `transports/` e o schema — não toca `liaison-ops.sh` |
 
 ## Tabela de ordinais
 

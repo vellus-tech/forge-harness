@@ -785,33 +785,35 @@ Uma linha por issue que ganha gate novo. O orquestrador preenche o ordinal contr
 
 | Issue | Gate (slug provisório) | Ordinal |
 |---|---|---|
-| #101 | update-exceptions (mesmo gate da #131) | a reservar |
-| #131 | update-exceptions (mesmo gate da #101) | a reservar |
-| #125 | hook-wiring-derived | a reservar |
-| #130 | module-import-side-effect | a reservar |
-| #142 | heavy-mutex-partition | a reservar |
-| #139 | red-evidence-entries | a reservar |
-| #107 | liaison-blob-recovery | a reservar |
-| #123 | liaison-fs-union | a reservar |
-| #144 | heavy-mutex-posse (mesmo gate da #137) | a reservar |
-| #137 | heavy-mutex-posse (mesmo gate da #144) | a reservar |
-| #146 | heavy-run-signal-disposition | a reservar |
-| #141 | delegacao-arvore-do-hook | a reservar |
-| #132 | prepush-delecao-pura (mesmo gate da #134) | a reservar |
-| #134 | prepush-delecao-pura (mesmo gate da #132) | a reservar |
-| #135 | prepush-teto-de-check | a reservar |
-| #127 | doctor-scan-universe | a reservar |
-| #129 | naming-path-provenance | a reservar |
-| #106 | prepush-cobertura-dotnet | a reservar |
-| #138 | red-defect-scope | a reservar |
-| #128 | run-manifest-root | a reservar |
-| #133 | arg-surface | a reservar |
-| #108 | liaison-diagnostico-mudo | a reservar |
-| #109 | liaison-outbox-watermark | a reservar |
-| #149 | scan-exclude-prune | a reservar |
-| #126 | transport-contract-coherence | a reservar |
-| #145 | pentest-image-contract | a reservar |
-| #152 | security-reviewer-provenance | a reservar |
+| #101 | update-exceptions (mesmo gate da #131) | w214 |
+| #131 | update-exceptions (mesmo gate da #101) | w214 |
+| #125 | hook-wiring-derived | w215 |
+| #130 | module-import-side-effect | w216 |
+| #142 | heavy-mutex-partition | w217 |
+| #139 | red-evidence-entries | w218 |
+| #107 | liaison-blob-recovery | w219 |
+| #123 | liaison-fs-union | w220 |
+| #144 | heavy-mutex-posse (mesmo gate da #137) | w221 |
+| #137 | heavy-mutex-posse (mesmo gate da #144) | w221 |
+| #146 | heavy-run-signal-disposition | w222 |
+| #141 | delegacao-arvore-do-hook | w223 |
+| #132 | prepush-delecao-pura (mesmo gate da #134) | w224 |
+| #134 | prepush-delecao-pura (mesmo gate da #132) | w224 |
+| #135 | prepush-teto-de-check | w225 |
+| #127 | doctor-scan-universe | w226 |
+| #129 | naming-path-provenance | w227 |
+| #106 | prepush-cobertura-dotnet | w228 |
+| #138 | red-defect-scope | w229 |
+| #128 | run-manifest-root | w230 |
+| #133 | arg-surface | w231 |
+| #108 | liaison-diagnostico-mudo | w232 |
+| #109 | liaison-outbox-watermark | w233 |
+| #149 | scan-exclude-prune | w234 |
+| #126 | transport-contract-coherence | w235 |
+| #145 | pentest-image-contract | w236 |
+| #152 | security-reviewer-provenance | w237 |
+
+Reservado por `template/.forge/scripts/gate-ordinal.sh next --path .` em 2026-09-15, contra `origin/develop` (máximo remoto `w213`) e a árvore local (máximo local `w0`); conferido sem colisão contra as branches `wip/upgrade-safety-ldg-0131` (máximo `w154`) e `wip/deepspec-run-manifest-ldg-0165` (nenhum ordinal). 24 gates distintos, faixa `w214`–`w237`, sem repetição.
 
 São 27 linhas e 24 gates distintos. As outras nove issues (#120, #119, #150, #103, #117, #153, #136, #140, #151) ampliam gates existentes.
 

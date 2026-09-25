@@ -2928,7 +2928,7 @@
       "id": "LDG-0189",
       "type": "tech-debt",
       "title": "doctor.sh:157 recomenda sync-adapters.sh sem avisar que ele apaga chaves de topo autorais do settings.json",
-      "detail": "Parte do achado J-08 da revisão adversarial do plano v2 (scratchpad/judge.json), separado aqui da issue nova de GitHub porque é dívida de mensagem, não de comportamento do gerador. template/.forge/scripts/doctor.sh:157 — 'harness: $drift alvo(s) do adapter $aname com drift (rode .forge/scripts/sync-adapters.sh)' — manda o consumidor regenerar por cima de qualquer drift sem avisar que, hoje, sync-adapters.mjs:246 (lock.emit(join(ROOT, '.claude/settings.json'), JSON.stringify({ hooks }, null, 2))) reescreve o arquivo só com a chave hooks, apagando permissions/env/includeCoAuthoredBy e qualquer outra chave de topo autoral — reproduzido num clone do vellus: antes ['permissions','env','hooks','includeCoAuthoredBy'], depois só ['hooks'], rc 0, 41 regras allow/deny e 4 variáveis de env perdidas. Correção: depois que a issue nova do settings.json passar o gerador a só ser dono dos blocos que referenciam .forge/hooks/ (preservando chaves de terceiros), reescrever a mensagem de doctor.sh:157 para não recomendar 'rode sync-adapters.sh' como correção genérica e sem ressalva quando o drift for nessas chaves. Onda alvo: Onda 1 (Bloco A), no mesmo PR que fecha a issue nova do settings.json — a mensagem e o comportamento são a mesma causa raiz (J-08) e travam juntos.",
+      "detail": "Parte do achado J-08 da revisão adversarial do plano v2 (scratchpad/judge.json), separado aqui da issue nova de GitHub porque é dívida de mensagem, não de comportamento do gerador. template/.forge/scripts/doctor.sh:157 — 'harness: $drift alvo(s) do adapter $aname com drift (rode .forge/scripts/sync-adapters.sh)' — manda o consumidor regenerar por cima de qualquer drift sem avisar que, hoje, sync-adapters.mjs:246 (lock.emit(join(ROOT, '.claude/settings.json'), JSON.stringify({ hooks }, null, 2))) reescreve o arquivo só com a chave hooks, apagando permissions/env/includeCoAuthoredBy e qualquer outra chave de topo autoral — reproduzido num clone do vellus: antes ['permissions','env','hooks','includeCoAuthoredBy'], depois só ['hooks'], rc 0, 41 regras allow/deny e 4 variáveis de env perdidas. Correção: depois que a issue nova do settings.json passar o gerador a só ser dono dos blocos que referenciam .forge/hooks/ (preservando chaves de terceiros), reescrever a mensagem de doctor.sh:157 para não recomendar 'rode sync-adapters.sh' como correção genérica e sem ressalva quando o drift for nessas chaves. Onda alvo: Onda 1 (Bloco A), no mesmo PR que fecha a issue nova do settings.json — a mensagem e o comportamento são a mesma causa raiz (J-08) e travam juntos.\n\nDECISÃO (2026-09-25): Issue nova de GitHub aberta para a metade comportamental deste achado (o apagamento em si): #160 (https://github.com/vellus-tech/forge-harness/issues/160). Este item de ledger cobre só a metade da mensagem de doctor.sh:157.",
       "severity": null,
       "priority": "P2",
       "status": "open",
@@ -2944,7 +2944,7 @@
         "promoted_to": null
       },
       "created_at": "2026-09-25T20:09:06-03:00",
-      "updated_at": null,
+      "updated_at": "2026-09-25T20:11:22-03:00",
       "resolved_at": null,
       "dedup_key": "manual:LDG-0189"
     }

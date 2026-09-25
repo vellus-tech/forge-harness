@@ -2779,6 +2779,30 @@
       "updated_at": "2026-09-08T18:26:41-03:00",
       "resolved_at": null,
       "dedup_key": "manual:LDG-0182"
+    },
+    {
+      "id": "LDG-0183",
+      "type": "tech-debt",
+      "title": "spec-new.sh e approval-log.sh não são dogfood-aware (ROOT resolve para template/, não a raiz real)",
+      "detail": "Ao contrário de ledger-ops.sh e liaison-ops.sh (que usam forge_resolve_root() da lib compartilhada), spec-new.sh e approval-log.sh resolvem ROOT por $(cd $SCRIPT_DIR/../.. && pwd) sem checagem de layout de dogfood. Rodados de dentro deste repositório via template/.forge/scripts/<script>.sh sem FORGE_ROOT, escrevem/leem em template/.forge/specs/active/ em vez de .forge/specs/active/ na raiz real — silencioso, sem FAIL. Medido em 2026-09-15 na rodada R02: 'spec-new.sh r02-plano-issues-abertas ...' criou o change em template/.forge/specs/active/, não em .forge/specs/active/, apesar de 'OK' e rc=0. Consequência: approval-log.sh --autonomous não pode ancorar aprovação de plano avulso (docs/plans/*.md) neste checkout sem violar a regra de nunca exportar FORGE_ROOT. Correção sugerida: portar os dois scripts para forge_resolve_root() como ledger-ops.sh e liaison-ops.sh já fazem.",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "R02 2026-09-15, tarefa de aprovação do plano de issues abertas",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-09T10:46:27-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0183"
     }
   ]
 }

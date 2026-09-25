@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**26 itens ativos** · roadmap 3 · tech-debt 16 · known-bug 7 · (87 encerrados)
+**27 itens ativos** · roadmap 3 · tech-debt 17 · known-bug 7 · (87 encerrados)
 
 ## Roadmap
 
@@ -62,6 +62,8 @@ _Encerrados: 2 (resolved 2)_
   As duas cópias do scaffold são entregues ao consumidor pelo mesmo cp -R do installer (install.sh:63), mas só a primeira vira o .forge/FORGE.md do projeto: o installer exclui deliberadamente */templates/* da substituição de placeholders (linhas 68 e 72) e o w13:23-26 assere que .forge/FORGE.md não tem placeholder e que .forge/templates/FORGE.md MANTÉM <PROJECT_SLUG>. Documentação depositada só na segunda não chega ao arquivo que o adotante abre — foi exatamente o que aconteceu com o bloco de phase: do PR #105 antes da correção, com o gate de paridade w197[6] mirando a cópia errada. Definir qual é a fonte, ou fazer uma ser gerada da outra, ou asserir paridade entre as duas.
 - **LDG-0176** [open] (P3) — graph.json commitado está defasado: 256 nodes de 2026-09-04 contra 310 na árvore de hoje, e nada reprova a defasagem
   Medido em 2026-09-07 ao revisar a especificação da Fase 1. O .forge/graph/graph.json rastreado traz generated_at 2026-09-04T19:53:54.648Z e 256 nodes, com tests=114; a árvore tem 132 arquivos tests/*.sh e a regeneração devolve 310 nodes e 59 edges, distribuição template 153, tests 150, tools 5, bin 1, installer 1. Ou seja, 36 gates criados desde então não estão no grafo, entre eles w157 a w206. Consequências medidas: (1) qualquer asserção que cite contagem do grafo commitado nasce vermelha contra a árvore real, e uma especificação desta rodada quase entregou exatamente isso; (2) o grafo é insumo de /forge:impact e do índice de superfície, então a defasagem silencia impacto de tudo que foi criado depois da última geração. Achado de segunda ordem, e é o que torna isto tech-debt e não só higiene: nenhum gate compara o grafo commitado contra o que a regeneração produziria, então a defasagem não tem detector — ela só apareceu porque um revisor foi conferir um número. Correção candidata: gate que regenera em tmp e compara o conjunto de ids (não a contagem, que envelhece a cada gate novo), com o terceiro estado para quando o motor não puder rodar.
+- **LDG-0183** [open] (P3) — spec-new.sh e approval-log.sh não são dogfood-aware (ROOT resolve para template/, não a raiz real)
+  Ao contrário de ledger-ops.sh e liaison-ops.sh (que usam forge_resolve_root() da lib compartilhada), spec-new.sh e approval-log.sh resolvem ROOT por $(cd $SCRIPT_DIR/../.. && pwd) sem checagem de layout de dogfood. Rodados de dentro deste repositório via template/.forge/scripts/<script>.sh sem FORGE_ROOT, escrevem/leem em template/.forge/specs/active/ em vez de .forge/specs/active/ na raiz real — silencioso, sem FAIL. Medido em 2026-09-15 na rodada R02: 'spec-new.sh r02-plano-issues-abertas ...' criou o change em template/.forge/specs/active/, não em .forge/specs/active/, apesar de 'OK' e rc=0. Consequência: approval-log.sh --autonomous não pode ancorar aprovação de plano avulso (docs/plans/*.md) neste checkout sem violar a regra de nunca exportar FORGE_ROOT. Correção sugerida: portar os dois scripts para forge_resolve_root() como ledger-ops.sh e liaison-ops.sh já fazem.
 
 _Encerrados: 36 (resolved 31 · wont-fix 5)_
 

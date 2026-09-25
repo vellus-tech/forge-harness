@@ -2803,6 +2803,150 @@
       "updated_at": "2026-09-25T20:06:17-03:00",
       "resolved_at": null,
       "dedup_key": "manual:LDG-0183"
+    },
+    {
+      "id": "LDG-0184",
+      "type": "roadmap",
+      "title": "Parar o update quando uma exceção declarada expirou, em vez de sobrescrever nominalmente (lado forte da #101/#131)",
+      "detail": "Lado forte descartado na decisão do dono de 2026-09-25 para #101/#131 (default conservador ficou: apenas nomear a sobrescrita como SOBRESCRITO e honrar a exceção declarada, sem interromper o update). A alternativa mais forte — parar o update inteiro quando uma exceção declarada em machinery-exceptions.txt já expirou, em vez de aplicar a sobrescrita silenciosa, e preservar scripts/ por deriva enquanto isso — foi descartada por custo medido: L1 mediu 5 de 6 árvores de consumidor com pre-push divergente do lock declarado, que ficariam bloqueadas de receber qualquer correção se o update parasse nelas hoje. Condição mensurável para promover: repetir a mesma varredura de campo (comparar o pre-push de cada árvore contra o hash declarado no lock) e observar que 1 ou zero das árvores medidas ficariam com o update parado por exceção expirada — ou seja, que o custo caiu de 5/6 para uma fração residual antes de virar comportamento padrão.",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-25T20:09:06-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0184"
+    },
+    {
+      "id": "LDG-0185",
+      "type": "roadmap",
+      "title": "Ligar teto de posse derivado por padrão no heavy-mutex do template (lado forte da #137)",
+      "detail": "Lado forte descartado na decisão do dono de 2026-09-25 para #137 (default conservador ficou: sem teto de posse ligado por padrão no template — o 3600 do LDG-0181/PadSim é fork específico, não default). A alternativa mais forte — ligar um teto de posse derivado por padrão no heavy-mutex.sh do template, encerrando o dono vivo depois de N segundos de posse mesmo sem sinal de morte — foi descartada por custo medido: com o default derivado (candidato 900s), todo consumidor passaria a ter o próprio dono vivo encerrado ao ultrapassar esse teto, mesmo em operações legítimas mais longas. Condição mensurável para promover: medir a duração real de posse do heavy-mutex nos consumidores de campo por um período (por exemplo, todas as aquisições de um ciclo de release) e confirmar que a operação legítima mais longa observada fica com folga abaixo do teto candidato — hoje essa distribuição não foi medida, então o teto seria arbitrário.",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-25T20:09:06-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0185"
+    },
+    {
+      "id": "LDG-0186",
+      "type": "roadmap",
+      "title": "Trocar o nome default do recurso do heavy-mutex, condicionado a registro de famílias (lado forte da #142)",
+      "detail": "Lado forte descartado na decisão do dono de 2026-09-25 para #142 (default conservador ficou: preservar o nome de recurso já declarado por quem declarou um, e só aplicar o novo nome default a quem nunca declarou nada). A alternativa mais forte — trocar o próprio nome default do recurso do heavy-mutex no template — foi descartada por custo medido: axis-fare-validator declara axis-heavy-suite e axis-go-cloud declara forge-heavy-suite; trocar o default reparticionaria quem hoje está implicitamente no default (sem declaração própria) para uma partição nova, sem aviso. Ligado ao achado J-28 (partição viva de mutex no axis-go-cloud sem resource/root alinhado) — o dono recusou nesta rodada o registro explícito de famílias que resolveria isso com segurança. Condição mensurável para promover: existir um registro de famílias explícito (nomeando resource/root por consumidor, um por linha) cobrindo os consumidores hoje sem declaração própria, de modo que a troca do nome default não reparticione ninguém sem que isso apareça nomeado no registro antes da mudança.",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-25T20:09:06-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0186"
+    },
+    {
+      "id": "LDG-0187",
+      "type": "roadmap",
+      "title": "Recomendar fs-union como padrão ativo aos consumidores (lado forte da #123)",
+      "detail": "Lado forte descartado na decisão do dono de 2026-09-25 para #123 (default conservador ficou: fs-union é aditivo e opt-in, e a leitura antiga já recusa kind desconhecido — sem recomendação ativa). A alternativa mais forte — recomendar fs-union como padrão ativo a todos os consumidores — foi descartada por custo medido: 176 worktrees em quatro consumidores têm leitor sem o kind fs-union e parariam de sincronizar até atualizar, e 146 delas têm _common.sh sem _dir_push_union. Condição mensurável para promover: repetir a contagem de worktrees sem o kind fs-union nos consumidores de campo e observar que a fração caiu para minoria (por exemplo, abaixo de um quarto das 176 medidas hoje), sinalizando que a migração voluntária já avançou o bastante para uma recomendação ativa não travar sincronização em massa.",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-25T20:09:06-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0187"
+    },
+    {
+      "id": "LDG-0188",
+      "type": "tech-debt",
+      "title": "--repair-own-log publica o log próprio sem passar pela união (bypassa a validação de um-escritor-por-arquivo do LDG-0163)",
+      "detail": "Achado J-27 da revisão adversarial do plano v2 (scratchpad/judge.json), citado na nota de resolução do LDG-0163 e registrado aqui como item próprio conforme a correção do próprio achado. O caminho --repair-own-log em template/.forge/scripts/lib/transports/_common.sh:206-207 (origin/develop) publica o log próprio direto por cp/mv, sem passar por liaison-push-union.mjs — ou seja, sem a validação de um-escritor-por-arquivo que o LDG-0163 fechou para o caminho normal de push. Só roda com a flag LIAISON_PUSH_REPAIR=1 explícita e emite WARN, então o raio de exposição é menor que o defeito original, mas a mesma classe de dano (sobrescrever o hub com um log próprio corrompido) continua alcançável por esse caminho de reparo. Onda alvo: Onda 7 (Bloco E, dívida interna), junto da fusão LDG-0171/LDG-0183 e dos demais itens de robustez do liaison/ledger.",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-25T20:09:06-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0188"
+    },
+    {
+      "id": "LDG-0189",
+      "type": "tech-debt",
+      "title": "doctor.sh:157 recomenda sync-adapters.sh sem avisar que ele apaga chaves de topo autorais do settings.json",
+      "detail": "Parte do achado J-08 da revisão adversarial do plano v2 (scratchpad/judge.json), separado aqui da issue nova de GitHub porque é dívida de mensagem, não de comportamento do gerador. template/.forge/scripts/doctor.sh:157 — 'harness: $drift alvo(s) do adapter $aname com drift (rode .forge/scripts/sync-adapters.sh)' — manda o consumidor regenerar por cima de qualquer drift sem avisar que, hoje, sync-adapters.mjs:246 (lock.emit(join(ROOT, '.claude/settings.json'), JSON.stringify({ hooks }, null, 2))) reescreve o arquivo só com a chave hooks, apagando permissions/env/includeCoAuthoredBy e qualquer outra chave de topo autoral — reproduzido num clone do vellus: antes ['permissions','env','hooks','includeCoAuthoredBy'], depois só ['hooks'], rc 0, 41 regras allow/deny e 4 variáveis de env perdidas. Correção: depois que a issue nova do settings.json passar o gerador a só ser dono dos blocos que referenciam .forge/hooks/ (preservando chaves de terceiros), reescrever a mensagem de doctor.sh:157 para não recomendar 'rode sync-adapters.sh' como correção genérica e sem ressalva quando o drift for nessas chaves. Onda alvo: Onda 1 (Bloco A), no mesmo PR que fecha a issue nova do settings.json — a mensagem e o comportamento são a mesma causa raiz (J-08) e travam juntos.",
+      "severity": null,
+      "priority": "P2",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-25T20:09:06-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0189"
     }
   ]
 }

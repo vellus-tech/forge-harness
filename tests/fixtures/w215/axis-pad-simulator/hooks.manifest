@@ -1,0 +1,38 @@
+# hooks.manifest — a declaração de fiação dos ganchos de PreToolUse.
+#
+# POR QUE ESTE ARQUIVO EXISTE, E POR QUE FORA DOS HOOKS. Quatro dos cinco ganchos deste diretório
+# estão no `machinery.lock`: são arquivos do template, e o overlay do `forge upgrade` os repõe com
+# o conteúdo original, sem conflito e sem aviso. Um cabeçalho `# forge-matcher:` escrito DENTRO de
+# cada hook sumiria no próximo overlay, o gerador deixaria de saber o matcher, e o gancho cairia da
+# fiação — que é exatamente o desarme silencioso que esta arquitetura existe para fechar. Este
+# arquivo NÃO está no lock. Crédito do desenho ao axis-fare-validator (forge-harness seq 40).
+#
+# QUATRO COLUNAS, separadas por TAB: hook, matcher, contrato, estado.
+#
+#   matcher   é comparado como REGEX contra o nome da ferramenta pelo Claude Code, e a comparação
+#             é de BUSCA, não de igualdade — então ANCORE com ^( ... )$. Sem âncora, `Write|Edit`
+#             casa MultiEdit e NotebookEdit (que você quer) e também `TodoWrite` (que você não
+#             quer), porque todos CONTÊM as letras. Medido: TodoWrite não trava a sessão, porque o
+#             payload dela não tem alvo e o hook sai 0 na guarda; mas invocar um detector de
+#             segredos a cada atualização de lista de tarefas é imprecisão, e um matcher deve
+#             dizer o que quer dizer. Enumere explicitamente e ancore.
+#   contrato  `stdin-json` (o hook lê o payload do PreToolUse) ou `argv` (recebe alvo e conteúdo
+#             como argumentos).
+#   estado    `armado` ou `retido:<razão-curta>`.
+#
+# A COLUNA `estado` É UMA ADIÇÃO NOSSA AO DESENHO ORIGINAL, e ela fecha um buraco real. Um
+# manifesto que só sabe dizer "declarado" força uma escolha binária entre armar um gancho ruim e
+# deixá-lo fora do manifesto — e "fora do manifesto" é indistinguível de "esquecido". Com
+# `retido:<razão>`, a decisão de NÃO armar vira registro auditável: o gancho continua declarado, o
+# gerador não o emite, e a suíte cobra que todo `.sh` do diretório tenha uma linha aqui. Assim,
+# gancho novo não entra em silêncio nem fica órfão em silêncio.
+#
+# AS RAZÕES DE RETENÇÃO ABAIXO SÃO MEDIDAS, NÃO ESTILÍSTICAS — o censo por execução sobre os 2004
+# arquivos versionados de origin/develop está em LDG-0387, e o alcance de cada gancho foi medido
+# por controle positivo (entregar a todos os arquivos um conteúdo que o gancho DEVE reprovar).
+#
+#hook	matcher	contrato	estado
+prevent-secrets-leak.sh	^(Write|Edit|MultiEdit|NotebookEdit)$	stdin-json	armado
+enforce-worktree-location.sh	^Bash$	stdin-json	armado
+check-language-policy.sh	Write|Edit	argv	retido:portao-invertido-le-o-disco-alcance-de-conteudo-zero-LDG-0387
+validate-naming-conventions.sh	Write|Edit	argv	retido:28-falsos-positivos-estruturais-em-engine-e-sai-por-exit-1-LDG-0387

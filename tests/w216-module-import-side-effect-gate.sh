@@ -98,6 +98,14 @@ set -uo pipefail
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LIB_REL=".forge/scripts/lib/sync-adapters.mjs"
 LIB_TEMPLATE="$WS/template/$LIB_REL"   # a lib rastreada (fixtures copiam template/.forge → $dir/.forge)
+# Issue #125: sync-adapters.mjs passou a importar ./hooks-manifest.mjs (leitor canônico de
+# hooks.manifest, LDG-0178/w208) — um cenário que copia sync-adapters.mjs SOZINHO para um
+# diretório isolado (fora de uma cópia completa de .forge/) precisa levar o irmão junto, ou o
+# import falha com ERR_MODULE_NOT_FOUND antes mesmo de chegar ao que o cenário quer medir.
+HOOKS_MANIFEST_TEMPLATE="$WS/template/.forge/scripts/lib/hooks-manifest.mjs"
+# copia_lib_isolada <destino-do-sync-adapters.mjs> — copia sync-adapters.mjs (já feito pelo
+# chamador para $1) e garante hooks-manifest.mjs ao lado, no mesmo diretório.
+copia_lib_isolada() { cp "$HOOKS_MANIFEST_TEMPLATE" "$(dirname "$1")/hooks-manifest.mjs"; }
 TMPROOT="${TMPDIR:-/tmp}"
 overall_rc=0
 CLEANUP_DIRS=()
@@ -312,6 +320,7 @@ echo "[6] mutação: reintroduzir o process.exit de nível de módulo faz [5] vo
 T6="$(mktemp -d "$TMPROOT/forge-w216-6.XXXXXX")"; track "$T6"
 LIB6="$T6/sync-adapters.mjs"
 cp "$LIB_TEMPLATE" "$LIB6"
+copia_lib_isolada "$LIB6"
 BACKUP6="$(mktemp "$TMPROOT/forge-w216-6-backup.XXXXXX")"; track "$BACKUP6"
 cp "$LIB6" "$BACKUP6"
 CWD6="$T6/cwd-sem-forge"; mkdir -p "$CWD6"
@@ -517,6 +526,7 @@ fi
 echo "[12] mutação: mover a checagem de FORGE.md de volta para só dentro de reconcile() faz [10]/[11] voltarem a falhar"
 D12="$(mktemp -d "$TMPROOT/forge-w216-12.XXXXXX")"; track "$D12"; LIB12="$D12/sync-adapters.mjs"
 cp "$LIB_TEMPLATE" "$LIB12"
+copia_lib_isolada "$LIB12"
 BACKUP12="$(mktemp "$TMPROOT/forge-w216-12-backup.XXXXXX")"; track "$BACKUP12"
 cp "$LIB12" "$BACKUP12"
 
@@ -600,6 +610,7 @@ fi
 echo "  [13-mut] mutação: trocar o root explícito pelo FORGE_YAML de módulo faz [13] voltar a falhar"
 D13="$(mktemp -d "$TMPROOT/forge-w216-13.XXXXXX")"; track "$D13"; LIB13="$D13/sync-adapters.mjs"
 cp "$T13B/$LIB_REL" "$LIB13"
+copia_lib_isolada "$LIB13"
 BACKUP13="$(mktemp "$TMPROOT/forge-w216-13-backup.XXXXXX")"; track "$BACKUP13"
 cp "$LIB13" "$BACKUP13"
 
@@ -664,6 +675,7 @@ fi
 echo "  [14-mut] mutação: remover a distinção CliError faz o stack sumir de novo"
 D14="$(mktemp -d "$TMPROOT/forge-w216-14.XXXXXX")"; track "$D14"; LIB14="$D14/sync-adapters.mjs"
 cp "$LIB_TEMPLATE" "$LIB14"
+copia_lib_isolada "$LIB14"
 BACKUP14="$(mktemp "$TMPROOT/forge-w216-14-backup.XXXXXX")"; track "$BACKUP14"
 cp "$LIB14" "$BACKUP14"
 

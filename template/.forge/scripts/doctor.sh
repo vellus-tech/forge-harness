@@ -112,13 +112,31 @@ check_harness() {
   # content is authored by the user (spec text may quote the generated dir; deploy files under
   # worktrees may carry the app's own PROJECT-style tokens) and is not the canonical harness source.
   USER_DATA='/(specs|worktrees|product|evals|custom)/'
-  leaks="$(grep -rl '\.claude/' "$ROOT/.forge" 2>/dev/null | grep -vE "/(adapters|scripts|hooks)/|/commands/harness/|$USER_DATA" | wc -l | tr -d ' ')"
+  # `.forge/cache/template-pendente/` guarda a versão nova do template de arquivos preservados por deriva local (revisão da DH-1): é cache, não fonte canônica, e fica fora das duas varreduras.
+  PENDING_CACHE='/cache/template-pendente/'
+  leaks="$(grep -rl '\.claude/' "$ROOT/.forge" 2>/dev/null | grep -vE "/(adapters|scripts|hooks)/|/commands/harness/|$USER_DATA|$PENDING_CACHE" | wc -l | tr -d ' ')"
   if [ "$leaks" -eq 0 ]; then ok "harness: fonte canônica sem refs .claude/"
   else miss "harness: $leaks arquivo(s) da fonte canônica com refs .claude/"; MISSING_DIAG=1; fi
 
-  orphans="$(grep -rl '<PROJECT_[A-Z_]*>' "$ROOT/.forge" 2>/dev/null | grep -vE "/templates/|$USER_DATA" | wc -l | tr -d ' ')"
+  orphans="$(grep -rl '<PROJECT_[A-Z_]*>' "$ROOT/.forge" 2>/dev/null | grep -vE "/templates/|$USER_DATA|$PENDING_CACHE" | wc -l | tr -d ' ')"
   if [ "$orphans" -eq 0 ]; then ok "harness: sem placeholders <PROJECT_*> órfãos"
   else miss "harness: $orphans arquivo(s) com placeholders <PROJECT_*> não preenchidos"; MISSING_DIAG=1; fi
+
+  # Versão nova do template pendente de reconciliação (revisão da DH-1): o `update` preserva a maquinaria em deriva local e grava a versão do template em .forge/cache/template-pendente/<rel>. A linha nomeia o que ainda difere do arquivo local (contagem + primeiros caminhos) até alguém reconciliar: declarar a exceção, incorporar a versão à mão ou aceitar com --overwrite-drift. É aviso, não diagnóstico faltante: não muda o rc do doctor.
+  pend_dir="$ROOT/.forge/cache/template-pendente"
+  if [ -d "$pend_dir" ]; then
+    pend_n=0; pend_list=""
+    while IFS= read -r pend_f; do
+      pend_rel="${pend_f#"$pend_dir"/}"
+      cmp -s "$pend_f" "$ROOT/.forge/$pend_rel" && continue
+      pend_n=$((pend_n + 1))
+      [ "$pend_n" -le 5 ] && pend_list="${pend_list:+$pend_list, }$pend_rel"
+    done < <(find "$pend_dir" -type f ! -name .DS_Store 2>/dev/null | LC_ALL=C sort)
+    if [ "$pend_n" -gt 0 ]; then
+      [ "$pend_n" -gt 5 ] && pend_list="$pend_list, … (+$((pend_n - 5)))"
+      warn "harness: TEMPLATE-PENDENTE: $pend_n arquivo(s) com versão nova do template aguardando reconciliação em .forge/cache/template-pendente/: $pend_list — declare a divergência em .forge/machinery-exceptions.txt, incorpore a versão pendente à mão ou aceite com npx forge-harness update --overwrite-drift"
+    fi
+  fi
 
   # Cabeçalho "Generated from" na 1ª linha do artefato gerado.
 #

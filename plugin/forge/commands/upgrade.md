@@ -1,6 +1,6 @@
 ---
 description: Atualiza o harness Forge deste projeto para a versão mais recente do template (npx forge-harness update) — overlay cirúrgico da maquinaria (commands/agents/hooks/scripts/schemas/rules), preservando specs, baseline e config. Distinto de /forge:update (que atualiza o grafo de código).
-argument-hint: "[--no-backup]"
+argument-hint: "[--no-backup] [--overwrite-drift]"
 ---
 
 # /forge:upgrade — atualiza o harness para a versão nova do template
@@ -50,16 +50,12 @@ argument-hint: "[--no-backup]"
 
 5. **Meça a propagação para os worktrees existentes.** O `doctor` (que o `update` roda no fim) lista, por worktree linkado, quantos arquivos de maquinaria divergem do tronco e quantos commits aquele worktree está à frente. Use a tabela para decidir: sincronize primeiro os que estão com **zero commits à frente** (rebase/merge do tronco é trivial ali) e escale os que estão muito à frente ou em `HEAD` destacado, onde a sincronização é decisão de quem tem o contexto da branch.
 
-6. **Resuma** o resultado: o que foi atualizado, o que foi preservado (specs/baseline), o estado do `core.hooksPath`, a divergência dos worktrees e o backup.
+6. **Resuma** o resultado: o que foi atualizado, o que foi preservado (specs/baseline), o estado do `core.hooksPath`, a divergência dos worktrees e o backup. Se o update imprimiu `PRESERVADO (deriva local)`, liste cada caminho com a versão pendente em `.forge/cache/template-pendente/` e peça ao usuário a decisão por arquivo (seção abaixo); nunca rode `--overwrite-drift` sem esse aceite explícito.
    O backup fica em `.git/forge-backups/` e não precisa ser removido para rodar gates: fora da árvore, ele não é varrido por `--path` nem aparece em `git status`. Antes ele vivia em `.forge.bak-N` e era varrido pelos próprios gates, bloqueando o primeiro push após o upgrade por conteúdo que era cópia do repositório (issue #76).
 
 ## Divergências deliberadas de maquinaria (issues #101/#131)
 
-Maquinaria fora de `ENRICHABLE_DIRS` (`scripts/`, `hooks/`, `commands/` e qualquer outro caminho
-que não esteja em `agents/rules/skills/templates` — capabilities, contracts, schemas,
-`adapters/*.yaml`, `README.md`) — o overlay sempre a sobrescreve quando diverge do template, com
-ou sem `machinery.lock`. Um conserto local nesses caminhos sobrevive ao próximo `update` só se
-estiver declarado em `.forge/machinery-exceptions.txt`, uma linha por arquivo:
+Maquinaria fora de `ENRICHABLE_DIRS` (`scripts/`, `hooks/`, `commands/` e qualquer outro caminho que não esteja em `agents/rules/skills/templates` — capabilities, contracts, schemas, `adapters/*.yaml`, `README.md`) que diverge do template novo recebe uma de quatro decisões por arquivo: exceção declarada em `.forge/machinery-exceptions.txt` preserva; sha local igual ao do `machinery.lock` (o consumidor nunca tocou o arquivo) sobrescreve com a linha `ATUALIZADO`; sha local diferente do lock, lock sem entrada para o caminho ou nenhum lock (deriva local, ou impossível provar o contrário) preserva, com a linha `PRESERVADO (deriva local)` e a versão nova do template gravada em `.forge/cache/template-pendente/<caminho>`; e `--overwrite-drift` troca essa preservação por sobrescrita com backup (seção "Deriva local", abaixo). A declaração explícita, uma linha por arquivo, é o jeito de dizer que o conserto local deve ficar:
 
 ```
 <sha256 do TEMPLATE no momento da declaração>  <caminho relativo a .forge/>  # razão
@@ -89,18 +85,13 @@ aparece uma única vez, como `tombstone pulado — exceção declarada`, nunca d
 expirada: é conteúdo do consumidor, não do template, e não deve derrubar o comando por escolha
 alheia.
 
-Toda sobrescrita de maquinaria própria sem exceção declarada é nomeada sempre, sob dois rótulos
-distintos: `SOBRESCRITO (não declarado)` quando o hash local diverge do `machinery.lock` da
-última aplicação (edição local de verdade), com o caminho do backup onde o conteúdo anterior
-sobrevive; e `ATUALIZADO` quando o hash local bate com o lock (o consumidor nunca tocou o
-arquivo — foi só o template que evoluiu), para que a única sobrescrita local real não se perca em
-meio a dezenas de refreshes rotineiros. Arquivo ilegível, linha malformada ou caminho declarado
-duas vezes param o update **antes** de escrever qualquer coisa (inclusive o `--dry-run`), nomeando
-a linha.
+Arquivo ilegível, linha malformada ou caminho declarado duas vezes param o update **antes** de escrever qualquer coisa (inclusive o `--dry-run`), nomeando a linha. Ao consertar ou reconciliar um arquivo, remova a linha dele: exceção que não cobre mais nada absolve em silêncio uma divergência futura que ninguém examinou.
 
-`scripts/` **não** ganha preservação automática por deriva — só a declaração explícita preserva.
-Ao consertar ou reconciliar um arquivo, remova a linha dele: exceção que não cobre mais nada
-absolve em silêncio uma divergência futura que ninguém examinou.
+## Deriva local de maquinaria (revisão da DH-1)
+
+O ensaio de campo da 0.16.0 mediu cerca de 40 consertos deliberados sobrescritos em cinco consumidores que nunca tinham declarado exceção, entre eles consertos cuja perda fez a suíte do próprio consumidor reprovar. Por isso o `update` não sobrescreve mais, por padrão, maquinaria própria em deriva local: o arquivo fica como está, a linha `PRESERVADO (deriva local): <caminho> — versão nova do template em .forge/cache/template-pendente/<caminho>` nomeia cada um, e um `WARN` agregado no fim dá a contagem. O `machinery.lock` não avança nesses caminhos (continua registrando o que o consumidor recebeu por último), para que o próximo update continue reconhecendo a deriva. O `--dry-run` antecipa as mesmas linhas e o mesmo `WARN`. O `doctor` imprime `TEMPLATE-PENDENTE: N arquivo(s) ...` com os primeiros caminhos enquanto a versão pendente ainda difere do arquivo local.
+
+Reconcilie cada arquivo pendente com o usuário, por uma de três saídas: (1) o conserto local deve ficar — declare a exceção em `.forge/machinery-exceptions.txt` com o sha da versão pendente (`shasum -a 256 .forge/cache/template-pendente/<caminho>`) e a razão; (2) o template já cobre o conserto, ou os dois se completam — compare com `diff .forge/<caminho> .forge/cache/template-pendente/<caminho>` e incorpore à mão; (3) o template deve vencer em todos os arquivos pendentes — rode `npx forge-harness@latest update --overwrite-drift`, que sobrescreve com backup em `.git/forge-backups/` e nomeia cada um como `SOBRESCRITO (não declarado)`, sem passar por cima de exceção declarada. O diretório de pendentes é reconstruído a cada update e fica sob `.forge/cache/`, que não é versionado: um clone novo não tem `machinery.lock`, e nele toda maquinaria que difere do template novo aparece como deriva até ser reconciliada.
 
 ## Regras
 

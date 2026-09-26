@@ -24,6 +24,14 @@
 #   [6] fixture real: cópia literal do `.forge/machinery-exceptions.txt` do axis-fare-validator
 #       (34 linhas vivas, só leitura em disco, sanitizada por grep prévio — sem PII/segredo) —
 #       o parser aceita com rc 0 e nomeia as 34 linhas
+#   [8] --dry-run HONRA exceções declaradas: exceção viva aparece como `= rel (preservado —
+#       exceção declarada)`, nunca como `~ rel` (sobrescrita) — a prévia mostrada ao humano antes
+#       de confirmar não pode contradizer o que a aplicação real faz
+#   [9] arquivo intocado localmente (hash bate com machinery.lock) cujo template evoluiu: nomeado
+#       como `ATUALIZADO`, nunca como `SOBRESCRITO (não declarado)` — o rótulo de sobrescrita não
+#       declarada fica reservado para divergência de verdade
+#   [10] tombstone (path que o template removeu) com exceção declarada: a exceção barra a poda de
+#        órfãos, o arquivo sobrevive e aparece exatamente uma vez no relatório
 #   [7] PBT: para arquivos de exceção gerados sobre caminhos REAIS do template, o update para
 #       sse existe linha malformada/duplicada; quando não para, cada arquivo fica byte-idêntico
 #       sse tem exceção viva ou expirada, e todo caminho declarado aparece exatamente uma vez
@@ -154,6 +162,55 @@ done < <(grep -E '^[0-9a-f]{32,}[[:space:]]' "$FIXTURE" | awk '{print $2}')
 [ "$n_nomeadas" -eq 34 ] || { echo "FAIL [6]: nomeadas $n_nomeadas de 34"; exit 1; }
 echo "OK [6] (34/34 nomeadas, rc 0)"
 
+echo "[8] --dry-run honra exceção viva: '= rel (preservado — exceção declarada)', nunca '~ rel'"
+C8="$(consumidor c8)"
+printf '\n# CONSERTO-LOCAL-DRYRUN\n' >> "$C8/.forge/scripts/lib/transports/_common.sh"
+printf '%s  scripts/lib/transports/_common.sh  # preservar no dry-run também\n' "$(sha_tpl scripts/lib/transports/_common.sh)" \
+  > "$C8/.forge/machinery-exceptions.txt"
+out8="$(node "$FORGE" update --target "$C8" --no-plugin --source "$TPL" --dry-run 2>&1)"; rc8=$?
+[ "$rc8" -eq 0 ] || { echo "FAIL [8]: dry-run saiu rc=$rc8"; echo "$out8"; exit 1; }
+grep -q '^= scripts/lib/transports/_common.sh (preservado — exceção declarada)$' <<<"$out8" \
+  || { echo "FAIL [8]: dry-run não anuncia a preservação por exceção viva"; echo "$out8"; exit 1; }
+grep -q '^~ scripts/lib/transports/_common.sh' <<<"$out8" \
+  && { echo "FAIL [8]: dry-run anuncia sobrescrita de arquivo que a exceção viva preserva"; echo "$out8"; exit 1; }
+[ "$(shasum -a 256 "$C8/.forge/scripts/lib/transports/_common.sh" | cut -d' ' -f1)" != "$(sha_tpl scripts/lib/transports/_common.sh)" ] \
+  || { echo "FAIL [8] (setup): conserto local não sobreviveu ao setup do cenário"; exit 1; }
+echo "OK [8]"
+
+echo "[9] arquivo intocado com lock, template evoluiu: 'ATUALIZADO', nunca 'SOBRESCRITO (não declarado)'"
+C9="$(consumidor c9)"
+node "$FORGE" update --target "$C9" --no-plugin --no-backup --source "$TPL" >/dev/null 2>&1
+[ -f "$C9/.forge/cache/machinery.lock" ] || { echo "FAIL [9] (setup): machinery.lock não foi gravado no update de preparo"; exit 1; }
+TPL9="$T/tpl9"; rm -rf "$TPL9"; cp -R "$TPL" "$TPL9"
+printf '\n# MUDANCA-DO-TEMPLATE-NOVA-VERSAO-w214-9\n' >> "$TPL9/scripts/handoff-gen.sh"
+out9="$(node "$FORGE" update --target "$C9" --no-plugin --no-backup --source "$TPL9" 2>&1)"; rc9=$?
+[ "$rc9" -eq 0 ] || { echo "FAIL [9]: update saiu rc=$rc9"; echo "$out9"; exit 1; }
+grep -q 'MUDANCA-DO-TEMPLATE-NOVA-VERSAO-w214-9' "$C9/.forge/scripts/handoff-gen.sh" \
+  || { echo "FAIL [9]: o template não aplicou a mudança nova (overlay não sobrescreveu)"; exit 1; }
+grep -q 'SOBRESCRITO (não declarado): scripts/handoff-gen.sh' <<<"$out9" \
+  && { echo "FAIL [9]: arquivo intocado localmente (lock bate) foi relatado como SOBRESCRITO (não declarado)"; echo "$out9"; exit 1; }
+grep -q '^ATUALIZADO: scripts/handoff-gen.sh' <<<"$out9" \
+  || { echo "FAIL [9]: linha ATUALIZADO ausente para arquivo intocado que o template atualizou"; echo "$out9"; exit 1; }
+echo "OK [9]"
+
+echo "[10] tombstone com exceção declarada: preservado, não apagado, aparece exatamente uma vez"
+C10="$(consumidor c10)"
+TOMB_REL="commands/graph/build.md"
+mkdir -p "$(dirname "$C10/.forge/$TOMB_REL")"
+printf '# customizacao local do consumidor sobre um comando removido do template\n' > "$C10/.forge/$TOMB_REL"
+MANIFEST10="$T/removed-manifest-w214-10.txt"
+printf '%s\n' "$TOMB_REL" > "$MANIFEST10"
+SHA10="$(shasum -a 256 "$C10/.forge/$TOMB_REL" | cut -d' ' -f1)"
+printf '%s  %s  # tombstone preservado por decisão local\n' "$SHA10" "$TOMB_REL" > "$C10/.forge/machinery-exceptions.txt"
+out10="$(FORGE_REMOVED_MANIFEST="$MANIFEST10" node "$FORGE" update --target "$C10" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc10=$?
+[ "$rc10" -eq 0 ] || { echo "FAIL [10]: update saiu rc=$rc10"; echo "$out10"; exit 1; }
+[ -f "$C10/.forge/$TOMB_REL" ] || { echo "FAIL [10]: tombstone com exceção declarada foi apagado pela poda de órfãos"; exit 1; }
+n10="$(grep -c "$TOMB_REL" <<<"$out10" || true)"
+[ "$n10" -eq 1 ] || { echo "FAIL [10]: caminho '$TOMB_REL' apareceu $n10 vez(es) no relatório, esperado exatamente 1"; echo "$out10"; exit 1; }
+grep -q 'tombstone pulado — exceção declarada' <<<"$out10" \
+  || { echo "FAIL [10]: linha de tombstone pulado por exceção declarada ausente"; echo "$out10"; exit 1; }
+echo "OK [10]"
+
 echo "[7] PBT: para exceções geradas sobre caminhos reais do template, o desfecho é função pura do conjunto declarado"
 node --input-type=module - "$WS" <<'NODE_EOF'
 import { join } from 'node:path';
@@ -189,11 +246,16 @@ execFileSync('node', [FORGE, 'init', '--target', pristine, '--slug', 'demo', '--
 
 const templateHash = {};
 for (const rel of REAL_PATHS) templateHash[rel] = sha256(join(TPL, rel));
+const GHOST_REL = 'scripts/caminho-fantasma-fixo-w214.sh';
 
-// Gerador: um estado por caminho real ('viva'|'expirada'|'identica'|'none') + flags de
-// perturbação (fantasma fora do template, duplicata, malformada) — cobre as 5 categorias que a
-// propriedade enumera (vivas, expiradas, ociosas, malformadas e duplicadas).
-const gState = P.gen.array(P.gen.oneOf(['viva', 'expirada', 'identica', 'none']), REAL_PATHS.length, REAL_PATHS.length);
+// Gerador: um estado por caminho real ('viva'|'expirada'|'identica'|'divergente'|'none') + flags
+// de perturbação (fantasma fora do template, duplicata, malformada) — cobre as 6 categorias que a
+// propriedade enumera (vivas, expiradas, ociosas, divergente-não-declarado, malformadas e
+// duplicadas). 'divergente' é o estado que faltava no gerador original (achado do review
+// adversarial, MEDIUM): local editado SEM declaração nenhuma — é o único jeito de exercitar o
+// lado "sse" de "byte-idêntico sse viva/expirada" (sem ele, nenhum caso do PBT testa a sobrescrita
+// de verdade, só a preservação).
+const gState = P.gen.array(P.gen.oneOf(['viva', 'expirada', 'identica', 'divergente', 'none']), REAL_PATHS.length, REAL_PATHS.length);
 const gFlags = P.gen.record({ ghost: P.gen.bool(), duplicate: P.gen.bool(), malformed: P.gen.bool() });
 
 let casesRun = 0;
@@ -204,7 +266,8 @@ const prop = (states, flags) => {
   cpSync(pristine, dir, { recursive: true });
 
   const lines = [];
-  const declared = []; // { rel, expectPreserved, isGhost, isDuplicate, isMalformed }
+  const declared = []; // { rel, category } — caminhos DECLARADOS em machinery-exceptions.txt
+  const undeclaredDivergent = []; // caminhos editados localmente SEM declaração nenhuma
   states.forEach((state, i) => {
     const rel = REAL_PATHS[i];
     const dst = join(dir, '.forge', rel);
@@ -215,18 +278,30 @@ const prop = (states, flags) => {
       declared.push({ rel, category: 'identica' });
       return;
     }
+    if (state === 'divergente') {
+      // editado localmente, NUNCA declarado — deve ser sobrescrito e nomeado SOBRESCRITO.
+      writeFileSync(dst, readFileSync(dst, 'utf8') + `\n# mutação pbt divergente ${rel}\n`);
+      undeclaredDivergent.push(rel);
+      return;
+    }
     // viva/expirada precisam de divergência local real para a classificação fazer sentido.
     writeFileSync(dst, readFileSync(dst, 'utf8') + `\n# mutação pbt ${state} ${rel}\n`);
     if (state === 'viva') {
       lines.push(`${templateHash[rel]}  ${rel}  # viva`);
       declared.push({ rel, category: 'viva' });
     } else {
-      const wrong = (templateHash[rel].slice(0, 63) === '0' ? '1' : '0') + templateHash[rel].slice(1);
+      // Sha "errado" de propósito para expirada: troca só o primeiro dígito hex, preservando o
+      // comprimento. Bug do gerador original (achado do review, MEDIUM): comparava uma FATIA de
+      // 63 caracteres com o caractere único '0' (`slice(0, 63) === '0'`), que nunca é verdadeiro —
+      // então, sempre que o sha do template começasse com '0', o "wrong" saía IDÊNTICO ao sha
+      // certo e a categoria "expirada" virava "viva" em silêncio, sem que a seed fixa 214101131
+      // jamais expusesse isso (nenhum dos hashes reais usados começa com '0').
+      const wrong = (templateHash[rel][0] === '0' ? '1' : '0') + templateHash[rel].slice(1);
       lines.push(`${wrong}  ${rel}  # expirada`);
       declared.push({ rel, category: 'expirada', wrongSha: wrong });
     }
   });
-  if (flags.ghost) lines.push(`${'a'.repeat(64)}  scripts/caminho-fantasma-fixo-w214.sh  # fora do template`);
+  if (flags.ghost) lines.push(`${'a'.repeat(64)}  ${GHOST_REL}  # fora do template`);
   if (flags.duplicate && declared.length) {
     const d = declared[0];
     lines.push(`${templateHash[d.rel] || 'a'.repeat(64)}  ${d.rel}  # segunda declaração do mesmo caminho`);
@@ -236,7 +311,18 @@ const prop = (states, flags) => {
   mkdirSync(join(dir, '.forge'), { recursive: true });
   writeFileSync(join(dir, '.forge', 'machinery-exceptions.txt'), lines.join('\n') + '\n');
 
-  const shouldAbort = flags.malformed || flags.duplicate;
+  // Bug do gerador original (achado do review, MEDIUM): `flags.duplicate` com `declared` vazio
+  // não escreve NENHUMA duplicata de verdade no arquivo (o `if (flags.duplicate && declared.length)`
+  // acima pula), mas `shouldAbort` continuava `true` mesmo assim — falso FAIL emboscado, que a
+  // seed fixa nunca disparou. Duplicata só existe, e só deve abortar, quando há algo para duplicar.
+  const shouldAbort = flags.malformed || (flags.duplicate && declared.length > 0);
+
+  // Estado ANTES de rodar — necessário para o ramo de abortar provar que NADA foi escrito (achado
+  // do review, MEDIUM: o teste conferia só `rc !== 0`, nunca a ausência de escrita).
+  const preHashes = Object.fromEntries(REAL_PATHS.map((rel) => [rel, sha256(join(dir, '.forge', rel))]));
+  const lockPathBefore = join(dir, '.forge', 'cache', 'machinery.lock');
+  const lockExistedBefore = existsSync(lockPathBefore);
+
   let out = '', rc = 0;
   try {
     out = execFileSync('node', [FORGE, 'update', '--target', dir, '--no-plugin', '--no-backup', '--source', TPL], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
@@ -248,6 +334,13 @@ const prop = (states, flags) => {
   let ok = true;
   if (shouldAbort) {
     ok = rc !== 0;
+    if (ok) {
+      // nenhum arquivo de REAL_PATHS foi tocado, e o lock não foi criado do zero.
+      for (const rel of REAL_PATHS) {
+        if (sha256(join(dir, '.forge', rel)) !== preHashes[rel]) ok = false;
+      }
+      if (!lockExistedBefore && existsSync(lockPathBefore)) ok = false;
+    }
   } else {
     ok = rc === 0;
     if (ok) {
@@ -261,9 +354,33 @@ const prop = (states, flags) => {
         } else if (shouldBeUnchanged !== wasUnchanged) {
           ok = false;
         }
-        // todo caminho declarado aparece exatamente uma vez no relatório (exceto ghost/duplicate/malformed sintéticos)
+        // todo caminho declarado aparece EXATAMENTE uma vez no relatório — "< 1" (pelo menos uma)
+        // era o bug do teste original (achado do review, MEDIUM); a propriedade da seção exige
+        // "exatamente uma vez".
         const occurrences = out.split(d.rel).length - 1;
-        if (occurrences < 1) ok = false;
+        if (occurrences !== 1) ok = false;
+        // a categoria relatada tem de bater com a rotulagem que o update usa — não basta o
+        // caminho aparecer, o RÓTULO tem de ser o certo (achado do review, MEDIUM: uma expirada
+        // relatada como PRESERVADO passaria no teste antigo).
+        if (d.category === 'viva' && !out.includes(`PRESERVADO (exceção declarada): ${d.rel}`)) ok = false;
+        if (d.category === 'expirada' && !out.includes(`EXCEÇÃO EXPIRADA: ${d.rel}`)) ok = false;
+        if (d.category === 'identica' && !out.includes(`EXCEÇÃO OCIOSA: ${d.rel}`)) ok = false;
+      }
+      // caminho divergente e NÃO declarado: sobrescrito (byte-idêntico ao template novo) e
+      // nomeado SOBRESCRITO (não declarado) exatamente uma vez.
+      for (const rel of undeclaredDivergent) {
+        const dst = join(dir, '.forge', rel);
+        if (sha256(dst) !== templateHash[rel]) ok = false;
+        const occurrences = out.split(rel).length - 1;
+        if (occurrences !== 1) ok = false;
+        if (!out.includes(`SOBRESCRITO (não declarado): ${rel}`)) ok = false;
+      }
+      // o caminho FANTASMA (fora do template) nunca é conferido no relatório original (achado do
+      // review, MEDIUM) — tem de aparecer exatamente uma vez, como OCIOSA.
+      if (flags.ghost) {
+        const occurrences = out.split(GHOST_REL).length - 1;
+        if (occurrences !== 1) ok = false;
+        if (!out.includes(`EXCEÇÃO OCIOSA: ${GHOST_REL}`)) ok = false;
       }
     }
   }

@@ -23,7 +23,9 @@
 #       era instalado e reportado como "recuperado". [5a] sha adulterado, [5b] acima do teto: os
 #       dois não instalam, nunca dizem "recuperado", e emitem WARN distinto nomeando a mensagem
 #   [6] achado da revisão (severidade MEDIUM, "o que resolveria" do corpo da issue): o `status`
-#       conta e nomeia `body_ref` sem blob local, por canal e agregado
+#       conta e nomeia `body_ref` sem blob local, por canal e agregado, com a contagem exata no
+#       cabeçalho (não só a frase presente em algum lugar da saída) e controle: depois de uma
+#       recuperação completa, o bit some dos dois cabeçalhos
 #   [7] achado da revisão (severidade LOW): `import` (fonte é o bundle apontado por `--from`) fala
 #       "do bundle", nunca "do hub" — `import` nunca consultou o hub configurado
 set -uo pipefail
@@ -272,6 +274,12 @@ out6="$(LG qq status ch 2>&1)"; rc6=$?
 [ "$rc6" -eq 0 ] || { echo "FAIL [6]: status ch reprovou (rc $rc6): $out6"; exit 1; }
 grep -q "body_ref sem blob local" <<<"$out6" \
   || { echo "FAIL [6]: a linha de status não conta 'body_ref sem blob local': $out6"; exit 1; }
+# achado da revisão (MEDIUM, iteração 3): "grep -q" sozinho também casa com as linhas de detalhe
+# ("! body_ref sem blob local: ..."), então uma contagem errada no cabeçalho passava despercebida.
+# O cabeçalho fecha a linha com o bit, então a âncora "$" no fim exige a contagem exata (2, pelas
+# duas mensagens de [5a]/[5b]) e não só a presença da frase em algum lugar da saída.
+grep -qE '^LIAISON/ch: .* · 2 body_ref sem blob local$' <<<"$out6" \
+  || { echo "FAIL [6]: o cabeçalho do status por canal não conta exatamente 2 body_ref sem blob local: $out6"; exit 1; }
 grep -q "$MSG5A" <<<"$out6" \
   || { echo "FAIL [6]: status por canal não nomeia $MSG5A sem blob local: $out6"; exit 1; }
 grep -q "$MSG5B" <<<"$out6" \
@@ -280,6 +288,31 @@ out6b="$(LG qq status 2>&1)"; rc6b=$?
 [ "$rc6b" -eq 0 ] || { echo "FAIL [6]: status agregado reprovou (rc $rc6b): $out6b"; exit 1; }
 grep -q "body_ref sem blob local" <<<"$out6b" \
   || { echo "FAIL [6]: o status agregado não conta 'body_ref sem blob local': $out6b"; exit 1; }
+grep -qE '^LIAISON: self=.* · 2 body_ref sem blob local$' <<<"$out6b" \
+  || { echo "FAIL [6]: o cabeçalho do status agregado não conta exatamente 2 body_ref sem blob local: $out6b"; exit 1; }
+
+# controle (achado MEDIUM, iteração 3): depois de uma recuperação completa, o bit some dos dois
+# cabeçalhos — sem este controle, um contador impresso sempre (inclusive com zero perdas) também
+# passaria as asserções acima. O hub é corrigido de volta ao conteúdo legítimo (cópia do blob que
+# pp, o remetente original, ainda guarda intacto) e um novo sync recupera as duas mensagens.
+cp "$T/pp/.forge/liaison/ch/blobs/$BLOB5A" "$HUB_BLOBS/$BLOB5A" \
+  || { echo "FAIL [6]: não foi possível restaurar o hub para $BLOB5A"; exit 1; }
+cp "$T/pp/.forge/liaison/ch/blobs/$BLOB5B" "$HUB_BLOBS/$BLOB5B" \
+  || { echo "FAIL [6]: não foi possível restaurar o hub para $BLOB5B"; exit 1; }
+out6c="$(LG qq sync ch 2>&1)"; rc6c=$?
+[ "$rc6c" -eq 0 ] || { echo "FAIL [6]: sync de recuperação total reprovou (rc $rc6c): $out6c"; exit 1; }
+[ -f "$QQ_BLOBS/$BLOB5A" ] || { echo "FAIL [6]: $BLOB5A não voltou depois do hub corrigido: $out6c"; exit 1; }
+[ -f "$QQ_BLOBS/$BLOB5B" ] || { echo "FAIL [6]: $BLOB5B não voltou depois do hub corrigido: $out6c"; exit 1; }
+out6d="$(LG qq status ch 2>&1)"; rc6d=$?
+[ "$rc6d" -eq 0 ] || { echo "FAIL [6]: status ch (pós-recuperação) reprovou (rc $rc6d): $out6d"; exit 1; }
+if grep -q "body_ref sem blob local" <<<"$out6d"; then
+  echo "FAIL [6]: status por canal ainda traz 'body_ref sem blob local' depois de recuperação completa: $out6d"; exit 1
+fi
+out6e="$(LG qq status 2>&1)"; rc6e=$?
+[ "$rc6e" -eq 0 ] || { echo "FAIL [6]: status agregado (pós-recuperação) reprovou (rc $rc6e): $out6e"; exit 1; }
+if grep -q "body_ref sem blob local" <<<"$out6e"; then
+  echo "FAIL [6]: status agregado ainda traz 'body_ref sem blob local' depois de recuperação completa: $out6e"; exit 1
+fi
 echo "OK [6]"
 
 echo "[7] achado da revisão (severidade LOW): 'import' manual (fonte = bundle apontado pelo operador) fala 'bundle', não 'hub' — o import nunca consultou o hub"

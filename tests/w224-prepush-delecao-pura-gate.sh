@@ -30,13 +30,23 @@
 #   [1] positiva — só deleções (2 refs): marker vazio (typecheck/test/gate/harness-tests NÃO
 #       rodam) e a linha nominal, com a contagem certa, aparece
 #   [2] contrafactual — stdin vazio: marker com os quatro sinais (tudo roda), sem a linha nominal
-#   [3] contrafactual — misto (1 deleção + 1 publicação): marker com os quatro sinais, sem a linha
-#       nominal — uma única ref com conteúdo no push basta para não pular nada
+#   [3] contrafactual — misto (1 deleção + 1 publicação, deleção ANTES): marker com os quatro
+#       sinais, sem a linha nominal — uma única ref com conteúdo no push basta para não pular nada
+#   [3b] contrafactual — misto com a ORDEM INVERTIDA (1 publicação + 1 deleção, publicação ANTES):
+#       mesmo resultado de [3] — a classificação não pode depender de qual linha vem primeiro
+#   [3c] HIGH mutação — a classificação soma linha a linha, mas um mutante que RESETA o contador de
+#       conteúdo a cada linha (em vez de só incrementar) faz o resultado refletir só a ÚLTIMA linha
+#       do push; com deleção antes de publicação ([3]) esse mutante sobrevive por acidente (a
+#       última linha É publicação) — só [3b] (publicação antes de deleção) expõe o fail-open: o
+#       mutante classifica um push com conteúdo real como deleção pura e PULA a suíte; recontrole
+#       com `cmp -s` restaura
 #   [4] PBT (semente fixa, LCG próprio — reproduz em qualquer bash, ver nota abaixo — 50 casos
-#       estratificados): para listas geradas de 0 a 6 linhas de ref, cada uma deleção ou
-#       publicação, em ordem aleatória, a suíte roda se e somente se a lista é vazia ou contém ao
-#       menos uma linha com `local_sha` não zero; nos casos de só-deleção, a contagem N da linha
-#       nominal bate com o número de linhas
+#       estratificados, com estrato próprio para a classe mista): para listas geradas de 0 a 6
+#       linhas de ref, cada uma deleção ou publicação, em ordem aleatória, a suíte roda se e
+#       somente se a lista é vazia ou contém ao menos uma linha com `local_sha` não zero; nos casos
+#       de só-deleção, a contagem N da linha nominal bate com o número de linhas; o histograma por
+#       classe (vazio/só-deleção/mista) e a contagem de valores distintos sorteados aparecem no
+#       `OK [4]`, para que uma degeneração do gerador (estado que não avança) volte a ficar visível
 #   [5] mutação — remover o curto-circuito: o cenário [1] passa a gravar o marker (a suíte volta a
 #       rodar em push de deleção pura); recontrole com `cmp -s` restaura e [1] volta a passar
 #   [6] mutação — tratar entrada vazia como deleção: o cenário [2] passa a pular a suíte (marker
@@ -117,6 +127,8 @@ marker_tokens() {  # marker_tokens -> lista os sinais gravados no marker (ordena
   sort -u "$MARK" | tr '\n' ' '
 }
 
+FHOOK="$R/.forge/hooks/git/pre-push"   # caminho do hook DENTRO da fixture — usado por toda mutação
+
 # ── [1] ──────────────────────────────────────────────────────────────────────────────────────
 echo "[1] positiva — só deleções (2 refs): checks de árvore NÃO rodam"
 : > "$MARK"
@@ -158,6 +170,60 @@ done
 SCEN=$((SCEN + 1))
 echo "OK [3] — os quatro sinais gravados em push misto"
 
+# ── [3b] ─────────────────────────────────────────────────────────────────────────────────────
+echo "[3b] contrafactual — misto, ordem invertida (1 publicação + 1 deleção): tudo roda"
+: > "$MARK"
+feed3b="$(printf 'refs/heads/main %s refs/heads/main %s\n(delete) %s refs/heads/velha %s\n' "$SHA" "$ZERO" "$ZERO" "$SHA")"
+out3b="$(push_out "$feed3b")"; rc3b=$?
+[ "$rc3b" -eq 0 ] || { echo "FAIL [3b]: pre-push reprovou push misto invertido (rc=$rc3b) — saída:"; echo "$out3b"; exit 1; }
+case "$out3b" in *"deleção pura"*) echo "FAIL [3b]: push misto invertido não pode pular como deleção pura — saída:"; echo "$out3b"; exit 1 ;; esac
+tok3b="$(marker_tokens)"
+for want in RODOU-TYPECHECK RODOU-TEST RODOU-GATE RODOU-HARNESS; do
+  case " $tok3b " in *" $want "*) : ;; *) echo "FAIL [3b]: '$want' ausente do marker em push misto invertido — gravou: '$tok3b'"; exit 1 ;; esac
+done
+SCEN=$((SCEN + 1))
+echo "OK [3b] — os quatro sinais gravados com a publicação ANTES da deleção"
+
+# ── [3c] HIGH mutação — a ÚLTIMA linha decide sozinha se há conteúdo ────────────────────────────
+# Achado HIGH (revisão #132/#134, iteração 3): um mutante que RESETA `_pp_refs_com_conteudo` a
+# cada linha do laço (em vez de só incrementar) faz o valor final refletir só a última linha do
+# push. Com deleção antes de publicação ([3]) esse mutante sobrevive por acidente — a última linha
+# É publicação, então o reset não muda o resultado. Só um feed com publicação ANTES da deleção
+# ([3b]) expõe o mutante: ele classificaria um push com conteúdo real como deleção pura e PULARIA
+# typecheck/test/gates/harness-tests — o fail-open que a revisão mediu.
+echo "[3c] mutação — 'a última linha decide' faz [3b] virar (errado) deleção pura, suíte pulada"
+cp "$FHOOK" "$T/hook.orig3c"
+# aspas simples do lado esquerdo E direito — nunca \$ interpolado do lado direito (LDG-0164)
+perl -pi -e 's/_pp_refs_vistas=\$\(\(_pp_refs_vistas \+ 1\)\)/_pp_refs_vistas=\$((_pp_refs_vistas + 1)); _pp_refs_com_conteudo=0/' "$FHOOK"
+if cmp -s "$FHOOK" "$T/hook.orig3c"; then
+  echo "FAIL [3c]: mutação não alterou o hook da fixture — o padrão de busca não casou"; exit 1
+fi
+: > "$MARK"
+outm3c="$(push_out "$feed3b")"; rcm3c=$?
+if [ "$rcm3c" -eq 0 ]; then
+  tokm3c="$(marker_tokens)"
+  case "$outm3c" in
+    *"deleção pura"*)
+      [ -z "$tokm3c" ] || { echo "FAIL [3c]: mutante classificou como deleção pura mas ainda gravou marker ('$tokm3c')"; cp "$T/hook.orig3c" "$FHOOK"; exit 1; }
+      ;;
+    *) echo "FAIL [3c]: mutante sobreviveu — [3b] continuou rodando a suíte por inteiro ('$tokm3c')"; cp "$T/hook.orig3c" "$FHOOK"; exit 1 ;;
+  esac
+else
+  echo "FAIL [3c]: mutante quebrou o hook em vez de classificar errado (rc=$rcm3c) — saída:"; echo "$outm3c"; cp "$T/hook.orig3c" "$FHOOK"; exit 1
+fi
+echo "  mutante morto — [3b] passou a ser classificado (errado) como deleção pura, suíte pulada"
+cp "$T/hook.orig3c" "$FHOOK"
+cmp -s "$FHOOK" "$T/hook.orig3c" || { echo "FAIL [3c]: recontrole — restauração do hook da fixture não bate byte a byte"; exit 1; }
+: > "$MARK"
+outr3c="$(push_out "$feed3b")"; rcr3c=$?
+[ "$rcr3c" -eq 0 ] || { echo "FAIL [3c]: recontrole — [3b] reprovou depois de restaurar o hook (rc=$rcr3c)"; exit 1; }
+tokr3c="$(marker_tokens)"
+for want in RODOU-TYPECHECK RODOU-TEST RODOU-GATE RODOU-HARNESS; do
+  case " $tokr3c " in *" $want "*) : ;; *) echo "FAIL [3c]: recontrole — '$want' ausente do marker ('$tokr3c')"; exit 1 ;; esac
+done
+SCEN=$((SCEN + 1))
+echo "OK [3c] — mutante morto, recontrole restaurado bate byte a byte"
+
 # ── [4] PBT ──────────────────────────────────────────────────────────────────────────────────
 # Propriedade: para uma lista de 0 a 6 linhas de ref, cada uma deleção (local_sha zero) ou
 # publicação (local_sha != zero), em ordem aleatória, a suíte roda (marker não vazio) SE E SOMENTE
@@ -168,34 +234,56 @@ echo "OK [3] — os quatro sinais gravados em push misto"
 # local e bash 5.1+ do CI produzem sequências DIFERENTES para a mesma semente), o que torna a
 # "semente fixa" reprodutível só na máquina que a mediu. Um LCG (Numerical Recipes: a=1103515245,
 # c=12345, m=2^31) em aritmética inteira do próprio shell reproduz IDÊNTICO em qualquer bash.
+#
+# NUNCA chamar `lcg_next` via `$(...)`: command substitution roda em SUBSHELL, e a atribuição a
+# `_lcg_state` dentro dele se perde ao voltar para o shell pai. Achado HIGH (revisão #132/#134,
+# iteração 3), medido com `bash -x tests/w224-*.sh | grep -E '^\+ (n=|tipo=|_lcg_state=)' | sort |
+# uniq -c`: com `$(lcg_next)` em todo call site, `_lcg_state` nunca avançava no shell pai (1 única
+# gravação, sempre `20260926`) e os "50 casos estratificados" colapsavam em 3 valores distintos de
+# `n` (12×0, 26×2, 12×6) — nenhum caso misto de verdade era gerado, e um mutante fail-open (ver
+# [3c]) sobrevivia ao gate inteiro. A correção chama a função DIRETO (sem `$(...)`, que roda no
+# shell pai) e o chamador lê `$_lcg_state` na linha seguinte.
 SEED=20260926
 LCG_A=1103515245
 LCG_C=12345
 LCG_M=2147483648  # 2^31
 _lcg_state=$SEED
-lcg_next() {  # atualiza _lcg_state e ecoa um inteiro em [0, LCG_M)
+lcg_next() {  # atualiza _lcg_state no shell CHAMADOR — nunca `$(lcg_next)` (ver nota acima)
   _lcg_state=$(( (LCG_A * _lcg_state + LCG_C) % LCG_M ))
-  printf '%s' "$_lcg_state"
 }
 
-# Estratificação: os 50 casos sem estratificar (achado LOW da rodada anterior) deram só 4 casos de
-# "só-deleção" — a classe que a issue #132/#134 introduz — porque n=0 e n>0-com-publicação dominam
-# o espaço uniforme. Os primeiros 12 casos forçam n=0 (vazio); os 12 seguintes forçam "só-deleção"
-# com 1-6 linhas; os 26 restantes ficam livres (podem cair em qualquer classe, inclusive as duas
-# forçadas) — garante >=12 casos de cada classe crítica sem abrir mão da aleatoriedade do resto.
+# Estratificação: o espaço uniforme deixa "só-deleção" rara e a classe MISTA (deleção E publicação
+# no mesmo push — a classe que #132/#134 introduz de verdade) ainda mais rara, então quatro
+# estratos, sempre 50 casos: 1-12 forçam n=0 (vazio); 13-24 forçam "só-deleção" com 1-6 linhas;
+# 25-36 forçam "mista" com 2-6 linhas — o sorteio do LCG decide o tipo e a ORDEM de cada linha e,
+# só se sair uniforme (tudo deleção ou tudo publicação), a primeira linha é corrigida para deleção
+# e a última para publicação, o que também cobre "publicação antes de deleção" e "deleção antes de
+# publicação" sem viés fixo; 37-50 ficam livres (LCG puro, qualquer classe). Garante >=12 casos de
+# cada classe crítica sem abrir mão da aleatoriedade do resto.
 echo "[4] PBT — 50 casos gerados (semente $SEED, LCG próprio, estratificado), lista de 0-6 linhas deleção/publicação"
 pbt_n=50
 pbt_falhas=0
+cnt_vazio=0
+cnt_so_delecao=0
+cnt_mista=0
+hist_n_livre=""
+hist_mista_padroes=""
 for case_i in $(seq 1 "$pbt_n"); do
+  forcar_mista=0
   if [ "$case_i" -le 12 ]; then
     n=0; forcar_so_delecao=0
   elif [ "$case_i" -le 24 ]; then
-    n=$(( 1 + $(lcg_next) % 6 )); forcar_so_delecao=1
+    lcg_next; n=$(( 1 + _lcg_state % 6 )); forcar_so_delecao=1
+  elif [ "$case_i" -le 36 ]; then
+    lcg_next; n=$(( 2 + _lcg_state % 5 )); forcar_so_delecao=0; forcar_mista=1
   else
-    n=$(( $(lcg_next) % 7 )); forcar_so_delecao=0
+    lcg_next; n=$(( _lcg_state % 7 )); forcar_so_delecao=0
+    hist_n_livre="$hist_n_livre $n"
   fi
-  feed=""
-  publica=0
+
+  # Tipo de cada linha em parâmetros posicionais (`set --`), nunca array bash: portátil em bash 3.2
+  # (macOS) e sem o bug de `"${arr[@]}"` vazio sob `set -u` que arrays têm em bash < 4.4.
+  _tipos_str=""
   # `seq 1 "$n"` com n=0 no BSD/macOS conta PARA BAIXO ("1", "0") em vez de devolver vazio (GNU) —
   # loop C-style, sem `seq`, para não reintroduzir o footgun de portabilidade do w97.
   line_i=1
@@ -203,8 +291,39 @@ for case_i in $(seq 1 "$pbt_n"); do
     if [ "$forcar_so_delecao" -eq 1 ]; then
       tipo=0
     else
-      tipo=$(( $(lcg_next) % 2 ))     # 0=deleção 1=publicação
+      lcg_next; tipo=$(( _lcg_state % 2 ))     # 0=deleção 1=publicação
     fi
+    _tipos_str="$_tipos_str $tipo"
+    line_i=$((line_i + 1))
+  done
+  # shellcheck disable=SC2086
+  set -- $_tipos_str
+
+  if [ "$forcar_mista" -eq 1 ] && [ "$n" -gt 0 ]; then
+    _tem_del=0; _tem_pub=0
+    for _t in "$@"; do
+      [ "$_t" -eq 0 ] && _tem_del=1
+      [ "$_t" -eq 1 ] && _tem_pub=1
+    done
+    if [ "$_tem_del" -eq 0 ] || [ "$_tem_pub" -eq 0 ]; then
+      # sorteio saiu uniforme (tudo do mesmo tipo): corrige a PRIMEIRA linha para deleção e a
+      # ÚLTIMA para publicação, preservando a ordem sorteada de todas as demais.
+      _novos=""; _idx=1
+      for _t in "$@"; do
+        [ "$_idx" -eq 1 ] && [ "$_tem_del" -eq 0 ] && _t=0
+        [ "$_idx" -eq "$n" ] && [ "$_tem_pub" -eq 0 ] && _t=1
+        _novos="$_novos $_t"; _idx=$((_idx + 1))
+      done
+      # shellcheck disable=SC2086
+      set -- $_novos
+    fi
+    hist_mista_padroes="$hist_mista_padroes|$*"
+  fi
+
+  feed=""
+  publica=0
+  line_i=1
+  for tipo in "$@"; do
     if [ "$tipo" -eq 0 ]; then
       feed="${feed}(delete) $ZERO refs/heads/r${case_i}_${line_i} $SHA
 "
@@ -217,6 +336,10 @@ for case_i in $(seq 1 "$pbt_n"); do
   done
   esperado_roda=1
   [ "$n" -gt 0 ] && [ "$publica" -eq 0 ] && esperado_roda=0
+  if [ "$n" -eq 0 ]; then cnt_vazio=$((cnt_vazio + 1))
+  elif [ "$publica" -eq 0 ]; then cnt_so_delecao=$((cnt_so_delecao + 1))
+  else cnt_mista=$((cnt_mista + 1))
+  fi
   : > "$MARK"
   outp="$(push_out "$feed")"; rcp=$?
   if [ "$rcp" -ne 0 ]; then
@@ -240,14 +363,20 @@ for case_i in $(seq 1 "$pbt_n"); do
   fi
 done
 [ "$pbt_falhas" -eq 0 ] || { echo "FAIL [4]: $pbt_falhas/$pbt_n casos violaram a propriedade"; exit 1; }
+n_livre_distintos="$(printf '%s\n' $hist_n_livre | sort -u | tr '\n' ' ')"
+n_livre_distintos="${n_livre_distintos% }"
+mista_padroes_distintos="$(printf '%s' "$hist_mista_padroes" | tr '|' '\n' | grep -v '^$' | sort -u | wc -l | tr -d ' ')"
 SCEN=$((SCEN + 1))
-echo "OK [4] — propriedade sobrevive a $pbt_n casos (semente $SEED, LCG próprio, >=12 casos de vazio e >=12 de só-deleção)"
+echo "OK [4] — propriedade sobrevive a $pbt_n casos (semente $SEED, LCG próprio); histograma: vazio=$cnt_vazio só-deleção=$cnt_so_delecao mista=$cnt_mista; n distintos no estrato livre: ${n_livre_distintos:-nenhum}; padrões distintos no estrato misto forçado: $mista_padroes_distintos"
+[ "$cnt_vazio" -ge 12 ] || { echo "FAIL [4]: histograma degenerado — vazio=$cnt_vazio (esperado >=12)"; exit 1; }
+[ "$cnt_so_delecao" -ge 12 ] || { echo "FAIL [4]: histograma degenerado — só-deleção=$cnt_so_delecao (esperado >=12)"; exit 1; }
+[ "$cnt_mista" -ge 12 ] || { echo "FAIL [4]: histograma degenerado — mista=$cnt_mista (esperado >=12)"; exit 1; }
+[ "$mista_padroes_distintos" -ge 2 ] || { echo "FAIL [4]: gerador degenerado — só $mista_padroes_distintos padrão(ões) distinto(s) no estrato misto forçado (esperado >=2, sinal do achado HIGH original)"; exit 1; }
 
 # ── [5] mutação — remover o curto-circuito ──────────────────────────────────────────────────────
 # Muta a CÓPIA do hook dentro da fixture (nunca o arquivo de produção real do template — "uma
 # árvore, um escritor": este gate só mede a própria fixture, isolada em $T).
 echo "[5] mutação — remover o curto-circuito faz [1] gravar o marker"
-FHOOK="$R/.forge/hooks/git/pre-push"
 cp "$FHOOK" "$T/hook.orig"
 # aspas simples do lado esquerdo E direito — nunca `$` interpolado do lado direito (LDG-0164)
 perl -pi -e 's/if \[ "\$_pp_refs_vistas" -gt 0 \] && \[ "\$_pp_refs_com_conteudo" -eq 0 \]; then/if false; then/' "$FHOOK"

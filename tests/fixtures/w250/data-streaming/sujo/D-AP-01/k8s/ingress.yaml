@@ -1,0 +1,6 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: eventos
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: "GRPC"

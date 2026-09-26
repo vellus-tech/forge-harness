@@ -1,0 +1,1 @@
+SELECT * FROM leituras WHERE valor > 10 ALLOW FILTERING;

@@ -20,10 +20,11 @@
 // Deterministic: no timestamps; lockfile entries sorted; running twice is byte-identical.
 import {
   readFileSync, writeFileSync, mkdirSync, readdirSync, statSync, chmodSync,
-  existsSync, symlinkSync, lstatSync, unlinkSync, readlinkSync, rmdirSync
+  existsSync, symlinkSync, lstatSync, unlinkSync, readlinkSync, rmdirSync, realpathSync
 } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join, relative, basename, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // ── args ─────────────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
@@ -293,7 +294,9 @@ const ORDER = ['claude', 'codex', 'gemini', 'qwen', 'forge-cli', 'agents-skills'
 const KNOWN = new Set(ORDER);
 
 // ── reconcile (generate active + prune deactivated) ──────────────────────────
-function reconcile(activeNames) {
+// Exportado com nome estável (#130): #160 e #125 tocam este mesmo arquivo em PRs
+// posteriores e importam esta função para acionar a reconciliação sem depender do CLI.
+export function reconcile(activeNames) {
   for (const n of activeNames) {
     if (!KNOWN.has(n)) { console.error(`FAIL (unknown adapter '${n}' — known: ${ORDER.join(', ')})`); process.exit(1); }
   }
@@ -349,25 +352,46 @@ function reconcile(activeNames) {
   console.log(`OK reconcile complete: ${active.length} active [${active.join(', ')}]${totalPruned ? `, ${totalPruned} files pruned` : ''}`);
 }
 
-// ── entry ────────────────────────────────────────────────────────────────────
-if (SET !== null) {
-  const names = SET.split(',').map((s) => s.trim()).filter(Boolean);
-  if (names.length === 0) { console.error('FAIL (--set needs at least one adapter)'); process.exit(1); }
-  for (const n of names) {
-    if (!KNOWN.has(n)) { console.error(`FAIL (unknown adapter '${n}' — known: ${ORDER.join(', ')})`); process.exit(1); }
+// ── main guard (#130) ────────────────────────────────────────────────────────
+// Sem isto, importar o módulo (`import(...)`) para ler uma exportação executava o bloco de
+// entrada por igual — reconciliando os 70 arquivos do consumidor como efeito colateral do
+// import. `realpathSync` nos DOIS lados: `sync-adapters.sh` invoca por `exec node
+// ".../lib/sync-adapters.mjs"`, e comparar string crua (`import.meta.url` vs `process.argv[1]`
+// sem normalizar) diria "não sou o principal" também para essa invocação legítima, desarmando
+// o gerador em vez de só desarmar o import — exatamente a armadilha que a retratação da issue
+// #130 registra (uma versão anterior usava `require('node:fs')` dentro de ESM; o
+// `ReferenceError` caía no `catch` e o resultado era `false` também na invocação direta).
+function isMainModule() {
+  try {
+    if (!process.argv[1]) return false;
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
   }
-  writeActive(ORDER.filter((n) => names.includes(n)));
-  reconcile(names);
-} else if (ADAPTER === 'all' || ADAPTER === null) {
-  reconcile(readActive());
-} else {
-  // regenerate a single adapter (no prune, no active-list change); core first
-  if (!KNOWN.has(ADAPTER)) { console.error(`FAIL (unknown adapter '${ADAPTER}' — known: ${ORDER.join(', ')}, all)`); process.exit(1); }
-  const coreLock = makeLock();
-  generateCore(coreLock);
-  writeLock('core', coreLock);
-  const lock = makeLock();
-  GENERATORS[ADAPTER](lock);
-  writeLock(ADAPTER, lock);
-  console.log(`OK ${ADAPTER} adapter synced (${lock.entries.length} targets)`);
+}
+
+// ── entry ────────────────────────────────────────────────────────────────────
+// process.exit só dentro deste galho: importar o módulo nunca deve poder matar o importador.
+if (isMainModule()) {
+  if (SET !== null) {
+    const names = SET.split(',').map((s) => s.trim()).filter(Boolean);
+    if (names.length === 0) { console.error('FAIL (--set needs at least one adapter)'); process.exit(1); }
+    for (const n of names) {
+      if (!KNOWN.has(n)) { console.error(`FAIL (unknown adapter '${n}' — known: ${ORDER.join(', ')})`); process.exit(1); }
+    }
+    writeActive(ORDER.filter((n) => names.includes(n)));
+    reconcile(names);
+  } else if (ADAPTER === 'all' || ADAPTER === null) {
+    reconcile(readActive());
+  } else {
+    // regenerate a single adapter (no prune, no active-list change); core first
+    if (!KNOWN.has(ADAPTER)) { console.error(`FAIL (unknown adapter '${ADAPTER}' — known: ${ORDER.join(', ')}, all)`); process.exit(1); }
+    const coreLock = makeLock();
+    generateCore(coreLock);
+    writeLock('core', coreLock);
+    const lock = makeLock();
+    GENERATORS[ADAPTER](lock);
+    writeLock(ADAPTER, lock);
+    console.log(`OK ${ADAPTER} adapter synced (${lock.entries.length} targets)`);
+  }
 }

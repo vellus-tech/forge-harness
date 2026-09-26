@@ -622,7 +622,7 @@ const APPEND_SOFTEN = new Map([
 // falha (lib ausente, raiz inutilizável — rc 69 do próprio `_fhm_resolve_root`, symlink recusado
 // etc.): a linha informativa do update é best-effort e nunca pode derrubar a aplicação por causa
 // dela, mas o chamador tem o MOTIVO para avisar em voz alta em vez de sumir a linha em silêncio
-// (achado MEDIUM do review: uma resolução que falha não pode produzir o mesmo "nada aconteceu"
+// (uma resolução que falha não pode produzir o mesmo "nada aconteceu"
 // que uma chave inexistente).
 //
 // `resource` vem DIRETO da lib (`_fhm_resource`), nunca derivado de `basename(path)`: um recurso

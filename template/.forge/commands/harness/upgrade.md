@@ -67,11 +67,11 @@ estiver declarado em `.forge/machinery-exceptions.txt`, uma linha por arquivo:
 
 O caminho aceita prefixo `./` ou `.forge/` (normalizado antes de casar contra o template, e a
 grafia original é nomeada no relatório); duas declarações que normalizam para o mesmo caminho
-contam como duplicata. Um token extra na linha DEPOIS de `<sha> <caminho>`, sem `#`, vira parte da
-razão em vez de malformar a linha (alinhado ao `read -r sha path _` do parser de origem); token
-extra ANTES de um `#` explícito continua malformado. O sha é sempre o do TEMPLATE (nunca o do
-disco) e casa por PREFIXO: um sha truncado (>= 32 dígitos, como o parser já aceita) que seja
-prefixo exato do sha atual do template é **vivo**, não expirado. Se o template mudar o
+contam como duplicata. Qualquer token além de `<sha> <caminho>` malforma a linha, com ou sem `#`
+(igual ao parser de origem, `read -r e_sha e_rel e_resto` — um terceiro token não vazio recusa a
+linha). O sha é sempre o do TEMPLATE (nunca o do disco) e casa por IGUALDADE ESTRITA, nunca por
+prefixo: um sha declarado com menos de 64 dígitos (sintaxe válida, >= 32 dígitos) nunca é igual ao
+sha de 64 dígitos do template, então cai sempre em **expirado**. Se o template mudar o
 arquivo de novo, a declaração **expira** — o `update` preserva o arquivo mesmo assim e nomeia os
 dois shas para reexame, em vez de bloquear (parar seria mudar a fronteira publicada do comando).
 O `--dry-run` usa a MESMA classificação que a aplicação real: a prévia nunca anuncia sobrescrita

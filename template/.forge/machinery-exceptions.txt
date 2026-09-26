@@ -17,14 +17,14 @@
 # (primeiro update depois do fix), ou com um WARN genérico que se perde na rolagem. A gramática
 # aqui é a mesma que consumidores reais já operam em produção (o `check-machinery-drift.sh` do
 # axis-fare-validator, por exemplo): separador de colunas por espaço livre, corte no primeiro `#`
-# (o resto da linha é a razão), sha hexadecimal minúsculo com pelo menos 32 dígitos. Um token extra
-# na linha DEPOIS de "<sha> <caminho>", sem `#`, vira parte da razão em vez de malformar a linha
-# (alinhado ao `read -r sha path _` do parser de origem); token extra ANTES de um `#` explícito
-# continua malformado.
+# (o resto da linha é a razão), sha hexadecimal minúsculo com pelo menos 32 dígitos. Qualquer token
+# além de "<sha> <caminho>" malforma a linha, com ou sem `#` — igual ao parser de origem
+# (`read -r e_sha e_rel e_resto`; um terceiro token não vazio recusa a linha).
 #
-# O SHA É O DO TEMPLATE, NUNCA O DO DISCO, E CASA POR PREFIXO: um sha truncado (>= 32 dígitos) que
-# seja prefixo exato do sha de 64 dígitos do template atual é VIVO, nunca EXPIRADO. Se o template
-# mudar o arquivo de novo, o sha declarado deixa de bater com o do template novo, a exceção EXPIRA e o
+# O SHA É O DO TEMPLATE, NUNCA O DO DISCO, E CASA POR IGUALDADE ESTRITA — nunca por prefixo. Um sha
+# declarado com menos de 64 dígitos (sintaxe válida, >= 32 dígitos) nunca é igual ao sha de 64
+# dígitos do template atual, então cai sempre em EXPIRADO. Se o template mudar o arquivo de novo, o
+# sha declarado deixa de bater com o do template novo, a exceção EXPIRA e o
 # `update` nomeia os dois shas para reexame — mas preserva o arquivo mesmo assim (a exceção
 # expirada nunca bloqueia o update; parar seria mudar a fronteira publicada do comando). Uma
 # exceção declarada para um caminho que o template não tem, ou cujo conteúdo local já é idêntico

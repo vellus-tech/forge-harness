@@ -395,19 +395,21 @@ function writeMachineryLock(forge, files, version, sourceNote) {
 // `check-machinery-drift.sh` —, e a gramática aqui replica a dele por medição, não pelo formato
 // literal acima: separador de colunas por espaço livre (uma ou mais), corte no primeiro `#` (o
 // resto da linha é a razão; comentário-only e linha em branco são ignorados) e sha hexadecimal
-// minúsculo com pelo menos 32 dígitos, não travado em 64 — igual ao parser de origem, que aceita
-// hash truncado. Um sha truncado CASA POR PREFIXO contra o sha de 64 dígitos do template (achado
-// LOW do review adversarial): uma declaração de 40 dígitos que é prefixo exato do sha atual é
-// VIVA, nunca EXPIRADA — a comparação nunca foi por igualdade de string completa, porque o
-// consumidor de origem também aceita hash truncado e o compara por prefixo. Token(s) extra na
-// linha DEPOIS de `<sha> <caminho>` e SEM `#` viram parte da razão em vez de malformar a linha —
-// alinhado ao `read -r sha path _` do parser de origem, que também não trava em 2 colunas; token
-// extra ANTES de um `#` explícito continua malformado (duas razões candidatas na mesma linha). O
-// sha é sempre o do TEMPLATE, nunca o do disco: é o que permite a exceção EXPIRAR quando o
-// template muda o arquivo de novo (DH-1 — expirada preserva e nomeia os dois shas, não bloqueia).
-// Arquivo ilegível, linha malformada ou caminho declarado duas vezes param o update ANTES de
-// escrever qualquer coisa, nomeando a linha — fail-closed, como o parser de origem: o que este
-// parser não sabe ler não pode absolver ninguém.
+// minúsculo com pelo menos 32 dígitos, não travado em 64. Qualquer token além de `<sha> <caminho>`
+// malforma a linha, com ou sem `#` — igual ao parser de origem (`check-machinery-drift.sh:201-206`,
+// `read -r e_sha e_rel e_resto <<< "$corpo"`; `[ -n "$e_resto" ]` marca a linha como MALFORMADA). A
+// versão anterior desta rodada afirmava o oposto (token extra sem `#` vira razão) medindo o script
+// de uma spike (`exc.sh`, `docs/plans/spikes/backlog-onda-l1-update-desarma-consumidor.md:1290`),
+// não o parser de origem — corrigido depois de reler o `check-machinery-drift.sh` real (achado do
+// review adversarial, ver CHANGELOG). Pela mesma razão, o sha é comparado por IGUALDADE ESTRITA
+// contra o sha de 64 dígitos do template (`check-machinery-drift.sh:321`, `[ "${exc_sha[$EXC_IDX]}" = "$sha" ]`),
+// nunca por prefixo: um sha declarado com menos de 64 dígitos (sintaxe válida, >= 32 dígitos) nunca
+// é igual ao sha do template e cai sempre em EXPIRADA — a gramática aceita o comprimento truncado,
+// mas a comparação nunca o trata como prefixo válido. O sha é sempre o do TEMPLATE, nunca o do
+// disco: é o que permite a exceção EXPIRAR quando o template muda o arquivo de novo (DH-1 —
+// expirada preserva e nomeia os dois shas, não bloqueia). Arquivo ilegível, linha malformada ou
+// caminho declarado duas vezes param o update ANTES de escrever qualquer coisa, nomeando a linha —
+// fail-closed, como o parser de origem: o que este parser não sabe ler não pode absolver ninguém.
 // Um caminho declarado com prefixo `./` ou `.forge/` nunca bate com o `rel` real (sempre relativo
 // a `.forge/`, sem prefixo), então caía em `fora-do-template` — a exceção ficava OCIOSA em
 // silêncio e o conserto local do consumidor era sobrescrito sem aviso do porquê (achado do review
@@ -439,18 +441,17 @@ function readMachineryExceptions(forge) {
     const lineNo = idx + 1;
     const hashIdx = line.indexOf('#');
     const body = (hashIdx === -1 ? line : line.slice(0, hashIdx)).trim();
-    const reasonFromHash = hashIdx === -1 ? '' : line.slice(hashIdx + 1).trim();
+    const reason = hashIdx === -1 ? '' : line.slice(hashIdx + 1).trim();
     if (!body) return; // linha em branco ou só comentário
     const tokens = body.split(/\s+/).filter(Boolean);
     const [sha, relRaw, ...resto] = tokens;
     const shaOk = typeof sha === 'string' && sha.length >= 32 && /^[0-9a-f]+$/.test(sha);
-    // Token(s) extra depois de "<sha> <caminho>" SEM '#' não são malformação: o parser de origem
-    // (`read -r sha path _`, o mesmo que o consumidor já opera) não trava em 2 colunas — o resto
-    // vira parte da razão, igual a como '#' já delimita uma (achado LOW do review adversarial).
-    // Token extra ANTES de um '#' explícito continua malformado: há duas razões candidatas na
-    // mesma linha, e escolher uma em silêncio esconderia o erro de digitação.
-    if (!shaOk || !relRaw || (hashIdx !== -1 && resto.length > 0)) { malformed.push(lineNo); return; }
-    const reason = hashIdx === -1 && resto.length > 0 ? resto.join(' ') : reasonFromHash;
+    // Qualquer token além de "<sha> <caminho>" malforma a linha, com ou sem '#' — igual ao parser
+    // de origem (`check-machinery-drift.sh:201-206`: `read -r e_sha e_rel e_resto <<< "$corpo"`,
+    // `[ -n "$e_resto" ]` marca MALFORMADA). Uma versão anterior aceitava o token extra como parte
+    // da razão quando não havia '#' — media o script de uma spike, não o parser de origem real
+    // (achado do review adversarial); corrigido de volta ao fail-closed.
+    if (!shaOk || !relRaw || resto.length > 0) { malformed.push(lineNo); return; }
     const rel = normalizeExceptionPath(relRaw);
     if (entries.has(rel)) { duplicates.push({ rel, lines: [entries.get(rel).line, lineNo] }); return; }
     entries.set(rel, { sha, reason, line: lineNo, raw: relRaw !== rel ? relRaw : undefined });
@@ -500,11 +501,12 @@ function classifyExceptions(forge, files, exceptions, tombstoned) {
     const dstHash = sha256File(dst);
     if (dstHash === newHash) { status.set(rel, { status: 'identica' }); continue; }
     if (isEnrichable(rel)) { status.set(rel, { status: 'enrichable' }); continue; }
-    // Casamento por PREFIXO, não por igualdade estrita: o parser aceita sha truncado (>= 32
-    // dígitos) porque o consumidor de origem também aceita, e um truncado correto tem de casar com
-    // o sha de 64 dígitos do template — igualdade estrita classificava sha truncado como sempre
-    // EXPIRADA, mesmo quando era prefixo exato do sha atual (achado LOW do review adversarial).
-    if (newHash.startsWith(exc.sha)) { status.set(rel, { status: 'viva', reason: exc.reason }); continue; }
+    // Casamento por IGUALDADE ESTRITA, nunca por prefixo — igual ao parser de origem
+    // (`check-machinery-drift.sh:321`: `[ "${exc_sha[$EXC_IDX]}" = "$sha" ]`). Uma versão anterior
+    // comparava por prefixo achando que o parser de origem fazia o mesmo; não faz. Um sha declarado
+    // com menos de 64 dígitos (sintaxe válida, >= 32 dígitos) nunca é igual ao sha de 64 dígitos do
+    // template — cai sempre em EXPIRADA, e ainda assim preserva o arquivo (DH-1), nunca bloqueia.
+    if (exc.sha === newHash) { status.set(rel, { status: 'viva', reason: exc.reason }); continue; }
     status.set(rel, { status: 'expirada', declared: exc.sha, atual: newHash });
   }
   return status;

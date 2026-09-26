@@ -59,15 +59,9 @@ echo "[4] run-all não chama a si mesmo (sem recursão)"
 # fronteira de não-identificador (início de linha, ou qualquer caractere que não seja letra,
 # dígito, `_`, `.`, `/` ou `-`) antes do comando, aceita um caminho absoluto opcional colado na
 # frente (`/bin/bash`, `/usr/bin/env` + espaço + `bash`) e não exige adjacência entre o nome do
-# comando e o caminho de run-all. A versão anterior ancorava só em `^|[;&|({]|\$\(`: isso excluía
-# qualquer invocação cujo comando viesse depois de uma palavra-chave de shell ou de outro comando
-# — `if bash tests/run-all.sh --list; then`, `while bash ...`, `/bin/bash tests/run-all.sh`,
-# `timeout 600 bash tests/run-all.sh` e `nohup bash tests/run-all.sh &` passavam com "OK [4]"/
-# "OK [5]" mesmo sendo invocação real, porque nenhum desses prefixos é `; & | ( {` nem `$(`
-# (medido com mutação e recontrole, LDG-0182, segunda rodada de revisão). A regex ainda evita o
-# falso positivo de tratar `x.sh` como o comando `sh` (a fronteira exclui `.` e `-` do lado
-# esquerdo) e não casa com a própria definição desta regex nem com as mensagens de FAIL, escritas
-# como string literal logo abaixo (falso positivo medido ao converter; ver LDG-0182).
+# comando e o caminho de run-all, para pegar `if bash ...`, `timeout 600 bash ...` e `nohup bash ...`.
+# A fronteira exclui `.` e `-` do lado esquerdo (evita tratar `x.sh` como o comando `sh`), e a regex
+# não casa com a própria definição nem com as mensagens de FAIL, escritas como string literal abaixo.
 INVOKE_RE='(^|[^A-Za-z0-9_./-])(/[^[:space:]]*/)?(bash|sh|exec)[[:space:]][^|;]*run-all'
 ! grep -E "$INVOKE_RE" "$RA" | grep -vE '^\s*#' >/dev/null || \
   { echo "FAIL [4]: run-all.sh contém invocação real de run-all via bash/sh/exec (recursão)"; exit 1; }

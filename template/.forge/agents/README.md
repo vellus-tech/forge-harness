@@ -50,7 +50,7 @@ Um orquestrador e seis especialistas consultivos, cada especialista com a skill 
 | [data-analytical](./data/data-analytical.md) | Analítico: modelagem dimensional, SCD, warehouse × lakehouse, particionamento e clustering de tabela, dbt e contratos |
 | [data-streaming](./data/data-streaming.md) | Mensageria: RabbitMQ 4.x em profundidade, Kafka, outbox, CDC, saga, schema de evento com AsyncAPI e escolha de transporte interno × externo |
 
-Projeção fora do Claude Code: os agentes chegam a `.claude/agents/data/`; as skills `data-*-practices` só chegam a `.agents/skills/` com o adapter `agents-skills` ou `forge-cli`, e o adapter `codex` puro recebe só o `AGENTS.md`. Nessas ferramentas a porta de entrada é a seção de especialistas de dados do `AGENTS.md`: ler o orquestrador, produzir o `PLANO DE ROTEAMENTO`, ler o especialista e a skill em `.forge/skills/data-<domínio>-practices/`.
+Projeção fora do Claude Code: no Claude Code os agentes e as skills chegam pelo adapter `claude`; fora dele, as skills `data-*-practices` só chegam a `.agents/skills/` com o adapter `agents-skills` ou `forge-cli`, e o adapter `codex` puro recebe só o `AGENTS.md`. Nessas ferramentas a porta de entrada é a seção de especialistas de dados do `AGENTS.md`: ler o orquestrador, produzir o `PLANO DE ROTEAMENTO`, ler o especialista e a skill em `.forge/skills/data-<domínio>-practices/`.
 
 ### Especificações de Módulo (`specifications/`)
 

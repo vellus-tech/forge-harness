@@ -851,7 +851,7 @@ confere_12() {
   fi
   # Mesmo critério do check de vazamento do doctor.sh: arquivos sob /scripts/ ficam fora (o scan.sh cita
   # .claude/worktrees para excluí-lo do universo, que é uso funcional, não vazamento de adapter).
-  for f in $(find "$raiz/agents/data" "$raiz"/skills/data-*-practices -type f 2>/dev/null | grep -v '/scripts/'); do
+  for f in $( { find "$raiz/agents/data" "$raiz"/skills/data-*-practices -type f 2>/dev/null; [ -f "$raiz/agents/README.md" ] && echo "$raiz/agents/README.md"; } | grep -v '/scripts/'); do
     grep -aq '\.claude/' "$f" && { echo "FAIL [12] ${f#"$raiz"/} contém '.claude/' (check de vazamento do doctor)"; rc=1; }
   done
   local disp="$raiz/skills/capability-dispatcher/SKILL.md"

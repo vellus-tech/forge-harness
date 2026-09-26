@@ -77,7 +77,11 @@ _redfirst_hook_forge_dir() {  # .forge de onde ESTE arquivo foi carregado (sourc
   # .forge do TRONCO — a árvore-fallback dos alvos abaixo. Este arquivo mora em
   # .forge/hooks/git/lib/ — três níveis acima de dirname($BASH_SOURCE), não dois (diferença dos
   # hooks-raiz como pre-push, que moram direto em .forge/hooks/git/).
-  (cd "$(dirname "${BASH_SOURCE[0]}")/../../.." 2>/dev/null && pwd)
+  local d
+  d="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." 2>/dev/null && pwd)"
+  # Só é fallback legítimo quando também carrega esta própria lib — caso contrário (symlink
+  # solto, HOME, checkout parcial) o tronco fica indisponível, como antes da #141.
+  [ -n "$d" ] && [ -f "$d/hooks/git/lib/check-red-first.sh" ] && printf '%s\n' "$d"
 }
 
 _redfirst_resolve_delegated() {  # _redfirst_resolve_delegated <label> <rel-sob-.forge/> — mesmo

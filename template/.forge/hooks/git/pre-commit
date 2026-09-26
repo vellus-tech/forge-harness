@@ -15,6 +15,12 @@ fail=0
 # duas. $0 é o caminho do próprio hook, gravado por hooksPath — dirname($0)/../.. é o .forge de
 # onde ele foi executado.
 HOOK_FORGE_DIR="$(cd "$(dirname "$0")/../.." 2>/dev/null && pwd)" || HOOK_FORGE_DIR=""
+# Só serve de fallback quando termina em .forge E carrega a maquinaria deste hook — caso
+# contrário (symlink solto, HOME, checkout parcial) o tronco fica indisponível, como antes da #141.
+case "$HOOK_FORGE_DIR" in
+  */.forge) [ -f "$HOOK_FORGE_DIR/hooks/git/${0##*/}" ] || HOOK_FORGE_DIR="" ;;
+  *) HOOK_FORGE_DIR="" ;;
+esac
 resolve_delegated() {  # resolve_delegated <label> <rel-sob-.forge/> — ecoa o caminho resolvido em
   # stdout; rc 0 = achado (própria árvore, ou do tronco com aviso em stderr nomeando-o); rc 1 =
   # ausente nas duas com o diretório-lar presente em ao menos uma (bloqueio é do chamador); rc 2 =

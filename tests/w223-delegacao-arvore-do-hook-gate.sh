@@ -84,6 +84,19 @@
 #       contrafactual é o próprio [3]: com `.forge/` presente, o tronco escreve de verdade
 #   [14c] pre-commit — a mesma árvore sem `.forge/` nenhum: nenhum check do tronco roda (nem
 #       check-secrets.sh), commit passa OK; contrafactual é o próprio [1a]
+#
+# Achado LOW da revisão do próprio PR desta issue (regressão em relação a f24b029): quando o hook
+# é COPIADO para .git/hooks (nunca delegado por core.hooksPath), $0 é caminho absoluto em
+# .git/hooks/, e dirname($0)/../.. cai no $ROOT do próprio repositório — não em `.forge`. Sem
+# guarda, HOOK_FORGE_DIR virava esse $ROOT, e um `scripts/check-secrets.sh` alheio ao harness (do
+# próprio projeto, na raiz) era tratado como se fosse `.forge/scripts/check-secrets.sh` do
+# "tronco":
+#   [15] pre-commit — `.forge/` presente sem `.forge/scripts/`, hook copiado p/ .git/hooks, e
+#       `scripts/check-secrets.sh` do PROJETO (sai 3, cria marcador) na raiz → o alvo nunca é
+#       confundido com o do tronco: commit sai rc 0, marcador não existe
+#   [15b] pre-commit — variante do [15]: `scripts/` da raiz do projeto existe mas SEM
+#       check-secrets.sh dentro → sem a mensagem falsa ".forge/scripts/ existe mas
+#       check-secrets.sh não" (quem existe é `scripts/` do projeto, nunca `.forge/scripts/`)
 set -uo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -969,5 +982,50 @@ out="$(cd "$R14CCF" && git commit -q -m teste 2>&1)"; rc=$?
 [ "$rc" -eq 0 ] || { echo "FAIL [14c-cf]: pre-commit bloqueou com .forge/scripts/ presente e alvo só no tronco (saída: '$out')"; exit 1; }
 [ -f "$MARK_SEC14C" ] || { echo "FAIL [14c-cf]: check-secrets.sh do tronco não rodou — .forge/scripts/ presente deveria delegar de verdade"; exit 1; }
 echo "OK [14c-cf]"
+
+# ── [15] pre-commit — hook copiado p/ .git/hooks (sem hooksPath), .forge/ sem scripts/, alvo ────
+# alheio ao harness na raiz do projeto nunca é confundido com o do tronco (achado LOW da revisão,
+# regressão em relação a f24b029)
+echo "[15] pre-commit — hook copiado p/ .git/hooks, .forge/ sem scripts/, scripts/check-secrets.sh"
+echo "     do PROJETO (alheio ao harness) na raiz → nunca tratado como tronco"
+R15="$T/r15"
+mkdir -p "$R15/.git/hooks"
+git -C "$R15" init -q -b main
+git -C "$R15" config user.email t@t; git -C "$R15" config user.name t; git -C "$R15" config commit.gpgsign false
+mkdir -p "$R15/.forge"  # .forge presente, mas SEM .forge/scripts/
+cp "$HOOKS/pre-commit" "$R15/.git/hooks/pre-commit"; chmod +x "$R15/.git/hooks/pre-commit"
+MARK15="$T/marker-secrets-15"; rm -f "$MARK15"
+mkdir -p "$R15/scripts"
+printf '#!/usr/bin/env bash\ntouch "%s"\nexit 3\n' "$MARK15" > "$R15/scripts/check-secrets.sh"
+chmod +x "$R15/scripts/check-secrets.sh"
+printf 'x\n' > "$R15/a.txt"; git -C "$R15" add -A >/dev/null 2>&1
+git -C "$R15" commit -qm "chore: init" >/dev/null 2>&1
+printf 'y\n' > "$R15/b.txt"; git -C "$R15" add b.txt >/dev/null 2>&1
+out="$(cd "$R15" && git commit -q -m teste 2>&1)"; rc=$?
+[ "$rc" -eq 0 ] || { echo "FAIL [15]: pre-commit bloqueou por causa de scripts/check-secrets.sh alheio ao harness (saída: '$out')"; exit 1; }
+[ ! -f "$MARK15" ] || { echo "FAIL [15]: scripts/check-secrets.sh do PROJETO rodou como se fosse .forge/scripts/ do tronco"; exit 1; }
+echo "OK [15]"
+
+# [15b] variante do [15]: scripts/ da raiz do projeto existe mas SEM check-secrets.sh dentro —
+# não pode gerar a mensagem falsa ".forge/scripts/ existe mas check-secrets.sh não" (quem existe é
+# scripts/ do projeto, nunca .forge/scripts/)
+echo "[15b] pre-commit — variante do [15]: scripts/ do projeto sem check-secrets.sh dentro →"
+echo "      sem mensagem falsa de .forge/scripts/ ausente"
+R15B="$T/r15b"
+mkdir -p "$R15B/.git/hooks"
+git -C "$R15B" init -q -b main
+git -C "$R15B" config user.email t@t; git -C "$R15B" config user.name t; git -C "$R15B" config commit.gpgsign false
+mkdir -p "$R15B/.forge"
+cp "$HOOKS/pre-commit" "$R15B/.git/hooks/pre-commit"; chmod +x "$R15B/.git/hooks/pre-commit"
+mkdir -p "$R15B/scripts"  # scripts/ do projeto existe, mas sem check-secrets.sh
+printf 'x\n' > "$R15B/a.txt"; git -C "$R15B" add -A >/dev/null 2>&1
+git -C "$R15B" commit -qm "chore: init" >/dev/null 2>&1
+printf 'y\n' > "$R15B/b.txt"; git -C "$R15B" add b.txt >/dev/null 2>&1
+out="$(cd "$R15B" && git commit -q -m teste 2>&1)"; rc=$?
+[ "$rc" -eq 0 ] || { echo "FAIL [15b]: pre-commit bloqueou com mensagem falsa de .forge/scripts/ ausente (saída: '$out')"; exit 1; }
+case "$out" in
+  *".forge/scripts/ existe mas check-secrets.sh não"*) echo "FAIL [15b]: mensagem falsa apareceu — scripts/ do projeto tratado como .forge/scripts/ do tronco"; exit 1 ;;
+esac
+echo "OK [15b]"
 
 echo "PASS w223-delegacao-arvore-do-hook"

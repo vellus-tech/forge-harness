@@ -44,6 +44,12 @@ if [ -n "$INPUT" ]; then printf '%s\n' "$INPUT" > "$FORGE_PUSH_REFS_FILE"; else 
 # falta nas duas. $0 é o caminho deste próprio script, gravado por hooksPath —
 # dirname($0)/../.. é o .forge de onde ele foi executado.
 HOOK_FORGE_DIR="$(cd "$(dirname "$0")/../.." 2>/dev/null && pwd)" || HOOK_FORGE_DIR=""
+# Só serve de fallback quando termina em .forge E carrega a maquinaria deste hook — caso
+# contrário (symlink solto, HOME, checkout parcial) o tronco fica indisponível, como antes da #141.
+case "$HOOK_FORGE_DIR" in
+  */.forge) [ -f "$HOOK_FORGE_DIR/hooks/git/${0##*/}" ] || HOOK_FORGE_DIR="" ;;
+  *) HOOK_FORGE_DIR="" ;;
+esac
 resolve_delegated() {  # resolve_delegated <label> <rel-sob-.forge/> — ecoa o caminho resolvido em
   # stdout; rc 0 = achado (própria árvore, ou do tronco com aviso em stderr nomeando-o); rc 1 =
   # ausente nas duas com o diretório-lar presente em ao menos uma (bloqueio é do chamador); rc 2 =
@@ -77,7 +83,6 @@ resolve_delegated() {  # resolve_delegated <label> <rel-sob-.forge/> — ecoa o 
   return 2
 }
 
-HOOK_LIB_DIR="$ROOT/.forge/hooks/git/lib"
 require_hook_lib() {  # require_hook_lib <name> — ecoa o caminho a sourcear em stdout; rc 0 =
   # achado (ou no-op legítimo, stdout vazio); rc 1 = bloqueio — o CHAMADOR sai, porque esta
   # função é sempre invocada dentro de `$(...)` (subshell) e um `exit` aqui dentro só encerraria
@@ -87,7 +92,7 @@ require_hook_lib() {  # require_hook_lib <name> — ecoa o caminho a sourcear em
   if [ "$rc" -eq 0 ]; then printf '%s\n' "$resolved"; return 0; fi
   if [ "$rc" -eq 1 ]; then
     # Recusa literal e relativa, como as irmãs (".forge/scripts/ existe mas X não"): não nomeia
-    # uma árvore específica, porque `$HOOK_LIB_DIR` é sempre o caminho da WORKTREE e a falta pode
+    # uma árvore específica, porque o `lib/` local é sempre o da WORKTREE e a falta pode
     # estar em qualquer lado da delegação.
     echo "pre-push BLOQUEADO: .forge/hooks/git/lib/ existe mas $name não —" >&2
     echo "  a delegação aponta para um alvo ausente. Rode /forge:upgrade ou restaure a lib." >&2

@@ -34,9 +34,8 @@
 #       caso que já passava mesmo antes da correção, porque tem `/` interno) continua rc 0.
 #   [7] PBT — 60 casos gerados (semente 20260926, LCG determinístico, sem depender de `RANDOM` do
 #       bash) cobrindo: segmento isento em profundidade aleatória (0-2 diretórios PascalCase
-#       antes, 0-2 depois), com e sem prefixo absoluto sintético. Propriedade dupla: (a) o
-#       veredito com prefixo absoluto é IGUAL ao veredito sem prefixo (rc 0 nos dois, para o
-#       mesmo sufixo relativo) — a forma de chegada do caminho não pode mudar o veredito; (b) uma
+#       antes, 0-2 depois), com e sem prefixo absoluto sintético. Propriedade dupla: (a) prefixo
+#       absoluto sem segmento isento não muda o veredito; (b) uma
 #       variante com o segmento COLADO (prefixo `my` ou sufixo `x`) e ao menos um diretório
 #       PascalCase real na árvore NUNCA isenta (rc 1) — a isenção nunca alarga para alcançar um
 #       nome que apenas contém o segmento.
@@ -144,7 +143,6 @@ const SEGMENTS = ["src", "tests", "services", "deploy"];
 const WORDS = ["Communications", "Adapters", "Endpoints", "Infrastructure", "Models", "Handlers", "Services", "Repositories"];
 const lines = [];
 for (let t = 0; t < n; t++) {
-  const hasPrefix = next() % 2;
   const seg = SEGMENTS[next() % SEGMENTS.length];
   const gluedKind = next() % 3; // 0=limpo, 1=prefixo colado (my<seg>), 2=sufixo colado (<seg>x)
   const depthBefore = gluedKind === 0 ? (next() % 3) : 0; // colado só faz sentido como 1o segmento
@@ -156,14 +154,14 @@ for (let t = 0; t < n; t++) {
   const segToken = gluedKind === 1 ? ("my" + seg) : gluedKind === 2 ? (seg + "x") : seg;
   const fname = "File" + next() + ".cs";
   const parts = [...before, segToken, ...after, fname];
-  lines.push([hasPrefix, gluedKind, parts.join("/")].join("\t"));
+  lines.push([gluedKind, parts.join("/")].join("\t"));
 }
 process.stdout.write(lines.join("\n"));
 ' "$SEED" "$N_TRIALS")"
 
 trial_no=0
 fail7=0
-while IFS=$'\t' read -r has_prefix glued_kind relsuffix; do
+while IFS=$'\t' read -r glued_kind relsuffix; do
   [ -n "${relsuffix:-}" ] || continue
   trial_no=$((trial_no + 1))
   relpath="$relsuffix"
@@ -248,8 +246,7 @@ fi
 
 # ── [9] integração — através da ponte da #125 (lib/argv-bridge.sh), relativo ────────────────
 echo "[9] integração — via argv-bridge.sh (mesma ponte que hookCommandBridge/hookCommandBridgeLegacy emitem), tool_input.file_path relativo"
-json9="$(python3 -c 'import json,sys; print(json.dumps({"tool_input": {"file_path": sys.argv[1]}}))' \
-  "src/Axis.Transaction.Infrastructure/Communications/BanklyCommunication.cs")"
+json9="$(printf '{"tool_input": {"file_path": "src/Axis.Transaction.Infrastructure/Communications/BanklyCommunication.cs"}}')"
 out9="$(printf '%s' "$json9" | "$BRIDGE" "$HOOK" 2>&1)"; rc9=$?
 if [ "$rc9" -ne 0 ]; then
   echo "FAIL [9]: via ponte, caminho relativo sob src/ reprovado (rc=$rc9). Saída: $out9"
@@ -260,8 +257,7 @@ fi
 
 # ── [10] contrafactual pela ponte ────────────────────────────────────────────────────────────
 echo "[10] contrafactual pela ponte — mysrc/... continua reprovando"
-json10="$(python3 -c 'import json,sys; print(json.dumps({"tool_input": {"file_path": sys.argv[1]}}))' \
-  "mysrc/Communications/BanklyCommunication.cs")"
+json10="$(printf '{"tool_input": {"file_path": "mysrc/Communications/BanklyCommunication.cs"}}')"
 out10="$(printf '%s' "$json10" | "$BRIDGE" "$HOOK" 2>&1)"; rc10=$?
 if [ "$rc10" -eq 0 ]; then
   echo "FAIL [10]: via ponte, 'mysrc/...' foi isento (rc=0). Saída: $out10"

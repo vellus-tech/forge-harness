@@ -52,11 +52,19 @@
 #        nunca `FAIL ... template inválido?` (achado MEDIUM do review adversarial: o update
 #        escrevia o overlay e o `machinery.lock` e só then abortava no orphan-check, deixando o
 #        consumidor num update parcial por causa de um arquivo que ELE MESMO preservou)
-#   [13] linha sem `#` com token extra após `<sha> <caminho>`: o token vira parte da razão — a
-#        gramática aceita, alinhada ao `read -r sha path _` do consumidor de origem — em vez de
-#        malformada (achado LOW)
-#   [13b] sha declarado com menos de 64 dígitos hex casa por PREFIXO contra o sha de 64 dígitos do
-#         template: uma declaração truncada mas correta é VIVA, nunca EXPIRADA (achado LOW)
+#   [13] linha sem `#` com token extra após `<sha> <caminho>`: MALFORMADA, para ANTES de escrever,
+#        nomeia a linha — igual ao parser de origem (`check-machinery-drift.sh:201-206`,
+#        `read -r e_sha e_rel e_resto`; `e_resto` não vazio recusa a linha). Uma correção anterior
+#        nesta rodada aceitava o token como parte da razão, medindo o script de uma spike em vez do
+#        parser de origem real — achado do review adversarial (HIGH), revertido de volta ao
+#        fail-closed
+#   [13b] sha declarado com menos de 64 dígitos hex NUNCA casa por prefixo: comparação é por
+#         IGUALDADE ESTRITA contra o sha de 64 dígitos do template (`check-machinery-drift.sh:321`),
+#         então uma declaração truncada cai sempre em EXPIRADA — preserva mesmo assim (DH-1), rc 0,
+#         nunca VIVA (achado do review adversarial, HIGH — a versão anterior comparava por prefixo)
+#   [13c] duas declarações de caminho na mesma linha, sem `#` (ex.: dois caminhos separados por
+#         espaço): MALFORMADA pela mesma regra de [13] — token extra sem `#` sempre recusa, nunca
+#         absorve um segundo caminho em silêncio (achado MEDIUM do review adversarial)
 set -uo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -326,36 +334,60 @@ grep -q '<PROJECT_SLUG>' "$C12/.forge/$TARGET12" \
   || { echo "FAIL [12]: conteúdo local com o placeholder foi sobrescrito — a exceção viva deveria ter preservado"; exit 1; }
 echo "OK [12]"
 
-echo "[13] linha sem '#' com token extra após <sha> <caminho>: o token vira parte da razão, nunca malformada"
+echo "[13] linha sem '#' com token extra após <sha> <caminho>: MALFORMADA, para ANTES de escrever, nomeia a linha"
 C13="$(consumidor c13)"
 printf '\n# CONSERTO-LOCAL-13\n' >> "$C13/.forge/scripts/doctor.sh"
+SHA_LOCAL13="$(shasum -a 256 "$C13/.forge/scripts/doctor.sh" | cut -d' ' -f1)"
 SHA_DOCTOR13="$(sha_tpl scripts/doctor.sh)"
 printf '%s  scripts/doctor.sh  razao-sem-hash\n' "$SHA_DOCTOR13" > "$C13/.forge/machinery-exceptions.txt"
+set +e
 out13="$(node "$FORGE" update --target "$C13" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc13=$?
-[ "$rc13" -eq 0 ] || { echo "FAIL [13]: linha sem '#' com token extra foi tratada como malformada (deveria virar razão) — rc=$rc13"; echo "$out13"; exit 1; }
-grep -q 'CONSERTO-LOCAL-13' "$C13/.forge/scripts/doctor.sh" \
-  || { echo "FAIL [13]: conserto local sobrescrito — a linha deveria ter sido aceita como exceção viva"; exit 1; }
-grep -qF 'PRESERVADO (exceção declarada): scripts/doctor.sh — razão: razao-sem-hash' <<<"$out13" \
-  || { echo "FAIL [13]: o token extra sem '#' não virou a razão relatada"; echo "$out13"; exit 1; }
+set +e  # nunca ligar errexit de volta (LDG-0175/w213 e o achado LOW de [4a]/[4b])
+[ "$rc13" -ne 0 ] || { echo "FAIL [13]: linha com token extra sem '#' não bloqueou o update (deveria ser malformada)"; echo "$out13"; exit 1; }
+grep -q 'linha 1' <<<"$out13" || { echo "FAIL [13]: recusa não nomeia o número da linha"; echo "$out13"; exit 1; }
+[ "$(shasum -a 256 "$C13/.forge/scripts/doctor.sh" | cut -d' ' -f1)" = "$SHA_LOCAL13" ] \
+  || { echo "FAIL [13]: arquivo foi escrito mesmo com exceção malformada — nada deveria ter sido tocado"; exit 1; }
+[ ! -f "$C13/.forge/cache/machinery.lock" ] \
+  || { echo "FAIL [13]: machinery.lock foi escrito mesmo com exceção malformada"; exit 1; }
 echo "OK [13]"
 
-echo "[13b] sha declarado com menos de 64 dígitos hex casa por PREFIXO — declaração truncada mas correta é VIVA, nunca EXPIRADA"
+echo "[13b] sha declarado com menos de 64 dígitos hex NUNCA casa por prefixo — cai sempre em EXPIRADA (preserva, rc 0)"
 C13B="$(consumidor c13b)"
 printf '\n# CONSERTO-LOCAL-13B\n' >> "$C13B/.forge/scripts/doctor.sh"
+SHA_LOCAL13B="$(shasum -a 256 "$C13B/.forge/scripts/doctor.sh" | cut -d' ' -f1)"
 SHA_DOCTOR13B="$(sha_tpl scripts/doctor.sh)"
 SHA_PREFIXO13B="${SHA_DOCTOR13B:0:40}"
 [ "${#SHA_PREFIXO13B}" -eq 40 ] || { echo "FAIL [13b] (setup): prefixo do sha malformado (len=${#SHA_PREFIXO13B})"; exit 1; }
 printf '%s  scripts/doctor.sh  # sha truncado a 40 dígitos, prefixo exato do sha do template\n' "$SHA_PREFIXO13B" \
   > "$C13B/.forge/machinery-exceptions.txt"
 out13b="$(node "$FORGE" update --target "$C13B" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc13b=$?
-[ "$rc13b" -eq 0 ] || { echo "FAIL [13b]: update com sha truncado por prefixo saiu rc=$rc13b"; echo "$out13b"; exit 1; }
+[ "$rc13b" -eq 0 ] || { echo "FAIL [13b]: exceção expirada não pode bloquear o update (DH-1) — saiu rc=$rc13b"; echo "$out13b"; exit 1; }
+[ "$(shasum -a 256 "$C13B/.forge/scripts/doctor.sh" | cut -d' ' -f1)" = "$SHA_LOCAL13B" ] \
+  || { echo "FAIL [13b]: arquivo com sha truncado foi sobrescrito — exceção expirada deveria preservar mesmo assim (DH-1)"; exit 1; }
+grep -q "EXCEÇÃO EXPIRADA: scripts/doctor.sh — sha declarado $SHA_PREFIXO13B, sha do template novo $SHA_DOCTOR13B" <<<"$out13b" \
+  || { echo "FAIL [13b]: sha truncado deveria cair em EXPIRADA (igualdade estrita, nunca prefixo), nomeando os dois shas"; echo "$out13b"; exit 1; }
 grep -q "PRESERVADO (exceção declarada): scripts/doctor.sh" <<<"$out13b" \
-  || { echo "FAIL [13b]: sha truncado que é PREFIXO do sha do template deveria casar como VIVA (PRESERVADO), não EXPIRADA"; echo "$out13b"; exit 1; }
-grep -q 'EXCEÇÃO EXPIRADA: scripts/doctor.sh' <<<"$out13b" \
-  && { echo "FAIL [13b]: sha truncado por prefixo foi classificado como EXPIRADA em vez de VIVA"; echo "$out13b"; exit 1; }
+  && { echo "FAIL [13b]: sha truncado foi classificado como VIVA — a comparação deveria ser por igualdade estrita, não por prefixo"; echo "$out13b"; exit 1; }
 grep -q 'CONSERTO-LOCAL-13B' "$C13B/.forge/scripts/doctor.sh" \
-  || { echo "FAIL [13b]: conserto local sobrescrito — sha truncado por prefixo deveria preservar (VIVA)"; exit 1; }
+  || { echo "FAIL [13b]: conserto local sobrescrito — exceção expirada deveria preservar (DH-1)"; exit 1; }
 echo "OK [13b]"
+
+echo "[13c] dois caminhos na mesma linha, sem '#': MALFORMADA pela mesma regra de [13], nunca absorve o segundo caminho em silêncio"
+C13C="$(consumidor c13c)"
+printf '\n# CONSERTO-LOCAL-13C\n' >> "$C13C/.forge/scripts/doctor.sh"
+SHA_LOCAL13C="$(shasum -a 256 "$C13C/.forge/scripts/doctor.sh" | cut -d' ' -f1)"
+SHA_DOCTOR13C="$(sha_tpl scripts/doctor.sh)"
+printf '%s  scripts/doctor.sh  scripts/check-secrets.sh\n' "$SHA_DOCTOR13C" > "$C13C/.forge/machinery-exceptions.txt"
+set +e
+out13c="$(node "$FORGE" update --target "$C13C" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc13c=$?
+set +e  # idem
+[ "$rc13c" -ne 0 ] || { echo "FAIL [13c]: linha com dois caminhos sem '#' não bloqueou o update"; echo "$out13c"; exit 1; }
+grep -q 'linha 1' <<<"$out13c" || { echo "FAIL [13c]: recusa não nomeia o número da linha"; echo "$out13c"; exit 1; }
+[ "$(shasum -a 256 "$C13C/.forge/scripts/doctor.sh" | cut -d' ' -f1)" = "$SHA_LOCAL13C" ] \
+  || { echo "FAIL [13c]: arquivo foi escrito mesmo com exceção malformada — nada deveria ter sido tocado"; exit 1; }
+[ ! -f "$C13C/.forge/cache/machinery.lock" ] \
+  || { echo "FAIL [13c]: machinery.lock foi escrito mesmo com exceção malformada"; exit 1; }
+echo "OK [13c]"
 
 echo "[7] PBT: para exceções geradas sobre caminhos reais do template, o desfecho é função pura do conjunto declarado"
 node --input-type=module - "$WS" <<'NODE_EOF'
@@ -395,14 +427,18 @@ for (const rel of REAL_PATHS) templateHash[rel] = sha256(join(TPL, rel));
 const GHOST_REL = 'scripts/caminho-fantasma-fixo-w214.sh';
 
 // Gerador: um estado por caminho real ('viva'|'expirada'|'identica'|'divergente'|'none') + flags
-// de perturbação (fantasma fora do template, duplicata, malformada) — cobre as 6 categorias que a
-// propriedade enumera (vivas, expiradas, ociosas, divergente-não-declarado, malformadas e
-// duplicadas). 'divergente' é o estado que faltava no gerador original (achado do review
-// adversarial, MEDIUM): local editado SEM declaração nenhuma — é o único jeito de exercitar o
-// lado "sse" de "byte-idêntico sse viva/expirada" (sem ele, nenhum caso do PBT testa a sobrescrita
-// de verdade, só a preservação).
+// de perturbação (fantasma fora do template, duplicata, malformada, token extra sem '#', sha
+// truncado) — cobre as 6 categorias que a propriedade enumera (vivas, expiradas, ociosas,
+// divergente-não-declarado, malformadas e duplicadas). 'divergente' é o estado que faltava no
+// gerador original (achado do review adversarial, MEDIUM): local editado SEM declaração nenhuma —
+// é o único jeito de exercitar o lado "sse" de "byte-idêntico sse viva/expirada" (sem ele, nenhum
+// caso do PBT testa a sobrescrita de verdade, só a preservação). `extraToken` e `truncateSha`
+// (achado do review adversarial, LOW) cobrem as duas regras que a correção do achado HIGH mudou:
+// token extra sem '#' sempre malforma (nunca vira razão), e sha truncado nunca casa por prefixo
+// (sempre EXPIRADA, por igualdade estrita) — sem elas, o único jeito de exercitar essas regras
+// eram os cenários de exemplo [13]/[13b], nunca a propriedade.
 const gState = P.gen.array(P.gen.oneOf(['viva', 'expirada', 'identica', 'divergente', 'none']), REAL_PATHS.length, REAL_PATHS.length);
-const gFlags = P.gen.record({ ghost: P.gen.bool(), duplicate: P.gen.bool(), malformed: P.gen.bool() });
+const gFlags = P.gen.record({ ghost: P.gen.bool(), duplicate: P.gen.bool(), malformed: P.gen.bool(), extraToken: P.gen.bool(), truncateSha: P.gen.bool() });
 
 let casesRun = 0;
 const prop = (states, flags) => {
@@ -454,6 +490,28 @@ const prop = (states, flags) => {
   }
   if (flags.malformed) lines.push('nao-e-hex-valido  scripts/doctor.sh  # malformada de propósito');
 
+  // extraToken (achado do review adversarial, LOW): acrescenta um terceiro token à PRIMEIRA linha
+  // declarada, SEM '#' — a gramática recusa qualquer token além de "<sha> <caminho>", com ou sem
+  // '#' (correção do achado HIGH). Só se aplica quando existe alguma linha declarada.
+  let extraTokenApplied = false;
+  if (flags.extraToken && lines.length > 0) {
+    lines[0] = lines[0].replace(/ {2}# .*/, '  token-extra-sem-hash');
+    extraTokenApplied = true;
+  }
+  // truncateSha (achado do review adversarial, LOW): trunca o sha da PRIMEIRA entrada 'viva' para
+  // 40 dígitos (sintaxe válida, >= 32) e reclassifica a expectativa para 'expirada' — a comparação
+  // é por IGUALDADE ESTRITA (correção do achado HIGH), então um sha truncado nunca bate com o sha
+  // de 64 dígitos do template, mesmo sendo prefixo exato dele. Pulado quando extraToken já mexeu na
+  // linha 0, para não misturar as duas perturbações no mesmo índice.
+  if (flags.truncateSha && !extraTokenApplied) {
+    const vivaIdx = declared.findIndex((d) => d.category === 'viva');
+    if (vivaIdx !== -1) {
+      const full = templateHash[declared[vivaIdx].rel];
+      lines[vivaIdx] = lines[vivaIdx].replace(full, full.slice(0, 40));
+      declared[vivaIdx] = { ...declared[vivaIdx], category: 'expirada' };
+    }
+  }
+
   mkdirSync(join(dir, '.forge'), { recursive: true });
   writeFileSync(join(dir, '.forge', 'machinery-exceptions.txt'), lines.join('\n') + '\n');
 
@@ -461,7 +519,7 @@ const prop = (states, flags) => {
   // não escreve NENHUMA duplicata de verdade no arquivo (o `if (flags.duplicate && declared.length)`
   // acima pula), mas `shouldAbort` continuava `true` mesmo assim — falso FAIL emboscado, que a
   // seed fixa nunca disparou. Duplicata só existe, e só deve abortar, quando há algo para duplicar.
-  const shouldAbort = flags.malformed || (flags.duplicate && declared.length > 0);
+  const shouldAbort = flags.malformed || extraTokenApplied || (flags.duplicate && declared.length > 0);
 
   // Estado ANTES de rodar — necessário para o ramo de abortar provar que NADA foi escrito (achado
   // do review, MEDIUM: o teste conferia só `rc !== 0`, nunca a ausência de escrita).
@@ -538,7 +596,7 @@ const prop = (states, flags) => {
   return ok;
 };
 
-const r = P.forAll([gState, gFlags], prop, { runs: 50, seed: 214101131 });
+const r = P.forAll([gState, gFlags], prop, { runs: 80, seed: 214101131 });
 rmSync(pristine, { recursive: true, force: true });
 if (!r.ok) {
   console.error(`FAIL [7]: propriedade falhou após ${r.runs} caso(s) (seed ${r.seed})`);

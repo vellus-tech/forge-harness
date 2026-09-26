@@ -87,6 +87,17 @@ function parseFlags(argv) {
   return out;
 }
 
+// hasFlagWithValue: distingue "--id não foi passado" de "--id foi passado sem valor utilizável"
+// (achado MEDIUM da correção da #139) — `parseFlags` sozinho não faz essa distinção: com `--id`
+// como último token, ou seguido de outra flag (`--id --test-path ...`), `flags.id` vira
+// `undefined` OU o texto da flag seguinte, e o chamador degradava em silêncio para o caminho
+// "sem --id" (record atualiza a entrada errada) em vez de recusar. Vazio (`--id ""`) é o mesmo
+// buraco com outro sintoma (cria uma entrada com id vazio).
+function hasFlagWithValue(argv, name, value) {
+  if (!argv.includes(`--${name}`)) return true; // flag ausente — nada a validar aqui
+  return typeof value === 'string' && value.length > 0 && !value.startsWith('--');
+}
+
 // ── entries[] (Onda #139, issue #139) ───────────────────────────────────────────────────────
 //
 // Causa raiz original: `record` copiava os escalares do TOPO (`{ ...ev.data }`), atribuía campo
@@ -107,8 +118,24 @@ function emptyEntry(id) {
 
 // "evidência gravada" — mesmo predicado do item 3d em check-red-first.mjs (exclui o scaffold
 // trivial que /forge:spec new grava para TODO change bugfix: status:'pending', recorded_at:null).
+// Achado LOW da correção da #139: `recorded_at`/`status` sozinhos não bastam — um artefato
+// legado escrito à mão (w106/w144, plano L5 §6.4) pode ter test_path/test_id/command/
+// failure_pattern/fix_files preenchidos com `recorded_at:null` e `status:'pending'` (nunca
+// passou pelo `record` da CLI, que sempre carimba `recorded_at`), e o predicado antigo tratava
+// esse conteúdo real como scaffold vazio, descartando-o no primeiro `record --id`.
+// LEGACY_SIGNAL_FIELDS — subconjunto de ENTRY_SCALAR_FIELDS que só um `record` de verdade (CLI
+// ou escrito à mão, w106/w144) preenche. Exclui deliberadamente 'reproduces': o scaffold do
+// `templates/bugfix/red-evidence.json` já grava `"reproduces": "bugfix.md §1"` como default
+// ESTÁTICO em todo change bugfix novo, então esse campo sozinho não distingue "nunca gravado" de
+// "gravado" — usá-lo aqui faria todo scaffold recém-criado, mesmo sem nenhum record, parecer
+// legado real (regressão do próprio cenário [5], scaffold vazio).
+const LEGACY_SIGNAL_FIELDS = ENTRY_SCALAR_FIELDS.filter((k) => k !== 'reproduces');
+
 function isRealLegacyData(data) {
-  return !!(data && (data.recorded_at || (data.status && data.status !== 'pending')));
+  if (!data) return false;
+  if (data.recorded_at || (data.status && data.status !== 'pending')) return true;
+  if (Array.isArray(data.fix_files) && data.fix_files.length) return true;
+  return LEGACY_SIGNAL_FIELDS.some((k) => data[k] !== undefined && data[k] !== null && data[k] !== '');
 }
 
 function extractEntryFromTop(data) {
@@ -150,6 +177,32 @@ function buildDocument(changeId, entries) {
   doc.waiver = first.waiver ?? null;
   doc.entries = entries;
   return doc;
+}
+
+// upsertSingleEntry: mesma regra de endereçamento do `record`, reaproveitada por `replay`/
+// `ensure`/`waive` (achados HIGH da correção da #139) — nenhum desses três comandos tem `--id`
+// hoje, então só podem operar sem ambiguidade quando o change tem 0 ou 1 entrada. Com 2+
+// entradas, ESCOLHER uma (a primeira, a última) seria o mesmo tipo de furo que a quimera do
+// `record` sem `--id`: um replay/waive que parece ter resolvido "o" defeito na verdade escreveu
+// em cima de uma entrada que pode não ser a que a rule está cobrando — por isso `refused:true`
+// em vez de adivinhar (replay por entrada é escopo da #138, que itera `entries` sobre este
+// desenho). Enquanto o arquivo não tiver `entries[]` (JSON legado, formato de entrada única, em
+// voo em centenas de changes de consumidores — nunca migrado por um `record` desta Onda),
+// devolve `legacy:true` e o CALLER mantém o caminho de escrita no topo tal como antes desta
+// Onda: `ensure`/`waive` não introduzem `entries[]` em arquivo legado só por rodar — isso seria
+// uma migração de formato silenciosa disparada por toda chamada de rotina de /forge:verify e
+// /forge:archive, fora do escopo desta issue (o escopo dela é consertar `record`).
+export function upsertSingleEntry(prevData, changeId, patchEntry) {
+  const data = prevData || {};
+  if (!Array.isArray(data.entries)) return { legacy: true, refused: false };
+  const entries = data.entries.map((e) => ({ ...emptyEntry(e && e.id), ...e }));
+  if (entries.length >= 2) return { legacy: false, refused: true, count: entries.length };
+  const idx = entries.length === 1 ? 0 : -1;
+  const target = idx >= 0 ? { ...entries[idx] } : emptyEntry(null);
+  const merged = patchEntry(target);
+  const nextEntries = entries.slice();
+  if (idx >= 0) nextEntries[idx] = merged; else nextEntries.push(merged);
+  return { legacy: false, refused: false, data: buildDocument(changeId, nextEntries) };
 }
 
 // applyRecord: pura (sem I/O) — usada por cmdRecord e pelo PBT do gate w218. Lança Error com a
@@ -216,6 +269,11 @@ function cmdRecord(changeDir, argv) {
   const ev = requireEvidence(changeDir);
   const f = parseFlags(argv);
 
+  if (!hasFlagWithValue(argv, 'id', f.id)) {
+    console.log('FAIL (--id exige um valor não vazio e que não comece com "--" — sem isso o record degradaria em silêncio para o caminho sem --id)');
+    process.exit(1);
+  }
+
   let result;
   try {
     result = applyRecord(ev.data, ev.data.change_id, f);
@@ -233,6 +291,18 @@ function cmdRecord(changeDir, argv) {
 // (chamado incondicionalmente por spec-verify.sh/archive-spec.sh/validate-spec.mjs). Fonte
 // única — sem isso, os dois caminhos podiam divergir em como gravam status/campos, reabrindo o
 // furo de duas fontes de verdade que a Onda C já tinha fechado uma vez.
+//
+// Achado HIGH da correção da #139: até aqui a escrita ia sempre para o TOPO (`{ ...data, ... }`),
+// nunca para `entries[]`. Isso "funcionava" enquanto o topo era a única fonte, mas desde que
+// `record` passou a projetar o topo a partir de `entries[0]` (`buildDocument`), um replay
+// observado ficava só no topo — e o PRÓXIMO `record` (em qualquer id) reconstrói o topo a partir
+// de `entries[0]`, que nunca foi tocado, apagando em silêncio o que o replay acabara de gravar
+// (base_commit, classification, excerpt, o replay inteiro). A correção usa `upsertSingleEntry`
+// para escrever na ENTRADA (0 ou 1 entrada: a mesma regra de endereçamento do `record` sem
+// `--id`) e reconstrói o documento com `buildDocument`, para que o topo seja sempre a projeção —
+// nunca uma escrita paralela que `entries[]` desconhece. Com 2+ entradas, devolve
+// `{ refused:true }`: nem `replay` nem `ensure`/`waive` têm `--id` hoje, então não há como saber
+// qual entrada este veredito resolve (ver `upsertSingleEntry`); o caller decide a mensagem.
 function persistReplayResult(ev, data, result) {
   // base_strategy/revert_patch são resetados aqui e só voltam a ser gravados no ramo 'observed'
   // abaixo — sem isso, um replay que falha DEPOIS de um replay 'observed' anterior deixaria
@@ -243,39 +313,43 @@ function persistReplayResult(ev, data, result) {
   // execução — cache local ou o próprio replay ao vivo — não no artefato).
   // graft_from acompanha base_strategy no reset: é o par que explica de onde veio a árvore base,
   // e um graft_from remanescente de uma tentativa anterior descreveria uma base que não é a desta.
-  const updated = { ...data, replayed_at: nowIso(), replay_head: result.replay_head || null, base_strategy: null, revert_patch: null, graft_from: null };
+  const patch = { replayed_at: nowIso(), replay_head: result.replay_head || null, base_strategy: null, revert_patch: null, graft_from: null };
 
   if (result.verdict === 'observed') {
-    updated.status = 'observed';
-    updated.base_commit = result.base_commit || null;
-    updated.base_strategy = result.base_strategy || null;
-    updated.classification = result.classification || null;
-    updated.excerpt = truncate(result.excerpt);
-    updated.excerpt_sha256 = sha256(updated.excerpt);
-    updated.base_result = result.base_result || 'failed';
-    updated.revert_patch = result.revert_patch || null;
-    updated.graft_from = result.graft_from || null;
+    patch.status = 'observed';
+    patch.base_commit = result.base_commit || null;
+    patch.base_strategy = result.base_strategy || null;
+    patch.classification = result.classification || null;
+    patch.excerpt = truncate(result.excerpt);
+    patch.excerpt_sha256 = sha256(patch.excerpt);
+    patch.base_result = result.base_result || 'failed';
+    patch.revert_patch = result.revert_patch || null;
+    patch.graft_from = result.graft_from || null;
   } else if (result.verdict === 'not-possible') {
-    updated.status = 'not-possible';
+    patch.status = 'not-possible';
     if (result.diagnostic) {
-      updated.excerpt = truncate(result.diagnostic.excerpt);
-      updated.excerpt_sha256 = sha256(updated.excerpt);
-      updated.classification = result.diagnostic.classification || null;
+      patch.excerpt = truncate(result.diagnostic.excerpt);
+      patch.excerpt_sha256 = sha256(patch.excerpt);
+      patch.classification = result.diagnostic.classification || null;
     }
   } else {
     // fail — nunca deixa um status:'observed' falso na árvore; volta para pending com o
     // diagnóstico da tentativa anexado (útil para o próximo replay).
-    updated.status = 'pending';
-    updated.base_result = result.base_result || null;
-    if (result.base) updated.base_strategy = result.base.strategy || null;
+    patch.status = 'pending';
+    patch.base_result = result.base_result || null;
+    if (result.base) patch.base_strategy = result.base.strategy || null;
     if (result.diagnostic) {
-      updated.excerpt = truncate(result.diagnostic.excerpt);
-      updated.excerpt_sha256 = sha256(updated.excerpt);
-      updated.classification = result.diagnostic.classification || null;
+      patch.excerpt = truncate(result.diagnostic.excerpt);
+      patch.excerpt_sha256 = sha256(patch.excerpt);
+      patch.classification = result.diagnostic.classification || null;
     }
   }
+
+  const upsert = upsertSingleEntry(data, data.change_id, (entry) => ({ ...entry, ...patch }));
+  if (upsert.refused) return { refused: true, count: upsert.count };
+  const updated = upsert.legacy ? { ...data, ...patch } : upsert.data;
   writeJsonAtomic(ev.path, updated);
-  return updated;
+  return { data: updated };
 }
 
 async function cmdReplay(changeDir, argv) {
@@ -290,7 +364,11 @@ async function cmdReplay(changeDir, argv) {
   const timeoutS = f.timeout ? parseInt(f.timeout, 10) : undefined;
 
   const result = await runReplay({ root, evidence: data, timeoutS });
-  persistReplayResult(ev, data, result);
+  const persisted = persistReplayResult(ev, data, result);
+  if (persisted.refused) {
+    console.log(`FAIL (replay recusado — este change tem ${persisted.count} entradas registradas em entries[]; replay por entrada ainda não é suportado nesta versão, então não há como saber qual entrada este veredito resolve — ver #138. Nada foi escrito.)`);
+    process.exit(1);
+  }
 
   if (result.verdict === 'observed') {
     console.log(`OK replay — Red observado (${result.strategy}, base ${result.base_commit ? String(result.base_commit).slice(0, 7) : '?'}) e Green confirmado em HEAD`);
@@ -332,8 +410,17 @@ async function cmdEnsure(changeDir, argv) {
   const timeoutS = f.timeout ? parseInt(f.timeout, 10) : undefined;
 
   const result = await runReplay({ root, evidence: data, timeoutS });
-  const updated = persistReplayResult(ev, data, result);
-  console.log(`OK ensure — replay executado (verdict: ${result.verdict}, status: ${updated.status})`);
+  const persisted = persistReplayResult(ev, data, result);
+  if (persisted.refused) {
+    // ensure nunca sai rc≠0 por veredito desfavorável (comentário acima) — aqui não há veredito
+    // desfavorável, há AMBIGUIDADE sobre qual entrada escrever; não escrever nada preserva o
+    // estado já derivado (deriveTopStatus sobre entries[] inalterado), que é o comportamento
+    // fail-closed: check-red-first continua bloqueando pelo status real das entradas, nunca por
+    // um replay que sobrescreveu a entrada errada.
+    console.log(`OK ensure — ${persisted.count} entrada(s) registrada(s) em entries[]; replay por entrada ainda não é suportado nesta versão (nada escrito) — ver #138`);
+    return;
+  }
+  console.log(`OK ensure — replay executado (verdict: ${result.verdict}, status: ${persisted.data.status})`);
 }
 
 // ── main guard (mesmo padrão de sync-adapters.mjs, issue #130/w216) ────────────────────────────

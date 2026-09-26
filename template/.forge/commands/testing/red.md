@@ -62,6 +62,12 @@ defeito:
   desses preserva o conteúdo legado como a primeira entrada e acrescenta a nova como uma entrada
   adicional. Um scaffold nunca gravado (`recorded_at: null`, `status: pending`) não deixa
   resíduo — não há nada ali para preservar.
+- `replay`, `ensure` e `waive` gravam o veredito na entrada correspondente (0 ou 1 entrada
+  declarada) e reconstroem o topo a partir dela — nunca escrevem só no topo, o que faria um
+  `record --id` seguinte apagar em silêncio o que acabaram de gravar. Nenhum dos três tem
+  `--id` ainda: com **2 ou mais entradas** declaradas, os três **recusam** operar (fail-closed —
+  não há como saber qual defeito o veredito resolve) em vez de adivinhar. Replay por entrada
+  fica para a #138.
 
 ## replay — rodar o motor e observar de verdade
 

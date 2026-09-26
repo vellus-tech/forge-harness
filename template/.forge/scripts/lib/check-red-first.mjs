@@ -53,6 +53,7 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { parseYamlSubset } from './yaml-lite.mjs';
 import { loadRedEvidence, isResolved, WAIVER_REASONS, REL_PATH } from './red-evidence.mjs';
+import { upsertSingleEntry } from './red-evidence-ops.mjs';
 import { checkReachability } from './red-level.mjs';
 import { applyMode } from './gate-mode.mjs';
 import { classify } from './red-classify.mjs';
@@ -549,6 +550,16 @@ function cmdWaive(changeDir, argv) {
   if (!ev.exists) { console.log(`FAIL (${REL_PATH} ausente — nada para dispensar; rode 'red-evidence.sh init ${man.id}' para escaffoldar em cima deste change existente)`); process.exit(1); }
   if (ev.errors.length) { console.log(`FAIL (${REL_PATH} inválido: ${ev.errors.join('; ')})`); process.exit(1); }
 
+  // Achado HIGH da correção da #139: `waive` grava só no topo (`{ ...ev.data, status:'waived',
+  // ... }`), nunca em `entries[]`; com 2+ entradas registradas, não há `--id` aqui para dizer
+  // QUAL entrada este waiver dispensa — escolher uma seria adivinhar. Recusa fail-closed ANTES
+  // de qualquer efeito colateral (deferral-ops/ledger-ops abaixo), para não deixar deferral ou
+  // entrada de ledger órfã de um waiver que não foi gravado.
+  if (Array.isArray(ev.data.entries) && ev.data.entries.length >= 2) {
+    console.log(`FAIL (waive recusado — este change tem ${ev.data.entries.length} entradas registradas em entries[]; waive por entrada ainda não é suportado nesta versão, então não há como saber qual entrada este waiver dispensa — ver #138. Nada foi escrito.)`);
+    process.exit(1);
+  }
+
   // Furo 6 — idempotência: um segundo waive sem --force não pode (a) reabrir outro deferral/
   // entrada de ledger em cima de um waiver já existente, nem (b) rebaixar em silêncio uma
   // evidência 'observed' de verdade (um Red real e replicado) para 'waived'.
@@ -624,12 +635,21 @@ function cmdWaive(changeDir, argv) {
   // Furo 6 — waived_at é campo PRÓPRIO: sobrescrever recorded_at apagaria quando a evidência
   // foi originalmente declarada (útil para auditoria, sobretudo em waive --force sobre uma
   // evidência que já tinha sido record()ada antes).
-  const updated = {
-    ...ev.data,
+  //
+  // Achado HIGH da correção da #139: a escrita usa `upsertSingleEntry` (0 ou 1 entrada) em vez
+  // de gravar só no topo — sem isso, um `record --id` posterior reconstrói o topo a partir de
+  // `entries[0]` (nunca tocado por este waive) e o waiver graduado aqui, incluindo o deferral/
+  // ledger recém-criados acima, some do arquivo em silêncio.
+  const patch = {
     status: 'waived',
     waiver: { reason, note: note || null, deferral_id: deferralId, ledger_id: ledgerId },
     waived_at: new Date().toISOString(),
   };
+  const upsert = upsertSingleEntry(ev.data, changeId, (entry) => ({ ...entry, ...patch }));
+  // upsert.refused é inalcançável aqui — já recusado acima antes de qualquer efeito colateral —
+  // mas o caminho fica explícito (fail-closed) em vez de assumir silenciosamente upsert.data.
+  if (upsert.refused) { console.log('FAIL (waive recusado — entries[] tem 2+ entradas)'); process.exit(1); }
+  const updated = upsert.legacy ? { ...ev.data, ...patch } : upsert.data;
   writeJsonAtomic(ev.path, updated);
   const extra = [deferralId && `deferral ${deferralId}`, ledgerId && `ledger ${ledgerId}`].filter(Boolean).join(', ');
   console.log(`OK waive — ${reason}${extra ? ` (${extra})` : ''}`);

@@ -131,7 +131,19 @@ export function validateRedEvidence(data) {
   // legado (centenas de changes de consumidores em voo) não tem esta chave e continua válido.
   if (data.entries !== undefined) {
     if (!Array.isArray(data.entries)) errors.push('entries must be an array');
-    else data.entries.forEach((e, i) => validateEntryFields(e, i, errors));
+    else {
+      data.entries.forEach((e, i) => validateEntryFields(e, i, errors));
+      // MEDIUM da correção da #139: id vazio ('') e ids duplicados passavam sem erro — o próprio
+      // formato quimera que `record` sem `--id` (fail-closed) evita do lado da escrita, mas que
+      // um red-evidence.json escrito à mão (ou por versão anterior desta lib) podia introduzir
+      // sem que a validação estática avisasse.
+      const idsPresent = data.entries.filter((e) => e && typeof e === 'object' && e.id !== null && e.id !== undefined).map((e) => e.id);
+      if (idsPresent.some((id) => id === '')) errors.push('entries[].id must not be an empty string');
+      const seen = new Set();
+      const dupes = new Set();
+      for (const id of idsPresent) { if (seen.has(id)) dupes.add(id); seen.add(id); }
+      if (dupes.size) errors.push(`entries[].id duplicated: ${[...dupes].join(', ')}`);
+    }
   }
   return errors;
 }

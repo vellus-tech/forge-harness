@@ -29,10 +29,42 @@
 #       sequências geradas de `record --id <k>` com campos aleatórios: cada id aparece
 #       exatamente uma vez em entries, a última declaração por id vence, nenhum campo de um id
 #       aparece na entrada de outro, e o topo é igual à projeção da primeira entrada
-#  [10] MUTAÇÃO — trocar a escrita em entries[] pela atribuição no topo (como antes da correção)
-#       faz o cenário [1] falhar (DefeitoA some, contagem 0); recontrole restaura rc 0
-#  [11] MUTAÇÃO — remover a recusa sem --id faz o cenário [2] (quimera) sair rc 0; recontrole
-#       restaura a recusa
+#
+# Achados da revisão adversarial (correção da #139), cobertos a partir daqui:
+#  [10] LOW — legado real ESCRITO À MÃO (w106/w144), sem `recorded_at` e com `status:pending`
+#       (nunca passou pelo `record` da CLI), mas com campos escalares preenchidos, continua
+#       classificado como legado real (não como scaffold) e é preservado em `entries[0]`
+#  [11] MEDIUM — `record --id` sem valor utilizável (`--id` como último token, ou seguido de
+#       outra flag) é recusado, em vez de degradar em silêncio para o caminho sem `--id` e
+#       sobrescrever a entrada errada (a própria quimera que a recusa de [2] existe para evitar)
+#  [12] MEDIUM — o validador rejeita `entries[].id` vazio (`""`) e ids duplicados
+#  [13] HIGH — `replay` (via `persistReplayResult`) escreve o veredito na ENTRADA (não só no
+#       topo): um `record --id B` posterior preserva status/base_commit/classification/excerpt
+#       da entrada já observada por outro `record`+`replay` anterior
+#  [14] HIGH — `check-red-first.mjs waive` escreve o waiver na ENTRADA (não só no topo): um
+#       `record --id B` posterior preserva o waiver da entrada já dispensada
+#  [15] HIGH — com 2+ entradas registradas, `replay`/`ensure`/`waive` RECUSAM operar (fail-closed
+#       — nenhum dos três tem `--id` hoje, então não há como saber qual entrada resolvem) em vez
+#       de escrever no topo e deixar o próximo `record` apagar o resultado em silêncio; o arquivo
+#       fica byte-a-byte intacto nos três casos
+#  [16] PROPRIEDADE PBT — para sequências geradas intercalando `record --id <k>` com uma
+#       observação (`replay` simulado) ou uma dispensa (`waive` simulado) sobre a entrada única
+#       corrente, nenhuma entrada já observada/dispensada é revertida para pending por um
+#       `record` posterior em OUTRO id
+#  [17] MUTAÇÃO (sandbox) — trocar a escrita em entries[] pela atribuição no topo faz [1] falhar
+#  [18] MUTAÇÃO (sandbox) — remover a recusa sem --id faz [2] (quimera) sair rc 0
+#  [19] MUTAÇÃO (sandbox) — voltar a escrita do replay para só o topo (ignorando
+#       `upsertSingleEntry`) faz [13] falhar
+#
+# Achado MEDIUM da correção: as mutações [17]-[19] rodam inteiramente dentro de uma árvore
+# SANDBOX (`mk_root` num `mktemp -d` novo) — nunca sobre `template/.forge/scripts/lib/*.mjs` do
+# worktree real. `red-evidence.sh` resolve sua própria lib por `SCRIPT_DIR` (a pasta do próprio
+# script invocado, não uma constante), então mutar a cópia dentro do sandbox e invocar os
+# scripts DAQUELE sandbox exercita a mutação sem jamais tocar o arquivo rastreado do
+# repositório — elimina o risco (sob `set -euo pipefail`) de uma falha entre mutação e restore
+# deixar a árvore real mutada. Cada mutação ainda restaura byte a byte (`cmp -s`) dentro do
+# próprio sandbox antes do recontrole, para que a evidência prevista pelo protocolo (controle +
+# recontrole por `cmp -s`) continue presente mesmo sem tocar a árvore real.
 set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -277,66 +309,352 @@ if (failures) { console.error('FAIL [9]: ' + failures + ' violação(ões) em ' 
 console.log('OK [9] — ' + RUNS + ' casos, seed ' + SEED + ', 0 violação');
 " || exit 1
 
-echo "[10] MUTAÇÃO — reverter entries[] para atribuição no topo faz [1] falhar; recontrole restaura"
-OPS="$LIB/red-evidence-ops.mjs"
-cp "$OPS" "$T/ops-backup.mjs"
-# a mutação simula a causa raiz original: em vez de escrever em entries[], grava só no topo,
-# perdendo qualquer entrada anterior (a linha `doc.entries = entries;` é a que fecha o furo).
-perl -pi -e 's/doc\.entries = entries;/doc.entries = [entries[entries.length - 1]];/' "$OPS"
-if cmp -s "$OPS" "$T/ops-backup.mjs"; then
-  echo "FAIL [10]: mutação não alterou o arquivo (perl não casou o padrão)"; exit 1
-fi
-T10="$(mktemp -d /tmp/forge-w218-mut10.XXXXXX)"
-mk_root "$T10"
-FORGE_ROOT="$T10" bash "$T10/.forge/scripts/spec-new.sh" bug-mut --type bugfix --scale 1 >/dev/null
-FORGE_ROOT="$T10" bash "$T10/.forge/scripts/red-evidence.sh" record bug-mut --id DefeitoA --test-path tests/a.test.mjs --test-id case-a --command "node --test tests/a.test.mjs" --fix-files src/a.sh --failure-pattern PA >/dev/null
-FORGE_ROOT="$T10" bash "$T10/.forge/scripts/red-evidence.sh" record bug-mut --id DefeitoB --test-path tests/b.test.mjs --test-id case-b --command "node --test tests/b.test.mjs" --fix-files src/b.sh --failure-pattern PB >/dev/null
-EV10="$T10/.forge/specs/active/bug-mut/evidence/red/red-evidence.json"
-n10_mut="$(grep -c DefeitoA "$EV10" || true)"
-rm -rf "$T10"
-cp "$T/ops-backup.mjs" "$OPS"
-if ! cmp -s "$OPS" "$T/ops-backup.mjs"; then echo "FAIL [10]: restauração não bateu byte a byte"; exit 1; fi
-[ "$n10_mut" -eq 0 ] || { echo "FAIL [10-mut]: mutação deveria fazer o cenário [1] falhar (DefeitoA deveria sumir), mas achou $n10_mut ocorrência(s)"; exit 1; }
-echo "OK [10-mut] — mutação faz o cenário [1] falhar como esperado"
-# recontrole: com a lib restaurada, o cenário [1] volta a passar
-T10R="$(mktemp -d /tmp/forge-w218-mut10r.XXXXXX)"
-mk_root "$T10R"
-FORGE_ROOT="$T10R" bash "$T10R/.forge/scripts/spec-new.sh" bug-mut --type bugfix --scale 1 >/dev/null
-FORGE_ROOT="$T10R" bash "$T10R/.forge/scripts/red-evidence.sh" record bug-mut --id DefeitoA --test-path tests/a.test.mjs --test-id case-a --command "node --test tests/a.test.mjs" --fix-files src/a.sh --failure-pattern PA >/dev/null
-FORGE_ROOT="$T10R" bash "$T10R/.forge/scripts/red-evidence.sh" record bug-mut --id DefeitoB --test-path tests/b.test.mjs --test-id case-b --command "node --test tests/b.test.mjs" --fix-files src/b.sh --failure-pattern PB >/dev/null
-n10_recontrole="$(grep -c DefeitoA "$T10R/.forge/specs/active/bug-mut/evidence/red/red-evidence.json" || true)"
-rm -rf "$T10R"
-[ "$n10_recontrole" -ge 1 ] || { echo "FAIL [10-recontrole]: com a lib restaurada, DefeitoA deveria continuar presente"; exit 1; }
-echo "OK [10-recontrole]"
+echo "[10] legado real escrito à mão (sem recorded_at, status pending) preservado como entries[0]"
+FORGE_ROOT="$T" bash "$SN" bug-legacy-handwritten --type bugfix --scale 1 >/dev/null
+DIR10="$T/.forge/specs/active/bug-legacy-handwritten"
+EV10L="$DIR10/evidence/red/red-evidence.json"
+node -e '
+const fs = require("fs");
+const p = process.argv[1];
+const d = JSON.parse(fs.readFileSync(p, "utf8"));
+// w106/w144 style: campos escalares preenchidos, mas NUNCA passou por record() da CLI —
+// recorded_at continua null e status continua pending (o próprio predicado que a correção
+// da #139 amplia: recorded_at/status sozinhos não bastam para reconhecer legado real).
+d.test_path = "tests/handwritten.test.mjs"; d.test_id = "handwritten-case";
+d.command = "node --test tests/handwritten.test.mjs"; d.failure_pattern = "AssertionError";
+d.fix_files = ["src/handwritten.sh"];
+fs.writeFileSync(p, JSON.stringify(d, null, 2) + "\n");
+' "$EV10L"
+FORGE_ROOT="$T" bash "$RE" record bug-legacy-handwritten --id NovoDefeito10 --test-path tests/novo10.test.mjs --test-id novo10-case --command "node --test tests/novo10.test.mjs" --fix-files src/novo10.sh --failure-pattern PN10 >/dev/null
+node -e "
+const d = JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'));
+if (d.entries.length !== 2) { console.error('esperava 2 entradas (legado preservado + nova), achou ' + d.entries.length + ': ' + JSON.stringify(d.entries)); process.exit(1); }
+const legacy = d.entries[0];
+if (legacy.test_path !== 'tests/handwritten.test.mjs' || legacy.command !== 'node --test tests/handwritten.test.mjs') {
+  console.error('legado escrito à mão não preservado: ' + JSON.stringify(legacy)); process.exit(1);
+}
+" "$EV10L" || { echo "FAIL [10]: legado real (sem recorded_at/status) tratado como scaffold vazio"; exit 1; }
+echo "OK [10]"
 
-echo "[11] MUTAÇÃO — remover a recusa sem --id faz o cenário [2] (quimera) sair rc 0; recontrole restaura"
-cp "$WS/template/.forge/scripts/lib/red-evidence-ops.mjs" "$T/ops-backup2.mjs"
-cmp -s "$OPS" "$T/ops-backup2.mjs" || { echo "FAIL [11]: pré-condição — lib deveria estar limpa antes desta mutação"; exit 1; }
-perl -0pi -e "s/throw new Error\(\`--id é obrigatório[^\`]*\`\);/idx = entries.length - 1;/s" "$OPS"
-if cmp -s "$OPS" "$T/ops-backup2.mjs"; then echo "FAIL [11]: mutação não alterou o arquivo (perl não casou o padrão)"; exit 1; fi
-T11="$(mktemp -d /tmp/forge-w218-mut11.XXXXXX)"
-mk_root "$T11"
-FORGE_ROOT="$T11" bash "$T11/.forge/scripts/spec-new.sh" bug-mut2 --type bugfix --scale 1 >/dev/null
-FORGE_ROOT="$T11" bash "$T11/.forge/scripts/red-evidence.sh" record bug-mut2 --id DefeitoA --test-path tests/a.test.mjs --test-id case-a --command "node --test tests/a.test.mjs" --fix-files src/a.sh --failure-pattern PA >/dev/null
-FORGE_ROOT="$T11" bash "$T11/.forge/scripts/red-evidence.sh" record bug-mut2 --id DefeitoB --test-path tests/b.test.mjs --test-id case-b --command "node --test tests/b.test.mjs" --fix-files src/b.sh --failure-pattern PB >/dev/null
+echo "[11] record --id sem valor utilizável é recusado (não degrada em silêncio)"
+FORGE_ROOT="$T" bash "$SN" bug-id-guard --type bugfix --scale 1 >/dev/null
+EV11="$T/.forge/specs/active/bug-id-guard/evidence/red/red-evidence.json"
+FORGE_ROOT="$T" bash "$RE" record bug-id-guard --id Base --test-path tests/base.test.mjs --test-id case-base --command "node --test tests/base.test.mjs" --fix-files src/base.sh --failure-pattern PBASE >/dev/null
+cp "$EV11" "$T/ev11-antes.json"
+# 11a — --id como ÚLTIMO token (sem valor)
 set +e
-out11="$(FORGE_ROOT="$T11" bash "$T11/.forge/scripts/red-evidence.sh" record bug-mut2 --failure-pattern PC 2>&1)"; rc11=$?
+out11a="$(FORGE_ROOT="$T" bash "$RE" record bug-id-guard --test-path tests/x.test.mjs --id 2>&1)"; rc11a=$?
 set -e
-rm -rf "$T11"
-cp "$T/ops-backup2.mjs" "$OPS"
-if ! cmp -s "$OPS" "$WS/template/.forge/scripts/lib/red-evidence-ops.mjs"; then echo "FAIL [11]: restauração não bateu byte a byte com o arquivo original do worktree"; exit 1; fi
-[ "$rc11" -eq 0 ] || { echo "FAIL [11-mut]: mutação deveria aceitar o record ambíguo (rc 0), saiu rc=$rc11 ($out11)"; exit 1; }
-echo "OK [11-mut] — mutação aceita a quimera como esperado"
-T11R="$(mktemp -d /tmp/forge-w218-mut11r.XXXXXX)"
-mk_root "$T11R"
-FORGE_ROOT="$T11R" bash "$T11R/.forge/scripts/spec-new.sh" bug-mut2 --type bugfix --scale 1 >/dev/null
-FORGE_ROOT="$T11R" bash "$T11R/.forge/scripts/red-evidence.sh" record bug-mut2 --id DefeitoA --test-path tests/a.test.mjs --test-id case-a --command "node --test tests/a.test.mjs" --fix-files src/a.sh --failure-pattern PA >/dev/null
-FORGE_ROOT="$T11R" bash "$T11R/.forge/scripts/red-evidence.sh" record bug-mut2 --id DefeitoB --test-path tests/b.test.mjs --test-id case-b --command "node --test tests/b.test.mjs" --fix-files src/b.sh --failure-pattern PB >/dev/null
+[ "$rc11a" -ne 0 ] || { echo "FAIL [11a]: --id sem valor (último token) foi aceito ($out11a)"; exit 1; }
+cmp -s "$EV11" "$T/ev11-antes.json" || { echo "FAIL [11a]: arquivo foi tocado apesar da recusa"; exit 1; }
+# 11b — --id seguido de OUTRA flag (valor engolido é "--test-path")
 set +e
-out11r="$(FORGE_ROOT="$T11R" bash "$T11R/.forge/scripts/red-evidence.sh" record bug-mut2 --failure-pattern PC 2>&1)"; rc11r=$?
+out11b="$(FORGE_ROOT="$T" bash "$RE" record bug-id-guard --id --test-path tests/x.test.mjs 2>&1)"; rc11b=$?
 set -e
-rm -rf "$T11R"
-[ "$rc11r" -ne 0 ] || { echo "FAIL [11-recontrole]: com a lib restaurada, o record ambíguo deveria voltar a ser recusado ($out11r)"; exit 1; }
-echo "OK [11-recontrole]"
+[ "$rc11b" -ne 0 ] || { echo "FAIL [11b]: --id seguido de outra flag foi aceito ($out11b)"; exit 1; }
+cmp -s "$EV11" "$T/ev11-antes.json" || { echo "FAIL [11b]: arquivo foi tocado apesar da recusa"; exit 1; }
+# 11c — --id "" (string vazia)
+set +e
+out11c="$(FORGE_ROOT="$T" bash "$RE" record bug-id-guard --id "" --test-path tests/x.test.mjs --test-id x --command "node --test tests/x.test.mjs" --fix-files src/x.sh --failure-pattern PX 2>&1)"; rc11c=$?
+set -e
+[ "$rc11c" -ne 0 ] || { echo "FAIL [11c]: --id vazio foi aceito ($out11c)"; exit 1; }
+cmp -s "$EV11" "$T/ev11-antes.json" || { echo "FAIL [11c]: arquivo foi tocado apesar da recusa"; exit 1; }
+echo "OK [11]"
+
+echo "[12] validador rejeita entries[].id vazio e ids duplicados"
+node --input-type=module -e "
+import { validateRedEvidence } from '$LIB/red-evidence.mjs';
+const base = { schema: 'red-evidence/v1', change_id: 'x', status: 'pending', fix_files: [] };
+const emptyId = { ...base, entries: [{ id: '', status: 'pending', fix_files: [] }] };
+if (!validateRedEvidence(emptyId).length) { console.error('FAIL [12]: id vazio não foi pego'); process.exit(1); }
+const dup = { ...base, entries: [{ id: 'A', status: 'pending', fix_files: [] }, { id: 'A', status: 'observed', fix_files: [] }] };
+const errsDup = validateRedEvidence(dup);
+if (!errsDup.length || !errsDup.some((e) => e.includes('duplicated'))) { console.error('FAIL [12]: id duplicado não foi pego (' + JSON.stringify(errsDup) + ')'); process.exit(1); }
+const okDistinctNulls = { ...base, entries: [{ id: null, status: 'pending', fix_files: [] }, { id: null, status: 'observed', fix_files: [] }] };
+if (validateRedEvidence(okDistinctNulls).length) { console.error('FAIL [12]: dois ids null (legado singular, nunca deveria coexistir com outra entrada, mas a regra de duplicidade não é sobre null) foram indevidamente reprovados'); process.exit(1); }
+console.log('OK [12]');
+" || exit 1
+
+echo "[13] replay preserva a entrada observada quando um record --id B chega depois (HIGH-1a)"
+mkdir -p "$T/src13" "$T/tests13"
+cat > "$T/src13/sum.mjs" <<'JS'
+export function sum(a, b) { return a - b; }
+JS
+git -C "$T" add src13/sum.mjs
+git -C "$T" commit -qm "feat: sum13 (com bug)" >/dev/null
+cat > "$T/tests13/sum.test.mjs" <<'JS'
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { sum } from '../src13/sum.mjs';
+test('case13', () => { assert.strictEqual(sum(2, 3), 5); });
+JS
+git -C "$T" add tests13/sum.test.mjs
+git -C "$T" commit -qm "test: regressão bug-replay-preserve" >/dev/null
+cat > "$T/src13/sum.mjs" <<'JS'
+export function sum(a, b) { return a + b; }
+JS
+git -C "$T" add src13/sum.mjs
+git -C "$T" commit -qm "fix: bug-replay-preserve" >/dev/null
+
+FORGE_ROOT="$T" bash "$SN" bug-replay-preserve --type bugfix --scale 1 >/dev/null
+DIR13="$T/.forge/specs/active/bug-replay-preserve"
+EV13="$DIR13/evidence/red/red-evidence.json"
+FORGE_ROOT="$T" bash "$RE" record bug-replay-preserve --test-path tests13/sum.test.mjs --test-id case13 --command "node --test tests13/sum.test.mjs" --fix-files src13/sum.mjs --failure-pattern AssertionError >/dev/null
+out13="$(FORGE_ROOT="$T" bash "$RE" replay bug-replay-preserve 2>&1)"; rc13=$?
+[ "$rc13" -eq 0 ] || { echo "FAIL [13]: replay deveria observar ($out13)"; exit 1; }
+grep -qi observado <<<"$out13" || { echo "FAIL [13]: replay não confirmou observação ($out13)"; exit 1; }
+node -e "
+const d = JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'));
+if (d.entries.length !== 1 || d.entries[0].status !== 'observed' || !d.entries[0].base_commit) { console.error('FAIL [13]: replay não gravou observed na entrada — ' + JSON.stringify(d.entries)); process.exit(1); }
+" "$EV13" || exit 1
+# agora um SEGUNDO defeito é declarado no mesmo change — a entrada já observada não pode regredir
+FORGE_ROOT="$T" bash "$RE" record bug-replay-preserve --id DefeitoB13 --test-path tests/b13.test.mjs --test-id case-b13 --command "node --test tests/b13.test.mjs" --fix-files src/b13.sh --failure-pattern PB13 >/dev/null
+node -e "
+const d = JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'));
+if (d.entries.length !== 2) { console.error('FAIL [13]: esperava 2 entradas depois do record --id B, achou ' + d.entries.length); process.exit(1); }
+const first = d.entries[0];
+if (first.status !== 'observed' || !first.base_commit || first.classification !== 'behavioral') {
+  console.error('FAIL [13]: entrada já observada regrediu depois do record --id B — ' + JSON.stringify(first)); process.exit(1);
+}
+const second = d.entries[1];
+if (second.id !== 'DefeitoB13' || second.status !== 'pending') { console.error('FAIL [13]: segunda entrada incorreta — ' + JSON.stringify(second)); process.exit(1); }
+if (d.status !== 'pending') { console.error('FAIL [13]: topo deveria ser pending (DefeitoB13 ainda não resolvido), achou ' + d.status); process.exit(1); }
+" "$EV13" || exit 1
+echo "OK [13]"
+
+echo "[14] waive preserva a entrada dispensada quando um record --id B chega depois (HIGH-1b)"
+FORGE_ROOT="$T" bash "$SN" bug-waive-preserve --type bugfix --scale 1 >/dev/null
+DIR14="$T/.forge/specs/active/bug-waive-preserve"
+EV14="$DIR14/evidence/red/red-evidence.json"
+FORGE_ROOT="$T" bash "$RE" record bug-waive-preserve --test-path tests/w14.test.mjs --test-id case-w14 --command "node --test tests/w14.test.mjs" --fix-files src/w14.sh --failure-pattern PW14 >/dev/null
+out14="$(FORGE_ROOT="$T" bash "$CR" waive bug-waive-preserve --reason no-test-infra --note "sem suíte utilizável (w218 [14])" 2>&1)"; rc14=$?
+[ "$rc14" -eq 0 ] || { echo "FAIL [14]: waive deveria ter sido aceito ($out14)"; exit 1; }
+grep -q "OK waive" <<<"$out14" || { echo "FAIL [14]: saída inesperada do waive ($out14)"; exit 1; }
+node -e "
+const d = JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'));
+if (d.entries.length !== 1 || d.entries[0].status !== 'waived' || !d.entries[0].waiver || d.entries[0].waiver.reason !== 'no-test-infra') {
+  console.error('FAIL [14]: waive não gravou o waiver na entrada — ' + JSON.stringify(d.entries)); process.exit(1);
+}
+" "$EV14" || exit 1
+FORGE_ROOT="$T" bash "$RE" record bug-waive-preserve --id DefeitoB14 --test-path tests/b14.test.mjs --test-id case-b14 --command "node --test tests/b14.test.mjs" --fix-files src/b14.sh --failure-pattern PB14 >/dev/null
+node -e "
+const d = JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'));
+if (d.entries.length !== 2) { console.error('FAIL [14]: esperava 2 entradas depois do record --id B, achou ' + d.entries.length); process.exit(1); }
+const first = d.entries[0];
+if (first.status !== 'waived' || !first.waiver || first.waiver.reason !== 'no-test-infra') {
+  console.error('FAIL [14]: waiver perdido depois do record --id B — ' + JSON.stringify(first)); process.exit(1);
+}
+const second = d.entries[1];
+if (second.id !== 'DefeitoB14' || second.status !== 'pending') { console.error('FAIL [14]: segunda entrada incorreta — ' + JSON.stringify(second)); process.exit(1); }
+if (d.status !== 'pending') { console.error('FAIL [14]: topo deveria ser pending (DefeitoB14 ainda não resolvido), achou ' + d.status); process.exit(1); }
+" "$EV14" || exit 1
+echo "OK [14]"
+
+echo "[15] replay/ensure/waive recusam (fail-closed) com 2+ entradas; arquivo intacto nos três"
+cp "$EV1" "$T/ev1-antes-15.json"
+set +e
+out15r="$(FORGE_ROOT="$T" bash "$RE" replay bug-multi 2>&1)"; rc15r=$?
+set -e
+[ "$rc15r" -ne 0 ] || { echo "FAIL [15-replay]: replay com 2 entradas deveria recusar ($out15r)"; exit 1; }
+grep -qi "recusado" <<<"$out15r" || { echo "FAIL [15-replay]: mensagem não indica recusa ($out15r)"; exit 1; }
+cmp -s "$EV1" "$T/ev1-antes-15.json" || { echo "FAIL [15-replay]: arquivo foi tocado apesar da recusa"; exit 1; }
+
+out15e="$(FORGE_ROOT="$T" bash "$RE" ensure bug-multi 2>&1)"; rc15e=$?
+[ "$rc15e" -eq 0 ] || { echo "FAIL [15-ensure]: ensure nunca deveria sair rc≠0 (contrato — ver comentário de cmdEnsure) ($out15e)"; exit 1; }
+grep -qi "não suportado\|nada escrito" <<<"$out15e" || { echo "FAIL [15-ensure]: mensagem não indica que nada foi escrito ($out15e)"; exit 1; }
+cmp -s "$EV1" "$T/ev1-antes-15.json" || { echo "FAIL [15-ensure]: arquivo foi tocado apesar de não haver escrita esperada"; exit 1; }
+
+DEF_MULTI="$T/.forge/specs/active/bug-multi/deferrals.json"
+[ -f "$DEF_MULTI" ] && { echo "FAIL [15-waive]: pré-condição — deferrals.json não deveria existir ainda"; exit 1; }
+set +e
+out15w="$(FORGE_ROOT="$T" bash "$CR" waive bug-multi --reason no-test-infra --note "x" 2>&1)"; rc15w=$?
+set -e
+[ "$rc15w" -ne 0 ] || { echo "FAIL [15-waive]: waive com 2 entradas deveria recusar ($out15w)"; exit 1; }
+grep -qi "recusado" <<<"$out15w" || { echo "FAIL [15-waive]: mensagem não indica recusa ($out15w)"; exit 1; }
+cmp -s "$EV1" "$T/ev1-antes-15.json" || { echo "FAIL [15-waive]: arquivo foi tocado apesar da recusa"; exit 1; }
+[ -f "$DEF_MULTI" ] && { echo "FAIL [15-waive]: recusa deveria ter acontecido ANTES de criar deferral (efeito colateral órfão)"; exit 1; }
+echo "OK [15]"
+
+echo "[16] PBT — record/observe/waive intercalados nunca revertem uma entrada já resolvida (seed 139, 80 casos)"
+node --input-type=module -e "
+import { applyRecord, upsertSingleEntry, deriveTopStatus } from '$LIB/red-evidence-ops.mjs';
+import { makeRandom } from '$LIB/pbt.mjs';
+
+function emptyState() {
+  return { schema: 'red-evidence/v1', change_id: 'pbt16', status: 'pending', test_path: null, test_id: null, command: null, failure_pattern: null, recorded_at: null, fix_files: [], waiver: null };
+}
+
+const SEED = 139;
+const RUNS = 80;
+const rnd = makeRandom(SEED);
+let failures = 0;
+
+for (let run = 0; run < RUNS; run++) {
+  let data = emptyState();
+  const ids = ['id-a', 'id-b', 'id-c'];
+  const resolved = new Map(); // id -> { status, marker } de entradas já observadas/dispensadas
+  const nOps = 2 + rnd.int(0, 6);
+
+  for (let i = 0; i < nOps; i++) {
+    const kind = rnd.next();
+    if (kind < 0.6) {
+      // record --id <k> — declaração nova ou atualização
+      const id = ids[rnd.int(0, ids.length - 1)];
+      const marker = 'M' + rnd.int(0, 999999);
+      try {
+        const result = applyRecord(data, 'pbt16', { id, 'test-path': 'tests/' + id + '.test.mjs', 'test-id': 'case-' + id, command: 'node --test tests/' + id + '.test.mjs', 'failure-pattern': marker, 'fix-files': 'src/' + id + '.sh' });
+        data = result.data;
+      } catch (e) { console.error('run ' + run + ': applyRecord lançou: ' + e.message); failures++; break; }
+      // record SEMPRE reabre a entrada tocada para pending — some do conjunto de resolvidas.
+      resolved.delete(id);
+    } else {
+      // observe/waive simulado sobre a entrada única corrente (upsertSingleEntry) — só possível
+      // com 0 ou 1 entrada; com 2+, a operação é ambígua e a PROPRIEDADE é 'refused:true'.
+      const status = kind < 0.8 ? 'observed' : 'waived';
+      const patch = { status, marker: 'R' + rnd.int(0, 999999) };
+      const upsert = upsertSingleEntry(data, 'pbt16', (entry) => ({ ...entry, ...patch }));
+      if (Array.isArray(data.entries) && data.entries.length >= 2) {
+        if (!upsert.refused) { console.error('run ' + run + ': upsertSingleEntry deveria recusar com 2+ entradas (seed ' + SEED + ')'); failures++; break; }
+      } else if (!upsert.refused) {
+        // upsert.legacy (data.entries ainda não é array — nunca passou por um record) é o
+        // MESMO caminho que persistReplayResult/cmdWaive usam em produção: mescla no topo sem
+        // introduzir entries[]; upsert.data só existe quando !legacy.
+        data = upsert.legacy ? { ...data, ...patch } : upsert.data;
+        // com 0/1 entrada ANTES do patch (não depois — 'legacy' pode não ter criado entries[]
+        // ainda), só rastreamos por id quando o resultado já tem exatamente 1 entrada.
+        if (Array.isArray(data.entries) && data.entries.length === 1) resolved.set(data.entries[0].id, { status, marker: patch.marker });
+      }
+    }
+    if (failures) break;
+  }
+  if (failures) break;
+
+  // propriedade: toda entrada marcada como resolvida (observed/waived) por um patch ainda
+  // carrega esse status e aquele marker específico — um record em OUTRO id nunca a reverte.
+  for (const [id, expected] of resolved) {
+    const entry = data.entries.find((e) => e.id === id);
+    if (!entry || entry.status !== expected.status || entry.marker !== expected.marker) {
+      console.error('run ' + run + ': entrada ' + id + ' deveria continuar ' + expected.status + ' com marker ' + expected.marker + ', achou ' + JSON.stringify(entry) + ' (seed ' + SEED + ')');
+      failures++;
+    }
+  }
+  // data.entries pode continuar undefined se a sequência nunca chamou record() (só
+  // observe/waive sobre estado legado, que nunca introduz entries[] — mesmo caminho de
+  // persistReplayResult/cmdWaive em produção); deriveTopStatus só se aplica quando entries[]
+  // existe.
+  if (Array.isArray(data.entries) && data.status !== deriveTopStatus(data.entries)) {
+    console.error('run ' + run + ': status do topo diverge de deriveTopStatus(entries) (seed ' + SEED + ')');
+    failures++;
+  }
+  if (failures) break;
+}
+
+if (failures) { console.error('FAIL [16]: ' + failures + ' violação(ões) em ' + RUNS + ' casos (seed ' + SEED + ')'); process.exit(1); }
+console.log('OK [16] — ' + RUNS + ' casos, seed ' + SEED + ', 0 violação');
+" || exit 1
+
+# ── mutações (achado MEDIUM — rodam num sandbox descartável, nunca sobre a árvore real) ────────
+
+scenario_multi_preserved() { # scenario_multi_preserved <root> <suffix>
+  local root="$1" suffix="$2"
+  local id="bug-mut$suffix"
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/spec-new.sh" "$id" --type bugfix --scale 1 >/dev/null 2>&1 || return 1
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/red-evidence.sh" record "$id" --id DefeitoA --test-path tests/a.test.mjs --test-id case-a --command "node --test tests/a.test.mjs" --fix-files src/a.sh --failure-pattern PA >/dev/null 2>&1 || return 1
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/red-evidence.sh" record "$id" --id DefeitoB --test-path tests/b.test.mjs --test-id case-b --command "node --test tests/b.test.mjs" --fix-files src/b.sh --failure-pattern PB >/dev/null 2>&1 || return 1
+  local n
+  n="$(grep -c DefeitoA "$root/.forge/specs/active/$id/evidence/red/red-evidence.json" 2>/dev/null || true)"
+  [ "${n:-0}" -ge 1 ]
+}
+
+scenario_chimera_refused() { # scenario_chimera_refused <root> <suffix>
+  local root="$1" suffix="$2"
+  local id="bug-chi$suffix" rc
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/spec-new.sh" "$id" --type bugfix --scale 1 >/dev/null 2>&1 || return 1
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/red-evidence.sh" record "$id" --id DefeitoA --test-path tests/a.test.mjs --test-id case-a --command "node --test tests/a.test.mjs" --fix-files src/a.sh --failure-pattern PA >/dev/null 2>&1 || return 1
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/red-evidence.sh" record "$id" --id DefeitoB --test-path tests/b.test.mjs --test-id case-b --command "node --test tests/b.test.mjs" --fix-files src/b.sh --failure-pattern PB >/dev/null 2>&1 || return 1
+  set +e
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/red-evidence.sh" record "$id" --failure-pattern PC >/dev/null 2>&1
+  rc=$?
+  set -e
+  [ "$rc" -ne 0 ]
+}
+
+scenario_replay_preserved() { # scenario_replay_preserved <root> <suffix>
+  local root="$1" suffix="$2"
+  local id="bug-rep$suffix" out rc
+  mkdir -p "$root/src$suffix" "$root/tests$suffix"
+  cat > "$root/src$suffix/sum.mjs" <<JS
+export function sum(a, b) { return a - b; }
+JS
+  git -C "$root" add "src$suffix/sum.mjs"
+  git -C "$root" commit -qm "feat: sum$suffix (com bug)" >/dev/null
+  cat > "$root/tests$suffix/sum.test.mjs" <<JS
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { sum } from '../src$suffix/sum.mjs';
+test('case$suffix', () => { assert.strictEqual(sum(2, 3), 5); });
+JS
+  git -C "$root" add "tests$suffix/sum.test.mjs"
+  git -C "$root" commit -qm "test: regressão $id" >/dev/null
+  cat > "$root/src$suffix/sum.mjs" <<JS
+export function sum(a, b) { return a + b; }
+JS
+  git -C "$root" add "src$suffix/sum.mjs"
+  git -C "$root" commit -qm "fix: $id" >/dev/null
+
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/spec-new.sh" "$id" --type bugfix --scale 1 >/dev/null 2>&1 || return 1
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/red-evidence.sh" record "$id" --test-path "tests$suffix/sum.test.mjs" --test-id "case$suffix" --command "node --test tests$suffix/sum.test.mjs" --fix-files "src$suffix/sum.mjs" --failure-pattern AssertionError >/dev/null 2>&1 || return 1
+  set +e
+  out="$(FORGE_ROOT="$root" bash "$root/.forge/scripts/red-evidence.sh" replay "$id" 2>&1)"; rc=$?
+  set -e
+  [ "$rc" -eq 0 ] || return 1
+  grep -qi observado <<<"$out" || return 1
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/red-evidence.sh" record "$id" --id "DefeitoB$suffix" --test-path "tests/b$suffix.test.mjs" --test-id "case-b$suffix" --command "node --test tests/b$suffix.test.mjs" --fix-files "src/b$suffix.sh" --failure-pattern "PB$suffix" >/dev/null 2>&1 || return 1
+  node -e "
+const d = JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'));
+if (d.entries.length !== 2) process.exit(1);
+const first = d.entries[0];
+if (first.status !== 'observed' || !first.base_commit || first.classification !== 'behavioral') process.exit(1);
+process.exit(0);
+" "$root/.forge/specs/active/$id/evidence/red/red-evidence.json"
+}
+
+run_mutation() { # run_mutation <label> <perl-script> <scenario-fn>
+  local label="$1" perl_expr="$2" scenario_fn="$3"
+  local MT; MT="$(mktemp -d /tmp/forge-w218-mut.XXXXXX)"
+  mk_root "$MT"
+  local OPSM="$MT/.forge/scripts/lib/red-evidence-ops.mjs"
+  cp "$OPSM" "$MT/ops-pristine.mjs"
+  perl -0pi -e "$perl_expr" "$OPSM"
+  if cmp -s "$OPSM" "$MT/ops-pristine.mjs"; then
+    rm -rf "$MT"
+    echo "FAIL [$label]: mutação não alterou o arquivo (perl não casou o padrão)"; exit 1
+  fi
+
+  if "$scenario_fn" "$MT" "-a"; then
+    rm -rf "$MT"
+    echo "FAIL [$label-mut]: cenário deveria falhar com a mutação, mas passou"; exit 1
+  fi
+  echo "OK [$label-mut] — mutação faz o cenário falhar como esperado"
+
+  cp "$MT/ops-pristine.mjs" "$OPSM"
+  cmp -s "$OPSM" "$MT/ops-pristine.mjs" || { rm -rf "$MT"; echo "FAIL [$label]: restauração (sandbox) não bateu byte a byte"; exit 1; }
+
+  if ! "$scenario_fn" "$MT" "-b"; then
+    rm -rf "$MT"
+    echo "FAIL [$label-recontrole]: com a lib restaurada, o cenário deveria voltar a passar"; exit 1
+  fi
+  echo "OK [$label-recontrole]"
+  rm -rf "$MT"
+}
+
+echo "[17] MUTAÇÃO (sandbox) — trocar entries[] pela atribuição no topo faz [1] falhar"
+run_mutation "17" 's/doc\.entries = entries;/doc.entries = [entries[entries.length - 1]];/' scenario_multi_preserved
+
+echo "[18] MUTAÇÃO (sandbox) — remover a recusa sem --id faz [2] (quimera) sair rc 0"
+run_mutation "18" 's/throw new Error\(`--id é obrigatório[^`]*`\);/idx = entries.length - 1;/s' scenario_chimera_refused
+
+echo "[19] MUTAÇÃO (sandbox) — voltar a escrita do replay para só o topo faz [13] falhar"
+run_mutation "19" 's/const upsert = upsertSingleEntry\(data, data\.change_id, \(entry\) => \(\{ \.\.\.entry, \.\.\.patch \}\)\);\n  if \(upsert\.refused\) return \{ refused: true, count: upsert\.count \};\n  const updated = upsert\.legacy \? \{ \.\.\.data, \.\.\.patch \} : upsert\.data;/const updated = { ...data, ...patch };/s' scenario_replay_preserved
 
 echo "OK"

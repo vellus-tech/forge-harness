@@ -119,7 +119,8 @@
       "properties": {
         "id": {
           "type": ["string", "null"],
-          "description": "Identificador estável do defeito dentro do change (`record --id`). null para uma entrada migrada de um red-evidence.json legado, que nunca teve id."
+          "minLength": 1,
+          "description": "Identificador estável do defeito dentro do change (`record --id`). null para uma entrada migrada de um red-evidence.json legado, que nunca teve id. String vazia é inválida (correção da #139) — o validador em lib/red-evidence.mjs espelha esta regra e também rejeita ids duplicados dentro de `entries`."
         },
         "status": { "$ref": "#/properties/status" },
         "test_path": { "$ref": "#/properties/test_path" },

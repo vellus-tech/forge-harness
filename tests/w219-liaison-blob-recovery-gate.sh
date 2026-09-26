@@ -24,6 +24,8 @@
 #       dois não instalam, nunca dizem "recuperado", e emitem WARN distinto nomeando a mensagem
 #   [6] achado da revisão (severidade MEDIUM, "o que resolveria" do corpo da issue): o `status`
 #       conta e nomeia `body_ref` sem blob local, por canal e agregado
+#   [7] achado da revisão (severidade LOW): `import` (fonte é o bundle apontado por `--from`) fala
+#       "do bundle", nunca "do hub" — `import` nunca consultou o hub configurado
 set -uo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -279,5 +281,29 @@ out6b="$(LG qq status 2>&1)"; rc6b=$?
 grep -q "body_ref sem blob local" <<<"$out6b" \
   || { echo "FAIL [6]: o status agregado não conta 'body_ref sem blob local': $out6b"; exit 1; }
 echo "OK [6]"
+
+echo "[7] achado da revisão (severidade LOW): 'import' manual (fonte = bundle apontado pelo operador) fala 'bundle', não 'hub' — o import nunca consultou o hub"
+printf 'corpo import-test\n' > "$T/corpo-import.md"
+LG pp send ch --thread t1 --kind note --subject "import test" --body-file "$T/corpo-import.md" >/dev/null \
+  || { echo "FAIL [7]: send"; exit 1; }
+LG pp sync ch >/dev/null || { echo "FAIL [7]: sync pp"; exit 1; }
+LG qq sync ch >/dev/null || { echo "FAIL [7]: sync qq (conhecer a mensagem via hub, não via import)"; exit 1; }
+read -r MSG7 BLOB7 <<< "$(last_pp_msg_and_blob)"
+[ -n "$BLOB7" ] || { echo "FAIL [7]: não foi possível nomear o blob da mensagem recém-enviada"; exit 1; }
+[ -f "$QQ_BLOBS/$BLOB7" ] || { echo "FAIL [7]: pré-condição — qq deveria ter $BLOB7 depois do sync"; exit 1; }
+rm -f "$QQ_BLOBS/$BLOB7"
+# import aponta DIRETO para o diretório do canal no hub (log/ + blobs/), como qualquer bundle que
+# um operador poderia montar — o import nunca soube que aquele diretório é "o hub configurado".
+out7="$(LG qq import ch --from "$HUB/ch" 2>&1)"; rc7=$?
+[ "$rc7" -eq 0 ] || { echo "FAIL [7]: import reprovou (rc $rc7): $out7"; exit 1; }
+[ -f "$QQ_BLOBS/$BLOB7" ] || { echo "FAIL [7]: import não recuperou $BLOB7: $out7"; exit 1; }
+grep -qi "recuperad" <<<"$out7" \
+  || { echo "FAIL [7]: import recuperou o blob mas não imprimiu a linha de recuperação: $out7"; exit 1; }
+grep -qi "do bundle" <<<"$out7" \
+  || { echo "FAIL [7]: import fala 'do hub' (ou não nomeia a fonte) em vez de 'do bundle' — o import nunca consultou o hub configurado: $out7"; exit 1; }
+if grep -qi "do hub" <<<"$out7"; then
+  echo "FAIL [7]: import ainda imprime 'do hub', alegando uma checagem contra o hub que o import não faz: $out7"; exit 1
+fi
+echo "OK [7]"
 
 echo "PASS w219-liaison-blob-recovery"

@@ -1,11 +1,11 @@
 {
   "schema": "graph/v0",
-  "generated_at": "2026-09-04T19:53:54.648Z",
+  "generated_at": "2026-09-26T18:03:35.912Z",
   "engine": "native",
-  "root": "/Users/milton/Documents/projects/forge-harness/.forge/worktrees/graph-blindspots",
+  "root": "/Users/milton/Documents/projects/forge-harness/.forge/worktrees/data-engineer",
   "stats": {
-    "nodes": 256,
-    "edges": 51,
+    "nodes": 331,
+    "edges": 62,
     "languages": [
       "csharp",
       "go",
@@ -15,38 +15,86 @@
       "shell",
       "ts"
     ],
-    "summaries_stale": 256,
+    "summaries_stale": 331,
     "census": {
       "csharp": 3,
       "go": 9,
-      "js": 63,
+      "js": 74,
       "kotlin": 1,
       "python": 1,
-      "shell": 176,
+      "shell": 240,
       "ts": 3
     },
     "layer_coverage": {
-      "classified": 115,
-      "unclassified": 141,
+      "classified": 166,
+      "unclassified": 165,
       "out_of_taxonomy": 0,
-      "denominator": 256,
-      "ratio": 0.4492
+      "denominator": 331,
+      "ratio": 0.5015
     }
   },
   "nodes": [
     {
       "id": "bin/forge.mjs",
       "lang": "js",
-      "loc": 860,
-      "fingerprint": "1957ea304e4732296710909b3e298edf1ea52b2d01c52397c8f3dd5986af95be",
+      "loc": 1277,
+      "fingerprint": "474b3e0ef259adb46c8f4f68f16ad8a7792a368017ebb24cd0cf129af0b4357f",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "docs/plans/spikes/restaura-seis-perdas-do-detail.sh",
+      "lang": "shell",
+      "loc": 148,
+      "fingerprint": "3f35cfe177a7563015cf42cecd49b42d8184865868bce5ff9cdf76fe263be0c0",
       "layer": "unknown",
       "summary": null
     },
     {
       "id": "installer/install.sh",
       "lang": "shell",
-      "loc": 186,
-      "fingerprint": "8d861f39051c15789625a0081e6e4175a343c2824e77dbfa79f2fc1c4f71ea1b",
+      "loc": 197,
+      "fingerprint": "a4c5676903ebdb18b4bc0b09140daa46550e6370ba72da62f29e7cdece51f90e",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/capabilities/backend-node-postgres/assets/eslint-rules/core-rules.cjs",
+      "lang": "js",
+      "loc": 234,
+      "fingerprint": "108c9c6c8391a9869281f4ed512a99da1d0bce27a52aabfc83eb49ceaaace092",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/capabilities/backend-node-postgres/assets/eslint-rules/index.cjs",
+      "lang": "js",
+      "loc": 24,
+      "fingerprint": "ff815a2fbaed8c1ddc0a1c6449a457269733f9420e957778f048a1e934abe0e1",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/capabilities/backend-node-postgres/assets/eslint-rules/utils.cjs",
+      "lang": "js",
+      "loc": 129,
+      "fingerprint": "1aa8efa0c9e689a3a9ef0c9d7fe2b7faed1bfa97734b39fbdd2dfeba93bbbe75",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/capabilities/backend-node-postgres/assets/eslint-rules/verify.mjs",
+      "lang": "js",
+      "loc": 272,
+      "fingerprint": "0cb7874280f2047297234c109d0b3b58a195b3d1041c9e0778fe4f92554aa30a",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/capabilities/backend-node-postgres/assets/eslint.config.mjs",
+      "lang": "js",
+      "loc": 89,
+      "fingerprint": "423e21e52724d19283a568635ee9d29181b92cf350f9db74d865ef4f816f5185",
       "layer": "unknown",
       "summary": null
     },
@@ -61,8 +109,8 @@
     {
       "id": "template/.forge/hooks/git/lib/check-red-first.sh",
       "lang": "shell",
-      "loc": 173,
-      "fingerprint": "6fb009ca7858825c4b3a139ec979d4eb8074928d61f7a8ebe0136bb461df4e3b",
+      "loc": 227,
+      "fingerprint": "e8f637a18df31c4b0066cdd35d67c580a48e505cee5bb7c8ff60a6d1b3519381",
       "layer": "unknown",
       "summary": null
     },
@@ -91,10 +139,18 @@
       "summary": null
     },
     {
+      "id": "template/.forge/hooks/pre-tool-use/lib/argv-bridge.sh",
+      "lang": "shell",
+      "loc": 83,
+      "fingerprint": "53771a2418a88b82e78758da4394ab0a29546eecf8a394688f558ec596510248",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
       "id": "template/.forge/hooks/pre-tool-use/prevent-secrets-leak.sh",
       "lang": "shell",
-      "loc": 94,
-      "fingerprint": "0fca098360bb6d3cf76fd9629a0499b9bb36ab7d64e96c5bc6c3cfe9989d4f82",
+      "loc": 213,
+      "fingerprint": "9d0f15f0158c357101cb2a5a9fdbd3f860fc77ff538d19a36ce4d2b6adb785ee",
       "layer": "unknown",
       "summary": null
     },
@@ -205,16 +261,32 @@
     {
       "id": "template/.forge/scripts/check-heavy-mutex.sh",
       "lang": "shell",
-      "loc": 119,
-      "fingerprint": "7251e082252a1fcc7eb81583d4ac0c92cc1832caa2c589a77813448e466f1d54",
+      "loc": 151,
+      "fingerprint": "383abfe40fa2de09f5493812156fb8ce31f2c42cae8ddfb715a0b95f778168e9",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/check-heredoc-hash.sh",
+      "lang": "shell",
+      "loc": 93,
+      "fingerprint": "a4cb027624e4182936c5079c1f3ffc48223945b5e4d842fcceb263cd088576f5",
       "layer": "unknown",
       "summary": null
     },
     {
       "id": "template/.forge/scripts/check-liaison-acks.sh",
       "lang": "shell",
-      "loc": 217,
-      "fingerprint": "06dab3282537e744878d6fd3be65901566421d844a953d913de7d9c595791ea0",
+      "loc": 295,
+      "fingerprint": "083fc06b0b710af95c04fa1bda32279bd12819d43a103513b1b8eda31bfc5ffb",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/check-liaison-log-integrity.sh",
+      "lang": "shell",
+      "loc": 132,
+      "fingerprint": "a0d01a61408bac7aed1d438f1a84dcb8a758b6aedd4572dc181e0e292cb75f25",
       "layer": "unknown",
       "summary": null
     },
@@ -229,8 +301,8 @@
     {
       "id": "template/.forge/scripts/check-push-ahead.sh",
       "lang": "shell",
-      "loc": 317,
-      "fingerprint": "6243bd8782fe90c40350675a1387b91536d5153def167cd9e65162102fcb022a",
+      "loc": 359,
+      "fingerprint": "d4185a6dd554d9975a094e14874cf7eca9930caf22afd199e74cfa0958931d44",
       "layer": "unknown",
       "summary": null
     },
@@ -253,8 +325,8 @@
     {
       "id": "template/.forge/scripts/check-shell-pipeline.sh",
       "lang": "shell",
-      "loc": 89,
-      "fingerprint": "28081c2949e8d3c854f30ee495c3abc38aec82eababd6c5f5fa1aa2d8165dd2e",
+      "loc": 106,
+      "fingerprint": "83af2e5af099a000f2b996470fcc222de7d085d43a7f12ef5fecd7bbb13427bb",
       "layer": "unknown",
       "summary": null
     },
@@ -267,10 +339,18 @@
       "summary": null
     },
     {
+      "id": "template/.forge/scripts/check-worktree-prereqs.sh",
+      "lang": "shell",
+      "loc": 14,
+      "fingerprint": "76158896674bff26d584478ebba2cb61d7ac45d48e426f6c93a5be54e16076ee",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
       "id": "template/.forge/scripts/deferral-ops.sh",
       "lang": "shell",
-      "loc": 141,
-      "fingerprint": "14b22fa4384d9dfa0edf2f77e26fe096a303182b34d98bc9f69a7f3c92d64f0e",
+      "loc": 156,
+      "fingerprint": "79f05ca02b699ae94e67e531d2cf0236213bd570da40f7cffb376cf90352892d",
       "layer": "unknown",
       "summary": null
     },
@@ -285,8 +365,8 @@
     {
       "id": "template/.forge/scripts/doctor.sh",
       "lang": "shell",
-      "loc": 591,
-      "fingerprint": "5aaf63b97b795531b6e0cfd187bf7ed23a49af710380b6307c846dee1e65de71",
+      "loc": 905,
+      "fingerprint": "8f96c75bd838b58dbea74c9ada4240e1ca8c1daa86932858107273f1af44821b",
       "layer": "unknown",
       "summary": null
     },
@@ -323,6 +403,14 @@
       "summary": null
     },
     {
+      "id": "template/.forge/scripts/gate-ordinal.sh",
+      "lang": "shell",
+      "loc": 149,
+      "fingerprint": "915826df611ee2fc6728fa4fa61e00789e9c2cdeff95e10dd932c78611747074",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
       "id": "template/.forge/scripts/graph.sh",
       "lang": "shell",
       "loc": 61,
@@ -349,8 +437,8 @@
     {
       "id": "template/.forge/scripts/impact.sh",
       "lang": "shell",
-      "loc": 26,
-      "fingerprint": "98bd74f738b04c4f190964abd72771ca01fb93098f1a61a8f61bb52f8e3ded38",
+      "loc": 33,
+      "fingerprint": "59882f1d00da70aae0db5df10a4f8b63599b13cdbfedbf17f44508c224bf5d48",
       "layer": "unknown",
       "summary": null
     },
@@ -365,24 +453,24 @@
     {
       "id": "template/.forge/scripts/ingest-legacy.sh",
       "lang": "shell",
-      "loc": 33,
-      "fingerprint": "54073abd73ffe1ffccacbbfbc2c62c22105b3fea4d438dec88ab0c1ad91f9ca7",
+      "loc": 35,
+      "fingerprint": "bbfbcb648c4ad66e5d31592c30c7e603a85a0b97ca5957ddb153bea0b0da62a2",
       "layer": "unknown",
       "summary": null
     },
     {
       "id": "template/.forge/scripts/ledger-ops.sh",
       "lang": "shell",
-      "loc": 335,
-      "fingerprint": "9423b699f94070e349fca8f82d691179c86b24b5cdea7395d0192204b6bc9f69",
+      "loc": 603,
+      "fingerprint": "b71b53c13a7918e159e1b6e5305ed0a4c289088ac05ba3c7fdbba60dda1a3f2b",
       "layer": "unknown",
       "summary": null
     },
     {
       "id": "template/.forge/scripts/liaison-ops.sh",
       "lang": "shell",
-      "loc": 1214,
-      "fingerprint": "feb9995ada585908fc60c1335fc21236f4b5351783ffd3f1460c7526c721a7c1",
+      "loc": 1354,
+      "fingerprint": "9b6311702b77adb9c94061fdb787cc0f03226772fd7624868c7aa8e8fe609ecb",
       "layer": "unknown",
       "summary": null
     },
@@ -399,6 +487,22 @@
       "lang": "js",
       "loc": 540,
       "fingerprint": "04ebfcdc8f8a4d1484cb5f1c8cdac93dd523c0089912a8543988eee50af3498f",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/arg-guards.sh",
+      "lang": "shell",
+      "loc": 108,
+      "fingerprint": "a96ec5ea5b0d5cd8975d0a5e538a4a1445eb254069d3abe7d33af386d413d33b",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/arvore-rastreada.sh",
+      "lang": "shell",
+      "loc": 173,
+      "fingerprint": "55a5c229e680bc78af1fccf9e8ae1c0d4f6ab1e6df2330da5ec50f144f3d5826",
       "layer": "unknown",
       "summary": null
     },
@@ -469,8 +573,16 @@
     {
       "id": "template/.forge/scripts/lib/check-red-first.mjs",
       "lang": "js",
-      "loc": 646,
-      "fingerprint": "d230445dc4b536aac0c9b38a52ae0df82ff99fbd404ccfc3d76d6d009e6c631e",
+      "loc": 738,
+      "fingerprint": "4d19adb227252c1ffe07cc0e9050964541b8ec4444505d13f7cf1ee51c78e0eb",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/check-worktree-prereqs.mjs",
+      "lang": "js",
+      "loc": 170,
+      "fingerprint": "13aad3ec350b92a01ab1676b9ca983f7c9de517b6a619372f292a34a9421255d",
       "layer": "unknown",
       "summary": null
     },
@@ -491,10 +603,18 @@
       "summary": null
     },
     {
+      "id": "template/.forge/scripts/lib/forge-root.sh",
+      "lang": "shell",
+      "loc": 102,
+      "fingerprint": "359e66d703ba85fa28bbee934c1caf3be71b42b6bd6797698ce88b32757ef73b",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
       "id": "template/.forge/scripts/lib/forge-runtime.sh",
       "lang": "shell",
-      "loc": 51,
-      "fingerprint": "7564d98932ce87dd11b865c357ac92dbe9d1f70d156481e5d5c0f6f90c025909",
+      "loc": 97,
+      "fingerprint": "ff887d9d132c04f8a1cb7ba21d97f1e4f784bcb7f8e2fe87fa40e14dc7cf586d",
       "layer": "unknown",
       "summary": null
     },
@@ -503,6 +623,14 @@
       "lang": "js",
       "loc": 68,
       "fingerprint": "38b18e8bca8b6347204d40f27af170b127f0df532b02e25d8e0eaa1b267f2b2b",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/gate-phase.mjs",
+      "lang": "js",
+      "loc": 87,
+      "fingerprint": "a6acec0cd357856561885cc3d54fc2111ee7108bb6f141341bd64dc7509f8cdc",
       "layer": "unknown",
       "summary": null
     },
@@ -565,8 +693,8 @@
     {
       "id": "template/.forge/scripts/lib/handoff-render.mjs",
       "lang": "js",
-      "loc": 71,
-      "fingerprint": "04a1680dffe42560ee44ad8faae05817c05143c5cee0f4937096e625c98108a5",
+      "loc": 305,
+      "fingerprint": "78d2e30c284b5dd36065f7657f8e0e44b2dc5545d5c3dbc9324e087b714e0c20",
       "layer": "unknown",
       "summary": null
     },
@@ -575,6 +703,22 @@
       "lang": "shell",
       "loc": 933,
       "fingerprint": "9a5eb2e6bd6f9da283c5e2fbd48eafa11fbb01ae7968bc887449fa15a44deda1",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/heredoc-hash-lint.mjs",
+      "lang": "js",
+      "loc": 134,
+      "fingerprint": "dda67e90da4bd28114974046abc385f2d9ab26449d527e285989944a136d9e06",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/hooks-manifest.mjs",
+      "lang": "js",
+      "loc": 303,
+      "fingerprint": "ab1f8bf3d4dabd512ba3f9cf269e173b6cfeefc80b767282ae5d265c8700521e",
       "layer": "unknown",
       "summary": null
     },
@@ -605,24 +749,32 @@
     {
       "id": "template/.forge/scripts/lib/ledger-render.mjs",
       "lang": "js",
-      "loc": 129,
-      "fingerprint": "8887103709a541bd0e80d8ec80f3d54d948723d16b16afbb383e8d97927aa11f",
+      "loc": 158,
+      "fingerprint": "1329e8af80bf5b87af8e3ac62225a0e0dd081e9a7fb64dc45931bbf33592fbfc",
       "layer": "unknown",
       "summary": null
     },
     {
       "id": "template/.forge/scripts/lib/liaison-config.mjs",
       "lang": "js",
-      "loc": 96,
-      "fingerprint": "41a1cfec6081d91bc81770d349dcb987348a5aec9bc836666c45995aa43e65f9",
+      "loc": 100,
+      "fingerprint": "0baa906b06f328f7893220e30581427af5a26b7c8047aaf3435a45235c931db3",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/liaison-cursor.mjs",
+      "lang": "js",
+      "loc": 58,
+      "fingerprint": "04934bd766716ce5284ef28a7d9cd88e814cb71127329b44a8182f1459f07d1a",
       "layer": "unknown",
       "summary": null
     },
     {
       "id": "template/.forge/scripts/lib/liaison-import.mjs",
       "lang": "js",
-      "loc": 354,
-      "fingerprint": "ae40de054b46720b1d9aa748f058bd88d6ad92634ee0a1cbfab36ad9e5ce6e4b",
+      "loc": 478,
+      "fingerprint": "3afa99289f05d036a3284de31e0cff73e7980935b2baf46a5b9dd9356c1ea10f",
       "layer": "unknown",
       "summary": null
     },
@@ -631,6 +783,14 @@
       "lang": "js",
       "loc": 294,
       "fingerprint": "8009c1eb83d95e49738a7b11a9a6ea6786b0985ec81ca6123781233e601b93c7",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/liaison-push-union.mjs",
+      "lang": "js",
+      "loc": 94,
+      "fingerprint": "9713395b8757aba27a4f43ce200ffe0e7cad42744b6cb5138d49b56af560f37b",
       "layer": "unknown",
       "summary": null
     },
@@ -709,16 +869,16 @@
     {
       "id": "template/.forge/scripts/lib/red-evidence-ops.mjs",
       "lang": "js",
-      "loc": 250,
-      "fingerprint": "bbc5343ca28986f2faa0db037cce7959b620ee2451698baea1211f29341b860d",
+      "loc": 526,
+      "fingerprint": "648ed0a8dd41330c698cc0f9df93bb2e8c04dc0e4a16594bd381ee505541e0d3",
       "layer": "unknown",
       "summary": null
     },
     {
       "id": "template/.forge/scripts/lib/red-evidence.mjs",
       "lang": "js",
-      "loc": 90,
-      "fingerprint": "3b4fd0b136c674b0d268d99b6a91ca6bb395e055b61bbf1ca868ce90aa37a095",
+      "loc": 384,
+      "fingerprint": "1c27882f88743d69aef00d7decd2df001e181fdc5801ccdeedb3f64bf4e06b6f",
       "layer": "unknown",
       "summary": null
     },
@@ -733,16 +893,16 @@
     {
       "id": "template/.forge/scripts/lib/red-replay.mjs",
       "lang": "js",
-      "loc": 651,
-      "fingerprint": "8e34bd4178e201e91850ebeaa11ebf91dc91573f0e639d4cf0876a7a4ef87695",
+      "loc": 696,
+      "fingerprint": "233ca2f693ae0f079c8998d069f3be08a5a19bec6758b933bf15b66d4b8d4138",
       "layer": "unknown",
       "summary": null
     },
     {
       "id": "template/.forge/scripts/lib/route-scan.mjs",
       "lang": "js",
-      "loc": 1253,
-      "fingerprint": "c37f250dbb29d97f15eb16ecb6ffc73513187ee1a1ae1a88c7521b8cfa2b1f95",
+      "loc": 1272,
+      "fingerprint": "24dc73fcf8039d2c82037d8248f3650e82a59c6f64c197d61dcec391c80f8110",
       "layer": "unknown",
       "summary": null
     },
@@ -774,15 +934,15 @@
       "id": "template/.forge/scripts/lib/secret-scan.mjs",
       "lang": "js",
       "loc": 253,
-      "fingerprint": "cf8a9befe5b8f6d33ddc8fda0f77372afc67170d1d95732994b2f0919af55dd2",
+      "fingerprint": "dd44f6589a7e1123608768c20a67bc74eed76730ef028bd69f1c14d987c1be92",
       "layer": "unknown",
       "summary": null
     },
     {
       "id": "template/.forge/scripts/lib/shell-pipeline-lint.mjs",
       "lang": "js",
-      "loc": 92,
-      "fingerprint": "0e414232c72d2b7cd2bef55cca2b288f01c7885eff7408fb34dbd5e5e3e49ece",
+      "loc": 229,
+      "fingerprint": "751a3962be0dcc1cc7143e51716547e4a594e139b4cd580397700d14d4b1fe74",
       "layer": "unknown",
       "summary": null
     },
@@ -813,7 +973,7 @@
     {
       "id": "template/.forge/scripts/lib/story-shard.mjs",
       "lang": "js",
-      "loc": 126,
+      "loc": 127,
       "fingerprint": "7fa53c1b596f0b4c7047ddd2543e25cb1faefd32b39a30d4b891c240c16f05bf",
       "layer": "unknown",
       "summary": null
@@ -821,8 +981,8 @@
     {
       "id": "template/.forge/scripts/lib/sync-adapters.mjs",
       "lang": "js",
-      "loc": 374,
-      "fingerprint": "69610148a4a221fc85c5ccce4abffc8d83e7c6d18e50b97e0311c58ac61fac8e",
+      "loc": 1122,
+      "fingerprint": "35346634cd5970836d18d1e11ffe26660b1dce6ca7bab2f95e37208bb3bc71f0",
       "layer": "unknown",
       "summary": null
     },
@@ -837,8 +997,16 @@
     {
       "id": "template/.forge/scripts/lib/transports/_common.sh",
       "lang": "shell",
-      "loc": 52,
-      "fingerprint": "743c547039659eeefa3b6163d28152adddba4d4e485f2441d871102c9f9b2bbf",
+      "loc": 245,
+      "fingerprint": "983ced1a7918e21c70e25c7a16fefa795441d386057e2a370e17219ea951fa3c",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/transports/fs-union.sh",
+      "lang": "shell",
+      "loc": 99,
+      "fingerprint": "f776234df585d2ffe366c4813d5c45ac1fe91833bd027f7f1022885c5ee4bd5b",
       "layer": "unknown",
       "summary": null
     },
@@ -885,8 +1053,8 @@
     {
       "id": "template/.forge/scripts/lib/validate-archive.mjs",
       "lang": "js",
-      "loc": 118,
-      "fingerprint": "03cc2fccf43c71795135fea4db3a05f9933329ef9e19ecaf888afc051ca0c3ef",
+      "loc": 195,
+      "fingerprint": "fb142ca224875cd7f8e69e3da3da45490187f032bc40ae9a61fb6d9ec06f7eb1",
       "layer": "unknown",
       "summary": null
     },
@@ -901,24 +1069,32 @@
     {
       "id": "template/.forge/scripts/lib/validate-rules.mjs",
       "lang": "js",
-      "loc": 69,
-      "fingerprint": "486e96c8336f355eafef2436b0da2c7903364d235b9d0fda9db39952326cdeef",
+      "loc": 143,
+      "fingerprint": "836042f2a69ff50402de16a31048ba842e76f7121384fa646957db7ded94d546",
       "layer": "unknown",
       "summary": null
     },
     {
       "id": "template/.forge/scripts/lib/validate-spec.mjs",
       "lang": "js",
-      "loc": 405,
-      "fingerprint": "68c71a36a0751f04233382f46f61c7ff2a2306d0e3e0a14f23ee52398788fde5",
+      "loc": 418,
+      "fingerprint": "d94e645d378f83d923f2dcb33d9b61efa9e4a821f309847ab3de115a32eafd94",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/worktree-classify.sh",
+      "lang": "shell",
+      "loc": 147,
+      "fingerprint": "e4737f560e713b71852d0507ec2cb9b5b13f0a61193edbe514801b67c8cc4d1d",
       "layer": "unknown",
       "summary": null
     },
     {
       "id": "template/.forge/scripts/lib/yaml-lite.mjs",
       "lang": "js",
-      "loc": 96,
-      "fingerprint": "3f55484b3ff00e4251e6fdef4ffa35264230f680239ebfba18b3f469035133bc",
+      "loc": 154,
+      "fingerprint": "dcd2f5f697a23e3f5f7ad9c6751db48f8937cf7273263da52d0f18d61d052552",
       "layer": "unknown",
       "summary": null
     },
@@ -947,10 +1123,18 @@
       "summary": null
     },
     {
+      "id": "template/.forge/scripts/node-baseline.sh",
+      "lang": "shell",
+      "loc": 177,
+      "fingerprint": "81f59a27bcb3dcb5a13e9df91f1e06ad66672e98c83b02814029832fbe945938",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
       "id": "template/.forge/scripts/pentest-ops.sh",
       "lang": "shell",
-      "loc": 315,
-      "fingerprint": "18933192263883b88f3ef54e00e349730520b955fd6b36cd1b510c93f927a35b",
+      "loc": 1182,
+      "fingerprint": "2898ead4bfe880a31bf07a574feaf85a18d460d96d28151790b26135ee966c0b",
       "layer": "unknown",
       "summary": null
     },
@@ -973,8 +1157,8 @@
     {
       "id": "template/.forge/scripts/run-gates.sh",
       "lang": "shell",
-      "loc": 71,
-      "fingerprint": "b2470065955a4e2c0d0e1ff09f3aec61bc381e0f05c515edd734b78121e2923e",
+      "loc": 111,
+      "fingerprint": "84125f06aceeff541735bceca3bca5b363b56b9bd12afbb7680af18468b0bd3d",
       "layer": "unknown",
       "summary": null
     },
@@ -1013,7 +1197,7 @@
     {
       "id": "template/.forge/scripts/spec-new.sh",
       "lang": "shell",
-      "loc": 146,
+      "loc": 152,
       "fingerprint": "10a28fd123376b568c73d84693fb3620f1e3545d6074941e2f721396b71da1e7",
       "layer": "unknown",
       "summary": null
@@ -1021,16 +1205,16 @@
     {
       "id": "template/.forge/scripts/spec-transition.sh",
       "lang": "shell",
-      "loc": 118,
-      "fingerprint": "1e352115cedc0fd970955eda2557fe40ed2445193260f13acbfd72fe0b864394",
+      "loc": 149,
+      "fingerprint": "e00a8f1e083dbee68029f83a1df7c8906ac1f08131614cc0e994dfa70baf0122",
       "layer": "unknown",
       "summary": null
     },
     {
       "id": "template/.forge/scripts/spec-verify.sh",
       "lang": "shell",
-      "loc": 196,
-      "fingerprint": "ab81bba1298c4e6f22eeaf8c88be71325dcb13abd9ca9fb92086ebf9d9f3b72c",
+      "loc": 200,
+      "fingerprint": "1fac9c6d859664386daa26795020e08e9dd95d63bf4efea3271e198dc1b8a902",
       "layer": "unknown",
       "summary": null
     },
@@ -1045,8 +1229,8 @@
     {
       "id": "template/.forge/scripts/tests/run-all.sh",
       "lang": "shell",
-      "loc": 71,
-      "fingerprint": "f85d62e609e0cc8d36204514b85540d8d768d555d1e3a67fccb47f3d0e4a22d3",
+      "loc": 127,
+      "fingerprint": "2c414074d4d5591c2acf65fa9cfaf58193960968b382461c85f20f33fd5d05bc",
       "layer": "test",
       "summary": null
     },
@@ -1109,16 +1293,16 @@
     {
       "id": "template/.forge/scripts/worktree-reconcile.sh",
       "lang": "shell",
-      "loc": 77,
-      "fingerprint": "67a0de4295b2501e2e64cbadc507d0203370603aeb97626d4f5b324525384576",
+      "loc": 340,
+      "fingerprint": "1d90a399c72edc1464856f59e09ebf5e21c502ad563934dbe8336cc579e4948e",
       "layer": "unknown",
       "summary": null
     },
     {
       "id": "template/.forge/skills/dotnet-quality-scan/scripts/scan.sh",
       "lang": "shell",
-      "loc": 158,
-      "fingerprint": "1c9cd6a660f5350e47c1b1fee68da78543a869031f19c790e118b4cee99131b5",
+      "loc": 159,
+      "fingerprint": "6aafef723d632f200e069fb7260b0c6d6e3a5c20e8e9d830d15b3527562a047e",
       "layer": "unknown",
       "summary": null
     },
@@ -1127,6 +1311,14 @@
       "lang": "python",
       "loc": 53,
       "fingerprint": "fb61d92a9e3158ee5e69d1d04e3f6f3a26e699b5fac0856f3854c358816cafd5",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/skills/node-quality-scan/scripts/scan.sh",
+      "lang": "shell",
+      "loc": 170,
+      "fingerprint": "6debf64d5ee52166dd5d3fc8045e3d3cd882ff05fa3077718de789af52ae4737",
       "layer": "unknown",
       "summary": null
     },
@@ -1141,8 +1333,8 @@
     {
       "id": "tests/check-authz-gate.sh",
       "lang": "shell",
-      "loc": 164,
-      "fingerprint": "e7ece9ee4860d2012f1bf870e532a0385ec95858e1402c8dd2681665d2314441",
+      "loc": 168,
+      "fingerprint": "6eb377528519691f47ea7cd956710d21a805adbc8fd51df5114094f8814539df",
       "layer": "test",
       "summary": null
     },
@@ -1301,8 +1493,8 @@
     {
       "id": "tests/gate-assert-visibility-gate.sh",
       "lang": "shell",
-      "loc": 18,
-      "fingerprint": "6883bb00d045d5f9ddde2f552979d3e709ea015404fa177f41bcd2eaa531108e",
+      "loc": 60,
+      "fingerprint": "d50c02ff029aa7c34bb765a039fd26e84c2f0eb0b8740dc2f3fdf7bc57771a05",
       "layer": "test",
       "summary": null
     },
@@ -1349,7 +1541,7 @@
     {
       "id": "tests/gw1-conflict-gate.sh",
       "lang": "shell",
-      "loc": 107,
+      "loc": 108,
       "fingerprint": "70cd6f0fa9920e682713675a55b330af3fb5d4f42acdad80d99466943de719d9",
       "layer": "test",
       "summary": null
@@ -1365,8 +1557,8 @@
     {
       "id": "tests/gw3-data-governance-gate.sh",
       "lang": "shell",
-      "loc": 85,
-      "fingerprint": "537c49191242bcd9022e976ab31ac49d539d9d2b1f24767914169750ee4cddaf",
+      "loc": 89,
+      "fingerprint": "888558294a04b9dd5a726f3c40ad96afb8c4edbf50e6f09c5124dc25a0c9ce2e",
       "layer": "test",
       "summary": null
     },
@@ -1429,8 +1621,8 @@
     {
       "id": "tests/run-all.sh",
       "lang": "shell",
-      "loc": 113,
-      "fingerprint": "0be511177f5ce77b993538322a337a517677c73c72ff67db2d6c1a250e3b2a7f",
+      "loc": 273,
+      "fingerprint": "b80c3ee1cabaa415594ca77b953903768fcd487aad197043adbb0b0077c54bd7",
       "layer": "test",
       "summary": null
     },
@@ -1493,16 +1685,16 @@
     {
       "id": "tests/w106-red-first-gate.sh",
       "lang": "shell",
-      "loc": 988,
-      "fingerprint": "dfd285ba0fca9dc6e97b39898f995a184a3a97a38c1d55cfdd041753fe142be6",
+      "loc": 1004,
+      "fingerprint": "dd0a33c35827bd1bc49a52ebee55af3278feea8f6a679ac7d2c11cfc740738fb",
       "layer": "test",
       "summary": null
     },
     {
       "id": "tests/w107-red-replay-gate.sh",
       "lang": "shell",
-      "loc": 738,
-      "fingerprint": "ba1e28a6254b121f805e162b918df0f5d63f1ff67bc9a593096b8d000673a23d",
+      "loc": 745,
+      "fingerprint": "e3608bff6211c6911cee9d6e7b13a4f35e7fb817fd850630fe582384b28a495c",
       "layer": "test",
       "summary": null
     },
@@ -1533,8 +1725,8 @@
     {
       "id": "tests/w111-liaison-sync-gate.sh",
       "lang": "shell",
-      "loc": 282,
-      "fingerprint": "e21768ae90483a91add3c71cbab0194f035c2a5d6723cdc1b43994d4bd7a741b",
+      "loc": 288,
+      "fingerprint": "5b948a8031526a6d11357c0b0371ce30420b0fd84e2e515bb5cb4c1f29f92bf3",
       "layer": "test",
       "summary": null
     },
@@ -1549,8 +1741,8 @@
     {
       "id": "tests/w113-liaison-enforce-gate.sh",
       "lang": "shell",
-      "loc": 272,
-      "fingerprint": "fbcb360b415fe6c18e42800a046e2e1c05d342e1371d43d2733d99a3b66ba140",
+      "loc": 274,
+      "fingerprint": "210b766acf25e5656214fc564c30db75353d1ce6a4e5f971a3744433bbd22a70",
       "layer": "test",
       "summary": null
     },
@@ -1581,8 +1773,8 @@
     {
       "id": "tests/w13-init-gate.sh",
       "lang": "shell",
-      "loc": 98,
-      "fingerprint": "56a1a285e152cddb43e6754182abd41fc9f26c86eeee048e749b9ea3171fda9f",
+      "loc": 103,
+      "fingerprint": "b0ad090d255963e8d73f711a20b3017ab9502b7142c046c5bcca93f9a37b139b",
       "layer": "test",
       "summary": null
     },
@@ -1598,15 +1790,15 @@
       "id": "tests/w131-surface-declaration-gate.sh",
       "lang": "shell",
       "loc": 375,
-      "fingerprint": "20207fadd759e21a59995f8c25d12f8ea0c0a53cb59eeab5b3e389c5d5f0448d",
+      "fingerprint": "c560b9e791416c817578783687425af4336b66c972a2da85417a2d8cdad843b2",
       "layer": "test",
       "summary": null
     },
     {
       "id": "tests/w132-route-surface-gate.sh",
       "lang": "shell",
-      "loc": 1912,
-      "fingerprint": "ae8827a5839c67d36e7fc8d5b2d77550740bd9e37ffbd046223064a3e638ec65",
+      "loc": 1959,
+      "fingerprint": "2e425c2aac1c152e7567f87d60bb45a12c28253788874dc2377469ab0ff3d6cf",
       "layer": "test",
       "summary": null
     },
@@ -1621,8 +1813,8 @@
     {
       "id": "tests/w135-push-refs-export-gate.sh",
       "lang": "shell",
-      "loc": 151,
-      "fingerprint": "e2f876b20b6902dda8e332d2882107251360bfc849031517040924baf87073fe",
+      "loc": 171,
+      "fingerprint": "19de7024752a43ade9ab6ae6b8f5318fcd8e162ba85a6a45d7ca72e4e68e5d8f",
       "layer": "test",
       "summary": null
     },
@@ -1645,8 +1837,8 @@
     {
       "id": "tests/w138-story-shard-guard-gate.sh",
       "lang": "shell",
-      "loc": 477,
-      "fingerprint": "8637e7cc217f1efb86c5c18bbee43956e3927ca4aab4e8f7a3804592b94a18f3",
+      "loc": 474,
+      "fingerprint": "e8cffef613ce7070f61b0c7b7e2a0f006569b8a9205e1f0a393afa7185259b3b",
       "layer": "test",
       "summary": null
     },
@@ -1661,8 +1853,8 @@
     {
       "id": "tests/w14-adapters-gate.sh",
       "lang": "shell",
-      "loc": 87,
-      "fingerprint": "ec1db6351a3c78a2413bcda06ff8d70b57344e213f3c5b1a0736c4b63fe73011",
+      "loc": 96,
+      "fingerprint": "23a76acdd36e0b36c5b25a2ffc0d85ede2c0ce9b4cd14baad854f293f4b12742",
       "layer": "test",
       "summary": null
     },
@@ -1709,48 +1901,48 @@
     {
       "id": "tests/w145-shell-pipeline-lint-gate.sh",
       "lang": "shell",
-      "loc": 116,
-      "fingerprint": "dad1f1284936f60788017b16e3941905a07147dfa7378bf491a25c3e259297ec",
+      "loc": 216,
+      "fingerprint": "14ca116d40595dc9a3971013881e3bf25a07371e62f9ebf9fa339f6aba76421b",
       "layer": "test",
       "summary": null
     },
     {
       "id": "tests/w146-suite-invocation-gate.sh",
       "lang": "shell",
-      "loc": 135,
-      "fingerprint": "5cbd5bc68ab786342794a2d5ea56c0688fcac2f1c1ae8365a66db194c265210c",
+      "loc": 156,
+      "fingerprint": "ac980b771d05568cb03a6dc8ff4680d661a4518152c366c501b1b13d6864c9f8",
       "layer": "test",
       "summary": null
     },
     {
       "id": "tests/w147-hook-delegation-gate.sh",
       "lang": "shell",
-      "loc": 169,
-      "fingerprint": "5f1af2835f62e3d0657da5a43ac097af1701db4a0d4f453e5c39a7a09e894337",
+      "loc": 204,
+      "fingerprint": "5533c9388bab560455ceaf292a11f6928f9d150703b6fa9e9c74dd40979f2912",
       "layer": "test",
       "summary": null
     },
     {
       "id": "tests/w150-liaison-flag-and-trust-gate.sh",
       "lang": "shell",
-      "loc": 381,
-      "fingerprint": "869c55befcfe16a9642aacf81c7f76fc9f6bd212019bac14659df3249ebaee02",
+      "loc": 382,
+      "fingerprint": "d5ad35058bded71c8cb401f3f07241ee0e3ff938e8c956024d357ef2c78732ec",
       "layer": "test",
       "summary": null
     },
     {
       "id": "tests/w151-heavy-mutex-gate.sh",
       "lang": "shell",
-      "loc": 1236,
-      "fingerprint": "1f052ae2ecde8e792f8b0b2e27df3af4049965578240000f1cdecf78dc47b12e",
+      "loc": 1349,
+      "fingerprint": "51ef554b5aa0c70142ff2277d790bb992b306117b418b6d2fc7b1318a03cf596",
       "layer": "test",
       "summary": null
     },
     {
       "id": "tests/w152-push-ahead-gate.sh",
       "lang": "shell",
-      "loc": 569,
-      "fingerprint": "729797ba9eea7440982cedfc207bfd51c559f2a92506fa390cec863522c8aea3",
+      "loc": 923,
+      "fingerprint": "5491ac306d009ffb589350e89b4c3b38c373925f4160398e48ccfbfc0a6d0489",
       "layer": "test",
       "summary": null
     },
@@ -1787,6 +1979,62 @@
       "summary": null
     },
     {
+      "id": "tests/w157-ledger-integrity-gate.sh",
+      "lang": "shell",
+      "loc": 312,
+      "fingerprint": "e6ea2f4e2107a5d0ebdc56064853d131d8999fb5c114689010368efe876242a9",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w158-doctor-placeholder-scope-gate.sh",
+      "lang": "shell",
+      "loc": 97,
+      "fingerprint": "58e0bd2c6d50fb4e845f044bae33ac54c5a37a3ec1af2d6c3a10e9774a3f9375",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w159-heredoc-hash-lint-gate.sh",
+      "lang": "shell",
+      "loc": 157,
+      "fingerprint": "461019e55ace9dc0416101d8509fbd518cfafae6266f3e1dbf72b982e1dbd91c",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w160-prepush-preflight-gate.sh",
+      "lang": "shell",
+      "loc": 171,
+      "fingerprint": "6358914fa6f5d32d1d026db5598044ead0d31651a651ca20c44b416ad6ee8b6b",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w161-update-missing-forgeyaml-message-gate.sh",
+      "lang": "shell",
+      "loc": 56,
+      "fingerprint": "cd1c982dc1ae8047d71846aafe2373547eff0b1b4e083b8fe51abbf41a172db1",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w162-yaml-lite-flow-array-gate.sh",
+      "lang": "shell",
+      "loc": 160,
+      "fingerprint": "da727ee156baa9193ed87ea84cdbdc8ea819b00cc10a2498037af254420dd0f1",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w163-red-replay-shallow-clone-gate.sh",
+      "lang": "shell",
+      "loc": 127,
+      "fingerprint": "105c5fb1a567ba656b71a14698fb4053523c62580935ad44852b6d47f963fdf1",
+      "layer": "test",
+      "summary": null
+    },
+    {
       "id": "tests/w165-codegraph-scan-roots-gate.sh",
       "lang": "shell",
       "loc": 120,
@@ -1795,10 +2043,258 @@
       "summary": null
     },
     {
+      "id": "tests/w166-liaison-ack-body-gate.sh",
+      "lang": "shell",
+      "loc": 174,
+      "fingerprint": "6ccf8df3e2e539044633e09611766e163e616b17951cb41bc43829842479c2e0",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w167-liaison-hub-directed-acks-gate.sh",
+      "lang": "shell",
+      "loc": 142,
+      "fingerprint": "487f3b3394d967ad912749227f30d829f6fec186ea2cc2efddd14592bb4745ee",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w168-liaison-log-merge-union-gate.sh",
+      "lang": "shell",
+      "loc": 208,
+      "fingerprint": "b583cabcdc675f1de0cbeb285e735e25d1a4d71f8c3162ce07733e1bc3bf6b82",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w169-liaison-merge-union-property-gate.sh",
+      "lang": "shell",
+      "loc": 137,
+      "fingerprint": "b91195714f8878b537e318bbfd6a480295079ab2c595744963d4bda4774066b6",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w170-spec-verify-runtime-lib-gate.sh",
+      "lang": "shell",
+      "loc": 100,
+      "fingerprint": "d80022594cb18d6bf166cf0344a0b041aa9a1caa3b0ba757049b5760e7d2cffc",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w171-gate-phase-contract-gate.sh",
+      "lang": "shell",
+      "loc": 140,
+      "fingerprint": "aba9bde912824527819aeacd28d7628e85f48cf7f18047c150fbfd698cb43c8b",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w172-impact-freshness-wiring-gate.sh",
+      "lang": "shell",
+      "loc": 93,
+      "fingerprint": "853e4cc14cc978fde60298b4d3f79a86848e9665ca50b1ac65b5efa0a621c0c0",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w173-archive-state-machine-contract-gate.sh",
+      "lang": "shell",
+      "loc": 133,
+      "fingerprint": "9482d0b81b0e90fd418452146c73e1e483360aca3f06092f08058925f5e4aa31",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w175-worktree-reconcile-remote-gate.sh",
+      "lang": "shell",
+      "loc": 191,
+      "fingerprint": "efc6820cf4a6d12ac3731f8cd980bf93c3c57497f6dc8758a5f93dc8ad0dcfd2",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w180-node-enforcement-gate.sh",
+      "lang": "shell",
+      "loc": 351,
+      "fingerprint": "0589d7aac65094f293e1c6aef43efd0a095c16d72404d10809e4d11116e06fed",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w185-file-cut-strategy-gate.sh",
+      "lang": "shell",
+      "loc": 84,
+      "fingerprint": "5aebe7a07bb99fc1c083e487f555d196773a276b8bd5f427eff8a455ce09ac70",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w186-lint-burndown-gate.sh",
+      "lang": "shell",
+      "loc": 80,
+      "fingerprint": "b3498237549df1d1083a997509b48adad70e142d48491cd2b44ad0935cf8dd51",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w190-pre-push-gate-reader-gate.sh",
+      "lang": "shell",
+      "loc": 340,
+      "fingerprint": "37288101434b4b4f53af8fcab2ecbf21768648898ea553fdc02e0a9d0fe425d2",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w191-doctor-orphan-gate-gate.sh",
+      "lang": "shell",
+      "loc": 203,
+      "fingerprint": "a8483a288e758d8b15f73c479092027c3ba15c0689448186a3828f37d3243c1b",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w192-declared-switch-has-reader-gate.sh",
+      "lang": "shell",
+      "loc": 291,
+      "fingerprint": "d60010d7408b5826a98cd7d8ded42eb442c17de870f6cab3f091e8fb7330663c",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w193-tree-derived-state-gate.sh",
+      "lang": "shell",
+      "loc": 234,
+      "fingerprint": "905c1d87d49be1e8721639b67a0c680b8808cf595f5b2f9a7aeaaaaee4d384ac",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w194-ledger-write-discipline-gate.sh",
+      "lang": "shell",
+      "loc": 356,
+      "fingerprint": "5f0a4c9379f7e472105138bdbc3d0fbf084245ec97547aa0eeddc0174a9137d0",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w195-liaison-monotonicity-gate.sh",
+      "lang": "shell",
+      "loc": 460,
+      "fingerprint": "a91b2ffa2cee07feb481fc5061f416cd55cd6968fe404c2fff8a2542fc38c6af",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w197-normative-text-parity-gate.sh",
+      "lang": "shell",
+      "loc": 237,
+      "fingerprint": "96f0c36747e8dc25e6a9ecb57da2f4e949180525e17421e2688f28d38015b971",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w198-liaison-push-union-gate.sh",
+      "lang": "shell",
+      "loc": 218,
+      "fingerprint": "861384bc86cd4a04555658845c41aabd9affe9f0aeea28b3f7120ec7a8b919b3",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w199-schema-reader-parity-gate.sh",
+      "lang": "shell",
+      "loc": 161,
+      "fingerprint": "31642e8430b612a44f7cac6bdeec7a8563adeaabd70131bd6f3b9cf5595d7dae",
+      "layer": "test",
+      "summary": null
+    },
+    {
       "id": "tests/w20-spec-gate.sh",
       "lang": "shell",
-      "loc": 178,
-      "fingerprint": "4ced795643572fd47a6959693487d21b66e190cc0204a4834d000666ed1a302b",
+      "loc": 198,
+      "fingerprint": "31beb758c8c66708c16d2e29a92627ae00e6b81cbd2be4f53f11b3c69844f49e",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w200-readme-inventory-gate.sh",
+      "lang": "shell",
+      "loc": 368,
+      "fingerprint": "81b3d119b5a0bc36384192ef5a4ef1c03d68a50794054f1d8e9ee169669e1353",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w201-flag-como-valor-gate.sh",
+      "lang": "shell",
+      "loc": 404,
+      "fingerprint": "fd7ae4bfd1a2ed96b2135be0de361e0b86657ef4616241c672611688d0fc069e",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w202-ledger-schema-conformance-gate.sh",
+      "lang": "shell",
+      "loc": 227,
+      "fingerprint": "ac495e855887963f37fe29060b4390c0893d24433f3155cd7f692d71e78a2d2d",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w203-ledger-render-bucket-gate.sh",
+      "lang": "shell",
+      "loc": 250,
+      "fingerprint": "3eec26710909f2ced3e0c0ac7460d128253287f58311ae05c4b800429145f8a4",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w204-ordinal-root-resolution-gate.sh",
+      "lang": "shell",
+      "loc": 223,
+      "fingerprint": "3534330423c7237958724bbc4f254327d5e778bd21e65105f810730a941b51ae",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w205-quick-plan-design-skip-gate.sh",
+      "lang": "shell",
+      "loc": 217,
+      "fingerprint": "01fbb141443cc9462ec65bc3e3c7d0103aa50c0fa040fbff9c2ade8197c9ddc6",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w206-strix-pentest-gate.sh",
+      "lang": "shell",
+      "loc": 1829,
+      "fingerprint": "877aa6e0929da94252412417f5c3b3fff83a4636aee36541aaaf68211cbcbf2c",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w207-ledger-render-write-port-gate.sh",
+      "lang": "shell",
+      "loc": 194,
+      "fingerprint": "96f353a69d0dfdf27628e103ad06be53ec19e5cee14f962d7985e1cd083370c8",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w208-hooks-manifest-esquema-gate.sh",
+      "lang": "shell",
+      "loc": 932,
+      "fingerprint": "fa7e0ccc523eb479957b00d390b9734b2a9187e27b27361b3232da5460b6afa8",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w209-varredura-cega-gate.sh",
+      "lang": "shell",
+      "loc": 459,
+      "fingerprint": "2c94e6401fc36df219b72e1d0878ddb2a14944ccbf33ad9f08064a7b93e8be48",
       "layer": "test",
       "summary": null
     },
@@ -1811,10 +2307,106 @@
       "summary": null
     },
     {
+      "id": "tests/w210-worktree-branch-obrigatoria-gate.sh",
+      "lang": "shell",
+      "loc": 740,
+      "fingerprint": "a93536ede1f189011b6045732c6b1aea195432a3d3be89f6d4ea373f49ef1ad9",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w211-ledger-detail-acumulativo-gate.sh",
+      "lang": "shell",
+      "loc": 684,
+      "fingerprint": "4283c62a338ccb7eda36b21718b0500d5260ff80ecdbbedbe25a8f966b8bb6a8",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w212-runner-tres-estados-gate.sh",
+      "lang": "shell",
+      "loc": 485,
+      "fingerprint": "86372bca226d0ca31736648459ce4e716b26a186ec5dbea1e3e8ba2c2dac11b8",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w213-arvore-rastreada-gate.sh",
+      "lang": "shell",
+      "loc": 772,
+      "fingerprint": "2a57631243c6c7ca79ecc993aae3e733493ffc1b0a497725fe1281231e778df2",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w214-update-exceptions-gate.sh",
+      "lang": "shell",
+      "loc": 638,
+      "fingerprint": "5e7e5da64933a17e460e167e0de6fa6bdf61259dd27a02a8bef4605169435680",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w215-hook-wiring-derived-gate.sh",
+      "lang": "shell",
+      "loc": 1476,
+      "fingerprint": "5b5f105d6bad4da4a5b0423b35a31c5286e7fcd8bc8d48b988882b5c953843b3",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w216-module-import-side-effect-gate.sh",
+      "lang": "shell",
+      "loc": 716,
+      "fingerprint": "547c548783762438310ee3e8cdf7280aacead1cc35e874bef5ea36b3474566bf",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w217-heavy-mutex-partition-gate.sh",
+      "lang": "shell",
+      "loc": 511,
+      "fingerprint": "3c7d54154cbb383a490cd7f31e1d32b0e51332b74ae7cbf19a1dbf51c553f34f",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w218-red-evidence-entries-gate.sh",
+      "lang": "shell",
+      "loc": 1609,
+      "fingerprint": "62358e344a70465b5638a4211a238ab5a4fe40eb54ec4150adbb98ed5592793b",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w219-liaison-blob-recovery-gate.sh",
+      "lang": "shell",
+      "loc": 435,
+      "fingerprint": "c85e3d574c121cd83f0fef5fd35608845c75f6e819c5ea93e3db93b15f0110b8",
+      "layer": "test",
+      "summary": null
+    },
+    {
       "id": "tests/w22-close-gate.sh",
       "lang": "shell",
       "loc": 123,
-      "fingerprint": "a26bbf973bd420a4bdb580085869f46e73473eb0262bfd5dbc81626bbd7e542b",
+      "fingerprint": "8c4758302488d28e02b03f7ac2a1fd53209c4e3ddc766233a1b9c2f7aff5054e",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w220-liaison-fs-union-gate.sh",
+      "lang": "shell",
+      "loc": 379,
+      "fingerprint": "b0a098e8f40ec3be515e217909cfaf08fe7d77608d2663c9a9bdc4678ca9faee",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w223-delegacao-arvore-do-hook-gate.sh",
+      "lang": "shell",
+      "loc": 1032,
+      "fingerprint": "8302a44fe27c66bcbb3e585ac99d938c93948b72cee52dc9715dfd35973aae47",
       "layer": "test",
       "summary": null
     },
@@ -1827,10 +2419,18 @@
       "summary": null
     },
     {
+      "id": "tests/w238-settings-json-merge-gate.sh",
+      "lang": "shell",
+      "loc": 1222,
+      "fingerprint": "2c199ecd802e64ec67f307922c9f0ccef672f12cfd950e8cfcc16f7dbcaca065",
+      "layer": "test",
+      "summary": null
+    },
+    {
       "id": "tests/w30-schemas-gate.sh",
       "lang": "shell",
-      "loc": 102,
-      "fingerprint": "6a71ed39ba62f805251b0b2de8fbe196b62aa53719bf3d252647c1163871d636",
+      "loc": 105,
+      "fingerprint": "0dc43105a338dea0766bae259ed56b5bfe1c4acfb9bfb52dd71c5233d38d5d31",
       "layer": "test",
       "summary": null
     },
@@ -1845,8 +2445,8 @@
     {
       "id": "tests/w32-archive-gate.sh",
       "lang": "shell",
-      "loc": 337,
-      "fingerprint": "dbd9b06c1549019838556e8568ed2a948594310dddb8636e61f3c92b3f21510e",
+      "loc": 347,
+      "fingerprint": "dac8d86af0048698aa14108c497d88c7ac0120a8b55dd1ab3b528582fea391f4",
       "layer": "test",
       "summary": null
     },
@@ -1869,8 +2469,8 @@
     {
       "id": "tests/w42-impact-gate.sh",
       "lang": "shell",
-      "loc": 103,
-      "fingerprint": "52dedcc765a1e700a2371d2b31f543f2847bd74553985f88d2e26615aab18383",
+      "loc": 110,
+      "fingerprint": "b2e642cd1daace3922b929f69f9078bff697cc652b40f65e065756446919aea9",
       "layer": "test",
       "summary": null
     },
@@ -1878,7 +2478,7 @@
       "id": "tests/w43-c4-gate.sh",
       "lang": "shell",
       "loc": 126,
-      "fingerprint": "6873855daca11d440def2b0f6949a2dd929a94b9bdb7ac4d6e03e16fde87821f",
+      "fingerprint": "4ac5cc05b676f7ce5e619da11513f56cd5ceb24081b22d06d2dd9140376cc8fc",
       "layer": "test",
       "summary": null
     },
@@ -1886,7 +2486,7 @@
       "id": "tests/w50-story-shard-gate.sh",
       "lang": "shell",
       "loc": 244,
-      "fingerprint": "6bf8b997cc9264cc58d938795dca38b59e00fb3eba861cc9215b7ba5cb99a2c8",
+      "fingerprint": "09dc13003aebbe88081ac9162db67a2d8e951b823d931969d3664505e173c0ee",
       "layer": "test",
       "summary": null
     },
@@ -1917,8 +2517,8 @@
     {
       "id": "tests/w60-handoff-gen-gate.sh",
       "lang": "shell",
-      "loc": 72,
-      "fingerprint": "2455fd57cb02a261cd2d70c9ccfcfda826eca45f8eb8bc93272ece9f6809c41b",
+      "loc": 597,
+      "fingerprint": "6cd30743993be7c421473831a706a7550e67ab97b1e7f8ce3ad0d50906cbde91",
       "layer": "test",
       "summary": null
     },
@@ -1933,8 +2533,8 @@
     {
       "id": "tests/w62-handoff-hook-gate.sh",
       "lang": "shell",
-      "loc": 51,
-      "fingerprint": "a51ce121b99a1d608d35b3c2e0ea4f982b070925c41b2c1097e4395bfa6fc5f8",
+      "loc": 58,
+      "fingerprint": "3a932cb5aff9781d9e0080305aa6fa6ebfa593e9094eea04a2f404c6a2fd85eb",
       "layer": "test",
       "summary": null
     },
@@ -1942,15 +2542,15 @@
       "id": "tests/w63-forge-update-gate.sh",
       "lang": "shell",
       "loc": 208,
-      "fingerprint": "6f700cd080b11e572bac736a3d17c3219c4e07ae23d9b3a825653c1671356c5a",
+      "fingerprint": "176453ee5951359aa5adac65397b66703e3c181657ff2805ac90208ea7c04d68",
       "layer": "test",
       "summary": null
     },
     {
       "id": "tests/w80-suite-gate.sh",
       "lang": "shell",
-      "loc": 107,
-      "fingerprint": "b5161ab67315315755af7b568e520be932c831e153e54741ee8bdfb3c278744a",
+      "loc": 123,
+      "fingerprint": "51ec3952fb0f6b930145db5f6cf2226e64160e6b4212d0088bff82af8b5cfaff",
       "layer": "test",
       "summary": null
     },
@@ -1958,7 +2558,7 @@
       "id": "tests/w90-run-manifest-gate.sh",
       "lang": "shell",
       "loc": 90,
-      "fingerprint": "c963be8ece1a5835de857d5a39db7ddfbe7e04b63d40c5f5fe5ef56746a6a128",
+      "fingerprint": "fd3522d8c8af4ff05e6d5ebba3daa2ea79a908fd59f563a66a3a1eaca493aee8",
       "layer": "test",
       "summary": null
     },
@@ -2014,7 +2614,7 @@
       "id": "tests/w97-hook-portability-gate.sh",
       "lang": "shell",
       "loc": 54,
-      "fingerprint": "e18867d160ec419b3878ff84d45dc37acb11d09a5367445313946d312ccee1db",
+      "fingerprint": "20e0ac9aa423a8e1191694f246e739525483f2378f2fecafbc050139d647a32f",
       "layer": "test",
       "summary": null
     },
@@ -2084,6 +2684,30 @@
     }
   ],
   "edges": [
+    {
+      "from": "template/.forge/capabilities/backend-node-postgres/assets/eslint-rules/core-rules.cjs",
+      "to": "template/.forge/capabilities/backend-node-postgres/assets/eslint-rules/utils.cjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/capabilities/backend-node-postgres/assets/eslint-rules/index.cjs",
+      "to": "template/.forge/capabilities/backend-node-postgres/assets/eslint-rules/core-rules.cjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/capabilities/backend-node-postgres/assets/eslint-rules/verify.mjs",
+      "to": "./local-cache",
+      "kind": "import",
+      "resolved": false
+    },
+    {
+      "from": "template/.forge/capabilities/backend-node-postgres/assets/eslint.config.mjs",
+      "to": "./.forge/capabilities/backend-node-postgres/assets/eslint-rules/index.cjs",
+      "kind": "import",
+      "resolved": false
+    },
     {
       "from": "template/.forge/scripts/lib/api-surface.mjs",
       "to": "template/.forge/scripts/lib/route-scan.mjs",
@@ -2194,6 +2818,12 @@
     },
     {
       "from": "template/.forge/scripts/lib/check-red-first.mjs",
+      "to": "template/.forge/scripts/lib/red-evidence-ops.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/check-red-first.mjs",
       "to": "template/.forge/scripts/lib/red-evidence.mjs",
       "kind": "import",
       "resolved": true
@@ -2211,7 +2841,19 @@
       "resolved": true
     },
     {
+      "from": "template/.forge/scripts/lib/check-worktree-prereqs.mjs",
+      "to": "template/.forge/scripts/lib/yaml-lite.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
       "from": "template/.forge/scripts/lib/delta-apply.mjs",
+      "to": "template/.forge/scripts/lib/yaml-lite.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/gate-phase.mjs",
       "to": "template/.forge/scripts/lib/yaml-lite.mjs",
       "kind": "import",
       "resolved": true
@@ -2235,6 +2877,12 @@
       "resolved": true
     },
     {
+      "from": "template/.forge/scripts/lib/heredoc-hash-lint.mjs",
+      "to": "template/.forge/scripts/lib/shell-pipeline-lint.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
       "from": "template/.forge/scripts/lib/impact-scan.mjs",
       "to": "template/.forge/scripts/lib/impact-freshness.mjs",
       "kind": "import",
@@ -2248,6 +2896,12 @@
     },
     {
       "from": "template/.forge/scripts/lib/liaison-import.mjs",
+      "to": "template/.forge/scripts/lib/liaison-merge.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/liaison-push-union.mjs",
       "to": "template/.forge/scripts/lib/liaison-merge.mjs",
       "kind": "import",
       "resolved": true
@@ -2267,6 +2921,12 @@
     {
       "from": "template/.forge/scripts/lib/liaison-render.mjs",
       "to": "template/.forge/scripts/lib/untrusted-render.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/red-evidence-ops.mjs",
+      "to": "template/.forge/scripts/lib/red-evidence-ops.mjs",
       "kind": "import",
       "resolved": true
     },
@@ -2315,6 +2975,12 @@
     {
       "from": "template/.forge/scripts/lib/stage-contract.mjs",
       "to": "template/.forge/scripts/lib/yaml-lite.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/sync-adapters.mjs",
+      "to": "template/.forge/scripts/lib/hooks-manifest.mjs",
       "kind": "import",
       "resolved": true
     },

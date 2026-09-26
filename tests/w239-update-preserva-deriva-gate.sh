@@ -6,14 +6,17 @@
 #   [1]  deriva com lock (sha local != sha do lock): preserva byte a byte, imprime `PRESERVADO (deriva local)`, grava a versão pendente idêntica ao template novo, NÃO avança o lock daquele caminho e imprime o WARN agregado com a contagem e as duas saídas
 #   [1b] segundo update sobre o mesmo estado: a deriva continua reconhecida (prova de que o lock não avançou) e o arquivo continua intacto
 #   [2]  arquivo intocado (sha local == lock) cujo template evoluiu: `ATUALIZADO`, conteúdo novo, sem versão pendente, lock avança
-#   [3]  sem machinery.lock (não dá para provar que o consumidor não tocou): preserva, pendente gravado, e o lock novo não ganha o sha do template para esse caminho
+#   [2b] SEM machinery.lock, arquivo byte-idêntico a uma versão PUBLICADA do template (fixture: o `prevent-secrets-leak.sh` da v0.15.0): o histórico de versões publicadas (`template/machinery-history.json`) prova que está intocado — `ATUALIZADO`, sem pendente, lock avança, e o gancho entregue bloqueia (rc 2) o payload do PreToolUse com chave AWS que o gancho da v0.15.0 deixava passar (rc 0). É o caso de todo consumidor que só rodou `init`, de clone novo e de outra máquina (`.forge/cache/` é ignorado pelo .gitignore gerenciado)
+#   [3]  sem machinery.lock e conteúdo local fora de toda versão publicada (não dá para provar que o consumidor não tocou): preserva com a linha própria `PRESERVADO (sem lock para provar)` — distinta de `PRESERVADO (deriva local)`, que exige lock —, pendente gravado, e o lock novo não ganha o sha do template para esse caminho
 #   [4]  --overwrite-drift: sobrescreve com backup real e linha `SOBRESCRITO (não declarado)`, sem versão pendente, lock avança
 #   [5]  exceção declarada viva sobre arquivo em deriva: comportamento da #131 inalterado (`PRESERVADO (exceção declarada)`), sem linha de deriva e sem pendente — inclusive com --overwrite-drift, que não passa por cima de decisão declarada
 #   [6]  --dry-run antecipa exatamente os caminhos preservados por deriva (e a contagem do WARN), sem escrever nada; com --overwrite-drift, antecipa a sobrescrita
 #   [7]  doctor lista, numa linha nominal, os arquivos com versão pendente (contagem + caminho) e deixa de listá-los depois da reconciliação; rc do doctor inalterado
 #   [8]  fixture REAL: o conserto LDG-0109 do `scripts/lib/yaml-lite.mjs` do azim-crm, com a linha real do `machinery.lock` dele (sha do template rc24) — preservado, pendente gravado, lock mantém o sha anterior
-#   [9]  `.md` de maquinaria preservado por deriva com placeholder `<PROJECT_*>` local: o orphan-check de placeholders isenta o caminho preservado (conteúdo do consumidor) — rc 0
-#   [10] PBT: para estados gerados (lock ausente/igual/diferente/sem entrada, local editado ou não, template igual ou evoluído, exceção nenhuma/viva/expirada, flag sim/não), o desfecho é função pura do estado: o arquivo local fica byte-idêntico sse (local == template novo) ou exceção declarada ou (deriva e não --overwrite-drift); a versão pendente existe sse preservado por deriva; o lock daquele caminho só avança quando o arquivo não foi preservado por deriva; e o --dry-run anuncia a deriva sse a aplicação real a preserva
+#   [9]  `.md` de maquinaria preservado por deriva (sem lock) com placeholder `<PROJECT_*>` local: o orphan-check de placeholders isenta o caminho preservado (conteúdo do consumidor) — rc 0
+#   [10] PBT: para estados gerados (lock ausente/igual/diferente/sem entrada, histórico de versões publicadas ausente/contendo o sha local/sem ele, local editado ou não, template igual ou evoluído, exceção nenhuma/viva/expirada, flag sim/não), o desfecho é função pura do estado: intocado sse (há entrada no lock e ela == sha local) ou (não há entrada e o histórico contém o sha local); o arquivo local fica byte-idêntico sse (local == template novo) ou exceção declarada ou (deriva e não --overwrite-drift); a versão pendente existe sse preservado por deriva; a linha é `deriva local` com entrada no lock e `sem lock para provar` sem ela; o lock daquele caminho só avança quando o arquivo não foi preservado por deriva; e o --dry-run anuncia a deriva sse a aplicação real a preserva
+#   [11] reconciliação por exceção declarada: com o sha da versão pendente declarado em machinery-exceptions.txt, o doctor para de cobrar o caminho na hora (sem esperar outro update), e o update seguinte preserva por exceção e REMOVE a versão pendente (o diretório é reconstruído a cada aplicação real)
+#   [12] o histórico versionado (`template/machinery-history.json`) cobre toda tag v* alcançável de HEAD — o gerador em modo --check sai rc 0
 #
 # Isolamento git (LDG-0201 e o incidente de 2026-09-26): nenhum GIT_* herdado chega aos `git init` dos consumidores temporários, e o gate nunca roda `git config`.
 set -uo pipefail
@@ -107,6 +110,29 @@ grep -q "deriva local" <<<"$UPD_OUT" && { echo "FAIL [2]: arquivo intocado relat
 [ "$(lock_sha "$C2" "$REL")" = "$SHA_TPLN" ] || { echo "FAIL [2]: lock não avançou para o sha do template novo"; exit 1; }
 echo "OK [2]"
 
+echo "[2b] sem lock, arquivo idêntico a uma versão publicada (gancho de segredos da v0.15.0): ATUALIZADO pelo histórico, e o gancho novo bloqueia"
+REL2B="hooks/pre-tool-use/prevent-secrets-leak.sh"
+[ -f "$FIX/prevent-secrets-leak.v0.15.0.sh" ] || { echo "FAIL [2b] (setup): fixture ausente"; exit 1; }
+C2B="$(consumidor c2b)"
+[ ! -f "$C2B/.forge/cache/machinery.lock" ] || { echo "FAIL [2b] (setup): o consumidor já tem machinery.lock"; exit 1; }
+cp "$FIX/prevent-secrets-leak.v0.15.0.sh" "$C2B/.forge/$REL2B"; chmod +x "$C2B/.forge/$REL2B"
+cmp -s "$C2B/.forge/$REL2B" "$TPL/$REL2B" && { echo "FAIL [2b] (setup): a fixture da v0.15.0 é idêntica ao template atual"; exit 1; }
+# Payload do PreToolUse (contrato stdin-json da #125) com uma chave no formato AWS montada em tempo de execução — nenhum literal de segredo no gate.
+k2b="AKIA"; k2b="${k2b}Q7XZ4N2P8LMR6TVW"
+payload2b="$(printf '{"tool_name":"Write","tool_input":{"file_path":"src/config.txt","content":"chave=%s"}}' "$k2b")"
+printf '%s' "$payload2b" | bash "$C2B/.forge/$REL2B" >/dev/null 2>&1; rc2b_antes=$?
+[ "$rc2b_antes" -eq 0 ] || { echo "FAIL [2b] (setup): o gancho da v0.15.0 já bloqueava o payload (rc=$rc2b_antes) — o cenário não prova a entrega"; exit 1; }
+upd "$C2B" "$TPL" --no-backup
+[ "$UPD_RC" -eq 0 ] || { echo "FAIL [2b]: update saiu rc=$UPD_RC"; echo "$UPD_OUT"; exit 1; }
+cmp -s "$C2B/.forge/$REL2B" "$TPL/$REL2B" || { echo "FAIL [2b]: arquivo intocado (idêntico à v0.15.0 publicada) foi retido sem lock — a correção do template não chegou"; echo "$UPD_OUT" | grep -E "PRESERVADO|ATUALIZADO|WARN" | head -20; exit 1; }
+grep -q "^ATUALIZADO: $REL2B — " <<<"$UPD_OUT" || { echo "FAIL [2b]: linha ATUALIZADO ausente para $REL2B"; echo "$UPD_OUT"; exit 1; }
+grep -q "PRESERVADO ([^)]*): $REL2B" <<<"$UPD_OUT" && { echo "FAIL [2b]: $REL2B relatado como preservado"; echo "$UPD_OUT"; exit 1; }
+[ ! -e "$C2B/$PEND/$REL2B" ] || { echo "FAIL [2b]: versão pendente gravada para arquivo que foi atualizado"; exit 1; }
+[ "$(lock_sha "$C2B" "$REL2B")" = "$(sha "$TPL/$REL2B")" ] || { echo "FAIL [2b]: lock não registrou o sha do template entregue"; exit 1; }
+printf '%s' "$payload2b" | bash "$C2B/.forge/$REL2B" >/dev/null 2>&1; rc2b=$?
+[ "$rc2b" -eq 2 ] || { echo "FAIL [2b]: o gancho entregue não bloqueou o payload com chave AWS (rc=$rc2b, esperado 2)"; exit 1; }
+echo "OK [2b]"
+
 echo "[3] sem lock: preserva, pendente gravado, lock novo sem o sha do template para o caminho"
 C3="$(consumidor c3)"
 [ ! -f "$C3/.forge/cache/machinery.lock" ] || { echo "FAIL [3] (setup): o consumidor já tem machinery.lock"; exit 1; }
@@ -115,8 +141,11 @@ cp "$C3/.forge/$REL" "$T/c3-antes"
 upd "$C3" "$TPL" --no-backup
 [ "$UPD_RC" -eq 0 ] || { echo "FAIL [3]: update saiu rc=$UPD_RC"; echo "$UPD_OUT"; exit 1; }
 cmp -s "$C3/.forge/$REL" "$T/c3-antes" || { echo "FAIL [3]: sem lock, o conserto local foi sobrescrito"; echo "$UPD_OUT"; exit 1; }
-grep -qxF "PRESERVADO (deriva local): $REL — versão nova do template em $PEND/$REL" <<<"$UPD_OUT" \
-  || { echo "FAIL [3]: linha 'PRESERVADO (deriva local)' ausente sem lock"; echo "$UPD_OUT"; exit 1; }
+grep -qxF "PRESERVADO (sem lock para provar): $REL — o conteúdo local não é nenhuma versão publicada do template; versão nova do template em $PEND/$REL" <<<"$UPD_OUT" \
+  || { echo "FAIL [3]: linha 'PRESERVADO (sem lock para provar)' ausente sem lock"; echo "$UPD_OUT"; exit 1; }
+grep -q "PRESERVADO (deriva local): $REL" <<<"$UPD_OUT" && { echo "FAIL [3]: sem lock, o caminho foi rotulado como deriva local provada"; echo "$UPD_OUT"; exit 1; }
+grep -q '^WARN: 1 arquivo(s) de maquinaria preservado(s) por deriva local (1 sem lock para provar' <<<"$UPD_OUT" \
+  || { echo "FAIL [3]: o WARN agregado não separa a contagem sem lock"; echo "$UPD_OUT" | grep '^WARN'; exit 1; }
 cmp -s "$C3/$PEND/$REL" "$TPL/$REL" || { echo "FAIL [3]: versão pendente ausente ou diferente do template"; exit 1; }
 [ -f "$C3/.forge/cache/machinery.lock" ] || { echo "FAIL [3]: o update não gravou o lock dos demais caminhos"; exit 1; }
 [ -z "$(lock_sha "$C3" "$REL")" ] || { echo "FAIL [3]: o lock ganhou entrada para $REL preservado por deriva ($(lock_sha "$C3" "$REL"))"; exit 1; }
@@ -212,13 +241,13 @@ cp "$C9/.forge/$REL9" "$T/c9-antes"
 upd "$C9" "$TPL" --no-backup
 [ "$UPD_RC" -eq 0 ] || { echo "FAIL [9]: update saiu rc=$UPD_RC (o orphan-check contou conteúdo preservado do consumidor)"; echo "$UPD_OUT"; exit 1; }
 cmp -s "$C9/.forge/$REL9" "$T/c9-antes" || { echo "FAIL [9]: .md em deriva foi sobrescrito"; exit 1; }
-grep -qxF "PRESERVADO (deriva local): $REL9 — versão nova do template em $PEND/$REL9" <<<"$UPD_OUT" \
+grep -qxF "PRESERVADO (sem lock para provar): $REL9 — o conteúdo local não é nenhuma versão publicada do template; versão nova do template em $PEND/$REL9" <<<"$UPD_OUT" \
   || { echo "FAIL [9]: linha de deriva ausente"; echo "$UPD_OUT"; exit 1; }
 echo "OK [9]"
 
 echo "[10] PBT: o desfecho é função pura do estado gerado"
 node --input-type=module - "$WS" "$T" <<'NODE_EOF'
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { mkdtempSync, rmSync, cpSync, writeFileSync, readFileSync, existsSync, mkdirSync, appendFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -235,8 +264,10 @@ const shaF = (p) => sha(readFileSync(p));
 const env = { ...process.env };
 for (const k of ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_COMMON_DIR', 'GIT_OBJECT_DIRECTORY']) delete env[k];
 
-// Dois templates preparados uma vez: o real e um evoluído só em REL.
-const TPLE = join(T, 'pbt-tpl-evoluido');
+// Dois templates preparados uma vez, ambos cópias fora do repositório (para que o histórico de versões publicadas ao lado de cada um, `<src>/../machinery-history.json`, seja controlado pelo gerador de estados): o real e um evoluído só em REL.
+const TPLA = join(T, 'pbt-src-a', '.forge');
+const TPLE = join(T, 'pbt-src-e', '.forge');
+cpSync(TPL, TPLA, { recursive: true });
 cpSync(TPL, TPLE, { recursive: true });
 appendFileSync(join(TPLE, REL), '\n# MUDANCA-DO-TEMPLATE-PBT-w239\n');
 
@@ -249,6 +280,7 @@ const base = readFileSync(join(pristine, '.forge', REL));
 
 const gen = P.gen.record({
   lock: P.gen.oneOf(['ausente', 'igual', 'diferente', 'sem-entrada']),
+  hist: P.gen.oneOf(['ausente', 'contem-local', 'sem-local']),
   localEdit: P.gen.bool(),
   tplEvolve: P.gen.bool(),
   exc: P.gen.oneOf(['nenhuma', 'viva', 'expirada']),
@@ -272,7 +304,7 @@ const prop = (s) => {
   const dir = mkdtempSync(join(T, 'pbt-caso-'));
   rmSync(dir, { recursive: true, force: true });
   cpSync(pristine, dir, { recursive: true });
-  const src = s.tplEvolve ? TPLE : TPL;
+  const src = s.tplEvolve ? TPLE : TPLA;
   const tplBuf = readFileSync(join(src, REL));
   const localBuf = s.localEdit ? Buffer.concat([base, Buffer.from(`\n# CONSERTO-PBT-${casos}\n`)]) : base;
   writeFileSync(join(dir, '.forge', REL), localBuf);
@@ -286,6 +318,14 @@ const prop = (s) => {
   if (s.lock === 'diferente') writeFileSync(join(dir, '.forge/cache/machinery.lock'), `# lock\n${diffSha}  ${REL}\n`);
   if (s.lock === 'sem-entrada') writeFileSync(join(dir, '.forge/cache/machinery.lock'), `# lock\n${outra}\n`);
   const lockAntes = lockEntry(dir);
+  // Histórico de versões publicadas ao lado do template usado neste caso: ausente; contendo o sha local (o arquivo é uma versão publicada); ou só com outro sha.
+  const histPath = join(dirname(src), 'machinery-history.json');
+  rmSync(histPath, { force: true });
+  const outroSha = 'f'.repeat(64);
+  if (s.hist !== 'ausente') {
+    const shas = s.hist === 'contem-local' ? [localSha, outroSha].sort() : [outroSha];
+    writeFileSync(histPath, JSON.stringify({ schema: 'forge-machinery-history/v1', versions: ['v0.0.1'], paths: { [REL]: shas } }) + '\n');
+  }
   if (s.exc !== 'nenhuma') {
     const declared = s.exc === 'viva' ? tplSha : (tplSha[0] === '0' ? '1' : '0') + tplSha.slice(1);
     writeFileSync(join(dir, '.forge/machinery-exceptions.txt'), `${declared}  ${REL}  # pbt\n`);
@@ -295,7 +335,8 @@ const prop = (s) => {
   // Oráculo, escrito a partir do desenho e não do código.
   const differs = localSha !== tplSha;
   const excCobre = differs && s.exc !== 'nenhuma';
-  const intocado = s.lock === 'igual';
+  const temEntrada = s.lock === 'igual' || s.lock === 'diferente';
+  const intocado = temEntrada ? s.lock === 'igual' : s.hist === 'contem-local';
   const deriva = differs && !excCobre && !intocado;
   const esperaIntacto = !differs || excCobre || (deriva && !s.flag);
   const esperaPendente = deriva && !s.flag;
@@ -306,8 +347,11 @@ const prop = (s) => {
   const intacto = sha(agora) === localSha;
   const pendente = existsSync(join(dir, PEND_REL));
   const lockDepois = lockEntry(dir);
-  const dryDeriva = dry.out.includes(`= ${REL} (PRESERVADO (deriva local)`);
-  const realDeriva = real.out.includes(`PRESERVADO (deriva local): ${REL} — versão nova do template em ${PEND_REL}`);
+  const rotulo = temEntrada ? 'deriva local' : 'sem lock para provar';
+  const outroRotulo = temEntrada ? 'sem lock para provar' : 'deriva local';
+  const dryDeriva = dry.out.includes(`= ${REL} (PRESERVADO (${rotulo}) — versão nova do template iria para ${PEND_REL})`);
+  const realDeriva = real.out.split('\n').some((l) => l.startsWith(`PRESERVADO (${rotulo}): ${REL} — `) && l.endsWith(`versão nova do template em ${PEND_REL}`));
+  if (dry.out.includes(`(PRESERVADO (${outroRotulo})`) || real.out.includes(`PRESERVADO (${outroRotulo}): ${REL}`)) { rmSync(dir, { recursive: true, force: true }); console.error(`  caso ${casos} ${JSON.stringify(s)}: rótulo trocado (esperado '${rotulo}')`); return false; }
 
   const falhas = [];
   if (dry.rc !== 0 || real.rc !== 0) falhas.push(`rc dry=${dry.rc} real=${real.rc}`);
@@ -337,5 +381,29 @@ console.log(`OK [10] (${r.runs} casos, seed ${r.seed})`);
 NODE_EOF
 rc10=$?
 [ "$rc10" -eq 0 ] || { echo "FAIL [10]: PBT reprovou (ver saída acima)"; exit 1; }
+
+echo "[11] reconciliação por exceção: o doctor para de cobrar na hora e o update seguinte remove o pendente"
+C11="$(com_lock_e_deriva c11)"
+cp "$C11/.forge/$REL" "$T/c11-antes"
+upd "$C11" "$TPLN" --no-backup
+[ "$UPD_RC" -eq 0 ] && [ -f "$C11/$PEND/$REL" ] || { echo "FAIL [11] (setup): o update de preparo não gravou o pendente (rc=$UPD_RC)"; echo "$UPD_OUT"; exit 1; }
+# A saída (1) recomendada: declarar a exceção com o sha da versão pendente, com o prefixo .forge/ que o parser normaliza.
+printf '%s  .forge/%s  # conserto deliberado do consumidor\n' "$(sha "$C11/$PEND/$REL")" "$REL" > "$C11/.forge/machinery-exceptions.txt"
+d11="$(bash "$C11/.forge/scripts/doctor.sh" --report 2>&1)"
+grep -q 'TEMPLATE-PENDENTE' <<<"$d11" && { echo "FAIL [11]: doctor ainda cobra caminho com exceção declarada (antes do próximo update)"; grep 'TEMPLATE-PENDENTE' <<<"$d11"; exit 1; }
+upd "$C11" "$TPLN" --no-backup
+[ "$UPD_RC" -eq 0 ] || { echo "FAIL [11]: update saiu rc=$UPD_RC"; echo "$UPD_OUT"; exit 1; }
+cmp -s "$C11/.forge/$REL" "$T/c11-antes" || { echo "FAIL [11]: o conserto com exceção declarada foi sobrescrito"; exit 1; }
+grep -q "PRESERVADO (exceção declarada): $REL" <<<"$UPD_OUT" || { echo "FAIL [11]: linha PRESERVADO (exceção declarada) ausente"; echo "$UPD_OUT"; exit 1; }
+[ ! -e "$C11/$PEND/$REL" ] || { echo "FAIL [11]: a versão pendente de caminho reconciliado continua em $PEND/$REL depois do update — o diretório não foi reconstruído"; exit 1; }
+d11b="$(bash "$C11/.forge/scripts/doctor.sh" --report 2>&1)"
+grep -q 'TEMPLATE-PENDENTE' <<<"$d11b" && { echo "FAIL [11]: doctor ainda cobra pendente depois do update"; exit 1; }
+echo "OK [11]"
+
+echo "[12] o histórico versionado cobre toda tag v* alcançável de HEAD"
+[ -f "$WS/template/machinery-history.json" ] || { echo "FAIL [12]: template/machinery-history.json ausente"; exit 1; }
+out12="$(cd "$WS" && node tools/build-machinery-history.mjs --check 2>&1)"; rc12=$?
+[ "$rc12" -eq 0 ] || { echo "FAIL [12]: histórico defasado (rc=$rc12)"; echo "$out12"; exit 1; }
+echo "OK [12]"
 
 echo "PASS w239-update-preserva-deriva-gate"

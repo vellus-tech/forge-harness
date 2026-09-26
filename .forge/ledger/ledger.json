@@ -2928,10 +2928,10 @@
       "id": "LDG-0189",
       "type": "tech-debt",
       "title": "doctor.sh:157 recomenda sync-adapters.sh sem avisar que ele apaga chaves de topo autorais do settings.json",
-      "detail": "Parte do achado J-08 da revisão adversarial do plano v2 (scratchpad/judge.json), separado aqui da issue nova de GitHub porque é dívida de mensagem, não de comportamento do gerador. template/.forge/scripts/doctor.sh:157 — 'harness: $drift alvo(s) do adapter $aname com drift (rode .forge/scripts/sync-adapters.sh)' — manda o consumidor regenerar por cima de qualquer drift sem avisar que, hoje, sync-adapters.mjs:246 (lock.emit(join(ROOT, '.claude/settings.json'), JSON.stringify({ hooks }, null, 2))) reescreve o arquivo só com a chave hooks, apagando permissions/env/includeCoAuthoredBy e qualquer outra chave de topo autoral — reproduzido num clone do vellus: antes ['permissions','env','hooks','includeCoAuthoredBy'], depois só ['hooks'], rc 0, 41 regras allow/deny e 4 variáveis de env perdidas. Correção: depois que a issue nova do settings.json passar o gerador a só ser dono dos blocos que referenciam .forge/hooks/ (preservando chaves de terceiros), reescrever a mensagem de doctor.sh:157 para não recomendar 'rode sync-adapters.sh' como correção genérica e sem ressalva quando o drift for nessas chaves. Onda alvo: Onda 1 (Bloco A), no mesmo PR que fecha a issue nova do settings.json — a mensagem e o comportamento são a mesma causa raiz (J-08) e travam juntos.\n\nDECISÃO (2026-09-25): Issue nova de GitHub aberta para a metade comportamental deste achado (o apagamento em si): #160 (https://github.com/vellus-tech/forge-harness/issues/160). Este item de ledger cobre só a metade da mensagem de doctor.sh:157.\n\nCORREÇÃO DE REGISTRO (2026-09-25): CORREÇÃO DE REGISTRO (2026-09-25): o detail descreve a posse do gerador como 'blocos que referenciam .forge/hooks/', e isso está superado pelo desenho da #160 no plano docs/plans/2026-09-15-plano-issues-abertas.md (seção da #160): o gerador só é dono das entradas de hook cujo command é, por igualdade de string, um dos comandos que ele mesmo sabe derivar (hoje enforce-worktree-location.sh, on-session-start.sh e on-session-end.sh; depois da #125, os ganchos do manifesto), nunca pela simples menção a .forge/hooks/. Motivo medido: o .claude/settings.json do axis-fare-validator tem três comandos .forge/hooks/pre-tool-use/dispatch-file-hook.sh (wrapper autoral fora do manifesto) e dois ganchos autorais, enforce-docs-on-publish.sh e guard-machinery-drift.sh, que citam .forge/hooks/ e seriam apagados pela regra por menção. A mensagem de doctor.sh:157 que este item corrige deve falar em 'entradas que o gerador deriva', não em 'blocos que referenciam .forge/hooks/'. O desvio em relação ao item 3 do Bloco A do plano v2 está registrado na seção 'O que mudou em relação ao R02' do mesmo plano.",
+      "detail": "Parte do achado J-08 da revisão adversarial do plano v2 (scratchpad/judge.json), separado aqui da issue nova de GitHub porque é dívida de mensagem, não de comportamento do gerador. template/.forge/scripts/doctor.sh:157 — 'harness: $drift alvo(s) do adapter $aname com drift (rode .forge/scripts/sync-adapters.sh)' — manda o consumidor regenerar por cima de qualquer drift sem avisar que, hoje, sync-adapters.mjs:246 (lock.emit(join(ROOT, '.claude/settings.json'), JSON.stringify({ hooks }, null, 2))) reescreve o arquivo só com a chave hooks, apagando permissions/env/includeCoAuthoredBy e qualquer outra chave de topo autoral — reproduzido num clone do vellus: antes ['permissions','env','hooks','includeCoAuthoredBy'], depois só ['hooks'], rc 0, 41 regras allow/deny e 4 variáveis de env perdidas. Correção: depois que a issue nova do settings.json passar o gerador a só ser dono dos blocos que referenciam .forge/hooks/ (preservando chaves de terceiros), reescrever a mensagem de doctor.sh:157 para não recomendar 'rode sync-adapters.sh' como correção genérica e sem ressalva quando o drift for nessas chaves. Onda alvo: Onda 1 (Bloco A), no mesmo PR que fecha a issue nova do settings.json — a mensagem e o comportamento são a mesma causa raiz (J-08) e travam juntos.\n\nDECISÃO (2026-09-25): Issue nova de GitHub aberta para a metade comportamental deste achado (o apagamento em si): #160 (https://github.com/vellus-tech/forge-harness/issues/160). Este item de ledger cobre só a metade da mensagem de doctor.sh:157.\n\nCORREÇÃO DE REGISTRO (2026-09-25): CORREÇÃO DE REGISTRO (2026-09-25): o detail descreve a posse do gerador como 'blocos que referenciam .forge/hooks/', e isso está superado pelo desenho da #160 no plano docs/plans/2026-09-15-plano-issues-abertas.md (seção da #160): o gerador só é dono das entradas de hook cujo command é, por igualdade de string, um dos comandos que ele mesmo sabe derivar (hoje enforce-worktree-location.sh, on-session-start.sh e on-session-end.sh; depois da #125, os ganchos do manifesto), nunca pela simples menção a .forge/hooks/. Motivo medido: o .claude/settings.json do axis-fare-validator tem três comandos .forge/hooks/pre-tool-use/dispatch-file-hook.sh (wrapper autoral fora do manifesto) e dois ganchos autorais, enforce-docs-on-publish.sh e guard-machinery-drift.sh, que citam .forge/hooks/ e seriam apagados pela regra por menção. A mensagem de doctor.sh:157 que este item corrige deve falar em 'entradas que o gerador deriva', não em 'blocos que referenciam .forge/hooks/'. O desvio em relação ao item 3 do Bloco A do plano v2 está registrado na seção 'O que mudou em relação ao R02' do mesmo plano. — Resolvido: Resolvido pelo PR #165 (junto com a #160): doctor.sh agora distingue drift só autoral do drift real — quando o settings.json diverge só em chave que o gerador não possui (permissions/env/includeCoAuthoredBy), a recomendação padrão ganha a ressalva 'o sync preserva chaves autorais e hooks de terceiro' em vez de mandar rodar sync-adapters.sh sem ressalva; e quando a lib local (.forge/scripts/lib/sync-adapters.mjs) é anterior à correção da #160 (sem mergeSettingsJson), o doctor avisa que o sync APAGARIA as chaves autorais em vez de recomendar a correção. Ver template/.forge/scripts/doctor.sh:137-309 (_settings_hooks_is_derived, _settings_lib_needs_160_upgrade_warning).",
       "severity": null,
       "priority": "P2",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -2944,8 +2944,8 @@
         "promoted_to": null
       },
       "created_at": "2026-09-25T20:09:06-03:00",
-      "updated_at": "2026-09-25T20:56:21-03:00",
-      "resolved_at": null,
+      "updated_at": "2026-09-26T07:57:15-03:00",
+      "resolved_at": "2026-09-26T07:57:15-03:00",
       "dedup_key": "manual:LDG-0189"
     },
     {
@@ -2995,6 +2995,246 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0191"
+    },
+    {
+      "id": "LDG-0192",
+      "type": "roadmap",
+      "title": "Recusa opt-in do handoff sem marcadores e alinhamento do /forge:handoff aos marcadores",
+      "detail": "Lado forte descartado da DA-09 (#120, Bloco A, plano docs/plans/2026-09-15-plano-issues-abertas.md, seção da #120): o PR #164 manteve o desenho do R02 (backup byte-idêntico em <git-dir>/forge-backups, WARN nominal, rc 0) quando handoff-gen.sh regenera um HANDOFF.md sem marcadores, porque handoff-gen.sh é chamado pelo /forge:handoff e pelo hook de sessão esperando rc 0 (w62), e o backup já torna os bytes anteriores recuperáveis. Ficam de fora, para decisão de produto: (1) uma recusa opt-in — por flag ou chave de forge.yaml — que pare a regeneração quando o HANDOFF.md existente não tem marcadores reconhecidos, em vez de sobrescrever com backup; (2) alinhar o comando /forge:handoff (a prosa e o contrato que ele documenta) ao conjunto de marcadores que handoff-gen.sh realmente reconhece hoje, hoje divergentes. Onda alvo: Onda 8 (Bloco F), change SDD próprio.",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-26T07:57:15-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0192"
+    },
+    {
+      "id": "LDG-0193",
+      "type": "known-bug",
+      "title": "handoff-render.mjs: placeholder do digest fora da região do rodapé nunca é preenchido, WARN de 1ª geração se repete para sempre",
+      "detail": "Achado residual da revisão do PR #164 (#120), não coberto pelas iterações de findings-120/120b (evid-120.md). template/.forge/scripts/lib/handoff-render.mjs:270-282: quando o template TEM o marcador <!-- FORGE:HANDOFF-DIGEST -->, o preenchimento só procura o placeholder a partir de footerStart (:274, ceFinal + END.length quando há slot) — 'placeholderIdx = outBuf.indexOf(DIGEST_PLACEHOLDER, footerStart)' (:275). Se o placeholder aparecer ANTES do fim do slot na renderização (ex.: template editado colocando o marcador acima do bloco NARRATIVE-DELTA, ou um segundo marcador duplicado antes do slot), a busca começando em footerStart nunca o encontra: placeholderIdx fica -1, o 'if (placeholderIdx >= 0)' (:276) não escreve nada, e o rodapé real nunca ganha o hash. Como o digest nunca é gravado, a próxima geração sempre mede noDigestFound=true (:226) e wouldLoseBytes=true (:228), então bothHaveMarkersBuf && noDigestFound (:241) fica permanentemente verdadeiro: todo commit grava um novo backup e emite 'WARN: primeira geração com registro de digest' (:298-299) como se fosse a primeira vez, para sempre — nunca converge para o estado estável (0 backups, 0 WARN) que o mecanismo promete para um template correto. Diferença em relação ao ramo 'else' (:283-291, template SEM o placeholder), que sempre grava um rodapé próprio e portanto converge: o ramo 'if (tplHasDigestPlaceholder)' não tem fallback quando o placeholder existe mas está fora da região buscada. Correção proposta: quando tplHasDigestPlaceholder é true mas placeholderIdx < 0 (placeholder existe no arquivo mas não na região pós-slot), cair no mesmo comportamento do ramo 'else' (apender rodapé próprio) em vez de silenciosamente não escrever nada, e/ou validar na leitura do template que o marcador está posicionado depois do END. Gate candidato: cenário novo em tests/w60-handoff-gen-gate.sh com o marcador duplicado antes do slot, exigindo que a segunda geração não repita o WARN de 'primeira geração'.",
+      "severity": "MEDIUM",
+      "priority": "P2",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-26T07:57:15-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0193"
+    },
+    {
+      "id": "LDG-0194",
+      "type": "known-bug",
+      "title": "handoff-render.mjs: delta que cita literalmente o marcador END trunca a cauda do slot; WARN nomeia a região errada",
+      "detail": "Achado residual da revisão do PR #164 (#120). template/.forge/scripts/lib/handoff-render.mjs:214-256: peB = prevBuf.indexOf(END) (:215) localiza a PRIMEIRA ocorrência literal do marcador END no arquivo anterior. Se o texto autoral dentro do slot NARRATIVE-DELTA citar o próprio marcador END como texto (ex.: uma nota tipo 'lembrar de fechar com o marcador <END> antes de arquivar'), esse indexOf encontra a citação literal em vez do END real que fecha o slot: prevSlotRawBuf (:250) fica truncado no ponto da citação, perdendo a cauda real do delta entre a citação e o END verdadeiro; e prevOutsideBuf (:220-222), que deveria conter só o texto FORA do slot, passa a incluir esse resto (a cauda perdida do slot) como se fosse conteúdo externo, alterando o digest calculado e dando ao WARN emitido (:296-300) o motivo errado ('conteúdo fora do bloco NARRATIVE-DELTA', quando na verdade o conteúdo pertencia AO slot). Mitigação parcial existente: o backup grava prevBuf inteiro (backupPreviousHandoff, chamado em :236), então os bytes originais completos são recuperáveis manualmente do backup — mas o HANDOFF.md resultante fica com a cauda do slot faltando, e o CHANGELOG (entrada do #120) descreve o digest como preservando integralmente qualquer conteúdo do slot, o que não é literalmente verdade neste caso de marcador citado sem escape. Correção proposta: localizar o END real por busca a partir do FIM do arquivo (lastIndexOf) ou exigir que uma citação literal do marcador dentro do slot seja escapada/detectada e ignorada pela busca de fronteira, com gate cobrindo o cenário 'END citado literalmente dentro do slot, antes do END real'.",
+      "severity": "LOW",
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-26T07:57:15-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0194"
+    },
+    {
+      "id": "LDG-0195",
+      "type": "tech-debt",
+      "title": "Comentários de handoff-render.mjs e do gate w60 ainda narram rodadas de revisão do #120 (a 'forma' por regex da 4ª rodada) como mecanismo vigente",
+      "detail": "Achado residual da revisão do PR #164 (#120), mesma classe do achado cosmético em bin/forge.mjs (LDG desta rodada para o #101/#131/#142): template/.forge/scripts/lib/handoff-render.mjs:13 e comentários próximos ainda descrevem 'a 4ª rodada comparava contra uma forma (regex)' como histórico do desenho, e tests/w60-handoff-gen-gate.sh tem comentários de cabeçalho e de cenário que citam '4ª rodada'/'5ª rodada'/'6ª rodada' em vez de descrever só o invariante vigente (merge do slot em Buffer bruto + digest sha256 fora do slot). O mecanismo por regex foi removido por completo (grep -n RegExp|buildShape|outsideShape handoff-render.mjs vazio, confirmado em evid-120.md), então a narrativa de rodadas description código morto/decisão já superada, não o comportamento atual — mesmo padrão do achado cosmético de bin/forge.mjs:469,513,884,934 (narrativa de review adversarial em vez de invariante). Correção proposta: reescrever os comentários de handoff-render.mjs e os comentários de cenário de w60-handoff-gen-gate.sh para descrever só o mecanismo e o invariante atuais (o que cada cenário prova, não em que rodada da revisão ele nasceu), mantendo apenas a referência à issue #120 onde precisar de rastreabilidade. Não fizemos essa limpeza neste PR de reconciliação porque o mandato desta sessão restringe escrita a .forge/ledger e .forge/liaison; fica para o PR de código que tocar esses arquivos de novo, ou change dedicado de limpeza cosmética.",
+      "severity": "LOW",
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-26T07:57:15-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0195"
+    },
+    {
+      "id": "LDG-0196",
+      "type": "tech-debt",
+      "title": "Protocolo por PR item 3: verificação mecânica de 'GREEN não deveria tocar o próprio gate' não foi rodada literalmente para o #120",
+      "detail": "Achado residual da revisão do PR #164 (#120). O protocolo por PR (docs/plans/2026-09-15-plano-issues-abertas.md, item 3) exige que o ORQUESTRADOR (nunca o subagente) rode 'git diff --quiet $RED HEAD -- tests/wNNN-*.sh, ou justificativa escrita no PR' para todo commit GREEN. Na iteração 3 do #120, o GREEN 7301231 tocou tests/w60-handoff-gen-gate.sh além da produção ('dois pontos cosméticos de isolamento em tests/w60-handoff-gen-gate.sh (rm -f \"$H\" antes dos cenários [15]/[16])', evid-120.md linha 460-462) — a justificativa por escrito existe no corpo da evidência, mas não há registro de que o comando mecânico 'git diff --quiet' tenha sido executado e sua saída (não-vazia) colada, só a narrativa. É um gap de conformidade processual, não um defeito de produção: a mudança em si é descrita como cosmética e plausível, mas o protocolo pede o comando rodado e sua saída, não só a alegação. Correção proposta: ao revisar PRs futuros que tocam o próprio gate no commit GREEN, exigir a saída literal de 'git diff --quiet $RED HEAD -- tests/wNNN-*.sh; echo rc=$?' colada no PR antes de aceitar a justificativa por prosa.",
+      "severity": "LOW",
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-26T07:57:15-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0196"
+    },
+    {
+      "id": "LDG-0197",
+      "type": "known-bug",
+      "title": "on-session-end.sh:6 descarta o WARN do handoff-gen (stderr para /dev/null) — recuperação por backup fica invisível no hook de sessão",
+      "detail": "Achado residual documentado nas iterações 2 e 3 do #120 (evid-120.md, 'LOW-4/processual' e 'LOW (WARN descartado por on-session-end.sh:6)'), sem correção de código porque o mandato daquelas sessões proibia tocar ledger/produção fora do escopo do PR — este item é o registro pendente que as duas iterações pediram para o PR de reconciliação do Bloco A criar. template/.forge/hooks/session/on-session-end.sh:6: 'FORGE_ROOT=\"$ROOT\" bash \"$ROOT/.forge/scripts/handoff-gen.sh\" >/dev/null 2>&1 || true' redireciona TANTO stdout quanto stderr para /dev/null. Toda vez que handoff-gen.sh roda pelo hook de SessionEnd (o caminho automático, não o /forge:handoff manual) e o HANDOFF.md tinha conteúdo autoral fora do slot NARRATIVE-DELTA (ou sem marcadores), o WARN nominal que aponta o caminho do backup ('WARN: HANDOFF.md com conteúdo fora do bloco ... salvo em <path>') é gerado pelo gerador mas nunca chega a lugar nenhum visível — o usuário não fica sabendo que um backup foi criado nem onde procurá-lo, só que o /forge:handoff manual (chamado sem esse redirecionamento pelo comando) mostra o WARN. Correção proposta: manter a supressão de stdout (rc/mensagem de sucesso não interessam no automático) mas encaminhar stderr para algum canal visível — arquivo de log do hook, ou reemissão condicional só quando houver WARN — em vez do 2>&1 unificado para /dev/null; ou, no mínimo, documentar explicitamente que o WARN do caminho automático é sacrificado por design, o que hoje não está escrito em lugar nenhum.",
+      "severity": "LOW",
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-26T07:57:15-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0197"
+    },
+    {
+      "id": "LDG-0198",
+      "type": "known-bug",
+      "title": "doctor.sh: diagnóstico de settings.json (_settings_hooks_is_derived) valida mais fraco e é sensível a ordem de categoria, diferente do sync real",
+      "detail": "Achado residual da revisão do PR #167 (#160/LDG-0189). Dois gaps na mesma função, template/.forge/scripts/doctor.sh:154-232 (_settings_hooks_is_derived): (1) validação mais fraca que a real — a linha 227 faz 'const current = JSON.parse(readFileSync(settingsPath, \"utf8\"))' sem passar por decodeAndValidateSettings (sync-adapters.mjs:660-680), que rejeita como ILEGÍVEL bytes fora de UTF-8, nível de topo não-objeto, hooks não-objeto, categoria de hooks não-array e a chave __proto__. Um settings.json que dispara qualquer uma dessas cinco condições mas ainda é JSON sintaticamente válido passa pelo JSON.parse cru do doctor sem erro; se a projeção calculada bater por coincidência, o doctor imprime a recomendação com a ressalva 'o sync preserva chaves autorais' (doctor.sh linha ~309) como se nada fosse acontecer — mas o sync REAL (sync-adapters.mjs, chamando decodeAndValidateSettings) trataria o mesmo arquivo como ilegível, faria backup e reescreveria do zero, perdendo toda chave autoral que o doctor acabou de dizer que seria preservada. (2) comparação sensível à ORDEM das categorias — doctor.sh:212 monta 'out' com 'for (const cat of Object.keys(hooksObj))', na ordem em que as categorias aparecem no settings.json real, e compara por 'JSON.stringify(projected) === JSON.stringify(derived)' (doctor.sh:229), que serializa por ordem de inserção; se preToolUseWiring(root) (a função canônica) emite as categorias numa ordem fixa e o consumidor declarou, por exemplo, SessionStart antes de PreToolUse no settings.json, os dois JSON.stringify divergem por ordem de chave mesmo com o MESMO conteúdo, e a comparação cai em 'no' — drift só de ordem/autoral (nenhuma chave perdida de fato) classificado como drift real, levando o doctor a recomendar rodar sync-adapters.sh sem necessidade. Correção proposta: (1) fazer _settings_hooks_is_derived chamar a mesma validação de decodeAndValidateSettings (via subprocesso ou exportação) antes de decidir 'yes', nunca JSON.parse cru; (2) comparar 'projected' e 'derived' por igualdade estrutural (chaves ordenadas antes de stringify, ou comparação recursiva) em vez de JSON.stringify direto. Gate candidato: dois cenários novos em tests/w238-settings-json-merge-gate.sh — settings.json com hooks.SomeCategory não-array mas JSON válido (doctor deveria dizer 'no', hoje pode dizer 'yes'), e settings.json com SessionStart antes de PreToolUse e conteúdo idêntico ao derivado (doctor deveria dizer 'yes', hoje diz 'no').",
+      "severity": "LOW",
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-26T07:57:15-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0198"
+    },
+    {
+      "id": "LDG-0199",
+      "type": "tech-debt",
+      "title": "Texto de #160/LDG-0189 (CHANGELOG/comentário do gate w238) anuncia 'seis formas de ilegibilidade' e enumera cinco",
+      "detail": "Achado residual da revisão do PR #167 (#160/LDG-0189), imprecisão textual apontada pela revisão adversarial e ainda não localizada byte a byte nesta reconciliação: a entrada do CHANGELOG.md para #160/LDG-0189 (linha 18) lista, num trecho, 'a forma concreta (bytes não-UTF-8 / nível de topo não-objeto / hooks não-objeto / categoria de hooks não-array / __proto__ presente / JSON inválido)' — seis itens, sendo o sexto o caso de JSON sintaticamente inválido — e, mais adiante no mesmo parágrafo, resume o gate como cobrindo 'cinco formas de ilegibilidade além de JSON sintaticamente inválido', que é consistente em conteúdo (5+1=6) mas usa duas contagens diferentes (5 e 6) para o mesmo conjunto no mesmo parágrafo, o que a revisão leu como contraditório ('seis formas' vs lista de cinco). Correção proposta: escolher UMA contagem e um enunciado único (ex.: 'seis formas de ilegibilidade, sendo cinco delas além do JSON sintaticamente inválido') e aplicar a mesma redação em CHANGELOG.md:18 e em qualquer comentário de tests/w238-settings-json-merge-gate.sh que repita a contagem, para eliminar a leitura de números divergentes no mesmo trecho.",
+      "severity": "LOW",
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-26T07:57:15-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0199"
+    },
+    {
+      "id": "LDG-0200",
+      "type": "tech-debt",
+      "title": "PBT do w238 (#160) não gera hooks de terceiro em categorias/matchers variados (só PreToolUse/Bash)",
+      "detail": "Registrado pela própria evidência do PR #167 (evid-160.md, seção 'Desvios registrados', LOW-4): dos quatro sub-achados de cobertura insuficiente da PBT/cenário [1], três foram corrigidos na 3ª iteração (multiplicidade de comando em vez de Set, segundo sync idempotente por caso, cenário [1b] medindo o PRIMEIRO sync sobre a ordem real de chaves do vellus). O quarto sub-achado ficou pendente por não ser barato: a PBT de tests/w238-settings-json-merge-gate.sh gera hooks de terceiro só na categoria PreToolUse com matcher fixo (o caso Bash), nunca em categorias variadas (SessionStart, SessionEnd, etc.) nem com matchers variados, então a propriedade testada não cobre o caso de um hook de terceiro estrangeiro numa categoria diferente sobrevivendo ao merge — exigiria reestruturar o driver da PBT para rastrear grupos estrangeiros inteiros por categoria (hoje só rastreia comandos), com risco medido de reintroduzir os mesmos dois bugs de lógica que a própria revisão desta issue já encontrou uma vez (mutação [10] apontando assinatura antiga; condição de exit code não negada em [11d]/[14]). A issue #125 (reescrita da emissão de hooks) herda parte deste cenário no gate w215, mas não fecha especificamente a cobertura de categoria/matcher variados da PBT do w238. Correção proposta: estender o gerador da PBT em tests/w238-settings-json-merge-gate.sh (ou no harness pbt.mjs) para sortear categoria (dentre as reconhecidas pelo Claude Code) e matcher do hook de terceiro, comparando os grupos estrangeiros por igualdade profunda por categoria, não só por presença de comando.",
+      "severity": "LOW",
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-26T07:57:15-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0200"
+    },
+    {
+      "id": "LDG-0201",
+      "type": "known-bug",
+      "title": "Gates que criam repositório temporário obedecem GIT_DIR herdado do ambiente — git init/config sem -C grava identidade errada em repositório alheio",
+      "detail": "INCIDENTE reproduzido nesta máquina em 2026-09-26 ~03:4x (relatado em scratchpad/reconciliacao-bloco-A.md item 11, evidência não durável — o achado em si é reproduzível a partir do código): tests/changelog-merge-gate.sh:16-18 (e outros gates que criam repositório git temporário para teste) chamam 'git init'/'git config' sem '-C <path>' nem 'cd' isolado, contando com o diretório de trabalho corrente; quando a variável de ambiente GIT_DIR está exportada (herdada de uma sessão paralela ou de um comando anterior mal isolado), esses comandos obedecem o GIT_DIR herdado em vez do repositório temporário recém-criado, gravando 'user.name=t'/'user.email=t@t' (ou qualquer identidade da sessão que exportou GIT_DIR) no .git/config do repositório APONTADO por GIT_DIR — que pode ser o repositório real de trabalho. Efeito medido nesta rodada: 16 commits em 5 branches gravados com autor 't', incluindo um squash (0c2ab4f) já mergeado em develop com 'Co-authored-by: t <t@t>' na mensagem — não reescrito, porque reescrever develop published exige o dono (force-push). Causa raiz: nenhum preâmbulo comum dá 'unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR' nos runners (tests/run-all.sh, template/.forge/scripts/tests/run-all.sh) nem nos próprios gates antes de criarem e operarem sobre um repositório git temporário. Prioridade P1: contamina a identidade de commits do repositório real de trabalho quando GIT_DIR vaza de uma sessão para outra na mesma máquina, e o runner do template é distribuído a todo consumidor (o mesmo padrão de gate pode existir nos repositórios deles). Correção proposta (fica para a Onda 3, Bloco B, próxima release — ver seção própria no plano docs/plans/2026-09-15-plano-issues-abertas.md): preâmbulo comum que dá unset em GIT_DIR/GIT_WORK_TREE/GIT_INDEX_FILE/GIT_COMMON_DIR no início de tests/run-all.sh, template/.forge/scripts/tests/run-all.sh, e em todo gate que cria repositório temporário próprio, mais um gate novo que roda um gate alvo com GIT_DIR apontando para um repositório 'vítima' e exige que a vítima saia intacta (sem novo commit, sem user.name/user.email alterado) depois da execução. Vermelho: rodar tests/changelog-merge-gate.sh com GIT_DIR exportado apontando para um repositório vítima e observar user.name=t gravado nele.",
+      "severity": "BLOCKER",
+      "priority": "P1",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-26T07:57:15-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0201"
     }
   ]
 }

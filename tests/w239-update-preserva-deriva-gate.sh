@@ -14,7 +14,7 @@
 #   [7]  doctor lista, numa linha nominal, os arquivos com versão pendente (contagem + caminho) e deixa de listá-los depois da reconciliação; rc do doctor inalterado
 #   [8]  fixture REAL: o conserto LDG-0109 do `scripts/lib/yaml-lite.mjs` do azim-crm, com a linha real do `machinery.lock` dele (sha do template rc24) — preservado, pendente gravado, lock mantém o sha anterior
 #   [9]  `.md` de maquinaria preservado por deriva (sem lock) com placeholder `<PROJECT_*>` local: o orphan-check de placeholders isenta o caminho preservado (conteúdo do consumidor) — rc 0
-#   [10] PBT: para estados gerados (lock ausente/igual/diferente/sem entrada, histórico de versões publicadas ausente/contendo o sha local/sem ele, local editado ou não, template igual ou evoluído, exceção nenhuma/viva/expirada, flag sim/não, e uma dimensão de sequência: reconciliar à mão copiando a versão pendente e atualizar de novo para um template evoluído), o desfecho é função pura do estado: intocado sse (há entrada no lock e ela == sha local) ou o histórico contém o sha local; o arquivo local fica byte-idêntico sse (local == template novo) ou exceção declarada ou (deriva e não --overwrite-drift); a versão pendente existe sse preservado por deriva; a linha é `deriva local` com entrada no lock e `sem lock para provar` sem ela; o lock daquele caminho só avança quando o arquivo não foi preservado por deriva; e o --dry-run anuncia a deriva sse a aplicação real a preserva; na sequência, o arquivo reconciliado à mão é `ATUALIZADO` pelo update seguinte (sem pendente, lock no sha do template novo), e o --dry-run antecipa isso
+#   [10] PBT: para estados gerados (lock ausente/igual/diferente/sem entrada, histórico de versões publicadas ausente/contendo o sha local/sem ele, local editado ou não, template igual ou evoluído, exceção nenhuma/viva/expirada, flag sim/não, e uma dimensão de sequência: reconciliar à mão copiando a versão pendente e atualizar de novo para um template evoluído), o desfecho é função pura do estado: intocado sse (há entrada no lock e ela == sha local) ou o histórico contém o sha local; o arquivo local fica byte-idêntico sse (local == template novo) ou exceção declarada ou (deriva e não --overwrite-drift); a versão pendente existe sse preservado por deriva; a linha é `deriva local` com entrada no lock e `sem lock para provar` sem ela; o lock daquele caminho só avança quando o arquivo não foi preservado por deriva; e o --dry-run anuncia a deriva sse a aplicação real a preserva; na sequência, o arquivo reconciliado à mão é `ATUALIZADO` pelo update seguinte (sem pendente, lock no sha do template novo), e o --dry-run antecipa isso (50 estados uniformes com a semente 239260926 e 25 no recorte que força a sequência, semente 239260927, com piso de 5 sequências medidas)
 #   [11] reconciliação por exceção declarada: com o sha da versão pendente declarado em machinery-exceptions.txt, o doctor para de cobrar o caminho na hora (sem esperar outro update), e o update seguinte preserva por exceção e REMOVE a versão pendente (o diretório é reconstruído a cada aplicação real)
 #   [12] o histórico versionado (`template/machinery-history.json`) cobre toda tag v* alcançável de HEAD — o gerador em modo --check sai rc 0. Pré-requisito de ambiente: as tags v* (o CI clona com fetch-depth: 0). Num clone raso ou feito com --no-tags o [12] não é medido: imprime `UNV [12]` e o gate termina rc 127 (dependência ausente, que o run-all classifica como não verificado) depois de rodar todos os outros cenários — nunca PASS sem medir, nunca FAIL por defeito que não existe
 #   [13] reconciliação à mão (saída 2 do /forge:upgrade): o consumidor copia a versão pendente sobre o arquivo; o update seguinte, para um template que evoluiu de novo, reconhece o arquivo como uma versão que o próprio template entregou — `ATUALIZADO`, conteúdo novo, sem pendente e lock avançado —, em vez de retê-lo como `PRESERVADO (deriva local)` a cada release
@@ -476,9 +476,28 @@ if (!r.ok) {
   process.exit(1);
 }
 if (casos < 50) { console.error(`FAIL [10]: rodou só ${casos} caso(s), esperado >= 50`); process.exit(1); }
-// Guarda de vacuidade da dimensão de sequência: com a semente registrada, ao menos um caso tem de exercitar a reconciliação à mão seguida de update — senão a propriedade passaria sem medir a sequência.
-if (seqs < 1) { console.error(`FAIL [10]: nenhum caso exercitou a sequência reconciliação à mão + update (seqs=${seqs})`); process.exit(1); }
-console.log(`OK [10] (${r.runs} casos, ${seqs} com sequência, seed ${r.seed})`);
+// A sequência só acontece quando o primeiro update preserva por deriva sem a flag, cerca de 3% dos estados uniformes; uma segunda rodada, com semente própria, fixa esse recorte (local editado, sem exceção, sem flag, com sequência) e deixa livres lock, histórico e template, para que a dimensão seja medida em muitos casos e não num só.
+const casosUniformes = casos;
+const genSeq = P.gen.record({
+  lock: P.gen.oneOf(['ausente', 'igual', 'diferente', 'sem-entrada']),
+  hist: P.gen.oneOf(['ausente', 'contem-local', 'sem-local']),
+  localEdit: P.gen.oneOf([true]),
+  tplEvolve: P.gen.bool(),
+  exc: P.gen.oneOf(['nenhuma']),
+  flag: P.gen.oneOf([false]),
+  seq: P.gen.oneOf([true]),
+});
+const SEED_SEQ = SEED + 1;
+const r2 = P.forAll([genSeq], prop, { runs: 25, seed: SEED_SEQ });
+if (!r2.ok) {
+  console.error(`FAIL [10]: propriedade (recorte de sequência) falhou após ${r2.runs} caso(s) (seed ${r2.seed})`);
+  console.error('  contraexemplo minimizado: ' + JSON.stringify(r2.counterexample));
+  if (r2.error) console.error('  erro: ' + r2.error);
+  process.exit(1);
+}
+// Guarda de vacuidade da dimensão de sequência: sem casos que reconciliam à mão e atualizam de novo, a propriedade passaria sem medir a sequência.
+if (seqs < 5) { console.error(`FAIL [10]: só ${seqs} caso(s) exercitaram a sequência reconciliação à mão + update, esperado >= 5`); process.exit(1); }
+console.log(`OK [10] (${casosUniformes} casos uniformes com seed ${r.seed} e ${r2.runs} no recorte de sequência com seed ${r2.seed}; ${seqs} com sequência)`);
 NODE_EOF
 rc10=$?
 [ "$rc10" -eq 0 ] || { echo "FAIL [10]: PBT reprovou (ver saída acima)"; exit 1; }

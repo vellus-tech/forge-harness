@@ -19,16 +19,32 @@
 #   [4] pre-push — DOCS_LIB, RED_LIB (require_hook_lib), AI_CHECK e ACKS ausentes na worktree e
 #       presentes no tronco (stubs) → "pre-push OK", quatro linhas nomeando o tronco
 #   [5] pre-push — HARNESS_SUITE (run-all.sh) ausente na worktree, presente no tronco → não
-#       bloqueia, nomeia o tronco
+#       bloqueia, nomeia o tronco (e nomeia também o heavy-mutex.sh, resolvido no mesmo push)
+#   [5b] pre-push — HARNESS_SUITE com o run-all.sh REAL (não stub): worktree TEM
+#       .forge/scripts/tests/ com um teste que falha e SEM run-all.sh próprio; tronco tem o
+#       run-all.sh real (sem testes) → BLOQUEIA nomeando o teste da PRÓPRIA worktree. Prova que o
+#       runner do tronco, quando emprestado, examina a árvore que empresta o hook (--path), nunca
+#       a própria (LDG — achado do adendo de revisão do w223)
+#   [5c] pre-push — HARNESS_SUITE contrafactual: worktree SEM .forge/scripts/tests/ (diretório
+#       inteiro ausente — harness anterior à #73); tronco tem run-all.sh real com um teste que
+#       falha → passa (rc 0), a suíte do tronco NUNCA examina o alheio quando o diretório não
+#       existe na worktree
 #   [6] pre-push — lint de shell (check-shell-pipeline.sh) ausente na worktree, presente no
 #       tronco, com um .sh no diff do push → não bloqueia, nomeia o tronco
 #   [7] pre-push — contrafactual: AI_CHECK ausente nas DUAS árvores → continua BLOQUEANDO
 #   [8] lib/check-red-first.sh — os dois alvos internos (check-red-first.sh delegado,
 #       gate-universe.sh) ausentes na árvore que executa e presentes na árvore de onde a lib foi
 #       sourced (o tronco) → não bloqueia, nomeia o tronco nos dois
-#   [9] AUTO-IRONIA: os 12 sítios medidos em L3 §0 (pre-push 6, pre-commit 1, commit-msg 1,
-#       post-merge 2, lib/check-red-first.sh 2) têm todos a mesma resolução — contagem estrutural
-#       de chamadas ao resolvedor compartilhado, por arquivo, sem vacuidade
+#   [9] AUTO-IRONIA: os 13 sítios (12 de L3 §0 + RUNTIME_LIB, achado do adendo de revisão)
+#       chamam o mesmo resolvedor — contagem estrutural por arquivo, sem vacuidade, MAIS a
+#       identidade byte a byte do corpo da função entre as 4 cópias (pre-commit, commit-msg,
+#       post-merge, pre-push), porque a contagem de chamadas não pega uma correção aplicada só
+#       numa cópia
+#   [10] pre-push — RUNTIME_LIB (forge-runtime.sh) ausente na worktree, presente no tronco, com
+#       runtime.gates declarado (forma CSV) e o gate existindo na worktree → não bloqueia, nomeia
+#       o tronco, e o gate declarado roda de verdade (achado do adendo de revisão do w223)
+#   [11] pre-push — a recusa de alvo ausente nas duas árvores nomeia AS DUAS árvores procuradas,
+#       nunca afirma presença falsa de diretório que só existe numa delas (achado do adendo)
 set -uo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -215,7 +231,65 @@ case "$out" in
   *"usando o do tronco"*"run-all.sh"*) : ;;
   *) echo "FAIL [5]: não nomeou o tronco para run-all.sh (saída: '$out')"; exit 1 ;;
 esac
+case "$out" in
+  *"usando o do tronco"*"heavy-mutex.sh"*) : ;;
+  *) echo "FAIL [5]: não nomeou o tronco para heavy-mutex.sh, resolvido no mesmo push (saída: '$out')"; exit 1 ;;
+esac
 echo "OK [5]"
+
+# ── [5b] pre-push — HARNESS_SUITE com run-all.sh REAL: teste da PRÓPRIA worktree ────────────
+echo "[5b] pre-push — run-all.sh real no tronco, teste que falha na PRÓPRIA worktree, sem runner"
+R5B="$T/r5b"; TR5B="$T/tr5b"
+mktrunk "$TR5B"
+cp "$HOOKS/pre-push" "$TR5B/.forge/hooks/git/pre-push"; chmod +x "$TR5B/.forge/hooks/git/pre-push"
+printf '#!/usr/bin/env bash\ncheck_docs_reviewed() { return 0; }\n' > "$TR5B/.forge/hooks/git/lib/check-docs-reviewed.sh"
+printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n' > "$TR5B/.forge/hooks/git/lib/check-red-first.sh"
+# run-all.sh REAL do template no tronco (não o stub `exit 0` de mktrunk) — sem teste algum no
+# diretório do tronco, para que qualquer FALHA só possa vir do que a worktree publica.
+cp "$WS/template/.forge/scripts/tests/run-all.sh" "$TR5B/.forge/scripts/tests/run-all.sh"; chmod +x "$TR5B/.forge/scripts/tests/run-all.sh"
+mkrepo "$R5B" "$TR5B/.forge/hooks/git"
+mkdir -p "$R5B/.forge/hooks/git/lib" "$R5B/.forge/scripts/tests"   # worktree TEM o diretório de testes
+cp "$TR5B/.forge/hooks/git/lib/check-docs-reviewed.sh" "$R5B/.forge/hooks/git/lib/check-docs-reviewed.sh"
+cp "$TR5B/.forge/hooks/git/lib/check-red-first.sh" "$R5B/.forge/hooks/git/lib/check-red-first.sh"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$R5B/.forge/scripts/check-ai-attribution.sh"; chmod +x "$R5B/.forge/scripts/check-ai-attribution.sh"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$R5B/.forge/scripts/check-liaison-acks.sh"; chmod +x "$R5B/.forge/scripts/check-liaison-acks.sh"
+printf -- '---\nforge_version: 1\n---\n\n# FORGE\n\nruntime:\n  test:\n  typecheck:\n' > "$R5B/.forge/FORGE.md"
+# ...mas SEM run-all.sh próprio, e com um teste que FALHA
+printf '#!/usr/bin/env bash\nexit 1\n' > "$R5B/.forge/scripts/tests/meu-gate.test.sh"; chmod +x "$R5B/.forge/scripts/tests/meu-gate.test.sh"
+SHA5B="$(git -C "$R5B" rev-parse HEAD)"
+out="$(cd "$R5B" && printf 'refs/heads/main %s refs/heads/main %s\n' "$SHA5B" "$ZERO" | bash "$TR5B/.forge/hooks/git/pre-push" origin "file://$R5B" 2>&1)"; rc=$?
+[ "$rc" -ne 0 ] || { echo "FAIL [5b]: pre-push passou com um teste falhando na própria worktree (saída: '$out')"; exit 1; }
+case "$out" in
+  *"meu-gate.test.sh"*) : ;;
+  *) echo "FAIL [5b]: bloqueou sem nomear o teste da worktree que falhou (saída: '$out')"; exit 1 ;;
+esac
+echo "OK [5b]"
+
+# ── [5c] pre-push — HARNESS_SUITE contrafactual: sem o diretório de testes na worktree ──────
+echo "[5c] pre-push — worktree SEM .forge/scripts/tests/, tronco com teste que falha → rc 0"
+R5C="$T/r5c"; TR5C="$T/tr5c"
+mktrunk "$TR5C"
+cp "$HOOKS/pre-push" "$TR5C/.forge/hooks/git/pre-push"; chmod +x "$TR5C/.forge/hooks/git/pre-push"
+printf '#!/usr/bin/env bash\ncheck_docs_reviewed() { return 0; }\n' > "$TR5C/.forge/hooks/git/lib/check-docs-reviewed.sh"
+printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n' > "$TR5C/.forge/hooks/git/lib/check-red-first.sh"
+cp "$WS/template/.forge/scripts/tests/run-all.sh" "$TR5C/.forge/scripts/tests/run-all.sh"; chmod +x "$TR5C/.forge/scripts/tests/run-all.sh"
+# teste que falha, mas é do TRONCO — causa alheia à worktree
+printf '#!/usr/bin/env bash\nexit 1\n' > "$TR5C/.forge/scripts/tests/do-tronco.test.sh"; chmod +x "$TR5C/.forge/scripts/tests/do-tronco.test.sh"
+mkrepo "$R5C" "$TR5C/.forge/hooks/git"
+mkdir -p "$R5C/.forge/hooks/git/lib" "$R5C/.forge/scripts"   # SEM .forge/scripts/tests/ nenhum
+cp "$TR5C/.forge/hooks/git/lib/check-docs-reviewed.sh" "$R5C/.forge/hooks/git/lib/check-docs-reviewed.sh"
+cp "$TR5C/.forge/hooks/git/lib/check-red-first.sh" "$R5C/.forge/hooks/git/lib/check-red-first.sh"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$R5C/.forge/scripts/check-ai-attribution.sh"; chmod +x "$R5C/.forge/scripts/check-ai-attribution.sh"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$R5C/.forge/scripts/check-liaison-acks.sh"; chmod +x "$R5C/.forge/scripts/check-liaison-acks.sh"
+printf -- '---\nforge_version: 1\n---\n\n# FORGE\n\nruntime:\n  test:\n  typecheck:\n' > "$R5C/.forge/FORGE.md"
+SHA5C="$(git -C "$R5C" rev-parse HEAD)"
+out="$(cd "$R5C" && printf 'refs/heads/main %s refs/heads/main %s\n' "$SHA5C" "$ZERO" | bash "$TR5C/.forge/hooks/git/pre-push" origin "file://$R5C" 2>&1)"; rc=$?
+[ "$rc" -eq 0 ] || { echo "FAIL [5c]: pre-push bloqueou por um teste que só existe no tronco, sem diretório de testes na worktree (saída: '$out')"; exit 1; }
+case "$out" in
+  *"do-tronco.test.sh"*) echo "FAIL [5c]: a suíte do tronco rodou (nomeou 'do-tronco.test.sh') mesmo sem o diretório de testes na worktree (saída: '$out')"; exit 1 ;;
+  *) : ;;
+esac
+echo "OK [5c]"
 
 # ── [6] pre-push — lint de shell, com .sh no diff ───────────────────────────────────────────
 echo "[6] pre-push — check-shell-pipeline.sh ausente na worktree, presente no tronco, .sh no diff"
@@ -293,9 +367,9 @@ echo "OK [8]"
 # ── [9] AUTO-IRONIA ──────────────────────────────────────────────────────────────────────────
 # Sem `declare -A`: o bash 3.2 do macOS (issue de portabilidade irmã do w97) não tem array
 # associativo. Pares "hook:esperado" numa lista simples, um por linha.
-echo "[9] os 12 sítios (L3 §0) chamam o mesmo resolvedor — contagem estrutural por arquivo"
+echo "[9] os 13 sítios (12 de L3 §0 + RUNTIME_LIB) chamam o mesmo resolvedor — contagem + corpo"
 total=0
-for par in "pre-commit:1" "commit-msg:1" "post-merge:2" "pre-push:6"; do
+for par in "pre-commit:1" "commit-msg:1" "post-merge:2" "pre-push:7"; do
   h="${par%%:*}"; esperado="${par##*:}"
   # `\$\(resolve_delegated ` — só a INVOCAÇÃO real (substituição de comando), nunca a linha da
   # definição nem o comentário que a documenta (que também contém o nome da função de propósito).
@@ -308,7 +382,75 @@ n_rf="$(grep -cE '\$\(_redfirst_resolve_delegated ' "$HOOKS/lib/check-red-first.
 n_rf="${n_rf:-0}"
 total=$((total + n_rf))
 [ "$n_rf" -eq 2 ] || { echo "FAIL [9]: lib/check-red-first.sh — esperava 2 chamadas ao resolvedor interno, achei $n_rf"; exit 1; }
-[ "$total" -eq 12 ] || { echo "FAIL [9]/vacuidade — total de sítios contados foi $total, esperado 12 (L3 §0: pre-push 6, pre-commit 1, commit-msg 1, post-merge 2, check-red-first.sh 2)"; exit 1; }
-echo "OK [9] — 12 sítios cobertos ($total)"
+[ "$total" -eq 13 ] || { echo "FAIL [9]/vacuidade — total de sítios contados foi $total, esperado 13 (L3 §0: pre-push 7 [6 + RUNTIME_LIB], pre-commit 1, commit-msg 1, post-merge 2, check-red-first.sh 2)"; exit 1; }
+echo "OK [9] — 13 sítios cobertos ($total)"
+
+# Identidade byte a byte do CORPO da função entre as 4 cópias (pre-commit, commit-msg, post-merge,
+# pre-push): a contagem acima só prova que cada arquivo CHAMA o resolvedor o número certo de vezes,
+# nunca que as 4 definições continuam a MESMA função — uma correção aplicada numa cópia só (ex.:
+# a mensagem "(procurado em ...)" do achado LOW do adendo) passaria verde no laço acima.
+echo "[9b] as 4 cópias de resolve_delegated() têm o corpo byte a byte idêntico"
+body_pc="$(awk '/^resolve_delegated\(\) \{/{f=1} f{print} f&&/^\}/{exit}' "$HOOKS/pre-commit")"
+for h in commit-msg post-merge pre-push; do
+  body_h="$(awk '/^resolve_delegated\(\) \{/{f=1} f{print} f&&/^\}/{exit}' "$HOOKS/$h")"
+  [ "$body_pc" = "$body_h" ] || { echo "FAIL [9b]: resolve_delegated() em $h diverge de pre-commit — correção aplicada só numa cópia"; exit 1; }
+done
+echo "OK [9b] — 4 cópias idênticas"
+
+# ── [10] pre-push — RUNTIME_LIB (forge-runtime.sh) via tronco ───────────────────────────────
+echo "[10] pre-push — forge-runtime.sh ausente na worktree, presente no tronco, gates: declarado"
+R10="$T/r10"; TR10="$T/tr10"
+mktrunk "$TR10"
+cp "$HOOKS/pre-push" "$TR10/.forge/hooks/git/pre-push"; chmod +x "$TR10/.forge/hooks/git/pre-push"
+printf '#!/usr/bin/env bash\ncheck_docs_reviewed() { return 0; }\n' > "$TR10/.forge/hooks/git/lib/check-docs-reviewed.sh"
+printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n' > "$TR10/.forge/hooks/git/lib/check-red-first.sh"
+# forge-runtime.sh REAL do template no tronco — só ele existe, nunca na worktree.
+cp "$WS/template/.forge/scripts/lib/forge-runtime.sh" "$TR10/.forge/scripts/lib/forge-runtime.sh"
+mkrepo "$R10" "$TR10/.forge/hooks/git"
+mkdir -p "$R10/.forge/hooks/git/lib" "$R10/.forge/scripts/lib"   # o diretório existe; o arquivo, não
+cp "$TR10/.forge/hooks/git/lib/check-docs-reviewed.sh" "$R10/.forge/hooks/git/lib/check-docs-reviewed.sh"
+cp "$TR10/.forge/hooks/git/lib/check-red-first.sh" "$R10/.forge/hooks/git/lib/check-red-first.sh"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$R10/.forge/scripts/check-ai-attribution.sh"; chmod +x "$R10/.forge/scripts/check-ai-attribution.sh"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$R10/.forge/scripts/check-liaison-acks.sh"; chmod +x "$R10/.forge/scripts/check-liaison-acks.sh"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$R10/.forge/scripts/meu-gate.sh"; chmod +x "$R10/.forge/scripts/meu-gate.sh"
+printf -- '---\nforge_version: 1\n---\n\n# FORGE\n\nruntime:\n  test:\n  typecheck:\n  gates: meu-gate\n' > "$R10/.forge/FORGE.md"
+SHA10="$(git -C "$R10" rev-parse HEAD)"
+out="$(cd "$R10" && printf 'refs/heads/main %s refs/heads/main %s\n' "$SHA10" "$ZERO" | bash "$TR10/.forge/hooks/git/pre-push" origin "file://$R10" 2>&1)"; rc=$?
+[ "$rc" -eq 0 ] || { echo "FAIL [10]: pre-push bloqueou com forge-runtime.sh presente no tronco (saída: '$out')"; exit 1; }
+case "$out" in
+  *"usando o do tronco"*"forge-runtime.sh"*) : ;;
+  *) echo "FAIL [10]: não nomeou o tronco para forge-runtime.sh (saída: '$out')"; exit 1 ;;
+esac
+case "$out" in
+  *"meu-gate OK"*) : ;;
+  *) echo "FAIL [10]: o leitor emprestado do tronco não rodou o gate declarado (saída: '$out')"; exit 1 ;;
+esac
+echo "OK [10]"
+
+# ── [11] pre-push — recusa nomeia AS DUAS árvores procuradas ────────────────────────────────
+echo "[11] pre-push — alvo ausente nas duas árvores: a recusa nomeia onde procurou, nunca afirma"
+echo "     presença falsa de diretório que só existe numa delas"
+R11="$T/r11"; TR11="$T/tr11"
+mkdir -p "$TR11/.forge/hooks/git/lib" "$TR11/.forge/scripts/lib" "$TR11/.forge/scripts/tests"
+printf '#!/usr/bin/env bash\nforge_heavy_mutex_acquire() { return 0; }\nforge_heavy_mutex_arm_trap() { :; }\n' \
+  > "$TR11/.forge/scripts/lib/heavy-mutex.sh"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$TR11/.forge/scripts/tests/run-all.sh"; chmod +x "$TR11/.forge/scripts/tests/run-all.sh"
+cp "$HOOKS/pre-push" "$TR11/.forge/hooks/git/pre-push"; chmod +x "$TR11/.forge/hooks/git/pre-push"
+# check-docs-reviewed.sh AUSENTE no tronco também — só o DIRETÓRIO hooks/git/lib existe lá.
+mkrepo "$R11" "$TR11/.forge/hooks/git"
+mkdir -p "$R11/.forge/scripts"   # worktree SEM .forge/hooks/git/lib nenhum (diretório não existe)
+SHA11="$(git -C "$R11" rev-parse HEAD)"
+out="$(cd "$R11" && printf 'refs/heads/main %s refs/heads/main %s\n' "$SHA11" "$ZERO" | bash "$TR11/.forge/hooks/git/pre-push" origin "file://$R11" 2>&1)"; rc=$?
+[ "$rc" -ne 0 ] || { echo "FAIL [11]: pre-push passou com check-docs-reviewed.sh ausente nas duas árvores (saída: '$out')"; exit 1; }
+case "$out" in
+  *"alvo ausente"*) : ;;
+  *) echo "FAIL [11]: bloqueou sem o texto literal de alvo ausente (saída: '$out')"; exit 1 ;;
+esac
+case "$out" in
+  *"(procurado em $R11/.forge/hooks/git/lib"*"$TR11/.forge/hooks/git/lib"*")"*) : ;;
+  *) echo "FAIL [11]: a recusa não nomeia as DUAS árvores procuradas, ou nomeia caminho errado (saída: '$out')"; exit 1 ;;
+esac
+[ ! -d "$R11/.forge/hooks/git/lib" ] || { echo "FAIL [11]/setup: o diretório da worktree não deveria existir neste cenário"; exit 1; }
+echo "OK [11]"
 
 echo "PASS w223-delegacao-arvore-do-hook"

@@ -1,0 +1,157 @@
+# Spec delta — data-engineer-agent (schema: .forge/schemas/spec-delta.schema.json; doc §10.4).
+# Todas as ops são add_requirement na capability forge-harness-template. A numeração continua de
+# REQ-FHT-053, último do baseline em 2026-09-26; se outro change arquivar antes e ocupar esses ids,
+# o /forge:archive renumera e atualiza os content_ref (os ids aqui são provisórios até o archive).
+# Os campos tests apontam para o gate que prova cada requisito; o eval A/B é evidência de verify,
+# não teste de suíte, e por isso aparece só no cenário do REQ-FHT-062.
+operations:
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-054
+    content_ref: requirements.md#req-01
+    requirement:
+      id: REQ-FHT-054
+      title: "Orquestrador data-engineer classifica pela taxonomia e roteia para seis especialistas"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-054-A
+          given: "o harness instalado com template/.forge/agents/data/data-engineer.md"
+          when: "o frontmatter e a matriz de roteamento do orquestrador são lidos"
+          then: "tools contém Agent(...) com allowlist igual ao conjunto dos seis especialistas, a matriz cita os seis e nenhum nome sem arquivo em agents/data, e o corpo traz as oito regras de desempate e o bloco PLANO DE ROTEAMENTO do modo degradado"
+      contracts: []
+      tests:
+        - tests/w250-data-engineer-agents-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-055
+    content_ref: requirements.md#req-02
+    requirement:
+      id: REQ-FHT-055
+      title: "Seis especialistas de dados consultivos com skill pré-carregada e protocolo fixo"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-055-A
+          given: "os arquivos agents/data/data-{relational,nosql,cache,object-storage,analytical,streaming}.md"
+          when: "o gate w250 lê frontmatter e corpo de cada um"
+          then: "cada especialista declara skills com a skill <esp>-practices existente, model explícito, tools sem Write, Edit e Agent, e as sete seções Missão, Escopo, Protocolo, Checklist, Antipatterns bloqueados, Regra de integração e Quando devolver ao orquestrador, nesta ordem"
+      contracts: []
+      tests:
+        - tests/w250-data-engineer-agents-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-056
+    content_ref: requirements.md#req-03
+    requirement:
+      id: REQ-FHT-056
+      title: "Skills data-*-practices com boas práticas, catálogo de antipatterns e referências no padrão node-quality-scan"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-056-A
+          given: "as seis skills em template/.forge/skills/data-*-practices"
+          when: "o gate w250 inspeciona SKILL.md, references/best-practices.md e references/antipatterns.md"
+          then: "SKILL.md tem frontmatter válido e corpo de até 120 linhas; toda entrada do catálogo tem Sintoma, Por quê, Correção, Detecção e Evidência; best-practices.md cobre os tópicos mínimos da issue #177; e nenhuma recomendação refutada pela base aparece fora de antipatterns.md"
+      contracts: []
+      tests:
+        - tests/w250-data-engineer-agents-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-057
+    content_ref: requirements.md#req-04
+    requirement:
+      id: REQ-FHT-057
+      title: "Especialização RabbitMQ 4.x obrigatória no especialista de streaming"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-057-A
+          given: "data-streaming-practices/references/best-practices.md e antipatterns.md"
+          when: "o gate w250 procura a seção RabbitMQ e os ids"
+          then: "as treze subseções obrigatórias estão presentes, RMQ-BP-01 a RMQ-BP-17 e RMQ-AP-01 a RMQ-AP-19 aparecem sem lacuna, e ha-mode, x-queue-mode e x-delayed-message só aparecem no catálogo de antipatterns"
+      contracts: []
+      tests:
+        - tests/w250-data-engineer-agents-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-058
+    content_ref: requirements.md#req-05
+    requirement:
+      id: REQ-FHT-058
+      title: "scan.sh determinístico, com linha por regra, contador de controle e bijeção com o catálogo"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-058-A
+          given: "a fixture suja e a limpa de cada especialista em tests/fixtures/w250"
+          when: "scan.sh roda sobre cada uma, com e sem rg no PATH, duas vezes"
+          then: "toda regra emite uma linha; na suja cada regra estática acha ao menos uma ocorrência com arquivo:linha, na limpa todas emitem OK; as duas execuções são byte-idênticas; o resultado não depende de rg; exit 1 só com achado de severidade alto; e os ids emitidos são exatamente os marcados Detecção: scan.sh no catálogo"
+        - id: SCN-FHT-058-B
+          given: "um diretório sem nenhum arquivo do universo de extensões da skill"
+          when: "scan.sh roda sobre ele"
+          then: "a saída termina em NADA-EXAMINADO e o exit é 3, nunca OK"
+      contracts: []
+      tests:
+        - tests/w250-data-engineer-agents-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-059
+    content_ref: requirements.md#req-06
+    requirement:
+      id: REQ-FHT-059
+      title: "Regra de integração (gRPC só interno; externo por REST ou fila) em todos os agentes de dados"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-059-A
+          given: "os sete agentes em agents/data e a skill data-streaming-practices"
+          when: "o gate w250 procura a frase canônica e a tabela de transporte"
+          then: "a frase canônica do design §2.4 está na seção Regra de integração dos sete agentes, a tabela de escolha de transporte interno × externo está em best-practices.md e D-AP-01 a D-AP-03 estão no catálogo"
+      contracts: []
+      tests:
+        - tests/w250-data-engineer-agents-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-060
+    content_ref: requirements.md#req-07
+    requirement:
+      id: REQ-FHT-060
+      title: "Agentes e skills de dados descobríveis pelos mecanismos existentes, sem código novo de maquinaria"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-060-A
+          given: "um diretório temporário"
+          when: "installer/install.sh roda com --adapters claude,agents-skills"
+          then: "os sete agentes aparecem em .claude/agents/data e as seis skills em .claude/skills e .agents/skills com scan.sh, o capability-dispatcher e o agents/README citam os agentes novos, nenhum arquivo novo contém .claude/, e o plugin fica byte-idêntico ao gerado"
+      contracts: []
+      tests:
+        - tests/w250-data-engineer-agents-gate.sh
+        - tests/plugin-sync-gate.sh
+        - tests/w200-readme-inventory-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-061
+    content_ref: requirements.md#req-08
+    requirement:
+      id: REQ-FHT-061
+      title: "Gate w250 com contador de controle e prova de mutação sobre cópia"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-061-A
+          given: "uma cópia de template/.forge/agents/data e template/.forge/skills/data-*-practices num temporário"
+          when: "o gate aplica as quatro mutações do design §2.6 [14]"
+          then: "cada mutação reprova o cenário correspondente nomeando o alvo, a cópia íntegra aprova antes e depois, e cmp -s prova a restauração byte a byte sem tocar arquivo rastreado"
+      contracts: []
+      tests:
+        - tests/w250-data-engineer-agents-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-062
+    content_ref: requirements.md#req-09
+    requirement:
+      id: REQ-FHT-062
+      title: "Eval A/B dos especialistas de dados com delta positivo"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-062-A
+          given: "sete evals.json em .forge/evals/agents, válidos no evals.schema.json"
+          when: "o A/B roda (variante: especialista com skill; baseline: agente genérico, mesmo modelo e prompt) e eval-aggregate.sh consolida"
+          then: "o pass_rate da variante supera o da baseline em cada um dos seis especialistas, o roteamento acerta ao menos 7 de 8 casos, e nenhuma resposta da variante expõe gRPC ou store interno a terceiro"
+      contracts: []
+      tests:
+        - tests/w250-data-engineer-agents-gate.sh

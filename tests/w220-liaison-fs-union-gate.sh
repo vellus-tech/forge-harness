@@ -31,6 +31,11 @@
 #   [8]  `check-liaison-acks.sh` lê o hub do canal `fs-union` em `<path>/<canal>/log` (DA-26):
 #        réplica nunca sincronizada reprova citando o msg_id pendente; depois de sync + ack, passa
 #   [9]  contador de controle — universo vazio reprova
+#   [10] versão mista ao contrário: tronco com o `_common.sh` de `47a914e` e worktree atualizada
+#        (caminho com espaço), base e inline: rc≠0 com a recusa nominal de que o `_common.sh` do
+#        tronco não une, sha do hub idêntico e a mensagem do segundo clone preservada
+#   [11] instalação fora de git: `transport probe` de um canal `fs-union` recusa nomeando a
+#        exigência de checkout git, sem caminho enganoso e sem criar o hub
 set -euo pipefail
 # Isolamento git: um GIT_DIR herdado faria os `git -C` abaixo gravarem no repositório de quem
 # invocou o gate, e não no repositório sintético.
@@ -304,6 +309,70 @@ out9="$(forge_universe_check "w220/mensagens" 0 "mensagem(ns)" "contrapositiva" 
 set -e
 [ "$rc9" -ne 0 ] || { echo "FAIL [9]: universo vazio aprovou — $out9"; exit 1; }
 echo "OK [9]"
+
+echo "[10] tronco com o _common.sh de 47a914e e worktree atualizada: recusa nominal e hub intacto"
+# Versão mista ao contrário de [4]: a worktree tem o código novo inteiro e o TRONCO é que não une
+# (update feito numa branch, opt-in feito dali antes do merge no tronco). Carregar o `_common.sh`
+# do tronco sem conferir que ele une rodaria o `cp` cru e apagaria do hub a mensagem do segundo
+# clone, com rc 0 — protegendo menos que o próprio `fs`, que usaria o `_common.sh` da worktree.
+f10="$falhas"
+WTN="$T/wt nova"
+git -C "$TR" worktree add -q -b wt-nova "$WTN"
+grep -q '_dir_push_union' "$WTN/$TRANSP/_common.sh" \
+  || { echo "FAIL [10]: pré-condição — o _common.sh da worktree nova deveria unir"; exit 1; }
+cp "$TR/$TRANSP/_common.sh" "$T/common10.salvo"
+cp "$FIX/_common-47a914e.sh.fixture" "$TR/$TRANSP/_common.sh"
+RECUSA_UNIAO='FAIL fs-union: o _common.sh do checkout principal não une o log'
+# base: sem FORGE_ROOT, estado do tronco, script DA WORKTREE nova
+reset_base
+prefixo_estrito "$TR/.forge/liaison/$CH/log/$A.jsonl" "$HUB/log/$A.jsonl" \
+  || { echo "FAIL [10]: pré-condição — o log do tronco não é prefixo estrito do hub"; exit 1; }
+antes10="$(hub_sha)"
+set +e
+out10="$(cd "$WTN" && env -u FORGE_ROOT .forge/scripts/liaison-ops.sh sync "$CH" 2>&1)"; rc10=$?
+set -e
+depois10="$(hub_sha)"
+[ "$rc10" -ne 0 ] || falha "[10]: base — sync saiu rc 0 com o _common.sh do tronco que não une — $out10"
+grep -qF "$RECUSA_UNIAO" <<<"$out10" || falha "[10]: base — sem a linha de recusa nominal — $out10"
+[ "$depois10" = "$antes10" ] || falha "[10]: base — o hub mudou numa recusa"
+grep -Fxq "$LINHA_CLONE" "$HUB/log/$A.jsonl" \
+  || falha "[10]: base — a mensagem do segundo clone ($MSG_C2) sumiu do hub"
+# inline: FORGE_ROOT=<worktree nova>, estado da worktree com o mesmo self e kind+path do hub
+snap "$T/S0" "$WTN/.forge/liaison"; snap "$T/H1" "$HUBROOT"
+antes10i="$(hub_sha)"
+set +e
+out10i="$(cd "$WTN" && FORGE_ROOT="$WTN" .forge/scripts/liaison-ops.sh sync "$CH" 2>&1)"; rc10i=$?
+set -e
+depois10i="$(hub_sha)"
+[ "$rc10i" -ne 0 ] || falha "[10]: inline — sync saiu rc 0 com o _common.sh do tronco que não une — $out10i"
+grep -qF "$RECUSA_UNIAO" <<<"$out10i" || falha "[10]: inline — sem a linha de recusa nominal — $out10i"
+[ "$depois10i" = "$antes10i" ] || falha "[10]: inline — o hub mudou numa recusa"
+cp "$T/common10.salvo" "$TR/$TRANSP/_common.sh"
+cmp -s "$TR/$TRANSP/_common.sh" "$T/common10.salvo" \
+  || { echo "FAIL: o _common.sh do tronco não foi restaurado byte a byte"; exit 1; }
+ok_se_limpo 10 "$f10"
+
+echo "[11] fora de um repositório git, fs-union recusa nomeando a exigência de checkout git"
+# Sem git alcançável não há tronco a resolver. A recusa tem de dizer isso, e não imprimir um
+# caminho de `_common.sh` que não existe, derivado do diretório do próprio backend.
+f11="$falhas"
+NG="$T/sem git/c"
+mkdir -p "$NG/.forge"
+cp -R "$WS/template/.forge/scripts" "$NG/.forge/"
+cp -R "$WS/template/.forge/templates" "$NG/.forge/"
+cp "$WS/template/.forge/forge.yaml" "$NG/.forge/forge.yaml"
+HUBNG="$T/sem git/hub"
+set +e
+out11="$(cd "$NG" && export GIT_CEILING_DIRECTORIES="$T" && \
+  LGR "$NG" open "$CH" --self "$A" --participants "$A,$B" >/dev/null && \
+  LGR "$NG" transport set "$CH" --kind fs-union --path "$HUBNG" >/dev/null && \
+  LGR "$NG" transport probe "$CH" 2>&1)"; rc11=$?
+set -e
+[ "$rc11" -ne 0 ] || falha "[11]: transport probe fora de git saiu rc 0 — $out11"
+grep -qF 'FAIL fs-union: exige um checkout git' <<<"$out11" \
+  || falha "[11]: a recusa não nomeia a exigência de checkout git — $out11"
+[ ! -e "$HUBNG" ] || falha "[11]: o hub foi criado numa recusa"
+ok_se_limpo 11 "$f11"
 
 [ "$falhas" -eq 0 ] || { echo "FAIL w220 — $falhas asserção(ões) de desfecho reprovada(s)"; exit 1; }
 echo "OK w220 — fs-union opt-in: kind aceito, leitor antigo recusa, backend carrega o _common.sh do tronco e acks leem o hub"

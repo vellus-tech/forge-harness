@@ -6,6 +6,10 @@ e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **`sync-adapters.mjs` reconciliava o consumidor como efeito colateral de `import()`, sem nenhuma invocação de CLI.** O bloco de entrada do gerador rodava incondicionalmente ao ser importado — um gate que só queria **ler** uma função exportada reescrevia os 70 arquivos gerenciados sob `.claude/`, apagando em silêncio qualquer edição pendente, inclusive de um teste do próprio harness (issue #130). `isMainModule()` compara `realpathSync(process.argv[1])` com `realpathSync(fileURLToPath(import.meta.url))` — os DOIS lados por `realpath`, porque `sync-adapters.sh` invoca por `exec node .../sync-adapters.mjs` e uma comparação de string crua desarmaria essa invocação legítima em vez de só desarmar o import (a mesma armadilha que uma versão anterior da correção caiu, usando `require('node:fs')` dentro de ESM: o `ReferenceError` caía no `catch` e o gerador parava de reconciliar também na invocação direta, em silêncio). `process.exit` passa a existir só dentro do galho principal. `reconcile()` ganha exportação nomeada e estável (`reconcile`) para os PRs que tocam o mesmo arquivo depois (#160, #125) importarem sem depender do CLI. `tests/w216-module-import-side-effect-gate.sh`: import não muda nenhum arquivo sob `.claude/` e expõe a exportação; a invocação direta continua reconciliando; duas mutações (remover a guarda, invertê-la) provadas com controle e recontrole.
+
 ## [0.15.0] — 2026-09-09
 
 ### Added

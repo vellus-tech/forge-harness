@@ -9,11 +9,15 @@
 #   [4] preserva o delta narrativo escrito entre os marcadores (controle: nenhum backup)
 #   [5] sem marcadores + conteúdo mudaria → backup byte-idêntico ao anterior + WARN nomeia o caminho
 #   [6] arquivo idêntico ao que seria renderizado (sem marcadores) → nenhum backup
+#   [7] PBT: para conteúdo anterior gerado (com/sem marcadores, bytes aleatórios dentro e fora
+#       deles), os bytes anteriores são sempre recuperáveis — no próprio arquivo (delta
+#       preservado) ou num backup byte-idêntico nomeado pelo WARN
 set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 GEN="$WS/template/.forge/scripts/handoff-gen.sh"
 RENDER="$WS/template/.forge/scripts/lib/handoff-render.mjs"
+LIB="$WS/template/.forge/scripts/lib"
 [ -f "$GEN" ]
 [ -f "$RENDER" ]
 T="$(mktemp -d /tmp/forge-handoff.XXXXXX)"
@@ -121,5 +125,48 @@ run_render   # 2ª: arquivo existe, sem marcadores, mas idêntico ao que seria e
 [ "$(backup_count)" = "$BC_BEFORE" ] || { echo "FAIL [6] (backup criado para conteúdo idêntico ao anterior)"; exit 1; }
 grep -q 'id=demo-change' "$T2/.forge/HANDOFF.md"
 echo "OK [6]"
+
+echo "[7] PBT: bytes anteriores sempre recuperáveis (delta preservado ou backup byte-idêntico)"
+node - "$LIB" "$GEN" "$T" <<'EOF' || { echo "FAIL [7] (propriedade de recuperabilidade falhou)"; exit 1; }
+const [lib, gen, root] = process.argv.slice(2);
+const fs = await import('node:fs');
+const path = await import('node:path');
+const { spawnSync } = await import('node:child_process');
+const { forAll, gen: G } = await import(`${lib}/pbt.mjs`);
+
+const H = path.join(root, '.forge', 'HANDOFF.md');
+const WORDS = ['alfa', 'bravo', 'charlie', 'delta', 'echo', 'foxtrot', 'golf', 'hotel', 'india', 'julia', 'kilo', 'lima'];
+const wordsGen = G.array(G.oneOf(WORDS), 5, 40);
+const padGen = G.array(G.oneOf(WORDS), 0, 15);
+
+function runCase(hasMarkers, bodyWords, prefixWords, suffixWords) {
+  const body = bodyWords.join(' ');
+  const prefix = prefixWords.join(' ');
+  const suffix = suffixWords.join(' ');
+  const prev = hasMarkers
+    ? `${prefix}\n\n<!-- FORGE:NARRATIVE-DELTA:START -->\n${body}\n<!-- FORGE:NARRATIVE-DELTA:END -->\n\n${suffix}\n`
+    : `${prefix}\n${body}\n${suffix}\n`;
+  fs.writeFileSync(H, prev, 'utf8');
+  const res = spawnSync('bash', [gen, 'demo-change'], { cwd: root, env: { ...process.env, FORGE_ROOT: root }, encoding: 'utf8' });
+  if (res.status !== 0) return false; // #120 é sobre nunca perder bytes com rc 0 — rc≠0 já é outro defeito
+  const after = fs.readFileSync(H, 'utf8');
+  if (hasMarkers) return after.includes(body);
+  if (after === prev) return true; // nada a recuperar — já idêntico ao que seria escrito
+  const m = /salvo em (.*)$/m.exec(res.stderr || '');
+  if (!m) return false; // conteúdo mudou sem marcadores e sem aviso — bytes perdidos sem rastro
+  const backupPath = m[1].trim();
+  return fs.existsSync(backupPath) && fs.readFileSync(backupPath, 'utf8') === prev;
+}
+
+const SEED = 20260925;
+const RUNS = 80;
+const r = forAll([G.bool(), wordsGen, padGen, padGen], runCase, { runs: RUNS, seed: SEED });
+if (!r.ok) {
+  console.error(`propriedade falhou após ${r.runs} caso(s) (seed ${r.seed}): ${JSON.stringify(r.counterexample)}${r.error ? ` — ${r.error}` : ''}`);
+  process.exit(1);
+}
+console.log(`PBT OK — seed ${SEED}, ${r.runs} casos`);
+EOF
+echo "OK [7]"
 
 echo "PASS w60-handoff-gen-gate"

@@ -220,16 +220,18 @@ const { pathToFileURL } = require('url');
   const r = applyBundle({ chDir, fromDir, self });
   const div = r.divergences.map((d) => `${d.sender}@seq=${d.seq} (${d.incoming ? d.incoming.msg_id : '?'})`).join(', ');
   const missingBoth = r.blobsMissingBoth.join(',');
+  const rejectedOversize = r.blobsRejected.filter((x) => x.kind === 'oversize').map((x) => x.msg_id).join(',');
+  const rejectedShaMismatch = r.blobsRejected.filter((x) => x.kind === 'sha-mismatch').map((x) => x.msg_id).join(',');
   // Separador \x1f (US, não-espaço): um campo vazio no MEIO da lista (`div` sem divergência,
   // `missingBoth` sem perda) não pode colapsar com o vizinho. TAB é "IFS whitespace" para o `read`
   // do bash mesmo quando é o único caractere em IFS — sequências dele se fundem e campo vazio some,
   // desalinhando todos os campos depois. \x1f nunca aparece em sender, msg_id ou texto livre.
-  process.stdout.write([r.accepted, r.dup, r.conflicts, r.quarantined, r.remaining, M.IMPORT_MAX_MESSAGES, div, r.blobsRecovered, missingBoth].join('\x1f'));
+  process.stdout.write([r.accepted, r.dup, r.conflicts, r.quarantined, r.remaining, M.IMPORT_MAX_MESSAGES, div, r.blobsRecovered, missingBoth, rejectedOversize, rejectedShaMismatch].join('\x1f'));
 })();
 NODEEOF
 )" || return 1
-  local n_new n_dup n_conf n_quar n_rest n_max div n_recovered missing_both
-  IFS=$'\x1f' read -r n_new n_dup n_conf n_quar n_rest n_max div n_recovered missing_both <<< "$out"
+  local n_new n_dup n_conf n_quar n_rest n_max div n_recovered missing_both rejected_oversize rejected_sha
+  IFS=$'\x1f' read -r n_new n_dup n_conf n_quar n_rest n_max div n_recovered missing_both rejected_oversize rejected_sha <<< "$out"
   _render "$channel"
   if [ -n "$div" ]; then
     # Fail-loud continua: reescrita de história exige ação humana na ORIGEM. O que mudou é o
@@ -237,17 +239,36 @@ NODEEOF
     echo "FAIL: divergência de log em $div — log append-only não reescreve história; essas POSIÇÕES ficaram em quarentena (ver conflicts/) e as demais mensagens foram aplicadas" >&2
     rc=1
   fi
+  # Rótulo da fonte do conteúdo: `sync` fala do hub (o transporte configurado); `import` fala do
+  # bundle que o operador apontou com `--from`. Nenhum dos dois consultou o outro, então afirmar
+  # "do hub" num `import` manual seria alegar uma checagem que não existe.
+  local src_word="hub"
+  [ "$label" = "import" ] && src_word="bundle"
   # Recuperação de blob (issue #107): mensagem já conhecida que tinha perdido o corpo. Não é
   # candidato a FAIL — o conteúdo voltou —, mas precisa aparecer, senão a recuperação é tão
   # silenciosa quanto a perda que ela conserta.
   if [ "${n_recovered:-0}" -gt 0 ]; then
-    echo "  $n_recovered blob(s) recuperado(s) do hub (mensagem já conhecida sem corpo local)"
+    echo "  $n_recovered blob(s) recuperado(s) do $src_word (mensagem já conhecida sem corpo local)"
+  fi
+  # Blob candidato à recuperação, mas rejeitado por não conferir com o compromisso que a mensagem
+  # já tinha aceitado (teto de tamanho ou sha256 do nome — achado da revisão do #107, severidade
+  # HIGH): NUNCA reportado como "recuperado", porque o corpo instalado seria, por definição, outro
+  # conteúdo. Aviso, não recusa do sync inteiro — o resto do import continua íntegro. Duas linhas,
+  # não uma: a causa (teto vs. sha) é o que permite ao operador agir — "o hub está corrompido" e "o
+  # bundle tem um blob grande demais" pedem investigações diferentes.
+  if [ -n "${rejected_oversize:-}" ]; then
+    local n_ro; n_ro="$(tr ',' '\n' <<< "$rejected_oversize" | grep -c .)"
+    echo "WARN: $n_ro blob(s) do $src_word excede(m) o teto de tamanho (rejeitado(s), mensagem mantida sem corpo local): $rejected_oversize" >&2
+  fi
+  if [ -n "${rejected_sha:-}" ]; then
+    local n_rs; n_rs="$(tr ',' '\n' <<< "$rejected_sha" | grep -c .)"
+    echo "WARN: $n_rs blob(s) do $src_word não confere(m) com o body_ref (rejeitado(s), mensagem mantida sem corpo local): $rejected_sha" >&2
   fi
   # Blob ausente nos DOIS lados (local e hub/bundle desta chamada): aviso, não recusa — o resto do
   # import continua íntegro —, mas é perda real que merece nome e contagem, nunca rc 0 calado.
   if [ -n "${missing_both:-}" ]; then
     local n_missing; n_missing="$(tr ',' '\n' <<< "$missing_both" | grep -c .)"
-    echo "WARN: $n_missing body_ref sem blob (local e hub): $missing_both" >&2
+    echo "WARN: $n_missing body_ref sem blob (local e $src_word): $missing_both" >&2
   fi
   local tail=""
   # Backlog acima do teto não é erro: é o próximo lote. Sem esta linha, um sync que aplicou 200 de
@@ -892,7 +913,7 @@ const { pathToFileURL } = require('url');
 (async () => {
   const [, , lib, chDir, channel] = process.argv;
   const { mergeLogs, formatSkew } = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
-  const { readQuarantinedPositions } = await import(pathToFileURL(join(lib, 'liaison-import.mjs')).href);
+  const { readQuarantinedPositions, findMissingLocalBlobs } = await import(pathToFileURL(join(lib, 'liaison-import.mjs')).href);
   const logDir = join(chDir, 'log');
   const files = existsSync(logDir) ? readdirSync(logDir).filter((f) => f.endsWith('.jsonl')) : [];
   const all = [];
@@ -918,10 +939,16 @@ const { pathToFileURL } = require('url');
   // "N em quarentena" não diz de quem nem de onde, que é o que permite agir.
   const pos = readQuarantinedPositions(chDir);
   const posBit = pos.length ? ` · ${pos.length} posição(ões) retida(s) por divergência` : '';
-  console.log(`LIAISON/${channel}: ${Object.keys(threads).length} thread(s) · ${unread} não lida(s) · ${quarantined.length} em quarentena${posBit}${skewBit}${diag}`);
+  // body_ref sem blob local (issue #107, "o que resolveria" do corpo da issue): sem este
+  // contador, a perda só aparecia numa rodada de `sync`, nunca numa medição parada — exatamente a
+  // classe de dano que a issue descreve ("sem aparecer em nenhuma medição de rodada").
+  const missingBlobs = findMissingLocalBlobs(chDir);
+  const missingBlobsBit = missingBlobs.length ? ` · ${missingBlobs.length} body_ref sem blob local` : '';
+  console.log(`LIAISON/${channel}: ${Object.keys(threads).length} thread(s) · ${unread} não lida(s) · ${quarantined.length} em quarentena${posBit}${skewBit}${diag}${missingBlobsBit}`);
   const sh = (v) => (v ? String(v).slice(0, 12) : '?');
   for (const p of pos) console.log(`  ! quarentena por divergência: ${p.sender}@seq=${p.seq} — recebida ${p.msg_id || '?'}/${sh(p.content_sha)}, conhecida ${p.known_msg_id || '?'}/${sh(p.known_content_sha)} (conflicts/${p.file})`);
   for (const c of clockSkews) console.log(`  ! created_at incoerente: ${c.msg_id} (${c.sender}, thread ${c.thread_id}) tem created_at ${c.created_at}, ${formatSkew(c.behind_ms)} ANTES de ${c.in_reply_to} (${c.ref_created_at}) que ela responde — relógio de parede da origem, ou duas cópias do mesmo log escrevendo em paralelo`);
+  for (const m of missingBlobs) console.log(`  ! body_ref sem blob local: ${m.sender}/${m.msg_id} (${m.body_ref}) — rode 'sync' ou 'import' para tentar recuperar`);
 })();
 NODEEOF
   else
@@ -938,10 +965,11 @@ const { pathToFileURL } = require('url');
 (async () => {
   const [, , lib, liaisonDir, channelsRaw, self] = process.argv;
   const { mergeLogs, formatSkew } = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
-  const { readQuarantinedPositions } = await import(pathToFileURL(join(lib, 'liaison-import.mjs')).href);
+  const { readQuarantinedPositions, findMissingLocalBlobs } = await import(pathToFileURL(join(lib, 'liaison-import.mjs')).href);
   const channels = channelsRaw.split(' ').filter(Boolean);
   const positions = [];
   const skews = [];
+  const missingBlobs = [];
   let threadsTotal = 0, unreadTotal = 0, quarantinedTotal = 0;
   for (const channel of channels) {
     const chDir = join(liaisonDir, channel);
@@ -959,6 +987,7 @@ const { pathToFileURL } = require('url');
     threadsTotal += Object.keys(threads).length;
     quarantinedTotal += quarantined.length;
     for (const p of readQuarantinedPositions(chDir)) positions.push({ channel, ...p });
+    for (const m of findMissingLocalBlobs(chDir)) missingBlobs.push({ channel, ...m });
     for (const id of Object.keys(threads)) {
       const cur = cursors[id] && cursors[id].msg_id;
       const idx = cur ? threads[id].order.indexOf(cur) : -1;
@@ -967,10 +996,12 @@ const { pathToFileURL } = require('url');
   }
   const posBit = positions.length ? ` · ${positions.length} posição(ões) retida(s) por divergência` : '';
   const skewBit = skews.length ? ` · ${skews.length} created_at incoerente(s)` : '';
-  console.log(`LIAISON: self=${self || '?'} · ${channels.length} canal(is) · ${threadsTotal} thread(s) · ${unreadTotal} não lida(s) · ${quarantinedTotal} em quarentena${posBit}${skewBit}`);
+  const missingBlobsBit = missingBlobs.length ? ` · ${missingBlobs.length} body_ref sem blob local` : '';
+  console.log(`LIAISON: self=${self || '?'} · ${channels.length} canal(is) · ${threadsTotal} thread(s) · ${unreadTotal} não lida(s) · ${quarantinedTotal} em quarentena${posBit}${skewBit}${missingBlobsBit}`);
   const sh = (v) => (v ? String(v).slice(0, 12) : '?');
   for (const p of positions) console.log(`  ! quarentena por divergência em ${p.channel}: ${p.sender}@seq=${p.seq} — recebida ${p.msg_id || '?'}/${sh(p.content_sha)}, conhecida ${p.known_msg_id || '?'}/${sh(p.known_content_sha)}`);
   for (const c of skews) console.log(`  ! created_at incoerente em ${c.channel}: ${c.msg_id} (${c.sender}) tem created_at ${c.created_at}, ${formatSkew(c.behind_ms)} ANTES de ${c.in_reply_to} (${c.ref_created_at}) que ela responde`);
+  for (const m of missingBlobs) console.log(`  ! body_ref sem blob local em ${m.channel}: ${m.sender}/${m.msg_id} (${m.body_ref})`);
 })();
 NODEEOF
   fi

@@ -415,6 +415,25 @@ async function cmdEnsure(changeDir, argv) {
   if (deriveTopStatus(entries) === 'waived') { console.log("OK ensure — status: waived (nada a replayar)"); return; }
 
   if (entries.length <= 1) {
+    // Correção da #139 (revisão adversarial, achado HIGH): com `entries[]` presente (o change já
+    // passou por um `record` desta Onda), `entries[0]` é a ÚNICA fonte da verdade — replayar o
+    // TOPO em vez da entrada permitia que uma forja isolada em `entries[0]` (uma declaração que
+    // nunca reproduz nada) fosse lavada para 'observed': `ensure` reexecutava o teste genuíno
+    // ainda declarado no topo intacto e `persistReplayResult`/`upsertSingleEntry` gravavam esse
+    // veredito legítimo NA ENTRADA forjada (endereçamento por índice único, sem — até aqui —
+    // conferir se a entrada concorda com o que foi de fato executado). O topo bruto como vetor
+    // de replay fica exclusivo do legado de verdade, sem `entries[]` no arquivo — ali não existe
+    // segunda fonte: o próprio topo É a entrada (`extractEntryFromTop`, `deriveEntries`).
+    if (Array.isArray(data.entries) && entries.length > 0) {
+      const entry = entries[0];
+      const view = projectEntryToFlat(data.change_id, entry);
+      const result = await runReplay({ root, evidence: view, timeoutS });
+      const persisted = persistReplayResult(ev, data, result, { id: entry.id });
+      console.log(`OK ensure — replay executado (verdict: ${result.verdict}, status: ${persisted.data.status})`);
+      return;
+    }
+
+    // legado de verdade (sem `entries[]` no arquivo bruto): o topo é a ÚNICA fonte.
     const result = await runReplay({ root, evidence: data, timeoutS });
     const persisted = persistReplayResult(ev, data, result);
     console.log(`OK ensure — replay executado (verdict: ${result.verdict}, status: ${persisted.data.status})`);

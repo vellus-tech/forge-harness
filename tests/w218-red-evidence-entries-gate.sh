@@ -1095,8 +1095,14 @@ echo "OK [29] — forja na entrada com id migrado de null é pega por ensure (de
 
 scenario_ensure_iterates_two() { # scenario_ensure_iterates_two <root> <suffix> — controle: ensure
   # SEMPRE examina as 2 entradas de um change com 2+ registradas, sem depender do topo (usado por
-  # [30], cujo mutante força ensure a sempre tratar o change como se tivesse ≤1 entrada — o que
-  # "lava" a forja da entrada[0] revalidando o topo antigo e intacto, em vez da entrada forjada).
+  # [30], cujo mutante força ensure a sempre tratar o change como se tivesse ≤1 entrada).
+  #
+  # Correção da #139 (revisão adversarial, achado HIGH): desde que o ramo `entries.length <= 1`
+  # passou a fonte de `entries[0]` (nunca do topo — ver correção do [37]/[38]), forjar entries[0]
+  # deixou de discriminar este mutante: mesmo forçado ao ramo ≤1, o código corrigido revalida
+  # entries[0] de verdade e pega a forja de qualquer forma. Por isso a forja aqui mora em
+  # entries[1] (a SEGUNDA entrada, "Real$suffix", nunca dispensada) — só o LAÇO (que o mutante
+  # `if (true)` pula) chega até ela; o ramo ≤1 corrigido nunca a revalida sozinho.
   local root="$1" suffix="$2"
   local id="bug-ens30$suffix"
   mkdir -p "$root/src$suffix" "$root/tests$suffix"
@@ -1123,30 +1129,31 @@ JS
   FORGE_ROOT="$root" bash "$root/.forge/scripts/red-evidence.sh" record "$id" --test-path "tests$suffix/x.test.mjs" --test-id "case$suffix" --command "node --test tests$suffix/x.test.mjs" --fix-files "src$suffix/x.mjs" --failure-pattern AssertionError >/dev/null 2>&1 || return 1
   FORGE_ROOT="$root" bash "$root/.forge/scripts/red-evidence.sh" replay "$id" --id d1 >/dev/null 2>&1 || return 1
   FORGE_ROOT="$root" bash "$root/.forge/scripts/red-evidence.sh" record "$id" --id "Real$suffix" --test-path "tests/real$suffix.test.mjs" --test-id "case-real$suffix" --command "node --test tests/real$suffix.test.mjs" --fix-files "src/real$suffix.sh" --failure-pattern "PREAL$suffix" >/dev/null 2>&1 || return 1
-  FORGE_ROOT="$root" bash "$root/.forge/scripts/check-red-first.sh" waive "$id" --id "Real$suffix" --reason no-test-infra --note x >/dev/null 2>&1 || return 1
 
   local ev="$root/.forge/specs/active/$id/evidence/red/red-evidence.json"
   local excerpt="AssertionError: forjado, nunca rodou de verdade"
   local hash; hash="$(node -e "process.stdout.write(require('crypto').createHash('sha256').update(process.argv[1]).digest('hex'))" "$excerpt")"
+  # forja SÓ entries[1] — nunca passou por um replay real, e nenhum arquivo
+  # tests/real$suffix.test.mjs sequer existe; entries[0] fica intocada (genuína, já observada).
   node -e '
 const fs = require("fs");
 const p = process.argv[1];
 const d = JSON.parse(fs.readFileSync(p, "utf8"));
-const e = d.entries[0];
+const e = d.entries[1];
 e.status = "observed";
-e.test_path = "nao/existe.test.mjs";
-e.test_id = "forjado-case";
-e.command = "node --test nao/existe.test.mjs";
-e.base_commit = "0123456";
 e.classification = "behavioral";
 e.excerpt = process.argv[2];
 e.excerpt_sha256 = process.argv[3];
+e.base_commit = "0123456";
 e.base_result = "failed";
 fs.writeFileSync(p, JSON.stringify(d, null, 2) + "\n");
 ' "$ev" "$excerpt" "$hash"
 
   FORGE_ROOT="$root" bash "$root/.forge/scripts/red-evidence.sh" ensure "$id" >/dev/null 2>&1 || return 1
-  ! grep -q '"status": "observed"' "$ev"
+  node -e "
+const d = JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8'));
+process.exit(d.entries[1].status === 'observed' ? 1 : 0);
+" "$ev"
 }
 
 echo "[30] MUTAÇÃO (sandbox) — ensure sempre tratar o change como ≤1 entrada (ignorando 2+) faz [29] falhar: a forja é lavada revalidando o topo antigo intacto, em vez da entrada forjada"
@@ -1422,12 +1429,18 @@ fi
 EV37="$T/.forge/specs/active/bug-tamper37/evidence/red/red-evidence.json"
 status37="$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).entries[0].status)" "$EV37")"
 [ "$status37" = "pending" ] || { echo "FAIL [37]: entries[0].status deveria voltar a 'pending' depois do ensure reexecutar a própria declaração forjada, achou '$status37'"; exit 1; }
-out37="$(FORGE_ROOT="$T" bash "$CR" check bug-tamper37 2>&1)"
+set +e
+out37="$(FORGE_ROOT="$T" bash "$CR" check bug-tamper37 2>&1)"; rc37=$?
+set -e
+[ "$rc37" -ne 0 ] || { echo "FAIL [37]: check deveria continuar bloqueando (entrada ainda pendente) mesmo depois do ensure; achou rc 0 ($out37)"; exit 1; }
 grep -qi "adulterado" <<<"$out37" && { echo "FAIL [37]: depois do ensure, topo e entries[0] devem estar em acordo (self-heal) — check não deveria mais citar adulteração; achou: $out37"; exit 1; }
 echo "OK [37]"
 
 echo "[38] MUTAÇÃO (sandbox) — desfazer a correção do [37] (ensure volta a replayar o topo com entries[] presente) faz [37] deixar de bloquear a forja isolada"
-run_mutation "38" 's/if \(Array\.isArray\(data\.entries\)\) \{\n    const entry = entries\[0\];\n    const view = projectEntryToFlat\(data\.change_id, entry\);\n    const result = await runReplay\(\{ root, evidence: view, timeoutS \}\);\n    const persisted = persistReplayResult\(ev, data, result, \{ id: entry\.id \}\);\n    console\.log\(`OK ensure — replay executado \(verdict: \$\{result\.verdict\}, status: \$\{persisted\.data\.status\}\)`\);\n    return;\n  \}\n\n  \/\/ legado de verdade \(sem `entries\[\]` no arquivo bruto\): o topo é a ÚNICA fonte\.\n  const result = await runReplay\(\{ root, evidence: data, timeoutS \}\);\n  const persisted = persistReplayResult\(ev, data, result\);/const result = await runReplay({ root, evidence: data, timeoutS }); const persisted = persistReplayResult(ev, data, result);/s' scenario_ensure_sources_entry
+# padrão mínimo e robusto: desliga a guarda que endereça entries[0] quando entries[] existe,
+# forçando cmdEnsure a cair sempre no ramo "legado" (replay do TOPO bruto, nunca da entrada) —
+# exatamente o comportamento anterior à correção da #139 (achado HIGH).
+run_mutation "38" 's/if \(Array\.isArray\(data\.entries\) && entries\.length > 0\) \{/if (false) {/' scenario_ensure_sources_entry
 
 scenario_legacy_no_fixfiles_waivable() { # scenario_legacy_no_fixfiles_waivable <root> <suffix>
   # MEDIUM da correção da #139 — legado ESCRITO À MÃO, sem `entries[]` e sem a chave `fix_files`,
@@ -1475,6 +1488,6 @@ fi
 echo "OK [39]"
 
 echo "[40] MUTAÇÃO (sandbox) — remover a guarda '!Array.isArray(data.entries) -> sem 2ª fonte' de topMatchesProjection faz [39] voltar a bloquear o legado sem fix_files mesmo depois do waive válido"
-run_mutation "40" 's/export function topMatchesProjection\(data, entries\) \{\n  if \(!entries\.length\) return true;\n  if \(!Array\.isArray\(data\.entries\)\) return true;/export function topMatchesProjection(data, entries) {\n  if (!entries.length) return true;/s' scenario_legacy_no_fixfiles_waivable "red-evidence.mjs"
+run_mutation "40" 's/if \(!Array\.isArray\(data\.entries\)\) return true;//' scenario_legacy_no_fixfiles_waivable "red-evidence.mjs"
 
 echo "OK"

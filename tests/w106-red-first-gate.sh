@@ -128,24 +128,35 @@ echo "[3-FORJA] FORJA COMPLETA — status:observed escrito à mão (campos inter
 FORJA_EXCERPT="AssertionError: forjado à mão, nunca rodou de verdade"
 FORJA_HASH="$(node -e "process.stdout.write(require('crypto').createHash('sha256').update(process.argv[1]).digest('hex'))" "$FORJA_EXCERPT")"
 head_now_forja="$(git -C "$T" rev-parse HEAD)"
+# Correção da #139 (redesenho de causa raiz) — `entries[]` é a ÚNICA fonte da verdade; o topo é
+# projeção pura, recalculada por `ensure`/`replay`/`waive` a partir de `entries[0]`, nunca lida
+# como fonte. Uma forja "internamente consistente" (o que este passo quer simular) precisa dizer a
+# MESMA mentira nos dois lugares — só no topo seria autocurado por `ensure` sem sequer executar
+# nada (entries[0] real, intocado, reafirmaria a verdade), e SÓ isso já reprovaria no check
+# estático como "adulterado" (topo diverge da projeção de entries[]), o que não é o que este passo
+# quer provar.
 node -e '
 const fs = require("fs");
 const p = process.argv[1];
 const d = JSON.parse(fs.readFileSync(p, "utf8"));
-d.status = "observed";
-d.test_path = "tests/bug-a-forja.test.mjs";
-d.test_id = "bug-a-forja-regression";
-d.command = "node --test tests/bug-a-forja.test.mjs";
-d.base_commit = "0123456";
-d.excerpt = process.argv[2];
-d.excerpt_sha256 = process.argv[3];
-d.classification = "behavioral";
-d.failure_pattern = "AssertionError";
-d.base_result = "failed";
-d.fix_files = ["src/bug-a-forja-fix.mjs"];
-d.recorded_at = "2026-01-01T00:00:00.000Z";
-d.replayed_at = "2026-01-01T00:00:01.000Z";
-d.replay_head = process.argv[4];
+function apply(o) {
+  o.status = "observed";
+  o.test_path = "tests/bug-a-forja.test.mjs";
+  o.test_id = "bug-a-forja-regression";
+  o.command = "node --test tests/bug-a-forja.test.mjs";
+  o.base_commit = "0123456";
+  o.excerpt = process.argv[2];
+  o.excerpt_sha256 = process.argv[3];
+  o.classification = "behavioral";
+  o.failure_pattern = "AssertionError";
+  o.base_result = "failed";
+  o.fix_files = ["src/bug-a-forja-fix.mjs"];
+  o.recorded_at = "2026-01-01T00:00:00.000Z";
+  o.replayed_at = "2026-01-01T00:00:01.000Z";
+  o.replay_head = process.argv[4];
+}
+apply(d);
+if (Array.isArray(d.entries) && d.entries[0]) apply(d.entries[0]);
 fs.writeFileSync(p, JSON.stringify(d, null, 2) + "\n");
 ' "$EV_A" "$FORJA_EXCERPT" "$FORJA_HASH" "$head_now_forja"
 # arquivos declarados existem de fato e COMMITADOS (para o motor de replay conseguir derivar uma
@@ -184,24 +195,29 @@ grep -q '"status": "observed"' "$EV_A" && { echo "FAIL [3-FORJA/validate-spec]: 
 # artefato com os dados reais da execução (base_result:passed, classification:unknown), e esses
 # campos reprovariam sozinhos no check estático — a asserção passaria com e sem o export, ou seja,
 # por motivo errado. Só uma forja internamente consistente isola o que este passo quer provar.
+# Correção da #139: de novo, nos dois lugares (topo e entries[0] — ver comentário acima).
 node -e '
 const fs = require("fs");
 const p = process.argv[1];
 const d = JSON.parse(fs.readFileSync(p, "utf8"));
-d.status = "observed";
-d.test_path = "tests/bug-a-forja.test.mjs";
-d.test_id = "bug-a-forja-regression";
-d.command = "node --test tests/bug-a-forja.test.mjs";
-d.base_commit = "0123456";
-d.excerpt = process.argv[2];
-d.excerpt_sha256 = process.argv[3];
-d.classification = "behavioral";
-d.failure_pattern = "AssertionError";
-d.base_result = "failed";
-d.fix_files = ["src/bug-a-forja-fix.mjs"];
-d.recorded_at = "2026-01-01T00:00:00.000Z";
-d.replayed_at = "2026-01-01T00:00:01.000Z";
-d.replay_head = process.argv[4];
+function apply(o) {
+  o.status = "observed";
+  o.test_path = "tests/bug-a-forja.test.mjs";
+  o.test_id = "bug-a-forja-regression";
+  o.command = "node --test tests/bug-a-forja.test.mjs";
+  o.base_commit = "0123456";
+  o.excerpt = process.argv[2];
+  o.excerpt_sha256 = process.argv[3];
+  o.classification = "behavioral";
+  o.failure_pattern = "AssertionError";
+  o.base_result = "failed";
+  o.fix_files = ["src/bug-a-forja-fix.mjs"];
+  o.recorded_at = "2026-01-01T00:00:00.000Z";
+  o.replayed_at = "2026-01-01T00:00:01.000Z";
+  o.replay_head = process.argv[4];
+}
+apply(d);
+if (Array.isArray(d.entries) && d.entries[0]) apply(d.entries[0]);
 fs.writeFileSync(p, JSON.stringify(d, null, 2) + "\n");
 ' "$EV_A" "$FORJA_EXCERPT" "$FORJA_HASH" "$(git -C "$T" rev-parse HEAD)"
 perl -pi -e 's/^status: .*/status: verified/' "$DIR_A/manifest.yaml"

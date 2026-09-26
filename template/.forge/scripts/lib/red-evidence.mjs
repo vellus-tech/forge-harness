@@ -310,6 +310,15 @@ function deepEqual(a, b) {
 // igualdade aqui reprovaria todo change bugfix recém-criado, antes de qualquer `record`.
 export function topMatchesProjection(data, entries) {
   if (!entries.length) return true;
+  // Correção da #139 (revisão adversarial, achado MEDIUM): sem `entries[]` no arquivo BRUTO, o
+  // topo é a ÚNICA fonte — `entries` aqui é só `extractEntryFromTop(data)` (deriveEntries), uma
+  // projeção do próprio `data`, nunca uma segunda declaração independente. Comparar as duas era
+  // comparar `data` contra si mesmo através de uma normalização que zera campos ausentes de forma
+  // diferente da representação crua (ex.: `fix_files` ausente no topo é `undefined` -> `null` na
+  // comparação, mas `computeProjection` sempre normaliza para `[]`): todo legado escrito à mão
+  // (w106/w144) sem a chave `fix_files` virava "adulterado" para sempre, mesmo depois de um
+  // `waive` genuinamente válido (nem `waive` nem `ensure` gravam `fix_files` no caminho legado).
+  if (!Array.isArray(data.entries)) return true;
   const projection = computeProjection(data.change_id, entries);
   const keys = ['status', ...ENTRY_SCALAR_FIELDS, 'fix_files', 'waiver'];
   return keys.every((k) => deepEqual(data[k] ?? null, projection[k] ?? null));

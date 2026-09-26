@@ -21,7 +21,10 @@ set -uo pipefail
 
 # Argumentos ORIGINAIS, capturados antes de qualquer `shift` do parser abaixo — é o que
 # `_hr_reset_ignored_signals` reexecuta quando precisa resetar disposição de sinal herdada
-# (issue #146). Sob `set -u`, `"${_HR_ORIG_ARGV[@]}"` com array vazio expande para nada, sem erro.
+# (issue #146). Sob `set -u` e bash < 4.4, `"${_HR_ORIG_ARGV[@]}"` com array vazio dispara
+# "unbound variable" (medido em `/bin/bash` 3.2.57) — por isso todo uso abaixo é
+# `${_HR_ORIG_ARGV[@]+"${_HR_ORIG_ARGV[@]}"}`, a forma portátil que expande para nada sem erro
+# em qualquer versão.
 _HR_ORIG_ARGV=("$@")
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -188,7 +191,7 @@ POLL="${_pa:-$_pb}"
 # #146). A prova é por TENTATIVA, mas por CONTEÚDO, não por presença: um `trap` de descarte em
 # INT/TERM só "pega" de verdade se a disposição de entrada não era SIG_IGN, e a única forma
 # confiável de saber isso é conferir se `trap -p` devolve o COMANDO-SONDA que acabamos de armar —
-# nunca só "devolveu algo". Achado BLOCKER de correção: bash 3.2 imprime vazio quando a tentativa
+# nunca só "devolveu algo": bash 3.2 imprime vazio quando a tentativa
 # de armar falhou (então checar só "não-vazio" funcionava por acidente), mas bash >=4 devolve o
 # TRAP ANTIGO (a disposição SIG_IGN herdada, com o comando vazio de quem a armou) em vez de vazio
 # — `[ -n "$p_int" ]` dá verdadeiro mesmo com o sinal ainda ignorado, e o reset nunca dispara.
@@ -218,7 +221,7 @@ POLL="${_pa:-$_pb}"
 # vez de reexecutar de novo — e em vez de rodar a carga sem trap. A guarda é `unset` assim que
 # deixa de ser necessária (ramo armável, logo abaixo), porque `VAR=1 exec` a exporta para todo o
 # resto da árvore de processos — inclusive a CARGA — e um heavy-run.sh aninhado dentro do próprio
-# payload (achado MEDIUM de correção: um payload lançado por `&` sem `set -m`, como o próprio
+# payload (um payload lançado por `&` sem `set -m`, como o próprio
 # comentário abaixo de `set -m` descreve, herda INT ignorado por regra POSIX de lista assíncrona
 # sem controle de job) leria a guarda do PAI como se já tivesse tentado resetar a SI MESMO, e
 # recusaria com `70` sem nunca ter tentado.
@@ -249,11 +252,11 @@ _hr_reset_ignored_signals() {
     return 70
   fi
   # Reexecuta com o MESMO interpretador que já está rodando ($BASH, resolvido pelo próprio bash
-  # na entrada) e o MESMO arquivo ($BASH_SOURCE[0], não um caminho literal): achado LOW de
-  # correção — `bash "$SCRIPT_DIR/heavy-run.sh"` resolvia `bash` de novo pelo PATH, e uma máquina
+  # na entrada) e o MESMO arquivo ($BASH_SOURCE[0], não um caminho literal): `bash
+  # "$SCRIPT_DIR/heavy-run.sh"` resolvia `bash` de novo pelo PATH, e uma máquina
   # com outro bash na frente (ex.: Homebrew) trocaria de interpretador NO MEIO da execução.
   _HR_SIG_RESET=1 exec perl -e '$SIG{INT}="DEFAULT"; $SIG{TERM}="DEFAULT"; exec @ARGV or die "heavy-run: exec falhou ao resetar disposição de sinal: $!\n"' \
-    "$BASH" "${BASH_SOURCE[0]}" "${_HR_ORIG_ARGV[@]}"
+    "$BASH" "${BASH_SOURCE[0]}" ${_HR_ORIG_ARGV[@]+"${_HR_ORIG_ARGV[@]}"}
   # `exec` só retorna em falha.
   echo "heavy-run: falha ao reexecutar para resetar disposição de sinal" >&2
   return 70

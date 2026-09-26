@@ -47,13 +47,28 @@ grep -q 'claude-contract.bats' <<<"$listing" || { echo "FAIL [3]: claude-contrac
 echo "OK [3]"
 
 echo "[4] run-all não chama a si mesmo (sem recursão)"
-! grep -E 'run-all\.sh|run-all ' "$RA" | grep -vE '^\s*#|run-all\.sh —|run-all\)|name=|Uso:|tests/run-all\.sh ' >/dev/null
-# garantia direta: não há invocação bash/exec de run-all dentro de run-all
-! grep -E '(bash|sh|exec).*run-all' "$RA" >/dev/null
+# LDG-0182: sob `set -euo pipefail`, `! cmd` nunca sai por set -e (o retorno invertido isenta a
+# linha), então as duas checagens abaixo nunca reprovavam o gate mesmo com recursão real presente
+# (medido com mutação e recontrole). A forma `! cmd || { FAIL; exit 1; }` torna a reprovação
+# explícita e independente do set -e. `run-all\.sh: ` exclui a mensagem de diagnóstico própria do
+# runner ("run-all.sh: sentinela ausente …", linha que só existe para citar o nome do script no
+# stderr, não para invocá-lo).
+! grep -E 'run-all\.sh|run-all ' "$RA" \
+    | grep -vE '^\s*#|run-all\.sh —|run-all\)|name=|Uso:|tests/run-all\.sh |run-all\.sh: ' >/dev/null \
+  || { echo "FAIL [4]: run-all.sh menciona a si mesmo fora de comentário/uso documentado (possível recursão)"; exit 1; }
+# garantia direta: nenhuma linha invoca run-all de verdade via bash/sh/exec. O padrão exige o
+# comando seguido de espaço e um token contíguo (sem espaço/pipe/`;`) contendo "run-all" — não basta
+# a palavra aparecer solta na mesma linha — porque a regex desta própria checagem, escrita como
+# string, cita "bash|sh|exec" e "run-all" lado a lado sem ser uma invocação real (falso positivo
+# medido ao converter; ver LDG-0182). Comentários continuam fora por segurança adicional.
+INVOKE_RE='(^|[^A-Za-z0-9_])(bash|sh|exec)[[:space:]]+[^|;[:space:]]*run-all'
+! grep -E "$INVOKE_RE" "$RA" | grep -vE '^\s*#' >/dev/null \
+  || { echo "FAIL [4]: run-all.sh contém invocação real de run-all via bash/sh/exec (recursão)"; exit 1; }
 echo "OK [4]"
 
 echo "[5] w80 não invoca run-all (sem recursão pelo próprio gate)"
-! grep -E '(bash|sh|exec).*run-all' "$WS/tests/w80-suite-gate.sh" >/dev/null
+! grep -E "$INVOKE_RE" "$WS/tests/w80-suite-gate.sh" | grep -vE '^\s*#' >/dev/null \
+  || { echo "FAIL [5]: w80-suite-gate.sh contém invocação real de run-all via bash/sh/exec (recursão pelo próprio gate)"; exit 1; }
 echo "OK [5]"
 
 echo "[6] casos obrigatórios §22.9/#20 cobertos por gate"

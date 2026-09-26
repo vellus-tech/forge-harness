@@ -80,6 +80,13 @@
 #       (a constante de módulo) faz a leitura cair no `forge.yaml` de B (o cwd de quem importou)
 #       em vez do `root` explícito — o resultado passa a bater com B (sem `SessionStart`/
 #       `SessionEnd`), não com A, e o cenário acusa. Controle/recontrole por `cmp -s`.
+#   [14] positivo + mutação — achado de correção LOW-1: um erro INESPERADO (não uma das
+#       validações conhecidas — `.forge/skills` virar um arquivo comum faz `walk()` explodir com
+#       `ENOTDIR`, um erro real do Node) imprime o `stack` completo (linha `at ...`) ANTES do
+#       `FAIL (...)` de uma linha — o diagnóstico que o Node já dava por padrão antes deste
+#       `try/catch` existir. Mutação: remover a checagem `!(e instanceof CliError)` no catch faz
+#       todo erro voltar a ser engolido em uma linha só, sem stack — o cenário acusa.
+#       Controle/recontrole por `cmp -s`.
 #
 # Todas as mutações mutam uma CÓPIA da lib dentro da fixture temporária, nunca o arquivo
 # rastreado em `template/.forge/`, e cada uma é restaurada e reconferida por `cmp -s` antes de
@@ -516,7 +523,7 @@ cp "$LIB12" "$BACKUP12"
 # Remove só o bloco de checagem ADIANTADA (indentação de 4 espaços, dentro do galho principal),
 # nunca a checagem homônima dentro de reconcile() (indentação de 2 espaços) — âncora pela
 # indentação exata, independente de qualquer comentário entre `try {` e o bloco.
-perl -0777 -pi -e 's/^    if \(!existsSync\(join\(FORGE, .FORGE\.md.\)\)\) \{\n      throw new Error\(.*\);\n    \}\n//m' "$LIB12"
+perl -0777 -pi -e 's/^    if \(!existsSync\(join\(FORGE, .FORGE\.md.\)\)\) \{\n      throw new \w+\(.*\);\n    \}\n//m' "$LIB12"
 if cmp -s "$LIB12" "$BACKUP12"; then
   echo "FAIL [12]: a mutação não alterou nenhum byte da lib — o perl não achou a checagem adiantada"
   overall_rc=1
@@ -629,6 +636,62 @@ else
     overall_rc=1
   else
     echo "OK [13-mut] recontrole — lib restaurada byte a byte, preToolUseWiring(T13A) volta a bater com A"
+  fi
+fi
+
+# ── [14] erro INESPERADO (não CliError) imprime o stack completo antes do FAIL (LOW-1) ──────────
+echo "[14] um erro inesperado (não uma validação conhecida) imprime o stack completo, não só FAIL (...)"
+T14="$(mktemp -d "$TMPROOT/forge-w216-14.XXXXXX")"; track "$T14"
+nova_fixture "$T14"
+rm -rf "$T14/.forge/skills"
+: > "$T14/.forge/skills"   # arquivo comum no lugar do diretório: walk() explode com ENOTDIR real,
+                           # um erro do Node, não uma validação nossa — o caso que LOW-1 mede.
+OUT14="$(node "$LIB_TEMPLATE" --root "$T14" --adapter all 2>&1)"; RC14=$?
+
+if [ "$RC14" -eq 0 ]; then
+  echo "FAIL [14]: setup — saiu rc=0 com .forge/skills sendo um arquivo comum (deveria explodir)"
+  overall_rc=1
+elif ! grep -q 'FAIL (ENOTDIR' <<<"$OUT14"; then
+  echo "FAIL [14]: setup — a saída não é o ENOTDIR esperado (a fixture não gerou o erro certo): $OUT14"
+  overall_rc=1
+elif ! grep -qE '^ *at ' <<<"$OUT14"; then
+  echo "FAIL [14]: erro inesperado (ENOTDIR) NÃO imprimiu nenhuma linha de stack ('    at ...') — só o FAIL de uma linha, exatamente o achado de correção LOW-1: $OUT14"
+  overall_rc=1
+else
+  echo "OK [14] — erro inesperado imprime stack completo (linha 'at ...' presente) além do FAIL (...)"
+fi
+
+echo "  [14-mut] mutação: remover a distinção CliError faz o stack sumir de novo"
+LIB14="$(mktemp "$TMPROOT/forge-w216-14-lib.XXXXXX.mjs")"; track "$LIB14"
+cp "$LIB_TEMPLATE" "$LIB14"
+BACKUP14="$(mktemp "$TMPROOT/forge-w216-14-backup.XXXXXX")"; track "$BACKUP14"
+cp "$LIB14" "$BACKUP14"
+
+perl -0777 -pi -e 's/    if \(!\(e instanceof CliError\)\) console\.error\(e\.stack \|\| String\(e\)\);\n//' "$LIB14"
+if cmp -s "$LIB14" "$BACKUP14"; then
+  echo "FAIL [14-mut]: a mutação não alterou nenhum byte da lib — o perl não achou a linha da distinção CliError"
+  overall_rc=1
+else
+  OUT14M="$(node "$LIB14" --root "$T14" --adapter all 2>&1)"
+  if grep -qE '^ *at ' <<<"$OUT14M"; then
+    echo "FAIL [14-mut]: mesmo sem a distinção CliError, o stack AINDA apareceu — a mutação não acusa: $OUT14M"
+    overall_rc=1
+  else
+    echo "OK [14-mut] — mutação acusa: sem a distinção CliError, o erro inesperado volta a ser engolido em uma linha só"
+  fi
+fi
+
+cp "$BACKUP14" "$LIB14"
+if ! cmp -s "$LIB14" "$BACKUP14"; then
+  echo "FAIL [14-mut]: a restauração da lib mutada não bateu byte a byte com a cópia salva"
+  overall_rc=1
+else
+  OUT14R="$(node "$LIB14" --root "$T14" --adapter all 2>&1)"
+  if ! grep -qE '^ *at ' <<<"$OUT14R"; then
+    echo "FAIL [14-mut]: recontrole — com a lib restaurada, o stack ainda não aparece: $OUT14R"
+    overall_rc=1
+  else
+    echo "OK [14-mut] recontrole — lib restaurada byte a byte, stack completo volta a aparecer"
   fi
 fi
 

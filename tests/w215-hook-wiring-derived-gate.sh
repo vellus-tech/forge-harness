@@ -83,6 +83,24 @@
 #   [20] positivo — semeador preserva o MATCHER que o consumidor já tinha (`Edit|Write`, sem
 #        `NotebookEdit`, não ancorado) em vez de alargar para o matcher ancorado do produtor.
 #
+# Achados de correção (revisão adversarial, iteração 3 do modo correção) — novos cenários abaixo:
+#   [21] positivo — semeador: um gancho fiado sob DOIS matchers ao mesmo tempo sobrevive nos dois
+#        — nunca só no primeiro encontrado (`findWiredForms`, plural). Mutação [21m]: devolver só a
+#        primeira ocorrência faz o segundo matcher perder cobertura em silêncio.
+#   [22]/[22b] positivo — manifesto do consumidor (Axis.PadSimulator, sem marcador) SEM
+#        `.claude/settings.json` anterior LEGÍVEL (ausente em [22], JSON malformado em [22b]): o 1º
+#        sync arma o ESTADO PADRÃO do produtor (nunca fica vazio) em vez de "permanecer como
+#        estava" sem referente, e o 2º sync não colapsa para vacuidade silenciosa. Mutação [22m]:
+#        tratar "sem settings.json legível" como unresolved de qualquer forma (defeito original)
+#        faz o 1º sync gravar PreToolUse vazio.
+#   [23] positivo — manifesto MARCADO e mal formado COM settings.json anterior: o congelamento é
+#        ESCOPADO a `hooks.PreToolUse` — ativar `handoff.auto` no MESMO sync ainda produz
+#        `SessionStart`/`SessionEnd` novos. Mutação [23m]: congelar o objeto `hooks` inteiro
+#        (defeito original) faz `SessionStart`/`SessionEnd` desaparecerem apesar da flag ligada.
+#   [24] positivo — diretório de projeto com ESPAÇO: o comando emitido para
+#        `prevent-secrets-leak.sh`, executado via `bash -c`, bloqueia (`rc=2`) em vez de falhar
+#        aberto (`rc=126`, "is a directory") por `$CLAUDE_PROJECT_DIR` sem aspas.
+#
 # Fixtures: nenhum segredo literal (LDG-0175/w213 e a auto-varredura do w139 [15], que reprova o
 # repositório inteiro por qualquer achado) — todo payload de exemplo é montado em tempo de
 # execução por concatenação. Os três `hooks.manifest` reais (tests/fixtures/w215/*) são cópias
@@ -271,27 +289,49 @@ cp "$FIXTURES/axis-fare-validator/settings.json" "$T8/.claude/settings.json"
 cp "$T8/.claude/settings.json" "$T8/.claude/settings.json.before"
 OUT8="$(bash "$T8/.forge/scripts/sync-adapters.sh" --set claude 2>&1)"
 DISPATCH_COUNT8="$(grep -c 'dispatch-file-hook.sh' "$T8/.claude/settings.json")"
+# Achado de correção MEDIUM (revisão adversarial, iteração 3 do modo correção): o grupo de
+# DESPACHO (`dispatch-file-hook.sh ...`) é de TERCEIRO e continua byte-idêntico — este gerador
+# nunca o possui. O grupo DIRETO (`^Bash$`) É owned (`enforce-worktree-location.sh` está declarado
+# em `hooks.manifest.default`; `enforce-docs-on-publish.sh`/`guard-machinery-drift.sh` estão
+# declarados no `hooks.manifest` do próprio consumidor) e por isso migra da forma sem aspas em
+# `$CLAUDE_PROJECT_DIR` para a forma com aspas (achado MEDIUM da própria #125) — mesmo CONJUNTO de
+# ganchos, mesmo matcher, comando com aspas.
 FOREIGN_DIFF8="$(node -e '
   const fs = require("fs");
   const before = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
   const after = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
-  if (JSON.stringify(before.hooks.PreToolUse) !== JSON.stringify(after.hooks.PreToolUse)) {
-    console.log(`PreToolUse mudou: antes=${JSON.stringify(before.hooks.PreToolUse)} depois=${JSON.stringify(after.hooks.PreToolUse)}`);
-  } else {
-    console.log("");
+  const byMatcher = (arr) => Object.fromEntries((arr || []).map((g) => [g.matcher, g.hooks.map((h) => h.command)]));
+  const b = byMatcher(before.hooks.PreToolUse);
+  const a = byMatcher(after.hooks.PreToolUse);
+  const DISPATCH = "^(Write|Edit|MultiEdit|NotebookEdit)$";
+  const DIRECT = "^Bash$";
+  const problems = [];
+  if (JSON.stringify(b[DISPATCH]) !== JSON.stringify(a[DISPATCH])) {
+    problems.push(`grupo de despacho (terceiro) mudou: antes=${JSON.stringify(b[DISPATCH])} depois=${JSON.stringify(a[DISPATCH])}`);
   }
+  const basename = (cmd) => cmd.trim().split(/\s+/).pop().split("/").pop();
+  const beforeNames = (b[DIRECT] || []).map(basename).sort();
+  const afterNames = (a[DIRECT] || []).map(basename).sort();
+  if (JSON.stringify(beforeNames) !== JSON.stringify(afterNames)) {
+    problems.push(`grupo direto mudou de gancho: antes=${JSON.stringify(beforeNames)} depois=${JSON.stringify(afterNames)}`);
+  }
+  const stillUnquoted = (a[DIRECT] || []).filter((c) => !c.startsWith(`"$CLAUDE_PROJECT_DIR"`));
+  if (stillUnquoted.length) {
+    problems.push(`grupo direto não migrou para a forma com aspas: ${JSON.stringify(stillUnquoted)}`);
+  }
+  console.log(problems.join(" | "));
 ' "$T8/.claude/settings.json.before" "$T8/.claude/settings.json")"
 if [ "$DISPATCH_COUNT8" -ne 3 ]; then
   echo "FAIL [8]: os três wrappers dispatch-file-hook.sh não sobreviveram (achei $DISPATCH_COUNT8). Saída: $OUT8"
   overall_rc=1
 elif [ -n "$FOREIGN_DIFF8" ]; then
-  echo "FAIL [8]: PreToolUse mudou byte a byte quando deveria ficar intacto — $FOREIGN_DIFF8"
+  echo "FAIL [8]: $FOREIGN_DIFF8"
   overall_rc=1
 elif ! printf '%s' "$OUT8" | grep -q "dispatch-file-hook.sh"; then
   echo "FAIL [8]: nenhum WARN nomeou 'dispatch-file-hook.sh' (presente no diretório, ausente dos dois manifestos). Saída: $OUT8"
   overall_rc=1
 else
-  echo "OK [8] — wrappers intactos, PreToolUse byte-idêntico, dispatch-file-hook.sh nomeado: $(printf '%s' "$OUT8" | grep 'dispatch-file-hook.sh')"
+  echo "OK [8] — wrappers de despacho intactos, grupo direto migrado para a forma com aspas, dispatch-file-hook.sh nomeado: $(printf '%s' "$OUT8" | grep 'dispatch-file-hook.sh')"
 fi
 
 # ── [9] fixture real: axis-device-platform ───────────────────────────────────────────────────────
@@ -722,10 +762,10 @@ node -e '
   const fs = require("fs");
   const p = process.argv[1];
   let src = fs.readFileSync(p, "utf8");
-  const marker = "const wired = findWiredForm(existingGroups, hook);";
+  const marker = "const wiredForms = findWiredForms(existingGroups, hook);";
   const i = src.indexOf(marker);
-  if (i < 0) { console.error("MUTATION-SETUP-FAILED: marcador de findWiredForm não encontrado"); process.exit(1); }
-  const mutated = "const wired = (function(){ for (const g of existingGroups || []) { for (const h of (g && g.hooks) || []) { if (!h || typeof h.command !== \"string\") continue; const parts = h.command.trim().split(/\\s+/); const last = parts[parts.length-1].split(\"/\").pop(); if (last === hook) return { matcher: g.matcher, contrato: fromDefault.contrato }; } } return null; })(); // MUTATED-16 basename";
+  if (i < 0) { console.error("MUTATION-SETUP-FAILED: marcador de findWiredForms não encontrado"); process.exit(1); }
+  const mutated = "const wiredForms = (function(){ const out = []; for (const g of existingGroups || []) { for (const h of (g && g.hooks) || []) { if (!h || typeof h.command !== \"string\") continue; const parts = h.command.trim().split(/\\s+/); const last = parts[parts.length-1].split(\"/\").pop(); if (last === hook) out.push({ matcher: g.matcher, contrato: fromDefault.contrato }); } } return out; })(); // MUTATED-16 basename";
   src = src.slice(0, i) + mutated + src.slice(i + marker.length);
   fs.writeFileSync(p, src);
 ' "$LIB16M"
@@ -740,7 +780,7 @@ else
     const groups = (j.hooks && j.hooks.PreToolUse) || [];
     let found = false;
     for (const g of groups) for (const h of (g.hooks || [])) {
-      if (String(h.command) === "$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/prevent-secrets-leak.sh") found = true;
+      if (String(h.command) === "\"$CLAUDE_PROJECT_DIR\"/.forge/hooks/pre-tool-use/prevent-secrets-leak.sh") found = true;
     }
     console.log(found ? "1" : "0");
   ' "$T16M/.claude/settings.json")"
@@ -772,7 +812,7 @@ JSON
       const groups = (j.hooks && j.hooks.PreToolUse) || [];
       let found = false;
       for (const g of groups) for (const h of (g.hooks || [])) {
-        if (String(h.command) === "$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/prevent-secrets-leak.sh") found = true;
+        if (String(h.command) === "\"$CLAUDE_PROJECT_DIR\"/.forge/hooks/pre-tool-use/prevent-secrets-leak.sh") found = true;
       }
       console.log(found ? "1" : "0");
     ' "$T16M/.claude/settings.json")"
@@ -927,6 +967,322 @@ if [ "$GOT20" != "Edit|Write" ]; then
   overall_rc=1
 else
   echo "OK [20] — matcher preservado: '$GOT20'"
+fi
+
+# matchers_of <settings.json> <hook-basename> — TODOS os matchers (ordenados) sob os quais o
+# gancho aparece — ao contrário de matcher_of, que devolve só o PRIMEIRO achado.
+matchers_of() {
+  node -e '
+    const fs = require("fs");
+    const j = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+    const groups = (j.hooks && j.hooks.PreToolUse) || [];
+    const out = [];
+    for (const g of groups) for (const h of (g.hooks || [])) {
+      const parts = String(h.command).trim().split(/\s+/);
+      const last = parts[parts.length - 1].split("/").pop();
+      if (last === process.argv[2]) out.push(g.matcher);
+    }
+    console.log(JSON.stringify(out.sort()));
+  ' "$1" "$2"
+}
+
+# ── [21] achado de correção HIGH (iteração 3 do modo correção): semeador NÃO colapsa um gancho ────
+#     fiado sob MAIS DE UM matcher simultaneamente na primeira ocorrência encontrada.
+echo "[21] semeador: prevent-secrets-leak.sh fiado sob DOIS matchers ao mesmo tempo (Bash e Edit|MultiEdit) — os dois sobrevivem ao sync, nenhum é descartado"
+T21="$(mktemp -d "$TMPROOT/forge-w215-21.XXXXXX")"; track "$T21"
+nova_fixture "$T21"
+mkdir -p "$T21/.claude"
+cat > "$T21/.claude/settings.json" <<'JSON'
+{
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": "Bash", "hooks": [ { "type": "command", "command": "$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/prevent-secrets-leak.sh" } ] },
+      { "matcher": "Edit|MultiEdit", "hooks": [ { "type": "command", "command": "$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/prevent-secrets-leak.sh" } ] }
+    ]
+  }
+}
+JSON
+cp "$T21/.claude/settings.json" "$T21/before.json"
+bash "$T21/.forge/scripts/sync-adapters.sh" --set claude >/dev/null 2>&1
+GOT21="$(matchers_of "$T21/.claude/settings.json" prevent-secrets-leak.sh)"
+EXPECTED21='["Bash","Edit|MultiEdit"]'
+if [ "$GOT21" != "$EXPECTED21" ]; then
+  echo "FAIL [21]: matchers depois do sync = $GOT21 — esperado $EXPECTED21 (os dois preservados, nenhum descartado)"
+  overall_rc=1
+else
+  echo "OK [21] — $GOT21"
+fi
+
+echo "[21m] mutação: findWiredForms devolvendo só a PRIMEIRA ocorrência (defeito original) faz [21] perder o segundo matcher"
+LIB21M="$T21/$LIB_REL"
+cp "$LIB21M" "$T21/lib.orig.mjs"
+node -e '
+  const fs = require("fs");
+  const p = process.argv[1];
+  let src = fs.readFileSync(p, "utf8");
+  const marker = "  return out;\n}\n\nfunction dispatchedHookNames";
+  const i = src.indexOf(marker);
+  if (i < 0) { console.error("MUTATION-SETUP-FAILED: marcador de fim de findWiredForms não encontrado"); process.exit(1); }
+  const mutated = "  return out.slice(0, 1); // MUTATED-21 só a primeira ocorrência\n}\n\nfunction dispatchedHookNames";
+  src = src.slice(0, i) + mutated + src.slice(i + marker.length);
+  fs.writeFileSync(p, src);
+' "$LIB21M"
+if cmp -s "$T21/lib.orig.mjs" "$LIB21M"; then
+  echo "FAIL [21m]: setup da mutação não alterou a lib — nada foi provado"
+  overall_rc=1
+else
+  cp "$T21/before.json" "$T21/.claude/settings.json"
+  bash "$T21/.forge/scripts/sync-adapters.sh" --set claude >/dev/null 2>&1
+  GOT21M="$(matchers_of "$T21/.claude/settings.json" prevent-secrets-leak.sh)"
+  if [ "$GOT21M" = "$EXPECTED21" ]; then
+    echo "FAIL [21m]: a mutação (só a primeira ocorrência) não derrubou o cenário — os dois matchers ainda sobreviveram"
+    overall_rc=1
+  else
+    echo "OK [21m] — mutante reprovado (matchers=$GOT21M, perdeu cobertura)"
+  fi
+  cp "$T21/lib.orig.mjs" "$LIB21M"
+  if ! cmp -s "$T21/lib.orig.mjs" "$LIB21M"; then
+    echo "FAIL [21m]: recontrole — restauração da lib mutada não ficou byte-idêntica ao original"
+    overall_rc=1
+  else
+    cp "$T21/before.json" "$T21/.claude/settings.json"
+    bash "$T21/.forge/scripts/sync-adapters.sh" --set claude >/dev/null 2>&1
+    GOT21R="$(matchers_of "$T21/.claude/settings.json" prevent-secrets-leak.sh)"
+    if [ "$GOT21R" != "$EXPECTED21" ]; then
+      echo "FAIL [21m]: recontrole — lib original restaurada não voltou a preservar os dois matchers (obtido $GOT21R)"
+      overall_rc=1
+    else
+      echo "OK [21m] recontrole — lib original restaurada, os dois matchers voltam ($GOT21R)"
+    fi
+  fi
+fi
+
+# ── [22] achado de correção HIGH (iteração 3): manifesto do consumidor não resolvido SEM ──────────
+#     .claude/settings.json anterior legível não persiste um PreToolUse vazio que o PRÓXIMO sync
+#     leria como "fiação observada, vazia e legítima" (vacuidade), desarmando para sempre em
+#     silêncio. Fixture real: Axis.PadSimulator (marker-less, projeção) — ver [7] para a mesma
+#     fixture com settings.json JÁ existente.
+echo "[22] manifesto do consumidor (Axis.PadSimulator, sem marcador) SEM settings.json anterior: 1º sync arma o estado padrão do produtor (nunca fica vazio), e o 2º sync não colapsa em vacuidade silenciosa"
+T22="$(mktemp -d "$TMPROOT/forge-w215-22.XXXXXX")"; track "$T22"
+nova_fixture "$T22"
+cp "$FIXTURES/axis-pad-simulator/hooks.manifest" "$T22/.forge/hooks/pre-tool-use/hooks.manifest"
+OUT22A="$(bash "$T22/.forge/scripts/sync-adapters.sh" --set claude 2>&1)"
+GOT22A="$(hooks_of "$T22/.claude/settings.json")"
+if [ "$GOT22A" = '[]' ]; then
+  echo "FAIL [22]: 1º sync deixou PreToolUse VAZIO — exatamente o desarme que esta correção fecha. Saída: $OUT22A"
+  overall_rc=1
+elif ! printf '%s' "$OUT22A" | grep -q "LDG-0178"; then
+  echo "FAIL [22]: 1º sync não nomeou LDG-0178 (esperado: sem settings.json anterior, cai no caminho de instalação nova). Saída: $OUT22A"
+  overall_rc=1
+else
+  OUT22B="$(bash "$T22/.forge/scripts/sync-adapters.sh" --set claude 2>&1)"
+  GOT22B="$(hooks_of "$T22/.claude/settings.json")"
+  if [ "$GOT22B" != "$GOT22A" ]; then
+    echo "FAIL [22]: 2º sync mudou o conjunto ativo ($GOT22A -> $GOT22B) — deveria ser idempotente sobre o estado que ele mesmo armou"
+    overall_rc=1
+  elif [ "$GOT22B" = '[]' ]; then
+    echo "FAIL [22]: 2º sync colapsou para vacuidade silenciosa — o desarme permanente que esta correção existe para fechar"
+    overall_rc=1
+  else
+    echo "OK [22] — 1º sync armou $GOT22A (nomeando LDG-0178), 2º sync idempotente, sem colapso para vacuidade"
+  fi
+fi
+
+echo "[22m] mutação: tratar 'sem settings.json anterior' como 'unresolved' de qualquer forma (defeito original) faz o 1º sync gravar PreToolUse vazio"
+T22M="$(mktemp -d "$TMPROOT/forge-w215-22m.XXXXXX")"; track "$T22M"
+nova_fixture "$T22M"
+cp "$FIXTURES/axis-pad-simulator/hooks.manifest" "$T22M/.forge/hooks/pre-tool-use/hooks.manifest"
+LIB22M="$T22M/$LIB_REL"
+cp "$LIB22M" "$T22M/lib.orig.mjs"
+node -e '
+  const fs = require("fs");
+  const p = process.argv[1];
+  let src = fs.readFileSync(p, "utf8");
+  const marker = "if (existingGroups == null) {";
+  const i = src.indexOf(marker);
+  if (i < 0) { console.error("MUTATION-SETUP-FAILED: marcador do ramo existingGroups==null não encontrado"); process.exit(1); }
+  const mutated = "if (false) { // MUTATED-22 nunca cai no caminho de instalação nova";
+  src = src.slice(0, i) + mutated + src.slice(i + marker.length);
+  fs.writeFileSync(p, src);
+' "$LIB22M"
+if cmp -s "$T22M/lib.orig.mjs" "$LIB22M"; then
+  echo "FAIL [22m]: setup da mutação não alterou a lib — nada foi provado"
+  overall_rc=1
+else
+  bash "$T22M/.forge/scripts/sync-adapters.sh" --set claude >/dev/null 2>&1
+  GOT22M="$(hooks_of "$T22M/.claude/settings.json")"
+  if [ "$GOT22M" != '[]' ]; then
+    echo "FAIL [22m]: a mutação não derrubou o cenário — 1º sync ainda armou algo ($GOT22M)"
+    overall_rc=1
+  else
+    echo "OK [22m] — mutante reprovado (1º sync gravou PreToolUse vazio: $GOT22M)"
+  fi
+  cp "$T22M/lib.orig.mjs" "$LIB22M"
+  if ! cmp -s "$T22M/lib.orig.mjs" "$LIB22M"; then
+    echo "FAIL [22m]: recontrole — restauração da lib mutada não ficou byte-idêntica ao original"
+    overall_rc=1
+  else
+    rm -f "$T22M/.claude/settings.json"
+    bash "$T22M/.forge/scripts/sync-adapters.sh" --set claude >/dev/null 2>&1
+    GOT22R="$(hooks_of "$T22M/.claude/settings.json")"
+    if [ "$GOT22R" = '[]' ]; then
+      echo "FAIL [22m]: recontrole — lib original restaurada ainda gravou vazio"
+      overall_rc=1
+    else
+      echo "OK [22m] recontrole — lib original restaurada, 1º sync volta a armar $GOT22R"
+    fi
+  fi
+fi
+
+# ── [22b] mesma classe do [22], mas com .claude/settings.json ILEGÍVEL (JSON malformado) em vez ──
+#     de ausente — evidência item (b) do achado HIGH: os dois casos passam pelo mesmo ramo
+#     (existingGroups == null quando o arquivo não existe OU não parseia).
+echo "[22b] manifesto do consumidor (Axis.PadSimulator) COM .claude/settings.json ILEGÍVEL (vírgula final): 1º sync faz backup + arma o estado padrão (nunca fica vazio), 2º sync idempotente"
+T22B="$(mktemp -d "$TMPROOT/forge-w215-22b.XXXXXX")"; track "$T22B"
+nova_fixture "$T22B"
+cp "$FIXTURES/axis-pad-simulator/hooks.manifest" "$T22B/.forge/hooks/pre-tool-use/hooks.manifest"
+mkdir -p "$T22B/.claude"
+printf '{"hooks":{"PreToolUse":[],}}' > "$T22B/.claude/settings.json"  # vírgula final: JSON inválido
+OUT22B="$(bash "$T22B/.forge/scripts/sync-adapters.sh" --set claude 2>&1)"
+GOT22B="$(hooks_of "$T22B/.claude/settings.json")"
+if [ "$GOT22B" = '[]' ]; then
+  echo "FAIL [22b]: 1º sync (JSON ilegível) deixou PreToolUse VAZIO. Saída: $OUT22B"
+  overall_rc=1
+elif ! printf '%s' "$OUT22B" | grep -q "ilegível"; then
+  echo "FAIL [22b]: nenhum WARN nomeou o settings.json anterior como ilegível. Saída: $OUT22B"
+  overall_rc=1
+else
+  OUT22B2="$(bash "$T22B/.forge/scripts/sync-adapters.sh" --set claude 2>&1)"
+  GOT22B2="$(hooks_of "$T22B/.claude/settings.json")"
+  if [ "$GOT22B2" != "$GOT22B" ] || [ "$GOT22B2" = '[]' ]; then
+    echo "FAIL [22b]: 2º sync não foi idempotente ou colapsou para vacuidade ($GOT22B -> $GOT22B2)"
+    overall_rc=1
+  else
+    echo "OK [22b] — 1º sync fez backup e armou $GOT22B, 2º sync idempotente, sem colapso"
+  fi
+fi
+
+# ── [23] achado de correção MEDIUM (iteração 3): congelamento de PreToolUse (manifesto do ────────
+#     consumidor não resolvido, COM settings.json anterior) é ESCOPADO — SessionStart/SessionEnd
+#     continuam sendo derivados normalmente, nunca congelados junto.
+echo "[23] manifesto MARCADO e mal formado (não resolvido) COM settings.json anterior: PreToolUse congela, mas ATIVAR handoff.auto NO MESMO sync ainda produz SessionStart/SessionEnd novos"
+T23="$(mktemp -d "$TMPROOT/forge-w215-23.XXXXXX")"; track "$T23"
+nova_fixture "$T23"
+# baseline SEM handoff.auto — settings.json de partida não tem SessionStart nenhum, para que o
+# cenário prove que a categoria é criada NOVA no mesmo sync que congela PreToolUse, e não apenas
+# preservada de um estado anterior que já a continha (o que não distinguiria o defeito original).
+bash "$T23/.forge/scripts/sync-adapters.sh" --set claude >/dev/null 2>&1
+BEFORE23_PTU="$(hooks_of "$T23/.claude/settings.json")"
+if grep -q 'on-session-start.sh' "$T23/.claude/settings.json"; then
+  echo "FAIL [23]: pré-condição quebrada — baseline sem handoff.auto já tinha SessionStart"
+  overall_rc=1
+fi
+perl -0777 -pi -e 's/(handoff:\n(?:.*\n){2}  auto: )false/${1}true/' "$T23/.forge/forge.yaml"
+printf '# forge-manifest-format: 1\n#hook\tmatcher\tcontrato\testado\nprevent-secrets-leak.sh\t^(Write|Edit)$\tstdin-json\tnem-armado-nem-retido\n' \
+  > "$T23/.forge/hooks/pre-tool-use/hooks.manifest"
+cp "$T23/.claude/settings.json" "$T23/.claude/settings.json.before"
+OUT23="$(bash "$T23/.forge/scripts/sync-adapters.sh" --set claude 2>&1)"
+AFTER23_PTU="$(hooks_of "$T23/.claude/settings.json")"
+SESSION_START_COUNT23="$(grep -c 'on-session-start.sh' "$T23/.claude/settings.json")"
+SESSION_END_COUNT23="$(grep -c 'on-session-end.sh' "$T23/.claude/settings.json")"
+if [ "$AFTER23_PTU" != "$BEFORE23_PTU" ]; then
+  echo "FAIL [23]: PreToolUse mudou ($BEFORE23_PTU -> $AFTER23_PTU) — deveria ficar congelado byte-idêntico com o manifesto não resolvido"
+  overall_rc=1
+elif [ "$SESSION_START_COUNT23" -ne 1 ] || [ "$SESSION_END_COUNT23" -ne 1 ]; then
+  echo "FAIL [23]: SessionStart/SessionEnd ausentes (start=$SESSION_START_COUNT23 end=$SESSION_END_COUNT23) — o congelamento vazou para categorias que não têm nada a ver com PreToolUse. Saída: $OUT23"
+  overall_rc=1
+elif ! printf '%s' "$OUT23" | grep -q "LDG-0178"; then
+  echo "FAIL [23]: nenhum WARN nomeou LDG-0178. Saída: $OUT23"
+  overall_rc=1
+else
+  echo "OK [23] — PreToolUse congelado ($AFTER23_PTU), SessionStart/SessionEnd presentes (handoff.auto), LDG-0178 nomeado"
+fi
+
+echo "[23m] mutação: congelar o objeto 'hooks' inteiro (defeito original) faz SessionStart/SessionEnd desaparecerem apesar de handoff.auto=true"
+T23M="$(mktemp -d "$TMPROOT/forge-w215-23m.XXXXXX")"; track "$T23M"
+nova_fixture "$T23M"
+bash "$T23M/.forge/scripts/sync-adapters.sh" --set claude >/dev/null 2>&1
+perl -0777 -pi -e 's/(handoff:\n(?:.*\n){2}  auto: )false/${1}true/' "$T23M/.forge/forge.yaml"
+printf '# forge-manifest-format: 1\n#hook\tmatcher\tcontrato\testado\nprevent-secrets-leak.sh\t^(Write|Edit)$\tstdin-json\tnem-armado-nem-retido\n' \
+  > "$T23M/.forge/hooks/pre-tool-use/hooks.manifest"
+LIB23M="$T23M/$LIB_REL"
+cp "$LIB23M" "$T23M/lib.orig.mjs"
+node -e '
+  const fs = require("fs");
+  const p = process.argv[1];
+  let src = fs.readFileSync(p, "utf8");
+  const marker = "const frozenCategories = derivation.unresolved ? new Set([\x27PreToolUse\x27]) : new Set();\n    const mergedSettings = mergeSettingsJson(existingSettingsText, preToolUseWiring(ROOT), derivation.ownedSet, frozenCategories);";
+  const i = src.indexOf(marker);
+  if (i < 0) { console.error("MUTATION-SETUP-FAILED: marcador de frozenCategories não encontrado"); process.exit(1); }
+  const mutated = "if (derivation.unresolved && existingSettingsText != null) { lock.emit(settingsPath, existingSettingsText); return; }\n    const mergedSettings = mergeSettingsJson(existingSettingsText, preToolUseWiring(ROOT), derivation.ownedSet, new Set()); // MUTATED-23 congela o arquivo inteiro";
+  src = src.slice(0, i) + mutated + src.slice(i + marker.length);
+  fs.writeFileSync(p, src);
+' "$LIB23M"
+if cmp -s "$T23M/lib.orig.mjs" "$LIB23M"; then
+  echo "FAIL [23m]: setup da mutação não alterou a lib — nada foi provado"
+  overall_rc=1
+else
+  cp "$T23/.claude/settings.json.before" "$T23M/.claude/settings.json"
+  bash "$T23M/.forge/scripts/sync-adapters.sh" --set claude >/dev/null 2>&1
+  SS23M="$(grep -c 'on-session-start.sh' "$T23M/.claude/settings.json" || true)"
+  if [ "$SS23M" -ne 0 ]; then
+    echo "FAIL [23m]: a mutação (congelar o arquivo inteiro) não derrubou o cenário — SessionStart ainda apareceu"
+    overall_rc=1
+  else
+    echo "OK [23m] — mutante reprovado (SessionStart desapareceu apesar de handoff.auto=true)"
+  fi
+  cp "$T23M/lib.orig.mjs" "$LIB23M"
+  if ! cmp -s "$T23M/lib.orig.mjs" "$LIB23M"; then
+    echo "FAIL [23m]: recontrole — restauração da lib mutada não ficou byte-idêntica ao original"
+    overall_rc=1
+  else
+    cp "$T23/.claude/settings.json.before" "$T23M/.claude/settings.json"
+    bash "$T23M/.forge/scripts/sync-adapters.sh" --set claude >/dev/null 2>&1
+    SS23R="$(grep -c 'on-session-start.sh' "$T23M/.claude/settings.json" || true)"
+    if [ "$SS23R" -ne 1 ]; then
+      echo "FAIL [23m]: recontrole — lib original restaurada não voltou a produzir SessionStart"
+      overall_rc=1
+    else
+      echo "OK [23m] recontrole — lib original restaurada, SessionStart volta"
+    fi
+  fi
+fi
+
+# ── [24] achado de correção MEDIUM (iteração 3): $CLAUDE_PROJECT_DIR com aspas — caminho de ──────
+#     projeto com ESPAÇO não quebra o comando emitido (antes: rc 126 "is a directory", fail-open).
+echo "[24] diretório de projeto com ESPAÇO: comando emitido para prevent-secrets-leak.sh, executado via bash -c, bloqueia (rc 2) em vez de rc 126 (fail-open)"
+T24PARENT="$(mktemp -d "$TMPROOT/forge-w215-24.XXXXXX")"; track "$T24PARENT"
+T24="$T24PARENT/projeto com espaco"
+mkdir -p "$T24"
+nova_fixture "$T24"
+bash "$T24/.forge/scripts/sync-adapters.sh" --set claude >/dev/null 2>&1
+CMD24="$(node -e '
+  const fs = require("fs");
+  const j = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+  for (const g of j.hooks.PreToolUse) for (const h of g.hooks) {
+    if (String(h.command).includes("prevent-secrets-leak.sh")) { console.log(h.command); process.exit(0); }
+  }
+' "$T24/.claude/settings.json")"
+if [ -z "$CMD24" ]; then
+  echo "FAIL [24]: não encontrei o comando de prevent-secrets-leak.sh em .claude/settings.json"
+  overall_rc=1
+else
+  run24() { # run24 <payload>
+    CLAUDE_PROJECT_DIR="$T24" bash -c 'printf "%s" "$1" | eval "$2"' _ "$1" "$CMD24"
+  }
+  SECRET_PAYLOAD24="$(secret_payload "/tmp/c24.env")"
+  run24 "$SECRET_PAYLOAD24" >/tmp/w215-24-out.txt 2>&1; RC24=$?
+  CLEAN_PAYLOAD24="$(clean_payload "/tmp/c24-clean.env")"
+  run24 "$CLEAN_PAYLOAD24" >/tmp/w215-24-clean-out.txt 2>&1; RC24C=$?
+  if [ "$RC24" -ne 2 ]; then
+    echo "FAIL [24]: com espaço no caminho, payload com segredo saiu rc=$RC24 (esperado 2) — comando: $CMD24 — saída: $(cat /tmp/w215-24-out.txt)"
+    overall_rc=1
+  elif [ "$RC24C" -ne 0 ]; then
+    echo "FAIL [24]: com espaço no caminho, payload limpo saiu rc=$RC24C (esperado 0) — comando: $CMD24 — saída: $(cat /tmp/w215-24-clean-out.txt)"
+    overall_rc=1
+  else
+    echo "OK [24] — comando com aspas em \$CLAUDE_PROJECT_DIR bloqueia corretamente (rc 2) em caminho com espaço; comando: $CMD24"
+  fi
 fi
 
 echo "-- resumo funcional: overall_rc=$overall_rc"

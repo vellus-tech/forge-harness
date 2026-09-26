@@ -191,12 +191,18 @@ _settings_hooks_is_derived() { # _settings_hooks_is_derived <root>
     // de PreToolUse não é mais fixo (deriva de `.forge/hooks/pre-tool-use/`), então esta lista
     // cobre hoje os quatro ganchos distribuídos pelo template, nas duas formas de comando que o
     // gerador pode emitir (direta e via `lib/argv-bridge.sh`) — um gancho de consumidor adicionado
-    // depois cai no "no" conservador, nunca escondido.
+    // depois cai no "no" conservador, nunca escondido. As formas COM ASPAS em `$CLAUDE_PROJECT_DIR`
+    // e as formas *Legacy* SEM aspas convivem aqui (achado de correção MEDIUM, iteração 3 do modo
+    // correção — mesma migração sem duplicar de `hookCommandDirect`/`hookCommandDirectLegacy` na
+    // lib): um consumidor recém-migrado tem a forma nova fiada, um ainda não sincronizado tem a
+    // legada, e as duas são igualmente owned para efeito deste diagnóstico.
     const HOOK_FILES = ["enforce-worktree-location.sh", "prevent-secrets-leak.sh", "check-language-policy.sh", "validate-naming-conventions.sh"];
     const OWNED = new Set([
       "$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-start.sh",
       "$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-end.sh",
+      ...HOOK_FILES.map((h) => `"$CLAUDE_PROJECT_DIR"/.forge/hooks/pre-tool-use/${h}`),
       ...HOOK_FILES.map((h) => `$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/${h}`),
+      ...HOOK_FILES.map((h) => `"$CLAUDE_PROJECT_DIR"/.forge/hooks/pre-tool-use/lib/argv-bridge.sh "$CLAUDE_PROJECT_DIR"/.forge/hooks/pre-tool-use/${h}`),
       ...HOOK_FILES.map((h) => `$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/lib/argv-bridge.sh $CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/${h}`),
     ]);
     function ownedProjection(hooksObj) {

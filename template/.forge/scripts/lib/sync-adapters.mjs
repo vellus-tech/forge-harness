@@ -179,8 +179,23 @@ const CMD_SESSION_END = '$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-end
 // (`dispatch-file-hook.sh $CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/<gancho>.sh`) que também
 // cita `.forge/hooks/` sem SER nenhuma das duas formas exatas — perdê-lo seria o mesmo dano que
 // esta issue fecha.
-const hookCommandDirect = (hook) => `$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/${hook}`;
+//
+// ASPAS EM `$CLAUDE_PROJECT_DIR` — achado de correção MEDIUM (revisão adversarial, iteração 3 do
+// modo correção): a forma sem aspas quebra em qualquer caminho de projeto com espaço — o shell
+// expande `$CLAUDE_PROJECT_DIR` em duas palavras, o token final vira um diretório (não um `.sh`),
+// e a invocação sai `rc=126` ("is a directory") em vez de `rc=2`. O Claude Code trata qualquer rc
+// diferente de 2 como não bloqueante, então um detector "fail-closed" fica fail-open em silêncio
+// exatamente no tipo de caminho mais comum em estações de trabalho (`~/Library/CloudStorage/...`,
+// "Meu Drive", diretórios com nome de projeto com espaço). As formas EMITIDAS por este gerador
+// passam a citar `"$CLAUDE_PROJECT_DIR"` entre aspas; as formas *Legacy* (sem aspas) continuam no
+// universo OWNED e em `findWiredForms`, nunca removidas do vocabulário reconhecido, só para que um
+// consumidor que já tinha a forma antiga fiada seja migrado (matcher preservado, comando trocado
+// para a forma com aspas) em vez de perder a fiação por não bater a igualdade de string.
+const hookCommandDirect = (hook) => `"$CLAUDE_PROJECT_DIR"/.forge/hooks/pre-tool-use/${hook}`;
+const hookCommandDirectLegacy = (hook) => `$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/${hook}`;
 const hookCommandBridge = (hook) =>
+  `"$CLAUDE_PROJECT_DIR"/.forge/hooks/pre-tool-use/lib/argv-bridge.sh "$CLAUDE_PROJECT_DIR"/.forge/hooks/pre-tool-use/${hook}`;
+const hookCommandBridgeLegacy = (hook) =>
   `$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/lib/argv-bridge.sh $CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/${hook}`;
 const hookCommand = (hook, contrato) => (contrato === 'argv' ? hookCommandBridge(hook) : hookCommandDirect(hook));
 
@@ -231,6 +246,8 @@ function ownedHookCommandsFor(root) {
   for (const hook of declaredHookNames(hooksDir)) {
     set.add(hookCommandDirect(hook));
     set.add(hookCommandBridge(hook));
+    set.add(hookCommandDirectLegacy(hook));
+    set.add(hookCommandBridgeLegacy(hook));
   }
   return set;
 }
@@ -263,10 +280,21 @@ function readExistingPreToolUseGroups(root) {
 // prevent-secrets-leak.sh`, medido no vellus-enterprise-ai-platform) com o nosso gancho homônimo
 // sob `.forge/hooks/pre-tool-use/`, fazendo o gerador se abster de emitir a entrada PRÓPRIA por
 // julgar (errado) que ela já é alcançável em outro lugar.
-// findWiredForm(existingGroups, hook) — achado de correção HIGH (revisão adversarial, 2ª
-// iteração): devolve `{ matcher, contrato }` do grupo onde `hook` já está fiado por uma das DUAS
-// formas de comando exatas que este gerador emite (`hookCommandDirect`/`hookCommandBridge`), ou
-// `null`. IGUALDADE DE STRING contra o caminho canônico completo, nunca casamento por basename —
+// findWiredForms(existingGroups, hook) — achado de correção HIGH (revisão adversarial, 2ª
+// iteração; ampliado na iteração 3 do modo correção): devolve TODAS as `{ matcher, contrato }` dos
+// grupos onde `hook` já está fiado por uma das formas de comando exatas que este gerador emite ou
+// já emitiu (`hookCommandDirect`/`hookCommandBridge`, e as formas *Legacy* sem aspas — ver acima),
+// nunca só a PRIMEIRA. Um gancho fiado sob MAIS DE UM matcher ao mesmo tempo (medido: o mesmo
+// comando de `prevent-secrets-leak.sh` fiado separadamente sob `{Bash}` e sob
+// `{Edit|MultiEdit}`) é um estado real de campo, não um erro de configuração — e devolver só o
+// primeiro fazia o semeador reemitir o gancho só sob ESSE matcher, enquanto `mergeHooksObject`
+// remove TODAS as ocorrências (o comando é owned em qualquer matcher). O resultado, sem esta
+// correção, era perder cobertura em silêncio: o gancho continuava "fiado" no sentido do gerador,
+// mas deixava de rodar para os eventos do(s) matcher(es) descartado(s) — exatamente a classe de
+// dano que esta issue existe para fechar, só que pela ponta do próprio semeador em vez da do
+// `sync-adapters.mjs` do template.
+//
+// IGUALDADE DE STRING contra o caminho canônico completo, nunca casamento por basename —
 // `derivarFiacao` (LDG-0178/w208) casa só o último token `.sh`, de propósito, para projetar o
 // `hooks.manifest` de um consumidor que TAMBÉM controla o diretório; usada aqui ela confundiria um
 // script de TERCEIRO que só COINCIDE no nome, fiado noutro caminho qualquer (`.claude/hooks/...`),
@@ -276,11 +304,11 @@ function readExistingPreToolUseGroups(root) {
 // SEMEADOR (sem `hooks.manifest` do consumidor), `doctor.sh` (`_settings_hooks_is_derived`,
 // LDG-0189) compara uma projeção de `.claude/settings.json` contra uma chamada fresca de
 // `preToolUseWiring(root)` — e essa chamada fresca também lê o MESMO `.claude/settings.json` para
-// decidir o matcher preservado aqui. Corromper só o MATCHER de um gancho já semeado (sem tocar o
-// comando) deixa de ser detectado como drift: as duas leituras concordam sobre o valor corrompido,
-// porque as duas partem do mesmo arquivo. Esse é o MESMO ponto cego que já existia para corrupção
-// de COMANDO desde antes desta correção (um comando alterado a ponto de não bater
-// `hookCommandDirect`/`hookCommandBridge` já fazia a derivação "concordar" em não tê-lo armado); a
+// decidir o(s) matcher(es) preservado(s) aqui. Corromper só o MATCHER de um gancho já semeado (sem
+// tocar o comando) deixa de ser detectado como drift: as duas leituras concordam sobre o valor
+// corrompido, porque as duas partem do mesmo arquivo. Esse é o MESMO ponto cego que já existia
+// para corrupção de COMANDO desde antes desta correção (um comando alterado a ponto de não bater
+// nenhuma das formas conhecidas já fazia a derivação "concordar" em não tê-lo armado); a
 // preservação de matcher desta correção só ESTENDE o ponto cego ao matcher, pelo mesmo mecanismo.
 // Aceito como "desarme consciente" (`tests/w238-settings-json-merge-gate.sh` [6b]) porque a
 // alternativa — matcher fixo do produtor, ignorando o que o consumidor já tinha — é o próprio
@@ -289,19 +317,24 @@ function readExistingPreToolUseGroups(root) {
 // CONSUMIDOR tem `hooks.manifest` próprio, o matcher vem do MANIFESTO — uma fonte independente do
 // `.claude/settings.json` sendo comparado —, e o doctor continua detectando a mesma corrupção
 // normalmente (`tests/w238-settings-json-merge-gate.sh` [6e]): o ponto cego é só do modo semeador.
-function findWiredForm(existingGroups, hook) {
-  const direct = hookCommandDirect(hook);
-  const bridge = hookCommandBridge(hook);
+function findWiredForms(existingGroups, hook) {
+  const formas = [
+    { cmd: hookCommandDirect(hook), contrato: 'stdin-json' },
+    { cmd: hookCommandDirectLegacy(hook), contrato: 'stdin-json' },
+    { cmd: hookCommandBridge(hook), contrato: 'argv' },
+    { cmd: hookCommandBridgeLegacy(hook), contrato: 'argv' },
+  ];
+  const out = [];
   for (const g of existingGroups || []) {
     if (!g || !Array.isArray(g.hooks)) continue;
     for (const h of g.hooks) {
       if (!h || typeof h.command !== 'string') continue;
       const cmd = h.command.trim();
-      if (cmd === direct) return { matcher: g.matcher, contrato: 'stdin-json' };
-      if (cmd === bridge) return { matcher: g.matcher, contrato: 'argv' };
+      const achado = formas.find((f) => f.cmd === cmd);
+      if (achado) out.push({ matcher: g.matcher, contrato: achado.contrato });
     }
   }
-  return null;
+  return out;
 }
 
 function dispatchedHookNames(groups, ownedSet) {
@@ -327,9 +360,18 @@ function dispatchedHookNames(groups, ownedSet) {
 // ownedSet }: `groups` é o array pronto para `hooks.PreToolUse` (só os ganchos ATIVOS); `avisos`
 // nomeia toda decisão que mereça ficar visível no stdout de quem chama (nunca aqui — ver
 // `GENERATORS.claude`); `unresolved` é true quando o `hooks.manifest` do consumidor existe mas o
-// leitor canônico recusou ou não conseguiu verificar (LDG-0178) — nesse caso `groups` vem vazio e
-// quem chama decide manter o `.claude/settings.json` anterior byte-idêntico, nunca escrever por
-// cima de um esquema que não entendeu.
+// leitor canônico recusou ou não conseguiu verificar (LDG-0178), OU quando não há
+// `hooks.manifest.default` nem `hooks.manifest` do consumidor — em AMBOS os casos só quando já
+// existe um `.claude/settings.json` legível anterior (`existingGroups != null`), que é o que
+// justifica preservar em vez de reconstruir. Quem chama congela SÓ a categoria `hooks.PreToolUse`
+// (ver `frozenCategories` em `mergeHooksObject`), nunca o arquivo inteiro — `SessionStart`/
+// `SessionEnd` continuam derivados normalmente. Achado de correção HIGH (revisão adversarial,
+// iteração 3 do modo correção): SEM `.claude/settings.json` legível (`existingGroups == null`),
+// "manter como estava" não tem referente — não há fiação anterior para preservar — e por isso o
+// manifesto do consumidor não resolvido NÃO marca `unresolved`; a derivação cai no caminho de
+// instalação nova (precedência 3 abaixo), porque persistir um `PreToolUse` vazio nesse ponto
+// criaria uma "vacuidade" legível e silenciosa que o PRÓXIMO `sync` leria como fiação observada,
+// nunca mais avisando (o mesmo desarme que esta issue existe para fechar).
 //
 // PRECEDÊNCIA, por gancho presente no diretório:
 //   1. reachable via cadeia de TERCEIRO já existente (ex.: dispatch-file-hook.sh de um
@@ -368,10 +410,28 @@ function derivePreToolUseHooks(root) {
       origem: '.forge/hooks/pre-tool-use/hooks.manifest',
     });
     if (lido.desfecho === DESFECHO.RECUSA || lido.desfecho === DESFECHO.NAO_VERIFICADO) {
-      unresolved = true;
-      avisos.push(
-        `LDG-0178: .forge/hooks/pre-tool-use/hooks.manifest não foi resolvido pelo leitor canônico (${lido.mensagem}) — .claude/settings.json permanece como estava`,
-      );
+      if (existingGroups == null) {
+        // Achado de correção HIGH (revisão adversarial, iteração 3 do modo correção): sem
+        // `.claude/settings.json` legível ainda, "permanece como estava" não tem referente — não
+        // há fiação anterior para preservar. Persistir `{ hooks: {} }` neste ponto (o que o ramo
+        // `unresolved` fazia antes desta correção) CRIA um estado que o próximo `sync` lê como
+        // fiação observada VAZIA e LEGÍVEL: `hooks-manifest.mjs:projetar` então resolve o mesmo
+        // manifesto-sem-marcador como VACUIDADE (não como NAO_VERIFICADO), porque a projeção passa
+        // a enxergar `existingGroups=[]` em vez de `null` — e VACUIDADE não é um desfecho
+        // 'unresolved' aqui, então nenhum WARN sai a partir do segundo `sync`, e o desarme fica
+        // permanente e silencioso (medido: `check-language-policy.sh` etc. saem inativos para
+        // sempre, sem nenhuma linha nomeando o motivo). A resposta é cair no MESMO caminho de uma
+        // instalação nova (`hooks.manifest.default` decide, `existingGroups == null` abaixo) em
+        // vez de gravar uma vacuidade fabricada pelo próprio gerador.
+        avisos.push(
+          `LDG-0178: .forge/hooks/pre-tool-use/hooks.manifest não foi resolvido pelo leitor canônico (${lido.mensagem}) — sem .claude/settings.json anterior para preservar, a fiação parte de hooks.manifest.default (instalação nova)`,
+        );
+      } else {
+        unresolved = true;
+        avisos.push(
+          `LDG-0178: .forge/hooks/pre-tool-use/hooks.manifest não foi resolvido pelo leitor canônico (${lido.mensagem}) — .claude/settings.json permanece como estava`,
+        );
+      }
     } else {
       // `lido.declaracoes[].armado` vem `null` no modo de PROJEÇÃO (hooks-manifest.mjs não
       // reescreve a declaração depois de derivar `ativos`/`inativos` — a decisão fica só nesses
@@ -417,58 +477,57 @@ function derivePreToolUseHooks(root) {
   // para uma árvore existente.
   const order = [];
   const byMatcher = new Map();
+  // emit(hook, matcher, contrato) — sempre a forma NOVA de comando (`hookCommand`, com aspas em
+  // `$CLAUDE_PROJECT_DIR` desde o achado de correção MEDIUM), mesmo quando o matcher foi herdado de
+  // uma forma *Legacy* já fiada (`findWiredForms`): a migração troca o COMANDO para a forma segura,
+  // preservando só o MATCHER que o consumidor já tinha escolhido.
+  function emit(hook, matcher, contrato) {
+    if (!byMatcher.has(matcher)) { byMatcher.set(matcher, []); order.push(matcher); }
+    byMatcher.get(matcher).push({ type: 'command', command: hookCommand(hook, contrato) });
+  }
   for (const hook of hookFiles) {
     if (foreignReachable.has(hook)) {
       avisos.push(`'${hook}' já é alcançado por uma cadeia de terceiro em .claude/settings.json — nenhuma entrada própria adicionada`);
       continue;
     }
-    let matcher;
-    let contrato;
-    let armado;
     if (consumerDecls) {
       const fromConsumer = consumerDecls.get(hook);
       if (!fromConsumer) {
         avisos.push(`'${hook}' está em .forge/hooks/pre-tool-use/ e não está declarado em hooks.manifest — ignorado`);
         continue;
       }
-      ({ matcher, contrato, armado } = fromConsumer);
-    } else {
-      const fromDefault = defaultDecls.get(hook);
-      if (!fromDefault) {
-        avisos.push(`'${hook}' está em .forge/hooks/pre-tool-use/ e não está declarado em hooks.manifest.default — ignorado`);
-        continue;
-      }
-      if (existingGroups == null) {
-        matcher = fromDefault.matcher;
-        contrato = fromDefault.contrato;
-        armado = fromDefault.armado;
-      } else {
-        // Semeador — achado de correção HIGH (revisão adversarial, 2ª iteração): "já fiado" é
-        // decidido por IGUALDADE DE STRING contra as duas formas de comando canônicas
-        // (`findWiredForm`), nunca pela leitura por BASENAME de `derivarFiacao` — que casaria por
-        // engano um script de TERCEIRO homônimo fiado noutro caminho (`.claude/hooks/pre-tool-use/
-        // prevent-secrets-leak.sh`, medido no vellus-enterprise-ai-platform) como se fosse o nosso
-        // gancho já armado. O MATCHER e o CONTRATO herdados são os que o CONSUMIDOR já tinha
-        // fiado, nunca os do `hooks.manifest.default` — sobrescrever pelo do produtor alargaria em
-        // silêncio o escopo de um gancho que o consumidor restringiu de propósito (medido: matcher
-        // legado `Edit|Write`, sem `NotebookEdit`, virando `^(Write|Edit|MultiEdit|NotebookEdit)$`
-        // sem aviso nenhum no primeiro `sync` desta correção).
-        const wired = findWiredForm(existingGroups, hook);
-        if (wired) {
-          matcher = wired.matcher;
-          contrato = wired.contrato;
-          armado = true;
-        } else {
-          matcher = fromDefault.matcher;
-          contrato = fromDefault.contrato;
-          armado = false;
-          avisos.push(`'${hook}' não estava fiado em .claude/settings.json — nasce inativo; declare .forge/hooks/pre-tool-use/hooks.manifest para ativar`);
-        }
-      }
+      if (fromConsumer.armado) emit(hook, fromConsumer.matcher, fromConsumer.contrato);
+      continue;
     }
-    if (!armado) continue;
-    if (!byMatcher.has(matcher)) { byMatcher.set(matcher, []); order.push(matcher); }
-    byMatcher.get(matcher).push({ type: 'command', command: hookCommand(hook, contrato) });
+    const fromDefault = defaultDecls.get(hook);
+    if (!fromDefault) {
+      avisos.push(`'${hook}' está em .forge/hooks/pre-tool-use/ e não está declarado em hooks.manifest.default — ignorado`);
+      continue;
+    }
+    if (existingGroups == null) {
+      if (fromDefault.armado) emit(hook, fromDefault.matcher, fromDefault.contrato);
+      continue;
+    }
+    // Semeador — achado de correção HIGH (revisão adversarial, 2ª iteração; ampliado na 3ª
+    // iteração): "já fiado" é decidido por IGUALDADE DE STRING contra as formas de comando
+    // canônicas (`findWiredForms`, atual e legada), nunca pela leitura por BASENAME de
+    // `derivarFiacao` — que casaria por engano um script de TERCEIRO homônimo fiado noutro caminho
+    // (`.claude/hooks/pre-tool-use/prevent-secrets-leak.sh`, medido no
+    // vellus-enterprise-ai-platform) como se fosse o nosso gancho já armado. Um gancho pode estar
+    // fiado sob MAIS DE UM matcher ao mesmo tempo — `findWiredForms` devolve TODAS as ocorrências,
+    // e cada uma é reemitida sob o PRÓPRIO matcher, sem colapsar na primeira: reemitir só uma
+    // perderia cobertura em silêncio no matcher descartado (o `mergeHooksObject` remove TODAS as
+    // ocorrências do comando, porque ele é owned em qualquer matcher). O MATCHER e o CONTRATO
+    // herdados são sempre os que o CONSUMIDOR já tinha fiado, nunca os do `hooks.manifest.default`
+    // — sobrescrever pelo do produtor alargaria em silêncio o escopo de um gancho que o consumidor
+    // restringiu de propósito (medido: matcher legado `Edit|Write`, sem `NotebookEdit`, virando
+    // `^(Write|Edit|MultiEdit|NotebookEdit)$` sem aviso nenhum no primeiro `sync` desta correção).
+    const wiredForms = findWiredForms(existingGroups, hook);
+    if (wiredForms.length) {
+      for (const { matcher, contrato } of wiredForms) emit(hook, matcher, contrato);
+    } else {
+      avisos.push(`'${hook}' não estava fiado em .claude/settings.json — nasce inativo; declare .forge/hooks/pre-tool-use/hooks.manifest para ativar`);
+    }
   }
 
   const groups = order.map((matcher) => ({ matcher, hooks: byMatcher.get(matcher) }));
@@ -495,24 +554,42 @@ export function preToolUseWiring(root) {
   return hooks;
 }
 
-// mergeHooksObject(existingHooks, derivedHooks, ownedSet) — issue #160/#125: pura, sem I/O. Para
-// cada categoria (PreToolUse/SessionStart/SessionEnd, ou qualquer categoria de terceiro nunca
-// emitida por este gerador), remove das entradas JÁ EXISTENTES só os itens cujo `command` bate por
-// IGUALDADE DE STRING com `ownedSet` (issue #125: `ownedHookCommandsFor(root)`, calculado a partir
-// do CONTEÚDO de `.forge/hooks/pre-tool-use/` — antes desta issue era um `Set` fixo de três
-// comandos); um grupo {matcher, hooks:[...]} que fica sem nenhum hook
+// mergeHooksObject(existingHooks, derivedHooks, ownedSet, frozenCategories) — issue #160/#125:
+// pura, sem I/O. Para cada categoria (PreToolUse/SessionStart/SessionEnd, ou qualquer categoria de
+// terceiro nunca emitida por este gerador), remove das entradas JÁ EXISTENTES só os itens cujo
+// `command` bate por IGUALDADE DE STRING com `ownedSet` (issue #125: `ownedHookCommandsFor(root)`,
+// calculado a partir do CONTEÚDO de `.forge/hooks/pre-tool-use/` — antes desta issue era um `Set`
+// fixo de três comandos); um grupo {matcher, hooks:[...]} que fica sem nenhum hook
 // depois da remoção é descartado por inteiro (era só do gerador). O que sobra (hooks de terceiro,
 // de qualquer matcher) entra ANTES dos grupos recém-derivados, sempre na mesma ordem relativa —
 // é essa ordem estável, não uma fusão por matcher, que torna dois `sync` seguidos byte-idênticos:
 // na segunda passada, o grupo próprio já reaparece como "existente" e volta a ser removido antes
 // de ser reemitido, sem duplicar.
-function mergeHooksObject(existingHooks, derivedHooks, ownedSet) {
+//
+// `frozenCategories` — achado de correção MEDIUM (revisão adversarial, iteração 3 do modo
+// correção): uma categoria nomeada aqui (hoje só `PreToolUse`, quando `derivePreToolUseHooks`
+// devolve `unresolved: true`) sai IDÊNTICA ao que já estava em `existingHooks`, sem passar pelo
+// filtro de `ownedSet` nem receber `derivedGroups` — o congelamento é ESCOPADO a essa categoria, e
+// nunca ao `.claude/settings.json` inteiro. Antes desta correção, "manifesto do consumidor não
+// resolvido" congelava o ARQUIVO INTEIRO (o chamador emitia `existingSettingsText` byte a byte),
+// levando junto `SessionStart`/`SessionEnd` — que não têm NADA a ver com a resolução de
+// `hooks.manifest` de PreToolUse — e ignorando em silêncio as flags `handoff.auto`/`ledger.auto`/
+// `liaison.auto` do `forge.yaml` sempre que o manifesto do consumidor estivesse em esquema não
+// reconhecido (medido: `handoff.auto: true` sem `hooks.manifest.default` no diretório não produzia
+// `SessionStart` nenhum, e nenhuma linha avisava disso).
+function mergeHooksObject(existingHooks, derivedHooks, ownedSet, frozenCategories) {
+  const frozen = frozenCategories || new Set();
   const categories = [];
   const seen = new Set();
   for (const k of Object.keys(existingHooks || {})) { categories.push(k); seen.add(k); }
   for (const k of Object.keys(derivedHooks || {})) { if (!seen.has(k)) { categories.push(k); seen.add(k); } }
   const out = {};
   for (const cat of categories) {
+    if (frozen.has(cat)) {
+      const frozenGroups = Array.isArray(existingHooks?.[cat]) ? existingHooks[cat] : [];
+      if (frozenGroups.length) out[cat] = frozenGroups;
+      continue;
+    }
     const existingGroups = Array.isArray(existingHooks?.[cat]) ? existingHooks[cat] : [];
     const derivedGroups = Array.isArray(derivedHooks?.[cat]) ? derivedHooks[cat] : [];
     const foreignGroups = [];
@@ -583,15 +660,16 @@ function decodeAndValidateSettings(bytes) {
   return { text, reason: null };
 }
 
-// mergeSettingsJson(existingText, derivedHooks) — issue #160: pura. `existingText` é o conteúdo
-// bruto (string) do `.claude/settings.json` já materializado — já validado por
-// `decodeAndValidateSettings` no chamador —, ou `null` quando não existe ou era ilegível (o
-// chamador já tratou o backup nesse caso — ver `backupUnreadableSettings`).
+// mergeSettingsJson(existingText, derivedHooks, ownedSet, frozenCategories) — issue #160: pura.
+// `existingText` é o conteúdo bruto (string) do `.claude/settings.json` já materializado — já
+// validado por `decodeAndValidateSettings` no chamador —, ou `null` quando não existe ou era
+// ilegível (o chamador já tratou o backup nesse caso — ver `backupUnreadableSettings`).
 // Preserva toda chave de topo que não seja `hooks`, na MESMA posição em que já estava — o gerador
 // só é dono do que ele mesmo referencia dentro de `hooks`, nunca de `permissions`, `env`,
 // `includeCoAuthoredBy` ou qualquer chave de terceiro. Sem `existingText`, o resultado é
-// `{ hooks: derivedHooks }`, igual ao comportamento anterior a esta issue.
-function mergeSettingsJson(existingText, derivedHooks, ownedSet) {
+// `{ hooks: derivedHooks }`, igual ao comportamento anterior a esta issue. `frozenCategories`
+// repassa para `mergeHooksObject` — ver o comentário lá.
+function mergeSettingsJson(existingText, derivedHooks, ownedSet, frozenCategories) {
   let existing = null;
   if (existingText != null) {
     try {
@@ -601,7 +679,7 @@ function mergeSettingsJson(existingText, derivedHooks, ownedSet) {
   }
   const existingHooks = (existing && existing.hooks && typeof existing.hooks === 'object' && !Array.isArray(existing.hooks))
     ? existing.hooks : {};
-  const mergedHooks = mergeHooksObject(existingHooks, derivedHooks, ownedSet);
+  const mergedHooks = mergeHooksObject(existingHooks, derivedHooks, ownedSet, frozenCategories);
   const out = {};
   if (existing) {
     for (const k of Object.keys(existing)) {
@@ -802,18 +880,25 @@ const GENERATORS = {
     }
     // #125/LDG-0178: quando o `.forge/hooks/pre-tool-use/hooks.manifest` do consumidor existe mas
     // o leitor canônico não conseguiu resolvê-lo (esquema marcado mal formado, ou fiação não
-    // verificável), o `.claude/settings.json` anterior fica BYTE-IDÊNTICO — nunca passa pelo
-    // merge, que normalizaria a ordem dos grupos mesmo sem mudar nenhum comando. Sem
-    // `existingSettingsText` (consumidor novo, ou JSON anterior ilegível — já tratado acima),
-    // segue para o merge normal, que produz `{ hooks: {} }` na ausência de qualquer derivação.
+    // verificável — e o mesmo vale para "sem hooks.manifest.default nem hooks.manifest do
+    // consumidor" com settings.json já existente), a categoria `hooks.PreToolUse` do
+    // `.claude/settings.json` anterior fica BYTE-IDÊNTICA — nunca passa pelo filtro de `ownedSet`
+    // nem recebe grupo derivado. Achado de correção MEDIUM (revisão adversarial, iteração 3 do
+    // modo correção): o congelamento é ESCOPADO a `PreToolUse`, nunca ao arquivo inteiro — antes
+    // desta correção, o `.claude/settings.json` INTEIRO era emitido byte a byte
+    // (`existingSettingsText`), levando junto `SessionStart`/`SessionEnd` e ignorando em silêncio
+    // as flags `handoff.auto`/`ledger.auto`/`liaison.auto` do `forge.yaml` sempre que o manifesto
+    // do consumidor estivesse em esquema não reconhecido. `SessionStart`/`SessionEnd` e qualquer
+    // outra categoria continuam merged normalmente por `mergeHooksObject`, com o mesmo `ownedSet`.
+    // Sem `existingSettingsText` (consumidor novo, ou JSON anterior ilegível — já tratado acima) E
+    // sem `unresolved` (ver `derivePreToolUseHooks`: sem `.claude/settings.json` legível não há
+    // fiação anterior a preservar, então o manifesto do consumidor não resolvido cai no caminho de
+    // instalação nova em vez de marcar `unresolved`), segue para o merge normal.
     const derivation = derivePreToolUseHooks(ROOT);
     for (const aviso of derivation.avisos) console.error(`WARN: ${aviso}`);
-    if (derivation.unresolved && existingSettingsText != null) {
-      lock.emit(settingsPath, existingSettingsText);
-    } else {
-      const mergedSettings = mergeSettingsJson(existingSettingsText, preToolUseWiring(ROOT), derivation.ownedSet);
-      lock.emit(settingsPath, JSON.stringify(mergedSettings, null, 2) + '\n');
-    }
+    const frozenCategories = derivation.unresolved ? new Set(['PreToolUse']) : new Set();
+    const mergedSettings = mergeSettingsJson(existingSettingsText, preToolUseWiring(ROOT), derivation.ownedSet, frozenCategories);
+    lock.emit(settingsPath, JSON.stringify(mergedSettings, null, 2) + '\n');
     lock.linkToAgentsMd('CLAUDE.md');
   },
   codex(_lock) { /* consumes the canonical AGENTS.md (core) — no extra target (§15) */ },

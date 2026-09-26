@@ -15,10 +15,14 @@
 # DECISÃO DO DONO (DH-3): o nome default do recurso é MANTIDO (não vira neutro, não reparticiona
 # quem já está nele). O update só GANHA TRANSPARÊNCIA: uma linha nominal `heavy_mutex: recurso
 # resolvido <antes> → <depois> (lock <caminho>)`, com prefixo `WARN: ` quando os dois nomes
-# divergem. A resolução é feita pela PRÓPRIA lib (`heavy-mutex.sh`, função `forge_heavy_mutex_path`
-# sourceada por subprocesso bash) — nunca uma reimplementação paralela em JS da precedência
+# divergem — ou quando a resolução falha de qualquer lado (nunca silêncio). A resolução é feita
+# pela PRÓPRIA lib (`heavy-mutex.sh`, funções `_fhm_resource`/`forge_heavy_mutex_path` sourceadas
+# por subprocesso bash) — nunca uma reimplementação paralela em JS da precedência
 # env > forge.yaml > default, que é exatamente o tipo de gêmeo-mentiroso que causou a partição
-# original (duas cópias da mesma regra, uma delas defasada).
+# original (duas cópias da mesma regra, uma delas defasada). O `resource` nomeado vem DIRETO da
+# lib, nunca de `basename(path)` — um recurso com caractere de path (`/`) produziria um `path` com
+# subdiretório, e `basename` devolveria só o último segmento, um nome diferente do que a lib
+# realmente resolve.
 #
 #   [1] positiva: bloco ausente, sem env, template real (default do template == default hardcoded
 #       da lib) — linha nominal aparece, SEM `WARN:`, e nomeia o lock sob o root isolado do caso.
@@ -28,22 +32,37 @@
 #   [3] env vence dos dois lados: bloco ausente, `FORGE_HEAVY_MUTEX_RESOURCE` declarado, MESMO
 #       template do cenário [2] (que sozinho geraria WARN) — sem `WARN:`, porque a env tem
 #       precedência sobre o forge.yaml nos dois momentos (antes E depois do merge).
-#   [4] bloco JÁ declarado (`resource`/`root`/`enabled` customizados) nunca é tocado: byte-idêntico
+#   [4] bloco JÁ declarado (`resource` customizado, SEM `root`) nunca é tocado: byte-idêntico
 #       depois do update, e NENHUMA linha `heavy_mutex: recurso resolvido` aparece — o merge
 #       inteiro é barrado pela chave já presente, então a rota que imprimiria a linha nem executa.
-#   [5] doctor.sh: a linha `HEAVY-MUTEX` já existente nomeia o recurso resolvido (`recurso .....
+#   [5] bloco JÁ declarado COM `root` real (fixture do axis-fare-validator: `root:
+#       "${TMPDIR:-/tmp}"`, token literal entre aspas) nunca é tocado — mesma garantia de [4], mas
+#       exercitando a dimensão `root` que a issue original mede em campo, e que [4] sozinho nunca
+#       cobria (achado MEDIUM do review: a suíte alegava cobertura de `root` sem nenhum cenário
+#       declarando um).
+#   [6] doctor.sh: a linha `HEAVY-MUTEX` já existente nomeia o recurso resolvido (`recurso .....
 #       <res>`) — regressão estrutural, não nova (a função já existe desde a #52); travada aqui
 #       para que um refactor futuro do doctor não a perca em silêncio.
-#   [6] mutação A: apagar o bloco que imprime a linha nominal em `bin/forge.mjs` reprova [1] (linha
-#       ausente); restaurado byte a byte (`cmp -s`), [1] volta a passar (recontrole).
-#   [7] mutação B: fazer `newForgeKeys` deixar de checar `dstKeys.has(key)` reprova [4] (o bloco já
-#       declarado deixa de ficar byte-idêntico); restaurado, [4] volta a passar (recontrole).
-#   [8] PBT (seed fixa, >= 50 casos): para bloco ausente/presente × resource do template
-#       (default|divergente) × env declarada ou não, a invariante do plano vale sempre: quando o
-#       bloco já existe, fica byte-idêntico e nenhuma linha nominal aparece; quando é mesclado, a
-#       linha nominal nomeia exatamente o par (antes, depois) previsto pela precedência
-#       env > forge.yaml > default, com `WARN:` see os dois nomes divergirem, e o `(lock …)`
-#       aponta para `<root>/<depois>.lock`.
+#   [7] resolução falha (root isolado é um ARQUIVO comum, não um diretório — `_fhm_resolve_root`
+#       recusa com rc 69): o update segue rc 0 (a linha é best-effort, nunca derruba a aplicação),
+#       mas imprime `WARN: heavy_mutex: recurso resolvido não determinado (<motivo>) — bloco
+#       mesclado com resource: <valor do template>` — NUNCA fica em silêncio (achado MEDIUM do
+#       review: a versão anterior só imprimia a linha quando as duas resoluções tinham sucesso, e
+#       uma falha de qualquer lado apagava a linha inteira, reproduzindo o sintoma original da
+#       issue pela própria correção).
+#   [8] mutação A, sobre CÓPIA ISOLADA (nunca a árvore rastreada real — ver ISOLAMENTO abaixo):
+#       apagar o bloco que imprime a linha nominal reprova [1] (linha ausente); o binário REAL
+#       (nunca mutado) roda o mesmo cenário em paralelo como recontrole e continua OK.
+#   [9] mutação B, sobre CÓPIA ISOLADA: fazer `newForgeKeys` deixar de checar `dstKeys.has(key)`
+#       reprova [4] (o bloco já declarado deixa de ficar byte-idêntico); o binário REAL roda o
+#       mesmo cenário como recontrole e continua OK.
+#   [10] PBT (seed fixa, >= 50 casos): para bloco ausente/presente × resource do template
+#        gerado aleatoriamente (charset seguro) × env com resource gerado aleatoriamente ou não
+#        declarada, a invariante do plano vale sempre: quando o bloco já existe, fica
+#        byte-idêntico (incluindo uma linha de `root` real) e nenhuma linha nominal aparece; quando
+#        é mesclado, a linha nominal nomeia exatamente o par (antes, depois) previsto pela
+#        precedência env > forge.yaml > default, com `WARN:` see os dois nomes divergirem, e o
+#        `(lock …)` aponta para `<root>/<depois>.lock`.
 #
 # ISOLAMENTO (regra transversal desta rodada). Todo caso que resolve o heavy-mutex roda com
 # `FORGE_HEAVY_MUTEX_ROOT` apontado para um diretório temporário PRÓPRIO — nunca o lock real da
@@ -51,12 +70,21 @@
 # garantia estrutural do gate w154 sobre `_fhm_resolve_root` — mas a raiz ainda é isolada, porque
 # outras frentes rodam gates em paralelo na mesma máquina e um `root:` declarado inexistente faz a
 # lib criar o diretório (`mkdir`), efeito que este gate não quer produzir fora do seu próprio `T`.
+#
+# ISOLAMENTO DAS MUTAÇÕES (achado BLOCKER do review, LDG-0179/w213). As duas mutações ([8] e [9])
+# NUNCA escrevem em `$WS/bin/forge.mjs` — o arquivo rastreado da árvore real. Cada mutação roda
+# sobre uma CÓPIA completa de `bin/`, `template/` e `package.json` dentro de `$T` (função
+# `ws_copia`, abaixo), criada e destruída dentro do próprio cenário. Um `perl -pi` que rodasse
+# sobre o arquivo real, restaurado só por um `cp` de volta, deixaria a árvore rastreada mutada se o
+# processo morresse (SIGKILL, OOM — o modo de morte real que motivou o LDG-0175/0179) entre a
+# mutação e a restauração; o gate w213 (sentinela de escrita em arquivo rastreado da árvore real)
+# reprovaria a suíte inteira. Sobre uma cópia em `$T`, esse risco não existe: `$T` é descartável e
+# o `trap` do topo do arquivo já cobre sua remoção, mutada ou não.
 set -uo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 FORGE="$WS/bin/forge.mjs"
 TPL="$WS/template/.forge"
-FORGE_MJS_SRC="$WS/bin/forge.mjs"
 T="$(mktemp -d /tmp/forge-w217.XXXXXX)"
 trap 'rm -rf "$T"' EXIT INT TERM
 GATE_START="$(date +%s)"; GATE_BUDGET_S="${W217_BUDGET_S:-420}"
@@ -110,6 +138,24 @@ tpl_com_resource() {  # tpl_com_resource <resource> -> ecoa <dir> — cópia do 
   printf '%s\n' "$out"
 }
 
+# ws_copia <nome> -> ecoa <dir> — cópia INDEPENDENTE de bin/, template/, installer/ e
+# package.json em $T, para as mutações rodarem por cima sem NUNCA tocar o arquivo rastreado real
+# ($WS/bin/forge.mjs). `installer/` entra porque `bin/forge.mjs` resolve `GITIGNORE_PATCH`,
+# `GITATTRIBUTES_PATCH` e `REMOVED_MANIFEST` como `PKG_ROOT/installer/*` (`PKG_ROOT =
+# dirname(bin)/..`) — sem ele o `update` da cópia falha com ENOENT no primeiro `update` real
+# (medido: `open '<ws>/installer/gitignore.patch'`). Cada chamada cria uma cópia nova (o custo é
+# ~450 arquivos, poucos MB — trivial frente ao orçamento do gate) para que duas mutações no mesmo
+# run nunca compartilhem estado mutado.
+ws_copia() {
+  local out="$T/ws-$1"
+  mkdir -p "$out"
+  cp -R "$WS/bin" "$out/bin"
+  cp -R "$WS/template" "$out/template"
+  cp -R "$WS/installer" "$out/installer"
+  cp "$WS/package.json" "$out/package.json"
+  printf '%s\n' "$out"
+}
+
 scenario "[1] bloco ausente, sem env, template real — linha nominal SEM WARN, antes == depois"
 C1="$(consumidor c1)"
 strip_heavy_mutex "$C1/.forge/forge.yaml"
@@ -153,7 +199,7 @@ grep -qF 'env-pinned → env-pinned' <<<"$linha3" \
   || { echo "FAIL [3]: linha nominal não nomeia o valor da env dos dois lados ('$linha3')"; exit 1; }
 echo "OK [3]"
 
-scenario "[4] bloco JÁ declarado nunca é tocado — byte-idêntico, nenhuma linha nominal"
+scenario "[4] bloco JÁ declarado (sem root) nunca é tocado — byte-idêntico, nenhuma linha nominal"
 C4="$(consumidor c4)"
 set_heavy_mutex "$C4/.forge/forge.yaml" "axis-heavy-suite" "__SEM__" "true"
 BLOCO_ANTES="$(bloco_de "$C4/.forge/forge.yaml")"
@@ -175,56 +221,109 @@ grep -q 'heavy_mutex: recurso resolvido' <<<"$out4" \
   && { echo "FAIL [4]: linha nominal apareceu para um bloco que já existia — o merge não deveria nem ter rodado para esta chave"; echo "$out4"; exit 1; }
 echo "OK [4]"
 
-scenario "[5] doctor.sh nomeia o recurso resolvido na linha HEAVY-MUTEX (regressão)"
+scenario "[5] bloco JÁ declarado COM root real (fixture axis-fare-validator) nunca é tocado"
+# achado MEDIUM do review: [4] sozinho nunca declarava `root`, e o plano (D8/PBT) exige que
+# `resource`, `root` E `enabled` declarados fiquem byte-idênticos. A fixture abaixo é o valor
+# medido em campo (axis-fare-validator e Axis.PadSimulator): o TOKEN literal `${TMPDIR:-/tmp}`
+# entre aspas, nunca o valor já expandido — é o que os dois consumidores reais têm versionado.
 C5="$(consumidor c5)"
-out5="$(FORGE_ROOT="$C5" env -u FORGE_HEAVY_MUTEX_RESOURCE FORGE_HEAVY_MUTEX_ROOT="$ROOT_ISO/c5" bash "$C5/.forge/scripts/doctor.sh" 2>&1)"
-grep -q 'HEAVY-MUTEX:.*recurso ..... forge-heavy-suite' <<<"$out5" \
-  || { echo "FAIL [5]: doctor.sh não nomeia o recurso resolvido na linha HEAVY-MUTEX"; echo "$out5" | grep -i heavy; exit 1; }
+set_heavy_mutex "$C5/.forge/forge.yaml" "axis-heavy-suite" '"${TMPDIR:-/tmp}"' "true"
+BLOCO5_ANTES="$(bloco_de "$C5/.forge/forge.yaml")"
+grep -qF 'root: "${TMPDIR:-/tmp}"' <<<"$BLOCO5_ANTES" \
+  || { echo "FAIL [5] (setup): a fixture não escreveu a linha de root esperada"; echo "$BLOCO5_ANTES"; exit 1; }
+out5="$(env -u FORGE_HEAVY_MUTEX_RESOURCE FORGE_HEAVY_MUTEX_ROOT="$ROOT_ISO/c5" node "$FORGE" update --target "$C5" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc5=$?
+[ "$rc5" -eq 0 ] || { echo "FAIL [5]: update saiu rc=$rc5"; echo "$out5"; exit 1; }
+BLOCO5_DEPOIS="$(bloco_de "$C5/.forge/forge.yaml")"
+[ "$BLOCO5_ANTES" = "$BLOCO5_DEPOIS" ] \
+  || { echo "FAIL [5]: bloco heavy_mutex (incluindo a linha de root) mudou.
+ANTES:
+$BLOCO5_ANTES
+DEPOIS:
+$BLOCO5_DEPOIS"; exit 1; }
+[ "$(n_blocos "$C5/.forge/forge.yaml")" -eq 1 ] \
+  || { echo "FAIL [5]: forge.yaml ficou com $(n_blocos "$C5/.forge/forge.yaml") chave(s) 'heavy_mutex:'"; exit 1; }
+grep -q 'heavy_mutex: recurso resolvido' <<<"$out5" \
+  && { echo "FAIL [5]: linha nominal apareceu para um bloco que já existia com root próprio"; echo "$out5"; exit 1; }
 echo "OK [5]"
 
-scenario "[6] mutação A: sem a impressão da linha nominal, [1] reprova; restaurado, recontrole passa"
-cp "$FORGE_MJS_SRC" "$T/forge.mjs.orig"
-perl -pi -e "s/if \(added\.includes\('heavy_mutex'\)\) \{/if (false \&\& added.includes('heavy_mutex')) {/" "$FORGE_MJS_SRC"
-C6="$(consumidor c6)"
-strip_heavy_mutex "$C6/.forge/forge.yaml"
-out6="$(env -u FORGE_HEAVY_MUTEX_RESOURCE FORGE_HEAVY_MUTEX_ROOT="$ROOT_ISO/c6" node "$FORGE" update --target "$C6" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc6=$?
-mut6_ok=1
-if [ "$rc6" -ne 0 ]; then mut6_ok=0
-elif grep -q 'heavy_mutex: recurso resolvido' <<<"$out6"; then mut6_ok=0; fi
-cmp -s "$T/forge.mjs.orig" "$FORGE_MJS_SRC" && { echo "FAIL [6] (setup): a mutação não alterou o arquivo — o teste não provaria nada"; exit 1; }
-cp "$T/forge.mjs.orig" "$FORGE_MJS_SRC"
-cmp -s "$T/forge.mjs.orig" "$FORGE_MJS_SRC" || { echo "FAIL [6]: restauração byte a byte falhou (cmp -s)"; exit 1; }
-[ "$mut6_ok" -eq 1 ] || { echo "FAIL [6]: mutação deveria fazer a linha nominal desaparecer em [1], e não desapareceu"; echo "$out6"; exit 1; }
-C6R="$(consumidor c6r)"
-strip_heavy_mutex "$C6R/.forge/forge.yaml"
-out6r="$(env -u FORGE_HEAVY_MUTEX_RESOURCE FORGE_HEAVY_MUTEX_ROOT="$ROOT_ISO/c6r" node "$FORGE" update --target "$C6R" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc6r=$?
-[ "$rc6r" -eq 0 ] && grep -q 'heavy_mutex: recurso resolvido' <<<"$out6r" \
-  || { echo "FAIL [6] (recontrole): depois de restaurar o arquivo, [1] deveria voltar a passar"; echo "$out6r"; exit 1; }
+scenario "[6] doctor.sh nomeia o recurso resolvido na linha HEAVY-MUTEX (regressão)"
+C6D="$(consumidor c6d)"
+out6d="$(FORGE_ROOT="$C6D" env -u FORGE_HEAVY_MUTEX_RESOURCE FORGE_HEAVY_MUTEX_ROOT="$ROOT_ISO/c6d" bash "$C6D/.forge/scripts/doctor.sh" 2>&1)"
+grep -q 'HEAVY-MUTEX:.*recurso ..... forge-heavy-suite' <<<"$out6d" \
+  || { echo "FAIL [6]: doctor.sh não nomeia o recurso resolvido na linha HEAVY-MUTEX"; echo "$out6d" | grep -i heavy; exit 1; }
 echo "OK [6]"
 
-scenario "[7] mutação B: newForgeKeys ignora chave já declarada, [4] reprova; restaurado, recontrole passa"
-cp "$FORGE_MJS_SRC" "$T/forge.mjs.orig2"
-perl -pi -e "s/if \(dstKeys\.has\(key\)\) continue;/if (false) continue;/" "$FORGE_MJS_SRC"
-C7="$(consumidor c7)"
-set_heavy_mutex "$C7/.forge/forge.yaml" "axis-heavy-suite" "__SEM__" "true"
-out7="$(env -u FORGE_HEAVY_MUTEX_RESOURCE FORGE_HEAVY_MUTEX_ROOT="$ROOT_ISO/c7" node "$FORGE" update --target "$C7" --no-plugin --no-backup --source "$TPL" 2>&1)"
-N7_DEPOIS="$(n_blocos "$C7/.forge/forge.yaml")"
-mut7_ok=1
-[ "$N7_DEPOIS" -eq 1 ] && mut7_ok=0
-cmp -s "$T/forge.mjs.orig2" "$FORGE_MJS_SRC" && { echo "FAIL [7] (setup): a mutação não alterou o arquivo"; exit 1; }
-cp "$T/forge.mjs.orig2" "$FORGE_MJS_SRC"
-cmp -s "$T/forge.mjs.orig2" "$FORGE_MJS_SRC" || { echo "FAIL [7]: restauração byte a byte falhou (cmp -s)"; exit 1; }
-[ "$mut7_ok" -eq 1 ] || { echo "FAIL [7]: mutação deveria fazer o bloco já declarado se DUPLICAR em [4] (2a chave 'heavy_mutex:' acrescentada), e ficou com $N7_DEPOIS — a mutação não exercita a guarda medida"; exit 1; }
-C7R="$(consumidor c7r)"
-set_heavy_mutex "$C7R/.forge/forge.yaml" "axis-heavy-suite" "__SEM__" "true"
-BLOCO7R_ANTES="$(bloco_de "$C7R/.forge/forge.yaml")"
-node "$FORGE" update --target "$C7R" --no-plugin --no-backup --source "$TPL" >/dev/null 2>&1
-BLOCO7R_DEPOIS="$(bloco_de "$C7R/.forge/forge.yaml")"
-[ "$BLOCO7R_ANTES" = "$BLOCO7R_DEPOIS" ] && [ "$(n_blocos "$C7R/.forge/forge.yaml")" -eq 1 ] \
-  || { echo "FAIL [7] (recontrole): depois de restaurar o arquivo, [4] deveria voltar a passar (bloco byte-idêntico, chave única)"; exit 1; }
+scenario "[7] resolução falha (root isolado é um arquivo comum) — WARN nominal, NUNCA silêncio"
+# achado MEDIUM do review: antes desta correção, `resolveHeavyMutexPath` devolvia null em
+# qualquer falha e `updateHarness` só imprimia a linha quando as DUAS resoluções tinham sucesso
+# (`if (hmBefore && hmAfter)`) — uma falha de qualquer lado apagava a linha inteira, reproduzindo
+# o sintoma original da issue (bloco mesclado sem UMA linha sobre identidade de lock) pela própria
+# correção. `FORGE_HEAVY_MUTEX_ROOT` apontado para um ARQUIVO comum (não diretório) faz
+# `_fhm_resolve_root` recusar com rc 69 (`heavy-mutex.sh`: "não consegui criar ... — já existe e
+# não é diretório"), sem tocar nada fora de `$T`.
+C7F="$(consumidor c7f)"
+strip_heavy_mutex "$C7F/.forge/forge.yaml"
+ROOT_INUTILIZAVEL="$ROOT_ISO/c7f-arquivo-nao-diretorio"
+: > "$ROOT_INUTILIZAVEL"
+out7f="$(env -u FORGE_HEAVY_MUTEX_RESOURCE FORGE_HEAVY_MUTEX_ROOT="$ROOT_INUTILIZAVEL" node "$FORGE" update --target "$C7F" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc7f=$?
+[ "$rc7f" -eq 0 ] \
+  || { echo "FAIL [7]: update deveria seguir rc 0 mesmo com a resolução do heavy-mutex falhando (best-effort) — saiu rc=$rc7f"; echo "$out7f"; exit 1; }
+linha7f="$(grep 'heavy_mutex:' <<<"$out7f")"
+[ -n "$linha7f" ] || { echo "FAIL [7]: NENHUMA linha heavy_mutex apareceu — a falha de resolução voltou a ficar em silêncio"; echo "$out7f"; exit 1; }
+grep -q '^WARN: heavy_mutex: recurso resolvido não determinado' <<<"$linha7f" \
+  || { echo "FAIL [7]: linha presente mas sem o prefixo WARN esperado para resolução indeterminada ('$linha7f')"; exit 1; }
+grep -qF 'bloco mesclado com resource: forge-heavy-suite' <<<"$linha7f" \
+  || { echo "FAIL [7]: WARN não nomeia o resource que o bloco do template escreveu ('$linha7f')"; exit 1; }
 echo "OK [7]"
 
-scenario "[8] PBT: bloco ausente/presente × resource do template × env declarada ou não (seed fixa, >= 50 casos)"
+scenario "[8] mutação A (linha nominal), sobre CÓPIA ISOLADA — NUNCA a árvore rastreada real"
+WS8="$(ws_copia mut-a)"
+WS8_ORIG="$T/forge.mjs.orig8"
+cp "$WS8/bin/forge.mjs" "$WS8_ORIG"
+perl -pi -e "s/if \(added\.includes\('heavy_mutex'\)\) \{/if (false \&\& added.includes('heavy_mutex')) {/" "$WS8/bin/forge.mjs"
+cmp -s "$WS8_ORIG" "$WS8/bin/forge.mjs" && { echo "FAIL [8] (setup): a mutação não alterou a cópia — o teste não provaria nada"; exit 1; }
+C8="$(consumidor c8)"
+strip_heavy_mutex "$C8/.forge/forge.yaml"
+out8="$(env -u FORGE_HEAVY_MUTEX_RESOURCE FORGE_HEAVY_MUTEX_ROOT="$ROOT_ISO/c8" node "$WS8/bin/forge.mjs" update --target "$C8" --no-plugin --no-backup --source "$WS8/template/.forge" 2>&1)"; rc8m=$?
+mut8_ok=1
+if [ "$rc8m" -ne 0 ]; then mut8_ok=0
+elif grep -q 'heavy_mutex: recurso resolvido' <<<"$out8"; then mut8_ok=0; fi
+[ "$mut8_ok" -eq 1 ] || { echo "FAIL [8]: mutação deveria fazer a linha nominal desaparecer em [1], e não desapareceu"; echo "$out8"; exit 1; }
+# recontrole: MESMO cenário, com o binário REAL (nunca tocado) — prova que o defeito observado é
+# da mutação na cópia, não de algum efeito colateral do isolamento do teste.
+C8R="$(consumidor c8r)"
+strip_heavy_mutex "$C8R/.forge/forge.yaml"
+out8r="$(env -u FORGE_HEAVY_MUTEX_RESOURCE FORGE_HEAVY_MUTEX_ROOT="$ROOT_ISO/c8r" node "$FORGE" update --target "$C8R" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc8r=$?
+[ "$rc8r" -eq 0 ] && grep -q 'heavy_mutex: recurso resolvido' <<<"$out8r" \
+  || { echo "FAIL [8] (recontrole): com o binário real (não mutado), [1] deveria continuar passando"; echo "$out8r"; exit 1; }
+rm -rf "$WS8"
+echo "OK [8]"
+
+scenario "[9] mutação B (guarda de chave já declarada), sobre CÓPIA ISOLADA — NUNCA a árvore rastreada real"
+WS9="$(ws_copia mut-b)"
+WS9_ORIG="$T/forge.mjs.orig9"
+cp "$WS9/bin/forge.mjs" "$WS9_ORIG"
+perl -pi -e "s/if \(dstKeys\.has\(key\)\) continue;/if (false) continue;/" "$WS9/bin/forge.mjs"
+cmp -s "$WS9_ORIG" "$WS9/bin/forge.mjs" && { echo "FAIL [9] (setup): a mutação não alterou a cópia"; exit 1; }
+C9="$(consumidor c9)"
+set_heavy_mutex "$C9/.forge/forge.yaml" "axis-heavy-suite" "__SEM__" "true"
+node "$WS9/bin/forge.mjs" update --target "$C9" --no-plugin --no-backup --source "$WS9/template/.forge" >/dev/null 2>&1
+N9_DEPOIS="$(n_blocos "$C9/.forge/forge.yaml")"
+mut9_ok=1
+[ "$N9_DEPOIS" -eq 1 ] && mut9_ok=0
+[ "$mut9_ok" -eq 1 ] || { echo "FAIL [9]: mutação deveria fazer o bloco já declarado se DUPLICAR (2a chave 'heavy_mutex:' acrescentada), e ficou com $N9_DEPOIS — a mutação não exercita a guarda medida"; exit 1; }
+# recontrole: MESMO cenário, com o binário REAL — o bloco continua byte-idêntico e único.
+C9R="$(consumidor c9r)"
+set_heavy_mutex "$C9R/.forge/forge.yaml" "axis-heavy-suite" "__SEM__" "true"
+BLOCO9R_ANTES="$(bloco_de "$C9R/.forge/forge.yaml")"
+node "$FORGE" update --target "$C9R" --no-plugin --no-backup --source "$TPL" >/dev/null 2>&1
+BLOCO9R_DEPOIS="$(bloco_de "$C9R/.forge/forge.yaml")"
+[ "$BLOCO9R_ANTES" = "$BLOCO9R_DEPOIS" ] && [ "$(n_blocos "$C9R/.forge/forge.yaml")" -eq 1 ] \
+  || { echo "FAIL [9] (recontrole): com o binário real, [4] deveria continuar passando (bloco byte-idêntico, chave única)"; exit 1; }
+rm -rf "$WS9"
+echo "OK [9]"
+
+scenario "[10] PBT: bloco ausente/presente × resource gerado aleatoriamente (template e env) (seed fixa, >= 50 casos)"
 node --input-type=module - "$WS" "$T" "$ROOT_ISO" <<'NODE_EOF'
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -236,18 +335,27 @@ const P = await import(pathToFileURL(join(WS, 'template/.forge/scripts/lib/pbt.m
 const FORGE = join(WS, 'bin/forge.mjs');
 const TPL = join(WS, 'template/.forge');
 
-// Pristine por variante de SRC (real e uma cópia com resource trocado) e por presença do bloco —
-// 4 combinações fixas, cada `init` roda uma vez só; cada caso do PBT parte de uma cópia rasa.
-function tplComResource(nome, resource) {
-  const out = join(T, `pbt-tpl-${nome}`);
-  if (existsSync(out)) return out;
+// Charset seguro para um valor `resource:` de YAML plano: letras minúsculas, dígitos, '-', '_',
+// '.' — nunca espaço (o regex de leitura da linha nominal usa `\S+`, que não aceita espaço) nem
+// caractere de sintaxe YAML (':', '#', aspas). Achado MEDIUM do review: a versão anterior gerava
+// só `gen.bool()` — 8 combinações fixas repetidas 56 vezes — em vez de strings, apesar de
+// `pbt.mjs` já expor `gen.array`/`gen.oneOf` (usadas por outro gate desta mesma rodada, o w214).
+const SAFE_CHARS = [...'abcdefghijklmnopqrstuvwxyz0123456789', '-', '_', '.'];
+
+// Fixture real (root fixo, não gerado): o mesmo token literal do axis-fare-validator/
+// Axis.PadSimulator, usado no ramo "bloco presente" para provar que o `root` declarado — não só
+// `resource` — sobrevive byte a byte (achado MEDIUM do review: o ramo presente usava só o bloco
+// default do template, sem nunca declarar `root`).
+const ROOT_FIXTURE_LINE = '  root: "${TMPDIR:-/tmp}"\n';
+
+function tplComResourceDinamico(resource, tag) {
+  const out = join(T, `pbt-tpl-${tag}`);
   cpSync(TPL, out, { recursive: true });
   const p = join(out, 'forge.yaml');
   writeFileSync(p, readFileSync(p, 'utf8').replace('resource: forge-heavy-suite', `resource: ${resource}`));
   return out;
 }
-const TPL_DEFAULT = TPL;                                   // resource: forge-heavy-suite (== default hardcoded da lib)
-const TPL_DIVERGENTE = tplComResource('divergente', 'pbt-divergente');
+const TPL_DEFAULT = TPL; // resource: forge-heavy-suite (== default hardcoded da lib), sem gerar cópia
 
 function pristine(withBlock) {
   const dir = mkdtempSync(join(T, `pbt-pristine-${withBlock ? 'com' : 'sem'}-`));
@@ -255,9 +363,19 @@ function pristine(withBlock) {
   execFileSync('git', ['-C', dir, 'config', 'user.email', 't@t']);
   execFileSync('git', ['-C', dir, 'config', 'user.name', 't']);
   execFileSync('node', [FORGE, 'init', '--target', dir, '--slug', 'demo', '--name', 'Demo', '--desc', 't', '--yes', '--no-plugin']);
+  const p = join(dir, '.forge', 'forge.yaml');
   if (!withBlock) {
-    const p = join(dir, '.forge', 'forge.yaml');
     writeFileSync(p, readFileSync(p, 'utf8').replace(/^heavy_mutex:\n(?:[ \t].*\n?)*\n?/m, ''));
+  } else {
+    // bloco presente: `resource` customizado (não o default do template) + `root` real da
+    // fixture, para que a invariante "byte-idêntico" da propriedade cubra as três chaves que o
+    // plano (D8) exige — não só a ausência de linha nominal.
+    let t = readFileSync(p, 'utf8');
+    t = t.replace(
+      /^heavy_mutex:\n(?:[ \t].*\n?)*\n?/m,
+      `heavy_mutex:\n  enabled: true\n  resource: axis-heavy-suite\n${ROOT_FIXTURE_LINE}  timeout_s: 1800\n`,
+    );
+    writeFileSync(p, t);
   }
   return dir;
 }
@@ -265,24 +383,28 @@ const PRISTINE_SEM = pristine(false);
 const PRISTINE_COM = pristine(true);
 
 const gBlockPresent = P.gen.bool();
-const gSrcDivergente = P.gen.bool();
-const gEnvSet = P.gen.bool();
+const gDivergentFlag = P.gen.bool();
+const gDivergentChars = P.gen.array(P.gen.oneOf(SAFE_CHARS), 1, 24);
+const gEnvFlag = P.gen.bool();
+const gEnvChars = P.gen.array(P.gen.oneOf(SAFE_CHARS), 1, 24);
 
 let casesRun = 0;
-const prop = (blockPresent, srcDivergente, envSet) => {
+const prop = (blockPresent, divergentFlag, divergentChars, envFlag, envChars) => {
   casesRun++;
   const base = blockPresent ? PRISTINE_COM : PRISTINE_SEM;
   const dir = mkdtempSync(join(T, 'pbt-case-'));
   rmSync(dir, { recursive: true, force: true });
   cpSync(base, dir, { recursive: true });
 
-  const src = srcDivergente ? TPL_DIVERGENTE : TPL_DEFAULT;
-  const srcResource = srcDivergente ? 'pbt-divergente' : 'forge-heavy-suite';
+  const divergentResource = divergentChars.join('');
+  const envResource = envChars.join('');
+  const src = divergentFlag ? tplComResourceDinamico(divergentResource, `c${casesRun}`) : TPL_DEFAULT;
+  const srcResource = divergentFlag ? divergentResource : 'forge-heavy-suite';
   const rootIso = join(ROOT_ISO, `pbt-${casesRun}`);
   mkdirSync(rootIso, { recursive: true });
   const env = { ...process.env, FORGE_HEAVY_MUTEX_ROOT: rootIso };
   delete env.FORGE_HEAVY_MUTEX_RESOURCE;
-  if (envSet) env.FORGE_HEAVY_MUTEX_RESOURCE = 'pbt-env-resource';
+  if (envFlag) env.FORGE_HEAVY_MUTEX_RESOURCE = envResource;
 
   const blockPathRe = /^heavy_mutex:\n(?:[ \t].*\n?)*\n?/m;
   const blockBefore = blockPresent ? (readFileSync(join(dir, '.forge', 'forge.yaml'), 'utf8').match(blockPathRe) || [''])[0] : null;
@@ -299,21 +421,22 @@ const prop = (blockPresent, srcDivergente, envSet) => {
   const nominal = /(WARN: )?heavy_mutex: recurso resolvido (\S+) → (\S+) \(lock (\S+)\)/.exec(out);
 
   if (ok && blockPresent) {
-    // chave já declarada: nunca tocada, e a rota da linha nominal nem deveria executar. A
-    // contagem de ocorrências de `^heavy_mutex:` prova que o merge foi barrado por inteiro, não
-    // só que o PRIMEIRO trecho ficou intacto (um merge que esqueça a guarda ACRESCENTA uma
-    // segunda chave no fim do arquivo, sem tocar a primeira).
+    // chave já declarada (resource custom + root real): nunca tocada, e a rota da linha nominal
+    // nem deveria executar. A contagem de ocorrências de `^heavy_mutex:` prova que o merge foi
+    // barrado por inteiro, não só que o PRIMEIRO trecho ficou intacto (um merge que esqueça a
+    // guarda ACRESCENTA uma segunda chave no fim do arquivo, sem tocar a primeira).
     const yamlAfter = readFileSync(join(dir, '.forge', 'forge.yaml'), 'utf8');
     const blockAfter = (yamlAfter.match(blockPathRe) || [''])[0];
     const nOcorrencias = (yamlAfter.match(/^heavy_mutex:/gm) || []).length;
     if (blockAfter !== blockBefore) ok = false;
+    if (!blockAfter.includes(ROOT_FIXTURE_LINE.trim())) ok = false; // a linha de root sobrevive byte a byte
     if (nOcorrencias !== 1) ok = false;
     if (nominal) ok = false;
   } else if (ok) {
     // bloco ausente: mesclado — a linha nominal tem de existir e nomear exatamente o par previsto
     // pela precedência env > forge.yaml > default (env vale para os dois lados, quando declarada).
-    const antesEsperado = envSet ? 'pbt-env-resource' : 'forge-heavy-suite';
-    const depoisEsperado = envSet ? 'pbt-env-resource' : srcResource;
+    const antesEsperado = envFlag ? envResource : 'forge-heavy-suite';
+    const depoisEsperado = envFlag ? envResource : srcResource;
     if (!nominal) ok = false;
     else {
       const [, warn, antes, depois, lockPath] = nominal;
@@ -328,20 +451,20 @@ const prop = (blockPresent, srcDivergente, envSet) => {
   return ok;
 };
 
-const r = P.forAll([gBlockPresent, gSrcDivergente, gEnvSet], prop, { runs: 56, seed: 142217 });
+const r = P.forAll([gBlockPresent, gDivergentFlag, gDivergentChars, gEnvFlag, gEnvChars], prop, { runs: 56, seed: 142217 });
 rmSync(PRISTINE_SEM, { recursive: true, force: true });
 rmSync(PRISTINE_COM, { recursive: true, force: true });
 if (!r.ok) {
-  console.error(`FAIL [8]: propriedade falhou após ${r.runs} caso(s) (seed ${r.seed})`);
+  console.error(`FAIL [10]: propriedade falhou após ${r.runs} caso(s) (seed ${r.seed})`);
   console.error('  contraexemplo minimizado: ' + JSON.stringify(r.counterexample));
   if (r.error) console.error('  erro: ' + r.error);
   process.exit(1);
 }
-if (casesRun < 50) { console.error(`FAIL [8]: rodou só ${casesRun} caso(s), esperado >= 50`); process.exit(1); }
-console.log(`OK [8] (${r.runs} casos, seed ${r.seed})`);
+if (casesRun < 50) { console.error(`FAIL [10]: rodou só ${casesRun} caso(s), esperado >= 50`); process.exit(1); }
+console.log(`OK [10] (${r.runs} casos, seed ${r.seed})`);
 NODE_EOF
-rc8=$?
-[ "$rc8" -eq 0 ] || { echo "FAIL [8]: PBT reprovou (ver saída acima)"; exit 1; }
+rc10=$?
+[ "$rc10" -eq 0 ] || { echo "FAIL [10]: PBT reprovou (ver saída acima)"; exit 1; }
 
 [ "$SCENARIOS_RUN" -gt 0 ] \
   || { echo "FAIL [contador]: nenhum cenário executado — um gate que não roda nada não cobre nada"; exit 1; }

@@ -24,11 +24,7 @@ import { parseYamlSubset, yamlQuote } from './yaml-lite.mjs';
 
 export const ID_RE = /^[a-z0-9][a-z0-9._-]*$/;
 export const CHANNEL_RE = /^[a-z0-9][a-z0-9-]*$/;
-// `fs-union` (issue #123) é o hub de `fs` com o `_common.sh` resolvido no checkout principal e falha
-// fechada quando ele falta (lib/transports/fs-union.sh). Opt-in: quem não declara o kind não muda
-// nada. A proteção contra a worktree de branch antiga vem DESTA lista: uma árvore anterior ao kind
-// não o conhece e recusa o `liaison.yaml` do tronco com `kind inválido`, antes de tocar o hub.
-export const TRANSPORT_KINDS = ['manual', 'fs', 'fs-union', 'git', 'gh'];
+export const TRANSPORT_KINDS = ['manual', 'fs', 'git', 'gh'];
 
 // Campos de transporte reconhecidos, na ordem de emissão. `kind` sempre primeiro.
 const TRANSPORT_FIELDS = ['kind', 'path', 'remote', 'branch'];
@@ -91,7 +87,7 @@ export function validateTransport(t) {
     errors.push(`kind inválido: ${t.kind} (use ${TRANSPORT_KINDS.join('|')})`);
     return errors;
   }
-  if ((t.kind === 'fs' || t.kind === 'fs-union' || t.kind === 'manual') && !t.path) errors.push(`transporte ${t.kind} exige path`);
+  if ((t.kind === 'fs' || t.kind === 'manual') && !t.path) errors.push(`transporte ${t.kind} exige path`);
   if (t.kind === 'git' && !t.remote) errors.push('transporte git exige remote');
   if (t.kind === 'gh' && !t.remote) errors.push('transporte gh exige remote (owner/repo)');
   for (const k of Object.keys(t)) if (!TRANSPORT_FIELDS.includes(k)) errors.push(`campo desconhecido em transport: ${k}`);

@@ -81,8 +81,8 @@ echo "[3] EXPIRADA: preserva mesmo assim, nomeia os dois shas, rc 0"
 C3="$(consumidor c3)"
 printf '\n# CONSERTO-EXPIRADO\n' >> "$C3/.forge/scripts/doctor.sh"
 SHA_LOCAL3="$(shasum -a 256 "$C3/.forge/scripts/doctor.sh" | cut -d' ' -f1)"
-SHA_ERRADO="0000000000000000000000000000000000000000000000000000000000000a"
-SHA_ERRADO="${SHA_ERRADO: -64}"
+SHA_ERRADO="$(printf '0%.0s' $(seq 1 63))a"   # 64 chars hex — sha propositalmente errado
+[ "${#SHA_ERRADO}" -eq 64 ] || { echo "FAIL [3] (setup): SHA_ERRADO malformado (len=${#SHA_ERRADO})"; exit 1; }
 printf '%s  scripts/doctor.sh  # exceção contra versão anterior do template\n' "$SHA_ERRADO" > "$C3/.forge/machinery-exceptions.txt"
 SHA_TPL_DOCTOR="$(sha_tpl scripts/doctor.sh)"
 out3="$(node "$FORGE" update --target "$C3" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc3=$?
@@ -239,7 +239,7 @@ const prop = (states, flags) => {
   const shouldAbort = flags.malformed || flags.duplicate;
   let out = '', rc = 0;
   try {
-    out = execFileSync('node', [FORGE, 'update', '--target', dir, '--no-plugin', '--no-backup', '--source', TPL], { encoding: 'utf8' });
+    out = execFileSync('node', [FORGE, 'update', '--target', dir, '--no-plugin', '--no-backup', '--source', TPL], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
   } catch (e) {
     rc = e.status ?? 1;
     out = (e.stdout || '') + (e.stderr || '');

@@ -1,0 +1,38 @@
+# machinery-exceptions.txt — divergências DELIBERADAS entre esta árvore e o template do harness.
+#
+# Lido por `forge update` (issues #101/#131) antes de sobrescrever `scripts/`, `hooks/` e
+# `commands/` — os diretórios de maquinaria própria, fora de ENRICHABLE_DIRS, que o overlay
+# aditivo sempre sobrescreve quando divergem do template. Uma linha por arquivo:
+#
+#     <sha256 do TEMPLATE no momento da declaração>  <caminho relativo a .forge/>  # razão
+#
+# POR QUE ESTE ARQUIVO EXISTE. Sem ele, um conserto local em maquinaria própria é revertido no
+# próximo `update` com rc=0 — silenciosamente, se ainda não existe `.forge/cache/machinery.lock`
+# (primeiro update depois do fix), ou com um WARN genérico que se perde na rolagem. A gramática
+# aqui é a mesma que consumidores reais já operam em produção (o `check-machinery-drift.sh` do
+# axis-fare-validator, por exemplo): separador de colunas por espaço livre, corte no primeiro `#`
+# (o resto da linha é a razão), sha hexadecimal minúsculo com pelo menos 32 dígitos.
+#
+# O SHA É O DO TEMPLATE, NUNCA O DO DISCO. É isso que dá poder ao mecanismo: se o template mudar
+# o arquivo de novo, o sha declarado deixa de bater com o do template novo, a exceção EXPIRA e o
+# `update` nomeia os dois shas para reexame — mas preserva o arquivo mesmo assim (a exceção
+# expirada nunca bloqueia o update; parar seria mudar a fronteira publicada do comando). Uma
+# exceção declarada para um caminho que o template não tem, ou cujo conteúdo local já é idêntico
+# ao template novo, é reportada como OCIOSA — sem efeito, mas nomeada.
+#
+# Arquivo ilegível, linha malformada ou o mesmo caminho declarado duas vezes PARAM o update antes
+# de escrever qualquer coisa, nomeando a linha: o que este parser não sabe ler não pode absolver
+# ninguém.
+#
+# AO CONSERTAR OU RECONCILIAR UM ARQUIVO, REMOVA A LINHA DELE. Exceção que não cobre nada é
+# reportada como OCIOSA justamente porque ela sobrevive à correção: no dia em que o arquivo
+# divergir de novo, por outro motivo, ela absolve sozinha uma divergência que ninguém leu.
+#
+# A razão é para quem chegar daqui a alguns meses e tiver que decidir se o desvio ainda vale.
+# "customização local" não é razão; diga o que o desvio FAZ.
+#
+# `scripts/` NÃO ganha preservação automática por deriva (decisão do dono, DH-1 do plano de
+# 2026-09-15): sem exceção declarada aqui, todo conserto em maquinaria própria é sobrescrito no
+# próximo update, nomeado como `SOBRESCRITO (não declarado)` com o caminho do backup.
+#
+# Este arquivo nasce vazio no template — é seu, o `update` nunca escreve nele.

@@ -53,6 +53,31 @@ argument-hint: "[--no-backup]"
 6. **Resuma** o resultado: o que foi atualizado, o que foi preservado (specs/baseline), o estado do `core.hooksPath`, a divergência dos worktrees e o backup.
    O backup fica em `.git/forge-backups/` e não precisa ser removido para rodar gates: fora da árvore, ele não é varrido por `--path` nem aparece em `git status`. Antes ele vivia em `.forge.bak-N` e era varrido pelos próprios gates, bloqueando o primeiro push após o upgrade por conteúdo que era cópia do repositório (issue #76).
 
+## Divergências deliberadas de maquinaria (issues #101/#131)
+
+`scripts/`, `hooks/` e `commands/` são maquinaria própria — fora de `ENRICHABLE_DIRS` — e o
+overlay sempre os sobrescreve quando divergem do template, com ou sem `machinery.lock`. Um
+conserto local nesses diretórios sobrevive ao próximo `update` só se estiver declarado em
+`.forge/machinery-exceptions.txt`, uma linha por arquivo:
+
+```
+<sha256 do TEMPLATE no momento da declaração>  <caminho relativo a .forge/>  # razão
+```
+
+O sha é sempre o do TEMPLATE (nunca o do disco): se o template mudar o arquivo de novo, a
+declaração **expira** — o `update` preserva o arquivo mesmo assim e nomeia os dois shas para
+reexame, em vez de bloquear (parar seria mudar a fronteira publicada do comando). O relatório do
+`update` nomeia cada exceção viva (`PRESERVADO (exceção declarada)`), cada expirada (`EXCEÇÃO
+EXPIRADA`) e cada ociosa (`EXCEÇÃO OCIOSA` — caminho fora do template ou já idêntico a ele); todo
+arquivo de maquinaria própria sobrescrito sem exceção declarada é nomeado como `SOBRESCRITO (não
+declarado)`, com o caminho do backup onde o conteúdo anterior sobrevive. Arquivo ilegível, linha
+malformada ou caminho declarado duas vezes param o update **antes** de escrever qualquer coisa,
+nomeando a linha.
+
+`scripts/` **não** ganha preservação automática por deriva — só a declaração explícita preserva.
+Ao consertar ou reconciliar um arquivo, remova a linha dele: exceção que não cobre mais nada
+absolve em silêncio uma divergência futura que ninguém examinou.
+
 ## Regras
 
 - **Nunca** rode este comando de dentro de um worktree linkado — ele recusa, e a recusa não tem flag

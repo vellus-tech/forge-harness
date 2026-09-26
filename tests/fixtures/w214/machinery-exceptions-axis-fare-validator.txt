@@ -1,0 +1,101 @@
+# machinery-exceptions.txt — divergências DELIBERADAS entre esta árvore e o template do harness.
+#
+# Lido por `.forge/scripts/check-machinery-drift.sh`. Uma linha por arquivo:
+#
+#     <sha256 do TEMPLATE no momento da declaração>  <caminho relativo a .forge/>  # razão
+#
+# POR QUE ESTA LISTA EXISTE. `.forge/cache/machinery.lock` grava o sha256 do TEMPLATE na última
+# aplicação. O detector lê o mesmo campo como "intocada = sha em disco == sha no lock". Os dois
+# sentidos só coincidem enquanto local == template, e cada arquivo abaixo é uma correção medida
+# que se afasta do template de propósito. Para eles não existe valor correto a gravar no lock:
+# gravar o sha do TEMPLATE deixa o detector acusando divergência permanente até alguém com pressa
+# desligar o gate; gravar o sha LOCAL cala o detector E faz o `forge.mjs` classificar o próximo
+# upgrade como limpo, suprimindo até o WARN — que é a perda silenciosa que a guarda existe para
+# impedir. Declarar é a terceira saída, e a única que não mente para nenhum dos dois lados.
+#
+# O SHA É O DO TEMPLATE, LIDO DO LOCK — NUNCA O DO DISCO. É isso que dá poder ao mecanismo: se o
+# template mudar o arquivo, o sha no lock anda, deixa de bater com o declarado aqui, a exceção
+# EXPIRA e o arquivo volta a BLOQUEAR o upgrade. A dispensa cobre a divergência que alguém
+# examinou, não qualquer divergência futura. Quando isso acontecer, o detector diz o nome do
+# arquivo e os dois shas: reexamine a mescla entre a correção local e a versão nova do template,
+# e só então redeclare com o sha novo.
+#
+# AO CONSERTAR OU RECONCILIAR UM ARQUIVO, REMOVA A LINHA DELE. Exceção que não cobre nada é
+# reportada como OCIOSA justamente porque ela sobrevive à correção: no dia em que o arquivo
+# divergir de novo, por outro motivo, ela absolve sozinha uma divergência que ninguém leu.
+#
+# A razão é para quem chegar daqui a três meses e tiver que decidir se o desvio ainda vale.
+# "customização local" não é razão; diga o que o desvio FAZ.
+#
+# ESTADO DESTA LISTA EM 2026-09-06, LOGO APÓS O UPGRADE PARA O TEMPLATE v0.11.0. São 33 linhas,
+# uma para cada arquivo de maquinaria que diverge do template 0.11.0, e a conta é esta:
+#
+#     28  divergentes de maquinaria no carimbo pré-upgrade (.forge/evidence/pre-upgrade-0.11.0.txt)
+#    + 4  que NASCERAM divergentes neste mesmo PR, pelo commit 81c02441
+#    + 1  scripts/lib/forge-runtime.sh, que nasceu divergente no conserto do seletor de fase
+#    ————
+#     33
+#
+# Doze delas, marcadas `[mesclado 0.11.0]`, são exatamente os arquivos que o template MUDOU entre
+# 0.10.0 e 0.11.0: a exceção antiga expirou, o detector a nomeou com os dois shas, a mescla a três
+# vias foi refeita entre a correção local e a versão nova, e só então foi redeclarada com o sha
+# novo. Isso é o mecanismo de expiração funcionando em dado real, e não em fixture — e é a parte
+# do relato original que se sustenta.
+#
+# AS QUATRO MARCADAS `[nasceu neste PR]` MERECEM ATENÇÃO DE QUEM AUDITAR. Elas estavam `OK` no
+# carimbo — byte a byte iguais ao template 0.10.0 — e passaram a divergir porque o commit 81c02441
+# corrigiu a guarda de "sou o script principal?" nas quatro. Não há declaração anterior que elas
+# tenham "atravessado": elas nunca foram examinadas contra template nenhum antes desta linha.
+#
+# RETRATAÇÃO, 2026-09-06, achada por revisão adversarial do PR #225 e conferida contra os dois
+# artefatos que o próprio PR commita. A redação anterior deste bloco afirmava três coisas falsas:
+# que havia "44 exceções antigas", que "vinte atravessaram o upgrade intactas" e que "outras doze
+# SAÍRAM da lista, reportadas como OCIOSAS". Medido: o carimbo registra 32 divergências no total
+# (28 de maquinaria mais 4 sob `rules/`), nenhum artefato desta árvore mostra lista de 44, e
+# **ZERO** linhas saíram — os 28 do carimbo são subconjunto exato das 32 de hoje, e 4 entraram.
+# O comando que decide:
+#
+#     python3 -c "pre={l.split()[1] for l in open('.forge/evidence/pre-upgrade-0.11.0.txt')
+#                      if l.startswith('DIFF ') and not l.split()[1].startswith('rules/')}
+#                 exc={l.split()[1] for l in open('.forge/machinery-exceptions.txt')
+#                      if l.strip() and not l.startswith('#')}
+#                 print(len(pre), len(exc), sorted(pre-exc), sorted(exc-pre))"
+#
+# A origem do erro importa mais que o número: os 44/20/12/12 vieram do relatório de um subagente e
+# eu os publiquei sem conferir contra o carimbo — que estava commitado no MESMO PR, a um comando de
+# distância. Relatório de subagente não é medição.
+
+6cf5200c4b24104b400eb04399725a9e517ced24a61aaea2610e05e82bff6bd5  hooks/git/post-merge                               # [mesclado 0.11.0] trata script de delegação ausente como falha visível, não no-op, e detecta duplicação do liaison
+94752d00224c6fec70e331b9f340aabf2ca2b3b51e6461c5294b4106aab76c08  hooks/git/pre-push                                 # [reexaminado 0.15.0] a v0.14.0 so acrescenta os helpers gates_inline_raw/gates_key_present, que colidem com o seletor de fase local de forge-runtime.sh; o local carrega a guarda de censo vazio (_censo_vazio/_censo_bloqueia, LDG-0852, ausente do template), o _manifest_record, o run_check lint e a exportacao dos refs do push por ARQUIVO. Débito novo da 0.15.0: gate "shell-lints" aditivo (varre só os .sh publicados pelo push com check-shell-pipeline+check-heredoc-hash, escopado ao diff) — não portado nesta rodada, candidato a mescla dedicada
+6f7e6c010e181a7dad3122fc9c3a73390e4bcb5e0b5c8fd4d25bb9f7d46cb7b3  hooks/pre-tool-use/check-language-policy.sh        # estende o universo de .cs para .cs mais .java; o repo tem 833 .java e zero .cs
+bd5da25c32088e05f822dc6de8b8e36b484ef3c8b987d59482337f524c386edf  hooks/pre-tool-use/enforce-worktree-location.sh    # tokeniza o comando para achar o destino real de worktree add, fechando 6 bypasses
+fb9fafec947c6c5d61a45ef45e7f7a1db75517e49215a2cf0761998baba3449b  hooks/pre-tool-use/prevent-secrets-leak.sh         # usa o payload de pré-escrita como fonte única, para não bloquear a correção do vazamento
+b5331cb44f9d80b1d943ce5e010133b00fb86ebc5d97bccd411af3b2211e316d  hooks/pre-tool-use/validate-naming-conventions.sh  # herda a correção de fonte-da-verdade e trap seguro (LDG-0798/0801)
+14ae1afe7400860b3ab3a16859efbc9a18d42facc42a8a4801e92c40643c4246  hooks/session/on-session-start.sh                  # ancora ledger E liaison na raiz do tronco, não da worktree, que escondia itens P0 + [R40] aviso não-bloqueante de segredo despejado no log do daemon do Gradle (detector de reincidência: o nível DEBUG do daemon é constante no código do Gradle e nenhum knob de cliente o fecha; quem fecha é o scrub do gradlew-jdk11.sh, que só alcança quem passa por ele)
+06a258f07f4e891063999467698e692e79317aa38dc87a8c567f399ecf899d16  scripts/archive-spec.sh                            # insere passo de auto-recuperação de impact.json stale e gate de acks do liaison antes do pré-flight
+94c31d9a93a1d7adab41f6055075aced5f55e7227bf8621ea1621bc7f4f3c1f2  scripts/check-heavy-mutex.sh                       # [mesclado 0.11.0] confere cada regex contra /dev/null antes de usar, fechando fail-open de padrão quebrado no gate
+7f4f4c2b2d70d99f2f4318c6a718c2473299f64b79e0a1571cf27ede85583da5  scripts/check-push-ahead.sh                        # [mesclado 0.11.0] mede tronco à frente do remoto no pre-push e informa em três classes, sem nunca bloquear
+fc9fa69478ebacea4b81cf5e1b38b365b8f13028e5e99fa129f757f575967713  scripts/doctor.sh                                  # [mesclado 0.15.0] honra FORGE_ROOT (idêntico ao template) + reancora o bloco de diagnóstico do liaison no TRONCO via lib/trunk-root.sh (LDG-0687) — divergência local não coberta pela razão anterior; a 0.15.0 acrescentou a triagem barata de worktrees (lib/worktree-classify.sh, orçamento de tempo) e foi ADOTADA por cima da âncora local do liaison, testada com os dois coexistindo. O restante do arquivo é 100% template
+840053b53430ab32a74f0edd1bac6eecf6b2a62ee2f70682123c27876be75c46  scripts/heavy-run.sh                               # trata dois aliases da mesma flag com valores divergentes como erro, nunca com precedência silenciosa
+82f62366a189b960b1ef6b993227e2fa3d447b913838b9226c3fe31c34bed73f  scripts/ingest-legacy.sh                           # mede presença do baseline por arquivo intermediário, evitando SIGPIPE calado de find mais head — template 0.14.0 AINDA tem o cano (`find | head -1` sob pipefail) e piorou: `|| existing=""` agora mascara tanto SIGPIPE quanto diretório ilegível como "baseline vazio", sem o rc=4 dedicado que o local preserva
+60a8beac611c5e0c1ce7b8f471e456577700ca7a899cca144984d496395f2469  scripts/ledger-ops.sh                              # recusa add/update --status resolved fora do resolve --note (issue #78, coberto pelo template 0.14.0 também) — MAS o arquivo local carrega bem mais que essa razão original cobria: lock+journal de crash-recovery (mkdir lock, _acquire_ledger_lock/_recover_transaction), _write_json com validação de schema por entrada antes do mv (ENTRY_VALIDATOR), limpeza de resolved_at ao reabrir para status não-terminal (R35/LDG-0394+LDG-0817), add à prova de ARG_MAX via stdin, --spec-dir em harvest para chamador em worktree (LDG-0812/2), e cinco subcomandos ausentes do template — reclassify, link-change, repair-dedup-key, repair-promotion-link, wont-fix — dos quais link-change e repair-promotion-link têm uso documentado no canal liaison (ver blobs axis-contracts). Nenhum desses é coberto pelo template 0.14.0; LOCAL VENCE por completo em vez de mesclar à mão um arquivo de 800 linhas com dois heredocs node independentes. Débito registrado: template 0.14.0 traz forge-root.sh (mesma resolução de ROOT + aviso de divergência, seguro adotar depois), guarda NOCHANGE em update, e um harvest com parser de verification.md mais preciso (LDG-0140/LDG-0062) — candidatos a uma mescla dedicada e testada, não feita aqui. Débito novo da 0.15.0, mesmo motivo (local vence por completo, arquivo grande demais para mesclar à mão sem rodada dedicada): subcomando `note --kind progress|measurement|correction|decision` para detail ACUMULATIVO (w211 — 92 mutações de detail medidas, 24 não preservaram o texto anterior, 6 destruíram >25% do campo; a guarda correspondente em `update --detail` exige `--replace-detail` para substituição destrutiva) e `lib/arg-guards.sh` para flag desconhecida/valor vazio (issue #103, mesmo idioma dos hooks já adotado em outros scripts locais)
+dcd139a60717293da6468ed9ceb18a28722911e58044863b08e8803921c47810  scripts/lib/check-data-governance.mjs              # acrescenta REQ-12, PAN/CPF/e-mail em chamada de log e campo sensível sem classificação
+ebca41dd409759a4606eecbbf864efadb729525c903540f252ae9da7cf5e5415  scripts/lib/check-observability.mjs                # varre também .java por logger cru, achado medido de 833 ocorrências antes não cobertas
+f67383587d21bc5dc9c117baba680d377b722ea6f036c9b45ed21bed0f9cba3a  scripts/lib/check-red-first.mjs                    # [nasceu neste PR] verificação estática do Red-first: itens 1-4 da rule bloqueiam sempre, 5-8 só avisam
+93f6ee9b06c00677ba777f91fa669e5b53882b8fbfc47d8b4ea89a622f6c2bac  scripts/lib/forge-runtime.sh                       # [nasceu neste PR] seletor de fase sobre a forma CSV de runtime.gates: `gate_phases: nome@fase` reetiqueta quem nao e de arvore de fontes, sem tirar ninguem da linha que o pre-push le
+41f24502132cbfbc5c6468cbb099ad469c0ab0f75306660737492c379102009e  scripts/lib/impact-freshness.mjs                   # [nasceu neste PR] fonte única do fingerprint do grafo e do frescor do impact.json, antes copiada em três pontos
+18f542f9afbf49f033329b55b6bacee51c03e5848132b143d27da239ef65a764  scripts/lib/plugin-build.mjs                       # [nasceu neste PR] gera o plugin Claude Code a partir de .forge/commands, único caminho para o namespace /forge: no 2.x
+3d022f18449fe6d6dd32fc30ae3afcb7822ed41927a4f19a812923e406d3047c  scripts/lib/red-level.mjs                          # [nasceu neste PR] alcançabilidade direta do teste até os arquivos corrigidos, proxy imperfeito por design, nunca bloqueia
+ef231b29c6052abd0fd774da89664f2717033a35137c6a953849169b752928c5  scripts/lib/red-replay.mjs                         # [mesclado 0.11.0] deriva a árvore pré-correção do Red-first por quatro estratégias e nunca inventa commit
+6788c9baffade589de130755048e691da4948e5f08e77d0f39439dd6b9eddd79  scripts/lib/sync-adapters.mjs                      # [mesclado 0.11.0] deriva a lista de hooks PreToolUse do diretório real, não de array fixo, evitando hook nunca instalado
+50f684c86a57114a6ba46362e568109c7cf3ac8097709d936c683ca890744da5  scripts/lib/transports/_common.sh                  # [mesclado 0.14.0] adotada a classificacao ff/behind/diverged do template e repostas as TRES guardas da escrita que ela levava: compare-and-swap em volta do mv, temporario com sufixo por PID e mv com checagem de erro; sem elas o push destroi escrita concorrente com rc=0 (provado por execucao em tests/dir-push-preserva-escrita-concorrente.test.sh)
+e5b0758353b9efb567405f59f8041466f7e65635ee465d207066188bf5c58ef6  scripts/lib/transports/git.sh                      # neutraliza GIT_DIR herdado antes de todo git -C no clone efêmero, para não destruir a árvore real
+06c405c35f19d0dea71f1450dda6032d84fd7b4015bdff937c9c7b924bfe1153  scripts/meta-count.sh                              # exige linha "## Status:" única e nunca deriva PASS por ausência de MISS, que mascarava relatório truncado
+912c3eb4255d94524e4efc5d578d13d03e02c5c76414b62df23fe512f782b1cf  scripts/spec-close.sh                              # acrescenta delivered-externally como terminal positivo e colhe o ledger na worktree, não no tronco
+614ecd594bf9c6ba9a086cbad686db825578627443a3b59ec8afad3058f8aa85  scripts/spec-new.sh                                # [mesclado 0.11.0] emite campos de lista do manifest em flow style de verdade parseável pelo yaml-lite, sem string literal
+d3fd09b970eb8a005d697222934cdbf31f148820b6ccb6374bf92a08af9f5b9a  scripts/spec-transition.sh                         # [mesclado 0.14.0] restaura o G1 de três condições (PASS presente + zero FAIL + zero BLOCKER; tests/analysis-clear-exige-pass.test.sh) que o template enfraqueceu de volta a duas — o impact.json G5 (razão original) é idêntico ao template e não precisa mais de exceção; a generalização de quick_plan.skipped_phases (LDG-0172/gate w205) foi adotada do template por cima
+35c89cf7f97ecb81a9e022f972d4f68531c6e62183ec788424a279d5585977ba  scripts/lib/ledger-render.mjs                      # [nasceu nesta rodada] substituicao de placeholder na forma de FUNCAO: com STRING o replaceAll INTERPRETA $&, $`, $' e $$ dentro do texto renderizado, e o detalhe de entrada de ledger e prosa humana que fala de shell (medido: 1 entrada com $' nesta arvore; o axis-go-cloud mediu o extremo, RangeError do V8 deixando ledger-ops add inutilizavel)
+5c35bf1f5fbd870fbd97638c51e4b5ced242249b5eef106e2be55e3053799b30  scripts/liaison-ops.sh                             # [mesclado 0.14.0] adotada a versao do template (ACK_FLAGS com --body/--body-file, --detail no lugar do --body invalido, ack avanca cursor) e removida a forcagem FORGE_ROOT="$ROOT" no sitio do wont-adopt: o ledger e dado de projeto e ancora no TRONCO por conta propria (LDG-0687); forcar a raiz ali faz o registro cair na copia da branch e o gate path-anchoring reprova o push nomeando o sitio
+88cf18b2dd81108b37e491a1a7a064e7bafc0abfd67628c461fdd04de83eff58  hooks/git/lib/check-docs-reviewed.sh               # [R40] ancora em merge-base em vez do remote_sha cru (LDG-0858: depois de um rebase o remote_sha nao e ancestral e o gate compara ARVORES, anunciando "nenhuma alteracao" para um push cujos commits tocam o README); universo passa a ser a UNIAO de `git log --name-only` com `git diff` do range; absorve a cobranca do README de MODULO (app/, companion-app/, tools/simulator/) que vinha do segundo gate de docs, APAGADO nesta rodada; ganha o modo --head para o hook de agente. A mensagem de bloqueio passa a declarar o UNIVERSO varrido, nao so o veredito
+e020b8ffadb9de1582e0aef1a99800d1d875fb62bfaba405659499062ef5671b  scripts/deferral-ops.sh                            # [R40] restaura a camada lib/argparse.sh que a v0.14.0 do template APAGOU: sem ela `deferral-ops.sh status <change> --lixo x` ACEITAVA EM SILENCIO com rc=0 (medido antes e depois). O template tambem levou o `shift || true` do subcomando `test`, sem o qual `$#` ainda conta o <deferral-id> posicional e `[ $# -eq 0 ]` reprova a invocacao legitima. As DUAS camadas coexistem — arg-guards.sh nao foi removida — porque cobrem propriedades diferentes. Publicado em vellus-tech/forge-harness#133
+f456ea4ed267a7b35ebf0d4c249600c4ddb20873d094142d507ccf94f972316e  scripts/lib/worktree-classify.sh                   # [R41] neutraliza GIT_DIR/GIT_WORK_TREE/etc. herdado antes de todo `git -C` — a 0.15.0 introduziu esta lib nova (triagem de worktree) sem a guarda que `lib/transports/git.sh` já tinha para o mesmo risco: `forge_wt_ignored_present` faz `git -C "$1" clean -ndX` dentro do caminho do doctor.sh/on-session-start.sh, e o GIT_DIR exportado por um hook venceria o `-C`, mirando o repositório real em vez da worktree sob exame. Medido: git-env-neutralized.test.sh reprovava antes da correção, nomeando o arquivo e a linha; passa depois. Mesmo padrão de neutralização de git.sh, aplicado no topo do arquivo (source-time, não por chamada).

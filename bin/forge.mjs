@@ -388,6 +388,136 @@ function writeMachineryLock(forge, files, version, sourceNote) {
     + lines.join('\n') + '\n');
 }
 
+// Divergências DELIBERADAS entre a árvore do consumidor e a maquinaria do template (issues
+// #101/#131): `.forge/machinery-exceptions.txt`, uma linha por arquivo, no formato
+// "<sha256 do template no momento da declaração>  <caminho relativo a .forge/>  # razão".
+// O mecanismo nasceu em campo — o axis-fare-validator já opera esse arquivo com o próprio
+// `check-machinery-drift.sh` —, e a gramática aqui replica a dele por medição, não pelo formato
+// literal acima: separador de colunas por espaço livre (uma ou mais), corte no primeiro `#` (o
+// resto da linha é a razão; comentário-only e linha em branco são ignorados) e sha hexadecimal
+// minúsculo com pelo menos 32 dígitos, não travado em 64. Qualquer token além de `<sha> <caminho>`
+// malforma a linha, com ou sem `#` — igual ao parser de origem (`check-machinery-drift.sh:201-206`,
+// `read -r e_sha e_rel e_resto <<< "$corpo"`; `[ -n "$e_resto" ]` marca a linha como MALFORMADA).
+// Pela mesma razão, o sha é comparado por IGUALDADE ESTRITA
+// contra o sha de 64 dígitos do template (`check-machinery-drift.sh:321`, `[ "${exc_sha[$EXC_IDX]}" = "$sha" ]`),
+// nunca por prefixo: um sha declarado com menos de 64 dígitos (sintaxe válida, >= 32 dígitos) nunca
+// é igual ao sha do template e cai sempre em EXPIRADA — a gramática aceita o comprimento truncado,
+// mas a comparação nunca o trata como prefixo válido. O sha é sempre o do TEMPLATE, nunca o do
+// disco: é o que permite a exceção EXPIRAR quando o template muda o arquivo de novo (DH-1 —
+// expirada preserva e nomeia os dois shas, não bloqueia). Arquivo ilegível, linha malformada ou
+// caminho declarado duas vezes param o update ANTES de escrever qualquer coisa, nomeando a linha —
+// fail-closed, como o parser de origem: o que este parser não sabe ler não pode absolver ninguém.
+// Um caminho declarado com prefixo `./` ou `.forge/` nunca bate com o `rel` real (sempre relativo
+// a `.forge/`, sem prefixo), então caía em `fora-do-template` — a exceção ficava OCIOSA em
+// silêncio e o conserto local do consumidor era sobrescrito sem aviso do porquê (achado do review
+// adversarial, LOW). Os dois prefixos nunca aparecem num `rel` legítimo do template (nenhum
+// caminho do template começa com `.` nem duplica `.forge/`), então normalizar aqui nunca colide
+// com uma declaração já correta — é estritamente aditivo: só passa a enxergar declarações que
+// antes eram sempre ociosas. `raw` preserva a grafia original para nomear a normalização no
+// relatório, em vez de normalizar em silêncio.
+function normalizeExceptionPath(rel) {
+  let out = rel;
+  while (out.startsWith('./')) out = out.slice(2);
+  if (out.startsWith('.forge/')) out = out.slice('.forge/'.length);
+  return out;
+}
+
+function readMachineryExceptions(forge) {
+  const p = join(forge, 'machinery-exceptions.txt');
+  const entries = new Map();
+  if (!existsSync(p)) return { path: p, entries };
+  let raw;
+  try {
+    raw = readFileSync(p, 'utf8');
+  } catch (e) {
+    fail(`machinery-exceptions.txt em ${p} não pôde ser lido (${e.code || e.message}) — o update para antes de escrever qualquer arquivo`, 1);
+  }
+  const malformed = [];
+  const duplicates = [];
+  raw.split('\n').forEach((line, idx) => {
+    const lineNo = idx + 1;
+    const hashIdx = line.indexOf('#');
+    const body = (hashIdx === -1 ? line : line.slice(0, hashIdx)).trim();
+    const reason = hashIdx === -1 ? '' : line.slice(hashIdx + 1).trim();
+    if (!body) return; // linha em branco ou só comentário
+    const tokens = body.split(/\s+/).filter(Boolean);
+    const [sha, relRaw, ...resto] = tokens;
+    const shaOk = typeof sha === 'string' && sha.length >= 32 && /^[0-9a-f]+$/.test(sha);
+    // Qualquer token além de "<sha> <caminho>" malforma a linha, com ou sem '#' — igual ao parser
+    // de origem (`check-machinery-drift.sh:201-206`: `read -r e_sha e_rel e_resto <<< "$corpo"`,
+    // `[ -n "$e_resto" ]` marca MALFORMADA). `resto` já vem de `body`, que foi cortado no primeiro
+    // '#' antes da tokenização — um token extra antes do '#' malforma a linha do mesmo jeito que
+    // um token extra sem '#' nenhum.
+    if (!shaOk || !relRaw || resto.length > 0) { malformed.push(lineNo); return; }
+    const rel = normalizeExceptionPath(relRaw);
+    if (entries.has(rel)) { duplicates.push({ rel, lines: [entries.get(rel).line, lineNo] }); return; }
+    entries.set(rel, { sha, reason, line: lineNo, raw: relRaw !== rel ? relRaw : undefined });
+  });
+  if (malformed.length || duplicates.length) {
+    const msgs = [];
+    if (malformed.length)
+      msgs.push(`${malformed.length} linha(s) malformada(s) em ${p}: linha ${malformed.join(', ')} — formato esperado "<sha256 hex do template>  <caminho relativo a .forge/>  # razão"`);
+    for (const d of duplicates)
+      msgs.push(`caminho declarado duas vezes em ${p}: ${d.rel} (linhas ${d.lines.join(' e ')})`);
+    fail(`machinery-exceptions.txt inválido — nenhum arquivo foi escrito.\n  ${msgs.join('\n  ')}`, 1);
+  }
+  return { path: p, entries };
+}
+
+// Classifica CADA exceção declarada contra o universo real do template, antes de qualquer decisão
+// de escrita — usada tanto pelo `--dry-run` quanto pela aplicação real, para que as duas rotas
+// enxerguem a MESMA verdade sobre uma exceção declarada. Achado do review adversarial (HIGH): o
+// dry-run só chamava `readMachineryExceptions` para validar sintaxe, nunca esta classificação, e
+// por isso anunciava `~ rel` (sobrescrita) para um arquivo que a aplicação real preserva —
+// contradizendo, na prévia mostrada ao humano antes de confirmar, a própria feature deste item.
+//   viva ......... sha declarado == sha do template NOVO -> preserva (issue #131)
+//   expirada ..... sha declarado != sha do template novo -> preserva mesmo assim (DH-1),
+//                  nomeando os dois shas para reexame — não bloqueia o update
+//   identica ..... arquivo local já é byte-idêntico ao template novo -> nada a fazer, ociosa
+//   enrichable ... caminho está em ENRICHABLE_DIRS -> a preservação por lock já cobre; a
+//                  exceção aqui não se aplica e é reportada como ociosa
+//   nao-instalado  caminho existe no template mas ainda não neste consumidor -> ociosa (o
+//                  arquivo VAI ser instalado pelo overlay; a exceção não impede isso)
+//   fora-do-template  caminho declarado que o template atual não tem -> ociosa
+//   tombstone-preservado  caminho que o template REMOVEU e que existe no consumidor (tombstone) ->
+//                  a exceção declarada barra a poda de órfãos (ver orphan-pruning); reportado uma
+//                  vez só, na seção de tombstones, nunca duplicado como "ociosa"
+function classifyExceptions(forge, files, exceptions, tombstoned) {
+  const relSet = new Set(files.map(([rel]) => rel));
+  const status = new Map();
+  for (const [rel, exc] of exceptions.entries) {
+    if (!relSet.has(rel)) {
+      if (tombstoned && tombstoned.has(rel)) { status.set(rel, { status: 'tombstone-preservado', reason: exc.reason }); continue; }
+      status.set(rel, { status: 'fora-do-template' });
+      continue;
+    }
+    const srcAbs = files.find(([r]) => r === rel)[1];
+    const newHash = sha256File(srcAbs);
+    const dst = join(forge, rel);
+    if (!existsSync(dst)) { status.set(rel, { status: 'nao-instalado' }); continue; }
+    const dstHash = sha256File(dst);
+    if (dstHash === newHash) { status.set(rel, { status: 'identica' }); continue; }
+    if (isEnrichable(rel)) { status.set(rel, { status: 'enrichable' }); continue; }
+    // Casamento por IGUALDADE ESTRITA, nunca por prefixo — igual ao parser de origem
+    // (`check-machinery-drift.sh:321`: `[ "${exc_sha[$EXC_IDX]}" = "$sha" ]`). Uma versão anterior
+    // comparava por prefixo achando que o parser de origem fazia o mesmo; não faz. Um sha declarado
+    // com menos de 64 dígitos (sintaxe válida, >= 32 dígitos) nunca é igual ao sha de 64 dígitos do
+    // template — cai sempre em EXPIRADA, e ainda assim preserva o arquivo (DH-1), nunca bloqueia.
+    if (exc.sha === newHash) { status.set(rel, { status: 'viva', reason: exc.reason }); continue; }
+    status.set(rel, { status: 'expirada', declared: exc.sha, atual: newHash });
+  }
+  return status;
+}
+
+// Nomeia, no relatório, quando o caminho declarado em machinery-exceptions.txt levou normalização
+// de prefixo (normalizeExceptionPath) — nunca normaliza em silêncio (achado LOW do review
+// adversarial): quem declarou './scripts/doctor.sh' vê a própria grafia ao lado da forma que o
+// update de fato usou para casar contra o template.
+function excRawNote(exceptions, rel) {
+  const exc = exceptions.entries.get(rel);
+  return exc && exc.raw ? ` (declarado como '${exc.raw}')` : '';
+}
+
 // Só o campo harness.template_version é atualizado no forge.yaml — adapters e flags ficam intactos.
 function bumpTemplateVersion(forge, version) {
   const p = join(forge, 'forge.yaml');
@@ -540,23 +670,43 @@ async function updateHarness() {
   const src = vals.source ? resolve(vals.source) : TEMPLATE_FORGE;
   const version = pkgVersion();
   const files = machineryFiles(src);
+  // Validado ANTES do dry-run e de qualquer escrita (backup incluso): arquivo malformado ou
+  // ilegível para o processo inteiro, dry-run também.
+  const exceptions = readMachineryExceptions(forge);
+  // Tombstones PRESENTES no consumidor, calculado antes de qualquer escrita — nem o overlay nem o
+  // backup tocam caminho tombstoned (invariante do template: tombstone nunca está no template
+  // atual), então o mesmo conjunto vale aqui e no laço de poda mais abaixo.
+  const tombstonedPresent = new Set(orphansToPrune(forge));
+  const excStatusByRel = classifyExceptions(forge, files, exceptions, tombstonedPresent);
 
-  // dry-run: lista o que mudaria (conteúdo diferente ou arquivo novo), sem escrever nada.
+  // dry-run: lista o que mudaria (conteúdo diferente ou arquivo novo), sem escrever nada. Usa a
+  // MESMA classificação de exceções que a aplicação real usa (ver classifyExceptions) — a prévia
+  // não pode anunciar sobrescrita de arquivo que o update real preserva.
   if (flags.dryRun) {
     const changes = [];
     const lockDry = readMachineryLock(forge);
     for (const [rel, srcAbs] of files) {
       const dst = join(forge, rel);
-      if (!existsSync(dst)) changes.push(`+ ${rel}`);
-      else if (readFileSync(srcAbs, 'utf8') !== readFileSync(dst, 'utf8')) {
-        const custom = isEnrichable(rel) && !(lockDry && lockDry.get(rel) === sha256File(dst));
+      if (!existsSync(dst)) { changes.push(`+ ${rel}`); continue; }
+      if (readFileSync(srcAbs, 'utf8') === readFileSync(dst, 'utf8')) continue;
+      if (isEnrichable(rel)) {
+        const custom = !(lockDry && lockDry.get(rel) === sha256File(dst));
         changes.push(custom ? `= ${rel} (preservado — customização local)` : `~ ${rel}`);
+        continue;
       }
+      const est = excStatusByRel.get(rel);
+      if (est && est.status === 'viva') { changes.push(`= ${rel} (preservado — exceção declarada)${excRawNote(exceptions, rel)}`); continue; }
+      if (est && est.status === 'expirada') { changes.push(`= ${rel} (preservado — EXCEÇÃO EXPIRADA: declarado ${est.declared}, template ${est.atual})${excRawNote(exceptions, rel)}`); continue; }
+      const intocado = lockDry && lockDry.get(rel) === sha256File(dst);
+      changes.push(intocado ? `~ ${rel} (o template evoluiu — arquivo intocado localmente)` : `~ ${rel} (sobrescrita não declarada)`);
     }
     const fy = join(forge, 'forge.yaml');
     if (existsSync(fy) && !new RegExp(`template_version:\\s*"?${version}"?`).test(readFileSync(fy, 'utf8')))
       changes.push('~ forge.yaml (template_version)');
-    for (const rel of orphansToPrune(forge)) changes.push(`- ${rel} (órfão — removido/renomeado no template)`);
+    for (const rel of orphansToPrune(forge)) {
+      if (exceptions.entries.has(rel)) changes.push(`= ${rel} (tombstone pulado — exceção declarada)${excRawNote(exceptions, rel)}`);
+      else changes.push(`- ${rel} (órfão — removido/renomeado no template)`);
+    }
     const nk = newForgeKeys(src, forge);
     for (const key of nk.keys) changes.push(`~ forge.yaml (+ ${key}: bloco novo)`);
     for (const key of nk.skipped) changes.push(`! forge.yaml (${key}: seção nova exige preenchimento manual — não mesclada)`);
@@ -572,6 +722,10 @@ async function updateHarness() {
   // backup por CÓPIA (o update edita in place; não move como o init --force). Pulável com --no-backup.
   // Exclui worktrees/ (working trees de git worktrees linkados — potencialmente enormes e com ponteiros
   // gitdir que quebram numa cópia) além do cruft do macOS.
+  // `mostra` (destino do backup, para exibição) hoisted para fora do bloco: as linhas
+  // `SOBRESCRITO (não declarado)` do overlay abaixo apontam para ele mesmo com --no-backup
+  // (nesse caso, null — a mensagem por arquivo diz que não há backup).
+  let mostra = null;
   if (!flags.noBackup) {
     // FORA da árvore de trabalho (issue #76). O backup vivia em `.forge.bak-N`, dentro do repo, e
     // todo gate que aceita `--path` e varre recursivamente passava a varrer também a CÓPIA — e a
@@ -603,7 +757,7 @@ async function updateHarness() {
       recursive: true,
       filter: (p) => basename(p) !== '.DS_Store' && !relative(forge, p).split(sep).includes('worktrees'),
     });
-    const mostra = gitDir ? relative(target, bakDir) : `.forge.bak-${n}`;
+    mostra = gitDir ? relative(target, bakDir) : `.forge.bak-${n}`;
     console.log(`backup: .forge copiado para ${mostra}`);
     if (!gitDir) console.log('  (fora de um repositório git: o backup ficou DENTRO da árvore — remova-o antes de rodar gates com --path)');
   }
@@ -612,9 +766,29 @@ async function updateHarness() {
   // Em ENRICHABLE_DIRS a sobrescrita é condicionada ao lock de template (ver comentário da
   // constante — issue #16): customização local é preservada e reportada, nunca revertida.
   const oldLock = readMachineryLock(forge);
+
+  // excStatusByRel já foi calculado antes do dry-run (classifyExceptions, acima) — "todo caminho
+  // declarado aparece exatamente uma vez no relatório" vale porque É A MESMA classificação usada
+  // pela prévia e pela aplicação real; não recalcula aqui.
+
   let written = 0;
   const preservedFiles = [];
+  // Caminhos preservados por exceção declarada (viva ou expirada), fora de ENRICHABLE_DIRS —
+  // somado a `preservedFiles` só no orphan-check de placeholders (ver abaixo). Mantido separado de
+  // `preservedFiles` porque as duas listas têm reportagem própria (a seção de exceções, mais
+  // abaixo, já nomeia cada uma) e misturá-las duplicaria a linha `preservados: N arquivo(s)`.
+  const excPreservedFiles = [];
   const driftWarned = [];
+  const overwrittenUndeclared = [];
+  // Arquivo NEM enriquecível NEM coberto por exceção, que diverge do template novo, mas cujo hash
+  // local bate com o `machinery.lock` da última aplicação: o consumidor nunca tocou o arquivo —
+  // foi o TEMPLATE que evoluiu. Achado do review adversarial (MEDIUM): rotular isso como
+  // `SOBRESCRITO (não declarado)` — a letra original do plano, "com ou sem lock" — é tecnicamente
+  // correto mas, numa atualização real com dezenas de arquivos defasados, afoga a única sobrescrita
+  // local de verdade em dezenas de linhas idênticas de refresh rotineiro. Continua nomeado (uma
+  // linha por arquivo, nunca em silêncio) — só que sob um rótulo que não confunde "template mudou"
+  // com "sua customização foi revertida".
+  const templateUpdated = [];
   for (const [rel, srcAbs] of files) {
     const dst = join(forge, rel);
     if (existsSync(dst)) {
@@ -624,10 +798,29 @@ async function updateHarness() {
         preservedFiles.push(rel);
         continue;
       }
-      // maquinaria própria (scripts/commands/...): sobrescreve, mas fix local vira aviso — o
-      // fluxo certo para fix em maquinaria é upstream no template; o backup .forge.bak-N cobre.
-      if (!isEnrichable(rel) && oldLock && oldLock.has(rel) && dstHash !== oldLock.get(rel) && dstHash !== newHash)
-        driftWarned.push(rel);
+      if (!isEnrichable(rel)) {
+        const est = excStatusByRel.get(rel);
+        // Exceção viva ou expirada preserva sempre (issue #131, DH-1): o updater deixa de ser
+        // cego a `.forge/machinery-exceptions.txt` e para de reverter em silêncio a decisão
+        // humana registrada ali, com ou sem `machinery.lock`.
+        if (est && (est.status === 'viva' || est.status === 'expirada')) { excPreservedFiles.push(rel); continue; }
+        if (dstHash !== newHash) {
+          if (oldLock && oldLock.get(rel) === dstHash) {
+            templateUpdated.push(rel);
+          } else {
+            // Nem enriquecível, nem coberto por exceção, nem provadamente intocado pelo lock: vai
+            // ser sobrescrito. Nomeado sempre — com ou sem lock — porque o silêncio aqui é
+            // exatamente o defeito da #101: um conserto local em `scripts/`/`hooks/`/`commands/`
+            // revertido com rc=0 e sem aviso no PRIMEIRO update depois de editado (quando ainda não
+            // existe lock nenhum).
+            overwrittenUndeclared.push(rel);
+            // maquinaria própria (scripts/commands/...): sobrescreve, mas fix local vira aviso — o
+            // fluxo certo para fix em maquinaria é upstream no template; o backup cobre.
+            if (oldLock && oldLock.has(rel) && dstHash !== oldLock.get(rel))
+              driftWarned.push(rel);
+          }
+        }
+      }
     }
     mkdirSync(dirname(dst), { recursive: true });
     cpSync(srcAbs, dst);
@@ -639,14 +832,66 @@ async function updateHarness() {
     for (const rel of preservedFiles.sort()) console.log(`  = ${rel}`);
     console.log('  (se o template também mudou nesses paths, reconcilie à mão — diff contra .forge.bak-N)');
   }
-  for (const rel of driftWarned.sort())
-    console.log(`WARN: drift local em ${rel} sobrescrito pelo template (fix local em maquinaria? faça upstream; backup em .forge.bak-N)`);
+  // achado do review adversarial (LOW): o texto apontava `.forge.bak-N`, convenção anterior à
+  // #76 (o backup mudou para fora da árvore, em `.git/forge-backups/`) — `mostra` já resolve o
+  // ponteiro real e é o mesmo usado pelas linhas ATUALIZADO/SOBRESCRITO logo abaixo.
+  for (const rel of driftWarned.sort()) {
+    const backupPointer = mostra ? join(mostra, rel) : '(sem backup — rodado com --no-backup)';
+    console.log(`WARN: drift local em ${rel} sobrescrito pelo template (fix local em maquinaria? faça upstream; conteúdo anterior em ${backupPointer})`);
+  }
+  for (const rel of templateUpdated.sort()) {
+    const backupPointer = mostra ? join(mostra, rel) : '(sem backup — rodado com --no-backup)';
+    console.log(`ATUALIZADO: ${rel} — sem edição local (idêntico ao lock anterior); o template evoluiu; conteúdo anterior em ${backupPointer}`);
+  }
+  for (const rel of overwrittenUndeclared.sort()) {
+    const backupPointer = mostra ? join(mostra, rel) : '(sem backup — rodado com --no-backup)';
+    console.log(`SOBRESCRITO (não declarado): ${rel} — conteúdo anterior em ${backupPointer}`);
+  }
+
+  // Relatório de exceções: todo caminho declarado em machinery-exceptions.txt aparece aqui
+  // exatamente uma vez, na categoria que excStatusByRel já decidiu antes do laço. tombstone-
+  // preservado é reportado só na seção de tombstones abaixo (senão o caminho apareceria duas
+  // vezes — achado do review adversarial, MEDIUM).
+  const excViva = [], excExpirada = [], excOciosa = [];
+  for (const [rel, exc] of exceptions.entries) {
+    const est = excStatusByRel.get(rel) || { status: 'fora-do-template' };
+    if (est.status === 'tombstone-preservado') continue;
+    if (est.status === 'viva') excViva.push({ rel, reason: exc.reason });
+    else if (est.status === 'expirada') excExpirada.push({ rel, declared: est.declared, atual: est.atual });
+    else if (est.status === 'identica') excOciosa.push({ rel, motivo: 'arquivo já idêntico ao template' });
+    else if (est.status === 'enrichable') excOciosa.push({ rel, motivo: 'caminho enriquecível — a preservação de rules/agents/skills já cobre; exceção não se aplica' });
+    else if (est.status === 'nao-instalado') excOciosa.push({ rel, motivo: 'arquivo ausente — será instalado do template; exceção não se aplica' });
+    else excOciosa.push({ rel, motivo: 'caminho fora do template atual' });
+  }
+  if (excViva.length) {
+    console.log(`exceções declaradas: ${excViva.length} arquivo(s) preservado(s) por divergência deliberada:`);
+    for (const e of excViva.sort((a, b) => (a.rel < b.rel ? -1 : 1)))
+      console.log(`  PRESERVADO (exceção declarada): ${e.rel} — razão: ${e.reason || '(sem razão declarada)'}${excRawNote(exceptions, e.rel)}`);
+  }
+  if (excExpirada.length) {
+    console.log(`exceções expiradas: ${excExpirada.length} arquivo(s) com a declaração desatualizada (preservados mesmo assim):`);
+    for (const e of excExpirada.sort((a, b) => (a.rel < b.rel ? -1 : 1)))
+      console.log(`  EXCEÇÃO EXPIRADA: ${e.rel} — sha declarado ${e.declared}, sha do template novo ${e.atual}${excRawNote(exceptions, e.rel)}`);
+  }
+  if (excOciosa.length) {
+    console.log(`exceções ociosas: ${excOciosa.length} declaração(ões) sem efeito nesta execução:`);
+    for (const e of excOciosa.sort((a, b) => (a.rel < b.rel ? -1 : 1)))
+      console.log(`  EXCEÇÃO OCIOSA: ${e.rel} — ${e.motivo}${excRawNote(exceptions, e.rel)}`);
+  }
   writeMachineryLock(forge, files, version, vals.source ? src : '');
 
-  // orphan-check defensivo: nenhum arquivo de maquinaria deve conter <PROJECT_*> após overlay
+  // orphan-check defensivo: nenhum arquivo de maquinaria deve conter <PROJECT_*> após overlay.
+  // Isento tanto `preservedFiles` (customização local em ENRICHABLE_DIRS) quanto
+  // `excPreservedFiles` (exceção declarada viva ou expirada fora de ENRICHABLE_DIRS) — as duas
+  // listas guardam conteúdo do CONSUMIDOR, nunca do template, e por isso não podem reprovar este
+  // check. Achado MEDIUM do review adversarial: antes desta correção, só `preservedFiles` entrava
+  // no conjunto isento; um arquivo preservado por exceção que contivesse `<PROJECT_*>` literal
+  // (por exemplo, uma nota local com um placeholder nunca substituído de propósito) fazia o update
+  // abortar com rc 1 DEPOIS de já ter escrito o overlay e o `machinery.lock`, culpando "o template"
+  // por um conteúdo que era do próprio consumidor.
   const isTemplated = (f) => /\.(md|ya?ml)$/.test(f);
   const underTemplates = (f) => relative(forge, f).split(sep).includes('templates');
-  const preservedSet = new Set(preservedFiles);
+  const preservedSet = new Set([...preservedFiles, ...excPreservedFiles]);
   const orphans = files
     .filter(([rel]) => !preservedSet.has(rel)) // conteúdo preservado é do consumidor, não do template
     .map(([rel]) => join(forge, rel))
@@ -661,9 +906,19 @@ async function updateHarness() {
   // A mesma invariante do overlay vale aqui (revisão do PR #17): tombstone em path ENRIQUECÍVEL
   // só deleta se o arquivo local é o template intocado (hash == lock da última aplicação);
   // customização local é mantida com aviso — remover diretiva de owner é decisão humana.
+  // Achado do review adversarial (MEDIUM): exceção declarada para um caminho tombstoned era
+  // relatada como "EXCEÇÃO OCIOSA — sem efeito" e, na sequência, o mesmo caminho era apagado pela
+  // poda — a exceção não tinha NENHUM efeito real sobre o único ramo que poderia apagar o arquivo.
+  // Exceção declarada barra a poda incondicionalmente (não depende de lock nem de sha — não há
+  // "sha do template atual" para um caminho que o template já removeu).
   const stale = [];
   const keptTombstones = [];
+  const keptExceptionTombstones = [];
   for (const rel of orphansToPrune(forge)) {
+    if (exceptions.entries.has(rel)) {
+      keptExceptionTombstones.push(rel);
+      continue;
+    }
     if (isEnrichable(rel) && !(oldLock && oldLock.get(rel) === sha256File(join(forge, rel)))) {
       keptTombstones.push(rel);
       continue;
@@ -680,6 +935,10 @@ async function updateHarness() {
   }
   for (const rel of keptTombstones.sort())
     console.log(`= ${rel} (tombstone pulado — customização local; o template removeu este path, remova à mão se não precisar mais)`);
+  for (const rel of keptExceptionTombstones.sort()) {
+    const exc = exceptions.entries.get(rel);
+    console.log(`= ${rel} (tombstone pulado — exceção declarada: ${exc.reason || '(sem razão declarada)'})${excRawNote(exceptions, rel)}`);
+  }
 
   // forge.yaml: template_version + merge aditivo de chaves de topo novas do template (ex.: autonomy:)
   if (bumpTemplateVersion(forge, version)) console.log(`forge.yaml: template_version -> ${version}`);

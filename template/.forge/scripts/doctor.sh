@@ -134,27 +134,78 @@ _generated_header() { # _generated_header <arquivo>
   return 1
 }
 
+# _settings_hooks_is_derived <root> — issue #160/LDG-0189. O lockfile guarda o sha256 do
+# `.claude/settings.json` INTEIRO, então uma edição em QUALQUER chave de topo (`permissions`,
+# `env`, `includeCoAuthoredBy`, ...) muda esse hash e acusa "drift" — mesmo sabendo, desde a
+# #160, que o `sync` preserva essas chaves em vez de apagá-las. Recomendar
+# "rode sync-adapters.sh" sem ressalva nesse caso sugere uma correção quando não há nada a
+# corrigir. Aqui comparamos só a árvore `hooks` (a única parte de que o gerador é dono) contra o
+# que `preToolUseWiring(root)` derivaria agora — a mesma leitura pura e já exportada que #125/#160
+# usam (issue #130); NUNCA um export novo, que quebraria o contrato de superfície travado pelo
+# gate w216 [1] ("expõe SÓ preToolUseWiring"). Se baterem byte a byte, a fiação já está correta e
+# o hash mudou só por causa de uma chave autoral. Imprime "yes"/"no"; qualquer erro (node ausente,
+# settings.json ilegível, etc.) cai em "no" — modo conservador, mantém a recomendação de sync.
+_settings_hooks_is_derived() { # _settings_hooks_is_derived <root>
+  local root="$1" lib="$1/.forge/scripts/lib/sync-adapters.mjs" settings="$1/.claude/settings.json"
+  command -v node >/dev/null 2>&1 && [ -f "$lib" ] && [ -f "$settings" ] || { echo "no"; return; }
+  # Variáveis de ambiente, NUNCA argv posicional (achado de correção): passar o caminho da lib
+  # como argumento de `-e` grava esse MESMO caminho em `process.argv[1]` dentro do script — e
+  # `isMainModule()` (dentro de sync-adapters.mjs) compara `process.argv[1]` contra a URL do
+  # PRÓPRIO módulo. Os dois batendo faz o import ser tratado como invocação principal e reconciliar
+  # o consumidor como efeito colateral desta leitura de diagnóstico (a mesma classe de dano que a
+  # #130 fecha) — reproduzido durante o desenvolvimento desta issue.
+  DOCTOR_SETTINGS_LIB="$lib" DOCTOR_SETTINGS_ROOT="$root" DOCTOR_SETTINGS_FILE="$settings" \
+  node --input-type=module -e '
+    import { pathToFileURL } from "node:url";
+    import { readFileSync } from "node:fs";
+    const { DOCTOR_SETTINGS_LIB: libPath, DOCTOR_SETTINGS_ROOT: root, DOCTOR_SETTINGS_FILE: settingsPath } = process.env;
+    try {
+      const m = await import(pathToFileURL(libPath).href);
+      const derived = JSON.stringify(m.preToolUseWiring(root));
+      const current = JSON.parse(readFileSync(settingsPath, "utf8"));
+      console.log(JSON.stringify(current.hooks ?? null) === derived ? "yes" : "no");
+    } catch { console.log("no"); }
+  ' 2>/dev/null || echo "no"
+}
+
 locks_found=0
   for lock in "$ROOT"/.forge/adapters/*.lock.yaml; do
     [ -f "$lock" ] || continue
     locks_found=$((locks_found + 1))
     aname="$(basename "$lock" .lock.yaml)"
     drift=0
+    authordrift=0
     while read -r dest hash; do
       [ -n "$dest" ] || continue
       if [ "$hash" = "symlink" ]; then
         { [ -L "$ROOT/$dest" ] || _generated_header "$ROOT/$dest"; } || drift=$((drift + 1))
       elif [ -f "$ROOT/$dest" ]; then
         actual="sha256:$(shasum -a 256 "$ROOT/$dest" | cut -d' ' -f1)"
-        [ "$actual" = "$hash" ] || drift=$((drift + 1))
+        if [ "$actual" = "$hash" ]; then
+          :
+        elif [ "$dest" = ".claude/settings.json" ] && [ "$(_settings_hooks_is_derived "$ROOT")" = "yes" ]; then
+          # #160/LDG-0189: a fiação (`hooks`) já bate com o que o gerador derivaria agora — o
+          # sha mudou só por causa de uma chave de topo autoral, que o sync preserva.
+          authordrift=$((authordrift + 1))
+        else
+          drift=$((drift + 1))
+        fi
       else
         drift=$((drift + 1))
       fi
     done <<EOF_LOCK
 $(awk '/^  - dest: /{d=$3} /^    sha256: /{print d" "$2}' "$lock")
 EOF_LOCK
-    if [ "$drift" -eq 0 ]; then ok "harness: adapter $aname sem drift (lockfile íntegro)"
-    else miss "harness: $drift alvo(s) do adapter $aname com drift (rode .forge/scripts/sync-adapters.sh)"; MISSING_DIAG=1; fi
+    if [ "$drift" -eq 0 ] && [ "$authordrift" -eq 0 ]; then
+      ok "harness: adapter $aname sem drift (lockfile íntegro)"
+    elif [ "$drift" -eq 0 ]; then
+      info "harness: adapter $aname — $authordrift chave(s) autoral(is) de .claude/settings.json alterada(s) desde o último sync (permissions/env/...); o sync preserva essas chaves, nenhuma ação necessária"
+    else
+      miss "harness: $drift alvo(s) do adapter $aname com drift (rode .forge/scripts/sync-adapters.sh)"; MISSING_DIAG=1
+      if [ "$authordrift" -gt 0 ]; then
+        info "harness: mais $authordrift chave(s) autoral(is) de .claude/settings.json alterada(s) — preservadas pelo sync, sem ação"
+      fi
+    fi
   done
   if [ "$locks_found" -eq 0 ]; then
     info "harness: nenhum lockfile de adapter (rode .forge/scripts/sync-adapters.sh)"

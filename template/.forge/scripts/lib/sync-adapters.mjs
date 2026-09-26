@@ -23,8 +23,9 @@ import {
   existsSync, symlinkSync, lstatSync, unlinkSync, readlinkSync, rmdirSync, realpathSync
 } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { join, relative, basename, dirname } from 'node:path';
+import { join, relative, basename, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';
 
 // CliError — marca as validações INTENCIONAIS (FORGE.md ausente, --set vazio, adapter
 // desconhecido) que o galho principal converte em `FAIL (mensagem)` de uma linha. Um erro
@@ -154,22 +155,124 @@ function readYamlAutoFlag(yamlPath, key) {
 // para comparar contra o `.claude/settings.json` já materializado (issue #130: `const wiring =
 // mod.preToolUseWiring(root)`). `GENERATORS.claude` chama esta mesma função para gerar o
 // settings.json real, então as duas leituras nunca divergem.
+//
+// OWNED_HOOK_COMMANDS (issue #160/LDG-0189) é o universo COMPLETO de comandos que esta função
+// pode emitir, em QUALQUER combinação de flags do forge.yaml — não só os que a chamada atual
+// produziu. É pela IGUALDADE DE STRING contra este conjunto, nunca pela simples menção a
+// `.forge/hooks/`, que `mergeHooksObject` decide se uma entrada de hook já existente em
+// `.claude/settings.json` é dona do gerador (substituível) ou de terceiro (preservada). Um
+// consumidor real (axis-fare-validator, medido) tem ganchos próprios que citam `.forge/hooks/`
+// via wrapper (`dispatch-file-hook.sh $CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/<gancho>.sh`)
+// sem SEREM nenhum destes três comandos — perdê-los seria o mesmo dano que esta issue fecha.
+const CMD_ENFORCE_WORKTREE = '$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/enforce-worktree-location.sh';
+const CMD_SESSION_START = '$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-start.sh';
+const CMD_SESSION_END = '$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-end.sh';
+const OWNED_HOOK_COMMANDS = new Set([CMD_ENFORCE_WORKTREE, CMD_SESSION_START, CMD_SESSION_END]);
+
 export function preToolUseWiring(root) {
   const forgeYaml = join(root, '.forge', 'forge.yaml');
-  const hooks = { PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command: '$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/enforce-worktree-location.sh' }] }] };
+  const hooks = { PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command: CMD_ENFORCE_WORKTREE }] }] };
   const handoffAuto = readYamlAutoFlag(forgeYaml, 'handoff');
   const ledgerAuto = readYamlAutoFlag(forgeYaml, 'ledger');
   const liaisonAuto = readYamlAutoFlag(forgeYaml, 'liaison');
   // SessionStart injeta o handoff, os itens do ledger e/ou o resumo do inbox do liaison — o hook
   // decide o quê lendo o forge.yaml, então basta um dos flags para materializá-lo.
   if (handoffAuto || ledgerAuto || liaisonAuto) {
-    hooks.SessionStart = [{ hooks: [{ type: 'command', command: '$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-start.sh' }] }];
+    hooks.SessionStart = [{ hooks: [{ type: 'command', command: CMD_SESSION_START }] }];
   }
   // SessionEnd só regenera o scaffold do handoff (o ledger é regenerado a cada mutação).
   if (handoffAuto) {
-    hooks.SessionEnd = [{ hooks: [{ type: 'command', command: '$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-end.sh' }] }];
+    hooks.SessionEnd = [{ hooks: [{ type: 'command', command: CMD_SESSION_END }] }];
   }
   return hooks;
+}
+
+// mergeHooksObject(existingHooks, derivedHooks) — issue #160: pura, sem I/O. Para cada categoria
+// (PreToolUse/SessionStart/SessionEnd, ou qualquer categoria de terceiro nunca emitida por este
+// gerador), remove das entradas JÁ EXISTENTES só os itens cujo `command` bate por IGUALDADE DE
+// STRING com `OWNED_HOOK_COMMANDS`; um grupo {matcher, hooks:[...]} que fica sem nenhum hook
+// depois da remoção é descartado por inteiro (era só do gerador). O que sobra (hooks de terceiro,
+// de qualquer matcher) entra ANTES dos grupos recém-derivados, sempre na mesma ordem relativa —
+// é essa ordem estável, não uma fusão por matcher, que torna dois `sync` seguidos byte-idênticos:
+// na segunda passada, o grupo próprio já reaparece como "existente" e volta a ser removido antes
+// de ser reemitido, sem duplicar.
+function mergeHooksObject(existingHooks, derivedHooks) {
+  const categories = [];
+  const seen = new Set();
+  for (const k of Object.keys(existingHooks || {})) { categories.push(k); seen.add(k); }
+  for (const k of Object.keys(derivedHooks || {})) { if (!seen.has(k)) { categories.push(k); seen.add(k); } }
+  const out = {};
+  for (const cat of categories) {
+    const existingGroups = Array.isArray(existingHooks?.[cat]) ? existingHooks[cat] : [];
+    const derivedGroups = Array.isArray(derivedHooks?.[cat]) ? derivedHooks[cat] : [];
+    const foreignGroups = [];
+    for (const group of existingGroups) {
+      if (!group || !Array.isArray(group.hooks)) { foreignGroups.push(group); continue; }
+      const keptHooks = group.hooks.filter((h) => !(h && OWNED_HOOK_COMMANDS.has(h.command)));
+      if (keptHooks.length === 0) continue; // grupo inteiro era do gerador — descarta
+      foreignGroups.push(keptHooks.length === group.hooks.length ? group : { ...group, hooks: keptHooks });
+    }
+    const merged = [...foreignGroups, ...derivedGroups];
+    if (merged.length) out[cat] = merged;
+  }
+  return out;
+}
+
+// mergeSettingsJson(existingText, derivedHooks) — issue #160: pura. `existingText` é o conteúdo
+// bruto (string) do `.claude/settings.json` já materializado, ou `null` quando não existe ou era
+// JSON ilegível (o chamador já tratou o backup nesse caso — ver `backupUnreadableSettings`).
+// Preserva toda chave de topo que não seja `hooks`, na MESMA posição em que já estava — o gerador
+// só é dono do que ele mesmo referencia dentro de `hooks`, nunca de `permissions`, `env`,
+// `includeCoAuthoredBy` ou qualquer chave de terceiro. Sem `existingText`, o resultado é
+// `{ hooks: derivedHooks }`, igual ao comportamento anterior a esta issue.
+function mergeSettingsJson(existingText, derivedHooks) {
+  let existing = null;
+  if (existingText != null) {
+    try {
+      const parsed = JSON.parse(existingText);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) existing = parsed;
+    } catch { existing = null; }
+  }
+  const existingHooks = (existing && existing.hooks && typeof existing.hooks === 'object' && !Array.isArray(existing.hooks))
+    ? existing.hooks : {};
+  const mergedHooks = mergeHooksObject(existingHooks, derivedHooks);
+  const out = {};
+  if (existing) {
+    for (const k of Object.keys(existing)) {
+      if (k === 'hooks') { out.hooks = mergedHooks; continue; }
+      out[k] = existing[k];
+    }
+  }
+  if (!('hooks' in out)) out.hooks = mergedHooks;
+  return out;
+}
+
+// resolveGitDir(root) — mesma resolução de `bin/forge.mjs:596`: numa worktree LIGADA, `.git` é um
+// ARQUIVO (não diretório) apontando para o gitdir real sob o repositório principal, e o caminho
+// literal `<root>/.git/forge-backups/` falharia (ENOTDIR). `git -C <root> rev-parse --git-dir`
+// resolve certo nos dois casos — devolve `null` fora de um repositório git.
+function resolveGitDir(root) {
+  try {
+    return resolve(root, execFileSync('git', ['-C', root, 'rev-parse', '--git-dir'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim());
+  } catch { return null; }
+}
+
+// backupUnreadableSettings(root, settingsPath, bytes) — issue #160, mesma política da #120
+// (DA-09): um `.claude/settings.json` com JSON ilegível NUNCA é regenerado por cima em silêncio.
+// Os bytes anteriores vão para `<git-dir>/forge-backups/settings-<n>.json` (fora do universo de
+// qualquer gate e de `git status` — mesmo raciocínio do backup do `update`), e um WARN nomeia o
+// caminho antes de a geração seguir como se o arquivo não existisse (rc 0). Fora de um
+// repositório git, o backup cai ao lado do próprio arquivo.
+function backupUnreadableSettings(root, settingsPath, bytes) {
+  const gitDir = resolveGitDir(root);
+  const bakRoot = gitDir ? join(gitDir, 'forge-backups') : dirname(settingsPath);
+  mkdirSync(bakRoot, { recursive: true });
+  let n = 1;
+  while (existsSync(join(bakRoot, `settings-${n}.json`))) n++;
+  const bakPath = join(bakRoot, `settings-${n}.json`);
+  writeFileSync(bakPath, bytes);
+  console.error(`WARN: .claude/settings.json ilegível (JSON inválido) — conteúdo anterior salvo em ${bakPath}`);
+  return bakPath;
 }
 
 function writeActive(names) {
@@ -265,8 +368,25 @@ const GENERATORS = {
         lock.emit(join(ROOT, '.claude', tree, relative(join(FORGE, tree), src)), readFileSync(src, 'utf8'), src);
       }
     }
-    const hooks = preToolUseWiring(ROOT);
-    lock.emit(join(ROOT, '.claude/settings.json'), JSON.stringify({ hooks }, null, 2) + '\n');
+    // #160/LDG-0189: o gerador só é dono do que ele referencia dentro de `hooks` (ver
+    // `mergeHooksObject`) — toda outra chave de topo (`permissions`, `env`,
+    // `includeCoAuthoredBy`, ...) e todo hook de terceiro sobrevivem ao `sync`, de forma
+    // idempotente. JSON ilegível vira backup (nunca é sobrescrito em silêncio) antes de a
+    // geração seguir como se o arquivo não existisse.
+    const settingsPath = join(ROOT, '.claude/settings.json');
+    let existingSettingsText = null;
+    if (existsSync(settingsPath)) {
+      const raw = readFileSync(settingsPath, 'utf8');
+      try {
+        JSON.parse(raw);
+        existingSettingsText = raw;
+      } catch {
+        backupUnreadableSettings(ROOT, settingsPath, raw);
+        existingSettingsText = null;
+      }
+    }
+    const mergedSettings = mergeSettingsJson(existingSettingsText, preToolUseWiring(ROOT));
+    lock.emit(settingsPath, JSON.stringify(mergedSettings, null, 2) + '\n');
     lock.linkToAgentsMd('CLAUDE.md');
   },
   codex(_lock) { /* consumes the canonical AGENTS.md (core) — no extra target (§15) */ },

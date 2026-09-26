@@ -242,6 +242,42 @@ export function applyBundle({ chDir, fromDir, self }) {
       }
     }
   }
+
+  // --- passada de recuperação de blob (issue #107) --------------------------------------------
+  // A cópia acima só alcança mensagem NOVA (`toAdd`, dentro de `batch`). Mensagem já conhecida sai
+  // por `dup++; continue` na passada 3, bem antes daqui, e por isso nunca era revisitada — uma
+  // réplica que perdesse o blob de uma mensagem já aceita não o recuperava por sync nenhum, e o
+  // comando terminava em rc 0 sem aviso.
+  //
+  // Aqui a reconciliação de CONTEÚDO REFERENCIADO é separada da aceitação de MENSAGEM: percorre-se
+  // TODA mensagem já presente localmente (não só as do bundle) com `body_ref`, e instala-se em
+  // blobsDir o que faltar, a partir de fromBlobs, quando lá existe. `fromBlobs` é a fonte correta
+  // tanto para `sync` (o transporte de `pull` copia TODOS os blobs do hub para o staging, não só
+  // os de mensagens novas — ver `_dir_pull` em lib/transports/_common.sh) quanto para `import`
+  // manual (o bundle explícito que o operador aponta).
+  let blobsRecovered = 0;
+  const blobsMissingBoth = [];
+  const localSenderFiles = existsSync(logDir)
+    ? readdirSync(logDir).filter((f) => f.endsWith('.jsonl'))
+    : [];
+  for (const file of localSenderFiles) {
+    for (const m of readJsonl(join(logDir, file))) {
+      if (!m.body_ref || !M.BODY_REF_RE.test(m.body_ref)) continue;
+      const blobName = m.body_ref.slice('blobs/'.length);
+      const dest = join(blobsDir, blobName);
+      if (existsSync(dest)) continue; // já temos — nada a recuperar
+      const src = join(fromBlobs, blobName);
+      if (existsSync(src)) {
+        copyFileSync(src, dest);
+        blobsRecovered++;
+      } else {
+        // Ausente nos dois lados: nem local, nem no bundle/hub desta chamada. Não é recusa — o
+        // resto do import continua íntegro —, mas é perda real que merece nome e contagem, nunca
+        // um rc 0 silencioso.
+        blobsMissingBoth.push(m.msg_id);
+      }
+    }
+  }
   for (const [msgId, reason, incoming, existing] of conflictsToWrite) {
     writeFileSync(join(conflictsDir, `${msgId}.json`), JSON.stringify({ msg_id: msgId, reason, incoming, existing: existing || null }, null, 2) + '\n');
   }
@@ -296,6 +332,8 @@ export function applyBundle({ chDir, fromDir, self }) {
     quarantinedPositions: divergences.length,
     remaining,
     divergences,
+    blobsRecovered,
+    blobsMissingBoth,
   };
 }
 

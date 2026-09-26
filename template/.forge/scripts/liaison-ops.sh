@@ -219,18 +219,35 @@ const { pathToFileURL } = require('url');
   const M = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
   const r = applyBundle({ chDir, fromDir, self });
   const div = r.divergences.map((d) => `${d.sender}@seq=${d.seq} (${d.incoming ? d.incoming.msg_id : '?'})`).join(', ');
-  process.stdout.write([r.accepted, r.dup, r.conflicts, r.quarantined, r.remaining, M.IMPORT_MAX_MESSAGES, div].join('\t'));
+  const missingBoth = r.blobsMissingBoth.join(',');
+  // Separador \x1f (US, não-espaço): um campo vazio no MEIO da lista (`div` sem divergência,
+  // `missingBoth` sem perda) não pode colapsar com o vizinho. TAB é "IFS whitespace" para o `read`
+  // do bash mesmo quando é o único caractere em IFS — sequências dele se fundem e campo vazio some,
+  // desalinhando todos os campos depois. \x1f nunca aparece em sender, msg_id ou texto livre.
+  process.stdout.write([r.accepted, r.dup, r.conflicts, r.quarantined, r.remaining, M.IMPORT_MAX_MESSAGES, div, r.blobsRecovered, missingBoth].join('\x1f'));
 })();
 NODEEOF
 )" || return 1
-  local n_new n_dup n_conf n_quar n_rest n_max div
-  IFS=$'\t' read -r n_new n_dup n_conf n_quar n_rest n_max div <<< "$out"
+  local n_new n_dup n_conf n_quar n_rest n_max div n_recovered missing_both
+  IFS=$'\x1f' read -r n_new n_dup n_conf n_quar n_rest n_max div n_recovered missing_both <<< "$out"
   _render "$channel"
   if [ -n "$div" ]; then
     # Fail-loud continua: reescrita de história exige ação humana na ORIGEM. O que mudou é o
     # escopo do dano — só as posições nomeadas ficam retidas, o resto do log é aplicado.
     echo "FAIL: divergência de log em $div — log append-only não reescreve história; essas POSIÇÕES ficaram em quarentena (ver conflicts/) e as demais mensagens foram aplicadas" >&2
     rc=1
+  fi
+  # Recuperação de blob (issue #107): mensagem já conhecida que tinha perdido o corpo. Não é
+  # candidato a FAIL — o conteúdo voltou —, mas precisa aparecer, senão a recuperação é tão
+  # silenciosa quanto a perda que ela conserta.
+  if [ "${n_recovered:-0}" -gt 0 ]; then
+    echo "  $n_recovered blob(s) recuperado(s) do hub (mensagem já conhecida sem corpo local)"
+  fi
+  # Blob ausente nos DOIS lados (local e hub/bundle desta chamada): aviso, não recusa — o resto do
+  # import continua íntegro —, mas é perda real que merece nome e contagem, nunca rc 0 calado.
+  if [ -n "${missing_both:-}" ]; then
+    local n_missing; n_missing="$(tr ',' '\n' <<< "$missing_both" | grep -c .)"
+    echo "WARN: $n_missing body_ref sem blob (local e hub): $missing_both" >&2
   fi
   local tail=""
   # Backlog acima do teto não é erro: é o próximo lote. Sem esta linha, um sync que aplicou 200 de

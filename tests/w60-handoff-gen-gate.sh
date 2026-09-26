@@ -29,9 +29,12 @@
 #       perda/sem-perda (bytes aleatórios dentro E fora dos marcadores, inclusive UTF-8 inválido,
 #       para os quadrantes de perda; corpo de slot reaproveitando o render atual — inclusive com um
 #       commit real de deriva de estado entre as duas gerações — para o quadrante sem perda com
-#       marcadores; arquivo anterior vazio para o quadrante sem perda sem marcadores), os bytes
-#       anteriores são sempre recuperáveis depois da geração — no próprio arquivo (delta preservado,
-#       comparado por Buffer) ou num backup byte-idêntico nomeado pelo WARN
+#       marcadores; arquivo anterior vazio para o quadrante sem perda sem marcadores; e um quinto
+#       quadrante, `wm-fieldline-loss` — achado MEDIUM da 5ª rodada —, que cola texto gerado logo
+#       depois do valor de um campo, NA MESMA LINHA dele, dentro de um render de referência real, em
+#       vez de bytes aleatórios só no prefixo/sufixo), os bytes anteriores são sempre recuperáveis
+#       depois da geração — no próprio arquivo (delta preservado, comparado por Buffer) ou num backup
+#       byte-idêntico nomeado pelo WARN
 #   [8] backup é byte-idêntico ao arquivo anterior mesmo com bytes inválidos em UTF-8, e a
 #       contagem de bytes no WARN bate com o tamanho bruto do arquivo, não com a string decodificada
 #   [9] arquivo anterior de 0 bytes → nenhum backup, nenhum WARN (nada a recuperar)
@@ -47,6 +50,11 @@
 #   [13] achado MEDIUM (4ª rodada): fluxo canônico com um commit real entre duas gerações — só
 #        HEAD sha/data avançam, nada mais muda — não dispara backup nem WARN (a forma do template
 #        aceita qualquer valor nos campos gerados)
+#   [14] achado HIGH (5ª rodada, revisão do #120): nota real colada na MESMA LINHA de um campo
+#        (`{{CHANGE_ID}}` no título e `{{OPEN_DEFERRALS}}` na seção 2) é recuperável por backup
+#        byte-idêntico + WARN — a forma por regex da 4ª rodada casava esse texto com o coringa do
+#        campo e o descartava com rc 0 e stderr vazio; nenhum byte pode ficar irrecuperável só por
+#        estar na mesma linha de um campo gerado
 set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -185,7 +193,7 @@ const byteGen = G.array(G.int(0, 255), 0, 30);
 // quadrantes "com-marcadores" ganham um sabor de corpo de slot (edgeChoice) que exercita as bordas
 // que o achado HIGH nomeou: prefixo do placeholder seguido de texto real, indentação/linhas em
 // branco, e — só no quadrante sem-perda — uma deriva de estado por commit real (achado MEDIUM).
-const kindGen = G.oneOf(['wm-loss', 'wm-noloss', 'nm-loss', 'nm-noloss']);
+const kindGen = G.oneOf(['wm-loss', 'wm-noloss', 'nm-loss', 'nm-noloss', 'wm-fieldline-loss']);
 const edgeGen = G.oneOf(['random', 'placeholder-prefix', 'indented', 'bordered-spaces', 'commit-drift']);
 
 function runCase(kind, bodyWords, prefixBytes, suffixBytes, edgeChoice) {
@@ -221,6 +229,19 @@ function runCase(kind, bodyWords, prefixBytes, suffixBytes, edgeChoice) {
       bodyBuf,
       Buffer.from(refStr.slice(rce), 'utf8'),
     ]);
+  } else if (kind === 'wm-fieldline-loss') {
+    // Achado MEDIUM (5ª rodada): a perda cola NA MESMA LINHA de um campo, dentro de um render real
+    // — não bytes aleatórios soltos num prefixo isolado. Reaproveita a referência real (como
+    // wm-noloss) e cola o texto gerado logo depois do valor de {{CHANGE_ID}}, na 1ª linha do
+    // documento (fora do slot; o corpo do slot fica como o placeholder do render de referência).
+    if (fs.existsSync(H)) fs.rmSync(H);
+    const res0 = spawnSync('bash', [gen, 'demo-change'], { cwd: root, env: { ...process.env, FORGE_ROOT: root }, encoding: 'utf8' });
+    if (res0.status !== 0) return false;
+    const refStr = fs.readFileSync(H, 'utf8');
+    const eol = refStr.indexOf('\n');
+    if (eol < 0) return false;
+    const withNote = `${refStr.slice(0, eol)} — NOTA: ${words}${refStr.slice(eol)}`;
+    prevBuf = Buffer.from(withNote, 'utf8');
   } else {
     const prefixBuf = Buffer.from(prefixBytes);
     const suffixBuf = Buffer.from(suffixBytes);
@@ -235,7 +256,9 @@ function runCase(kind, bodyWords, prefixBytes, suffixBytes, edgeChoice) {
   const afterBuf = fs.readFileSync(H);
   // Com marcadores, o corpo do slot tem de sobreviver dentro do próprio arquivo sempre, bruto,
   // qualquer que seja seu formato — é a única parte que o merge de fato reescreve para preservar.
-  if (hasMarkers && !afterBuf.includes(bodyBuf)) return false;
+  // Não vale para `wm-fieldline-loss`: ali o texto extra fica fora do slot (colado numa linha de
+  // campo), então ele NÃO deve sobreviver ao vivo — só recuperável via backup, como qualquer perda.
+  if (hasMarkers && kind !== 'wm-fieldline-loss' && !afterBuf.includes(bodyBuf)) return false;
   if (afterBuf.equals(prevBuf)) return true; // nada mudou — nada a recuperar
 
   const m = /salvo em (.*)$/m.exec(res.stderr || '');
@@ -382,5 +405,36 @@ SHA_B="$(sed -n 's/.*HEAD `\([^`]*\)`.*/\1/p' "$H" | head -1)"
 [ "$(backup_count)" = "$BC_BEFORE13" ] || { echo "FAIL [13] (backup criado só porque HEAD sha/data avançaram — achado MEDIUM da 4ª rodada)"; exit 1; }
 grep -q 'demo-change' "$H"
 echo "OK [13]"
+
+echo "[14] achado HIGH (5ª rodada): nota real colada na MESMA LINHA de um campo (título com {{CHANGE_ID}}, linha de {{OPEN_DEFERRALS}}) é recuperável por backup + WARN — não some com rc 0/stderr vazio"
+FORGE_ROOT="$T" bash "$GEN" demo-change >/dev/null 2>&1   # regenera do zero — marcadores presentes, estado inalterado
+python3 - "$H" <<'PY'
+import sys
+p = sys.argv[1]
+s = open(p).read()
+assert '# Handoff — demo-change\n' in s, 'pré-condição: título sem o valor esperado do campo'
+assert '- **Deferrals abertos:** DEFER-1\n' in s, 'pré-condição: linha de deferrals sem o valor esperado do campo'
+s = s.replace('# Handoff — demo-change\n', '# Handoff — demo-change (retomar pelo gateway; NAO fazer merge ate o pentest)\n')
+s = s.replace('- **Deferrals abertos:** DEFER-1\n', '- **Deferrals abertos:** DEFER-1 — NOTA: bloqueado pelo time de pagamentos\n')
+open(p, 'w').write(s)
+PY
+cp "$H" "$T/prev-14.bin"
+EXPECT_BYTES14="$(wc -c < "$T/prev-14.bin" | tr -d ' ')"
+BC_BEFORE14="$(backup_count)"
+FORGE_ROOT="$T" bash "$GEN" demo-change >"$T/stdout-14.log" 2>"$T/stderr-14.log"
+grep -q 'retomar pelo gateway\|bloqueado pelo time de pagamentos' "$H" \
+  && { echo "FAIL [14] (a nota colada na mesma linha de um campo sobreviveu no arquivo novo — não deveria, só a seção 4 é preservada no próprio arquivo)"; exit 1; }
+grep -q '^WARN: HANDOFF.md com conteúdo fora do bloco NARRATIVE-DELTA' "$T/stderr-14.log" \
+  || { echo "FAIL [14] (WARN ausente em stderr — nota na mesma linha de um campo foi perdida sem aviso, rc 0)"; cat "$T/stderr-14.log"; exit 1; }
+grep -q "conteúdo anterior ($EXPECT_BYTES14 bytes)" "$T/stderr-14.log" \
+  || { echo "FAIL [14] (contagem de bytes no WARN não bate com o arquivo anterior)"; cat "$T/stderr-14.log"; exit 1; }
+WARN_PATH14="$(sed -n 's/.*salvo em \(.*\)$/\1/p' "$T/stderr-14.log" | head -1)"
+[ -n "$WARN_PATH14" ] || { echo "FAIL [14] (WARN sem caminho)"; exit 1; }
+cmp -s "$T/prev-14.bin" "$WARN_PATH14" \
+  || { echo "FAIL [14] (backup não é byte-idêntico ao arquivo anterior — a nota não sobreviveu nem no arquivo nem no backup)"; exit 1; }
+grep -q 'retomar pelo gateway' "$WARN_PATH14" || { echo "FAIL [14] (nota do título ausente do backup)"; exit 1; }
+grep -q 'bloqueado pelo time de pagamentos' "$WARN_PATH14" || { echo "FAIL [14] (nota da linha de deferrals ausente do backup)"; exit 1; }
+[ "$(backup_count)" = "$((BC_BEFORE14 + 1))" ] || { echo "FAIL [14] (esperado 1 backup novo — achei $(($(backup_count) - BC_BEFORE14)))"; exit 1; }
+echo "OK [14]"
 
 echo "PASS w60-handoff-gen-gate"

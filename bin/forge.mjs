@@ -373,14 +373,26 @@ const driftWarnLine = (n, semLock, dry, hasHistory) => `WARN: ${n} arquivo(s) de
 
 const sha256File = (p) => createHash('sha256').update(readFileSync(p)).digest('hex');
 
-// Histórico de versões publicadas do template: `<template>/../machinery-history.json` (no pacote, `template/machinery-history.json`, ao lado de `template/.forge`), gerado por tools/build-machinery-history.mjs a partir das tags v*. Mapa caminho -> Set(sha256) de todo conteúdo que aquele caminho já teve numa versão publicada. É a prova de "intocado" quando o machinery.lock não prova (sem entrada para o caminho: consumidor que só rodou `init`, clone novo, outra máquina, porque `.forge/cache/` é ignorado pelo .gitignore gerenciado; ou entrada defasada: update feito em outra worktree que chegou por pull): um arquivo byte-idêntico a uma versão publicada nunca foi editado pelo consumidor. Sem ele, o update congelava toda a maquinaria de quem não tinha lock (medido: consumidor pristino da 0.15.0 com 22 de 22 arquivos alterados retidos, inclusive o gancho de segredos da #125). Ausente ou ilegível: sem prova, e o caminho sem entrada no lock volta ao fallback conservador (preservar).
+// Histórico de versões publicadas do template: `<template>/../machinery-history.json` (no pacote, `template/machinery-history.json`, ao lado de `template/.forge`), gerado por tools/build-machinery-history.mjs a partir das tags v*. Mapa caminho -> Set(sha256) de todo conteúdo que aquele caminho já teve numa versão publicada. É a prova de "intocado" quando o machinery.lock não prova (sem entrada para o caminho: consumidor que só rodou `init`, clone novo, outra máquina, porque `.forge/cache/` é ignorado pelo .gitignore gerenciado; ou entrada defasada: update feito em outra worktree que chegou por pull): um arquivo byte-idêntico a uma versão publicada nunca foi editado pelo consumidor. Sem ele, o update congelava toda a maquinaria de quem não tinha lock (medido: consumidor pristino da 0.15.0 com 22 de 22 arquivos alterados retidos, inclusive o gancho de segredos da #125). Ausente, ilegível ou vazio (paths de tipo errado ou sem entradas): sem prova, e o caminho sem entrada no lock volta ao fallback conservador (preservar).
 function readMachineryHistory(src) {
   const p = join(dirname(src), 'machinery-history.json');
   if (!existsSync(p)) return null;
   try {
     const j = JSON.parse(readFileSync(p, 'utf8'));
+    const paths = j && typeof j === 'object' && !Array.isArray(j) ? j.paths : undefined;
     const map = new Map();
-    for (const [rel, arr] of Object.entries(j.paths || {})) if (Array.isArray(arr)) map.set(rel, new Set(arr));
+    if (paths && typeof paths === 'object' && !Array.isArray(paths))
+      for (const [rel, arr] of Object.entries(paths)) if (Array.isArray(arr)) map.set(rel, new Set(arr));
+    // `paths` ausente, de tipo errado (array, string, ...) ou vazio ({} / {"paths":{}} / []) é a MESMA
+    // ausência de histórico que o arquivo ilegível: sem nenhuma entrada, este `readMachineryHistory`
+    // não consultou nada, e devolver um Map vazio (em vez de null) fazia o chamador afirmar "não é
+    // nenhuma versão publicada" (hasHistory=true) sobre um histórico que nunca existiu de fato — o
+    // WARN e o retorno null abaixo espelham o caminho do catch, para que o chamador trate os dois
+    // como a mesma coisa: nada para provar.
+    if (map.size === 0) {
+      console.log(`WARN: ${p} sem entradas de histórico (paths ausente, de tipo inesperado, ou vazio) — sem histórico de versões publicadas, arquivo sem entrada no machinery.lock é preservado`);
+      return null;
+    }
     return map;
   } catch (e) {
     console.log(`WARN: ${p} ilegível (${e.message}) — sem histórico de versões publicadas, arquivo sem entrada no machinery.lock é preservado`);

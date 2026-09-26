@@ -332,16 +332,27 @@ SRC15="$T/src15"
 mkdir -p "$SRC15"
 cp -R "$TPL" "$SRC15/.forge"
 [ ! -e "$SRC15/machinery-history.json" ] || { echo "FAIL [15] (setup): há histórico ao lado da fonte sem histórico"; exit 1; }
+# Fonte com histórico VAZIO ({} — LOW-1): o arquivo existe, mas sem nenhum path registrado. Conta
+# como ausência de histórico (mesma linha/WARN do caso "sem"), nunca como prova de nada — um Map
+# vazio não é diferente de não ter consultado nada.
+SRC15B="$T/src15b"
+mkdir -p "$SRC15B"
+cp -R "$TPL" "$SRC15B/.forge"
+printf '{}\n' > "$SRC15B/machinery-history.json"
 LINHA15_COM="PRESERVADO (sem lock para provar): $REL — o conteúdo local não é nenhuma versão publicada do template; versão nova do template em $PEND/$REL"
 LINHA15_SEM="PRESERVADO (sem lock para provar): $REL — sem histórico de versões publicadas para provar; versão nova do template em $PEND/$REL"
 WARN15_COM='(1 sem lock para provar que estava(m) intocado(s): conteúdo fora de toda versão publicada do template)'
 WARN15_SEM='(1 sem lock para provar que estava(m) intocado(s): sem histórico de versões publicadas para provar)'
 N15=0
-confere15() {  # confere15 <forge.mjs> <com|sem> -> rc 0 se a linha e o WARN do caso batem e os do outro caso não aparecem; motivo em $MOTIVO15
-  local bin="$1" caso="$2" src linha outra warn outrowarn c out
+confere15() {  # confere15 <forge.mjs> <com|sem|vazio> -> rc 0 se a linha e o WARN (aplicação real E --dry-run) do caso batem e os do outro caso não aparecem; motivo em $MOTIVO15
+  local bin="$1" caso="$2" src linha outra warn outrowarn c out cdry outdry
   N15=$((N15 + 1))
-  if [ "$caso" = com ]; then src="$TPL"; linha="$LINHA15_COM"; outra="$LINHA15_SEM"; warn="$WARN15_COM"; outrowarn="$WARN15_SEM"
-  else src="$SRC15/.forge"; linha="$LINHA15_SEM"; outra="$LINHA15_COM"; warn="$WARN15_SEM"; outrowarn="$WARN15_COM"; fi
+  case "$caso" in
+    com)   src="$TPL";          linha="$LINHA15_COM"; outra="$LINHA15_SEM"; warn="$WARN15_COM"; outrowarn="$WARN15_SEM" ;;
+    sem)   src="$SRC15/.forge";  linha="$LINHA15_SEM"; outra="$LINHA15_COM"; warn="$WARN15_SEM"; outrowarn="$WARN15_COM" ;;
+    vazio) src="$SRC15B/.forge"; linha="$LINHA15_SEM"; outra="$LINHA15_COM"; warn="$WARN15_SEM"; outrowarn="$WARN15_COM" ;;
+    *) MOTIVO15="caso desconhecido: $caso"; return 1 ;;
+  esac
   c="$(consumidor "c15-$N15")"
   [ ! -f "$c/.forge/cache/machinery.lock" ] || { MOTIVO15="(setup) o consumidor já tem machinery.lock"; return 1; }
   printf '\n# CONSERTO-LOCAL-w239-c15-%s\n' "$N15" >> "$c/.forge/$REL"
@@ -350,12 +361,24 @@ confere15() {  # confere15 <forge.mjs> <com|sem> -> rc 0 se a linha e o WARN do 
   grep -qF "$outra" <<<"$out" && { MOTIVO15="linha do outro caso presente ($caso histórico)"; return 1; }
   grep '^WARN: 1 arquivo(s) de maquinaria preservado(s)' <<<"$out" | grep -qF "$warn" || { MOTIVO15="WARN agregado sem o texto esperado ($caso histórico): $(grep '^WARN: 1 arquivo(s)' <<<"$out")"; return 1; }
   grep -qF "$outrowarn" <<<"$out" && { MOTIVO15="WARN do outro caso presente ($caso histórico)"; return 1; }
+  # LOW-2: o --dry-run agregado precisa afirmar o MESMO texto (com/sem histórico) que a aplicação
+  # real — num consumidor SEPARADO (o --dry-run não escreve; reaproveitar o de cima já teria o
+  # pendente e o lock da rodada real, o que não é o que este bloco mede).
+  N15=$((N15 + 1))
+  cdry="$(consumidor "c15-$N15")"
+  [ ! -f "$cdry/.forge/cache/machinery.lock" ] || { MOTIVO15="(setup --dry-run) o consumidor já tem machinery.lock"; return 1; }
+  printf '\n# CONSERTO-LOCAL-w239-c15-%s\n' "$N15" >> "$cdry/.forge/$REL"
+  outdry="$(node "$bin" update --target "$cdry" --no-plugin --no-backup --source "$src" --dry-run 2>&1)" || { MOTIVO15="--dry-run saiu rc≠0: $(tail -3 <<<"$outdry")"; return 1; }
+  grep '^WARN: 1 arquivo(s) de maquinaria seriam preservado(s)' <<<"$outdry" | grep -qF "$warn" \
+    || { MOTIVO15="WARN do --dry-run sem o texto esperado ($caso histórico): $(grep '^WARN: 1 arquivo(s)' <<<"$outdry")"; return 1; }
+  grep -qF "$outrowarn" <<<"$outdry" && { MOTIVO15="WARN do --dry-run do outro caso presente ($caso histórico)"; return 1; }
   return 0
 }
-# Controle: o forge.mjs real acerta os dois textos.
+# Controle: o forge.mjs real acerta os três casos (com, sem, e sem-por-histórico-vazio).
 confere15 "$FORGE" com || { echo "FAIL [15] (controle, com histórico): $MOTIVO15"; exit 1; }
 confere15 "$FORGE" sem || { echo "FAIL [15] (controle, sem histórico): $MOTIVO15"; exit 1; }
-# Mutação: o driftVerdict deixa de distinguir a ausência do histórico. O pacote mutante reaproveita template, installer e package.json do repositório.
+confere15 "$FORGE" vazio || { echo "FAIL [15] (controle, histórico vazio {}): $MOTIVO15"; exit 1; }
+# Mutação (driftVerdict): o driftVerdict deixa de distinguir a ausência do histórico. O pacote mutante reaproveita template, installer e package.json do repositório.
 MUT15="$T/mut15"
 mkdir -p "$MUT15/bin"
 ln -s "$WS/template" "$MUT15/template"
@@ -371,6 +394,26 @@ echo "  mutante reprovado no caso sem histórico, como esperado: $MOTIVO15"
 confere15 "$MUT15/bin/forge.mjs" com || { echo "FAIL [15] (mutação): o mutante reprovou também o caso com histórico, então a reprovação não isola o defeito: $MOTIVO15"; exit 1; }
 # Recontrole: o forge.mjs real, de novo, no caso que o mutante reprovou.
 confere15 "$FORGE" sem || { echo "FAIL [15] (recontrole, sem histórico): $MOTIVO15"; exit 1; }
+
+# Mutação (LOW-2): o WARN agregado do --dry-run passa a afirmar hasHistory=true incondicionalmente
+# (`historyDry !== null` -> `true`, perto da linha 895 de bin/forge.mjs). Sem a checagem do
+# --dry-run dentro de confere15 (acima), esse mutante sobrevivia ao [15] inteiro — nenhum cenário
+# rodava `update --dry-run` no caso sem histórico.
+MUT15B="$T/mut15b"
+mkdir -p "$MUT15B/bin"
+ln -s "$WS/template" "$MUT15B/template"
+ln -s "$WS/installer" "$MUT15B/installer"
+ln -s "$WS/package.json" "$MUT15B/package.json"
+ALVO15B="historyDry !== null"
+[ "$(grep -cF "$ALVO15B" "$FORGE")" -eq 1 ] || { echo "FAIL [15] (mutação LOW-2): alvo ausente ou repetido no forge.mjs: $ALVO15B"; exit 1; }
+sed "s/historyDry !== null/true/" "$FORGE" > "$MUT15B/bin/forge.mjs"
+cmp -s "$FORGE" "$MUT15B/bin/forge.mjs" && { echo "FAIL [15] (mutação LOW-2): o sed não mudou nada"; exit 1; }
+grep -qF "$ALVO15B" "$MUT15B/bin/forge.mjs" && { echo "FAIL [15] (mutação LOW-2): o alvo continua no mutante"; exit 1; }
+confere15 "$MUT15B/bin/forge.mjs" sem && { echo "FAIL [15] (mutação LOW-2): o mutante que força hasHistory=true no --dry-run passou no caso sem histórico — o WARN do --dry-run não mede o texto"; exit 1; }
+echo "  mutante LOW-2 reprovado no caso sem histórico, como esperado: $MOTIVO15"
+confere15 "$MUT15B/bin/forge.mjs" com || { echo "FAIL [15] (mutação LOW-2): o mutante reprovou também o caso com histórico, então a reprovação não isola o defeito: $MOTIVO15"; exit 1; }
+# Recontrole (LOW-2): o forge.mjs real, de novo, no caso que o mutante LOW-2 reprovou.
+confere15 "$FORGE" sem || { echo "FAIL [15] (recontrole LOW-2, sem histórico): $MOTIVO15"; exit 1; }
 echo "OK [15]"
 
 echo "[10] PBT: o desfecho é função pura do estado gerado"

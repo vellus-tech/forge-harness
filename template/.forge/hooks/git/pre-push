@@ -57,7 +57,13 @@ resolve_delegated() {  # resolve_delegated <label> <rel-sob-.forge/> — ecoa o 
     trunk_dir="$(dirname "$trunk")"
   fi
   if [ -n "$trunk" ] && [ -f "$trunk" ]; then
-    echo "hook: $label ausente em $ROOT — usando o do tronco ($trunk); rode forge update na worktree" >&2
+    # Achado LOW da correção do #141 (rodada 2): quando $ROOT/.forge não existe NADA — branch
+    # anterior à adoção do harness, nunca uma worktree defasada —, não há o que "forge update"
+    # atualizasse ali, e o aviso instruiria a corrigir algo que não existe. Suprimido só nesse
+    # caso; o alvo do tronco continua sendo usado exatamente como antes, só a linha some.
+    if [ -d "$ROOT/.forge" ]; then
+      echo "hook: $label ausente em $ROOT — usando o do tronco ($trunk); rode forge update na worktree" >&2
+    fi
     printf '%s\n' "$trunk"
     return 0
   fi
@@ -568,10 +574,23 @@ fi
 # só invertida. A guarda de diretório e o `--path` resolvem as duas: só tenta resolver quando
 # `$ROOT/.forge/scripts/tests` existe NA WORKTREE (senão seria correto ficar em silêncio, como
 # antes da #73), e sempre aponta a execução para essa mesma árvore, venha o runner de onde vier.
+#
+# Achado LOW da correção do #141 (rodada 2): `--path` só faz sentido quando o runner foi
+# EMPRESTADO do tronco — é o argumento que aponta a execução para a árvore certa quando o
+# binário que roda não é o dela. Um runner PRÓPRIO da worktree sempre soube examinar a própria
+# árvore sem precisar de argumento nenhum (era chamado sem `--path` antes desta issue), e um
+# runner de consumidor mais estrito, que rejeita opção desconhecida, passava a bloquear o push
+# só porque `--path` chegou de uma correção que não era dele — quebra de retrocompatibilidade
+# que a #141 não previa. `--path` só é passado quando `$HARNESS_SUITE` resolveu para fora da
+# própria worktree.
 if [ -d "$ROOT/.forge/scripts/tests" ]; then
   HARNESS_SUITE="$(resolve_delegated run-all.sh scripts/tests/run-all.sh)"; _rc=$?
   if [ -n "$HARNESS_SUITE" ]; then
-    run_check "harness-tests" "bash '$HARNESS_SUITE' --path '$ROOT/.forge/scripts/tests'"
+    if [ "$HARNESS_SUITE" = "$ROOT/.forge/scripts/tests/run-all.sh" ]; then
+      run_check "harness-tests" "bash '$HARNESS_SUITE'"
+    else
+      run_check "harness-tests" "bash '$HARNESS_SUITE' --path '$ROOT/.forge/scripts/tests'"
+    fi
   elif [ "$_rc" -eq 1 ]; then
     echo "pre-push BLOQUEADO: .forge/scripts/tests/ existe mas run-all.sh não — a suíte do harness sumiu." >&2
     echo "  Guarda que ninguém roda não cobre nada; restaure o runner ou remova o diretório." >&2

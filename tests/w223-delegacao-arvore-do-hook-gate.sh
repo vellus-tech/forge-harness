@@ -51,6 +51,22 @@
 #   [12b] pre-push — contrafactual do [12]: a mesma lib v0.10.0 na worktree, e o tronco TAMBÉM sem forge_runtime_gate_entries (mesma versão v0.10.0 lá) → BLOQUEIA nomeando a incompatibilidade, nunca silêncio verde
 #   [13] pre-push — check-liaison-log-integrity.sh e check-worktree-prereqs.sh (sítios de AVISO, nunca bloqueio) ausentes na worktree, presentes no tronco → os dois RODAM de verdade a partir do tronco, nomeando-o (achado LOW do adendo: os dois só checavam `$ROOT` literal e perdiam a checagem em silêncio quando só o tronco tinha o script)
 #   [13b] pre-push — contrafactual do [13]: os dois ausentes nas DUAS árvores → continuam como AVISO "NÃO VERIFICADO" (nunca bloqueio), comportamento inalterado
+#
+# Achados da rodada de correção (revisão adversarial sobre este PR, não sobre o w223 original):
+#   [5d] pre-push — HARNESS_SUITE com runner PRÓPRIO da worktree, estrito (sai 64 ao receber
+#       qualquer argumento) → passa sem `--path`, como sempre chamou; contrafactual embutido do
+#       LOW "--path passado também ao runner próprio", que quebrava retrocompatibilidade com um
+#       runner de consumidor mais estrito que a #141 não previu
+#   [10d] pre-push — forma MAPEADA: forge-runtime.sh PRÓPRIO da worktree e COMPATÍVEL (tem
+#       forge_runtime_gate_entries), mas gate-phase.mjs ausente só na worktree; tronco tem o par
+#       completo → troca as DUAS (RUNTIME_LIB e gate-phase.mjs) para o tronco e o gate declarado,
+#       que FALHA, roda de verdade (rc 1, marcador do gate impresso) — mutante sobrevivente do
+#       achado MEDIUM do adendo de revisão: [10b] só cobria os dois alvos ausentes JUNTOS na
+#       worktree, onde RUNTIME_LIB já vinha do tronco e a troca de par não fazia nada
+#   [14] pre-push — worktree de branch anterior à adoção do harness, SEM `.forge/` nenhum (não
+#       uma worktree defasada — nunca teve harness) → o push ainda sai rc 0 usando os scripts do
+#       tronco (defesa em profundidade inalterada), mas as linhas "usando o do tronco ... rode
+#       forge update na worktree" são SUPRIMIDAS, porque não há o que atualizar ali
 set -uo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -297,6 +313,38 @@ case "$out" in
 esac
 echo "OK [5c]"
 
+# ── [5d] pre-push — HARNESS_SUITE com runner PRÓPRIO da worktree, estrito ───────────────────
+# Achado LOW da correção do #141 (rodada 2): `--path` era passado ao runner em QUALQUER origem,
+# inclusive quando a worktree tem o seu PRÓPRIO run-all.sh — antes desta issue ele era chamado
+# sem argumento nenhum. Um runner de consumidor mais estrito, que rejeita opção desconhecida com
+# rc 64, passava a bloquear o push só por causa de um argumento que não era dele.
+echo "[5d] pre-push — run-all.sh PRÓPRIO da worktree, estrito (rejeita qualquer argumento com rc 64)"
+echo "     → chamado SEM --path, como sempre foi; passa"
+R5D="$T/r5d"; TR5D="$T/tr5d"
+mktrunk "$TR5D"
+cp "$HOOKS/pre-push" "$TR5D/.forge/hooks/git/pre-push"; chmod +x "$TR5D/.forge/hooks/git/pre-push"
+printf '#!/usr/bin/env bash\ncheck_docs_reviewed() { return 0; }\n' > "$TR5D/.forge/hooks/git/lib/check-docs-reviewed.sh"
+printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n' > "$TR5D/.forge/hooks/git/lib/check-red-first.sh"
+mkrepo "$R5D" "$TR5D/.forge/hooks/git"
+mkdir -p "$R5D/.forge/hooks/git/lib" "$R5D/.forge/scripts/tests"
+cp "$TR5D/.forge/hooks/git/lib/check-docs-reviewed.sh" "$R5D/.forge/hooks/git/lib/check-docs-reviewed.sh"
+cp "$TR5D/.forge/hooks/git/lib/check-red-first.sh" "$R5D/.forge/hooks/git/lib/check-red-first.sh"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$R5D/.forge/scripts/check-ai-attribution.sh"; chmod +x "$R5D/.forge/scripts/check-ai-attribution.sh"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$R5D/.forge/scripts/check-liaison-acks.sh"; chmod +x "$R5D/.forge/scripts/check-liaison-acks.sh"
+printf -- '---\nforge_version: 1\n---\n\n# FORGE\n\nruntime:\n  test:\n  typecheck:\n' > "$R5D/.forge/FORGE.md"
+# runner PRÓPRIO, estrito: qualquer argumento (inclusive --path) sai 64; sem argumento, roda o
+# teste (que passa) e sai 0.
+printf '#!/usr/bin/env bash\n[ $# -eq 0 ] || exit 64\nexit 0\n' > "$R5D/.forge/scripts/tests/run-all.sh"
+chmod +x "$R5D/.forge/scripts/tests/run-all.sh"
+SHA5D="$(git -C "$R5D" rev-parse HEAD)"
+out="$(cd "$R5D" && printf 'refs/heads/main %s refs/heads/main %s\n' "$SHA5D" "$ZERO" | bash "$TR5D/.forge/hooks/git/pre-push" origin "file://$R5D" 2>&1)"; rc=$?
+[ "$rc" -eq 0 ] || { echo "FAIL [5d]: pre-push bloqueou com o runner próprio estrito — recebeu argumento que não deveria (saída: '$out')"; exit 1; }
+case "$out" in
+  *"harness-tests OK"*) : ;;
+  *) echo "FAIL [5d]: harness-tests não passou pelo runner próprio (saída: '$out')"; exit 1 ;;
+esac
+echo "OK [5d]"
+
 # ── [6] pre-push — lint de shell, com .sh no diff ───────────────────────────────────────────
 echo "[6] pre-push — check-shell-pipeline.sh ausente na worktree, presente no tronco, .sh no diff"
 R6="$T/r6"; TR6="$T/tr6"
@@ -502,6 +550,56 @@ case "$out" in
 esac
 echo "OK [10c]"
 
+# ── [10d] pre-push — forge-runtime.sh PRÓPRIO e compatível, gate-phase.mjs só no tronco ─────
+# Mutante sobrevivente do achado MEDIUM do adendo de revisão do w223: [10b] só cobre o caso em
+# que forge-runtime.sh E gate-phase.mjs faltam JUNTOS na worktree — aí RUNTIME_LIB já vem do
+# tronco e a troca de par (linha "$_gp_dir" != "$(dirname "$RUNTIME_LIB")") não faz nada, porque
+# as duas resoluções já coincidem. Este cenário isola a troca de verdade: RUNTIME_LIB resolve
+# para a PRÓPRIA worktree (o arquivo existe lá e É compatível — tem forge_runtime_gate_entries),
+# mas gate-phase.mjs só existe no tronco. Sem a troca das DUAS variáveis juntas,
+# forge_runtime_gate_entries (sourced da worktree) buscaria gate-phase.mjs pelo `script_dir`
+# INTERNO da própria lib (a worktree), onde ele não existe, e devolveria vazio em silêncio —
+# "NO-GATES", pre-push OK, rc 0, sem o gate declarado nunca rodar.
+echo "[10d] pre-push — forma mapeada: forge-runtime.sh PRÓPRIO da worktree (compatível), mas"
+echo "      gate-phase.mjs só no tronco → troca as DUAS para o tronco e RODA o gate, que FALHA"
+R10D="$T/r10d"; TR10D="$T/tr10d"
+mktrunk "$TR10D"
+cp "$HOOKS/pre-push" "$TR10D/.forge/hooks/git/pre-push"; chmod +x "$TR10D/.forge/hooks/git/pre-push"
+printf '#!/usr/bin/env bash\ncheck_docs_reviewed() { return 0; }\n' > "$TR10D/.forge/hooks/git/lib/check-docs-reviewed.sh"
+printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n' > "$TR10D/.forge/hooks/git/lib/check-red-first.sh"
+# tronco tem o PAR completo (forge-runtime.sh + gate-phase.mjs + yaml-lite.mjs).
+cp "$WS/template/.forge/scripts/lib/forge-runtime.sh" "$TR10D/.forge/scripts/lib/forge-runtime.sh"
+cp "$WS/template/.forge/scripts/lib/gate-phase.mjs" "$TR10D/.forge/scripts/lib/gate-phase.mjs"
+cp "$WS/template/.forge/scripts/lib/yaml-lite.mjs" "$TR10D/.forge/scripts/lib/yaml-lite.mjs"
+mkrepo "$R10D" "$TR10D/.forge/hooks/git"
+mkdir -p "$R10D/.forge/hooks/git/lib" "$R10D/.forge/scripts/lib"
+cp "$TR10D/.forge/hooks/git/lib/check-docs-reviewed.sh" "$R10D/.forge/hooks/git/lib/check-docs-reviewed.sh"
+cp "$TR10D/.forge/hooks/git/lib/check-red-first.sh" "$R10D/.forge/hooks/git/lib/check-red-first.sh"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$R10D/.forge/scripts/check-ai-attribution.sh"; chmod +x "$R10D/.forge/scripts/check-ai-attribution.sh"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$R10D/.forge/scripts/check-liaison-acks.sh"; chmod +x "$R10D/.forge/scripts/check-liaison-acks.sh"
+# forge-runtime.sh PRÓPRIO da worktree, compatível (mesma cópia do template — tem
+# forge_runtime_gate_entries); gate-phase.mjs NÃO existe aqui.
+cp "$WS/template/.forge/scripts/lib/forge-runtime.sh" "$R10D/.forge/scripts/lib/forge-runtime.sh"
+printf '#!/usr/bin/env bash\necho "meu-gate-mapeado RODOU-E-FALHOU"\nexit 1\n' > "$R10D/.forge/scripts/meu-gate-mapeado.sh"
+chmod +x "$R10D/.forge/scripts/meu-gate-mapeado.sh"
+printf -- '---\nforge_version: 1\nruntime:\n  test:\n  typecheck:\n  gates:\n    - meu-gate-mapeado\n---\n\n# FORGE\n' > "$R10D/.forge/FORGE.md"
+SHA10D="$(git -C "$R10D" rev-parse HEAD)"
+out="$(cd "$R10D" && printf 'refs/heads/main %s refs/heads/main %s\n' "$SHA10D" "$ZERO" | bash "$TR10D/.forge/hooks/git/pre-push" origin "file://$R10D" 2>&1)"; rc=$?
+[ "$rc" -ne 0 ] || { echo "FAIL [10d]: pre-push passou (rc 0) com gate-phase.mjs só no tronco e gate declarado que deveria FALHAR — silêncio verde (saída: '$out')"; exit 1; }
+case "$out" in
+  *"usando o do tronco"*"gate-phase.mjs"*) : ;;
+  *) echo "FAIL [10d]: não nomeou a troca para o tronco de gate-phase.mjs (saída: '$out')"; exit 1 ;;
+esac
+case "$out" in
+  *"meu-gate-mapeado RODOU-E-FALHOU"*) : ;;
+  *) echo "FAIL [10d]: o gate da forma mapeada não rodou de verdade (saída: '$out')"; exit 1 ;;
+esac
+case "$out" in
+  *"NO-GATES"*) echo "FAIL [10d]: saída contém NO-GATES — o par não foi trocado, silêncio verde (saída: '$out')"; exit 1 ;;
+  *) : ;;
+esac
+echo "OK [10d]"
+
 # ── [11] pre-push — recusa nomeia AS DUAS árvores procuradas ────────────────────────────────
 echo "[11] pre-push — alvo ausente nas duas árvores: a recusa nomeia onde procurou, nunca afirma"
 echo "     presença falsa de diretório que só existe numa delas"
@@ -656,5 +754,44 @@ grep -q "check-liaison-log-integrity.sh" <<<"$out" || { echo "FAIL [13b]: não n
 grep -q "check-worktree-prereqs.sh" <<<"$out" || { echo "FAIL [13b]: não nomeia check-worktree-prereqs.sh (saída: '$out')"; exit 1; }
 [ "$(grep -c "NÃO VERIFICADO" <<<"$out")" -ge 2 ] || { echo "FAIL [13b]: não avisou 'NÃO VERIFICADO' duas vezes, uma por sítio (saída: '$out')"; exit 1; }
 echo "OK [13b]"
+
+# ── [14] pre-push — worktree de branch anterior à adoção do harness, SEM .forge/ nenhum ─────
+# Achado LOW da correção do #141 (rodada 2): medido no consumidor do tarball, `git push` numa
+# worktree de branch órfã (sem `.forge/` algum) saía rc 0 ('pre-push OK (sem harness)'), mas
+# imprimia 7 linhas "hook: <alvo> ausente em <wt> — usando o do tronco (...); rode forge update
+# na worktree" — instrução ERRADA para uma árvore que NUNCA teve harness (não é uma worktree
+# defasada). A defesa em profundidade continua rodando os scripts do tronco de verdade (provado
+# pelos marcadores abaixo); só a linha ruidosa e mal-instruída é suprimida.
+echo "[14] pre-push — worktree SEM .forge/ nenhum (branch anterior à adoção do harness) → rc 0,"
+echo "     scripts do tronco RODAM de verdade, mas SEM a linha 'rode forge update na worktree'"
+R14="$T/r14"; TR14="$T/tr14"
+mktrunk "$TR14"
+cp "$HOOKS/pre-push" "$TR14/.forge/hooks/git/pre-push"; chmod +x "$TR14/.forge/hooks/git/pre-push"
+printf '#!/usr/bin/env bash\ncheck_docs_reviewed() { return 0; }\n' > "$TR14/.forge/hooks/git/lib/check-docs-reviewed.sh"
+printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n' > "$TR14/.forge/hooks/git/lib/check-red-first.sh"
+MARK_AI14="$T/marker-ai-14"; MARK_ACKS14="$T/marker-acks-14"
+rm -f "$MARK_AI14" "$MARK_ACKS14"
+printf '#!/usr/bin/env bash\ntouch "%s"\nexit 0\n' "$MARK_AI14" > "$TR14/.forge/scripts/check-ai-attribution.sh"
+chmod +x "$TR14/.forge/scripts/check-ai-attribution.sh"
+printf '#!/usr/bin/env bash\ntouch "%s"\nexit 0\n' "$MARK_ACKS14" > "$TR14/.forge/scripts/check-liaison-acks.sh"
+chmod +x "$TR14/.forge/scripts/check-liaison-acks.sh"
+mkrepo "$R14" "$TR14/.forge/hooks/git"
+# worktree SEM .forge/ nenhum — nem o diretório existe. Não é "harness atualizado pela metade",
+# é uma árvore que nunca teve harness instalado.
+SHA14="$(git -C "$R14" rev-parse HEAD)"
+out="$(cd "$R14" && printf 'refs/heads/main %s refs/heads/main %s\n' "$SHA14" "$ZERO" | bash "$TR14/.forge/hooks/git/pre-push" origin "file://$R14" 2>&1)"; rc=$?
+[ "$rc" -eq 0 ] || { echo "FAIL [14]: pre-push bloqueou numa worktree sem .forge/ nenhum (saída: '$out')"; exit 1; }
+case "$out" in
+  *"pre-push OK (sem harness)"*) : ;;
+  *) echo "FAIL [14]: não terminou com 'pre-push OK (sem harness)' (saída: '$out')"; exit 1 ;;
+esac
+[ -f "$MARK_AI14" ] || { echo "FAIL [14]: check-ai-attribution.sh do tronco não rodou de verdade — defesa em profundidade perdida"; exit 1; }
+[ -f "$MARK_ACKS14" ] || { echo "FAIL [14]: check-liaison-acks.sh do tronco não rodou de verdade — defesa em profundidade perdida"; exit 1; }
+case "$out" in
+  *"rode forge update na worktree"*) echo "FAIL [14]: o aviso 'rode forge update na worktree' apareceu numa árvore que nunca teve harness (saída: '$out')"; exit 1 ;;
+  *) : ;;
+esac
+[ ! -d "$R14/.forge" ] || { echo "FAIL [14]/setup: a worktree não deveria ter .forge/ neste cenário"; exit 1; }
+echo "OK [14]"
 
 echo "PASS w223-delegacao-arvore-do-hook"

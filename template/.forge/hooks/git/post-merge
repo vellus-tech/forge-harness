@@ -33,7 +33,13 @@ resolve_delegated() {  # resolve_delegated <label> <rel-sob-.forge/> — ecoa o 
     trunk_dir="$(dirname "$trunk")"
   fi
   if [ -n "$trunk" ] && [ -f "$trunk" ]; then
-    echo "hook: $label ausente em $ROOT — usando o do tronco ($trunk); rode forge update na worktree" >&2
+    # Achado LOW da correção do #141 (rodada 2): quando $ROOT/.forge não existe NADA — branch
+    # anterior à adoção do harness, nunca uma worktree defasada —, não há o que "forge update"
+    # atualizasse ali, e o aviso instruiria a corrigir algo que não existe. Suprimido só nesse
+    # caso; o alvo do tronco continua sendo usado exatamente como antes, só a linha some.
+    if [ -d "$ROOT/.forge" ]; then
+      echo "hook: $label ausente em $ROOT — usando o do tronco ($trunk); rode forge update na worktree" >&2
+    fi
     printf '%s\n' "$trunk"
     return 0
   fi

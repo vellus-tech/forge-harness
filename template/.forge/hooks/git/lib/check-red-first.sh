@@ -94,7 +94,12 @@ _redfirst_resolve_delegated() {  # _redfirst_resolve_delegated <label> <rel-sob-
     trunk_dir="$(dirname "$trunk")"
   fi
   if [ -n "$trunk" ] && [ -f "$trunk" ]; then
-    echo "hook: $label ausente em $REPO — usando o do tronco ($trunk); rode forge update na worktree" >&2
+    # Achado LOW da correção do #141 (rodada 2): mesma supressão de resolve_delegated (pre-push/
+    # pre-commit/commit-msg/post-merge) — $REPO/.forge ausente por inteiro é branch anterior à
+    # adoção do harness, não worktree defasada, e "rode forge update" seria instrução errada ali.
+    if [ -d "$REPO/.forge" ]; then
+      echo "hook: $label ausente em $REPO — usando o do tronco ($trunk); rode forge update na worktree" >&2
+    fi
     printf '%s\n' "$trunk"
     return 0
   fi

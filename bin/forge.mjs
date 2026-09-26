@@ -610,6 +610,33 @@ const APPEND_SOFTEN = new Map([
   ['secrets', [[/^(\s*enforce:\s*)block\b/m, '$1warn']]],
 ]);
 
+// #142: recurso do heavy-mutex resolvido pela MESMA lib e a MESMA precedência (env >
+// heavy_mutex.resource do forge.yaml > default "forge-heavy-suite") que `heavy-run.sh` usa em
+// produção — nunca uma reimplementação paralela em JS, que poderia divergir silenciosamente da
+// lib (é exatamente o tipo de gêmeo-mentiroso que criou a partição da issue). Só RESOLVE, nunca
+// adquire: `forge_heavy_mutex_path` não cria diretório de lock nenhum (mesma garantia de
+// isolamento do gate w154 sobre `_fhm_resolve_root`) — chamável em qualquer ponto do update sem
+// tocar a exclusão real da máquina. Devolve null em qualquer falha (lib ausente, raiz
+// inutilizável — rc 69 do próprio `_fhm_resolve_root`, symlink recusado etc.): a linha
+// informativa do update é best-effort e nunca pode derrubar a aplicação por causa dela.
+function resolveHeavyMutexPath(forge, target) {
+  const lib = join(forge, 'scripts', 'lib', 'heavy-mutex.sh');
+  if (!existsSync(lib)) return null;
+  try {
+    const out = execFileSync('bash', ['-c', '. "$0" && forge_heavy_mutex_path', lib], {
+      cwd: target,
+      env: { ...process.env, FORGE_ROOT: target },
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    const path = out.split('\t')[0];
+    if (!path) return null;
+    return { path, resource: basename(path).replace(/\.lock$/, '') };
+  } catch {
+    return null;
+  }
+}
+
 function mergeNewForgeKeys(src, forge) {
   const { blocks, keys, skipped } = newForgeKeys(src, forge);
   const softened = [];
@@ -942,8 +969,27 @@ async function updateHarness() {
 
   // forge.yaml: template_version + merge aditivo de chaves de topo novas do template (ex.: autonomy:)
   if (bumpTemplateVersion(forge, version)) console.log(`forge.yaml: template_version -> ${version}`);
+  // #142: recurso do heavy-mutex ANTES do merge — só quando o bloco está ausente e vai ser
+  // mesclado (a única rota pela qual o update introduz o default do template em quem nunca
+  // declarou nada; `resource`/`root`/`enabled` já declarados nunca são tocados, ver
+  // `newForgeKeys`/DH-3). Resolvido ANTES de `mergeNewForgeKeys` escrever, contra o forge.yaml que
+  // o consumidor tinha até aqui.
+  const hmWillMerge = newForgeKeys(src, forge).keys.includes('heavy_mutex');
+  const hmBefore = hmWillMerge ? resolveHeavyMutexPath(forge, target) : null;
   const { added, skipped, softened } = mergeNewForgeKeys(src, forge);
   if (added.length) console.log(`forge.yaml: ${added.length} chave(s) de topo nova(s) do template mescladas: ${added.join(', ')}`);
+  // Linha nominal (DH-3): o nome default do recurso é MANTIDO — quem já declarava outro caminho
+  // de serialização (heavy_mutex.resource próprio) nunca passa por aqui, porque a chave já
+  // existente barra o merge inteiro. Só o consumidor que nunca declarou nada ganha o bloco do
+  // template, e a linha nomeia o que resolvia antes e o que resolve depois pela MESMA precedência
+  // da lib (env > forge.yaml > default) — WARN quando os dois divergem, nunca em silêncio.
+  if (added.includes('heavy_mutex')) {
+    const hmAfter = resolveHeavyMutexPath(forge, target);
+    if (hmBefore && hmAfter) {
+      const linha = `heavy_mutex: recurso resolvido ${hmBefore.resource} → ${hmAfter.resource} (lock ${hmAfter.path})`;
+      console.log(hmBefore.resource === hmAfter.resource ? linha : `WARN: ${linha}`);
+    }
+  }
   // Em voz alta: um bloco que muda POLÍTICA não pode entrar calado num upgrade de maquinaria.
   for (const key of (softened || [])) {
     console.log(`forge.yaml: '${key}:' entrou com enforce: warn (não block) — este repositório já existia e pode ter passivo.`);

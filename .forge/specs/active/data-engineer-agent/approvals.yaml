@@ -1,0 +1,29 @@
+approvals:
+  - gate: requirements_reviewed
+    decision: approve
+    reason: "Decisão humana do dono (Milton) em 2026-09-26: requirements aprovados depois das duas rodadas do validador (design §3.1 e §3.2); os critérios que dependiam de H-01, H-02 e H-03 foram fixados pela opção (a) de cada decisão, registrada no gate design_reviewed."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-09-26T14:59:43-03:00"
+    commit: "247ee1b"
+    scope: "requirements.md"
+  - gate: design_reviewed
+    decision: approve
+    reason: "H-01 = opção (a): aplicar a regra da casa rules/data/data-governance.md. O especialista data-nosql responde pelo transacional de negócio (MongoDB com transação multi-documento, write concern majority); o data-relational fica com parametrização/configuração e com projetos cujo ADR escolheu SQL; pedido de relacional para transacional sem ADR devolve o bloco CONFLITO. Nenhuma rule muda."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-09-26T14:59:43-03:00"
+    commit: "247ee1b"
+    scope: "H-01 (design §2.9)"
+  - gate: design_reviewed
+    decision: approve
+    reason: "H-02 = opção (a): URL pré-assinada é entrega REST admitida com restrições (HTTPS, objeto único nomeado, expiração em minutos, emitida por endpoint REST autenticado do produto, log de emissão, bucket privado); demais formas de acesso de terceiro a bucket são reprovadas."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-09-26T14:59:43-03:00"
+    commit: "247ee1b"
+    scope: "H-02 (design §2.9)"
+  - gate: design_reviewed
+    decision: approve
+    reason: "H-03 = opção (a): BIGINT na menor unidade em toda stack, citando rules/domain/money-as-cents.md como regra da casa; a rule não muda (applies_to intacto); R-19 e o cenário [17] valem para qualquer *.sql."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-09-26T14:59:43-03:00"
+    commit: "247ee1b"
+    scope: "H-03 (design §2.9)"

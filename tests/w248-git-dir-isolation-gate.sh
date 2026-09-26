@@ -81,11 +81,24 @@ echo "[2] mutação — cópia de changelog-merge-gate.sh sem o preâmbulo conta
 cen
 ORIG="$WS/tests/changelog-merge-gate.sh"
 SHA_ORIG="$(sha_de "$ORIG")"
-COPIA="$T/changelog-merge-gate-copia.sh"
-cp "$ORIG" "$COPIA"
+LIBORIG="$WS/template/.forge/scripts/lib/changelog-from-merge.mjs"
+[ -f "$LIBORIG" ] || { echo "FAIL [2]: $LIBORIG não existe — não há como montar a bancada"; exit 1; }
+
+# a cópia precisa preservar a MESMA estrutura relativa (tests/ ao lado de template/.forge/…),
+# porque o gate resolve WS por BASH_SOURCE e lê a lib nesse caminho relativo — mesmo padrão do
+# w212 ("sem recursão sobre a suíte real", cópia byte-idêntica, nunca invocação do arquivo real
+# fora do lugar).
+mkbancada() { # mkbancada <nome> -> ecoa o caminho da cópia de changelog-merge-gate.sh na bancada
+  local b="$T/$1"
+  mkdir -p "$b/tests" "$b/template/.forge/scripts/lib"
+  cp "$ORIG" "$b/tests/changelog-merge-gate.sh"
+  cp "$LIBORIG" "$b/template/.forge/scripts/lib/changelog-from-merge.mjs"
+  echo "$b/tests/changelog-merge-gate.sh"
+}
+
+COPIA="$(mkbancada bancada2-pristina)"
 [ "$(sha_de "$COPIA")" = "$SHA_ORIG" ] || { echo "FAIL [2]: a cópia de changelog-merge-gate.sh não é idêntica ao original"; exit 1; }
-MUTADA="$T/changelog-merge-gate-mutada.sh"
-cp "$COPIA" "$MUTADA"
+MUTADA="$(mkbancada bancada2-mutada)"
 perl -pi -e 's/^unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY\n$//' "$MUTADA"
 grep -q "unset GIT_DIR" "$MUTADA" && { echo "FAIL [2]: a mutação não removeu a linha do preâmbulo de $MUTADA — o cenário não testaria nada"; exit 1; }
 

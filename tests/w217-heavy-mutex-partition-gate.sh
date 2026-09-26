@@ -87,6 +87,9 @@
 # reprovaria a suíte inteira. Sobre uma cópia em `$T`, esse risco não existe: `$T` é descartável e
 # o `trap` do topo do arquivo já cobre sua remoção, mutada ou não.
 set -uo pipefail
+# Isolamento git (LDG-0201): GIT_DIR herdado do ambiente faria os comandos git abaixo
+# obedecerem ao repositório de quem invocou o gate, e não ao repositório sintético criado aqui.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 FORGE="$WS/bin/forge.mjs"

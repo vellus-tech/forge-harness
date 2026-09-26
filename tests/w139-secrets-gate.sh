@@ -29,6 +29,9 @@
 #  [14] o hook pre-commit reprova de verdade: `git commit` falha num repo real
 #  [15] ESTE repositório passa no próprio gate (auto-varredura, com a allowlist que ele declara)
 set -uo pipefail
+# Isolamento git (LDG-0201): GIT_DIR herdado do ambiente faria os comandos git abaixo
+# obedecerem ao repositório de quem invocou o gate, e não ao repositório sintético criado aqui.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CHECK="$WS/template/.forge/scripts/check-secrets.sh"

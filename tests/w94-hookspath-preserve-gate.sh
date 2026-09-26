@@ -14,6 +14,9 @@
 #   [6] migração: o valor legado relativo `.forge/hooks/git` NÃO conta como customizado — é nosso,
 #       e é o defeito. Tem de ser migrado para absoluto, com a razão impressa.
 set -uo pipefail
+# Isolamento git (LDG-0201): GIT_DIR herdado do ambiente faria os comandos git abaixo
+# obedecerem ao repositório de quem invocou o gate, e não ao repositório sintético criado aqui.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY
 
 # `set -e` foi retirado de propósito (LDG-0012): com ele, uma invocação de `node bin/forge.mjs`
 # que falhasse dentro de um cenário matava o gate na hora, sem imprimir FAIL nenhum — o log

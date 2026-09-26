@@ -11,6 +11,9 @@
 #   [6] `forge update` no TARBALL empacotado: overlay aditivo preserva spec + bump de
 #       template_version, doctor sai limpo
 set -euo pipefail
+# Isolamento git (LDG-0201): GIT_DIR herdado do ambiente faria os comandos git abaixo
+# obedecerem ao repositório de quem invocou o gate, e não ao repositório sintético criado aqui.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$WS"

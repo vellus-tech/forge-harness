@@ -208,6 +208,50 @@ fi
 FORGE_MD="$ROOT/.forge/FORGE.md"
 [ -f "$FORGE_MD" ] || { echo "pre-push OK (sem harness)"; exit 0; }
 
+# ── push de deleção pura (issues #132, #134) ──────────────────────────────────────────────────
+# `local_sha` zero é o contrato do próprio git para deleção de ref (githooks(5)): a ref deixou de
+# existir, e uma deleção não pode INTRODUZIR conteúdo — não há árvore nova a medir. Calculado AQUI,
+# antes do preflight de pré-condições de worktree (issue #81, logo abaixo) e do mutex de carga
+# pesada (issue #52, mais abaixo): sem isso, `git push origin --delete <branch>` continuava pagando
+# os dois — fila do mutex e exigência de `pnpm install` — para uma operação que não publica árvore
+# nenhuma, que é justamente o custo que a #132 mede (suíte sob mutex compartilhado por quatro
+# repositórios, >28min de contenção) e a #134 (25 deleções autorizadas, minutos cada uma). O
+# curto-circuito original só pulava typecheck/test/gates/harness-tests e chegava tarde demais: o
+# mutex já tinha sido disputado e o preflight já tinha bloqueado por dependência ausente antes de a
+# classificação abaixo sequer rodar.
+#
+# Três estados de INPUT, nunca dois: vazio (nada publicado — não é o mesmo que "publicado e
+# seguro", issue #49), só deleções (viu refs, nenhuma tem conteúdo — nada a provar, de fato) e
+# misto (ao menos uma ref publica conteúdo — os checks valem por inteiro, mesmo que outras linhas
+# do mesmo push sejam deleções). Um CONTADOR por estado, nunca um booleano só: um booleano que só
+# liga DENTRO do laço colapsa "não vi ref nenhuma" com "vi refs e nenhuma tinha conteúdo" no mesmo
+# valor — a classe que a issue #132 mediu num patch de consumidor (a sentinela `_viu_ref`, que não
+# existe neste template). Entrada vazia (`_pp_refs_vistas` == 0) não cai no curto-circuito, de
+# propósito: "não vi ref nenhuma" não pode virar "todas as refs são seguras" (DA-10) — os checks
+# abaixo continuam rodando por inteiro, como sempre rodaram.
+#
+# Nenhum gate de `runtime.gates` roda num push de deleção pura — inclusive um gate de consumidor
+# que dependa de ver a deleção para policiar ref protegida deixa de rodar. A política de ref
+# protegida é server-side (`develop` com `strict: true` e o check `gates`; DA-10, roadmap na Onda 8
+# para uma política própria dentro do hook) — o que este bloco decide é só se há árvore a medir,
+# nunca se a deleção deveria ser aceita.
+_pp_refs_vistas=0
+_pp_refs_com_conteudo=0
+while read -r _pp_lref _pp_lsha _pp_rref _pp_rsha; do
+  [ -n "${_pp_lsha:-}" ] || continue
+  _pp_refs_vistas=$((_pp_refs_vistas + 1))
+  case "$_pp_lsha" in *[!0]*) : ;; *) continue ;; esac   # local_sha zero: deleção, nada a provar
+  _pp_refs_com_conteudo=$((_pp_refs_com_conteudo + 1))
+done <<EOF_PP_DEL
+$INPUT
+EOF_PP_DEL
+
+_pp_so_delecao=0
+if [ "$_pp_refs_vistas" -gt 0 ] && [ "$_pp_refs_com_conteudo" -eq 0 ]; then
+  _pp_so_delecao=1
+  echo "pre-push: push de deleção pura ($_pp_refs_vistas ref(s)) — checks de árvore não se aplicam"
+fi
+
 # ── pré-condições de worktree (issue #81) ────────────────────────────────────────────────────
 # ANTES de qualquer suíte, e ANTES do mutex de carga pesada: enumera de uma vez todo artefato de
 # árvore (deps instaladas, build declarado) que os gates abaixo vão precisar e este hook não
@@ -233,15 +277,21 @@ FORGE_MD="$ROOT/.forge/FORGE.md"
 # voz alta (nunca silêncio — o "não verifiquei" de #49 continua visível), mas não trava quem não
 # tem como resolvê-la só empurrando de novo. Resolvido pelo mesmo mecanismo dos sítios de
 # bloqueio (resolve_delegated), mantendo a severidade de AVISO quando faltar nas duas árvores.
-PREREQS="$(resolve_delegated check-worktree-prereqs.sh scripts/check-worktree-prereqs.sh)"; _rc_pq=$?
-if [ -n "$PREREQS" ]; then
-  if ! PREREQS_OUT="$(bash "$PREREQS" --path "$ROOT" 2>&1)"; then
-    echo "pre-push BLOQUEADO: pré-condições de worktree ausentes (issue #81) —"
-    echo "$PREREQS_OUT"
-    exit 1
+#
+# Pulado por inteiro em push de deleção pura (issues #132, #134): este preflight só antecipa o que
+# typecheck/test/gates/harness-tests exigiriam, e nenhum deles roda numa deleção — exigir
+# `pnpm install` para apagar uma branch é bloqueio por causa alheia à operação.
+if [ "$_pp_so_delecao" != 1 ]; then
+  PREREQS="$(resolve_delegated check-worktree-prereqs.sh scripts/check-worktree-prereqs.sh)"; _rc_pq=$?
+  if [ -n "$PREREQS" ]; then
+    if ! PREREQS_OUT="$(bash "$PREREQS" --path "$ROOT" 2>&1)"; then
+      echo "pre-push BLOQUEADO: pré-condições de worktree ausentes (issue #81) —"
+      echo "$PREREQS_OUT"
+      exit 1
+    fi
+  elif [ "$_rc_pq" -eq 1 ]; then
+    echo "pre-push: worktree-prereqs (issue #81) NÃO VERIFICADO — check-worktree-prereqs.sh ausente em .forge/scripts/ (rode 'npx forge-harness update' para instalar). Os gates abaixo ainda reprovam se algo faltar — só não juntos."
   fi
-elif [ "$_rc_pq" -eq 1 ]; then
-  echo "pre-push: worktree-prereqs (issue #81) NÃO VERIFICADO — check-worktree-prereqs.sh ausente em .forge/scripts/ (rode 'npx forge-harness update' para instalar). Os gates abaixo ainda reprovam se algo faltar — só não juntos."
 fi
 
 fm_field() {  # fm_field <key> — value of "  <key>:" inside the runtime: block
@@ -302,7 +352,11 @@ _heavy_enabled() {
   awk '/^heavy_mutex:/{f=1;next} f&&/^[a-z]/{f=0} f&&/^[[:space:]]*enabled:[[:space:]]*true/{print "y";exit}' \
     "$ROOT/.forge/forge.yaml" 2>/dev/null | grep -q y
 }
-if [ -n "$HEAVY_LIB" ] && _heavy_enabled; then
+# Não adquirido em push de deleção pura (issues #132, #134): o mutex só faz sentido em volta do que
+# é CARO, e uma deleção não roda typecheck/test/gates nenhum — entrar na fila do mutex por uma
+# operação que não vai usar o que ele protege é exatamente o custo que a #132 mede (>28min de
+# contenção por quatro repositórios) sem nenhum ganho de correção.
+if [ "$_pp_so_delecao" != 1 ] && [ -n "$HEAVY_LIB" ] && _heavy_enabled; then
   # shellcheck disable=SC1090
   . "$HEAVY_LIB"
   forge_heavy_mutex_acquire --label "pre-push de $(basename "$ROOT")" || exit $?
@@ -384,39 +438,10 @@ EOF_SHL
   fi
 fi
 
-# ── push de deleção pura (issues #132, #134) ──────────────────────────────────────────────────
-# `local_sha` zero é o contrato do próprio git para deleção de ref (githooks(5)): a ref deixou de
-# existir, e uma deleção não pode INTRODUZIR conteúdo — não há árvore nova a medir. Sem este
-# curto-circuito, `git push origin --delete <branch>` pagava typecheck, a suíte inteira, os gates
-# de runtime.gates e harness-tests por uma operação que não publica árvore nenhuma: medido em
-# campo (issue #132, suíte sob mutex compartilhado por quatro repositórios, >28min de contenção
-# medidos; issue #134, 25 deleções autorizadas custando minutos cada uma antes do curto-circuito).
-#
-# Três estados de INPUT, nunca dois: vazio (nada publicado — não é o mesmo que "publicado e
-# seguro", issue #49), só deleções (viu refs, nenhuma tem conteúdo — nada a provar, de fato) e
-# misto (ao menos uma ref publica conteúdo — os checks valem por inteiro, mesmo que outras linhas
-# do mesmo push sejam deleções). Um CONTADOR por estado, nunca um booleano só: um booleano que só
-# liga DENTRO do laço colapsa "não vi ref nenhuma" com "vi refs e nenhuma tinha conteúdo" no mesmo
-# valor — a classe que a issue #132 mediu num patch de consumidor (a sentinela `_viu_ref`, que não
-# existe neste template). Entrada vazia (`_pp_refs_vistas` == 0) não cai no curto-circuito, de
-# propósito: "não vi ref nenhuma" não pode virar "todas as refs são seguras" (DA-10) — os checks
-# abaixo continuam rodando por inteiro, como sempre rodaram. Política de deleção de REF PROTEGIDA
-# é outra camada (server-side, `develop` com `strict: true`) e fica fora deste curto-circuito, de
-# propósito (DA-10, roadmap na Onda 8) — o que este bloco decide é só se há árvore a medir.
-_pp_refs_vistas=0
-_pp_refs_com_conteudo=0
-while read -r _pp_lref _pp_lsha _pp_rref _pp_rsha; do
-  [ -n "${_pp_lsha:-}" ] || continue
-  _pp_refs_vistas=$((_pp_refs_vistas + 1))
-  case "$_pp_lsha" in *[!0]*) : ;; *) continue ;; esac   # local_sha zero: deleção, nada a provar
-  _pp_refs_com_conteudo=$((_pp_refs_com_conteudo + 1))
-done <<EOF_PP_DEL
-$INPUT
-EOF_PP_DEL
-
-if [ "$_pp_refs_vistas" -gt 0 ] && [ "$_pp_refs_com_conteudo" -eq 0 ]; then
-  echo "pre-push: push de deleção pura ($_pp_refs_vistas ref(s)) — checks de árvore não se aplicam"
-else
+# A classificação de push de deleção pura (issues #132, #134) já rodou logo depois do check de
+# FORGE_MD, antes do preflight #81 e do mutex de carga pesada — `_pp_so_delecao` e a linha nominal
+# vêm de lá. Aqui só falta pular typecheck/test/gates/harness-tests, exatamente como antes.
+if [ "$_pp_so_delecao" != 1 ]; then
   run_check "typecheck" "$(fm_field typecheck)"
   run_check "test" "$(fm_field test)"
 

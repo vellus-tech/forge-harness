@@ -52,3 +52,11 @@ issuer: {{ISSUER}}
 
 Forge commands are namespaced `/forge:*` (init, doctor, status, spec, requirements, design,
 tasks, implement, verify, archive, close, …). See `.forge/commands/README.md` for the catalog.
+
+<!-- forge:especialistas-de-dados:inicio -->
+## Especialistas de dados
+
+Decisões e revisões de dados (modelagem relacional, NoSQL, cache, bucket e ciclo de vida de objeto, warehouse, lakehouse e dbt, filas e eventos) têm um orquestrador e seis especialistas consultivos. A porta de entrada é `.forge/agents/data/data-engineer.md`; as referências de cada domínio, com catálogo de antipatterns e `scripts/scan.sh` determinístico, estão em `.forge/skills/data-*-practices/` (`data-relational`, `data-nosql`, `data-cache`, `data-object-storage`, `data-analytical`, `data-streaming`).
+
+Em ferramenta sem subagentes (Codex, Cursor, Kiro, Gemini): (1) leia `.forge/agents/data/data-engineer.md` e produza o `PLANO DE ROTEAMENTO` que ele descreve (classificação, especialistas, uma pergunta por especialista, checklist transversal); (2) para cada especialista do plano, leia `.forge/agents/data/<especialista>.md` e `.forge/skills/<especialista>-practices/` e siga o `Protocolo` dele, inclusive `bash .forge/scripts/check-data-governance.sh --path <path>` e `bash .forge/skills/<especialista>-practices/scripts/scan.sh --root <path>`; (3) em conflito com rule ou ADR do projeto, pare e devolva o bloco `CONFLITO` para decisão humana. A regra de integração vale para todos: interno síncrono é gRPC, evento interno é mensageria com AsyncAPI, externo é REST ou fila, e gRPC nunca é exposto a terceiro.
+<!-- forge:especialistas-de-dados:fim -->

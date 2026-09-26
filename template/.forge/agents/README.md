@@ -36,6 +36,22 @@ Vale para **todos** os agents (specification, architecture, review, coding, engi
 | [java-reviewer](./code-review/java-reviewer.md) | Revisar paths Java: build existente, transações, persistência e contratos |
 | [python-reviewer](./code-review/python-reviewer.md) | Revisar paths Python: tipos, concorrência, ambiente e persistência |
 
+### Dados (`data/`)
+
+Um orquestrador e seis especialistas consultivos, cada especialista com a skill `data-<domínio>-practices` pré-carregada (boas práticas com marca de evidência, catálogo de antipatterns e `scripts/scan.sh` determinístico). Os especialistas não têm `Write`, `Edit` nem `Agent`, e o `Bash` deles só roda o `scan.sh` da skill e o `check-data-governance.sh`, pelo hook `data-agent-bash-guard.sh` do frontmatter; o orquestrador só cria os seis, pelo hook `data-agent-allowlist.sh`. Em conflito com rule ou ADR do projeto, todos param e devolvem o bloco `CONFLITO` para decisão humana.
+
+| Agent | Quando Usar |
+|---|---|
+| [data-engineer](./data/data-engineer.md) | Porta de entrada para qualquer decisão ou revisão de dados: classifica pelo padrão de acesso, delega aos especialistas e sintetiza; sem a ferramenta `Agent`, devolve um `PLANO DE ROTEAMENTO` |
+| [data-relational](./data/data-relational.md) | Relacional OLTP: modelagem, índices, migração reversível, isolamento, locks, N+1, paginação, RLS e dinheiro em `BIGINT`; transacional de negócio só com ADR que escolheu SQL |
+| [data-nosql](./data/data-nosql.md) | Documento, chave-valor persistente, coluna larga e grafo: padrão de acesso, chave de partição, consistência; o transacional de negócio da casa em MongoDB (`majority`, P-S-S) |
+| [data-cache](./data/data-cache.md) | Cache: cache-aside, TTL, invalidação, stampede, eviction, segurança e namespace por tenant (Redis nunca é fonte de verdade) |
+| [data-object-storage](./data/data-object-storage.md) | Object storage: layout de chaves, ciclo de vida, versionamento, WORM, criptografia, bucket público e URL pré-assinada nas restrições da regra do dono |
+| [data-analytical](./data/data-analytical.md) | Analítico: modelagem dimensional, SCD, warehouse × lakehouse, particionamento e clustering de tabela, dbt e contratos |
+| [data-streaming](./data/data-streaming.md) | Mensageria: RabbitMQ 4.x em profundidade, Kafka, outbox, CDC, saga, schema de evento com AsyncAPI e escolha de transporte interno × externo |
+
+Projeção fora do Claude Code: os agentes chegam a `.claude/agents/data/`; as skills `data-*-practices` só chegam a `.agents/skills/` com o adapter `agents-skills` ou `forge-cli`, e o adapter `codex` puro recebe só o `AGENTS.md`. Nessas ferramentas a porta de entrada é a seção de especialistas de dados do `AGENTS.md`: ler o orquestrador, produzir o `PLANO DE ROTEAMENTO`, ler o especialista e a skill em `.forge/skills/data-<domínio>-practices/`.
+
 ### Especificações de Módulo (`specifications/`)
 
 > Aplicáveis a `docs/product/modules/<modulo>/` (convenção viva do <project_name>) e a `docs/spec/` quando aprovado por ADR.

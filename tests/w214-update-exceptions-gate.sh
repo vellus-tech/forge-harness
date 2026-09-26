@@ -115,13 +115,19 @@ printf 'shaInvalida  scripts/doctor.sh  # sha nao e hex\n' > "$C4A/.forge/machin
 SHA_DOCTOR_ANTES="$(shasum -a 256 "$C4A/.forge/forge.yaml" | cut -d' ' -f1)"
 set +e
 out4a="$(node "$FORGE" update --target "$C4A" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc4a=$?
-set -e
+set +e  # permanece +e — nunca ligar errexit de volta (LOW achado: falha inesperada silenciava sem FAIL [n])
 [ "$rc4a" -ne 0 ] || { echo "FAIL [4a]: exceção malformada não bloqueou o update"; echo "$out4a"; exit 1; }
 grep -q 'linha 1' <<<"$out4a" || { echo "FAIL [4a]: recusa não nomeia o número da linha"; echo "$out4a"; exit 1; }
 [ "$(shasum -a 256 "$C4A/.forge/forge.yaml" | cut -d' ' -f1)" = "$SHA_DOCTOR_ANTES" ] \
   || { echo "FAIL [4a]: forge.yaml foi escrito mesmo com exceção malformada — nada deveria ter sido tocado"; exit 1; }
 [ ! -f "$C4A/.forge/cache/machinery.lock" ] \
   || { echo "FAIL [4a]: machinery.lock foi escrito mesmo com exceção malformada"; exit 1; }
+# achado do review adversarial (LOW): os dois cenários acima rodam com --no-backup, então nada
+# prova que o aborto acontece ANTES do backup também — repete SEM --no-backup e confere que
+# nenhum backup foi criado (o aborto tem de vir antes de qualquer escrita, backup incluso).
+out4a2="$(node "$FORGE" update --target "$C4A" --no-plugin --source "$TPL" 2>&1)"; rc4a2=$?
+[ "$rc4a2" -ne 0 ] || { echo "FAIL [4a]: exceção malformada não bloqueou o update (execução sem --no-backup)"; echo "$out4a2"; exit 1; }
+[ ! -d "$C4A/.git/forge-backups" ] || { echo "FAIL [4a]: backup foi criado mesmo com exceção malformada — o aborto deveria vir ANTES do backup"; exit 1; }
 echo "OK [4a]"
 
 echo "[4b] duplicada: para ANTES de escrever, nomeia as duas linhas"
@@ -133,7 +139,7 @@ SHA_DOCTOR="$(sha_tpl scripts/doctor.sh)"
 } > "$C4B/.forge/machinery-exceptions.txt"
 set +e
 out4b="$(node "$FORGE" update --target "$C4B" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc4b=$?
-set -e
+set +e  # idem
 [ "$rc4b" -ne 0 ] || { echo "FAIL [4b]: exceção duplicada não bloqueou o update"; echo "$out4b"; exit 1; }
 grep -q 'linhas 1 e 2' <<<"$out4b" || { echo "FAIL [4b]: recusa não nomeia as duas linhas duplicadas"; echo "$out4b"; exit 1; }
 [ ! -f "$C4B/.forge/cache/machinery.lock" ] \
@@ -284,7 +290,7 @@ SHA_DOCTOR11C="$(sha_tpl scripts/doctor.sh)"
 } > "$C11C/.forge/machinery-exceptions.txt"
 set +e
 out11c="$(node "$FORGE" update --target "$C11C" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc11c=$?
-set -e
+set +e  # idem
 [ "$rc11c" -ne 0 ] || { echo "FAIL [11c]: declarações que normalizam para o mesmo caminho não foram tratadas como duplicata"; echo "$out11c"; exit 1; }
 grep -q 'caminho declarado duas vezes' <<<"$out11c" \
   || { echo "FAIL [11c]: recusa não nomeia duplicata por normalização de prefixo"; echo "$out11c"; exit 1; }
@@ -427,7 +433,11 @@ const prop = (states, flags) => {
         const dst = join(dir, '.forge', d.rel);
         const nowHash = sha256(dst);
         const shouldBeUnchanged = d.category === 'viva' || d.category === 'expirada';
-        const wasUnchanged = nowHash !== templateHash[d.rel]; // preservado != conteúdo do template novo
+        // achado do review adversarial (LOW): "!== templateHash" só prova que o overlay não
+        // aplicou o template — um conteúdo corrompido para um TERCEIRO valor qualquer também
+        // passaria nessa checagem. "byte-idêntico" exige comparar contra o hash ANTES do update
+        // (preHashes), nunca só "diferente do template novo".
+        const wasUnchanged = nowHash === preHashes[d.rel];
         if (d.category === 'identica') {
           if (nowHash !== templateHash[d.rel]) ok = false;
         } else if (shouldBeUnchanged !== wasUnchanged) {

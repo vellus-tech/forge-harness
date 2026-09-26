@@ -811,8 +811,13 @@ async function updateHarness() {
     for (const rel of preservedFiles.sort()) console.log(`  = ${rel}`);
     console.log('  (se o template também mudou nesses paths, reconcilie à mão — diff contra .forge.bak-N)');
   }
-  for (const rel of driftWarned.sort())
-    console.log(`WARN: drift local em ${rel} sobrescrito pelo template (fix local em maquinaria? faça upstream; backup em .forge.bak-N)`);
+  // achado do review adversarial (LOW): o texto apontava `.forge.bak-N`, convenção anterior à
+  // #76 (o backup mudou para fora da árvore, em `.git/forge-backups/`) — `mostra` já resolve o
+  // ponteiro real e é o mesmo usado pelas linhas ATUALIZADO/SOBRESCRITO logo abaixo.
+  for (const rel of driftWarned.sort()) {
+    const backupPointer = mostra ? join(mostra, rel) : '(sem backup — rodado com --no-backup)';
+    console.log(`WARN: drift local em ${rel} sobrescrito pelo template (fix local em maquinaria? faça upstream; conteúdo anterior em ${backupPointer})`);
+  }
   for (const rel of templateUpdated.sort()) {
     const backupPointer = mostra ? join(mostra, rel) : '(sem backup — rodado com --no-backup)';
     console.log(`ATUALIZADO: ${rel} — sem edição local (idêntico ao lock anterior); o template evoluiu; conteúdo anterior em ${backupPointer}`);

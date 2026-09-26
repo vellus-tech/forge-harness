@@ -1,10 +1,16 @@
 # machinery-exceptions.txt — divergências DELIBERADAS entre esta árvore e o template do harness.
 #
-# Lido por `forge update` (issues #101/#131) antes de sobrescrever `scripts/`, `hooks/` e
-# `commands/` — os diretórios de maquinaria própria, fora de ENRICHABLE_DIRS, que o overlay
-# aditivo sempre sobrescreve quando divergem do template. Uma linha por arquivo:
+# Lido por `forge update`, aplicação real E `--dry-run` com a MESMA classificação (issues
+# #101/#131), antes de sobrescrever qualquer maquinaria própria fora de ENRICHABLE_DIRS —
+# `scripts/`, `hooks/`, `commands/` e qualquer outro caminho fora de agents/rules/skills/templates
+# (capabilities, contracts, schemas, adapters/*.yaml, README.md) — que o overlay aditivo sempre
+# sobrescreve quando diverge do template. Uma linha por arquivo:
 #
 #     <sha256 do TEMPLATE no momento da declaração>  <caminho relativo a .forge/>  # razão
+#
+# O caminho aceita prefixo `./` ou `.forge/` (normalizado antes de casar contra o template; a
+# grafia original é nomeada no relatório) — duas declarações que normalizam para o mesmo caminho
+# contam como duplicata.
 #
 # POR QUE ESTE ARQUIVO EXISTE. Sem ele, um conserto local em maquinaria própria é revertido no
 # próximo `update` com rc=0 — silenciosamente, se ainda não existe `.forge/cache/machinery.lock`
@@ -18,7 +24,9 @@
 # `update` nomeia os dois shas para reexame — mas preserva o arquivo mesmo assim (a exceção
 # expirada nunca bloqueia o update; parar seria mudar a fronteira publicada do comando). Uma
 # exceção declarada para um caminho que o template não tem, ou cujo conteúdo local já é idêntico
-# ao template novo, é reportada como OCIOSA — sem efeito, mas nomeada.
+# ao template novo, é reportada como OCIOSA — sem efeito, mas nomeada. Uma exceção declarada para
+# um caminho que o template REMOVEU (tombstone) barra a poda de órfãos incondicionalmente — o
+# arquivo sobrevive e é nomeado uma única vez, nunca como OCIOSA.
 #
 # Arquivo ilegível, linha malformada ou o mesmo caminho declarado duas vezes PARAM o update antes
 # de escrever qualquer coisa, nomeando a linha: o que este parser não sabe ler não pode absolver

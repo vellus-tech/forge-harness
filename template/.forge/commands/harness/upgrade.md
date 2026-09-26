@@ -55,24 +55,41 @@ argument-hint: "[--no-backup]"
 
 ## Divergências deliberadas de maquinaria (issues #101/#131)
 
-`scripts/`, `hooks/` e `commands/` são maquinaria própria — fora de `ENRICHABLE_DIRS` — e o
-overlay sempre os sobrescreve quando divergem do template, com ou sem `machinery.lock`. Um
-conserto local nesses diretórios sobrevive ao próximo `update` só se estiver declarado em
-`.forge/machinery-exceptions.txt`, uma linha por arquivo:
+Maquinaria fora de `ENRICHABLE_DIRS` (`scripts/`, `hooks/`, `commands/` e qualquer outro caminho
+que não esteja em `agents/rules/skills/templates` — capabilities, contracts, schemas,
+`adapters/*.yaml`, `README.md`) — o overlay sempre a sobrescreve quando diverge do template, com
+ou sem `machinery.lock`. Um conserto local nesses caminhos sobrevive ao próximo `update` só se
+estiver declarado em `.forge/machinery-exceptions.txt`, uma linha por arquivo:
 
 ```
 <sha256 do TEMPLATE no momento da declaração>  <caminho relativo a .forge/>  # razão
 ```
 
-O sha é sempre o do TEMPLATE (nunca o do disco): se o template mudar o arquivo de novo, a
-declaração **expira** — o `update` preserva o arquivo mesmo assim e nomeia os dois shas para
-reexame, em vez de bloquear (parar seria mudar a fronteira publicada do comando). O relatório do
-`update` nomeia cada exceção viva (`PRESERVADO (exceção declarada)`), cada expirada (`EXCEÇÃO
-EXPIRADA`) e cada ociosa (`EXCEÇÃO OCIOSA` — caminho fora do template ou já idêntico a ele); todo
-arquivo de maquinaria própria sobrescrito sem exceção declarada é nomeado como `SOBRESCRITO (não
-declarado)`, com o caminho do backup onde o conteúdo anterior sobrevive. Arquivo ilegível, linha
-malformada ou caminho declarado duas vezes param o update **antes** de escrever qualquer coisa,
-nomeando a linha.
+O caminho aceita prefixo `./` ou `.forge/` (normalizado antes de casar contra o template, e a
+grafia original é nomeada no relatório); duas declarações que normalizam para o mesmo caminho
+contam como duplicata. O sha é sempre o do TEMPLATE (nunca o do disco): se o template mudar o
+arquivo de novo, a declaração **expira** — o `update` preserva o arquivo mesmo assim e nomeia os
+dois shas para reexame, em vez de bloquear (parar seria mudar a fronteira publicada do comando).
+O `--dry-run` usa a MESMA classificação que a aplicação real: a prévia nunca anuncia sobrescrita
+(`~ caminho`) de um arquivo que uma exceção viva ou expirada preserva, nem remoção (`- caminho
+(órfão ...)`) de um tombstone que uma exceção barra — os dois aparecem como `= caminho (preservado
+— ...)` / `= caminho (tombstone pulado — exceção declarada)` também na prévia.
+
+O relatório do `update` nomeia cada exceção viva (`PRESERVADO (exceção declarada)`), cada
+expirada (`EXCEÇÃO EXPIRADA`, com os dois shas) e cada ociosa (`EXCEÇÃO OCIOSA` — caminho fora do
+template, já idêntico a ele, enriquecível ou ainda não instalado nesta árvore). Um caminho que o
+template **removeu** (tombstone) e que tem exceção declarada não é apagado pela poda de órfãos —
+aparece uma única vez, como `tombstone pulado — exceção declarada`, nunca duplicado como
+`EXCEÇÃO OCIOSA`.
+
+Toda sobrescrita de maquinaria própria sem exceção declarada é nomeada sempre, sob dois rótulos
+distintos: `SOBRESCRITO (não declarado)` quando o hash local diverge do `machinery.lock` da
+última aplicação (edição local de verdade), com o caminho do backup onde o conteúdo anterior
+sobrevive; e `ATUALIZADO` quando o hash local bate com o lock (o consumidor nunca tocou o
+arquivo — foi só o template que evoluiu), para que a única sobrescrita local real não se perca em
+meio a dezenas de refreshes rotineiros. Arquivo ilegível, linha malformada ou caminho declarado
+duas vezes param o update **antes** de escrever qualquer coisa (inclusive o `--dry-run`), nomeando
+a linha.
 
 `scripts/` **não** ganha preservação automática por deriva — só a declaração explícita preserva.
 Ao consertar ou reconciliar um arquivo, remova a linha dele: exceção que não cobre mais nada

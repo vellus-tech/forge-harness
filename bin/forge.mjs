@@ -401,6 +401,21 @@ function writeMachineryLock(forge, files, version, sourceNote) {
 // shas, não bloqueia). Arquivo ilegível, linha malformada ou caminho declarado duas vezes param
 // o update ANTES de escrever qualquer coisa, nomeando a linha — fail-closed, como o parser de
 // origem: o que este parser não sabe ler não pode absolver ninguém.
+// Um caminho declarado com prefixo `./` ou `.forge/` nunca bate com o `rel` real (sempre relativo
+// a `.forge/`, sem prefixo), então caía em `fora-do-template` — a exceção ficava OCIOSA em
+// silêncio e o conserto local do consumidor era sobrescrito sem aviso do porquê (achado do review
+// adversarial, LOW). Os dois prefixos nunca aparecem num `rel` legítimo do template (nenhum
+// caminho do template começa com `.` nem duplica `.forge/`), então normalizar aqui nunca colide
+// com uma declaração já correta — é estritamente aditivo: só passa a enxergar declarações que
+// antes eram sempre ociosas. `raw` preserva a grafia original para nomear a normalização no
+// relatório, em vez de normalizar em silêncio.
+function normalizeExceptionPath(rel) {
+  let out = rel;
+  while (out.startsWith('./')) out = out.slice(2);
+  if (out.startsWith('.forge/')) out = out.slice('.forge/'.length);
+  return out;
+}
+
 function readMachineryExceptions(forge) {
   const p = join(forge, 'machinery-exceptions.txt');
   const entries = new Map();
@@ -420,11 +435,12 @@ function readMachineryExceptions(forge) {
     const reason = hashIdx === -1 ? '' : line.slice(hashIdx + 1).trim();
     if (!body) return; // linha em branco ou só comentário
     const tokens = body.split(/\s+/).filter(Boolean);
-    const [sha, rel, ...resto] = tokens;
+    const [sha, relRaw, ...resto] = tokens;
     const shaOk = typeof sha === 'string' && sha.length >= 32 && /^[0-9a-f]+$/.test(sha);
-    if (!shaOk || !rel || resto.length > 0) { malformed.push(lineNo); return; }
+    if (!shaOk || !relRaw || resto.length > 0) { malformed.push(lineNo); return; }
+    const rel = normalizeExceptionPath(relRaw);
     if (entries.has(rel)) { duplicates.push({ rel, lines: [entries.get(rel).line, lineNo] }); return; }
-    entries.set(rel, { sha, reason, line: lineNo });
+    entries.set(rel, { sha, reason, line: lineNo, raw: relRaw !== rel ? relRaw : undefined });
   });
   if (malformed.length || duplicates.length) {
     const msgs = [];
@@ -475,6 +491,15 @@ function classifyExceptions(forge, files, exceptions, tombstoned) {
     status.set(rel, { status: 'expirada', declared: exc.sha, atual: newHash });
   }
   return status;
+}
+
+// Nomeia, no relatório, quando o caminho declarado em machinery-exceptions.txt levou normalização
+// de prefixo (normalizeExceptionPath) — nunca normaliza em silêncio (achado LOW do review
+// adversarial): quem declarou './scripts/doctor.sh' vê a própria grafia ao lado da forma que o
+// update de fato usou para casar contra o template.
+function excRawNote(exceptions, rel) {
+  const exc = exceptions.entries.get(rel);
+  return exc && exc.raw ? ` (declarado como '${exc.raw}')` : '';
 }
 
 // Só o campo harness.template_version é atualizado no forge.yaml — adapters e flags ficam intactos.
@@ -654,8 +679,8 @@ async function updateHarness() {
         continue;
       }
       const est = excStatusByRel.get(rel);
-      if (est && est.status === 'viva') { changes.push(`= ${rel} (preservado — exceção declarada)`); continue; }
-      if (est && est.status === 'expirada') { changes.push(`= ${rel} (preservado — EXCEÇÃO EXPIRADA: declarado ${est.declared}, template ${est.atual})`); continue; }
+      if (est && est.status === 'viva') { changes.push(`= ${rel} (preservado — exceção declarada)${excRawNote(exceptions, rel)}`); continue; }
+      if (est && est.status === 'expirada') { changes.push(`= ${rel} (preservado — EXCEÇÃO EXPIRADA: declarado ${est.declared}, template ${est.atual})${excRawNote(exceptions, rel)}`); continue; }
       const intocado = lockDry && lockDry.get(rel) === sha256File(dst);
       changes.push(intocado ? `~ ${rel} (o template evoluiu — arquivo intocado localmente)` : `~ ${rel} (sobrescrita não declarada)`);
     }
@@ -663,7 +688,7 @@ async function updateHarness() {
     if (existsSync(fy) && !new RegExp(`template_version:\\s*"?${version}"?`).test(readFileSync(fy, 'utf8')))
       changes.push('~ forge.yaml (template_version)');
     for (const rel of orphansToPrune(forge)) {
-      if (exceptions.entries.has(rel)) changes.push(`= ${rel} (tombstone pulado — exceção declarada)`);
+      if (exceptions.entries.has(rel)) changes.push(`= ${rel} (tombstone pulado — exceção declarada)${excRawNote(exceptions, rel)}`);
       else changes.push(`- ${rel} (órfão — removido/renomeado no template)`);
     }
     const nk = newForgeKeys(src, forge);
@@ -815,17 +840,17 @@ async function updateHarness() {
   if (excViva.length) {
     console.log(`exceções declaradas: ${excViva.length} arquivo(s) preservado(s) por divergência deliberada:`);
     for (const e of excViva.sort((a, b) => (a.rel < b.rel ? -1 : 1)))
-      console.log(`  PRESERVADO (exceção declarada): ${e.rel} — razão: ${e.reason || '(sem razão declarada)'}`);
+      console.log(`  PRESERVADO (exceção declarada): ${e.rel} — razão: ${e.reason || '(sem razão declarada)'}${excRawNote(exceptions, e.rel)}`);
   }
   if (excExpirada.length) {
     console.log(`exceções expiradas: ${excExpirada.length} arquivo(s) com a declaração desatualizada (preservados mesmo assim):`);
     for (const e of excExpirada.sort((a, b) => (a.rel < b.rel ? -1 : 1)))
-      console.log(`  EXCEÇÃO EXPIRADA: ${e.rel} — sha declarado ${e.declared}, sha do template novo ${e.atual}`);
+      console.log(`  EXCEÇÃO EXPIRADA: ${e.rel} — sha declarado ${e.declared}, sha do template novo ${e.atual}${excRawNote(exceptions, e.rel)}`);
   }
   if (excOciosa.length) {
     console.log(`exceções ociosas: ${excOciosa.length} declaração(ões) sem efeito nesta execução:`);
     for (const e of excOciosa.sort((a, b) => (a.rel < b.rel ? -1 : 1)))
-      console.log(`  EXCEÇÃO OCIOSA: ${e.rel} — ${e.motivo}`);
+      console.log(`  EXCEÇÃO OCIOSA: ${e.rel} — ${e.motivo}${excRawNote(exceptions, e.rel)}`);
   }
   writeMachineryLock(forge, files, version, vals.source ? src : '');
 
@@ -878,7 +903,7 @@ async function updateHarness() {
     console.log(`= ${rel} (tombstone pulado — customização local; o template removeu este path, remova à mão se não precisar mais)`);
   for (const rel of keptExceptionTombstones.sort()) {
     const exc = exceptions.entries.get(rel);
-    console.log(`= ${rel} (tombstone pulado — exceção declarada: ${exc.reason || '(sem razão declarada)'})`);
+    console.log(`= ${rel} (tombstone pulado — exceção declarada: ${exc.reason || '(sem razão declarada)'})${excRawNote(exceptions, rel)}`);
   }
 
   // forge.yaml: template_version + merge aditivo de chaves de topo novas do template (ex.: autonomy:)

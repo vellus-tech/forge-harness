@@ -56,6 +56,15 @@
 #        por um AVISO nomeando a #160 e o risco de apagar chaves autorais, em vez de mandar "rode
 #        sync-adapters.sh" sem ressalva (achado LOW: a âncora de #130 não bastava para confirmar a
 #        fusão da #160).
+#   [6d] positivo — achado de correção MEDIUM (revisão adversarial): o [6c] usa a lib de 16c437d,
+#        que já falha na PRIMEIRA cláusula de `_settings_hooks_is_derived` (nem tem
+#        `isMainModule`/`preToolUseWiring`) — a cláusula `mergeSettingsJson` nunca é alcançada, e
+#        uma mutação que a remove passa despercebida. [6d] usa a lib de f24b029 (TEM
+#        `isMainModule`/`preToolUseWiring`, da #130, mas NÃO tem `mergeSettingsJson`, da #160): as
+#        duas primeiras cláusulas já são satisfeitas, então só a cláusula de `mergeSettingsJson`
+#        impede `_settings_hooks_is_derived` de importar a lib e suprimir o aviso. Com a lib de
+#        f24b029 e `permissions` editado à mão, o doctor tem de avisar "anterior à #160"/"apagaria"
+#        (nunca "nenhuma ação necessária").
 #   [7] PBT — `template/.forge/scripts/lib/pbt.mjs` (`makeRandom`, semente fixa), 60 casos: para
 #       `settings.json` gerados (subconjuntos aleatórios de chaves de topo autorais, hooks de
 #       terceiros e hooks do harness de uma configuração de flags ANTERIOR, em ordem aleatória),
@@ -483,6 +492,57 @@ if OLD_LIB_TEXT="$(git -C "$WS" show "$OLD_LIB_SHA:template/$LIB_REL" 2>/dev/nul
   fi
 else
   echo "FAIL [6c]: não consegui ler template/$LIB_REL em $OLD_LIB_SHA deste repositório (git show falhou) — sha de referência precisa existir no histórico local"
+  overall_rc=1
+fi
+
+# ── [6d] lib ENTRE a #130 e a #160 (tem isMainModule/preToolUseWiring, NÃO tem mergeSettingsJson):
+#      diferente de [6c] (lib de 16c437d, que falha na 1ª cláusula do grep-chain e nunca alcança a
+#      cláusula de mergeSettingsJson), esta é a única fixture que exercita de fato a âncora
+#      `mergeSettingsJson` de `_settings_hooks_is_derived` — achado de correção MEDIUM (revisão
+#      adversarial) ─────────────────────────────────────────────────────────────────────────────
+echo "[6d] lib entre a #130 e a #160 (isMainModule/preToolUseWiring presentes, mergeSettingsJson ausente): doctor avisa 'anterior à #160', nunca 'nenhuma ação necessária'"
+BETWEEN_LIB_SHA=f24b029
+T6D="$(mktemp -d "$TMPROOT/forge-w238-6d.XXXXXX")"; track "$T6D"
+nova_fixture "$T6D"
+if BETWEEN_LIB_TEXT="$(git -C "$WS" show "$BETWEEN_LIB_SHA:template/$LIB_REL" 2>/dev/null)" && [ -n "$BETWEEN_LIB_TEXT" ]; then
+  printf '%s' "$BETWEEN_LIB_TEXT" > "$T6D/$LIB_REL"
+  if ! grep -q 'function isMainModule' "$T6D/$LIB_REL" || ! grep -q 'export function preToolUseWiring' "$T6D/$LIB_REL"; then
+    echo "FAIL [6d]: a lib de $BETWEEN_LIB_SHA não tem isMainModule/preToolUseWiring — escolha outro sha de referência (precisa ser posterior à #130)"
+    overall_rc=1
+  elif grep -q 'function mergeSettingsJson' "$T6D/$LIB_REL"; then
+    echo "FAIL [6d]: a lib de $BETWEEN_LIB_SHA já tem mergeSettingsJson — não é mais 'anterior à #160'; escolha outro sha de referência"
+    overall_rc=1
+  else
+    # sync com a PRÓPRIA lib de $BETWEEN_LIB_SHA (já trocada em $T6D/$LIB_REL) — os hooks do
+    # settings.json resultante vêm de preToolUseWiring(root) desta mesma lib, então a projeção que
+    # _settings_hooks_is_derived compara bate byte a byte com o que ela deriva; a única coisa que
+    # pode impedir a supressão do aviso é a cláusula de mergeSettingsJson.
+    bash "$T6D/.forge/scripts/sync-adapters.sh" --set claude >/dev/null 2>&1
+    node -e 'const fs=require("fs");const p=process.argv[1];const j=JSON.parse(fs.readFileSync(p,"utf8"));j.permissions={allow:["Bash(git *)"]};fs.writeFileSync(p,JSON.stringify(j,null,2)+"\n");' "$T6D/.claude/settings.json"
+    cp "$T6D/.claude/settings.json" "$T6D/before-doctor.json"
+    DOCTOR_OUT6D="$(FORGE_ROOT="$T6D" bash "$T6D/$DOCTOR_REL" 2>&1)"
+    LINE6D="$(grep -i 'adapter claude' <<<"$DOCTOR_OUT6D")"
+    if ! cmp -s "$T6D/before-doctor.json" "$T6D/.claude/settings.json"; then
+      echo "FAIL [6d]: rodar o doctor mudou .claude/settings.json — a leitura de diagnóstico reconciliou o consumidor como efeito colateral"
+      overall_rc=1
+    elif ! grep -q '"permissions"' "$T6D/.claude/settings.json"; then
+      echo "FAIL [6d]: 'permissions' desapareceu depois do doctor"
+      overall_rc=1
+    elif grep -qi 'nenhuma ação necessária' <<<"$LINE6D"; then
+      echo "FAIL [6d]: com a lib entre a #130 e a #160 (tem isMainModule/preToolUseWiring, sem mergeSettingsJson), o doctor imprimiu 'nenhuma ação necessária' — essa lib apagaria 'permissions' num sync real: $LINE6D"
+      overall_rc=1
+    elif grep -qi 'com drift (rode' <<<"$LINE6D"; then
+      echo "FAIL [6d]: com a lib entre a #130 e a #160, o doctor ainda recomenda 'rode sync-adapters.sh' sem ressalva — essa recomendação apagaria 'permissions' com essa lib: $LINE6D"
+      overall_rc=1
+    elif ! grep -qi 'anterior à #160' <<<"$LINE6D" || ! grep -qi 'apagaria' <<<"$LINE6D"; then
+      echo "FAIL [6d]: o doctor deveria avisar que o sync apagaria chaves autorais em vez de qualquer outra mensagem: $LINE6D"
+      overall_rc=1
+    else
+      echo "OK [6d] — lib de $BETWEEN_LIB_SHA (isMainModule/preToolUseWiring sem mergeSettingsJson) não suprimiu o aviso: $LINE6D"
+    fi
+  fi
+else
+  echo "FAIL [6d]: não consegui ler template/$LIB_REL em $BETWEEN_LIB_SHA deste repositório (git show falhou) — sha de referência precisa existir no histórico local"
   overall_rc=1
 fi
 

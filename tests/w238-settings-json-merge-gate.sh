@@ -89,7 +89,7 @@ T1="$(mktemp -d "$TMPROOT/forge-w238-1.XXXXXX")"; track "$T1"
 nova_fixture "$T1"
 bash "$T1/$LIB_REL" --root "$T1" --set claude >/dev/null 2>&1 || bash "$T1/.forge/scripts/sync-adapters.sh" --set claude >/dev/null 2>&1
 PERMISSIONS_JSON='{"allow":["Bash(git *)","Bash(npm test)"],"deny":["Bash(rm -rf /)"]}'
-ENV_JSON='{"FORGE_TEST_VAR":"exemplo-nao-secreto"}'
+ENV_JSON='{"FORGE_TEST_VAR":"exemplo-não-secreto"}'
 node -e '
   const fs=require("fs");
   const p=process.argv[1];
@@ -209,7 +209,7 @@ git init -q "$T4BASE/repo" -b main
   bash .forge/scripts/sync-adapters.sh --set claude >/dev/null 2>&1
   git add -A >/dev/null && git commit -qm init >/dev/null
 )
-printf '{ isto nao e json valido' > "$T4BASE/repo/.claude/settings.json"
+printf '{ isto não é json válido' > "$T4BASE/repo/.claude/settings.json"
 cp "$T4BASE/repo/.claude/settings.json" "$T4BASE/before.json"
 OUT4="$(cd "$T4BASE/repo" && bash .forge/scripts/sync-adapters.sh 2>&1)"
 RC4=$?
@@ -250,7 +250,7 @@ git init -q "$T5BASE/main" -b main
   cd "$T5BASE/wt"
   bash .forge/scripts/sync-adapters.sh --set claude >/dev/null 2>&1
 )
-printf '{ tambem invalido' > "$T5BASE/wt/.claude/settings.json"
+printf '{ também inválido' > "$T5BASE/wt/.claude/settings.json"
 cp "$T5BASE/wt/.claude/settings.json" "$T5BASE/before5.json"
 OUT5="$(cd "$T5BASE/wt" && bash .forge/scripts/sync-adapters.sh 2>&1)"
 WT_GITDIR="$(cd "$T5BASE/wt" && git rev-parse --git-dir)"
@@ -607,7 +607,7 @@ if cmp -s "$LIB10" "$BACKUP10"; then
   echo "FAIL [10]: a mutação não alterou nenhum byte da lib — o perl não achou o bloco de backup"
   overall_rc=1
 else
-  printf '{ ainda invalido' > "$T10BASE/repo/.claude/settings.json"
+  printf '{ ainda inválido' > "$T10BASE/repo/.claude/settings.json"
   bash "$T10BASE/repo/.forge/scripts/sync-adapters.sh" >/dev/null 2>&1
   GITDIR10="$(cd "$T10BASE/repo" && git rev-parse --absolute-git-dir)"
   if [ -d "$GITDIR10/forge-backups" ] && [ -n "$(ls -A "$GITDIR10/forge-backups" 2>/dev/null)" ]; then
@@ -623,7 +623,7 @@ if ! cmp -s "$LIB10" "$BACKUP10"; then
   echo "FAIL [10]: a restauração da lib mutada não bateu byte a byte com a cópia salva"
   overall_rc=1
 else
-  printf '{ mais uma vez invalido' > "$T10BASE/repo/.claude/settings.json"
+  printf '{ mais uma vez inválido' > "$T10BASE/repo/.claude/settings.json"
   bash "$T10BASE/repo/.forge/scripts/sync-adapters.sh" >/dev/null 2>&1
   GITDIR10R="$(cd "$T10BASE/repo" && git rev-parse --absolute-git-dir)"
   if [ ! -f "$GITDIR10R/forge-backups/settings-1.json" ] && [ ! -f "$GITDIR10R/forge-backups/settings-2.json" ]; then

@@ -118,15 +118,15 @@ regras_estaticas() {
 ids_catalogo() {
   local i
   case "$1" in
-    data-relational) for i in $(seq -w 1 21); do echo "R-$i"; done ;;
-    data-nosql) for i in $(seq -w 1 19); do echo "N-$i"; done ;;
-    data-cache) for i in $(seq -w 1 16); do echo "C-$i"; done; echo "T-01"; echo "T-04" ;;
-    data-object-storage) for i in $(seq -w 1 14); do echo "O-$i"; done; echo "T-03" ;;
-    data-analytical) for i in $(seq -w 1 14); do echo "A-$i"; done ;;
+    data-relational) for i in $(seq 1 21); do printf 'R-%02d\n' "$i"; done ;;
+    data-nosql) for i in $(seq 1 19); do printf 'N-%02d\n' "$i"; done ;;
+    data-cache) for i in $(seq 1 16); do printf 'C-%02d\n' "$i"; done; echo "T-01"; echo "T-04" ;;
+    data-object-storage) for i in $(seq 1 14); do printf 'O-%02d\n' "$i"; done; echo "T-03" ;;
+    data-analytical) for i in $(seq 1 14); do printf 'A-%02d\n' "$i"; done ;;
     data-streaming)
-      for i in $(seq -w 1 20); do echo "RMQ-AP-$i"; done
-      for i in $(seq -w 1 10); do echo "KFK-AP-$i"; done
-      for i in $(seq -w 1 5); do echo "D-AP-$i"; done
+      for i in $(seq 1 20); do printf 'RMQ-AP-%02d\n' "$i"; done
+      for i in $(seq 1 10); do printf 'KFK-AP-%02d\n' "$i"; done
+      for i in $(seq 1 5); do printf 'D-AP-%02d\n' "$i"; done
       echo "T-02"; echo "SCH-AP-01"; echo "INB-AP-01"; echo "INB-AP-02"; echo "OBX-AP-01"; echo "CDC-AP-01"
       echo "FAMILIA:SCH-AP-"; echo "FAMILIA:INB-AP-"; echo "FAMILIA:OBX-AP-"; echo "FAMILIA:CDC-AP-" ;;
   esac
@@ -658,7 +658,7 @@ confere_1() {
   if [ "${#alvos[@]}" -eq 0 ]; then echo "FAIL [1] nenhum diretório de agentes/skills de dados para validar"; rc=1
   else
     saida="$(bash "$TEMPLATE/scripts/validate-frontmatter.sh" --strict-xml "${alvos[@]}" 2>&1)"
-    if [ "$(printf '%s\n' "$saida" | tail -1)" != "OK" ]; then echo "FAIL [1] validate-frontmatter.sh --strict-xml:"; printf '%s\n' "$saida" | sed 's/^/      /'; rc=1; fi
+    if ! printf '%s\n' "$saida" | tail -1 | grep -qE '^OK( |$)'; then echo "FAIL [1] validate-frontmatter.sh --strict-xml:"; printf '%s\n' "$saida" | sed 's/^/      /'; rc=1; fi
   fi
   if [ -z "$YAML_MOD" ]; then echo "NAO-VERIFICADO [1] pacote yaml ausente (node_modules do checkout e do checkout principal)"; NAOVERIF=$((NAOVERIF + 1)); return $rc; fi
   relata "$(fm fm "$raiz")" || rc=1
@@ -849,7 +849,9 @@ confere_12() {
   elif [ -n "$(cd "$WS/plugin/forge" && find . \( -path '*data-engineer*' -o -path '*data-*-practices*' \) -print 2>/dev/null | head -1)" ]; then
     echo "FAIL [12] plugin/forge carrega agente ou skill de dados (o plugin só carrega commands)"; rc=1
   fi
-  for f in $(find "$raiz/agents/data" "$raiz"/skills/data-*-practices -type f 2>/dev/null); do
+  # Mesmo critério do check de vazamento do doctor.sh: arquivos sob /scripts/ ficam fora (o scan.sh cita
+  # .claude/worktrees para excluí-lo do universo, que é uso funcional, não vazamento de adapter).
+  for f in $(find "$raiz/agents/data" "$raiz"/skills/data-*-practices -type f 2>/dev/null | grep -v '/scripts/'); do
     grep -aq '\.claude/' "$f" && { echo "FAIL [12] ${f#"$raiz"/} contém '.claude/' (check de vazamento do doctor)"; rc=1; }
   done
   local disp="$raiz/skills/capability-dispatcher/SKILL.md"

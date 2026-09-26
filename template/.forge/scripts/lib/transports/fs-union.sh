@@ -23,28 +23,46 @@
 # fechado: se o do tronco não existir, este transporte recusa em vez de cair para a cópia da árvore,
 # porque a cópia da árvore é exatamente o que pode estar destrutivo.
 #
-# O tronco é resolvido a partir do diretório DESTE arquivo, com `FORGE_ROOT` ignorado nessa
-# resolução: `FORGE_ROOT` declara onde mora o ESTADO (e um `sync` com `FORGE_ROOT=<worktree>`
+# A TERCEIRA CAMADA: O TRONCO TAMBÉM PODE NÃO UNIR. Carregar o `_common.sh` do tronco só protege se
+# ele une. Um tronco que ainda não recebeu o update, ou que está numa branch antiga (o tronco pode
+# estar noutra branch, `forge-root.sh`), traz o `cp` cru; com uma worktree atualizada, rodar o
+# `_dir_push` dele apagaria do hub, com rc 0, a mensagem que o próprio `fs` preservaria com o
+# `_common.sh` da worktree. Por isso, depois do source, este transporte confere que o `_dir_push`
+# que acabou de carregar publica pela união (`_dir_push_union`) e, se não, recusa antes de
+# qualquer `t_push`. A conferência lê o corpo do `_dir_push` recém-definido, e não só a existência
+# de `_dir_push_union`, porque o source sempre redefine `_dir_push`, mas não apaga uma
+# `_dir_push_union` que já estivesse definida no processo.
+#
+# O tronco é resolvido a partir do diretório DESTE arquivo, por `forge_main_root`, que não lê
+# `FORGE_ROOT`: `FORGE_ROOT` declara onde mora o ESTADO (e um `sync` com `FORGE_ROOT=<worktree>`
 # aponta para a worktree), enquanto a âncora aqui é sobre qual CÓDIGO roda. Honrar `FORGE_ROOT`
-# nesta linha levaria o `sync` inline de volta ao `_common.sh` da worktree.
+# nesta linha levaria o `sync` inline de volta ao `_common.sh` da worktree. Sem nenhum repositório
+# git alcançável não há tronco a resolver, e o transporte recusa dizendo isso: fora de git, use
+# `fs`.
 #
 # Custo aceito: numa worktree de branch MAIS NOVA que o tronco, o `_common.sh` que roda é o do
-# tronco, mais velho. Só vale para quem optou pelo kind, e o do tronco é o que o dono do checkout
-# principal mantém atualizado.
+# tronco, mais velho. Enquanto ele une, o desfecho é o de `fs`; quando não une, o sync recusa até o
+# tronco ser atualizado, em vez de publicar. Só vale para quem optou pelo kind.
 #
-# Mesma semântica do `fs-union.sh` local do axis-device-platform (`6e11ec6`/`422a87d`): os desfechos
-# ff, behind, diverged e equal do push saem do mesmo `_dir_push` do tronco, e a origem do
-# `_common.sh` é a mesma resolução com falha fechada — por isso o kind reaproveita o nome.
+# Mesma semântica do `fs-union.sh` local do axis-device-platform (`6e11ec6`/`422a87d`) nos desfechos
+# ff, behind, diverged e equal do push, com o `_common.sh` do tronco que une, e na falha fechada
+# quando ele falta — por isso o kind reaproveita o nome. O do axis-device-platform não tem a
+# terceira camada nem a recusa fora de git: com um tronco que não une, ele publica pelo `cp` cru.
 
-if ! declare -F forge_resolve_root >/dev/null 2>&1; then
+if ! declare -F forge_main_root >/dev/null 2>&1; then
   _fsu_lib="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
   # shellcheck source=../forge-root.sh
   . "$_fsu_lib/forge-root.sh"
 fi
 
-# `forge_resolve_root` lê `$(pwd)`: o `cd` no subshell ancora a resolução na PRÓPRIA localização
-# deste arquivo, e não no cwd de quem chamou `liaison-ops.sh`, sem alterar o cwd do processo pai.
-_fsu_tronco="$(cd "$(dirname "${BASH_SOURCE[0]}")" && FORGE_ROOT='' forge_resolve_root)"
+# `forge_main_root` lê `$(pwd)`: o `cd` no subshell ancora a resolução na PRÓPRIA localização deste
+# arquivo, e não no cwd de quem chamou `liaison-ops.sh`, sem alterar o cwd do processo pai.
+_fsu_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if ! _fsu_tronco="$(cd "$_fsu_dir" && forge_main_root)"; then
+  echo "FAIL fs-union: exige um checkout git para resolver o checkout principal, e nenhum repositório" >&2
+  echo "                git é alcançável a partir de $_fsu_dir. Fora de git, use o kind fs." >&2
+  return 1
+fi
 _fsu_common="$_fsu_tronco/.forge/scripts/lib/transports/_common.sh"
 if [ ! -f "$_fsu_common" ]; then
   echo "FAIL fs-union: _common.sh do checkout principal ausente em $_fsu_common." >&2
@@ -54,6 +72,15 @@ if [ ! -f "$_fsu_common" ]; then
 fi
 # shellcheck source=./_common.sh
 . "$_fsu_common"
+case "$(declare -f _dir_push)" in
+  *_dir_push_union*) : ;;
+  *)
+    echo "FAIL fs-union: o _common.sh do checkout principal não une o log (anterior à #110): $_fsu_common." >&2
+    echo "                Publicar com ele substituiria o log do hub pela réplica local. Atualize o" >&2
+    echo "                checkout principal antes de sincronizar (issue #123)." >&2
+    return 1
+    ;;
+esac
 
 _fsu_hub() { printf '%s/%s' "$LIAISON_T_PATH" "$LIAISON_CHANNEL"; }
 

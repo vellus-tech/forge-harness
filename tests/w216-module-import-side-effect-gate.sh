@@ -11,12 +11,15 @@
 # `import()` a partir de um cwd SEM `.forge/FORGE.md` também matava o processo importador — um
 # segundo `process.exit(1)` de nível de módulo, anterior ao bloco de entrada, sobrevivia à
 # primeira correção — e que a exportação certa para #125/#160 lerem é uma função PURA que MONTA
-# a fiação (`preToolUseWiring(root)`), não `reconcile` (que escreve).
+# a fiação (`preToolUseWiring(root)`), não `reconcile` (que escreve — deixou de ser exportada,
+# achado de correção MEDIUM-4: nunca foi exportada em `origin/develop` antes desta issue, nenhum
+# consumidor real a importa, e só o CLI, internamente, precisa dela).
 #
 #   [1] positivo — import: importar o módulo não muda o hash de nenhum arquivo sob `.claude/`,
-#       expõe `preToolUseWiring` (a leitura pura que #125/#160 usam) e `reconcile`, e
-#       `preToolUseWiring(dir)` bate byte a byte com a chave `hooks` do `.claude/settings.json`
-#       que a invocação real materializa — as duas leituras nunca podem divergir.
+#       expõe SÓ `preToolUseWiring` (a leitura pura que #125/#160 usam — `reconcile` não é mais
+#       exportada), e `preToolUseWiring(dir)` bate byte a byte com a chave `hooks` do
+#       `.claude/settings.json` que a invocação real materializa — as duas leituras nunca podem
+#       divergir.
 #   [2] positivo — caminho legítimo: invocar `sync-adapters.sh` (que faz `exec node
 #       lib/sync-adapters.mjs`, a invocação real) continua imprimindo `OK reconcile complete` e
 #       sobrescrevendo a edição pendente — a guarda não pode desarmar quem de fato é o principal.
@@ -51,12 +54,38 @@
 #       [7] (espaço) e [8] (symlink) falharem: a invocação legítima deixa de reconciliar em
 #       QUALQUER SO — não é uma armadilha específica de `$TMPDIR` no macOS. Controle/recontrole
 #       por `cmp -s`, uma fixture por sub-caso, sempre restaurada.
+#   [10] positivo — achado de correção MEDIUM-1: a mensagem/ordem de erro do CLI quando falta
+#       `.forge/FORGE.md` é IDÊNTICA (texto e ordem) nos três modos de invocação (default,
+#       `--adapter all`, `--set claude`) — a checagem roda na primeira linha do galho principal,
+#       antes de `readActive()`/`writeActive()` tocarem `forge.yaml`. Sem isto, `--set`/default
+#       vazavam `FAIL (ENOENT: ... forge.yaml)` em vez de `FAIL (no .forge/FORGE.md ... — run
+#       /forge:init first)`, porque a checagem só rodava dentro de `reconcile()`, depois de
+#       `readActive()`/`writeActive()` já terem tentado ler `forge.yaml` (que nem existe num
+#       diretório sem `.forge`).
+#   [11] positivo — achado de correção MEDIUM-2: `--set` que falha por falta de `.forge/FORGE.md`
+#       NÃO grava `forge.yaml` (sha256 inalterado) — antes, `writeActive()` rodava ANTES da
+#       checagem (que só existia dentro de `reconcile()`), então a falha ainda assim deixava
+#       `forge.yaml` mutado, a mesma classe de defeito da #130 (escrever no consumidor quando
+#       deveria só recusar).
+#   [12] mutação — mover a checagem de `.forge/FORGE.md` de volta para SÓ dentro de `reconcile()`
+#       (removendo a checagem adiantada no galho principal) restaura os dois defeitos: [10] volta
+#       a divergir (`ENOENT` em vez da mensagem amigável nos modos default/`--adapter all`) e [11]
+#       volta a gravar `forge.yaml` na falha do `--set`. Controle/recontrole por `cmp -s`.
+#   [13] positivo + mutação — achado de correção MEDIUM-3: `preToolUseWiring(root)` usa SÓ a raiz
+#       explícita recebida — nunca o `ROOT`/`FORGE_YAML` de módulo de quem importou. Cenário:
+#       duas fixtures com `handoff.auto` diferente (A=true, B=false); importa a lib a partir do
+#       cwd/`ROOT` de B (sem `--root`) e chama `preToolUseWiring(A)`; o resultado tem que bater
+#       byte a byte com o `.claude/settings.json` REAL de A (que tem `SessionStart`/`SessionEnd`),
+#       nunca com o de B. Mutação: trocar `join(root, '.forge', 'forge.yaml')` por `FORGE_YAML`
+#       (a constante de módulo) faz a leitura cair no `forge.yaml` de B (o cwd de quem importou)
+#       em vez do `root` explícito — o resultado passa a bater com B (sem `SessionStart`/
+#       `SessionEnd`), não com A, e o cenário acusa. Controle/recontrole por `cmp -s`.
 #
 # Todas as mutações mutam uma CÓPIA da lib dentro da fixture temporária, nunca o arquivo
 # rastreado em `template/.forge/`, e cada uma é restaurada e reconferida por `cmp -s` antes de
 # seguir (LDG-0175/w213: fixture de teste nunca muta arquivo rastreado sem restauração
-# garantida). Propriedade PBT: não se aplica — a entrada é binária (importado ou principal), sem
-# espaço de valores para gerar.
+# garantida). Propriedade PBT: não se aplica — a entrada é binária (importado ou principal) ou uma
+# enumeração pequena e exaustiva (raiz A ou raiz B), sem espaço de valores contínuo para gerar.
 set -uo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -129,8 +158,8 @@ elif [ "$HASH_BEFORE1" != "$HASH_AFTER1" ]; then
 elif ! grep -q 'preToolUseWiring' <<<"$IMPORT_OUT1"; then
   echo "FAIL [1]: o import não expôs a exportação nomeada 'preToolUseWiring' (a leitura pura que #125/#160 usam) — $IMPORT_OUT1"
   overall_rc=1
-elif ! grep -q 'reconcile' <<<"$IMPORT_OUT1"; then
-  echo "FAIL [1]: o import não expôs a exportação nomeada 'reconcile' — $IMPORT_OUT1"
+elif ! grep -q '\["preToolUseWiring"\]' <<<"$IMPORT_OUT1"; then
+  echo "FAIL [1]: o módulo expõe exportações além de 'preToolUseWiring' (achado de correção MEDIUM-4: 'reconcile' não deve mais ser exportada — só o CLI precisa dela) — $IMPORT_OUT1"
   overall_rc=1
 else
   WIRING1="$(cd "$T1" && LIB_PATH="$T1/$LIB_REL" ROOT_PATH="$T1" node --input-type=module -e "
@@ -427,6 +456,176 @@ else
     overall_rc=1
   else
     echo "OK [9b] recontrole — lib restaurada byte a byte, invocação via symlink volta a reconciliar"
+  fi
+fi
+
+# ── [10] mensagem/ordem de erro do CLI idênticas nos três modos de invocação (MEDIUM-1) ─────────
+echo "[10] mensagem de 'sem FORGE.md' é idêntica em --set / --adapter all / default (achado de correção MEDIUM-1)"
+T10="$(mktemp -d "$TMPROOT/forge-w216-10.XXXXXX")"; track "$T10"   # dir totalmente vazio, sem .forge
+EXPECT10="no .forge/FORGE.md under $T10 — run /forge:init first"
+
+OUT10_DEFAULT="$(node "$LIB_TEMPLATE" --root "$T10" 2>&1)"; RC10_DEFAULT=$?
+OUT10_ALL="$(node "$LIB_TEMPLATE" --root "$T10" --adapter all 2>&1)"; RC10_ALL=$?
+OUT10_SET="$(node "$LIB_TEMPLATE" --root "$T10" --set claude 2>&1)"; RC10_SET=$?
+
+fail10=0
+for par in "default:$RC10_DEFAULT:$OUT10_DEFAULT" "adapter-all:$RC10_ALL:$OUT10_ALL" "set:$RC10_SET:$OUT10_SET"; do
+  nome="${par%%:*}"; resto="${par#*:}"; rc="${resto%%:*}"; out="${resto#*:}"
+  if [ "$rc" -eq 0 ]; then
+    echo "FAIL [10]: modo '$nome' saiu rc=0 num root vazio — deveria recusar"
+    fail10=1
+  elif [ "FAIL ($EXPECT10)" != "$out" ]; then
+    echo "FAIL [10]: modo '$nome' produziu mensagem diferente da esperada"
+    echo "  esperado: FAIL ($EXPECT10)"
+    echo "  obtido:   $out"
+    fail10=1
+  fi
+done
+if [ "$fail10" -eq 0 ]; then
+  echo "OK [10] — os três modos produzem a mesma mensagem/ordem: FAIL ($EXPECT10)"
+else
+  overall_rc=1
+fi
+
+# ── [11] --set falho por falta de FORGE.md não grava forge.yaml (MEDIUM-2) ──────────────────────
+echo "[11] --set que falha por falta de .forge/FORGE.md não grava forge.yaml (achado de correção MEDIUM-2)"
+T11="$(mktemp -d "$TMPROOT/forge-w216-11.XXXXXX")"; track "$T11"
+mkdir -p "$T11/.forge"
+cp "$WS/template/.forge/forge.yaml" "$T11/.forge/forge.yaml"   # forge.yaml existe, FORGE.md não
+SHA_BEFORE11="$(shasum -a 256 "$T11/.forge/forge.yaml" | cut -d' ' -f1)"
+OUT11="$(node "$LIB_TEMPLATE" --root "$T11" --set claude,cursor 2>&1)"; RC11=$?
+SHA_AFTER11="$(shasum -a 256 "$T11/.forge/forge.yaml" | cut -d' ' -f1)"
+
+if [ "$RC11" -eq 0 ]; then
+  echo "FAIL [11]: --set saiu rc=0 sem .forge/FORGE.md — deveria recusar: $OUT11"
+  overall_rc=1
+elif [ "$SHA_BEFORE11" != "$SHA_AFTER11" ]; then
+  echo "FAIL [11]: forge.yaml mudou de sha ($SHA_BEFORE11 -> $SHA_AFTER11) na falha do --set — a escrita rodou antes da checagem"
+  overall_rc=1
+else
+  echo "OK [11] — forge.yaml inalterado ($SHA_AFTER11), --set recusou antes de escrever: $OUT11"
+fi
+
+# ── [12] mutação — checagem de FORGE.md de volta para só dentro de reconcile() ──────────────────
+echo "[12] mutação: mover a checagem de FORGE.md de volta para só dentro de reconcile() faz [10]/[11] voltarem a falhar"
+LIB12="$(mktemp "$TMPROOT/forge-w216-12-lib.XXXXXX.mjs")"; track "$LIB12"
+cp "$LIB_TEMPLATE" "$LIB12"
+BACKUP12="$(mktemp "$TMPROOT/forge-w216-12-backup.XXXXXX")"; track "$BACKUP12"
+cp "$LIB12" "$BACKUP12"
+
+perl -0777 -pi -e "s/if \(isMainModule\(\)\) \{\n  try \{\n    if \(!existsSync\(join\(FORGE, 'FORGE.md'\)\)\) \{\n      throw new Error\(\`no \.forge\/FORGE\.md under \\\$\{ROOT\} — run \/forge:init first\`\);\n    \}\n/if (isMainModule()) {\n  try {\n/" "$LIB12"
+if cmp -s "$LIB12" "$BACKUP12"; then
+  echo "FAIL [12]: a mutação não alterou nenhum byte da lib — o perl não achou a checagem adiantada"
+  overall_rc=1
+else
+  T12A="$(mktemp -d "$TMPROOT/forge-w216-12a.XXXXXX")"; track "$T12A"   # vazio, para o modo default
+  OUT12A="$(node "$LIB12" --root "$T12A" 2>&1)"
+
+  T12B="$(mktemp -d "$TMPROOT/forge-w216-12b.XXXXXX")"; track "$T12B"
+  mkdir -p "$T12B/.forge"
+  cp "$WS/template/.forge/forge.yaml" "$T12B/.forge/forge.yaml"
+  SHA_BEFORE12B="$(shasum -a 256 "$T12B/.forge/forge.yaml" | cut -d' ' -f1)"
+  OUT12B="$(node "$LIB12" --root "$T12B" --set claude,cursor 2>&1)"
+  SHA_AFTER12B="$(shasum -a 256 "$T12B/.forge/forge.yaml" | cut -d' ' -f1)"
+
+  if grep -q 'run /forge:init first' <<<"$OUT12A" && [ "$SHA_BEFORE12B" = "$SHA_AFTER12B" ]; then
+    echo "FAIL [12]: com a checagem só dentro de reconcile(), [10]/[11] AINDA passariam — a mutação não acusa (default: '$OUT12A'; sha forge.yaml inalterado)"
+    overall_rc=1
+  else
+    echo "OK [12] — mutação acusa: modo default vazou '${OUT12A}' (esperava-se ENOENT, não a mensagem amigável) e/ou forge.yaml mudou de sha ($SHA_BEFORE12B -> $SHA_AFTER12B) na falha do --set"
+  fi
+fi
+
+cp "$BACKUP12" "$LIB12"
+if ! cmp -s "$LIB12" "$BACKUP12"; then
+  echo "FAIL [12]: a restauração da lib mutada não bateu byte a byte com a cópia salva"
+  overall_rc=1
+else
+  T12R="$(mktemp -d "$TMPROOT/forge-w216-12r.XXXXXX")"; track "$T12R"
+  OUT12R="$(node "$LIB12" --root "$T12R" 2>&1)"
+  if [ "$OUT12R" != "FAIL (no .forge/FORGE.md under $T12R — run /forge:init first)" ]; then
+    echo "FAIL [12]: recontrole — com a lib restaurada, a mensagem no modo default ainda diverge: $OUT12R"
+    overall_rc=1
+  else
+    echo "OK [12] recontrole — lib restaurada byte a byte, mensagem volta a bater"
+  fi
+fi
+
+# ── [13] preToolUseWiring(root) usa só a raiz explícita, nunca o ROOT de módulo (MEDIUM-3) ──────
+echo "[13] preToolUseWiring(root) usa a raiz explícita recebida, nunca o ROOT/forge.yaml de módulo de quem importou"
+T13A="$(mktemp -d "$TMPROOT/forge-w216-13a.XXXXXX")"; track "$T13A"
+nova_fixture "$T13A"
+perl -0777 -pi -e "s/(handoff:\n(?:.*\n){2}  auto: )false/\${1}true/" "$T13A/.forge/forge.yaml"
+grep -q 'auto: true' <(sed -n '/^handoff:/,/^ledger:/p' "$T13A/.forge/forge.yaml") \
+  || { echo "FAIL [13]: setup — não consegui ligar handoff.auto:true em T13A"; overall_rc=1; }
+bash "$T13A/.forge/scripts/sync-adapters.sh" --adapter all >/dev/null 2>&1   # rematerializa settings.json com SessionStart/SessionEnd
+
+T13B="$(mktemp -d "$TMPROOT/forge-w216-13b.XXXXXX")"; track "$T13B"
+nova_fixture "$T13B"   # handoff.auto:false (default do template)
+
+HOOKS_A13="$(node -e "console.log(JSON.stringify(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).hooks))" "$T13A/.claude/settings.json")"
+HOOKS_B13="$(node -e "console.log(JSON.stringify(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).hooks))" "$T13B/.claude/settings.json")"
+if [ "$HOOKS_A13" = "$HOOKS_B13" ]; then
+  echo "FAIL [13]: setup — os hooks materializados de A e B são idênticos, o cenário não consegue diferenciar raiz"
+  overall_rc=1
+else
+  WIRING13="$(cd "$T13B" && LIB_PATH="$T13B/$LIB_REL" ROOT_A="$T13A" node --input-type=module -e "
+    import { pathToFileURL } from 'node:url';
+    const m = await import(pathToFileURL(process.env.LIB_PATH).href);
+    console.log(JSON.stringify(m.preToolUseWiring(process.env.ROOT_A)));
+  " 2>&1)"
+  if [ "$WIRING13" != "$HOOKS_A13" ]; then
+    echo "FAIL [13]: preToolUseWiring(T13A), importado a partir do cwd/ROOT de T13B, não bate com o settings.json REAL de T13A"
+    echo "  esperado (A): $HOOKS_A13"
+    echo "  obtido:       $WIRING13"
+    overall_rc=1
+  elif [ "$WIRING13" = "$HOOKS_B13" ]; then
+    echo "FAIL [13]: preToolUseWiring(T13A) bateu com B (o cwd/ROOT de módulo de quem importou) em vez de com A (a raiz explícita) — vazou o ROOT do módulo"
+    overall_rc=1
+  else
+    echo "OK [13] — preToolUseWiring(T13A) bate byte a byte com o settings.json real de T13A, mesmo importado a partir do cwd/ROOT de T13B"
+  fi
+fi
+
+echo "  [13-mut] mutação: trocar o root explícito pelo FORGE_YAML de módulo faz [13] voltar a falhar"
+LIB13="$(mktemp "$TMPROOT/forge-w216-13-lib.XXXXXX.mjs")"; track "$LIB13"
+cp "$T13B/$LIB_REL" "$LIB13"
+BACKUP13="$(mktemp "$TMPROOT/forge-w216-13-backup.XXXXXX")"; track "$BACKUP13"
+cp "$LIB13" "$BACKUP13"
+
+perl -pi -e "s/const forgeYaml = join\(root, '\.forge', 'forge\.yaml'\);/const forgeYaml = FORGE_YAML;/" "$LIB13"
+if cmp -s "$LIB13" "$BACKUP13"; then
+  echo "FAIL [13-mut]: a mutação não alterou nenhum byte da lib — o perl não achou a linha de 'forgeYaml'"
+  overall_rc=1
+else
+  WIRING13M="$(cd "$T13B" && LIB_PATH="$LIB13" ROOT_A="$T13A" node --input-type=module -e "
+    import { pathToFileURL } from 'node:url';
+    const m = await import(pathToFileURL(process.env.LIB_PATH).href);
+    console.log(JSON.stringify(m.preToolUseWiring(process.env.ROOT_A)));
+  " 2>&1)"
+  if [ "$WIRING13M" = "$HOOKS_A13" ]; then
+    echo "FAIL [13-mut]: com o root explícito trocado pelo FORGE_YAML de módulo, o resultado AINDA bate com A — a mutação não acusa: $WIRING13M"
+    overall_rc=1
+  else
+    echo "OK [13-mut] — mutação acusa: com FORGE_YAML de módulo, preToolUseWiring(T13A) passa a ler o forge.yaml de B (cwd de quem importou) em vez da raiz explícita ($WIRING13M)"
+  fi
+fi
+
+cp "$BACKUP13" "$LIB13"
+if ! cmp -s "$LIB13" "$BACKUP13"; then
+  echo "FAIL [13-mut]: a restauração da lib mutada não bateu byte a byte com a cópia salva"
+  overall_rc=1
+else
+  WIRING13R="$(cd "$T13B" && LIB_PATH="$LIB13" ROOT_A="$T13A" node --input-type=module -e "
+    import { pathToFileURL } from 'node:url';
+    const m = await import(pathToFileURL(process.env.LIB_PATH).href);
+    console.log(JSON.stringify(m.preToolUseWiring(process.env.ROOT_A)));
+  " 2>&1)"
+  if [ "$WIRING13R" != "$HOOKS_A13" ]; then
+    echo "FAIL [13-mut]: recontrole — com a lib restaurada, preToolUseWiring(T13A) ainda não bate com A: $WIRING13R"
+    overall_rc=1
+  else
+    echo "OK [13-mut] recontrole — lib restaurada byte a byte, preToolUseWiring(T13A) volta a bater com A"
   fi
 fi
 

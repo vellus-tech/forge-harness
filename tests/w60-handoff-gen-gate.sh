@@ -55,6 +55,24 @@
 #        byte-idêntico + WARN — a forma por regex da 4ª rodada casava esse texto com o coringa do
 #        campo e o descartava com rc 0 e stderr vazio; nenhum byte pode ficar irrecuperável só por
 #        estar na mesma linha de um campo gerado
+#   [15] achado MEDIUM (revisão do #120, 6ª rodada): o slot NARRATIVE-DELTA é copiado em Buffer
+#        bruto, nunca via string decodificada — bytes fora de UTF-8 válido dentro do slot (ex.:
+#        0xE7 0xE3, uma nota em Latin-1) sobrevivem byte a byte no próprio arquivo, sem virar
+#        U+FFFD; decodificar para localizar os marcadores e depois recodificar de volta trocava
+#        esses bytes em silêncio, com rc 0
+#   [16] achado MEDIUM (revisão do #120, 6ª rodada): o marcador do digest citado LITERALMENTE
+#        dentro do slot (texto autoral que menciona `<!-- FORGE:HANDOFF-DIGEST -->` como exemplo)
+#        não é reescrito — o preenchimento do placeholder busca só na região depois do fim do
+#        slot (o rodapé real), nunca a primeira ocorrência no documento inteiro; o slot sai
+#        byte-idêntico ao que foi escrito e o rodapé recebe o hash de verdade
+#   [17] achado LOW (revisão do #120, 6ª rodada): template sem o marcador de digest (customizado,
+#        ou preservado pelo `update` antes desta regra) não soma um WARN + backup a cada commit
+#        só porque HEAD/data avançam — o gerador grava o próprio rodapé de digest mesmo que o
+#        template não o declare (opção B do achado; ver decisão no cabeçalho de handoff-render.mjs)
+#   [18] achado LOW (revisão do #120, 6ª rodada): a primeira geração depois do upgrade sobre um
+#        HANDOFF.md legado (marcadores presentes, gerado por uma versão sem a regra de digest) diz
+#        honestamente que é a primeira geração com digest — nunca "conteúdo fora do bloco", que
+#        pressupõe uma comparação que nunca existiu para esse arquivo
 set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -181,22 +199,25 @@ const H = path.join(root, '.forge', 'HANDOFF.md');
 const START = '<!-- FORGE:NARRATIVE-DELTA:START -->';
 const END = '<!-- FORGE:NARRATIVE-DELTA:END -->';
 const WORDS = ['alfa', 'bravo', 'charlie', 'delta', 'echo', 'foxtrot', 'golf', 'hotel', 'india', 'julia', 'kilo', 'lima'];
-// O corpo do delta fica em palavras ASCII de propósito: ele é lido de volta como string utf8 pelo
-// próprio handoff-render.mjs (o merge do delta decodifica o arquivo anterior para localizar os
-// marcadores), então bytes inválidos ali testariam a decodificação de texto, não o backup. Prefix
-// e suffix (fora do slot) são o que a correção do #120 passa a proteger por Buffer bruto — o
-// gerador cobre todo o intervalo de bytes 0-255, então inclui UTF-8 inválido (bytes de continuação
-// soltos, 0xFF, etc.) sem que o teste precise construí-los à mão.
+// O corpo do delta usa palavras ASCII nos sabores de borda que precisam ser TEXTO legível
+// (placeholder-prefix/indented/bordered-spaces exercitam formatação, não codificação). O sabor
+// `raw-bytes` (achado MEDIUM da 6ª rodada) cobre o eixo que falta: o corpo do slot em si com
+// bytes 0-255, inclusive UTF-8 inválido — desde a correção do #120 (6ª rodada), o merge do slot
+// nunca mais decodifica o arquivo anterior para localizar os marcadores nem para copiar o corpo
+// (é tudo Buffer bruto), então bytes inválidos ali têm de sobreviver byte a byte, e não só os de
+// fora do slot. Prefix e suffix (fora do slot) continuam cobrindo o mesmo intervalo 0-255.
 const wordsGen = G.array(G.oneOf(WORDS), 5, 40);
 const byteGen = G.array(G.int(0, 255), 0, 30);
+const slotByteGen = G.array(G.int(0, 255), 5, 40);
 // Os quatro quadrantes da regra de bytes autorais (com/sem marcadores × perda/sem-perda). Os dois
 // quadrantes "com-marcadores" ganham um sabor de corpo de slot (edgeChoice) que exercita as bordas
 // que o achado HIGH nomeou: prefixo do placeholder seguido de texto real, indentação/linhas em
-// branco, e — só no quadrante sem-perda — uma deriva de estado por commit real (achado MEDIUM).
+// branco, uma deriva de estado por commit real (achado MEDIUM da 4ª rodada, só no quadrante
+// sem-perda), e bytes crus 0-255 no próprio corpo do slot (achado MEDIUM da 6ª rodada).
 const kindGen = G.oneOf(['wm-loss', 'wm-noloss', 'nm-loss', 'nm-noloss', 'wm-fieldline-loss']);
-const edgeGen = G.oneOf(['random', 'placeholder-prefix', 'indented', 'bordered-spaces', 'commit-drift']);
+const edgeGen = G.oneOf(['random', 'placeholder-prefix', 'indented', 'bordered-spaces', 'commit-drift', 'raw-bytes']);
 
-function runCase(kind, bodyWords, prefixBytes, suffixBytes, edgeChoice) {
+function runCase(kind, bodyWords, prefixBytes, suffixBytes, edgeChoice, slotRandomBytes) {
   const hasMarkers = kind.startsWith('wm');
   const words = bodyWords.join(' ');
   let bodyBuf = Buffer.from(words, 'utf8');
@@ -206,6 +227,7 @@ function runCase(kind, bodyWords, prefixBytes, suffixBytes, edgeChoice) {
     if (edgeChoice === 'placeholder-prefix') bodyBuf = Buffer.from(`_(A preencher: texto)_\nNOTA-REAL: ${words}`, 'utf8');
     else if (edgeChoice === 'indented') bodyBuf = Buffer.from(`\n\n    ${words}\n    linha2\n\n\n`, 'utf8');
     else if (edgeChoice === 'bordered-spaces') bodyBuf = Buffer.from(`   ${words}   `, 'utf8');
+    else if (edgeChoice === 'raw-bytes') bodyBuf = Buffer.from(slotRandomBytes);
   }
 
   let prevBuf;
@@ -276,7 +298,7 @@ function runCase(kind, bodyWords, prefixBytes, suffixBytes, edgeChoice) {
 
 const SEED = 20260925;
 const RUNS = 80;
-const r = forAll([kindGen, wordsGen, byteGen, byteGen, edgeGen], runCase, { runs: RUNS, seed: SEED });
+const r = forAll([kindGen, wordsGen, byteGen, byteGen, edgeGen, slotByteGen], runCase, { runs: RUNS, seed: SEED });
 if (!r.ok) {
   console.error(`propriedade falhou após ${r.runs} caso(s) (seed ${r.seed}): ${JSON.stringify(r.counterexample)}${r.error ? ` — ${r.error}` : ''}`);
   process.exit(1);
@@ -436,5 +458,137 @@ grep -q 'retomar pelo gateway' "$WARN_PATH14" || { echo "FAIL [14] (nota do tít
 grep -q 'bloqueado pelo time de pagamentos' "$WARN_PATH14" || { echo "FAIL [14] (nota da linha de deferrals ausente do backup)"; exit 1; }
 [ "$(backup_count)" = "$((BC_BEFORE14 + 1))" ] || { echo "FAIL [14] (esperado 1 backup novo — achei $(($(backup_count) - BC_BEFORE14)))"; exit 1; }
 echo "OK [14]"
+
+echo "[15] achado MEDIUM (6ª rodada): bytes fora de UTF-8 válido dentro do slot sobrevivem byte a byte (sem virar U+FFFD)"
+FORGE_ROOT="$T" bash "$GEN" demo-change >/dev/null 2>&1   # regenera do zero — marcadores + digest presentes, estado inalterado
+python3 - "$H" <<'PY'
+import sys
+p = sys.argv[1]
+b = open(p, 'rb').read()
+a = b'<!-- FORGE:NARRATIVE-DELTA:START -->'
+e = b'<!-- FORGE:NARRATIVE-DELTA:END -->'
+i = b.index(a) + len(a); j = b.index(e)
+# "Nota em Latin-1: ação pendente" com "ação" gravado em Latin-1 (0xE7 0xE3), inválido como UTF-8.
+injected = b'\nNota em Latin-1: a\xe7\xe3o pendente\n'
+open(p, 'wb').write(b[:i] + injected + b[j:])
+open(p + '.slot-expected', 'wb').write(injected)
+PY
+BC_BEFORE15="$(backup_count)"
+FORGE_ROOT="$T" bash "$GEN" demo-change >"$T/stdout-15.log" 2>"$T/stderr-15.log"
+[ ! -s "$T/stderr-15.log" ] || { echo "FAIL [15] (WARN/ruído inesperado — nada fora do slot mudou)"; cat "$T/stderr-15.log"; exit 1; }
+[ "$(backup_count)" = "$BC_BEFORE15" ] || { echo "FAIL [15] (backup criado só por causa do conteúdo do slot)"; exit 1; }
+python3 - "$H" <<'PY' || { echo "FAIL [15] (slot com bytes de Latin-1 não sobreviveu byte a byte — virou U+FFFD ou similar)"; exit 1; }
+import sys
+p = sys.argv[1]
+b = open(p, 'rb').read()
+a = b'<!-- FORGE:NARRATIVE-DELTA:START -->'
+e = b'<!-- FORGE:NARRATIVE-DELTA:END -->'
+i = b.index(a) + len(a); j = b.index(e)
+slot = b[i:j]
+expected = open(p + '.slot-expected', 'rb').read()
+sys.exit(0 if slot == expected else 1)
+PY
+echo "OK [15]"
+
+echo "[16] achado MEDIUM (6ª rodada): marcador do digest citado LITERALMENTE dentro do slot não é reescrito ali — só o rodapé real recebe o hash"
+FORGE_ROOT="$T" bash "$GEN" demo-change >/dev/null 2>&1   # regenera do zero — marcadores + digest presentes, estado inalterado
+python3 - "$H" <<'PY'
+import sys
+p = sys.argv[1]
+s = open(p, encoding='utf8').read()
+a = '<!-- FORGE:NARRATIVE-DELTA:START -->'
+e = '<!-- FORGE:NARRATIVE-DELTA:END -->'
+i = s.index(a) + len(a); j = s.index(e)
+note = '\nDecisão: o gerador grava o marcador `<!-- FORGE:HANDOFF-DIGEST -->` no fim; não mexer.\n'
+open(p, 'w', encoding='utf8').write(s[:i] + note + s[j:])
+with open(p + '.slot16-expected', 'w', encoding='utf8') as f:
+    f.write(note)
+PY
+BC_BEFORE16="$(backup_count)"
+FORGE_ROOT="$T" bash "$GEN" demo-change >"$T/stdout-16.log" 2>"$T/stderr-16.log"
+[ ! -s "$T/stderr-16.log" ] || { echo "FAIL [16] (WARN/ruído inesperado — nada fora do slot mudou)"; cat "$T/stderr-16.log"; exit 1; }
+[ "$(backup_count)" = "$BC_BEFORE16" ] || { echo "FAIL [16] (backup criado só por causa do conteúdo do slot)"; exit 1; }
+python3 - "$H" <<'PY' || { echo "FAIL [16] (o texto do slot que cita o marcador do digest foi reescrito — deveria sobreviver literal)"; exit 1; }
+import sys
+p = sys.argv[1]
+s = open(p, encoding='utf8').read()
+a = '<!-- FORGE:NARRATIVE-DELTA:START -->'
+e = '<!-- FORGE:NARRATIVE-DELTA:END -->'
+i = s.index(a) + len(a); j = s.index(e)
+slot = s[i:j]
+expected = open(p + '.slot16-expected', encoding='utf8').read()
+sys.exit(0 if slot == expected else 1)
+PY
+python3 - "$H" <<'PY' || { echo "FAIL [16] (rodapé real não recebeu o hash — ou ficou como placeholder literal, ou ficou vazio)"; exit 1; }
+import re, sys
+p = sys.argv[1]
+s = open(p, encoding='utf8').read()
+e = '<!-- FORGE:NARRATIVE-DELTA:END -->'
+footer = s[s.index(e) + len(e):]
+sys.exit(0 if re.search(r'<!-- FORGE:HANDOFF-DIGEST sha256=[0-9a-f]{64} -->', footer) else 1)
+PY
+echo "OK [16]"
+
+echo "[17] achado LOW (6ª rodada): template sem o marcador de digest não soma WARN/backup a cada commit — o gerador grava o próprio rodapé mesmo sem o placeholder"
+T17="$T/sem-digest"
+DIR17="$T17/.forge/specs/active/demo-change"
+mkdir -p "$DIR17"
+cp "$DIR/manifest.yaml" "$DIR/progress.json" "$DIR/deferrals.json" "$DIR17/"
+git -C "$T17" init -q 2>/dev/null || true
+git -C "$T17" config user.email "fixture@test" 2>/dev/null || true
+git -C "$T17" config user.name "fixture" 2>/dev/null || true
+git -C "$T17" commit -q -m inicial --allow-empty 2>/dev/null || true
+TPL17="$T17/tpl-sem-digest.md"
+sed '/<!-- FORGE:HANDOFF-DIGEST/d; /Hash do conteúdo fora deste bloco/d' \
+  "$WS/template/.forge/templates/handoff/HANDOFF.md" > "$TPL17"
+grep -q 'FORGE:HANDOFF-DIGEST' "$TPL17" && { echo "FAIL [17] (pré-condição: template ainda tem o marcador de digest)"; exit 1; }
+grep -q 'FORGE:NARRATIVE-DELTA:START' "$TPL17" || { echo "FAIL [17] (pré-condição: template sem os marcadores de delta)"; exit 1; }
+run_render17() {
+  FORGE_ROOT="$T17" HANDOFF_DIR="$DIR17" HANDOFF_TPL="$TPL17" HANDOFF_ID="demo-change" \
+  HANDOFF_BRANCH="main" HANDOFF_SHA="$(git -C "$T17" rev-parse --short HEAD)" HANDOFF_DATE="2026-01-01" \
+  HANDOFF_TEST="" HANDOFF_TYPECHECK="" HANDOFF_LINT="" \
+  node "$RENDER"
+}
+run_render17 >/dev/null 2>"$T17/err-1.log"   # 1ª geração — arquivo não existe ainda
+[ ! -s "$T17/err-1.log" ] || { echo "FAIL [17] (WARN na 1ª geração, sem nada anterior a recuperar)"; cat "$T17/err-1.log"; exit 1; }
+for n in 2 3 4; do
+  git -C "$T17" commit -q -m "estado $n" --allow-empty
+  run_render17 >/dev/null 2>"$T17/err-$n.log" || { echo "FAIL [17] (gerador saiu rc≠0 na geração $n)"; exit 1; }
+  [ ! -s "$T17/err-$n.log" ] || { echo "FAIL [17] (WARN na geração $n, só HEAD sha/data avançaram — achado LOW da revisão do #120)"; cat "$T17/err-$n.log"; exit 1; }
+done
+find "$T17" -path '*forge-backups*' -name 'handoff-*.md' | grep -q . \
+  && { echo "FAIL [17] (backup criado mesmo sem mudança autoral, só por causa da deriva de estado)"; exit 1; }
+grep -qE '<!-- FORGE:HANDOFF-DIGEST sha256=[0-9a-f]{64} -->' "$T17/.forge/HANDOFF.md" \
+  || { echo "FAIL [17] (o gerador não gravou rodapé de digest próprio para o template sem o marcador)"; exit 1; }
+echo "OK [17]"
+
+echo "[18] achado LOW (6ª rodada): 1ª geração pós-upgrade sobre HANDOFF.md legado (sem registro de digest) diz honestamente que é a 1ª geração com digest"
+FORGE_ROOT="$T" bash "$GEN" demo-change >/dev/null 2>&1   # regenera do zero — marcadores + digest presentes
+python3 - "$H" <<'PY'
+import re, sys
+p = sys.argv[1]
+s = open(p, encoding='utf8').read()
+# Simula um HANDOFF.md gerado por uma versão ANTERIOR à regra de digest (#120, 6ª rodada): tem os
+# marcadores NARRATIVE-DELTA, mas nenhum comentário de digest em lugar nenhum do arquivo.
+s = re.sub(r'\n?<!-- FORGE:HANDOFF-DIGEST[^\n]*-->\n?', '\n', s)
+assert 'FORGE:HANDOFF-DIGEST' not in s, 'pré-condição: ainda sobrou um marcador de digest'
+open(p, 'w', encoding='utf8').write(s)
+PY
+cp "$H" "$T/prev-18.bin"
+EXPECT_BYTES18="$(wc -c < "$T/prev-18.bin" | tr -d ' ')"
+BC_BEFORE18="$(backup_count)"
+FORGE_ROOT="$T" bash "$GEN" demo-change >"$T/stdout-18.log" 2>"$T/stderr-18.log"
+grep -q '^WARN: HANDOFF.md com conteúdo fora do bloco NARRATIVE-DELTA' "$T/stderr-18.log" \
+  && { echo "FAIL [18] (WARN usa o texto de 'conteúdo fora do bloco' — mas nunca houve digest anterior para comparar; devia nomear a 1ª geração)"; cat "$T/stderr-18.log"; exit 1; }
+grep -qi 'primeira geração' "$T/stderr-18.log" \
+  || { echo "FAIL [18] (WARN não nomeia honestamente que é a 1ª geração com digest)"; cat "$T/stderr-18.log"; exit 1; }
+grep -q "conteúdo anterior ($EXPECT_BYTES18 bytes)" "$T/stderr-18.log" \
+  || { echo "FAIL [18] (contagem de bytes no WARN não bate com o arquivo legado anterior)"; cat "$T/stderr-18.log"; exit 1; }
+WARN_PATH18="$(sed -n 's/.*salvo em \(.*\)$/\1/p' "$T/stderr-18.log" | head -1)"
+[ -n "$WARN_PATH18" ] || { echo "FAIL [18] (WARN sem caminho)"; exit 1; }
+cmp -s "$T/prev-18.bin" "$WARN_PATH18" \
+  || { echo "FAIL [18] (backup não é byte-idêntico ao HANDOFF.md legado anterior)"; exit 1; }
+[ "$(backup_count)" = "$((BC_BEFORE18 + 1))" ] || { echo "FAIL [18] (esperado 1 backup novo — achei $(($(backup_count) - BC_BEFORE18)))"; exit 1; }
+echo "OK [18]"
 
 echo "PASS w60-handoff-gen-gate"

@@ -139,7 +139,7 @@ node -e "
 const d = JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'));
 if (d.entries.length !== 2) { console.error('esperava 2 entradas, achou ' + d.entries.length); process.exit(1); }
 const legacy = d.entries[0];
-if (legacy.id !== null) { console.error('entries[0].id deveria ser null (legado sem id), achou ' + legacy.id); process.exit(1); }
+if (legacy.id !== 'legado') { console.error('entries[0].id deveria ser o id fixo de migração \'legado\', achou ' + legacy.id); process.exit(1); }
 if (legacy.test_path !== 'tests/legacy.test.mjs' || legacy.excerpt !== 'AssertionError: legado' || legacy.status !== 'observed') {
   console.error('legado não preservado verbatim: ' + JSON.stringify(legacy)); process.exit(1);
 }
@@ -166,7 +166,7 @@ echo "[6] status do topo é derivado — observed só quando TODAS as entradas r
 # CLI mediria essa regra, não a derivação; deriveTopStatus é a fonte única de verdade da
 # derivação e é exportada exatamente para ser testável desta forma).
 node --input-type=module -e "
-import { deriveTopStatus } from '$LIB/red-evidence-ops.mjs';
+import { deriveTopStatus } from '$LIB/red-evidence.mjs';
 const cases = [
   [[], 'pending'],
   [[{ id: 'a', status: 'pending' }], 'pending'],
@@ -210,7 +210,8 @@ echo "OK [8]"
 
 echo "[9] PBT — estados iniciais (vazio|legado) + sequências de record --id, seed 139, 80 casos"
 node --input-type=module -e "
-import { applyRecord, deriveTopStatus } from '$LIB/red-evidence-ops.mjs';
+import { applyRecord } from '$LIB/red-evidence-ops.mjs';
+import { deriveTopStatus } from '$LIB/red-evidence.mjs';
 import { makeRandom } from '$LIB/pbt.mjs';
 
 function randomFlags(rnd, tag) {
@@ -275,17 +276,18 @@ for (let run = 0; run < RUNS; run++) {
 
   // propriedade 3: nenhum campo de um id aparece na entrada de outro (test_path é só do próprio id)
   for (const entry of data.entries) {
-    if (entry.id === null) continue;
+    if (entry.id === 'legado') continue; // a entrada migrada de legado não segue o padrão tests/<id>
     if (entry.test_path && !entry.test_path.includes(entry.id)) {
       console.error('run ' + run + ': entrada ' + entry.id + ' tem test_path de outro id: ' + entry.test_path + ' (seed ' + SEED + ')');
       failures++;
     }
   }
 
-  // propriedade 4: legado nunca perdido — se começou legado, entries[0] é o legado intacto
+  // propriedade 4: legado nunca perdido — se começou legado, entries[0] é o legado intacto, com
+  // o id fixo de migração ('legado', nunca null — redesenho de causa raiz da #139, 4ª rodada)
   if (hadLegacy) {
     const first = data.entries[0];
-    if (first.id !== null || first.test_path !== 'tests/legacy.test.mjs' || first.excerpt !== 'boom') {
+    if (first.id !== 'legado' || first.test_path !== 'tests/legacy.test.mjs' || first.excerpt !== 'boom') {
       console.error('run ' + run + ': legado perdido/reinterpretado — entries[0] = ' + JSON.stringify(first) + ' (seed ' + SEED + ')');
       failures++;
     }
@@ -495,7 +497,8 @@ echo "OK [15]"
 
 echo "[16] PBT — record/observe/waive intercalados nunca revertem uma entrada já resolvida (seed 139, 80 casos)"
 node --input-type=module -e "
-import { applyRecord, upsertSingleEntry, deriveTopStatus } from '$LIB/red-evidence-ops.mjs';
+import { applyRecord, upsertSingleEntry } from '$LIB/red-evidence-ops.mjs';
+import { deriveTopStatus } from '$LIB/red-evidence.mjs';
 import { makeRandom } from '$LIB/pbt.mjs';
 
 function emptyState() {
@@ -637,11 +640,11 @@ process.exit(0);
 " "$root/.forge/specs/active/$id/evidence/red/red-evidence.json"
 }
 
-run_mutation() { # run_mutation <label> <perl-script> <scenario-fn>
-  local label="$1" perl_expr="$2" scenario_fn="$3"
+run_mutation() { # run_mutation <label> <perl-script> <scenario-fn> [target-basename]
+  local label="$1" perl_expr="$2" scenario_fn="$3" target="${4:-red-evidence-ops.mjs}"
   local MT; MT="$(mktemp -d /tmp/forge-w218-mut.XXXXXX)"
   mk_root "$MT"
-  local OPSM="$MT/.forge/scripts/lib/red-evidence-ops.mjs"
+  local OPSM="$MT/.forge/scripts/lib/$target"
   cp "$OPSM" "$MT/ops-pristine.mjs"
   perl -0pi -e "$perl_expr" "$OPSM"
   if cmp -s "$OPSM" "$MT/ops-pristine.mjs"; then
@@ -667,10 +670,14 @@ run_mutation() { # run_mutation <label> <perl-script> <scenario-fn>
 }
 
 echo "[17] MUTAÇÃO (sandbox) — trocar entries[] pela atribuição no topo faz [1] falhar"
-run_mutation "17" 's/doc\.entries = entries;/doc.entries = [entries[entries.length - 1]];/' scenario_multi_preserved
+run_mutation "17" 's/doc\.entries = entries;/doc.entries = [entries[entries.length - 1]];/' scenario_multi_preserved "red-evidence.mjs"
 
 echo "[18] MUTAÇÃO (sandbox) — remover a recusa sem --id faz [2] (quimera) sair rc 0"
-run_mutation "18" 's/throw new Error\(`--id é obrigatório[^`]*`\);/idx = entries.length - 1;/s' scenario_chimera_refused
+# padrão específico à mensagem de 2+ entradas ("este change já tem N entradas") — desde a 4ª
+# rodada de correção há DUAS mensagens "--id é obrigatório..." em applyRecord (a de 1 entrada já
+# nomeada e a de 2+ entradas); um padrão genérico casaria a primeira (ordem de declaração no
+# arquivo) e deixaria a checagem de 2+ intacta, mascarando a mutação.
+run_mutation "18" 's/throw new Error\(`--id é obrigatório — este change já tem[^`]*`\);/idx = entries.length - 1;/s' scenario_chimera_refused
 
 echo "[19] MUTAÇÃO (sandbox) — voltar a escrita do replay para só o topo faz [13] falhar"
 run_mutation "19" 's/const upsert = upsertSingleEntry\(data, data\.change_id, \(entry\) => \(\{ \.\.\.entry, \.\.\.patch \}\), opts\);\n  if \(upsert\.refused\) return \{ refused: true, count: upsert\.count, reason: upsert\.reason \};\n  const updated = upsert\.legacy \? \{ \.\.\.data, \.\.\.patch \} : upsert\.data;/const updated = { ...data, ...patch };/s' scenario_replay_preserved
@@ -681,13 +688,55 @@ run_mutation "19" 's/const upsert = upsertSingleEntry\(data, data\.change_id, \(
 #       registradas: check-red-first sai de CONFLICT (bloqueado) para OK depois das duas
 #       resolvidas por id — sem isso, um change com 2+ defeitos nunca chegava a verified/archived
 #  [21] contrafactual — `replay --id`/`waive --id` com um id INEXISTENTE recusam, arquivo intacto
-#  [22] MEDIUM — `record --rename-null <id>` nomeia a entrada sem id (única) — positiva e dois
-#       contrafactuais (recusa com 2+ entradas; recusa quando a única entrada já tem id)
 #  [23] LOW — `record` sem --id com 2+ entradas é recusado mesmo quando TODOS os campos
 #       obrigatórios estão presentes — isola a recusa fail-closed da checagem de campos
 #       obrigatórios (achado da revisão: [2] sozinho não distinguia as duas causas)
 #  [24] MUTAÇÃO (sandbox) — ignorar `--id` em `resolveTargetEntry` (usado por `replay`) faz o
 #       cenário de endereçamento por id de [20] falhar
+#
+# ── 4ª rodada de correção — redesenho de causa raiz ─────────────────────────────────────────────
+#
+# Três rodadas anteriores de conserto pontual abriram casos novos, todos com a mesma raiz: duas
+# representações da evidência (escalares do topo × entries[]) e entradas com id nulo. Esta rodada
+# ataca a causa raiz por construção — ver o cabeçalho de `lib/red-evidence.mjs` para o modelo
+# completo (entries[] como única fonte, id nunca nulo, projeção pura, avaliação por entrada) — e
+# REMOVE `--rename-null`: como toda entrada já nasce com id (auto-gerado ou explícito), nunca há
+# uma entrada sem nome para renomear.
+#
+#  [25] HIGH end-to-end — record sem --id (auto-nomeia 'd1') → record --id B → replay --id d1 →
+#       waive --id B → ensure → check rc 0. Prova que toda entrada, mesmo auto-nomeada, é sempre
+#       endereçável — nenhuma fica "presa" sem nome depois que uma segunda é declarada.
+#  [26] MUTAÇÃO (sandbox) — `nextAutoId` sempre devolvendo `null` faz [25] falhar (replay --id d1
+#       não encontra entrada nenhuma — a causa raiz do HIGH-1/HIGH-2 original)
+#  [27] HIGH end-to-end — mesmo fluxo de [25] partindo de um `red-evidence.json` LEGADO (formato
+#       de entrada única, sem `entries[]`, status já `pending` com dado real, como os hoje em voo
+#       em consumidores): a leitura migra a entrada para `id: 'legado'`, e o restante do fluxo
+#       (record --id B, replay/waive por id, ensure, check) sai rc 0 do mesmo jeito.
+#  [28] MUTAÇÃO (sandbox) — desligar a migração de legado (a entrada continua com `id: null`) faz
+#       [27] falhar (`replay --id legado` não encontra nada)
+#  [29] HIGH end-to-end — uma FORJA numa entrada de um change com 2+ entradas (a entrada com id
+#       migrado de `null`, exatamente o vetor do achado HIGH-2 medido na revisão adversarial) é
+#       pega por `ensure`+`check` — nunca sobrevive silenciosamente porque a entrada não tem mais
+#       como ficar sem nome e ser pulada pelo laço de iteração.
+#  [30] MUTAÇÃO (sandbox) — reintroduzir `entry.id != null ? {id} : undefined` em `cmdEnsure` (a
+#       condição de antes desta rodada) faz [29] falhar: com um `id: null` bruto no arquivo (que a
+#       migração já teria corrigido antes de chegar ao laço, então esta mutação simula a REGRESSÃO
+#       de remover a migração e a guarda antiga ao mesmo tempo) a entrada volta a ser pulada.
+#  [31] HIGH end-to-end — 1ª entrada DISPENSADA (`waive`) e 2ª OBSERVADA (`replay` real): `check`
+#       sai `rc 0` — a mistura não trava mais em CONFLICT permanente por causa da entrada[0] sem
+#       excerpt/base_commit (o topo, projeção de entries[0], nunca é a fonte da avaliação).
+#  [32] MUTAÇÃO (sandbox) — avaliar os itens 2-4 só sobre `entries[0]` (a projeção do topo, em vez
+#       de cada entrada `observed`) faz [31] falhar — CONFLICT permanente reaparece.
+#  [33] MEDIUM (achado da revisão, teste ausente) — `record --id A` (uma única entrada, já NOMEADA
+#       explicitamente) seguido de `record` SEM `--id` é recusado (fail-closed, arquivo intacto) —
+#       isola esse caso do de 2+ entradas, que [2] já cobria.
+#  [34] MUTAÇÃO (sandbox) — remover a distinção `id_explicit` em `applyRecord` (tratando toda
+#       entrada única como auto-atualizável) faz [33] sair rc 0 (a quimera original, disfarçada)
+#  [35] item 4 do redesenho — um `red-evidence.json` com o topo adulterado (escalares que não
+#       batem com a projeção fresca de `entries[]`) é um achado BLOQUEANTE de `check` — a saída é
+#       `/forge:red ensure`, que recalcula o topo a partir de `entries[]` e o restaura.
+#  [36] MUTAÇÃO (sandbox) — `topMatchesProjection` sempre devolvendo `true` faz [35] deixar de
+#       detectar a adulteração (check sai OK em vez de CONFLICT)
 
 echo "[20] replay --id / waive --id resolvem entradas individuais (HIGH-2); check sai de CONFLICT para OK"
 mkdir -p "$T/src20" "$T/tests20"
@@ -761,40 +810,6 @@ grep -qi "não encontrado" <<<"$out21w" || { echo "FAIL [21-waive]: mensagem nã
 cmp -s "$EV20" "$T/ev20-antes-21.json" || { echo "FAIL [21-waive]: arquivo foi tocado apesar da recusa"; exit 1; }
 echo "OK [21]"
 
-echo "[22] record --rename-null nomeia a entrada sem id (MEDIUM); positiva e dois contrafactuais"
-FORGE_ROOT="$T" bash "$SN" bug-rename22 --type bugfix --scale 1 >/dev/null
-EV22="$T/.forge/specs/active/bug-rename22/evidence/red/red-evidence.json"
-FORGE_ROOT="$T" bash "$RE" record bug-rename22 --test-path tests/r22.test.mjs --test-id case-r22 --command "node --test tests/r22.test.mjs" --fix-files src/r22.sh --failure-pattern PR22 >/dev/null
-node -e "const d=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')); if (d.entries[0].id !== null) { console.error('pré-condição: entrada deveria começar sem id'); process.exit(1); }" "$EV22" || exit 1
-out22="$(FORGE_ROOT="$T" bash "$RE" record bug-rename22 --rename-null DefeitoR22 2>&1)"; rc22=$?
-[ "$rc22" -eq 0 ] || { echo "FAIL [22a]: --rename-null deveria ter sido aceito ($out22)"; exit 1; }
-node -e "
-const d = JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'));
-if (d.entries.length !== 1 || d.entries[0].id !== 'DefeitoR22') { console.error('rename-null não nomeou a entrada: ' + JSON.stringify(d.entries)); process.exit(1); }
-if (d.entries[0].test_path !== 'tests/r22.test.mjs' || d.entries[0].failure_pattern !== 'PR22') { console.error('rename-null alterou outros campos: ' + JSON.stringify(d.entries[0])); process.exit(1); }
-" "$EV22" || exit 1
-echo "OK [22a]"
-# 22b — --rename-null recusa quando já existem 2 entradas (agora nomeadas) — ambiguidade
-FORGE_ROOT="$T" bash "$RE" record bug-rename22 --id DefeitoR22b --test-path tests/r22b.test.mjs --test-id case-r22b --command "node --test tests/r22b.test.mjs" --fix-files src/r22b.sh --failure-pattern PR22B >/dev/null
-cp "$EV22" "$T/ev22-antes-22b.json"
-set +e
-out22b="$(FORGE_ROOT="$T" bash "$RE" record bug-rename22 --rename-null Outro22 2>&1)"; rc22b=$?
-set -e
-[ "$rc22b" -ne 0 ] || { echo "FAIL [22b]: --rename-null com 2 entradas deveria recusar ($out22b)"; exit 1; }
-cmp -s "$EV22" "$T/ev22-antes-22b.json" || { echo "FAIL [22b]: arquivo foi tocado apesar da recusa"; exit 1; }
-echo "OK [22b]"
-# 22c — --rename-null recusa quando a única entrada já tem id declarado
-FORGE_ROOT="$T" bash "$SN" bug-rename22c --type bugfix --scale 1 >/dev/null
-EV22C="$T/.forge/specs/active/bug-rename22c/evidence/red/red-evidence.json"
-FORGE_ROOT="$T" bash "$RE" record bug-rename22c --id JaNomeada --test-path tests/r22c.test.mjs --test-id case-r22c --command "node --test tests/r22c.test.mjs" --fix-files src/r22c.sh --failure-pattern PR22C >/dev/null
-cp "$EV22C" "$T/ev22c-antes.json"
-set +e
-out22c="$(FORGE_ROOT="$T" bash "$RE" record bug-rename22c --rename-null Outro22c 2>&1)"; rc22c=$?
-set -e
-[ "$rc22c" -ne 0 ] || { echo "FAIL [22c]: --rename-null sobre entrada já nomeada deveria recusar ($out22c)"; exit 1; }
-cmp -s "$EV22C" "$T/ev22c-antes.json" || { echo "FAIL [22c]: arquivo foi tocado apesar da recusa"; exit 1; }
-echo "OK [22]"
-
 echo "[23] record sem --id com 2+ entradas é recusado mesmo com todos os campos obrigatórios presentes"
 cp "$EV1" "$T/ev1-antes-23.json"
 set +e
@@ -840,5 +855,477 @@ JS
 
 echo "[24] MUTAÇÃO (sandbox) — ignorar --id em resolveTargetEntry (usado por replay) faz [20] falhar"
 run_mutation "24" 's/const resolved = resolveTargetEntry\(data, f\);/const resolved = resolveTargetEntry(data, {});/' scenario_id_resolves_ok
+
+# ── 4ª rodada de correção — cenários ponta a ponta da causa raiz (com motor de replay real) ─────
+
+echo "[25] HIGH end-to-end — record sem --id (auto 'd1') → record --id B → replay --id d1 → waive --id B → ensure → check rc 0"
+mkdir -p "$T/src25" "$T/tests25"
+cat > "$T/src25/calc.mjs" <<'JS'
+export function calc(a, b) { return a - b; }
+JS
+git -C "$T" add src25/calc.mjs
+git -C "$T" commit -qm "feat: calc25 (com bug)" >/dev/null
+cat > "$T/tests25/calc.test.mjs" <<'JS'
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { calc } from '../src25/calc.mjs';
+test('case25', () => { assert.strictEqual(calc(2, 3), 5); });
+JS
+git -C "$T" add tests25/calc.test.mjs
+git -C "$T" commit -qm "test: regressão bug-auto25" >/dev/null
+cat > "$T/src25/calc.mjs" <<'JS'
+export function calc(a, b) { return a + b; }
+JS
+git -C "$T" add src25/calc.mjs
+git -C "$T" commit -qm "fix: bug-auto25" >/dev/null
+
+FORGE_ROOT="$T" bash "$SN" bug-auto25 --type bugfix --scale 1 >/dev/null
+EV25="$T/.forge/specs/active/bug-auto25/evidence/red/red-evidence.json"
+FORGE_ROOT="$T" bash "$RE" record bug-auto25 --test-path tests25/calc.test.mjs --test-id case25 --command "node --test tests25/calc.test.mjs" --fix-files src25/calc.mjs --failure-pattern AssertionError >/dev/null
+node -e "const d=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')); if (d.entries.length !== 1 || d.entries[0].id !== 'd1' || d.entries[0].id_explicit !== false) { console.error('pré-condição: esperava entrada única auto-nomeada d1, achou ' + JSON.stringify(d.entries)); process.exit(1); }" "$EV25" || exit 1
+FORGE_ROOT="$T" bash "$RE" record bug-auto25 --id DefeitoB25 --test-path tests/b25.test.mjs --test-id case-b25 --command "node --test tests/b25.test.mjs" --fix-files src/b25.sh --failure-pattern PB25 >/dev/null
+
+out25r="$(FORGE_ROOT="$T" bash "$RE" replay bug-auto25 --id d1 2>&1)"; rc25r=$?
+[ "$rc25r" -eq 0 ] || { echo "FAIL [25]: replay --id d1 (entrada auto-nomeada) deveria observar ($out25r)"; exit 1; }
+grep -qi observado <<<"$out25r" || { echo "FAIL [25]: replay --id d1 não confirmou observação ($out25r)"; exit 1; }
+
+out25w="$(FORGE_ROOT="$T" bash "$CR" waive bug-auto25 --id DefeitoB25 --reason no-test-infra --note "w218 [25]" 2>&1)"; rc25w=$?
+[ "$rc25w" -eq 0 ] || { echo "FAIL [25]: waive --id DefeitoB25 deveria ter sido aceito ($out25w)"; exit 1; }
+
+out25e="$(FORGE_ROOT="$T" bash "$RE" ensure bug-auto25 2>&1)"; rc25e=$?
+[ "$rc25e" -eq 0 ] || { echo "FAIL [25]: ensure deveria sair rc 0 ($out25e)"; exit 1; }
+
+out25c="$(FORGE_ROOT="$T" bash "$CR" check bug-auto25 2>&1)"; rc25c=$?
+[ "$rc25c" -eq 0 ] || { echo "FAIL [25]: check deveria sair rc 0 depois do fluxo completo ($out25c)"; exit 1; }
+! grep -q "CONFLICT" <<<"$out25c" || { echo "FAIL [25]: check ainda bloqueia ($out25c)"; exit 1; }
+echo "OK [25]"
+
+scenario_auto_id_addressable() { # scenario_auto_id_addressable <root> <suffix>
+  local root="$1" suffix="$2"
+  local id="bug-auto26$suffix"
+  mkdir -p "$root/src$suffix" "$root/tests$suffix"
+  cat > "$root/src$suffix/calc.mjs" <<JS
+export function calc(a, b) { return a - b; }
+JS
+  git -C "$root" add "src$suffix/calc.mjs"
+  git -C "$root" commit -qm "feat: calc$suffix (com bug)" >/dev/null
+  cat > "$root/tests$suffix/calc.test.mjs" <<JS
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { calc } from '../src$suffix/calc.mjs';
+test('case$suffix', () => { assert.strictEqual(calc(2, 3), 5); });
+JS
+  git -C "$root" add "tests$suffix/calc.test.mjs"
+  git -C "$root" commit -qm "test: regressão $id" >/dev/null
+  cat > "$root/src$suffix/calc.mjs" <<JS
+export function calc(a, b) { return a + b; }
+JS
+  git -C "$root" add "src$suffix/calc.mjs"
+  git -C "$root" commit -qm "fix: $id" >/dev/null
+
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/spec-new.sh" "$id" --type bugfix --scale 1 >/dev/null 2>&1 || return 1
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/red-evidence.sh" record "$id" --test-path "tests$suffix/calc.test.mjs" --test-id "case$suffix" --command "node --test tests$suffix/calc.test.mjs" --fix-files "src$suffix/calc.mjs" --failure-pattern AssertionError >/dev/null 2>&1 || return 1
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/red-evidence.sh" replay "$id" --id d1 >/dev/null 2>&1
+}
+
+echo "[26] MUTAÇÃO (sandbox) — nextAutoId sempre devolvendo null faz [25] falhar (replay --id d1 não encontra nada)"
+run_mutation "26" 's/return \`\$\{AUTO_ID_PREFIX\}\$\{n\}\`;/return null;/' scenario_auto_id_addressable "red-evidence.mjs"
+
+echo "[27] HIGH end-to-end — mesmo fluxo de [25] partindo de legado pending (migração atribui 'legado')"
+FORGE_ROOT="$T" bash "$SN" bug-legado27 --type bugfix --scale 1 >/dev/null
+DIR27="$T/.forge/specs/active/bug-legado27"
+EV27="$DIR27/evidence/red/red-evidence.json"
+node -e '
+const fs = require("fs");
+const p = process.argv[1];
+const d = JSON.parse(fs.readFileSync(p, "utf8"));
+d.status = "pending";
+d.test_path = "tests27/legacy.test.mjs";
+d.test_id = "legacy27-case";
+d.command = "node --test tests27/legacy.test.mjs";
+d.failure_pattern = "AssertionError";
+d.fix_files = ["src27/legacy.mjs"];
+fs.writeFileSync(p, JSON.stringify(d, null, 2) + "\n");
+' "$EV27"
+mkdir -p "$T/src27" "$T/tests27"
+cat > "$T/src27/legacy.mjs" <<'JS'
+export function legacyCalc(a, b) { return a - b; }
+JS
+git -C "$T" add src27/legacy.mjs
+git -C "$T" commit -qm "feat: legacy27 (com bug)" >/dev/null
+cat > "$T/tests27/legacy.test.mjs" <<'JS'
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { legacyCalc } from '../src27/legacy.mjs';
+test('legacy27-case', () => { assert.strictEqual(legacyCalc(2, 3), 5); });
+JS
+git -C "$T" add tests27/legacy.test.mjs
+git -C "$T" commit -qm "test: regressão bug-legado27" >/dev/null
+cat > "$T/src27/legacy.mjs" <<'JS'
+export function legacyCalc(a, b) { return a + b; }
+JS
+git -C "$T" add src27/legacy.mjs
+git -C "$T" commit -qm "fix: bug-legado27" >/dev/null
+
+FORGE_ROOT="$T" bash "$RE" record bug-legado27 --id DefeitoB27 --test-path tests/b27.test.mjs --test-id case-b27 --command "node --test tests/b27.test.mjs" --fix-files src/b27.sh --failure-pattern PB27 >/dev/null
+node -e "const d=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')); if (d.entries.length !== 2 || d.entries[0].id !== 'legado') { console.error('pré-condição: esperava [legado, DefeitoB27], achou ' + JSON.stringify(d.entries.map((e)=>e.id))); process.exit(1); }" "$EV27" || exit 1
+
+out27r="$(FORGE_ROOT="$T" bash "$RE" replay bug-legado27 --id legado 2>&1)"; rc27r=$?
+[ "$rc27r" -eq 0 ] || { echo "FAIL [27]: replay --id legado deveria observar ($out27r)"; exit 1; }
+grep -qi observado <<<"$out27r" || { echo "FAIL [27]: replay --id legado não confirmou observação ($out27r)"; exit 1; }
+out27w="$(FORGE_ROOT="$T" bash "$CR" waive bug-legado27 --id DefeitoB27 --reason no-test-infra --note "w218 [27]" 2>&1)"; rc27w=$?
+[ "$rc27w" -eq 0 ] || { echo "FAIL [27]: waive --id DefeitoB27 deveria ter sido aceito ($out27w)"; exit 1; }
+out27e="$(FORGE_ROOT="$T" bash "$RE" ensure bug-legado27 2>&1)"; rc27e=$?
+[ "$rc27e" -eq 0 ] || { echo "FAIL [27]: ensure deveria sair rc 0 ($out27e)"; exit 1; }
+out27c="$(FORGE_ROOT="$T" bash "$CR" check bug-legado27 2>&1)"; rc27c=$?
+[ "$rc27c" -eq 0 ] || { echo "FAIL [27]: check deveria sair rc 0 partindo de legado pending ($out27c)"; exit 1; }
+echo "OK [27]"
+
+scenario_legacy_addressable() { # scenario_legacy_addressable <root> <suffix>
+  local root="$1" suffix="$2"
+  local id="bug-legacy28$suffix"
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/spec-new.sh" "$id" --type bugfix --scale 1 >/dev/null 2>&1 || return 1
+  local ev="$root/.forge/specs/active/$id/evidence/red/red-evidence.json"
+  node -e "
+const fs = require('fs');
+const p = process.argv[1];
+const d = JSON.parse(fs.readFileSync(p, 'utf8'));
+d.status = 'pending';
+d.test_path = 'tests/legacy.test.mjs';
+d.test_id = 'legacy-case';
+d.command = 'node --test tests/legacy.test.mjs';
+d.failure_pattern = 'AssertionError';
+d.fix_files = ['src/legacy.sh'];
+fs.writeFileSync(p, JSON.stringify(d, null, 2) + '\n');
+" "$ev"
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/red-evidence.sh" record "$id" --id "B$suffix" --test-path "tests/b$suffix.test.mjs" --test-id "case-b$suffix" --command "node --test tests/b$suffix.test.mjs" --fix-files "src/b$suffix.sh" --failure-pattern "PB$suffix" >/dev/null 2>&1 || return 1
+  local out
+  out="$(FORGE_ROOT="$root" bash "$root/.forge/scripts/red-evidence.sh" replay "$id" --id legado 2>&1)"
+  ! grep -qi "não encontrado" <<<"$out"
+}
+
+echo "[28] MUTAÇÃO (sandbox) — desligar a migração de legado (entrada continua com id null) faz [27] falhar (replay --id legado não encontra nada)"
+run_mutation "28" 's/return \[\{ \.\.\.entries\[0\], id: LEGACY_ID, id_explicit: false \}\];/return entries;/' scenario_legacy_addressable "red-evidence.mjs"
+
+echo "[29] HIGH end-to-end — forja numa entrada (id migrado de null) de um change com 2+ entradas é pega por ensure/check"
+mkdir -p "$T/src29" "$T/tests29"
+cat > "$T/src29/x.mjs" <<'JS'
+export function xfn(a, b) { return a - b; }
+JS
+git -C "$T" add src29/x.mjs
+git -C "$T" commit -qm "feat: x29 (com bug)" >/dev/null
+cat > "$T/tests29/x.test.mjs" <<'JS'
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { xfn } from '../src29/x.mjs';
+test('case29', () => { assert.strictEqual(xfn(2, 3), 5); });
+JS
+git -C "$T" add tests29/x.test.mjs
+git -C "$T" commit -qm "test: regressão bug-forge29" >/dev/null
+cat > "$T/src29/x.mjs" <<'JS'
+export function xfn(a, b) { return a + b; }
+JS
+git -C "$T" add src29/x.mjs
+git -C "$T" commit -qm "fix: bug-forge29" >/dev/null
+
+FORGE_ROOT="$T" bash "$SN" bug-forge29 --type bugfix --scale 1 >/dev/null
+EV29="$T/.forge/specs/active/bug-forge29/evidence/red/red-evidence.json"
+FORGE_ROOT="$T" bash "$RE" record bug-forge29 --test-path tests29/x.test.mjs --test-id case29 --command "node --test tests29/x.test.mjs" --fix-files src29/x.mjs --failure-pattern AssertionError >/dev/null
+FORGE_ROOT="$T" bash "$RE" replay bug-forge29 --id d1 >/dev/null
+FORGE_ROOT="$T" bash "$RE" record bug-forge29 --id DefeitoReal29 --test-path tests/real29.test.mjs --test-id case-real29 --command "node --test tests/real29.test.mjs" --fix-files src/real29.sh --failure-pattern PREAL29 >/dev/null
+FORGE_ROOT="$T" bash "$CR" waive bug-forge29 --id DefeitoReal29 --reason no-test-infra --note "w218 [29]" >/dev/null
+
+# simula um arquivo já gravado por uma versão ANTERIOR desta branch (antes do redesenho): a
+# entrada real e observada acima tem o id apagado de volta para null, e o resto forjado por cima —
+# o vetor exato do achado HIGH-2 medido na revisão adversarial.
+FORJA29_EXCERPT="AssertionError: forjado a mao, nunca rodou de verdade"
+FORJA29_HASH="$(node -e "process.stdout.write(require('crypto').createHash('sha256').update(process.argv[1]).digest('hex'))" "$FORJA29_EXCERPT")"
+node -e '
+const fs = require("fs");
+const p = process.argv[1];
+const d = JSON.parse(fs.readFileSync(p, "utf8"));
+const e = d.entries[0];
+e.id = null;
+e.status = "observed";
+e.test_path = "nao/existe29.test.mjs";
+e.test_id = "forjado-case29";
+e.command = "node --test nao/existe29.test.mjs";
+e.base_commit = "0123456";
+e.classification = "behavioral";
+e.excerpt = process.argv[2];
+e.excerpt_sha256 = process.argv[3];
+e.base_result = "failed";
+fs.writeFileSync(p, JSON.stringify(d, null, 2) + "\n");
+' "$EV29" "$FORJA29_EXCERPT" "$FORJA29_HASH"
+
+out29e="$(FORGE_ROOT="$T" bash "$RE" ensure bug-forge29 2>&1)"; rc29e=$?
+[ "$rc29e" -eq 0 ] || { echo "FAIL [29]: ensure nunca deveria sair rc≠0 por veredito desfavorável ($out29e)"; exit 1; }
+grep -q '"status": "observed"' "$EV29" && { echo "FAIL [29]: ensure deveria ter sobrescrito a forja (ainda observed)"; exit 1; }
+
+set +e
+out29c="$(FORGE_ROOT="$T" bash "$CR" check bug-forge29 2>&1)"; rc29c=$?
+set -e
+[ "$rc29c" -ne 0 ] || { echo "FAIL [29]: check deveria bloquear depois de ensure reexecutar a forja e reprovar ($out29c)"; exit 1; }
+echo "OK [29] — forja na entrada com id migrado de null é pega por ensure (deixa de ser observed) e check bloqueia"
+
+scenario_ensure_iterates_two() { # scenario_ensure_iterates_two <root> <suffix> — controle: ensure
+  # SEMPRE examina as 2 entradas de um change com 2+ registradas, sem depender do topo (usado por
+  # [30], cujo mutante força ensure a sempre tratar o change como se tivesse ≤1 entrada — o que
+  # "lava" a forja da entrada[0] revalidando o topo antigo e intacto, em vez da entrada forjada).
+  local root="$1" suffix="$2"
+  local id="bug-ens30$suffix"
+  mkdir -p "$root/src$suffix" "$root/tests$suffix"
+  cat > "$root/src$suffix/x.mjs" <<JS
+export function xfn(a, b) { return a - b; }
+JS
+  git -C "$root" add "src$suffix/x.mjs"
+  git -C "$root" commit -qm "feat: x$suffix (com bug)" >/dev/null
+  cat > "$root/tests$suffix/x.test.mjs" <<JS
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { xfn } from '../src$suffix/x.mjs';
+test('case$suffix', () => { assert.strictEqual(xfn(2, 3), 5); });
+JS
+  git -C "$root" add "tests$suffix/x.test.mjs"
+  git -C "$root" commit -qm "test: regressão $id" >/dev/null
+  cat > "$root/src$suffix/x.mjs" <<JS
+export function xfn(a, b) { return a + b; }
+JS
+  git -C "$root" add "src$suffix/x.mjs"
+  git -C "$root" commit -qm "fix: $id" >/dev/null
+
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/spec-new.sh" "$id" --type bugfix --scale 1 >/dev/null 2>&1 || return 1
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/red-evidence.sh" record "$id" --test-path "tests$suffix/x.test.mjs" --test-id "case$suffix" --command "node --test tests$suffix/x.test.mjs" --fix-files "src$suffix/x.mjs" --failure-pattern AssertionError >/dev/null 2>&1 || return 1
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/red-evidence.sh" replay "$id" --id d1 >/dev/null 2>&1 || return 1
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/red-evidence.sh" record "$id" --id "Real$suffix" --test-path "tests/real$suffix.test.mjs" --test-id "case-real$suffix" --command "node --test tests/real$suffix.test.mjs" --fix-files "src/real$suffix.sh" --failure-pattern "PREAL$suffix" >/dev/null 2>&1 || return 1
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/check-red-first.sh" waive "$id" --id "Real$suffix" --reason no-test-infra --note x >/dev/null 2>&1 || return 1
+
+  local ev="$root/.forge/specs/active/$id/evidence/red/red-evidence.json"
+  local excerpt="AssertionError: forjado, nunca rodou de verdade"
+  local hash; hash="$(node -e "process.stdout.write(require('crypto').createHash('sha256').update(process.argv[1]).digest('hex'))" "$excerpt")"
+  node -e '
+const fs = require("fs");
+const p = process.argv[1];
+const d = JSON.parse(fs.readFileSync(p, "utf8"));
+const e = d.entries[0];
+e.status = "observed";
+e.test_path = "nao/existe.test.mjs";
+e.test_id = "forjado-case";
+e.command = "node --test nao/existe.test.mjs";
+e.base_commit = "0123456";
+e.classification = "behavioral";
+e.excerpt = process.argv[2];
+e.excerpt_sha256 = process.argv[3];
+e.base_result = "failed";
+fs.writeFileSync(p, JSON.stringify(d, null, 2) + "\n");
+' "$ev" "$excerpt" "$hash"
+
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/red-evidence.sh" ensure "$id" >/dev/null 2>&1 || return 1
+  ! grep -q '"status": "observed"' "$ev"
+}
+
+echo "[30] MUTAÇÃO (sandbox) — ensure sempre tratar o change como ≤1 entrada (ignorando 2+) faz [29] falhar: a forja é lavada revalidando o topo antigo intacto, em vez da entrada forjada"
+run_mutation "30" 's/if \(entries\.length <= 1\) \{/if (true) {/' scenario_ensure_iterates_two
+
+echo "[31] HIGH end-to-end — 1ª entrada dispensada (waive) e 2ª observada (replay real): check sai rc 0"
+mkdir -p "$T/src31" "$T/tests31"
+cat > "$T/src31/y.mjs" <<'JS'
+export function yfn(a, b) { return a - b; }
+JS
+git -C "$T" add src31/y.mjs
+git -C "$T" commit -qm "feat: y31 (com bug)" >/dev/null
+cat > "$T/tests31/y.test.mjs" <<'JS'
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { yfn } from '../src31/y.mjs';
+test('case31', () => { assert.strictEqual(yfn(2, 3), 5); });
+JS
+git -C "$T" add tests31/y.test.mjs
+git -C "$T" commit -qm "test: regressão bug-mix31 DefeitoB31" >/dev/null
+cat > "$T/src31/y.mjs" <<'JS'
+export function yfn(a, b) { return a + b; }
+JS
+git -C "$T" add src31/y.mjs
+git -C "$T" commit -qm "fix: bug-mix31 DefeitoB31" >/dev/null
+
+FORGE_ROOT="$T" bash "$SN" bug-mix31 --type bugfix --scale 1 >/dev/null
+EV31="$T/.forge/specs/active/bug-mix31/evidence/red/red-evidence.json"
+FORGE_ROOT="$T" bash "$RE" record bug-mix31 --id DefeitoA31 --test-path tests/a31.test.mjs --test-id case-a31 --command "node --test tests/a31.test.mjs" --fix-files src/a31.sh --failure-pattern PA31 >/dev/null
+out31w="$(FORGE_ROOT="$T" bash "$CR" waive bug-mix31 --id DefeitoA31 --reason no-test-infra --note "w218 [31]" 2>&1)"; rc31w=$?
+[ "$rc31w" -eq 0 ] || { echo "FAIL [31]: waive --id DefeitoA31 (1ª entrada) deveria ter sido aceito ($out31w)"; exit 1; }
+FORGE_ROOT="$T" bash "$RE" record bug-mix31 --id DefeitoB31 --test-path tests31/y.test.mjs --test-id case31 --command "node --test tests31/y.test.mjs" --fix-files src31/y.mjs --failure-pattern AssertionError >/dev/null
+out31r="$(FORGE_ROOT="$T" bash "$RE" replay bug-mix31 --id DefeitoB31 2>&1)"; rc31r=$?
+[ "$rc31r" -eq 0 ] || { echo "FAIL [31]: replay --id DefeitoB31 (2ª entrada) deveria observar ($out31r)"; exit 1; }
+node -e "
+const d = JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'));
+const a = d.entries.find((e) => e.id === 'DefeitoA31');
+const b = d.entries.find((e) => e.id === 'DefeitoB31');
+if (!a || a.status !== 'waived') { console.error('DefeitoA31 deveria estar waived: ' + JSON.stringify(a)); process.exit(1); }
+if (!b || b.status !== 'observed' || !b.base_commit) { console.error('DefeitoB31 deveria estar observed: ' + JSON.stringify(b)); process.exit(1); }
+if (d.status !== 'observed') { console.error('topo deveria ser observed (todas resolvidas, nem todas waived), achou ' + d.status); process.exit(1); }
+" "$EV31" || exit 1
+set +e
+out31c="$(FORGE_ROOT="$T" bash "$CR" check bug-mix31 2>&1)"; rc31c=$?
+set -e
+[ "$rc31c" -eq 0 ] || { echo "FAIL [31]: check deveria sair rc 0 (a entrada observada é avaliada por ela mesma, não pela projeção do topo, que é a dispensada) ($out31c)"; exit 1; }
+! grep -q "CONFLICT" <<<"$out31c" || { echo "FAIL [31]: check ainda bloqueia (CONFLICT) — a mistura waived+observed não deveria travar ($out31c)"; exit 1; }
+echo "OK [31]"
+
+scenario_waived_first_observed_second() { # scenario_waived_first_observed_second <root> <suffix>
+  local root="$1" suffix="$2"
+  local id="bug-mix32$suffix"
+  mkdir -p "$root/src$suffix" "$root/tests$suffix"
+  cat > "$root/src$suffix/y.mjs" <<JS
+export function yfn(a, b) { return a - b; }
+JS
+  git -C "$root" add "src$suffix/y.mjs"
+  git -C "$root" commit -qm "feat: y$suffix (com bug)" >/dev/null
+  cat > "$root/tests$suffix/y.test.mjs" <<JS
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { yfn } from '../src$suffix/y.mjs';
+test('case$suffix', () => { assert.strictEqual(yfn(2, 3), 5); });
+JS
+  git -C "$root" add "tests$suffix/y.test.mjs"
+  git -C "$root" commit -qm "test: regressão $id" >/dev/null
+  cat > "$root/src$suffix/y.mjs" <<JS
+export function yfn(a, b) { return a + b; }
+JS
+  git -C "$root" add "src$suffix/y.mjs"
+  git -C "$root" commit -qm "fix: $id" >/dev/null
+
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/spec-new.sh" "$id" --type bugfix --scale 1 >/dev/null 2>&1 || return 1
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/red-evidence.sh" record "$id" --id "A$suffix" --test-path "tests/a$suffix.test.mjs" --test-id "case-a$suffix" --command "node --test tests/a$suffix.test.mjs" --fix-files "src/a$suffix.sh" --failure-pattern "PA$suffix" >/dev/null 2>&1 || return 1
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/check-red-first.sh" waive "$id" --id "A$suffix" --reason no-test-infra --note x >/dev/null 2>&1 || return 1
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/red-evidence.sh" record "$id" --id "B$suffix" --test-path "tests$suffix/y.test.mjs" --test-id "case$suffix" --command "node --test tests$suffix/y.test.mjs" --fix-files "src$suffix/y.mjs" --failure-pattern AssertionError >/dev/null 2>&1 || return 1
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/red-evidence.sh" replay "$id" --id "B$suffix" >/dev/null 2>&1 || return 1
+
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/check-red-first.sh" check "$id" >/dev/null 2>&1
+}
+
+echo "[32] MUTAÇÃO (sandbox) — avaliar os itens 2-4 só sobre entries[0] (a projeção do topo) em vez de cada entrada observed faz [31] falhar"
+run_mutation "32" "s/const observedEntries = entries\\.filter\\(\\(e\\) => e\\.status === 'observed'\\);/const observedEntries = topStatus === 'observed' ? [entries[0]] : [];/" scenario_waived_first_observed_second "check-red-first.mjs"
+
+echo "[33] MEDIUM (achado da revisão) — record --id A (única entrada, NOMEADA) seguido de record sem --id é recusado, arquivo intacto"
+FORGE_ROOT="$T" bash "$SN" bug-explicit33 --type bugfix --scale 1 >/dev/null
+EV33="$T/.forge/specs/active/bug-explicit33/evidence/red/red-evidence.json"
+FORGE_ROOT="$T" bash "$RE" record bug-explicit33 --id Explicita33 --test-path tests/e33.test.mjs --test-id case-e33 --command "node --test tests/e33.test.mjs" --fix-files src/e33.sh --failure-pattern PE33 >/dev/null
+node -e "const d=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')); if (d.entries.length !== 1 || d.entries[0].id !== 'Explicita33' || d.entries[0].id_explicit !== true) { console.error('pré-condição: entrada deveria ser única e id_explicit:true, achou ' + JSON.stringify(d.entries)); process.exit(1); }" "$EV33" || exit 1
+cp "$EV33" "$T/ev33-antes.json"
+set +e
+out33="$(FORGE_ROOT="$T" bash "$RE" record bug-explicit33 --failure-pattern PE33B 2>&1)"; rc33=$?
+set -e
+[ "$rc33" -ne 0 ] || { echo "FAIL [33]: record sem --id sobre entrada única já NOMEADA foi aceito ($out33)"; exit 1; }
+grep -qi -- "--id" <<<"$out33" || { echo "FAIL [33]: mensagem não cita --id ($out33)"; exit 1; }
+grep -q "Explicita33" <<<"$out33" || { echo "FAIL [33]: mensagem não nomeia a entrada já declarada ($out33)"; exit 1; }
+cmp -s "$EV33" "$T/ev33-antes.json" || { echo "FAIL [33]: arquivo foi tocado apesar da recusa"; exit 1; }
+echo "OK [33]"
+
+scenario_explicit_single_refuses() { # scenario_explicit_single_refuses <root> <suffix>
+  local root="$1" suffix="$2"
+  local id="bug-expl34$suffix"
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/spec-new.sh" "$id" --type bugfix --scale 1 >/dev/null 2>&1 || return 1
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/red-evidence.sh" record "$id" --id "Nome$suffix" --test-path "tests/e$suffix.test.mjs" --test-id "case-e$suffix" --command "node --test tests/e$suffix.test.mjs" --fix-files "src/e$suffix.sh" --failure-pattern "PE$suffix" >/dev/null 2>&1 || return 1
+  set +e
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/red-evidence.sh" record "$id" --failure-pattern "PE${suffix}B" >/dev/null 2>&1
+  local rc=$?
+  set -e
+  [ "$rc" -ne 0 ]
+}
+
+echo "[34] MUTAÇÃO (sandbox) — remover a distinção id_explicit em applyRecord (tratando toda entrada única como auto-atualizável) faz [33] sair rc 0 (a quimera original, disfarçada)"
+run_mutation "34" 's/entries\.length === 1 && !entries\[0\]\.id_explicit/entries.length === 1/' scenario_explicit_single_refuses
+
+echo "[35] item 4 do redesenho — topo adulterado (diverge da projeção de entries[]) é achado BLOQUEANTE de check, mesmo com a entrada genuinamente observada"
+mkdir -p "$T/src35" "$T/tests35"
+cat > "$T/src35/t.mjs" <<'JS'
+export function tfn(a, b) { return a - b; }
+JS
+git -C "$T" add src35/t.mjs
+git -C "$T" commit -qm "feat: t35 (com bug)" >/dev/null
+cat > "$T/tests35/t.test.mjs" <<'JS'
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { tfn } from '../src35/t.mjs';
+test('case35', () => { assert.strictEqual(tfn(2, 3), 5); });
+JS
+git -C "$T" add tests35/t.test.mjs
+git -C "$T" commit -qm "test: regressão bug-tamper35" >/dev/null
+cat > "$T/src35/t.mjs" <<'JS'
+export function tfn(a, b) { return a + b; }
+JS
+git -C "$T" add src35/t.mjs
+git -C "$T" commit -qm "fix: bug-tamper35" >/dev/null
+
+FORGE_ROOT="$T" bash "$SN" bug-tamper35 --type bugfix --scale 1 >/dev/null
+EV35="$T/.forge/specs/active/bug-tamper35/evidence/red/red-evidence.json"
+FORGE_ROOT="$T" bash "$RE" record bug-tamper35 --test-path tests35/t.test.mjs --test-id case35 --command "node --test tests35/t.test.mjs" --fix-files src35/t.mjs --failure-pattern AssertionError >/dev/null
+FORGE_ROOT="$T" bash "$RE" replay bug-tamper35 --id d1 >/dev/null
+node -e "
+const fs = require('fs');
+const p = process.argv[1];
+const d = JSON.parse(fs.readFileSync(p, 'utf8'));
+d.failure_pattern = 'ADULTERADO-NAO-BATE-COM-ENTRIES';
+fs.writeFileSync(p, JSON.stringify(d, null, 2) + '\n');
+" "$EV35"
+set +e
+out35="$(FORGE_ROOT="$T" bash "$CR" check bug-tamper35 2>&1)"; rc35=$?
+set -e
+[ "$rc35" -ne 0 ] || { echo "FAIL [35]: check deveria bloquear com topo adulterado, mesmo com entrada genuinamente observada ($out35)"; exit 1; }
+grep -qi "adulterado" <<<"$out35" || { echo "FAIL [35]: mensagem não cita adulteração ($out35)"; exit 1; }
+echo "OK [35]"
+
+scenario_tamper_detected() { # scenario_tamper_detected <root> <suffix>
+  # a entrada precisa estar GENUINAMENTE observada (replay real) antes da adulteração — senão o
+  # item 1 (Red ainda não observado) bloqueia por conta própria e a mutação de
+  # `topMatchesProjection` fica impossível de isolar (o cenário "passaria" — rc≠0 — mesmo com a
+  # detecção de adulteração completamente desligada).
+  local root="$1" suffix="$2"
+  local id="bug-tamper36$suffix"
+  mkdir -p "$root/src$suffix" "$root/tests$suffix"
+  cat > "$root/src$suffix/t.mjs" <<JS
+export function tfn(a, b) { return a - b; }
+JS
+  git -C "$root" add "src$suffix/t.mjs"
+  git -C "$root" commit -qm "feat: t$suffix (com bug)" >/dev/null
+  cat > "$root/tests$suffix/t.test.mjs" <<JS
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { tfn } from '../src$suffix/t.mjs';
+test('case$suffix', () => { assert.strictEqual(tfn(2, 3), 5); });
+JS
+  git -C "$root" add "tests$suffix/t.test.mjs"
+  git -C "$root" commit -qm "test: regressão $id" >/dev/null
+  cat > "$root/src$suffix/t.mjs" <<JS
+export function tfn(a, b) { return a + b; }
+JS
+  git -C "$root" add "src$suffix/t.mjs"
+  git -C "$root" commit -qm "fix: $id" >/dev/null
+
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/spec-new.sh" "$id" --type bugfix --scale 1 >/dev/null 2>&1 || return 1
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/red-evidence.sh" record "$id" --test-path "tests$suffix/t.test.mjs" --test-id "case$suffix" --command "node --test tests$suffix/t.test.mjs" --fix-files "src$suffix/t.mjs" --failure-pattern AssertionError >/dev/null 2>&1 || return 1
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/red-evidence.sh" replay "$id" --id d1 >/dev/null 2>&1 || return 1
+
+  local ev="$root/.forge/specs/active/$id/evidence/red/red-evidence.json"
+  # adultera SÓ o topo (entries[] fica intacto e genuinamente observado) — se
+  # topMatchesProjection nunca detectar isso, nenhum outro item bloqueia: entries[0] é observed,
+  # com excerpt e failure_pattern reais e coerentes entre si.
+  node -e "
+const fs = require('fs');
+const p = process.argv[1];
+const d = JSON.parse(fs.readFileSync(p, 'utf8'));
+d.failure_pattern = 'ADULTERADO-NAO-BATE-COM-ENTRIES';
+fs.writeFileSync(p, JSON.stringify(d, null, 2) + '\n');
+" "$ev"
+
+  set +e
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/check-red-first.sh" check "$id" >/dev/null 2>&1
+  local rc=$?
+  set -e
+  [ "$rc" -ne 0 ]
+}
+
+echo "[36] MUTAÇÃO (sandbox) — topMatchesProjection sempre devolvendo true faz [35] deixar de detectar a adulteração"
+run_mutation "36" 's/return keys\.every\(\(k\) => deepEqual\(data\[k\] \?\? null, projection\[k\] \?\? null\)\);/return true;/' scenario_tamper_detected "red-evidence.mjs"
 
 echo "OK"

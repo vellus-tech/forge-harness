@@ -120,7 +120,11 @@
         "id": {
           "type": ["string", "null"],
           "minLength": 1,
-          "description": "Identificador estável do defeito dentro do change (`record --id`). null para uma entrada migrada de um red-evidence.json legado, que nunca teve id. String vazia é inválida (correção da #139) — o validador em lib/red-evidence.mjs espelha esta regra e também rejeita ids duplicados dentro de `entries`."
+          "description": "Identificador estável do defeito dentro do change (`record --id`, ou auto-gerado — 'd1', 'd2', ... — quando `record` declara o primeiro defeito sem `--id`). Redesenho de causa raiz da #139 (4ª rodada): toda entrada ESCRITA por esta versão tem id não nulo — `null` só aparece em disco por compatibilidade de leitura de um arquivo legado ou de um `entries[]` gravado por uma versão anterior desta própria branch; `lib/red-evidence.mjs#deriveEntries` migra qualquer `id: null` na LEITURA para um id estável ('legado' para uma única entrada sem nome, 'd1'/'d2'/... por posição quando há 2+), nunca lido de volta como `null`. String vazia é inválida — o validador em lib/red-evidence.mjs espelha esta regra e também rejeita ids duplicados dentro de `entries`."
+        },
+        "id_explicit": {
+          "type": "boolean",
+          "description": "Redesenho de causa raiz da #139 (4ª rodada) — true quando o `id` desta entrada veio de um `--id` explícito em algum `record`; false quando foi auto-gerado (0 entradas, `record` sem `--id`) ou atribuído pela migração de um id nulo legado. Só afeta `record`: uma entrada com `id_explicit:true` exige `--id` explícito em qualquer `record` seguinte (evita a ambiguidade que é o próprio defeito original da issue); `replay`/`waive`/`ensure` endereçam por `id` sem se importar com este campo."
         },
         "status": { "$ref": "#/properties/status" },
         "test_path": { "$ref": "#/properties/test_path" },

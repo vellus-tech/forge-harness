@@ -52,7 +52,7 @@ import { join, resolve, basename } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { parseYamlSubset } from './yaml-lite.mjs';
-import { loadRedEvidence, isResolved, WAIVER_REASONS, REL_PATH } from './red-evidence.mjs';
+import { loadRedEvidence, WAIVER_REASONS, REL_PATH, deriveTopStatus, resolvedEntry, resolveEntryId } from './red-evidence.mjs';
 import { upsertSingleEntry } from './red-evidence-ops.mjs';
 import { checkReachability } from './red-level.mjs';
 import { applyMode } from './gate-mode.mjs';
@@ -183,71 +183,101 @@ export function evaluateRedFirst(changeDir) {
   const findings = [];
   const ev = loadRedEvidence(changeDir);
 
-  // item 1 — ausência de evidência resolvida (bloqueia, enforceable:true)
+  // item 1 — ausência de evidência resolvida (bloqueia, enforceable:true). Redesenho de causa
+  // raiz da #139 (4ª rodada): `entries[]` é a ÚNICA fonte de verdade — o veredito de resolução
+  // vem de `deriveTopStatus(ev.entries)`/`resolvedEntry`, nunca de `ev.data.status` bruto (item 3
+  // do redesenho: o topo é projeção, nunca lido como fonte).
+  const entries = ev.entries || [];
+  const topStatus = deriveTopStatus(entries);
+  const fullyResolved = entries.length > 0 && entries.every(resolvedEntry);
   if (!ev.exists) {
     findings.push({ enforceable: true, msg: `${REL_PATH} ausente — change type:bugfix sem evidência de Red (item 1, ${RULE_REF}) — escaffolde com 'red-evidence.sh init ${man.id}' e grave com /forge:red record + replay, ou dispense com /forge:red waive --reason <motivo>` });
   } else if (ev.errors.length) {
     findings.push({ enforceable: true, msg: `${REL_PATH} inválido: ${ev.errors.join('; ')} (item 1, ${RULE_REF})` });
-  } else if (!isResolved(ev.data)) {
+  } else if (ev.tampered) {
+    // item 4 do redesenho — um topo que não bate com a projeção FRESCA de entries[] é
+    // adulteração: entries[] é a fonte única, e o topo é sempre recalculado nas escritas
+    // (computeProjection); só diverge por edição manual fora do fluxo record/replay/ensure/waive.
+    // Preserva a detecção de forja do w106/w107 [3-FORJA] (que forja só os escalares do topo,
+    // deixando entries[] intacto) como um achado ESTÁTICO adicional — a garantia real, que
+    // reexecuta o teste declarado, continua vindo de `ensure` (chamado incondicionalmente por
+    // validate-spec.mjs/archive-spec.sh antes de qualquer decisão de bloqueio).
+    findings.push({ enforceable: true, msg: `${REL_PATH} adulterado — os campos do topo não correspondem à projeção de entries[] (entries[] é a fonte única de verdade; rode /forge:red ensure para recalcular o topo a partir dela) (item 4, ${RULE_REF})` });
+  } else if (!fullyResolved) {
     // achado HIGH-2/b da correção da #139 (iteração 3): com 2+ entradas em entries[], `replay` e
     // `waive` exigem `--id <id>` — a mensagem passa a nomear isso explicitamente em vez de mandar
     // para comandos que recusariam sem --id (o próprio conflito que a correção fecha: `ensure`,
     // chamado por /forge:verify e /forge:archive, resolve as demais entradas por iteração própria
-    // e não precisa de --id).
-    const entriesArr = Array.isArray(ev.data.entries) ? ev.data.entries : null;
-    const idHint = entriesArr && entriesArr.length >= 2
-      ? ` --id <id> (uma de: ${entriesArr.map((e) => (e && e.id) ?? '(sem id)').join(', ')})`
-      : '';
-    findings.push({ enforceable: true, msg: `${REL_PATH} status '${ev.data.status}' — Red ainda não observado nem dispensado (item 1, ${RULE_REF}) — rode /forge:red replay${idHint} ou dispense com /forge:red waive --reason <motivo>${idHint}` });
+    // e não precisa de --id). Toda entrada tem id não nulo (redesenho da #139) — a lista de ids na
+    // mensagem nunca mais precisa do placeholder "(sem id)".
+    const idHint = entries.length >= 2 ? ` --id <id> (uma de: ${entries.map((e) => e.id).join(', ')})` : '';
+    const pendingIds = entries.filter((e) => !resolvedEntry(e)).map((e) => e.id);
+    const which = entries.length >= 2 && pendingIds.length ? ` — pendente(s): ${pendingIds.join(', ')}` : '';
+    findings.push({ enforceable: true, msg: `${REL_PATH} status '${topStatus}' — Red ainda não observado nem dispensado (item 1, ${RULE_REF})${which} — rode /forge:red replay${idHint} ou dispense com /forge:red waive --reason <motivo>${idHint}` });
   }
-
-  const data = ev.exists && !ev.errors.length ? ev.data : null;
 
   // waiver: Onda D/E, item 3a — a política de CADA um dos quatro motivos é REAPLICADA aqui a
   // cada `check`, não só na hora de gravar (cmdWaive). Sem isso, um waiver colado à mão
   // diretamente no JSON — sem jamais passar por cmdWaive — escapa de qualquer validação: os
   // outros três motivos (no-test-infra/external-unreproducible/hotfix-under-incident) podiam
   // referenciar um deferral_id/ledger_id inventado (ou null) sem que nada conferisse se o
-  // DEFER-NN/LDG-NNNN correspondente existe de verdade.
-  if (data && data.status === 'waived' && data.waiver) {
-    const { reason } = data.waiver;
-    if (reason === 'non-behavioral') {
-      const verdict = nonBehavioralTouchesGraph(changeDir);
-      if (verdict.unverifiable) {
-        findings.push({ enforceable: true, msg: `waiver non-behavioral não pôde ser verificado — grafo de código ausente/malformado e a tentativa de regeneração (graph.sh update) não produziu um grafo utilizável; a política nunca concede non-behavioral em silêncio quando não dá para conferir se o diff toca código (item 3c, § Quando o Red não é possível, ${RULE_REF})` });
-      } else if (verdict.touched) {
-        findings.push({ enforceable: true, msg: `waiver non-behavioral inválido — o diff real toca arquivo de código presente no grafo (${verdict.touched}); a política nunca permite non-behavioral quando o diff toca código, independente do que o waiver declare (item 1, ${RULE_REF})` });
-      }
-    } else if (WAIVER_REASONS.includes(reason)) {
-      // no-test-infra | external-unreproducible | hotfix-under-incident — um waiver desses
-      // motivos precisa ter o deferral (e, p/ no-test-infra, também o ledger) DE VERDADE
-      // registrados — não só referenciados por id no JSON.
-      const def = deferralOf(changeDir, data.waiver.deferral_id);
-      if (!def) {
-        findings.push({ enforceable: true, msg: `waiver '${reason}' sem deferral correspondente registrado em deferrals.json (deferral_id declarado: ${data.waiver.deferral_id ?? 'null'}) — a política exige um DEFER-NN de verdade, não só a referência no JSON (item 3a, § Quando o Red não é possível, ${RULE_REF})` });
-      } else if (reason === 'hotfix-under-incident' && !(Array.isArray(def.blocks) && def.blocks.includes('archive'))) {
-        findings.push({ enforceable: true, msg: `waiver 'hotfix-under-incident' exige deferral com blocks:[archive] (${def.id} tem blocks: ${JSON.stringify(def.blocks || [])}) — sem isso o archive não fica travado até o teste chegar (item 3a, § Quando o Red não é possível, ${RULE_REF})` });
-      }
-      if (reason === 'no-test-infra') {
-        const entry = ledgerEntryOf(data.waiver.ledger_id, man.id);
-        if (!entry) {
-          findings.push({ enforceable: true, msg: `waiver 'no-test-infra' sem entrada correspondente registrada em .forge/ledger/ledger.json (ledger_id declarado: ${data.waiver.ledger_id ?? 'null'}) — a política exige dívida técnica de verdade, não só a referência no JSON (item 3a, § Quando o Red não é possível, ${RULE_REF})` });
+  // DEFER-NN/LDG-NNNN correspondente existe de verdade. Redesenho da #139: avaliado POR ENTRADA
+  // — um change com a 1ª entrada dispensada e a 2ª observada precisa que a política do waiver da
+  // 1ª seja checada mesmo quando o topo agregado é 'observed' (a mistura nunca aparece no topo).
+  const waivedEntries = entries.filter((e) => e.status === 'waived' && e.waiver);
+  if (waivedEntries.length) {
+    const nonBehavioralVerdict = waivedEntries.some((e) => e.waiver.reason === 'non-behavioral')
+      ? nonBehavioralTouchesGraph(changeDir)
+      : null;
+    for (const entry of waivedEntries) {
+      const { reason } = entry.waiver;
+      const tag = entries.length > 1 ? `entrada ${entry.id}: ` : '';
+      if (reason === 'non-behavioral') {
+        const verdict = nonBehavioralVerdict;
+        if (verdict.unverifiable) {
+          findings.push({ enforceable: true, msg: `${tag}waiver non-behavioral não pôde ser verificado — grafo de código ausente/malformado e a tentativa de regeneração (graph.sh update) não produziu um grafo utilizável; a política nunca concede non-behavioral em silêncio quando não dá para conferir se o diff toca código (item 3c, § Quando o Red não é possível, ${RULE_REF})` });
+        } else if (verdict.touched) {
+          findings.push({ enforceable: true, msg: `${tag}waiver non-behavioral inválido — o diff real toca arquivo de código presente no grafo (${verdict.touched}); a política nunca permite non-behavioral quando o diff toca código, independente do que o waiver declare (item 1, ${RULE_REF})` });
+        }
+      } else if (WAIVER_REASONS.includes(reason)) {
+        // no-test-infra | external-unreproducible | hotfix-under-incident — um waiver desses
+        // motivos precisa ter o deferral (e, p/ no-test-infra, também o ledger) DE VERDADE
+        // registrados — não só referenciados por id no JSON.
+        const def = deferralOf(changeDir, entry.waiver.deferral_id);
+        if (!def) {
+          findings.push({ enforceable: true, msg: `${tag}waiver '${reason}' sem deferral correspondente registrado em deferrals.json (deferral_id declarado: ${entry.waiver.deferral_id ?? 'null'}) — a política exige um DEFER-NN de verdade, não só a referência no JSON (item 3a, § Quando o Red não é possível, ${RULE_REF})` });
+        } else if (reason === 'hotfix-under-incident' && !(Array.isArray(def.blocks) && def.blocks.includes('archive'))) {
+          findings.push({ enforceable: true, msg: `${tag}waiver 'hotfix-under-incident' exige deferral com blocks:[archive] (${def.id} tem blocks: ${JSON.stringify(def.blocks || [])}) — sem isso o archive não fica travado até o teste chegar (item 3a, § Quando o Red não é possível, ${RULE_REF})` });
+        }
+        if (reason === 'no-test-infra') {
+          const ledgerEntry = ledgerEntryOf(entry.waiver.ledger_id, man.id);
+          if (!ledgerEntry) {
+            findings.push({ enforceable: true, msg: `${tag}waiver 'no-test-infra' sem entrada correspondente registrada em .forge/ledger/ledger.json (ledger_id declarado: ${entry.waiver.ledger_id ?? 'null'}) — a política exige dívida técnica de verdade, não só a referência no JSON (item 3a, § Quando o Red não é possível, ${RULE_REF})` });
+          }
         }
       }
     }
   }
 
-  // itens 2-4 só fazem sentido sobre uma evidência VÁLIDA com status observed (sobre
-  // dados já registrados — nenhuma execução acontece aqui; o replay real é responsabilidade de
+  // itens 2-8 só fazem sentido sobre uma entrada VÁLIDA com status observed (sobre dados já
+  // registrados — nenhuma execução acontece aqui; o replay real é responsabilidade de
   // `red-evidence.sh replay|ensure`, chamado por /forge:red, spec-verify.sh e archive-spec.sh).
-  if (data && data.status === 'observed') {
+  // Redesenho da #139 (item 4 do redesenho, "check/ensure avaliam por entrada"): iterado sobre
+  // CADA entrada observada de `entries[]`, nunca sobre a projeção do topo — a mistura observed+
+  // waived do achado HIGH-3 (1ª entrada dispensada, 2ª observada) trava para sempre se os itens
+  // 2-4 continuam avaliando só a projeção de entries[0] (a dispensada, sem excerpt/base_commit)
+  // mesmo quando o topo agregado é 'observed'.
+  const observedEntries = entries.filter((e) => e.status === 'observed');
+  for (const entry of observedEntries) {
+    const tag = entries.length > 1 ? `entrada ${entry.id}: ` : '';
+
     // completude de replay — status:observed sem os campos que só existem depois de um
     // replay real (Furo 4). Sem isso, itens 2-4 abaixo avaliam campos ausentes como
     // "silenciosamente ok" em vez de sinalizar a lacuna — a barra vira apenas "arquivo
     // existe com excerpt não-vazio", que é exatamente o furo original.
-    const missing = missingObservedFields(data);
+    const missing = missingObservedFields(entry);
     if (missing.length) {
-      findings.push({ enforceable: true, msg: `status 'observed' com evidência de replay incompleta — campos obrigatórios ausentes: ${missing.join(', ')} (rule, ${RULE_REF})` });
+      findings.push({ enforceable: true, msg: `${tag}status 'observed' com evidência de replay incompleta — campos obrigatórios ausentes: ${missing.join(', ')} (rule, ${RULE_REF})` });
     }
 
     // Onda E — SEM cache, este check ESTÁTICO não tenta mais corroborar que um replay real
@@ -259,72 +289,72 @@ export function evaluateRedFirst(changeDir) {
 
     // Furo 11 — excerpt_sha256 conferido de fato: sem isso o campo é decorativo (nada impedia
     // editar excerpt/classification à mão sem recalcular o hash, ou vice-versa).
-    if (data.excerpt && data.excerpt_sha256) {
-      const actual = sha256(data.excerpt);
-      if (actual !== data.excerpt_sha256) {
-        findings.push({ enforceable: true, msg: `excerpt_sha256 não corresponde ao excerpt registrado — evidência pode ter sido editada à mão (rule, ${RULE_REF})` });
+    if (entry.excerpt && entry.excerpt_sha256) {
+      const actual = sha256(entry.excerpt);
+      if (actual !== entry.excerpt_sha256) {
+        findings.push({ enforceable: true, msg: `${tag}excerpt_sha256 não corresponde ao excerpt registrado — evidência pode ter sido editada à mão (rule, ${RULE_REF})` });
       }
     }
 
     // item 2 — "não reproduz": observed sem trecho de saída capturado é declaração sem lastro.
-    if (!data.excerpt || !String(data.excerpt).trim()) {
-      findings.push({ enforceable: true, msg: `status 'observed' sem excerpt registrado — sem evidência de falha na base (item 2, ${RULE_REF})` });
+    if (!entry.excerpt || !String(entry.excerpt).trim()) {
+      findings.push({ enforceable: true, msg: `${tag}status 'observed' sem excerpt registrado — sem evidência de falha na base (item 2, ${RULE_REF})` });
     }
     // item 2 — teste que já passava na base (base_result é escrito pelo replay real; ausência
     // não é falso positivo — só 'passed' explícito é achado).
-    if (data.base_result === 'passed') {
-      findings.push({ enforceable: true, msg: `base_result 'passed' — teste já passava na árvore base, não reproduz o defeito relatado (item 2, ${RULE_REF})` });
+    if (entry.base_result === 'passed') {
+      findings.push({ enforceable: true, msg: `${tag}base_result 'passed' — teste já passava na árvore base, não reproduz o defeito relatado (item 2, ${RULE_REF})` });
     }
 
     // item 3 — a classificação REAL do excerpt (via red-classify, não o campo auto-declarado)
     // decide. Um excerpt de erro de build com classification:"behavioral" declarado não passa
     // mais (Furo 3) — e uma declaração que diverge da classificação real também é sinalizada.
-    if (data.excerpt && String(data.excerpt).trim()) {
-      const classified = classify(data.excerpt);
+    if (entry.excerpt && String(entry.excerpt).trim()) {
+      const classified = classify(entry.excerpt);
       if (classified !== 'behavioral') {
-        findings.push({ enforceable: true, msg: `excerpt classifica como '${classified}' via red-classify — não é comportamental, independente do campo 'classification' declarado ('${data.classification ?? 'null'}') (item 3, ${RULE_REF})` });
-      } else if (data.classification && data.classification !== classified) {
-        findings.push({ enforceable: true, msg: `classification declarada ('${data.classification}') diverge da classificação real do excerpt ('${classified}') (item 3, ${RULE_REF})` });
+        findings.push({ enforceable: true, msg: `${tag}excerpt classifica como '${classified}' via red-classify — não é comportamental, independente do campo 'classification' declarado ('${entry.classification ?? 'null'}') (item 3, ${RULE_REF})` });
+      } else if (entry.classification && entry.classification !== classified) {
+        findings.push({ enforceable: true, msg: `${tag}classification declarada ('${entry.classification}') diverge da classificação real do excerpt ('${classified}') (item 3, ${RULE_REF})` });
       }
     }
 
     // item 4 — a saída observada precisa casar com o failure_pattern declarado.
-    if (data.failure_pattern && data.excerpt) {
+    if (entry.failure_pattern && entry.excerpt) {
       let matches;
-      try { matches = new RegExp(data.failure_pattern).test(data.excerpt); }
-      catch { matches = data.excerpt.includes(data.failure_pattern); }
-      if (!matches) findings.push({ enforceable: true, msg: `excerpt não casa com o failure_pattern declarado ('${data.failure_pattern}') (item 4, ${RULE_REF})` });
+      try { matches = new RegExp(entry.failure_pattern).test(entry.excerpt); }
+      catch { matches = entry.excerpt.includes(entry.failure_pattern); }
+      if (!matches) findings.push({ enforceable: true, msg: `${tag}excerpt não casa com o failure_pattern declarado ('${entry.failure_pattern}') (item 4, ${RULE_REF})` });
     }
 
     // itens 5-8 — avisos de qualidade (enforceable:false), só avaliáveis com dados suficientes.
-    if (data.test_path && Array.isArray(data.fix_files) && data.fix_files.length) {
+    if (entry.test_path && Array.isArray(entry.fix_files) && entry.fix_files.length) {
       const graphPath = join(root, '.forge/graph/graph.json');
       let graph = null;
       if (existsSync(graphPath)) { try { graph = JSON.parse(readFileSync(graphPath, 'utf8')); } catch { graph = null; } }
-      const reach = checkReachability({ graph, testPath: data.test_path, fixFiles: data.fix_files });
+      const reach = checkReachability({ graph, testPath: entry.test_path, fixFiles: entry.fix_files });
       if (reach.status === 'no-intersection') {
-        findings.push({ enforceable: false, msg: `teste não alcança, no grafo de código, nenhum arquivo corrigido (item 5, ${RULE_REF})` });
+        findings.push({ enforceable: false, msg: `${tag}teste não alcança, no grafo de código, nenhum arquivo corrigido (item 5, ${RULE_REF})` });
       }
 
-      const testCommit = lastCommitOf(data.test_path);
+      const testCommit = lastCommitOf(entry.test_path);
       if (testCommit) {
-        const sameCommitFix = data.fix_files.find((fx) => lastCommitOf(fx) === testCommit);
+        const sameCommitFix = entry.fix_files.find((fx) => lastCommitOf(fx) === testCommit);
         if (sameCommitFix) {
-          findings.push({ enforceable: false, msg: `teste (${data.test_path}) e correção (${sameCommitFix}) no mesmo commit ${testCommit.slice(0, 7)} (item 6, ${RULE_REF})` });
+          findings.push({ enforceable: false, msg: `${tag}teste (${entry.test_path}) e correção (${sameCommitFix}) no mesmo commit ${testCommit.slice(0, 7)} (item 6, ${RULE_REF})` });
         }
       }
 
-      const mock = checkMockOfFixSymbol(data.test_path, data.fix_files);
+      const mock = checkMockOfFixSymbol(entry.test_path, entry.fix_files);
       if (mock) {
-        findings.push({ enforceable: false, msg: `possível mock de símbolo exportado por arquivo corrigido — '${mock.symbol}' (${mock.via}) em ${mock.fixFile} (item 8, ${RULE_REF})` });
+        findings.push({ enforceable: false, msg: `${tag}possível mock de símbolo exportado por arquivo corrigido — '${mock.symbol}' (${mock.via}) em ${mock.fixFile} (item 8, ${RULE_REF})` });
       }
     }
-    if (!testNameReferencesDefect(data, man.id)) {
-      findings.push({ enforceable: false, msg: `nome de teste sem referência aparente ao defeito (item 7, ${RULE_REF})` });
+    if (!testNameReferencesDefect(entry, man.id)) {
+      findings.push({ enforceable: false, msg: `${tag}nome de teste sem referência aparente ao defeito (item 7, ${RULE_REF})` });
     }
   }
 
-  return { applicable: true, findings, status: data ? data.status : null, changeId: man.id };
+  return { applicable: true, findings, status: topStatus, changeId: man.id };
 }
 
 // ── "check": CLI sobre evaluateRedFirst — formata OK/CONFLICT/WARN e decide o exit code ────
@@ -361,15 +391,19 @@ function cmdStatus(changeDir) {
   const ev = loadRedEvidence(changeDir);
   if (!ev.exists) { console.log(`MISSING (${REL_PATH} ausente)`); return; }
   if (ev.errors.length) { console.log(`INVALID (${ev.errors.join('; ')})`); return; }
-  // Onda #139 — leitura informativa de entries[]: change com múltiplas entradas mostra quantas
-  // já estão resolvidas (observed|waived), sem que isso mude o veredito OK/PENDING (que continua
-  // vindo do status do topo, já derivado por applyRecord). Iterar entries[] para o veredito
-  // ITEM A ITEM é escopo da #138, não desta Onda.
-  const entries = Array.isArray(ev.data.entries) ? ev.data.entries : [];
+  // Redesenho de causa raiz da #139 (4ª rodada) — o topo NUNCA é lido como fonte (item 3/4): o
+  // veredito e o status exibidos vêm de `deriveTopStatus(ev.entries)`, a mesma projeção pura que
+  // toda escrita recalcula, nunca de `ev.data.status` bruto. Change com múltiplas entradas mostra
+  // quantas já estão resolvidas (observed|waived) — informativo; iterar entries[] para o veredito
+  // ITEM A ITEM é escopo da #138.
+  const entries = ev.entries;
+  const topStatus = deriveTopStatus(entries);
   const suffix = entries.length > 1
-    ? ` — ${entries.filter((e) => e.status === 'observed' || e.status === 'waived').length}/${entries.length} entrada(s) resolvida(s)`
+    ? ` — ${entries.filter(resolvedEntry).length}/${entries.length} entrada(s) resolvida(s)`
     : '';
-  console.log(isResolved(ev.data) ? `OK (status: ${ev.data.status}${suffix})` : `PENDING (status: ${ev.data.status}${suffix})`);
+  if (ev.tampered) { console.log(`INVALID (red-evidence.json adulterado — topo diverge da projeção de entries[]; rode /forge:red ensure)`); return; }
+  const resolved = topStatus === 'observed' || topStatus === 'waived';
+  console.log(resolved ? `OK (status: ${topStatus}${suffix})` : `PENDING (status: ${topStatus}${suffix})`);
 }
 
 // ── "waive": grava waiver tipado (§ Quando o Red não é possível) ───────────────────────
@@ -571,24 +605,18 @@ function cmdWaive(changeDir, argv) {
   // dispensa — sem ele, escolher uma seria adivinhar, e a recusa é fail-closed ANTES de qualquer
   // efeito colateral (deferral-ops/ledger-ops abaixo), para não deixar deferral ou entrada de
   // ledger órfã de um waiver que não foi gravado. Com --id declarado mas inexistente, mesma
-  // recusa (nunca cria entrada — isso é exclusivo de record).
+  // recusa (nunca cria entrada — isso é exclusivo de record). Redesenho de causa raiz da #139
+  // (4ª rodada): endereça via `resolveEntryId` sobre `ev.entries` (já normalizado por
+  // `loadRedEvidence` — toda entrada tem id não nulo e estável), o MESMO endereçamento
+  // compartilhado que `replay` usa — nenhuma entrada fica inendereçável por falta de nome.
   let targetEntry = null;
   if (Array.isArray(ev.data.entries)) {
-    const entries = ev.data.entries;
-    if (idProvided) {
-      targetEntry = entries.find((e) => e && e.id === id) || null;
-      if (!targetEntry) {
-        const ids = entries.map((e) => (e && e.id) ?? '(sem id)').join(', ') || '(nenhuma)';
-        console.log(`FAIL (waive recusado — id não encontrado: ${id} (entradas: ${ids}). Nada foi escrito.)`);
-        process.exit(1);
-      }
-    } else if (entries.length >= 2) {
-      const ids = entries.map((e) => (e && e.id) ?? '(sem id)').join(', ');
-      console.log(`FAIL (waive recusado — este change tem ${entries.length} entradas registradas em entries[] (${ids}); declare --id <id> para dizer qual defeito este waiver dispensa. Nada foi escrito.)`);
+    const resolved = resolveEntryId(ev.entries, idProvided ? { id } : {});
+    if (!resolved.ok) {
+      console.log(`FAIL (waive recusado — ${resolved.reason}. Nada foi escrito.)`);
       process.exit(1);
-    } else if (entries.length === 1) {
-      targetEntry = entries[0];
     }
+    targetEntry = ev.entries[resolved.index];
   }
 
   // Furo 6 — idempotência: um segundo waive sem --force não pode (a) reabrir outro deferral/

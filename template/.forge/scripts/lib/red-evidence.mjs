@@ -3,6 +3,30 @@
 // regras do schema sem depender de ajv em runtime (mesmo padrão de validate-spec.mjs).
 // Puro quanto possível: loadRedEvidence é o único ponto de I/O; o resto opera sobre o
 // objeto já lido.
+//
+// Modelo de dados (Onda #139, redesenho de causa raiz — 4ª rodada de correção da issue #139):
+//
+//   1. `entries[]` é a ÚNICA fonte da verdade. Todo leitor e todo escritor opera sobre
+//      `entries[]` — nunca sobre os escalares do topo diretamente.
+//   2. Toda entrada tem `id` NÃO NULO e ESTÁVEL. `record` sem `--id` sobre um change com 0
+//      entradas gera um id determinístico (`nextAutoId` — 'd1', 'd2', ...). A leitura de um
+//      `red-evidence.json` legado de entrada única (sem `entries[]`) atribui o id fixo
+//      `LEGACY_ID` ('legado') sem perder nem reinterpretar nenhum campo (`deriveEntries`).
+//      Um arquivo que já tenha `entries[]` com algum `id: null` (estado possível só em builds
+//      anteriores desta própria branch, antes deste redesenho) é migrado NA LEITURA para o
+//      mesmo esquema — nunca fica um id nulo depois de `deriveEntries`.
+//   3. Os escalares do topo são uma PROJEÇÃO derivada por uma única função pura,
+//      `computeProjection(changeId, entries)`: o status do topo é `waived` quando TODAS as
+//      entradas são `waived`, `observed` quando todas estão resolvidas (observed|waived) mas
+//      nem todas são `waived`, e `pending` quando existem 0 entradas ou alguma ainda não
+//      resolvida; os demais campos do topo são sempre os de `entries[0]` (a primeira entrada
+//      declarada — legado migrado, ou o primeiro `record` de um change novo). `computeProjection`
+//      roda de novo a cada escrita (`red-evidence-ops.mjs`) e NUNCA é lida como fonte — um topo
+//      que diverge da projeção fresca de `entries[]` é adulteração (`topMatchesProjection`,
+//      usada por `loadRedEvidence` para reprovar o arquivo como inválido).
+//   4. `--rename-null` foi REMOVIDO (existia só para tornar endereçável uma entrada que nascia
+//      sem id; no modelo novo toda entrada nasce com id não nulo — auto ou explícito — então
+//      nunca há uma entrada inendereçável para renomear).
 import { readFileSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
@@ -17,11 +41,20 @@ export const WAIVER_REASONS = ['non-behavioral', 'no-test-infra', 'external-unre
 // mesmo acabara de produzir.
 export const BASE_STRATEGIES = ['ancestry', 'revert-synthesis', 'test-graft'];
 
+// LEGACY_ID — id fixo e documentado atribuído a uma entrada sem id na migração (deriveEntries):
+// tanto a um red-evidence.json legado de verdade (formato de entrada única, sem `entries[]`,
+// em voo em centenas de changes de consumidores) quanto a um `entries[]` que já contenha uma
+// única entrada com `id: null` (estado só alcançável por um build anterior desta própria branch,
+// antes de todo `record` passar a gerar id sempre) — as duas são, do ponto de vista de quem lê,
+// indistinguíveis (uma entrada sem nome), e por isso recebem o mesmo nome.
+export const LEGACY_ID = 'legado';
+const AUTO_ID_PREFIX = 'd';
+
 // ENTRY_SCALAR_FIELDS — os campos por-defeito que hoje moram no topo (Onda #139: entries[]).
-// Fonte única para quem projeta o topo a partir de entries[0] (lib/red-evidence-ops.mjs) e para
-// quem valida cada entrada aqui — evita que as duas listas divirjam como a de STATUSES/
-// CLASSIFICATIONS antes desta constante existir. Exclui 'id', 'status', 'fix_files' e 'waiver',
-// que têm forma/validação própria (ver validateEntryFields abaixo).
+// Fonte única para quem projeta o topo a partir de entries[0] (computeProjection) e para quem
+// valida cada entrada aqui — evita que as duas listas divirjam como a de STATUSES/
+// CLASSIFICATIONS antes desta constante existir. Exclui 'id', 'id_explicit', 'status',
+// 'fix_files' e 'waiver', que têm forma/validação própria (ver validateEntryFields abaixo).
 export const ENTRY_SCALAR_FIELDS = [
   'test_path', 'test_id', 'command', 'base_commit', 'failure_pattern', 'excerpt', 'excerpt_sha256',
   'classification', 'base_result', 'base_strategy', 'graft_from', 'revert_patch', 'replay_head',
@@ -37,6 +70,7 @@ function validateEntryFields(e, idx, errors) {
   const p = `entries[${idx}]`;
   if (!e || typeof e !== 'object' || Array.isArray(e)) { errors.push(`${p}: not an object`); return; }
   if (e.id !== undefined && e.id !== null && typeof e.id !== 'string') errors.push(`${p}.id must be string|null`);
+  if (e.id_explicit !== undefined && typeof e.id_explicit !== 'boolean') errors.push(`${p}.id_explicit must be boolean`);
   if (!STATUSES.includes(e.status)) errors.push(`${p}.status invalid: ${e.status} (allowed: ${STATUSES.join('|')})`);
   for (const k of ['test_path', 'test_id', 'command', 'failure_pattern', 'excerpt', 'reproduces'])
     if (e[k] !== undefined && e[k] !== null && typeof e[k] !== 'string') errors.push(`${p}.${k} must be string|null`);
@@ -148,16 +182,187 @@ export function validateRedEvidence(data) {
   return errors;
 }
 
-// loadRedEvidence(changeDir): { path, exists, data, errors }. Ausente ⇒ exists:false,
-// data:null, errors:[] (não é erro — status implícito é "sem evidência", tratado pelo
-// caller). Malformado (JSON inválido) ⇒ exists:true, data:null, errors com a mensagem.
+// ── entries[] — fonte única de verdade (redesenho de causa raiz, 4ª rodada da #139) ────────────
+
+export function resolvedEntry(e) { return e.status === 'observed' || e.status === 'waived'; }
+
+export function emptyEntry(id) {
+  const e = { id: id ?? null, id_explicit: false, status: 'pending', fix_files: [], waiver: null };
+  for (const k of ENTRY_SCALAR_FIELDS) e[k] = null;
+  return e;
+}
+
+// "evidência gravada" — mesmo predicado do item 3d em check-red-first.mjs (exclui o scaffold
+// trivial que /forge:spec new grava para TODO change bugfix: status:'pending', recorded_at:null).
+// Achado LOW da correção da #139: `recorded_at`/`status` sozinhos não bastam — um artefato
+// legado escrito à mão (w106/w144, plano L5 §6.4) pode ter test_path/test_id/command/
+// failure_pattern/fix_files preenchidos com `recorded_at:null` e `status:'pending'` (nunca
+// passou pelo `record` da CLI, que sempre carimba `recorded_at`), e o predicado antigo tratava
+// esse conteúdo real como scaffold vazio, descartando-o no primeiro `record --id`.
+// LEGACY_SIGNAL_FIELDS — subconjunto de ENTRY_SCALAR_FIELDS que só um `record` de verdade (CLI
+// ou escrito à mão, w106/w144) preenche. Exclui deliberadamente 'reproduces': o scaffold do
+// `templates/bugfix/red-evidence.json` já grava `"reproduces": "bugfix.md §1"` como default
+// ESTÁTICO em todo change bugfix novo, então esse campo sozinho não distingue "nunca gravado" de
+// "gravado" — usá-lo aqui faria todo scaffold recém-criado, mesmo sem nenhum record, parecer
+// legado real (regressão do cenário de scaffold vazio).
+const LEGACY_SIGNAL_FIELDS = ENTRY_SCALAR_FIELDS.filter((k) => k !== 'reproduces');
+
+function isRealLegacyData(data) {
+  if (!data) return false;
+  if (data.recorded_at || (data.status && data.status !== 'pending')) return true;
+  if (Array.isArray(data.fix_files) && data.fix_files.length) return true;
+  return LEGACY_SIGNAL_FIELDS.some((k) => data[k] !== undefined && data[k] !== null && data[k] !== '');
+}
+
+function extractEntryFromTop(data) {
+  const e = { id: null, id_explicit: false, status: data.status || 'pending' };
+  for (const k of ENTRY_SCALAR_FIELDS) e[k] = data[k] ?? null;
+  e.fix_files = Array.isArray(data.fix_files) ? data.fix_files : [];
+  e.waiver = data.waiver ?? null;
+  return e;
+}
+
+// nextAutoId: id determinístico e estável para uma entrada sem `--id` explícito — 'd1', 'd2',
+// ... — o primeiro nome livre do padrão, nunca colidindo com um id já em uso (auto ou
+// explícito). Exportada para que `record` (0 entradas) e `migrateNullIds` (leitura) usem a
+// MESMA função — a garantia de "toda entrada tem id estável" depende de as duas nunca
+// divergirem em como geram o próximo nome.
+export function nextAutoId(usedIds) {
+  let n = 1;
+  while (usedIds.has(`${AUTO_ID_PREFIX}${n}`)) n++;
+  return `${AUTO_ID_PREFIX}${n}`;
+}
+
+// migrateNullIds: nenhuma entrada sai daqui com `id: null` — ponto único de migração (item 2 do
+// redesenho). Uma ÚNICA entrada sem id (legado de verdade extraído do topo, OU um `entries[]` já
+// existente com uma única entrada null — só alcançável por um build anterior desta branch) recebe
+// LEGACY_ID; com 2+ entradas, cada `id: null` recebe o próximo auto-id livre, na ordem em que
+// aparece no array — nunca reordena nem reinterpreta nenhum outro campo.
+function migrateNullIds(entries) {
+  if (!entries.some((e) => e.id == null)) return entries;
+  if (entries.length === 1) {
+    return [{ ...entries[0], id: LEGACY_ID, id_explicit: false }];
+  }
+  const used = new Set(entries.filter((e) => e.id != null).map((e) => e.id));
+  return entries.map((e) => {
+    if (e.id != null) return e;
+    const id = nextAutoId(used);
+    used.add(id);
+    return { ...e, id, id_explicit: false };
+  });
+}
+
+// deriveEntries(data): entries[] JÁ NORMALIZADO — sempre um array, ids nunca nulos. `entries`
+// presente no JSON -> usa como está, normalizando campos ausentes por item e migrando qualquer
+// id null (item 2). Ausente mas com dado real (J-14, legado em voo em centenas de changes de
+// consumidores) -> PRESERVA o legado como entries[0] com id LEGACY_ID, nunca descarta e nunca
+// recomeça `entries:[novo]` (esse seria o próprio defeito original da issue, aplicado ao caminho
+// de migração). Scaffold trivial (nunca gravado) -> [] (nada a preservar; ver comentário de
+// isRealLegacyData).
+export function deriveEntries(data) {
+  const raw = Array.isArray(data.entries)
+    ? data.entries.map((e) => ({ ...emptyEntry(e && e.id), ...e }))
+    : (isRealLegacyData(data) ? [extractEntryFromTop(data)] : []);
+  return migrateNullIds(raw);
+}
+
+// deriveTopStatus: item 3 do redesenho (status do topo). 0 entradas -> pending; 1 entrada -> o
+// status dela (passa 'not-possible' adiante — só 0/1 entrada pode chegar a esse status hoje);
+// 2+ entradas -> 'waived' só se TODAS forem waived, 'observed' se todas resolvidas mas nem
+// todas waived (mistura observed+waived conta como observed — a política de waiver de cada
+// entrada dispensada já foi verificada individualmente), senão 'pending'.
+export function deriveTopStatus(entries) {
+  if (!entries.length) return 'pending';
+  if (entries.length === 1) return entries[0].status;
+  if (entries.every(resolvedEntry)) return entries.every((e) => e.status === 'waived') ? 'waived' : 'observed';
+  return 'pending';
+}
+
+// computeProjection: a ÚNICA função pura que deriva os escalares do topo a partir de
+// entries[] (item 3 do redesenho) — usada por TODA escrita (red-evidence-ops.mjs,
+// check-red-first.mjs) e por `topMatchesProjection` abaixo para detectar adulteração. Os
+// escalares (test_path, excerpt, ...) são sempre os de entries[0] — a primeira entrada
+// declarada, nunca a última tocada — mantendo um leitor antigo (que só lê o topo) vendo o mesmo
+// conteúdo que via antes desta Onda quando o change tem uma única entrada.
+export function computeProjection(changeId, entries) {
+  const first = entries[0] || emptyEntry(null);
+  const doc = { schema: 'red-evidence/v1', change_id: changeId, status: deriveTopStatus(entries) };
+  for (const k of ENTRY_SCALAR_FIELDS) doc[k] = first[k] ?? null;
+  doc.fix_files = Array.isArray(first.fix_files) ? first.fix_files : [];
+  doc.waiver = first.waiver ?? null;
+  doc.entries = entries;
+  return doc;
+}
+
+function deepEqual(a, b) {
+  if (a === b) return true;
+  if (a === null || b === null || typeof a !== 'object' || typeof b !== 'object') return false;
+  const ak = Object.keys(a);
+  const bk = Object.keys(b);
+  if (ak.length !== bk.length) return false;
+  return ak.every((k) => deepEqual(a[k], b[k]));
+}
+
+// topMatchesProjection: item 4 do redesenho — um topo que não bate com a projeção FRESCA de
+// entries[] é tratado como adulteração. Só se aplica quando existe ao menos 1 entrada: com 0
+// entradas (scaffold nunca gravado), o topo é o que o template escaffoldou (ex.: `reproduces`
+// com o default estático "bugfix.md §1") e não há projeção alguma para comparar ainda — exigir
+// igualdade aqui reprovaria todo change bugfix recém-criado, antes de qualquer `record`.
+export function topMatchesProjection(data, entries) {
+  if (!entries.length) return true;
+  const projection = computeProjection(data.change_id, entries);
+  const keys = ['status', ...ENTRY_SCALAR_FIELDS, 'fix_files', 'waiver'];
+  return keys.every((k) => deepEqual(data[k] ?? null, projection[k] ?? null));
+}
+
+// resolveEntryId: endereçamento COMPARTILHADO por replay/waive (item 5 do redesenho) — decide,
+// ANTES de qualquer efeito colateral, qual `id` de `entries[]` um comando explícito afeta: por
+// `--id` quando declarado (entrada precisa existir), ou o id da entrada única quando o change
+// tem exatamente 1 (fluxo comum, `--id` opcional). Nunca cria entrada — isso é exclusivo de
+// `record`. Como toda entrada tem id não nulo (item 2), este endereçamento nunca esbarra numa
+// entrada sem nome: `entries[]` normalizado por `deriveEntries` é a única entrada esperada aqui.
+export function resolveEntryId(entries, flags) {
+  const hasId = flags && flags.id !== undefined;
+  if (hasId) {
+    const idx = entries.findIndex((e) => e.id === flags.id);
+    if (idx < 0) {
+      const ids = entries.map((e) => e.id).join(', ') || '(nenhuma)';
+      return { ok: false, reason: `id não encontrado: ${flags.id} (entradas: ${ids})` };
+    }
+    return { ok: true, id: flags.id, index: idx };
+  }
+  if (entries.length === 0) return { ok: false, reason: 'nenhuma entrada registrada — rode /forge:red record antes' };
+  if (entries.length >= 2) {
+    const ids = entries.map((e) => e.id).join(', ');
+    return { ok: false, reason: `--id é obrigatório — este change tem ${entries.length} entradas registradas (${ids}); declare a qual defeito este comando se refere` };
+  }
+  return { ok: true, id: entries[0].id, index: 0 };
+}
+
+// loadRedEvidence(changeDir): { path, exists, data, errors, entries, tampered }. Ausente ⇒
+// exists:false, data:null, errors:[], entries:[], tampered:false (não é erro — status implícito
+// é "sem evidência", tratado pelo caller). Malformado (JSON inválido, enum/tipo inválido) ⇒
+// exists:true, data:null|raw, errors com a(s) mensagem(ns) — isso SIM bloqueia `record`/`replay`/
+// `ensure` (requireEvidence), porque não há como calcular `entries[]` de dado estruturalmente
+// incoerente. `entries` é SEMPRE a versão normalizada (deriveEntries) quando `data` é
+// estruturalmente válido — entries[] é a única fonte de verdade (item 1 do redesenho): todo
+// caller opera sobre `entries`, nunca sobre os escalares de `data` diretamente para decidir o
+// que fazer. `tampered` é DELIBERADAMENTE separado de `errors`: um topo que diverge da projeção
+// fresca de `entries[]` (item 4 — adulteração) não impede `record`/`replay`/`ensure` de operar
+// sobre `entries[]` e regravar o topo correto como efeito colateral (autocura pela própria
+// escrita) — só `check-red-first.mjs` (avaliação estática, nunca escreve) trata `tampered` como
+// achado bloqueante, porque é o único caminho que roda sem nunca reexecutar nada por trás.
 export function loadRedEvidence(changeDir) {
   const path = join(resolve(changeDir), REL_PATH);
-  if (!existsSync(path)) return { path, exists: false, data: null, errors: [] };
+  if (!existsSync(path)) return { path, exists: false, data: null, errors: [], entries: [], tampered: false };
   let data;
   try { data = JSON.parse(readFileSync(path, 'utf8')); }
-  catch (e) { return { path, exists: true, data: null, errors: [`red-evidence.json: parse error (${e.message})`] }; }
-  return { path, exists: true, data, errors: validateRedEvidence(data) };
+  catch (e) { return { path, exists: true, data: null, errors: [`red-evidence.json: parse error (${e.message})`], entries: [], tampered: false }; }
+  const errors = validateRedEvidence(data);
+  if (errors.length) return { path, exists: true, data, errors, entries: [], tampered: false };
+  const entries = deriveEntries(data);
+  const tampered = !topMatchesProjection(data, entries);
+  return { path, exists: true, data, errors, entries, tampered };
 }
 
 // isResolved: contrato literal da rule/validate-spec — "não estiver 'observed' nem

@@ -12,7 +12,7 @@
 //     declaração invalida qualquer replay anterior). failure_pattern é OBRIGATÓRIO (Furo 10 —
 //     sem ele, o item 4 da rule nunca é avaliável; opcional era o mesmo que ausente).
 //
-//   replay <change-dir> [--timeout <segundos>]
+//   replay <change-dir> [--id <defeito>] [--timeout <segundos>]
 //     Chama lib/red-replay.mjs sobre os dados já declarados. Três desfechos:
 //       observed     -> grava status/base_commit/base_strategy/classification/excerpt/
 //                        excerpt_sha256/base_result/replayed_at/replay_head (Furo 1 — replay_head
@@ -33,12 +33,25 @@
 // no comentário de cmdEnsure abaixo) — aceito deliberadamente em troca de eliminar (a) o furo do
 // cache versionável em projetos que instalaram o harness antes do patch do .gitignore e (b) o
 // livelock relatado quando o cache invalidava por motivo alheio ao conteúdo do teste/correção.
-import { readFileSync, existsSync, writeFileSync, renameSync, realpathSync } from 'node:fs';
+//
+// Onda #139, redesenho de causa raiz (4ª rodada de correção) — `entries[]` (lib/red-evidence.mjs)
+// é a ÚNICA fonte da verdade: `applyRecord` sempre opera sobre `deriveEntries(...)` (nunca sobre
+// os escalares do topo), toda entrada tem `id` não nulo e estável (auto-gerado — `nextAutoId` —
+// quando o change tem 0 entradas e `record` não declara `--id`; migrado na leitura quando o
+// arquivo já tem uma entrada sem nome, legado ou não), e os escalares do topo são recalculados
+// por `computeProjection` a cada escrita. `--rename-null` foi REMOVIDO: existia só para nomear
+// uma entrada que nascia sem id — no modelo novo toda entrada já nasce com id, então nunca há
+// nada para renomear.
+import { existsSync, writeFileSync, renameSync, realpathSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
 import { parseYamlSubset } from './yaml-lite.mjs';
-import { loadRedEvidence, REL_PATH, ENTRY_SCALAR_FIELDS } from './red-evidence.mjs';
+import {
+  loadRedEvidence, REL_PATH, ENTRY_SCALAR_FIELDS,
+  emptyEntry, deriveEntries, computeProjection, deriveTopStatus, nextAutoId, resolveEntryId,
+} from './red-evidence.mjs';
 import { replay as runReplay } from './red-replay.mjs';
 
 const root = resolve(process.env.FORGE_ROOT || '.');
@@ -98,197 +111,57 @@ function hasFlagWithValue(argv, name, value) {
   return typeof value === 'string' && value.length > 0 && !value.startsWith('--');
 }
 
-// ── entries[] (Onda #139, issue #139) ───────────────────────────────────────────────────────
-//
-// Causa raiz original: `record` copiava os escalares do TOPO (`{ ...ev.data }`), atribuía campo
-// a campo e gravava — um segundo `record` apagava o primeiro, e um `record` parcial herdava
-// campos de outro defeito (o `--failure-pattern` sozinho "funcionava" porque test_path/test_id/
-// command do defeito anterior já estavam no topo herdado). A partir desta Onda, `record` opera
-// sempre sobre `entries[]` — um registro por defeito, endereçado por `id` estável — e os
-// escalares do topo passam a ser só uma PROJEÇÃO de `entries[0]`, mantida para leitores antigos
-// (check-red-first.mjs, validate-spec.mjs, doctor.sh) que só conhecem o formato de entrada única.
-
-function resolvedEntry(e) { return e.status === 'observed' || e.status === 'waived'; }
-
-function emptyEntry(id) {
-  const e = { id: id ?? null, status: 'pending', fix_files: [], waiver: null };
-  for (const k of ENTRY_SCALAR_FIELDS) e[k] = null;
-  return e;
-}
-
-// "evidência gravada" — mesmo predicado do item 3d em check-red-first.mjs (exclui o scaffold
-// trivial que /forge:spec new grava para TODO change bugfix: status:'pending', recorded_at:null).
-// Achado LOW da correção da #139: `recorded_at`/`status` sozinhos não bastam — um artefato
-// legado escrito à mão (w106/w144, plano L5 §6.4) pode ter test_path/test_id/command/
-// failure_pattern/fix_files preenchidos com `recorded_at:null` e `status:'pending'` (nunca
-// passou pelo `record` da CLI, que sempre carimba `recorded_at`), e o predicado antigo tratava
-// esse conteúdo real como scaffold vazio, descartando-o no primeiro `record --id`.
-// LEGACY_SIGNAL_FIELDS — subconjunto de ENTRY_SCALAR_FIELDS que só um `record` de verdade (CLI
-// ou escrito à mão, w106/w144) preenche. Exclui deliberadamente 'reproduces': o scaffold do
-// `templates/bugfix/red-evidence.json` já grava `"reproduces": "bugfix.md §1"` como default
-// ESTÁTICO em todo change bugfix novo, então esse campo sozinho não distingue "nunca gravado" de
-// "gravado" — usá-lo aqui faria todo scaffold recém-criado, mesmo sem nenhum record, parecer
-// legado real (regressão do próprio cenário [5], scaffold vazio).
-const LEGACY_SIGNAL_FIELDS = ENTRY_SCALAR_FIELDS.filter((k) => k !== 'reproduces');
-
-function isRealLegacyData(data) {
-  if (!data) return false;
-  if (data.recorded_at || (data.status && data.status !== 'pending')) return true;
-  if (Array.isArray(data.fix_files) && data.fix_files.length) return true;
-  return LEGACY_SIGNAL_FIELDS.some((k) => data[k] !== undefined && data[k] !== null && data[k] !== '');
-}
-
-function extractEntryFromTop(data) {
-  const e = { id: null, status: data.status || 'pending' };
-  for (const k of ENTRY_SCALAR_FIELDS) e[k] = data[k] ?? null;
-  e.fix_files = Array.isArray(data.fix_files) ? data.fix_files : [];
-  e.waiver = data.waiver ?? null;
-  return e;
-}
-
-// entriesOf: migração fail-safe. `entries` já presente -> usa como está (normalizando campos
-// ausentes por item). Ausente mas com dado real (J-14, legado em voo em centenas de changes de
-// consumidores) -> PRESERVA o legado como entries[0], nunca descarta e nunca recomeça
-// `entries:[novo]` (esse seria o próprio defeito da issue, aplicado ao caminho de migração).
-// Scaffold trivial (nunca gravado) -> entries vazio, nada a preservar.
-function entriesOf(data) {
-  if (Array.isArray(data.entries)) return data.entries.map((e) => ({ ...emptyEntry(e && e.id), ...e }));
-  if (isRealLegacyData(data)) return [extractEntryFromTop(data)];
-  return [];
-}
-
-export function deriveTopStatus(entries) {
-  if (!entries.length) return 'pending';
-  if (entries.length === 1) return entries[0].status;
-  if (entries.every(resolvedEntry)) return entries.every((e) => e.status === 'waived') ? 'waived' : 'observed';
-  return 'pending';
-}
-
-// buildDocument: os escalares do topo são SEMPRE a projeção de entries[0] (a primeira entrada
-// declarada — legado migrado, ou o primeiro `record` de um change novo), nunca da entrada
-// tocada por último. Isso é o que mantém um leitor antigo (que só lê o topo) vendo exatamente o
-// que via antes desta Onda quando o change tem uma única entrada, e vendo de forma estável (não
-// "saltando" a cada record de outro defeito) quando o change tem várias.
-function buildDocument(changeId, entries) {
-  const first = entries[0] || emptyEntry(null);
-  const doc = { schema: 'red-evidence/v1', change_id: changeId, status: deriveTopStatus(entries) };
-  for (const k of ENTRY_SCALAR_FIELDS) doc[k] = first[k] ?? null;
-  doc.fix_files = Array.isArray(first.fix_files) ? first.fix_files : [];
-  doc.waiver = first.waiver ?? null;
-  doc.entries = entries;
-  return doc;
-}
-
-// upsertSingleEntry: mesma regra de endereçamento do `record` sem `--id`, reaproveitada por
-// `replay`/`ensure`/`waive` (achados HIGH da correção da #139) para o caso 0/1 entrada — sem
-// `opts.id`, só podem operar sem ambiguidade quando o change tem 0 ou 1 entrada; com 2+, ESCOLHER
-// uma (a primeira, a última) seria o mesmo tipo de furo que a quimera do `record` sem `--id`: um
-// replay/waive que parece ter resolvido "o" defeito na verdade escreveu em cima de uma entrada
-// que pode não ser a que a rule está cobrando — por isso `refused:true` em vez de adivinhar.
-// Enquanto o arquivo não tiver `entries[]` (JSON legado, formato de entrada única, em voo em
-// centenas de changes de consumidores — nunca migrado por um `record` desta Onda), devolve
-// `legacy:true` e o CALLER mantém o caminho de escrita no topo tal como antes desta Onda:
-// `ensure`/`waive` não introduzem `entries[]` em arquivo legado só por rodar — isso seria uma
-// migração de formato silenciosa disparada por toda chamada de rotina de /forge:verify e
-// /forge:archive, fora do escopo desta issue (o escopo dela é consertar `record`).
-//
-// opts.id (achado HIGH-2 da correção da #139, iteração 3): quando declarado, endereça QUALQUER
-// entrada por id, inclusive com 2+ registradas — usado por `cmdReplay`/`cmdWaive` (endereçamento
-// explícito do usuário) e por `cmdEnsure` (endereçamento por iteração própria, um id de cada
-// vez). Sem `opts` (ou `opts.id` ausente/null), o comportamento é EXATAMENTE o de antes desta
-// correção (0/1 entrada, recusa com 2+) — retrocompatível com todo chamador existente.
-export function upsertSingleEntry(prevData, changeId, patchEntry, opts) {
-  const data = prevData || {};
-  if (!Array.isArray(data.entries)) return { legacy: true, refused: false };
-  const entries = data.entries.map((e) => ({ ...emptyEntry(e && e.id), ...e }));
-  const wantId = opts && opts.id != null ? opts.id : undefined;
-  let idx;
-  if (wantId !== undefined) {
-    idx = entries.findIndex((e) => e.id === wantId);
-    if (idx < 0) {
-      const ids = entries.map((e) => e.id ?? '(sem id)').join(', ') || '(nenhuma)';
-      return { legacy: false, refused: true, reason: `id não encontrado: ${wantId} (entradas: ${ids})`, count: entries.length };
-    }
-  } else if (entries.length >= 2) {
-    const ids = entries.map((e) => e.id ?? '(sem id)').join(', ');
-    return { legacy: false, refused: true, reason: `${entries.length} entradas registradas (${ids})`, count: entries.length };
-  } else {
-    idx = entries.length === 1 ? 0 : -1;
-  }
-  const target = idx >= 0 ? { ...entries[idx] } : emptyEntry(null);
-  const merged = patchEntry(target);
-  const nextEntries = entries.slice();
-  if (idx >= 0) nextEntries[idx] = merged; else nextEntries.push(merged);
-  return { legacy: false, refused: false, data: buildDocument(changeId, nextEntries) };
-}
-
-// resolveTargetEntry: endereçamento COMPARTILHADO por replay/ensure/waive (achado HIGH-2 da
-// correção da #139, iteração 3) — decide, ANTES de qualquer efeito colateral (rodar o motor de
-// replay, criar deferral/ledger), qual entrada de entries[] um comando explícito (replay/waive;
-// ensure resolve por ITERAÇÃO própria, não por isto) afeta: por --id quando declarado, ou a
-// única entrada quando o change tem 0/1 (fluxo retrocompatível, sem --id). Nunca cria entrada —
-// isso é exclusivo de `record`. `legacy:true` sinaliza arquivo sem entries[] (nunca migrado por
-// um record desta Onda) — o caller mantém o caminho de escrita no topo tal como antes desta Onda.
-function resolveTargetEntry(data, flags) {
-  if (!Array.isArray(data.entries)) return { legacy: true };
-  const entries = entriesOf(data);
-  const hasId = flags.id !== undefined;
-  if (hasId) {
-    const idx = entries.findIndex((e) => e.id === flags.id);
-    if (idx < 0) {
-      const ids = entries.map((e) => e.id ?? '(sem id)').join(', ') || '(nenhuma)';
-      return { refused: true, reason: `id não encontrado: ${flags.id} (entradas: ${ids})` };
-    }
-    return { entry: entries[idx] };
-  }
-  if (entries.length >= 2) {
-    const ids = entries.map((e) => e.id ?? '(sem id)').join(', ');
-    return { refused: true, reason: `--id é obrigatório — este change tem ${entries.length} entradas registradas (${ids}); declare a qual defeito este comando se refere` };
-  }
-  if (entries.length === 1) return { entry: entries[0] };
-  return { refused: true, reason: 'nenhuma entrada registrada — rode /forge:red record antes' };
-}
-
-// projectEntryToFlat: projeta UMA entrada de entries[] no formato "achatado" que
-// lib/red-replay.mjs consome (os mesmos campos que hoje moram no topo) — permite rodar o motor
-// de replay sobre uma entrada ESPECÍFICA (não só sobre a projeção de entries[0] que o topo
-// sempre mostra), condição necessária para replay/ensure por entrada (achado HIGH-2).
-function projectEntryToFlat(changeId, entry) {
-  const doc = { schema: 'red-evidence/v1', change_id: changeId, status: entry.status };
-  for (const k of ENTRY_SCALAR_FIELDS) doc[k] = entry[k] ?? null;
-  doc.fix_files = Array.isArray(entry.fix_files) ? entry.fix_files : [];
-  doc.waiver = entry.waiver ?? null;
-  return doc;
-}
-
 // applyRecord: pura (sem I/O) — usada por cmdRecord e pelo PBT do gate w218. Lança Error com a
-// mensagem de FAIL em vez de decidir exit code (isso é responsabilidade do caller).
+// mensagem de FAIL em vez de decidir exit code (isso é responsabilidade do caller). Opera SEMPRE
+// sobre `deriveEntries(prevData)` (entries[] normalizado, ids nunca nulos) — nunca sobre os
+// escalares do topo.
+//
+// Endereçamento (redesenho de causa raiz da #139, 4ª rodada):
+//   --id declarado         -> endereça (ou cria) a entrada daquele id; SEMPRE marca
+//                              `id_explicit: true` (mesmo promovendo uma entrada auto-nomeada).
+//   0 entradas, sem --id   -> cria a PRIMEIRA entrada com um id AUTO-GERADO e estável
+//                              (`nextAutoId` — 'd1', 'd2', ...; `id_explicit: false`), nunca
+//                              `id: null` — é isso que torna toda entrada sempre endereçável por
+//                              `replay --id`/`waive --id`, mesmo quando o autor nunca escolheu um
+//                              nome (item 2 do redesenho).
+//   1 entrada, sem --id,
+//   id AINDA auto (não
+//   `id_explicit`)         -> atualiza essa mesma entrada (fluxo comum, retrocompatível: um
+//                              change de defeito único nunca precisa de `--id`).
+//   1 entrada, sem --id,
+//   id JÁ `id_explicit`    -> RECUSA (fail-closed): a entrada já foi nomeada de propósito, e um
+//                              record sem --id a partir daqui seria tão ambíguo quanto com 2+.
+//   2+ entradas, sem --id  -> RECUSA sempre (fail-closed contra quimera — o próprio defeito
+//                              original da issue).
 export function applyRecord(prevData, changeId, flags) {
-  const entries = entriesOf(prevData || {});
+  const entries = deriveEntries(prevData || {});
   const hasId = flags.id !== undefined;
-  const id = hasId ? flags.id : undefined;
 
-  let idx;
+  let idx = -1;
+  let targetId;
+  let explicit;
+
   if (hasId) {
-    idx = entries.findIndex((e) => e.id === id);
-  } else if (entries.length >= 2) {
-    // fail-closed contra quimera: com 2+ entradas já declaradas, um record sem --id é ambíguo —
-    // ANTES desta Onda, ele herdava os campos obrigatórios da última entrada gravada e parecia
-    // "funcionar" atualizando só o campo passado (o próprio defeito da issue).
-    const ids = entries.map((e) => e.id ?? '(sem id)').join(', ');
-    throw new Error(`--id é obrigatório — este change já tem ${entries.length} entradas registradas (${ids}); declare a qual defeito este record se refere`);
-  } else if (entries.length === 1 && entries[0].id != null) {
-    // achado HIGH da correção da #139 (iteração 3): com 1 ÚNICA entrada, mas já NOMEADA (tem
-    // id declarado), record sem --id era tão ambíguo quanto com 2+ e sobrescrevia em silêncio —
-    // o mesmo sintoma da issue original, disfarçado por só precisar de uma entrada anterior com
-    // id em vez de duas. O desenho do plano ("record sobre id já declarado sem --id explícito
-    // recusa") vale a partir de 1 entrada nomeada, não só a partir de 2.
+    targetId = flags.id;
+    idx = entries.findIndex((e) => e.id === targetId);
+    explicit = true;
+  } else if (entries.length === 0) {
+    targetId = nextAutoId(new Set());
+    explicit = false;
+  } else if (entries.length === 1 && !entries[0].id_explicit) {
+    targetId = entries[0].id;
+    idx = 0;
+    explicit = false;
+  } else if (entries.length === 1) {
     throw new Error(`--id é obrigatório — a entrada registrada já tem id declarado (${entries[0].id}); use --id ${entries[0].id} para atualizá-la, ou um --id novo para declarar outro defeito`);
   } else {
-    idx = entries.length === 1 ? 0 : -1;
+    const ids = entries.map((e) => e.id).join(', ');
+    throw new Error(`--id é obrigatório — este change já tem ${entries.length} entradas registradas (${ids}); declare a qual defeito este record se refere`);
   }
 
-  const target = idx >= 0 ? { ...entries[idx] } : emptyEntry(hasId ? id : null);
+  const target = idx >= 0 ? { ...entries[idx] } : emptyEntry(targetId);
+  target.id = targetId;
+  target.id_explicit = explicit;
 
   if (flags['test-path']) target.test_path = flags['test-path'];
   if (flags['test-id']) target.test_id = flags['test-id'];
@@ -324,48 +197,13 @@ export function applyRecord(prevData, changeId, flags) {
   const nextEntries = entries.slice();
   if (idx >= 0) nextEntries[idx] = target; else nextEntries.push(target);
 
-  return { data: buildDocument(changeId, nextEntries), entry: target };
-}
-
-// applyRenameNull: achado MEDIUM da correção da #139 (iteração 3) — depois que uma segunda
-// entrada é declarada (`record --id B`), a PRIMEIRA (sem id — legado migrado, ou o fluxo comum
-// "primeiro record sem --id, segundo com --id") fica permanentemente inendereçável: nenhum
-// comando aceita `--id null` para se referir a ela. A correção NÃO bloqueia a criação da segunda
-// entrada enquanto a primeira não tiver nome (isso quebraria o próprio fluxo de migração de
-// legado do cenário [4] — o legado tem que poder ganhar uma SEGUNDA entrada nomeada mantendo a
-// primeira como id:null) — em vez disso, oferece uma operação dedicada e aditiva para nomear a
-// entrada sem id, sempre que ela for a ÚNICA do change (nomear com 2+ entradas já presentes seria
-// ambíguo por natureza — qual delas é "a" sem id, se mais de uma puder ficar sem id).
-export function applyRenameNull(prevData, changeId, newId) {
-  const entries = entriesOf(prevData || {});
-  if (entries.length !== 1 || entries[0].id !== null) {
-    throw new Error(`--rename-null só se aplica quando o change tem exatamente 1 entrada e ela não tem id declarado (achou ${entries.length} entrada(s)${entries.length === 1 ? `, id já declarado: ${entries[0].id}` : ''})`);
-  }
-  const renamed = { ...entries[0], id: newId };
-  return { data: buildDocument(changeId, [renamed]), entry: renamed };
+  return { data: computeProjection(changeId, nextEntries), entry: target };
 }
 
 function cmdRecord(changeDir, argv) {
   requireBugfix(changeDir);
   const ev = requireEvidence(changeDir);
   const f = parseFlags(argv);
-
-  if (argv.includes('--rename-null')) {
-    if (!hasFlagWithValue(argv, 'rename-null', f['rename-null'])) {
-      console.log('FAIL (--rename-null exige um valor não vazio e que não comece com "--")');
-      process.exit(1);
-    }
-    let renameResult;
-    try {
-      renameResult = applyRenameNull(ev.data, ev.data.change_id, f['rename-null']);
-    } catch (e) {
-      console.log(`FAIL (${e.message})`);
-      process.exit(1);
-    }
-    writeJsonAtomic(ev.path, renameResult.data);
-    console.log(`OK rename-null — a entrada sem id agora é ${renameResult.entry.id}`);
-    return;
-  }
 
   if (!hasFlagWithValue(argv, 'id', f.id)) {
     console.log('FAIL (--id exige um valor não vazio e que não comece com "--" — sem isso o record degradaria em silêncio para o caminho sem --id)');
@@ -384,25 +222,59 @@ function cmdRecord(changeDir, argv) {
   console.log(`OK record — ${result.entry.test_path} declarado (status: pending — rode /forge:red replay para observar)`);
 }
 
+// upsertSingleEntry: escrita compartilhada por `replay`/`ensure`/`waive` (check-red-first.mjs).
+// `!Array.isArray(prevData.entries)` (checagem sobre o dado BRUTO, nunca `deriveEntries`) sinaliza
+// um `red-evidence.json` que nunca passou por `record` desta Onda — legado de verdade, ou o
+// scaffold nunca gravado — e o CALLER mantém o caminho de escrita no topo tal como antes desta
+// Onda (`legacy:true`): nem `ensure`/`replay`/`waive` introduzem `entries[]` em arquivo legado só
+// por rodar — isso seria uma migração de formato silenciosa disparada por toda chamada de rotina
+// de /forge:verify e /forge:archive, fora do escopo desta issue (o escopo dela é `record`). É
+// também o que preserva a superfície de detecção de forja de w106/w107 [3-FORJA]: quando o change
+// tem ≤1 entrada, `ensure` roda o motor de replay sobre o TOPO (não sobre a entrada) — ver
+// comentário de `cmdEnsure` — e o resultado é gravado aqui.
+//
+// Com `entries[]` já presente (qualquer `record` desta Onda já rodou), a escrita SEMPRE endereça
+// por id via `resolveEntryId` — toda entrada tem id não nulo e estável (redesenho da #139), então
+// esta função nunca mais esbarra numa entrada sem nome para adivinhar.
+export function upsertSingleEntry(prevData, changeId, patchEntry, opts) {
+  const data = prevData || {};
+  if (!Array.isArray(data.entries)) return { legacy: true, refused: false };
+  const entries = deriveEntries(data);
+  const resolved = resolveEntryId(entries, opts && opts.id !== undefined ? { id: opts.id } : {});
+  if (!resolved.ok) return { legacy: false, refused: true, reason: resolved.reason, count: entries.length };
+  const merged = patchEntry({ ...entries[resolved.index] });
+  const nextEntries = entries.slice();
+  nextEntries[resolved.index] = merged;
+  return { legacy: false, refused: false, data: computeProjection(changeId, nextEntries) };
+}
+
+// resolveTargetEntry: endereçamento para `replay` explícito — por `--id` quando declarado, ou a
+// única entrada quando o change tem `entries[]` de tamanho 1 (fluxo retrocompatível, sem --id).
+// `legacy:true` sinaliza arquivo sem `entries[]` (nunca migrado por um record desta Onda) — o
+// caller mantém o caminho de leitura/escrita no topo tal como antes desta Onda.
+function resolveTargetEntry(data, flags) {
+  if (!Array.isArray(data.entries)) return { legacy: true };
+  const entries = deriveEntries(data);
+  const resolved = resolveEntryId(entries, flags);
+  if (!resolved.ok) return { refused: true, reason: resolved.reason };
+  return { entry: entries[resolved.index] };
+}
+
+// projectEntryToFlat: projeta UMA entrada de entries[] no formato "achatado" que
+// lib/red-replay.mjs consome (os mesmos campos que hoje moram no topo) — permite rodar o motor
+// de replay sobre uma entrada ESPECÍFICA, condição necessária para replay/ensure por entrada.
+function projectEntryToFlat(changeId, entry) {
+  const doc = { schema: 'red-evidence/v1', change_id: changeId, status: entry.status };
+  for (const k of ENTRY_SCALAR_FIELDS) doc[k] = entry[k] ?? null;
+  doc.fix_files = Array.isArray(entry.fix_files) ? entry.fix_files : [];
+  doc.waiver = entry.waiver ?? null;
+  return doc;
+}
+
 // persistReplayResult: único ponto que TRADUZ um veredito do motor de replay (lib/red-replay.mjs)
 // em escrita do red-evidence.json, usado tanto por `replay` (explícito) quanto por `ensure`
 // (chamado incondicionalmente por spec-verify.sh/archive-spec.sh/validate-spec.mjs). Fonte
-// única — sem isso, os dois caminhos podiam divergir em como gravam status/campos, reabrindo o
-// furo de duas fontes de verdade que a Onda C já tinha fechado uma vez.
-//
-// Achado HIGH da correção da #139: até aqui a escrita ia sempre para o TOPO (`{ ...data, ... }`),
-// nunca para `entries[]`. Isso "funcionava" enquanto o topo era a única fonte, mas desde que
-// `record` passou a projetar o topo a partir de `entries[0]` (`buildDocument`), um replay
-// observado ficava só no topo — e o PRÓXIMO `record` (em qualquer id) reconstrói o topo a partir
-// de `entries[0]`, que nunca foi tocado, apagando em silêncio o que o replay acabara de gravar
-// (base_commit, classification, excerpt, o replay inteiro). A correção usa `upsertSingleEntry`
-// para escrever na ENTRADA (0 ou 1 entrada: a mesma regra de endereçamento do `record` sem
-// `--id`) e reconstrói o documento com `buildDocument`, para que o topo seja sempre a projeção —
-// nunca uma escrita paralela que `entries[]` desconhece. Com 2+ entradas e SEM opts.id, devolve
-// `{ refused:true }` (fail-closed) — ver `upsertSingleEntry`; o caller decide a mensagem. Achado
-// HIGH-2 da correção da #139 (iteração 3): `opts.id`, quando declarado por `cmdReplay`/`cmdEnsure`
-// (endereçamento explícito ou por iteração), permite gravar em QUALQUER entrada, não só na
-// única de um change com 0/1.
+// única — sem isso, os dois caminhos podiam divergir em como gravam status/campos.
 function persistReplayResult(ev, data, result, opts) {
   // base_strategy/revert_patch são resetados aqui e só voltam a ser gravados no ramo 'observed'
   // abaixo — sem isso, um replay que falha DEPOIS de um replay 'observed' anterior deixaria
@@ -452,13 +324,12 @@ function persistReplayResult(ev, data, result, opts) {
   return { data: updated };
 }
 
-// cmdReplay — achado HIGH-2 da correção da #139 (iteração 3): agora aceita `--id <id>` para
-// endereçar qual entrada de entries[] este replay observa. Sem --id, só 0/1 entrada é aceitável
-// (fluxo retrocompatível, idêntico ao de antes da correção). A resolução (`resolveTargetEntry`)
-// roda ANTES de chamar o motor de replay (achado LOW da correção — sem isso, um change
-// ambíguo pagava worktree+execução de teste só para descartar o resultado no fim).
+// cmdReplay — aceita `--id <id>` para endereçar qual entrada de entries[] este replay observa.
+// Sem --id, só 0/1 entrada é aceitável (fluxo retrocompatível). A resolução (`resolveTargetEntry`)
+// roda ANTES de chamar o motor de replay — sem isso, um change ambíguo pagava worktree+execução
+// de teste só para descartar o resultado no fim.
 async function cmdReplay(changeDir, argv) {
-  const man = requireBugfix(changeDir);
+  requireBugfix(changeDir);
   const ev = requireEvidence(changeDir);
   const data = ev.data;
   const f = parseFlags(argv);
@@ -507,22 +378,23 @@ async function cmdReplay(changeDir, argv) {
 // cmdEnsure — chamado INCONDICIONALMENTE por spec-verify.sh, pelo pré-flight de archive-spec.sh
 // e por validate-spec.mjs (na transição para verified), para todo change type:bugfix. Onda E —
 // SEM cache: `ensure` executa o motor de replay de verdade toda vez que roda (o único atalho que
-// resta é `status: waived`, que é política própria, não observação de Red pendente de prova).
-// O custo é real e proporcional ao teste declarado (um `npx vitest run <arquivo>`/`node --test
-// <arquivo>` típico, não a suíte inteira) — pago a cada /forge:verify e a cada /forge:archive.
-// Nunca sai com rc≠0 por um veredito desfavorável — quem decide bloquear é check-red-first.mjs,
-// que roda em seguida e lê o que ESTA chamada acabou de gravar. rc≠0 aqui é reservado a erro de
-// setup genuíno (manifest ilegível).
+// resta é o status agregado 'waived', que é política própria, não observação de Red pendente de
+// prova). O custo é real e proporcional ao teste declarado (um `npx vitest run <arquivo>`/`node
+// --test <arquivo>` típico, não a suíte inteira) — pago a cada /forge:verify e a cada
+// /forge:archive. Nunca sai com rc≠0 por um veredito desfavorável — quem decide bloquear é
+// check-red-first.mjs, que roda em seguida e lê o que ESTA chamada acabou de gravar. rc≠0 aqui é
+// reservado a erro de setup genuíno (manifest ilegível).
 //
-// Achado HIGH-2 da correção da #139 (iteração 3): `ensure` é chamado sem nenhum `--id` pelos
-// três chamadores acima — nenhum deles sabe quais ids existem. Por isso, com 2+ entradas, ensure
-// não recusa mais por ambiguidade: ITERA cada entrada não dispensada (`status !== 'waived'`) e
-// roda o motor de replay sobre ELA (projeção própria via `projectEntryToFlat`, nunca sobre o
-// topo), persistindo o veredito na própria entrada via `upsertSingleEntry(..., { id })`. Sem
-// isto, um change com 2+ defeitos declarados nunca chegava a `verified`/`archived` — /forge:verify
-// e /forge:archive chamam só `ensure`, que recusava (fail-closed) por ambiguidade, e a única
-// saída documentada (replay/waive por entrada) também recusava: travamento permanente que só um
-// editor manual do JSON destravava.
+// Redesenho de causa raiz da #139 (4ª rodada): com ≤1 entrada, o VETOR sob teste continua sendo
+// o TOPO (`data`), nunca a projeção da entrada — é essa escolha, preservada do design anterior,
+// que mantém w106/w107 [3-FORJA] pegando uma forja que edita só os escalares do topo (uma forja
+// que toca só `entries[]` sozinho é um vetor de ataque diferente, coberto pelo laço de 2+ entradas
+// abaixo, e pela checagem estática de adulteração em check-red-first.mjs). Com 2+ entradas, o
+// topo é ambíguo (só reflete entries[0]) e `ensure` ITERA cada entrada não dispensada
+// (`status !== 'waived'`), replayando a projeção de CADA UMA — como toda entrada tem id não nulo
+// (item 2 do redesenho), o endereçamento nunca mais recusa por "entrada sem nome" (o furo HIGH-1/
+// HIGH-2 medido na 3ª rodada de correção: uma entrada com `id: null` era pulada em silêncio pelo
+// laço, e sua forja sobrevivia porque `persistReplayResult` nunca conseguia escrever nela).
 async function cmdEnsure(changeDir, argv) {
   const man = readManifest(changeDir);
   if (!man) { console.log('FAIL (manifest.yaml ausente/ilegível)'); process.exit(1); }
@@ -532,28 +404,22 @@ async function cmdEnsure(changeDir, argv) {
   if (!ev.exists) { console.log('OK ensure (evidência ausente — nada a garantir; check-red-first cobre o item 1)'); return; }
   if (ev.errors.length) { console.log(`OK ensure (evidência inválida: ${ev.errors.join('; ')} — check-red-first cobre)`); return; }
   const data = ev.data;
+  const entries = ev.entries;
 
   const f = parseFlags(argv);
   const timeoutS = f.timeout ? parseInt(f.timeout, 10) : undefined;
 
-  // achado da revisão da correção (iteração 3, medido contra o w106 [3-FORJA]): uma forja que
-  // edita só os escalares do TOPO (nunca `entries[]` — o vetor de ataque original, anterior à
-  // própria #139) deixaria de ser pega se o replay de uma entrada ÚNICA passasse a testar a
-  // projeção da entrada em vez do topo — a entrada real (nunca tocada pela forja) continuaria
-  // legitimamente 'observed' e o loop reescreveria o topo a partir DELA, mascarando a forja em
-  // vez de expor. Por isso, com 0 ou 1 entrada, `ensure` continua testando o TOPO (`data`),
-  // exatamente como antes desta correção — idêntico ao caminho legado. Só com 2+ entradas o topo
-  // é ambíguo (só reflete entries[0]) e não há alternativa a testar cada entrada pela sua própria
-  // projeção.
-  if (data.status === 'waived') { console.log('OK ensure — status: waived (nada a replayar)'); return; }
-  if (!Array.isArray(data.entries) || data.entries.length <= 1) {
+  // o topo NUNCA é lido como fonte (item 3/4 do redesenho) — mesmo este atalho barato decide por
+  // `deriveTopStatus(entries)`, nunca por `data.status` bruto, para não deixar um topo adulterado
+  // ('waived' forjado) pular o replay inteiro em silêncio.
+  if (deriveTopStatus(entries) === 'waived') { console.log("OK ensure — status: waived (nada a replayar)"); return; }
+
+  if (entries.length <= 1) {
     const result = await runReplay({ root, evidence: data, timeoutS });
     const persisted = persistReplayResult(ev, data, result);
     console.log(`OK ensure — replay executado (verdict: ${result.verdict}, status: ${persisted.data.status})`);
     return;
   }
-
-  const entries = entriesOf(data);
 
   let current = data;
   let replayed = 0;
@@ -567,13 +433,12 @@ async function cmdEnsure(changeDir, argv) {
     // sequencial (mesmo espírito do "sem cache" da Onda E: custo proporcional, nunca paralelo
     // demais para o replay efêmero em worktree git que lib/red-replay.mjs já usa).
     const result = await runReplay({ root, evidence: view, timeoutS });
-    const idOpt = entry.id != null ? { id: entry.id } : undefined;
-    const persisted = persistReplayResult(ev, current, result, idOpt);
+    const persisted = persistReplayResult(ev, current, result, { id: entry.id });
     if (persisted.refused) {
-      // inalcançável em condições normais (o id vem da própria leitura de entries[] acima) —
-      // mantido fail-closed contra uma corrida com outro processo escrevendo entries[] no meio
-      // do laço.
-      console.log(`OK ensure — entrada ${entry.id ?? '(sem id)'}: replay recusado (${persisted.reason}); nada escrito para ela`);
+      // inalcançável em condições normais desde que toda entrada tenha id não nulo (redesenho da
+      // #139) — mantido fail-closed contra uma corrida com outro processo escrevendo entries[]
+      // no meio do laço.
+      console.log(`OK ensure — entrada ${entry.id}: replay recusado (${persisted.reason}); nada escrito para ela`);
       continue;
     }
     current = persisted.data;
@@ -584,9 +449,9 @@ async function cmdEnsure(changeDir, argv) {
 
 // ── main guard (mesmo padrão de sync-adapters.mjs, issue #130/w216) ────────────────────────────
 // Sem isto, `import { applyRecord } from './red-evidence-ops.mjs'` (o que o PBT do gate w218 e
-// qualquer leitor futuro de `applyRecord`/`deriveTopStatus` precisam fazer) executava o bloco de
-// dispatch abaixo como efeito colateral do import — `!cmd` seria verdadeiro (import não passa
-// argv de CLI) e o processo importador morria com `process.exit(1)` antes de expor coisa alguma.
+// qualquer leitor futuro de `applyRecord` precisam fazer) executava o bloco de dispatch abaixo
+// como efeito colateral do import — `!cmd` seria verdadeiro (import não passa argv de CLI) e o
+// processo importador morria com `process.exit(1)` antes de expor coisa alguma.
 function isMainModule() {
   try {
     if (!process.argv[1]) return false;

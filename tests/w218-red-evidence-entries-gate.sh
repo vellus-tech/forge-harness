@@ -56,6 +56,31 @@
 #  [19] MUTAÇÃO (sandbox) — voltar a escrita do replay para só o topo (ignorando
 #       `upsertSingleEntry`) faz [13] falhar
 #
+# Achados da revisão adversarial (correção da #139, iteração 2), cobertos a partir do [37]:
+#  [37] HIGH — `cmdEnsure`, com 0/1 entrada, replayava sempre o TOPO (`data`), nunca a entrada de
+#       `entries[]`. Com `entries[]` presente (já passou por `record` desta Onda), uma forja
+#       isolada em `entries[0]` (declarando um teste que nunca falha) sobrevivia: `ensure`
+#       reexecutava o teste genuíno declarado no TOPO (ainda intacto), gravava o veredito
+#       'observed' NA ENTRADA forjada via `upsertSingleEntry`, e a projeção seguinte também
+#       curava o topo para bater com a entrada — o próximo `check` lia a mentira como prova
+#       válida (rc 0), lavando exatamente a adulteração que o item 4 existe para bloquear.
+#       Correção: com `Array.isArray(data.entries)`, `ensure` replaya sempre
+#       `projectEntryToFlat(entries[0])` (a própria declaração da entrada) e persiste
+#       endereçando por `{ id: entries[0].id }`; o topo bruto como vetor de replay fica
+#       exclusivo do legado sem `entries[]` (onde não há outra fonte).
+#  [38] MUTAÇÃO (sandbox) — desfazer a correção do [37] (voltar `cmdEnsure` a replayar o topo
+#       quando `entries[]` está presente) faz [37] deixar de bloquear a forja isolada
+#  [39] MEDIUM — `topMatchesProjection` comparava `data.fix_files ?? null` contra a projeção
+#       (sempre `[]`, nunca `null`, para uma entrada só): um `red-evidence.json` legado
+#       ESCRITO À MÃO (sem `entries[]` e sem a chave `fix_files`) virava "adulterado"
+#       permanentemente — inclusive depois de um `/forge:red waive` genuinamente válido, porque
+#       nem `waive` nem `ensure` gravam `fix_files` no caminho legado. Correção: sem
+#       `entries[]` no arquivo bruto, o topo É a única fonte (não há segunda fonte para
+#       divergir) — `topMatchesProjection` devolve `true` sem comparar.
+#  [40] MUTAÇÃO (sandbox) — remover a guarda "sem entries[] bruto, nada a comparar" de
+#       `topMatchesProjection` faz [39] voltar a bloquear o legado sem `fix_files` mesmo depois
+#       do waive válido
+#
 # Achado MEDIUM da correção: as mutações [17]-[19] rodam inteiramente dentro de uma árvore
 # SANDBOX (`mk_root` num `mktemp -d` novo) — nunca sobre `template/.forge/scripts/lib/*.mjs` do
 # worktree real. `red-evidence.sh` resolve sua própria lib por `SCRIPT_DIR` (a pasta do próprio
@@ -1327,5 +1352,129 @@ fs.writeFileSync(p, JSON.stringify(d, null, 2) + '\n');
 
 echo "[36] MUTAÇÃO (sandbox) — topMatchesProjection sempre devolvendo true faz [35] deixar de detectar a adulteração"
 run_mutation "36" 's/return keys\.every\(\(k\) => deepEqual\(data\[k\] \?\? null, projection\[k\] \?\? null\)\);/return true;/' scenario_tamper_detected "red-evidence.mjs"
+
+scenario_ensure_sources_entry() { # scenario_ensure_sources_entry <root> <suffix>
+  # HIGH da correção da #139 — forja ISOLADA em entries[0] (o topo continua declarando o teste
+  # genuíno) não pode ser lavada por `ensure` reexecutando o topo em vez da própria entrada.
+  local root="$1" suffix="$2"
+  local id="bug-tamper37$suffix"
+  mkdir -p "$root/src$suffix" "$root/tests$suffix"
+  cat > "$root/src$suffix/t.mjs" <<JS
+export function tfn(a, b) { return a - b; }
+JS
+  git -C "$root" add "src$suffix/t.mjs"
+  git -C "$root" commit -qm "feat: t$suffix (com bug)" >/dev/null
+  cat > "$root/tests$suffix/t.test.mjs" <<JS
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { tfn } from '../src$suffix/t.mjs';
+test('case$suffix', () => { assert.strictEqual(tfn(2, 3), 5); });
+JS
+  # fixture forjável: nunca falha, qualquer que seja o estado de src$suffix/t.mjs — é o que a
+  # forja de entries[0] aponta, abaixo, para simular uma declaração que não reproduz nada.
+  cat > "$root/tests$suffix/no.test.mjs" <<JS
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+test('caseno$suffix', () => { assert.ok(true); });
+JS
+  git -C "$root" add "tests$suffix/t.test.mjs" "tests$suffix/no.test.mjs"
+  git -C "$root" commit -qm "test: regressão $id + fixture no-op" >/dev/null
+  cat > "$root/src$suffix/t.mjs" <<JS
+export function tfn(a, b) { return a + b; }
+JS
+  git -C "$root" add "src$suffix/t.mjs"
+  git -C "$root" commit -qm "fix: $id" >/dev/null
+
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/spec-new.sh" "$id" --type bugfix --scale 1 >/dev/null 2>&1 || return 1
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/red-evidence.sh" record "$id" --test-path "tests$suffix/t.test.mjs" --test-id "case$suffix" --command "node --test tests$suffix/t.test.mjs" --fix-files "src$suffix/t.mjs" --failure-pattern AssertionError >/dev/null 2>&1 || return 1
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/red-evidence.sh" replay "$id" --id d1 >/dev/null 2>&1 || return 1
+
+  local ev="$root/.forge/specs/active/$id/evidence/red/red-evidence.json"
+  # forja SÓ entries[0] — o topo (ainda intacto) continua declarando tests$suffix/t.test.mjs, o
+  # teste genuíno já observado acima.
+  node -e "
+const fs = require('fs');
+const p = process.argv[1];
+const d = JSON.parse(fs.readFileSync(p, 'utf8'));
+d.entries[0].test_path = 'tests$suffix/no.test.mjs';
+d.entries[0].test_id = 'caseno$suffix';
+d.entries[0].command = 'node --test tests$suffix/no.test.mjs';
+fs.writeFileSync(p, JSON.stringify(d, null, 2) + '\n');
+" "$ev"
+
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/red-evidence.sh" ensure "$id" >/dev/null 2>&1 || true
+
+  set +e
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/check-red-first.sh" check "$id" >/dev/null 2>&1
+  local rc=$?
+  set -e
+  # com a correção, ensure reexecuta a PRÓPRIA declaração forjada (nunca falha) e persistReplayResult
+  # grava 'pending' de volta na entrada — check continua bloqueando (rc != 0). Sem a correção,
+  # ensure reexecuta o topo genuíno e a forja é lavada para 'observed' (rc 0).
+  [ "$rc" -ne 0 ]
+}
+
+echo "[37] HIGH — ensure fonte SEMPRE de entries[0] (nunca do topo) quando entries[] existe; forja isolada na entrada não é lavada por reexecutar o teste genuíno do topo"
+if ! scenario_ensure_sources_entry "$T" ""; then
+  echo "FAIL [37]: check deveria continuar bloqueando depois de ensure — a entrada forjada (tests/no.test.mjs) nunca reproduz nada e não pode virar 'observed' por reexecutar o topo em vez dela"
+  exit 1
+fi
+EV37="$T/.forge/specs/active/bug-tamper37/evidence/red/red-evidence.json"
+status37="$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).entries[0].status)" "$EV37")"
+[ "$status37" = "pending" ] || { echo "FAIL [37]: entries[0].status deveria voltar a 'pending' depois do ensure reexecutar a própria declaração forjada, achou '$status37'"; exit 1; }
+out37="$(FORGE_ROOT="$T" bash "$CR" check bug-tamper37 2>&1)"
+grep -qi "adulterado" <<<"$out37" && { echo "FAIL [37]: depois do ensure, topo e entries[0] devem estar em acordo (self-heal) — check não deveria mais citar adulteração; achou: $out37"; exit 1; }
+echo "OK [37]"
+
+echo "[38] MUTAÇÃO (sandbox) — desfazer a correção do [37] (ensure volta a replayar o topo com entries[] presente) faz [37] deixar de bloquear a forja isolada"
+run_mutation "38" 's/if \(Array\.isArray\(data\.entries\)\) \{\n    const entry = entries\[0\];\n    const view = projectEntryToFlat\(data\.change_id, entry\);\n    const result = await runReplay\(\{ root, evidence: view, timeoutS \}\);\n    const persisted = persistReplayResult\(ev, data, result, \{ id: entry\.id \}\);\n    console\.log\(`OK ensure — replay executado \(verdict: \$\{result\.verdict\}, status: \$\{persisted\.data\.status\}\)`\);\n    return;\n  \}\n\n  \/\/ legado de verdade \(sem `entries\[\]` no arquivo bruto\): o topo é a ÚNICA fonte\.\n  const result = await runReplay\(\{ root, evidence: data, timeoutS \}\);\n  const persisted = persistReplayResult\(ev, data, result\);/const result = await runReplay({ root, evidence: data, timeoutS }); const persisted = persistReplayResult(ev, data, result);/s' scenario_ensure_sources_entry
+
+scenario_legacy_no_fixfiles_waivable() { # scenario_legacy_no_fixfiles_waivable <root> <suffix>
+  # MEDIUM da correção da #139 — legado ESCRITO À MÃO, sem `entries[]` e sem a chave `fix_files`,
+  # não pode ser "adulterado" para sempre por um falso positivo de topMatchesProjection
+  # (`null` do topo ausente vs `[]` normalizado da projeção). Um waive válido tem de destravar.
+  local root="$1" suffix="$2"
+  local id="bug-legacy-nofix$suffix"
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/spec-new.sh" "$id" --type bugfix --scale 1 >/dev/null 2>&1 || return 1
+  local ev="$root/.forge/specs/active/$id/evidence/red/red-evidence.json"
+  node -e "
+const fs = require('fs');
+const d = {
+  schema: 'red-evidence/v1',
+  change_id: '$id',
+  status: 'pending',
+  test_path: 'tests/legacy$suffix.test.mjs',
+  test_id: 'legacy-case$suffix',
+  command: 'node --test tests/legacy$suffix.test.mjs',
+  failure_pattern: 'AssertionError'
+};
+fs.writeFileSync(process.argv[1], JSON.stringify(d, null, 2) + '\n');
+" "$ev"
+
+  set +e
+  local out1 rc1
+  out1="$(FORGE_ROOT="$root" bash "$root/.forge/scripts/check-red-first.sh" check "$id" 2>&1)"; rc1=$?
+  set -e
+  [ "$rc1" -ne 0 ] || return 1
+  grep -qi "adulterado" <<<"$out1" && return 1
+
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/check-red-first.sh" waive "$id" --reason external-unreproducible >/dev/null 2>&1 || return 1
+
+  set +e
+  local out2 rc2
+  out2="$(FORGE_ROOT="$root" bash "$root/.forge/scripts/check-red-first.sh" check "$id" 2>&1)"; rc2=$?
+  set -e
+  [ "$rc2" -eq 0 ]
+}
+
+echo "[39] MEDIUM — legado sem fix_files não é falso-adulterado; waive válido chega a check rc 0"
+if ! scenario_legacy_no_fixfiles_waivable "$T" ""; then
+  echo "FAIL [39]: legado sem entries[]/fix_files deveria ser PENDING normal (não adulterado) e, depois de um waive válido, check deveria sair rc 0"
+  exit 1
+fi
+echo "OK [39]"
+
+echo "[40] MUTAÇÃO (sandbox) — remover a guarda '!Array.isArray(data.entries) -> sem 2ª fonte' de topMatchesProjection faz [39] voltar a bloquear o legado sem fix_files mesmo depois do waive válido"
+run_mutation "40" 's/export function topMatchesProjection\(data, entries\) \{\n  if \(!entries\.length\) return true;\n  if \(!Array\.isArray\(data\.entries\)\) return true;/export function topMatchesProjection(data, entries) {\n  if (!entries.length) return true;/s' scenario_legacy_no_fixfiles_waivable "red-evidence.mjs"
 
 echo "OK"

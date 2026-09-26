@@ -3,7 +3,7 @@ type: feature
 mode: brownfield
 rigor: spec-anchored
 scale: 2
-status: design-ready
+status: tasks-ready
 created_at: "2026-09-26"
 updated_at: "2026-09-26"
 owner: "Milton Antonio da Silva Jr"
@@ -53,7 +53,7 @@ dependencies:
 gates:
   requirements_reviewed: true
   design_reviewed: true
-  tasks_reviewed: false
+  tasks_reviewed: true
   implementation_verified: false
   human_archive_approval: false
 dev_loop:

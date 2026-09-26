@@ -27,3 +27,11 @@ approvals:
     decided_at: "2026-09-26T14:59:43-03:00"
     commit: "247ee1b"
     scope: "H-03 (design §2.9)"
+  - gate: tasks_reviewed
+    decision: approve
+    autonomous: true
+    reason: "Verificado por execução, não por leitura. (1) validate-spec.sh OK no change. (2) Rastreabilidade total medida por script: REQ-01..REQ-11 e NFR-01..NFR-04 têm todos ao menos uma TASK; 18 TASKs sem id duplicado, todas com rastreia, paths e depende; o grafo de dependência só aponta para TASK anterior (acíclico). (3) Sem linha condicional: nenhuma ocorrência de 'conforme H-0N', '(H-0N)' ou 'condicional' pendente em tasks, requirements e design; TASK-01 [X] bate com o commit que fixou H-01, H-02 e H-03 pela opção (a), e approvals.yaml já registra as três decisões humanas antes deste gate, como a REQ-11 e a conflict-handling §2.1 exigem. (4) Ondas coerentes: Wave 1 é o gate vermelho (TASK-02, commit só de teste), Waves 2 e 3 dependem dele, a integração (TASK-12/13/16) espera o merge da evals-100 declarado como dependência externa, e verificação e A/B fecham. (5) DoD por task: cada uma nomeia os cenários do w250 que torna verdes ou os gates que revalida. Ressalvas não bloqueantes: (a) a TASK-03 não cita a linha do H-01 (a) no conteúdo da skill relacional, que chega pelo REQ-03 e pela §2.9 que todo subagente recebe; (b) a linha do H-01 nos agentes é verificada pelo eval (desenho do data-relational e fronteira do data-nosql), não por literal no w250; (c) TASKs de 12 em diante ficam paradas até o merge da evals-100; (d) o change tem affected_paths e grafo construído, então o guardrail G5 do spec-transition exige impact.json fresco antes de implementing."
+    decided_by: "forge-yolo (opus, high)"
+    decided_at: "2026-09-26T15:00:36-03:00"
+    commit: "c7ee606"
+    scope: "tasks.md"

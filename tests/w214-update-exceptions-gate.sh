@@ -54,17 +54,18 @@
 #        consumidor num update parcial por causa de um arquivo que ELE MESMO preservou)
 #   [13] linha sem `#` com token extra após `<sha> <caminho>`: MALFORMADA, para ANTES de escrever,
 #        nomeia a linha — igual ao parser de origem (`check-machinery-drift.sh:201-206`,
-#        `read -r e_sha e_rel e_resto`; `e_resto` não vazio recusa a linha). Uma correção anterior
-#        nesta rodada aceitava o token como parte da razão, medindo o script de uma spike em vez do
-#        parser de origem real — achado do review adversarial (HIGH), revertido de volta ao
-#        fail-closed
+#        `read -r e_sha e_rel e_resto`; `e_resto` não vazio recusa a linha)
 #   [13b] sha declarado com menos de 64 dígitos hex NUNCA casa por prefixo: comparação é por
 #         IGUALDADE ESTRITA contra o sha de 64 dígitos do template (`check-machinery-drift.sh:321`),
 #         então uma declaração truncada cai sempre em EXPIRADA — preserva mesmo assim (DH-1), rc 0,
-#         nunca VIVA (achado do review adversarial, HIGH — a versão anterior comparava por prefixo)
+#         nunca VIVA
 #   [13c] duas declarações de caminho na mesma linha, sem `#` (ex.: dois caminhos separados por
 #         espaço): MALFORMADA pela mesma regra de [13] — token extra sem `#` sempre recusa, nunca
-#         absorve um segundo caminho em silêncio (achado MEDIUM do review adversarial)
+#         absorve um segundo caminho em silêncio
+#   [13d] duas declarações de caminho na mesma linha, seguidas de `# razao`: MALFORMADA pela mesma
+#         regra de [13]/[13c] — o corte no primeiro `#` só isola a razão depois de `read -r` já ter
+#         separado `e_resto`, então um segundo caminho antes do `#` continua sendo token extra e
+#         recusa a linha, mesmo com razão declarada
 set -uo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -389,6 +390,23 @@ grep -q 'linha 1' <<<"$out13c" || { echo "FAIL [13c]: recusa não nomeia o núme
   || { echo "FAIL [13c]: machinery.lock foi escrito mesmo com exceção malformada"; exit 1; }
 echo "OK [13c]"
 
+echo "[13d] dois caminhos na mesma linha seguidos de '# razao': MALFORMADA pela mesma regra de [13]/[13c]"
+C13D="$(consumidor c13d)"
+printf '\n# CONSERTO-LOCAL-13D\n' >> "$C13D/.forge/scripts/doctor.sh"
+SHA_LOCAL13D="$(shasum -a 256 "$C13D/.forge/scripts/doctor.sh" | cut -d' ' -f1)"
+SHA_DOCTOR13D="$(sha_tpl scripts/doctor.sh)"
+printf '%s  scripts/doctor.sh  scripts/check-secrets.sh  # razao\n' "$SHA_DOCTOR13D" > "$C13D/.forge/machinery-exceptions.txt"
+set +e
+out13d="$(node "$FORGE" update --target "$C13D" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc13d=$?
+set +e  # idem
+[ "$rc13d" -ne 0 ] || { echo "FAIL [13d]: linha com dois caminhos e razão não bloqueou o update"; echo "$out13d"; exit 1; }
+grep -q 'linha 1' <<<"$out13d" || { echo "FAIL [13d]: recusa não nomeia o número da linha"; echo "$out13d"; exit 1; }
+[ "$(shasum -a 256 "$C13D/.forge/scripts/doctor.sh" | cut -d' ' -f1)" = "$SHA_LOCAL13D" ] \
+  || { echo "FAIL [13d]: arquivo foi escrito mesmo com exceção malformada — nada deveria ter sido tocado"; exit 1; }
+[ ! -f "$C13D/.forge/cache/machinery.lock" ] \
+  || { echo "FAIL [13d]: machinery.lock foi escrito mesmo com exceção malformada"; exit 1; }
+echo "OK [13d]"
+
 echo "[7] PBT: para exceções geradas sobre caminhos reais do template, o desfecho é função pura do conjunto declarado"
 node --input-type=module - "$WS" <<'NODE_EOF'
 import { join } from 'node:path';
@@ -490,12 +508,18 @@ const prop = (states, flags) => {
   }
   if (flags.malformed) lines.push('nao-e-hex-valido  scripts/doctor.sh  # malformada de propósito');
 
-  // extraToken (achado do review adversarial, LOW): acrescenta um terceiro token à PRIMEIRA linha
-  // declarada, SEM '#' — a gramática recusa qualquer token além de "<sha> <caminho>", com ou sem
-  // '#' (correção do achado HIGH). Só se aplica quando existe alguma linha declarada.
+  // extraToken: acrescenta um terceiro token à PRIMEIRA linha declarada — a gramática recusa
+  // qualquer token além de "<sha> <caminho>", com ou sem '#' (`check-machinery-drift.sh:201-206`,
+  // `read -r e_sha e_rel e_resto`; `e_resto` não vazio recusa a linha nos dois casos). Alterna
+  // entre as duas formas por paridade de `casesRun`: sem '#' (token substitui o comentário) e com
+  // token extra antes do '#' (o corte no primeiro '#' só isola a razão depois de `read -r` já ter
+  // separado `e_resto` — o token antes dele já malformou a linha). Só se aplica quando existe
+  // alguma linha declarada.
   let extraTokenApplied = false;
   if (flags.extraToken && lines.length > 0) {
-    lines[0] = lines[0].replace(/ {2}# .*/, '  token-extra-sem-hash');
+    lines[0] = (casesRun % 2 === 0)
+      ? lines[0].replace(/ {2}# .*/, '  token-extra-sem-hash')
+      : lines[0].replace(/ {2}# /, '  token-extra # ');
     extraTokenApplied = true;
   }
   // truncateSha (achado do review adversarial, LOW): trunca o sha da PRIMEIRA entrada 'viva' para

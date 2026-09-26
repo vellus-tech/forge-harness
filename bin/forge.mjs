@@ -397,11 +397,8 @@ function writeMachineryLock(forge, files, version, sourceNote) {
 // resto da linha é a razão; comentário-only e linha em branco são ignorados) e sha hexadecimal
 // minúsculo com pelo menos 32 dígitos, não travado em 64. Qualquer token além de `<sha> <caminho>`
 // malforma a linha, com ou sem `#` — igual ao parser de origem (`check-machinery-drift.sh:201-206`,
-// `read -r e_sha e_rel e_resto <<< "$corpo"`; `[ -n "$e_resto" ]` marca a linha como MALFORMADA). A
-// versão anterior desta rodada afirmava o oposto (token extra sem `#` vira razão) medindo o script
-// de uma spike (`exc.sh`, `docs/plans/spikes/backlog-onda-l1-update-desarma-consumidor.md:1290`),
-// não o parser de origem — corrigido depois de reler o `check-machinery-drift.sh` real (achado do
-// review adversarial, ver CHANGELOG). Pela mesma razão, o sha é comparado por IGUALDADE ESTRITA
+// `read -r e_sha e_rel e_resto <<< "$corpo"`; `[ -n "$e_resto" ]` marca a linha como MALFORMADA).
+// Pela mesma razão, o sha é comparado por IGUALDADE ESTRITA
 // contra o sha de 64 dígitos do template (`check-machinery-drift.sh:321`, `[ "${exc_sha[$EXC_IDX]}" = "$sha" ]`),
 // nunca por prefixo: um sha declarado com menos de 64 dígitos (sintaxe válida, >= 32 dígitos) nunca
 // é igual ao sha do template e cai sempre em EXPIRADA — a gramática aceita o comprimento truncado,
@@ -448,9 +445,9 @@ function readMachineryExceptions(forge) {
     const shaOk = typeof sha === 'string' && sha.length >= 32 && /^[0-9a-f]+$/.test(sha);
     // Qualquer token além de "<sha> <caminho>" malforma a linha, com ou sem '#' — igual ao parser
     // de origem (`check-machinery-drift.sh:201-206`: `read -r e_sha e_rel e_resto <<< "$corpo"`,
-    // `[ -n "$e_resto" ]` marca MALFORMADA). Uma versão anterior aceitava o token extra como parte
-    // da razão quando não havia '#' — media o script de uma spike, não o parser de origem real
-    // (achado do review adversarial); corrigido de volta ao fail-closed.
+    // `[ -n "$e_resto" ]` marca MALFORMADA). `resto` já vem de `body`, que foi cortado no primeiro
+    // '#' antes da tokenização — um token extra antes do '#' malforma a linha do mesmo jeito que
+    // um token extra sem '#' nenhum.
     if (!shaOk || !relRaw || resto.length > 0) { malformed.push(lineNo); return; }
     const rel = normalizeExceptionPath(relRaw);
     if (entries.has(rel)) { duplicates.push({ rel, lines: [entries.get(rel).line, lineNo] }); return; }

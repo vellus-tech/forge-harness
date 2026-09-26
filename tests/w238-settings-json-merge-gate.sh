@@ -43,9 +43,20 @@
 #   [6] positivo — doctor.sh (LDG-0189), fixture COM hook de terceiro: drift só numa chave autoral
 #       (`permissions` editado à mão) não soma ao contador que aciona `MISSING_DIAG`/recomendação;
 #       imprime linha informativa nomeando que o sync preserva a chave.
-#   [6b] contrafactual — doctor.sh: drift REAL (o próprio comando do hook alterado) continua
-#        recomendando `sync-adapters.sh` normalmente — a mudança de [6] não silencia drift de
-#        verdade.
+#   [6b] contrafactual, decisão registrada (achado de correção MEDIUM da #125, revisão adversarial
+#        2ª iteração): no MODO SEMEADOR (sem hooks.manifest do consumidor), corromper só o MATCHER
+#        de um gancho já fiado deixa de ser detectado como drift — a mesma auto-referência que já
+#        mascarava corrupção de COMANDO desde antes desta correção (`preToolUseWiring(root)` lê a
+#        fiação atual para decidir "o que já está armado" e, desde a #125, também para preservar o
+#        matcher que o consumidor já tinha — ver `findWiredForm`); a projeção do doctor e a
+#        derivação fresca leem o MESMO `.claude/settings.json` corrompido e concordam sobre o valor
+#        corrompido. Isto é "desarme consciente": o doctor deixa de flagar drift de matcher/comando
+#        num gancho semeado, e [6e] abaixo prova que o ponto cego é só do modo semeador — com
+#        hooks.manifest do consumidor presente, a mesma corrupção continua sendo pega.
+#   [6e] positivo — o mesmo cenário de [6b], mas com hooks.manifest do CONSUMIDOR presente e
+#        resolvido: o matcher usado pela derivação fresca vem do MANIFESTO (fonte independente do
+#        settings.json sendo comparado), então corromper o matcher em settings.json ainda diverge
+#        da derivação e o doctor continua recomendando `sync-adapters.sh`.
 #   [6c] positivo — versão mista doctor×lib (achado de correção MEDIUM + LOW, revisão adversarial):
 #        uma `sync-adapters.mjs` anterior à #130 (sem `isMainModule`/`preToolUseWiring`/
 #        `mergeSettingsJson`), preservada por exceção de machinery enquanto o overlay já entrega o
@@ -452,28 +463,38 @@ else
   echo "OK [6] — $LINE6 (hook de terceiro presente durante a checagem)"
 fi
 
-# ── [6b] contrafactual — drift REAL continua recomendando sync-adapters.sh ───────────────────────
-echo "[6b] contrafactual: drift real (hook alterado) continua recomendando sync-adapters.sh, mesmo com hook de terceiro presente"
-# issue #125: o COMANDO do worktree-guard não serve mais para este contrafactual — desde o
-# semeador (nenhum consumidor ganha bloqueio novo sem saber), um comando corrompido a ponto de não
-# terminar em '.sh' reconhecível faz o PRÓPRIO preToolUseWiring(root) parar de reivindicar aquele
-# gancho (ele lê a fiação atual para decidir o que já está armado), e por coincidência as duas
-# projeções concordam em não tê-lo — mascarando o drift. O MATCHER, em vez do comando, ainda
-# expõe drift real: ele não participa da leitura de "o que já está fiado" (derivarFiacao só olha
-# o comando), então corrompê-lo diverge preToolUseWiring(root) (que deriva "^Bash$" de
-# hooks.manifest.default) do settings.json real, sem depender de reconhecer o comando.
+# ── [6b] contrafactual, decisão registrada — modo SEMEADOR mascara corrupção de matcher ──────────
+echo "[6b] decisão registrada: no modo semeador (sem hooks.manifest do consumidor), corromper o MATCHER de um gancho já fiado não é mais detectado como drift (auto-referência de findWiredForm — achado de correção MEDIUM da #125, 2ª iteração)"
 node -e 'const fs=require("fs");const p=process.argv[1];const j=JSON.parse(fs.readFileSync(p,"utf8"));j.hooks.PreToolUse.find((g)=>g.matcher==="^Bash$").matcher="^Bash$$";fs.writeFileSync(p,JSON.stringify(j,null,2)+"\n");' "$T6/.claude/settings.json"
 DOCTOR_OUT6B="$(FORGE_ROOT="$T6" bash "$T6/$DOCTOR_REL" 2>&1)"
 LINE6B="$(grep -i 'adapter claude' <<<"$DOCTOR_OUT6B")"
-if ! grep -qi 'com drift (rode' <<<"$LINE6B"; then
-  echo "FAIL [6b]: drift REAL deixou de ser recomendado — a mudança de [6] silenciou drift de verdade: $LINE6B"
-  overall_rc=1
-elif ! grep -qi 'o sync preserva chaves autorais e hooks de terceiro' <<<"$LINE6B"; then
-  echo "FAIL [6b]: achado de correção LOW — a recomendação de drift real em settings.json deveria trazer a ressalva de que o sync preserva chaves autorais e hooks de terceiro (lib com a fusão da #160): $LINE6B"
+if grep -qi 'com drift (rode' <<<"$LINE6B"; then
+  echo "FAIL [6b]: o modo semeador voltou a detectar corrupção de matcher como drift — se este comportamento mudou de propósito, atualize este teste e o comentário da decisão registrada: $LINE6B"
   overall_rc=1
 else
-  echo "OK [6b] — $LINE6B"
+  echo "OK [6b] — matcher corrompido no modo semeador não aciona recomendação (decisão registrada): $LINE6B"
 fi
+# restaura o matcher antes de [6e], que parte do mesmo T6 já assentado.
+node -e 'const fs=require("fs");const p=process.argv[1];const j=JSON.parse(fs.readFileSync(p,"utf8"));j.hooks.PreToolUse.find((g)=>g.matcher==="^Bash$$").matcher="^Bash$";fs.writeFileSync(p,JSON.stringify(j,null,2)+"\n");' "$T6/.claude/settings.json"
+
+# ── [6e] positivo — com hooks.manifest do consumidor, a mesma corrupção AINDA é pega ─────────────
+echo "[6e] com hooks.manifest do consumidor (matcher vem do manifesto, fonte independente de settings.json): a mesma corrupção de matcher continua sendo detectada"
+printf '# forge-manifest-format: 1\n#hook\tmatcher\tcontrato\testado\nenforce-worktree-location.sh\t^Bash$\tstdin-json\tarmado\nprevent-secrets-leak.sh\t^(Write|Edit|MultiEdit|NotebookEdit)$\tstdin-json\tarmado\ncheck-language-policy.sh\t^(Write|Edit|MultiEdit)$\targv\tretido:na\nvalidate-naming-conventions.sh\t^(Write|Edit|MultiEdit)$\targv\tretido:na\n' \
+  > "$T6/.forge/hooks/pre-tool-use/hooks.manifest"
+bash "$T6/.forge/scripts/sync-adapters.sh" >/dev/null 2>&1
+node -e 'const fs=require("fs");const p=process.argv[1];const j=JSON.parse(fs.readFileSync(p,"utf8"));j.hooks.PreToolUse.find((g)=>g.matcher==="^Bash$").matcher="^Bash$$";fs.writeFileSync(p,JSON.stringify(j,null,2)+"\n");' "$T6/.claude/settings.json"
+DOCTOR_OUT6E="$(FORGE_ROOT="$T6" bash "$T6/$DOCTOR_REL" 2>&1)"
+LINE6E="$(grep -i 'adapter claude' <<<"$DOCTOR_OUT6E")"
+if ! grep -qi 'com drift (rode' <<<"$LINE6E"; then
+  echo "FAIL [6e]: com hooks.manifest do consumidor presente, drift real de matcher deixou de ser detectado: $LINE6E"
+  overall_rc=1
+elif ! grep -qi 'o sync preserva chaves autorais e hooks de terceiro' <<<"$LINE6E"; then
+  echo "FAIL [6e]: achado de correção LOW — a recomendação de drift real deveria trazer a ressalva de preservação de chaves autorais/hooks de terceiro: $LINE6E"
+  overall_rc=1
+else
+  echo "OK [6e] — $LINE6E"
+fi
+rm -f "$T6/.forge/hooks/pre-tool-use/hooks.manifest"
 
 # ── [6c] versão mista doctor×lib: lib anterior à #130 não é importada, sem reconciliar como
 #     efeito colateral da leitura de diagnóstico ─────────────────────────────────────────────────

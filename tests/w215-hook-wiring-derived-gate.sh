@@ -53,8 +53,35 @@
 #        (a) para diretórios pre-tool-use/ gerados (subconjunto aleatório de ganchos declarados,
 #        ativos/inativos, mais um arquivo NÃO declarado), o conjunto de comandos emitidos em
 #        PreToolUse é exatamente o dos ganchos declarados ativos, e o arquivo não declarado nunca
-#        entra no conjunto emitido; (b) para payloads gerados com um padrão de segredo em posição
-#        aleatória do content, o gancho via stdin sai 2.
+#        entra no conjunto emitido; (b) para payloads gerados (Write/Edit/MultiEdit/NotebookEdit)
+#        com um padrão de segredo em posição aleatória do conteúdo, o gancho via stdin sai 2.
+#
+# Achados de correção (revisão adversarial, 2ª iteração) — novos cenários abaixo:
+#   [15] positivo — gancho AUTORAL do consumidor (`guard-machinery-drift.sh`, sem estar declarado em
+#        nenhum manifesto) fiado direto sob o diretório canônico, sem hooks.manifest: sobrevive ao
+#        sync byte-idêntico, e os ganchos do template ao lado dele continuam sendo semeados
+#        normalmente. Mutação [15m]: devolver `ownedHookCommandsFor` para "todo `.sh` do diretório"
+#        faz o gancho autoral desaparecer da fiação.
+#   [16] positivo — homônimo de TERCEIRO fiado noutro caminho (`.claude/hooks/pre-tool-use/
+#        prevent-secrets-leak.sh`, medido no vellus-enterprise-ai-platform): o NOSSO detector não é
+#        armado por engano — nasce inativo e nomeado — e o homônimo de terceiro sobrevive intacto.
+#        Mutação [16m]: devolver a decisão de "já fiado" para `derivarFiacao` (por basename) faz o
+#        nosso detector ser armado por engano a partir do homônimo.
+#   [17] positivo — NotebookEdit limpo via stdin: rc 0. [17b] positivo — NotebookEdit com segredo em
+#        `new_source` via stdin: rc 2 (antes desta correção, TODO NotebookEdit saía rc 2 por não
+#        conseguir extrair o payload, limpo ou não — [17] é o cenário que prova que não é mais
+#        fail-closed cego).
+#   [18] positivo — Edit que REMOVE um segredo de um arquivo que ainda o contém em disco: rc 0 (o
+#        PreToolUse roda ANTES da escrita; somar o disco ao conteúdo que entra impedia consertar).
+#        [18b] positivo (pareado) — Edit que INTRODUZ um segredo num arquivo limpo em disco: rc 2.
+#        Mutação [18m]: voltar a somar `TARGET_CONTENT` incondicionalmente faz [18] sair rc 2.
+#   [19] positivo — versão mista: `prevent-secrets-leak.sh` fiado através de `lib/argv-bridge.sh`
+#        (cenário de exceção que preserva um wrapper antigo) com payload COM segredo: rc 2 (antes
+#        desta correção a ponte só repassava `$1`, o gancho caía no fallback de disco e aprovava
+#        `rc 0` com o arquivo ainda inexistente). Mutação [19m]: voltar a ponte a repassar só `$1`
+#        faz [19] sair rc 0.
+#   [20] positivo — semeador preserva o MATCHER que o consumidor já tinha (`Edit|Write`, sem
+#        `NotebookEdit`, não ancorado) em vez de alargar para o matcher ancorado do produtor.
 #
 # Fixtures: nenhum segredo literal (LDG-0175/w213 e a auto-varredura do w139 [15], que reprova o
 # repositório inteiro por qualquer achado) — todo payload de exemplo é montado em tempo de
@@ -482,12 +509,18 @@ for (let i = 0; i < Number(RUNS); i++) {
   }
   rmSync(`${HOOKS_DIR}/${undeclaredName}`);
 
-  // (b) payload com segredo em posição aleatória do content — o gancho via stdin sai 2.
+  // (b) payload com segredo em posição aleatória do content — o gancho via stdin sai 2. Achado de
+  // correção HIGH (revisão adversarial, 2ª iteração): a geração agora sorteia também NotebookEdit
+  // (campo `new_source`, sem `file_path` — só `notebook_path`), que antes desta correção caía
+  // sempre no fail-closed de "não consegui extrair o payload" independente do conteúdo.
   const pattern = SECRET_PATTERNS[rnd.int(0, SECRET_PATTERNS.length - 1)]();
   const noiseBefore = 'x'.repeat(rnd.int(0, 40));
   const noiseAfter = 'y'.repeat(rnd.int(0, 40));
   const content = `${noiseBefore}${pattern}${noiseAfter}`.replace(/"/g, '');
-  const payload = JSON.stringify({ tool_name: 'Write', tool_input: { file_path: '/tmp/pbt.env', content } });
+  const isNotebook = rnd.next() < 0.3;
+  const payload = isNotebook
+    ? JSON.stringify({ tool_name: 'NotebookEdit', tool_input: { notebook_path: '/tmp/pbt.ipynb', new_source: content } })
+    : JSON.stringify({ tool_name: 'Write', tool_input: { file_path: '/tmp/pbt.env', content } });
   let rc;
   try {
     execFileSync('bash', [HOOK_SCRIPT], { input: payload, stdio: ['pipe', 'ignore', 'ignore'] });
@@ -496,7 +529,7 @@ for (let i = 0; i < Number(RUNS); i++) {
     rc = e.status ?? -1;
   }
   if (rc !== 2) {
-    console.log(`FAIL-PBT-B: caso ${i} (seed ${SEED}) — payload com segredo saiu rc=${rc}, esperado 2 (content=${JSON.stringify(content)})`);
+    console.log(`FAIL-PBT-B: caso ${i} (seed ${SEED}, tool=${isNotebook ? 'NotebookEdit' : 'Write'}) — payload com segredo saiu rc=${rc}, esperado 2 (content=${JSON.stringify(content)})`);
     failures++;
   }
 }
@@ -510,6 +543,390 @@ if [ "$RC14" -ne 0 ]; then
   overall_rc=1
 else
   echo "OK [14] — $OUT14"
+fi
+
+# matcher_of <settings.json> <hook-basename> — o matcher do grupo que contém o gancho, ou "" se ausente.
+matcher_of() {
+  node -e '
+    const fs = require("fs");
+    const j = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+    const groups = (j.hooks && j.hooks.PreToolUse) || [];
+    for (const g of groups) for (const h of (g.hooks || [])) {
+      const parts = String(h.command).trim().split(/\s+/);
+      const last = parts[parts.length - 1].split("/").pop();
+      if (last === process.argv[2]) { console.log(g.matcher); process.exit(0); }
+    }
+    console.log("");
+  ' "$1" "$2"
+}
+
+# ── [15] gancho AUTORAL do consumidor, sem manifesto: sobrevive byte a byte ─────────────────────────
+echo "[15] gancho autoral do consumidor (guard-machinery-drift.sh, não declarado em nenhum manifesto), fiado direto sob o diretório canônico, sem hooks.manifest — sobrevive ao sync, e os ganchos do template ao lado continuam sendo semeados"
+T15="$(mktemp -d "$TMPROOT/forge-w215-15.XXXXXX")"; track "$T15"
+nova_fixture "$T15"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$T15/.forge/hooks/pre-tool-use/guard-machinery-drift.sh"
+chmod +x "$T15/.forge/hooks/pre-tool-use/guard-machinery-drift.sh"
+mkdir -p "$T15/.claude"
+cat > "$T15/.claude/settings.json" <<'JSON'
+{
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": "^Bash$", "hooks": [
+          { "type": "command", "command": "$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/enforce-worktree-location.sh" },
+          { "type": "command", "command": "$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/guard-machinery-drift.sh" }
+      ] }
+    ]
+  }
+}
+JSON
+OUT15="$(bash "$T15/.forge/scripts/sync-adapters.sh" --set claude 2>&1)"
+GOT15="$(hooks_of "$T15/.claude/settings.json")"
+EXPECTED15='["enforce-worktree-location.sh","guard-machinery-drift.sh"]'
+if [ "$GOT15" != "$EXPECTED15" ]; then
+  echo "FAIL [15]: conjunto ativo = $GOT15 — esperado $EXPECTED15 (guard-machinery-drift.sh sobrevive como terceiro; enforce-worktree-location.sh, único gancho do template já fiado, continua semeado; prevent-secrets-leak.sh, nunca fiado e sem manifesto, nasce inativo). Saída: $OUT15"
+  overall_rc=1
+elif ! printf '%s' "$OUT15" | grep -q "prevent-secrets-leak.sh"; then
+  echo "FAIL [15]: prevent-secrets-leak.sh deveria nascer inativo e NOMEADO em WARN (semeador, declarado em hooks.manifest.default, nunca fiado) — nenhum WARN o nomeou. Saída: $OUT15"
+  overall_rc=1
+else
+  echo "OK [15] — gancho autoral preservado, ganchos do template seguem sendo processados normalmente: $GOT15"
+fi
+
+echo "[15m] mutação: devolver ownedHookCommandsFor para 'todo .sh do diretório' faz o gancho autoral desaparecer"
+T15M="$(mktemp -d "$TMPROOT/forge-w215-15m.XXXXXX")"; track "$T15M"
+nova_fixture "$T15M"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$T15M/.forge/hooks/pre-tool-use/guard-machinery-drift.sh"
+chmod +x "$T15M/.forge/hooks/pre-tool-use/guard-machinery-drift.sh"
+mkdir -p "$T15M/.claude"
+cat > "$T15M/.claude/settings.json" <<'JSON'
+{
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": "^Bash$", "hooks": [
+          { "type": "command", "command": "$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/enforce-worktree-location.sh" },
+          { "type": "command", "command": "$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/guard-machinery-drift.sh" }
+      ] }
+    ]
+  }
+}
+JSON
+LIB15M="$T15M/$LIB_REL"
+cp "$LIB15M" "$T15M/lib.orig.mjs"
+node -e '
+  const fs = require("fs");
+  const p = process.argv[1];
+  let src = fs.readFileSync(p, "utf8");
+  const marker = "function declaredHookNames(hooksDir) {\n  const names = new Set();";
+  const i = src.indexOf(marker);
+  if (i < 0) { console.error("MUTATION-SETUP-FAILED: marcador de declaredHookNames não encontrado"); process.exit(1); }
+  const mutated = "function declaredHookNames(hooksDir) {\n  return new Set(listHookFiles(hooksDir)); // MUTATED-15\n  const names = new Set();";
+  src = src.slice(0, i) + mutated + src.slice(i + marker.length);
+  fs.writeFileSync(p, src);
+' "$LIB15M"
+if cmp -s "$T15M/lib.orig.mjs" "$LIB15M"; then
+  echo "FAIL [15m]: setup da mutação não alterou o arquivo — nada foi provado"
+  overall_rc=1
+else
+  bash "$T15M/.forge/scripts/sync-adapters.sh" --set claude >/dev/null 2>&1
+  GOT15M="$(hooks_of "$T15M/.claude/settings.json")"
+  if echo "$GOT15M" | grep -q 'guard-machinery-drift.sh'; then
+    echo "FAIL [15m]: a mutação (ownedSet largo) não derrubou o cenário — guard-machinery-drift.sh continuou no conjunto ($GOT15M)"
+    overall_rc=1
+  else
+    echo "OK [15m] — mutante reprovado (conjunto sem guard-machinery-drift.sh: $GOT15M)"
+  fi
+  cp "$T15M/lib.orig.mjs" "$LIB15M"
+  if ! cmp -s "$T15M/lib.orig.mjs" "$LIB15M"; then
+    echo "FAIL [15m]: recontrole — restauração da lib mutada não ficou byte-idêntica ao original"
+    overall_rc=1
+  else
+    rm -f "$T15M/.claude/settings.json"
+    cat > "$T15M/.claude/settings.json" <<'JSON'
+{
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": "^Bash$", "hooks": [
+          { "type": "command", "command": "$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/enforce-worktree-location.sh" },
+          { "type": "command", "command": "$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/guard-machinery-drift.sh" }
+      ] }
+    ]
+  }
+}
+JSON
+    bash "$T15M/.forge/scripts/sync-adapters.sh" --set claude >/dev/null 2>&1
+    GOT15R="$(hooks_of "$T15M/.claude/settings.json")"
+    if ! echo "$GOT15R" | grep -q 'guard-machinery-drift.sh'; then
+      echo "FAIL [15m]: recontrole — depois de restaurar a lib original, guard-machinery-drift.sh continua fora do conjunto ($GOT15R)"
+      overall_rc=1
+    else
+      echo "OK [15m] recontrole — lib original restaurada, guard-machinery-drift.sh volta ($GOT15R)"
+    fi
+  fi
+fi
+
+# ── [16] homônimo de TERCEIRO não arma o nosso detector por engano ──────────────────────────────────
+echo "[16] homônimo de terceiro (.claude/hooks/pre-tool-use/prevent-secrets-leak.sh) não arma o nosso detector; nasce inativo e nomeado"
+T16="$(mktemp -d "$TMPROOT/forge-w215-16.XXXXXX")"; track "$T16"
+nova_fixture "$T16"
+mkdir -p "$T16/.claude"
+cat > "$T16/.claude/settings.json" <<'JSON'
+{
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": "Edit|Write", "hooks": [ { "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/pre-tool-use/prevent-secrets-leak.sh" } ] }
+    ]
+  }
+}
+JSON
+OUT16="$(bash "$T16/.forge/scripts/sync-adapters.sh" --set claude 2>&1)"
+if node -e '
+  const fs = require("fs");
+  const j = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+  const groups = (j.hooks && j.hooks.PreToolUse) || [];
+  let found = false;
+  for (const g of groups) for (const h of (g.hooks || [])) {
+    if (String(h.command).includes(".forge/hooks/pre-tool-use/prevent-secrets-leak.sh")) found = true;
+  }
+  process.exit(found ? 1 : 0);
+' "$T16/.claude/settings.json"; then
+  if ! printf '%s' "$OUT16" | grep -q "prevent-secrets-leak.sh"; then
+    echo "FAIL [16]: nosso detector não foi armado (correto), mas nenhum WARN o nomeou como inativo. Saída: $OUT16"
+    overall_rc=1
+  elif ! grep -q '.claude/hooks/pre-tool-use/prevent-secrets-leak.sh' "$T16/.claude/settings.json"; then
+    echo "FAIL [16]: o homônimo de terceiro não sobreviveu ao sync"
+    overall_rc=1
+  else
+    echo "OK [16] — homônimo preservado, nosso detector inativo e nomeado"
+  fi
+else
+  echo "FAIL [16]: nosso detector (.forge/hooks/pre-tool-use/prevent-secrets-leak.sh) foi armado por engano a partir de um homônimo de terceiro noutro caminho"
+  overall_rc=1
+fi
+
+echo "[16m] mutação: devolver a decisão de 'já fiado' para basename (estilo derivarFiacao) arma o nosso detector a partir do homônimo"
+T16M="$(mktemp -d "$TMPROOT/forge-w215-16m.XXXXXX")"; track "$T16M"
+nova_fixture "$T16M"
+mkdir -p "$T16M/.claude"
+cat > "$T16M/.claude/settings.json" <<'JSON'
+{
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": "Edit|Write", "hooks": [ { "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/pre-tool-use/prevent-secrets-leak.sh" } ] }
+    ]
+  }
+}
+JSON
+LIB16M="$T16M/$LIB_REL"
+cp "$LIB16M" "$T16M/lib.orig.mjs"
+node -e '
+  const fs = require("fs");
+  const p = process.argv[1];
+  let src = fs.readFileSync(p, "utf8");
+  const marker = "const wired = findWiredForm(existingGroups, hook);";
+  const i = src.indexOf(marker);
+  if (i < 0) { console.error("MUTATION-SETUP-FAILED: marcador de findWiredForm não encontrado"); process.exit(1); }
+  const mutated = "const wired = (function(){ for (const g of existingGroups || []) { for (const h of (g && g.hooks) || []) { if (!h || typeof h.command !== \"string\") continue; const parts = h.command.trim().split(/\\s+/); const last = parts[parts.length-1].split(\"/\").pop(); if (last === hook) return { matcher: g.matcher, contrato: fromDefault.contrato }; } } return null; })(); // MUTATED-16 basename";
+  src = src.slice(0, i) + mutated + src.slice(i + marker.length);
+  fs.writeFileSync(p, src);
+' "$LIB16M"
+if cmp -s "$T16M/lib.orig.mjs" "$LIB16M"; then
+  echo "FAIL [16m]: setup da mutação não alterou o arquivo — nada foi provado"
+  overall_rc=1
+else
+  bash "$T16M/.forge/scripts/sync-adapters.sh" --set claude >/dev/null 2>&1
+  ARMED16M="$(node -e '
+    const fs = require("fs");
+    const j = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+    const groups = (j.hooks && j.hooks.PreToolUse) || [];
+    let found = false;
+    for (const g of groups) for (const h of (g.hooks || [])) {
+      if (String(h.command) === "$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/prevent-secrets-leak.sh") found = true;
+    }
+    console.log(found ? "1" : "0");
+  ' "$T16M/.claude/settings.json")"
+  if [ "$ARMED16M" != "1" ]; then
+    echo "FAIL [16m]: a mutação (basename) não derrubou o cenário — nosso detector continuou inativo"
+    overall_rc=1
+  else
+    echo "OK [16m] — mutante reprovado (detector armado por engano a partir do homônimo)"
+  fi
+  cp "$T16M/lib.orig.mjs" "$LIB16M"
+  if ! cmp -s "$T16M/lib.orig.mjs" "$LIB16M"; then
+    echo "FAIL [16m]: recontrole — restauração da lib mutada não ficou byte-idêntica ao original"
+    overall_rc=1
+  else
+    rm -f "$T16M/.claude/settings.json"
+    cat > "$T16M/.claude/settings.json" <<'JSON'
+{
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": "Edit|Write", "hooks": [ { "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/pre-tool-use/prevent-secrets-leak.sh" } ] }
+    ]
+  }
+}
+JSON
+    bash "$T16M/.forge/scripts/sync-adapters.sh" --set claude >/dev/null 2>&1
+    ARMED16R="$(node -e '
+      const fs = require("fs");
+      const j = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+      const groups = (j.hooks && j.hooks.PreToolUse) || [];
+      let found = false;
+      for (const g of groups) for (const h of (g.hooks || [])) {
+        if (String(h.command) === "$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/prevent-secrets-leak.sh") found = true;
+      }
+      console.log(found ? "1" : "0");
+    ' "$T16M/.claude/settings.json")"
+    if [ "$ARMED16R" != "0" ]; then
+      echo "FAIL [16m]: recontrole — depois de restaurar a lib original, o detector continua armado por engano"
+      overall_rc=1
+    else
+      echo "OK [16m] recontrole — lib original restaurada, detector volta a nascer inativo"
+    fi
+  fi
+fi
+
+# ── [17] NotebookEdit ────────────────────────────────────────────────────────────────────────────
+echo "[17] NotebookEdit limpo via stdin — rc 0"
+OUT17="$(printf '{"tool_name":"NotebookEdit","tool_input":{"notebook_path":"/tmp/nb.ipynb","new_source":"print(1)"}}' | bash "$WS/template/$HOOK_REL" 2>&1)"; RC17=$?
+if [ "$RC17" -ne 0 ]; then
+  echo "FAIL [17]: NotebookEdit limpo saiu rc=$RC17 — esperado 0: $OUT17"
+  overall_rc=1
+else
+  echo "OK [17] — rc 0"
+fi
+
+echo "[17b] NotebookEdit com segredo em new_source via stdin — rc 2"
+prefix="AKIA"; suffix="IOSFODNN7EXAMPLE"; key="${prefix}${suffix}"
+OUT17B="$(printf '{"tool_name":"NotebookEdit","tool_input":{"notebook_path":"/tmp/nb.ipynb","new_source":"aws_key = %s"}}' "$key" | bash "$WS/template/$HOOK_REL" 2>&1)"; RC17B=$?
+if [ "$RC17B" -ne 2 ]; then
+  echo "FAIL [17b]: NotebookEdit com segredo saiu rc=$RC17B — esperado 2: $OUT17B"
+  overall_rc=1
+else
+  echo "OK [17b] — rc 2"
+fi
+
+# ── [18] conteúdo que ENTRA, nunca somado ao disco quando o payload já traz bytes ──────────────────
+echo "[18] Edit que REMOVE um segredo de um arquivo que ainda o contém em disco — rc 0"
+T18="$(mktemp -d "$TMPROOT/forge-w215-18.XXXXXX")"; track "$T18"
+F18="$T18/secret.env"
+printf 'aws_key = %s\n' "${prefix}${suffix}" > "$F18"
+PAYLOAD18="$(printf '{"tool_name":"Edit","tool_input":{"file_path":"%s","old_string":"aws_key = %s","new_string":"aws_key = os.environ[chave]"}}' "$F18" "${prefix}${suffix}")"
+OUT18="$(printf '%s' "$PAYLOAD18" | bash "$WS/template/$HOOK_REL" 2>&1)"; RC18=$?
+if [ "$RC18" -ne 0 ]; then
+  echo "FAIL [18]: Edit removendo o segredo (disco ainda o contém) saiu rc=$RC18 — esperado 0: $OUT18"
+  overall_rc=1
+else
+  echo "OK [18] — rc 0"
+fi
+
+echo "[18b] pareado: Edit que INTRODUZ um segredo num arquivo limpo em disco — rc 2"
+F18B="$T18/clean.env"
+printf 'hello\n' > "$F18B"
+PAYLOAD18B="$(printf '{"tool_name":"Edit","tool_input":{"file_path":"%s","old_string":"hello","new_string":"aws_key = %s"}}' "$F18B" "${prefix}${suffix}")"
+OUT18B="$(printf '%s' "$PAYLOAD18B" | bash "$WS/template/$HOOK_REL" 2>&1)"; RC18B=$?
+if [ "$RC18B" -ne 2 ]; then
+  echo "FAIL [18b]: Edit introduzindo o segredo saiu rc=$RC18B — esperado 2: $OUT18B"
+  overall_rc=1
+else
+  echo "OK [18b] — rc 2"
+fi
+
+echo "[18m] mutação: voltar a somar o disco ao conteúdo que entra faz [18] sair rc 2"
+HOOK18M="$T18/prevent-secrets-leak.sh"
+cp "$WS/template/$HOOK_REL" "$HOOK18M"
+cp "$HOOK18M" "$T18/hook.orig.sh"
+perl -0777 -pi -e 's/CHECK_CONTENT="\$CONTENT"\nif \[\[ "\$HAVE_CONTENT" -eq 0 \]\] && \[\[ -f "\$FILE" \]\]; then\n  CHECK_CONTENT=\$\(cat "\$FILE" 2>\/dev\/null \|\| true\)\nfi/TARGET_CONTENT=""\nif [[ -f "\$FILE" ]]; then TARGET_CONTENT=\$(cat "\$FILE" 2>\/dev\/null || true); fi\nCHECK_CONTENT="\${CONTENT}\${TARGET_CONTENT}" # MUTATED-18/' "$HOOK18M"
+if cmp -s "$T18/hook.orig.sh" "$HOOK18M"; then
+  echo "FAIL [18m]: setup da mutação não alterou o gancho — nada foi provado"
+  overall_rc=1
+else
+  OUT18M="$(printf '%s' "$PAYLOAD18" | bash "$HOOK18M" 2>&1)"; RC18M=$?
+  if [ "$RC18M" -ne 2 ]; then
+    echo "FAIL [18m]: a mutação (soma incondicional do disco) não derrubou o cenário — saiu rc=$RC18M"
+    overall_rc=1
+  else
+    echo "OK [18m] — mutante reprovado (rc=2 em vez de 0)"
+  fi
+  cp "$T18/hook.orig.sh" "$HOOK18M"
+  if ! cmp -s "$T18/hook.orig.sh" "$HOOK18M"; then
+    echo "FAIL [18m]: recontrole — restauração do gancho mutado não ficou byte-idêntica ao original"
+    overall_rc=1
+  else
+    OUT18R="$(printf '%s' "$PAYLOAD18" | bash "$HOOK18M" 2>&1)"; RC18R=$?
+    if [ "$RC18R" -ne 0 ]; then
+      echo "FAIL [18m]: recontrole — gancho original restaurado não voltou a sair rc 0 (rc=$RC18R)"
+      overall_rc=1
+    else
+      echo "OK [18m] recontrole — gancho original restaurado, rc 0"
+    fi
+  fi
+fi
+
+# ── [19] versão mista: prevent-secrets-leak.sh preservado via argv-bridge ──────────────────────────
+echo "[19] versão mista: prevent-secrets-leak.sh fiado através de lib/argv-bridge.sh, payload COM segredo — rc 2"
+BRIDGE_REL=".forge/hooks/pre-tool-use/lib/argv-bridge.sh"
+PAYLOAD19="$(printf '{"tool_name":"Write","tool_input":{"file_path":"/tmp/mixedver.env","content":"aws_key = %s"}}' "${prefix}${suffix}")"
+OUT19="$(printf '%s' "$PAYLOAD19" | bash "$WS/template/$BRIDGE_REL" "$WS/template/$HOOK_REL" 2>&1)"; RC19=$?
+if [ "$RC19" -ne 2 ]; then
+  echo "FAIL [19]: prevent-secrets-leak.sh através da ponte, com segredo, saiu rc=$RC19 — esperado 2: $OUT19"
+  overall_rc=1
+else
+  echo "OK [19] — rc 2"
+fi
+
+echo "[19m] mutação: voltar a ponte a repassar só \$1 (sem conteúdo) faz [19] sair rc 0"
+T19M="$(mktemp -d "$TMPROOT/forge-w215-19m.XXXXXX")"; track "$T19M"
+BRIDGE19M="$T19M/argv-bridge.sh"
+cp "$WS/template/$BRIDGE_REL" "$BRIDGE19M"
+cp "$BRIDGE19M" "$T19M/bridge.orig.sh"
+perl -pi -e 's/exec "\$TARGET" "\$FILE" "\$CONTENT" "\$@"/exec "\$TARGET" "\$FILE" "\$@" # MUTATED-19/' "$BRIDGE19M"
+if cmp -s "$T19M/bridge.orig.sh" "$BRIDGE19M"; then
+  echo "FAIL [19m]: setup da mutação não alterou a ponte — nada foi provado"
+  overall_rc=1
+else
+  OUT19M="$(printf '%s' "$PAYLOAD19" | bash "$BRIDGE19M" "$WS/template/$HOOK_REL" 2>&1)"; RC19M=$?
+  if [ "$RC19M" -eq 2 ]; then
+    echo "FAIL [19m]: a mutação (ponte sem conteúdo) não derrubou o cenário — ainda saiu rc 2"
+    overall_rc=1
+  else
+    echo "OK [19m] — mutante reprovado (rc=$RC19M em vez de 2)"
+  fi
+  cp "$T19M/bridge.orig.sh" "$BRIDGE19M"
+  if ! cmp -s "$T19M/bridge.orig.sh" "$BRIDGE19M"; then
+    echo "FAIL [19m]: recontrole — restauração da ponte mutada não ficou byte-idêntica ao original"
+    overall_rc=1
+  else
+    OUT19R="$(printf '%s' "$PAYLOAD19" | bash "$BRIDGE19M" "$WS/template/$HOOK_REL" 2>&1)"; RC19R=$?
+    if [ "$RC19R" -ne 2 ]; then
+      echo "FAIL [19m]: recontrole — ponte original restaurada não voltou a sair rc 2 (rc=$RC19R)"
+      overall_rc=1
+    else
+      echo "OK [19m] recontrole — ponte original restaurada, rc 2"
+    fi
+  fi
+fi
+
+# ── [20] semeador preserva o MATCHER que o consumidor já tinha ─────────────────────────────────────
+echo "[20] semeador preserva o matcher legado (Edit|Write, sem NotebookEdit, não ancorado) em vez de alargar para o do produtor"
+T20="$(mktemp -d "$TMPROOT/forge-w215-20.XXXXXX")"; track "$T20"
+nova_fixture "$T20"
+mkdir -p "$T20/.claude"
+cat > "$T20/.claude/settings.json" <<'JSON'
+{
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": "Edit|Write", "hooks": [ { "type": "command", "command": "$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/prevent-secrets-leak.sh" } ] }
+    ]
+  }
+}
+JSON
+bash "$T20/.forge/scripts/sync-adapters.sh" --set claude >/dev/null 2>&1
+GOT20="$(matcher_of "$T20/.claude/settings.json" prevent-secrets-leak.sh)"
+if [ "$GOT20" != "Edit|Write" ]; then
+  echo "FAIL [20]: matcher depois do sync = '$GOT20' — esperado 'Edit|Write' preservado (não alargado para o matcher ancorado do produtor)"
+  overall_rc=1
+else
+  echo "OK [20] — matcher preservado: '$GOT20'"
 fi
 
 echo "-- resumo funcional: overall_rc=$overall_rc"

@@ -169,13 +169,23 @@ PYEOF
   done
 }
 
-@test "C5: settings.json is valid JSON and wires ONLY the worktree-guard (PreToolUse/Bash)" {
+@test "C5: settings.json is valid JSON and wires the worktree-guard + secrets-detector (PreToolUse), by default (issue #125)" {
+  # Issue #125: PreToolUse passou a derivar de .forge/hooks/pre-tool-use/ + hooks.manifest.default
+  # em vez de um literal fixo (só o worktree-guard). Um consumidor NOVO (sem .claude/settings.json
+  # ainda, o caso deste fixture) recebe o ESTADO PADRÃO do produtor: worktree-guard e
+  # prevent-secrets-leak.sh nascem armados (segurança/convenção universal); check-language-policy.sh
+  # e validate-naming-conventions.sh (específicos de .NET) nascem retidos.
   python3 -m json.tool "$CLAUDE_DIR/settings.json" >/dev/null
   grep -q "$HOOK_PATH_FRAGMENT" "$CLAUDE_DIR/settings.json"
   grep -q '"PreToolUse"' "$CLAUDE_DIR/settings.json"
-  grep -q '"matcher": "Bash"' "$CLAUDE_DIR/settings.json"
+  # o matcher passou a vir de hooks.manifest.default, que exige âncora nas duas pontas para toda
+  # linha `armado` (lerCanonico/hooks-manifest.mjs) — "Bash" virou "^Bash$".
+  grep -q '"matcher": "\^Bash\$"' "$CLAUDE_DIR/settings.json"
+  grep -q 'prevent-secrets-leak.sh' "$CLAUDE_DIR/settings.json"
+  ! grep -q 'check-language-policy.sh' "$CLAUDE_DIR/settings.json"
+  ! grep -q 'validate-naming-conventions.sh' "$CLAUDE_DIR/settings.json"
   wired=$(grep -c '"command":' "$CLAUDE_DIR/settings.json")
-  [ "$wired" -eq 1 ]
+  [ "$wired" -eq 2 ]
 }
 
 @test "C5: handoff.auto: true wires +2 Session hooks (SessionStart/SessionEnd) — consolidates w62 into C5 (LDG-0022)" {
@@ -203,8 +213,9 @@ PYEOF
   grep -q '"SessionEnd"' "$AUTO_SETTINGS"
   grep -q 'on-session-start.sh' "$AUTO_SETTINGS"
   grep -q 'on-session-end.sh' "$AUTO_SETTINGS"
+  # base (issue #125): worktree-guard + prevent-secrets-leak.sh = 2, mais SessionStart/SessionEnd = 4.
   wired=$(grep -c '"command":' "$AUTO_SETTINGS")
-  [ "$wired" -eq 3 ]
+  [ "$wired" -eq 4 ]
 }
 
 @test "C5: worktree-guard blocks outside the canonical worktree path (generated mode only)" {

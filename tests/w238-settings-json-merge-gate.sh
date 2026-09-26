@@ -130,10 +130,14 @@ wiring_of() { # wiring_of <lib> <root>
 owned_projection_of() {
   node -e '
     const fs = require("fs");
+    // issue #125: o universo de PreToolUse deixou de ser fixo — inclui os quatro ganchos do
+    // template, nas duas formas de comando possíveis (direta e via lib/argv-bridge.sh).
+    const HOOK_FILES = ["enforce-worktree-location.sh", "prevent-secrets-leak.sh", "check-language-policy.sh", "validate-naming-conventions.sh"];
     const OWNED = new Set([
-      "$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/enforce-worktree-location.sh",
       "$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-start.sh",
       "$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-end.sh",
+      ...HOOK_FILES.map((h) => `$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/${h}`),
+      ...HOOK_FILES.map((h) => `$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/lib/argv-bridge.sh $CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/${h}`),
     ]);
     const settings = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
     const hooksObj = (settings.hooks && typeof settings.hooks === "object" && !Array.isArray(settings.hooks)) ? settings.hooks : {};
@@ -225,12 +229,18 @@ echo "[1b] primeiro sync sobre a ORDEM real de chaves do vellus (permissions,env
 T1B="$(mktemp -d "$TMPROOT/forge-w238-1b.XXXXXX")"; track "$T1B"
 nova_fixture "$T1B"
 mkdir -p "$T1B/.claude"
+# issue #125: a forma pós-fix de uma instalação nova tem DOIS grupos em PreToolUse (matcher
+# âncorado "^Bash$" para o worktree-guard, e o novo prevent-secrets-leak.sh, armado por padrão)
+# em vez do único gancho literal de antes.
 node -e '
   const fs = require("fs");
   const settings = {
     permissions: JSON.parse(process.argv[2]),
     env: JSON.parse(process.argv[3]),
-    hooks: { PreToolUse: [ { matcher: "Bash", hooks: [ { type: "command", command: "$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/enforce-worktree-location.sh" } ] } ] },
+    hooks: { PreToolUse: [
+      { matcher: "^Bash$", hooks: [ { type: "command", command: "$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/enforce-worktree-location.sh" } ] },
+      { matcher: "^(Write|Edit|MultiEdit|NotebookEdit)$", hooks: [ { type: "command", command: "$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/prevent-secrets-leak.sh" } ] },
+    ] },
     includeCoAuthoredBy: false,
   };
   fs.writeFileSync(process.argv[1], JSON.stringify(settings, null, 2) + "\n");
@@ -290,10 +300,14 @@ SESSION_COUNT2="$(grep -c 'on-session-start.sh' "$T2/.claude/settings.json")"
 # idênticos (grupo inteiro, matcher + hooks), não só por contagem de ocorrências de substring.
 FOREIGN_DIFF2="$(node -e '
   const fs = require("fs");
+  // issue #125: o universo de PreToolUse deixou de ser fixo — inclui os quatro ganchos do
+  // template, nas duas formas de comando possíveis (direta e via lib/argv-bridge.sh).
+  const HOOK_FILES = ["enforce-worktree-location.sh", "prevent-secrets-leak.sh", "check-language-policy.sh", "validate-naming-conventions.sh"];
   const OWNED = new Set([
-    "$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/enforce-worktree-location.sh",
     "$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-start.sh",
     "$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-end.sh",
+    ...HOOK_FILES.map((h) => `$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/${h}`),
+    ...HOOK_FILES.map((h) => `$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/lib/argv-bridge.sh $CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/${h}`),
   ]);
   function foreignGroups(hooksObj, cat) {
     const groups = (hooksObj && hooksObj[cat]) || [];
@@ -440,7 +454,15 @@ fi
 
 # ── [6b] contrafactual — drift REAL continua recomendando sync-adapters.sh ───────────────────────
 echo "[6b] contrafactual: drift real (hook alterado) continua recomendando sync-adapters.sh, mesmo com hook de terceiro presente"
-node -e 'const fs=require("fs");const p=process.argv[1];const j=JSON.parse(fs.readFileSync(p,"utf8"));j.hooks.PreToolUse.find((g)=>g.matcher==="Bash").hooks[0].command="alterado-de-verdade";fs.writeFileSync(p,JSON.stringify(j,null,2)+"\n");' "$T6/.claude/settings.json"
+# issue #125: o COMANDO do worktree-guard não serve mais para este contrafactual — desde o
+# semeador (nenhum consumidor ganha bloqueio novo sem saber), um comando corrompido a ponto de não
+# terminar em '.sh' reconhecível faz o PRÓPRIO preToolUseWiring(root) parar de reivindicar aquele
+# gancho (ele lê a fiação atual para decidir o que já está armado), e por coincidência as duas
+# projeções concordam em não tê-lo — mascarando o drift. O MATCHER, em vez do comando, ainda
+# expõe drift real: ele não participa da leitura de "o que já está fiado" (derivarFiacao só olha
+# o comando), então corrompê-lo diverge preToolUseWiring(root) (que deriva "^Bash$" de
+# hooks.manifest.default) do settings.json real, sem depender de reconhecer o comando.
+node -e 'const fs=require("fs");const p=process.argv[1];const j=JSON.parse(fs.readFileSync(p,"utf8"));j.hooks.PreToolUse.find((g)=>g.matcher==="^Bash$").matcher="^Bash$$";fs.writeFileSync(p,JSON.stringify(j,null,2)+"\n");' "$T6/.claude/settings.json"
 DOCTOR_OUT6B="$(FORGE_ROOT="$T6" bash "$T6/$DOCTOR_REL" 2>&1)"
 LINE6B="$(grep -i 'adapter claude' <<<"$DOCTOR_OUT6B")"
 if ! grep -qi 'com drift (rode' <<<"$LINE6B"; then
@@ -728,7 +750,7 @@ LIB8="$T8/$LIB_REL"
 BACKUP8="$(mktemp "$TMPROOT/forge-w238-8-backup.XXXXXX")"; track "$BACKUP8"
 cp "$LIB8" "$BACKUP8"
 
-perl -0777 -pi -e "s/const mergedSettings = mergeSettingsJson\(existingSettingsText, preToolUseWiring\(ROOT\)\);\n    lock\.emit\(settingsPath, JSON\.stringify\(mergedSettings, null, 2\) \+ '\\\\n'\);/const hooks = preToolUseWiring(ROOT);\n    lock.emit(settingsPath, JSON.stringify({ hooks }, null, 2) + '\\\\n');/" "$LIB8"
+perl -0777 -pi -e "s/const mergedSettings = mergeSettingsJson\(existingSettingsText, preToolUseWiring\(ROOT\), derivation\.ownedSet\);\n      lock\.emit\(settingsPath, JSON\.stringify\(mergedSettings, null, 2\) \+ '\\\\n'\);/const hooks = preToolUseWiring(ROOT);\n      lock.emit(settingsPath, JSON.stringify({ hooks }, null, 2) + '\\\\n');/" "$LIB8"
 if cmp -s "$LIB8" "$BACKUP8"; then
   echo "FAIL [8]: a mutação não alterou nenhum byte da lib — o perl não achou o trecho de emissão"
   overall_rc=1
@@ -773,7 +795,7 @@ LIB9="$T9/$LIB_REL"
 BACKUP9="$(mktemp "$TMPROOT/forge-w238-9-backup.XXXXXX")"; track "$BACKUP9"
 cp "$LIB9" "$BACKUP9"
 
-perl -pi -e "s/!\(h && OWNED_HOOK_COMMANDS\.has\(h\.command\)\)/!(h \&\& h.command \&\& h.command.includes('.forge\\/hooks\\/'))/" "$LIB9"
+perl -pi -e "s/!\(h && ownedSet\.has\(h\.command\)\)/!(h \&\& h.command \&\& h.command.includes('.forge\\/hooks\\/'))/" "$LIB9"
 if cmp -s "$LIB9" "$BACKUP9"; then
   echo "FAIL [9]: a mutação não alterou nenhum byte da lib — o perl não achou o predicado de posse"
   overall_rc=1

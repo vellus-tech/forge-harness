@@ -309,7 +309,12 @@ echo "[11] versão mista: hooks.manifest.default ausente — hook declarado só 
 T11="$(mktemp -d "$TMPROOT/forge-w215-11.XXXXXX")"; track "$T11"
 nova_fixture "$T11"
 rm -f "$T11/.forge/hooks/pre-tool-use/hooks.manifest.default"
-printf 'prevent-secrets-leak.sh\t^(Write|Edit)$\tstdin-json\n' > "$T11/.forge/hooks/pre-tool-use/hooks.manifest"
+# manifesto do consumidor MARCADO (canônico): não depende de fiação observada para resolver a
+# ativação, então continua resolvendo mesmo com hooks.manifest.default ausente (o cenário
+# unmarked/projeção, sem settings.json anterior, é genuinamente NAO_VERIFICADO — third estado
+# correto do leitor, não um defeito desta issue).
+printf '# forge-manifest-format: 1\n#hook\tmatcher\tcontrato\testado\nprevent-secrets-leak.sh\t^(Write|Edit)$\tstdin-json\tarmado\n' \
+  > "$T11/.forge/hooks/pre-tool-use/hooks.manifest"
 OUT11="$(bash "$T11/.forge/scripts/sync-adapters.sh" --set claude 2>&1)"
 RC11=$?
 GOT11="$(hooks_of "$T11/.claude/settings.json" 2>/dev/null || echo '[]')"
@@ -384,7 +389,9 @@ cp "$WS/template/$HOOK_REL" "$HOOK13"
 cp "$HOOK13" "$T13/hook.orig.sh"
 # mutação: força FILE a permanecer vazio mesmo com FROM_STDIN, pulando a extração — o hook então
 # cai direto no "exit 0" de FILE vazio, reproduzindo o defeito original (argv vazio ⇒ aprova).
-perl -pi -e 's/^(\s*FROM_STDIN=1\s*)$/${1}\n  echo mutado >\/dev\/null; FILE=""; CONTENT=""; exit 0;/' "$HOOK13"
+# mutação: insere um "exit 0" logo na abertura do bloco "sem argv, lê stdin" — reproduz o defeito
+# original (o gancho aprova quando argv vem vazio, sem sequer tentar ler o stdin).
+perl -0777 -pi -e 's/(if \[\[ -z "\$FILE" \]\]; then\n)(\s*input=)/${1}  exit 0 # MUTATED\n${2}/' "$HOOK13"
 if cmp -s "$T13/hook.orig.sh" "$HOOK13"; then
   echo "FAIL [13]: setup da mutação não alterou o gancho — nada foi provado"
   overall_rc=1

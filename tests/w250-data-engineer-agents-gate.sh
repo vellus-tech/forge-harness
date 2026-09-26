@@ -658,7 +658,8 @@ confere_1() {
   if [ "${#alvos[@]}" -eq 0 ]; then echo "FAIL [1] nenhum diretório de agentes/skills de dados para validar"; rc=1
   else
     saida="$(bash "$TEMPLATE/scripts/validate-frontmatter.sh" --strict-xml "${alvos[@]}" 2>&1)"
-    if ! printf '%s\n' "$saida" | tail -1 | grep -qE '^OK( |$)'; then echo "FAIL [1] validate-frontmatter.sh --strict-xml:"; printf '%s\n' "$saida" | sed 's/^/      /'; rc=1; fi
+    ultima="$(printf '%s\n' "$saida" | tail -1)"
+    if ! grep -qE '^OK( |$)' <<<"$ultima"; then echo "FAIL [1] validate-frontmatter.sh --strict-xml:"; printf '%s\n' "$saida" | sed 's/^/      /'; rc=1; fi
   fi
   if [ -z "$YAML_MOD" ]; then echo "NAO-VERIFICADO [1] pacote yaml ausente (node_modules do checkout e do checkout principal)"; NAOVERIF=$((NAOVERIF + 1)); return $rc; fi
   relata "$(fm fm "$raiz")" || rc=1
@@ -740,7 +741,8 @@ confere_6() {
     done <<EOF
 $(regras_estaticas "$e")
 EOF
-    tail -1 "$out1" | grep -qE '^ARQUIVOS-VARRIDOS [1-9][0-9]*$' || { echo "FAIL [6] $e-practices: a última linha não é 'ARQUIVOS-VARRIDOS <n>' com n > 0"; rc=1; }
+    ultima="$(tail -1 "$out1")"
+    grep -qE '^ARQUIVOS-VARRIDOS [1-9][0-9]*$' <<<"$ultima" || { echo "FAIL [6] $e-practices: a última linha não é 'ARQUIVOS-VARRIDOS <n>' com n > 0"; rc=1; }
     scan "$raiz" "$e" "$WS" --root "$limpo" > "$TMPD/6-$e-limpo.txt" 2>/dev/null; r1=$?
     [ "$r1" -eq 0 ] || { echo "FAIL [6] $e-practices: fixture limpa saiu $r1 (esperado 0)"; rc=1; }
     if grep -q '^FOUND ' "$TMPD/6-$e-limpo.txt"; then echo "FAIL [6] $e-practices: fixture limpa (com os sósias) produziu achado:"; grep -A2 '^FOUND ' "$TMPD/6-$e-limpo.txt" | sed 's/^/      /'; rc=1; fi

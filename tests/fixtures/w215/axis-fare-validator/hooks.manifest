@@ -1,0 +1,63 @@
+# hooks.manifest — o MATCHER e o CONTRATO de cada hook de pre-tool-use, lidos por
+# `.forge/scripts/lib/sync-adapters.mjs` para montar o array `PreToolUse` do `.claude/settings.json`.
+#
+# O UNIVERSO NAO ESTA AQUI. Ele sai do CONTEUDO de `.forge/hooks/pre-tool-use/` — hook novo entra
+# na fiacao sozinho. Este arquivo diz apenas COMO cada um deve ser chamado. Hook presente no
+# diretorio e ausente daqui faz o gerador REPROVAR nomeando o arquivo: ignorar em silencio seria
+# desarme com outra causa (LDG-0748).
+#
+# POR QUE A DECLARACAO MORA AQUI, E NAO NUM CABECALHO DENTRO DE CADA HOOK. Medido em 2026-09-03:
+# QUATRO dos cinco hooks estao no `.forge/cache/machinery.lock` — sao arquivos do template, e o
+# `forge harness upgrade` os repoe com o conteudo original, sem conflito e sem aviso. Um
+# `# forge-matcher:` escrito dentro deles sumiria no proximo overlay, o gerador deixaria de saber
+# o matcher, e o hook cairia da fiacao — o mesmo desarme que este arquivo existe para fechar.
+# `hooks.manifest` NAO esta no lock. O `enforce-docs-on-publish.sh`, hook local que sobreviveu a
+# todos os upgrades deste repositorio, e a prova viva de que arquivo fora do lock aqui sobrevive.
+#
+# CONTRATO — como o hook recebe o que precisa julgar. Os dois valores nao sao intercambiaveis, e
+# confundi-los e o modo de falha (2) descrito em `tests/hook-wiring.test.sh`:
+#   stdin-json  o hook le o JSON do tool no stdin (`.tool_input.command`). Fiado direto.
+#   argv        o hook le `$1` (`<file> [<new-content>]`). O Claude Code NAO passa argv, entao
+#               ele e fiado ATRAVES de `dispatch-file-hook.sh`, que traduz stdin -> argv.
+#               Fiar um hook `argv` como comando nu faz ele rodar `FILE="${1:-}"; [ -z "$FILE" ]
+#               && exit 0` e APROVAR TUDO — medido com uma chave PEM real: rc=0 pelo stdin, rc=1
+#               pelo argv.
+#
+# UNIVERSO DECLARADO — a coluna que entrou em 2026-09-04 (LDG-0782). Ela responde "sobre QUE
+# arquivos deste repositorio este hook chega a opinar", e existe porque armar um gate cego e PIOR
+# do que nao arma-lo: ele passa a contar como cobertura. Medido contra `origin/develop`: a arvore
+# tem 833 `.java`, 23 `.py` e ZERO `.cs`, `.kt`, `.go`, `.ts`. Dois hooks recortavam por `.cs` —
+# universo VAZIO. `tests/gate-universe-not-blind.test.sh` reprova NOMEANDO todo hook cujo universo
+# declarado case zero arquivo da arvore.
+#   <ext,ext>  recorte por extensao; a suite conta os arquivos e exige > 0.
+#   *          sem recorte de extensao — alcanca todo arquivo. Dispensa a contagem, MAS tem de
+#              ser provado por comportamento (D4/D6), senao `*` vira declaracao de papel.
+#   comando    o objeto julgado NAO e arquivo, e sim o comando Bash. A regua de extensao nao se
+#              aplica; a pergunta certa e cobertura do espaco de comandos, medida em outra suite.
+#
+# O MATCHER E ANCORADO, e a razao foi medida ao vivo. Sem ancora ele e regex de SUBSTRING:
+# `TodoWrite` CONTEM `Write` e casa. O `tool_input` do TodoWrite nao tem caminho de arquivo, o
+# extrator da ponte sai 1, e a postura fail-closed — que esta certa — transforma isso em
+# BLOQUEIO: medido, uma chamada real de TodoWrite devolvia `rc=2` e a ferramenta nao rodava.
+# Ancorar vale sob as duas leituras do runtime: se ele ja compara ancorado, as ancoras sao
+# redundantes e inofensivas; se compara por substring, elas sao o que fecha. `B10` da suite e uma
+# asercao NEGATIVA de proposito — a positiva sozinha aprova um matcher que casa tudo, e era o
+# caso. Achado que chegou pelo canal (forge-harness/axis-pad-simulator-0014 e
+# axis-contracts/axis-device-platform-0480), que enumerou as ferramentas contra o schema real.
+#
+# O MATCHER LISTA AS QUATRO FERRAMENTAS DE ESCRITA, e a razao e nao depender de uma premissa
+# (LDG-0797/D1). O runtime compara o matcher com o nome da ferramenta como expressao regular, e
+# se essa comparacao for ANCORADA entao `Write|Edit` NAO casa `MultiEdit` nem `NotebookEdit` — os
+# tres hooks de conteudo ficariam declarados e nunca invocados quando elas fossem usadas. Se for
+# por substring, casa. Declarar as quatro esta correto sob as DUAS leituras, entao a fiacao para
+# de depender de qual delas o runtime implementa. `tests/hook-matcher-casa-as-ferramentas.test.sh`
+# EXECUTA cada matcher contra cada ferramenta em vez de comparar a string — comparar redigitaria
+# este valor dentro do teste, que passaria a testar a si mesmo.
+#
+# Colunas, separadas por TAB: hook <TAB> matcher <TAB> contrato <TAB> universo <TAB> razao
+check-language-policy.sh	^(Write|Edit|MultiEdit|NotebookEdit)$	argv	.cs,.java	identificadores PT-BR em codigo; le o CONTEUDO QUE ENTRA ($2 quando a ponte o passa, o espelho acima de 256 KiB), nunca o disco (LDG-0798), e filtra comentario e literal FECHADOS antes do predicado (LDG-0800). `.java` entrou em 2026-09-04: 833 arquivos passaram a ser examinados e ZERO foram sinalizados (a migracao PT->EN ja ocorreu), com o instrumento provado vivo em Java por D1/D2. `.cs` fica no recorte de proposito.
+enforce-docs-on-publish.sh	^Bash$	stdin-json	comando	intercepta `git push`/`gh pr create` e chama check-docs-updated.sh
+enforce-worktree-location.sh	^Bash$	stdin-json	comando	bloqueia criacao de worktree fora de .forge/worktrees/
+guard-machinery-drift.sh	^Bash$	stdin-json	comando	bloqueia `forge harness upgrade` com maquinaria local divergente do lock (LDG-0730); le .tool_input.command
+prevent-secrets-leak.sh	^(Write|Edit|MultiEdit|NotebookEdit)$	argv	*	AWS/JWT/PEM/senha antes do byte tocar o disco; le o conteudo que ENTRA quando ha $2, e o disco so quando o payload nao traz bytes. Somava as duas fontes ate 2026-09-04, e isso impedia CONSERTAR (LDG-0798). Sem recorte de extensao — universo `*`, provado por comportamento em D6.
+validate-naming-conventions.sh	^(Write|Edit|MultiEdit|NotebookEdit)$	argv	*	DUAS METADES COM ALCANCES DIFERENTES. A metade viva e o kebab-case de diretorio: sem recorte de extensao, alcanca todo arquivo, provada por comportamento em D4 — dai o universo `*`. A metade de "prefixo de tecnologia em tipo" segue recortando `.cs` e portanto DORMENTE (zero arquivo), e nao ganhou `.java` por razao medida: dezenas de tipos ja commitados e deliberados (HttpEstClient, GrpcModel, RestParametersSource) seriam reprovados, e gate que barra toda edicao de arquivo existente vira --no-verify de habito. D5 prende essa razao.

@@ -36,7 +36,6 @@
 set -uo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-HOOK="$WS/template/.forge/hooks/git/pre-push"
 T="$(mktemp -d /tmp/forge-w224.XXXXXX)"
 T="$(cd "$T" && pwd -P)"
 trap 'rm -rf "$T"' EXIT
@@ -154,7 +153,10 @@ for case_i in $(seq 1 "$pbt_n"); do
   n=$((RANDOM % 7))          # 0..6 linhas
   feed=""
   publica=0
-  for line_i in $(seq 1 "$n"); do
+  # `seq 1 "$n"` com n=0 no BSD/macOS conta PARA BAIXO ("1", "0") em vez de devolver vazio (GNU) —
+  # loop C-style, sem `seq`, para não reintroduzir o footgun de portabilidade do w97.
+  line_i=1
+  while [ "$line_i" -le "$n" ]; do
     tipo=$((RANDOM % 2))     # 0=deleção 1=publicação
     if [ "$tipo" -eq 0 ]; then
       feed="${feed}(delete) $ZERO refs/heads/r${case_i}_${line_i} $SHA
@@ -164,6 +166,7 @@ for case_i in $(seq 1 "$pbt_n"); do
 "
       publica=1
     fi
+    line_i=$((line_i + 1))
   done
   esperado_roda=1
   [ "$n" -gt 0 ] && [ "$publica" -eq 0 ] && esperado_roda=0
@@ -190,24 +193,27 @@ SCEN=$((SCEN + 1))
 echo "OK [4] — propriedade sobrevive a $pbt_n casos (semente $SEED)"
 
 # ── [5] mutação — remover o curto-circuito ──────────────────────────────────────────────────────
+# Muta a CÓPIA do hook dentro da fixture (nunca o arquivo de produção real do template — "uma
+# árvore, um escritor": este gate só mede a própria fixture, isolada em $T).
 echo "[5] mutação — remover o curto-circuito faz [1] gravar o marker"
-cp "$HOOK" "$T/hook.orig"
+FHOOK="$R/.forge/hooks/git/pre-push"
+cp "$FHOOK" "$T/hook.orig"
 # aspas simples do lado esquerdo E direito — nunca `$` interpolado do lado direito (LDG-0164)
-perl -pi -e 's/if \[ "\$_pp_refs_vistas" -gt 0 \] && \[ "\$_pp_refs_com_conteudo" -eq 0 \]; then/if false; then/' "$HOOK"
-if cmp -s "$HOOK" "$T/hook.orig"; then
-  echo "FAIL [5]: mutação não alterou o hook — o padrão de busca não casou"; exit 1
+perl -pi -e 's/if \[ "\$_pp_refs_vistas" -gt 0 \] && \[ "\$_pp_refs_com_conteudo" -eq 0 \]; then/if false; then/' "$FHOOK"
+if cmp -s "$FHOOK" "$T/hook.orig"; then
+  echo "FAIL [5]: mutação não alterou o hook da fixture — o padrão de busca não casou"; exit 1
 fi
 : > "$MARK"
 outm1="$(push_out "$feed1")"; rcm1=$?
 if [ "$rcm1" -eq 0 ]; then
   tokm1="$(marker_tokens)"
-  case " $tokm1 " in *" RODOU-TYPECHECK "*) : ;; *) echo "FAIL [5]: mutante sobreviveu — [1] continuou pulando a suíte mesmo sem o curto-circuito ('$tokm1')"; cp "$T/hook.orig" "$HOOK"; exit 1 ;; esac
+  case " $tokm1 " in *" RODOU-TYPECHECK "*) : ;; *) echo "FAIL [5]: mutante sobreviveu — [1] continuou pulando a suíte mesmo sem o curto-circuito ('$tokm1')"; cp "$T/hook.orig" "$FHOOK"; exit 1 ;; esac
 else
-  echo "FAIL [5]: mutante quebrou o hook em vez de só religar a suíte (rc=$rcm1) — saída:"; echo "$outm1"; cp "$T/hook.orig" "$HOOK"; exit 1
+  echo "FAIL [5]: mutante quebrou o hook em vez de só religar a suíte (rc=$rcm1) — saída:"; echo "$outm1"; cp "$T/hook.orig" "$FHOOK"; exit 1
 fi
 echo "  mutante morto — [1] passou a gravar '$tokm1'"
-cp "$T/hook.orig" "$HOOK"
-cmp -s "$HOOK" "$T/hook.orig" || { echo "FAIL [5]: recontrole — restauração do hook não bate byte a byte"; exit 1; }
+cp "$T/hook.orig" "$FHOOK"
+cmp -s "$FHOOK" "$T/hook.orig" || { echo "FAIL [5]: recontrole — restauração do hook da fixture não bate byte a byte"; exit 1; }
 : > "$MARK"
 outr1="$(push_out "$feed1")"; rcr1=$?
 [ "$rcr1" -eq 0 ] || { echo "FAIL [5]: recontrole — [1] reprovou depois de restaurar o hook (rc=$rcr1)"; exit 1; }
@@ -218,24 +224,24 @@ echo "OK [5] — mutante morto, recontrole restaurado bate byte a byte"
 
 # ── [6] mutação — tratar entrada vazia como deleção ─────────────────────────────────────────────
 echo "[6] mutação — tratar vazio como deleção faz [2] parar de gravar o marker"
-cp "$HOOK" "$T/hook.orig2"
-perl -pi -e 's/if \[ "\$_pp_refs_vistas" -gt 0 \] && \[ "\$_pp_refs_com_conteudo" -eq 0 \]; then/if [ "\$_pp_refs_com_conteudo" -eq 0 ]; then/' "$HOOK"
-if cmp -s "$HOOK" "$T/hook.orig2"; then
-  echo "FAIL [6]: mutação não alterou o hook — o padrão de busca não casou"; exit 1
+cp "$FHOOK" "$T/hook.orig2"
+perl -pi -e 's/if \[ "\$_pp_refs_vistas" -gt 0 \] && \[ "\$_pp_refs_com_conteudo" -eq 0 \]; then/if [ "\$_pp_refs_com_conteudo" -eq 0 ]; then/' "$FHOOK"
+if cmp -s "$FHOOK" "$T/hook.orig2"; then
+  echo "FAIL [6]: mutação não alterou o hook da fixture — o padrão de busca não casou"; exit 1
 fi
 : > "$MARK"
 outm2="$(push_out "")"; rcm2=$?
 if [ "$rcm2" -eq 0 ]; then
   tokm2="$(marker_tokens)"
   if [ -n "$tokm2" ]; then
-    echo "FAIL [6]: mutante sobreviveu — [2] continuou rodando a suíte com stdin vazio ('$tokm2')"; cp "$T/hook.orig2" "$HOOK"; exit 1
+    echo "FAIL [6]: mutante sobreviveu — [2] continuou rodando a suíte com stdin vazio ('$tokm2')"; cp "$T/hook.orig2" "$FHOOK"; exit 1
   fi
 else
-  echo "FAIL [6]: mutante quebrou o hook (rc=$rcm2) — saída:"; echo "$outm2"; cp "$T/hook.orig2" "$HOOK"; exit 1
+  echo "FAIL [6]: mutante quebrou o hook (rc=$rcm2) — saída:"; echo "$outm2"; cp "$T/hook.orig2" "$FHOOK"; exit 1
 fi
 echo "  mutante morto — [2] parou de rodar a suíte com entrada vazia"
-cp "$T/hook.orig2" "$HOOK"
-cmp -s "$HOOK" "$T/hook.orig2" || { echo "FAIL [6]: recontrole — restauração do hook não bate byte a byte"; exit 1; }
+cp "$T/hook.orig2" "$FHOOK"
+cmp -s "$FHOOK" "$T/hook.orig2" || { echo "FAIL [6]: recontrole — restauração do hook da fixture não bate byte a byte"; exit 1; }
 : > "$MARK"
 outr2="$(push_out "")"; rcr2=$?
 [ "$rcr2" -eq 0 ] || { echo "FAIL [6]: recontrole — [2] reprovou depois de restaurar o hook (rc=$rcr2)"; exit 1; }

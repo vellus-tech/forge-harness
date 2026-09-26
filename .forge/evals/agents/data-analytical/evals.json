@@ -1,0 +1,103 @@
+{
+  "skill_name": "data-analytical",
+  "artifact_kind": "agent",
+  "artifact_path": "template/.forge/agents/data/data-analytical.md",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "desenho-vendas-de-bilhetes-com-tarifa-historica",
+      "prompt": "Quero um modelo para BI das vendas de bilhetes; a tarifa de cada linha muda ao longo do tempo e o relatório precisa mostrar a tarifa vigente na data da venda.",
+      "expected_output": "Quatro passos de Kimball com grão declarado (uma linha por bilhete vendido), fato de vendas com medida em inteiro na menor unidade, dimensão de linha/tarifa em SCD2 com chave substituta, dbt snapshot com estratégia timestamp e hard_deletes, testes unique e not_null no grão.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "grao-declarado",
+          "text": "A resposta declara o grão da fato explicitamente"
+        },
+        {
+          "name": "scd2-chave-substituta",
+          "text": "A dimensão de tarifa é SCD2 com chave substituta e a fato liga pela chave substituta"
+        },
+        {
+          "name": "dbt-snapshot-timestamp",
+          "text": "A resposta usa dbt snapshot com estratégia timestamp e testes unique/not_null no grão"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "revisao-incremental-mart-e-snapshot",
+      "prompt": "Revise:\n\n-- models/staging/stg_vendas.sql\n{{ config(materialized='incremental') }}\nselect id, valor from {{ source('app','vendas') }}\n\n-- models/marts/fct_vendas.sql\nselect * from {{ source('app','vendas') }}\n\n# snapshots/snap_tarifa.yml\n      invalidate_hard_deletes: true",
+      "expected_output": "Aponta A-08 (incremental sem unique_key), A-10 (mart lendo source), A-12 (SELECT * em mart) e A-14 (invalidate_hard_deletes → hard_deletes).",
+      "files": [],
+      "assertions": [
+        {
+          "name": "a08",
+          "text": "A resposta aponta A-08 e acrescenta unique_key"
+        },
+        {
+          "name": "a10-a12",
+          "text": "A resposta aponta A-10 (trocar source por ref) e A-12 (listar colunas)"
+        },
+        {
+          "name": "a14",
+          "text": "A resposta aponta A-14 e migra para hard_deletes"
+        },
+        {
+          "name": "cita-id-e-localizacao",
+          "text": "todo antipattern apontado cita o id do catálogo e, quando o scanner o detecta, `arquivo:linha`"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "fronteira-particionar-delta-50gb",
+      "prompt": "Particione por dia a tabela Delta de 50 GB no Databricks para as consultas ficarem rápidas.",
+      "expected_output": "Não particionar: abaixo de 1 TB o Databricks recomenda não particionar e usar liquid clustering nas colunas de filtro; o limiar é do produto.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "nao-particiona",
+          "text": "A resposta desaconselha particionar a tabela de 50 GB citando o limiar de 1 TB do Databricks"
+        },
+        {
+          "name": "liquid-clustering",
+          "text": "A resposta propõe liquid clustering pelas colunas de filtro"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "eval_name": "holdout-desenho-fato-de-recarga",
+      "prompt": "Modele a fato de recargas de cartão de transporte para um dashboard diário por operadora; recargas podem ser estornadas depois.",
+      "expected_output": "Grão declarado (uma linha por evento de recarga ou estorno), medida em centavos, dimensão de operadora conformada com chave substituta, coluna de tenant, tratamento do estorno como linha própria (fato de transação) e incremental com unique_key e lookback para evento atrasado.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "grao-e-estorno",
+          "text": "A resposta declara o grão e trata o estorno como evento próprio, sem sobrescrever a recarga"
+        },
+        {
+          "name": "incremental-lookback",
+          "text": "A carga incremental tem unique_key e janela de lookback"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    }
+  ]
+}

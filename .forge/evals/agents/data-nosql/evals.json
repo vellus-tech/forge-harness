@@ -1,0 +1,107 @@
+{
+  "skill_name": "data-nosql",
+  "artifact_kind": "agent",
+  "artifact_path": "template/.forge/agents/data/data-nosql.md",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "desenho-dynamodb-pedidos-por-cliente-e-status",
+      "prompt": "Vamos guardar pedidos no DynamoDB: 50 mil escritas por segundo no pico, consulta por cliente (últimos pedidos) e uma tela de operação que lista pedidos por status. Desenhe tabela, chaves e índices.",
+      "expected_output": "Partition key de alta cardinalidade (cliente ou tenant+cliente), sort key hierárquica com data e id, GSI para status com write sharding por sufixo calculado (status tem baixa cardinalidade), projeção KEYS_ONLY ou INCLUDE, sem Scan no caminho quente, citando o teto de 3.000 RCU e 1.000 WCU por partição física e o limite de 400 KB por item.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "pk-alta-cardinalidade",
+          "text": "A partition key proposta é de alta cardinalidade (cliente, tenant+cliente ou equivalente) e a resposta rejeita status como partition key"
+        },
+        {
+          "name": "gsi-status-com-sharding",
+          "text": "O índice por status usa write sharding (sufixo calculado) ou outra técnica explícita para espalhar a carga, e a projeção não é ALL"
+        },
+        {
+          "name": "limites-de-particao",
+          "text": "A resposta cita 3.000 RCU e 1.000 WCU por partição física e não usa Scan no caminho da requisição"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "revisao-terraform-e-consulta-dynamodb",
+      "prompt": "Revise:\n\n# infra/dynamo.tf\nresource \"aws_dynamodb_table\" \"pedidos\" {\n  hash_key = \"status\"\n}\n\n// src/pedido/listar.ts\nconst todos = await client.send(new ScanCommand({ TableName: 'pedidos' }));\nconst r = await client.send(new QueryCommand({ TableName: 'pedidos', IndexName: 'por-cliente', ConsistentRead: true }));",
+      "expected_output": "Aponta N-06 (chave de baixa cardinalidade), N-08 (Scan no caminho da requisição) e N-11 (ConsistentRead em GSI), cada um com correção.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "n06",
+          "text": "A resposta aponta N-06 em infra/dynamo.tf e propõe partition key de alta cardinalidade"
+        },
+        {
+          "name": "n08",
+          "text": "A resposta aponta N-08 e troca o Scan por Query"
+        },
+        {
+          "name": "n11",
+          "text": "A resposta aponta N-11 e explica que GSI só oferece leitura eventual"
+        },
+        {
+          "name": "cita-id-e-localizacao",
+          "text": "todo antipattern apontado cita o id do catálogo e, quando o scanner o detecta, `arquivo:linha`"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "fronteira-mongodb-psa-w1-pagamentos",
+      "prompt": "Nosso MongoDB de pagamentos roda num replica set primário, secundário e árbitro. O código grava com { w: 1 } porque o default já é majority mesmo. Está certo?",
+      "expected_output": "Corrige: com árbitro (P-S-A) o write concern padrão cai para w:1 quando os membros com dados não superam a maioria dos votantes; recomenda P-S-S e w: majority explícito (N-07), pela regra data-transactional-nosql.md, com transação multi-documento e retry em TransientTransactionError.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "corrige-default",
+          "text": "A resposta diz que com árbitro (P-S-A) o default não é majority e pode cair para w:1"
+        },
+        {
+          "name": "pss-e-majority",
+          "text": "A resposta recomenda topologia P-S-S e write concern majority explícito, citando N-07"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "eval_name": "holdout-desenho-ledger-transacional-mongodb",
+      "prompt": "Precisamos do modelo do ledger de cobrança (contas, lançamentos, saldo) no projeto; não há ADR sobre banco. Como você modela e garante consistência?",
+      "expected_output": "Pela data-governance.md e pela decisão H-01 (a), o transacional de negócio é MongoDB: transação multi-documento curta com retry em TransientTransactionError, write concern majority e P-S-S, valores em inteiro na menor unidade (Int64, nunca Decimal128 nem double), campo tenant obrigatório com filtro no repositório e índice composto por tenant, lançamentos com teto de crescimento (documento por lançamento, não array ilimitado).",
+      "files": [],
+      "assertions": [
+        {
+          "name": "mongodb-majority",
+          "text": "A resposta modela em MongoDB com transação multi-documento e write concern majority em topologia P-S-S"
+        },
+        {
+          "name": "tenant-e-dinheiro",
+          "text": "A resposta exige campo tenant com filtro obrigatório no repositório e valores monetários em inteiro na menor unidade"
+        },
+        {
+          "name": "sem-array-ilimitado",
+          "text": "Os lançamentos não ficam num array que cresce sem teto dentro do documento da conta"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    }
+  ]
+}

@@ -42,7 +42,16 @@
 #       com `cmp -s` restaura
 #   [3d] contrafactual — misto com duas deleções ADJACENTES depois da publicação (publicação, deleção, deleção): tudo roda — a classificação não pode depender de duas linhas vizinhas serem do mesmo tipo
 #   [3e] mutação — adjacência: um mutante que zera o contador de conteúdo quando duas deleções chegam seguidas sobrevive a todo feed estritamente alternado ([3], [3b] e um gerador degenerado em alternância) e só morre com deleções adjacentes depois da publicação — [3d] o mata aqui, e o PBT [4] o mata de forma independente pelos padrões não alternados do estrato misto; recontrole com `cmp -s` restaura
-#   [4] PBT (semente fixa, LCG próprio — reproduz em qualquer bash, ver nota abaixo — 50 casos estratificados, com estrato próprio para a classe mista): para listas geradas de 0 a 6 linhas de ref, cada uma deleção ou publicação, em ordem aleatória, a suíte roda se e somente se a lista é vazia ou contém ao menos uma linha com `local_sha` não zero; nos casos de só-deleção, a contagem N da linha nominal bate com o número de linhas; o histograma por classe, os valores de n do estrato livre e a contagem de padrões não alternados do estrato misto aparecem no `OK [4]`, e o estrato misto precisa conter ao menos um padrão com dois tipos iguais adjacentes e ao menos um com publicação seguida de >=2 deleções até o fim da lista — as duas degenerações medidas (estado que não avança e bit baixo alternante) reprovam o gate em vez de passarem em silêncio
+#   [3f] contrafactual — misto (1 deleção + 1 atualização de branch EXISTENTE, remote_sha != 0):
+#       tudo roda — o classificador olha só `local_sha`, nunca `remote_sha`; uma publicação que
+#       atualiza um branch já existente no remoto não pode contar como "menos conteúdo" do que uma
+#       publicação que cria um branch novo
+#   [3g] mutação — ignorar remote_sha != 0: um mutante que pula (`continue`) qualquer linha cujo
+#       `remote_sha` não seja zero classifica [3f] como deleção pura, porque a única linha de
+#       conteúdo do push é justamente a atualização de branch existente (remote_sha real) — o
+#       fail-open que o classificador teria se passasse a olhar `remote_sha` para decidir o que
+#       conta como conteúdo; recontrole com `cmp -s` restaura
+#   [4] PBT (semente fixa, LCG próprio — reproduz em qualquer bash, ver nota abaixo — 50 casos estratificados, com estrato próprio para a classe mista): para listas geradas de 0 a 6 linhas de ref, cada uma deleção ou publicação em ordem aleatória — publicação sorteando também o `remote_sha` (zero, branch novo, ou um sha real, atualização de branch existente), pelos bits altos do mesmo LCG —, a suíte roda se e somente se a lista é vazia ou contém ao menos uma linha com `local_sha` não zero; nos casos de só-deleção, a contagem N da linha nominal bate com o número de linhas; o histograma por classe, os n distintos do estrato só-deleção (exigido cobrir 1 a 6) e do estrato livre, e a contagem de padrões não alternados do estrato misto aparecem no `OK [4]`, e o estrato misto precisa conter ao menos um padrão com dois tipos iguais adjacentes e ao menos um com publicação seguida de >=2 deleções até o fim da lista — as duas degenerações medidas (estado que não avança e bit baixo alternante) reprovam o gate em vez de passarem em silêncio
 #   [5] mutação — remover o curto-circuito: o cenário [1] passa a gravar o marker (a suíte volta a
 #       rodar em push de deleção pura); recontrole com `cmp -s` restaura e [1] volta a passar
 #   [6] mutação — tratar entrada vazia como deleção: o cenário [2] passa a pular a suíte (marker
@@ -112,6 +121,12 @@ git -C "$R" config user.name w224
 git -C "$R" config commit.gpgsign false
 git -C "$R" add -A >/dev/null
 git -C "$R" commit -q --no-verify -m "fixture w224"
+OLDSHA="$(git -C "$R" rev-parse HEAD)"   # tip "antigo" — só para simular remote_sha real de uma
+# atualização de branch existente ([3f]/[3g]/PBT [4]); usar o mesmo $SHA como local_sha E
+# remote_sha faz `rsha..lsha` (no gate no-ai-attribution) virar um range vazio (`SHA..SHA`) e
+# dispara o próprio fail-safe de universo vazio do gate — sintoma alheio ao que este teste mede.
+printf '# w224fixture v2\n' >> "$R/README.md"
+git -C "$R" commit -q --no-verify -am "fixture w224 v2"
 SHA="$(git -C "$R" rev-parse HEAD)"
 
 push_out() {  # push_out <stdin-feed> — invoca o pre-push pelo canal real (stdin de refs)
@@ -181,7 +196,7 @@ SCEN=$((SCEN + 1))
 echo "OK [3b] — os quatro sinais gravados com a publicação ANTES da deleção"
 
 # ── [3c] HIGH mutação — a ÚLTIMA linha decide sozinha se há conteúdo ────────────────────────────
-# Achado HIGH (revisão #132/#134, iteração 3): um mutante que RESETA `_pp_refs_com_conteudo` a
+# O classificador soma linha a linha; um mutante que RESETA `_pp_refs_com_conteudo` a
 # cada linha do laço (em vez de só incrementar) faz o valor final refletir só a última linha do
 # push. Com deleção antes de publicação ([3]) esse mutante sobrevive por acidente — a última linha
 # É publicação, então o reset não muda o resultado. Só um feed com publicação ANTES da deleção
@@ -270,6 +285,73 @@ done
 SCEN=$((SCEN + 1))
 echo "OK [3e] — mutante morto, recontrole restaurado bate byte a byte"
 
+# ── [3f] ─────────────────────────────────────────────────────────────────────────────────────
+# O classificador olha só `local_sha` (linha 240 em diante) — nunca `remote_sha`. Todos os feeds
+# de publicação até aqui ([2], [3], [3b], [3d], [3e]) criam branch NOVA (`remote_sha` zero); nenhum
+# exercita o outro formato real de push, a atualização de um branch EXISTENTE (`remote_sha` != 0,
+# o sha antigo da ponta). [3f] fecha essa lacuna com um feed manual antes do PBT [4] sortear o
+# mesmo campo.
+echo "[3f] contrafactual — misto (deleção + atualização de branch existente, remote_sha != 0): tudo roda"
+: > "$MARK"
+feed3f="$(printf '(delete) %s refs/heads/velha %s\nrefs/heads/main %s refs/heads/main %s\n' "$ZERO" "$SHA" "$SHA" "$OLDSHA")"
+out3f="$(push_out "$feed3f")"; rc3f=$?
+[ "$rc3f" -eq 0 ] || { echo "FAIL [3f]: pre-push reprovou push com atualização de branch existente (rc=$rc3f) — saída:"; echo "$out3f"; exit 1; }
+case "$out3f" in *"deleção pura"*) echo "FAIL [3f]: atualização de branch existente não pode ser classificada como deleção pura — saída:"; echo "$out3f"; exit 1 ;; esac
+tok3f="$(marker_tokens)"
+for want in RODOU-TYPECHECK RODOU-TEST RODOU-GATE RODOU-HARNESS; do
+  case " $tok3f " in *" $want "*) : ;; *) echo "FAIL [3f]: '$want' ausente do marker em push com atualização de branch existente — gravou: '$tok3f'"; exit 1 ;; esac
+done
+SCEN=$((SCEN + 1))
+echo "OK [3f] — os quatro sinais gravados com deleção + atualização de branch existente"
+
+# ── [3g] mutação — ignorar linhas com remote_sha != 0 ──────────────────────────────────────────
+# Feed PRÓPRIO, diferente de [3f]: precisa que a linha de DELEÇÃO sobreviva ao mutante (remote_sha
+# zero, ao contrário de [1]/[3]/[3f], que usam o sha antigo real — aqui é sintético de propósito,
+# só para isolar a variável sob teste) enquanto a linha de PUBLICAÇÃO (atualização de branch
+# existente, remote_sha real) é a única a ser descartada. Se o classificador passasse a olhar
+# `remote_sha` e pulasse (`continue`) qualquer linha em que ele não é zero, a linha de publicação
+# deixaria de ser contada e só a deleção sobraria: o mutante vê `_pp_refs_vistas` > 0 e
+# `_pp_refs_com_conteudo` == 0 e classifica o push (errado) como deleção pura, pulando a suíte por
+# inteiro num push que publica conteúdo de verdade.
+echo "[3g] mutação — ignorar remote_sha != 0 faz um push com conteúdo virar (errado) deleção pura"
+feed3g="$(printf '(delete) %s refs/heads/velha %s\nrefs/heads/main %s refs/heads/main %s\n' "$ZERO" "$ZERO" "$SHA" "$OLDSHA")"
+: > "$MARK"
+out3g="$(push_out "$feed3g")"; rc3g=$?
+[ "$rc3g" -eq 0 ] || { echo "FAIL [3g]: setup — pre-push reprovou o feed antes de mutar (rc=$rc3g) — saída:"; echo "$out3g"; exit 1; }
+case "$out3g" in *"deleção pura"*) echo "FAIL [3g]: setup — feed já nasce classificado como deleção pura, sem mutação — saída:"; echo "$out3g"; exit 1 ;; esac
+cp "$FHOOK" "$T/hook.orig3g"
+# aspas simples do lado esquerdo E direito — nunca \$ interpolado do lado direito (LDG-0164)
+perl -pi -e 's/\[ -n "\$\{_pp_lsha:-\}" \] \|\| continue/[ -n "\${_pp_lsha:-}" ] || continue; case "\$_pp_rsha" in *[!0]*) continue ;; esac/' "$FHOOK"
+if cmp -s "$FHOOK" "$T/hook.orig3g"; then
+  echo "FAIL [3g]: mutação não alterou o hook da fixture — o padrão de busca não casou"; exit 1
+fi
+: > "$MARK"
+outm3g="$(push_out "$feed3g")"; rcm3g=$?
+if [ "$rcm3g" -eq 0 ]; then
+  tokm3g="$(marker_tokens)"
+  case "$outm3g" in
+    *"deleção pura"*)
+      [ -z "$tokm3g" ] || { echo "FAIL [3g]: mutante classificou como deleção pura mas ainda gravou marker ('$tokm3g')"; cp "$T/hook.orig3g" "$FHOOK"; exit 1; }
+      ;;
+    *) echo "FAIL [3g]: mutante sobreviveu — o feed continuou rodando a suíte por inteiro ('$tokm3g')"; cp "$T/hook.orig3g" "$FHOOK"; exit 1 ;;
+  esac
+else
+  echo "FAIL [3g]: mutante quebrou o hook em vez de classificar errado (rc=$rcm3g) — saída:"; echo "$outm3g"; cp "$T/hook.orig3g" "$FHOOK"; exit 1
+fi
+echo "  mutante morto — o push com conteúdo passou a ser classificado (errado) como deleção pura, suíte pulada"
+cp "$T/hook.orig3g" "$FHOOK"
+cmp -s "$FHOOK" "$T/hook.orig3g" || { echo "FAIL [3g]: recontrole — restauração do hook da fixture não bate byte a byte"; exit 1; }
+: > "$MARK"
+outr3g="$(push_out "$feed3g")"; rcr3g=$?
+[ "$rcr3g" -eq 0 ] || { echo "FAIL [3g]: recontrole — o feed reprovou depois de restaurar o hook (rc=$rcr3g)"; exit 1; }
+case "$outr3g" in *"deleção pura"*) echo "FAIL [3g]: recontrole — o feed continuou classificado como deleção pura depois de restaurar"; exit 1 ;; esac
+tokr3g="$(marker_tokens)"
+for want in RODOU-TYPECHECK RODOU-TEST RODOU-GATE RODOU-HARNESS; do
+  case " $tokr3g " in *" $want "*) : ;; *) echo "FAIL [3g]: recontrole — '$want' ausente do marker ('$tokr3g')"; exit 1 ;; esac
+done
+SCEN=$((SCEN + 1))
+echo "OK [3g] — mutante morto, recontrole restaurado bate byte a byte"
+
 # ── [4] PBT ──────────────────────────────────────────────────────────────────────────────────
 # Propriedade: para uma lista de 0 a 6 linhas de ref, cada uma deleção (local_sha zero) ou publicação (local_sha != zero), em ordem aleatória, a suíte roda (marker não vazio) SE E SOMENTE SE a lista é vazia OU contém ao menos uma linha de publicação; nos casos de só-deleção, a contagem N na linha nominal bate com o número de linhas do caso.
 #
@@ -277,8 +359,12 @@ echo "OK [3e] — mutante morto, recontrole restaurado bate byte a byte"
 #
 # NUNCA chamar `lcg_next` via `$(...)`: command substitution roda em SUBSHELL, e a atribuição a `_lcg_state` dentro dele se perde ao voltar para o shell pai — o estado nunca avança e os 50 casos colapsam em 3 valores de `n`, sem caso misto de verdade (medido com `bash -x tests/w224-*.sh | grep -E '^\+ (n=|tipo=|_lcg_state=)' | sort | uniq -c`). A função é chamada DIRETO, no shell corrente, e o chamador lê `$_lcg_state` na linha seguinte.
 #
-# TODO sorteio sai dos BITS ALTOS do estado, `(_lcg_state >> 16) % k`, nunca de `_lcg_state % k`: com `a` e `c` ímpares e `m` potência de 2, o bit menos significativo de um LCG tem período 2 e alterna 1,0,1,0 a cada chamada, e todo módulo par (`% 2`, `% 6`) herda essa alternância. Sorteado do bit baixo, o tipo de cada linha saía estritamente alternado em todos os casos — nunca duas deleções vizinhas —, e um mutante que zera o contador de conteúdo em deleções adjacentes (ver [3e]) sobrevivia ao PBT inteiro. As asserções depois do laço exigem padrões não alternados no estrato misto, para que essa degeneração reprove o gate em vez de passar em silêncio.
-SEED=20260926
+# Cada sorteio sai dos BITS ALTOS do estado, `(_lcg_state >> 16) % k`, nunca de `_lcg_state % k`: com `a` e `c` ímpares e `m` potência de 2, o bit menos significativo de um LCG tem período 2 e alterna 1,0,1,0 a cada chamada, e todo módulo par (`% 2`, `% 6`) herda essa alternância. Sorteado do bit baixo, o tipo de cada linha saía estritamente alternado em todos os casos — nunca duas deleções vizinhas —, e um mutante que zera o contador de conteúdo em deleções adjacentes (ver [3e]) sobrevivia ao PBT inteiro. As asserções depois do laço exigem padrões não alternados no estrato misto, para que essa degeneração reprove o gate em vez de passar em silêncio.
+# Semente 20260928: a 20260926 original cobria só 5 dos 6 valores de N possíveis no estrato
+# só-deleção (1-6) — faltava n=5 — o que [4] passou a exigir (ver `n_so_delecao_distintos`
+# abaixo). Trocada por busca exaustiva das primeiras 12 tiradas de `lcg_draw 6` (as únicas que o
+# estrato consome, sempre as 12 primeiras do LCG, antes de qualquer draw dos estratos seguintes).
+SEED=20260928
 LCG_A=1103515245
 LCG_C=12345
 LCG_M=2147483648  # 2^31
@@ -301,6 +387,7 @@ cnt_mista=0
 cnt_resorteios=0
 PBT_RESORTEIO_TETO=16
 hist_n_livre=""
+hist_n_so_delecao=""
 hist_mista_padroes=""
 for case_i in $(seq 1 "$pbt_n"); do
   forcar_mista=0
@@ -308,6 +395,7 @@ for case_i in $(seq 1 "$pbt_n"); do
     n=0; forcar_so_delecao=0
   elif [ "$case_i" -le 24 ]; then
     lcg_draw 6; n=$(( 1 + _lcg_draw )); forcar_so_delecao=1
+    hist_n_so_delecao="$hist_n_so_delecao $n"
   elif [ "$case_i" -le 36 ]; then
     lcg_draw 5; n=$(( 2 + _lcg_draw )); forcar_so_delecao=0; forcar_mista=1
   else
@@ -350,7 +438,17 @@ for case_i in $(seq 1 "$pbt_n"); do
       feed="${feed}(delete) $ZERO refs/heads/r${case_i}_${line_i} $SHA
 "
     else
-      feed="${feed}refs/heads/r${case_i}_${line_i} $SHA refs/heads/r${case_i}_${line_i} $ZERO
+      # remote_sha da publicação sorteado dos bits altos do LCG (issues #132/#134, [3f]/[3g]):
+      # 0 = branch nova (remote_sha zero, único formato testado antes desta rodada), 1 = branch
+      # já existente (remote_sha real) — o classificador (linha ~240) olha só `local_sha`, e o
+      # PBT precisa exercitar os dois formatos de publicação, não só o de branch nova.
+      # $OLDSHA, nunca $SHA, para "branch existente": remote_sha == local_sha faria o gate
+      # no-ai-attribution calcular `rsha..lsha` como um range VAZIO (mesmo commit dos dois lados)
+      # e disparar o próprio fail-safe de universo vazio dele — sintoma alheio ao classificador
+      # sob teste aqui.
+      lcg_draw 2; _pbt_rsha_existente=$_lcg_draw
+      if [ "$_pbt_rsha_existente" -eq 1 ]; then rsha_pub="$OLDSHA"; else rsha_pub="$ZERO"; fi
+      feed="${feed}refs/heads/r${case_i}_${line_i} $SHA refs/heads/r${case_i}_${line_i} $rsha_pub
 "
       publica=1
     fi
@@ -387,6 +485,8 @@ done
 [ "$pbt_falhas" -eq 0 ] || { echo "FAIL [4]: $pbt_falhas/$pbt_n casos violaram a propriedade"; exit 1; }
 n_livre_distintos="$(printf '%s\n' $hist_n_livre | sort -u | tr '\n' ' ')"
 n_livre_distintos="${n_livre_distintos% }"
+n_so_delecao_distintos="$(printf '%s\n' $hist_n_so_delecao | sort -u | tr '\n' ' ')"
+n_so_delecao_distintos="${n_so_delecao_distintos% }"
 mista_lista="$(printf '%s' "$hist_mista_padroes" | tr '|' '\n' | grep -v '^$')"
 mista_padroes_distintos="$(printf '%s\n' "$mista_lista" | sort -u | wc -l | tr -d ' ')"
 # Não alternado = ao menos dois tipos iguais vizinhos ("0 0" ou "1 1"). Publicação seguida de >=2 deleções até o fim da lista = a forma que mata o mutante de adjacência [3e]: as deleções vizinhas vêm DEPOIS da última publicação, e nenhuma publicação posterior restaura o contador.
@@ -397,8 +497,13 @@ mista_pub_del_del="$(printf '%s\n' "$mista_lista" | grep -cE '(^|[[:space:]])1( 
 [ "$cnt_mista" -ge 12 ] || { echo "FAIL [4]: histograma degenerado — mista=$cnt_mista (esperado >=12)"; exit 1; }
 [ "$mista_nao_alternados" -ge 1 ] || { echo "FAIL [4]: gerador degenerado — nenhum padrão do estrato misto tem dois tipos iguais adjacentes (sequência estritamente alternada, bit baixo do LCG); padrões: $(printf '%s' "$hist_mista_padroes" | tr '|' ';')"; exit 1; }
 [ "$mista_pub_del_del" -ge 1 ] || { echo "FAIL [4]: gerador degenerado — nenhum padrão do estrato misto tem publicação seguida de >=2 deleções até o fim da lista; padrões: $(printf '%s' "$hist_mista_padroes" | tr '|' ';')"; exit 1; }
+for want_n in 1 2 3 4 5 6; do
+  case " $n_so_delecao_distintos " in *" $want_n "*) : ;; *)
+    echo "FAIL [4]: estrato só-deleção não cobriu n=$want_n — distintos: ${n_so_delecao_distintos:-nenhum} (troque SEED)"; exit 1 ;;
+  esac
+done
 SCEN=$((SCEN + 1))
-echo "OK [4] — propriedade sobrevive a $pbt_n casos (semente $SEED, LCG próprio, bits altos); histograma: vazio=$cnt_vazio só-deleção=$cnt_so_delecao mista=$cnt_mista; n distintos no estrato livre: ${n_livre_distintos:-nenhum}; estrato misto: $mista_padroes_distintos padrões distintos, $mista_nao_alternados não alternados, $mista_pub_del_del com publicação seguida de >=2 deleções no fim, $cnt_resorteios resorteio(s)"
+echo "OK [4] — propriedade sobrevive a $pbt_n casos (semente $SEED, LCG próprio, bits altos); histograma: vazio=$cnt_vazio só-deleção=$cnt_so_delecao mista=$cnt_mista; n distintos no estrato só-deleção (1-6 exigidos): $n_so_delecao_distintos; n distintos no estrato livre: ${n_livre_distintos:-nenhum}; estrato misto: $mista_padroes_distintos padrões distintos, $mista_nao_alternados não alternados, $mista_pub_del_del com publicação seguida de >=2 deleções no fim, $cnt_resorteios resorteio(s)"
 
 # ── [5] mutação — remover o curto-circuito ──────────────────────────────────────────────────────
 # Muta a CÓPIA do hook dentro da fixture (nunca o arquivo de produção real do template — "uma

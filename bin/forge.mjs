@@ -632,7 +632,7 @@ const APPEND_SOFTEN = new Map([
 // `<path><TAB><proveniência>`, o formato que outros leitores da lib já esperam); esta função só
 // pede o `resource` numa segunda chamada, na MESMA invocação de bash, para nunca divergir da
 // resolução real de `path`.
-// `opts.dryRun`: usado pela prévia de `--dry-run` (achado MEDIUM do review) para nunca criar o
+// `opts.dryRun`: usado pela prévia de `--dry-run` para nunca criar o
 // diretório-raiz do heavy-mutex. `forge_heavy_mutex_path` → `_fhm_resolve_root` faz `mkdir` quando
 // a raiz DECLARADA (env ou `heavy_mutex.root` do forge.yaml) ainda não existe — comportamento
 // correto na aplicação real, mas uma PRÉVIA que só deveria informar não pode ter esse efeito

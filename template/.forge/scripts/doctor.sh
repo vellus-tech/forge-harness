@@ -183,14 +183,29 @@ _settings_hooks_is_derived() { # _settings_hooks_is_derived <root>
     import { readFileSync } from "node:fs";
     const { DOCTOR_SETTINGS_LIB: libPath, DOCTOR_SETTINGS_ROOT: root, DOCTOR_SETTINGS_FILE: settingsPath } = process.env;
     // OWNED — mesmo universo de TEMPLATE/.forge/scripts/lib/sync-adapters.mjs
-    // (OWNED_HOOK_COMMANDS), duplicado aqui porque a lib não o exporta (contrato travado pelo
+    // (ownedHookCommandsFor, issue #125 — antes um Set fixo de três comandos,
+    // OWNED_HOOK_COMMANDS), duplicado aqui porque a lib não o exporta (contrato travado pelo
     // w216 [1]: expõe SÓ preToolUseWiring). Duplicar é seguro no sentido CONSERVADOR desta função:
     // se um comando owned novo for esquecido nesta lista, o pior efeito é "no" (recomenda sync sem
-    // necessidade), nunca "yes" escondendo perda real de hook de terceiro.
+    // necessidade), nunca "yes" escondendo perda real de hook de terceiro. Desde a #125 o universo
+    // de PreToolUse não é mais fixo (deriva de `.forge/hooks/pre-tool-use/`), então esta lista
+    // cobre hoje os quatro ganchos distribuídos pelo template, nas duas formas de comando que o
+    // gerador pode emitir (direta e via `lib/argv-bridge.sh`) — um gancho de consumidor adicionado
+    // depois cai no "no" conservador, nunca escondido. As formas COM ASPAS em `$CLAUDE_PROJECT_DIR`
+    // e as formas *Legacy* SEM aspas convivem aqui (achado de correção MEDIUM, iteração 3 do modo
+    // correção — mesma migração sem duplicar de `hookCommandDirect`/`hookCommandDirectLegacy` na
+    // lib): um consumidor recém-migrado tem a forma nova fiada, um ainda não sincronizado tem a
+    // legada, e as duas são igualmente owned para efeito deste diagnóstico.
+    const HOOK_FILES = ["enforce-worktree-location.sh", "prevent-secrets-leak.sh", "check-language-policy.sh", "validate-naming-conventions.sh"];
     const OWNED = new Set([
-      "$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/enforce-worktree-location.sh",
+      "\"$CLAUDE_PROJECT_DIR\"/.forge/hooks/session/on-session-start.sh",
+      "\"$CLAUDE_PROJECT_DIR\"/.forge/hooks/session/on-session-end.sh",
       "$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-start.sh",
       "$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-end.sh",
+      ...HOOK_FILES.map((h) => `"$CLAUDE_PROJECT_DIR"/.forge/hooks/pre-tool-use/${h}`),
+      ...HOOK_FILES.map((h) => `$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/${h}`),
+      ...HOOK_FILES.map((h) => `"$CLAUDE_PROJECT_DIR"/.forge/hooks/pre-tool-use/lib/argv-bridge.sh "$CLAUDE_PROJECT_DIR"/.forge/hooks/pre-tool-use/${h}`),
+      ...HOOK_FILES.map((h) => `$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/lib/argv-bridge.sh $CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/${h}`),
     ]);
     function ownedProjection(hooksObj) {
       const out = {};

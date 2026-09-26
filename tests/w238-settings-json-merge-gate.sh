@@ -43,9 +43,20 @@
 #   [6] positivo — doctor.sh (LDG-0189), fixture COM hook de terceiro: drift só numa chave autoral
 #       (`permissions` editado à mão) não soma ao contador que aciona `MISSING_DIAG`/recomendação;
 #       imprime linha informativa nomeando que o sync preserva a chave.
-#   [6b] contrafactual — doctor.sh: drift REAL (o próprio comando do hook alterado) continua
-#        recomendando `sync-adapters.sh` normalmente — a mudança de [6] não silencia drift de
-#        verdade.
+#   [6b] contrafactual, decisão registrada (achado de correção MEDIUM da #125, revisão adversarial
+#        2ª iteração): no MODO SEMEADOR (sem hooks.manifest do consumidor), corromper só o MATCHER
+#        de um gancho já fiado deixa de ser detectado como drift — a mesma auto-referência que já
+#        mascarava corrupção de COMANDO desde antes desta correção (`preToolUseWiring(root)` lê a
+#        fiação atual para decidir "o que já está armado" e, desde a #125, também para preservar o
+#        matcher que o consumidor já tinha — ver `findWiredForms`); a projeção do doctor e a
+#        derivação fresca leem o MESMO `.claude/settings.json` corrompido e concordam sobre o valor
+#        corrompido. Isto é "desarme consciente": o doctor deixa de flagar drift de matcher/comando
+#        num gancho semeado, e [6e] abaixo prova que o ponto cego é só do modo semeador — com
+#        hooks.manifest do consumidor presente, a mesma corrupção continua sendo pega.
+#   [6e] positivo — o mesmo cenário de [6b], mas com hooks.manifest do CONSUMIDOR presente e
+#        resolvido: o matcher usado pela derivação fresca vem do MANIFESTO (fonte independente do
+#        settings.json sendo comparado), então corromper o matcher em settings.json ainda diverge
+#        da derivação e o doctor continua recomendando `sync-adapters.sh`.
 #   [6c] positivo — versão mista doctor×lib (achado de correção MEDIUM + LOW, revisão adversarial):
 #        uma `sync-adapters.mjs` anterior à #130 (sem `isMainModule`/`preToolUseWiring`/
 #        `mergeSettingsJson`), preservada por exceção de machinery enquanto o overlay já entrega o
@@ -130,10 +141,21 @@ wiring_of() { # wiring_of <lib> <root>
 owned_projection_of() {
   node -e '
     const fs = require("fs");
+    // issue #125: o universo de PreToolUse deixou de ser fixo — inclui os quatro ganchos do
+    // template, nas duas formas de comando possíveis (direta e via lib/argv-bridge.sh). As formas
+    // COM ASPAS em $CLAUDE_PROJECT_DIR (achado de correção MEDIUM, iteração 3 do modo correção) e
+    // as formas *Legacy* sem aspas convivem no universo owned — mesma migração sem duplicar de
+    // hookCommandDirect/hookCommandDirectLegacy na lib.
+    const HOOK_FILES = ["enforce-worktree-location.sh", "prevent-secrets-leak.sh", "check-language-policy.sh", "validate-naming-conventions.sh"];
     const OWNED = new Set([
-      "$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/enforce-worktree-location.sh",
+      "\"$CLAUDE_PROJECT_DIR\"/.forge/hooks/session/on-session-start.sh",
+      "\"$CLAUDE_PROJECT_DIR\"/.forge/hooks/session/on-session-end.sh",
       "$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-start.sh",
       "$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-end.sh",
+      ...HOOK_FILES.map((h) => `"$CLAUDE_PROJECT_DIR"/.forge/hooks/pre-tool-use/${h}`),
+      ...HOOK_FILES.map((h) => `$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/${h}`),
+      ...HOOK_FILES.map((h) => `"$CLAUDE_PROJECT_DIR"/.forge/hooks/pre-tool-use/lib/argv-bridge.sh "$CLAUDE_PROJECT_DIR"/.forge/hooks/pre-tool-use/${h}`),
+      ...HOOK_FILES.map((h) => `$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/lib/argv-bridge.sh $CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/${h}`),
     ]);
     const settings = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
     const hooksObj = (settings.hooks && typeof settings.hooks === "object" && !Array.isArray(settings.hooks)) ? settings.hooks : {};
@@ -225,12 +247,18 @@ echo "[1b] primeiro sync sobre a ORDEM real de chaves do vellus (permissions,env
 T1B="$(mktemp -d "$TMPROOT/forge-w238-1b.XXXXXX")"; track "$T1B"
 nova_fixture "$T1B"
 mkdir -p "$T1B/.claude"
+# issue #125: a forma pós-fix de uma instalação nova tem DOIS grupos em PreToolUse (matcher
+# âncorado "^Bash$" para o worktree-guard, e o novo prevent-secrets-leak.sh, armado por padrão)
+# em vez do único gancho literal de antes.
 node -e '
   const fs = require("fs");
   const settings = {
     permissions: JSON.parse(process.argv[2]),
     env: JSON.parse(process.argv[3]),
-    hooks: { PreToolUse: [ { matcher: "Bash", hooks: [ { type: "command", command: "$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/enforce-worktree-location.sh" } ] } ] },
+    hooks: { PreToolUse: [
+      { matcher: "^Bash$", hooks: [ { type: "command", command: "\"$CLAUDE_PROJECT_DIR\"/.forge/hooks/pre-tool-use/enforce-worktree-location.sh" } ] },
+      { matcher: "^(Write|Edit|MultiEdit|NotebookEdit)$", hooks: [ { type: "command", command: "\"$CLAUDE_PROJECT_DIR\"/.forge/hooks/pre-tool-use/prevent-secrets-leak.sh" } ] },
+    ] },
     includeCoAuthoredBy: false,
   };
   fs.writeFileSync(process.argv[1], JSON.stringify(settings, null, 2) + "\n");
@@ -290,10 +318,19 @@ SESSION_COUNT2="$(grep -c 'on-session-start.sh' "$T2/.claude/settings.json")"
 # idênticos (grupo inteiro, matcher + hooks), não só por contagem de ocorrências de substring.
 FOREIGN_DIFF2="$(node -e '
   const fs = require("fs");
+  // issue #125: o universo de PreToolUse deixou de ser fixo — inclui os quatro ganchos do
+  // template, nas duas formas de comando possíveis (direta e via lib/argv-bridge.sh); as formas
+  // COM ASPAS e as formas *Legacy* sem aspas (achado MEDIUM, iteração 3) convivem aqui também.
+  const HOOK_FILES = ["enforce-worktree-location.sh", "prevent-secrets-leak.sh", "check-language-policy.sh", "validate-naming-conventions.sh"];
   const OWNED = new Set([
-    "$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/enforce-worktree-location.sh",
+    "\"$CLAUDE_PROJECT_DIR\"/.forge/hooks/session/on-session-start.sh",
+    "\"$CLAUDE_PROJECT_DIR\"/.forge/hooks/session/on-session-end.sh",
     "$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-start.sh",
     "$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-end.sh",
+    ...HOOK_FILES.map((h) => `"$CLAUDE_PROJECT_DIR"/.forge/hooks/pre-tool-use/${h}`),
+    ...HOOK_FILES.map((h) => `$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/${h}`),
+    ...HOOK_FILES.map((h) => `"$CLAUDE_PROJECT_DIR"/.forge/hooks/pre-tool-use/lib/argv-bridge.sh "$CLAUDE_PROJECT_DIR"/.forge/hooks/pre-tool-use/${h}`),
+    ...HOOK_FILES.map((h) => `$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/lib/argv-bridge.sh $CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/${h}`),
   ]);
   function foreignGroups(hooksObj, cat) {
     const groups = (hooksObj && hooksObj[cat]) || [];
@@ -438,20 +475,38 @@ else
   echo "OK [6] — $LINE6 (hook de terceiro presente durante a checagem)"
 fi
 
-# ── [6b] contrafactual — drift REAL continua recomendando sync-adapters.sh ───────────────────────
-echo "[6b] contrafactual: drift real (hook alterado) continua recomendando sync-adapters.sh, mesmo com hook de terceiro presente"
-node -e 'const fs=require("fs");const p=process.argv[1];const j=JSON.parse(fs.readFileSync(p,"utf8"));j.hooks.PreToolUse.find((g)=>g.matcher==="Bash").hooks[0].command="alterado-de-verdade";fs.writeFileSync(p,JSON.stringify(j,null,2)+"\n");' "$T6/.claude/settings.json"
+# ── [6b] contrafactual, decisão registrada — modo SEMEADOR mascara corrupção de matcher ──────────
+echo "[6b] decisão registrada: no modo semeador (sem hooks.manifest do consumidor), corromper o MATCHER de um gancho já fiado não é mais detectado como drift (auto-referência de findWiredForms — achado de correção MEDIUM da #125, 2ª iteração)"
+node -e 'const fs=require("fs");const p=process.argv[1];const j=JSON.parse(fs.readFileSync(p,"utf8"));j.hooks.PreToolUse.find((g)=>g.matcher==="^Bash$").matcher="^Bash$$";fs.writeFileSync(p,JSON.stringify(j,null,2)+"\n");' "$T6/.claude/settings.json"
 DOCTOR_OUT6B="$(FORGE_ROOT="$T6" bash "$T6/$DOCTOR_REL" 2>&1)"
 LINE6B="$(grep -i 'adapter claude' <<<"$DOCTOR_OUT6B")"
-if ! grep -qi 'com drift (rode' <<<"$LINE6B"; then
-  echo "FAIL [6b]: drift REAL deixou de ser recomendado — a mudança de [6] silenciou drift de verdade: $LINE6B"
-  overall_rc=1
-elif ! grep -qi 'o sync preserva chaves autorais e hooks de terceiro' <<<"$LINE6B"; then
-  echo "FAIL [6b]: achado de correção LOW — a recomendação de drift real em settings.json deveria trazer a ressalva de que o sync preserva chaves autorais e hooks de terceiro (lib com a fusão da #160): $LINE6B"
+if grep -qi 'com drift (rode' <<<"$LINE6B"; then
+  echo "FAIL [6b]: o modo semeador voltou a detectar corrupção de matcher como drift — se este comportamento mudou de propósito, atualize este teste e o comentário da decisão registrada: $LINE6B"
   overall_rc=1
 else
-  echo "OK [6b] — $LINE6B"
+  echo "OK [6b] — matcher corrompido no modo semeador não aciona recomendação (decisão registrada): $LINE6B"
 fi
+# restaura o matcher antes de [6e], que parte do mesmo T6 já assentado.
+node -e 'const fs=require("fs");const p=process.argv[1];const j=JSON.parse(fs.readFileSync(p,"utf8"));j.hooks.PreToolUse.find((g)=>g.matcher==="^Bash$$").matcher="^Bash$";fs.writeFileSync(p,JSON.stringify(j,null,2)+"\n");' "$T6/.claude/settings.json"
+
+# ── [6e] positivo — com hooks.manifest do consumidor, a mesma corrupção AINDA é pega ─────────────
+echo "[6e] com hooks.manifest do consumidor (matcher vem do manifesto, fonte independente de settings.json): a mesma corrupção de matcher continua sendo detectada"
+printf '# forge-manifest-format: 1\n#hook\tmatcher\tcontrato\testado\nenforce-worktree-location.sh\t^Bash$\tstdin-json\tarmado\nprevent-secrets-leak.sh\t^(Write|Edit|MultiEdit|NotebookEdit)$\tstdin-json\tarmado\ncheck-language-policy.sh\t^(Write|Edit|MultiEdit)$\targv\tretido:na\nvalidate-naming-conventions.sh\t^(Write|Edit|MultiEdit)$\targv\tretido:na\n' \
+  > "$T6/.forge/hooks/pre-tool-use/hooks.manifest"
+bash "$T6/.forge/scripts/sync-adapters.sh" >/dev/null 2>&1
+node -e 'const fs=require("fs");const p=process.argv[1];const j=JSON.parse(fs.readFileSync(p,"utf8"));j.hooks.PreToolUse.find((g)=>g.matcher==="^Bash$").matcher="^Bash$$";fs.writeFileSync(p,JSON.stringify(j,null,2)+"\n");' "$T6/.claude/settings.json"
+DOCTOR_OUT6E="$(FORGE_ROOT="$T6" bash "$T6/$DOCTOR_REL" 2>&1)"
+LINE6E="$(grep -i 'adapter claude' <<<"$DOCTOR_OUT6E")"
+if ! grep -qi 'com drift (rode' <<<"$LINE6E"; then
+  echo "FAIL [6e]: com hooks.manifest do consumidor presente, drift real de matcher deixou de ser detectado: $LINE6E"
+  overall_rc=1
+elif ! grep -qi 'o sync preserva chaves autorais e hooks de terceiro' <<<"$LINE6E"; then
+  echo "FAIL [6e]: achado de correção LOW — a recomendação de drift real deveria trazer a ressalva de preservação de chaves autorais/hooks de terceiro: $LINE6E"
+  overall_rc=1
+else
+  echo "OK [6e] — $LINE6E"
+fi
+rm -f "$T6/.forge/hooks/pre-tool-use/hooks.manifest"
 
 # ── [6c] versão mista doctor×lib: lib anterior à #130 não é importada, sem reconciliar como
 #     efeito colateral da leitura de diagnóstico ─────────────────────────────────────────────────
@@ -582,10 +637,21 @@ function shuffle(list, rnd) {
   return out;
 }
 
+// CMD_ENFORCE — forma LEGADA (sem aspas), deliberadamente usada para SEMEAR o estado ANTERIOR ao
+// sync (`staleOwned`/`preToolUseItems` abaixo): é assim que um consumidor real, ainda não migrado,
+// tem o gancho fiado hoje. CMD_ENFORCE_QUOTED é a forma NOVA que o gerador emite desde o achado de
+// correção MEDIUM (iteração 3 do modo correção, quoting de $CLAUDE_PROJECT_DIR) — o pós-sync
+// SEMPRE produz a forma com aspas, migrando a legada quando presente. `OWNED` (o filtro do
+// pós-sync) reconhece as DUAS; `SEED_POOL` (o que semeia o pré-sync) usa só a legada, de propósito
+// — sem isso o espaço de estados do PBT dobraria sem acrescentar cobertura nova.
 const CMD_ENFORCE = '$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/enforce-worktree-location.sh';
+const CMD_ENFORCE_QUOTED = '"$CLAUDE_PROJECT_DIR"/.forge/hooks/pre-tool-use/enforce-worktree-location.sh';
 const CMD_START = '$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-start.sh';
+const CMD_START_QUOTED = '"$CLAUDE_PROJECT_DIR"/.forge/hooks/session/on-session-start.sh';
 const CMD_END = '$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-end.sh';
-const OWNED = new Set([CMD_ENFORCE, CMD_START, CMD_END]);
+const CMD_END_QUOTED = '"$CLAUDE_PROJECT_DIR"/.forge/hooks/session/on-session-end.sh';
+const SEED_POOL = [CMD_ENFORCE, CMD_START, CMD_END];
+const OWNED = new Set([CMD_ENFORCE, CMD_ENFORCE_QUOTED, CMD_START, CMD_START_QUOTED, CMD_END, CMD_END_QUOTED]);
 
 const AUTHOR_POOL = ['permissions', 'env', 'includeCoAuthoredBy', 'model'];
 function authorValue(rnd, key) {
@@ -630,7 +696,7 @@ for (let i = 0; i < runs; i++) {
   // hooks do harness já presentes no arquivo ANTES do sync — simulam uma configuração de flags
   // ANTERIOR (possivelmente diferente da atual): subconjunto aleatório dos 3 comandos owned.
   const staleOwned = OWNED_SUBSET(rnd);
-  function OWNED_SUBSET(rnd) { return [...OWNED].filter(() => rnd.next() < 0.5); }
+  function OWNED_SUBSET(rnd) { return SEED_POOL.filter(() => rnd.next() < 0.5); }
 
   // monta hooks.PreToolUse com terceiros + staleOwned(enforce) misturados, e SessionStart/End
   // com staleOwned(start/end), em ordem embaralhada.
@@ -728,7 +794,7 @@ LIB8="$T8/$LIB_REL"
 BACKUP8="$(mktemp "$TMPROOT/forge-w238-8-backup.XXXXXX")"; track "$BACKUP8"
 cp "$LIB8" "$BACKUP8"
 
-perl -0777 -pi -e "s/const mergedSettings = mergeSettingsJson\(existingSettingsText, preToolUseWiring\(ROOT\)\);\n    lock\.emit\(settingsPath, JSON\.stringify\(mergedSettings, null, 2\) \+ '\\\\n'\);/const hooks = preToolUseWiring(ROOT);\n    lock.emit(settingsPath, JSON.stringify({ hooks }, null, 2) + '\\\\n');/" "$LIB8"
+perl -0777 -pi -e "s/const mergedSettings = mergeSettingsJson\(existingSettingsText, preToolUseWiring\(ROOT\), derivation\.ownedSet, frozenCategories\);\n    lock\.emit\(settingsPath, JSON\.stringify\(mergedSettings, null, 2\) \+ '\\\\n'\);/const hooks = preToolUseWiring(ROOT);\n    lock.emit(settingsPath, JSON.stringify({ hooks }, null, 2) + '\\\\n');/" "$LIB8"
 if cmp -s "$LIB8" "$BACKUP8"; then
   echo "FAIL [8]: a mutação não alterou nenhum byte da lib — o perl não achou o trecho de emissão"
   overall_rc=1
@@ -773,7 +839,7 @@ LIB9="$T9/$LIB_REL"
 BACKUP9="$(mktemp "$TMPROOT/forge-w238-9-backup.XXXXXX")"; track "$BACKUP9"
 cp "$LIB9" "$BACKUP9"
 
-perl -pi -e "s/!\(h && OWNED_HOOK_COMMANDS\.has\(h\.command\)\)/!(h \&\& h.command \&\& h.command.includes('.forge\\/hooks\\/'))/" "$LIB9"
+perl -pi -e "s/!\(h && ownedSet\.has\(h\.command\)\)/!(h \&\& h.command \&\& h.command.includes('.forge\\/hooks\\/'))/" "$LIB9"
 if cmp -s "$LIB9" "$BACKUP9"; then
   echo "FAIL [9]: a mutação não alterou nenhum byte da lib — o perl não achou o predicado de posse"
   overall_rc=1

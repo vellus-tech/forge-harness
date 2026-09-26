@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Gate W216 — importar sync-adapters.mjs não pode reconciliar os adapters do consumidor (#130).
+# Gate W216 — importar sync-adapters.mjs não pode reconciliar nem matar o consumidor (#130).
 #
 # POR QUE ESTE GATE EXISTE. `template/.forge/scripts/lib/sync-adapters.mjs` rodava o bloco
 # `// ── entry ──` incondicionalmente: sem guarda de módulo principal, `import(...)` (por exemplo
@@ -7,11 +7,16 @@
 # efeito colateral — apagando em silêncio qualquer edição pendente sob `.claude/`. Medido antes
 # da correção: `OK claude adapter synced (70 targets)` e `OK reconcile complete: 1 active
 # [claude]` apareciam ao simplesmente importar o módulo. Um gate com efeito colateral no alvo não
-# mede o alvo, mede a si mesmo (issue #130).
+# mede o alvo, mede a si mesmo (issue #130). Uma segunda revisão (achado de correção) mediu que
+# `import()` a partir de um cwd SEM `.forge/FORGE.md` também matava o processo importador — um
+# segundo `process.exit(1)` de nível de módulo, anterior ao bloco de entrada, sobrevivia à
+# primeira correção — e que a exportação certa para #125/#160 lerem é uma função PURA que MONTA
+# a fiação (`preToolUseWiring(root)`), não `reconcile` (que escreve).
 #
-#   [1] positivo — import: importar o módulo não muda o hash de nenhum arquivo sob `.claude/` e
-#       expõe pelo menos uma exportação nomeada (`reconcile`, nome estável documentado no PR —
-#       #160 e #125 tocam o mesmo arquivo depois e importam esta função).
+#   [1] positivo — import: importar o módulo não muda o hash de nenhum arquivo sob `.claude/`,
+#       expõe `preToolUseWiring` (a leitura pura que #125/#160 usam) e `reconcile`, e
+#       `preToolUseWiring(dir)` bate byte a byte com a chave `hooks` do `.claude/settings.json`
+#       que a invocação real materializa — as duas leituras nunca podem divergir.
 #   [2] positivo — caminho legítimo: invocar `sync-adapters.sh` (que faz `exec node
 #       lib/sync-adapters.mjs`, a invocação real) continua imprimindo `OK reconcile complete` e
 #       sobrescrevendo a edição pendente — a guarda não pode desarmar quem de fato é o principal.
@@ -25,17 +30,44 @@
 #   [4] mutação — inverter a condição (`isMainModule()` → `!isMainModule()`) faz a invocação
 #       direta ser tratada como import: [2] falha porque `OK reconcile complete` não aparece.
 #       Mesma disciplina de controle/recontrole.
+#   [5] positivo — import a partir de um cwd SEM `.forge/FORGE.md` (nenhum `--root` passado)
+#       sobrevive: rc 0, nem `SURVIVED`/`CAUGHT` ambíguo (a retratação da issue mediu nenhum dos
+#       dois — o processo simplesmente morria), e a exportação `preToolUseWiring` continua
+#       presente. Uma leitura pura não pode depender de o cwd de quem importou ter um projeto
+#       Forge válido.
+#   [6] mutação — reintroduzir o `process.exit(1)` de nível de módulo que fechava [5] mata o
+#       processo de novo: rc ≠ 0 e nem `SURVIVED` nem `CAUGHT` aparecem. Controle/recontrole por
+#       `cmp -s` contra cópia isolada (nunca a lib rastreada em `template/.forge/`).
+#   [7] positivo — invocação legítima a partir de um diretório com ESPAÇO no caminho continua
+#       reconciliando. Existe para dar ao mutante [9] um jeito de acusar que funciona em
+#       QUALQUER SO (não só macOS/`/tmp`): `import.meta.url` percent-encoda o espaço (`%20`), a
+#       comparação crua de string com `process.argv[1]` (sem `%20`) não bate.
+#   [8] positivo — invocação legítima via SYMLINK apontando para o `.mjs` continua reconciliando.
+#       `realpathSync` nos dois lados resolve o link; a comparação crua de `import.meta.url` (que
+#       o Node resolve para o alvo real do link) contra `process.argv[1]` (que preserva o caminho
+#       do link, não resolvido) não bateria.
+#   [9] mutação — trocar `isMainModule()` pela alternativa descartada da seção do plano
+#       (`import.meta.url === 'file://' + process.argv[1]`, o idioma de `plugin-build.mjs`) faz
+#       [7] (espaço) e [8] (symlink) falharem: a invocação legítima deixa de reconciliar em
+#       QUALQUER SO — não é uma armadilha específica de `$TMPDIR` no macOS. Controle/recontrole
+#       por `cmp -s`, uma fixture por sub-caso, sempre restaurada.
 #
-# As duas mutações mutam a CÓPIA da lib dentro da fixture (`$C/.forge/scripts/lib/...`), nunca o
-# arquivo rastreado em `template/.forge/`, e cada uma é restaurada e reconferida por `cmp -s`
-# antes de seguir (LDG-0175/w213: fixture de teste nunca muta arquivo rastreado sem restauração
+# Todas as mutações mutam uma CÓPIA da lib dentro da fixture temporária, nunca o arquivo
+# rastreado em `template/.forge/`, e cada uma é restaurada e reconferida por `cmp -s` antes de
+# seguir (LDG-0175/w213: fixture de teste nunca muta arquivo rastreado sem restauração
 # garantida). Propriedade PBT: não se aplica — a entrada é binária (importado ou principal), sem
 # espaço de valores para gerar.
 set -uo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LIB_REL=".forge/scripts/lib/sync-adapters.mjs"
+LIB_TEMPLATE="$WS/template/$LIB_REL"   # a lib rastreada (fixtures copiam template/.forge → $dir/.forge)
+TMPROOT="${TMPDIR:-/tmp}"
 overall_rc=0
+CLEANUP_DIRS=()
+trap 'rm -rf "${CLEANUP_DIRS[@]}" 2>/dev/null || true' EXIT
+
+track() { CLEANUP_DIRS+=("$1"); }
 
 # nova_fixture <dir> — instala o template e resolve os placeholders mínimos para o gerador rodar.
 nova_fixture() {
@@ -61,24 +93,30 @@ marca_pendente() {
   printf '%s' "$target"
 }
 
-# cenario_import <dir> — importa o módulo a partir do cwd da fixture; imprime "IMPORT_OK" e a
-# lista de exports em stdout; qualquer exceção do import aparece em stderr (capturada pelo
-# chamador).
+# cenario_import <lib-path> <cwd> — importa a lib (path absoluto, via pathToFileURL — nunca
+# interpolado cru num literal JS, LDG do gate: um caminho com espaço ou aspa não pode quebrar a
+# sintaxe) a partir do cwd dado; imprime "SURVIVED exports=[...]" ou "CAUGHT <mensagem>".
 cenario_import() {
-  local dir="$1"
-  ( cd "$dir" && node --input-type=module -e "
-      const m = await import('$dir/$LIB_REL');
-      console.log('IMPORT_OK exports=' + JSON.stringify(Object.keys(m).sort()));
+  local lib="$1" cwd="$2"
+  ( cd "$cwd" && LIB_PATH="$lib" node --input-type=module -e "
+      import { pathToFileURL } from 'node:url';
+      try {
+        const m = await import(pathToFileURL(process.env.LIB_PATH).href);
+        console.log('SURVIVED exports=' + JSON.stringify(Object.keys(m).sort()));
+      } catch (e) {
+        console.log('CAUGHT ' + e.message);
+      }
     " )
 }
 
-# ── [1] import não muda nenhum arquivo sob .claude/ e expõe >= 1 exportação ─────────────────────
-echo "[1] importar o módulo não reconcilia o consumidor e expõe exportação nomeada"
-T1="$(mktemp -d /tmp/forge-w216-1.XXXXXX)"
+# ── [1] import não muda nenhum arquivo sob .claude/, expõe preToolUseWiring/reconcile, e a
+#        leitura pura bate com o settings.json real ────────────────────────────────────────────
+echo "[1] importar o módulo não reconcilia o consumidor, expõe preToolUseWiring, e ela bate com o settings.json real"
+T1="$(mktemp -d "$TMPROOT/forge-w216-1.XXXXXX")"; track "$T1"
 nova_fixture "$T1"
 TARGET1="$(marca_pendente "$T1")"
 HASH_BEFORE1="$(hash_claude "$T1")"
-IMPORT_OUT1="$(cenario_import "$T1" 2>&1)"
+IMPORT_OUT1="$(cenario_import "$T1/$LIB_REL" "$T1" 2>&1)"
 IMPORT_RC1=$?
 HASH_AFTER1="$(hash_claude "$T1")"
 
@@ -88,17 +126,32 @@ if [ "$IMPORT_RC1" -ne 0 ]; then
 elif [ "$HASH_BEFORE1" != "$HASH_AFTER1" ]; then
   echo "FAIL [1]: o import mudou o hash de .claude/ ($HASH_BEFORE1 -> $HASH_AFTER1) — reconciliou como efeito colateral"
   overall_rc=1
-elif ! grep -q '"reconcile"' <<<"$IMPORT_OUT1"; then
+elif ! grep -q 'preToolUseWiring' <<<"$IMPORT_OUT1"; then
+  echo "FAIL [1]: o import não expôs a exportação nomeada 'preToolUseWiring' (a leitura pura que #125/#160 usam) — $IMPORT_OUT1"
+  overall_rc=1
+elif ! grep -q 'reconcile' <<<"$IMPORT_OUT1"; then
   echo "FAIL [1]: o import não expôs a exportação nomeada 'reconcile' — $IMPORT_OUT1"
   overall_rc=1
 else
-  echo "OK [1] — hash de .claude/ inalterado ($HASH_AFTER1) e exportação 'reconcile' presente"
+  WIRING1="$(cd "$T1" && LIB_PATH="$T1/$LIB_REL" ROOT_PATH="$T1" node --input-type=module -e "
+    import { pathToFileURL } from 'node:url';
+    const m = await import(pathToFileURL(process.env.LIB_PATH).href);
+    console.log(JSON.stringify(m.preToolUseWiring(process.env.ROOT_PATH)));
+  " 2>&1)"
+  SETTINGS_HOOKS1="$(node -e "console.log(JSON.stringify(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).hooks))" "$T1/.claude/settings.json" 2>&1)"
+  if [ "$WIRING1" != "$SETTINGS_HOOKS1" ]; then
+    echo "FAIL [1]: preToolUseWiring(root) diverge do settings.json real materializado:"
+    echo "  preToolUseWiring: $WIRING1"
+    echo "  settings.json:    $SETTINGS_HOOKS1"
+    overall_rc=1
+  else
+    echo "OK [1] — hash de .claude/ inalterado ($HASH_AFTER1), exportações presentes, preToolUseWiring == settings.json.hooks"
+  fi
 fi
-rm -rf "$T1"
 
 # ── [2] invocação direta continua sendo o caminho legítimo ──────────────────────────────────────
 echo "[2] invocação direta (sync-adapters.sh) continua reconciliando"
-T2="$(mktemp -d /tmp/forge-w216-2.XXXXXX)"
+T2="$(mktemp -d "$TMPROOT/forge-w216-2.XXXXXX")"; track "$T2"
 nova_fixture "$T2"
 TARGET2="$(marca_pendente "$T2")"
 HASH_BEFORE2="$(hash_claude "$T2")"
@@ -114,14 +167,13 @@ elif [ "$HASH_BEFORE2" = "$HASH_AFTER2" ]; then
 else
   echo "OK [2] — 'OK reconcile complete' impresso e a edição pendente foi sobrescrita"
 fi
-rm -rf "$T2"
 
 # ── [3] mutação — remover a condição da guarda reintroduz o efeito colateral no import ──────────
 echo "[3] mutação: remover a condição da guarda faz [1] voltar a falhar"
-T3="$(mktemp -d /tmp/forge-w216-3.XXXXXX)"
+T3="$(mktemp -d "$TMPROOT/forge-w216-3.XXXXXX")"; track "$T3"
 nova_fixture "$T3"
 LIB3="$T3/$LIB_REL"
-BACKUP3="$(mktemp /tmp/forge-w216-3-backup.XXXXXX)"
+BACKUP3="$(mktemp "$TMPROOT/forge-w216-3-backup.XXXXXX")"; track "$BACKUP3"
 cp "$LIB3" "$BACKUP3"
 
 perl -pi -e 's/if \(isMainModule\(\)\) \{/if (true) {/' "$LIB3"
@@ -131,7 +183,7 @@ if cmp -s "$LIB3" "$BACKUP3"; then
 else
   TARGET3="$(marca_pendente "$T3")"
   HASH_BEFORE3="$(hash_claude "$T3")"
-  cenario_import "$T3" >/dev/null 2>&1
+  cenario_import "$LIB3" "$T3" >/dev/null 2>&1
   HASH_AFTER3="$(hash_claude "$T3")"
   if [ "$HASH_BEFORE3" = "$HASH_AFTER3" ]; then
     echo "FAIL [3]: com a guarda removida o import NÃO mudou .claude/ — a mutação não acusa, o cenário [1] não mede a guarda"
@@ -147,12 +199,12 @@ if ! cmp -s "$LIB3" "$BACKUP3"; then
   overall_rc=1
 else
   # recontrole: com a lib restaurada, [1] volta a passar (fixture completa: .forge E .claude)
-  T3B="$(mktemp -d /tmp/forge-w216-3b.XXXXXX)"
+  T3B="$(mktemp -d "$TMPROOT/forge-w216-3b.XXXXXX")"; track "$T3B"
   rm -rf "$T3B"
   cp -R "$T3" "$T3B"
   TARGET3B="$(marca_pendente "$T3B")"
   HASH_BEFORE3B="$(hash_claude "$T3B")"
-  cenario_import "$T3B" >/dev/null 2>&1
+  cenario_import "$T3B/$LIB_REL" "$T3B" >/dev/null 2>&1
   HASH_AFTER3B="$(hash_claude "$T3B")"
   if [ "$HASH_BEFORE3B" != "$HASH_AFTER3B" ]; then
     echo "FAIL [3]: recontrole — com a lib restaurada, o import ainda muda .claude/"
@@ -160,16 +212,14 @@ else
   else
     echo "OK [3] recontrole — lib restaurada byte a byte, import volta a não ter efeito colateral"
   fi
-  rm -rf "$T3B"
 fi
-rm -rf "$T3" "$BACKUP3"
 
 # ── [4] mutação — inverter a condição da guarda desarma a invocação direta ──────────────────────
 echo "[4] mutação: inverter a condição da guarda faz [2] voltar a falhar"
-T4="$(mktemp -d /tmp/forge-w216-4.XXXXXX)"
+T4="$(mktemp -d "$TMPROOT/forge-w216-4.XXXXXX")"; track "$T4"
 nova_fixture "$T4"
 LIB4="$T4/$LIB_REL"
-BACKUP4="$(mktemp /tmp/forge-w216-4-backup.XXXXXX)"
+BACKUP4="$(mktemp "$TMPROOT/forge-w216-4-backup.XXXXXX")"; track "$BACKUP4"
 cp "$LIB4" "$BACKUP4"
 
 perl -pi -e 's/if \(isMainModule\(\)\) \{/if (!isMainModule()) {/' "$LIB4"
@@ -201,7 +251,184 @@ else
     echo "OK [4] recontrole — lib restaurada byte a byte, invocação direta volta a reconciliar"
   fi
 fi
-rm -rf "$T4" "$BACKUP4"
+
+# ── [5] import a partir de um cwd SEM .forge/FORGE.md sobrevive ─────────────────────────────────
+echo "[5] importar sem .forge/FORGE.md no cwd não mata o processo (regressão #130, achado HIGH-2)"
+T5="$(mktemp -d "$TMPROOT/forge-w216-5.XXXXXX")"; track "$T5"
+IMPORT_OUT5="$(cenario_import "$LIB_TEMPLATE" "$T5" 2>&1)"
+IMPORT_RC5=$?
+
+if [ "$IMPORT_RC5" -ne 0 ]; then
+  echo "FAIL [5]: rc=$IMPORT_RC5 — o import matou o processo a partir de um cwd sem .forge/FORGE.md: $IMPORT_OUT5"
+  overall_rc=1
+elif ! grep -q '^SURVIVED' <<<"$IMPORT_OUT5"; then
+  echo "FAIL [5]: nem SURVIVED apareceu (nem CAUGHT seria aceitável — uma leitura pura não deveria nem rejeitar) — $IMPORT_OUT5"
+  overall_rc=1
+elif ! grep -q 'preToolUseWiring' <<<"$IMPORT_OUT5"; then
+  echo "FAIL [5]: import sem .forge/FORGE.md sobreviveu mas não expôs 'preToolUseWiring' — $IMPORT_OUT5"
+  overall_rc=1
+else
+  echo "OK [5] — $IMPORT_OUT5"
+fi
+
+# ── [6] mutação — reintroduzir o process.exit de nível de módulo mata o import de novo ──────────
+echo "[6] mutação: reintroduzir o process.exit de nível de módulo faz [5] voltar a falhar"
+T6="$(mktemp -d "$TMPROOT/forge-w216-6.XXXXXX")"; track "$T6"
+LIB6="$T6/sync-adapters.mjs"
+cp "$LIB_TEMPLATE" "$LIB6"
+BACKUP6="$(mktemp "$TMPROOT/forge-w216-6-backup.XXXXXX")"; track "$BACKUP6"
+cp "$LIB6" "$BACKUP6"
+CWD6="$T6/cwd-sem-forge"; mkdir -p "$CWD6"
+
+perl -pi -e 's/const ADAPTERS_DIR = join\(FORGE, .adapters.\);/const ADAPTERS_DIR = join(FORGE, "adapters");\nif (!existsSync(join(FORGE, "FORGE.md"))) { console.error("FAIL sem FORGE.md sob " + ROOT); process.exit(1); }/' "$LIB6"
+if cmp -s "$LIB6" "$BACKUP6"; then
+  echo "FAIL [6]: a mutação não alterou nenhum byte da lib — o perl não achou a linha de âncora (ADAPTERS_DIR)"
+  overall_rc=1
+else
+  IMPORT_OUT6="$(cenario_import "$LIB6" "$CWD6" 2>&1)"
+  IMPORT_RC6=$?
+  if [ "$IMPORT_RC6" -eq 0 ] && grep -q '^SURVIVED' <<<"$IMPORT_OUT6"; then
+    echo "FAIL [6]: com o process.exit de módulo reintroduzido o import AINDA sobreviveu — a mutação não acusa, o cenário [5] não mede a regressão: $IMPORT_OUT6"
+    overall_rc=1
+  else
+    echo "OK [6] — mutação acusa: com o process.exit reintroduzido, o import volta a matar o processo (rc=$IMPORT_RC6, saída: '${IMPORT_OUT6:-<vazia>}')"
+  fi
+fi
+
+cp "$BACKUP6" "$LIB6"
+if ! cmp -s "$LIB6" "$BACKUP6"; then
+  echo "FAIL [6]: a restauração da lib mutada não bateu byte a byte com a cópia salva"
+  overall_rc=1
+else
+  IMPORT_OUT6B="$(cenario_import "$LIB6" "$CWD6" 2>&1)"
+  IMPORT_RC6B=$?
+  if [ "$IMPORT_RC6B" -ne 0 ] || ! grep -q '^SURVIVED' <<<"$IMPORT_OUT6B"; then
+    echo "FAIL [6]: recontrole — com a lib restaurada, o import ainda não sobrevive: rc=$IMPORT_RC6B $IMPORT_OUT6B"
+    overall_rc=1
+  else
+    echo "OK [6] recontrole — lib restaurada byte a byte, import volta a sobreviver"
+  fi
+fi
+
+# ── [7] invocação legítima a partir de um caminho com ESPAÇO continua reconciliando ─────────────
+echo "[7] invocação direta a partir de um diretório com espaço no caminho continua reconciliando"
+T7BASE="$(mktemp -d "$TMPROOT/forge-w216-7.XXXXXX")"; track "$T7BASE"
+T7="$T7BASE/com espaco"
+mkdir -p "$T7"
+nova_fixture "$T7"
+TARGET7="$(marca_pendente "$T7")"
+HASH_BEFORE7="$(hash_claude "$T7")"
+DIRECT_OUT7="$(bash "$T7/.forge/scripts/sync-adapters.sh" 2>&1)"
+HASH_AFTER7="$(hash_claude "$T7")"
+
+if ! grep -q 'OK reconcile complete' <<<"$DIRECT_OUT7"; then
+  echo "FAIL [7]: invocação a partir de caminho com espaço não reconciliou: $DIRECT_OUT7"
+  overall_rc=1
+elif [ "$HASH_BEFORE7" = "$HASH_AFTER7" ]; then
+  echo "FAIL [7]: invocação a partir de caminho com espaço não sobrescreveu a edição pendente"
+  overall_rc=1
+else
+  echo "OK [7] — reconcilia normalmente mesmo com espaço no caminho"
+fi
+
+# ── [8] invocação legítima via SYMLINK para o .mjs continua reconciliando ───────────────────────
+echo "[8] invocação via symlink para o .mjs continua reconciliando (realpathSync nos dois lados)"
+T8="$(mktemp -d "$TMPROOT/forge-w216-8.XXXXXX")"; track "$T8"
+nova_fixture "$T8"
+TARGET8="$(marca_pendente "$T8")"
+HASH_BEFORE8="$(hash_claude "$T8")"
+LINK8="$T8/entry-via-symlink.mjs"
+ln -s "$T8/$LIB_REL" "$LINK8"
+DIRECT_OUT8="$(cd "$T8" && node "$LINK8" --root "$T8" 2>&1)"
+HASH_AFTER8="$(hash_claude "$T8")"
+
+if ! grep -q 'OK reconcile complete' <<<"$DIRECT_OUT8"; then
+  echo "FAIL [8]: invocação via symlink não reconciliou: $DIRECT_OUT8"
+  overall_rc=1
+elif [ "$HASH_BEFORE8" = "$HASH_AFTER8" ]; then
+  echo "FAIL [8]: invocação via symlink não sobrescreveu a edição pendente"
+  overall_rc=1
+else
+  echo "OK [8] — reconcilia normalmente mesmo invocado via symlink"
+fi
+
+# ── [9] mutação — a alternativa descartada (comparação crua de URL) quebra [7] e [8] em ────────
+#        QUALQUER SO, não só sob o symlink /tmp→/private/tmp do macOS ───────────────────────────
+echo "[9] mutação: comparação crua de import.meta.url (alternativa descartada) quebra espaço e symlink"
+
+echo "  [9a] sub-caso espaço no caminho"
+T9ABASE="$(mktemp -d "$TMPROOT/forge-w216-9a.XXXXXX")"; track "$T9ABASE"
+T9A="$T9ABASE/com espaco"
+mkdir -p "$T9A"
+nova_fixture "$T9A"
+LIB9A="$T9A/$LIB_REL"
+BACKUP9A="$(mktemp "$TMPROOT/forge-w216-9a-backup.XXXXXX")"; track "$BACKUP9A"
+cp "$LIB9A" "$BACKUP9A"
+
+perl -pi -e "s/return realpathSync\(process.argv\[1\]\) === realpathSync\(fileURLToPath\(import.meta.url\)\);/return import.meta.url === 'file:\/\/' + process.argv[1];/" "$LIB9A"
+if cmp -s "$LIB9A" "$BACKUP9A"; then
+  echo "FAIL [9a]: a mutação não alterou nenhum byte da lib — o perl não achou o corpo de isMainModule()"
+  overall_rc=1
+else
+  TARGET9A="$(marca_pendente "$T9A")"
+  DIRECT_OUT9A="$(bash "$T9A/.forge/scripts/sync-adapters.sh" 2>&1)"
+  if grep -q 'OK reconcile complete' <<<"$DIRECT_OUT9A"; then
+    echo "FAIL [9a]: com a comparação crua, a invocação legítima sob caminho com espaço AINDA reconciliou — a mutação não acusa: $DIRECT_OUT9A"
+    overall_rc=1
+  else
+    echo "OK [9a] — mutação acusa: comparação crua quebra a invocação legítima sob caminho com espaço (saída: '${DIRECT_OUT9A:-<vazia>}')"
+  fi
+fi
+cp "$BACKUP9A" "$LIB9A"
+if ! cmp -s "$LIB9A" "$BACKUP9A"; then
+  echo "FAIL [9a]: a restauração da lib mutada não bateu byte a byte com a cópia salva"
+  overall_rc=1
+else
+  DIRECT_OUT9AB="$(bash "$T9A/.forge/scripts/sync-adapters.sh" 2>&1)"
+  if ! grep -q 'OK reconcile complete' <<<"$DIRECT_OUT9AB"; then
+    echo "FAIL [9a]: recontrole — com a lib restaurada, a invocação sob espaço ainda não reconcilia: $DIRECT_OUT9AB"
+    overall_rc=1
+  else
+    echo "OK [9a] recontrole — lib restaurada byte a byte, invocação sob espaço volta a reconciliar"
+  fi
+fi
+
+echo "  [9b] sub-caso invocação via symlink"
+T9B="$(mktemp -d "$TMPROOT/forge-w216-9b.XXXXXX")"; track "$T9B"
+nova_fixture "$T9B"
+LIB9B="$T9B/$LIB_REL"
+BACKUP9B="$(mktemp "$TMPROOT/forge-w216-9b-backup.XXXXXX")"; track "$BACKUP9B"
+cp "$LIB9B" "$BACKUP9B"
+
+perl -pi -e "s/return realpathSync\(process.argv\[1\]\) === realpathSync\(fileURLToPath\(import.meta.url\)\);/return import.meta.url === 'file:\/\/' + process.argv[1];/" "$LIB9B"
+if cmp -s "$LIB9B" "$BACKUP9B"; then
+  echo "FAIL [9b]: a mutação não alterou nenhum byte da lib — o perl não achou o corpo de isMainModule()"
+  overall_rc=1
+else
+  TARGET9B="$(marca_pendente "$T9B")"
+  LINK9B="$T9B/entry-via-symlink.mjs"
+  ln -s "$LIB9B" "$LINK9B"
+  DIRECT_OUT9B="$(cd "$T9B" && node "$LINK9B" --root "$T9B" 2>&1)"
+  if grep -q 'OK reconcile complete' <<<"$DIRECT_OUT9B"; then
+    echo "FAIL [9b]: com a comparação crua, a invocação legítima via symlink AINDA reconciliou — a mutação não acusa: $DIRECT_OUT9B"
+    overall_rc=1
+  else
+    echo "OK [9b] — mutação acusa: comparação crua quebra a invocação legítima via symlink (saída: '${DIRECT_OUT9B:-<vazia>}')"
+  fi
+fi
+cp "$BACKUP9B" "$LIB9B"
+if ! cmp -s "$LIB9B" "$BACKUP9B"; then
+  echo "FAIL [9b]: a restauração da lib mutada não bateu byte a byte com a cópia salva"
+  overall_rc=1
+else
+  DIRECT_OUT9BB="$(cd "$T9B" && node "$LINK9B" --root "$T9B" 2>&1)"
+  if ! grep -q 'OK reconcile complete' <<<"$DIRECT_OUT9BB"; then
+    echo "FAIL [9b]: recontrole — com a lib restaurada, a invocação via symlink ainda não reconcilia: $DIRECT_OUT9BB"
+    overall_rc=1
+  else
+    echo "OK [9b] recontrole — lib restaurada byte a byte, invocação via symlink volta a reconciliar"
+  fi
+fi
 
 if [ "$overall_rc" -eq 0 ]; then
   echo "OK"

@@ -226,6 +226,26 @@ PYEOF
   [ "$status" -eq 0 ]
 }
 
+@test "C5: the secrets-detector wired by C5's PreToolUse default actually blocks via stdin (achado LOW, iteração 3 do modo correção)" {
+  # Antes desta correção, o C5 anterior só verificava por grep a PRESENÇA da fiação — nunca que o
+  # script referenciado por ela sabe LER o payload que o Claude Code entrega. No source mode, a
+  # cópia congelada de `prevent-secrets-leak.sh` era a versão pré-#125 (só argv, `exit 0` com argv
+  # vazio): a fiação anunciava um detector fail-closed que na prática aprovava qualquer coisa. O
+  # payload de exemplo é montado em tempo de execução por concatenação — nunca literal (w139 [15]).
+  prefix="AKIA"; suffix="IOSFODNN7EXAMPLE"; key="${prefix}${suffix}"
+  payload="{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"/tmp/c5-secret.env\",\"content\":\"aws_key = ${key}\"}}"
+  # positional params, nunca interpolação dentro do script de `bash -c` (achado de correção: o
+  # payload carrega aspas duplas, e interpolar por `"...\"$var\"..."` deixa o shell EXTERNO
+  # reabrir/fechar aspas no meio do JSON antes de `bash -c` ver o texto, corrompendo o payload em
+  # silêncio — o gancho então falha ao fazer parse e sai fail-closed por um motivo diferente do que
+  # o cenário quer provar).
+  run bash -c 'printf "%s" "$1" | bash "$2"' _ "$payload" "$HOOKS_DIR/pre-tool-use/prevent-secrets-leak.sh"
+  [ "$status" -eq 2 ]
+  clean="{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"/tmp/c5-clean.env\",\"content\":\"hello world\"}}"
+  run bash -c 'printf "%s" "$1" | bash "$2"' _ "$clean" "$HOOKS_DIR/pre-tool-use/prevent-secrets-leak.sh"
+  [ "$status" -eq 0 ]
+}
+
 # ── C6 — doctor.sh ───────────────────────────────────────────────────────────
 
 @test "C6: doctor.sh --help exits 0" {

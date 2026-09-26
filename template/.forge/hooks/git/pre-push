@@ -343,15 +343,7 @@ run_check() {  # run_check <label> <cmd>
 # é publicado no npm e instalado por terceiros: chegar serializando o pre-push de repositórios não
 # relacionados é como um gate vira `--no-verify` de hábito.
 #
-# NOTA (achado LOW, revisão #132/#134, 2026-09-26): esta resolução sai por `exit 1` ANTES de
-# consultar `_pp_so_delecao` — uma instalação pela metade (`.forge/scripts/lib/` existe sem
-# `heavy-mutex.sh`) continua bloqueando até uma deleção pura, que nunca chegaria a adquirir o
-# mutex. Decisão registrada aqui, não corrigida nesta rodada: é a mesma classe de "bloqueio por
-# causa alheia" que a db1906f removeu do preflight #81, mas só se manifesta com instalação
-# corrompida (severidade baixa) e mexer aqui é decisão de produto sobre até onde o curto-circuito
-# de deleção pura deve alcançar erros de instalação, não só checks de árvore — fora do escopo de
-# DA-10. Se isto voltar a incomodar, a correção é condicionar o `exit 1` a `_pp_so_delecao != 1` e
-# trocar a saída por um aviso na deleção pura.
+# NOTA (#132/#134): esta resolução sai por `exit 1` ANTES de consultar `_pp_so_delecao` — uma instalação pela metade (`.forge/scripts/lib/` existe sem `heavy-mutex.sh`) continua bloqueando até uma deleção pura, que nunca chegaria a adquirir o mutex. É a mesma classe de "bloqueio por causa alheia" que o curto-circuito de deleção pura remove do preflight #81, mas só se manifesta com instalação corrompida, e estendê-lo aqui é decisão de produto sobre até onde o curto-circuito deve alcançar erros de instalação, não só checks de árvore — fora do escopo de DA-10. A correção, se vier, é condicionar o `exit 1` a `_pp_so_delecao != 1` e trocar a saída por um aviso na deleção pura.
 HEAVY_LIB="$(resolve_delegated heavy-mutex.sh scripts/lib/heavy-mutex.sh)"; _rc=$?
 if [ "$_rc" -eq 1 ]; then
   echo "pre-push BLOQUEADO: .forge/scripts/lib/ existe mas heavy-mutex.sh não — delegação em alvo ausente." >&2

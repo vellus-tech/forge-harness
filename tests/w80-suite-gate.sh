@@ -55,18 +55,20 @@ echo "[4] run-all não chama a si mesmo (sem recursão)"
 # stderr, não para invocá-lo).
 ! grep -E 'run-all\.sh|run-all ' "$RA" | grep -vE '^\s*#|run-all\.sh —|run-all\)|name=|Uso:|tests/run-all\.sh |run-all\.sh: ' >/dev/null || \
   { echo "FAIL [4]: run-all.sh menciona a si mesmo fora de comentário/uso documentado (possível recursão)"; exit 1; }
-# garantia direta: nenhuma linha invoca run-all de verdade via bash/sh/exec. O padrão ancora o
-# comando numa posição de comando de verdade (início de linha, ou depois de `; & | ( {` ou
-# `$(`), aceita `command`/`env` opcionais na frente, e só então exige bash/sh/exec seguido de
-# espaço e o restante da linha até "run-all" sem `|`/`;` no meio. A versão anterior só exigia um
-# caractere não-alfanumérico antes do nome do comando: isso deixava passar invocações reais como
-# `bash "$(dirname "${BASH_SOURCE[0]}")/run-all.sh" --list`, `bash -x "$WS/tests/run-all.sh"` e
-# `bash tests/run-all.sh --list` (o espaço entre o comando e o caminho quebrava o antigo
-# `[[:space:]]+[^|;[:space:]]*run-all`), medido com mutação e recontrole (LDG-0182, achado da
-# revisão). Também evita o falso positivo de tratar `x.sh` como o comando `sh` (o `.` antes de
-# "sh" satisfazia `[^A-Za-z0-9_]`) e não casa com a própria definição desta regex, escrita como
-# string literal logo abaixo (falso positivo medido ao converter; ver LDG-0182).
-INVOKE_RE='(^|[;&|({]|\$\()[[:space:]]*(command[[:space:]]+|env[[:space:]]+)?(bash|sh|exec)[[:space:]][^|;]*run-all'
+# garantia direta: nenhuma linha invoca run-all de verdade via bash/sh/exec. O padrão exige uma
+# fronteira de não-identificador (início de linha, ou qualquer caractere que não seja letra,
+# dígito, `_`, `.`, `/` ou `-`) antes do comando, aceita um caminho absoluto opcional colado na
+# frente (`/bin/bash`, `/usr/bin/env` + espaço + `bash`) e não exige adjacência entre o nome do
+# comando e o caminho de run-all. A versão anterior ancorava só em `^|[;&|({]|\$\(`: isso excluía
+# qualquer invocação cujo comando viesse depois de uma palavra-chave de shell ou de outro comando
+# — `if bash tests/run-all.sh --list; then`, `while bash ...`, `/bin/bash tests/run-all.sh`,
+# `timeout 600 bash tests/run-all.sh` e `nohup bash tests/run-all.sh &` passavam com "OK [4]"/
+# "OK [5]" mesmo sendo invocação real, porque nenhum desses prefixos é `; & | ( {` nem `$(`
+# (medido com mutação e recontrole, LDG-0182, segunda rodada de revisão). A regex ainda evita o
+# falso positivo de tratar `x.sh` como o comando `sh` (a fronteira exclui `.` e `-` do lado
+# esquerdo) e não casa com a própria definição desta regex nem com as mensagens de FAIL, escritas
+# como string literal logo abaixo (falso positivo medido ao converter; ver LDG-0182).
+INVOKE_RE='(^|[^A-Za-z0-9_./-])(/[^[:space:]]*/)?(bash|sh|exec)[[:space:]][^|;]*run-all'
 ! grep -E "$INVOKE_RE" "$RA" | grep -vE '^\s*#' >/dev/null || \
   { echo "FAIL [4]: run-all.sh contém invocação real de run-all via bash/sh/exec (recursão)"; exit 1; }
 echo "OK [4]"

@@ -3,27 +3,40 @@
 // The narrative delta (section 4) is preserved across regenerations when already filled, so a
 // rule-based hook run never destroys a delta written by /forge:handoff.
 //
-// REGRA DE BYTES AUTORAIS (#120, 4ª rodada — causa raiz, escrita uma vez em vez de corrigida
-// sintoma a sintoma a cada achado novo):
+// REGRA DE BYTES AUTORAIS (#120, 5ª rodada — digest em vez de forma/regex):
 //
 //   1. O render é uma função pura dos dados do change (manifest/progress/deferrals + git + FORGE.md).
-//   2. "Bytes autorais" de um HANDOFF.md anterior são os bytes que esse render não explica. O ideal
-//      seria comparar contra o render que o gerador teria produzido a partir do MESMO estado
-//      anterior — mas esse estado não é recuperável aqui (só o arquivo resultante existe). A
-//      aproximação usada é: a diferença entre o arquivo anterior e o render dos dados ATUAIS,
-//      restrita às regiões que o template não gera — (a) o slot NARRATIVE-DELTA inteiro, BRUTO, sem
-//      trim e sem atalho de placeholder (qualquer texto ali é autoral, mesmo que comece com o
-//      prefixo do placeholder "_(A preencher"); e (b) todo byte fora da estrutura literal do
-//      template, verificado contra uma "forma" (regex) derivada do próprio template em que cada
-//      `{{CAMPO}}` vira um coringa e o resto é casado ao pé da letra.
-//   3. Backup byte-idêntico + WARN acontecem se e somente se algum byte autoral não sobrevive no
-//      arquivo novo. Consequências que seguem direto da regra, não de guardas ad-hoc: uma mudança
-//      só nos campos gerados (HEAD, data, progresso) sempre casa com a forma do template e nunca
-//      dispara backup nem WARN; um arquivo sem os marcadores nunca casa (a forma exige o texto
-//      literal dos marcadores) e sempre dispara "sem marcadores"; e o WARN nunca aponta "fora do
-//      bloco" quando a perda é no slot — isso é garantido por construção, porque o slot bruto é
-//      sempre copiado para a frente ANTES de qualquer decisão de backup, nunca depois nem
-//      condicionado a como o texto começa ou termina.
+//   2. "Bytes autorais" de um HANDOFF.md anterior são os bytes que esse render não explica.
+//   3. A região do slot NARRATIVE-DELTA é sempre autoral por definição: seu conteúdo BRUTO, sem
+//      trim e sem atalho de placeholder, é sempre copiado para a frente quando os dois arquivos —
+//      o anterior e o novo render — têm o par de marcadores.
+//   4. Para a região FORA do slot ("outside"), a 4ª rodada comparava contra uma "forma" (regex)
+//      derivada do template, com cada `{{CAMPO}}` virando um coringa `[^\n]*`. Isso tem um furo: o
+//      coringa também casa com texto autoral escrito na MESMA LINHA de um campo (ex.: uma nota
+//      colada depois do valor de `{{CHANGE_ID}}` ou de `{{OPEN_DEFERRALS}}`), que então desaparece
+//      com rc 0 e sem WARN — exatamente a classe de bug que a issue #120 denuncia. Nenhuma forma
+//      derivada de regex fecha esse furo por completo (o campo não tem gramática fixa o bastante).
+//   5. A regra atual não usa forma nenhuma: o próprio HANDOFF.md carrega, fora do slot, um
+//      comentário `<!-- FORGE:HANDOFF-DIGEST sha256=<hash> -->` com o sha256 de tudo o que está fora
+//      do slot NAQUELE arquivo (o comentário exclui a si mesmo do hash — ele descreve o resto do
+//      documento, não a si próprio). Na próxima geração, o "outside" do arquivo anterior é
+//      re-hasheado (com o comentário removido) e comparado ao hash que o próprio comentário
+//      registra: se bater, nada foi tocado por fora desde que ESSE arquivo foi escrito — mesmo que
+//      HEAD/data/progresso tenham mudado desde então, porque o hash foi calculado sobre os bytes já
+//      atualizados na última geração, não sobre um estado anterior a ela. Se não bater (edição
+//      manual, texto colado, truncamento) ou se o comentário não existir (arquivo legado, anterior a
+//      esta regra, ou template sem o marcador de digest), backup + WARN.
+//   6. Comparação de digest é feita em Buffer bruto, nunca via string utf8 decodificada: o marcador
+//      do digest é ASCII puro, que em UTF-8 (válido ou não) nunca aparece como byte de continuação,
+//      então localizá-lo por Buffer.indexOf funciona mesmo que o resto do arquivo tenha bytes
+//      inválidos — sem isso, decodificar para achar o marcador substituiria bytes ruins por U+FFFD e
+//      quebraria o hash de qualquer arquivo que não seja UTF-8 limpo.
+//   7. Se o template não tiver o marcador de digest (`<!-- FORGE:HANDOFF-DIGEST -->`) — um template
+//      customizado de um adotante, por exemplo — a regra não é desligada: cai para comparação
+//      literal de bytes entre o "outside" do arquivo anterior e o que seria escrito agora. Isso
+//      ainda é seguro (nunca perde bytes em silêncio) e cobre o caso trivial de duas gerações sem
+//      mudança nenhuma de estado; só reintroduz o falso positivo de deriva de estado (HEAD/data)
+//      que o digest evita, e só nesse template sem suporte ao marcador.
 //
 // Driven by env (set by handoff-gen.sh): HANDOFF_DIR, HANDOFF_TPL, FORGE_ROOT, HANDOFF_ID,
 // HANDOFF_BRANCH, HANDOFF_SHA, HANDOFF_DATE, HANDOFF_TEST, HANDOFF_TYPECHECK, HANDOFF_LINT.
@@ -112,33 +125,47 @@ function backupPreviousHandoff(root, prevBuf) {
   return { path: backupPath, bytes };
 }
 
-function escapeRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
-
-// Builds the "shape" a template can produce: literal text escaped as-is, `{{CAMPO}}` tokens turned
-// into wildcards (fields are single-line values, so `[^\n]*` is enough — none of them legitimately
-// contain a newline). This is what tells a state-only difference (any value at a field's position)
-// apart from an authorial byte (anything that isn't literal template text or a field's position).
-function buildShape(rawText) {
-  return rawText
-    .split(/(\{\{[A-Z_]+\}\})/)
-    .map((part) => (/^\{\{[A-Z_]+\}\}$/.test(part) ? '[^\\n]*' : escapeRegex(part)))
-    .join('');
-}
-
 const START = '<!-- FORGE:NARRATIVE-DELTA:START -->';
 const END = '<!-- FORGE:NARRATIVE-DELTA:END -->';
 const rawCs = rawTpl.indexOf(START), rawCe = rawTpl.indexOf(END);
 const tplHasSlot = rawCs >= 0 && rawCe > rawCs;
 
-// The "outside" shape: everything the template produces outside the slot must match this, for any
-// field values and ANY slot content (the slot is handled separately, on its own raw bytes, below).
-// When the template has no slot at all, the whole document is "outside". A previous file lacking
-// the literal START/END markers can never match a shape that requires them, so "sem marcadores"
-// falls out of this same check instead of needing a separate branch.
-const outsideShape = tplHasSlot
-  ? `${buildShape(rawTpl.slice(0, rawCs + START.length))}[\\s\\S]*${buildShape(rawTpl.slice(rawCe))}`
-  : buildShape(rawTpl);
-const outsideShapeRegex = new RegExp(`^${outsideShape}$`);
+const DIGEST_PLACEHOLDER = '<!-- FORGE:HANDOFF-DIGEST -->';
+// Matches either the unfilled placeholder or an already-filled digest line (with its trailing
+// newline, if any), so the same helper strips it in either form.
+const DIGEST_LINE_STR_RE = /<!-- FORGE:HANDOFF-DIGEST(?: sha256=[0-9a-f]{64})? -->\r?\n?/;
+const digestSupported = rawTpl.includes(DIGEST_PLACEHOLDER);
+
+// Buffer-level digest line lookup: the marker is pure ASCII, and any byte below 0x80 is
+// unambiguous in a UTF-8 stream regardless of what invalid sequences surround it elsewhere in the
+// buffer, so this never needs to decode the buffer as text (see rule item 6 above).
+const DIGEST_PREFIX = Buffer.from('<!-- FORGE:HANDOFF-DIGEST sha256=', 'ascii');
+const DIGEST_SUFFIX = Buffer.from(' -->', 'ascii');
+const DIGEST_HEX_LEN = 64;
+
+function findDigestLine(buf) {
+  const start = buf.indexOf(DIGEST_PREFIX);
+  if (start < 0) return null;
+  const hexStart = start + DIGEST_PREFIX.length;
+  const hexBuf = buf.subarray(hexStart, hexStart + DIGEST_HEX_LEN);
+  const hex = hexBuf.toString('ascii');
+  if (hexBuf.length !== DIGEST_HEX_LEN || !/^[0-9a-f]{64}$/.test(hex)) return null;
+  const suffixStart = hexStart + DIGEST_HEX_LEN;
+  if (buf.subarray(suffixStart, suffixStart + DIGEST_SUFFIX.length).compare(DIGEST_SUFFIX) !== 0) return null;
+  let end = suffixStart + DIGEST_SUFFIX.length;
+  if (buf[end] === 0x0d) end += 1; // \r
+  if (buf[end] === 0x0a) end += 1; // \n
+  return { start, end, hex };
+}
+
+function stripDigestLine(buf, found) {
+  if (!found) return buf;
+  return Buffer.concat([buf.subarray(0, found.start), buf.subarray(found.end)]);
+}
+
+function sha256Hex(buf) {
+  return createHash('sha256').update(buf).digest('hex');
+}
 
 // Preserve an already-written narrative delta (idempotent regen), and back up whatever the render
 // would otherwise silently discard (#120; see the header comment above for the full rule).
@@ -161,12 +188,32 @@ if (existsSync(out)) {
     }
   }
 
-  // Whatever isn't accounted for above (the slot, always preserved raw when both files have
-  // markers) has to match the template's shape for any authorial byte outside it to be ruled out —
-  // a plain state change (new HEAD sha, new progress numbers) always matches, because the shape
-  // wildcards every field position; a previous file that lacks the marker pair the current
-  // template requires never matches, so it always counts as loss too.
-  const wouldLoseBytes = !outsideShapeRegex.test(prev);
+  // The "outside" region of the PREVIOUS file, in raw bytes: everything except the slot's own
+  // (raw, already-preserved) body. Byte-level marker lookup, not string indexOf on the decoded
+  // text, because prefix/suffix bytes here can be arbitrary (including invalid UTF-8) and must
+  // stay byte-exact for the digest to mean anything.
+  const psB = prevBuf.indexOf(START), peB = prevBuf.indexOf(END);
+  const bothHaveMarkersBuf = psB >= 0 && peB > psB && tplHasSlot;
+  const prevOutsideBuf = bothHaveMarkersBuf
+    ? Buffer.concat([prevBuf.subarray(0, psB + START.length), prevBuf.subarray(peB)])
+    : prevBuf;
+
+  let wouldLoseBytes;
+  if (digestSupported) {
+    const found = findDigestLine(prevOutsideBuf);
+    const stripped = stripDigestLine(prevOutsideBuf, found);
+    wouldLoseBytes = !found || found.hex !== sha256Hex(stripped);
+  } else {
+    // No digest marker in this template: fall back to literal byte comparison of the "outside"
+    // region against what would be written now. Still never loses bytes silently, at the cost of
+    // a false positive on pure state drift (HEAD sha, date, progress numbers) — acceptable only
+    // because this path is for a template that opted out of the digest mechanism.
+    const csF = content.indexOf(START), ceF = content.indexOf(END);
+    const newOutside = tplHasSlot
+      ? content.slice(0, csF + START.length) + content.slice(ceF)
+      : content;
+    wouldLoseBytes = !prevOutsideBuf.equals(Buffer.from(newOutside, 'utf8'));
+  }
 
   // If the previous bytes already equal what will be written there is nothing to lose, so no
   // backup; likewise an empty previous file (0 bytes) has nothing to recover, so it is skipped too
@@ -175,6 +222,20 @@ if (existsSync(out)) {
   if (wouldLoseBytes && prevBuf.length > 0) {
     backupInfo = { ...backupPreviousHandoff(root, prevBuf), bothHaveMarkers };
   }
+}
+
+// Stamp the digest of everything outside the slot in THIS render, so the next regeneration can
+// tell a state-only change (fields the renderer itself controls) apart from an authorial byte
+// (anything a human wrote that this renderer would not have produced) without matching against a
+// template "shape" — see rule item 4-5 above for why the shape approach undercounts loss.
+if (digestSupported) {
+  const csF = content.indexOf(START), ceF = content.indexOf(END);
+  const outsideNow = tplHasSlot
+    ? content.slice(0, csF + START.length) + content.slice(ceF)
+    : content;
+  const outsideForHash = outsideNow.replace(DIGEST_LINE_STR_RE, '');
+  const digestHex = sha256Hex(Buffer.from(outsideForHash, 'utf8'));
+  content = content.replace(DIGEST_PLACEHOLDER, `<!-- FORGE:HANDOFF-DIGEST sha256=${digestHex} -->`);
 }
 
 writeFileSync(out, content);

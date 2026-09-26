@@ -466,10 +466,8 @@ function readMachineryExceptions(forge) {
 
 // Classifica CADA exceção declarada contra o universo real do template, antes de qualquer decisão
 // de escrita — usada tanto pelo `--dry-run` quanto pela aplicação real, para que as duas rotas
-// enxerguem a MESMA verdade sobre uma exceção declarada. Achado do review adversarial (HIGH): o
-// dry-run só chamava `readMachineryExceptions` para validar sintaxe, nunca esta classificação, e
-// por isso anunciava `~ rel` (sobrescrita) para um arquivo que a aplicação real preserva —
-// contradizendo, na prévia mostrada ao humano antes de confirmar, a própria feature deste item.
+// enxerguem a MESMA verdade sobre uma exceção declarada: a prévia mostrada ao humano antes de
+// confirmar nunca pode anunciar `~ rel` (sobrescrita) para um arquivo que a aplicação real preserva.
 //   viva ......... sha declarado == sha do template NOVO -> preserva (issue #131)
 //   expirada ..... sha declarado != sha do template novo -> preserva mesmo assim (DH-1),
 //                  nomeando os dois shas para reexame — não bloqueia o update
@@ -510,9 +508,9 @@ function classifyExceptions(forge, files, exceptions, tombstoned) {
 }
 
 // Nomeia, no relatório, quando o caminho declarado em machinery-exceptions.txt levou normalização
-// de prefixo (normalizeExceptionPath) — nunca normaliza em silêncio (achado LOW do review
-// adversarial): quem declarou './scripts/doctor.sh' vê a própria grafia ao lado da forma que o
-// update de fato usou para casar contra o template.
+// de prefixo (normalizeExceptionPath) — nunca normaliza em silêncio: quem declarou
+// './scripts/doctor.sh' vê a própria grafia ao lado da forma que o update de fato usou para casar
+// contra o template.
 function excRawNote(exceptions, rel) {
   const exc = exceptions.entries.get(rel);
   return exc && exc.raw ? ` (declarado como '${exc.raw}')` : '';
@@ -881,12 +879,11 @@ async function updateHarness() {
   const overwrittenUndeclared = [];
   // Arquivo NEM enriquecível NEM coberto por exceção, que diverge do template novo, mas cujo hash
   // local bate com o `machinery.lock` da última aplicação: o consumidor nunca tocou o arquivo —
-  // foi o TEMPLATE que evoluiu. Achado do review adversarial (MEDIUM): rotular isso como
-  // `SOBRESCRITO (não declarado)` — a letra original do plano, "com ou sem lock" — é tecnicamente
-  // correto mas, numa atualização real com dezenas de arquivos defasados, afoga a única sobrescrita
-  // local de verdade em dezenas de linhas idênticas de refresh rotineiro. Continua nomeado (uma
-  // linha por arquivo, nunca em silêncio) — só que sob um rótulo que não confunde "template mudou"
-  // com "sua customização foi revertida".
+  // foi o TEMPLATE que evoluiu. Rotular isso como `SOBRESCRITO (não declarado)` seria tecnicamente
+  // correto, mas, numa atualização real com dezenas de arquivos defasados, afogaria a única
+  // sobrescrita local de verdade em dezenas de linhas idênticas de refresh rotineiro. Continua
+  // nomeado (uma linha por arquivo, nunca em silêncio) — só que sob um rótulo (`ATUALIZADO`) que
+  // não confunde "template mudou" com "sua customização foi revertida".
   const templateUpdated = [];
   for (const [rel, srcAbs] of files) {
     const dst = join(forge, rel);
@@ -931,9 +928,8 @@ async function updateHarness() {
     for (const rel of preservedFiles.sort()) console.log(`  = ${rel}`);
     console.log('  (se o template também mudou nesses paths, reconcilie à mão — diff contra .forge.bak-N)');
   }
-  // achado do review adversarial (LOW): o texto apontava `.forge.bak-N`, convenção anterior à
-  // #76 (o backup mudou para fora da árvore, em `.git/forge-backups/`) — `mostra` já resolve o
-  // ponteiro real e é o mesmo usado pelas linhas ATUALIZADO/SOBRESCRITO logo abaixo.
+  // O backup mudou para fora da árvore desde a #76 (`.git/forge-backups/`, não mais `.forge.bak-N`);
+  // `mostra` já resolve o ponteiro real e é o mesmo usado pelas linhas ATUALIZADO/SOBRESCRITO abaixo.
   for (const rel of driftWarned.sort()) {
     const backupPointer = mostra ? join(mostra, rel) : '(sem backup — rodado com --no-backup)';
     console.log(`WARN: drift local em ${rel} sobrescrito pelo template (fix local em maquinaria? faça upstream; conteúdo anterior em ${backupPointer})`);

@@ -6,6 +6,10 @@ e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Três guardas do tipo `! comando` sob `set -e` estavam mortos e nunca reprovavam o gate, mesmo com o defeito que deveriam pegar presente de verdade (LDG-0182).** Sob `set -euo pipefail`, `! comando` sozinho nunca sai por `set -e` — o retorno invertido isenta a linha — então a reprovação exigia a forma explícita `! comando || { echo FAIL; exit 1; }`. Em `tests/w62-handoff-hook-gate.sh` `[1]`, a checagem de que o install default (`handoff.auto: false`) não injeta `SessionStart`/`SessionEnd` em `settings.json` passava mesmo com as duas chaves presentes — medido renomeando a chave `PreToolUse` para `SessionStart` no `sync-adapters.mjs`, o gate continuava `OK [1]`. Em `tests/w80-suite-gate.sh` `[4]`/`[5]`, a checagem de que `run-all.sh` não se invoca a si mesmo (recursão) tinha o mesmo defeito, mais uma regex de invocação (`INVOKE_RE`) frouxa demais: `(^|[^A-Za-z0-9_])(bash|sh|exec)[[:space:]]+[^|;[:space:]]*run-all` exigia o comando colado ao caminho sem espaço no meio, deixando passar invocações reais como `bash "$(dirname "${BASH_SOURCE[0]}")/run-all.sh" --list` ou `bash tests/run-all.sh --list`, além de tratar `x.sh` como o comando `sh` por falso positivo. A regex nova ancora o comando numa posição real (início de linha ou depois de `; & | ( {`/`$(`) e cobre o restante da linha até `run-all` sem exigir adjacência com o caminho, com as quatro variantes reprovadas por mutação e o falso positivo de `x.sh` fechado. As três asserções passam para `! comando || \` seguido do bloco `FAIL` na linha seguinte, e a varredura cega do DoD (`grep -nE '^[[:space:]]*! '` sem `||` na mesma linha física) fica limpa nos três gates. Cada correção medida com mutação e recontrole (`cmp -s` contra cópia restaurada).
+
 ## [0.15.0] — 2026-09-09
 
 ### Added

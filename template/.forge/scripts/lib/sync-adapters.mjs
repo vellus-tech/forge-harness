@@ -43,9 +43,11 @@ const ADAPTERS_DIR = join(FORGE, 'adapters');
 // inofensivo, mas o `process.exit(1)` que a acompanhava matava qualquer processo que apenas
 // importasse o módulo para ler uma exportação, mesmo a partir de um cwd sem projeto Forge — o
 // mesmo dano que a #130 fecha para o bloco de entrada, só que por um caminho de módulo diferente
-// (issue #130, achado de correção). A checagem amigável ("run /forge:init first") só roda dentro
-// de `reconcile()` (lançada como `Error`, nunca `process.exit`) e é convertida em `FAIL (...)` +
-// `exit(1)` só dentro do galho principal, ao final do arquivo.
+// (issue #130, achado de correção). A checagem amigável ("run /forge:init first") roda como
+// `throw` (nunca `process.exit`) na PRIMEIRA linha do galho principal — antes de qualquer leitura
+// ou escrita de `forge.yaml` (achado de correção #130, MEDIUM-1/MEDIUM-2) — e dentro de
+// `reconcile()`, para quem a chamar programaticamente sem passar por ali. Só o galho principal,
+// ao final do arquivo, converte a exceção em `FAIL (...)` + `exit(1)`.
 
 // ── fs helpers ───────────────────────────────────────────────────────────────
 const sha256 = (buf) => 'sha256:' + createHash('sha256').update(buf).digest('hex');
@@ -306,19 +308,24 @@ const ORDER = ['claude', 'codex', 'gemini', 'qwen', 'forge-cli', 'agents-skills'
 const KNOWN = new Set(ORDER);
 
 // ── reconcile (generate active + prune deactivated) ──────────────────────────
-// Exportado com nome estável (#130): #160 e #125 tocam este mesmo arquivo em PRs
-// posteriores e importam esta função para acionar a reconciliação sem depender do CLI. Escreve
-// no ROOT do módulo (derivado de --root/cwd na importação) — pré-existente à #130 (já em
-// 480ac52, antes deste item) e fora do escopo estreito desta correção; documentado em
-// deviations. `preToolUseWiring(root)`, acima, é a leitura pura e parametrizada que #125/#160
-// usam para comparar sem reconciliar.
+// NÃO exportada (achado de correção #130, MEDIUM-4): a iteração 1 exportava esta função para
+// #160/#125 acionarem a reconciliação sem depender do CLI, mas nenhuma delas precisa — as duas
+// importam `preToolUseWiring(root)` (acima), a leitura PURA e parametrizada, para comparar sem
+// escrever. `reconcile` nunca foi exportada em `origin/develop` antes desta issue, e exportá-la
+// agora exporia uma escrita implícita no ROOT do módulo (derivado de --root/cwd de quem importa,
+// pré-existente à #130 — já em 480ac52) para qualquer futuro import: um `mod.reconcile([...])`
+// chamado com cwd na raiz de outro projeto reconciliaria ESSE projeto, o mesmo dano que a #130
+// fecha para o import simples. Mantida como função de módulo, só para o galho principal (abaixo)
+// chamar. Se um consumidor real precisar de reconciliação programática, o desenho correto é uma
+// função parametrizada pela raiz explícita (`reconcileAt(root, names)`), a abrir como item de
+// ledger próprio quando esse consumidor existir — não esta.
 //
 // process.exit só dentro do galho principal (achado de correção #130, HIGH-2): as duas
 // validações abaixo LANÇAM, nunca chamam `process.exit` diretamente — quem chama `reconcile`
 // programaticamente (import, não CLI) recebe uma exceção catchable, nunca tem o processo morto
 // à força. O galho principal, ao final do arquivo, é quem converte a exceção em `FAIL (...)` +
 // `exit(1)` para o uso via CLI.
-export function reconcile(activeNames) {
+function reconcile(activeNames) {
   if (!existsSync(join(FORGE, 'FORGE.md'))) {
     throw new Error(`no .forge/FORGE.md under ${ROOT} — run /forge:init first`);
   }
@@ -402,6 +409,17 @@ function isMainModule() {
 // arquivo é o principal — nunca quando é importado.
 if (isMainModule()) {
   try {
+    // Checagem de .forge/FORGE.md na PRIMEIRA linha do galho principal (achado de correção #130,
+    // MEDIUM-1/MEDIUM-2): antes rodava só dentro de reconcile(), então --set chamava writeActive()
+    // (gravando forge.yaml) ANTES de chegar lá, e o modo default/--adapter all chamava
+    // readActive() primeiro — que lê forge.yaml e falha com ENOENT cru se .forge/ nem existir,
+    // vazando uma mensagem diferente da amigável ("no .forge/FORGE.md ... — run /forge:init
+    // first") e, no caso do --set, mutando o consumidor no próprio caminho de falha (a mesma
+    // classe de defeito que a #130 fecha para o bloco de entrada). Checar aqui garante mensagem e
+    // ordem idênticas nos três modos, e nenhuma escrita antes de validar.
+    if (!existsSync(join(FORGE, 'FORGE.md'))) {
+      throw new Error(`no .forge/FORGE.md under ${ROOT} — run /forge:init first`);
+    }
     if (SET !== null) {
       const names = SET.split(',').map((s) => s.trim()).filter(Boolean);
       if (names.length === 0) throw new Error('--set needs at least one adapter');
@@ -413,10 +431,8 @@ if (isMainModule()) {
     } else if (ADAPTER === 'all' || ADAPTER === null) {
       reconcile(readActive());
     } else {
-      // regenerate a single adapter (no prune, no active-list change); core first
-      if (!existsSync(join(FORGE, 'FORGE.md'))) {
-        throw new Error(`no .forge/FORGE.md under ${ROOT} — run /forge:init first`);
-      }
+      // regenerate a single adapter (no prune, no active-list change); core first — checagem de
+      // FORGE.md já rodou acima, no topo do galho principal; não duplicar aqui.
       if (!KNOWN.has(ADAPTER)) throw new Error(`unknown adapter '${ADAPTER}' — known: ${ORDER.join(', ')}, all`);
       const coreLock = makeLock();
       generateCore(coreLock);

@@ -9,9 +9,12 @@
 #   [4] preserva o delta narrativo escrito entre os marcadores (controle: nenhum backup)
 #   [5] sem marcadores + conteúdo mudaria → backup byte-idêntico ao anterior + WARN nomeia o caminho
 #   [6] arquivo idêntico ao que seria renderizado (sem marcadores) → nenhum backup
-#   [7] PBT: para conteúdo anterior gerado (com/sem marcadores, bytes aleatórios dentro e fora
-#       deles), os bytes anteriores são sempre recuperáveis — no próprio arquivo (delta
-#       preservado) ou num backup byte-idêntico nomeado pelo WARN
+#   [7] PBT: sem marcadores, os bytes anteriores são sempre recuperáveis — no próprio arquivo
+#       (já idêntico) ou num backup byte-idêntico nomeado pelo WARN; com marcadores, o corpo
+#       entre eles é sempre preservado no arquivo (não cobre bytes fora do slot — ver [10])
+#   [8] backup é byte-idêntico ao arquivo anterior mesmo com bytes inválidos em UTF-8, e a
+#       contagem de bytes no WARN bate com o tamanho bruto do arquivo, não com a string decodificada
+#   [9] arquivo anterior de 0 bytes → nenhum backup, nenhum WARN (nada a recuperar)
 set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -168,5 +171,32 @@ if (!r.ok) {
 console.log(`PBT OK — seed ${SEED}, ${r.runs} casos`);
 EOF
 echo "OK [7]"
+
+echo "[8] backup byte-idêntico com bytes inválidos em UTF-8; WARN conta bytes brutos, não a string decodificada"
+BC_BEFORE8="$(backup_count)"
+printf 'Se\xe7\xe3o antiga em latin-1\n\xff\xfe lixo binario\n' > "$H"
+cp "$H" "$T/prev-8.bin"
+EXPECT_BYTES8="$(wc -c < "$T/prev-8.bin" | tr -d ' ')"
+FORGE_ROOT="$T" bash "$GEN" demo-change >"$T/stdout-8.log" 2>"$T/stderr-8.log"
+grep -q '^WARN: HANDOFF.md sem marcadores NARRATIVE-DELTA' "$T/stderr-8.log" \
+  || { echo "FAIL [8] (WARN ausente em stderr)"; cat "$T/stderr-8.log"; exit 1; }
+grep -q "conteúdo anterior ($EXPECT_BYTES8 bytes)" "$T/stderr-8.log" \
+  || { echo "FAIL [8] (contagem de bytes no WARN não bate com o tamanho bruto do arquivo anterior)"; cat "$T/stderr-8.log"; exit 1; }
+WARN_PATH8="$(sed -n 's/.*salvo em \(.*\)$/\1/p' "$T/stderr-8.log" | head -1)"
+[ -n "$WARN_PATH8" ] || { echo "FAIL [8] (WARN sem caminho)"; exit 1; }
+[ -f "$WARN_PATH8" ] || { echo "FAIL [8] (caminho do WARN não existe: $WARN_PATH8)"; exit 1; }
+cmp -s "$T/prev-8.bin" "$WARN_PATH8" \
+  || { echo "FAIL [8] (backup não é byte-idêntico ao conteúdo anterior — bytes inválidos em UTF-8 corrompem a cópia)"; exit 1; }
+[ "$(backup_count)" = "$((BC_BEFORE8 + 1))" ] || { echo "FAIL [8] (contagem de backups não incrementou em 1)"; exit 1; }
+echo "OK [8]"
+
+echo "[9] arquivo anterior vazio (0 bytes) → nenhum backup, nenhum WARN (nada a recuperar)"
+BC_BEFORE9="$(backup_count)"
+: > "$H"
+FORGE_ROOT="$T" bash "$GEN" demo-change >"$T/stdout-9.log" 2>"$T/stderr-9.log"
+[ -s "$T/stderr-9.log" ] && { echo "FAIL [9] (WARN/ruído em stderr para arquivo anterior vazio)"; cat "$T/stderr-9.log"; exit 1; }
+[ "$(backup_count)" = "$BC_BEFORE9" ] || { echo "FAIL [9] (backup criado para arquivo anterior vazio, sem nada a recuperar)"; exit 1; }
+grep -q 'demo-change' "$H"
+echo "OK [9]"
 
 echo "PASS w60-handoff-gen-gate"

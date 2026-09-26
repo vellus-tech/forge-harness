@@ -242,9 +242,12 @@ grep -qi "bug-2" <<<"$out" || { echo "FAIL: pre-push não citou o change pendent
 [ "$wt_before7" = "$wt_after7" ] || { echo "FAIL: pre-push criou worktree — replay não pode rodar no hook"; exit 1; }
 elapsed=$((end_ts - start_ts))
 [ "$elapsed" -le 15 ] || { echo "FAIL: pre-push demorou ${elapsed}s — check estático deveria ser rápido (sem rodar teste algum)"; exit 1; }
-! grep -Eq '(bash|node)[^#]*(red-evidence\.sh[^#]*replay|red-replay\.mjs|red-evidence-ops\.mjs)' \
-  "$WS/template/.forge/hooks/git/lib/check-red-first.sh" \
-  || { echo "FAIL: hook de pre-push invoca o motor de replay — deveria ser só o check estático"; exit 1; }
+# LDG-0182: NÃO é `! cmd` nu — já é `! cmd || { FAIL; exit 1; }` (medido: mutação com uma invocação
+# real de replay no hook faz reprovar hoje, antes de qualquer mudança). Só reflui em uma linha para
+# não ser sinalizada pelo grep cego do DoD da Onda 0 (que olha linha a linha e não enxerga a
+# continuação por `\`); sem mudança de semântica.
+! grep -Eq '(bash|node)[^#]*(red-evidence\.sh[^#]*replay|red-replay\.mjs|red-evidence-ops\.mjs)' "$WS/template/.forge/hooks/git/lib/check-red-first.sh" || \
+  { echo "FAIL: hook de pre-push invoca o motor de replay — deveria ser só o check estático"; exit 1; }
 echo "OK [7]"
 
 echo "[8] pre-push NÃO bloqueia fix(...) que não intersecta fix_files do change pendente"

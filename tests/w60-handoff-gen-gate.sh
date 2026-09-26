@@ -15,6 +15,9 @@
 #   [8] backup é byte-idêntico ao arquivo anterior mesmo com bytes inválidos em UTF-8, e a
 #       contagem de bytes no WARN bate com o tamanho bruto do arquivo, não com a string decodificada
 #   [9] arquivo anterior de 0 bytes → nenhum backup, nenhum WARN (nada a recuperar)
+#   [10] controle/limitação conhecida (DA-09, roadmap Onda 8): com marcadores JÁ presentes, texto
+#        escrito fora do par START/END continua sendo descartado sem backup e sem WARN — este
+#        cenário não é regressão a corrigir aqui; documenta o limite do que o #120 cobre
 set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -153,6 +156,11 @@ function runCase(hasMarkers, bodyWords, prefixWords, suffixWords) {
   const res = spawnSync('bash', [gen, 'demo-change'], { cwd: root, env: { ...process.env, FORGE_ROOT: root }, encoding: 'utf8' });
   if (res.status !== 0) return false; // #120 é sobre nunca perder bytes com rc 0 — rc≠0 já é outro defeito
   const after = fs.readFileSync(H, 'utf8');
+  // Com marcadores, a propriedade provada é só a preservação do corpo entre START/END — prefix e
+  // suffix (fora do slot) NÃO entram nesta checagem de propósito: são descartados por desenho
+  // sempre que os marcadores já existem (limitação conhecida, ver [10] e o comentário no topo de
+  // handoff-render.mjs). Não fortaleça esta linha para exigir prefix/suffix sem antes mudar o
+  // desenho e o DA-09 do plano — o [10] existiria para falhar primeiro.
   if (hasMarkers) return after.includes(body);
   if (after === prev) return true; // nada a recuperar — já idêntico ao que seria escrito
   const m = /salvo em (.*)$/m.exec(res.stderr || '');
@@ -198,5 +206,22 @@ FORGE_ROOT="$T" bash "$GEN" demo-change >"$T/stdout-9.log" 2>"$T/stderr-9.log"
 [ "$(backup_count)" = "$BC_BEFORE9" ] || { echo "FAIL [9] (backup criado para arquivo anterior vazio, sem nada a recuperar)"; exit 1; }
 grep -q 'demo-change' "$H"
 echo "OK [9]"
+
+echo "[10] controle/limitação conhecida: com marcadores presentes, conteúdo fora do slot NARRATIVE-DELTA some sem backup e sem WARN (DA-09, roadmap Onda 8)"
+FORGE_ROOT="$T" bash "$GEN" demo-change >/dev/null 2>&1   # regenera do zero — marcadores presentes
+python3 - "$H" <<'PY'
+import sys
+p = sys.argv[1]
+s = open(p).read()
+extra = "\n## Rodada extra\n\nTexto acrescentado FORA do par de marcadores (mesma prática que a issue #120 descreve).\n"
+open(p, 'w').write(s + extra)
+PY
+BC_BEFORE10="$(backup_count)"
+FORGE_ROOT="$T" bash "$GEN" demo-change >"$T/stdout-10.log" 2>"$T/stderr-10.log"
+grep -q 'Rodada extra' "$H" \
+  && { echo "FAIL [10] (o texto fora do slot deveria ter sido perdido nesta rodada — se a limitação foi corrigida, atualize este cenário, o comentário de handoff-render.mjs e o CHANGELOG em vez de deixá-lo falhar)"; exit 1; }
+[ -s "$T/stderr-10.log" ] && { echo "FAIL [10] (WARN inesperado — a limitação documentada é a ausência de aviso neste caso)"; cat "$T/stderr-10.log"; exit 1; }
+[ "$(backup_count)" = "$BC_BEFORE10" ] || { echo "FAIL [10] (backup inesperado — a limitação documentada é a ausência de backup neste caso)"; exit 1; }
+echo "OK [10] (limitação conhecida confirmada, não é regressão desta mudança)"
 
 echo "PASS w60-handoff-gen-gate"

@@ -62,6 +62,11 @@ resolve_delegated() {  # resolve_delegated <label> <rel-sob-.forge/> — ecoa o 
     return 0
   fi
   if [ -d "$wt_dir" ] || { [ -n "$trunk_dir" ] && [ -d "$trunk_dir" ]; }; then
+    # A recusa do CHAMADOR (texto literal, mantido) fala de UMA árvore só. Sem esta linha, uma
+    # worktree que não tem sequer o DIRETÓRIO faria a mensagem afirmar, por omissão, que ele
+    # existe nela — falso quando só o tronco o tem. Nomear as duas buscas não muda o prefixo que
+    # gates e usuários casam, só acrescenta onde se procurou.
+    echo "  (procurado em $wt_dir e em ${trunk_dir:-<tronco indisponível>})" >&2
     return 1
   fi
   return 2
@@ -408,26 +413,29 @@ gates_inline_raw() {
   ' "$FORGE_MD"
 }
 
-RUNTIME_LIB="$ROOT/.forge/scripts/lib/forge-runtime.sh"
 if [ -n "$(gates_key_present)" ]; then
-  if [ ! -f "$RUNTIME_LIB" ]; then
-    # Pré-condição de DIRETÓRIO, como todas as guardas irmãs deste arquivo (AI_CHECK, ACKS,
-    # HEAVY_LIB, require_hook_lib e o bloco de lints de shell) e como o comentário do topo declara:
-    # "o no-op só é legítimo quando o harness NÃO está instalado — se o DIRETÓRIO que hospeda o
-    # alvo existe, a ausência do alvo significa harness atualizado pela metade". Sem
-    # `.forge/scripts/` não há harness instalado NESTE checkout, e não há contrato a cobrar.
-    #
-    # Mas alinhar não é afrouxar: com `.forge/scripts/` ausente E gates declarados INLINE, nenhum
-    # dos scripts declarados pode existir, e o push é recusado do mesmo jeito — é o que o hook
-    # anterior já fazia por outro caminho (o `[ -f "$gate_script" ]` do laço), e perder isso seria
-    # uma regressão de cobertura disfarçada de consistência.
-    if [ -d "$ROOT/.forge/scripts" ]; then
+  # Issue #141 (achado do adendo de revisão do w223): este sítio era o único, entre os irmãos
+  # deste arquivo (AI_CHECK, ACKS, HEAVY_LIB, require_hook_lib, HARNESS_SUITE), que resolvia o
+  # alvo por `$ROOT` literal em vez de `resolve_delegated` — uma worktree sem
+  # `.forge/scripts/lib/forge-runtime.sh` bloqueava mesmo com o tronco (delegado por
+  # `core.hooksPath` absoluto) tendo a lib. rc 0 = achado (própria árvore ou tronco, com aviso
+  # nomeando-o); rc 1 = ausente nas duas árvores mas o diretório-lar existe em ao menos uma —
+  # harness atualizado pela metade, bloqueio mantido; rc 2 = diretório-lar ausente nas duas —
+  # sem `.forge/scripts/` não há harness instalado em NENHUMA das duas árvores, e o caminho
+  # degradado abaixo decide se ainda assim há contrato a cobrar (gates declarados inline).
+  RUNTIME_LIB="$(resolve_delegated forge-runtime.sh scripts/lib/forge-runtime.sh)"; _rc_runtime=$?
+  if [ -z "$RUNTIME_LIB" ]; then
+    if [ "$_rc_runtime" -eq 1 ]; then
       echo "pre-push BLOQUEADO: .forge/scripts/ existe e .forge/scripts/lib/forge-runtime.sh não." >&2
       echo "  É o leitor ÚNICO de runtime.gates (o mesmo de run-gates.sh e spec-verify.sh); sem ele" >&2
       echo "  o hook não sabe o que foi declarado, e seguir devolveria zero gates com push verde." >&2
       echo "  Rode 'npx forge-harness update' ou restaure a lib." >&2
       exit 1
     fi
+    # rc 2: ausente nas duas árvores. Alinhar não é afrouxar: com gates declarados INLINE, nenhum
+    # dos scripts declarados pode existir em lugar nenhum, e o push é recusado do mesmo jeito — é
+    # o que o hook anterior já fazia por outro caminho (o `[ -f "$gate_script" ]` do laço), e
+    # perder isso seria uma regressão de cobertura disfarçada de consistência.
     _gates_inline_degraded="$(gates_inline_raw)"
     if [ -n "$_gates_inline_degraded" ]; then
       echo "pre-push BLOQUEADO: runtime.gates declara '$_gates_inline_degraded' e .forge/scripts/ não existe neste checkout." >&2
@@ -437,8 +445,8 @@ if [ -n "$(gates_key_present)" ]; then
     fi
     # NO-GATES honesto, dito em voz alta: nada declarado inline e nenhum script onde um gate
     # pudesse morar. "Não examinei" continua visível (issue #49) sem travar quem não instalou.
-    echo "pre-push: runtime.gates NO-GATES — .forge/scripts/ ausente neste checkout e nenhum gate declarado inline"
-  else   # leitor presente: caminho normal, com o leitor canônico
+    echo "pre-push: runtime.gates NO-GATES — .forge/scripts/ ausente nas duas árvores e nenhum gate declarado inline"
+  else   # leitor presente (própria árvore ou tronco): caminho normal, com o leitor canônico
   # shellcheck disable=SC1090
   . "$RUNTIME_LIB"
   # Pelo leitor canônico, nunca por um awk local: é justamente a segunda implementação do mesmo
@@ -515,13 +523,29 @@ fi
 # O `elif` é o ponto central, e é a instância 4 aplicada à própria fiação: `[ -f ]` sozinho
 # degrada em silêncio — apagar o runner deixaria o hook verde sem uma linha. A existência do
 # DIRETÓRIO de suítes torna a ausência do runner um ERRO.
-HARNESS_SUITE="$(resolve_delegated run-all.sh scripts/tests/run-all.sh)"; _rc=$?
-if [ -n "$HARNESS_SUITE" ]; then
-  run_check "harness-tests" "bash '$HARNESS_SUITE'"
-elif [ "$_rc" -eq 1 ]; then
-  echo "pre-push BLOQUEADO: .forge/scripts/tests/ existe mas run-all.sh não — a suíte do harness sumiu." >&2
-  echo "  Guarda que ninguém roda não cobre nada; restaure o runner ou remova o diretório." >&2
-  exit 1
+#
+# Issue #141, sítio invertido (achado do adendo de revisão do w223): o ALVO (`run-all.sh`) pode
+# vir emprestado do tronco, mas o `run_check` abaixo o EXECUTA sempre com `set -uo pipefail` e
+# `DIR="$(dirname "${BASH_SOURCE[0]}")"` por padrão — sem `--path`, um runner emprestado do
+# tronco examina o DIRETÓRIO DO TRONCO, nunca `$ROOT`. Duas falhas simétricas do mesmo silêncio:
+# (a) a worktree tem `.forge/scripts/tests/` com um teste que falha e nenhum `run-all.sh`
+# próprio — sem `--path`, o runner emprestado varre o tronco (tipicamente vazio) e devolve
+# "harness-tests OK" tendo examinado zero teste do que a worktree publica; (b) a worktree não
+# tem `.forge/scripts/tests/` nenhum (harness anterior à #73) e o tronco tem um teste que falha
+# por razão alheia à worktree — sem a guarda de diretório abaixo, o fallback rodaria a suíte do
+# tronco e bloquearia o push por causa alheia, a MESMA classe que esta issue existe para fechar,
+# só invertida. A guarda de diretório e o `--path` resolvem as duas: só tenta resolver quando
+# `$ROOT/.forge/scripts/tests` existe NA WORKTREE (senão seria correto ficar em silêncio, como
+# antes da #73), e sempre aponta a execução para essa mesma árvore, venha o runner de onde vier.
+if [ -d "$ROOT/.forge/scripts/tests" ]; then
+  HARNESS_SUITE="$(resolve_delegated run-all.sh scripts/tests/run-all.sh)"; _rc=$?
+  if [ -n "$HARNESS_SUITE" ]; then
+    run_check "harness-tests" "bash '$HARNESS_SUITE' --path '$ROOT/.forge/scripts/tests'"
+  elif [ "$_rc" -eq 1 ]; then
+    echo "pre-push BLOQUEADO: .forge/scripts/tests/ existe mas run-all.sh não — a suíte do harness sumiu." >&2
+    echo "  Guarda que ninguém roda não cobre nada; restaure o runner ou remova o diretório." >&2
+    exit 1
+  fi
 fi
 
 # ── tronco à frente do remoto (issue #67) ────────────────────────────────────────────────────────

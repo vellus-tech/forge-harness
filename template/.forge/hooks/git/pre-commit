@@ -33,6 +33,11 @@ resolve_delegated() {  # resolve_delegated <label> <rel-sob-.forge/> — ecoa o 
     return 0
   fi
   if [ -d "$wt_dir" ] || { [ -n "$trunk_dir" ] && [ -d "$trunk_dir" ]; }; then
+    # A recusa do CHAMADOR (texto literal, mantido) fala de UMA árvore só. Sem esta linha, uma
+    # worktree que não tem sequer o DIRETÓRIO faria a mensagem afirmar, por omissão, que ele
+    # existe nela — falso quando só o tronco o tem. Nomear as duas buscas não muda o prefixo que
+    # gates e usuários casam, só acrescenta onde se procurou.
+    echo "  (procurado em $wt_dir e em ${trunk_dir:-<tronco indisponível>})" >&2
     return 1
   fi
   return 2

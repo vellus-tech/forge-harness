@@ -99,6 +99,10 @@ _redfirst_resolve_delegated() {  # _redfirst_resolve_delegated <label> <rel-sob-
     return 0
   fi
   if [ -d "$wt_dir" ] || { [ -n "$trunk_dir" ] && [ -d "$trunk_dir" ]; }; then
+    # Mesma correção do resolve_delegated de pre-push/pre-commit/commit-msg/post-merge: nomear
+    # as duas árvores procuradas, nunca deixar a recusa do chamador implicar presença que só
+    # existe numa delas.
+    echo "  (procurado em $wt_dir e em ${trunk_dir:-<tronco indisponível>})" >&2
     return 1
   fi
   return 2

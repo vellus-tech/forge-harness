@@ -26,6 +26,14 @@ import { createHash } from 'node:crypto';
 import { join, relative, basename, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// CliError — marca as validações INTENCIONAIS (FORGE.md ausente, --set vazio, adapter
+// desconhecido) que o galho principal converte em `FAIL (mensagem)` de uma linha. Um erro
+// inesperado (bug interno, EACCES, ENOTDIR de um `.forge/` corrompido) NÃO é um `CliError` — o
+// galho principal imprime o `stack` completo antes do `FAIL (...)`, exatamente como o Node fazia
+// por padrão antes de existir este `try/catch` (achado de correção #130, LOW-1: o catch-all
+// original engolia a stack de QUALQUER exceção, não só das validações esperadas).
+class CliError extends Error {}
+
 // ── args ─────────────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
 const opt = (name, dflt) => {
@@ -327,10 +335,10 @@ const KNOWN = new Set(ORDER);
 // `exit(1)` para o uso via CLI.
 function reconcile(activeNames) {
   if (!existsSync(join(FORGE, 'FORGE.md'))) {
-    throw new Error(`no .forge/FORGE.md under ${ROOT} — run /forge:init first`);
+    throw new CliError(`no .forge/FORGE.md under ${ROOT} — run /forge:init first`);
   }
   for (const n of activeNames) {
-    if (!KNOWN.has(n)) throw new Error(`unknown adapter '${n}' — known: ${ORDER.join(', ')}`);
+    if (!KNOWN.has(n)) throw new CliError(`unknown adapter '${n}' — known: ${ORDER.join(', ')}`);
   }
   const active = ORDER.filter((n) => activeNames.includes(n)); // canonical order
 
@@ -418,13 +426,13 @@ if (isMainModule()) {
     // classe de defeito que a #130 fecha para o bloco de entrada). Checar aqui garante mensagem e
     // ordem idênticas nos três modos, e nenhuma escrita antes de validar.
     if (!existsSync(join(FORGE, 'FORGE.md'))) {
-      throw new Error(`no .forge/FORGE.md under ${ROOT} — run /forge:init first`);
+      throw new CliError(`no .forge/FORGE.md under ${ROOT} — run /forge:init first`);
     }
     if (SET !== null) {
       const names = SET.split(',').map((s) => s.trim()).filter(Boolean);
-      if (names.length === 0) throw new Error('--set needs at least one adapter');
+      if (names.length === 0) throw new CliError('--set needs at least one adapter');
       for (const n of names) {
-        if (!KNOWN.has(n)) throw new Error(`unknown adapter '${n}' — known: ${ORDER.join(', ')}`);
+        if (!KNOWN.has(n)) throw new CliError(`unknown adapter '${n}' — known: ${ORDER.join(', ')}`);
       }
       writeActive(ORDER.filter((n) => names.includes(n)));
       reconcile(names);
@@ -433,7 +441,7 @@ if (isMainModule()) {
     } else {
       // regenerate a single adapter (no prune, no active-list change); core first — checagem de
       // FORGE.md já rodou acima, no topo do galho principal; não duplicar aqui.
-      if (!KNOWN.has(ADAPTER)) throw new Error(`unknown adapter '${ADAPTER}' — known: ${ORDER.join(', ')}, all`);
+      if (!KNOWN.has(ADAPTER)) throw new CliError(`unknown adapter '${ADAPTER}' — known: ${ORDER.join(', ')}, all`);
       const coreLock = makeLock();
       generateCore(coreLock);
       writeLock('core', coreLock);
@@ -443,6 +451,11 @@ if (isMainModule()) {
       console.log(`OK ${ADAPTER} adapter synced (${lock.entries.length} targets)`);
     }
   } catch (e) {
+    // Só um CliError (validação intencional) vira FAIL de uma linha; qualquer outra exceção
+    // (bug interno, EACCES, ENOTDIR de um .forge/ corrompido) imprime o stack completo primeiro
+    // — o diagnóstico que o Node dava por padrão antes deste try/catch existir (achado de
+    // correção #130, LOW-1).
+    if (!(e instanceof CliError)) console.error(e.stack || String(e));
     console.error(`FAIL (${e.message})`);
     process.exit(1);
   }

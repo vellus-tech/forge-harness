@@ -17,6 +17,13 @@
 #   [4] PBT: para 50 subconjuntos gerados (semente fixa) de blobs apagados localmente sobre um
 #       conjunto de 12 mensagens com corpo, depois de um `sync` TODO body_ref local cujo blob
 #       existe no hub está de volta, byte-idêntico
+#   [5] achado da revisão (severidade HIGH): a passada de recuperação instalava cegamente o que
+#       encontrasse em `fromBlobs`, sem conferir tamanho nem sha256 do nome contra o compromisso
+#       que a réplica já tinha aceitado — um hub adulterado ou acima do teto para mensagem CONHECIDA
+#       era instalado e reportado como "recuperado". [5a] sha adulterado, [5b] acima do teto: os
+#       dois não instalam, nunca dizem "recuperado", e emitem WARN distinto nomeando a mensagem
+#   [6] achado da revisão (severidade MEDIUM, "o que resolveria" do corpo da issue): o `status`
+#       conta e nomeia `body_ref` sem blob local, por canal e agregado
 set -uo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -192,5 +199,85 @@ n_final="$(ls "$QQ_BLOBS" 2>/dev/null | wc -l | tr -d ' ')"
 [ "${n_final:-0}" -eq "$N_MSGS" ] \
   || { echo "FAIL [4]: ao final dos $n_trials trials, qq tem ${n_final:-0} blob(s), esperado $N_MSGS — algum não recuperou"; exit 1; }
 echo "OK [4] ($n_trials trials, semente $SEED)"
+
+last_pp_msg_and_blob() { # última linha do log de pp: "msg_id blob-name" (mensagem acabada de mandar)
+  # Um único campo separado por espaço, nunca por \n: `read` sempre delimita registro por newline,
+  # não por IFS (setar IFS=$'\n' não muda isso) — um `$(...)` com newline embutido faria `read`
+  # consumir só a primeira "linha" e deixar o segundo campo vazio. msg_id e nome de blob nunca têm
+  # espaço (o nome é sanitizado para [A-Za-z0-9._-]), então um único espaço é separador seguro.
+  node -e '
+const fs = require("fs");
+const lines = fs.readFileSync(process.argv[1], "utf8").split("\n").filter((l) => l.trim());
+const m = JSON.parse(lines[lines.length - 1]);
+process.stdout.write(m.msg_id + " " + m.body_ref.slice("blobs/".length));
+' "$T/pp/.forge/liaison/ch/log/pp.jsonl"
+}
+
+echo "[5] blob do hub adulterado ou acima do teto para mensagem já conhecida não é instalado, com WARN distinto (nunca 'recuperado')"
+
+printf 'corpo tampering-a — só para o cenario 5a\n' > "$T/corpo-tamper-a.md"
+LG pp send ch --thread t1 --kind note --subject "tamper a" --body-file "$T/corpo-tamper-a.md" >/dev/null \
+  || { echo "FAIL [5a]: send"; exit 1; }
+LG pp sync ch >/dev/null || { echo "FAIL [5a]: sync pp"; exit 1; }
+LG qq sync ch >/dev/null || { echo "FAIL [5a]: sync qq (conhecer a mensagem)"; exit 1; }
+read -r MSG5A BLOB5A <<< "$(last_pp_msg_and_blob)"
+[ -n "$BLOB5A" ] || { echo "FAIL [5a]: não foi possível nomear o blob da mensagem recém-enviada"; exit 1; }
+[ -f "$QQ_BLOBS/$BLOB5A" ] || { echo "FAIL [5a]: pré-condição — qq deveria ter $BLOB5A depois do sync"; exit 1; }
+rm -f "$QQ_BLOBS/$BLOB5A"
+# hub adulterado: mesmo nome de arquivo (mesmo sha DECLARADO), conteúdo trocado — sha REAL não bate
+printf 'CONTEUDO ADULTERADO NO HUB — bytes diferentes do que o nome do blob promete' > "$HUB_BLOBS/$BLOB5A"
+out5a="$(LG qq sync ch 2>&1)"; rc5a=$?
+[ "$rc5a" -eq 0 ] || { echo "FAIL [5a]: sync reprovou (rc $rc5a) — deveria ser aviso, não recusa: $out5a"; exit 1; }
+if [ -f "$QQ_BLOBS/$BLOB5A" ]; then
+  echo "FAIL [5a]: blob adulterado do hub foi instalado localmente — deveria ter sido rejeitado. Saída: $out5a"; exit 1
+fi
+if grep -qi "recuperad" <<<"$out5a"; then
+  echo "FAIL [5a]: sync reportou 'recuperado' para um blob que NÃO confere com o body_ref: $out5a"; exit 1
+fi
+grep -qi "não confere" <<<"$out5a" \
+  || { echo "FAIL [5a]: nenhum WARN distinto ('... não confere com o body_ref') impresso: $out5a"; exit 1; }
+grep -q "$MSG5A" <<<"$out5a" \
+  || { echo "FAIL [5a]: o WARN não nomeia a mensagem $MSG5A: $out5a"; exit 1; }
+echo "OK [5a]"
+
+printf 'corpo tampering-b — só para o cenario 5b\n' > "$T/corpo-tamper-b.md"
+LG pp send ch --thread t1 --kind note --subject "tamper b" --body-file "$T/corpo-tamper-b.md" >/dev/null \
+  || { echo "FAIL [5b]: send"; exit 1; }
+LG pp sync ch >/dev/null || { echo "FAIL [5b]: sync pp"; exit 1; }
+LG qq sync ch >/dev/null || { echo "FAIL [5b]: sync qq (conhecer a mensagem)"; exit 1; }
+read -r MSG5B BLOB5B <<< "$(last_pp_msg_and_blob)"
+[ -n "$BLOB5B" ] || { echo "FAIL [5b]: não foi possível nomear o blob da mensagem recém-enviada"; exit 1; }
+[ -f "$QQ_BLOBS/$BLOB5B" ] || { echo "FAIL [5b]: pré-condição — qq deveria ter $BLOB5B depois do sync"; exit 1; }
+rm -f "$QQ_BLOBS/$BLOB5B"
+# hub acima do teto (BLOB_MAX_BYTES = 65536) para a mesma mensagem já conhecida
+node -e 'require("fs").writeFileSync(process.argv[1], Buffer.alloc(204800, 88));' "$HUB_BLOBS/$BLOB5B"
+out5b="$(LG qq sync ch 2>&1)"; rc5b=$?
+[ "$rc5b" -eq 0 ] || { echo "FAIL [5b]: sync reprovou (rc $rc5b): $out5b"; exit 1; }
+if [ -f "$QQ_BLOBS/$BLOB5B" ]; then
+  echo "FAIL [5b]: blob acima do teto foi instalado localmente — deveria ter sido rejeitado. Saída: $out5b"; exit 1
+fi
+if grep -qi "recuperad" <<<"$out5b"; then
+  echo "FAIL [5b]: sync reportou 'recuperado' para um blob acima do teto: $out5b"; exit 1
+fi
+grep -qi "excede" <<<"$out5b" \
+  || { echo "FAIL [5b]: nenhum aviso de teto excedido impresso: $out5b"; exit 1; }
+grep -q "$MSG5B" <<<"$out5b" \
+  || { echo "FAIL [5b]: o aviso não nomeia a mensagem $MSG5B: $out5b"; exit 1; }
+echo "OK [5b]"
+
+echo "[6] o 'status' conta e nomeia body_ref sem blob local (por canal e agregado)"
+out6="$(LG qq status ch 2>&1)"; rc6=$?
+[ "$rc6" -eq 0 ] || { echo "FAIL [6]: status ch reprovou (rc $rc6): $out6"; exit 1; }
+grep -q "body_ref sem blob local" <<<"$out6" \
+  || { echo "FAIL [6]: a linha de status não conta 'body_ref sem blob local': $out6"; exit 1; }
+grep -q "$MSG5A" <<<"$out6" \
+  || { echo "FAIL [6]: status por canal não nomeia $MSG5A sem blob local: $out6"; exit 1; }
+grep -q "$MSG5B" <<<"$out6" \
+  || { echo "FAIL [6]: status por canal não nomeia $MSG5B sem blob local: $out6"; exit 1; }
+out6b="$(LG qq status 2>&1)"; rc6b=$?
+[ "$rc6b" -eq 0 ] || { echo "FAIL [6]: status agregado reprovou (rc $rc6b): $out6b"; exit 1; }
+grep -q "body_ref sem blob local" <<<"$out6b" \
+  || { echo "FAIL [6]: o status agregado não conta 'body_ref sem blob local': $out6b"; exit 1; }
+echo "OK [6]"
 
 echo "PASS w219-liaison-blob-recovery"

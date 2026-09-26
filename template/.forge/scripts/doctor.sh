@@ -123,12 +123,25 @@ check_harness() {
   else miss "harness: $orphans arquivo(s) com placeholders <PROJECT_*> não preenchidos"; MISSING_DIAG=1; fi
 
   # Versão nova do template pendente de reconciliação (revisão da DH-1): o `update` preserva a maquinaria em deriva local e grava a versão do template em .forge/cache/template-pendente/<rel>. A linha nomeia o que ainda difere do arquivo local (contagem + primeiros caminhos) até alguém reconciliar: declarar a exceção, incorporar a versão à mão ou aceitar com --overwrite-drift. É aviso, não diagnóstico faltante: não muda o rc do doctor.
+  # Caminho já declarado em .forge/machinery-exceptions.txt (qualquer sha: viva ou expirada, o update preserva por exceção e não grava mais pendente) sai da lista na hora — a decisão humana está registrada, e cobrar até o próximo update seria ruído. Mesma leitura do parser do update: corte no primeiro `#`, exatamente dois tokens, sha hexadecimal minúsculo com pelo menos 32 dígitos, prefixos `./` e `.forge/` normalizados.
   pend_dir="$ROOT/.forge/cache/template-pendente"
   if [ -d "$pend_dir" ]; then
-    pend_n=0; pend_list=""
+    pend_n=0; pend_list=""; pend_decl=""
+    if [ -f "$ROOT/.forge/machinery-exceptions.txt" ]; then
+      while IFS= read -r exc_line || [ -n "$exc_line" ]; do
+        exc_line="${exc_line%%#*}"; exc_line="${exc_line//$'\r'/}"
+        read -r exc_sha exc_rel exc_resto <<<"$exc_line" || true
+        [ -n "${exc_rel:-}" ] && [ -z "${exc_resto:-}" ] || continue
+        [[ "$exc_sha" =~ ^[0-9a-f]{32,}$ ]] || continue
+        while [ "${exc_rel#./}" != "$exc_rel" ]; do exc_rel="${exc_rel#./}"; done
+        exc_rel="${exc_rel#.forge/}"
+        pend_decl="$pend_decl"$'\n'"$exc_rel"
+      done < "$ROOT/.forge/machinery-exceptions.txt"
+    fi
     while IFS= read -r pend_f; do
       pend_rel="${pend_f#"$pend_dir"/}"
       cmp -s "$pend_f" "$ROOT/.forge/$pend_rel" && continue
+      grep -qxF -- "$pend_rel" <<<"$pend_decl" && continue
       pend_n=$((pend_n + 1))
       [ "$pend_n" -le 5 ] && pend_list="${pend_list:+$pend_list, }$pend_rel"
     done < <(find "$pend_dir" -type f ! -name .DS_Store 2>/dev/null | LC_ALL=C sort)

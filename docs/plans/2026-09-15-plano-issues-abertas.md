@@ -21,7 +21,7 @@ Onda passou a ser bloco de release, e a seção "Onda 6" do R02 foi apagada junt
 
 Cada "Pergunta ao dono" do R02 virou referência a uma decisão numerada (DH-n humana, DA-nn autônoma), e as decisões que mudam desenho foram aplicadas no texto da seção: #101/#131 (gramática do consumidor, J-13), #125 (três manifestos, aviso em vez de reprovação, J-11), #139 (legado, J-14), #144/#137 (beneficiário por ambiente e valor declarado respeitado, J-06, J-12), #150 e #109 (passam a `Closes`), #108 e #140 (Arquivos completos), #123 (`check-liaison-acks.sh`, J-15) e #153 (controle de consumidor recém-criado, J-25). O vermelho da #125 não traz mais o literal da chave AWS de exemplo que o gate de segredos do CI reprovou no PR #154; o payload é descrito e montado em tempo de execução.
 
-A tabela de ordem de merge foi reconciliada com os blocos (J-04) e conferida mecanicamente; os ordinais novos vão de w238 a w246, atribuídos à mão e conferidos contra todos os refs; o censo de consumidores foi refeito (J-11); e o protocolo por PR ganhou os comandos que o plano de execução exige, inclusive o que prova que o commit do vermelho só tem teste (J-22).
+A tabela de ordem de merge foi reconciliada com os blocos (J-04) e conferida mecanicamente; os ordinais novos vão de w238 a w246, atribuídos à mão e conferidos contra todos os refs (em 2026-09-26 o w239 passou ao gate da revisão da DH-1, `tests/w239-update-preserva-deriva-gate.sh`, e o LDG-0181 foi reatribuído para w247, conferido contra todos os refs e worktrees — o w248 já está em `fix/ldg-0201-git-dir-herdado`); o censo de consumidores foi refeito (J-11); e o protocolo por PR ganhou os comandos que o plano de execução exige, inclusive o que prova que o commit do vermelho só tem teste (J-22).
 
 | Onda | Bloco | Release | Itens (em negrito só na seção da onda) |
 |---|---|---|---|
@@ -91,9 +91,9 @@ O Bloco 0 não tem release própria: compartilha a 0.16.0 com o Bloco A. O PR de
 
 ## Decisões do dono
 
-Cinco decisões humanas, tomadas antes do plano de execução e mantidas sem mudança. Cada lado forte descartado virou item de roadmap na Onda 8 com a condição mensurável de promoção.
+Cinco decisões humanas, tomadas antes do plano de execução e mantidas sem mudança, exceto a segunda metade da DH-1, revista pelo dono em 2026-09-26 (abaixo). Cada lado forte descartado virou item de roadmap na Onda 8 com a condição mensurável de promoção.
 
-**DH-1** · #101/#131 · exceção expirada preserva o arquivo e imprime `EXCEÇÃO EXPIRADA` com os dois shas, rc 0; `scripts/` não ganha preservação por deriva decidida por lock. Lado forte: LDG-0184.
+**DH-1** · #101/#131 · exceção expirada preserva o arquivo e imprime `EXCEÇÃO EXPIRADA` com os dois shas, rc 0 (mantido). Lado forte: LDG-0184. A segunda metade da decisão original ("`scripts/` não ganha preservação por deriva decidida por lock") foi revista pelo dono em 2026-09-26, depois que o ensaio de campo da 0.16.0 mediu cerca de 40 consertos deliberados sobrescritos em cinco consumidores que nunca tinham declarado exceção (azim-crm 7, com a suíte do próprio consumidor reprovando; Axis.PadSimulator 11; axis-device-platform cerca de 20; axis-go-cloud 3; lionclaw 1). Regra revista, por arquivo de maquinaria fora de `ENRICHABLE_DIRS` que existe no consumidor e difere do template novo: exceção declarada (viva ou expirada) preserva, como antes; arquivo provadamente intocado recebe o template com `ATUALIZADO`, e a prova é o sha local igual ao da entrada do `machinery.lock` ou, sem entrada no lock, igual ao de alguma versão publicada do template (`template/machinery-history.json`, gerado das tags `v*` por `tools/build-machinery-history.mjs`); sha local diferente da entrada do lock preserva como `PRESERVADO (deriva local)`; sem entrada no lock e fora de toda versão publicada preserva como `PRESERVADO (sem lock para provar)`; nos dois casos a versão nova do template vai para `.forge/cache/template-pendente/<rel>`, o lock não avança naquele caminho, o update imprime um `WARN` agregado e o doctor cobra o caminho até a reconciliação; `--overwrite-drift` restaura a sobrescrita com backup, sem passar por cima de exceção declarada. O caso sem lock foi decidido pelo histórico de versões publicadas, e não pelo fallback "sem lock → preserva": sem o histórico, um consumidor pristino da v0.15.0 sem lock tinha 22 de 22 arquivos alterados retidos e o `prevent-secrets-leak.sh` da #125 continuava aprovando (rc 0, contra 2 do gancho novo) o payload com chave AWS. Gate: `tests/w239-update-preserva-deriva-gate.sh`.
 
 **DH-2** · #125 e LDG-0178 · o esquema canônico da camada do consumidor para `hooks.manifest` aguarda a thread de liaison com axis-fare-validator, Axis.PadSimulator e axis-device-platform. Até lá, a fiação derivada lê só o que o w208 já lê, e o LDG-0178 fica na Onda 8.
 
@@ -107,7 +107,7 @@ Cinco decisões humanas, tomadas antes do plano de execução e mantidas sem mud
 |---|---|---|
 | #123 | recomendar `fs-union` aos consumidores | 181 worktrees em 7 consumidores têm `_common.sh`, 139 delas sem `_dir_push_union` (censo do adendo; o R02 contava 176/146 em quatro); 164 das 181 têm `liaison-config.mjs` que não aceita `fs-union` e param de sincronizar até atualizar, se o tronco trocar o kind |
 | #125 | esquema canônico da camada do consumidor (LDG-0178) | três esquemas em produção (axis-fare-validator, Axis.PadSimulator e axis-device-platform) |
-| #101/#131 | parar o update em exceção expirada; preservar `scripts/` por deriva | L1 mediu 5 de 6 árvores com `pre-push` divergente do lock, que seria preservado e deixaria de receber correção |
+| #101/#131 | parar o update em exceção expirada (descartado, LDG-0184); preservar `scripts/` por deriva (adotado na revisão da DH-1, 2026-09-26) | L1 mediu 5 de 6 árvores com `pre-push` divergente do lock, que seriam preservadas e deixariam de receber a correção; o ensaio da 0.16.0 mediu o custo oposto (cerca de 40 consertos sobrescritos em cinco consumidores), e a revisão aceitou o primeiro custo tornando-o visível e reversível: pendente gravado, linha nominal no update e no doctor e `--overwrite-drift` |
 | #137 | teto de posse ligado por padrão | com o default derivado, todo consumidor passa a ter dono vivo encerrado depois de 900 s de posse |
 | #142 | nome default do recurso | axis-fare-validator declara `axis-heavy-suite` e axis-go-cloud `forge-heavy-suite`; trocar o default reparticiona quem está no default |
 
@@ -195,9 +195,9 @@ Causa raiz comum, provada: as duas passam pelo mesmo ramo de `bin/forge.mjs`. `:
 
 Desenho, reaproveitando L1 D2 e D3 com um desvio: `.forge/machinery-exceptions.txt` vira contrato do template no formato que o axis-fare-validator já opera (`<sha256 do template na declaração>  <caminho relativo a .forge/>  # razão`). Exceção viva (sha declarado igual ao sha do template novo) preserva o arquivo e o nomeia com a razão. Exceção ociosa (caminho fora do template, ou arquivo local idêntico ao template) é reportada sem efeito. Arquivo ilegível, linha malformada ou duas declarações do mesmo caminho param o update antes de escrever qualquer arquivo, nomeando a linha. Toda sobrescrita de arquivo que divergia do template novo, sem exceção viva ou expirada cobrindo, imprime uma linha por arquivo — decisão autônoma do orquestrador, tomada na reconciliação do Bloco A: quando o hash local bate com o `machinery.lock` da última aplicação (arquivo provadamente intocado pelo consumidor — foi o template que evoluiu), a linha é `ATUALIZADO: <rel> — sem edição local (idêntico ao lock anterior); o template evoluiu; conteúdo anterior em <backup real>`; só quando o hash local diverge do lock — ou não há lock para provar que o arquivo ficou intocado — a linha é `SOBRESCRITO (não declarado): <rel> — conteúdo anterior em <backup real>`. Um rótulo único para os dois casos afogaria, numa atualização real com dezenas de arquivos apenas desatualizados pelo template, a única sobrescrita local de verdade em dezenas de linhas idênticas de refresh rotineiro; a distinção não muda nenhum critério de saída que já fala em `SOBRESCRITO` especificamente (a linha `ATUALIZADO` nunca conta para "zero `SOBRESCRITO` não aceito por escrito"). O desvio em relação a L1 D3: exceção expirada (sha declarado diferente do template novo) não para o update; preserva o arquivo e imprime `EXCEÇÃO EXPIRADA: <rel>` com os dois shas, rc 0. Parar seria rc novo na fronteira publicada do `update`.
 
-Alternativa descartada: pôr `scripts`/`hooks` em `ENRICHABLE_DIRS` ou criar `PRESERVED_ON_DRIFT_DIRS` sem declaração. L1 D1 mediu congelamento: sem lock, o fallback preserva quem só estava defasado e a correção do template nunca chega (linhas com JWT depois do update = 0 contra 2 no recontrole).
+Alternativa descartada: pôr `scripts`/`hooks` em `ENRICHABLE_DIRS` ou criar `PRESERVED_ON_DRIFT_DIRS` sem declaração. L1 D1 mediu congelamento: sem lock, o fallback preserva quem só estava defasado e a correção do template nunca chega (linhas com JWT depois do update = 0 contra 2 no recontrole). Na revisão da DH-1 (2026-09-26) a preservação por deriva foi adotada sem reabrir esta alternativa como estava: o congelamento medido pelo L1 D1 vinha do fallback "sem lock → preserva quem só estava defasado", e a revisão só preserva sem lock o conteúdo que não é nenhuma versão publicada do template; o defasado sem lock é provado intocado pelo histórico `template/machinery-history.json` e recebe a correção (cenário [2b] do w239: gancho de segredos da v0.15.0 `ATUALIZADO`, payload com chave AWS rc 2).
 
-Decisão: DH-1 (exceção expirada preserva, rc 0; `scripts/` sem preservação por deriva). O lado forte descartado é o LDG-0184, na Onda 8.
+Decisão: DH-1 (exceção expirada preserva, rc 0; a segunda metade, `scripts/` sem preservação por deriva, foi revista pelo dono em 2026-09-26 e é entregue pelo PR do `tests/w239-update-preserva-deriva-gate.sh`, ver DH-1). O lado forte descartado da parte mantida é o LDG-0184, na Onda 8.
 
 Gramática do arquivo de exceções (J-13, medido): o parser segue a gramática que o consumidor já opera, não o formato literal acima. O `machinery-exceptions.txt` do axis-fare-validator tem 34 linhas, só 1 casa com `^[0-9a-f]{64}  [^ ]+  # .+$`, e as 34 estão vivas contra `821178e`; o parser dele (`check-machinery-drift.sh`, cerca de `:189-217`) usa `read -r` com espaçamento livre, corta no `#` e aceita hex com 32 ou mais dígitos. Fixture obrigatória do gate: cópia literal desse arquivo, com rc 0 e as 34 linhas nomeadas. O cenário "malformada" usa sha não hexadecimal ou caminho ausente, nunca espaçamento.
 
@@ -549,7 +549,7 @@ Arquivos: `template/.forge/hooks/pre-tool-use/validate-naming-conventions.sh`, g
 
 ### LDG-0181 — o runner do template tem dois desfechos por alvo
 
-**LDG-0181** · gate novo: sim (w239, runner do template) e cenário novo no w212 (runner interno) · depois do PR da #135 (mesmo `template/.forge/scripts/tests/run-all.sh`)
+**LDG-0181** · gate novo: sim (w247, runner do template; o w239 foi para a revisão da DH-1) e cenário novo no w212 (runner interno) · depois do PR da #135 (mesmo `template/.forge/scripts/tests/run-all.sh`)
 
 Causa raiz, medida em 2026-09-25: `template/.forge/scripts/tests/run-all.sh:72` executa o alvo e todo rc≠0 cai no mesmo ramo ✗; `:91` reexecuta `"$@"` para imprimir o tail, o que roda o alvo duas vezes e, num alvo morto por sinal, mata duas vezes; `grep -cE 'UNV|sinal'` no arquivo dá 0. O runner interno (`tests/run-all.sh`) já tem três estados desde o LDG-0180, mas sai rc 0 com "OK — suíte 100% verde" (`:272`) quando zero gates rodam. O template distribui o runner com zero testes (`find template/.forge/scripts/tests -type f` → só o próprio `run-all.sh`) e o `pre-push` o executa (`pre-push:476-478`).
 
@@ -557,7 +557,7 @@ Desenho, conforme DA-01: no template, 0 verde, 1 reprovação (precedência sobr
 
 Vermelho, a executar contra a base no PR: no diretório de testes de um consumidor sintético, um alvo `kill -TERM $$` e outro `exit 1`, cada um gravando uma linha num marcador; esperado rc 3 com linha UNV nomeando o sinal no primeiro caso, rc 1 no segundo e uma linha por alvo no marcador. Pela leitura de `:72` e `:91`, hoje sai rc 1 nos dois e o alvo que falha grava duas linhas; o implementador cola a saída real.
 
-Gate que fica: `tests/w239-template-runner-tres-estados-gate.sh`: alvo morto por sinal dá rc 3 e UNV nomeando o sinal; `exit 127` dá rc 3 nomeando dependência ausente; `exit 1` dá rc 1, inclusive quando outro alvo sai 3 (precedência); uma linha por alvo no marcador (positiva de não reexecução); zero testes dá rc 0 com `nada a rodar`; argumento desconhecido dá 64 e diretório inexistente dá 66 (contrafactuais de contrato). No w212, cenário novo: zero gates dá UNV e rc 3. Revalidar w80, w146, w153, w212 e w213, que executam os runners. Propriedade PBT: para listas geradas de 0 a 6 alvos com rc em {0, 1, 2, 126, 127, 130, 137, 143}, o rc do runner é 1 se algum alvo reprova, senão 3 se algum não foi verificado, senão 0; e cada alvo executa exatamente uma vez. Mutação: recolocar a reexecução faz o marcador ganhar uma segunda linha; tratar 129–192 como reprovação faz o cenário do sinal sair rc 1; piso 1 no template faz o cenário de zero testes sair rc 3.
+Gate que fica: `tests/w247-template-runner-tres-estados-gate.sh`: alvo morto por sinal dá rc 3 e UNV nomeando o sinal; `exit 127` dá rc 3 nomeando dependência ausente; `exit 1` dá rc 1, inclusive quando outro alvo sai 3 (precedência); uma linha por alvo no marcador (positiva de não reexecução); zero testes dá rc 0 com `nada a rodar`; argumento desconhecido dá 64 e diretório inexistente dá 66 (contrafactuais de contrato). No w212, cenário novo: zero gates dá UNV e rc 3. Revalidar w80, w146, w153, w212 e w213, que executam os runners. Propriedade PBT: para listas geradas de 0 a 6 alvos com rc em {0, 1, 2, 126, 127, 130, 137, 143}, o rc do runner é 1 se algum alvo reprova, senão 3 se algum não foi verificado, senão 0; e cada alvo executa exatamente uma vez. Mutação: recolocar a reexecução faz o marcador ganhar uma segunda linha; tratar 129–192 como reprovação faz o cenário do sinal sair rc 1; piso 1 no template faz o cenário de zero testes sair rc 3.
 
 Arquivos: `template/.forge/scripts/tests/run-all.sh`, `tests/run-all.sh`, `tests/w212-runner-tres-estados-gate.sh`, gate novo, README, CHANGELOG; a nota de release da 0.17.0 descreve o rc 3 aos consumidores.
 
@@ -1091,7 +1091,7 @@ Nenhum destes itens muda de status nesta rodada, salvo promoção decidida pelo 
 - **LDG-0160** — fases pre-deploy e post-deploy sem executor (DA-02).
 - **LDG-0151** — chaves de schema que prometem default sem leitor, decisão por chave (DA-03).
 - **LDG-0140** — segunda metade do harvest (DA-04).
-- **LDG-0184** — parar o update em exceção expirada (lado forte de DH-1).
+- **LDG-0184** — parar o update em exceção expirada (lado forte da parte da DH-1 que a revisão de 2026-09-26 manteve; a preservação por deriva, que era a outra metade, foi adotada).
 - **LDG-0185** — teto de posse derivado ligado por padrão (lado forte de DH-5).
 - **LDG-0186** — trocar o nome default do recurso, condicionado a registro de famílias (lado forte de DH-3).
 - **LDG-0187** — recomendar `fs-union` como padrão ativo (lado forte de DH-4).
@@ -1179,7 +1179,7 @@ Uma linha por issue que ganha gate novo. O orquestrador preenche o ordinal contr
 | #145 | pentest-image-contract | w236 |
 | #152 | security-reviewer-provenance | w237 |
 | #160 | settings-json-merge (também o LDG-0189) | w238 |
-| LDG-0181 | template-runner-tres-estados | w239 |
+| DH-1 revista (2026-09-26) | update-preserva-deriva | w239 |
 | #157 | upgrade-verifica-suite | w240 |
 | #155 | analyze-quem-grava | w241 |
 | #156 | implement-red-mecanismo | w242 |
@@ -1188,6 +1188,7 @@ Uma linha por issue que ganha gate novo. O orquestrador preenche o ordinal contr
 | LDG-0171 | resolvedor-tres-layouts (mesmo gate do LDG-0183) | w245 |
 | LDG-0183 | resolvedor-tres-layouts (mesmo gate do LDG-0171) | w245 |
 | LDG-0176 | graph-defasagem | w246 |
+| LDG-0181 | template-runner-tres-estados (era w239) | w247 |
 
 Reservado por `template/.forge/scripts/gate-ordinal.sh next --path .` em 2026-09-15, contra `origin/develop` (máximo remoto `w213`) e a árvore local (máximo local `w0`); conferido sem colisão contra as branches `wip/upgrade-safety-ldg-0131` (máximo `w154`) e `wip/deepspec-run-manifest-ldg-0165` (nenhum ordinal). 24 gates distintos, faixa `w214`–`w237`, sem repetição.
 

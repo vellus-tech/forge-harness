@@ -218,9 +218,38 @@ function mergeHooksObject(existingHooks, derivedHooks) {
   return out;
 }
 
+// decodeAndValidateSettings(bytes) — issue #160, achado de correção (revisão adversarial,
+// MEDIUM): um `.claude/settings.json` é ILEGÍVEL — backup byte-idêntico + WARN, nunca
+// regenerado por cima em silêncio — não só quando o JSON não parseia, mas em qualquer forma que
+// faria `mergeSettingsJson` descartar dado do consumidor sem preservação nem aviso: (1) bytes que
+// não são UTF-8 válido (decodificar com `TextDecoder` não-estrito substituiria byte inválido por
+// U+FFFD e reescreveria o arquivo com o valor corrompido, silenciosamente); (2) JSON válido cujo
+// nível de topo não é um objeto plano (por exemplo um array — `existing` cairia em `null` e todo
+// o conteúdo seria descartado, também em silêncio); (3) a própria chave `hooks`, quando presente,
+// não sendo um objeto plano (um array em `hooks` seria substituído pela fiação derivada sem
+// backup). `bytes` é o `Buffer` bruto lido do disco — nunca uma string já decodificada, para que o
+// backup do chamador preserve os bytes originais mesmo quando a causa da ilegibilidade é a própria
+// codificação. Devolve o texto decodificado quando a forma é aceitável, ou `null` quando não é.
+function decodeAndValidateSettings(bytes) {
+  let text;
+  try {
+    text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch { return null; }
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch { return null; }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+  if (parsed.hooks !== undefined && (parsed.hooks === null || typeof parsed.hooks !== 'object' || Array.isArray(parsed.hooks))) {
+    return null;
+  }
+  return text;
+}
+
 // mergeSettingsJson(existingText, derivedHooks) — issue #160: pura. `existingText` é o conteúdo
-// bruto (string) do `.claude/settings.json` já materializado, ou `null` quando não existe ou era
-// JSON ilegível (o chamador já tratou o backup nesse caso — ver `backupUnreadableSettings`).
+// bruto (string) do `.claude/settings.json` já materializado — já validado por
+// `decodeAndValidateSettings` no chamador —, ou `null` quando não existe ou era ilegível (o
+// chamador já tratou o backup nesse caso — ver `backupUnreadableSettings`).
 // Preserva toda chave de topo que não seja `hooks`, na MESMA posição em que já estava — o gerador
 // só é dono do que ele mesmo referencia dentro de `hooks`, nunca de `permissions`, `env`,
 // `includeCoAuthoredBy` ou qualquer chave de terceiro. Sem `existingText`, o resultado é
@@ -376,12 +405,15 @@ const GENERATORS = {
     const settingsPath = join(ROOT, '.claude/settings.json');
     let existingSettingsText = null;
     if (existsSync(settingsPath)) {
-      const raw = readFileSync(settingsPath, 'utf8');
-      try {
-        JSON.parse(raw);
-        existingSettingsText = raw;
-      } catch {
-        backupUnreadableSettings(ROOT, settingsPath, raw);
+      // `rawBytes` é o Buffer bruto (nunca decodificado antes do backup): achado de correção
+      // MEDIUM — decodificar para string antes de fazer o backup perderia byte não-UTF-8 na
+      // reescrita (`writeFileSync` re-encodaria a string, não os bytes originais).
+      const rawBytes = readFileSync(settingsPath);
+      const legible = decodeAndValidateSettings(rawBytes);
+      if (legible != null) {
+        existingSettingsText = legible;
+      } else {
+        backupUnreadableSettings(ROOT, settingsPath, rawBytes);
         existingSettingsText = null;
       }
     }

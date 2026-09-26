@@ -632,22 +632,47 @@ const APPEND_SOFTEN = new Map([
 // `<path><TAB><proveniência>`, o formato que outros leitores da lib já esperam); esta função só
 // pede o `resource` numa segunda chamada, na MESMA invocação de bash, para nunca divergir da
 // resolução real de `path`.
-function resolveHeavyMutexPath(forge, target) {
+// `opts.dryRun`: usado pela prévia de `--dry-run` (achado MEDIUM do review) para nunca criar o
+// diretório-raiz do heavy-mutex. `forge_heavy_mutex_path` → `_fhm_resolve_root` faz `mkdir` quando
+// a raiz DECLARADA (env ou `heavy_mutex.root` do forge.yaml) ainda não existe — comportamento
+// correto na aplicação real, mas uma PRÉVIA que só deveria informar não pode ter esse efeito
+// colateral no disco. Com `dryRun`, o script só resolve o `resource` (nunca cria nada) e, se a
+// raiz declarada não existir, devolve o `resource` sem `path` e um motivo — nunca chama
+// `forge_heavy_mutex_path` nesse caso, então o `mkdir` da lib nunca roda. Raiz não declarada
+// (default `/tmp`) ou token `${TMPDIR:-/tmp}` nunca passam por `mkdir` na lib de qualquer forma
+// (só checam e falham), então seguem pelo caminho normal mesmo em dry-run.
+function resolveHeavyMutexPath(forge, target, opts = {}) {
   const lib = join(forge, 'scripts', 'lib', 'heavy-mutex.sh');
   if (!existsSync(lib)) return { resource: null, path: null, reason: 'lib heavy-mutex.sh ausente' };
+  const script = opts.dryRun
+    ? [
+        '. "$0" || exit 1',
+        'res="$(_fhm_resource)"',
+        'root="${FORGE_HEAVY_MUTEX_ROOT:-}"',
+        '[ -n "$root" ] || root="$(_fhm_yaml_root)"',
+        'case "$root" in',
+        '  ""|\'${TMPDIR:-/tmp}\') declroot="" ;;',
+        '  /*) declroot="$root" ;;',
+        '  *) declroot="" ;;',
+        'esac',
+        'if [ -n "$declroot" ] && [ ! -d "$declroot" ]; then',
+        '  printf "%s\\t\\t%s\\n" "$res" "raiz declarada ($declroot) ainda não existe — dry-run não cria"',
+        '  exit 0',
+        'fi',
+        'p="$(forge_heavy_mutex_path)" || exit $?',
+        'printf "%s\\t%s\\t\\n" "$res" "$p"',
+      ].join('\n')
+    : '. "$0" && res="$(_fhm_resource)" && p="$(forge_heavy_mutex_path)" && printf "%s\\t%s\\n" "$res" "$p"';
   try {
-    const out = execFileSync('bash', [
-      '-c',
-      '. "$0" && res="$(_fhm_resource)" && p="$(forge_heavy_mutex_path)" && printf "%s\\t%s\\n" "$res" "$p"',
-      lib,
-    ], {
+    const out = execFileSync('bash', ['-c', script, lib], {
       cwd: target,
       env: { ...process.env, FORGE_ROOT: target },
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
     });
-    const [resource, path] = out.trim().split('\t');
-    if (!resource || !path) return { resource: null, path: null, reason: 'saída da lib incompleta' };
+    const [resource, path, reason] = out.trim().split('\t');
+    if (!resource) return { resource: null, path: null, reason: reason || 'saída da lib incompleta' };
+    if (!path) return { resource, path: null, reason: reason || 'raiz declarada ainda não existe' };
     return { resource, path };
   } catch (e) {
     const rc = e.status;
@@ -770,7 +795,7 @@ async function updateHarness() {
       // vai anunciar — sem isso, `--dry-run` mostrava só "bloco novo" e o operador só descobria o
       // recurso resolvido depois de já ter aplicado.
       if (key === 'heavy_mutex') {
-        const before = resolveHeavyMutexPath(forge, target);
+        const before = resolveHeavyMutexPath(forge, target, { dryRun: true });
         const depoisPrevisto = process.env.FORGE_HEAVY_MUTEX_RESOURCE || templateHeavyMutexResource(nk.blocks.get('heavy_mutex'));
         if (before && before.resource) {
           changes.push(before.resource === depoisPrevisto

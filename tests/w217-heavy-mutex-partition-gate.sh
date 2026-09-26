@@ -41,8 +41,14 @@
 #       cobria (achado MEDIUM do review: a suíte alegava cobertura de `root` sem nenhum cenário
 #       declarando um).
 #   [6] doctor.sh: a linha `HEAVY-MUTEX` já existente nomeia o recurso resolvido (`recurso .....
-#       <res>`) — regressão estrutural, não nova (a função já existe desde a #52); travada aqui
-#       para que um refactor futuro do doctor não a perca em silêncio.
+#       <res>`) e o caminho do lock (`lock ........ <root>/<recurso>.lock`) — regressão estrutural,
+#       não nova (a função já existe desde a #52); travada aqui para que um refactor futuro do
+#       doctor não a perca em silêncio.
+#   [6b]/[6c] `--dry-run` sobre bloco ausente, sem e com `FORGE_HEAVY_MUTEX_RESOURCE` — a prévia
+#       nomeia o recurso previsto e, com `FORGE_HEAVY_MUTEX_ROOT` apontando para um diretório
+#       inexistente, a raiz continua inexistente depois do dry-run (achado MEDIUM do review:
+#       `resolveHeavyMutexPath` na prévia chamava a mesma `_fhm_resolve_root` que faz `mkdir` na
+#       raiz declarada ausente — efeito colateral que uma prévia não pode ter).
 #   [7] resolução falha (root isolado é um ARQUIVO comum, não um diretório — `_fhm_resolve_root`
 #       recusa com rc 69): o update segue rc 0 (a linha é best-effort, nunca derruba a aplicação),
 #       mas imprime `WARN: heavy_mutex: recurso resolvido não determinado (<motivo>) — bloco
@@ -251,7 +257,37 @@ C6D="$(consumidor c6d)"
 out6d="$(FORGE_ROOT="$C6D" env -u FORGE_HEAVY_MUTEX_RESOURCE FORGE_HEAVY_MUTEX_ROOT="$ROOT_ISO/c6d" bash "$C6D/.forge/scripts/doctor.sh" 2>&1)"
 grep -q 'HEAVY-MUTEX:.*recurso ..... forge-heavy-suite' <<<"$out6d" \
   || { echo "FAIL [6]: doctor.sh não nomeia o recurso resolvido na linha HEAVY-MUTEX"; echo "$out6d" | grep -i heavy; exit 1; }
+grep -qF "lock ........ $ROOT_ISO/c6d/forge-heavy-suite.lock" <<<"$out6d" \
+  || { echo "FAIL [6]: doctor.sh não nomeia o caminho do lock (<root>/<recurso>.lock) na linha HEAVY-MUTEX"; echo "$out6d" | grep -i heavy; exit 1; }
 echo "OK [6]"
+
+scenario "[6b] --dry-run: bloco heavy_mutex ausente, SEM FORGE_HEAVY_MUTEX_RESOURCE — prévia nomeia o recurso e NUNCA cria a raiz declarada"
+C6B="$(consumidor c6b)"
+strip_heavy_mutex "$C6B/.forge/forge.yaml"
+ROOT_6B="$ROOT_ISO/c6b-inexistente"
+[ -d "$ROOT_6B" ] && { echo "FAIL [6b] (setup): a raiz já existia antes do dry-run"; exit 1; }
+out6b="$(env -u FORGE_HEAVY_MUTEX_RESOURCE FORGE_HEAVY_MUTEX_ROOT="$ROOT_6B" node "$FORGE" update --target "$C6B" --dry-run --no-plugin --source "$TPL" 2>&1)"; rc6b=$?
+[ "$rc6b" -eq 0 ] || { echo "FAIL [6b]: dry-run saiu rc=$rc6b"; echo "$out6b"; exit 1; }
+linha6b="$(grep 'heavy_mutex: recurso previsto' <<<"$out6b")"
+[ -n "$linha6b" ] || { echo "FAIL [6b]: linha de prévia ausente"; echo "$out6b"; exit 1; }
+grep -qF 'recurso previsto forge-heavy-suite' <<<"$linha6b" \
+  || { echo "FAIL [6b]: prévia não nomeia o recurso default ('$linha6b')"; exit 1; }
+[ -d "$ROOT_6B" ] && { echo "FAIL [6b]: dry-run criou a raiz declarada ($ROOT_6B), que deveria continuar inexistente"; exit 1; }
+echo "OK [6b]"
+
+scenario "[6c] --dry-run: bloco heavy_mutex ausente, COM FORGE_HEAVY_MUTEX_RESOURCE — prévia nomeia o recurso da env e NUNCA cria a raiz declarada"
+C6C="$(consumidor c6c)"
+strip_heavy_mutex "$C6C/.forge/forge.yaml"
+ROOT_6C="$ROOT_ISO/c6c-inexistente"
+[ -d "$ROOT_6C" ] && { echo "FAIL [6c] (setup): a raiz já existia antes do dry-run"; exit 1; }
+out6c="$(env FORGE_HEAVY_MUTEX_RESOURCE=env-6c FORGE_HEAVY_MUTEX_ROOT="$ROOT_6C" node "$FORGE" update --target "$C6C" --dry-run --no-plugin --source "$TPL" 2>&1)"; rc6c=$?
+[ "$rc6c" -eq 0 ] || { echo "FAIL [6c]: dry-run saiu rc=$rc6c"; echo "$out6c"; exit 1; }
+linha6c="$(grep 'heavy_mutex: recurso previsto' <<<"$out6c")"
+[ -n "$linha6c" ] || { echo "FAIL [6c]: linha de prévia ausente"; echo "$out6c"; exit 1; }
+grep -qF 'recurso previsto env-6c' <<<"$linha6c" \
+  || { echo "FAIL [6c]: prévia não nomeia o recurso vindo da env ('$linha6c')"; exit 1; }
+[ -d "$ROOT_6C" ] && { echo "FAIL [6c]: dry-run criou a raiz declarada ($ROOT_6C), que deveria continuar inexistente"; exit 1; }
+echo "OK [6c]"
 
 scenario "[7] resolução falha (root isolado é um arquivo comum) — WARN nominal, NUNCA silêncio"
 # achado MEDIUM do review: antes desta correção, `resolveHeavyMutexPath` devolvia null em

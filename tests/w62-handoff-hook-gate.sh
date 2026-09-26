@@ -25,8 +25,13 @@ python3 -m json.tool "$SETTINGS" >/dev/null
 COUNT1="$(grep -o '"command":' "$SETTINGS" | wc -l | tr -d ' ')"
 [ "$COUNT1" -eq 1 ]
 grep -q 'enforce-worktree-location.sh' "$SETTINGS"
-! grep -q 'SessionStart' "$SETTINGS"
-! grep -q 'SessionEnd' "$SETTINGS"
+# LDG-0182: sob set -e, `! grep -q ...` sozinho nunca reprova o gate (o retorno invertido isenta a
+# linha do set -e), então uma regressão que injetasse SessionStart/SessionEnd no install default
+# passaria em silêncio (medido: renomear a chave PreToolUse para SessionStart mantém "OK [1]").
+! grep -q 'SessionStart' "$SETTINGS" \
+  || { echo "FAIL [1]: install default (handoff.auto: false) tem SessionStart em settings.json"; exit 1; }
+! grep -q 'SessionEnd' "$SETTINGS" \
+  || { echo "FAIL [1]: install default (handoff.auto: false) tem SessionEnd em settings.json"; exit 1; }
 echo "OK [1]"
 
 echo "[2] flip handoff.auto: true + re-sync claude adapter"

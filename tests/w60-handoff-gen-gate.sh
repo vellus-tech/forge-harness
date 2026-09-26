@@ -1,11 +1,23 @@
 #!/usr/bin/env bash
 # Gate — handoff-gen (REQ-02/NFR-02): o gerador determinístico monta .forge/HANDOFF.md a partir
 # do estado do change (manifest/progress/deferrals), degrada sem FORGE.md, é idempotente e preserva
-# um delta narrativo já escrito. Quando o conteúdo anterior mudaria e não há como mapeá-lo por
-# inteiro no novo render — sem marcadores NARRATIVE-DELTA, ou com marcadores mas com bytes fora do
-# par START/END que o render não reproduz (#120) — os bytes anteriores são salvos em backup antes
-# da escrita, com WARN. A propriedade vale nos dois casos: nenhum byte anterior real é descartado
-# em silêncio, esteja ele dentro do slot (preservado no próprio arquivo) ou fora dele (backup).
+# um delta narrativo já escrito.
+#
+# Regra de bytes autorais (#120, 4ª rodada — causa raiz, não mais sintoma por sintoma): o render é
+# função pura dos dados do change (manifest/progress/deferrals/git/FORGE.md). "Bytes autorais" de um
+# HANDOFF.md anterior são os bytes que esse render não explica — nas regiões que o template não
+# gera: o slot NARRATIVE-DELTA inteiro, bruto, sem trim nem atalho de placeholder (qualquer texto
+# ali, mesmo começando com o prefixo do placeholder "_(A preencher", é autoral e sobrevive por
+# cópia literal para a frente sempre que os dois arquivos — o anterior e o novo render — têm o par
+# de marcadores); e todo byte fora da estrutura literal do template, verificado contra uma "forma"
+# derivada do próprio template em que cada `{{CAMPO}}` vira um coringa e o resto é casado ao pé da
+# letra — então uma mudança só nos campos gerados (HEAD, data, progresso) sempre casa com a forma e
+# nunca dispara backup nem WARN, e um arquivo sem os marcadores nunca casa (a forma exige o texto
+# literal dos marcadores) e sempre dispara. Backup byte-idêntico + WARN acontecem se e somente se
+# algum byte autoral não sobrevive no arquivo novo; o WARN nomeia a região da perda — "sem
+# marcadores" ou "fora do bloco" — e nunca aponta "fora do bloco" quando a perda é no slot, o que é
+# garantido por construção (o slot bruto é sempre copiado para a frente antes de qualquer decisão
+# de backup, nunca depois).
 #   [1] gera o artefato com as 5 seções + dados do change
 #   [2] determinismo: duas execuções sem mudança de estado → diff vazio
 #   [3] degradação sem FORGE.md → runtime = n/d
@@ -13,11 +25,13 @@
 #       (controle: nenhum backup — nada fora do slot mudou)
 #   [5] sem marcadores + conteúdo mudaria → backup byte-idêntico ao anterior + WARN nomeia o caminho
 #   [6] arquivo idêntico ao que seria renderizado (sem marcadores) → nenhum backup
-#   [7] PBT: para conteúdo anterior gerado (com/sem marcadores, bytes aleatórios dentro E fora
-#       deles, inclusive UTF-8 inválido), os bytes anteriores são sempre recuperáveis depois da
-#       geração — no próprio arquivo (delta preservado, comparado por Buffer) ou num backup
-#       byte-idêntico nomeado pelo WARN; cobre também o caso com marcadores + prefix/suffix
-#       perdido (ver [10])
+#   [7] PBT: para conteúdo anterior gerado, cobrindo os quatro quadrantes com/sem marcadores ×
+#       perda/sem-perda (bytes aleatórios dentro E fora dos marcadores, inclusive UTF-8 inválido,
+#       para os quadrantes de perda; corpo de slot reaproveitando o render atual — inclusive com um
+#       commit real de deriva de estado entre as duas gerações — para o quadrante sem perda com
+#       marcadores; arquivo anterior vazio para o quadrante sem perda sem marcadores), os bytes
+#       anteriores são sempre recuperáveis depois da geração — no próprio arquivo (delta preservado,
+#       comparado por Buffer) ou num backup byte-idêntico nomeado pelo WARN
 #   [8] backup é byte-idêntico ao arquivo anterior mesmo com bytes inválidos em UTF-8, e a
 #       contagem de bytes no WARN bate com o tamanho bruto do arquivo, não com a string decodificada
 #   [9] arquivo anterior de 0 bytes → nenhum backup, nenhum WARN (nada a recuperar)
@@ -25,6 +39,14 @@
 #        issue #120 descreve, /forge:handoff acumulando rodadas fora do slot) é recuperável por
 #        backup byte-idêntico + WARN nomeando o caminho, exatamente como o caso sem marcadores —
 #        nada além do slot é perdido em silêncio
+#   [11] achado HIGH (4ª rodada): texto real escrito DENTRO do slot logo após o prefixo do
+#        placeholder ("_(A preencher...") sobrevive no próprio arquivo, sem backup nem WARN — o
+#        atalho `startsWith('_(A preencher')` que descartava esse texto foi removido
+#   [12] achado HIGH (4ª rodada): corpo de slot com indentação e linhas em branco nas bordas
+#        sobrevive byte a byte (sem trim) dentro do próprio arquivo
+#   [13] achado MEDIUM (4ª rodada): fluxo canônico com um commit real entre duas gerações — só
+#        HEAD sha/data avançam, nada mais muda — não dispara backup nem WARN (a forma do template
+#        aceita qualquer valor nos campos gerados)
 set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -139,12 +161,12 @@ run_render   # 2ª: arquivo existe, sem marcadores, mas idêntico ao que seria e
 grep -q 'id=demo-change' "$T2/.forge/HANDOFF.md"
 echo "OK [6]"
 
-echo "[7] PBT: bytes anteriores sempre recuperáveis (delta preservado ou backup byte-idêntico), com/sem marcadores, prefix/suffix com bytes aleatórios inclusive UTF-8 inválido"
+echo "[7] PBT: bytes anteriores sempre recuperáveis, nos quatro quadrantes com/sem marcadores × perda/sem-perda"
 node - "$LIB" "$GEN" "$T" <<'EOF' || { echo "FAIL [7] (propriedade de recuperabilidade falhou)"; exit 1; }
 const [lib, gen, root] = process.argv.slice(2);
 const fs = await import('node:fs');
 const path = await import('node:path');
-const { spawnSync } = await import('node:child_process');
+const { execFileSync, spawnSync } = await import('node:child_process');
 const { forAll, gen: G } = await import(`${lib}/pbt.mjs`);
 
 const H = path.join(root, '.forge', 'HANDOFF.md');
@@ -159,33 +181,79 @@ const WORDS = ['alfa', 'bravo', 'charlie', 'delta', 'echo', 'foxtrot', 'golf', '
 // soltos, 0xFF, etc.) sem que o teste precise construí-los à mão.
 const wordsGen = G.array(G.oneOf(WORDS), 5, 40);
 const byteGen = G.array(G.int(0, 255), 0, 30);
+// Os quatro quadrantes da regra de bytes autorais (com/sem marcadores × perda/sem-perda). Os dois
+// quadrantes "com-marcadores" ganham um sabor de corpo de slot (edgeChoice) que exercita as bordas
+// que o achado HIGH nomeou: prefixo do placeholder seguido de texto real, indentação/linhas em
+// branco, e — só no quadrante sem-perda — uma deriva de estado por commit real (achado MEDIUM).
+const kindGen = G.oneOf(['wm-loss', 'wm-noloss', 'nm-loss', 'nm-noloss']);
+const edgeGen = G.oneOf(['random', 'placeholder-prefix', 'indented', 'bordered-spaces', 'commit-drift']);
 
-function runCase(hasMarkers, bodyWords, prefixBytes, suffixBytes) {
-  const bodyBuf = Buffer.from(bodyWords.join(' '), 'utf8');
-  const prefixBuf = Buffer.from(prefixBytes);
-  const suffixBuf = Buffer.from(suffixBytes);
-  const prevBuf = hasMarkers
-    ? Buffer.concat([prefixBuf, Buffer.from(`\n\n${START}\n`, 'utf8'), bodyBuf, Buffer.from(`\n${END}\n\n`, 'utf8'), suffixBuf, Buffer.from('\n')])
-    : Buffer.concat([prefixBuf, Buffer.from('\n'), bodyBuf, Buffer.from('\n'), suffixBuf, Buffer.from('\n')]);
+function runCase(kind, bodyWords, prefixBytes, suffixBytes, edgeChoice) {
+  const hasMarkers = kind.startsWith('wm');
+  const words = bodyWords.join(' ');
+  let bodyBuf = Buffer.from(words, 'utf8');
+  if (hasMarkers) {
+    // Corpo BRUTO, nunca aparado — é exatamente o que a regra exige preservar por igual,
+    // comece ele como começar.
+    if (edgeChoice === 'placeholder-prefix') bodyBuf = Buffer.from(`_(A preencher: texto)_\nNOTA-REAL: ${words}`, 'utf8');
+    else if (edgeChoice === 'indented') bodyBuf = Buffer.from(`\n\n    ${words}\n    linha2\n\n\n`, 'utf8');
+    else if (edgeChoice === 'bordered-spaces') bodyBuf = Buffer.from(`   ${words}   `, 'utf8');
+  }
+
+  let prevBuf;
+  if (kind === 'nm-noloss') {
+    prevBuf = Buffer.alloc(0); // nada a recuperar — o único "sem marcadores, sem perda" possível
+  } else if (kind === 'wm-noloss') {
+    // Reaproveita o render ATUAL (não bytes aleatórios) como "fora do slot", para cair de fato no
+    // caminho sem-perda: a forma do template casa com ele por construção. `commit-drift` avança o
+    // HEAD real entre a captura da referência e a geração medida — só campos gerados mudam.
+    if (fs.existsSync(H)) fs.rmSync(H);
+    const res0 = spawnSync('bash', [gen, 'demo-change'], { cwd: root, env: { ...process.env, FORGE_ROOT: root }, encoding: 'utf8' });
+    if (res0.status !== 0) return false;
+    const refStr = fs.readFileSync(H, 'utf8');
+    const rcs = refStr.indexOf(START), rce = refStr.indexOf(END);
+    if (rcs < 0 || rce < 0) return false;
+    if (edgeChoice === 'commit-drift') {
+      try { execFileSync('git', ['-C', root, 'commit', '--allow-empty', '-q', '-m', 'drift'], { stdio: 'ignore' }); } catch { /* segue sem deriva */ }
+    }
+    prevBuf = Buffer.concat([
+      Buffer.from(refStr.slice(0, rcs + START.length), 'utf8'),
+      bodyBuf,
+      Buffer.from(refStr.slice(rce), 'utf8'),
+    ]);
+  } else {
+    const prefixBuf = Buffer.from(prefixBytes);
+    const suffixBuf = Buffer.from(suffixBytes);
+    prevBuf = hasMarkers
+      ? Buffer.concat([prefixBuf, Buffer.from(`\n\n${START}\n`, 'utf8'), bodyBuf, Buffer.from(`\n${END}\n\n`, 'utf8'), suffixBuf, Buffer.from('\n')])
+      : Buffer.concat([prefixBuf, Buffer.from('\n'), bodyBuf, Buffer.from('\n'), suffixBuf, Buffer.from('\n')]);
+  }
+
   fs.writeFileSync(H, prevBuf);
   const res = spawnSync('bash', [gen, 'demo-change'], { cwd: root, env: { ...process.env, FORGE_ROOT: root }, encoding: 'utf8' });
   if (res.status !== 0) return false; // #120 é sobre nunca perder bytes com rc 0 — rc≠0 já é outro defeito
   const afterBuf = fs.readFileSync(H);
-  // Com marcadores, o corpo do delta tem de sobreviver dentro do próprio arquivo sempre — é a
-  // única parte que o merge de fato reescreve para preservar.
+  // Com marcadores, o corpo do slot tem de sobreviver dentro do próprio arquivo sempre, bruto,
+  // qualquer que seja seu formato — é a única parte que o merge de fato reescreve para preservar.
   if (hasMarkers && !afterBuf.includes(bodyBuf)) return false;
   if (afterBuf.equals(prevBuf)) return true; // nada mudou — nada a recuperar
-  // Com ou sem marcadores: se o arquivo final não é byte-idêntico ao anterior, o que mudou fora do
-  // que foi preservado só pode estar recuperável por backup — nunca perdido em silêncio com rc 0.
+
   const m = /salvo em (.*)$/m.exec(res.stderr || '');
-  if (!m) return false; // conteúdo anterior mudaria e sumiu sem aviso nem backup — bytes perdidos sem rastro
+  const backedUp = !!m;
+
+  if (kind === 'nm-noloss') return !backedUp; // arquivo vazio: nada a recuperar, backup seria ruído
+  if (kind === 'wm-noloss') return !backedUp; // forma do template casa (com ou sem deriva de estado): sem backup, sem WARN
+
+  // Quadrantes de perda: se o arquivo final não é byte-idêntico ao anterior, o que mudou fora do
+  // que foi preservado só pode estar recuperável por backup — nunca perdido em silêncio com rc 0.
+  if (!backedUp) return false; // conteúdo anterior mudaria e sumiu sem aviso nem backup — bytes perdidos sem rastro
   const backupPath = m[1].trim();
   return fs.existsSync(backupPath) && fs.readFileSync(backupPath).equals(prevBuf);
 }
 
 const SEED = 20260925;
 const RUNS = 80;
-const r = forAll([G.bool(), wordsGen, byteGen, byteGen], runCase, { runs: RUNS, seed: SEED });
+const r = forAll([kindGen, wordsGen, byteGen, byteGen, edgeGen], runCase, { runs: RUNS, seed: SEED });
 if (!r.ok) {
   console.error(`propriedade falhou após ${r.runs} caso(s) (seed ${r.seed}): ${JSON.stringify(r.counterexample)}${r.error ? ` — ${r.error}` : ''}`);
   process.exit(1);
@@ -246,5 +314,73 @@ cmp -s "$T/prev-10.bin" "$WARN_PATH10" \
   || { echo "FAIL [10] (backup não é byte-idêntico ao arquivo anterior — a rodada extra não sobreviveu nem no arquivo nem no backup)"; exit 1; }
 [ "$(backup_count)" = "$((BC_BEFORE10 + 1))" ] || { echo "FAIL [10] (esperado 1 backup novo — achei $(($(backup_count) - BC_BEFORE10)))"; exit 1; }
 echo "OK [10]"
+
+echo "[11] com marcadores, texto real dentro do slot logo após o prefixo do placeholder sobrevive no próprio arquivo — sem backup, sem WARN (achado HIGH, 4ª rodada)"
+FORGE_ROOT="$T" bash "$GEN" demo-change >/dev/null 2>&1   # regenera do zero — marcadores presentes, placeholder puro
+python3 - "$H" <<'PY'
+import sys
+p = sys.argv[1]
+s = open(p).read()
+a = '<!-- FORGE:NARRATIVE-DELTA:START -->'
+b = '<!-- FORGE:NARRATIVE-DELTA:END -->'
+i = s.index(a) + len(a)
+j = s.index(b)
+placeholder = s[i:j]
+# nota real logo após o prefixo do placeholder, dentro do slot — o padrão que a issue #120
+# (achado HIGH) descreve; o `startsWith('_(A preencher')` antigo descartava isto em silêncio.
+note = placeholder + '\nNOTA-REAL: decisao X tomada; gotcha Y no deploy.\n'
+s = s[:i] + note + s[j:]
+open(p, 'w').write(s)
+PY
+BC_BEFORE11="$(backup_count)"
+FORGE_ROOT="$T" bash "$GEN" demo-change >"$T/stdout-11.log" 2>"$T/stderr-11.log"
+grep -q 'NOTA-REAL: decisao X tomada' "$H" \
+  || { echo "FAIL [11] (nota real após o prefixo do placeholder sumiu do próprio arquivo — perda dentro do slot)"; exit 1; }
+[ ! -s "$T/stderr-11.log" ] || { echo "FAIL [11] (WARN/ruído inesperado — o slot foi preservado no próprio arquivo, nada deveria ir a backup)"; cat "$T/stderr-11.log"; exit 1; }
+[ "$(backup_count)" = "$BC_BEFORE11" ] || { echo "FAIL [11] (backup criado para conteúdo que já foi preservado no próprio arquivo)"; exit 1; }
+echo "OK [11]"
+
+echo "[12] com marcadores, corpo do slot com indentação e linhas em branco nas bordas sobrevive byte a byte — sem trim (achado HIGH, 4ª rodada)"
+FORGE_ROOT="$T" bash "$GEN" demo-change >/dev/null 2>&1   # regenera do zero — marcadores presentes, placeholder puro
+python3 - "$H" <<'PY'
+import sys
+p = sys.argv[1]
+s = open(p).read()
+a = '<!-- FORGE:NARRATIVE-DELTA:START -->'
+b = '<!-- FORGE:NARRATIVE-DELTA:END -->'
+i = s.index(a) + len(a); j = s.index(b)
+body = '\n\n    codigo indentado\n    linha2\n\n\n'
+s = s[:i] + body + s[j:]
+open(p, 'w').write(s)
+PY
+FORGE_ROOT="$T" bash "$GEN" demo-change >"$T/stdout-12.log" 2>"$T/stderr-12.log"
+python3 - "$H" <<'PY' || { echo "FAIL [12] (corpo do slot com indentação/bordas não sobreviveu byte a byte — trim silencioso)"; exit 1; }
+import sys
+p = sys.argv[1]
+s = open(p).read()
+a = '<!-- FORGE:NARRATIVE-DELTA:START -->'
+b = '<!-- FORGE:NARRATIVE-DELTA:END -->'
+i = s.index(a) + len(a); j = s.index(b)
+body = s[i:j]
+expect = '\n\n    codigo indentado\n    linha2\n\n\n'
+sys.exit(0 if body == expect else 1)
+PY
+echo "OK [12]"
+
+echo "[13] fluxo canônico com commit real entre gerações: só HEAD sha/data avançam → nenhum backup, nenhum WARN (achado MEDIUM, 4ª rodada)"
+git -C "$T" commit -q -m "estado A" --allow-empty >/dev/null
+FORGE_ROOT="$T" bash "$GEN" demo-change >/dev/null 2>&1   # renderiza sob o estado A (HEAD sha/data do commit acima)
+cp "$H" "$T/prev-13.bin"
+git -C "$T" commit -q -m "estado B" --allow-empty >/dev/null   # avança HEAD sha/data — nenhum outro dado do change muda
+SHA_A="$(sed -n 's/.*HEAD `\([^`]*\)`.*/\1/p' "$T/prev-13.bin" | head -1)"
+BC_BEFORE13="$(backup_count)"
+FORGE_ROOT="$T" bash "$GEN" demo-change >"$T/stdout-13.log" 2>"$T/stderr-13.log"
+SHA_B="$(sed -n 's/.*HEAD `\([^`]*\)`.*/\1/p' "$H" | head -1)"
+[ -n "$SHA_A" ] && [ -n "$SHA_B" ] && [ "$SHA_A" != "$SHA_B" ] \
+  || { echo "FAIL [13] (pré-condição: HEAD sha não avançou entre os dois commits — cenário não exercita deriva de estado)"; exit 1; }
+[ ! -s "$T/stderr-13.log" ] || { echo "FAIL [13] (WARN falso-positivo depois de um commit real — só HEAD sha/data mudaram — achado MEDIUM da 4ª rodada)"; cat "$T/stderr-13.log"; exit 1; }
+[ "$(backup_count)" = "$BC_BEFORE13" ] || { echo "FAIL [13] (backup criado só porque HEAD sha/data avançaram — achado MEDIUM da 4ª rodada)"; exit 1; }
+grep -q 'demo-change' "$H"
+echo "OK [13]"
 
 echo "PASS w60-handoff-gen-gate"

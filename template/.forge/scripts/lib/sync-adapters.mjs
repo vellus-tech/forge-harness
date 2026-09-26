@@ -23,8 +23,9 @@ import {
   existsSync, symlinkSync, lstatSync, unlinkSync, readlinkSync, rmdirSync, realpathSync
 } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { join, relative, basename, dirname } from 'node:path';
+import { join, relative, basename, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';
 
 // CliError — marca as validações INTENCIONAIS (FORGE.md ausente, --set vazio, adapter
 // desconhecido) que o galho principal converte em `FAIL (mensagem)` de uma linha. Um erro
@@ -154,22 +155,226 @@ function readYamlAutoFlag(yamlPath, key) {
 // para comparar contra o `.claude/settings.json` já materializado (issue #130: `const wiring =
 // mod.preToolUseWiring(root)`). `GENERATORS.claude` chama esta mesma função para gerar o
 // settings.json real, então as duas leituras nunca divergem.
+//
+// OWNED_HOOK_COMMANDS (issue #160/LDG-0189) é o universo COMPLETO de comandos que esta função
+// pode emitir, em QUALQUER combinação de flags do forge.yaml — não só os que a chamada atual
+// produziu. É pela IGUALDADE DE STRING contra este conjunto, nunca pela simples menção a
+// `.forge/hooks/`, que `mergeHooksObject` decide se uma entrada de hook já existente em
+// `.claude/settings.json` é dona do gerador (substituível) ou de terceiro (preservada). Um
+// consumidor real (axis-fare-validator, medido) tem ganchos próprios que citam `.forge/hooks/`
+// via wrapper (`dispatch-file-hook.sh $CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/<gancho>.sh`)
+// sem SEREM nenhum destes três comandos — perdê-los seria o mesmo dano que esta issue fecha.
+const CMD_ENFORCE_WORKTREE = '$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/enforce-worktree-location.sh';
+const CMD_SESSION_START = '$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-start.sh';
+const CMD_SESSION_END = '$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-end.sh';
+const OWNED_HOOK_COMMANDS = new Set([CMD_ENFORCE_WORKTREE, CMD_SESSION_START, CMD_SESSION_END]);
+
 export function preToolUseWiring(root) {
   const forgeYaml = join(root, '.forge', 'forge.yaml');
-  const hooks = { PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command: '$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/enforce-worktree-location.sh' }] }] };
+  const hooks = { PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command: CMD_ENFORCE_WORKTREE }] }] };
   const handoffAuto = readYamlAutoFlag(forgeYaml, 'handoff');
   const ledgerAuto = readYamlAutoFlag(forgeYaml, 'ledger');
   const liaisonAuto = readYamlAutoFlag(forgeYaml, 'liaison');
   // SessionStart injeta o handoff, os itens do ledger e/ou o resumo do inbox do liaison — o hook
   // decide o quê lendo o forge.yaml, então basta um dos flags para materializá-lo.
   if (handoffAuto || ledgerAuto || liaisonAuto) {
-    hooks.SessionStart = [{ hooks: [{ type: 'command', command: '$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-start.sh' }] }];
+    hooks.SessionStart = [{ hooks: [{ type: 'command', command: CMD_SESSION_START }] }];
   }
   // SessionEnd só regenera o scaffold do handoff (o ledger é regenerado a cada mutação).
   if (handoffAuto) {
-    hooks.SessionEnd = [{ hooks: [{ type: 'command', command: '$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-end.sh' }] }];
+    hooks.SessionEnd = [{ hooks: [{ type: 'command', command: CMD_SESSION_END }] }];
   }
   return hooks;
+}
+
+// mergeHooksObject(existingHooks, derivedHooks) — issue #160: pura, sem I/O. Para cada categoria
+// (PreToolUse/SessionStart/SessionEnd, ou qualquer categoria de terceiro nunca emitida por este
+// gerador), remove das entradas JÁ EXISTENTES só os itens cujo `command` bate por IGUALDADE DE
+// STRING com `OWNED_HOOK_COMMANDS`; um grupo {matcher, hooks:[...]} que fica sem nenhum hook
+// depois da remoção é descartado por inteiro (era só do gerador). O que sobra (hooks de terceiro,
+// de qualquer matcher) entra ANTES dos grupos recém-derivados, sempre na mesma ordem relativa —
+// é essa ordem estável, não uma fusão por matcher, que torna dois `sync` seguidos byte-idênticos:
+// na segunda passada, o grupo próprio já reaparece como "existente" e volta a ser removido antes
+// de ser reemitido, sem duplicar.
+function mergeHooksObject(existingHooks, derivedHooks) {
+  const categories = [];
+  const seen = new Set();
+  for (const k of Object.keys(existingHooks || {})) { categories.push(k); seen.add(k); }
+  for (const k of Object.keys(derivedHooks || {})) { if (!seen.has(k)) { categories.push(k); seen.add(k); } }
+  const out = {};
+  for (const cat of categories) {
+    const existingGroups = Array.isArray(existingHooks?.[cat]) ? existingHooks[cat] : [];
+    const derivedGroups = Array.isArray(derivedHooks?.[cat]) ? derivedHooks[cat] : [];
+    const foreignGroups = [];
+    for (const group of existingGroups) {
+      if (!group || !Array.isArray(group.hooks)) { foreignGroups.push(group); continue; }
+      const keptHooks = group.hooks.filter((h) => !(h && OWNED_HOOK_COMMANDS.has(h.command)));
+      // Achado de correção LOW (revisão adversarial): descarta o grupo só quando ele TINHA hooks e
+      // TODOS eram do gerador (`group.hooks.length > 0` e nada sobrou depois do filtro) — nunca só
+      // por `keptHooks.length === 0`, que também é verdade para um grupo de terceiro/exótico que já
+      // nasceu com `hooks: []` (Claude Code nunca emite essa forma, mas um `settings.json` editado à
+      // mão pode) e que não continha nenhum hook owned para justificar a remoção.
+      if (group.hooks.length > 0 && keptHooks.length === 0) continue; // grupo inteiro era do gerador — descarta
+      foreignGroups.push(keptHooks.length === group.hooks.length ? group : { ...group, hooks: keptHooks });
+    }
+    const merged = [...foreignGroups, ...derivedGroups];
+    if (merged.length) out[cat] = merged;
+  }
+  return out;
+}
+
+// decodeAndValidateSettings(bytes) — issue #160, achado de correção (revisão adversarial,
+// MEDIUM e LOW): um `.claude/settings.json` é ILEGÍVEL — backup byte-idêntico + WARN, nunca
+// regenerado por cima em silêncio — não só quando o JSON não parseia, mas em qualquer forma que
+// faria `mergeSettingsJson`/`mergeHooksObject` descartar dado do consumidor, ou corromper o
+// próprio protótipo do objeto de saída, sem preservação nem aviso: (1) bytes que não são UTF-8
+// válido (decodificar com `TextDecoder` não-estrito substituiria byte inválido por U+FFFD e
+// reescreveria o arquivo com o valor corrompido, silenciosamente); (2) JSON válido cujo nível de
+// topo não é um objeto plano (por exemplo um array — `existing` cairia em `null` e todo o
+// conteúdo seria descartado, também em silêncio); (3) a chave `hooks`, quando presente, não sendo
+// um objeto plano (um array em `hooks` seria substituído pela fiação derivada sem backup); (4)
+// qualquer CATEGORIA dentro de `hooks` (`PreToolUse`, ou qualquer nome de terceiro) que não seja
+// um array — `mergeHooksObject` trataria essa categoria como `[]` e descartaria o conteúdo em
+// silêncio; (5) a própria chave de topo `__proto__` — `JSON.parse` a cria como propriedade OWN
+// (diferente de um literal de objeto JS), mas copiá-la depois com `out[k] = existing[k]` aciona o
+// setter de `Object.prototype.__proto__` e TROCA o protótipo de `out` em vez de criar a chave,
+// perdendo o conteúdo em silêncio e sem nunca aparecer no JSON de saída (`JSON.stringify` só
+// serializa propriedades OWN). `bytes` é o `Buffer` bruto lido do disco — nunca uma string já
+// decodificada, para que o backup do chamador preserve os bytes originais mesmo quando a causa da
+// ilegibilidade é a própria codificação. Devolve `{ text, reason: null }` quando a forma é
+// aceitável, ou `{ text: null, reason }` quando não é — `reason` é a forma concreta (achado de
+// correção LOW: o WARN do chamador dizia sempre "JSON inválido", inclusive para bytes não-UTF-8 e
+// para formas de `hooks` inválidas).
+function decodeAndValidateSettings(bytes) {
+  let text;
+  try {
+    text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch { return { text: null, reason: 'bytes não são UTF-8 válido' }; }
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch { return { text: null, reason: 'JSON inválido' }; }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return { text: null, reason: 'nível de topo não é um objeto' };
+  }
+  if (Object.prototype.hasOwnProperty.call(parsed, '__proto__')) {
+    return { text: null, reason: "chave de topo '__proto__' presente" };
+  }
+  if (parsed.hooks !== undefined) {
+    if (parsed.hooks === null || typeof parsed.hooks !== 'object' || Array.isArray(parsed.hooks)) {
+      return { text: null, reason: "'hooks' não é um objeto" };
+    }
+    for (const cat of Object.keys(parsed.hooks)) {
+      if (!Array.isArray(parsed.hooks[cat])) {
+        return { text: null, reason: `'hooks.${cat}' não é um array` };
+      }
+    }
+  }
+  return { text, reason: null };
+}
+
+// mergeSettingsJson(existingText, derivedHooks) — issue #160: pura. `existingText` é o conteúdo
+// bruto (string) do `.claude/settings.json` já materializado — já validado por
+// `decodeAndValidateSettings` no chamador —, ou `null` quando não existe ou era ilegível (o
+// chamador já tratou o backup nesse caso — ver `backupUnreadableSettings`).
+// Preserva toda chave de topo que não seja `hooks`, na MESMA posição em que já estava — o gerador
+// só é dono do que ele mesmo referencia dentro de `hooks`, nunca de `permissions`, `env`,
+// `includeCoAuthoredBy` ou qualquer chave de terceiro. Sem `existingText`, o resultado é
+// `{ hooks: derivedHooks }`, igual ao comportamento anterior a esta issue.
+function mergeSettingsJson(existingText, derivedHooks) {
+  let existing = null;
+  if (existingText != null) {
+    try {
+      const parsed = JSON.parse(existingText);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) existing = parsed;
+    } catch { existing = null; }
+  }
+  const existingHooks = (existing && existing.hooks && typeof existing.hooks === 'object' && !Array.isArray(existing.hooks))
+    ? existing.hooks : {};
+  const mergedHooks = mergeHooksObject(existingHooks, derivedHooks);
+  const out = {};
+  if (existing) {
+    for (const k of Object.keys(existing)) {
+      if (k === 'hooks') { out.hooks = mergedHooks; continue; }
+      // Object.defineProperty, nunca `out[k] = existing[k]` (achado de correção LOW): esta função é
+      // chamada só com `existing` já validado por `decodeAndValidateSettings` — que rejeita
+      // `__proto__` como ilegível —, mas escrever a chave por atribuição comum aciona o SETTER de
+      // `Object.prototype.__proto__` caso essa validação um dia mude ou seja contornada, trocando o
+      // protótipo de `out` por engano em vez de criar a chave. `defineProperty` cria sempre uma
+      // propriedade OWN, comum ou chamada `__proto__`, nunca aciona o acessor herdado.
+      Object.defineProperty(out, k, { value: existing[k], enumerable: true, writable: true, configurable: true });
+    }
+  }
+  if (!('hooks' in out)) out.hooks = mergedHooks;
+  return out;
+}
+
+// resolveGitDir(root) — mesma resolução de `bin/forge.mjs:596`: numa worktree LIGADA, `.git` é um
+// ARQUIVO (não diretório) apontando para o gitdir real sob o repositório principal, e o caminho
+// literal `<root>/.git/forge-backups/` falharia (ENOTDIR). `git -C <root> rev-parse --git-dir`
+// resolve certo nos dois casos — devolve `null` fora de um repositório git.
+function resolveGitDir(root) {
+  try {
+    return resolve(root, execFileSync('git', ['-C', root, 'rev-parse', '--git-dir'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim());
+  } catch { return null; }
+}
+
+// backupUnreadableSettings(root, settingsPath, bytes, reason) — issue #160, mesma política da
+// #120 (DA-09): um `.claude/settings.json` com JSON ilegível NUNCA é regenerado por cima em
+// silêncio. Os bytes anteriores vão para `<git-dir>/forge-backups/settings-<n>.json` (fora do
+// universo de qualquer gate e de `git status` — mesmo raciocínio do backup do `update`), e um WARN
+// nomeia o caminho antes de a geração seguir como se o arquivo não existisse (rc 0). Fora de um
+// repositório git, o backup cai ao lado do próprio arquivo. `reason` (achado de correção LOW) é a
+// forma concreta de ilegibilidade devolvida por `decodeAndValidateSettings` — antes desta correção
+// o WARN dizia sempre "JSON inválido", inclusive para bytes não-UTF-8 e para `hooks` em formato
+// inválido, o que é falso para quem lê o log tentando diagnosticar a causa real.
+function backupUnreadableSettings(root, settingsPath, bytes, reason) {
+  const gitDir = resolveGitDir(root);
+  const bakRoot = gitDir ? join(gitDir, 'forge-backups') : dirname(settingsPath);
+  mkdirSync(bakRoot, { recursive: true });
+  let n = 1;
+  while (existsSync(join(bakRoot, `settings-${n}.json`))) n++;
+  const bakPath = join(bakRoot, `settings-${n}.json`);
+  writeFileSync(bakPath, bytes);
+  console.error(`WARN: .claude/settings.json ilegível (${reason || 'JSON inválido'}) — conteúdo anterior salvo em ${bakPath}`);
+  return bakPath;
+}
+
+// pruneSettingsJson(abs) — issue #160/LDG-0189, achado de correção MEDIUM (revisão adversarial):
+// `.claude/settings.json` é um arquivo COMPARTILHADO mesmo quando o adapter `claude` é desativado
+// — pode conter chaves de topo autorais (`permissions`, `env`, ...) e hooks de terceiro que nenhum
+// outro adapter possui. Antes desta correção, desativar o adapter (`--set` sem `claude` na lista)
+// caía no mesmo `unlinkSync` incondicional de qualquer outro destino do lockfile, apagando o
+// arquivo inteiro — o mesmo dano de fundo que a #160 fecha para o `sync`, só que pela poda em vez
+// da emissão. Remove só as entradas OWNED (mesma projeção de `mergeHooksObject`, contra
+// `derivedHooks` vazio — o adapter desativado não deriva hook nenhum) e preserva o arquivo quando
+// sobra conteúdo não-owned (outra chave de topo, ou hook de terceiro); remove o arquivo só quando
+// nada sobra. JSON ilegível segue a mesma política de backup da #160 (nunca some sem rastro).
+// Devolve `true` quando o arquivo foi tocado (removido ou reescrito), para contar no total podado.
+function pruneSettingsJson(abs) {
+  if (!exists(abs)) return false;
+  const rawBytes = readFileSync(abs);
+  const { text: legible, reason } = decodeAndValidateSettings(rawBytes);
+  if (legible == null) {
+    backupUnreadableSettings(ROOT, abs, rawBytes, reason);
+    unlinkSync(abs);
+    return true;
+  }
+  const existing = JSON.parse(legible);
+  const existingHooks = (existing.hooks && typeof existing.hooks === 'object' && !Array.isArray(existing.hooks))
+    ? existing.hooks : {};
+  const prunedHooks = mergeHooksObject(existingHooks, {});
+  const out = {};
+  for (const k of Object.keys(existing)) {
+    if (k === 'hooks') continue;
+    Object.defineProperty(out, k, { value: existing[k], enumerable: true, writable: true, configurable: true });
+  }
+  if (Object.keys(prunedHooks).length) out.hooks = prunedHooks;
+  if (Object.keys(out).length === 0) { unlinkSync(abs); return true; }
+  const newText = JSON.stringify(out, null, 2) + '\n';
+  if (newText === legible) return false; // nada owned para remover — arquivo intocado
+  writeFileSync(abs, newText);
+  return true;
 }
 
 function writeActive(names) {
@@ -265,8 +470,28 @@ const GENERATORS = {
         lock.emit(join(ROOT, '.claude', tree, relative(join(FORGE, tree), src)), readFileSync(src, 'utf8'), src);
       }
     }
-    const hooks = preToolUseWiring(ROOT);
-    lock.emit(join(ROOT, '.claude/settings.json'), JSON.stringify({ hooks }, null, 2) + '\n');
+    // #160/LDG-0189: o gerador só é dono do que ele referencia dentro de `hooks` (ver
+    // `mergeHooksObject`) — toda outra chave de topo (`permissions`, `env`,
+    // `includeCoAuthoredBy`, ...) e todo hook de terceiro sobrevivem ao `sync`, de forma
+    // idempotente. JSON ilegível vira backup (nunca é sobrescrito em silêncio) antes de a
+    // geração seguir como se o arquivo não existisse.
+    const settingsPath = join(ROOT, '.claude/settings.json');
+    let existingSettingsText = null;
+    if (existsSync(settingsPath)) {
+      // `rawBytes` é o Buffer bruto (nunca decodificado antes do backup): achado de correção
+      // MEDIUM — decodificar para string antes de fazer o backup perderia byte não-UTF-8 na
+      // reescrita (`writeFileSync` re-encodaria a string, não os bytes originais).
+      const rawBytes = readFileSync(settingsPath);
+      const { text: legible, reason } = decodeAndValidateSettings(rawBytes);
+      if (legible != null) {
+        existingSettingsText = legible;
+      } else {
+        backupUnreadableSettings(ROOT, settingsPath, rawBytes, reason);
+        existingSettingsText = null;
+      }
+    }
+    const mergedSettings = mergeSettingsJson(existingSettingsText, preToolUseWiring(ROOT));
+    lock.emit(settingsPath, JSON.stringify(mergedSettings, null, 2) + '\n');
     lock.linkToAgentsMd('CLAUDE.md');
   },
   codex(_lock) { /* consumes the canonical AGENTS.md (core) — no extra target (§15) */ },
@@ -380,6 +605,9 @@ function reconcile(activeNames) {
       const dest = m[1];
       if (activeDests.has(dest)) continue;
       const abs = join(ROOT, dest);
+      // #160/LDG-0189 (achado MEDIUM): .claude/settings.json é compartilhado mesmo com o adapter
+      // desativado — poda só as entradas owned em vez de apagar o arquivo inteiro (pruneSettingsJson).
+      if (dest === '.claude/settings.json') { if (pruneSettingsJson(abs)) pruned++; continue; }
       if (exists(abs)) { unlinkSync(abs); pruned++; }
     }
     unlinkSync(join(ADAPTERS_DIR, file));

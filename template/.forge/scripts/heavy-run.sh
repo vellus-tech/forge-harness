@@ -185,8 +185,24 @@ POLL="${_pa:-$_pb}"
 # ecossistema recomenda para sobreviver ao watchdog do harness), o processo que lança
 # heavy-run.sh pode entregar INT ou TERM já ignorado, e nenhuma reordenação do `trap` mais abaixo
 # resolveria isso — a disposição já estava fechada antes da primeira linha executável (issue
-# #146). A prova é por TENTATIVA: um `trap` de descarte em INT/TERM só "pega" se a disposição de
-# entrada não era SIG_IGN; `trap -p` vazio depois da tentativa é o sintoma.
+# #146). A prova é por TENTATIVA, mas por CONTEÚDO, não por presença: um `trap` de descarte em
+# INT/TERM só "pega" de verdade se a disposição de entrada não era SIG_IGN, e a única forma
+# confiável de saber isso é conferir se `trap -p` devolve o COMANDO-SONDA que acabamos de armar —
+# nunca só "devolveu algo". Achado BLOCKER de correção: bash 3.2 imprime vazio quando a tentativa
+# de armar falhou (então checar só "não-vazio" funcionava por acidente), mas bash >=4 devolve o
+# TRAP ANTIGO (a disposição SIG_IGN herdada, com o comando vazio de quem a armou) em vez de vazio
+# — `[ -n "$p_int" ]` dá verdadeiro mesmo com o sinal ainda ignorado, e o reset nunca dispara.
+# Medido: `sh -c "trap '' INT; exec bash5 -c 'trap true INT; trap -p INT'"` imprime
+# `trap -- '' SIGINT` (o trap ORIGINAL, não o `true` que acabamos de tentar armar) — não-vazio,
+# mas errado. Por isso a sonda usa um comando sentinela DISTINGUÍVEL e o veredito é por
+# substring, não por `-n`.
+#
+# A sonda também nunca chama `trap - SIG` sobre um sinal que ainda pode estar ignorado (mesmo
+# achado): no bash >=4, medido, `trap - INT` sobre INT herdado como ignorado MUDA a disposição de
+# verdade (de SIG_IGN para o padrão do processo) mesmo com `trap -p` continuando a imprimir o
+# texto antigo — um efeito colateral silencioso que faria a sonda destravar o sinal por acidente,
+# sem que o reset por `perl` (que precisa rodar num processo NÃO-bash, ver abaixo) tenha ocorrido.
+# `trap - SIG` só é chamado no ramo em que JÁ SABEMOS que o sinal não veio ignorado.
 #
 # HUP fica DE FORA deste reset, deliberadamente: resetar HUP mataria, no fechamento do terminal
 # que o lançamento via `nohup` existe para proteger, exatamente o processo que o operador queria
@@ -199,15 +215,30 @@ POLL="${_pa:-$_pb}"
 # disposição para DEFAULT antes de `exec`'ar o alvo real, e essa disposição sobrevive ao exec
 # seguinte porque deixou de ser SIG_IGN. `_HR_SIG_RESET` é a variável de guarda contra laço: se,
 # mesmo depois de reexecutado uma vez, o sinal continuar sem poder ser armado, a função recusa em
-# vez de reexecutar de novo — e em vez de rodar a carga sem trap.
+# vez de reexecutar de novo — e em vez de rodar a carga sem trap. A guarda é `unset` assim que
+# deixa de ser necessária (ramo armável, logo abaixo), porque `VAR=1 exec` a exporta para todo o
+# resto da árvore de processos — inclusive a CARGA — e um heavy-run.sh aninhado dentro do próprio
+# payload (achado MEDIUM de correção: um payload lançado por `&` sem `set -m`, como o próprio
+# comentário abaixo de `set -m` descreve, herda INT ignorado por regra POSIX de lista assíncrona
+# sem controle de job) leria a guarda do PAI como se já tivesse tentado resetar a SI MESMO, e
+# recusaria com `70` sem nunca ter tentado.
 _hr_reset_ignored_signals() {
-  trap 'true' INT TERM
-  local p_int p_term
+  local sentinel=': hr146_probe_armavel'
+  trap "$sentinel" INT TERM
+  local p_int p_term precisa_reset=0
   p_int="$(trap -p INT)"
   p_term="$(trap -p TERM)"
-  trap - INT TERM
-  # As duas disposições vieram armáveis: nada herdado a resetar, segue o fluxo normal.
-  [ -n "$p_int" ] && [ -n "$p_term" ] && return 0
+  case "$p_int" in *"$sentinel"*) : ;; *) precisa_reset=1 ;; esac
+  case "$p_term" in *"$sentinel"*) : ;; *) precisa_reset=1 ;; esac
+
+  if [ "$precisa_reset" = "0" ]; then
+    # As duas disposições vieram armáveis (a sonda foi lida de volta): nada herdado a resetar.
+    # Só aqui é seguro devolver o trap à disposição padrão — sabemos que nenhum dos dois estava
+    # ignorado na entrada, então `trap - SIG` não tem o efeito colateral descrito acima.
+    trap - INT TERM
+    unset _HR_SIG_RESET
+    return 0
+  fi
 
   if [ "${_HR_SIG_RESET:-0}" = "1" ]; then
     echo "heavy-run: INT ou TERM continua ignorado mesmo depois do reset — abortando em vez de rodar sem trap." >&2
@@ -217,8 +248,12 @@ _hr_reset_ignored_signals() {
     echo "heavy-run: INT ou TERM chega ignorado na entrada (herdado do lançamento detached) e 'perl' não está disponível para resetar a disposição — recusando em vez de rodar sem trap." >&2
     return 70
   fi
+  # Reexecuta com o MESMO interpretador que já está rodando ($BASH, resolvido pelo próprio bash
+  # na entrada) e o MESMO arquivo ($BASH_SOURCE[0], não um caminho literal): achado LOW de
+  # correção — `bash "$SCRIPT_DIR/heavy-run.sh"` resolvia `bash` de novo pelo PATH, e uma máquina
+  # com outro bash na frente (ex.: Homebrew) trocaria de interpretador NO MEIO da execução.
   _HR_SIG_RESET=1 exec perl -e '$SIG{INT}="DEFAULT"; $SIG{TERM}="DEFAULT"; exec @ARGV or die "heavy-run: exec falhou ao resetar disposição de sinal: $!\n"' \
-    bash "$SCRIPT_DIR/heavy-run.sh" "${_HR_ORIG_ARGV[@]}"
+    "$BASH" "${BASH_SOURCE[0]}" "${_HR_ORIG_ARGV[@]}"
   # `exec` só retorna em falha.
   echo "heavy-run: falha ao reexecutar para resetar disposição de sinal" >&2
   return 70

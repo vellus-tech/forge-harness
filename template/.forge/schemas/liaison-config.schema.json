@@ -60,15 +60,16 @@
                   "enum": [
                     "manual",
                     "fs",
+                    "fs-union",
                     "git",
                     "gh"
                   ],
-                  "description": "Backend em scripts/lib/transports/<kind>.sh, com o contrato t_probe/t_push/t_pull. `manual` é a primitiva (diretório de troca no mesmo layout de export/import, jamais criado pelo script); `fs` é o default do piloto (hub multi-canal criado sob demanda); `git` usa branch órfã dedicada num remote, com clone de trabalho descartável em .forge/cache/liaison/<channel>; `gh` é declarado e NÃO implementável por script — o harness proíbe invocar o CLI do GitHub em .sh, então o backend reprova por construção."
+                  "description": "Backend em scripts/lib/transports/<kind>.sh, com o contrato t_probe/t_push/t_pull. `manual` é a primitiva (diretório de troca no mesmo layout de export/import, jamais criado pelo script); `fs` é o default do piloto (hub multi-canal criado sob demanda); `fs-union` é opt-in, com o mesmo hub de `fs` e o `_common.sh` carregado do checkout principal, com falha fechada quando ele falta — uma árvore anterior ao kind recusa o `liaison.yaml` do tronco com `kind inválido` antes de tocar o hub (issue #123); `git` usa branch órfã dedicada num remote, com clone de trabalho descartável em .forge/cache/liaison/<channel>; `gh` é declarado e NÃO implementável por script — o harness proíbe invocar o CLI do GitHub em .sh, então o backend reprova por construção."
                 },
                 "path": {
                   "type": "string",
                   "minLength": 1,
-                  "description": "Diretório do ponto de encontro. Obrigatório em `manual` (layout <path>/{log,blobs}) e em `fs` (layout <path>/<channel>/{log,blobs})."
+                  "description": "Diretório do ponto de encontro. Obrigatório em `manual` (layout <path>/{log,blobs}) e em `fs` e `fs-union` (layout <path>/<channel>/{log,blobs})."
                 },
                 "remote": {
                   "type": "string",

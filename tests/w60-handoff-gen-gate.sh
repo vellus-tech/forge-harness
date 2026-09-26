@@ -460,7 +460,8 @@ grep -q 'bloqueado pelo time de pagamentos' "$WARN_PATH14" || { echo "FAIL [14] 
 echo "OK [14]"
 
 echo "[15] achado MEDIUM (6ª rodada): bytes fora de UTF-8 válido dentro do slot sobrevivem byte a byte (sem virar U+FFFD)"
-FORGE_ROOT="$T" bash "$GEN" demo-change >/dev/null 2>&1   # regenera do zero — marcadores + digest presentes, estado inalterado
+rm -f "$H"   # zero de fato — o cenário [16] a seguir precisa de um placeholder puro, legível em UTF-8, e não do slot em Latin-1 que este cenário injeta
+FORGE_ROOT="$T" bash "$GEN" demo-change >/dev/null 2>&1   # marcadores + digest presentes, placeholder puro
 python3 - "$H" <<'PY'
 import sys
 p = sys.argv[1]
@@ -491,7 +492,8 @@ PY
 echo "OK [15]"
 
 echo "[16] achado MEDIUM (6ª rodada): marcador do digest citado LITERALMENTE dentro do slot não é reescrito ali — só o rodapé real recebe o hash"
-FORGE_ROOT="$T" bash "$GEN" demo-change >/dev/null 2>&1   # regenera do zero — marcadores + digest presentes, estado inalterado
+rm -f "$H"   # zero de fato — o cenário [15] anterior deixou bytes de Latin-1 inválidos em UTF-8 no slot
+FORGE_ROOT="$T" bash "$GEN" demo-change >/dev/null 2>&1   # marcadores + digest presentes, placeholder puro
 python3 - "$H" <<'PY'
 import sys
 p = sys.argv[1]

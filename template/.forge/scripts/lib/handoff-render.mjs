@@ -3,7 +3,7 @@
 // The narrative delta (section 4) is preserved across regenerations when already filled, so a
 // rule-based hook run never destroys a delta written by /forge:handoff.
 //
-// REGRA DE BYTES AUTORAIS (#120, 5ª rodada — digest em vez de forma/regex):
+// REGRA DE BYTES AUTORAIS (#120, 6ª rodada — merge em Buffer, digest restrito ao rodapé):
 //
 //   1. O render é uma função pura dos dados do change (manifest/progress/deferrals + git + FORGE.md).
 //   2. "Bytes autorais" de um HANDOFF.md anterior são os bytes que esse render não explica.
@@ -25,18 +25,43 @@
 //      HEAD/data/progresso tenham mudado desde então, porque o hash foi calculado sobre os bytes já
 //      atualizados na última geração, não sobre um estado anterior a ela. Se não bater (edição
 //      manual, texto colado, truncamento) ou se o comentário não existir (arquivo legado, anterior a
-//      esta regra, ou template sem o marcador de digest), backup + WARN.
+//      esta regra), backup + WARN.
 //   6. Comparação de digest é feita em Buffer bruto, nunca via string utf8 decodificada: o marcador
 //      do digest é ASCII puro, que em UTF-8 (válido ou não) nunca aparece como byte de continuação,
 //      então localizá-lo por Buffer.indexOf funciona mesmo que o resto do arquivo tenha bytes
 //      inválidos — sem isso, decodificar para achar o marcador substituiria bytes ruins por U+FFFD e
 //      quebraria o hash de qualquer arquivo que não seja UTF-8 limpo.
-//   7. Se o template não tiver o marcador de digest (`<!-- FORGE:HANDOFF-DIGEST -->`) — um template
-//      customizado de um adotante, por exemplo — a regra não é desligada: cai para comparação
-//      literal de bytes entre o "outside" do arquivo anterior e o que seria escrito agora. Isso
-//      ainda é seguro (nunca perde bytes em silêncio) e cobre o caso trivial de duas gerações sem
-//      mudança nenhuma de estado; só reintroduz o falso positivo de deriva de estado (HEAD/data)
-//      que o digest evita, e só nesse template sem suporte ao marcador.
+//   7. TUDO que envolve o arquivo ANTERIOR — localizar os marcadores, extrair o corpo do slot,
+//      comparar e recortar o "outside" — opera em Buffer bruto do início ao fim, nunca em string
+//      decodificada (achado MEDIUM da revisão do #120, 6ª rodada): decodificar o arquivo anterior
+//      para localizar os marcadores e depois recodificar a string de volta para escrever trocava
+//      bytes inválidos em UTF-8 dentro do próprio slot por U+FFFD, mesmo esses sendo exatamente o
+//      tipo de byte autoral que a regra existe para preservar. O único texto tratado como string é o
+//      NOVO render (`content`), que este próprio script produz a partir de UTF-8 válido.
+//   8. O placeholder do digest (`<!-- FORGE:HANDOFF-DIGEST -->`) só é preenchido na região
+//      ESTRITAMENTE DEPOIS do fim do slot (achado MEDIUM da revisão do #120, 6ª rodada) — nunca na
+//      primeira ocorrência do documento inteiro. Um delta narrativo pode legitimamente citar o
+//      próprio marcador como texto (por exemplo, para documentar este mecanismo, como este arquivo
+//      faz agora); substituir a primeira ocorrência reescreveria essa citação em vez do rodapé real,
+//      perdendo a citação em silêncio e deixando o placeholder verdadeiro sem preencher.
+//   9. Se o template não tiver o marcador de digest (`<!-- FORGE:HANDOFF-DIGEST -->`) — um template
+//      customizado, ou um template preservado pelo `update` antes desta regra existir — o gerador
+//      grava o próprio rodapé de digest mesmo assim, ao final do documento (achado LOW da revisão do
+//      #120, 6ª rodada). Decisão: gravar sempre, e não cair para comparação literal contra o render
+//      novo. A comparação literal (a forma anterior a esta rodada) tem falso positivo em TODO commit
+//      real — qualquer avanço de HEAD sha/data já é, por definição, uma mudança de bytes fora do
+//      slot — e isso persistiria para sempre nesse template, gerando um WARN e um backup por commit
+//      indefinidamente. A alternativa cogitada (degradar para a comparação literal só na primeira
+//      geração e avisar uma única vez) exigiria um estado extra persistido entre execuções só para
+//      saber que essa "primeira vez" já aconteceu; gravar o rodapé sempre resolve com o mecanismo que
+//      já existe, ao custo de uma linha de comentário HTML que ninguém precisa ler.
+//  10. O WARN distingue "nunca houve registro de digest neste arquivo" (arquivo gerado antes desta
+//      regra — a primeira geração pós-upgrade) de "o digest não bate" (edição manual real depois de
+//      um digest válido) — achado LOW da revisão do #120, 6ª rodada. Dizer "conteúdo fora do bloco"
+//      quando nunca existiu um digest para comparar afirma uma comparação que não aconteceu; o texto
+//      da 1ª geração é honesto sobre o motivo real (arquivo anterior a esta versão) e sobre a
+//      consequência (o conteúdo anterior foi salvo por precaução, porque sem digest não há como
+//      saber se ele mudou).
 //
 // Driven by env (set by handoff-gen.sh): HANDOFF_DIR, HANDOFF_TPL, FORGE_ROOT, HANDOFF_ID,
 // HANDOFF_BRANCH, HANDOFF_SHA, HANDOFF_DATE, HANDOFF_TEST, HANDOFF_TYPECHECK, HANDOFF_LINT.
@@ -65,7 +90,7 @@ const manifest = parseYamlSubset(readFileSync(join(dir, 'manifest.yaml'), 'utf8'
 const progress = readJson(join(dir, 'progress.json')) || {};
 const deferrals = readJson(join(dir, 'deferrals.json'));
 
-const open = Array.isArray(deferrals)
+const openDeferrals = Array.isArray(deferrals)
   ? deferrals.filter((d) => d && d.status === 'open').map((d) => d.id)
   : (deferrals && Array.isArray(deferrals.deferrals)
       ? deferrals.deferrals.filter((d) => d && d.status === 'open').map((d) => d.id)
@@ -84,7 +109,7 @@ const map = {
   STORIES_TOTAL: dash(progress.total_stories ?? 0),
   TASKS_DONE: dash(progress.done_tasks ?? 0),
   TASKS_TOTAL: dash(progress.total_tasks ?? 0),
-  OPEN_DEFERRALS: open.length ? open.join(', ') : 'nenhum',
+  OPEN_DEFERRALS: openDeferrals.length ? openDeferrals.join(', ') : 'nenhum',
   RUNTIME_TEST: dash(env.HANDOFF_TEST),
   RUNTIME_TYPECHECK: dash(env.HANDOFF_TYPECHECK),
   RUNTIME_LINT: dash(env.HANDOFF_LINT),
@@ -127,16 +152,13 @@ function backupPreviousHandoff(root, prevBuf) {
 
 const START = '<!-- FORGE:NARRATIVE-DELTA:START -->';
 const END = '<!-- FORGE:NARRATIVE-DELTA:END -->';
-const rawCs = rawTpl.indexOf(START), rawCe = rawTpl.indexOf(END);
-const tplHasSlot = rawCs >= 0 && rawCe > rawCs;
-
 const DIGEST_PLACEHOLDER = '<!-- FORGE:HANDOFF-DIGEST -->';
 // Matches either the unfilled placeholder or an already-filled digest line (with its trailing
-// newline, if any), so the same helper strips it in either form.
+// newline, if any), so the same helper strips it in either form. Only ever applied to text this
+// script itself produced (never to previous-file bytes — see rule item 7 above).
 const DIGEST_LINE_STR_RE = /<!-- FORGE:HANDOFF-DIGEST(?: sha256=[0-9a-f]{64})? -->\r?\n?/;
-const digestSupported = rawTpl.includes(DIGEST_PLACEHOLDER);
 
-// Buffer-level digest line lookup: the marker is pure ASCII, and any byte below 0x80 is
+// Buffer-level digest-line lookup: the marker is pure ASCII, and any byte below 0x80 is
 // unambiguous in a UTF-8 stream regardless of what invalid sequences surround it elsewhere in the
 // buffer, so this never needs to decode the buffer as text (see rule item 6 above).
 const DIGEST_PREFIX = Buffer.from('<!-- FORGE:HANDOFF-DIGEST sha256=', 'ascii');
@@ -167,82 +189,115 @@ function sha256Hex(buf) {
   return createHash('sha256').update(buf).digest('hex');
 }
 
-// Preserve an already-written narrative delta (idempotent regen), and back up whatever the render
-// would otherwise silently discard (#120; see the header comment above for the full rule).
+// Raw-template markers, all in Buffer domain (rule item 7): the template's own placeholder body —
+// what "nothing to preserve here" is measured against — can itself contain accented text (see
+// templates/handoff/HANDOFF.md), so it is compared as bytes, never as a decoded string.
+const rawTplBuf = Buffer.from(rawTpl, 'utf8');
+const rawCsB = rawTplBuf.indexOf(START);
+const rawCeB = rawTplBuf.indexOf(END);
+const tplHasSlot = rawCsB >= 0 && rawCeB > rawCsB;
+const tplHasDigestPlaceholder = rawTpl.includes(DIGEST_PLACEHOLDER);
+
+// The freshly rendered content, as bytes. From this point on the previous file is handled purely
+// in Buffer domain; `content` (a string) is only ever read again to compute the digest's hash
+// input, which excludes the slot entirely and is therefore unaffected by anything the previous
+// file's slot contains.
+let outBuf = Buffer.from(content, 'utf8');
+const csB = outBuf.indexOf(START);
+const ceB = outBuf.indexOf(END);
+const contentHasSlot = csB >= 0 && ceB > csB;
+let ceFinal = ceB; // moves only if the slot body's byte length changes during the merge below
+
 let backupInfo = null;
 if (existsSync(out)) {
   const prevBuf = readFileSync(out);
-  const prev = prevBuf.toString('utf8');
-  const ps = prev.indexOf(START), pe = prev.indexOf(END);
-  const cs = content.indexOf(START), ce = content.indexOf(END);
-  const bothHaveMarkers = ps >= 0 && pe > ps && cs >= 0 && ce > cs;
+  const psB = prevBuf.indexOf(START);
+  const peB = prevBuf.indexOf(END);
+  const bothHaveMarkersBuf = psB >= 0 && peB > psB && contentHasSlot;
 
-  if (bothHaveMarkers) {
-    // RAW slot body, no trim, no placeholder shortcut: the only thing that means "nothing to
-    // preserve here" is the previous slot being byte-for-byte the template's own raw placeholder —
-    // anything else, however it starts or ends, is authorial and is copied forward as-is.
-    const prevSlotRaw = prev.slice(ps + START.length, pe);
-    const tplSlotRaw = rawTpl.slice(rawCs + START.length, rawCe);
-    if (prevSlotRaw !== tplSlotRaw) {
-      content = content.slice(0, cs + START.length) + prevSlotRaw + content.slice(ce);
-    }
-  }
-
-  // The "outside" region of the PREVIOUS file, in raw bytes: everything except the slot's own
-  // (raw, already-preserved) body. Byte-level marker lookup, not string indexOf on the decoded
-  // text, because prefix/suffix bytes here can be arbitrary (including invalid UTF-8) and must
-  // stay byte-exact for the digest to mean anything.
-  const psB = prevBuf.indexOf(START), peB = prevBuf.indexOf(END);
-  const bothHaveMarkersBuf = psB >= 0 && peB > psB && tplHasSlot;
+  // The "outside" region of the PREVIOUS file, in raw bytes: everything except the slot's own raw
+  // body (never decoded — rule item 7).
   const prevOutsideBuf = bothHaveMarkersBuf
     ? Buffer.concat([prevBuf.subarray(0, psB + START.length), prevBuf.subarray(peB)])
     : prevBuf;
 
-  let wouldLoseBytes;
-  if (digestSupported) {
-    const found = findDigestLine(prevOutsideBuf);
-    const stripped = stripDigestLine(prevOutsideBuf, found);
-    wouldLoseBytes = !found || found.hex !== sha256Hex(stripped);
-  } else {
-    // No digest marker in this template: fall back to literal byte comparison of the "outside"
-    // region against what would be written now. Still never loses bytes silently, at the cost of
-    // a false positive on pure state drift (HEAD sha, date, progress numbers) — acceptable only
-    // because this path is for a template that opted out of the digest mechanism.
-    const csF = content.indexOf(START), ceF = content.indexOf(END);
-    const newOutside = tplHasSlot
-      ? content.slice(0, csF + START.length) + content.slice(ceF)
-      : content;
-    wouldLoseBytes = !prevOutsideBuf.equals(Buffer.from(newOutside, 'utf8'));
-  }
+  const found = findDigestLine(prevOutsideBuf);
+  const strippedPrevOutside = stripDigestLine(prevOutsideBuf, found);
+  const noDigestFound = !found;
+  const digestMismatch = !!found && found.hex !== sha256Hex(strippedPrevOutside);
+  const wouldLoseBytes = noDigestFound || digestMismatch;
 
-  // If the previous bytes already equal what will be written there is nothing to lose, so no
+  // If the previous bytes already had a valid, matching digest there is nothing to lose, so no
   // backup; likewise an empty previous file (0 bytes) has nothing to recover, so it is skipped too
   // — the backup and WARN exist to make real prior content recoverable, not to leave a trace on
   // every run.
   if (wouldLoseBytes && prevBuf.length > 0) {
-    backupInfo = { ...backupPreviousHandoff(root, prevBuf), bothHaveMarkers };
+    backupInfo = {
+      ...backupPreviousHandoff(root, prevBuf),
+      bothHaveMarkers: bothHaveMarkersBuf,
+      // "First digest generation": markers are present but no digest line was ever found in the
+      // previous file at all (rule item 10) — distinct from a digest that was present and no
+      // longer matches.
+      firstDigestGen: bothHaveMarkersBuf && noDigestFound,
+    };
+  }
+
+  // Slot merge, RAW previous bytes, never decoded — #120 rule item 7 (6ª rodada). The only thing
+  // that means "nothing to preserve here" is the previous slot being byte-for-byte the template's
+  // own raw placeholder; anything else, however it starts or ends or whatever bytes it contains
+  // (including invalid UTF-8), is authorial and is copied forward as-is.
+  if (bothHaveMarkersBuf) {
+    const prevSlotRawBuf = prevBuf.subarray(psB + START.length, peB);
+    const tplSlotRawBuf = rawTplBuf.subarray(rawCsB + START.length, rawCeB);
+    if (!prevSlotRawBuf.equals(tplSlotRawBuf)) {
+      outBuf = Buffer.concat([outBuf.subarray(0, csB + START.length), prevSlotRawBuf, outBuf.subarray(ceB)]);
+      ceFinal = csB + START.length + prevSlotRawBuf.length;
+    }
   }
 }
 
 // Stamp the digest of everything outside the slot in THIS render, so the next regeneration can
 // tell a state-only change (fields the renderer itself controls) apart from an authorial byte
 // (anything a human wrote that this renderer would not have produced) without matching against a
-// template "shape" — see rule item 4-5 above for why the shape approach undercounts loss.
-if (digestSupported) {
-  const csF = content.indexOf(START), ceF = content.indexOf(END);
-  const outsideNow = tplHasSlot
-    ? content.slice(0, csF + START.length) + content.slice(ceF)
-    : content;
-  const outsideForHash = outsideNow.replace(DIGEST_LINE_STR_RE, '');
-  const digestHex = sha256Hex(Buffer.from(outsideForHash, 'utf8'));
-  content = content.replace(DIGEST_PLACEHOLDER, `<!-- FORGE:HANDOFF-DIGEST sha256=${digestHex} -->`);
+// template "shape" — see rule items 4-5 above for why the shape approach undercounts loss.
+const outsideNowBuf = contentHasSlot
+  ? Buffer.concat([outBuf.subarray(0, csB + START.length), outBuf.subarray(ceFinal)])
+  : outBuf;
+const outsideForHash = outsideNowBuf.toString('utf8').replace(DIGEST_LINE_STR_RE, '');
+const digestHex = sha256Hex(Buffer.from(outsideForHash, 'utf8'));
+const digestLine = `<!-- FORGE:HANDOFF-DIGEST sha256=${digestHex} -->`;
+
+if (tplHasDigestPlaceholder) {
+  // Fill the placeholder only in the FOOTER — the region strictly after the slot (rule item 8) —
+  // never inside it, so authorial text that quotes the marker (like this file's own header
+  // comment, if ever pasted into a delta) survives untouched.
+  const footerStart = contentHasSlot ? ceFinal + END.length : 0;
+  const placeholderIdx = outBuf.indexOf(DIGEST_PLACEHOLDER, footerStart);
+  if (placeholderIdx >= 0) {
+    outBuf = Buffer.concat([
+      outBuf.subarray(0, placeholderIdx),
+      Buffer.from(digestLine, 'ascii'),
+      outBuf.subarray(placeholderIdx + DIGEST_PLACEHOLDER.length),
+    ]);
+  }
+} else {
+  // Template without the marker: append our own digest footer anyway (rule item 9). No separator
+  // is inserted before it: `stripDigestLine` only ever removes the marker's own bytes (from its
+  // prefix through its own trailing newline), so anything placed BEFORE it — including a
+  // separating blank line — would survive every strip and permanently drift the recomputed hash
+  // away from the one this same line records, defeating the whole mechanism on every subsequent
+  // run. Appending directly keeps the round trip exact: reading this file back and stripping the
+  // digest line yields the identical bytes that were hashed to produce it.
+  outBuf = Buffer.concat([outBuf, Buffer.from(`${digestLine}\n`, 'ascii')]);
 }
 
-writeFileSync(out, content);
+writeFileSync(out, outBuf);
 if (backupInfo) {
-  const reason = backupInfo.bothHaveMarkers
-    ? 'HANDOFF.md com conteúdo fora do bloco NARRATIVE-DELTA'
-    : 'HANDOFF.md sem marcadores NARRATIVE-DELTA';
+  const reason = !backupInfo.bothHaveMarkers
+    ? 'HANDOFF.md sem marcadores NARRATIVE-DELTA'
+    : backupInfo.firstDigestGen
+      ? 'primeira geração com registro de digest (HANDOFF.md gerado antes desta versão) — conteúdo anterior salvo por precaução'
+      : 'HANDOFF.md com conteúdo fora do bloco NARRATIVE-DELTA';
   process.stderr.write(
     `WARN: ${reason} — conteúdo anterior (${backupInfo.bytes} bytes) salvo em ${backupInfo.path}\n`,
   );

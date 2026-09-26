@@ -1,36 +1,38 @@
 {
   "schema": "graph/v0",
-  "generated_at": "2026-09-26T18:03:35.912Z",
+  "generated_at": "2026-09-26T19:18:32.100Z",
   "engine": "native",
   "root": "/Users/milton/Documents/projects/forge-harness/.forge/worktrees/data-engineer",
   "stats": {
-    "nodes": 331,
+    "nodes": 386,
     "edges": 62,
     "languages": [
       "csharp",
       "go",
+      "java",
       "js",
       "kotlin",
       "python",
       "shell",
       "ts"
     ],
-    "summaries_stale": 331,
+    "summaries_stale": 386,
     "census": {
       "csharp": 3,
       "go": 9,
-      "js": 74,
+      "java": 9,
+      "js": 86,
       "kotlin": 1,
-      "python": 1,
-      "shell": 240,
-      "ts": 3
+      "python": 11,
+      "shell": 249,
+      "ts": 18
     },
     "layer_coverage": {
-      "classified": 166,
-      "unclassified": 165,
+      "classified": 213,
+      "unclassified": 173,
       "out_of_taxonomy": 0,
-      "denominator": 331,
-      "ratio": 0.5015
+      "denominator": 386,
+      "ratio": 0.5518
     }
   },
   "nodes": [
@@ -343,6 +345,22 @@
       "lang": "shell",
       "loc": 14,
       "fingerprint": "76158896674bff26d584478ebba2cb61d7ac45d48e426f6c93a5be54e16076ee",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/data-agent-allowlist.sh",
+      "lang": "shell",
+      "loc": 49,
+      "fingerprint": "0e488acb2cd6d406a5e72350529757513b1a90a9b0b427e66c9642910ac914af",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/data-agent-bash-guard.sh",
+      "lang": "shell",
+      "loc": 87,
+      "fingerprint": "e274023ac46d530bd6ef5fbccdb45c322a1d0ec7a3678257fd61baa44968490f",
       "layer": "unknown",
       "summary": null
     },
@@ -1299,6 +1317,54 @@
       "summary": null
     },
     {
+      "id": "template/.forge/skills/data-analytical-practices/scripts/scan.sh",
+      "lang": "shell",
+      "loc": 278,
+      "fingerprint": "359c75d4a8807970e38f7b72057939c3855dd6f5e03cab0200fbe0c42765c446",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/skills/data-cache-practices/scripts/scan.sh",
+      "lang": "shell",
+      "loc": 295,
+      "fingerprint": "225ce0b3a28cb8334dcc3184508c83228f90e8d64aaa46587acdefd6ea664d86",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/skills/data-nosql-practices/scripts/scan.sh",
+      "lang": "shell",
+      "loc": 335,
+      "fingerprint": "f38c05b2dfeb790cc06fcbd9d743bf95d10efca42caaf8246f896c9c67808a7b",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/skills/data-object-storage-practices/scripts/scan.sh",
+      "lang": "shell",
+      "loc": 285,
+      "fingerprint": "d2292cf82a64add4342711a9ed571993b0f14510afe828f9a6d792e44c130ce0",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/skills/data-relational-practices/scripts/scan.sh",
+      "lang": "shell",
+      "loc": 333,
+      "fingerprint": "caf29239dd8aa13cc2f892a8fa226b509843d1605ecb1d708c563103cedef02f",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/skills/data-streaming-practices/scripts/scan.sh",
+      "lang": "shell",
+      "loc": 458,
+      "fingerprint": "c45a077659e992a22de0dd0dd990d4c85cad98b49c11de5cd8911f02aed84b0b",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
       "id": "template/.forge/skills/dotnet-quality-scan/scripts/scan.sh",
       "lang": "shell",
       "loc": 159,
@@ -1487,6 +1553,374 @@
       "lang": "csharp",
       "loc": 13,
       "fingerprint": "8115494a1004f241d0447b8be832e4938ca09ad9ab3d55df34cd5d545af30559",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-cache/limpo/src/pagamento/retentativa.ts",
+      "lang": "ts",
+      "loc": 2,
+      "fingerprint": "3c83c3c32cc04cc1de272434fd6991ee28c4a0a23dc119b159c3b615a6fb2cb8",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-cache/limpo/src/sessao/limpar.js",
+      "lang": "js",
+      "loc": 2,
+      "fingerprint": "39dd5268205f36f6cfe1bd71f9993ea2a2f72a0e1aed5324e62e9b48af9d029c",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-cache/limpo/src/tarifa/cache.ts",
+      "lang": "ts",
+      "loc": 7,
+      "fingerprint": "1216078118a37d3801e0970ec88e84b7a0e8ba2afdb4040e3af8458223e74afb",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-cache/limpo/src/tarifa/Local.java",
+      "lang": "java",
+      "loc": 2,
+      "fingerprint": "c800209af0f920691b504780d61fcea9f985b8b263ff05f980d831c90b02e89f",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-cache/sujo/C-02/src/tarifa/cache.ts",
+      "lang": "ts",
+      "loc": 2,
+      "fingerprint": "6fee0204c0bca29eb8cffb8802c565c83612aa9a4161f8eccf8e80066d87d8f2",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-cache/sujo/C-08/src/tarifa/local.py",
+      "lang": "python",
+      "loc": 4,
+      "fingerprint": "696b9fc0cefd3c0b1b91173eb5a677525671cf71907cd8771e5749e04c93c2ba",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-cache/sujo/C-09/src/sessao/limpar.js",
+      "lang": "js",
+      "loc": 2,
+      "fingerprint": "a71d72047eca8e17ff244254b7d1ce158a03e60e3a5aa79c05a6b84355b0851d",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-cache/sujo/C-15/src/pagamento/retentativa.ts",
+      "lang": "ts",
+      "loc": 2,
+      "fingerprint": "121c8c7e3d71065ce4d80480e44f8cbe726588234bb3ddd15704a628947d28e6",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-nosql/limpo/src/pedido/gsi.ts",
+      "lang": "ts",
+      "loc": 4,
+      "fingerprint": "76eaf91bd2760f08a4d246137ac634f1417515124eb65b2153976b14f4d331f9",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-nosql/limpo/src/pedido/repo.js",
+      "lang": "js",
+      "loc": 5,
+      "fingerprint": "89e7a9035852ca44d9583cbfe3b25545e84361a4ed53596db09c52a98addfdf7",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-nosql/sujo/N-01/src/pedido/repo.js",
+      "lang": "js",
+      "loc": 2,
+      "fingerprint": "62435a76eac9c868f123c69139cc8fc3f6b679b35ce7520ff5633b5fba15c3cc",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-nosql/sujo/N-04/src/relatorio/agg.js",
+      "lang": "js",
+      "loc": 2,
+      "fingerprint": "33c6b647a8dc02a3f3193634bec938405a0f38b19afd379095cec1323cf09660",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-nosql/sujo/N-07/src/pagamento/mongo.js",
+      "lang": "js",
+      "loc": 2,
+      "fingerprint": "2c393d0886c93c7010bc96f072887e3455dee652f4b4e0a748ebd339b46d368c",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-nosql/sujo/N-08/src/pedido/listar.ts",
+      "lang": "ts",
+      "loc": 2,
+      "fingerprint": "e52c0fd5a53157d405cadcc437dec91ba679caa7ec83cdde8949178e92a8978c",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-nosql/sujo/N-09/src/pedido/itens.py",
+      "lang": "python",
+      "loc": 2,
+      "fingerprint": "0b2e89f8d38ef2564f3faba72e0ca6a3921a0b800743dcad44cc8575ce67a10c",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-nosql/sujo/N-11/src/pedido/gsi.ts",
+      "lang": "ts",
+      "loc": 2,
+      "fingerprint": "06020014af4186ca339482b2f1b96b40e0842795878681b7ccb7765127bbd6b4",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-object-storage/limpo/jobs/ingestao.py",
+      "lang": "python",
+      "loc": 5,
+      "fingerprint": "207e81b57b43dbaa050b6f6c3a060bdafdb4eda46dc288dd6371ced6e7c3311c",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-object-storage/limpo/src/comprovante/url.ts",
+      "lang": "ts",
+      "loc": 2,
+      "fingerprint": "5d9b1b925b07a33b8cd9125cd2e61da39835d22a9a7d3c825603174ecd1dce6a",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-object-storage/sujo/O-02/src/comprovante/url.ts",
+      "lang": "ts",
+      "loc": 2,
+      "fingerprint": "1dc8c9facd353134c672bcc9452a10062d7f9aa4d94d2be52bc1b1b354370022",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-object-storage/sujo/O-13/jobs/ingestao.py",
+      "lang": "python",
+      "loc": 2,
+      "fingerprint": "ca540c37aad761d1703e532df784d63543984942070ff334547f608e8a51d8ec",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-object-storage/sujo/O-14/jobs/particao.py",
+      "lang": "python",
+      "loc": 2,
+      "fingerprint": "17db1e35474976a2e8a76092e46f9bc00854eca9a6d65552f33b0a909ee60dae",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-relational/limpo/src/infra/db.py",
+      "lang": "python",
+      "loc": 3,
+      "fingerprint": "40b9e0d9ad5643e1d8c79f927cf98dd9019d7053a3e880576d778907a77598cf",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-relational/limpo/src/relatorio/listar.ts",
+      "lang": "ts",
+      "loc": 4,
+      "fingerprint": "f6d1e725391ccddb9cbb2aa09e8010cf710460cea5c41e8e3c97382c999320e1",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-relational/limpo/src/repositorio/PedidoRepositorio.java",
+      "lang": "java",
+      "loc": 3,
+      "fingerprint": "29e236e695f96bcf172edc540c9d53572df48e85447a576b17dbef7467ab35e6",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-relational/sujo/R-06/src/relatorio/listar.ts",
+      "lang": "ts",
+      "loc": 2,
+      "fingerprint": "fb7946334cfe5fa5db4ec867df4eb72971da6146421008fbd251b76320d76119",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-relational/sujo/R-12/src/infra/db.py",
+      "lang": "python",
+      "loc": 2,
+      "fingerprint": "680aa365634b081b255487c0040646a51dc066f861e2810007dced09fdda944a",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-relational/sujo/R-14/src/repositorio/PedidoRepositorio.java",
+      "lang": "java",
+      "loc": 2,
+      "fingerprint": "07861c6636a87e2380f08afc0d261836998de1b8daa8f96351ea0efd9a8deb51",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-streaming/limpo/src/Consumidor.java",
+      "lang": "java",
+      "loc": 7,
+      "fingerprint": "f56e43423c8c497ab211f7b6ff81640be41212ec23b345b33875ac0105d02aa5",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-streaming/limpo/src/consumidor.js",
+      "lang": "js",
+      "loc": 10,
+      "fingerprint": "0d76e06e1783e74474586ac928bf32d268be4e05dbec51ab25c79cc90199f3ac",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-streaming/limpo/src/domain/pagamento.ts",
+      "lang": "ts",
+      "loc": 2,
+      "fingerprint": "d1d7c3dae85b1778f7adf53c47d0d59b615aa95ceb8e12bf2e25584d15c256c0",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-streaming/limpo/src/infra/http/antifraude.ts",
+      "lang": "ts",
+      "loc": 2,
+      "fingerprint": "045703ade7755f56939167c843dc27011efe245f2eb90b713a1b0bd643d046b6",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-streaming/limpo/src/publicar.py",
+      "lang": "python",
+      "loc": 5,
+      "fingerprint": "0cd6a32645c7bd95520fc8073f35afe0c43a7882f52cf3f5893460165cb40749",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-streaming/sujo/D-AP-05/src/domain/pagamento.ts",
+      "lang": "ts",
+      "loc": 2,
+      "fingerprint": "045703ade7755f56939167c843dc27011efe245f2eb90b713a1b0bd643d046b6",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-streaming/sujo/INB-AP-01/src/dedupe.ts",
+      "lang": "ts",
+      "loc": 2,
+      "fingerprint": "11e104d91efe6bfa4eb5f60e834aa98c8649befd424406a0333f9931d58ea32e",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-streaming/sujo/INB-AP-02/src/redelivery.js",
+      "lang": "js",
+      "loc": 2,
+      "fingerprint": "5acb4cec9efc502d2444fd75ce30f22c6a9740470647fe9f4fc9056cb8a06c69",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-streaming/sujo/KFK-AP-03/src/Produtor.java",
+      "lang": "java",
+      "loc": 2,
+      "fingerprint": "f3fd839c873355b5dd0909472345a8dc854c003a7ed24bccffaa0f19f33a32b3",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-streaming/sujo/RMQ-AP-01/src/consumidor.js",
+      "lang": "js",
+      "loc": 2,
+      "fingerprint": "d71e035210c34af8a72ff826cedfc5f5a7fad853e241c42dd14ff5bc40b7f068",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-streaming/sujo/RMQ-AP-03/src/publicar.py",
+      "lang": "python",
+      "loc": 2,
+      "fingerprint": "f78383e98be78ba65c0d915b9b8d6f96c51277f08351fa29697dc77647a96edb",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-streaming/sujo/RMQ-AP-04/src/Poll.java",
+      "lang": "java",
+      "loc": 2,
+      "fingerprint": "6d72b5b9c6a3e6da993d38c078bcb56cea848a49e88206ede01746e81217c904",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-streaming/sujo/RMQ-AP-08/src/publica.js",
+      "lang": "js",
+      "loc": 2,
+      "fingerprint": "fa2f50d55226748105a58fac529e8291f60dca9ff9be5508156cefb3859a6822",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-streaming/sujo/RMQ-AP-09/src/Confirma.java",
+      "lang": "java",
+      "loc": 2,
+      "fingerprint": "a2372008a46b61c6220d3e8409cbdce5dcd92d8f3746663e8647fb3aab32fc87",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-streaming/sujo/RMQ-AP-10/src/nack.js",
+      "lang": "js",
+      "loc": 2,
+      "fingerprint": "521e1fcb3ea3efb2fea8ccdda0b149ba74d83ea36e2db1b23396ebbe44750873",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-streaming/sujo/RMQ-AP-12/src/publica.js",
+      "lang": "js",
+      "loc": 3,
+      "fingerprint": "cb48f5766c8fd0340692bac04a431e03fd23681ecf80dec7bf71cb434e607a5b",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-streaming/sujo/RMQ-AP-14/src/declara.py",
+      "lang": "python",
+      "loc": 2,
+      "fingerprint": "07b4b15612ccb97cb9f8d826df293111f77dcfd03a225d466584871c38a2b5b4",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-streaming/sujo/RMQ-AP-15/src/Temporaria.java",
+      "lang": "java",
+      "loc": 2,
+      "fingerprint": "3d32cdb6030a4715b5d5ab01d75d9e0a9439af88fa6e4dcebdb66943a8d1beb0",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/w250/data-streaming/sujo/RMQ-AP-18/src/Qos.java",
+      "lang": "java",
+      "loc": 2,
+      "fingerprint": "9c0443a8d1c0b301cf3ad7b8793fd5fdbada75981bd536168ec211b0ed841760",
       "layer": "test",
       "summary": null
     },
@@ -2423,6 +2857,14 @@
       "lang": "shell",
       "loc": 1222,
       "fingerprint": "2c199ecd802e64ec67f307922c9f0ccef672f12cfd950e8cfcc16f7dbcaca065",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w250-data-engineer-agents-gate.sh",
+      "lang": "shell",
+      "loc": 1151,
+      "fingerprint": "f30cd7c1d8f39a69fb262407e28ce2db8ed60e3ad022bd0ed810a8404867c76d",
       "layer": "test",
       "summary": null
     },

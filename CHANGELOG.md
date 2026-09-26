@@ -6,6 +6,10 @@ e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Guardas do tipo `! comando` sob `set -e` estavam mortos e nunca reprovavam o gate, mesmo com o defeito presente (LDG-0182).** Sob `set -euo pipefail`, `! comando` sozinho nunca sai por `set -e` — o retorno invertido isenta a linha —, então a reprovação exige a forma explícita `! comando || { echo FAIL; exit 1; }`. Em `tests/w62-handoff-hook-gate.sh` `[1]`, as checagens de que o install default (`handoff.auto: false`) não injeta `SessionStart`/`SessionEnd` em `settings.json` passavam com as duas chaves presentes (medido renomeando `PreToolUse` para `SessionStart` no `sync-adapters.mjs`). Em `tests/w80-suite-gate.sh` `[4]`/`[5]`, as checagens de que `run-all.sh` não invoca a si mesmo passavam com uma invocação recursiva real (medido acrescentando `bash tests/run-all.sh --list` ao runner: `develop` sai rc 0, a correção sai com `FAIL [4]`). A garantia direta usa agora uma regex com fronteira de não-identificador antes de `bash`/`sh`/`exec` e caminho absoluto opcional, que pega `if bash …`, `/bin/bash …`, `timeout 600 bash …` e `nohup bash …` sem tratar `x.sh` como o comando `sh` nem casar a própria definição. `tests/w107-red-replay-gate.sh` `[7]`, já vivo, foi só reformatado para uma linha física, e a varredura do DoD da Onda 0 (`grep -nE '^[[:space:]]*! '` sem `||` na mesma linha) fica vazia nos 14 gates que o Bloco A revalida. Cada correção foi medida com mutação e recontrole (`cmp -s`).
+
 ## [0.15.0] — 2026-09-09
 
 ### Added

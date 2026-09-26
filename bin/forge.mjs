@@ -610,6 +610,88 @@ const APPEND_SOFTEN = new Map([
   ['secrets', [[/^(\s*enforce:\s*)block\b/m, '$1warn']]],
 ]);
 
+// #142: recurso do heavy-mutex resolvido pela MESMA lib e a MESMA precedência (env >
+// heavy_mutex.resource do forge.yaml > default "forge-heavy-suite") que `heavy-run.sh` usa em
+// produção — nunca uma reimplementação paralela em JS, que poderia divergir silenciosamente da
+// lib (é exatamente o tipo de gêmeo-mentiroso que criou a partição da issue). Só RESOLVE, nunca
+// adquire: `forge_heavy_mutex_path` não cria diretório de lock nenhum (mesma garantia de
+// isolamento do gate w154 sobre `_fhm_resolve_root`) — chamável em qualquer ponto do update sem
+// tocar a exclusão real da máquina.
+//
+// Devolve `{ resource, path }` no sucesso e `{ resource: null, path: null, reason }` em qualquer
+// falha (lib ausente, raiz inutilizável — rc 69 do próprio `_fhm_resolve_root`, symlink recusado
+// etc.): a linha informativa do update é best-effort e nunca pode derrubar a aplicação por causa
+// dela, mas o chamador tem o MOTIVO para avisar em voz alta em vez de sumir a linha em silêncio
+// (uma resolução que falha não pode produzir o mesmo "nada aconteceu"
+// que uma chave inexistente).
+//
+// `resource` vem DIRETO da lib (`_fhm_resource`), nunca derivado de `basename(path)`: um recurso
+// declarado com `/` (nome inválido, mas a lib não recusa) produziria um path com subdiretório, e
+// `basename` devolveria só o último segmento — um nome resolvido diferente do que a lib realmente
+// usa para nomear o lock. `forge_heavy_mutex_path` não muda a assinatura (continua imprimindo só
+// `<path><TAB><proveniência>`, o formato que outros leitores da lib já esperam); esta função só
+// pede o `resource` numa segunda chamada, na MESMA invocação de bash, para nunca divergir da
+// resolução real de `path`.
+// `opts.dryRun`: usado pela prévia de `--dry-run` para nunca criar o
+// diretório-raiz do heavy-mutex. `forge_heavy_mutex_path` → `_fhm_resolve_root` faz `mkdir` quando
+// a raiz DECLARADA (env ou `heavy_mutex.root` do forge.yaml) ainda não existe — comportamento
+// correto na aplicação real, mas uma PRÉVIA que só deveria informar não pode ter esse efeito
+// colateral no disco. Com `dryRun`, o script só resolve o `resource` (nunca cria nada) e, se a
+// raiz declarada não existir, devolve o `resource` sem `path` e um motivo — nunca chama
+// `forge_heavy_mutex_path` nesse caso, então o `mkdir` da lib nunca roda. Raiz não declarada
+// (default `/tmp`) ou token `${TMPDIR:-/tmp}` nunca passam por `mkdir` na lib de qualquer forma
+// (só checam e falham), então seguem pelo caminho normal mesmo em dry-run.
+function resolveHeavyMutexPath(forge, target, opts = {}) {
+  const lib = join(forge, 'scripts', 'lib', 'heavy-mutex.sh');
+  if (!existsSync(lib)) return { resource: null, path: null, reason: 'lib heavy-mutex.sh ausente' };
+  const script = opts.dryRun
+    ? [
+        '. "$0" || exit 1',
+        'res="$(_fhm_resource)"',
+        'root="${FORGE_HEAVY_MUTEX_ROOT:-}"',
+        '[ -n "$root" ] || root="$(_fhm_yaml_root)"',
+        'case "$root" in',
+        '  ""|\'${TMPDIR:-/tmp}\') declroot="" ;;',
+        '  /*) declroot="$root" ;;',
+        '  *) declroot="" ;;',
+        'esac',
+        'if [ -n "$declroot" ] && [ ! -d "$declroot" ]; then',
+        '  printf "%s\\t\\t%s\\n" "$res" "raiz declarada ($declroot) ainda não existe — dry-run não cria"',
+        '  exit 0',
+        'fi',
+        'p="$(forge_heavy_mutex_path)" || exit $?',
+        'printf "%s\\t%s\\t\\n" "$res" "$p"',
+      ].join('\n')
+    : '. "$0" && res="$(_fhm_resource)" && p="$(forge_heavy_mutex_path)" && printf "%s\\t%s\\n" "$res" "$p"';
+  try {
+    const out = execFileSync('bash', ['-c', script, lib], {
+      cwd: target,
+      env: { ...process.env, FORGE_ROOT: target },
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const [resource, path, reason] = out.trim().split('\t');
+    if (!resource) return { resource: null, path: null, reason: reason || 'saída da lib incompleta' };
+    if (!path) return { resource, path: null, reason: reason || 'raiz declarada ainda não existe' };
+    return { resource, path };
+  } catch (e) {
+    const rc = e.status;
+    const lastErrLine = String(e.stderr || '').trim().split('\n').filter(Boolean).pop() || '';
+    const reason = rc != null ? `rc ${rc}${lastErrLine ? `: ${lastErrLine}` : ''}` : (lastErrLine || 'falha desconhecida ao invocar a lib');
+    return { resource: null, path: null, reason };
+  }
+}
+
+// Extrai o valor de `resource:` de um bloco `heavy_mutex:` (texto do TEMPLATE, como
+// `newForgeKeys` devolve em `blocks.get('heavy_mutex')`) — usado só para nomear o que SERIA
+// escrito quando a resolução real falha (WARN de resolução indeterminada) ou na prévia do
+// `--dry-run`. Nunca lido do consumidor: o bloco do consumidor, quando existe, barra o merge
+// inteiro antes de chegar aqui.
+function templateHeavyMutexResource(blockText) {
+  const m = /^[ \t]*resource:[ \t]*['"]?([^'"\n#]+?)['"]?[ \t]*(#.*)?$/m.exec(blockText || '');
+  return m ? m[1].trim() : 'forge-heavy-suite';
+}
+
 function mergeNewForgeKeys(src, forge) {
   const { blocks, keys, skipped } = newForgeKeys(src, forge);
   const softened = [];
@@ -708,7 +790,24 @@ async function updateHarness() {
       else changes.push(`- ${rel} (órfão — removido/renomeado no template)`);
     }
     const nk = newForgeKeys(src, forge);
-    for (const key of nk.keys) changes.push(`~ forge.yaml (+ ${key}: bloco novo)`);
+    for (const key of nk.keys) {
+      // #142 (LOW do review): a prévia também antecipa a identidade de lock que a aplicação real
+      // vai anunciar — sem isso, `--dry-run` mostrava só "bloco novo" e o operador só descobria o
+      // recurso resolvido depois de já ter aplicado.
+      if (key === 'heavy_mutex') {
+        const before = resolveHeavyMutexPath(forge, target, { dryRun: true });
+        const depoisPrevisto = process.env.FORGE_HEAVY_MUTEX_RESOURCE || templateHeavyMutexResource(nk.blocks.get('heavy_mutex'));
+        if (before && before.resource) {
+          changes.push(before.resource === depoisPrevisto
+            ? `~ forge.yaml (+ heavy_mutex: recurso previsto ${depoisPrevisto})`
+            : `~ forge.yaml (+ heavy_mutex: recurso previsto ${before.resource} → ${depoisPrevisto})`);
+        } else {
+          changes.push(`~ forge.yaml (+ heavy_mutex: bloco novo — recurso previsto ${depoisPrevisto}${before && before.reason ? ` — antes não determinado (${before.reason})` : ''})`);
+        }
+        continue;
+      }
+      changes.push(`~ forge.yaml (+ ${key}: bloco novo)`);
+    }
     for (const key of nk.skipped) changes.push(`! forge.yaml (${key}: seção nova exige preenchimento manual — não mesclada)`);
     console.log(`forge update — dry-run (${target})`);
     console.log(changes.length ? changes.sort().join('\n') : '(nada a atualizar — já na versão do template)');
@@ -942,8 +1041,48 @@ async function updateHarness() {
 
   // forge.yaml: template_version + merge aditivo de chaves de topo novas do template (ex.: autonomy:)
   if (bumpTemplateVersion(forge, version)) console.log(`forge.yaml: template_version -> ${version}`);
+  // #142: recurso do heavy-mutex ANTES do merge — só quando o bloco está ausente e vai ser
+  // mesclado (a única rota pela qual o update introduz o default do template em quem nunca
+  // declarou nada; `resource`/`root`/`enabled` já declarados nunca são tocados, ver
+  // `newForgeKeys`/DH-3). Resolvido ANTES de `mergeNewForgeKeys` escrever, contra o forge.yaml que
+  // o consumidor tinha até aqui.
+  //
+  // Semântica de "antes" (achado LOW do review): o overlay de arquivos (mais acima, `cpSync` por
+  // `rel`) já rodou quando chegamos aqui — `scripts/lib/heavy-mutex.sh` no disco já é a versão
+  // NOVA do template. "Antes" significa "o forge.yaml antigo do consumidor, resolvido pela lib
+  // nova", nunca "o que `heavy-run.sh` do consumidor resolvia com a lib que ele tinha até agora".
+  // Se a precedência ou o default da lib mudarem entre versões, o "antes" anunciado pode não ser
+  // o que o processo do consumidor via rodando minutos atrás — documentado aqui em vez de
+  // reordenar a resolução para antes do overlay, que exigiria segurar uma cópia da lib antiga só
+  // para este relatório informativo.
+  const nkHm = newForgeKeys(src, forge);
+  const hmWillMerge = nkHm.keys.includes('heavy_mutex');
+  const hmBefore = hmWillMerge ? resolveHeavyMutexPath(forge, target) : null;
   const { added, skipped, softened } = mergeNewForgeKeys(src, forge);
   if (added.length) console.log(`forge.yaml: ${added.length} chave(s) de topo nova(s) do template mescladas: ${added.join(', ')}`);
+  // Linha nominal (DH-3): o nome default do recurso é MANTIDO — quem já declarava outro caminho
+  // de serialização (heavy_mutex.resource próprio) nunca passa por aqui, porque a chave já
+  // existente barra o merge inteiro. Só o consumidor que nunca declarou nada ganha o bloco do
+  // template, e a linha nomeia o que resolvia antes e o que resolve depois pela MESMA precedência
+  // da lib (env > forge.yaml > default) — WARN quando os dois divergem, nunca em silêncio.
+  //
+  // Achado MEDIUM do review: a versão anterior só imprimia a linha quando as DUAS resoluções
+  // tinham sucesso (`if (hmBefore && hmAfter)`) — uma resolução que falhasse (lib preservada por
+  // machinery-exception sem `forge_heavy_mutex_path`, root inutilizável, bash ausente) fazia a
+  // chave ser mesclada em SILÊNCIO TOTAL, exatamente o sintoma original da issue reproduzido pela
+  // própria correção. Agora, qualquer falha em qualquer lado vira um WARN nomeando o motivo e o
+  // `resource` que o bloco do template escreveu — nunca ausência de linha nenhuma.
+  if (added.includes('heavy_mutex')) {
+    const hmAfter = resolveHeavyMutexPath(forge, target);
+    if (hmBefore && hmBefore.resource && hmAfter && hmAfter.resource) {
+      const linha = `heavy_mutex: recurso resolvido ${hmBefore.resource} → ${hmAfter.resource} (lock ${hmAfter.path})`;
+      console.log(hmBefore.resource === hmAfter.resource ? linha : `WARN: ${linha}`);
+    } else {
+      const motivo = (hmAfter && hmAfter.reason) || (hmBefore && hmBefore.reason) || 'motivo desconhecido';
+      const resTemplate = templateHeavyMutexResource(nkHm.blocks.get('heavy_mutex'));
+      console.log(`WARN: heavy_mutex: recurso resolvido não determinado (${motivo}) — bloco mesclado com resource: ${resTemplate}`);
+    }
+  }
   // Em voz alta: um bloco que muda POLÍTICA não pode entrar calado num upgrade de maquinaria.
   for (const key of (softened || [])) {
     console.log(`forge.yaml: '${key}:' entrou com enforce: warn (não block) — este repositório já existia e pode ter passivo.`);

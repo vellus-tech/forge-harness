@@ -14,6 +14,14 @@ affected_capabilities:
 affected_paths:
   - template/.forge/agents/data/
   - template/.forge/agents/README.md
+  - template/.forge/agents/code-review/node-reviewer.md
+  - template/.forge/agents/code-review/java-reviewer.md
+  - template/.forge/agents/code-review/python-reviewer.md
+  - template/.forge/agents/code-review/dotnet-reviewer.md
+  - template/.forge/capabilities/backend-java-relational/PROFILE.md
+  - template/.forge/capabilities/backend-python-relational/PROFILE.md
+  - template/.forge/capabilities/backend-dotnet-relational/PROFILE.md
+  - template/.forge/capabilities/backend-node-postgres/PROFILE.md
   - template/.forge/skills/data-relational-practices/
   - template/.forge/skills/data-nosql-practices/
   - template/.forge/skills/data-cache-practices/
@@ -21,9 +29,17 @@ affected_paths:
   - template/.forge/skills/data-analytical-practices/
   - template/.forge/skills/data-streaming-practices/
   - template/.forge/skills/capability-dispatcher/SKILL.md
+  - template/.forge/scripts/data-agent-allowlist.sh
   - tests/w250-data-engineer-agents-gate.sh
   - tests/fixtures/w250/
-  - .forge/evals/agents/
+  - .forge/evals/agents/data-engineer/
+  - .forge/evals/agents/data-relational/
+  - .forge/evals/agents/data-nosql/
+  - .forge/evals/agents/data-cache/
+  - .forge/evals/agents/data-object-storage/
+  - .forge/evals/agents/data-analytical/
+  - .forge/evals/agents/data-streaming/
+  - .forge/graph/graph.json
   - README.md
   - CHANGELOG.md
 dependencies:

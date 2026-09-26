@@ -19,6 +19,7 @@
 #   [12] o histórico versionado (`template/machinery-history.json`) cobre toda tag v* alcançável de HEAD — o gerador em modo --check sai rc 0. Pré-requisito de ambiente: as tags v* (o CI clona com fetch-depth: 0). Num clone raso ou feito com --no-tags o [12] não é medido: imprime `UNV [12]` e o gate termina rc 127 (dependência ausente, que o run-all classifica como não verificado) depois de rodar todos os outros cenários — nunca PASS sem medir, nunca FAIL por defeito que não existe
 #   [13] reconciliação à mão (saída 2 do /forge:upgrade): o consumidor copia a versão pendente sobre o arquivo; o update seguinte, para um template que evoluiu de novo, reconhece o arquivo como uma versão que o próprio template entregou — `ATUALIZADO`, conteúdo novo, sem pendente e lock avançado —, em vez de retê-lo como `PRESERVADO (deriva local)` a cada release
 #   [14] lock defasado por checkout (`.forge/cache/` é ignorado e `.forge/` é versionado: update feito em outra worktree ou por um colega chega por pull): a entrada do lock registra uma versão publicada mais antiga e o arquivo local é byte-idêntico a uma versão publicada posterior — `ATUALIZADO` pelo histórico, nunca `deriva local`
+#   [15] sem lock, com e sem histórico de versões publicadas ao lado do template: a linha `PRESERVADO (sem lock para provar)` e o WARN agregado só afirmam "não é nenhuma versão publicada" quando havia histórico para consultar; sem histórico, dizem "sem histórico de versões publicadas para provar". Com mutação: uma cópia do forge.mjs cujo driftVerdict ignora a ausência do histórico reprova o caso sem histórico e continua aprovando o caso com histórico; controle e recontrole com o forge.mjs real
 #
 # Isolamento git (LDG-0201 e o incidente de 2026-09-26): nenhum GIT_* herdado chega aos `git init` dos consumidores temporários, e o gate nunca roda `git config`.
 set -uo pipefail
@@ -247,7 +248,7 @@ grep -qxF "PRESERVADO (sem lock para provar): $REL9 — o conteúdo local não �
   || { echo "FAIL [9]: linha de deriva ausente"; echo "$UPD_OUT"; exit 1; }
 echo "OK [9]"
 
-# [11] a [14] rodam antes da propriedade [10], que é a parte cara do gate: uma regressão nos cenários determinísticos reprova em segundos, sem esperar os 50 casos.
+# [11] a [15] rodam antes da propriedade [10], que é a parte cara do gate: uma regressão nos cenários determinísticos reprova em segundos, sem esperar os 50 casos.
 echo "[11] reconciliação por exceção: o doctor para de cobrar na hora e o update seguinte remove o pendente"
 C11="$(com_lock_e_deriva c11)"
 cp "$C11/.forge/$REL" "$T/c11-antes"
@@ -323,6 +324,54 @@ grep -q "^ATUALIZADO: $REL — sem edição local (idêntico a uma versão publi
 [ ! -e "$C14/$PEND/$REL" ] || { echo "FAIL [14]: versão pendente gravada para arquivo atualizado"; exit 1; }
 [ "$(lock_sha "$C14" "$REL")" = "$(sha "$SRC14/.forge/$REL")" ] || { echo "FAIL [14]: o lock não avançou"; exit 1; }
 echo "OK [14]"
+
+echo "[15] sem lock, com e sem histórico: o texto da linha 'sem lock para provar' só afirma o que pôde consultar (com mutação)"
+[ -f "$WS/template/machinery-history.json" ] || { echo "FAIL [15] (setup): template/machinery-history.json ausente — o caso com histórico não seria medido"; exit 1; }
+# Fonte sem histórico: cópia do template real fora do repositório, sem machinery-history.json ao lado.
+SRC15="$T/src15"
+mkdir -p "$SRC15"
+cp -R "$TPL" "$SRC15/.forge"
+[ ! -e "$SRC15/machinery-history.json" ] || { echo "FAIL [15] (setup): há histórico ao lado da fonte sem histórico"; exit 1; }
+LINHA15_COM="PRESERVADO (sem lock para provar): $REL — o conteúdo local não é nenhuma versão publicada do template; versão nova do template em $PEND/$REL"
+LINHA15_SEM="PRESERVADO (sem lock para provar): $REL — sem histórico de versões publicadas para provar; versão nova do template em $PEND/$REL"
+WARN15_COM='(1 sem lock para provar que estava(m) intocado(s): conteúdo fora de toda versão publicada do template)'
+WARN15_SEM='(1 sem lock para provar que estava(m) intocado(s): sem histórico de versões publicadas para provar)'
+N15=0
+confere15() {  # confere15 <forge.mjs> <com|sem> -> rc 0 se a linha e o WARN do caso batem e os do outro caso não aparecem; motivo em $MOTIVO15
+  local bin="$1" caso="$2" src linha outra warn outrowarn c out
+  N15=$((N15 + 1))
+  if [ "$caso" = com ]; then src="$TPL"; linha="$LINHA15_COM"; outra="$LINHA15_SEM"; warn="$WARN15_COM"; outrowarn="$WARN15_SEM"
+  else src="$SRC15/.forge"; linha="$LINHA15_SEM"; outra="$LINHA15_COM"; warn="$WARN15_SEM"; outrowarn="$WARN15_COM"; fi
+  c="$(consumidor "c15-$N15")"
+  [ ! -f "$c/.forge/cache/machinery.lock" ] || { MOTIVO15="(setup) o consumidor já tem machinery.lock"; return 1; }
+  printf '\n# CONSERTO-LOCAL-w239-c15-%s\n' "$N15" >> "$c/.forge/$REL"
+  out="$(node "$bin" update --target "$c" --no-plugin --no-backup --source "$src" 2>&1)" || { MOTIVO15="update saiu rc≠0: $(tail -3 <<<"$out")"; return 1; }
+  grep -qxF "$linha" <<<"$out" || { MOTIVO15="linha esperada ausente ($caso histórico): $linha | obtido: $(grep -F "): $REL" <<<"$out")"; return 1; }
+  grep -qF "$outra" <<<"$out" && { MOTIVO15="linha do outro caso presente ($caso histórico)"; return 1; }
+  grep '^WARN: 1 arquivo(s) de maquinaria preservado(s)' <<<"$out" | grep -qF "$warn" || { MOTIVO15="WARN agregado sem o texto esperado ($caso histórico): $(grep '^WARN: 1 arquivo(s)' <<<"$out")"; return 1; }
+  grep -qF "$outrowarn" <<<"$out" && { MOTIVO15="WARN do outro caso presente ($caso histórico)"; return 1; }
+  return 0
+}
+# Controle: o forge.mjs real acerta os dois textos.
+confere15 "$FORGE" com || { echo "FAIL [15] (controle, com histórico): $MOTIVO15"; exit 1; }
+confere15 "$FORGE" sem || { echo "FAIL [15] (controle, sem histórico): $MOTIVO15"; exit 1; }
+# Mutação: o driftVerdict deixa de distinguir a ausência do histórico. O pacote mutante reaproveita template, installer e package.json do repositório.
+MUT15="$T/mut15"
+mkdir -p "$MUT15/bin"
+ln -s "$WS/template" "$MUT15/template"
+ln -s "$WS/installer" "$MUT15/installer"
+ln -s "$WS/package.json" "$MUT15/package.json"
+ALVO15="return history ? 'sem-lock' : 'sem-historico';"
+[ "$(grep -cF "$ALVO15" "$FORGE")" -eq 1 ] || { echo "FAIL [15] (mutação): alvo da mutação ausente ou repetido no forge.mjs: $ALVO15"; exit 1; }
+sed "s/return history ? 'sem-lock' : 'sem-historico';/return 'sem-lock';/" "$FORGE" > "$MUT15/bin/forge.mjs"
+cmp -s "$FORGE" "$MUT15/bin/forge.mjs" && { echo "FAIL [15] (mutação): o sed não mudou nada"; exit 1; }
+grep -qF "$ALVO15" "$MUT15/bin/forge.mjs" && { echo "FAIL [15] (mutação): o alvo continua no mutante"; exit 1; }
+confere15 "$MUT15/bin/forge.mjs" sem && { echo "FAIL [15] (mutação): o mutante que ignora a ausência do histórico passou no caso sem histórico — o cenário não mede o texto"; exit 1; }
+echo "  mutante reprovado no caso sem histórico, como esperado: $MOTIVO15"
+confere15 "$MUT15/bin/forge.mjs" com || { echo "FAIL [15] (mutação): o mutante reprovou também o caso com histórico, então a reprovação não isola o defeito: $MOTIVO15"; exit 1; }
+# Recontrole: o forge.mjs real, de novo, no caso que o mutante reprovou.
+confere15 "$FORGE" sem || { echo "FAIL [15] (recontrole, sem histórico): $MOTIVO15"; exit 1; }
+echo "OK [15]"
 
 echo "[10] PBT: o desfecho é função pura do estado gerado"
 node --input-type=module - "$WS" "$T" <<'NODE_EOF'

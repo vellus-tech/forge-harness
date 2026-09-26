@@ -6,6 +6,10 @@ e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **`handoff-gen` trocava o `HANDOFF.md` inteiro por cima quando o arquivo existente não tinha os marcadores `NARRATIVE-DELTA`, sem backup e com rc 0.** A única guarda de preservação (`handoff-render.mjs`) só reconhecia o que estava delimitado pelos marcadores; um `HANDOFF.md` real, cujo delta narrativo é acumulado no corpo do documento rodada após rodada (fora de qualquer par de marcadores), caía sempre no `writeFileSync` incondicional — medido: 290.761 bytes viraram 2.764, 99% do documento, em silêncio. Agora, quando o arquivo existente não tem marcadores mapeáveis e o conteúdo mudaria, o renderizador salva os bytes anteriores em `<git-dir>/forge-backups/handoff-<timestamp>.md` antes de escrever (git-dir resolvido por `git rev-parse --git-dir`, mesmo padrão do backup do `update` desde a #76 — funciona também a partir de worktree ligada; fallback `.forge/HANDOFF.md.bak-<timestamp>` fora de repositório git) e imprime `WARN: HANDOFF.md sem marcadores NARRATIVE-DELTA — conteúdo anterior (<N> bytes) salvo em <caminho>` em stderr, mantendo rc 0 — decisão deliberada de não recusar, porque `handoff-gen.sh` é chamado pelo `/forge:handoff` e pelo hook de sessão esperando código de saída zero. Quando o conteúdo já é idêntico ao que seria renderizado, ou quando os marcadores estão presentes e o delta é preservado no próprio arquivo, nenhum backup é criado. `tests/w60-handoff-gen-gate.sh` ganha os cenários `[5]` (backup byte-idêntico + WARN nomeando o caminho), `[6]` (conteúdo idêntico → nenhum backup) e uma propriedade PBT (`[7]`, seed 20260925, 80 casos) provando que os bytes anteriores são sempre recuperáveis — no próprio arquivo ou num backup byte-idêntico — para conteúdo gerado com e sem marcadores.
+
 ## [0.15.0] — 2026-09-09
 
 ### Added

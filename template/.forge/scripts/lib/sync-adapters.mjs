@@ -30,7 +30,7 @@ import { fileURLToPath } from 'node:url';
 // desconhecido) que o galho principal converte em `FAIL (mensagem)` de uma linha. Um erro
 // inesperado (bug interno, EACCES, ENOTDIR de um `.forge/` corrompido) NÃO é um `CliError` — o
 // galho principal imprime o `stack` completo antes do `FAIL (...)`, exatamente como o Node fazia
-// por padrão antes de existir este `try/catch` (achado de correção #130, LOW-1: o catch-all
+// por padrão antes de existir este `try/catch` (#130: o catch-all
 // original engolia a stack de QUALQUER exceção, não só das validações esperadas).
 class CliError extends Error {}
 
@@ -53,8 +53,8 @@ const ADAPTERS_DIR = join(FORGE, 'adapters');
 // mesmo dano que a #130 fecha para o bloco de entrada, só que por um caminho de módulo diferente
 // (issue #130, achado de correção). A checagem amigável ("run /forge:init first") roda como
 // `throw` (nunca `process.exit`) na PRIMEIRA linha do galho principal — antes de qualquer leitura
-// ou escrita de `forge.yaml` (achado de correção #130, MEDIUM-1/MEDIUM-2) — e dentro de
-// `reconcile()`, para quem a chamar programaticamente sem passar por ali. Só o galho principal,
+// ou escrita de `forge.yaml` (#130); a checagem repetida no topo de `reconcile()` (interna ao CLI,
+// não exportada) é só defesa em profundidade. Só o galho principal,
 // ao final do arquivo, converte a exceção em `FAIL (...)` + `exit(1)`.
 
 // ── fs helpers ───────────────────────────────────────────────────────────────
@@ -138,7 +138,7 @@ function readActive() {
 }
 // readYamlAutoFlag — leitura pura de um `<key>.auto` em um forge.yaml explícito (nunca o global
 // FORGE_YAML implícito): usada por preToolUseWiring(root) para que a leitura dependa só do
-// argumento, nunca do cwd/argv de quem importou o módulo (achado de correção da #130, MEDIUM-1).
+// argumento, nunca do cwd/argv de quem importou o módulo (#130).
 function readYamlAutoFlag(yamlPath, key) {
   try {
     const y = readFileSync(yamlPath, 'utf8');
@@ -147,7 +147,7 @@ function readYamlAutoFlag(yamlPath, key) {
   } catch { return false; }
 }
 
-// preToolUseWiring(root) — exportação nomeada e estável (#130, achado de correção HIGH-1): a
+// preToolUseWiring(root) — exportação nomeada e estável (#130): a
 // função que MONTA a fiação PreToolUse/SessionStart/SessionEnd, como um objeto puro, sem
 // escrever nada em disco e sem depender do ROOT/cwd de quem importou o módulo — só do `root`
 // explícito recebido. É esta função, e não `reconcile` (que escreve), que a #125 e a #160 leem
@@ -316,7 +316,7 @@ const ORDER = ['claude', 'codex', 'gemini', 'qwen', 'forge-cli', 'agents-skills'
 const KNOWN = new Set(ORDER);
 
 // ── reconcile (generate active + prune deactivated) ──────────────────────────
-// NÃO exportada (achado de correção #130, MEDIUM-4): a iteração 1 exportava esta função para
+// NÃO exportada (#130): a iteração 1 exportava esta função para
 // #160/#125 acionarem a reconciliação sem depender do CLI, mas nenhuma delas precisa — as duas
 // importam `preToolUseWiring(root)` (acima), a leitura PURA e parametrizada, para comparar sem
 // escrever. `reconcile` nunca foi exportada em `origin/develop` antes desta issue, e exportá-la
@@ -328,10 +328,9 @@ const KNOWN = new Set(ORDER);
 // função parametrizada pela raiz explícita (`reconcileAt(root, names)`), a abrir como item de
 // ledger próprio quando esse consumidor existir — não esta.
 //
-// process.exit só dentro do galho principal (achado de correção #130, HIGH-2): as duas
-// validações abaixo LANÇAM, nunca chamam `process.exit` diretamente — quem chama `reconcile`
-// programaticamente (import, não CLI) recebe uma exceção catchable, nunca tem o processo morto
-// à força. O galho principal, ao final do arquivo, é quem converte a exceção em `FAIL (...)` +
+// process.exit só dentro do galho principal (#130): as duas
+// validações abaixo LANÇAM, nunca chamam `process.exit` diretamente, para que importar o
+// módulo nunca mate o processo de quem importa (`reconcile` é interna ao CLI, não exportada). O galho principal, ao final do arquivo, é quem converte a exceção em `FAIL (...)` +
 // `exit(1)` para o uso via CLI.
 function reconcile(activeNames) {
   if (!existsSync(join(FORGE, 'FORGE.md'))) {
@@ -411,14 +410,14 @@ function isMainModule() {
 }
 
 // ── entry ────────────────────────────────────────────────────────────────────
-// process.exit só dentro deste galho (achado de correção #130, HIGH-2): TODA validação abaixo
+// process.exit só dentro deste galho (#130): TODA validação abaixo
 // (e as de `reconcile`, chamada de dentro do try) lança `Error`; este é o ÚNICO lugar do arquivo
 // que converte exceção em `console.error('FAIL (...)')` + `process.exit(1)`, e só roda quando o
 // arquivo é o principal — nunca quando é importado.
 if (isMainModule()) {
   try {
     // Checagem de .forge/FORGE.md na PRIMEIRA linha do galho principal (achado de correção #130,
-    // MEDIUM-1/MEDIUM-2): antes rodava só dentro de reconcile(), então --set chamava writeActive()
+    // #130): antes rodava só dentro de reconcile(), então --set chamava writeActive()
     // (gravando forge.yaml) ANTES de chegar lá, e o modo default/--adapter all chamava
     // readActive() primeiro — que lê forge.yaml e falha com ENOENT cru se .forge/ nem existir,
     // vazando uma mensagem diferente da amigável ("no .forge/FORGE.md ... — run /forge:init
@@ -454,7 +453,7 @@ if (isMainModule()) {
     // Só um CliError (validação intencional) vira FAIL de uma linha; qualquer outra exceção
     // (bug interno, EACCES, ENOTDIR de um .forge/ corrompido) imprime o stack completo primeiro
     // — o diagnóstico que o Node dava por padrão antes deste try/catch existir (achado de
-    // correção #130, LOW-1).
+    // #130).
     if (!(e instanceof CliError)) console.error(e.stack || String(e));
     console.error(`FAIL (${e.message})`);
     process.exit(1);

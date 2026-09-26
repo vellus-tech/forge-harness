@@ -515,7 +515,7 @@ fi
 
 # ── [12] mutação — checagem de FORGE.md de volta para só dentro de reconcile() ──────────────────
 echo "[12] mutação: mover a checagem de FORGE.md de volta para só dentro de reconcile() faz [10]/[11] voltarem a falhar"
-LIB12="$(mktemp "$TMPROOT/forge-w216-12-lib.XXXXXX.mjs")"; track "$LIB12"
+D12="$(mktemp -d "$TMPROOT/forge-w216-12.XXXXXX")"; track "$D12"; LIB12="$D12/sync-adapters.mjs"
 cp "$LIB_TEMPLATE" "$LIB12"
 BACKUP12="$(mktemp "$TMPROOT/forge-w216-12-backup.XXXXXX")"; track "$BACKUP12"
 cp "$LIB12" "$BACKUP12"
@@ -598,7 +598,7 @@ else
 fi
 
 echo "  [13-mut] mutação: trocar o root explícito pelo FORGE_YAML de módulo faz [13] voltar a falhar"
-LIB13="$(mktemp "$TMPROOT/forge-w216-13-lib.XXXXXX.mjs")"; track "$LIB13"
+D13="$(mktemp -d "$TMPROOT/forge-w216-13.XXXXXX")"; track "$D13"; LIB13="$D13/sync-adapters.mjs"
 cp "$T13B/$LIB_REL" "$LIB13"
 BACKUP13="$(mktemp "$TMPROOT/forge-w216-13-backup.XXXXXX")"; track "$BACKUP13"
 cp "$LIB13" "$BACKUP13"
@@ -662,7 +662,7 @@ else
 fi
 
 echo "  [14-mut] mutação: remover a distinção CliError faz o stack sumir de novo"
-LIB14="$(mktemp "$TMPROOT/forge-w216-14-lib.XXXXXX.mjs")"; track "$LIB14"
+D14="$(mktemp -d "$TMPROOT/forge-w216-14.XXXXXX")"; track "$D14"; LIB14="$D14/sync-adapters.mjs"
 cp "$LIB_TEMPLATE" "$LIB14"
 BACKUP14="$(mktemp "$TMPROOT/forge-w216-14-backup.XXXXXX")"; track "$BACKUP14"
 cp "$LIB14" "$BACKUP14"

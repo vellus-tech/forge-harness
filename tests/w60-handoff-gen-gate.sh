@@ -1,23 +1,30 @@
 #!/usr/bin/env bash
 # Gate — handoff-gen (REQ-02/NFR-02): o gerador determinístico monta .forge/HANDOFF.md a partir
 # do estado do change (manifest/progress/deferrals), degrada sem FORGE.md, é idempotente e preserva
-# um delta narrativo já escrito. Quando o arquivo existente não tem marcadores NARRATIVE-DELTA e o
-# conteúdo mudaria (#120), os bytes anteriores são salvos em backup antes da escrita, com WARN.
+# um delta narrativo já escrito. Quando o conteúdo anterior mudaria e não há como mapeá-lo por
+# inteiro no novo render — sem marcadores NARRATIVE-DELTA, ou com marcadores mas com bytes fora do
+# par START/END que o render não reproduz (#120) — os bytes anteriores são salvos em backup antes
+# da escrita, com WARN. A propriedade vale nos dois casos: nenhum byte anterior real é descartado
+# em silêncio, esteja ele dentro do slot (preservado no próprio arquivo) ou fora dele (backup).
 #   [1] gera o artefato com as 5 seções + dados do change
 #   [2] determinismo: duas execuções sem mudança de estado → diff vazio
 #   [3] degradação sem FORGE.md → runtime = n/d
-#   [4] preserva o delta narrativo escrito entre os marcadores (controle: nenhum backup)
+#   [4] preserva o delta narrativo escrito entre os marcadores, com o resto do documento inalterado
+#       (controle: nenhum backup — nada fora do slot mudou)
 #   [5] sem marcadores + conteúdo mudaria → backup byte-idêntico ao anterior + WARN nomeia o caminho
 #   [6] arquivo idêntico ao que seria renderizado (sem marcadores) → nenhum backup
-#   [7] PBT: sem marcadores, os bytes anteriores são sempre recuperáveis — no próprio arquivo
-#       (já idêntico) ou num backup byte-idêntico nomeado pelo WARN; com marcadores, o corpo
-#       entre eles é sempre preservado no arquivo (não cobre bytes fora do slot — ver [10])
+#   [7] PBT: para conteúdo anterior gerado (com/sem marcadores, bytes aleatórios dentro E fora
+#       deles, inclusive UTF-8 inválido), os bytes anteriores são sempre recuperáveis depois da
+#       geração — no próprio arquivo (delta preservado, comparado por Buffer) ou num backup
+#       byte-idêntico nomeado pelo WARN; cobre também o caso com marcadores + prefix/suffix
+#       perdido (ver [10])
 #   [8] backup é byte-idêntico ao arquivo anterior mesmo com bytes inválidos em UTF-8, e a
 #       contagem de bytes no WARN bate com o tamanho bruto do arquivo, não com a string decodificada
 #   [9] arquivo anterior de 0 bytes → nenhum backup, nenhum WARN (nada a recuperar)
-#   [10] controle/limitação conhecida (DA-09, roadmap Onda 8): com marcadores JÁ presentes, texto
-#        escrito fora do par START/END continua sendo descartado sem backup e sem WARN — este
-#        cenário não é regressão a corrigir aqui; documenta o limite do que o #120 cobre
+#   [10] com marcadores JÁ presentes, texto escrito fora do par START/END (mesma prática que a
+#        issue #120 descreve, /forge:handoff acumulando rodadas fora do slot) é recuperável por
+#        backup byte-idêntico + WARN nomeando o caminho, exatamente como o caso sem marcadores —
+#        nada além do slot é perdido em silêncio
 set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -132,7 +139,7 @@ run_render   # 2ª: arquivo existe, sem marcadores, mas idêntico ao que seria e
 grep -q 'id=demo-change' "$T2/.forge/HANDOFF.md"
 echo "OK [6]"
 
-echo "[7] PBT: bytes anteriores sempre recuperáveis (delta preservado ou backup byte-idêntico)"
+echo "[7] PBT: bytes anteriores sempre recuperáveis (delta preservado ou backup byte-idêntico), com/sem marcadores, prefix/suffix com bytes aleatórios inclusive UTF-8 inválido"
 node - "$LIB" "$GEN" "$T" <<'EOF' || { echo "FAIL [7] (propriedade de recuperabilidade falhou)"; exit 1; }
 const [lib, gen, root] = process.argv.slice(2);
 const fs = await import('node:fs');
@@ -141,37 +148,44 @@ const { spawnSync } = await import('node:child_process');
 const { forAll, gen: G } = await import(`${lib}/pbt.mjs`);
 
 const H = path.join(root, '.forge', 'HANDOFF.md');
+const START = '<!-- FORGE:NARRATIVE-DELTA:START -->';
+const END = '<!-- FORGE:NARRATIVE-DELTA:END -->';
 const WORDS = ['alfa', 'bravo', 'charlie', 'delta', 'echo', 'foxtrot', 'golf', 'hotel', 'india', 'julia', 'kilo', 'lima'];
+// O corpo do delta fica em palavras ASCII de propósito: ele é lido de volta como string utf8 pelo
+// próprio handoff-render.mjs (o merge do delta decodifica o arquivo anterior para localizar os
+// marcadores), então bytes inválidos ali testariam a decodificação de texto, não o backup. Prefix
+// e suffix (fora do slot) são o que a correção do #120 passa a proteger por Buffer bruto — o
+// gerador cobre todo o intervalo de bytes 0-255, então inclui UTF-8 inválido (bytes de continuação
+// soltos, 0xFF, etc.) sem que o teste precise construí-los à mão.
 const wordsGen = G.array(G.oneOf(WORDS), 5, 40);
-const padGen = G.array(G.oneOf(WORDS), 0, 15);
+const byteGen = G.array(G.int(0, 255), 0, 30);
 
-function runCase(hasMarkers, bodyWords, prefixWords, suffixWords) {
-  const body = bodyWords.join(' ');
-  const prefix = prefixWords.join(' ');
-  const suffix = suffixWords.join(' ');
-  const prev = hasMarkers
-    ? `${prefix}\n\n<!-- FORGE:NARRATIVE-DELTA:START -->\n${body}\n<!-- FORGE:NARRATIVE-DELTA:END -->\n\n${suffix}\n`
-    : `${prefix}\n${body}\n${suffix}\n`;
-  fs.writeFileSync(H, prev, 'utf8');
+function runCase(hasMarkers, bodyWords, prefixBytes, suffixBytes) {
+  const bodyBuf = Buffer.from(bodyWords.join(' '), 'utf8');
+  const prefixBuf = Buffer.from(prefixBytes);
+  const suffixBuf = Buffer.from(suffixBytes);
+  const prevBuf = hasMarkers
+    ? Buffer.concat([prefixBuf, Buffer.from(`\n\n${START}\n`, 'utf8'), bodyBuf, Buffer.from(`\n${END}\n\n`, 'utf8'), suffixBuf, Buffer.from('\n')])
+    : Buffer.concat([prefixBuf, Buffer.from('\n'), bodyBuf, Buffer.from('\n'), suffixBuf, Buffer.from('\n')]);
+  fs.writeFileSync(H, prevBuf);
   const res = spawnSync('bash', [gen, 'demo-change'], { cwd: root, env: { ...process.env, FORGE_ROOT: root }, encoding: 'utf8' });
   if (res.status !== 0) return false; // #120 é sobre nunca perder bytes com rc 0 — rc≠0 já é outro defeito
-  const after = fs.readFileSync(H, 'utf8');
-  // Com marcadores, a propriedade provada é só a preservação do corpo entre START/END — prefix e
-  // suffix (fora do slot) NÃO entram nesta checagem de propósito: são descartados por desenho
-  // sempre que os marcadores já existem (limitação conhecida, ver [10] e o comentário no topo de
-  // handoff-render.mjs). Não fortaleça esta linha para exigir prefix/suffix sem antes mudar o
-  // desenho e o DA-09 do plano — o [10] existiria para falhar primeiro.
-  if (hasMarkers) return after.includes(body);
-  if (after === prev) return true; // nada a recuperar — já idêntico ao que seria escrito
+  const afterBuf = fs.readFileSync(H);
+  // Com marcadores, o corpo do delta tem de sobreviver dentro do próprio arquivo sempre — é a
+  // única parte que o merge de fato reescreve para preservar.
+  if (hasMarkers && !afterBuf.includes(bodyBuf)) return false;
+  if (afterBuf.equals(prevBuf)) return true; // nada mudou — nada a recuperar
+  // Com ou sem marcadores: se o arquivo final não é byte-idêntico ao anterior, o que mudou fora do
+  // que foi preservado só pode estar recuperável por backup — nunca perdido em silêncio com rc 0.
   const m = /salvo em (.*)$/m.exec(res.stderr || '');
-  if (!m) return false; // conteúdo mudou sem marcadores e sem aviso — bytes perdidos sem rastro
+  if (!m) return false; // conteúdo anterior mudaria e sumiu sem aviso nem backup — bytes perdidos sem rastro
   const backupPath = m[1].trim();
-  return fs.existsSync(backupPath) && fs.readFileSync(backupPath, 'utf8') === prev;
+  return fs.existsSync(backupPath) && fs.readFileSync(backupPath).equals(prevBuf);
 }
 
 const SEED = 20260925;
 const RUNS = 80;
-const r = forAll([G.bool(), wordsGen, padGen, padGen], runCase, { runs: RUNS, seed: SEED });
+const r = forAll([G.bool(), wordsGen, byteGen, byteGen], runCase, { runs: RUNS, seed: SEED });
 if (!r.ok) {
   console.error(`propriedade falhou após ${r.runs} caso(s) (seed ${r.seed}): ${JSON.stringify(r.counterexample)}${r.error ? ` — ${r.error}` : ''}`);
   process.exit(1);
@@ -207,8 +221,8 @@ FORGE_ROOT="$T" bash "$GEN" demo-change >"$T/stdout-9.log" 2>"$T/stderr-9.log"
 grep -q 'demo-change' "$H"
 echo "OK [9]"
 
-echo "[10] controle/limitação conhecida: com marcadores presentes, conteúdo fora do slot NARRATIVE-DELTA some sem backup e sem WARN (DA-09, roadmap Onda 8)"
-FORGE_ROOT="$T" bash "$GEN" demo-change >/dev/null 2>&1   # regenera do zero — marcadores presentes
+echo "[10] com marcadores presentes, conteúdo fora do slot NARRATIVE-DELTA é recuperável por backup + WARN (mesma prática que a issue #120 descreve)"
+FORGE_ROOT="$T" bash "$GEN" demo-change >/dev/null 2>&1   # regenera do zero — marcadores presentes, estado inalterado (idempotente, sem backup aqui)
 python3 - "$H" <<'PY'
 import sys
 p = sys.argv[1]
@@ -216,12 +230,21 @@ s = open(p).read()
 extra = "\n## Rodada extra\n\nTexto acrescentado FORA do par de marcadores (mesma prática que a issue #120 descreve).\n"
 open(p, 'w').write(s + extra)
 PY
+cp "$H" "$T/prev-10.bin"
+EXPECT_BYTES10="$(wc -c < "$T/prev-10.bin" | tr -d ' ')"
 BC_BEFORE10="$(backup_count)"
 FORGE_ROOT="$T" bash "$GEN" demo-change >"$T/stdout-10.log" 2>"$T/stderr-10.log"
 grep -q 'Rodada extra' "$H" \
-  && { echo "FAIL [10] (o texto fora do slot deveria ter sido perdido nesta rodada — se a limitação foi corrigida, atualize este cenário, o comentário de handoff-render.mjs e o CHANGELOG em vez de deixá-lo falhar)"; exit 1; }
-[ -s "$T/stderr-10.log" ] && { echo "FAIL [10] (WARN inesperado — a limitação documentada é a ausência de aviso neste caso)"; cat "$T/stderr-10.log"; exit 1; }
-[ "$(backup_count)" = "$BC_BEFORE10" ] || { echo "FAIL [10] (backup inesperado — a limitação documentada é a ausência de backup neste caso)"; exit 1; }
-echo "OK [10] (limitação conhecida confirmada, não é regressão desta mudança)"
+  && { echo "FAIL [10] (o texto fora do slot não deveria sobreviver no próprio arquivo — só a seção 4 é preservada; ele precisa estar no backup)"; exit 1; }
+grep -q '^WARN: HANDOFF.md com conteúdo fora do bloco NARRATIVE-DELTA' "$T/stderr-10.log" \
+  || { echo "FAIL [10] (WARN ausente em stderr — a rodada extra fora do slot foi perdida sem aviso)"; cat "$T/stderr-10.log"; exit 1; }
+grep -q "conteúdo anterior ($EXPECT_BYTES10 bytes)" "$T/stderr-10.log" \
+  || { echo "FAIL [10] (contagem de bytes no WARN não bate com o arquivo anterior, rodada extra incluída)"; cat "$T/stderr-10.log"; exit 1; }
+WARN_PATH10="$(sed -n 's/.*salvo em \(.*\)$/\1/p' "$T/stderr-10.log" | head -1)"
+[ -n "$WARN_PATH10" ] || { echo "FAIL [10] (WARN sem caminho)"; exit 1; }
+cmp -s "$T/prev-10.bin" "$WARN_PATH10" \
+  || { echo "FAIL [10] (backup não é byte-idêntico ao arquivo anterior — a rodada extra não sobreviveu nem no arquivo nem no backup)"; exit 1; }
+[ "$(backup_count)" = "$((BC_BEFORE10 + 1))" ] || { echo "FAIL [10] (esperado 1 backup novo — achei $(($(backup_count) - BC_BEFORE10)))"; exit 1; }
+echo "OK [10]"
 
 echo "PASS w60-handoff-gen-gate"

@@ -1,0 +1,36 @@
+# hooks.manifest — declaração do matcher (e, documentalmente, do contrato e do universo) de cada
+# hook PreToolUse, por FORA do .forge/cache/machinery.lock (adp#LDG-0517).
+#
+# POR QUE A DECLARAÇÃO MORA AQUI E NÃO NUM CABEÇALHO DENTRO DE CADA HOOK. Medido: os quatro hooks
+# de .forge/hooks/pre-tool-use/ estão no machinery.lock — são arquivos do template, e o overlay do
+# próximo `forge upgrade` os repõe com o conteúdo do template, sem conflito e sem aviso. Um
+# cabeçalho `# forge-matcher:` escrito dentro deles some no próximo overlay, o gerador
+# (`sync-adapters.mjs:buildPreToolUseHooks`) deixa de saber o matcher, e o hook cai da fiação — o
+# mesmo desarme que este arquivo existe para fechar (adp#LDG-0492, primeira rodada; adp#LDG-0517,
+# esta). Prova de que este arquivo NÃO está no lock: `grep -c 'hooks/pre-tool-use/hooks.manifest'
+# .forge/cache/machinery.lock` devolve 0 (o comando roda no checkout principal — o cache é
+# gitignored e não existe em worktree nova).
+#
+# QUATRO COLUNAS SEPARADAS POR TAB: hook, matcher, contrato, universo.
+#   hook      nome do arquivo em .forge/hooks/pre-tool-use/ (sem diretório).
+#   matcher   padrão de PreToolUse.matcher consumido por sync-adapters.mjs. ÚNICO campo validado
+#             mecanicamente pelo gerador hoje: hook do diretório sem entrada aqui reprova a
+#             geração nomeando o arquivo — nunca cai em matcher por omissão.
+#   contrato  como o hook lê a chamada: `stdin-json:tool_input.command` (comando Bash cru, lido à
+#             mão) ou `stdin-json:tool_input.file_path+content` (via .forge/hooks/lib/tool-input.sh,
+#             que também aceita invocação por argv nas suítes — adp#LDG-0498). Documental nesta
+#             rodada — o gerador ainda não valida esta coluna.
+#   universo  sobre que arquivos/entrada este hook chega a opinar. Documental nesta rodada — não é
+#             a garantia de "universo não-cego" (`gate-universe-not-blind`, fora do escopo aqui).
+#
+# Hook novo em .forge/hooks/pre-tool-use/*.sh PRECISA de uma linha abaixo — sem ela o gerador
+# lança citando o nome do arquivo, nunca assume um matcher por padrão.
+#
+# POR QUE O MATCHER DOS TRÊS HOOKS DE ARQUIVO NOMEIA CADA FERRAMENTA EM VEZ DE CONFIAR EM `Write|Edit`. O adp#LDG-0540 registra a medição comportamental que motiva esta linha: um matcher de `PreToolUse` composto só por letras, dígitos, `_`, `-`, espaço e `|` é igualdade exata por alternativa, nunca regex de substring — "Edit" dentro de "NotebookEdit" não casa — e por isso `Write|Edit` nunca despachava para `NotebookEdit`, mesmo com a edição da célula acontecendo de fato no arquivo.
+# Medido em sandbox fora deste repositório, nunca no `.claude/settings.json` real, com um gancho que só registra o payload recebido e sai 0, e com os dois controles fechando o aparato antes da conclusão: `Write` dispara o gancho (controle positivo) e `Read` não dispara (controle negativo); com o matcher estendido para `Write|Edit|NotebookEdit`, `NotebookEdit` passou a disparar, com o log carregando `tool_name":"NotebookEdit"` e o conteúdo da célula de fato trocado.
+# Por isso o matcher dos três hooks abaixo passa a nomear explicitamente `Write`, `Edit` e `NotebookEdit` — as três ferramentas de edição de arquivo desta instalação com disparo confirmado por medição direta — e também `MultiEdit`, que é decisão declarada de precaução e não fato medido: `MultiEdit` está AUSENTE da enumeração de 77 ferramentas de uma sessão viva via `claude -p`, o que torna INDECIDÍVEL por medição direta se ela dispararia o matcher caso existisse — não "não existe no catálogo desta instalação": o adp#LDG-0534 (retificação da retificação) encontrou a string `MultiEdit` no binário ativo (6 ocorrências, em contexto do validador de regras de permissão `Edit(path)`, não do despachante de hooks `PreToolUse`), o que contradiz uma afirmação categórica de ausência. A fonte (ledger) é cautelosa — "indecidível" — e este manifesto tem de ser igualmente cauteloso, nunca mais categórico que a medição que o sustenta. O custo de nomear uma ferramenta cujo disparo é indecidível continua zero; o custo de um buraco é uma chave privada aprovada em silêncio pelo gate de segredos.
+# `enforce-worktree-location.sh` fica de fora desta regra porque o objeto dele é o COMANDO (`stdin-json:tool_input.command`), não o arquivo escrito — misturar ferramentas de edição de arquivo no matcher dele seria a mesma confusão de camada que originou todo este achado, e o teste `manifesto-nomeia-ferramentas-de-arquivo.test.sh` cobra essa linha como controle.
+check-language-policy.sh	Write|Edit|NotebookEdit|MultiEdit	stdin-json:tool_input.file_path+content	*.cs
+enforce-worktree-location.sh	Bash	stdin-json:tool_input.command	comando (git worktree add)
+prevent-secrets-leak.sh	Write|Edit|NotebookEdit|MultiEdit	stdin-json:tool_input.file_path+content	*
+validate-naming-conventions.sh	Write|Edit|NotebookEdit|MultiEdit	stdin-json:tool_input.file_path+content	*.cs e diretórios fora de src/tests/services/deploy

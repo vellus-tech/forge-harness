@@ -1,0 +1,175 @@
+#!/usr/bin/env bash
+# Gate W248 — isolamento de GIT_DIR/GIT_WORK_TREE herdados em gates que criam repositório git
+# temporário (LDG-0201, incidente P1 de 2026-09-26).
+#
+# O DEFEITO. Gates que criam um repositório git sintético em /tmp para testar a própria fixture
+# (via `git init` ou `git -C <dir> init`, seguido de `git config user.email`/`user.name` sem
+# `--global`) contavam com o diretório de trabalho corrente, ou com `-C`, para resolver QUAL
+# repositório os comandos git afetam. Nenhum dos dois protege: o git honra as variáveis de ambiente
+# GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE, GIT_COMMON_DIR e GIT_OBJECT_DIRECTORY com precedência
+# ABSOLUTA sobre `-C` e sobre o diretório corrente — `git -C "$D" init` com GIT_DIR exportado
+# reinicializa o repositório de GIT_DIR, não `$D`, e `$D/.git` nunca chega a existir. Quando uma
+# sessão paralela mal isolada exporta GIT_DIR apontando para um repositório real, um gate que roda
+# ISOLADO (fora do `run-all.sh`, que agora dá `unset` nessas variáveis antes de despachar cada alvo)
+# grava a identidade sintética (`user.name=t`, `user.email=t@t`) no `.git/config` do repositório
+# real. Incidente medido nesta rodada: 16 commits em 5 branches gravados com autor `t`, um deles já
+# mergeado em `develop` (`0c2ab4f`, não reescrito — reescrever histórico publicado exige o dono).
+#
+# REPRODUÇÃO DO INCIDENTE, medida fora deste gate: com um repositório "vítima" de identidade
+# própria e GIT_DIR exportado para ele, `GIT_DIR=<vítima>/.git bash tests/changelog-merge-gate.sh`
+# grava `user.email=t@t`/`user.name=t` na vítima, embora o gate nomeie um caminho de /tmp
+# totalmente diferente em todas as suas variáveis internas.
+#
+#   [1] `tests/changelog-merge-gate.sh` REAL (amostra do defeito — é o próprio gate do incidente),
+#       com GIT_DIR exportado para uma vítima: o `.git/config` da vítima sai byte-idêntico antes e
+#       depois (cmp -s), e o gate continua passando (rc 0) — a correção não muda o comportamento
+#       funcional do gate, só a superfície que ele toca
+#   [2] MUTAÇÃO de [1] — numa CÓPIA de `changelog-merge-gate.sh` (sha256 conferido contra o
+#       original antes de mutar), remove-se a linha `unset GIT_DIR ...`; rodada com o mesmo padrão
+#       de GIT_DIR herdado, a vítima sai CONTAMINADA — prova de que [1] de fato pegaria a ausência
+#       da correção. RECONTROLE: uma segunda cópia, íntegra (mesmo sha256 do original), volta a
+#       deixar a vítima intacta
+#   [3] `tests/run-all.sh` REAL (cópia byte-idêntica por sha256 — "sem recursão sobre a suíte
+#       real", o mesmo padrão do w212), despachando um gate SINTÉTICO que reproduz o padrão
+#       vulnerável (`cd $T; git init -q; git config user.email/name`, sem `-C` e sem `unset`): com
+#       GIT_DIR exportado para uma vítima, ela sai intacta depois de rodar a cópia do runner —
+#       prova de que o preâmbulo do RUNNER protege até um gate-filho que não tem preâmbulo próprio
+#   [4] MUTAÇÃO de [3] — remove-se a linha `unset GIT_DIR ...` de uma SEGUNDA cópia de
+#       `tests/run-all.sh`; rodada a mesma bancada sintética, a vítima sai CONTAMINADA. RECONTROLE:
+#       a bancada com a cópia pristina (sha256 idêntico ao runner real) volta a proteger a vítima
+#   [5] SENTINELA — o gate examinou exatamente o número de cenários declarado
+set -uo pipefail
+
+WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+DECLARADO=5
+EXAMINADOS=0
+cen() { EXAMINADOS=$((EXAMINADOS + 1)); }
+
+T="$(mktemp -d /tmp/forge-w248.XXXXXX)" || { echo "FAIL [0]: mktemp -d falhou"; exit 1; }
+trap 'rm -rf "$T"' EXIT
+
+sha_de() { shasum -a 256 "$1" | awk '{print $1}'; }
+
+# vitima <nome> -> ecoa o caminho de um repositório git recém-criado com identidade própria,
+# distinta em cada chamada, para nunca reutilizar estado entre cenários.
+vitima() {
+  local v="$T/$1"
+  mkdir -p "$v"
+  git -C "$v" init -q -b main >/dev/null
+  git -C "$v" config user.email "vitima-$1@vitima.example"
+  git -C "$v" config user.name "vitima-$1"
+  git -C "$v" config commit.gpgsign false
+  echo "$v"
+}
+
+echo "[1] changelog-merge-gate.sh REAL com GIT_DIR herdado deixa a vítima intacta"
+cen
+V1="$(vitima v1)"
+CFG1_ANTES="$T/v1-config-antes"
+cp "$V1/.git/config" "$CFG1_ANTES"
+( export GIT_DIR="$V1/.git"; bash "$WS/tests/changelog-merge-gate.sh" ) >"$T/out1.log" 2>&1
+RC1=$?
+cmp -s "$CFG1_ANTES" "$V1/.git/config" || {
+  echo "FAIL [1]: vítima contaminada — .git/config mudou depois de rodar changelog-merge-gate.sh com GIT_DIR herdado"
+  diff "$CFG1_ANTES" "$V1/.git/config" 2>&1 || true
+  exit 1
+}
+[ "$RC1" -eq 0 ] || { echo "FAIL [1]: changelog-merge-gate.sh saiu rc=$RC1 com GIT_DIR herdado (deveria continuar passando)"; tail -10 "$T/out1.log"; exit 1; }
+echo "OK [1]"
+
+echo "[2] mutação — cópia de changelog-merge-gate.sh sem o preâmbulo contamina; cópia íntegra não contamina (recontrole)"
+cen
+ORIG="$WS/tests/changelog-merge-gate.sh"
+SHA_ORIG="$(sha_de "$ORIG")"
+COPIA="$T/changelog-merge-gate-copia.sh"
+cp "$ORIG" "$COPIA"
+[ "$(sha_de "$COPIA")" = "$SHA_ORIG" ] || { echo "FAIL [2]: a cópia de changelog-merge-gate.sh não é idêntica ao original"; exit 1; }
+MUTADA="$T/changelog-merge-gate-mutada.sh"
+cp "$COPIA" "$MUTADA"
+perl -pi -e 's/^unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY\n$//' "$MUTADA"
+grep -q "unset GIT_DIR" "$MUTADA" && { echo "FAIL [2]: a mutação não removeu a linha do preâmbulo de $MUTADA — o cenário não testaria nada"; exit 1; }
+
+V2="$(vitima v2)"
+CFG2_ANTES="$T/v2-config-antes"
+cp "$V2/.git/config" "$CFG2_ANTES"
+( export GIT_DIR="$V2/.git"; bash "$MUTADA" ) >/dev/null 2>&1 || true
+cmp -s "$CFG2_ANTES" "$V2/.git/config" && { echo "FAIL [2]: a cópia MUTADA (sem o preâmbulo) deveria contaminar a vítima e não contaminou — o cenário [1] não pegaria a ausência da correção"; exit 1; }
+echo "  OK — mutação contamina a vítima, como esperado"
+
+V2B="$(vitima v2b)"
+CFG2B_ANTES="$T/v2b-config-antes"
+cp "$V2B/.git/config" "$CFG2B_ANTES"
+( export GIT_DIR="$V2B/.git"; bash "$COPIA" ) >/dev/null 2>&1 || true
+cmp -s "$CFG2B_ANTES" "$V2B/.git/config" || { echo "FAIL [2]: RECONTROLE — a cópia ÍNTEGRA (mesmo sha256 do original) contaminou a vítima; a mutação não foi limpa"; exit 1; }
+echo "OK [2]"
+
+echo "[3] tests/run-all.sh REAL despachando um gate sintético vulnerável deixa a vítima intacta"
+cen
+B3="$T/bancada3"
+mkdir -p "$B3/tests" "$B3/template/.forge/scripts/lib"
+cp "$WS/tests/run-all.sh" "$B3/tests/run-all.sh"
+[ "$(sha_de "$WS/tests/run-all.sh")" = "$(sha_de "$B3/tests/run-all.sh")" ] || { echo "FAIL [3]: a cópia de tests/run-all.sh na bancada não é idêntica ao original"; exit 1; }
+chmod +x "$B3/tests/run-all.sh"
+# DUBLÊ NEUTRO da sentinela de árvore rastreada (LDG-0179) — mesmo padrão do w212: o que esta
+# bancada mede é o isolamento de GIT_DIR, não a sentinela, que tem gate próprio (w213).
+printf '%s\n' '#!/usr/bin/env bash' \
+  'arvore_retrato() { echo dublê; return 0; }' \
+  'arvore_confere() { return 0; }' \
+  > "$B3/template/.forge/scripts/lib/arvore-rastreada.sh"
+
+# gate sintético: reproduz o padrão vulnerável de changelog-merge-gate.sh ANTES da correção —
+# `cd`, `git init`, `git config user.*` sem `-C` e sem `unset`.
+{
+  echo '#!/usr/bin/env bash'
+  echo 'set -euo pipefail'
+  echo 'T="$(mktemp -d /tmp/forge-w248-sint.XXXXXX)"'
+  echo 'trap '\''rm -rf "$T"'\'' EXIT'
+  echo 'cd "$T"'
+  echo 'git init -q'
+  echo 'git config user.email "t@t"; git config user.name "t"'
+  echo 'echo "OK sintético"'
+} > "$B3/tests/synthetic-vuln-gate.sh"
+chmod +x "$B3/tests/synthetic-vuln-gate.sh"
+
+V3="$(vitima v3)"
+CFG3_ANTES="$T/v3-config-antes"
+cp "$V3/.git/config" "$CFG3_ANTES"
+( cd "$B3" && export GIT_DIR="$V3/.git" && bash "$B3/tests/run-all.sh" ) >"$T/out3.log" 2>&1
+cmp -s "$CFG3_ANTES" "$V3/.git/config" || {
+  echo "FAIL [3]: vítima contaminada depois de rodar a cópia REAL de tests/run-all.sh despachando um gate sintético vulnerável"
+  tail -20 "$T/out3.log"
+  exit 1
+}
+echo "OK [3]"
+
+echo "[4] mutação — cópia de tests/run-all.sh sem o preâmbulo permite a bancada contaminar a vítima; cópia pristina protege (recontrole)"
+cen
+B4="$T/bancada4"
+mkdir -p "$B4/tests" "$B4/template/.forge/scripts/lib"
+cp "$WS/tests/run-all.sh" "$B4/tests/run-all.sh"
+[ "$(sha_de "$WS/tests/run-all.sh")" = "$(sha_de "$B4/tests/run-all.sh")" ] || { echo "FAIL [4]: a cópia pristina de tests/run-all.sh na bancada 4 não é idêntica ao original"; exit 1; }
+cp "$B3/template/.forge/scripts/lib/arvore-rastreada.sh" "$B4/template/.forge/scripts/lib/arvore-rastreada.sh"
+cp "$B3/tests/synthetic-vuln-gate.sh" "$B4/tests/synthetic-vuln-gate.sh"
+chmod +x "$B4/tests/run-all.sh" "$B4/tests/synthetic-vuln-gate.sh"
+
+perl -pi -e 's/^unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY\n$//' "$B4/tests/run-all.sh"
+grep -q "unset GIT_DIR" "$B4/tests/run-all.sh" && { echo "FAIL [4]: a mutação não removeu a linha do preâmbulo de tests/run-all.sh na bancada 4"; exit 1; }
+
+V4="$(vitima v4)"
+CFG4_ANTES="$T/v4-config-antes"
+cp "$V4/.git/config" "$CFG4_ANTES"
+( cd "$B4" && export GIT_DIR="$V4/.git" && bash "$B4/tests/run-all.sh" ) >"$T/out4.log" 2>&1
+cmp -s "$CFG4_ANTES" "$V4/.git/config" && { echo "FAIL [4]: a cópia MUTADA (sem o preâmbulo) deveria contaminar a vítima e não contaminou — o cenário [3] não pegaria a ausência da correção no runner"; exit 1; }
+echo "  OK — mutação contamina a vítima, como esperado"
+
+V4B="$(vitima v4b)"
+CFG4B_ANTES="$T/v4b-config-antes"
+cp "$V4B/.git/config" "$CFG4B_ANTES"
+( cd "$B3" && export GIT_DIR="$V4B/.git" && bash "$B3/tests/run-all.sh" ) >"$T/out4b.log" 2>&1
+cmp -s "$CFG4B_ANTES" "$V4B/.git/config" || { echo "FAIL [4]: RECONTROLE — a bancada com a cópia pristina contaminou a vítima; a mutação não foi limpa"; exit 1; }
+echo "OK [4]"
+
+echo "[5] sentinela — contagem de cenários examinados"
+cen
+[ "$EXAMINADOS" -eq "$DECLARADO" ] || { echo "FAIL [5]: examinados=$EXAMINADOS declarado=$DECLARADO"; exit 1; }
+echo "OK [5]"

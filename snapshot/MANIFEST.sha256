@@ -48,7 +48,7 @@ d8991d70b98366e1a6e722bd405d7744e2b23523b2ae791d865767df452b7f27  project-bootst
 8378f0b55992ebb0780a9d37b1092903f69ace250cba46869a0a75478ba45b8e  project-bootstrap/.claude/hooks/pre-commit/check-dockerfile-multiarch.sh
 d3db0451ed02eb44fd6ebb8fd9b3649ffe4d20836eadfe96ef3d8659af9b66ad  project-bootstrap/.claude/hooks/pre-tool-use/check-language-policy.sh
 876f308b302f1245eb127438fd87fed2a6bcad23b940d616810069a3b20ea4b4  project-bootstrap/.claude/hooks/pre-tool-use/enforce-worktree-location.sh
-ebcb30d04536bad37ab38bba85d1f9ad952b86053b5f7ad80ce38baa6317ccbc  project-bootstrap/.claude/hooks/pre-tool-use/prevent-secrets-leak.sh
+fb9fafec947c6c5d61a45ef45e7f7a1db75517e49215a2cf0761998baba3449b  project-bootstrap/.claude/hooks/pre-tool-use/prevent-secrets-leak.sh
 15f76750dfd787b75258a0707e4e5f5dd03db3ac098bc5448aaf04cf27fd3daa  project-bootstrap/.claude/hooks/pre-tool-use/validate-naming-conventions.sh
 07dfff9cb3aae19630f0dc5aab2740996c8c2000bb9a5e71d8843b9d11592edb  project-bootstrap/.claude/rules/README.md
 c69c11382f6137ef84fc069831e06aa923f5d935ab5ead3ab986df72b3af032c  project-bootstrap/.claude/rules/architecture/api-and-contracts.md
@@ -79,7 +79,7 @@ edceb1b83cf561fd528fb980ee1c9d3ca692eaa0354ab2ee7707f829b44da15c  project-bootst
 4ffe5c95f6a1028ea839559400e547e4bfff47e28ef368b10f355576d9ad1868  project-bootstrap/.claude/rules/testing/quality-gates.md
 eba3cec0be552a09f94b470de9a06b6ffde7f5e04b4cbff45d176e1ed8a719a3  project-bootstrap/.claude/rules/testing/tdd.md
 c4dbb0e4c1caac3d48b9d8d5dafd4cfb396877f813192352f323325345bbc5fb  project-bootstrap/.claude/scripts/doctor.sh
-80c01d1d6b11d2f37431bb11aa081ab4236d31187bff342841d58ec25501801a  project-bootstrap/.claude/settings.json
+e878c807076cc53d989dfe30886382d14d2e926f1481c0e953a77591a04c63fc  project-bootstrap/.claude/settings.json
 95981bb61c485b3cac2cdf3439a763415a01f7207bcfaff63273bfc72898cea2  project-bootstrap/.claude/skills/design-system-creator/SKILL.md
 e2893f069d6674b4822baa6a1a928a792d152faf085e76f48fb0b9008da56fa5  project-bootstrap/.claude/skills/using-git-worktrees/SKILL.md
 c3e8691d1bdfda091ce8c74c206f77727342d51c1aa93ddfb5fe69690cf2ee2d  project-bootstrap/.claude/skills/verify-build/SKILL.md

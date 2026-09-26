@@ -169,12 +169,27 @@ PYEOF
   done
 }
 
-@test "C5: settings.json is valid JSON and wires the worktree-guard + secrets-detector (PreToolUse), by default (issue #125)" {
+@test "C5: source snapshot settings.json wires ONLY the worktree-guard (historical reference, W0.2/W0.3)" {
+  # O snapshot congelado é a referência histórica pré-#125: nunca ganhou a fiação derivada de
+  # .forge/hooks/pre-tool-use/ + hooks.manifest.default, e a cópia de prevent-secrets-leak.sh que
+  # ele carrega é a versão só-argv (não lê stdin) — restaurado ao estado de e3f9858 depois de um
+  # desvio que reescreveu o snapshot para acomodar a asserção nova (achado MEDIUM de correção).
+  [ "$MODE" = "source" ] || skip "generated mode wires PreToolUse from hooks.manifest.default (issue #125)"
+  python3 -m json.tool "$CLAUDE_DIR/settings.json" >/dev/null
+  grep -q "$HOOK_PATH_FRAGMENT" "$CLAUDE_DIR/settings.json"
+  grep -q '"PreToolUse"' "$CLAUDE_DIR/settings.json"
+  ! grep -q 'prevent-secrets-leak.sh' "$CLAUDE_DIR/settings.json"
+  wired=$(grep -c '"command":' "$CLAUDE_DIR/settings.json")
+  [ "$wired" -eq 1 ]
+}
+
+@test "C5: generated settings.json is valid JSON and wires the worktree-guard + secrets-detector (PreToolUse), by default (issue #125)" {
   # Issue #125: PreToolUse passou a derivar de .forge/hooks/pre-tool-use/ + hooks.manifest.default
   # em vez de um literal fixo (só o worktree-guard). Um consumidor NOVO (sem .claude/settings.json
   # ainda, o caso deste fixture) recebe o ESTADO PADRÃO do produtor: worktree-guard e
   # prevent-secrets-leak.sh nascem armados (segurança/convenção universal); check-language-policy.sh
   # e validate-naming-conventions.sh (específicos de .NET) nascem retidos.
+  [ "$MODE" = "generated" ] || skip "source snapshot is the frozen pre-#125 reference (wires ONLY the worktree-guard)"
   python3 -m json.tool "$CLAUDE_DIR/settings.json" >/dev/null
   grep -q "$HOOK_PATH_FRAGMENT" "$CLAUDE_DIR/settings.json"
   grep -q '"PreToolUse"' "$CLAUDE_DIR/settings.json"
@@ -229,9 +244,11 @@ PYEOF
 @test "C5: the secrets-detector wired by C5's PreToolUse default actually blocks via stdin (achado LOW, iteração 3 do modo correção)" {
   # Antes desta correção, o C5 anterior só verificava por grep a PRESENÇA da fiação — nunca que o
   # script referenciado por ela sabe LER o payload que o Claude Code entrega. No source mode, a
-  # cópia congelada de `prevent-secrets-leak.sh` era a versão pré-#125 (só argv, `exit 0` com argv
-  # vazio): a fiação anunciava um detector fail-closed que na prática aprovava qualquer coisa. O
-  # payload de exemplo é montado em tempo de execução por concatenação — nunca literal (w139 [15]).
+  # cópia congelada de `prevent-secrets-leak.sh` é a versão pré-#125 (só argv, `exit 0` com argv
+  # vazio, por contrato — referência histórica W0.2/W0.3), e este cenário é comportamental do
+  # gerador, não do snapshot: só roda em generated mode. O payload de exemplo é montado em tempo de
+  # execução por concatenação — nunca literal (w139 [15]).
+  [ "$MODE" = "generated" ] || skip "source snapshot's prevent-secrets-leak.sh is the frozen pre-#125 (argv-only) reference"
   prefix="AKIA"; suffix="IOSFODNN7EXAMPLE"; key="${prefix}${suffix}"
   payload="{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"/tmp/c5-secret.env\",\"content\":\"aws_key = ${key}\"}}"
   # positional params, nunca interpolação dentro do script de `bash -c` (achado de correção: o

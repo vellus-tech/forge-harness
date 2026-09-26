@@ -198,6 +198,8 @@ _settings_hooks_is_derived() { # _settings_hooks_is_derived <root>
     // legada, e as duas são igualmente owned para efeito deste diagnóstico.
     const HOOK_FILES = ["enforce-worktree-location.sh", "prevent-secrets-leak.sh", "check-language-policy.sh", "validate-naming-conventions.sh"];
     const OWNED = new Set([
+      "\"$CLAUDE_PROJECT_DIR\"/.forge/hooks/session/on-session-start.sh",
+      "\"$CLAUDE_PROJECT_DIR\"/.forge/hooks/session/on-session-end.sh",
       "$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-start.sh",
       "$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-end.sh",
       ...HOOK_FILES.map((h) => `"$CLAUDE_PROJECT_DIR"/.forge/hooks/pre-tool-use/${h}`),

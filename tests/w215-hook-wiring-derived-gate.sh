@@ -100,6 +100,14 @@
 #   [24] positivo — diretório de projeto com ESPAÇO: o comando emitido para
 #        `prevent-secrets-leak.sh`, executado via `bash -c`, bloqueia (`rc=2`) em vez de falhar
 #        aberto (`rc=126`, "is a directory") por `$CLAUDE_PROJECT_DIR` sem aspas.
+#   [25] achado de correção MEDIUM: versão mista tronco×worktree pode deixar o MESMO gancho fiado
+#        sob o MESMO matcher em DUAS formas de comando (legada sem aspas + nova com aspas) — cada
+#        `sync` reemitia as duas, já migradas para a forma com aspas, produzindo uma duplicata
+#        ESTÁVEL (o gancho roda duas vezes por evento, e o `doctor.sh` não acusa drift). Depois de
+#        DOIS syncs, `enforce-worktree-location.sh` sob o matcher `Bash` deve aparecer exatamente
+#        UMA vez. Mutação [25m]: remover a deduplicação de `emit()` (voltar a empurrar toda
+#        ocorrência sem checar `emitted`) faz o cenário reprovar (2 ocorrências). Controle/
+#        recontrole por `cmp -s`.
 #
 # Fixtures: nenhum segredo literal (LDG-0175/w213 e a auto-varredura do w139 [15], que reprova o
 # repositório inteiro por qualquer achado) — todo payload de exemplo é montado em tempo de
@@ -352,8 +360,9 @@ else
   echo "OK [9] — $GOT9"
 fi
 
-# ── [10] esquema marcado e mal formado: settings.json anterior fica byte-idêntico, WARN LDG-0178 ──
-echo "[10] hooks.manifest do consumidor MARCADO e mal formado — settings.json anterior byte-idêntico, WARN nomeia LDG-0178"
+# ── [10] esquema marcado e mal formado: hooks.PreToolUse do settings.json anterior fica ─────────
+#     SEMANTICAMENTE igual (byte-idêntico só porque a fixture já estava canônica), WARN LDG-0178 ──
+echo "[10] hooks.manifest do consumidor MARCADO e mal formado — hooks.PreToolUse do settings.json anterior semanticamente igual (byte-idêntico, fixture já canônica), WARN nomeia LDG-0178"
 T10="$(mktemp -d "$TMPROOT/forge-w215-10.XXXXXX")"; track "$T10"
 nova_fixture "$T10"
 bash "$T10/.forge/scripts/sync-adapters.sh" --set claude >/dev/null 2>&1
@@ -362,13 +371,56 @@ printf '# forge-manifest-format: 1\n#hook\tmatcher\tcontrato\testado\nprevent-se
 cp "$T10/.claude/settings.json" "$T10/.claude/settings.json.before"
 OUT10="$(bash "$T10/.forge/scripts/sync-adapters.sh" --set claude 2>&1)"
 if ! cmp -s "$T10/.claude/settings.json.before" "$T10/.claude/settings.json"; then
-  echo "FAIL [10]: settings.json mudou byte a byte com manifesto marcado mal formado — deveria ficar exatamente como estava"
+  echo "FAIL [10]: settings.json mudou byte a byte com manifesto marcado mal formado — deveria ficar exatamente como estava (fixture já canônica: byte-idêntico é o piso, não só o semântico)"
   overall_rc=1
 elif ! printf '%s' "$OUT10" | grep -q "LDG-0178"; then
   echo "FAIL [10]: nenhum WARN nomeou LDG-0178. Saída: $OUT10"
   overall_rc=1
 else
-  echo "OK [10] — byte-idêntico, LDG-0178 nomeado: $(printf '%s' "$OUT10" | grep 'LDG-0178')"
+  echo "OK [10] — byte-idêntico (fixture canônica), LDG-0178 nomeado: $(printf '%s' "$OUT10" | grep 'LDG-0178')"
+fi
+
+# ── [10b] mesmo cenário, mas o settings.json anterior NÃO está em formato canônico (indentação de ──
+#     4 espaços + uma chave de topo autoral) — o CONTRATO real é hooks.PreToolUse SEMANTICAMENTE
+#     igual ao anterior, nunca o arquivo byte a byte, porque o gerador sempre reserializa via
+#     JSON.stringify(…, 2) (achado LOW de correção: o WARN e o CHANGELOG diziam "byte-idêntico"/
+#     "como estava" sem essa ressalva).
+echo "[10b] mesmo cenário com settings.json anterior NÃO canônico — hooks.PreToolUse fica semanticamente igual (arquivo é reserializado, não byte-idêntico)"
+T10B="$(mktemp -d "$TMPROOT/forge-w215-10b.XXXXXX")"; track "$T10B"
+nova_fixture "$T10B"
+bash "$T10B/.forge/scripts/sync-adapters.sh" --set claude >/dev/null 2>&1
+PTU10B_BEFORE="$(node -e '
+  const fs = require("fs");
+  const j = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+  console.log(JSON.stringify(j.hooks.PreToolUse));
+' "$T10B/.claude/settings.json")"
+node -e '
+  const fs = require("fs");
+  const p = process.argv[1];
+  const j = JSON.parse(fs.readFileSync(p, "utf8"));
+  j.permissions = { allow: ["Bash(echo *)"], deny: [] };
+  fs.writeFileSync(p, JSON.stringify(j, null, 4) + "\n");
+' "$T10B/.claude/settings.json"
+printf '# forge-manifest-format: 1\n#hook\tmatcher\tcontrato\testado\nprevent-secrets-leak.sh\t^(Write|Edit)$\tstdin-json\tnem-armado-nem-retido\n' \
+  > "$T10B/.forge/hooks/pre-tool-use/hooks.manifest"
+cp "$T10B/.claude/settings.json" "$T10B/.claude/settings.json.before"
+OUT10B="$(bash "$T10B/.forge/scripts/sync-adapters.sh" --set claude 2>&1)"
+PTU10B_AFTER="$(node -e '
+  const fs = require("fs");
+  const j = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+  console.log(JSON.stringify(j.hooks.PreToolUse));
+' "$T10B/.claude/settings.json")"
+if cmp -s "$T10B/.claude/settings.json.before" "$T10B/.claude/settings.json"; then
+  echo "FAIL [10b]: settings.json não canônico ficou byte-idêntico depois do sync — esperava reserialização (o contrato é semântico, não byte a byte)"
+  overall_rc=1
+elif [ "$PTU10B_BEFORE" != "$PTU10B_AFTER" ]; then
+  echo "FAIL [10b]: hooks.PreToolUse divergiu semanticamente — antes=$PTU10B_BEFORE depois=$PTU10B_AFTER"
+  overall_rc=1
+elif ! printf '%s' "$OUT10B" | grep -q "LDG-0178"; then
+  echo "FAIL [10b]: nenhum WARN nomeou LDG-0178. Saída: $OUT10B"
+  overall_rc=1
+else
+  echo "OK [10b] — hooks.PreToolUse semanticamente igual, arquivo reserializado (não byte-idêntico), LDG-0178 nomeado"
 fi
 
 # ── [11] versão mista: hooks.manifest.default ausente do diretório ──────────────────────────────
@@ -986,6 +1038,26 @@ matchers_of() {
   ' "$1" "$2"
 }
 
+# count_under_matcher <settings.json> <matcher> <hook-basename> — quantas vezes o gancho aparece
+# fiado sob o matcher exato (contagem, não presença — detecta duplicata sob o MESMO matcher).
+count_under_matcher() {
+  node -e '
+    const fs = require("fs");
+    const j = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+    const groups = (j.hooks && j.hooks.PreToolUse) || [];
+    let n = 0;
+    for (const g of groups) {
+      if (g.matcher !== process.argv[2]) continue;
+      for (const h of (g.hooks || [])) {
+        const parts = String(h.command).trim().split(/\s+/);
+        const last = parts[parts.length - 1].split("/").pop();
+        if (last === process.argv[3]) n += 1;
+      }
+    }
+    console.log(n);
+  ' "$1" "$2" "$3"
+}
+
 # ── [21] achado de correção HIGH (iteração 3 do modo correção): semeador NÃO colapsa um gancho ────
 #     fiado sob MAIS DE UM matcher simultaneamente na primeira ocorrência encontrada.
 echo "[21] semeador: prevent-secrets-leak.sh fiado sob DOIS matchers ao mesmo tempo (Bash e Edit|MultiEdit) — os dois sobrevivem ao sync, nenhum é descartado"
@@ -1282,6 +1354,120 @@ else
     overall_rc=1
   else
     echo "OK [24] — comando com aspas em \$CLAUDE_PROJECT_DIR bloqueia corretamente (rc 2) em caminho com espaço; comando: $CMD24"
+  fi
+fi
+
+# ── [25] achado de correção MEDIUM: versão mista tronco×worktree — formas legada e nova do mesmo ──
+#     gancho sob o MESMO matcher colapsam para 1 ocorrência, nunca duplicam ────────────────────────
+echo "[25] versão mista: enforce-worktree-location.sh fiado nas formas legada E nova sob o MESMO matcher Bash — depois de DOIS syncs, exatamente 1 ocorrência"
+T25="$(mktemp -d "$TMPROOT/forge-w215-25.XXXXXX")"; track "$T25"
+nova_fixture "$T25"
+mkdir -p "$T25/.claude"
+cat > "$T25/.claude/settings.json" <<'JSON'
+{
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": "Bash", "hooks": [
+          { "type": "command", "command": "$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/enforce-worktree-location.sh" },
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.forge/hooks/pre-tool-use/enforce-worktree-location.sh" }
+      ] }
+    ]
+  }
+}
+JSON
+cp "$T25/.claude/settings.json" "$T25/before.json"
+bash "$T25/.forge/scripts/sync-adapters.sh" --set claude >/dev/null 2>&1
+bash "$T25/.forge/scripts/sync-adapters.sh" --set claude >/dev/null 2>&1
+GOT25="$(count_under_matcher "$T25/.claude/settings.json" Bash enforce-worktree-location.sh)"
+if [ "$GOT25" != "1" ]; then
+  echo "FAIL [25]: depois de dois syncs, enforce-worktree-location.sh aparece $GOT25 vez(es) sob Bash — esperado 1 (formas legada+nova deveriam colapsar)"
+  overall_rc=1
+else
+  echo "OK [25] — 1 ocorrência sob Bash depois de dois syncs"
+fi
+
+echo "[25m] mutação: remover a deduplicação de emit() (voltar a empurrar toda ocorrência sem checar 'emitted') faz [25] duplicar"
+LIB25M="$T25/$LIB_REL"
+cp "$LIB25M" "$T25/lib.orig.mjs"
+node -e '
+  const fs = require("fs");
+  const p = process.argv[1];
+  let src = fs.readFileSync(p, "utf8");
+  const marker = "    const command = hookCommand(hook, contrato);\n    const chave = `${matcher}\\u0000${command}`;\n    if (emitted.has(chave)) return;\n    emitted.add(chave);\n    if (!byMatcher.has(matcher)) { byMatcher.set(matcher, []); order.push(matcher); }\n    byMatcher.get(matcher).push({ type: '"'"'command'"'"', command });";
+  const i = src.indexOf(marker);
+  if (i < 0) { console.error("MUTATION-SETUP-FAILED: marcador de emit() não encontrado"); process.exit(1); }
+  const mutated = "    const command = hookCommand(hook, contrato); // MUTATED-25 sem deduplicacao\n    if (!byMatcher.has(matcher)) { byMatcher.set(matcher, []); order.push(matcher); }\n    byMatcher.get(matcher).push({ type: '"'"'command'"'"', command });";
+  src = src.slice(0, i) + mutated + src.slice(i + marker.length);
+  fs.writeFileSync(p, src);
+' "$LIB25M"
+if cmp -s "$T25/lib.orig.mjs" "$LIB25M"; then
+  echo "FAIL [25m]: setup da mutação não alterou a lib — nada foi provado"
+  overall_rc=1
+else
+  cp "$T25/before.json" "$T25/.claude/settings.json"
+  bash "$T25/.forge/scripts/sync-adapters.sh" --set claude >/dev/null 2>&1
+  bash "$T25/.forge/scripts/sync-adapters.sh" --set claude >/dev/null 2>&1
+  GOT25M="$(count_under_matcher "$T25/.claude/settings.json" Bash enforce-worktree-location.sh)"
+  if [ "$GOT25M" = "1" ]; then
+    echo "FAIL [25m]: a mutação (sem deduplicação) não derrubou o cenário — ainda 1 ocorrência"
+    overall_rc=1
+  else
+    echo "OK [25m] — mutante reprovado ($GOT25M ocorrência(s), duplicou)"
+  fi
+  cp "$T25/lib.orig.mjs" "$LIB25M"
+  if ! cmp -s "$T25/lib.orig.mjs" "$LIB25M"; then
+    echo "FAIL [25m]: recontrole — restauração da lib mutada não ficou byte-idêntica ao original"
+    overall_rc=1
+  else
+    cp "$T25/before.json" "$T25/.claude/settings.json"
+    bash "$T25/.forge/scripts/sync-adapters.sh" --set claude >/dev/null 2>&1
+    bash "$T25/.forge/scripts/sync-adapters.sh" --set claude >/dev/null 2>&1
+    GOT25R="$(count_under_matcher "$T25/.claude/settings.json" Bash enforce-worktree-location.sh)"
+    if [ "$GOT25R" != "1" ]; then
+      echo "FAIL [25m]: recontrole — lib original restaurada não voltou a colapsar para 1 ocorrência (obtido $GOT25R)"
+      overall_rc=1
+    else
+      echo "OK [25m] recontrole — lib original restaurada, volta a 1 ocorrência ($GOT25R)"
+    fi
+  fi
+fi
+
+# ── [26] achado de correção LOW: $CLAUDE_PROJECT_DIR com aspas também em SessionStart/SessionEnd ──
+#     — mesmo raciocínio das aspas em PreToolUse (achado MEDIUM), agora para os hooks de sessão.
+echo "[26] diretório de projeto com ESPAÇO: comandos emitidos para SessionStart/SessionEnd executam (rc 0) em vez de falhar (comando não encontrado) por \$CLAUDE_PROJECT_DIR sem aspas"
+T26PARENT="$(mktemp -d "$TMPROOT/forge-w215-26.XXXXXX")"; track "$T26PARENT"
+T26="$T26PARENT/projeto com espaco"
+mkdir -p "$T26"
+nova_fixture "$T26"
+sed -i.bak 's/auto: false/auto: true/' "$T26/.forge/forge.yaml"
+rm -f "$T26/.forge/forge.yaml.bak"
+bash "$T26/.forge/scripts/sync-adapters.sh" --set claude >/dev/null 2>&1
+CMD26START="$(node -e '
+  const fs = require("fs");
+  const j = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+  console.log((j.hooks.SessionStart || [])[0].hooks[0].command);
+' "$T26/.claude/settings.json")"
+CMD26END="$(node -e '
+  const fs = require("fs");
+  const j = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+  console.log((j.hooks.SessionEnd || [])[0].hooks[0].command);
+' "$T26/.claude/settings.json")"
+if [ -z "$CMD26START" ] || [ -z "$CMD26END" ]; then
+  echo "FAIL [26]: não encontrei SessionStart/SessionEnd em .claude/settings.json (comandos: '$CMD26START' / '$CMD26END')"
+  overall_rc=1
+else
+  RC26START=0
+  CLAUDE_PROJECT_DIR="$T26" bash -c "$CMD26START" >/tmp/w215-26-start-out.txt 2>&1 || RC26START=$?
+  RC26END=0
+  CLAUDE_PROJECT_DIR="$T26" bash -c "$CMD26END" >/tmp/w215-26-end-out.txt 2>&1 || RC26END=$?
+  if [ "$RC26START" -ne 0 ]; then
+    echo "FAIL [26]: SessionStart com espaço no caminho saiu rc=$RC26START (esperado 0) — comando: $CMD26START — saída: $(cat /tmp/w215-26-start-out.txt)"
+    overall_rc=1
+  elif [ "$RC26END" -ne 0 ]; then
+    echo "FAIL [26]: SessionEnd com espaço no caminho saiu rc=$RC26END (esperado 0) — comando: $CMD26END — saída: $(cat /tmp/w215-26-end-out.txt)"
+    overall_rc=1
+  else
+    echo "OK [26] — SessionStart/SessionEnd com aspas em \$CLAUDE_PROJECT_DIR executam corretamente (rc 0) em caminho com espaço"
   fi
 fi
 

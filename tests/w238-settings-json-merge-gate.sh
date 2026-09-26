@@ -148,6 +148,8 @@ owned_projection_of() {
     // hookCommandDirect/hookCommandDirectLegacy na lib.
     const HOOK_FILES = ["enforce-worktree-location.sh", "prevent-secrets-leak.sh", "check-language-policy.sh", "validate-naming-conventions.sh"];
     const OWNED = new Set([
+      "\"$CLAUDE_PROJECT_DIR\"/.forge/hooks/session/on-session-start.sh",
+      "\"$CLAUDE_PROJECT_DIR\"/.forge/hooks/session/on-session-end.sh",
       "$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-start.sh",
       "$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-end.sh",
       ...HOOK_FILES.map((h) => `"$CLAUDE_PROJECT_DIR"/.forge/hooks/pre-tool-use/${h}`),
@@ -321,6 +323,8 @@ FOREIGN_DIFF2="$(node -e '
   // COM ASPAS e as formas *Legacy* sem aspas (achado MEDIUM, iteração 3) convivem aqui também.
   const HOOK_FILES = ["enforce-worktree-location.sh", "prevent-secrets-leak.sh", "check-language-policy.sh", "validate-naming-conventions.sh"];
   const OWNED = new Set([
+    "\"$CLAUDE_PROJECT_DIR\"/.forge/hooks/session/on-session-start.sh",
+    "\"$CLAUDE_PROJECT_DIR\"/.forge/hooks/session/on-session-end.sh",
     "$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-start.sh",
     "$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-end.sh",
     ...HOOK_FILES.map((h) => `"$CLAUDE_PROJECT_DIR"/.forge/hooks/pre-tool-use/${h}`),
@@ -643,9 +647,11 @@ function shuffle(list, rnd) {
 const CMD_ENFORCE = '$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/enforce-worktree-location.sh';
 const CMD_ENFORCE_QUOTED = '"$CLAUDE_PROJECT_DIR"/.forge/hooks/pre-tool-use/enforce-worktree-location.sh';
 const CMD_START = '$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-start.sh';
+const CMD_START_QUOTED = '"$CLAUDE_PROJECT_DIR"/.forge/hooks/session/on-session-start.sh';
 const CMD_END = '$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-end.sh';
+const CMD_END_QUOTED = '"$CLAUDE_PROJECT_DIR"/.forge/hooks/session/on-session-end.sh';
 const SEED_POOL = [CMD_ENFORCE, CMD_START, CMD_END];
-const OWNED = new Set([CMD_ENFORCE, CMD_ENFORCE_QUOTED, CMD_START, CMD_END]);
+const OWNED = new Set([CMD_ENFORCE, CMD_ENFORCE_QUOTED, CMD_START, CMD_START_QUOTED, CMD_END, CMD_END_QUOTED]);
 
 const AUTHOR_POOL = ['permissions', 'env', 'includeCoAuthoredBy', 'model'];
 function authorValue(rnd, key) {

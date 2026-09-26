@@ -164,8 +164,18 @@ function readYamlAutoFlag(yamlPath, key) {
 // diretório era fiado por padrão e um consumidor que tivesse armado `prevent-secrets-leak.sh` à
 // mão perdia essa fiação no primeiro `sync`/`update` que reconciliasse o `settings.json` do zero.
 // Ver `derivePreToolUseHooks` para o desenho completo.
-const CMD_SESSION_START = '$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-start.sh';
-const CMD_SESSION_END = '$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-end.sh';
+// ASPAS EM `$CLAUDE_PROJECT_DIR` — achado de correção LOW (mesmo raciocínio que motivou as aspas em
+// PreToolUse, achado MEDIUM acima): sem elas, um caminho de projeto com espaço expande a variável
+// em duas palavras e o comando emitido sai `rc=127` (comando não encontrado) em vez de `rc=0` — com
+// `handoff.auto` ligado, o handoff falha em silêncio nesses caminhos. As formas EMITIDAS por este
+// gerador passam a citar `"$CLAUDE_PROJECT_DIR"` entre aspas; as formas *Legacy* (sem aspas)
+// continuam reconhecidas no universo OWNED, só para migrar um consumidor já fiado (a nova forma
+// substitui a legada no próximo sync) sem duplicar entrada — mesma técnica de `hookCommandDirect`/
+// `hookCommandDirectLegacy`.
+const CMD_SESSION_START = '"$CLAUDE_PROJECT_DIR"/.forge/hooks/session/on-session-start.sh';
+const CMD_SESSION_START_LEGACY = '$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-start.sh';
+const CMD_SESSION_END = '"$CLAUDE_PROJECT_DIR"/.forge/hooks/session/on-session-end.sh';
+const CMD_SESSION_END_LEGACY = '$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-end.sh';
 
 // hookCommandDirect/hookCommandBridge — as DUAS únicas formas de comando que este gerador pode
 // emitir para um gancho de `pre-tool-use/`: direta (contrato `stdin-json`, o próprio gancho lê o
@@ -241,7 +251,7 @@ function declaredHookNames(hooksDir) {
 }
 
 function ownedHookCommandsFor(root) {
-  const set = new Set([CMD_SESSION_START, CMD_SESSION_END]);
+  const set = new Set([CMD_SESSION_START, CMD_SESSION_END, CMD_SESSION_START_LEGACY, CMD_SESSION_END_LEGACY]);
   const hooksDir = join(root, '.forge', 'hooks', 'pre-tool-use');
   for (const hook of declaredHookNames(hooksDir)) {
     set.add(hookCommandDirect(hook));
@@ -429,7 +439,7 @@ function derivePreToolUseHooks(root) {
       } else {
         unresolved = true;
         avisos.push(
-          `LDG-0178: .forge/hooks/pre-tool-use/hooks.manifest não foi resolvido pelo leitor canônico (${lido.mensagem}) — .claude/settings.json permanece como estava`,
+          `LDG-0178: .forge/hooks/pre-tool-use/hooks.manifest não foi resolvido pelo leitor canônico (${lido.mensagem}) — hooks.PreToolUse de .claude/settings.json permanece como estava`,
         );
       }
     } else {
@@ -463,7 +473,7 @@ function derivePreToolUseHooks(root) {
     avisos.push(
       'hooks.manifest.default ausente e .forge/hooks/pre-tool-use/hooks.manifest ausente — PreToolUse permanece como estava (sem fonte de matcher/contrato para derivar ou reconciliar com segurança)',
     );
-    return { groups: [], avisos, unresolved: true, ownedSet: new Set([CMD_SESSION_START, CMD_SESSION_END]) };
+    return { groups: [], avisos, unresolved: true, ownedSet: new Set([CMD_SESSION_START, CMD_SESSION_END, CMD_SESSION_START_LEGACY, CMD_SESSION_END_LEGACY]) };
   }
 
   const foreignReachable = dispatchedHookNames(existingGroups || [], ownedSet);
@@ -477,13 +487,28 @@ function derivePreToolUseHooks(root) {
   // para uma árvore existente.
   const order = [];
   const byMatcher = new Map();
+  // Achado de correção MEDIUM: uma versão mista tronco×worktree pode fazer o mesmo gancho aparecer
+  // DUAS VEZES em `findWiredForms` sob o MESMO matcher — uma vez na forma legada (reconhecida pela
+  // lib antiga do tronco, que já escreveu essa forma em `.claude/settings.json`) e outra na forma
+  // nova (escrita por uma lib mais recente no mesmo arquivo) — e `emit()` reemitia as duas, já
+  // migradas para a forma com aspas, produzindo uma duplicata ESTÁVEL: o gancho passa a rodar duas
+  // vezes por evento, e o próprio `doctor.sh` não acusa drift porque a projeção fresca reconta as
+  // mesmas duas entradas. `emitted` deduplica por (matcher, comando emitido) — nunca só por
+  // matcher, que colapsaria matchers distintos de propósito (cenário [21], gancho fiado sob dois
+  // matchers ao mesmo tempo) — preservando cada ocorrência ÚNICA e descartando repetições
+  // equivalentes (legada+nova, ou a mesma forma citada mais de uma vez).
+  const emitted = new Set();
   // emit(hook, matcher, contrato) — sempre a forma NOVA de comando (`hookCommand`, com aspas em
   // `$CLAUDE_PROJECT_DIR` desde o achado de correção MEDIUM), mesmo quando o matcher foi herdado de
   // uma forma *Legacy* já fiada (`findWiredForms`): a migração troca o COMANDO para a forma segura,
   // preservando só o MATCHER que o consumidor já tinha escolhido.
   function emit(hook, matcher, contrato) {
+    const command = hookCommand(hook, contrato);
+    const chave = `${matcher}\u0000${command}`;
+    if (emitted.has(chave)) return;
+    emitted.add(chave);
     if (!byMatcher.has(matcher)) { byMatcher.set(matcher, []); order.push(matcher); }
-    byMatcher.get(matcher).push({ type: 'command', command: hookCommand(hook, contrato) });
+    byMatcher.get(matcher).push({ type: 'command', command });
   }
   for (const hook of hookFiles) {
     if (foreignReachable.has(hook)) {

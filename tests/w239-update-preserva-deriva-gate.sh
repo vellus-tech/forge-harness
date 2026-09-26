@@ -245,6 +245,31 @@ grep -qxF "PRESERVADO (sem lock para provar): $REL9 — o conteúdo local não �
   || { echo "FAIL [9]: linha de deriva ausente"; echo "$UPD_OUT"; exit 1; }
 echo "OK [9]"
 
+# [11] e [12] rodam antes da propriedade [10], que é a parte cara do gate: uma regressão nos cenários determinísticos reprova em segundos, sem esperar os 50 casos.
+echo "[11] reconciliação por exceção: o doctor para de cobrar na hora e o update seguinte remove o pendente"
+C11="$(com_lock_e_deriva c11)"
+cp "$C11/.forge/$REL" "$T/c11-antes"
+upd "$C11" "$TPLN" --no-backup
+[ "$UPD_RC" -eq 0 ] && [ -f "$C11/$PEND/$REL" ] || { echo "FAIL [11] (setup): o update de preparo não gravou o pendente (rc=$UPD_RC)"; echo "$UPD_OUT"; exit 1; }
+# A saída (1) recomendada: declarar a exceção com o sha da versão pendente, com o prefixo .forge/ que o parser normaliza.
+printf '%s  .forge/%s  # conserto deliberado do consumidor\n' "$(sha "$C11/$PEND/$REL")" "$REL" > "$C11/.forge/machinery-exceptions.txt"
+d11="$(bash "$C11/.forge/scripts/doctor.sh" --report 2>&1)"
+grep -q 'TEMPLATE-PENDENTE' <<<"$d11" && { echo "FAIL [11]: doctor ainda cobra caminho com exceção declarada (antes do próximo update)"; grep 'TEMPLATE-PENDENTE' <<<"$d11"; exit 1; }
+upd "$C11" "$TPLN" --no-backup
+[ "$UPD_RC" -eq 0 ] || { echo "FAIL [11]: update saiu rc=$UPD_RC"; echo "$UPD_OUT"; exit 1; }
+cmp -s "$C11/.forge/$REL" "$T/c11-antes" || { echo "FAIL [11]: o conserto com exceção declarada foi sobrescrito"; exit 1; }
+grep -q "PRESERVADO (exceção declarada): $REL" <<<"$UPD_OUT" || { echo "FAIL [11]: linha PRESERVADO (exceção declarada) ausente"; echo "$UPD_OUT"; exit 1; }
+[ ! -e "$C11/$PEND/$REL" ] || { echo "FAIL [11]: a versão pendente de caminho reconciliado continua em $PEND/$REL depois do update — o diretório não foi reconstruído"; exit 1; }
+d11b="$(bash "$C11/.forge/scripts/doctor.sh" --report 2>&1)"
+grep -q 'TEMPLATE-PENDENTE' <<<"$d11b" && { echo "FAIL [11]: doctor ainda cobra pendente depois do update"; exit 1; }
+echo "OK [11]"
+
+echo "[12] o histórico versionado cobre toda tag v* alcançável de HEAD"
+[ -f "$WS/template/machinery-history.json" ] || { echo "FAIL [12]: template/machinery-history.json ausente"; exit 1; }
+out12="$(cd "$WS" && node tools/build-machinery-history.mjs --check 2>&1)"; rc12=$?
+[ "$rc12" -eq 0 ] || { echo "FAIL [12]: histórico defasado (rc=$rc12)"; echo "$out12"; exit 1; }
+echo "OK [12]"
+
 echo "[10] PBT: o desfecho é função pura do estado gerado"
 node --input-type=module - "$WS" "$T" <<'NODE_EOF'
 import { join, dirname } from 'node:path';
@@ -381,29 +406,5 @@ console.log(`OK [10] (${r.runs} casos, seed ${r.seed})`);
 NODE_EOF
 rc10=$?
 [ "$rc10" -eq 0 ] || { echo "FAIL [10]: PBT reprovou (ver saída acima)"; exit 1; }
-
-echo "[11] reconciliação por exceção: o doctor para de cobrar na hora e o update seguinte remove o pendente"
-C11="$(com_lock_e_deriva c11)"
-cp "$C11/.forge/$REL" "$T/c11-antes"
-upd "$C11" "$TPLN" --no-backup
-[ "$UPD_RC" -eq 0 ] && [ -f "$C11/$PEND/$REL" ] || { echo "FAIL [11] (setup): o update de preparo não gravou o pendente (rc=$UPD_RC)"; echo "$UPD_OUT"; exit 1; }
-# A saída (1) recomendada: declarar a exceção com o sha da versão pendente, com o prefixo .forge/ que o parser normaliza.
-printf '%s  .forge/%s  # conserto deliberado do consumidor\n' "$(sha "$C11/$PEND/$REL")" "$REL" > "$C11/.forge/machinery-exceptions.txt"
-d11="$(bash "$C11/.forge/scripts/doctor.sh" --report 2>&1)"
-grep -q 'TEMPLATE-PENDENTE' <<<"$d11" && { echo "FAIL [11]: doctor ainda cobra caminho com exceção declarada (antes do próximo update)"; grep 'TEMPLATE-PENDENTE' <<<"$d11"; exit 1; }
-upd "$C11" "$TPLN" --no-backup
-[ "$UPD_RC" -eq 0 ] || { echo "FAIL [11]: update saiu rc=$UPD_RC"; echo "$UPD_OUT"; exit 1; }
-cmp -s "$C11/.forge/$REL" "$T/c11-antes" || { echo "FAIL [11]: o conserto com exceção declarada foi sobrescrito"; exit 1; }
-grep -q "PRESERVADO (exceção declarada): $REL" <<<"$UPD_OUT" || { echo "FAIL [11]: linha PRESERVADO (exceção declarada) ausente"; echo "$UPD_OUT"; exit 1; }
-[ ! -e "$C11/$PEND/$REL" ] || { echo "FAIL [11]: a versão pendente de caminho reconciliado continua em $PEND/$REL depois do update — o diretório não foi reconstruído"; exit 1; }
-d11b="$(bash "$C11/.forge/scripts/doctor.sh" --report 2>&1)"
-grep -q 'TEMPLATE-PENDENTE' <<<"$d11b" && { echo "FAIL [11]: doctor ainda cobra pendente depois do update"; exit 1; }
-echo "OK [11]"
-
-echo "[12] o histórico versionado cobre toda tag v* alcançável de HEAD"
-[ -f "$WS/template/machinery-history.json" ] || { echo "FAIL [12]: template/machinery-history.json ausente"; exit 1; }
-out12="$(cd "$WS" && node tools/build-machinery-history.mjs --check 2>&1)"; rc12=$?
-[ "$rc12" -eq 0 ] || { echo "FAIL [12]: histórico defasado (rc=$rc12)"; echo "$out12"; exit 1; }
-echo "OK [12]"
 
 echo "PASS w239-update-preserva-deriva-gate"

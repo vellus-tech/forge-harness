@@ -189,7 +189,16 @@ export function evaluateRedFirst(changeDir) {
   } else if (ev.errors.length) {
     findings.push({ enforceable: true, msg: `${REL_PATH} inválido: ${ev.errors.join('; ')} (item 1, ${RULE_REF})` });
   } else if (!isResolved(ev.data)) {
-    findings.push({ enforceable: true, msg: `${REL_PATH} status '${ev.data.status}' — Red ainda não observado nem dispensado (item 1, ${RULE_REF}) — rode /forge:red replay ou dispense com /forge:red waive --reason <motivo>` });
+    // achado HIGH-2/b da correção da #139 (iteração 3): com 2+ entradas em entries[], `replay` e
+    // `waive` exigem `--id <id>` — a mensagem passa a nomear isso explicitamente em vez de mandar
+    // para comandos que recusariam sem --id (o próprio conflito que a correção fecha: `ensure`,
+    // chamado por /forge:verify e /forge:archive, resolve as demais entradas por iteração própria
+    // e não precisa de --id).
+    const entriesArr = Array.isArray(ev.data.entries) ? ev.data.entries : null;
+    const idHint = entriesArr && entriesArr.length >= 2
+      ? ` --id <id> (uma de: ${entriesArr.map((e) => (e && e.id) ?? '(sem id)').join(', ')})`
+      : '';
+    findings.push({ enforceable: true, msg: `${REL_PATH} status '${ev.data.status}' — Red ainda não observado nem dispensado (item 1, ${RULE_REF}) — rode /forge:red replay${idHint} ou dispense com /forge:red waive --reason <motivo>${idHint}` });
   }
 
   const data = ev.exists && !ev.errors.length ? ev.data : null;
@@ -534,13 +543,20 @@ function cmdWaive(changeDir, argv) {
   let reason = '';
   let note = '';
   let force = false;
+  let id; // achado HIGH-2 da correção da #139 (iteração 3) — endereçamento por entrada
+  let idProvided = false;
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--reason') reason = argv[++i] || '';
     else if (argv[i] === '--note') note = argv[++i] || '';
     else if (argv[i] === '--force') force = true;
+    else if (argv[i] === '--id') { id = argv[++i]; idProvided = true; }
   }
   if (!WAIVER_REASONS.includes(reason)) {
     console.log(`FAIL (--reason obrigatório, um de: ${WAIVER_REASONS.join('|')})`);
+    process.exit(1);
+  }
+  if (idProvided && (id === undefined || id === '' || id.startsWith('--'))) {
+    console.log('FAIL (--id exige um valor não vazio e que não comece com "--")');
     process.exit(1);
   }
   const man = readManifest(changeDir);
@@ -550,25 +566,44 @@ function cmdWaive(changeDir, argv) {
   if (!ev.exists) { console.log(`FAIL (${REL_PATH} ausente — nada para dispensar; rode 'red-evidence.sh init ${man.id}' para escaffoldar em cima deste change existente)`); process.exit(1); }
   if (ev.errors.length) { console.log(`FAIL (${REL_PATH} inválido: ${ev.errors.join('; ')})`); process.exit(1); }
 
-  // Achado HIGH da correção da #139: `waive` grava só no topo (`{ ...ev.data, status:'waived',
-  // ... }`), nunca em `entries[]`; com 2+ entradas registradas, não há `--id` aqui para dizer
-  // QUAL entrada este waiver dispensa — escolher uma seria adivinhar. Recusa fail-closed ANTES
-  // de qualquer efeito colateral (deferral-ops/ledger-ops abaixo), para não deixar deferral ou
-  // entrada de ledger órfã de um waiver que não foi gravado.
-  if (Array.isArray(ev.data.entries) && ev.data.entries.length >= 2) {
-    console.log(`FAIL (waive recusado — este change tem ${ev.data.entries.length} entradas registradas em entries[]; waive por entrada ainda não é suportado nesta versão, então não há como saber qual entrada este waiver dispensa — ver #138. Nada foi escrito.)`);
-    process.exit(1);
+  // Achado HIGH da correção da #139 (iteração 2), estendido na iteração 3: `waive` grava na
+  // ENTRADA (não só no topo). Com 2+ entradas registradas, `--id` diz QUAL entrada este waiver
+  // dispensa — sem ele, escolher uma seria adivinhar, e a recusa é fail-closed ANTES de qualquer
+  // efeito colateral (deferral-ops/ledger-ops abaixo), para não deixar deferral ou entrada de
+  // ledger órfã de um waiver que não foi gravado. Com --id declarado mas inexistente, mesma
+  // recusa (nunca cria entrada — isso é exclusivo de record).
+  let targetEntry = null;
+  if (Array.isArray(ev.data.entries)) {
+    const entries = ev.data.entries;
+    if (idProvided) {
+      targetEntry = entries.find((e) => e && e.id === id) || null;
+      if (!targetEntry) {
+        const ids = entries.map((e) => (e && e.id) ?? '(sem id)').join(', ') || '(nenhuma)';
+        console.log(`FAIL (waive recusado — id não encontrado: ${id} (entradas: ${ids}). Nada foi escrito.)`);
+        process.exit(1);
+      }
+    } else if (entries.length >= 2) {
+      const ids = entries.map((e) => (e && e.id) ?? '(sem id)').join(', ');
+      console.log(`FAIL (waive recusado — este change tem ${entries.length} entradas registradas em entries[] (${ids}); declare --id <id> para dizer qual defeito este waiver dispensa. Nada foi escrito.)`);
+      process.exit(1);
+    } else if (entries.length === 1) {
+      targetEntry = entries[0];
+    }
   }
 
   // Furo 6 — idempotência: um segundo waive sem --force não pode (a) reabrir outro deferral/
   // entrada de ledger em cima de um waiver já existente, nem (b) rebaixar em silêncio uma
-  // evidência 'observed' de verdade (um Red real e replicado) para 'waived'.
-  if (ev.data.status === 'waived' && ev.data.waiver && !force) {
-    const prev = ev.data.waiver;
+  // evidência 'observed' de verdade (um Red real e replicado) para 'waived'. Conferido contra a
+  // ENTRADA alvo (targetEntry), não mais só o topo — com 2+ entradas o topo nunca reflete cada
+  // uma individualmente (deriveTopStatus só é 'observed'/'waived' quando TODAS resolvem).
+  const currentStatus = targetEntry ? targetEntry.status : ev.data.status;
+  const currentWaiver = targetEntry ? targetEntry.waiver : ev.data.waiver;
+  if (currentStatus === 'waived' && currentWaiver && !force) {
+    const prev = currentWaiver;
     console.log(`FAIL (evidência já dispensada — waiver existente: ${prev.reason}${prev.note ? ` (${prev.note})` : ''}; use --force para substituir deliberadamente)`);
     process.exit(1);
   }
-  if (ev.data.status === 'observed' && !force) {
+  if (currentStatus === 'observed' && !force) {
     console.log('FAIL (evidência já observada — waive rebaixaria um Red real e replicado; use --force para sobrescrever deliberadamente)');
     process.exit(1);
   }
@@ -599,7 +634,7 @@ function cmdWaive(changeDir, argv) {
   // deferrals e 4 entradas de ledger, TODOS open, e um deferral open sozinho já basta para
   // travar o archive (mesmo depois de o waiver corrente ter sido "substituído" no JSON). O
   // registro anterior não é apagado (auditoria) — só deixa de contar como pendência aberta.
-  const prevWaiver = ev.data.waiver || null;
+  const prevWaiver = currentWaiver || null;
   if (force && prevWaiver) {
     if (prevWaiver.deferral_id) {
       try { runOps('deferral-ops.sh', ['resolve', changeId, prevWaiver.deferral_id, '--note', `substituído por novo /forge:red waive --force (${reason}) em ${changeId}`]); }
@@ -636,19 +671,20 @@ function cmdWaive(changeDir, argv) {
   // foi originalmente declarada (útil para auditoria, sobretudo em waive --force sobre uma
   // evidência que já tinha sido record()ada antes).
   //
-  // Achado HIGH da correção da #139: a escrita usa `upsertSingleEntry` (0 ou 1 entrada) em vez
-  // de gravar só no topo — sem isso, um `record --id` posterior reconstrói o topo a partir de
+  // Achado HIGH da correção da #139 (iteração 2): a escrita usa `upsertSingleEntry` em vez de
+  // gravar só no topo — sem isso, um `record --id` posterior reconstrói o topo a partir de
   // `entries[0]` (nunca tocado por este waive) e o waiver graduado aqui, incluindo o deferral/
-  // ledger recém-criados acima, some do arquivo em silêncio.
+  // ledger recém-criados acima, some do arquivo em silêncio. Iteração 3: `opts.id` (quando
+  // `targetEntry` foi resolvido por --id) endereça a entrada certa mesmo com 2+ registradas.
   const patch = {
     status: 'waived',
     waiver: { reason, note: note || null, deferral_id: deferralId, ledger_id: ledgerId },
     waived_at: new Date().toISOString(),
   };
-  const upsert = upsertSingleEntry(ev.data, changeId, (entry) => ({ ...entry, ...patch }));
+  const upsert = upsertSingleEntry(ev.data, changeId, (entry) => ({ ...entry, ...patch }), targetEntry && targetEntry.id != null ? { id: targetEntry.id } : undefined);
   // upsert.refused é inalcançável aqui — já recusado acima antes de qualquer efeito colateral —
   // mas o caminho fica explícito (fail-closed) em vez de assumir silenciosamente upsert.data.
-  if (upsert.refused) { console.log('FAIL (waive recusado — entries[] tem 2+ entradas)'); process.exit(1); }
+  if (upsert.refused) { console.log(`FAIL (waive recusado — ${upsert.reason || 'entries[] ambíguo'})`); process.exit(1); }
   const updated = upsert.legacy ? { ...ev.data, ...patch } : upsert.data;
   writeJsonAtomic(ev.path, updated);
   const extra = [deferralId && `deferral ${deferralId}`, ledgerId && `ledger ${ledgerId}`].filter(Boolean).join(', ');

@@ -450,28 +450,46 @@ if (d.status !== 'pending') { console.error('FAIL [14]: topo deveria ser pending
 " "$EV14" || exit 1
 echo "OK [14]"
 
-echo "[15] replay/ensure/waive recusam (fail-closed) com 2+ entradas; arquivo intacto nos três"
+echo "[15] replay/waive SEM --id recusam (fail-closed) com 2+ entradas; ensure ITERA (achado HIGH-2, iteração 3)"
 cp "$EV1" "$T/ev1-antes-15.json"
 set +e
 out15r="$(FORGE_ROOT="$T" bash "$RE" replay bug-multi 2>&1)"; rc15r=$?
 set -e
-[ "$rc15r" -ne 0 ] || { echo "FAIL [15-replay]: replay com 2 entradas deveria recusar ($out15r)"; exit 1; }
+[ "$rc15r" -ne 0 ] || { echo "FAIL [15-replay]: replay sem --id com 2 entradas deveria recusar ($out15r)"; exit 1; }
 grep -qi "recusado" <<<"$out15r" || { echo "FAIL [15-replay]: mensagem não indica recusa ($out15r)"; exit 1; }
+grep -qi -- "--id" <<<"$out15r" || { echo "FAIL [15-replay]: mensagem não cita --id ($out15r)"; exit 1; }
 cmp -s "$EV1" "$T/ev1-antes-15.json" || { echo "FAIL [15-replay]: arquivo foi tocado apesar da recusa"; exit 1; }
 
+# achado HIGH-2 da correção (iteração 3): ensure é chamado INCONDICIONALMENTE por
+# /forge:verify e /forge:archive, sem --id algum (nenhum chamador sabe quais ids existem) — por
+# isso ensure não recusa mais com 2+ entradas: ITERA cada uma não dispensada e roda o motor de
+# replay sobre ela. bug-multi declara test_path que não existem em HEAD (a.test.mjs/b.test.mjs
+# nunca foram criados), então o motor retorna 'fail' (ou diagnóstico) para as duas — ensure
+# continua saindo rc 0 (contrato: nunca falha por veredito desfavorável) e o arquivo É TOCADO
+# (replayed_at/diagnóstico gravados por entrada), ao contrário do comportamento anterior
+# (recusa total, arquivo intacto).
 out15e="$(FORGE_ROOT="$T" bash "$RE" ensure bug-multi 2>&1)"; rc15e=$?
 [ "$rc15e" -eq 0 ] || { echo "FAIL [15-ensure]: ensure nunca deveria sair rc≠0 (contrato — ver comentário de cmdEnsure) ($out15e)"; exit 1; }
-grep -qi "não suportado\|nada escrito" <<<"$out15e" || { echo "FAIL [15-ensure]: mensagem não indica que nada foi escrito ($out15e)"; exit 1; }
-cmp -s "$EV1" "$T/ev1-antes-15.json" || { echo "FAIL [15-ensure]: arquivo foi tocado apesar de não haver escrita esperada"; exit 1; }
+grep -q "2 entrada(s) replayada(s)" <<<"$out15e" || { echo "FAIL [15-ensure]: esperava iterar as 2 entradas (achado HIGH-2) ($out15e)"; exit 1; }
+node -e "
+const d = JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'));
+if (d.entries.length !== 2) { console.error('esperava continuar com 2 entradas, achou ' + d.entries.length); process.exit(1); }
+if (d.entries[0].id !== 'DefeitoA' || d.entries[1].id !== 'DefeitoB') { console.error('ids trocaram de ordem ou se perderam: ' + JSON.stringify(d.entries.map((e) => e.id))); process.exit(1); }
+if (d.status !== 'pending') { console.error('topo deveria continuar pending (testes declarados não existem em HEAD — replay falha, nunca observa às cegas), achou ' + d.status); process.exit(1); }
+if (!d.entries[0].replayed_at || !d.entries[1].replayed_at) { console.error('ensure deveria ter tentado replay nas DUAS entradas (replayed_at ausente)'); process.exit(1); }
+" "$EV1" || { echo "FAIL [15-ensure]: pós-condição de iteração violada"; exit 1; }
+echo "OK [15-ensure] — ensure iterou as 2 entradas sem recusar, nenhuma resolvida (testes declarados ausentes), topo continua pending"
 
+cp "$EV1" "$T/ev1-antes-15w.json"
 DEF_MULTI="$T/.forge/specs/active/bug-multi/deferrals.json"
 [ -f "$DEF_MULTI" ] && { echo "FAIL [15-waive]: pré-condição — deferrals.json não deveria existir ainda"; exit 1; }
 set +e
 out15w="$(FORGE_ROOT="$T" bash "$CR" waive bug-multi --reason no-test-infra --note "x" 2>&1)"; rc15w=$?
 set -e
-[ "$rc15w" -ne 0 ] || { echo "FAIL [15-waive]: waive com 2 entradas deveria recusar ($out15w)"; exit 1; }
+[ "$rc15w" -ne 0 ] || { echo "FAIL [15-waive]: waive sem --id com 2 entradas deveria recusar ($out15w)"; exit 1; }
 grep -qi "recusado" <<<"$out15w" || { echo "FAIL [15-waive]: mensagem não indica recusa ($out15w)"; exit 1; }
-cmp -s "$EV1" "$T/ev1-antes-15.json" || { echo "FAIL [15-waive]: arquivo foi tocado apesar da recusa"; exit 1; }
+grep -qi -- "--id" <<<"$out15w" || { echo "FAIL [15-waive]: mensagem não cita --id ($out15w)"; exit 1; }
+cmp -s "$EV1" "$T/ev1-antes-15w.json" || { echo "FAIL [15-waive]: arquivo foi tocado apesar da recusa"; exit 1; }
 [ -f "$DEF_MULTI" ] && { echo "FAIL [15-waive]: recusa deveria ter acontecido ANTES de criar deferral (efeito colateral órfão)"; exit 1; }
 echo "OK [15]"
 
@@ -655,6 +673,172 @@ echo "[18] MUTAÇÃO (sandbox) — remover a recusa sem --id faz [2] (quimera) s
 run_mutation "18" 's/throw new Error\(`--id é obrigatório[^`]*`\);/idx = entries.length - 1;/s' scenario_chimera_refused
 
 echo "[19] MUTAÇÃO (sandbox) — voltar a escrita do replay para só o topo faz [13] falhar"
-run_mutation "19" 's/const upsert = upsertSingleEntry\(data, data\.change_id, \(entry\) => \(\{ \.\.\.entry, \.\.\.patch \}\)\);\n  if \(upsert\.refused\) return \{ refused: true, count: upsert\.count \};\n  const updated = upsert\.legacy \? \{ \.\.\.data, \.\.\.patch \} : upsert\.data;/const updated = { ...data, ...patch };/s' scenario_replay_preserved
+run_mutation "19" 's/const upsert = upsertSingleEntry\(data, data\.change_id, \(entry\) => \(\{ \.\.\.entry, \.\.\.patch \}\), opts\);\n  if \(upsert\.refused\) return \{ refused: true, count: upsert\.count, reason: upsert\.reason \};\n  const updated = upsert\.legacy \? \{ \.\.\.data, \.\.\.patch \} : upsert\.data;/const updated = { ...data, ...patch };/s' scenario_replay_preserved
+
+# ── achados da correção da #139, iteração 3 (revisão adversarial sobre a iteração 2) ───────────
+#
+#  [20] HIGH-2 — `replay --id`/`waive --id` resolvem entradas INDIVIDUAIS de um change com 2+
+#       registradas: check-red-first sai de CONFLICT (bloqueado) para OK depois das duas
+#       resolvidas por id — sem isso, um change com 2+ defeitos nunca chegava a verified/archived
+#  [21] contrafactual — `replay --id`/`waive --id` com um id INEXISTENTE recusam, arquivo intacto
+#  [22] MEDIUM — `record --rename-null <id>` nomeia a entrada sem id (única) — positiva e dois
+#       contrafactuais (recusa com 2+ entradas; recusa quando a única entrada já tem id)
+#  [23] LOW — `record` sem --id com 2+ entradas é recusado mesmo quando TODOS os campos
+#       obrigatórios estão presentes — isola a recusa fail-closed da checagem de campos
+#       obrigatórios (achado da revisão: [2] sozinho não distinguia as duas causas)
+#  [24] MUTAÇÃO (sandbox) — ignorar `--id` em `resolveTargetEntry` (usado por `replay`) faz o
+#       cenário de endereçamento por id de [20] falhar
+
+echo "[20] replay --id / waive --id resolvem entradas individuais (HIGH-2); check sai de CONFLICT para OK"
+mkdir -p "$T/src20" "$T/tests20"
+cat > "$T/src20/mul.mjs" <<'JS'
+export function mul(a, b) { return a + b; }
+JS
+git -C "$T" add src20/mul.mjs
+git -C "$T" commit -qm "feat: mul20 (com bug)" >/dev/null
+cat > "$T/tests20/mul.test.mjs" <<'JS'
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { mul } from '../src20/mul.mjs';
+test('case20a', () => { assert.strictEqual(mul(3, 4), 12); });
+JS
+git -C "$T" add tests20/mul.test.mjs
+git -C "$T" commit -qm "test: regressão bug-two-real DefeitoA20" >/dev/null
+cat > "$T/src20/mul.mjs" <<'JS'
+export function mul(a, b) { return a * b; }
+JS
+git -C "$T" add src20/mul.mjs
+git -C "$T" commit -qm "fix: bug-two-real DefeitoA20" >/dev/null
+
+FORGE_ROOT="$T" bash "$SN" bug-two-real --type bugfix --scale 1 >/dev/null
+DIR20="$T/.forge/specs/active/bug-two-real"
+EV20="$DIR20/evidence/red/red-evidence.json"
+FORGE_ROOT="$T" bash "$RE" record bug-two-real --id DefeitoA20 --test-path tests20/mul.test.mjs --test-id case20a --command "node --test tests20/mul.test.mjs" --fix-files src20/mul.mjs --failure-pattern AssertionError >/dev/null
+FORGE_ROOT="$T" bash "$RE" record bug-two-real --id DefeitoB20 --test-path tests/b20.test.mjs --test-id case-b20 --command "node --test tests/b20.test.mjs" --fix-files src/b20.sh --failure-pattern PB20 >/dev/null
+
+set +e
+out20pre="$(FORGE_ROOT="$T" bash "$CR" check bug-two-real 2>&1)"; rc20pre=$?
+set -e
+[ "$rc20pre" -ne 0 ] || { echo "FAIL [20]: pré-condição — check deveria bloquear com 2 entradas pendentes ($out20pre)"; exit 1; }
+grep -q "CONFLICT" <<<"$out20pre" || { echo "FAIL [20]: pré-condição — esperava CONFLICT ($out20pre)"; exit 1; }
+
+out20r="$(FORGE_ROOT="$T" bash "$RE" replay bug-two-real --id DefeitoA20 2>&1)"; rc20r=$?
+[ "$rc20r" -eq 0 ] || { echo "FAIL [20]: replay --id DefeitoA20 deveria observar ($out20r)"; exit 1; }
+grep -qi observado <<<"$out20r" || { echo "FAIL [20]: replay --id não confirmou observação ($out20r)"; exit 1; }
+
+out20w="$(FORGE_ROOT="$T" bash "$CR" waive bug-two-real --id DefeitoB20 --reason no-test-infra --note "w218 [20]" 2>&1)"; rc20w=$?
+[ "$rc20w" -eq 0 ] || { echo "FAIL [20]: waive --id DefeitoB20 deveria ter sido aceito ($out20w)"; exit 1; }
+grep -q "OK waive" <<<"$out20w" || { echo "FAIL [20]: saída inesperada do waive --id ($out20w)"; exit 1; }
+
+node -e "
+const d = JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'));
+if (d.entries.length !== 2) { console.error('esperava 2 entradas, achou ' + d.entries.length); process.exit(1); }
+const a = d.entries.find((e) => e.id === 'DefeitoA20');
+const b = d.entries.find((e) => e.id === 'DefeitoB20');
+if (!a || a.status !== 'observed' || !a.base_commit) { console.error('DefeitoA20 deveria estar observed: ' + JSON.stringify(a)); process.exit(1); }
+if (!b || b.status !== 'waived' || !b.waiver || b.waiver.reason !== 'no-test-infra') { console.error('DefeitoB20 deveria estar waived: ' + JSON.stringify(b)); process.exit(1); }
+if (d.status !== 'observed') { console.error('topo deveria ser observed (todas resolvidas, nem todas waived), achou ' + d.status); process.exit(1); }
+" "$EV20" || exit 1
+
+out20post="$(FORGE_ROOT="$T" bash "$CR" check bug-two-real 2>&1)"; rc20post=$?
+[ "$rc20post" -eq 0 ] || { echo "FAIL [20]: check deveria sair OK (rc 0) depois de resolver as 2 entradas por id ($out20post)"; exit 1; }
+! grep -q "CONFLICT" <<<"$out20post" || { echo "FAIL [20]: check ainda bloqueia (CONFLICT) depois de resolver as 2 entradas por id ($out20post)"; exit 1; }
+echo "OK [20] — replay --id e waive --id resolvem entradas individuais; check sai de CONFLICT (rc≠0) para não-bloqueante (rc 0)"
+
+echo "[21] replay --id / waive --id com id inexistente recusam, arquivo intacto"
+cp "$EV20" "$T/ev20-antes-21.json"
+set +e
+out21r="$(FORGE_ROOT="$T" bash "$RE" replay bug-two-real --id NaoExiste21 2>&1)"; rc21r=$?
+set -e
+[ "$rc21r" -ne 0 ] || { echo "FAIL [21-replay]: --id inexistente deveria recusar ($out21r)"; exit 1; }
+grep -qi "não encontrado" <<<"$out21r" || { echo "FAIL [21-replay]: mensagem não nomeia o id ausente ($out21r)"; exit 1; }
+cmp -s "$EV20" "$T/ev20-antes-21.json" || { echo "FAIL [21-replay]: arquivo foi tocado apesar da recusa"; exit 1; }
+set +e
+out21w="$(FORGE_ROOT="$T" bash "$CR" waive bug-two-real --id NaoExiste21 --reason no-test-infra --note x 2>&1)"; rc21w=$?
+set -e
+[ "$rc21w" -ne 0 ] || { echo "FAIL [21-waive]: --id inexistente deveria recusar ($out21w)"; exit 1; }
+grep -qi "não encontrado" <<<"$out21w" || { echo "FAIL [21-waive]: mensagem não nomeia o id ausente ($out21w)"; exit 1; }
+cmp -s "$EV20" "$T/ev20-antes-21.json" || { echo "FAIL [21-waive]: arquivo foi tocado apesar da recusa"; exit 1; }
+echo "OK [21]"
+
+echo "[22] record --rename-null nomeia a entrada sem id (MEDIUM); positiva e dois contrafactuais"
+FORGE_ROOT="$T" bash "$SN" bug-rename22 --type bugfix --scale 1 >/dev/null
+EV22="$T/.forge/specs/active/bug-rename22/evidence/red/red-evidence.json"
+FORGE_ROOT="$T" bash "$RE" record bug-rename22 --test-path tests/r22.test.mjs --test-id case-r22 --command "node --test tests/r22.test.mjs" --fix-files src/r22.sh --failure-pattern PR22 >/dev/null
+node -e "const d=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')); if (d.entries[0].id !== null) { console.error('pré-condição: entrada deveria começar sem id'); process.exit(1); }" "$EV22" || exit 1
+out22="$(FORGE_ROOT="$T" bash "$RE" record bug-rename22 --rename-null DefeitoR22 2>&1)"; rc22=$?
+[ "$rc22" -eq 0 ] || { echo "FAIL [22a]: --rename-null deveria ter sido aceito ($out22)"; exit 1; }
+node -e "
+const d = JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'));
+if (d.entries.length !== 1 || d.entries[0].id !== 'DefeitoR22') { console.error('rename-null não nomeou a entrada: ' + JSON.stringify(d.entries)); process.exit(1); }
+if (d.entries[0].test_path !== 'tests/r22.test.mjs' || d.entries[0].failure_pattern !== 'PR22') { console.error('rename-null alterou outros campos: ' + JSON.stringify(d.entries[0])); process.exit(1); }
+" "$EV22" || exit 1
+echo "OK [22a]"
+# 22b — --rename-null recusa quando já existem 2 entradas (agora nomeadas) — ambiguidade
+FORGE_ROOT="$T" bash "$RE" record bug-rename22 --id DefeitoR22b --test-path tests/r22b.test.mjs --test-id case-r22b --command "node --test tests/r22b.test.mjs" --fix-files src/r22b.sh --failure-pattern PR22B >/dev/null
+cp "$EV22" "$T/ev22-antes-22b.json"
+set +e
+out22b="$(FORGE_ROOT="$T" bash "$RE" record bug-rename22 --rename-null Outro22 2>&1)"; rc22b=$?
+set -e
+[ "$rc22b" -ne 0 ] || { echo "FAIL [22b]: --rename-null com 2 entradas deveria recusar ($out22b)"; exit 1; }
+cmp -s "$EV22" "$T/ev22-antes-22b.json" || { echo "FAIL [22b]: arquivo foi tocado apesar da recusa"; exit 1; }
+echo "OK [22b]"
+# 22c — --rename-null recusa quando a única entrada já tem id declarado
+FORGE_ROOT="$T" bash "$SN" bug-rename22c --type bugfix --scale 1 >/dev/null
+EV22C="$T/.forge/specs/active/bug-rename22c/evidence/red/red-evidence.json"
+FORGE_ROOT="$T" bash "$RE" record bug-rename22c --id JaNomeada --test-path tests/r22c.test.mjs --test-id case-r22c --command "node --test tests/r22c.test.mjs" --fix-files src/r22c.sh --failure-pattern PR22C >/dev/null
+cp "$EV22C" "$T/ev22c-antes.json"
+set +e
+out22c="$(FORGE_ROOT="$T" bash "$RE" record bug-rename22c --rename-null Outro22c 2>&1)"; rc22c=$?
+set -e
+[ "$rc22c" -ne 0 ] || { echo "FAIL [22c]: --rename-null sobre entrada já nomeada deveria recusar ($out22c)"; exit 1; }
+cmp -s "$EV22C" "$T/ev22c-antes.json" || { echo "FAIL [22c]: arquivo foi tocado apesar da recusa"; exit 1; }
+echo "OK [22]"
+
+echo "[23] record sem --id com 2+ entradas é recusado mesmo com todos os campos obrigatórios presentes"
+cp "$EV1" "$T/ev1-antes-23.json"
+set +e
+out23="$(FORGE_ROOT="$T" bash "$RE" record bug-multi --test-path tests/c23.test.mjs --test-id case-c23 --command "node --test tests/c23.test.mjs" --fix-files src/c23.sh --failure-pattern PC23 2>&1)"; rc23=$?
+set -e
+[ "$rc23" -ne 0 ] || { echo "FAIL [23]: record sem --id com campos completos e 2+ entradas foi aceito ($out23)"; exit 1; }
+grep -qi -- "--id" <<<"$out23" || { echo "FAIL [23]: mensagem não cita --id (pode estar caindo na checagem de campos obrigatórios, não na recusa fail-closed) ($out23)"; exit 1; }
+cmp -s "$EV1" "$T/ev1-antes-23.json" || { echo "FAIL [23]: arquivo foi tocado apesar da recusa"; exit 1; }
+echo "OK [23]"
+
+scenario_id_resolves_ok() { # scenario_id_resolves_ok <root> <suffix> — happy path completo de [20]
+  local root="$1" suffix="$2"
+  local id="bug-idr$suffix"
+  mkdir -p "$root/src$suffix" "$root/tests$suffix"
+  cat > "$root/src$suffix/mul.mjs" <<JS
+export function mul(a, b) { return a + b; }
+JS
+  git -C "$root" add "src$suffix/mul.mjs"
+  git -C "$root" commit -qm "feat: mul$suffix (com bug)" >/dev/null
+  cat > "$root/tests$suffix/mul.test.mjs" <<JS
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { mul } from '../src$suffix/mul.mjs';
+test('case$suffix', () => { assert.strictEqual(mul(3, 4), 12); });
+JS
+  git -C "$root" add "tests$suffix/mul.test.mjs"
+  git -C "$root" commit -qm "test: regressão $id" >/dev/null
+  cat > "$root/src$suffix/mul.mjs" <<JS
+export function mul(a, b) { return a * b; }
+JS
+  git -C "$root" add "src$suffix/mul.mjs"
+  git -C "$root" commit -qm "fix: $id" >/dev/null
+
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/spec-new.sh" "$id" --type bugfix --scale 1 >/dev/null 2>&1 || return 1
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/red-evidence.sh" record "$id" --id "DefA$suffix" --test-path "tests$suffix/mul.test.mjs" --test-id "case$suffix" --command "node --test tests$suffix/mul.test.mjs" --fix-files "src$suffix/mul.mjs" --failure-pattern AssertionError >/dev/null 2>&1 || return 1
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/red-evidence.sh" record "$id" --id "DefB$suffix" --test-path "tests/b$suffix.test.mjs" --test-id "case-b$suffix" --command "node --test tests/b$suffix.test.mjs" --fix-files "src/b$suffix.sh" --failure-pattern "PB$suffix" >/dev/null 2>&1 || return 1
+
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/red-evidence.sh" replay "$id" --id "DefA$suffix" >/dev/null 2>&1 || return 1
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/check-red-first.sh" waive "$id" --id "DefB$suffix" --reason no-test-infra --note x >/dev/null 2>&1 || return 1
+
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/check-red-first.sh" check "$id" >/dev/null 2>&1
+}
+
+echo "[24] MUTAÇÃO (sandbox) — ignorar --id em resolveTargetEntry (usado por replay) faz [20] falhar"
+run_mutation "24" 's/const resolved = resolveTargetEntry\(data, f\);/const resolved = resolveTargetEntry(data, {});/' scenario_id_resolves_ok
 
 echo "OK"

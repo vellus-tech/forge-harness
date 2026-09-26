@@ -33,6 +33,8 @@ bash .forge/scripts/red-evidence.sh record <change-id> [--id <defeito>] \
   --failure-pattern "<regex ou substring esperada na falha>" \
   [--fix-files "arq1,arq2"] [--setup-command "<comando executado antes do teste no worktree>"] \
   [--reproduces "bugfix.md §1"] [--excerpt "<trecho, se já observou manualmente>"]
+
+bash .forge/scripts/red-evidence.sh record <change-id> --rename-null <novo-id>
 ```
 
 Grava a intenção — **nunca** marca `observed` sozinho. `status` fica (ou volta a) `pending` até
@@ -50,9 +52,16 @@ defeito:
 
 - `record --id <novo>` **acrescenta** uma entrada — nunca sobrescreve as demais.
 - `record --id <existente>` atualiza só aquela entrada.
-- `record` **sem `--id`** num change que já tem 2+ entradas é recusado (`rc≠0`, fail-closed): sem
-  o `--id` explícito, o alvo é ambíguo, e a versão anterior deste comando resolvia a ambiguidade
-  herdando os campos obrigatórios da última entrada gravada — o próprio defeito da issue.
+- `record` **sem `--id`** quando já existe uma entrada **nomeada** (com `id` declarado) — seja ela
+  a única, seja uma de 2+ — é recusado (`rc≠0`, fail-closed): sem o `--id` explícito, o alvo é
+  ambíguo, e a versão anterior deste comando resolvia a ambiguidade herdando os campos
+  obrigatórios da última entrada gravada — o próprio defeito da issue. Só o fluxo de defeito
+  único **sem nome** (a entrada tem `id: null`) continua aceitando `record` sem `--id`.
+- `record --rename-null <novo-id>` nomeia a entrada sem id — só se aplica quando o change tem
+  **exatamente uma** entrada e ela ainda não tem `id` (o fluxo comum "primeiro `record` sem
+  `--id`, segundo com `--id`" deixa a primeira inendereçável por qualquer outro comando depois
+  que a segunda existe; rode `--rename-null` **antes** de declarar a segunda, se for endereçar a
+  primeira mais tarde). Recusa (arquivo intacto) com 2+ entradas, ou se a única já tiver `id`.
 - Os escalares do topo (`test_path`, `status`, etc., lidos por ferramentas antigas que não
   conhecem `entries[]`) são sempre a **projeção da primeira entrada declarada** — nunca da
   última tocada. `status` do topo é `observed` só quando **todas** as entradas estão
@@ -62,18 +71,24 @@ defeito:
   desses preserva o conteúdo legado como a primeira entrada e acrescenta a nova como uma entrada
   adicional. Um scaffold nunca gravado (`recorded_at: null`, `status: pending`) não deixa
   resíduo — não há nada ali para preservar.
-- `replay`, `ensure` e `waive` gravam o veredito na entrada correspondente (0 ou 1 entrada
-  declarada) e reconstroem o topo a partir dela — nunca escrevem só no topo, o que faria um
-  `record --id` seguinte apagar em silêncio o que acabaram de gravar. Nenhum dos três tem
-  `--id` ainda: com **2 ou mais entradas** declaradas, os três **recusam** operar (fail-closed —
-  não há como saber qual defeito o veredito resolve) em vez de adivinhar. Replay por entrada
-  fica para a #138.
+- `replay` e `waive` aceitam `--id <id>` para endereçar QUAL entrada o veredito resolve; sem
+  `--id`, só 0/1 entrada é aceitável (fluxo retrocompatível) — com **2 ou mais** declaradas, os
+  dois **recusam** (fail-closed, arquivo intacto) em vez de adivinhar, citando os ids existentes
+  na própria mensagem. `ensure` (chamado incondicionalmente por `/forge:verify` e
+  `/forge:archive`, sem `--id` — nenhum chamador sabe quais ids existem) nunca recusa: **itera**
+  cada entrada não dispensada (`status != 'waived'`) e roda o motor sobre ela, gravando o
+  veredito na própria entrada. Os três gravam sempre na ENTRADA (nunca só no topo) e reconstroem
+  o topo a partir dela — nunca uma escrita paralela que um `record --id` seguinte apagaria em
+  silêncio.
 
 ## replay — rodar o motor e observar de verdade
 
 ```bash
-bash .forge/scripts/red-evidence.sh replay <change-id> [--timeout <segundos, default 120>]
+bash .forge/scripts/red-evidence.sh replay <change-id> [--id <defeito>] [--timeout <segundos, default 120>]
 ```
+
+`--id` é obrigatório quando o change tem 2+ entradas em `entries[]` (ver seção acima); sem ele,
+só 0/1 entrada é aceitável.
 
 Este é o passo que converte "presumido" em "observado" — sem ele a evidência é só uma
 declaração que qualquer agente poderia fabricar. O motor (`lib/red-replay.mjs`):
@@ -124,8 +139,11 @@ bash .forge/scripts/red-evidence.sh status <change-id>
 ## waive — dispensar com motivo tipado
 
 ```bash
-bash .forge/scripts/red-evidence.sh waive <change-id> --reason <motivo> [--note "<texto>"]
+bash .forge/scripts/red-evidence.sh waive <change-id> --reason <motivo> [--id <defeito>] [--note "<texto>"]
 ```
+
+`--id` é obrigatório quando o change tem 2+ entradas em `entries[]` (ver seção "Vários defeitos
+no mesmo change"); sem ele, só 0/1 entrada é aceitável.
 
 | `--reason` | Quando | Efeito |
 |---|---|---|

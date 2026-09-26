@@ -53,22 +53,27 @@ echo "[4] run-all não chama a si mesmo (sem recursão)"
 # explícita e independente do set -e. `run-all\.sh: ` exclui a mensagem de diagnóstico própria do
 # runner ("run-all.sh: sentinela ausente …", linha que só existe para citar o nome do script no
 # stderr, não para invocá-lo).
-! grep -E 'run-all\.sh|run-all ' "$RA" \
-    | grep -vE '^\s*#|run-all\.sh —|run-all\)|name=|Uso:|tests/run-all\.sh |run-all\.sh: ' >/dev/null \
-  || { echo "FAIL [4]: run-all.sh menciona a si mesmo fora de comentário/uso documentado (possível recursão)"; exit 1; }
-# garantia direta: nenhuma linha invoca run-all de verdade via bash/sh/exec. O padrão exige o
-# comando seguido de espaço e um token contíguo (sem espaço/pipe/`;`) contendo "run-all" — não basta
-# a palavra aparecer solta na mesma linha — porque a regex desta própria checagem, escrita como
-# string, cita "bash|sh|exec" e "run-all" lado a lado sem ser uma invocação real (falso positivo
-# medido ao converter; ver LDG-0182). Comentários continuam fora por segurança adicional.
-INVOKE_RE='(^|[^A-Za-z0-9_])(bash|sh|exec)[[:space:]]+[^|;[:space:]]*run-all'
-! grep -E "$INVOKE_RE" "$RA" | grep -vE '^\s*#' >/dev/null \
-  || { echo "FAIL [4]: run-all.sh contém invocação real de run-all via bash/sh/exec (recursão)"; exit 1; }
+! grep -E 'run-all\.sh|run-all ' "$RA" | grep -vE '^\s*#|run-all\.sh —|run-all\)|name=|Uso:|tests/run-all\.sh |run-all\.sh: ' >/dev/null || \
+  { echo "FAIL [4]: run-all.sh menciona a si mesmo fora de comentário/uso documentado (possível recursão)"; exit 1; }
+# garantia direta: nenhuma linha invoca run-all de verdade via bash/sh/exec. O padrão ancora o
+# comando numa posição de comando de verdade (início de linha, ou depois de `; & | ( {` ou
+# `$(`), aceita `command`/`env` opcionais na frente, e só então exige bash/sh/exec seguido de
+# espaço e o restante da linha até "run-all" sem `|`/`;` no meio. A versão anterior só exigia um
+# caractere não-alfanumérico antes do nome do comando: isso deixava passar invocações reais como
+# `bash "$(dirname "${BASH_SOURCE[0]}")/run-all.sh" --list`, `bash -x "$WS/tests/run-all.sh"` e
+# `bash tests/run-all.sh --list` (o espaço entre o comando e o caminho quebrava o antigo
+# `[[:space:]]+[^|;[:space:]]*run-all`), medido com mutação e recontrole (LDG-0182, achado da
+# revisão). Também evita o falso positivo de tratar `x.sh` como o comando `sh` (o `.` antes de
+# "sh" satisfazia `[^A-Za-z0-9_]`) e não casa com a própria definição desta regex, escrita como
+# string literal logo abaixo (falso positivo medido ao converter; ver LDG-0182).
+INVOKE_RE='(^|[;&|({]|\$\()[[:space:]]*(command[[:space:]]+|env[[:space:]]+)?(bash|sh|exec)[[:space:]][^|;]*run-all'
+! grep -E "$INVOKE_RE" "$RA" | grep -vE '^\s*#' >/dev/null || \
+  { echo "FAIL [4]: run-all.sh contém invocação real de run-all via bash/sh/exec (recursão)"; exit 1; }
 echo "OK [4]"
 
 echo "[5] w80 não invoca run-all (sem recursão pelo próprio gate)"
-! grep -E "$INVOKE_RE" "$WS/tests/w80-suite-gate.sh" | grep -vE '^\s*#' >/dev/null \
-  || { echo "FAIL [5]: w80-suite-gate.sh contém invocação real de run-all via bash/sh/exec (recursão pelo próprio gate)"; exit 1; }
+! grep -E "$INVOKE_RE" "$WS/tests/w80-suite-gate.sh" | grep -vE '^\s*#' >/dev/null || \
+  { echo "FAIL [5]: w80-suite-gate.sh contém invocação real de run-all via bash/sh/exec (recursão pelo próprio gate)"; exit 1; }
 echo "OK [5]"
 
 echo "[6] casos obrigatórios §22.9/#20 cobertos por gate"

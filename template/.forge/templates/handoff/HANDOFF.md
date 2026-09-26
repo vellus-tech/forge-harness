@@ -48,3 +48,6 @@ passo lógico, gotchas. Rule-based/hook deixa esta seção como está; `/forge:h
 - **Outro agente (Codex/Cursor/Gemini):** leia este arquivo inteiro; o estado detalhado está em
   `.forge/specs/active/{{CHANGE_ID}}/` (`manifest.yaml`, `progress.json`, `deferrals.json`,
   `tasks.md`). Siga as regras da seção 3.
+
+<!-- FORGE:HANDOFF-DIGEST -->
+<!-- Hash do conteúdo fora deste bloco, gravado pelo próprio gerador — não edite à mão (#120). -->

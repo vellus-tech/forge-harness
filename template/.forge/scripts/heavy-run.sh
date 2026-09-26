@@ -9,7 +9,8 @@
 #   - stdout pertence INTEIRAMENTE ao comando, telemetria só em stderr — a saída de suíte pesada é
 #     parseada por terceiros, e uma linha nossa no meio quebra quem consome;
 #   - exit code do comando propagado sem tradução;
-#   - `64` uso inválido · `69` âncora inutilizável · `75` timeout com o comando NÃO executado ·
+#   - `64` uso inválido · `69` âncora inutilizável · `70` disposição de sinal herdada não pôde
+#     ser resetada (sem `perl`) · `75` timeout com o comando NÃO executado ·
 #     `130`/`143`/`129` para INT/TERM/HUP, com o comando morto antes e o lock liberado na hora.
 #
 # `69` e `75` são deliberadamente distintos: um diz "espere", o outro diz "conserte a máquina".
@@ -17,6 +18,11 @@
 # O shebang passou de `sh` para `bash`: a biblioteca usa `[ -O ]`, `[ -k ]`, `BASH_SUBSHELL`,
 # `trap -p` e `10#`. É item explícito da migração.
 set -uo pipefail
+
+# Argumentos ORIGINAIS, capturados antes de qualquer `shift` do parser abaixo — é o que
+# `_hr_reset_ignored_signals` reexecuta quando precisa resetar disposição de sinal herdada
+# (issue #146). Sob `set -u`, `"${_HR_ORIG_ARGV[@]}"` com array vazio expande para nada, sem erro.
+_HR_ORIG_ARGV=("$@")
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB="$SCRIPT_DIR/lib/heavy-mutex.sh"
@@ -172,6 +178,52 @@ if [ -n "$_pa" ] && [ -n "$_pb" ] && [ "$_pa" != "$_pb" ]; then
 fi
 POLL="${_pa:-$_pb}"
 [ -n "$POLL" ] && { FORGE_HEAVY_MUTEX_POLL_S="$POLL"; export FORGE_HEAVY_MUTEX_POLL_S; }
+
+# Sinais ignorados na entrada de um shell não interativo NÃO PODEM ser armados nem resetados pelo
+# próprio bash — é política documentada, não bug: "signals ignored upon entry ... cannot be
+# trapped or reset". Sob push detached via nohup duplo-fork sem tty (o padrão que este próprio
+# ecossistema recomenda para sobreviver ao watchdog do harness), o processo que lança
+# heavy-run.sh pode entregar INT ou TERM já ignorado, e nenhuma reordenação do `trap` mais abaixo
+# resolveria isso — a disposição já estava fechada antes da primeira linha executável (issue
+# #146). A prova é por TENTATIVA: um `trap` de descarte em INT/TERM só "pega" se a disposição de
+# entrada não era SIG_IGN; `trap -p` vazio depois da tentativa é o sintoma.
+#
+# HUP fica DE FORA deste reset, deliberadamente: resetar HUP mataria, no fechamento do terminal
+# que o lançamento via `nohup` existe para proteger, exatamente o processo que o operador queria
+# sobreviver — o invariante que a Onda 3/#144 exige preservar (dono em `nohup` sem beneficiário
+# declarado não é reclamado). Se HUP precisar de tratamento próprio, é decisão separada, fora
+# deste item.
+#
+# O reset só é possível por um processo que NÃO seja bash: `exec` preserva a disposição herdada
+# quando o alvo é bash (a mesma política acima), mas um processo não-bash pode alterar a PRÓPRIA
+# disposição para DEFAULT antes de `exec`'ar o alvo real, e essa disposição sobrevive ao exec
+# seguinte porque deixou de ser SIG_IGN. `_HR_SIG_RESET` é a variável de guarda contra laço: se,
+# mesmo depois de reexecutado uma vez, o sinal continuar sem poder ser armado, a função recusa em
+# vez de reexecutar de novo — e em vez de rodar a carga sem trap.
+_hr_reset_ignored_signals() {
+  trap 'true' INT TERM
+  local p_int p_term
+  p_int="$(trap -p INT)"
+  p_term="$(trap -p TERM)"
+  trap - INT TERM
+  # As duas disposições vieram armáveis: nada herdado a resetar, segue o fluxo normal.
+  [ -n "$p_int" ] && [ -n "$p_term" ] && return 0
+
+  if [ "${_HR_SIG_RESET:-0}" = "1" ]; then
+    echo "heavy-run: INT ou TERM continua ignorado mesmo depois do reset — abortando em vez de rodar sem trap." >&2
+    return 70
+  fi
+  if ! command -v perl >/dev/null 2>&1; then
+    echo "heavy-run: INT ou TERM chega ignorado na entrada (herdado do lançamento detached) e 'perl' não está disponível para resetar a disposição — recusando em vez de rodar sem trap." >&2
+    return 70
+  fi
+  _HR_SIG_RESET=1 exec perl -e '$SIG{INT}="DEFAULT"; $SIG{TERM}="DEFAULT"; exec @ARGV or die "heavy-run: exec falhou ao resetar disposição de sinal: $!\n"' \
+    bash "$SCRIPT_DIR/heavy-run.sh" "${_HR_ORIG_ARGV[@]}"
+  # `exec` só retorna em falha.
+  echo "heavy-run: falha ao reexecutar para resetar disposição de sinal" >&2
+  return 70
+}
+_hr_reset_ignored_signals || exit $?
 
 forge_heavy_mutex_acquire --label "${LABEL:-$*}" || exit $?
 

@@ -14,7 +14,10 @@ set -uo pipefail
 # em vez do repositório sintético de cada gate — incidente P1 medido em 2026-09-26. O unset aqui, no
 # processo do runner, cobre todo gate despachado abaixo mesmo quando o próprio gate não tem
 # preâmbulo equivalente, porque a variável não exportada não chega ao processo-filho.
-unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG GIT_CONFIG_PARAMETERS GIT_CONFIG_COUNT
+# GIT_CONFIG_COUNT e GIT_CONFIG_PARAMETERS ficam FORA do unset de propósito: medido que não
+# redirecionam escrita (o repositório sintético continua sendo o gravado), e carregam config
+# legítima — o `git -c chave=valor` de quem invocou e a proteção contra gc declarada abaixo.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$WS"

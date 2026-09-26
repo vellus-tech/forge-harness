@@ -7,7 +7,7 @@
 # herdado do ambiente com precedência sobre `-C` (ver tests/w248-git-dir-isolation-gate.sh,
 # cenários [17]/[18]). O preâmbulo tem de ficar em nível de arquivo, antes de qualquer
 # setup_file/@test, porque bats sourceia o arquivo inteiro a cada teste.
-unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG GIT_CONFIG_PARAMETERS GIT_CONFIG_COUNT
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 setup_file() {
   export WS="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"

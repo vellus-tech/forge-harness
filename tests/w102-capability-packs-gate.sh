@@ -8,7 +8,7 @@ set -euo pipefail
 # repositório git sintético e/ou instala via installer/install.sh ou forge.mjs init/update, que
 # gravam core.hooksPath e identidade no repositório do alvo — obedecer ao repositório real de
 # quem exportou a variável, não ao alvo sintético. Incidente P1 medido em 2026-09-26.
-unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG GIT_CONFIG_PARAMETERS GIT_CONFIG_COUNT
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 T="$(mktemp -d /tmp/forge-w102.XXXXXX)"

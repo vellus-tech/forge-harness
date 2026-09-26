@@ -12,7 +12,7 @@
 #
 # LDG-0201: nenhum cenário deste arquivo hoje escreve estado git real (só passa comandos como
 # texto a um hook), mas o preâmbulo entra por uniformidade com o restante do universo tests/*.bats.
-unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG GIT_CONFIG_PARAMETERS GIT_CONFIG_COUNT
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 setup() {
   MODE="${CLAUDE_CONTRACT_MODE:-source}"

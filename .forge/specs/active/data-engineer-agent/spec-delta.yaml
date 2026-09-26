@@ -4,7 +4,8 @@
 # o /forge:archive renumera e atualiza os content_ref (os ids aqui são provisórios até o archive).
 # Os campos tests apontam para o gate que prova cada requisito; o eval A/B é evidência de verify,
 # não teste de suíte, e por isso nenhum SHALL daqui depende do resultado dele (revisão do validador,
-# item 16: o REQ-FHT-062 exige só a forma dos casos, que é o que o w250 prova).
+# item 16: o REQ-FHT-062 exige só a forma dos casos, que é o que o w250 prova). Segunda revisão (design §3.2):
+# cenários ajustados ao canal fail-closed dos hooks, ao guarda de Bash, ao forge update e às sete mutações.
 operations:
   - op: add_requirement
     capability: forge-harness-template
@@ -18,7 +19,7 @@ operations:
         - id: SCN-FHT-054-A
           given: "o harness instalado com template/.forge/agents/data/data-engineer.md"
           when: "o frontmatter e a matriz de roteamento do orquestrador são lidos"
-          then: "tools contém Agent(...) com lista igual ao conjunto dos seis especialistas (restrição do modo claude --agent), o frontmatter declara hooks.PreToolUse com matcher Agent|Task chamando .forge/scripts/data-agent-allowlist.sh (restrição do modo subagente), a matriz cita os seis e nenhum nome sem arquivo em agents/data, e o corpo traz as oito regras de desempate, o bloco CONFLITO e o bloco PLANO DE ROTEAMENTO do modo degradado"
+          then: "tools contém Agent(...) com lista igual ao conjunto dos seis especialistas (restrição do modo claude --agent), o frontmatter declara hooks.PreToolUse com matcher Agent|Task chamando .forge/scripts/data-agent-allowlist.sh com o comando terminado em || exit 2 (restrição do modo subagente, fail-closed também sem o script), a matriz cita os seis e nenhum nome sem arquivo em agents/data, e o corpo traz as oito regras de desempate, o bloco CONFLITO e o bloco PLANO DE ROTEAMENTO do modo degradado"
       contracts: []
       tests:
         - tests/w250-data-engineer-agents-gate.sh
@@ -34,7 +35,7 @@ operations:
         - id: SCN-FHT-055-A
           given: "os arquivos agents/data/data-{relational,nosql,cache,object-storage,analytical,streaming}.md"
           when: "o gate w250 lê frontmatter e corpo de cada um"
-          then: "cada especialista declara skills com a skill <esp>-practices existente, model explícito, tools sem Write, Edit e Agent e com mcp__context7__query-docs, as sete seções Missão, Escopo, Protocolo, Checklist, Antipatterns bloqueados, Regra de integração e Quando devolver ao orquestrador, nesta ordem, e um Protocolo que lê as rules do projeto, roda check-data-governance.sh e scan.sh e devolve o bloco CONFLITO em conflito relevante"
+          then: "cada especialista declara skills com a skill <esp>-practices existente, model explícito, tools sem Write, Edit e Agent e com mcp__context7__query-docs, hooks.PreToolUse de matcher Bash chamando .forge/scripts/data-agent-bash-guard.sh com || exit 2, as sete seções Missão, Escopo, Protocolo, Checklist, Antipatterns bloqueados, Regra de integração e Quando devolver ao orquestrador, nesta ordem, e um Protocolo que lê as rules do projeto, roda check-data-governance.sh (distinguindo CONFLICT, universo-vazio e falta de node pela linha emitida) e scan.sh e devolve o bloco CONFLITO em conflito relevante"
       contracts: []
       tests:
         - tests/w250-data-engineer-agents-gate.sh
@@ -50,7 +51,7 @@ operations:
         - id: SCN-FHT-056-A
           given: "as seis skills em template/.forge/skills/data-*-practices"
           when: "o gate w250 inspeciona SKILL.md, references/best-practices.md e references/antipatterns.md"
-          then: "SKILL.md tem frontmatter válido e corpo de até 120 linhas; toda entrada do catálogo tem Sintoma, Por quê, Correção, Detecção e Evidência; best-practices.md cobre os tópicos mínimos da issue #177; e nenhuma recomendação refutada pela base aparece fora de antipatterns.md"
+          then: "SKILL.md tem frontmatter válido e corpo de até 120 linhas; toda entrada do catálogo tem Sintoma, Por quê, Correção, Detecção e Evidência e um id do conjunto fechado do design §2.5; best-practices.md cobre os tópicos mínimos da issue #177; e nenhuma recomendação refutada pela base aparece fora de antipatterns.md"
       contracts: []
       tests:
         - tests/w250-data-engineer-agents-gate.sh
@@ -66,7 +67,7 @@ operations:
         - id: SCN-FHT-057-A
           given: "data-streaming-practices/references/best-practices.md e antipatterns.md"
           when: "o gate w250 procura a seção RabbitMQ e os ids"
-          then: "as treze subseções obrigatórias estão presentes, RMQ-BP-01 a RMQ-BP-17 e RMQ-AP-01 a RMQ-AP-20 aparecem sem lacuna, e ha-mode, x-queue-mode e x-delayed-message só aparecem no catálogo de antipatterns"
+          then: "as treze subseções obrigatórias estão presentes, os oito fatos de plataforma aparecem com marca [J] na subseção Plataforma 4.x, RMQ-BP-01 a RMQ-BP-17 e RMQ-AP-01 a RMQ-AP-20 aparecem sem lacuna, e ha-mode, x-queue-mode e x-delayed-message só aparecem no catálogo de antipatterns"
       contracts: []
       tests:
         - tests/w250-data-engineer-agents-gate.sh
@@ -82,7 +83,7 @@ operations:
         - id: SCN-FHT-058-A
           given: "a fixture suja e a limpa de cada especialista em tests/fixtures/w250"
           when: "scan.sh roda sobre cada uma, com e sem rg no PATH, duas vezes"
-          then: "toda regra emite uma linha; na suja cada regra estática acha ao menos uma ocorrência com arquivo:linha, na limpa (com os sósias flow: 1, acks=10, span, company, expand) todas emitem OK; as duas execuções são byte-idênticas; com arquivo oculto, arquivo ignorado por .gitignore e arquivo com byte de controle a saída com e sem rg é byte-idêntica; exit 1 só com achado de severidade alto; e os ids emitidos são exatamente os marcados Detecção: scan.sh no catálogo"
+          then: "toda regra emite uma linha; na suja cada regra estática acha ao menos uma ocorrência com arquivo:linha, na limpa (com os sósias flow: 1, acks=10, span, company, expand) todas emitem OK; as duas execuções são byte-idênticas; com arquivo oculto, arquivo ignorado por .gitignore e arquivo com byte de controle a saída com e sem rg é byte-idêntica, e ocorrências dentro de .forge/worktrees e .claude/worktrees não aparecem nem são contadas; --root repetido dá a união sem duplicata e --root inexistente sai 2; --json produz JSON que bate com a saída de texto; o texto do scanner não usa rede nem node/python e ele roda com PATH só de bash, coreutils e grep; exit 1 só com achado de severidade alto; e os ids emitidos são exatamente os marcados Detecção: scan.sh no catálogo"
         - id: SCN-FHT-058-B
           given: "um diretório sem nenhum arquivo do universo de extensões da skill"
           when: "scan.sh roda sobre ele"
@@ -102,7 +103,7 @@ operations:
         - id: SCN-FHT-059-A
           given: "os sete agentes em agents/data e a skill data-streaming-practices"
           when: "o gate w250 procura a frase canônica e a tabela de transporte"
-          then: "a frase canônica do design §2.4 (gRPC síncrono interno, evento com AsyncAPI, externo por REST ou fila, nunca gRPC nem store interno para terceiro, exceção só com ADR) está na seção Regra de integração dos sete agentes, a tabela de escolha de transporte com coluna de contrato está em best-practices.md, D-AP-01 a D-AP-03 estão no catálogo e o checklist transversal do orquestrador cobre PCI DSS, LGPD, multi-tenant com RLS, custo e reversibilidade"
+          then: "a frase canônica do design §2.4 (gRPC síncrono interno, evento com AsyncAPI, externo por REST ou fila, nunca gRPC para terceiro nem credencial, rota de rede ou permissão de terceiro sobre store interno, exceção só com ADR) está na seção Regra de integração dos sete agentes, a tabela de escolha de transporte com coluna de contrato está em best-practices.md, D-AP-01 a D-AP-05 estão no catálogo e o checklist transversal do orquestrador cobre PCI DSS, LGPD, multi-tenant com RLS, custo e reversibilidade, com a marca [Interp.] nos itens da lista fechada do design §2.6 [10]"
       contracts: []
       tests:
         - tests/w250-data-engineer-agents-gate.sh
@@ -118,7 +119,11 @@ operations:
         - id: SCN-FHT-060-A
           given: "um diretório temporário"
           when: "installer/install.sh roda com --adapters claude,agents-skills"
-          then: "os sete agentes aparecem em .claude/agents/data, as seis skills em .claude/skills e .agents/skills com scan.sh e o script do hook em .forge/scripts; o capability-dispatcher (com a description intacta), os quatro revisores de code-review, os PROFILE.md dos packs relacionais e o agents/README citam os agentes ou skills novos; nenhum arquivo novo contém .claude/; e o plugin fica byte-idêntico ao gerado"
+          then: "os sete agentes aparecem em .claude/agents/data, as seis skills em .claude/skills e .agents/skills com scan.sh, os dois scripts de hook em .forge/scripts e a seção de especialistas de dados no AGENTS.md gerado; o capability-dispatcher (com a description intacta), os quatro revisores de code-review, o platform-reviewer, os PROFILE.md dos packs relacionais e o agents/README citam os agentes ou skills novos; nenhum arquivo novo contém .claude/; e o plugin fica byte-idêntico ao gerado, sem agente nem skill data-*"
+        - id: SCN-FHT-060-B
+          given: "uma instalação temporária da qual foram removidos os agentes, skills, scripts de hook, projeções e a seção do AGENTS.md de dados"
+          when: "node bin/forge.mjs update --target <tmp> --no-plugin roda a partir do checkout"
+          then: "os arquivos de dados voltam byte-idênticos ao template e o sync seguinte os projeta em .claude/agents/data e .claude/skills"
       contracts: []
       tests:
         - tests/w250-data-engineer-agents-gate.sh
@@ -134,9 +139,9 @@ operations:
       normative: SHALL
       scenarios:
         - id: SCN-FHT-061-A
-          given: "uma cópia de template/.forge/agents/data e template/.forge/skills/data-*-practices num temporário"
-          when: "o gate aplica as quatro mutações do design §2.6 [14]"
-          then: "cada uma das cinco mutações (inclusive o tipo general-purpose acrescentado ao conjunto aceito pelo hook) reprova o cenário correspondente nomeando o alvo, a cópia íntegra aprova antes e depois, e cmp -s prova a restauração byte a byte sem tocar arquivo rastreado"
+          given: "uma cópia de template/.forge/agents/data, template/.forge/skills/data-*-practices, template/.forge/scripts/data-agent-allowlist.sh e template/.forge/scripts/data-agent-bash-guard.sh num temporário, e uma instalação temporária para as mutações de canal"
+          when: "o gate aplica as sete mutações do design §2.6 [14]"
+          then: "cada uma das sete mutações (inclusive o tipo general-purpose acrescentado ao allowlist, a retirada do || exit 2 do comando do hook e a aceitação de > no guarda de Bash) reprova o cenário correspondente nomeando o alvo, a cópia íntegra aprova antes e depois, e cmp -s prova a restauração byte a byte sem tocar arquivo rastreado"
       contracts: []
       tests:
         - tests/w250-data-engineer-agents-gate.sh
@@ -152,7 +157,7 @@ operations:
         - id: SCN-FHT-062-A
           given: "sete evals.json em .forge/evals/agents/data-*"
           when: "o gate w250 lê cada arquivo"
-          then: "cada um segue o formato do skill-creator usado em .forge/evals (skill_name igual ao nome do agente, artifact_kind agent, artifact_path que resolve, evals[] com id inteiro e eval_name únicos, prompt, expected_output, files e ao menos duas assertions {name, text}, uma delas regra-de-integracao-respeitada), com três casos por especialista e doze para o orquestrador, seis deles críticos"
+          then: "cada um segue o formato do skill-creator usado em .forge/evals (skill_name igual ao nome do agente, artifact_kind agent, artifact_path que resolve, evals[] com id inteiro e eval_name únicos, prompt, expected_output, files e ao menos duas assertions {name, text}, uma delas regra-de-integracao-respeitada), com quatro casos por especialista, um deles holdout-*, e vinte e dois para o orquestrador: seis de domínio único, seis críticos, seis disparo-*, dois disparo-negativo-* e dois holdout-*"
       contracts: []
       tests:
         - tests/w250-data-engineer-agents-gate.sh
@@ -162,13 +167,21 @@ operations:
     content_ref: requirements.md#req-10
     requirement:
       id: REQ-FHT-063
-      title: "Hook PreToolUse restringe os subagentes que o data-engineer cria, nos dois modos"
+      title: "Hooks PreToolUse restringem os subagentes que o data-engineer cria e o Bash dos especialistas, nos dois modos"
       normative: SHALL
       scenarios:
         - id: SCN-FHT-063-A
           given: "template/.forge/scripts/data-agent-allowlist.sh"
           when: "o script recebe na entrada padrão o JSON de PreToolUse de uma chamada Agent"
           then: "sai 0 só quando tool_input.subagent_type é um dos seis especialistas; sai 2 nomeando o tipo para qualquer outro; e sai 2 também com JSON malformado, campo ausente ou sem node no PATH"
+        - id: SCN-FHT-063-B
+          given: "uma instalação temporária com o data-engineer.md instalado"
+          when: "o comando do hook extraído do frontmatter roda por sh -c com CLAUDE_PROJECT_DIR na instalação, com o script presente e com o script removido"
+          then: "um tipo fora dos seis sai 2 nos dois casos e um especialista sai 2 quando o script falta"
+        - id: SCN-FHT-063-C
+          given: "template/.forge/scripts/data-agent-bash-guard.sh"
+          when: "o script recebe o JSON de PreToolUse de uma chamada Bash de especialista"
+          then: "sai 0 só para bash .forge/skills/<esp>-practices/scripts/scan.sh sem --json e bash .forge/scripts/check-data-governance.sh --path, com argumentos no alfabeto restrito; sai 2 nomeando o comando para redirecionamento, encadeamento, substituição de comando, sed -i, git e qualquer outro; e sai 2 com JSON malformado, campo ausente ou sem node"
       contracts: []
       tests:
         - tests/w250-data-engineer-agents-gate.sh

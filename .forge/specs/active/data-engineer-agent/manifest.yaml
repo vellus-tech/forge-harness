@@ -18,6 +18,8 @@ affected_paths:
   - template/.forge/agents/code-review/java-reviewer.md
   - template/.forge/agents/code-review/python-reviewer.md
   - template/.forge/agents/code-review/dotnet-reviewer.md
+  - template/.forge/agents/review/platform-reviewer.md
+  - template/.forge/templates/AGENTS.md
   - template/.forge/capabilities/backend-java-relational/PROFILE.md
   - template/.forge/capabilities/backend-python-relational/PROFILE.md
   - template/.forge/capabilities/backend-dotnet-relational/PROFILE.md
@@ -30,6 +32,9 @@ affected_paths:
   - template/.forge/skills/data-streaming-practices/
   - template/.forge/skills/capability-dispatcher/SKILL.md
   - template/.forge/scripts/data-agent-allowlist.sh
+  - template/.forge/scripts/data-agent-bash-guard.sh
+  - contracts/claude-adapter-contract.md
+  - .github/workflows/ci.yml
   - tests/w250-data-engineer-agents-gate.sh
   - tests/fixtures/w250/
   - .forge/evals/agents/data-engineer/

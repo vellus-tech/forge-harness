@@ -81,7 +81,8 @@ require_hook_lib() {  # require_hook_lib <name> — ecoa o caminho a sourcear em
   resolved="$(resolve_delegated "$name" "hooks/git/lib/$name")"; rc=$?
   if [ "$rc" -eq 0 ]; then printf '%s\n' "$resolved"; return 0; fi
   if [ "$rc" -eq 1 ]; then
-    echo "pre-push BLOQUEADO: $HOOK_LIB_DIR existe mas $name não —" >&2
+    # Achado LOW do adendo de revisão do w223: `$HOOK_LIB_DIR` é sempre o caminho da WORKTREE — quando só o tronco tem o diretório-lar, esta linha afirmava "existe" de um diretório que, na árvore que executa, não existe. Literal relativo, como as irmãs (".forge/scripts/ existe mas X não"): não nomeia uma árvore específica, então não pode mentir sobre qual delas tem o diretório. O prefixo que gates casam ("BLOQUEADO" ... "alvo ausente") não muda.
+    echo "pre-push BLOQUEADO: .forge/hooks/git/lib/ existe mas $name não —" >&2
     echo "  a delegação aponta para um alvo ausente. Rode /forge:upgrade ou restaure a lib." >&2
     return 1
   fi
@@ -180,13 +181,14 @@ fi
 # (o "não verifiquei" de #49 continua visível, nunca silêncio), mas não trava quem não tem como
 # resolvê-la só empurrando de novo. Quando o script EXISTE e RODA, a política é enforçada de
 # verdade — é só a ausência do alvo que degrada para aviso.
-LOG_INTEGRITY="$ROOT/.forge/scripts/check-liaison-log-integrity.sh"
-if [ -f "$LOG_INTEGRITY" ]; then
+# Achado LOW do adendo de revisão do w223: este sítio de aviso checava só `$ROOT` literal, a mesma classe que os sítios de bloqueio acima já corrigiam por resolve_delegated — uma worktree sem o script perdia a checagem mesmo com o tronco tendo-o. Resolve pelo mesmo mecanismo, mantendo a severidade de AVISO (nunca bloqueio) quando faltar nas duas árvores.
+LOG_INTEGRITY="$(resolve_delegated check-liaison-log-integrity.sh scripts/check-liaison-log-integrity.sh)"; _rc_li=$?
+if [ -n "$LOG_INTEGRITY" ]; then
   if ! FORGE_ROOT="$ROOT" bash "$LOG_INTEGRITY"; then
     echo "pre-push BLOQUEADO: liaison — log duplicado pelo merge=union (issue #80)" >&2
     exit 1
   fi
-elif [ -d "$ROOT/.forge/scripts" ]; then
+elif [ "$_rc_li" -eq 1 ]; then
   echo "pre-push: liaison-log-integrity (issue #80) NÃO VERIFICADO — check-liaison-log-integrity.sh ausente em .forge/scripts/ (rode 'npx forge-harness update' para instalar). merge=union nunca perde mensagem, só duplica, e post-merge (quando presente) já teria sinalizado — mas esta checagem específica não rodou agora."
 fi
 
@@ -217,14 +219,15 @@ FORGE_MD="$ROOT/.forge/FORGE.md"
 # herda o hook novo de outra, bloquearia por causa alheia. `warn`, não `block`: nomeia a lacuna em
 # voz alta (nunca silêncio — o "não verifiquei" de #49 continua visível), mas não trava quem não
 # tem como resolvê-la só empurrando de novo.
-PREREQS="$ROOT/.forge/scripts/check-worktree-prereqs.sh"
-if [ -f "$PREREQS" ]; then
+# Achado LOW do adendo de revisão do w223: mesma correção do LOG_INTEGRITY acima — resolve pelo mesmo mecanismo dos sítios de bloqueio, mantendo a severidade de AVISO quando faltar nas duas.
+PREREQS="$(resolve_delegated check-worktree-prereqs.sh scripts/check-worktree-prereqs.sh)"; _rc_pq=$?
+if [ -n "$PREREQS" ]; then
   if ! PREREQS_OUT="$(bash "$PREREQS" --path "$ROOT" 2>&1)"; then
     echo "pre-push BLOQUEADO: pré-condições de worktree ausentes (issue #81) —"
     echo "$PREREQS_OUT"
     exit 1
   fi
-elif [ -d "$ROOT/.forge/scripts" ]; then
+elif [ "$_rc_pq" -eq 1 ]; then
   echo "pre-push: worktree-prereqs (issue #81) NÃO VERIFICADO — check-worktree-prereqs.sh ausente em .forge/scripts/ (rode 'npx forge-harness update' para instalar). Os gates abaixo ainda reprovam se algo faltar — só não juntos."
 fi
 
@@ -453,6 +456,23 @@ if [ -n "$(gates_key_present)" ]; then
   # contrato que este item existe para eliminar.
   _gates_inline="$(forge_get_runtime gates "$ROOT" || true)"
 
+  # Achado MEDIUM do adendo de revisão do w223: RUNTIME_LIB pode ter sido resolvido para a PRÓPRIA árvore só porque o arquivo existe lá — mesmo quando é uma versão anterior a #82, sem `forge_runtime_gate_entries`. Sourced assim, a chamada mais abaixo é "command not found" sob `set -u`, silenciosamente engolida pelo `|| true`: o chamador não distingue isso de zero gate declarado — a mesma classe de silêncio que a issue #49 fecha em todo outro lugar deste arquivo (medido: `gates: meu-gate` com o script existindo e falhando terminava em "NO-GATES" e `pre-push OK`, rc 0, sem rodar o gate). Confere a API antes de confiar nela, e troca para a lib do tronco quando ela for compatível e a local não for.
+  if ! declare -F forge_runtime_gate_entries >/dev/null 2>&1; then
+    _rt_trunk="${HOOK_FORGE_DIR:+$HOOK_FORGE_DIR/scripts/lib/forge-runtime.sh}"
+    if [ -n "$_rt_trunk" ] && [ "$_rt_trunk" != "$RUNTIME_LIB" ] && [ -f "$_rt_trunk" ] \
+       && ( . "$_rt_trunk" 2>/dev/null; declare -F forge_runtime_gate_entries >/dev/null 2>&1 ); then
+      echo "hook: forge-runtime.sh em $ROOT não tem forge_runtime_gate_entries (versão anterior a #82) — usando o do tronco ($_rt_trunk); rode forge update na worktree" >&2
+      RUNTIME_LIB="$_rt_trunk"
+      # shellcheck disable=SC1090
+      . "$RUNTIME_LIB"
+    else
+      echo "pre-push BLOQUEADO: 'runtime.gates' está declarado e a lib em $RUNTIME_LIB não tem forge_runtime_gate_entries (versão anterior a #82); o tronco não oferece uma versão compatível." >&2
+      echo "  Não bloquear aqui devolveria ZERO gates e um push verde, indistinguível de um projeto" >&2
+      echo "  sem gate algum. Rode 'npx forge-harness update' ou restaure lib/forge-runtime.sh." >&2
+      exit 1
+    fi
+  fi
+
   # Guarda do leitor indisponível. `forge_runtime_gate_entries` delega a forma mapeada a
   # `node lib/gate-phase.mjs` e devolve VAZIO, calada, quando node não existe — e vazio é
   # indistinguível de "nenhum gate declarado". O gatilho do bloqueio é a INDISPONIBILIDADE DO
@@ -465,13 +485,24 @@ if [ -n "$(gates_key_present)" ]; then
   # CHAMADOR, e o hook é o chamador que bloqueia: `run-gates.sh` e `spec-verify.sh` seguem
   # silenciosos no mesmo estado. Duas severidades para o mesmo fato, declaradas — o inaceitável
   # seria ficarem implícitas.
+  #
+  # Achado HIGH do adendo de revisão do w223: este sítio era o único, entre os irmãos deste arquivo (AI_CHECK, ACKS, HEAVY_LIB, require_hook_lib, HARNESS_SUITE, RUNTIME_LIB), que checava `$ROOT` literal em vez de delegar por resolve_delegated — uma worktree sem gate-phase.mjs bloqueava mesmo com o tronco (que já pode ter fornecido o próprio RUNTIME_LIB acima) tendo o arquivo. Resolve pelo mesmo mecanismo dos irmãos; e mantém coerência de par: `forge_runtime_gate_entries` busca o gate-phase.mjs irmão pelo `script_dir` da PRÓPRIA lib sourced (`dirname "${BASH_SOURCE[0]}"` em forge-runtime.sh) — se o resolvido vier de uma árvore diferente da de RUNTIME_LIB, troca as duas juntas para a árvore de gate-phase.mjs, ou o `script_dir` interno continuaria procurando no lugar errado e devolveria vazio em silêncio.
   if [ -z "$_gates_inline" ]; then
-    if ! command -v node >/dev/null 2>&1 || [ ! -f "$ROOT/.forge/scripts/lib/gate-phase.mjs" ]; then
+    GATE_PHASE_MJS="$(resolve_delegated gate-phase.mjs scripts/lib/gate-phase.mjs)"
+    if [ -n "$GATE_PHASE_MJS" ]; then
+      _gp_dir="$(dirname "$GATE_PHASE_MJS")"
+      if [ "$_gp_dir" != "$(dirname "$RUNTIME_LIB")" ] && [ -f "$_gp_dir/forge-runtime.sh" ]; then
+        RUNTIME_LIB="$_gp_dir/forge-runtime.sh"
+        # shellcheck disable=SC1090
+        . "$RUNTIME_LIB"
+      fi
+    fi
+    if ! command -v node >/dev/null 2>&1 || [ -z "$GATE_PHASE_MJS" ]; then
       echo "pre-push BLOQUEADO: 'runtime.gates' está declarado sem valor inline (forma mapeada) e a declaração NÃO PÔDE SER LIDA." >&2
       command -v node >/dev/null 2>&1 \
         || echo "  Causa: 'node' não está no PATH — a forma mapeada é lida por lib/gate-phase.mjs." >&2
-      [ -f "$ROOT/.forge/scripts/lib/gate-phase.mjs" ] \
-        || echo "  Causa: .forge/scripts/lib/gate-phase.mjs ausente — rode 'npx forge-harness update'." >&2
+      [ -n "$GATE_PHASE_MJS" ] \
+        || echo "  Causa: .forge/scripts/lib/gate-phase.mjs ausente nas árvores disponíveis — rode 'npx forge-harness update'." >&2
       echo "  Não bloquear aqui devolveria ZERO gates e um push verde, indistinguível de um projeto" >&2
       echo "  sem gate algum. Instale o leitor, ou declare os gates na forma CSV escalar." >&2
       exit 1

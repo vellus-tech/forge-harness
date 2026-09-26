@@ -53,6 +53,55 @@ argument-hint: "[--no-backup]"
 6. **Resuma** o resultado: o que foi atualizado, o que foi preservado (specs/baseline), o estado do `core.hooksPath`, a divergência dos worktrees e o backup.
    O backup fica em `.git/forge-backups/` e não precisa ser removido para rodar gates: fora da árvore, ele não é varrido por `--path` nem aparece em `git status`. Antes ele vivia em `.forge.bak-N` e era varrido pelos próprios gates, bloqueando o primeiro push após o upgrade por conteúdo que era cópia do repositório (issue #76).
 
+## Divergências deliberadas de maquinaria (issues #101/#131)
+
+Maquinaria fora de `ENRICHABLE_DIRS` (`scripts/`, `hooks/`, `commands/` e qualquer outro caminho
+que não esteja em `agents/rules/skills/templates` — capabilities, contracts, schemas,
+`adapters/*.yaml`, `README.md`) — o overlay sempre a sobrescreve quando diverge do template, com
+ou sem `machinery.lock`. Um conserto local nesses caminhos sobrevive ao próximo `update` só se
+estiver declarado em `.forge/machinery-exceptions.txt`, uma linha por arquivo:
+
+```
+<sha256 do TEMPLATE no momento da declaração>  <caminho relativo a .forge/>  # razão
+```
+
+O caminho aceita prefixo `./` ou `.forge/` (normalizado antes de casar contra o template, e a
+grafia original é nomeada no relatório); duas declarações que normalizam para o mesmo caminho
+contam como duplicata. Qualquer token além de `<sha> <caminho>` malforma a linha, com ou sem `#`
+(igual ao parser de origem, `read -r e_sha e_rel e_resto` — um terceiro token não vazio recusa a
+linha). O sha é sempre o do TEMPLATE (nunca o do disco) e casa por IGUALDADE ESTRITA, nunca por
+prefixo: um sha declarado com menos de 64 dígitos (sintaxe válida, >= 32 dígitos) nunca é igual ao
+sha de 64 dígitos do template, então cai sempre em **expirado**. Se o template mudar o
+arquivo de novo, a declaração **expira** — o `update` preserva o arquivo mesmo assim e nomeia os
+dois shas para reexame, em vez de bloquear (parar seria mudar a fronteira publicada do comando).
+O `--dry-run` usa a MESMA classificação que a aplicação real: a prévia nunca anuncia sobrescrita
+(`~ caminho`) de um arquivo que uma exceção viva ou expirada preserva, nem remoção (`- caminho
+(órfão ...)`) de um tombstone que uma exceção barra — os dois aparecem como `= caminho (preservado
+— ...)` / `= caminho (tombstone pulado — exceção declarada)` também na prévia.
+
+O relatório do `update` nomeia cada exceção viva (`PRESERVADO (exceção declarada)`), cada
+expirada (`EXCEÇÃO EXPIRADA`, com os dois shas) e cada ociosa (`EXCEÇÃO OCIOSA` — caminho fora do
+template, já idêntico a ele, enriquecível ou ainda não instalado nesta árvore). Um caminho que o
+template **removeu** (tombstone) e que tem exceção declarada não é apagado pela poda de órfãos —
+aparece uma única vez, como `tombstone pulado — exceção declarada`, nunca duplicado como
+`EXCEÇÃO OCIOSA`. O orphan-check defensivo que reprova o `update` quando sobra um placeholder
+`<PROJECT_*>` num `.md`/`.yml` de maquinaria isenta também o caminho preservado por exceção viva ou
+expirada: é conteúdo do consumidor, não do template, e não deve derrubar o comando por escolha
+alheia.
+
+Toda sobrescrita de maquinaria própria sem exceção declarada é nomeada sempre, sob dois rótulos
+distintos: `SOBRESCRITO (não declarado)` quando o hash local diverge do `machinery.lock` da
+última aplicação (edição local de verdade), com o caminho do backup onde o conteúdo anterior
+sobrevive; e `ATUALIZADO` quando o hash local bate com o lock (o consumidor nunca tocou o
+arquivo — foi só o template que evoluiu), para que a única sobrescrita local real não se perca em
+meio a dezenas de refreshes rotineiros. Arquivo ilegível, linha malformada ou caminho declarado
+duas vezes param o update **antes** de escrever qualquer coisa (inclusive o `--dry-run`), nomeando
+a linha.
+
+`scripts/` **não** ganha preservação automática por deriva — só a declaração explícita preserva.
+Ao consertar ou reconciliar um arquivo, remova a linha dele: exceção que não cobre mais nada
+absolve em silêncio uma divergência futura que ninguém examinou.
+
 ## Regras
 
 - **Nunca** rode este comando de dentro de um worktree linkado — ele recusa, e a recusa não tem flag

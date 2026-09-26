@@ -2760,10 +2760,10 @@
       "id": "LDG-0182",
       "type": "known-bug",
       "title": "O guarda anti-recursão do w80 está MORTO: as asserções [4] e [5] são pipelines com '!' e são isentas do set -e",
-      "detail": "Medido em 2026-09-08 pela revisão adversarial da especificação de LDG-0180 e reproduzido pela implementação com controle, mutação e recontrole. As asserções [4] e [5] do tests/w80-suite-gate.sh são da forma '! grep -E … >/dev/null' sob 'set -euo pipefail'. O bash, como o POSIX manda, NÃO sai por set -e quando o valor de retorno do comando está sendo invertido por '!' — logo as duas asserções calculam um valor e o descartam, e o gate imprime 'OK [4]' e 'OK [5]' sempre. Três medições independentes: (i) 'set -euo pipefail; ! true; echo depois' imprime depois e sai 0; (ii) prova de ponta a ponta numa bancada em TMPDIR onde tests/ é reproduzido por symlinks e só run-all.sh e w80 são cópias — controle com o runner idêntico (sha e7d8db47) sai rc 0 com OK [4] e OK [5], mutação acrescentando uma linha não-comentário citando o runner muda o sha para 7a32d857 e o gate CONTINUA saindo rc 0 com OK [4] e OK [5], e o recontrole devolve o sha original com rc 0. O sha muda, logo a mutação não é fantasma; o rc não muda, logo o gate não acusa. AGRAVANTE QUE MUDA A ORDEM DO CONSERTO: a segunda asserção do [4], '! grep -E \"(bash|sh|exec).*run-all\"', JÁ CASA hoje sobre o runner de produção, na linha 43, que é comentário e que a lista de exceções da PRIMEIRA asserção isentaria mas a segunda não consulta. Consertar o '!' sem mais nada deixa o w80 vermelho no mesmo instante — por isso isto é item próprio e não carona da onda de LDG-0180. CONSEQUÊNCIA JÁ MITIGADA EM PARTE: a restrição de forma que o [4] pretendia impor sobre o texto do runner passou a ser afirmada pelo cenário 24 do tests/w212-runner-tres-estados-gate.sh — reescrito para afirmar a propriedade anti-recursão (invocação), e não a mera presença do token, porque a redação por token reprovaria a mensagem de diagnóstico legítima que a onda LDG-0179 acrescentou ao runner —, com as mutações M9 e M10 provando que ele acusa. O que continua descoberto é a recursão pelo próprio w80, que era o objeto do [5]. VARREDURA QUE FALTA, e é o que torna isto P2: ninguém varreu os 137 gates atrás de outras asserções na forma '! comando' sob set -e — a população real é desconhecida, e a classe é exatamente a do falso-verde que este harness existe para eliminar. CONDIÇÃO PARA FECHAR: as duas asserções do w80 reprovam de fato (por exemplo com '|| { echo FAIL; exit 1; }' em vez de '!' nu), a linha 43 do runner ou o padrão da segunda asserção ajustados para que o verde volte por acerto e não por omissão, e a varredura dos gates atrás da mesma forma feita e registrada.",
+      "detail": "Medido em 2026-09-08 pela revisão adversarial da especificação de LDG-0180 e reproduzido pela implementação com controle, mutação e recontrole. As asserções [4] e [5] do tests/w80-suite-gate.sh são da forma '! grep -E … >/dev/null' sob 'set -euo pipefail'. O bash, como o POSIX manda, NÃO sai por set -e quando o valor de retorno do comando está sendo invertido por '!' — logo as duas asserções calculam um valor e o descartam, e o gate imprime 'OK [4]' e 'OK [5]' sempre. Três medições independentes: (i) 'set -euo pipefail; ! true; echo depois' imprime depois e sai 0; (ii) prova de ponta a ponta numa bancada em TMPDIR onde tests/ é reproduzido por symlinks e só run-all.sh e w80 são cópias — controle com o runner idêntico (sha e7d8db47) sai rc 0 com OK [4] e OK [5], mutação acrescentando uma linha não-comentário citando o runner muda o sha para 7a32d857 e o gate CONTINUA saindo rc 0 com OK [4] e OK [5], e o recontrole devolve o sha original com rc 0. O sha muda, logo a mutação não é fantasma; o rc não muda, logo o gate não acusa. AGRAVANTE QUE MUDA A ORDEM DO CONSERTO: a segunda asserção do [4], '! grep -E \"(bash|sh|exec).*run-all\"', JÁ CASA hoje sobre o runner de produção, na linha 43, que é comentário e que a lista de exceções da PRIMEIRA asserção isentaria mas a segunda não consulta. Consertar o '!' sem mais nada deixa o w80 vermelho no mesmo instante — por isso isto é item próprio e não carona da onda de LDG-0180. CONSEQUÊNCIA JÁ MITIGADA EM PARTE: a restrição de forma que o [4] pretendia impor sobre o texto do runner passou a ser afirmada pelo cenário 24 do tests/w212-runner-tres-estados-gate.sh — reescrito para afirmar a propriedade anti-recursão (invocação), e não a mera presença do token, porque a redação por token reprovaria a mensagem de diagnóstico legítima que a onda LDG-0179 acrescentou ao runner —, com as mutações M9 e M10 provando que ele acusa. O que continua descoberto é a recursão pelo próprio w80, que era o objeto do [5]. VARREDURA QUE FALTA, e é o que torna isto P2: ninguém varreu os 137 gates atrás de outras asserções na forma '! comando' sob set -e — a população real é desconhecida, e a classe é exatamente a do falso-verde que este harness existe para eliminar. CONDIÇÃO PARA FECHAR: as duas asserções do w80 reprovam de fato (por exemplo com '|| { echo FAIL; exit 1; }' em vez de '!' nu), a linha 43 do runner ou o padrão da segunda asserção ajustados para que o verde volte por acerto e não por omissão, e a varredura dos gates atrás da mesma forma feita e registrada. — Resolvido: Resolvido pelo PR #161 (squash 327658d). tests/w80-suite-gate.sh [4]/[5] e tests/w62-handoff-hook-gate.sh [1] passam para a forma '! cmd || { echo FAIL; exit 1; }'. Prova reexecutada pelo orquestrador: develop + runner mutado com 'bash tests/run-all.sh --list' → w80 rc 0; branch + mesma mutação → 'FAIL [4]: run-all.sh contém invocação real de run-all via bash/sh/exec (recursão)'; recontrole cmp -s → rc 0. DoD da Onda 0 (grep de '! ' sem || nos 14 gates revalidados pelo Bloco A) → 0 linhas. Suíte local sozinha 139/139; CI gates verde em a0200a7. Lote restante (12 linhas em 12 gates) e lacunas residuais do [4] vão para item novo na Onda 7.",
       "severity": null,
       "priority": "P2",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -2776,8 +2776,8 @@
         "promoted_to": null
       },
       "created_at": "2026-09-08T18:26:41-03:00",
-      "updated_at": "2026-09-08T18:26:41-03:00",
-      "resolved_at": null,
+      "updated_at": "2026-09-25T23:31:56-03:00",
+      "resolved_at": "2026-09-25T23:31:56-03:00",
       "dedup_key": "manual:LDG-0182"
     },
     {
@@ -2971,6 +2971,30 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0190"
+    },
+    {
+      "id": "LDG-0191",
+      "type": "tech-debt",
+      "title": "Lote restante de '! comando' nus sob set -e (12 linhas em 12 gates) e lacunas residuais da anti-recursão do w80 [4]",
+      "detail": "Depois do LDG-0182 (PR #161), a varredura grep -nE '^[[:space:]]*! ' tests/*.sh | grep -v '||' ainda acha 12 linhas em 12 gates fora dos 14 revalidados pelo Bloco A: w51, w32, w211, w20, w175, w169, w163, infra-scan, gw3-data-governance, graph-deps, check-authz e changelog-merge. Cada uma precisa ser medida (mutação que deveria reprovar → rc hoje) antes de converter, porque '! ' dentro de if/while ou seguido de || na linha seguinte está vivo. Mesma frente: lacunas LOW da revisão do PR #161 no w80 [4] — zsh/dash/ksh, \"$0\"/${BASH_SOURCE[0]}, source/., execução direta tests/run-all.sh, e o grep com rc>1 (regex inválida) que abre o guarda em silêncio. Correção: conversão por gate com mutação e recontrole, e no [4] manter também a regex ampla de develop com filtro de comentário.",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "session",
+        "ref": "PR #161, revisão code-evaluator LOW"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-25T23:31:56-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0191"
     }
   ]
 }

@@ -1043,7 +1043,7 @@ Arquivos: `template/.forge/scripts/gate-ordinal.sh`, `template/.forge/scripts/le
 
 **LDG-0100** · gate novo: não (amplia `tests/w136-session-start-liaison-acks-gate.sh` e o cenário de doctor) — só depois do merge da #123 (DA-26): wont-fix com a condição de reabertura reescrita para "algum canal com kind diferente de fs, fs-union ou manual", verificada por WARN aditivo e não bloqueante do doctor que nomeia canal e kind. O PR de código entrega o WARN; a mudança de status para wont-fix é gravada pelo PR de reconciliação do Bloco E. No placar, fica `~` com decisão registrada.
 
-O lote restante dos `! cmd` nus (J-19), fora dos 14 gates da Onda 0, entra nesta onda como o item novo de ledger que o PR de reconciliação do Bloco 0 cria.
+**LDG-0191** — o lote restante dos `! cmd` nus (J-19), fora dos 14 gates da Onda 0: 12 linhas em 12 gates medidas em `327658d` (w51, w32, w211, w20, w175, w169, w163, infra-scan, gw3-data-governance, graph-deps, check-authz, changelog-merge), mais as lacunas LOW da revisão do PR #161 no `w80` [4]. Criado pelo PR de reconciliação do Bloco 0; cada conversão com mutação e recontrole.
 
 **DoD da Onda 7:** `node tools/plan-progress.mjs --plan ... --wave 7` com tudo ✓, ou `~` só com decisão registrada (o LDG-0100 como wont-fix por DA-26); o gate de três layouts verde, com a mutação para `forge_resolve_root` reprovando o cenário worktree e o recontrole verde; o WARN de ordinal presente numa fixture com duas refs e ausente com uma; o grafo commitado com o mesmo conjunto de nodes do regenerado; e o PR de reconciliação do Bloco E (protocolo, item 11) mergeado, com as resoluções da onda, o wont-fix do LDG-0100 e o item de roadmap do resto do LDG-0173 em negrito na Onda 8.
 

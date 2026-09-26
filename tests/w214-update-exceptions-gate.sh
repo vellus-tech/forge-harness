@@ -22,8 +22,10 @@
 #   [5] ausência de `.forge/machinery-exceptions.txt`: comportamento igual ao de antes desta
 #       entrega, mais as linhas `SOBRESCRITO` novas — nada além disso aparece
 #   [6] fixture real: cópia literal do `.forge/machinery-exceptions.txt` do axis-fare-validator
-#       (34 linhas vivas, só leitura em disco, sanitizada por grep prévio — sem PII/segredo) —
-#       o parser aceita com rc 0 e nomeia as 34 linhas
+#       (34 linhas, só leitura em disco, sanitizada por grep prévio — sem PII/segredo) — o parser
+#       aceita as 34 linhas e todas são nomeadas, com rc 0 (a categoria de cada uma — viva ou
+#       expirada — depende do template contra o qual o gate roda; a asserção não trava a
+#       categoria, só a presença e o rc)
 #   [8] --dry-run HONRA exceções declaradas: exceção viva aparece como `= rel (preservado —
 #       exceção declarada)`, nunca como `~ rel` (sobrescrita) — a prévia mostrada ao humano antes
 #       de confirmar não pode contradizer o que a aplicação real faz
@@ -43,6 +45,18 @@
 #   [7] PBT: para arquivos de exceção gerados sobre caminhos REAIS do template, o update para
 #       sse existe linha malformada/duplicada; quando não para, cada arquivo fica byte-idêntico
 #       sse tem exceção viva ou expirada, e todo caminho declarado aparece exatamente uma vez
+#   [12] exceção viva sobre um `.md` de maquinaria (fora de ENRICHABLE_DIRS) cujo conteúdo local
+#        contém um placeholder `<PROJECT_X>` não substituído: o orphan-check defensivo de
+#        placeholders soma o caminho preservado por exceção (viva OU expirada) ao conjunto isento,
+#        exatamente como já faz para `preservedFiles` — rc 0 e `PRESERVADO (exceção declarada)`,
+#        nunca `FAIL ... template inválido?` (achado MEDIUM do review adversarial: o update
+#        escrevia o overlay e o `machinery.lock` e só then abortava no orphan-check, deixando o
+#        consumidor num update parcial por causa de um arquivo que ELE MESMO preservou)
+#   [13] linha sem `#` com token extra após `<sha> <caminho>`: o token vira parte da razão — a
+#        gramática aceita, alinhada ao `read -r sha path _` do consumidor de origem — em vez de
+#        malformada (achado LOW)
+#   [13b] sha declarado com menos de 64 dígitos hex casa por PREFIXO contra o sha de 64 dígitos do
+#         template: uma declaração truncada mas correta é VIVA, nunca EXPIRADA (achado LOW)
 set -uo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -163,7 +177,7 @@ echo "[6] fixture real (axis-fare-validator, 34 exceções): rc 0, as 34 linhas 
 FIXTURE="$WS/tests/fixtures/w214/machinery-exceptions-axis-fare-validator.txt"
 [ -f "$FIXTURE" ] || { echo "FAIL [6] (setup): fixture ausente em $FIXTURE"; exit 1; }
 N_DECLARADAS="$(grep -cE '^[0-9a-f]{32,}[[:space:]]' "$FIXTURE")"
-[ "$N_DECLARADAS" -eq 34 ] || { echo "FAIL [6] (setup): fixture não tem 34 linhas vivas de dados (achei $N_DECLARADAS)"; exit 1; }
+[ "$N_DECLARADAS" -eq 34 ] || { echo "FAIL [6] (setup): fixture não tem 34 linhas declaradas de dados (achei $N_DECLARADAS)"; exit 1; }
 C6="$(consumidor c6)"
 cp "$FIXTURE" "$C6/.forge/machinery-exceptions.txt"
 out6="$(node "$FORGE" update --target "$C6" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc6=$?
@@ -295,6 +309,53 @@ set +e  # idem
 grep -q 'caminho declarado duas vezes' <<<"$out11c" \
   || { echo "FAIL [11c]: recusa não nomeia duplicata por normalização de prefixo"; echo "$out11c"; exit 1; }
 echo "OK [11c]"
+
+echo "[12] exceção viva sobre .md fora de ENRICHABLE_DIRS com placeholder <PROJECT_X>: rc 0, PRESERVADO, nunca FAIL do orphan-check"
+C12="$(consumidor c12)"
+TARGET12="commands/harness/upgrade.md"
+[ -f "$C12/.forge/$TARGET12" ] || { echo "FAIL [12] (setup): $TARGET12 ausente no consumidor recém-instalado"; exit 1; }
+printf '\n<PROJECT_SLUG> — nota local sobre um placeholder nao substituido de proposito\n' >> "$C12/.forge/$TARGET12"
+grep -q '<PROJECT_SLUG>' "$C12/.forge/$TARGET12" || { echo "FAIL [12] (setup): placeholder não foi escrito no consumidor"; exit 1; }
+printf '%s  %s  # placeholder local deliberado, cobre o orphan-check de <PROJECT_*>\n' "$(sha_tpl "$TARGET12")" "$TARGET12" \
+  > "$C12/.forge/machinery-exceptions.txt"
+out12="$(node "$FORGE" update --target "$C12" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc12=$?
+[ "$rc12" -eq 0 ] || { echo "FAIL [12]: update com exceção viva sobre .md com placeholder saiu rc=$rc12 (orphan-check não deveria contar arquivo preservado por exceção)"; echo "$out12"; exit 1; }
+grep -q "PRESERVADO (exceção declarada): $TARGET12" <<<"$out12" \
+  || { echo "FAIL [12]: linha PRESERVADO (exceção declarada) ausente"; echo "$out12"; exit 1; }
+grep -q '<PROJECT_SLUG>' "$C12/.forge/$TARGET12" \
+  || { echo "FAIL [12]: conteúdo local com o placeholder foi sobrescrito — a exceção viva deveria ter preservado"; exit 1; }
+echo "OK [12]"
+
+echo "[13] linha sem '#' com token extra após <sha> <caminho>: o token vira parte da razão, nunca malformada"
+C13="$(consumidor c13)"
+printf '\n# CONSERTO-LOCAL-13\n' >> "$C13/.forge/scripts/doctor.sh"
+SHA_DOCTOR13="$(sha_tpl scripts/doctor.sh)"
+printf '%s  scripts/doctor.sh  razao-sem-hash\n' "$SHA_DOCTOR13" > "$C13/.forge/machinery-exceptions.txt"
+out13="$(node "$FORGE" update --target "$C13" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc13=$?
+[ "$rc13" -eq 0 ] || { echo "FAIL [13]: linha sem '#' com token extra foi tratada como malformada (deveria virar razão) — rc=$rc13"; echo "$out13"; exit 1; }
+grep -q 'CONSERTO-LOCAL-13' "$C13/.forge/scripts/doctor.sh" \
+  || { echo "FAIL [13]: conserto local sobrescrito — a linha deveria ter sido aceita como exceção viva"; exit 1; }
+grep -qF 'PRESERVADO (exceção declarada): scripts/doctor.sh — razão: razao-sem-hash' <<<"$out13" \
+  || { echo "FAIL [13]: o token extra sem '#' não virou a razão relatada"; echo "$out13"; exit 1; }
+echo "OK [13]"
+
+echo "[13b] sha declarado com menos de 64 dígitos hex casa por PREFIXO — declaração truncada mas correta é VIVA, nunca EXPIRADA"
+C13B="$(consumidor c13b)"
+printf '\n# CONSERTO-LOCAL-13B\n' >> "$C13B/.forge/scripts/doctor.sh"
+SHA_DOCTOR13B="$(sha_tpl scripts/doctor.sh)"
+SHA_PREFIXO13B="${SHA_DOCTOR13B:0:40}"
+[ "${#SHA_PREFIXO13B}" -eq 40 ] || { echo "FAIL [13b] (setup): prefixo do sha malformado (len=${#SHA_PREFIXO13B})"; exit 1; }
+printf '%s  scripts/doctor.sh  # sha truncado a 40 dígitos, prefixo exato do sha do template\n' "$SHA_PREFIXO13B" \
+  > "$C13B/.forge/machinery-exceptions.txt"
+out13b="$(node "$FORGE" update --target "$C13B" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc13b=$?
+[ "$rc13b" -eq 0 ] || { echo "FAIL [13b]: update com sha truncado por prefixo saiu rc=$rc13b"; echo "$out13b"; exit 1; }
+grep -q "PRESERVADO (exceção declarada): scripts/doctor.sh" <<<"$out13b" \
+  || { echo "FAIL [13b]: sha truncado que é PREFIXO do sha do template deveria casar como VIVA (PRESERVADO), não EXPIRADA"; echo "$out13b"; exit 1; }
+grep -q 'EXCEÇÃO EXPIRADA: scripts/doctor.sh' <<<"$out13b" \
+  && { echo "FAIL [13b]: sha truncado por prefixo foi classificado como EXPIRADA em vez de VIVA"; echo "$out13b"; exit 1; }
+grep -q 'CONSERTO-LOCAL-13B' "$C13B/.forge/scripts/doctor.sh" \
+  || { echo "FAIL [13b]: conserto local sobrescrito — sha truncado por prefixo deveria preservar (VIVA)"; exit 1; }
+echo "OK [13b]"
 
 echo "[7] PBT: para exceções geradas sobre caminhos reais do template, o desfecho é função pura do conjunto declarado"
 node --input-type=module - "$WS" <<'NODE_EOF'

@@ -351,7 +351,15 @@ function cmdStatus(changeDir) {
   const ev = loadRedEvidence(changeDir);
   if (!ev.exists) { console.log(`MISSING (${REL_PATH} ausente)`); return; }
   if (ev.errors.length) { console.log(`INVALID (${ev.errors.join('; ')})`); return; }
-  console.log(isResolved(ev.data) ? `OK (status: ${ev.data.status})` : `PENDING (status: ${ev.data.status})`);
+  // Onda #139 — leitura informativa de entries[]: change com múltiplas entradas mostra quantas
+  // já estão resolvidas (observed|waived), sem que isso mude o veredito OK/PENDING (que continua
+  // vindo do status do topo, já derivado por applyRecord). Iterar entries[] para o veredito
+  // ITEM A ITEM é escopo da #138, não desta Onda.
+  const entries = Array.isArray(ev.data.entries) ? ev.data.entries : [];
+  const suffix = entries.length > 1
+    ? ` — ${entries.filter((e) => e.status === 'observed' || e.status === 'waived').length}/${entries.length} entrada(s) resolvida(s)`
+    : '';
+  console.log(isResolved(ev.data) ? `OK (status: ${ev.data.status}${suffix})` : `PENDING (status: ${ev.data.status}${suffix})`);
 }
 
 // ── "waive": grava waiver tipado (§ Quando o Red não é possível) ───────────────────────

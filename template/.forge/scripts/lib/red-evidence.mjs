@@ -17,6 +17,68 @@ export const WAIVER_REASONS = ['non-behavioral', 'no-test-infra', 'external-unre
 // mesmo acabara de produzir.
 export const BASE_STRATEGIES = ['ancestry', 'revert-synthesis', 'test-graft'];
 
+// ENTRY_SCALAR_FIELDS — os campos por-defeito que hoje moram no topo (Onda #139: entries[]).
+// Fonte única para quem projeta o topo a partir de entries[0] (lib/red-evidence-ops.mjs) e para
+// quem valida cada entrada aqui — evita que as duas listas divirjam como a de STATUSES/
+// CLASSIFICATIONS antes desta constante existir. Exclui 'id', 'status', 'fix_files' e 'waiver',
+// que têm forma/validação própria (ver validateEntryFields abaixo).
+export const ENTRY_SCALAR_FIELDS = [
+  'test_path', 'test_id', 'command', 'base_commit', 'failure_pattern', 'excerpt', 'excerpt_sha256',
+  'classification', 'base_result', 'base_strategy', 'graft_from', 'revert_patch', 'replay_head',
+  'setup_command', 'reproduces', 'recorded_at', 'replayed_at', 'waived_at',
+];
+
+// validateEntryFields: mesma checagem de tipo/enum/pattern do topo, aplicada a um item de
+// entries[] (Onda #139). Duplicada em vez de compartilhada com validateRedEvidence porque o topo
+// tem campos que uma entrada não tem (schema, change_id) e vice-versa (id) — extrair um
+// compartilhamento genérico arriscaria o validador do topo, já em produção, por um ganho de DRY
+// que a lista ENTRY_SCALAR_FIELDS acima já cobre para o risco real (as duas listas divergirem).
+function validateEntryFields(e, idx, errors) {
+  const p = `entries[${idx}]`;
+  if (!e || typeof e !== 'object' || Array.isArray(e)) { errors.push(`${p}: not an object`); return; }
+  if (e.id !== undefined && e.id !== null && typeof e.id !== 'string') errors.push(`${p}.id must be string|null`);
+  if (!STATUSES.includes(e.status)) errors.push(`${p}.status invalid: ${e.status} (allowed: ${STATUSES.join('|')})`);
+  for (const k of ['test_path', 'test_id', 'command', 'failure_pattern', 'excerpt', 'reproduces'])
+    if (e[k] !== undefined && e[k] !== null && typeof e[k] !== 'string') errors.push(`${p}.${k} must be string|null`);
+  if (e.base_commit !== undefined && e.base_commit !== null) {
+    if (typeof e.base_commit !== 'string' || !/^[a-f0-9]{7,40}$/.test(e.base_commit))
+      errors.push(`${p}.base_commit must match ^[a-f0-9]{7,40}$`);
+  }
+  if (e.excerpt_sha256 !== undefined && e.excerpt_sha256 !== null) {
+    if (typeof e.excerpt_sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(e.excerpt_sha256))
+      errors.push(`${p}.excerpt_sha256 must be a 64-hex sha256`);
+  }
+  if (e.classification !== undefined && e.classification !== null && !CLASSIFICATIONS.includes(e.classification))
+    errors.push(`${p}.classification invalid: ${e.classification} (allowed: ${CLASSIFICATIONS.join('|')}|null)`);
+  if (e.base_result !== undefined && e.base_result !== null && !['failed', 'passed', 'unknown'].includes(e.base_result))
+    errors.push(`${p}.base_result invalid: ${e.base_result} (allowed: failed|passed|unknown|null)`);
+  if (e.base_strategy !== undefined && e.base_strategy !== null && !BASE_STRATEGIES.includes(e.base_strategy))
+    errors.push(`${p}.base_strategy invalid: ${e.base_strategy} (allowed: ${BASE_STRATEGIES.join('|')}|null)`);
+  if (e.graft_from !== undefined && e.graft_from !== null) {
+    if (typeof e.graft_from !== 'string' || !/^[a-f0-9]{7,40}$/.test(e.graft_from))
+      errors.push(`${p}.graft_from must match ^[a-f0-9]{7,40}$`);
+  }
+  for (const k of ['revert_patch', 'setup_command'])
+    if (e[k] !== undefined && e[k] !== null && typeof e[k] !== 'string') errors.push(`${p}.${k} must be string|null`);
+  if (e.replay_head !== undefined && e.replay_head !== null) {
+    if (typeof e.replay_head !== 'string' || !/^[a-f0-9]{7,40}$/.test(e.replay_head))
+      errors.push(`${p}.replay_head must match ^[a-f0-9]{7,40}$`);
+  }
+  if (e.fix_files !== undefined) {
+    if (!Array.isArray(e.fix_files) || e.fix_files.some((f) => typeof f !== 'string'))
+      errors.push(`${p}.fix_files must be an array of strings`);
+  }
+  if (e.waiver !== undefined && e.waiver !== null) {
+    if (typeof e.waiver !== 'object' || Array.isArray(e.waiver)) errors.push(`${p}.waiver must be object|null`);
+    else {
+      if (!WAIVER_REASONS.includes(e.waiver.reason))
+        errors.push(`${p}.waiver.reason invalid: ${e.waiver.reason} (allowed: ${WAIVER_REASONS.join('|')})`);
+      if (e.waiver.deferral_id != null && !/^DEFER-[0-9]+/.test(e.waiver.deferral_id))
+        errors.push(`${p}.waiver.deferral_id must match ^DEFER-[0-9]+`);
+    }
+  }
+}
+
 // validateRedEvidence(data): espelho do schema — additionalProperties:false não é
 // reforçado aqui (não é o ponto de risco; a lista fixa de campos abaixo já é o contrato),
 // mas todo campo presente é conferido quanto a tipo/enum/pattern.
@@ -64,6 +126,12 @@ export function validateRedEvidence(data) {
       if (data.waiver.deferral_id != null && !/^DEFER-[0-9]+/.test(data.waiver.deferral_id))
         errors.push('waiver.deferral_id must match ^DEFER-[0-9]+');
     }
+  }
+  // entries — Onda #139 (issue #139): propriedade ADITIVA e opcional; um red-evidence.json
+  // legado (centenas de changes de consumidores em voo) não tem esta chave e continua válido.
+  if (data.entries !== undefined) {
+    if (!Array.isArray(data.entries)) errors.push('entries must be an array');
+    else data.entries.forEach((e, i) => validateEntryFields(e, i, errors));
   }
   return errors;
 }

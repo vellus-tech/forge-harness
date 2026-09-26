@@ -27,7 +27,7 @@ existir; falha se o change não existir ou não for `type: bugfix`.
 ## record — declarar o teste que reproduz o defeito
 
 ```bash
-bash .forge/scripts/red-evidence.sh record <change-id> \
+bash .forge/scripts/red-evidence.sh record <change-id> [--id <defeito>] \
   --test-path <path/do/teste> --test-id "<nome do caso>" \
   --command "<comando que roda só esse teste>" \
   --failure-pattern "<regex ou substring esperada na falha>" \
@@ -40,6 +40,28 @@ um `replay` bem-sucedido. `--test-path`, `--test-id`, `--command` e `--failure-p
 **todos obrigatórios** (schema `red-evidence/v1`): sem `test_id`, a derivação da árvore base não
 consegue ancorar no caso específico (só no arquivo de teste inteiro); sem `failure_pattern`, o
 item 4 da rule nunca fica avaliável — campo ausente seria indistinguível de "gate desligado".
+
+### Vários defeitos no mesmo change (`entries[]`, issue #139)
+
+`red-evidence.json` guarda um registro por defeito em `entries[]`, endereçado por `--id`. Um
+change com um único defeito continua funcionando exatamente como antes (`record` sem `--id`
+declara e redeclara a mesma entrada — nada muda para o fluxo comum). A partir do segundo
+defeito:
+
+- `record --id <novo>` **acrescenta** uma entrada — nunca sobrescreve as demais.
+- `record --id <existente>` atualiza só aquela entrada.
+- `record` **sem `--id`** num change que já tem 2+ entradas é recusado (`rc≠0`, fail-closed): sem
+  o `--id` explícito, o alvo é ambíguo, e a versão anterior deste comando resolvia a ambiguidade
+  herdando os campos obrigatórios da última entrada gravada — o próprio defeito da issue.
+- Os escalares do topo (`test_path`, `status`, etc., lidos por ferramentas antigas que não
+  conhecem `entries[]`) são sempre a **projeção da primeira entrada declarada** — nunca da
+  última tocada. `status` do topo é `observed` só quando **todas** as entradas estão
+  `observed` ou `waived`; enquanto qualquer uma seguir pendente, o topo fica `pending`.
+- Um `red-evidence.json` **legado** (formato de entrada única, sem `entries[]` — o que hoje está
+  em voo em changes já existentes) nunca perde dado: o primeiro `record --id` sobre um arquivo
+  desses preserva o conteúdo legado como a primeira entrada e acrescenta a nova como uma entrada
+  adicional. Um scaffold nunca gravado (`recorded_at: null`, `status: pending`) não deixa
+  resíduo — não há nada ali para preservar.
 
 ## replay — rodar o motor e observar de verdade
 

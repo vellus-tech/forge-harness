@@ -33,11 +33,12 @@
 // no comentário de cmdEnsure abaixo) — aceito deliberadamente em troca de eliminar (a) o furo do
 // cache versionável em projetos que instalaram o harness antes do patch do .gitignore e (b) o
 // livelock relatado quando o cache invalidava por motivo alheio ao conteúdo do teste/correção.
-import { readFileSync, existsSync, writeFileSync, renameSync } from 'node:fs';
+import { readFileSync, existsSync, writeFileSync, renameSync, realpathSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { parseYamlSubset } from './yaml-lite.mjs';
-import { loadRedEvidence, REL_PATH } from './red-evidence.mjs';
+import { loadRedEvidence, REL_PATH, ENTRY_SCALAR_FIELDS } from './red-evidence.mjs';
 import { replay as runReplay } from './red-replay.mjs';
 
 const root = resolve(process.env.FORGE_ROOT || '.');
@@ -86,22 +87,103 @@ function parseFlags(argv) {
   return out;
 }
 
-function cmdRecord(changeDir, argv) {
-  requireBugfix(changeDir);
-  const ev = requireEvidence(changeDir);
-  const f = parseFlags(argv);
-  const data = { ...ev.data };
+// ── entries[] (Onda #139, issue #139) ───────────────────────────────────────────────────────
+//
+// Causa raiz original: `record` copiava os escalares do TOPO (`{ ...ev.data }`), atribuía campo
+// a campo e gravava — um segundo `record` apagava o primeiro, e um `record` parcial herdava
+// campos de outro defeito (o `--failure-pattern` sozinho "funcionava" porque test_path/test_id/
+// command do defeito anterior já estavam no topo herdado). A partir desta Onda, `record` opera
+// sempre sobre `entries[]` — um registro por defeito, endereçado por `id` estável — e os
+// escalares do topo passam a ser só uma PROJEÇÃO de `entries[0]`, mantida para leitores antigos
+// (check-red-first.mjs, validate-spec.mjs, doctor.sh) que só conhecem o formato de entrada única.
 
-  if (f['test-path']) data.test_path = f['test-path'];
-  if (f['test-id']) data.test_id = f['test-id'];
-  if (f['command']) data.command = f['command'];
-  if (f['fix-files']) data.fix_files = f['fix-files'].split(',').map((s) => s.trim()).filter(Boolean);
-  if (f['failure-pattern']) data.failure_pattern = f['failure-pattern'];
-  if (f['setup-command']) data.setup_command = f['setup-command'];
-  if (f['reproduces']) data.reproduces = f['reproduces'];
-  if (f['excerpt']) {
-    data.excerpt = f['excerpt'];
-    data.excerpt_sha256 = sha256(f['excerpt']);
+function resolvedEntry(e) { return e.status === 'observed' || e.status === 'waived'; }
+
+function emptyEntry(id) {
+  const e = { id: id ?? null, status: 'pending', fix_files: [], waiver: null };
+  for (const k of ENTRY_SCALAR_FIELDS) e[k] = null;
+  return e;
+}
+
+// "evidência gravada" — mesmo predicado do item 3d em check-red-first.mjs (exclui o scaffold
+// trivial que /forge:spec new grava para TODO change bugfix: status:'pending', recorded_at:null).
+function isRealLegacyData(data) {
+  return !!(data && (data.recorded_at || (data.status && data.status !== 'pending')));
+}
+
+function extractEntryFromTop(data) {
+  const e = { id: null, status: data.status || 'pending' };
+  for (const k of ENTRY_SCALAR_FIELDS) e[k] = data[k] ?? null;
+  e.fix_files = Array.isArray(data.fix_files) ? data.fix_files : [];
+  e.waiver = data.waiver ?? null;
+  return e;
+}
+
+// entriesOf: migração fail-safe. `entries` já presente -> usa como está (normalizando campos
+// ausentes por item). Ausente mas com dado real (J-14, legado em voo em centenas de changes de
+// consumidores) -> PRESERVA o legado como entries[0], nunca descarta e nunca recomeça
+// `entries:[novo]` (esse seria o próprio defeito da issue, aplicado ao caminho de migração).
+// Scaffold trivial (nunca gravado) -> entries vazio, nada a preservar.
+function entriesOf(data) {
+  if (Array.isArray(data.entries)) return data.entries.map((e) => ({ ...emptyEntry(e && e.id), ...e }));
+  if (isRealLegacyData(data)) return [extractEntryFromTop(data)];
+  return [];
+}
+
+export function deriveTopStatus(entries) {
+  if (!entries.length) return 'pending';
+  if (entries.length === 1) return entries[0].status;
+  if (entries.every(resolvedEntry)) return entries.every((e) => e.status === 'waived') ? 'waived' : 'observed';
+  return 'pending';
+}
+
+// buildDocument: os escalares do topo são SEMPRE a projeção de entries[0] (a primeira entrada
+// declarada — legado migrado, ou o primeiro `record` de um change novo), nunca da entrada
+// tocada por último. Isso é o que mantém um leitor antigo (que só lê o topo) vendo exatamente o
+// que via antes desta Onda quando o change tem uma única entrada, e vendo de forma estável (não
+// "saltando" a cada record de outro defeito) quando o change tem várias.
+function buildDocument(changeId, entries) {
+  const first = entries[0] || emptyEntry(null);
+  const doc = { schema: 'red-evidence/v1', change_id: changeId, status: deriveTopStatus(entries) };
+  for (const k of ENTRY_SCALAR_FIELDS) doc[k] = first[k] ?? null;
+  doc.fix_files = Array.isArray(first.fix_files) ? first.fix_files : [];
+  doc.waiver = first.waiver ?? null;
+  doc.entries = entries;
+  return doc;
+}
+
+// applyRecord: pura (sem I/O) — usada por cmdRecord e pelo PBT do gate w218. Lança Error com a
+// mensagem de FAIL em vez de decidir exit code (isso é responsabilidade do caller).
+export function applyRecord(prevData, changeId, flags) {
+  const entries = entriesOf(prevData || {});
+  const hasId = flags.id !== undefined;
+  const id = hasId ? flags.id : undefined;
+
+  let idx;
+  if (hasId) {
+    idx = entries.findIndex((e) => e.id === id);
+  } else if (entries.length >= 2) {
+    // fail-closed contra quimera: com 2+ entradas já declaradas, um record sem --id é ambíguo —
+    // ANTES desta Onda, ele herdava os campos obrigatórios da última entrada gravada e parecia
+    // "funcionar" atualizando só o campo passado (o próprio defeito da issue).
+    const ids = entries.map((e) => e.id ?? '(sem id)').join(', ');
+    throw new Error(`--id é obrigatório — este change já tem ${entries.length} entradas registradas (${ids}); declare a qual defeito este record se refere`);
+  } else {
+    idx = entries.length === 1 ? 0 : -1;
+  }
+
+  const target = idx >= 0 ? { ...entries[idx] } : emptyEntry(hasId ? id : null);
+
+  if (flags['test-path']) target.test_path = flags['test-path'];
+  if (flags['test-id']) target.test_id = flags['test-id'];
+  if (flags['command']) target.command = flags['command'];
+  if (flags['fix-files']) target.fix_files = flags['fix-files'].split(',').map((s) => s.trim()).filter(Boolean);
+  if (flags['failure-pattern']) target.failure_pattern = flags['failure-pattern'];
+  if (flags['setup-command']) target.setup_command = flags['setup-command'];
+  if (flags['reproduces']) target.reproduces = flags['reproduces'];
+  if (flags['excerpt']) {
+    target.excerpt = flags['excerpt'];
+    target.excerpt_sha256 = sha256(flags['excerpt']);
   }
 
   // Furo 10 — failure_pattern obrigatório: sem ele o item 4 da rule nunca é avaliável (a
@@ -111,21 +193,39 @@ function cmdRecord(changeDir, argv) {
   // caseExistsInContent/outputMentionsCase do motor de replay (Furo 2) passam por vacuidade —
   // "sem test_id declarado, nada a exigir" deixa de ser uma degradação aceitável quando test_id
   // é obrigatório por contrato.
-  if (!data.test_path || !data.test_id || !data.command || !data.failure_pattern) {
-    console.log('FAIL (--test-path, --test-id, --command e --failure-pattern são obrigatórios para record)');
-    process.exit(1);
+  if (!target.test_path || !target.test_id || !target.command || !target.failure_pattern) {
+    throw new Error('--test-path, --test-id, --command e --failure-pattern são obrigatórios para record');
   }
-  if (!Array.isArray(data.fix_files)) data.fix_files = [];
+  if (!Array.isArray(target.fix_files)) target.fix_files = [];
 
   // record é DECLARAÇÃO, não observação — o replay é quem prova. Uma nova declaração invalida
   // qualquer replay anterior (o teste/comando declarado pode ter mudado).
-  data.status = 'pending';
-  data.replayed_at = null;
-  data.replay_head = null;
-  data.recorded_at = nowIso();
+  target.status = 'pending';
+  target.replayed_at = null;
+  target.replay_head = null;
+  target.recorded_at = nowIso();
 
-  writeJsonAtomic(ev.path, data);
-  console.log(`OK record — ${data.test_path} declarado (status: pending — rode /forge:red replay para observar)`);
+  const nextEntries = entries.slice();
+  if (idx >= 0) nextEntries[idx] = target; else nextEntries.push(target);
+
+  return { data: buildDocument(changeId, nextEntries), entry: target };
+}
+
+function cmdRecord(changeDir, argv) {
+  requireBugfix(changeDir);
+  const ev = requireEvidence(changeDir);
+  const f = parseFlags(argv);
+
+  let result;
+  try {
+    result = applyRecord(ev.data, ev.data.change_id, f);
+  } catch (e) {
+    console.log(`FAIL (${e.message})`);
+    process.exit(1);
+  }
+
+  writeJsonAtomic(ev.path, result.data);
+  console.log(`OK record — ${result.entry.test_path} declarado (status: pending — rode /forge:red replay para observar)`);
 }
 
 // persistReplayResult: único ponto que TRADUZ um veredito do motor de replay (lib/red-replay.mjs)
@@ -236,14 +336,30 @@ async function cmdEnsure(changeDir, argv) {
   console.log(`OK ensure — replay executado (verdict: ${result.verdict}, status: ${updated.status})`);
 }
 
-const [, , cmd, changeDir, ...rest] = process.argv;
-if (!cmd || !changeDir) {
-  console.log('FAIL (usage: red-evidence-ops.mjs record|replay|ensure <change-dir> [...])');
-  process.exit(1);
+// ── main guard (mesmo padrão de sync-adapters.mjs, issue #130/w216) ────────────────────────────
+// Sem isto, `import { applyRecord } from './red-evidence-ops.mjs'` (o que o PBT do gate w218 e
+// qualquer leitor futuro de `applyRecord`/`deriveTopStatus` precisam fazer) executava o bloco de
+// dispatch abaixo como efeito colateral do import — `!cmd` seria verdadeiro (import não passa
+// argv de CLI) e o processo importador morria com `process.exit(1)` antes de expor coisa alguma.
+function isMainModule() {
+  try {
+    if (!process.argv[1]) return false;
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
 }
-switch (cmd) {
-  case 'record': cmdRecord(changeDir, rest); break;
-  case 'replay': await cmdReplay(changeDir, rest); break;
-  case 'ensure': await cmdEnsure(changeDir, rest); break;
-  default: console.log(`FAIL (unknown subcommand: ${cmd})`); process.exit(1);
+
+if (isMainModule()) {
+  const [, , cmd, changeDir, ...rest] = process.argv;
+  if (!cmd || !changeDir) {
+    console.log('FAIL (usage: red-evidence-ops.mjs record|replay|ensure <change-dir> [...])');
+    process.exit(1);
+  }
+  switch (cmd) {
+    case 'record': cmdRecord(changeDir, rest); break;
+    case 'replay': await cmdReplay(changeDir, rest); break;
+    case 'ensure': await cmdEnsure(changeDir, rest); break;
+    default: console.log(`FAIL (unknown subcommand: ${cmd})`); process.exit(1);
+  }
 }

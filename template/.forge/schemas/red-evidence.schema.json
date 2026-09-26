@@ -104,6 +104,45 @@
       "type": ["string", "null"],
       "minLength": 10,
       "description": "Timestamp do waive (§ Quando o Red não é possível). Campo próprio — não sobrescreve recorded_at, que preserva quando a evidência foi originalmente declarada."
+    },
+    "entries": {
+      "type": "array",
+      "description": "Onda #139 (issue #139) — um registro por defeito, endereçado por 'id' estável (`record --id`). Propriedade ADITIVA e opcional: um red-evidence.json legado (formato de entrada única, sem esta chave) continua válido — os escalares do topo passam a ser projeção de entries[0], mantida para leitores antigos.",
+      "items": { "$ref": "#/$defs/entry" }
+    }
+  },
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "id": {
+          "type": ["string", "null"],
+          "description": "Identificador estável do defeito dentro do change (`record --id`). null para uma entrada migrada de um red-evidence.json legado, que nunca teve id."
+        },
+        "status": { "$ref": "#/properties/status" },
+        "test_path": { "$ref": "#/properties/test_path" },
+        "test_id": { "$ref": "#/properties/test_id" },
+        "command": { "$ref": "#/properties/command" },
+        "base_commit": { "$ref": "#/properties/base_commit" },
+        "failure_pattern": { "$ref": "#/properties/failure_pattern" },
+        "excerpt": { "$ref": "#/properties/excerpt" },
+        "excerpt_sha256": { "$ref": "#/properties/excerpt_sha256" },
+        "classification": { "$ref": "#/properties/classification" },
+        "base_result": { "$ref": "#/properties/base_result" },
+        "base_strategy": { "$ref": "#/properties/base_strategy" },
+        "graft_from": { "$ref": "#/properties/graft_from" },
+        "revert_patch": { "$ref": "#/properties/revert_patch" },
+        "replay_head": { "$ref": "#/properties/replay_head" },
+        "setup_command": { "$ref": "#/properties/setup_command" },
+        "reproduces": { "$ref": "#/properties/reproduces" },
+        "fix_files": { "$ref": "#/properties/fix_files" },
+        "waiver": { "$ref": "#/properties/waiver" },
+        "recorded_at": { "$ref": "#/properties/recorded_at" },
+        "replayed_at": { "$ref": "#/properties/replayed_at" },
+        "waived_at": { "$ref": "#/properties/waived_at" }
+      }
     }
   }
 }

@@ -16,7 +16,7 @@
 set -uo pipefail
 # Isolamento git (LDG-0201): GIT_DIR herdado do ambiente faria os comandos git abaixo
 # obedecerem ao repositório de quem invocou o gate, e não ao repositório sintético criado aqui.
-unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG GIT_CONFIG_PARAMETERS GIT_CONFIG_COUNT
 
 # `set -e` foi retirado de propósito (LDG-0012): com ele, uma invocação de `node bin/forge.mjs`
 # que falhasse dentro de um cenário matava o gate na hora, sem imprimir FAIL nenhum — o log

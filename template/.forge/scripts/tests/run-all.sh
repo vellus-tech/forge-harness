@@ -26,7 +26,7 @@ set -uo pipefail
 # em vez do repositório sintético de cada teste — incidente P1 medido em 2026-09-26. O unset aqui,
 # no processo do runner, cobre todo alvo despachado abaixo mesmo quando o próprio teste não tem
 # preâmbulo equivalente, porque a variável não exportada não chega ao processo-filho.
-unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG GIT_CONFIG_PARAMETERS GIT_CONFIG_COUNT
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 while [ $# -gt 0 ]; do

@@ -1,6 +1,13 @@
 #!/usr/bin/env bats
 # W3.1 — deterministic validators suite (§19.1–§19.4): at least one PASS and one
 # FAIL case per rule family. Heavier E2E lives in the w3x gate scripts.
+#
+# LDG-0201: §19.1 chama installer/install.sh sobre um diretório sintético, que grava
+# core.hooksPath via `git -C <alvo> config` — vetor que obedece GIT_DIR/GIT_CONFIG/etc.
+# herdado do ambiente com precedência sobre `-C` (ver tests/w248-git-dir-isolation-gate.sh,
+# cenários [17]/[18]). O preâmbulo tem de ficar em nível de arquivo, antes de qualquer
+# setup_file/@test, porque bats sourceia o arquivo inteiro a cada teste.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG GIT_CONFIG_PARAMETERS GIT_CONFIG_COUNT
 
 setup_file() {
   export WS="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"

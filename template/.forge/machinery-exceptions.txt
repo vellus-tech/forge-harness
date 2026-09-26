@@ -17,16 +17,22 @@
 # (primeiro update depois do fix), ou com um WARN genérico que se perde na rolagem. A gramática
 # aqui é a mesma que consumidores reais já operam em produção (o `check-machinery-drift.sh` do
 # axis-fare-validator, por exemplo): separador de colunas por espaço livre, corte no primeiro `#`
-# (o resto da linha é a razão), sha hexadecimal minúsculo com pelo menos 32 dígitos.
+# (o resto da linha é a razão), sha hexadecimal minúsculo com pelo menos 32 dígitos. Um token extra
+# na linha DEPOIS de "<sha> <caminho>", sem `#`, vira parte da razão em vez de malformar a linha
+# (alinhado ao `read -r sha path _` do parser de origem); token extra ANTES de um `#` explícito
+# continua malformado.
 #
-# O SHA É O DO TEMPLATE, NUNCA O DO DISCO. É isso que dá poder ao mecanismo: se o template mudar
-# o arquivo de novo, o sha declarado deixa de bater com o do template novo, a exceção EXPIRA e o
+# O SHA É O DO TEMPLATE, NUNCA O DO DISCO, E CASA POR PREFIXO: um sha truncado (>= 32 dígitos) que
+# seja prefixo exato do sha de 64 dígitos do template atual é VIVO, nunca EXPIRADO. Se o template
+# mudar o arquivo de novo, o sha declarado deixa de bater com o do template novo, a exceção EXPIRA e o
 # `update` nomeia os dois shas para reexame — mas preserva o arquivo mesmo assim (a exceção
 # expirada nunca bloqueia o update; parar seria mudar a fronteira publicada do comando). Uma
 # exceção declarada para um caminho que o template não tem, ou cujo conteúdo local já é idêntico
 # ao template novo, é reportada como OCIOSA — sem efeito, mas nomeada. Uma exceção declarada para
 # um caminho que o template REMOVEU (tombstone) barra a poda de órfãos incondicionalmente — o
-# arquivo sobrevive e é nomeado uma única vez, nunca como OCIOSA.
+# arquivo sobrevive e é nomeado uma única vez, nunca como OCIOSA. Um caminho preservado por exceção
+# viva ou expirada também fica isento do orphan-check defensivo de placeholders `<PROJECT_*>`: é
+# conteúdo do consumidor, não do template, e não deve derrubar o `update` por escolha alheia.
 #
 # Arquivo ilegível, linha malformada ou o mesmo caminho declarado duas vezes PARAM o update antes
 # de escrever qualquer coisa, nomeando a linha: o que este parser não sabe ler não pode absolver

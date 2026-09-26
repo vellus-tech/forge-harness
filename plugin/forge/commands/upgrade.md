@@ -67,7 +67,11 @@ estiver declarado em `.forge/machinery-exceptions.txt`, uma linha por arquivo:
 
 O caminho aceita prefixo `./` ou `.forge/` (normalizado antes de casar contra o template, e a
 grafia original é nomeada no relatório); duas declarações que normalizam para o mesmo caminho
-contam como duplicata. O sha é sempre o do TEMPLATE (nunca o do disco): se o template mudar o
+contam como duplicata. Um token extra na linha DEPOIS de `<sha> <caminho>`, sem `#`, vira parte da
+razão em vez de malformar a linha (alinhado ao `read -r sha path _` do parser de origem); token
+extra ANTES de um `#` explícito continua malformado. O sha é sempre o do TEMPLATE (nunca o do
+disco) e casa por PREFIXO: um sha truncado (>= 32 dígitos, como o parser já aceita) que seja
+prefixo exato do sha atual do template é **vivo**, não expirado. Se o template mudar o
 arquivo de novo, a declaração **expira** — o `update` preserva o arquivo mesmo assim e nomeia os
 dois shas para reexame, em vez de bloquear (parar seria mudar a fronteira publicada do comando).
 O `--dry-run` usa a MESMA classificação que a aplicação real: a prévia nunca anuncia sobrescrita
@@ -80,7 +84,10 @@ expirada (`EXCEÇÃO EXPIRADA`, com os dois shas) e cada ociosa (`EXCEÇÃO OCIO
 template, já idêntico a ele, enriquecível ou ainda não instalado nesta árvore). Um caminho que o
 template **removeu** (tombstone) e que tem exceção declarada não é apagado pela poda de órfãos —
 aparece uma única vez, como `tombstone pulado — exceção declarada`, nunca duplicado como
-`EXCEÇÃO OCIOSA`.
+`EXCEÇÃO OCIOSA`. O orphan-check defensivo que reprova o `update` quando sobra um placeholder
+`<PROJECT_*>` num `.md`/`.yml` de maquinaria isenta também o caminho preservado por exceção viva ou
+expirada: é conteúdo do consumidor, não do template, e não deve derrubar o comando por escolha
+alheia.
 
 Toda sobrescrita de maquinaria própria sem exceção declarada é nomeada sempre, sob dois rótulos
 distintos: `SOBRESCRITO (não declarado)` quando o hash local diverge do `machinery.lock` da

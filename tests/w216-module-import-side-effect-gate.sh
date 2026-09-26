@@ -513,7 +513,10 @@ cp "$LIB_TEMPLATE" "$LIB12"
 BACKUP12="$(mktemp "$TMPROOT/forge-w216-12-backup.XXXXXX")"; track "$BACKUP12"
 cp "$LIB12" "$BACKUP12"
 
-perl -0777 -pi -e "s/if \(isMainModule\(\)\) \{\n  try \{\n    if \(!existsSync\(join\(FORGE, 'FORGE.md'\)\)\) \{\n      throw new Error\(\`no \.forge\/FORGE\.md under \\\$\{ROOT\} — run \/forge:init first\`\);\n    \}\n/if (isMainModule()) {\n  try {\n/" "$LIB12"
+# Remove só o bloco de checagem ADIANTADA (indentação de 4 espaços, dentro do galho principal),
+# nunca a checagem homônima dentro de reconcile() (indentação de 2 espaços) — âncora pela
+# indentação exata, independente de qualquer comentário entre `try {` e o bloco.
+perl -0777 -pi -e 's/^    if \(!existsSync\(join\(FORGE, .FORGE\.md.\)\)\) \{\n      throw new Error\(.*\);\n    \}\n//m' "$LIB12"
 if cmp -s "$LIB12" "$BACKUP12"; then
   echo "FAIL [12]: a mutação não alterou nenhum byte da lib — o perl não achou a checagem adiantada"
   overall_rc=1

@@ -242,6 +242,106 @@ export function applyBundle({ chDir, fromDir, self }) {
       }
     }
   }
+
+  // --- passada de recuperação de blob (issue #107) --------------------------------------------
+  // A cópia acima só alcança mensagem NOVA (`toAdd`, dentro de `batch`). Mensagem já conhecida sai
+  // por `dup++; continue` na passada 3, bem antes daqui, e por isso nunca era revisitada — uma
+  // réplica que perdesse o blob de uma mensagem já aceita não o recuperava por sync nenhum, e o
+  // comando terminava em rc 0 sem aviso.
+  //
+  // Aqui a reconciliação de CONTEÚDO REFERENCIADO é separada da aceitação de MENSAGEM: percorre-se
+  // TODA mensagem já presente localmente (não só as do bundle) com `body_ref`, e instala-se em
+  // blobsDir o que faltar, a partir de fromBlobs, quando lá existe. `fromBlobs` é a fonte correta
+  // tanto para `sync` (o transporte de `pull` copia TODOS os blobs do hub para o staging, não só
+  // os de mensagens novas — ver `_dir_pull` em lib/transports/_common.sh) quanto para `import`
+  // manual (o bundle explícito que o operador aponta).
+  // A mesma passada NÃO pode instalar cegamente o que encontrar em `fromBlobs`: essa é
+  // exatamente a superfície que a regra 5 (linha ~176) protege na passada 1 — teto de tamanho e
+  // integridade do conteúdo — e que aqui era pulada por completo (achado da revisão do #107,
+  // severidade HIGH). Um bundle hostil ou corrompido, ou um hub adulterado entre o `pull` e este
+  // ponto, podia substituir o corpo de uma mensagem JÁ ACEITA por outro conteúdo qualquer — a
+  // réplica instalava e reportava "recuperado" sem nunca comparar bytes contra o compromisso que
+  // ela própria já tinha aceitado. Esse compromisso é o `sha256Hex` embutido no NOME do blob
+  // (`_write_body_blob`, liaison-ops.sh: `${sha256Hex(buf.toString('binary'))}-<base>`) — o nome
+  // é o content_sha do corpo, não decoração; se o prefixo não bate com o conteúdo do arquivo
+  // candidato, o arquivo não é o corpo que a mensagem referencia, mesmo casando de nome.
+  //
+  // ÓRFÃO DE SIGKILL — limpeza antes de recuperar. `.recover-<pid>-<n>.tmp` (abaixo) é o nome
+  // temporário desta própria passada; o `catch` que o remove é melhor esforço e não sobrevive ao
+  // processo sendo morto a meio da escrita. Um órfão assim nunca é um blob de verdade — não tem
+  // conteúdo de mensagem nenhuma, e `_dir_push_blobs` (lib/transports/_common.sh) já o exclui da
+  // publicação —, mas se ninguém o apagar ele fica para sempre em `blobsDir`, um arquivo morto que
+  // nenhum `body_ref` referencia. Removido aqui, no início desta passada, antes de qualquer
+  // instalação: mesmo diretório, mesmo padrão de nome, mesma responsabilidade de quem o cria.
+  for (const f of existsSync(blobsDir) ? readdirSync(blobsDir) : []) {
+    if (/^\.recover-\d+-\d+\.tmp$/.test(f)) {
+      try { unlinkSync(join(blobsDir, f)); } catch { /* melhor esforço: não interrompe a recuperação */ }
+    }
+  }
+  let blobsRecovered = 0;
+  const blobsMissingBoth = [];
+  const blobsRejected = [];
+  const localSenderFiles = existsSync(logDir)
+    ? readdirSync(logDir).filter((f) => f.endsWith('.jsonl'))
+    : [];
+  for (const file of localSenderFiles) {
+    for (const m of readJsonl(join(logDir, file))) {
+      if (!m.body_ref || !M.BODY_REF_RE.test(m.body_ref)) continue;
+      const blobName = m.body_ref.slice('blobs/'.length);
+      const dest = join(blobsDir, blobName);
+      if (existsSync(dest)) continue; // já temos — nada a recuperar
+      const src = join(fromBlobs, blobName);
+      if (!existsSync(src)) {
+        // Ausente nos dois lados: nem local, nem no bundle/hub desta chamada. Não é recusa — o
+        // resto do import continua íntegro —, mas é perda real que merece nome e contagem, nunca
+        // um rc 0 silencioso.
+        blobsMissingBoth.push(m.msg_id);
+        continue;
+      }
+      const size = statSync(src).size;
+      if (size > M.BLOB_MAX_BYTES) {
+        // Mesmo teto da regra 5 (passada 1), aplicado aqui: sem ele, o teto que existe para
+        // conter bundle malicioso ou corrompido ficava contornável exatamente no caminho de
+        // recuperação — o cenário de campo desta issue (réplica com ponteiro morto, candidata a
+        // receber qualquer conteúdo do hub).
+        blobsRejected.push({ msg_id: m.msg_id, kind: 'oversize', reason: `blob do hub excede ${M.BLOB_MAX_BYTES} bytes (${size})` });
+        continue;
+      }
+      const shaMatch = /^([0-9a-f]{64})-/.exec(blobName);
+      if (shaMatch) {
+        const actual = M.sha256Hex(readFileSync(src).toString('binary'));
+        if (actual !== shaMatch[1]) {
+          blobsRejected.push({ msg_id: m.msg_id, kind: 'sha-mismatch', reason: `blob do hub não confere com o body_ref (esperado ${shaMatch[1]}, obtido ${actual})` });
+          continue;
+        }
+      }
+      // Escrita atômica (tmp + rename), mesmo padrão de `_dir_push_blobs`: um leitor concorrente
+      // (outro `sync` ou o próprio `render`) nunca vê um arquivo truncado que `existsSync(dest)`
+      // passaria a tratar como íntegro daí em diante.
+      //
+      // O nome temporário é CURTO e INDEPENDENTE do nome do blob (pid + contador desta chamada),
+      // nunca `.${blobName}.tmp-...` — achado de correção MEDIUM: os outros dois caminhos de
+      // escrita de blob (mensagem nova, linha ~241; push, `_dir_push_blobs`) aceitam nome de blob
+      // de até 250 bytes porque o sufixo deles é curto (`.tmp`, 4 bytes); este prefixava `.` e
+      // sufixava `.tmp-<pid>` (~11 bytes) ao NOME INTEIRO do blob, e um nome de blob entre 245 e
+      // 250 bytes — dentro do teto aceito nos outros dois caminhos — estourava o NAME_MAX de 255
+      // só aqui. O throw de ENAMETOOLONG acontecia depois da escrita dos logs de mensagens novas e
+      // sem `try/catch`, então o `sync` inteiro morria com o processo Node e a réplica ficava com
+      // sync permanentemente reprovado (o próprio `status` recomenda "rode sync" — nunca convergia
+      // sozinho). Uma falha de E/S na instalação de um blob não pode mais derrubar o import
+      // inteiro: é classificada como `blobsRejected` de `kind: 'io-error'`, nomeando a mensagem, e
+      // o restante da recuperação continua.
+      const tmp = join(blobsDir, `.recover-${process.pid}-${blobsRecovered + blobsRejected.length}.tmp`);
+      try {
+        copyFileSync(src, tmp);
+        renameSync(tmp, dest);
+        blobsRecovered++;
+      } catch (err) {
+        try { if (existsSync(tmp)) unlinkSync(tmp); } catch { /* melhor esforço: não mascarar o erro original */ }
+        blobsRejected.push({ msg_id: m.msg_id, kind: 'io-error', reason: `falha de E/S ao instalar o blob do hub: ${err.message}` });
+      }
+    }
+  }
   for (const [msgId, reason, incoming, existing] of conflictsToWrite) {
     writeFileSync(join(conflictsDir, `${msgId}.json`), JSON.stringify({ msg_id: msgId, reason, incoming, existing: existing || null }, null, 2) + '\n');
   }
@@ -296,7 +396,31 @@ export function applyBundle({ chDir, fromDir, self }) {
     quarantinedPositions: divergences.length,
     remaining,
     divergences,
+    blobsRecovered,
+    blobsMissingBoth,
+    blobsRejected,
   };
+}
+
+// Mensagens locais com `body_ref` cujo blob não existe em blobsDir — perda de corpo ainda não
+// reconciliada por nenhum `sync`/`import` (o WARN de `_apply_bundle` só aparece na hora em que a
+// perda é medida; entre uma chamada e outra ela era invisível a qualquer medição, inclusive
+// `status`). Vive aqui, não em liaison-merge.mjs, pelo mesmo motivo de `readQuarantinedPositions`:
+// é leitura de disco, e quem escreve o layout de blobs/ é quem deve lê-lo.
+export function findMissingLocalBlobs(chDir) {
+  const logDir = join(chDir, 'log');
+  const blobsDir = join(chDir, 'blobs');
+  const files = existsSync(logDir) ? readdirSync(logDir).filter((f) => f.endsWith('.jsonl')) : [];
+  const out = [];
+  for (const file of files) {
+    const sender = basename(file, '.jsonl');
+    for (const m of readJsonl(join(logDir, file))) {
+      if (!m.body_ref || !M.BODY_REF_RE.test(m.body_ref)) continue;
+      const blobName = m.body_ref.slice('blobs/'.length);
+      if (!existsSync(join(blobsDir, blobName))) out.push({ sender, msg_id: m.msg_id, body_ref: m.body_ref });
+    }
+  }
+  return out;
 }
 
 // Reescrita de história: uma posição já conhecida (por seq ou por msg_id) chegando com outro

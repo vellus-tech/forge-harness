@@ -121,6 +121,11 @@ _dir_push_union() {
 }
 
 # _dir_push_blobs <hub_dir> <src> — copia os blobs locais que o hub ainda não tem.
+# Exclui `.recover-*.tmp`: nome temporário da passada de recuperação (liaison-import.mjs), nunca
+# um blob de verdade. Um SIGKILL a meio de uma recuperação pode deixar esse arquivo órfão em
+# `blobs/` (o `try/catch` que faz `unlinkSync` de melhor esforço não sobrevive à morte do
+# processo) — sem a exclusão aqui, `find "$src/blobs" -type f` o varre como qualquer outro blob e
+# `_dir_push` o publicaria no hub, contaminando toda réplica que sincronizar depois.
 _dir_push_blobs() {
   local hub="$1" src="$2"
   [ -d "$src/blobs" ] || return 0
@@ -130,7 +135,7 @@ _dir_push_blobs() {
     name="$(basename "$b")"
     [ -f "$hub/blobs/$name" ] && continue
     cp "$b" "$hub/blobs/.$name.tmp" && mv "$hub/blobs/.$name.tmp" "$hub/blobs/$name"
-  done < <(find "$src/blobs" -type f 2>/dev/null | LC_ALL=C sort)
+  done < <(find "$src/blobs" -type f ! -name '.recover-*.tmp' 2>/dev/null | LC_ALL=C sort)
 }
 
 # _dir_push <hub_dir> — publica log/<self>.jsonl e os blobs locais no ponto de encontro.
@@ -213,7 +218,7 @@ _dir_push() {
       name="$(basename "$b")"
       [ -f "$hub/blobs/$name" ] && continue
       cp "$b" "$hub/blobs/.$name.tmp" && mv "$hub/blobs/.$name.tmp" "$hub/blobs/$name"
-    done < <(find "$src/blobs" -type f 2>/dev/null | LC_ALL=C sort)
+    done < <(find "$src/blobs" -type f ! -name '.recover-*.tmp' 2>/dev/null | LC_ALL=C sort)
   fi
 }
 

@@ -27,11 +27,19 @@
 #   [8] --dry-run HONRA exceções declaradas: exceção viva aparece como `= rel (preservado —
 #       exceção declarada)`, nunca como `~ rel` (sobrescrita) — a prévia mostrada ao humano antes
 #       de confirmar não pode contradizer o que a aplicação real faz
+#   [8b] --dry-run HONRA exceção EXPIRADA (mesma garantia de [8], para a classe que o review
+#        adversarial achou descoberta: [8] só cobria a classe viva)
 #   [9] arquivo intocado localmente (hash bate com machinery.lock) cujo template evoluiu: nomeado
 #       como `ATUALIZADO`, nunca como `SOBRESCRITO (não declarado)` — o rótulo de sobrescrita não
 #       declarada fica reservado para divergência de verdade
 #   [10] tombstone (path que o template removeu) com exceção declarada: a exceção barra a poda de
 #        órfãos, o arquivo sobrevive e aparece exatamente uma vez no relatório
+#   [10b] --dry-run do mesmo tombstone com exceção: pulado na prévia também, nunca listado como
+#         `- rel (órfão ...)` — [10] só cobria a aplicação real
+#   [11]/[11b]/[11c] caminho declarado com prefixo `./` ou `.forge/` é NORMALIZADO (aceito e
+#        nomeado com a grafia original) em vez de cair em `fora-do-template`/OCIOSA — perda
+#        silenciosa de conserto local por erro de grafia; duas declarações que normalizam para o
+#        mesmo caminho contam como duplicata
 #   [7] PBT: para arquivos de exceção gerados sobre caminhos REAIS do template, o update para
 #       sse existe linha malformada/duplicada; quando não para, cada arquivo fica byte-idêntico
 #       sse tem exceção viva ou expirada, e todo caminho declarado aparece exatamente uma vez
@@ -177,6 +185,20 @@ grep -q '^~ scripts/lib/transports/_common.sh' <<<"$out8" \
   || { echo "FAIL [8] (setup): conserto local não sobreviveu ao setup do cenário"; exit 1; }
 echo "OK [8]"
 
+echo "[8b] --dry-run honra exceção EXPIRADA: '= rel (preservado — EXCEÇÃO EXPIRADA...)', nunca '~ rel'"
+C8B="$(consumidor c8b)"
+printf '\n# CONSERTO-EXPIRADO-DRYRUN\n' >> "$C8B/.forge/scripts/doctor.sh"
+SHA_ERRADO_8B="$(printf '0%.0s' $(seq 1 63))a"
+printf '%s  scripts/doctor.sh  # exceção expirada no dry-run\n' "$SHA_ERRADO_8B" > "$C8B/.forge/machinery-exceptions.txt"
+SHA_TPL_DOCTOR_8B="$(sha_tpl scripts/doctor.sh)"
+out8b="$(node "$FORGE" update --target "$C8B" --no-plugin --source "$TPL" --dry-run 2>&1)"; rc8b=$?
+[ "$rc8b" -eq 0 ] || { echo "FAIL [8b]: dry-run saiu rc=$rc8b"; echo "$out8b"; exit 1; }
+grep -q "^= scripts/doctor.sh (preservado — EXCEÇÃO EXPIRADA: declarado $SHA_ERRADO_8B, template $SHA_TPL_DOCTOR_8B)\$" <<<"$out8b" \
+  || { echo "FAIL [8b]: dry-run não anuncia a preservação por exceção expirada"; echo "$out8b"; exit 1; }
+grep -q '^~ scripts/doctor.sh' <<<"$out8b" \
+  && { echo "FAIL [8b]: dry-run anuncia sobrescrita de arquivo que a exceção expirada preserva (DH-1)"; echo "$out8b"; exit 1; }
+echo "OK [8b]"
+
 echo "[9] arquivo intocado com lock, template evoluiu: 'ATUALIZADO', nunca 'SOBRESCRITO (não declarado)'"
 C9="$(consumidor c9)"
 node "$FORGE" update --target "$C9" --no-plugin --no-backup --source "$TPL" >/dev/null 2>&1
@@ -210,6 +232,63 @@ n10="$(grep -c "$TOMB_REL" <<<"$out10" || true)"
 grep -q 'tombstone pulado — exceção declarada' <<<"$out10" \
   || { echo "FAIL [10]: linha de tombstone pulado por exceção declarada ausente"; echo "$out10"; exit 1; }
 echo "OK [10]"
+
+echo "[10b] --dry-run honra o mesmo tombstone com exceção declarada: pulado na prévia, nunca listado como órfão"
+C10B="$(consumidor c10b)"
+TOMB_REL_B="commands/graph/build.md"
+mkdir -p "$(dirname "$C10B/.forge/$TOMB_REL_B")"
+printf '# customizacao local do consumidor sobre um comando removido do template (dry-run)\n' > "$C10B/.forge/$TOMB_REL_B"
+MANIFEST10B="$T/removed-manifest-w214-10b.txt"
+printf '%s\n' "$TOMB_REL_B" > "$MANIFEST10B"
+SHA10B="$(shasum -a 256 "$C10B/.forge/$TOMB_REL_B" | cut -d' ' -f1)"
+printf '%s  %s  # tombstone preservado por decisão local (dry-run)\n' "$SHA10B" "$TOMB_REL_B" > "$C10B/.forge/machinery-exceptions.txt"
+out10b="$(FORGE_REMOVED_MANIFEST="$MANIFEST10B" node "$FORGE" update --target "$C10B" --no-plugin --source "$TPL" --dry-run 2>&1)"; rc10b=$?
+[ "$rc10b" -eq 0 ] || { echo "FAIL [10b]: dry-run saiu rc=$rc10b"; echo "$out10b"; exit 1; }
+grep -q "^= $TOMB_REL_B (tombstone pulado — exceção declarada)" <<<"$out10b" \
+  || { echo "FAIL [10b]: dry-run não anuncia o tombstone pulado por exceção declarada"; echo "$out10b"; exit 1; }
+grep -q "^- $TOMB_REL_B" <<<"$out10b" \
+  && { echo "FAIL [10b]: dry-run anuncia remoção do órfão que a exceção deveria barrar"; echo "$out10b"; exit 1; }
+[ -f "$C10B/.forge/$TOMB_REL_B" ] || { echo "FAIL [10b]: dry-run alterou o disco (não deveria escrever nada)"; exit 1; }
+echo "OK [10b]"
+
+echo "[11] caminho declarado com prefixo './' é normalizado (aceito), nomeando a grafia original declarada"
+C11="$(consumidor c11)"
+printf '\n# CONSERTO-LOCAL-PREFIXO\n' >> "$C11/.forge/scripts/doctor.sh"
+SHA_DOCTOR11="$(sha_tpl scripts/doctor.sh)"
+printf '%s  ./scripts/doctor.sh  # declarado com prefixo ./\n' "$SHA_DOCTOR11" > "$C11/.forge/machinery-exceptions.txt"
+out11="$(node "$FORGE" update --target "$C11" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc11=$?
+[ "$rc11" -eq 0 ] || { echo "FAIL [11]: update saiu rc=$rc11"; echo "$out11"; exit 1; }
+grep -q 'CONSERTO-LOCAL-PREFIXO' "$C11/.forge/scripts/doctor.sh" \
+  || { echo "FAIL [11]: conserto local sobrescrito — prefixo './' não foi normalizado para casar com scripts/doctor.sh"; exit 1; }
+grep -qF "PRESERVADO (exceção declarada): scripts/doctor.sh — razão: declarado com prefixo ./ (declarado como './scripts/doctor.sh')" <<<"$out11" \
+  || { echo "FAIL [11]: relatório não nomeia a grafia original declarada"; echo "$out11"; exit 1; }
+echo "OK [11]"
+
+echo "[11b] prefixo '.forge/' também normaliza"
+C11B="$(consumidor c11b)"
+printf '\n# CONSERTO-LOCAL-PREFIXO-FORGE\n' >> "$C11B/.forge/scripts/handoff-gen.sh"
+SHA_HANDOFF11B="$(sha_tpl scripts/handoff-gen.sh)"
+printf '%s  .forge/scripts/handoff-gen.sh  # declarado com prefixo .forge/\n' "$SHA_HANDOFF11B" > "$C11B/.forge/machinery-exceptions.txt"
+out11b="$(node "$FORGE" update --target "$C11B" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc11b=$?
+[ "$rc11b" -eq 0 ] || { echo "FAIL [11b]: update saiu rc=$rc11b"; echo "$out11b"; exit 1; }
+grep -q 'CONSERTO-LOCAL-PREFIXO-FORGE' "$C11B/.forge/scripts/handoff-gen.sh" \
+  || { echo "FAIL [11b]: conserto local sobrescrito — prefixo '.forge/' não foi normalizado"; exit 1; }
+echo "OK [11b]"
+
+echo "[11c] mesmo caminho declarado com e sem prefixo normaliza para o mesmo rel — é duplicata"
+C11C="$(consumidor c11c)"
+SHA_DOCTOR11C="$(sha_tpl scripts/doctor.sh)"
+{
+  printf '%s  scripts/doctor.sh  # sem prefixo\n' "$SHA_DOCTOR11C"
+  printf '%s  ./scripts/doctor.sh  # com prefixo, mesmo caminho apos normalizar\n' "$SHA_DOCTOR11C"
+} > "$C11C/.forge/machinery-exceptions.txt"
+set +e
+out11c="$(node "$FORGE" update --target "$C11C" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc11c=$?
+set -e
+[ "$rc11c" -ne 0 ] || { echo "FAIL [11c]: declarações que normalizam para o mesmo caminho não foram tratadas como duplicata"; echo "$out11c"; exit 1; }
+grep -q 'caminho declarado duas vezes' <<<"$out11c" \
+  || { echo "FAIL [11c]: recusa não nomeia duplicata por normalização de prefixo"; echo "$out11c"; exit 1; }
+echo "OK [11c]"
 
 echo "[7] PBT: para exceções geradas sobre caminhos reais do template, o desfecho é função pura do conjunto declarado"
 node --input-type=module - "$WS" <<'NODE_EOF'

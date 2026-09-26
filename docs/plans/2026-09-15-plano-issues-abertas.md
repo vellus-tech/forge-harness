@@ -719,6 +719,12 @@ Gate que fica: cenário novo no w211 — segunda chamada rc 1 com a mensagem que
 
 Arquivos: `template/.forge/scripts/ledger-ops.sh`, `tests/w211-ledger-detail-acumulativo-gate.sh`, CHANGELOG.
 
+### LDG-0190 — `ledger-ops add` grava `--origin` fora do enum do schema com rc 0
+
+**LDG-0190** · resolve no PR de reconciliação do Bloco C · gate novo: não (amplia `tests/w202-ledger-schema-conformance-gate.sh`) · depois da #103, antes da #136 (mesmo `ledger-ops.sh`)
+
+Achado em 2026-09-25 pelo CI do próprio PR #154 (run 36204799516, `FAIL [1]: LDG-0183 /source/origin`): `template/.forge/scripts/ledger-ops.sh:174` aceita qualquer valor em `--origin` e `:206` o grava em `source.origin` sem validar contra o enum de `ledger.schema.json` (`analyze`, `verify`, `close`, `archive`, `manual`, `session`, `seed`); o `add` sai `OK` com rc 0 e o erro só aparece no `w202`, longe da causa. Desenho: validar no `add` e no `harvest`, antes de escrever, todo campo com enum no schema, com recusa nominal rc 1 citando o enum. Vermelho a executar: `FORGE_ROOT=<fixture> ledger-ops.sh add --type tech-debt --title t --detail d --origin texto-livre` hoje sai rc 0; esperado rc 1 com o enum na mensagem e o ledger byte-idêntico. Positiva: `--origin session` continua rc 0. Mutação: remover a validação faz o cenário de recusa sair rc 0. Arquivos: `template/.forge/scripts/ledger-ops.sh`, `tests/w202-ledger-schema-conformance-gate.sh`, CHANGELOG.
+
 ### #108 — ack que falha o cursor em silêncio e doctor que emudece
 
 **#108** · Refs #108 · gate novo: sim
@@ -1078,7 +1084,7 @@ Pares e cadeias de PR que tocam o mesmo arquivo de maquinaria, na ordem em que d
 | `template/.forge/scripts/doctor.sh` | #160 → #142 → #127 → #108 → #149 → #153 → LDG-0153 → LDG-0171 → LDG-0100 | a mensagem de `:157` primeiro; a linha `HEAVY-MUTEX` da #142 vem no Bloco A; universo de varredura antes do diagnóstico de liaison; a lib órfã da #153 é medida depois que a #149 dá invocador à `scan-exclude.sh`; a divergência do `_common.sh` depois da #153; a raiz do doctor (LDG-0171) e o WARN de kind (LDG-0100) por último |
 | `template/.forge/scripts/liaison-ops.sh` | #117 → #108 → #109 → #133 → #136 | do trecho mais baixo e isolado (`:298`) para o dispatcher (`:1295`), que a #136 reescreve |
 | `template/.forge/scripts/deferral-ops.sh` | #133 → #136 | o laço de recusa em `status` e `test` precisa existir antes do ramo de help no dispatcher |
-| `template/.forge/scripts/ledger-ops.sh` | #103 → #136 → LDG-0167 | a recusa de `resolve` repetido é local; o help reescreve o dispatcher; o aviso de id do LDG-0167, se couber, vem depois |
+| `template/.forge/scripts/ledger-ops.sh` | #103 → LDG-0190 → #136 → LDG-0167 | a recusa de `resolve` repetido é local; o help reescreve o dispatcher; o aviso de id do LDG-0167, se couber, vem depois |
 | `template/.forge/scripts/lib/red-evidence-ops.mjs`, `lib/check-red-first.mjs` | #139 → #138 | a #138 itera `entries` criadas pela #139 |
 | `template/.forge/commands/testing/red.md`, `rules/testing/regression-red-first.md` | #139 → #138 → #150 | a #139 documenta `entries`, a #138 o escopo de defeito, e a #150 acrescenta o item 3 do corpo (DA-21) sobre as duas |
 | `template/.forge/scripts/red-evidence.sh` | #138 → #136 | o help da #136 toca o dispatcher de `red-evidence.sh` |

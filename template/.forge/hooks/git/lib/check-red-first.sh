@@ -88,18 +88,21 @@ _redfirst_resolve_delegated() {  # _redfirst_resolve_delegated <label> <rel-sob-
   local wt="$REPO/.forge/$rel" trunk="" hook_forge_dir wt_dir trunk_dir=""
   wt_dir="$(dirname "$wt")"
   if [ -f "$wt" ]; then printf '%s\n' "$wt"; return 0; fi
+  # Árvore sem $REPO/.forge nenhum nunca adotou o harness — não é uma worktree defasada, é uma
+  # árvore NÃO gerenciada. Devolve o mesmo no-op de antes da #141 (rc 2), sem consultar o tronco,
+  # sem aviso e sem efeito colateral. A delegação ao tronco abaixo vale só para a árvore que TEM
+  # .forge/ mas com este alvo ausente ou defasado. Mesmo contrato de resolve_delegated
+  # (pre-push/pre-commit/commit-msg/post-merge); aqui a origem do tronco é obtida por
+  # _redfirst_hook_forge_dir() em vez de uma variável global, porque esta lib pode ser sourced a
+  # partir de árvores diferentes em chamadas diferentes.
+  [ -d "$REPO/.forge" ] || return 2
   hook_forge_dir="$(_redfirst_hook_forge_dir)"
   if [ -n "$hook_forge_dir" ]; then
     trunk="$hook_forge_dir/$rel"
     trunk_dir="$(dirname "$trunk")"
   fi
   if [ -n "$trunk" ] && [ -f "$trunk" ]; then
-    # Achado LOW da correção do #141 (rodada 2): mesma supressão de resolve_delegated (pre-push/
-    # pre-commit/commit-msg/post-merge) — $REPO/.forge ausente por inteiro é branch anterior à
-    # adoção do harness, não worktree defasada, e "rode forge update" seria instrução errada ali.
-    if [ -d "$REPO/.forge" ]; then
-      echo "hook: $label ausente em $REPO — usando o do tronco ($trunk); rode forge update na worktree" >&2
-    fi
+    echo "hook: $label ausente em $REPO — usando o do tronco ($trunk); rode forge update na worktree" >&2
     printf '%s\n' "$trunk"
     return 0
   fi

@@ -35,11 +35,16 @@
 #   [8] lib/check-red-first.sh — os dois alvos internos (check-red-first.sh delegado,
 #       gate-universe.sh) ausentes na árvore que executa e presentes na árvore de onde a lib foi
 #       sourced (o tronco) → não bloqueia, nomeia o tronco nos dois
-#   [9] AUTO-IRONIA: os 13 sítios (12 de L3 §0 + RUNTIME_LIB, achado do adendo de revisão)
-#       chamam o mesmo resolvedor — contagem estrutural por arquivo, sem vacuidade, MAIS a
+#   [9] AUTO-IRONIA: os 16 sítios (12 de L3 §0 + RUNTIME_LIB + gate-phase.mjs + os 2 sítios de
+#       aviso) chamam o mesmo resolvedor — contagem estrutural por arquivo, sem vacuidade, MAIS a
 #       identidade byte a byte do corpo da função entre as 4 cópias (pre-commit, commit-msg,
 #       post-merge, pre-push), porque a contagem de chamadas não pega uma correção aplicada só
 #       numa cópia
+#   [9b] as 4 cópias de resolve_delegated() batem byte a byte, e o corpo de
+#       _redfirst_resolve_delegated() (lib/check-red-first.sh) é o MESMO código, normalizando só
+#       as duas diferenças estruturais legítimas (REPO/ROOT; obtenção do diretório do tronco por
+#       função em vez de variável global) — sem isso, uma correção aplicada só nas 4 cópias-irmãs
+#       passava verde com a quinta cópia divergente
 #   [10] pre-push — RUNTIME_LIB (forge-runtime.sh) ausente na worktree, presente no tronco, com
 #       runtime.gates declarado (forma CSV) e o gate existindo na worktree → não bloqueia, nomeia
 #       o tronco, e o gate declarado roda de verdade (achado do adendo de revisão do w223)
@@ -63,10 +68,22 @@
 #       que FALHA, roda de verdade (rc 1, marcador do gate impresso) — mutante sobrevivente do
 #       achado MEDIUM do adendo de revisão: [10b] só cobria os dois alvos ausentes JUNTOS na
 #       worktree, onde RUNTIME_LIB já vinha do tronco e a troca de par não fazia nada
-#   [14] pre-push — worktree de branch anterior à adoção do harness, SEM `.forge/` nenhum (não
-#       uma worktree defasada — nunca teve harness) → o push ainda sai rc 0 usando os scripts do
-#       tronco (defesa em profundidade inalterada), mas as linhas "usando o do tronco ... rode
-#       forge update na worktree" são SUPRIMIDAS, porque não há o que atualizar ali
+#
+# Decisão autônoma do orquestrador (registrada no CHANGELOG e no corpo do commit): árvore sem
+# `.forge/` nenhum é árvore NÃO GERENCIADA — os 5 resolvedores devolvem o no-op anterior à #141
+# (rc 2) sem consultar o tronco, sem aviso e sem escrita; a delegação ao tronco vale só para a
+# árvore que TEM `.forge/` mas com o alvo ausente ou defasado:
+#   [14] pre-push — worktree de branch anterior à adoção do harness, SEM `.forge/` nenhum → o push
+#       sai rc 0 ("pre-push OK (sem harness)"), SEM rodar nenhum script do tronco e SEM a linha
+#       "usando o do tronco ... rode forge update na worktree"; contrafactual [1a]/[3] (acima):
+#       com `.forge/` presente e só o alvo ausente, a delegação ao tronco continua rodando de
+#       verdade
+#   [14b] post-merge — a mesma árvore sem `.forge/` nenhum, com um CHANGELOG.md versionado: o
+#       merge não delega changelog-from-merge.mjs ao tronco, e `git status` fica LIMPO depois —
+#       nenhuma escrita no CHANGELOG.md de uma árvore que nunca adotou o harness (MEDIUM); o
+#       contrafactual é o próprio [3]: com `.forge/` presente, o tronco escreve de verdade
+#   [14c] pre-commit — a mesma árvore sem `.forge/` nenhum: nenhum check do tronco roda (nem
+#       check-secrets.sh), commit passa OK; contrafactual é o próprio [1a]
 set -uo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -418,6 +435,27 @@ case "$out" in
 esac
 echo "OK [8]"
 
+# [8b] — MESMA cópia REAL de lib/check-red-first.sh (nunca um stub), isolada da pre-push/
+# pre-commit/etc: $REPO sem .forge/ nenhum → check_red_first não consulta o tronco, não avisa e
+# não toca os alvos internos (LOW-1: [14] usava um STUB `check_red_first() { return 0; }` no
+# tronco, então a cópia REAL do resolvedor nunca era exercitada nesse cenário — só a de pre-push).
+echo "[8b] lib/check-red-first.sh — REAL (sem stub), REPO sem .forge/ nenhum → no-op, sem"
+echo "     consultar o tronco e sem o aviso 'rode forge update na worktree'"
+R8B="$T/r8b"
+mkdir -p "$R8B"   # REPO sem .forge/ nenhum — nem o diretório existe
+out="$(REPO="$R8B" bash -c '
+  set -u
+  . "'"$TR8"'/.forge/hooks/git/lib/check-red-first.sh"
+  check_red_first < /dev/null
+' 2>&1)"; rc=$?
+[ "$rc" -eq 0 ] || { echo "FAIL [8b]: check_red_first bloqueou numa árvore sem .forge/ nenhum (saída: '$out')"; exit 1; }
+case "$out" in
+  *"usando o do tronco"*|*"rode forge update na worktree"*) echo "FAIL [8b]: consultou/nomeou o tronco numa árvore sem .forge/ nenhum (saída: '$out')"; exit 1 ;;
+  *) : ;;
+esac
+[ -z "$out" ] || { echo "FAIL [8b]: esperava saída vazia (no-op silencioso), obteve: '$out'"; exit 1; }
+echo "OK [8b]"
+
 # ── [9] AUTO-IRONIA ──────────────────────────────────────────────────────────────────────────
 # Sem `declare -A`: o bash 3.2 do macOS (issue de portabilidade irmã do w97) não tem array
 # associativo. Pares "hook:esperado" numa lista simples, um por linha.
@@ -442,15 +480,39 @@ echo "OK [9] — 16 sítios cobertos ($total)"
 
 # Identidade byte a byte do CORPO da função entre as 4 cópias (pre-commit, commit-msg, post-merge,
 # pre-push): a contagem acima só prova que cada arquivo CHAMA o resolvedor o número certo de vezes,
-# nunca que as 4 definições continuam a MESMA função — uma correção aplicada numa cópia só (ex.:
-# a mensagem "(procurado em ...)" do achado LOW do adendo) passaria verde no laço acima.
-echo "[9b] as 4 cópias de resolve_delegated() têm o corpo byte a byte idêntico"
+# nunca que as 4 definições continuam a MESMA função — uma correção aplicada numa cópia só passaria
+# verde no laço acima. A quinta cópia (_redfirst_resolve_delegated, lib/check-red-first.sh) NÃO
+# entra na comparação byte a byte porque tem duas diferenças ESTRUTURAIS legítimas — nome da
+# variável de árvore (REPO em vez de ROOT) e a obtenção do diretório do tronco (a função
+# _redfirst_hook_forge_dir em vez da variável global HOOK_FORGE_DIR, porque esta lib pode ser
+# sourced a partir de árvores diferentes em chamadas diferentes) — então é comparada separadamente,
+# com essas duas diferenças normalizadas antes do diff; sem esta segunda comparação, uma correção
+# aplicada só nas 4 cópias-irmãs passaria verde com a quinta cópia divergente.
+echo "[9b] as 4 cópias de resolve_delegated() têm o corpo byte a byte idêntico, e"
+echo "     _redfirst_resolve_delegated() é o mesmo código, normalizando REPO/ROOT e a lib"
 body_pc="$(awk '/^resolve_delegated\(\) \{/{f=1} f{print} f&&/^\}/{exit}' "$HOOKS/pre-commit")"
 for h in commit-msg post-merge pre-push; do
   body_h="$(awk '/^resolve_delegated\(\) \{/{f=1} f{print} f&&/^\}/{exit}' "$HOOKS/$h")"
   [ "$body_pc" = "$body_h" ] || { echo "FAIL [9b]: resolve_delegated() em $h diverge de pre-commit — correção aplicada só numa cópia"; exit 1; }
 done
-echo "OK [9b] — 4 cópias idênticas"
+# strip_code: remove comentários de linha inteira, linhas em branco, e o comentário à direita do
+# cabeçalho da função (único trecho onde o texto do comentário difere entre as duas por nomear a
+# própria função) — preserva todo o CÓDIGO, inclusive strings com texto de mensagem de erro.
+strip_code() { grep -vE '^[[:space:]]*#' | sed -E '/^[[:space:]]*$/d' | sed -E 's/^([a-zA-Z_]+\(\) \{)[[:space:]]*#.*/\1/'; }
+code_pc="$(printf '%s\n' "$body_pc" | strip_code)"
+body_rf="$(awk '/^_redfirst_resolve_delegated\(\) \{/{f=1} f{print} f&&/^\}/{exit}' "$HOOKS/lib/check-red-first.sh")"
+code_rf="$(printf '%s\n' "$body_rf" | strip_code | sed -E \
+  -e 's/_redfirst_resolve_delegated/resolve_delegated/' \
+  -e 's/\$REPO/\$ROOT/g' \
+  -e 's/ hook_forge_dir wt_dir/ wt_dir/' \
+  -e '/^[[:space:]]*hook_forge_dir="\$\(_redfirst_hook_forge_dir\)"$/d' \
+  -e 's/\$hook_forge_dir/\$HOOK_FORGE_DIR/g')"
+[ "$code_pc" = "$code_rf" ] || {
+  echo "FAIL [9b]: _redfirst_resolve_delegated diverge de resolve_delegated além de REPO/ROOT e da obtenção do diretório do tronco"
+  diff <(printf '%s\n' "$code_pc") <(printf '%s\n' "$code_rf") || true
+  exit 1
+}
+echo "OK [9b] — 4 cópias idênticas + _redfirst_resolve_delegated equivalente"
 
 # ── [10] pre-push — RUNTIME_LIB (forge-runtime.sh) via tronco ───────────────────────────────
 echo "[10] pre-push — forge-runtime.sh ausente na worktree, presente no tronco, gates: declarado"
@@ -756,14 +818,14 @@ grep -q "check-worktree-prereqs.sh" <<<"$out" || { echo "FAIL [13b]: não nomeia
 echo "OK [13b]"
 
 # ── [14] pre-push — worktree de branch anterior à adoção do harness, SEM .forge/ nenhum ─────
-# Achado LOW da correção do #141 (rodada 2): medido no consumidor do tarball, `git push` numa
-# worktree de branch órfã (sem `.forge/` algum) saía rc 0 ('pre-push OK (sem harness)'), mas
-# imprimia 7 linhas "hook: <alvo> ausente em <wt> — usando o do tronco (...); rode forge update
-# na worktree" — instrução ERRADA para uma árvore que NUNCA teve harness (não é uma worktree
-# defasada). A defesa em profundidade continua rodando os scripts do tronco de verdade (provado
-# pelos marcadores abaixo); só a linha ruidosa e mal-instruída é suprimida.
+# Decisão do orquestrador (registrada no CHANGELOG e no corpo do commit): árvore sem $ROOT/.forge
+# nenhum é árvore NÃO GERENCIADA — nunca é uma worktree defasada. O resolvedor devolve o mesmo
+# no-op de antes da #141 (rc 2): NÃO consulta o tronco, NÃO avisa e NÃO tem efeito colateral. A
+# defesa em profundidade da rodada anterior (rodar os scripts do tronco de verdade, só suprimindo
+# o aviso) foi revertida: medido no consumidor do tarball, ela fazia o pre-push de uma branch órfã
+# ser checado por scripts de um repositório inteiro alheio, sem o dono da árvore ter pedido isso.
 echo "[14] pre-push — worktree SEM .forge/ nenhum (branch anterior à adoção do harness) → rc 0,"
-echo "     scripts do tronco RODAM de verdade, mas SEM a linha 'rode forge update na worktree'"
+echo "     SEM rodar nenhum script do tronco e SEM a linha 'rode forge update na worktree'"
 R14="$T/r14"; TR14="$T/tr14"
 mktrunk "$TR14"
 cp "$HOOKS/pre-push" "$TR14/.forge/hooks/git/pre-push"; chmod +x "$TR14/.forge/hooks/git/pre-push"
@@ -785,13 +847,127 @@ case "$out" in
   *"pre-push OK (sem harness)"*) : ;;
   *) echo "FAIL [14]: não terminou com 'pre-push OK (sem harness)' (saída: '$out')"; exit 1 ;;
 esac
-[ -f "$MARK_AI14" ] || { echo "FAIL [14]: check-ai-attribution.sh do tronco não rodou de verdade — defesa em profundidade perdida"; exit 1; }
-[ -f "$MARK_ACKS14" ] || { echo "FAIL [14]: check-liaison-acks.sh do tronco não rodou de verdade — defesa em profundidade perdida"; exit 1; }
 case "$out" in
   *"rode forge update na worktree"*) echo "FAIL [14]: o aviso 'rode forge update na worktree' apareceu numa árvore que nunca teve harness (saída: '$out')"; exit 1 ;;
+  *"usando o do tronco"*) echo "FAIL [14]: nomeou o tronco numa árvore que nunca teve harness (saída: '$out')"; exit 1 ;;
   *) : ;;
 esac
 [ ! -d "$R14/.forge" ] || { echo "FAIL [14]/setup: a worktree não deveria ter .forge/ neste cenário"; exit 1; }
 echo "OK [14]"
+
+# [14-cf] contrafactual do [14]: MESMA árvore, mas com $ROOT/.forge presente (só o diretório, sem
+# FORGE.md) — a delegação ao tronco volta a valer de verdade (marcador tocado, aviso nomeando-o).
+# Prova que a supressão do [14] é sobre a AUSÊNCIA de .forge/, nunca sobre a ausência de FORGE.md.
+echo "[14-cf] pre-push — contrafactual do [14]: .forge/ presente (só o diretório) → delegação ao"
+echo "        tronco continua rodando de verdade, com o aviso nomeando-o"
+R14CF="$T/r14cf"
+mktrunk "$TR14"  # reaproveita o tronco de [14], já com os marcadores no lugar
+mkdir -p "$R14CF/.forge/scripts"
+git init -q -b main "$R14CF"
+git -C "$R14CF" config user.email t@t; git -C "$R14CF" config user.name t; git -C "$R14CF" config commit.gpgsign false
+git -C "$R14CF" config core.hooksPath "$TR14/.forge/hooks/git"
+printf 'x\n' > "$R14CF/a.txt"; git -C "$R14CF" add -A >/dev/null 2>&1
+git -C "$R14CF" commit -qm "chore: init" >/dev/null 2>&1
+rm -f "$MARK_AI14" "$MARK_ACKS14"
+SHA14CF="$(git -C "$R14CF" rev-parse HEAD)"
+out="$(cd "$R14CF" && printf 'refs/heads/main %s refs/heads/main %s\n' "$SHA14CF" "$ZERO" | bash "$TR14/.forge/hooks/git/pre-push" origin "file://$R14CF" 2>&1)"; rc=$?
+[ "$rc" -eq 0 ] || { echo "FAIL [14-cf]: pre-push bloqueou com .forge/ presente e alvo só no tronco (saída: '$out')"; exit 1; }
+[ -f "$MARK_AI14" ] || { echo "FAIL [14-cf]: check-ai-attribution.sh do tronco não rodou — .forge/ presente deveria delegar de verdade"; exit 1; }
+[ -f "$MARK_ACKS14" ] || { echo "FAIL [14-cf]: check-liaison-acks.sh do tronco não rodou — .forge/ presente deveria delegar de verdade"; exit 1; }
+case "$out" in
+  *"usando o do tronco"*"rode forge update na worktree"*) : ;;
+  *) echo "FAIL [14-cf]: não nomeou o tronco nem instruiu 'forge update' (saída: '$out')"; exit 1 ;;
+esac
+echo "OK [14-cf]"
+
+# ── [14b] post-merge — mesma árvore SEM .forge/ nenhum, com CHANGELOG.md versionado ─────────────
+# MEDIUM: antes desta correção, o merge ainda delegava changelog-from-merge.mjs ao tronco (só o
+# AVISO tinha sido suprimido na rodada anterior) e escrevia no CHANGELOG.md de uma árvore que nunca
+# adotou o harness. Agora: sem .forge/ nenhum, post-merge não delega nada, e `git status` fica
+# LIMPO depois do merge — nenhuma escrita numa árvore não gerenciada.
+echo "[14b] post-merge — worktree SEM .forge/ nenhum, CHANGELOG.md versionado → git status LIMPO"
+echo "      depois do merge (nenhuma escrita do tronco numa árvore não gerenciada)"
+R14B="$T/r14b"; TR14B="$T/tr14b"
+mktrunk "$TR14B"
+cp "$HOOKS/post-merge" "$TR14B/.forge/hooks/git/post-merge"; chmod +x "$TR14B/.forge/hooks/git/post-merge"
+MARK_CL14B="$T/marker-changelog-14b"
+rm -f "$MARK_CL14B"
+printf 'import { writeFileSync } from "fs";\nwriteFileSync(process.argv[2] + "/CHANGELOG.md", "mutated-by-trunk\\n", {flag:"a"});\n' \
+  > "$TR14B/.forge/scripts/lib/changelog-from-merge.mjs"
+printf '#!/usr/bin/env bash\ntouch "%s"\nexit 0\n' "$MARK_CL14B" > "$TR14B/.forge/scripts/check-liaison-log-integrity.sh"
+chmod +x "$TR14B/.forge/scripts/check-liaison-log-integrity.sh"
+mkrepo "$R14B" "$TR14B/.forge/hooks/git"
+printf '# Changelog\n\n## [Unreleased]\n' > "$R14B/CHANGELOG.md"
+git -C "$R14B" add CHANGELOG.md >/dev/null 2>&1
+git -C "$R14B" commit -qm "chore: changelog" >/dev/null 2>&1
+git -C "$R14B" checkout -qb feature >/dev/null 2>&1
+printf 'y\n' > "$R14B/b.txt"; git -C "$R14B" add b.txt >/dev/null 2>&1
+git -C "$R14B" commit -qm "feat: coisa" >/dev/null 2>&1
+git -C "$R14B" checkout -q main >/dev/null 2>&1
+git -C "$R14B" merge -q --no-ff feature -m "merge feature" >/dev/null 2>&1
+# worktree SEM .forge/ nenhum — nem o diretório existe.
+out="$(cd "$R14B" && bash "$TR14B/.forge/hooks/git/post-merge" 2>&1)"; rc=$?
+[ "$rc" -eq 0 ] || { echo "FAIL [14b]: post-merge falhou numa árvore sem .forge/ nenhum (saída: '$out')"; exit 1; }
+status="$(git -C "$R14B" status --porcelain)"
+[ -z "$status" ] || { echo "FAIL [14b]: git status não ficou limpo depois do merge (status: '$status')"; exit 1; }
+[ ! -f "$MARK_CL14B" ] || { echo "FAIL [14b]: check-liaison-log-integrity.sh do tronco RODOU numa árvore sem .forge/ nenhum"; exit 1; }
+[ ! -d "$R14B/.forge" ] || { echo "FAIL [14b]/setup: a worktree não deveria ter .forge/ neste cenário"; exit 1; }
+echo "OK [14b]"
+
+# [14b-cf] contrafactual do [14b]: MESMA árvore, mas com .forge/scripts/lib/ presente (só o
+# diretório, sem changelog-from-merge.mjs próprio) → volta a delegar ao tronco de verdade, e o
+# CHANGELOG.md RECEBE a escrita (prova que [14b] não é "o merge nunca escreve", é "árvore sem
+# .forge/ nenhum nunca delega").
+echo "[14b-cf] post-merge — contrafactual do [14b]: .forge/scripts/lib/ presente (só o diretório)"
+echo "         → delega ao tronco de verdade, CHANGELOG.md recebe a escrita"
+R14BCF="$T/r14bcf"
+mkrepo "$R14BCF" "$TR14B/.forge/hooks/git"
+mkdir -p "$R14BCF/.forge/scripts/lib"
+printf '# Changelog\n\n## [Unreleased]\n' > "$R14BCF/CHANGELOG.md"
+git -C "$R14BCF" add CHANGELOG.md >/dev/null 2>&1
+git -C "$R14BCF" commit -qm "chore: changelog" >/dev/null 2>&1
+git -C "$R14BCF" checkout -qb feature >/dev/null 2>&1
+printf 'y\n' > "$R14BCF/b.txt"; git -C "$R14BCF" add b.txt >/dev/null 2>&1
+git -C "$R14BCF" commit -qm "feat: coisa" >/dev/null 2>&1
+git -C "$R14BCF" checkout -q main >/dev/null 2>&1
+git -C "$R14BCF" merge -q --no-ff feature -m "merge feature" >/dev/null 2>&1
+out="$(cd "$R14BCF" && bash "$TR14B/.forge/hooks/git/post-merge" 2>&1)"; rc=$?
+[ "$rc" -eq 0 ] || { echo "FAIL [14b-cf]: post-merge falhou com .forge/scripts/lib/ presente (saída: '$out')"; exit 1; }
+status="$(git -C "$R14BCF" status --porcelain)"
+[ -n "$status" ] || { echo "FAIL [14b-cf]: git status ficou limpo — deveria ter recebido a escrita do tronco (.forge/ presente)"; exit 1; }
+echo "OK [14b-cf]"
+
+# ── [14c] pre-commit — mesma árvore SEM .forge/ nenhum ──────────────────────────────────────────
+# Nenhum check do tronco roda (nem check-secrets.sh); o commit passa OK sem varredura nenhuma —
+# mesmo invariante do [14]/[14b], agora no ponto de ENTRADA (commit) em vez do de saída (push).
+echo "[14c] pre-commit — worktree SEM .forge/ nenhum → nenhum check do tronco roda, commit OK"
+R14C="$T/r14c"; TR14C="$T/tr14c"
+mktrunk "$TR14C"
+cp "$HOOKS/pre-commit" "$TR14C/.forge/hooks/git/pre-commit"; chmod +x "$TR14C/.forge/hooks/git/pre-commit"
+MARK_SEC14C="$T/marker-secrets-14c"
+rm -f "$MARK_SEC14C"
+printf '#!/usr/bin/env bash\ntouch "%s"\nexit 0\n' "$MARK_SEC14C" > "$TR14C/.forge/scripts/check-secrets.sh"
+chmod +x "$TR14C/.forge/scripts/check-secrets.sh"
+mkrepo "$R14C" "$TR14C/.forge/hooks/git"
+printf 'y\n' > "$R14C/b.txt"; git -C "$R14C" add b.txt >/dev/null 2>&1
+out="$(cd "$R14C" && git commit -q -m teste 2>&1)"; rc=$?
+[ "$rc" -eq 0 ] || { echo "FAIL [14c]: pre-commit bloqueou numa árvore sem .forge/ nenhum (saída: '$out')"; exit 1; }
+[ ! -f "$MARK_SEC14C" ] || { echo "FAIL [14c]: check-secrets.sh do tronco RODOU numa árvore sem .forge/ nenhum"; exit 1; }
+[ ! -d "$R14C/.forge" ] || { echo "FAIL [14c]/setup: a worktree não deveria ter .forge/ neste cenário"; exit 1; }
+echo "OK [14c]"
+
+# [14c-cf] contrafactual do [14c]: MESMA árvore, mas com .forge/scripts/ presente (só o diretório)
+# → volta a delegar ao tronco de verdade (marcador tocado) — mesmo invariante de [1a].
+echo "[14c-cf] pre-commit — contrafactual do [14c]: .forge/scripts/ presente (só o diretório) →"
+echo "         delega ao tronco de verdade"
+R14CCF="$T/r14ccf"
+mkrepo "$R14CCF" "$TR14C/.forge/hooks/git"
+mkdir -p "$R14CCF/.forge/scripts"
+rm -f "$MARK_SEC14C"
+printf 'y\n' > "$R14CCF/b.txt"; git -C "$R14CCF" add b.txt >/dev/null 2>&1
+out="$(cd "$R14CCF" && git commit -q -m teste 2>&1)"; rc=$?
+[ "$rc" -eq 0 ] || { echo "FAIL [14c-cf]: pre-commit bloqueou com .forge/scripts/ presente e alvo só no tronco (saída: '$out')"; exit 1; }
+[ -f "$MARK_SEC14C" ] || { echo "FAIL [14c-cf]: check-secrets.sh do tronco não rodou — .forge/scripts/ presente deveria delegar de verdade"; exit 1; }
+echo "OK [14c-cf]"
 
 echo "PASS w223-delegacao-arvore-do-hook"

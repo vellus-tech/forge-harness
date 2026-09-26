@@ -23,18 +23,17 @@ resolve_delegated() {  # resolve_delegated <label> <rel-sob-.forge/> — ecoa o 
   local wt="$ROOT/.forge/$rel" trunk="" wt_dir trunk_dir=""
   wt_dir="$(dirname "$wt")"
   if [ -f "$wt" ]; then printf '%s\n' "$wt"; return 0; fi
+  # Árvore sem $ROOT/.forge nenhum nunca adotou o harness — não é uma worktree defasada, é uma
+  # árvore NÃO gerenciada. Devolve o mesmo no-op de antes da #141 (rc 2), sem consultar o tronco,
+  # sem aviso e sem efeito colateral. A delegação ao tronco abaixo vale só para a árvore que TEM
+  # .forge/ mas com este alvo ausente ou defasado.
+  [ -d "$ROOT/.forge" ] || return 2
   if [ -n "$HOOK_FORGE_DIR" ]; then
     trunk="$HOOK_FORGE_DIR/$rel"
     trunk_dir="$(dirname "$trunk")"
   fi
   if [ -n "$trunk" ] && [ -f "$trunk" ]; then
-    # Achado LOW da correção do #141 (rodada 2): quando $ROOT/.forge não existe NADA — branch
-    # anterior à adoção do harness, nunca uma worktree defasada —, não há o que "forge update"
-    # atualizasse ali, e o aviso instruiria a corrigir algo que não existe. Suprimido só nesse
-    # caso; o alvo do tronco continua sendo usado exatamente como antes, só a linha some.
-    if [ -d "$ROOT/.forge" ]; then
-      echo "hook: $label ausente em $ROOT — usando o do tronco ($trunk); rode forge update na worktree" >&2
-    fi
+    echo "hook: $label ausente em $ROOT — usando o do tronco ($trunk); rode forge update na worktree" >&2
     printf '%s\n' "$trunk"
     return 0
   fi

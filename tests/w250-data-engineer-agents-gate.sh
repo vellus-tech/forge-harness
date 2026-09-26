@@ -1092,7 +1092,7 @@ mutacao() { # mutacao <letra> <arquivo-rel> <perl-subst> <funcao> <alvo-esperado
     echo "FAIL [14]($L) mutação em $rel não fez $fn reprovar nomeando '$alvo' (rc $r)"; printf '%s\n' "$out" | grep '^FAIL' | head -3 | sed 's/^/      /'; return 1
   fi
   $fn "$c" > "$TMPD/14-recontrole.txt" 2>&1 || { echo "FAIL [14]($L) recontrole: a cópia restaurada ainda reprova"; return 1; }
-  echo "OK [14]($L) $rel — controle aprova, mutado reprova nomeando '$alvo', restaurado (cmp -s) aprova"
+  echo "OK [14]($L) $rel — controle rc=0; mutado rc=$r nomeando '$alvo'; restauração cmp -s=0; recontrole rc=0"
   return 0
 }
 confere_14() {

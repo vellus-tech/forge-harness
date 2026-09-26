@@ -222,16 +222,17 @@ const { pathToFileURL } = require('url');
   const missingBoth = r.blobsMissingBoth.join(',');
   const rejectedOversize = r.blobsRejected.filter((x) => x.kind === 'oversize').map((x) => x.msg_id).join(',');
   const rejectedShaMismatch = r.blobsRejected.filter((x) => x.kind === 'sha-mismatch').map((x) => x.msg_id).join(',');
+  const rejectedIoError = r.blobsRejected.filter((x) => x.kind === 'io-error').map((x) => x.msg_id).join(',');
   // Separador \x1f (US, não-espaço): um campo vazio no MEIO da lista (`div` sem divergência,
   // `missingBoth` sem perda) não pode colapsar com o vizinho. TAB é "IFS whitespace" para o `read`
   // do bash mesmo quando é o único caractere em IFS — sequências dele se fundem e campo vazio some,
   // desalinhando todos os campos depois. \x1f nunca aparece em sender, msg_id ou texto livre.
-  process.stdout.write([r.accepted, r.dup, r.conflicts, r.quarantined, r.remaining, M.IMPORT_MAX_MESSAGES, div, r.blobsRecovered, missingBoth, rejectedOversize, rejectedShaMismatch].join('\x1f'));
+  process.stdout.write([r.accepted, r.dup, r.conflicts, r.quarantined, r.remaining, M.IMPORT_MAX_MESSAGES, div, r.blobsRecovered, missingBoth, rejectedOversize, rejectedShaMismatch, rejectedIoError].join('\x1f'));
 })();
 NODEEOF
 )" || return 1
-  local n_new n_dup n_conf n_quar n_rest n_max div n_recovered missing_both rejected_oversize rejected_sha
-  IFS=$'\x1f' read -r n_new n_dup n_conf n_quar n_rest n_max div n_recovered missing_both rejected_oversize rejected_sha <<< "$out"
+  local n_new n_dup n_conf n_quar n_rest n_max div n_recovered missing_both rejected_oversize rejected_sha rejected_io
+  IFS=$'\x1f' read -r n_new n_dup n_conf n_quar n_rest n_max div n_recovered missing_both rejected_oversize rejected_sha rejected_io <<< "$out"
   _render "$channel"
   if [ -n "$div" ]; then
     # Fail-loud continua: reescrita de história exige ação humana na ORIGEM. O que mudou é o
@@ -263,6 +264,13 @@ NODEEOF
   if [ -n "${rejected_sha:-}" ]; then
     local n_rs; n_rs="$(tr ',' '\n' <<< "$rejected_sha" | grep -c .)"
     echo "WARN: $n_rs blob(s) do $src_word não confere(m) com o body_ref (rejeitado(s), mensagem mantida sem corpo local): $rejected_sha" >&2
+  fi
+  # Falha de E/S ao instalar o blob (achado de correção MEDIUM: nome temporário longo demais
+  # estourava ENAMETOOLONG e derrubava o sync inteiro). Um único blob problemático nunca aborta a
+  # recuperação dos demais — nomeia a mensagem e segue, sem dizer "recuperado".
+  if [ -n "${rejected_io:-}" ]; then
+    local n_rio; n_rio="$(tr ',' '\n' <<< "$rejected_io" | grep -c .)"
+    echo "WARN: $n_rio blob(s) do $src_word falharam ao instalar por erro de E/S (rejeitado(s), mensagem mantida sem corpo local): $rejected_io" >&2
   fi
   # Blob ausente nos DOIS lados (local e hub/bundle desta chamada): aviso, não recusa — o resto do
   # import continua íntegro —, mas é perda real que merece nome e contagem, nunca rc 0 calado.

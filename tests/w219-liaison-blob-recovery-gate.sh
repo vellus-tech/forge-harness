@@ -28,6 +28,13 @@
 #       recuperação completa, o bit some dos dois cabeçalhos
 #   [7] achado da revisão (severidade LOW): `import` (fonte é o bundle apontado por `--from`) fala
 #       "do bundle", nunca "do hub" — `import` nunca consultou o hub configurado
+#   [8] achado de correção (severidade MEDIUM, ENAMETOOLONG): a passada de recuperação escrevia o
+#       nome do blob inteiro dentro do nome do arquivo temporário (`.${blobName}.tmp-${pid}`); um
+#       nome de blob de 245-250 caracteres — dentro do teto que os outros dois caminhos de escrita
+#       de blob aceitam — estourava o NAME_MAX (255) só nesse caminho, com `ENAMETOOLONG` não
+#       tratado matando o processo Node e deixando o sync permanentemente reprovado. O nome
+#       temporário agora é curto e independente do nome do blob; blob de 245-250 caracteres volta
+#       byte-idêntico ao hub
 set -uo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -338,5 +345,31 @@ if grep -qi "do hub" <<<"$out7"; then
   echo "FAIL [7]: import ainda imprime 'do hub', alegando uma checagem contra o hub que o import não faz: $out7"; exit 1
 fi
 echo "OK [7]"
+
+echo "[8] achado de correção (severidade MEDIUM): blob com nome de 245-250 caracteres é recuperado sem estourar ENAMETOOLONG"
+LONG_STEM="$(printf 'x%.0s' $(seq 1 182))"   # 182 + hífen(1, no sha) + sha(64) + '.md'(3) = 250
+LONG_BASENAME="${LONG_STEM}.md"
+printf 'corpo de nome longo — cenario 8\n' > "$T/$LONG_BASENAME"
+LG pp send ch --thread t1 --kind note --subject "nome longo" --body-file "$T/$LONG_BASENAME" >/dev/null \
+  || { echo "FAIL [8]: send"; exit 1; }
+LG pp sync ch >/dev/null || { echo "FAIL [8]: sync pp"; exit 1; }
+LG qq sync ch >/dev/null || { echo "FAIL [8]: sync qq (conhecer a mensagem)"; exit 1; }
+read -r MSG8 BLOB8 <<< "$(last_pp_msg_and_blob)"
+[ -n "$BLOB8" ] || { echo "FAIL [8]: não foi possível nomear o blob da mensagem recém-enviada"; exit 1; }
+BLOB8_LEN=${#BLOB8}
+{ [ "$BLOB8_LEN" -ge 245 ] && [ "$BLOB8_LEN" -le 250 ]; } \
+  || { echo "FAIL [8]: pré-condição — nome do blob deveria ter entre 245 e 250 caracteres, tem $BLOB8_LEN ($BLOB8)"; exit 1; }
+[ -f "$QQ_BLOBS/$BLOB8" ] || { echo "FAIL [8]: pré-condição — qq deveria ter $BLOB8 depois do sync"; exit 1; }
+rm -f "$QQ_BLOBS/$BLOB8"
+out8="$(LG qq sync ch 2>&1)"; rc8=$?
+[ "$rc8" -eq 0 ] \
+  || { echo "FAIL [8]: sync de recuperação com blob de nome longo reprovou (rc $rc8) — o nome do arquivo temporário de recuperação não pode depender do comprimento do nome do blob: $out8"; exit 1; }
+[ -f "$QQ_BLOBS/$BLOB8" ] \
+  || { echo "FAIL [8]: blob de nome longo ($BLOB8_LEN caracteres) não foi recuperado: $out8"; exit 1; }
+cmp -s "$QQ_BLOBS/$BLOB8" "$HUB_BLOBS/$BLOB8" \
+  || { echo "FAIL [8]: blob de nome longo recuperado não é byte-idêntico ao do hub"; exit 1; }
+grep -qi "recuperad" <<<"$out8" \
+  || { echo "FAIL [8]: sync recuperou o blob de nome longo mas não imprimiu a linha de recuperação: $out8"; exit 1; }
+echo "OK [8] ($BLOB8_LEN caracteres)"
 
 echo "PASS w219-liaison-blob-recovery"

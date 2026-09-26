@@ -305,10 +305,28 @@ export function applyBundle({ chDir, fromDir, self }) {
       // Escrita atômica (tmp + rename), mesmo padrão de `_dir_push_blobs`: um leitor concorrente
       // (outro `sync` ou o próprio `render`) nunca vê um arquivo truncado que `existsSync(dest)`
       // passaria a tratar como íntegro daí em diante.
-      const tmp = join(blobsDir, `.${blobName}.tmp-${process.pid}`);
-      copyFileSync(src, tmp);
-      renameSync(tmp, dest);
-      blobsRecovered++;
+      //
+      // O nome temporário é CURTO e INDEPENDENTE do nome do blob (pid + contador desta chamada),
+      // nunca `.${blobName}.tmp-...` — achado de correção MEDIUM: os outros dois caminhos de
+      // escrita de blob (mensagem nova, linha ~241; push, `_dir_push_blobs`) aceitam nome de blob
+      // de até 250 bytes porque o sufixo deles é curto (`.tmp`, 4 bytes); este prefixava `.` e
+      // sufixava `.tmp-<pid>` (~11 bytes) ao NOME INTEIRO do blob, e um nome de blob entre 245 e
+      // 250 bytes — dentro do teto aceito nos outros dois caminhos — estourava o NAME_MAX de 255
+      // só aqui. O throw de ENAMETOOLONG acontecia depois da escrita dos logs de mensagens novas e
+      // sem `try/catch`, então o `sync` inteiro morria com o processo Node e a réplica ficava com
+      // sync permanentemente reprovado (o próprio `status` recomenda "rode sync" — nunca convergia
+      // sozinho). Uma falha de E/S na instalação de um blob não pode mais derrubar o import
+      // inteiro: é classificada como `blobsRejected` de `kind: 'io-error'`, nomeando a mensagem, e
+      // o restante da recuperação continua.
+      const tmp = join(blobsDir, `.recover-${process.pid}-${blobsRecovered + blobsRejected.length}.tmp`);
+      try {
+        copyFileSync(src, tmp);
+        renameSync(tmp, dest);
+        blobsRecovered++;
+      } catch (err) {
+        try { if (existsSync(tmp)) unlinkSync(tmp); } catch { /* melhor esforço: não mascarar o erro original */ }
+        blobsRejected.push({ msg_id: m.msg_id, kind: 'io-error', reason: `falha de E/S ao instalar o blob do hub: ${err.message}` });
+      }
     }
   }
   for (const [msgId, reason, incoming, existing] of conflictsToWrite) {

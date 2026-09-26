@@ -265,6 +265,19 @@ export function applyBundle({ chDir, fromDir, self }) {
   // (`_write_body_blob`, liaison-ops.sh: `${sha256Hex(buf.toString('binary'))}-<base>`) — o nome
   // é o content_sha do corpo, não decoração; se o prefixo não bate com o conteúdo do arquivo
   // candidato, o arquivo não é o corpo que a mensagem referencia, mesmo casando de nome.
+  //
+  // ÓRFÃO DE SIGKILL — limpeza antes de recuperar. `.recover-<pid>-<n>.tmp` (abaixo) é o nome
+  // temporário desta própria passada; o `catch` que o remove é melhor esforço e não sobrevive ao
+  // processo sendo morto a meio da escrita. Um órfão assim nunca é um blob de verdade — não tem
+  // conteúdo de mensagem nenhuma, e `_dir_push_blobs` (lib/transports/_common.sh) já o exclui da
+  // publicação —, mas se ninguém o apagar ele fica para sempre em `blobsDir`, um arquivo morto que
+  // nenhum `body_ref` referencia. Removido aqui, no início desta passada, antes de qualquer
+  // instalação: mesmo diretório, mesmo padrão de nome, mesma responsabilidade de quem o cria.
+  for (const f of existsSync(blobsDir) ? readdirSync(blobsDir) : []) {
+    if (/^\.recover-\d+-\d+\.tmp$/.test(f)) {
+      try { unlinkSync(join(blobsDir, f)); } catch { /* melhor esforço: não interrompe a recuperação */ }
+    }
+  }
   let blobsRecovered = 0;
   const blobsMissingBoth = [];
   const blobsRejected = [];

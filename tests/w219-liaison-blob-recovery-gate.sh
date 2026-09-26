@@ -35,6 +35,16 @@
 #       tratado matando o processo Node e deixando o sync permanentemente reprovado. O nome
 #       temporário agora é curto e independente do nome do blob; blob de 245-250 caracteres volta
 #       byte-idêntico ao hub
+#   [9] falha de E/S na instalação (diretório blobs/ sem permissão de escrita, `chmod 555`): o
+#       sync não reprova (rc 0), avisa "falharam ao instalar por erro de E/S" nomeando o msg_id,
+#       nunca imprime "recuperad" para essa mensagem e não deixa `.recover-*.tmp` órfão em
+#       blobs/; restaurada a permissão (`chmod 755`), o próximo sync recupera o mesmo blob,
+#       byte-idêntico ao hub. Pulado quando `id -u` é 0 (root ignora o bit de escrita do diretório
+#       e o cenário não reproduziria o erro)
+#   [ó] órfão de SIGKILL: um `.recover-<pid>-<n>.tmp` plantado em blobs/ (nome do arquivo
+#       temporário da própria passada de recuperação, deixado por um processo morto a meio da
+#       escrita) nunca é publicado no hub por um sync/push, e a passada de recuperação seguinte o
+#       remove da réplica que o carregava — não é um blob de mensagem nenhuma
 set -uo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -371,5 +381,54 @@ cmp -s "$QQ_BLOBS/$BLOB8" "$HUB_BLOBS/$BLOB8" \
 grep -qi "recuperad" <<<"$out8" \
   || { echo "FAIL [8]: sync recuperou o blob de nome longo mas não imprimiu a linha de recuperação: $out8"; exit 1; }
 echo "OK [8] ($BLOB8_LEN caracteres)"
+
+echo "[9] achado de correção (severidade MEDIUM): falha de E/S ao instalar (blobs/ sem permissão de escrita) não reprova o sync, avisa por msg_id, nunca diz 'recuperad' e não deixa órfão — restaurada a permissão, recupera byte-idêntico"
+if [ "$(id -u)" -eq 0 ]; then
+  echo "SKIP [9]: rodando como root — chmod 555 não impede escrita no diretório, o cenário não reproduz erro de E/S"
+else
+  B9="$(blob_name_for 2)" || { echo "FAIL [9]: não foi possível nomear o blob da mensagem 2"; exit 1; }
+  [ -f "$QQ_BLOBS/$B9" ] || { echo "FAIL [9]: pré-condição — blob $B9 deveria existir em qq antes do cenário"; exit 1; }
+  MSG9="$(msg_id_for_blob "$T/qq/.forge/liaison/ch/log/pp.jsonl" "$B9")" \
+    || { echo "FAIL [9]: não foi possível nomear a mensagem dona do blob $B9"; exit 1; }
+  rm -f "$QQ_BLOBS/$B9"
+  chmod 555 "$QQ_BLOBS"
+  out9="$(LG qq sync ch 2>&1)"; rc9=$?
+  chmod 755 "$QQ_BLOBS"   # restaura já aqui — nenhuma falha abaixo pode deixar a réplica travada
+  [ "$rc9" -eq 0 ] \
+    || { echo "FAIL [9]: sync com blobs/ sem permissão de escrita reprovou (rc $rc9) em vez de avisar: $out9"; exit 1; }
+  grep -qi "falharam ao instalar por erro de E/S" <<<"$out9" \
+    || { echo "FAIL [9]: sync não avisou erro de E/S ao instalar o blob: $out9"; exit 1; }
+  grep -q "$MSG9" <<<"$out9" \
+    || { echo "FAIL [9]: o aviso de erro de E/S não nomeia o msg_id $MSG9: $out9"; exit 1; }
+  if grep -qi "recuperad" <<<"$out9"; then
+    echo "FAIL [9]: sync imprimiu linha de recuperação mesmo com a instalação falhando por E/S: $out9"; exit 1
+  fi
+  orphan9="$(find "$QQ_BLOBS" -maxdepth 1 -name '.recover-*.tmp' 2>/dev/null)"
+  [ -z "$orphan9" ] \
+    || { echo "FAIL [9]: sync com falha de E/S deixou órfão .recover-*.tmp em blobs/: $orphan9"; exit 1; }
+  out9b="$(LG qq sync ch 2>&1)"; rc9b=$?
+  [ "$rc9b" -eq 0 ] \
+    || { echo "FAIL [9]: sync de recuperação com permissão restaurada reprovou (rc $rc9b): $out9b"; exit 1; }
+  [ -f "$QQ_BLOBS/$B9" ] \
+    || { echo "FAIL [9]: blob $B9 não voltou depois de restaurar a permissão de blobs/: $out9b"; exit 1; }
+  cmp -s "$QQ_BLOBS/$B9" "$HUB_BLOBS/$B9" \
+    || { echo "FAIL [9]: blob $B9 recuperado após restaurar a permissão não é byte-idêntico ao do hub"; exit 1; }
+  echo "OK [9]"
+fi
+
+echo "[ó] órfão de SIGKILL: .recover-<pid>-<n>.tmp em blobs/ nunca é publicado no hub, e some da réplica no próximo sync"
+PP_BLOBS="$T/pp/.forge/liaison/ch/blobs"
+ORPHAN_NAME=".recover-999999-0.tmp"
+printf 'lixo de recuperacao interrompida — nunca deveria ser tratado como blob' > "$PP_BLOBS/$ORPHAN_NAME"
+[ -f "$PP_BLOBS/$ORPHAN_NAME" ] || { echo "FAIL [ó]: não foi possível plantar o órfão em pp"; exit 1; }
+outo="$(LG pp sync ch 2>&1)"; rco=$?
+[ "$rco" -eq 0 ] || { echo "FAIL [ó]: sync de pp com órfão plantado reprovou (rc $rco): $outo"; exit 1; }
+[ ! -e "$HUB_BLOBS/$ORPHAN_NAME" ] \
+  || { echo "FAIL [ó]: o órfão .recover-*.tmp foi publicado no hub — _dir_push_blobs deveria excluí-lo"; exit 1; }
+hub_orphans="$(find "$HUB_BLOBS" -maxdepth 1 -name '.recover-*.tmp' 2>/dev/null)"
+[ -z "$hub_orphans" ] || { echo "FAIL [ó]: hub tem órfão(s) .recover-*.tmp publicado(s): $hub_orphans"; exit 1; }
+[ ! -e "$PP_BLOBS/$ORPHAN_NAME" ] \
+  || { echo "FAIL [ó]: o órfão .recover-*.tmp continua em pp depois do sync — a passada de recuperação deveria removê-lo"; exit 1; }
+echo "OK [ó]"
 
 echo "PASS w219-liaison-blob-recovery"

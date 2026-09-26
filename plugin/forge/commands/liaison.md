@@ -92,6 +92,7 @@ fariam a mais frouxa virar o caminho de menor resistência.
 |---|---|---|
 | `manual` | diretório com `log/` + `blobs/`, no layout exato do `export` | a fronteira não é cruzável por script (pendrive, anexo, VPN montada à mão). **Nunca cria o diretório**: se ele não existe, o `probe` reprova, para você não publicar num lugar que ninguém combinou |
 | `fs` | `<path>/<channel>/{log,blobs}`, criado sob demanda | default do piloto — dois repositórios na mesma máquina ou num volume compartilhado |
+| `fs-union` | o mesmo de `fs` | opt-in, sem recomendação de troca: carrega o `_common.sh` do checkout principal e recusa, sem cair para a cópia da árvore, quando ele falta; uma árvore anterior ao kind recusa o `liaison.yaml` do tronco com `kind inválido` antes de tocar o hub (issue #123) |
 | `git` | branch **órfã** dedicada num remote, clone de trabalho descartável em `.forge/cache/liaison/<channel>` | os participantes não compartilham filesystem. Branch órfã por construção: sem ancestral comum com o código, nunca vira candidata a merge nem dispara CI |
 | `gh` | — | **declarado, não implementável por script.** O harness proíbe invocar o CLI do GitHub em `.sh` (rede, auth interativa, estado irreprodutível em gate); o backend reprova por construção. A via por issue é sua, agente, com as ferramentas que você tem |
 

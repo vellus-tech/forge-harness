@@ -13,6 +13,35 @@ set -u
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
 cd "$ROOT" || exit 0
 
+# Resolução do alvo delegado (issue #141): core.hooksPath é gravado ABSOLUTO para o tronco
+# (#41/#54, LDG-0042), mas cada worktree carrega sua PRÓPRIA cópia de .forge/scripts/ (issue
+# #41). Um hook novo (vindo do tronco via hooksPath) encontra scripts antigos na worktree que o
+# executa e falhava por causa alheia. Precedência: a árvore que executa primeiro; se o alvo
+# faltar lá E a árvore do hook (o tronco, quando hooksPath é absoluto) o tiver, usa o do tronco
+# com uma linha nomeando-o; falha só quando falta nas duas.
+HOOK_FORGE_DIR="$(cd "$(dirname "$0")/../.." 2>/dev/null && pwd)" || HOOK_FORGE_DIR=""
+resolve_delegated() {  # resolve_delegated <label> <rel-sob-.forge/> — ecoa o caminho resolvido em
+  # stdout; rc 0 = achado; rc 1 = ausente nas duas com o diretório-lar presente em ao menos uma
+  # (falha é do chamador); rc 2 = diretório-lar ausente nas duas (no-op legítimo).
+  local label="$1" rel="$2"
+  local wt="$ROOT/.forge/$rel" trunk="" wt_dir trunk_dir=""
+  wt_dir="$(dirname "$wt")"
+  if [ -f "$wt" ]; then printf '%s\n' "$wt"; return 0; fi
+  if [ -n "$HOOK_FORGE_DIR" ]; then
+    trunk="$HOOK_FORGE_DIR/$rel"
+    trunk_dir="$(dirname "$trunk")"
+  fi
+  if [ -n "$trunk" ] && [ -f "$trunk" ]; then
+    echo "hook: $label ausente em $ROOT — usando o do tronco ($trunk); rode forge update na worktree" >&2
+    printf '%s\n' "$trunk"
+    return 0
+  fi
+  if [ -d "$wt_dir" ] || { [ -n "$trunk_dir" ] && [ -d "$trunk_dir" ]; }; then
+    return 1
+  fi
+  return 2
+}
+
 git worktree prune 2>/dev/null || true
 
 # changelog (§20.4): acumula commits convencionais do merge no CHANGELOG.md raiz.
@@ -23,9 +52,15 @@ git worktree prune 2>/dev/null || true
 # DIRETÓRIO que hospeda o alvo existe, a ausência do alvo significa harness atualizado pela
 # metade, script apagado ou instalação corrompida, e isso não pode terminar no mesmo desfecho de
 # uma execução bem-sucedida.
-CHANGELOG_GEN="$ROOT/.forge/scripts/lib/changelog-from-merge.mjs"
+CHANGELOG_GEN="$(resolve_delegated changelog-from-merge.mjs scripts/lib/changelog-from-merge.mjs)"; _rc=$?
 delegation_failed=0
-if [ -f "$CHANGELOG_GEN" ]; then
+if [ "$_rc" -eq 1 ]; then
+  echo "post-merge FALHOU: .forge/scripts/lib/ existe mas changelog-from-merge.mjs não —" >&2
+  echo "  a delegação aponta para um alvo ausente, e isso não pode sair como sucesso." >&2
+  delegation_failed=1
+  CHANGELOG_GEN=""
+fi
+if [ -n "$CHANGELOG_GEN" ] && [ -f "$CHANGELOG_GEN" ]; then
   if command -v node >/dev/null 2>&1; then
     # A saída de erro deixou de ir para /dev/null: `2>/dev/null || true` fazia uma falha do
     # gerador sair idêntica a um no-op bem-sucedido — o mesmo colapso de estados, um nível abaixo.
@@ -35,10 +70,6 @@ if [ -f "$CHANGELOG_GEN" ]; then
       delegation_failed=1
     fi
   fi
-elif [ -d "$ROOT/.forge/scripts/lib" ]; then
-  echo "post-merge FALHOU: .forge/scripts/lib/ existe mas changelog-from-merge.mjs não —" >&2
-  echo "  a delegação aponta para um alvo ausente, e isso não pode sair como sucesso." >&2
-  delegation_failed=1
 fi
 
 # liaison log integrity (issue #80) — o DETECTOR do único modo de falha do merge=union: dispara no
@@ -48,17 +79,19 @@ fi
 # push (pre-push, mesmo diretório) jamais o veria. Este hook é informacional — o git ignora seu
 # exit status — então o que muda com a falha é o DESFECHO OBSERVÁVEL (delegation_failed), nunca a
 # conclusão do merge em si.
-LOG_INTEGRITY="$ROOT/.forge/scripts/check-liaison-log-integrity.sh"
-if [ -f "$LOG_INTEGRITY" ]; then
+LOG_INTEGRITY="$(resolve_delegated check-liaison-log-integrity.sh scripts/check-liaison-log-integrity.sh)"; _rc=$?
+if [ "$_rc" -eq 1 ]; then
+  echo "post-merge FALHOU: .forge/scripts/ existe mas check-liaison-log-integrity.sh não —" >&2
+  echo "  a delegação aponta para um alvo ausente, e isso não pode sair como sucesso." >&2
+  delegation_failed=1
+  LOG_INTEGRITY=""
+fi
+if [ -n "$LOG_INTEGRITY" ] && [ -f "$LOG_INTEGRITY" ]; then
   if ! li_out="$(FORGE_ROOT="$ROOT" bash "$LOG_INTEGRITY" 2>&1)"; then
     echo "post-merge FALHOU: liaison — log duplicado pelo merge=union (issue #80):" >&2
     printf '%s\n' "$li_out" | sed 's/^/  /' >&2
     delegation_failed=1
   fi
-elif [ -d "$ROOT/.forge/scripts" ]; then
-  echo "post-merge FALHOU: .forge/scripts/ existe mas check-liaison-log-integrity.sh não —" >&2
-  echo "  a delegação aponta para um alvo ausente, e isso não pode sair como sucesso." >&2
-  delegation_failed=1
 fi
 
 # ── worktrees mergeadas (issue #72) ──────────────────────────────────────────────────────────────

@@ -6,6 +6,10 @@ e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Hook do tronco bloqueava commit/push em toda worktree que ainda não tinha o script delegado (#141).** `core.hooksPath` é gravado ABSOLUTO para o tronco (#41/#54, LDG-0042), mas `pre-commit`, `commit-msg`, `post-merge`, `pre-push` e a lib `check-red-first.sh` resolviam o alvo delegado só pela árvore que executa (`$ROOT/.forge/scripts/...`). Um harness atualizado no tronco chegava, via `core.hooksPath`, a toda worktree ativa antes de ela trazer o commit com o script novo, e o commit/push era bloqueado por causa alheia — medido no azim-crm (template 0.1.0-rc24, 87 worktrees sem `check-secrets.sh`) e reportado no próprio checkout principal (worktree `platform-config-ux`, gate de segredos). Precedência nova nos 12 sítios medidos (pre-push 6, pre-commit 1, commit-msg 1, post-merge 2, `lib/check-red-first.sh` 2): a árvore que executa primeiro; ausente lá, tenta a árvore do hook (o tronco, via `$0`/`${BASH_SOURCE[0]}`) com a linha `hook: <alvo> ausente em <worktree> — usando o do tronco (<caminho>); rode forge update na worktree`; bloqueio mantido só quando falta nas duas. `tests/w223-delegacao-arvore-do-hook-gate.sh`, matriz exaustiva dos quatro estados em `pre-commit` (ausente/presente × worktree/tronco, a própria árvore sempre precede o tronco), cenários de fallback nos demais hooks, contrafactual de bloqueio mantido e auto-ironia estrutural confirmando os 12 sítios.
+
 ## [0.15.0] — 2026-09-09
 
 ### Added

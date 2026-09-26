@@ -71,12 +71,44 @@ _redfirst_should_check() {  # _redfirst_should_check <chdir> <touched-tmpfile> �
   return 1
 }
 
+_redfirst_hook_forge_dir() {  # .forge de onde ESTE arquivo foi carregado (sourced ou executado
+  # direto — ${BASH_SOURCE[0]} sobrevive à sourcing, ao contrário de $0). Issue #141: quando
+  # sourced a partir do tronco (hooksPath absoluto, worktree sem cópia própria da lib), este é o
+  # .forge do TRONCO — a árvore-fallback dos alvos abaixo. Este arquivo mora em
+  # .forge/hooks/git/lib/ — três níveis acima de dirname($BASH_SOURCE), não dois (diferença dos
+  # hooks-raiz como pre-push, que moram direto em .forge/hooks/git/).
+  (cd "$(dirname "${BASH_SOURCE[0]}")/../../.." 2>/dev/null && pwd)
+}
+
+_redfirst_resolve_delegated() {  # _redfirst_resolve_delegated <label> <rel-sob-.forge/> — mesmo
+  # contrato de resolve_delegated (pre-push, pre-commit, commit-msg, post-merge): rc 0 = achado
+  # (ecoa o caminho; aviso em stderr quando veio do tronco); rc 1 = ausente nas duas com o
+  # diretório-lar presente em ao menos uma; rc 2 = diretório-lar ausente nas duas.
+  local label="$1" rel="$2"
+  local wt="$REPO/.forge/$rel" trunk="" hook_forge_dir wt_dir trunk_dir=""
+  wt_dir="$(dirname "$wt")"
+  if [ -f "$wt" ]; then printf '%s\n' "$wt"; return 0; fi
+  hook_forge_dir="$(_redfirst_hook_forge_dir)"
+  if [ -n "$hook_forge_dir" ]; then
+    trunk="$hook_forge_dir/$rel"
+    trunk_dir="$(dirname "$trunk")"
+  fi
+  if [ -n "$trunk" ] && [ -f "$trunk" ]; then
+    echo "hook: $label ausente em $REPO — usando o do tronco ($trunk); rode forge update na worktree" >&2
+    printf '%s\n' "$trunk"
+    return 0
+  fi
+  if [ -d "$wt_dir" ] || { [ -n "$trunk_dir" ] && [ -d "$trunk_dir" ]; }; then
+    return 1
+  fi
+  return 2
+}
+
 check_red_first() {
   local line local_ref local_sha remote_ref remote_sha base failed=0
   local examined=0 skipped=0 engaged=0
-  local check_script="$REPO/.forge/scripts/check-red-first.sh"
+  local check_script univ_lib _rc
   local active_dir="$REPO/.forge/specs/active"
-  local univ_lib="$REPO/.forge/scripts/lib/gate-universe.sh"
 
   # Delegação em alvo AUSENTE é erro, não no-op (issue #49, instância 4). `[ -f ] || return 0`
   # sozinho degrada em silêncio: apagar o script de red-first — ou atualizar o harness pela
@@ -84,12 +116,18 @@ check_red_first() {
   # bem-sucedida. Se o diretório de scripts do harness EXISTE, o alvo da delegação TEM de
   # existir. Só a ausência do diretório inteiro (repositório sem harness instalado) continua
   # sendo no-op legítimo — aí não há maquinaria a impor.
-  if [ ! -f "$check_script" ]; then
-    [ -d "$REPO/.forge/scripts" ] || return 0
+  #
+  # Issue #141: antes de bloquear, tenta o mesmo alvo na árvore do hook (o tronco, quando
+  # core.hooksPath é absoluto e esta lib foi sourced de lá) — worktree e tronco podem divergir
+  # sem que isso seja corrupção.
+  check_script="$(_redfirst_resolve_delegated check-red-first.sh scripts/check-red-first.sh)"; _rc=$?
+  if [ "$_rc" -eq 2 ]; then return 0; fi
+  if [ "$_rc" -eq 1 ]; then
     echo "pre-push BLOQUEADO: .forge/scripts/ existe mas check-red-first.sh não — o gate de red-first sumiu." >&2
     return 1
   fi
-  if [ ! -f "$univ_lib" ]; then
+  univ_lib="$(_redfirst_resolve_delegated gate-universe.sh scripts/lib/gate-universe.sh)"; _rc=$?
+  if [ "$_rc" -ne 0 ]; then
     echo "pre-push BLOQUEADO: .forge/scripts/lib/gate-universe.sh ausente — sem contador de controle o gate" >&2
     echo "  não consegue distinguir 'examinei e estava limpo' de 'não examinei nada' (issue #49)." >&2
     return 1

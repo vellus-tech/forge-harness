@@ -46,12 +46,16 @@
 #   [6b] contrafactual — doctor.sh: drift REAL (o próprio comando do hook alterado) continua
 #        recomendando `sync-adapters.sh` normalmente — a mudança de [6] não silencia drift de
 #        verdade.
-#   [6c] positivo — versão mista doctor×lib (achado de correção MEDIUM): uma `sync-adapters.mjs`
-#        anterior à #130 (sem `isMainModule`/`preToolUseWiring`), preservada por exceção de
-#        machinery enquanto o overlay já entrega o `doctor.sh` novo, NÃO é importada por
-#        `_settings_hooks_is_derived` — a leitura de diagnóstico não reconcilia o consumidor como
-#        efeito colateral, `permissions` continua intacto depois de rodar o doctor, e o doctor
-#        ainda assim reporta drift (resposta conservadora "no" sem a lib segura).
+#   [6c] positivo — versão mista doctor×lib (achado de correção MEDIUM + LOW, revisão adversarial):
+#        uma `sync-adapters.mjs` anterior à #130 (sem `isMainModule`/`preToolUseWiring`/
+#        `mergeSettingsJson`), preservada por exceção de machinery enquanto o overlay já entrega o
+#        `doctor.sh` novo, NÃO é importada por `_settings_hooks_is_derived` — a leitura de
+#        diagnóstico não reconcilia o consumidor como efeito colateral, `permissions` continua
+#        intacto depois de rodar o doctor — e, como a fixture tem `permissions` fora de `hooks` e
+#        a lib não tem a fusão da #160 (`mergeSettingsJson`), o doctor troca a recomendação normal
+#        por um AVISO nomeando a #160 e o risco de apagar chaves autorais, em vez de mandar "rode
+#        sync-adapters.sh" sem ressalva (achado LOW: a âncora de #130 não bastava para confirmar a
+#        fusão da #160).
 #   [7] PBT — `template/.forge/scripts/lib/pbt.mjs` (`makeRandom`, semente fixa), 60 casos: para
 #       `settings.json` gerados (subconjuntos aleatórios de chaves de topo autorais, hooks de
 #       terceiros e hooks do harness de uma configuração de flags ANTERIOR, em ordem aleatória),
@@ -201,6 +205,34 @@ elif ! grep -q 'prevent-secrets-leak.sh' "$T1/.claude/settings.json"; then
   overall_rc=1
 else
   echo "OK [1] — chaves de topo ($AFTER_KEYS1) sobrevivem, permissions byte-idêntico, hook de terceiro presente, projeção owned de hooks == wiring"
+fi
+
+# ── [1b] achado de correção LOW (lacuna de cobertura): [1] media entre o 2º e o 3º sync, com a
+#     fixture montada a partir da SAÍDA do gerador (ordem de chaves hooks,permissions,...) — nunca
+#     o PRIMEIRO sync sobre a ORDEM real de chaves do consumidor (permissions,env,hooks,
+#     includeCoAuthoredBy). Monta o arquivo diretamente nessa ordem, sem sync preparatório, e
+#     confere que o PRIMEIRO sync já é byte-idêntico (medido à parte contra o vellus real).
+echo "[1b] primeiro sync sobre a ORDEM real de chaves do vellus (permissions,env,hooks,includeCoAuthoredBy), sem sync preparatório, é byte-idêntico"
+T1B="$(mktemp -d "$TMPROOT/forge-w238-1b.XXXXXX")"; track "$T1B"
+nova_fixture "$T1B"
+mkdir -p "$T1B/.claude"
+node -e '
+  const fs = require("fs");
+  const settings = {
+    permissions: JSON.parse(process.argv[2]),
+    env: JSON.parse(process.argv[3]),
+    hooks: { PreToolUse: [ { matcher: "Bash", hooks: [ { type: "command", command: "$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/enforce-worktree-location.sh" } ] } ] },
+    includeCoAuthoredBy: false,
+  };
+  fs.writeFileSync(process.argv[1], JSON.stringify(settings, null, 2) + "\n");
+' "$T1B/.claude/settings.json" "$VELLUS_PERMISSIONS_JSON" "$VELLUS_ENV_JSON"
+cp "$T1B/.claude/settings.json" "$T1B/before.json"
+bash "$T1B/.forge/scripts/sync-adapters.sh" --set claude >/dev/null 2>&1
+if ! cmp -s "$T1B/before.json" "$T1B/.claude/settings.json"; then
+  echo "FAIL [1b]: o PRIMEIRO sync sobre a ordem real do vellus (permissions,env,hooks,includeCoAuthoredBy) mudou bytes — esperado no-op"
+  overall_rc=1
+else
+  echo "OK [1b] — primeiro sync sobre a ordem real do vellus é byte-idêntico, sem sync preparatório"
 fi
 
 # ── [2] fixture "axis-fare-validator": hooks de terceiro preservados como objetos idênticos ─────
@@ -387,8 +419,8 @@ LINE6="$(grep -i 'adapter claude' <<<"$DOCTOR_OUT6")"
 if grep -qi 'com drift (rode' <<<"$LINE6"; then
   echo "FAIL [6]: doctor ainda recomenda 'rode sync-adapters.sh' para drift só em chave autoral, mesmo com hook de terceiro presente: $LINE6"
   overall_rc=1
-elif ! grep -qi 'chave.*autoral' <<<"$LINE6"; then
-  echo "FAIL [6]: doctor não imprimiu a linha informativa esperada sobre chave autoral: $LINE6"
+elif ! grep -qi 'fora da fiação do gerador' <<<"$LINE6"; then
+  echo "FAIL [6]: doctor não imprimiu a linha informativa esperada (achado de correção LOW: sem afirmar contagem de chaves que não faz): $LINE6"
   overall_rc=1
 elif ! grep -q 'prevent-secrets-leak.sh' "$T6/.claude/settings.json"; then
   echo "FAIL [6]: a fixture perdeu o hook de terceiro antes mesmo do doctor rodar — cenário não é o medido"
@@ -404,6 +436,9 @@ DOCTOR_OUT6B="$(FORGE_ROOT="$T6" bash "$T6/$DOCTOR_REL" 2>&1)"
 LINE6B="$(grep -i 'adapter claude' <<<"$DOCTOR_OUT6B")"
 if ! grep -qi 'com drift (rode' <<<"$LINE6B"; then
   echo "FAIL [6b]: drift REAL deixou de ser recomendado — a mudança de [6] silenciou drift de verdade: $LINE6B"
+  overall_rc=1
+elif ! grep -qi 'o sync preserva chaves autorais e hooks de terceiro' <<<"$LINE6B"; then
+  echo "FAIL [6b]: achado de correção LOW — a recomendação de drift real em settings.json deveria trazer a ressalva de que o sync preserva chaves autorais e hooks de terceiro (lib com a fusão da #160): $LINE6B"
   overall_rc=1
 else
   echo "OK [6b] — $LINE6B"
@@ -432,11 +467,18 @@ if OLD_LIB_TEXT="$(git -C "$WS" show "$OLD_LIB_SHA:template/$LIB_REL" 2>/dev/nul
     elif ! grep -q '"permissions"' "$T6C/.claude/settings.json"; then
       echo "FAIL [6c]: 'permissions' desapareceu depois do doctor"
       overall_rc=1
-    elif ! grep -qi 'com drift (rode' <<<"$LINE6C"; then
-      echo "FAIL [6c]: com a lib antiga (sem isMainModule/preToolUseWiring), o doctor deveria cair no modo conservador ('no') e continuar recomendando sync: $LINE6C"
+    # Achado de correção LOW (âncora incompleta): a lib de $OLD_LIB_SHA não tem `mergeSettingsJson`
+    # (a fusão da #160) e a fixture tem 'permissions' fora de `hooks` — o doctor não deve mais
+    # recomendar "rode sync-adapters.sh" sem ressalva (a #160 provou que essa recomendação, com
+    # essa lib, apagaria 'permissions'), e sim avisar do risco nomeando a #160.
+    elif grep -qi 'com drift (rode' <<<"$LINE6C"; then
+      echo "FAIL [6c]: com a lib antiga (sem mergeSettingsJson), o doctor ainda recomenda 'rode sync-adapters.sh' sem ressalva — essa recomendação apagaria 'permissions' com essa lib: $LINE6C"
+      overall_rc=1
+    elif ! grep -qi 'anterior à #160' <<<"$LINE6C" || ! grep -qi 'apagaria' <<<"$LINE6C"; then
+      echo "FAIL [6c]: com a lib antiga e 'permissions' fora de hooks, o doctor deveria avisar que o sync apagaria chaves autorais em vez de recomendá-lo: $LINE6C"
       overall_rc=1
     else
-      echo "OK [6c] — lib de $OLD_LIB_SHA não foi importada, .claude/ intacto, doctor continua recomendando sync: $LINE6C"
+      echo "OK [6c] — lib de $OLD_LIB_SHA não foi importada, .claude/ intacto, doctor avisa do risco em vez de recomendar sync: $LINE6C"
     fi
   fi
 else
@@ -566,7 +608,8 @@ for (let i = 0; i < runs; i++) {
 
   execFileSync('bash', [`${FIXTURE}/.forge/scripts/sync-adapters.sh`], { stdio: 'ignore' });
 
-  const result = JSON.parse(readFileSync(settingsPath, 'utf8'));
+  const resultText = readFileSync(settingsPath, 'utf8');
+  const result = JSON.parse(resultText);
 
   const problems = [];
   for (const k of chosenAuthorKeys) {
@@ -582,11 +625,20 @@ for (let i = 0; i < runs; i++) {
   }
   const mod = await import(pathToFileURL(LIB).href);
   const derived = mod.preToolUseWiring(FIXTURE);
-  const expectedOwned = new Set(flattenCommands(derived));
-  const actualOwned = new Set(flattenCommands(result.hooks).filter((c) => OWNED.has(c)));
-  if (expectedOwned.size !== actualOwned.size || [...expectedOwned].some((c) => !actualOwned.has(c))) {
-    problems.push(`hooks do harness divergem do esperado: esperado ${[...expectedOwned]}, obtido ${[...actualOwned]}`);
+  // Achado de correção LOW (revisão adversarial): multiplicidade, não só presença — um Set
+  // esconderia uma entrada derivada DUPLICADA (mesmo comando emitido duas vezes), porque
+  // `new Set([...]).size` colapsa repetições. Arrays ordenados comparam CONTAGEM por comando.
+  const expectedOwnedList = flattenCommands(derived).sort();
+  const actualOwnedList = flattenCommands(result.hooks).filter((c) => OWNED.has(c)).sort();
+  if (JSON.stringify(expectedOwnedList) !== JSON.stringify(actualOwnedList)) {
+    problems.push(`hooks do harness divergem do esperado (contando duplicatas): esperado ${JSON.stringify(expectedOwnedList)}, obtido ${JSON.stringify(actualOwnedList)}`);
   }
+
+  // Achado de correção LOW: idempotência não era propriedade verificada pela PBT (só pelo cenário
+  // fixo [3]) — um segundo sync sobre a MESMA saída aleatória tem de ser byte-idêntico.
+  execFileSync('bash', [`${FIXTURE}/.forge/scripts/sync-adapters.sh`], { stdio: 'ignore' });
+  const resultText2 = readFileSync(settingsPath, 'utf8');
+  if (resultText2 !== resultText) problems.push('segundo sync não é idempotente (bytes mudaram)');
 
   if (problems.length) {
     failures++;
@@ -745,7 +797,7 @@ LIB10="$T10BASE/repo/$LIB_REL"
 BACKUP10="$(mktemp "$TMPROOT/forge-w238-10-backup.XXXXXX")"; track "$BACKUP10"
 cp "$LIB10" "$BACKUP10"
 
-perl -0777 -pi -e "s/} else \{\n        backupUnreadableSettings\(ROOT, settingsPath, rawBytes\);\n        existingSettingsText = null;\n      \}/} else {\n        existingSettingsText = null;\n      }/" "$LIB10"
+perl -0777 -pi -e "s/} else \{\n        backupUnreadableSettings\(ROOT, settingsPath, rawBytes, reason\);\n        existingSettingsText = null;\n      \}/} else {\n        existingSettingsText = null;\n      }/" "$LIB10"
 if cmp -s "$LIB10" "$BACKUP10"; then
   echo "FAIL [10]: a mutação não alterou nenhum byte da lib — o perl não achou o bloco de backup"
   overall_rc=1
@@ -844,6 +896,195 @@ elif ! node -e "const j=JSON.parse(require('fs').readFileSync(process.argv[1],'u
   overall_rc=1
 else
   echo "OK [11c] — 'hooks' como array: backup byte-idêntico, WARN, 'hooks' regenerado como objeto"
+fi
+
+# [11d] categoria de 'hooks' que não é array (achado de correção LOW, revisão adversarial da 2ª
+# iteração) — antes desta correção, mergeHooksObject tratava a categoria como [] e a descartava em
+# silêncio; agora o arquivo inteiro é ilegível (backup + WARN), a mesma política de [11a]-[11c].
+rm -rf "$T11BASE/repo/.git/forge-backups" 2>/dev/null || true
+printf '{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/enforce-worktree-location.sh"}]}],"Notification":{"weird":true}}}' > "$T11BASE/repo/.claude/settings.json"
+cp "$T11BASE/repo/.claude/settings.json" "$T11BASE/before-11d.json"
+OUT11D="$(cd "$T11BASE/repo" && bash .forge/scripts/sync-adapters.sh 2>&1)"
+BAK11D="$(cd "$T11BASE/repo" && git rev-parse --absolute-git-dir)/forge-backups/settings-1.json"
+if ! grep -qi 'WARN.*settings.json' <<<"$OUT11D"; then
+  echo "FAIL [11d]: categoria de hooks não-array ('Notification') não gerou WARN: $OUT11D"
+  overall_rc=1
+elif [ ! -f "$BAK11D" ] || ! cmp -s "$T11BASE/before-11d.json" "$BAK11D"; then
+  echo "FAIL [11d]: backup ausente ou não byte-idêntico ao conteúdo com categoria não-array"
+  overall_rc=1
+elif ! node -e "const j=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')); process.exit(j.hooks.Notification === undefined ? 0 : 1)" "$T11BASE/repo/.claude/settings.json"; then
+  echo "FAIL [11d]: settings.json regenerado ainda tem 'hooks.Notification' — deveria ter sido tratado como ilegível e regenerado do zero"
+  overall_rc=1
+else
+  echo "OK [11d] — categoria 'hooks.Notification' não-array: backup byte-idêntico, WARN, arquivo regenerado do zero"
+fi
+
+# [11e] positivo — achado de correção LOW: um grupo de hooks já vazio (hooks:[]), que NÃO continha
+# nenhum hook owned, sobrevive ao sync (é uma forma exótica que o Claude Code nunca emite, mas o
+# defeito da revisão adversarial descartava QUALQUER grupo com keptHooks.length===0, mesmo quando
+# nada tinha sido removido dele).
+rm -rf "$T11BASE/repo/.git/forge-backups" 2>/dev/null || true
+printf '{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/enforce-worktree-location.sh"}]}],"Stop":[{"matcher":"","hooks":[]}]}}' > "$T11BASE/repo/.claude/settings.json"
+bash "$T11BASE/repo/.forge/scripts/sync-adapters.sh" >/dev/null 2>&1
+if ! node -e "const j=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')); process.exit((j.hooks.Stop && Array.isArray(j.hooks.Stop) && j.hooks.Stop.length===1 && Array.isArray(j.hooks.Stop[0].hooks) && j.hooks.Stop[0].hooks.length===0) ? 0 : 1)" "$T11BASE/repo/.claude/settings.json"; then
+  echo "FAIL [11e]: o grupo 'Stop' com hooks:[] (sem nenhum hook owned) não sobreviveu ao sync"
+  overall_rc=1
+else
+  echo "OK [11e] — grupo de terceiro com hooks:[] (sem hook owned) sobrevive ao sync, não é descartado por engano"
+fi
+
+# [11f] a chave de topo '__proto__' (achado de correção LOW): tratada como ilegível — backup + WARN
+# — nunca copiada por atribuição comum, que trocaria o protótipo do objeto de saída em vez de criar
+# a chave. O arquivo escrito à mão precisa ser literal (JSON.parse cria '__proto__' como propriedade
+# OWN; um objeto JS não consegue, por isso a fixture usa printf em vez de node -e).
+rm -rf "$T11BASE/repo/.git/forge-backups" 2>/dev/null || true
+printf '{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/enforce-worktree-location.sh"}]}]},"__proto__":{"polluted":true}}' > "$T11BASE/repo/.claude/settings.json"
+cp "$T11BASE/repo/.claude/settings.json" "$T11BASE/before-11f.json"
+OUT11F="$(cd "$T11BASE/repo" && bash .forge/scripts/sync-adapters.sh 2>&1)"
+BAK11F="$(cd "$T11BASE/repo" && git rev-parse --absolute-git-dir)/forge-backups/settings-1.json"
+if ! grep -qi "WARN.*settings.json ilegível (chave de topo '__proto__'" <<<"$OUT11F"; then
+  echo "FAIL [11f]: a chave de topo '__proto__' não gerou o WARN nomeado esperado: $OUT11F"
+  overall_rc=1
+elif [ ! -f "$BAK11F" ] || ! cmp -s "$T11BASE/before-11f.json" "$BAK11F"; then
+  echo "FAIL [11f]: backup ausente ou não byte-idêntico ao conteúdo com '__proto__'"
+  overall_rc=1
+elif ! node -e "
+  const j = JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'));
+  const protoIntact = Object.getPrototypeOf(j) === Object.prototype;
+  const notPolluted = j.polluted === undefined;
+  process.exit(protoIntact && notPolluted ? 0 : 1);
+" "$T11BASE/repo/.claude/settings.json"; then
+  echo "FAIL [11f]: settings.json regenerado tem o protótipo trocado ou herda 'polluted' — a chave '__proto__' vazou para o objeto de saída"
+  overall_rc=1
+else
+  echo "OK [11f] — '__proto__': backup byte-idêntico, WARN, arquivo regenerado sem poluir o protótipo"
+fi
+
+# ── [12] MEDIUM (achado de correção da revisão adversarial): desativar o adapter claude não apaga
+#     .claude/settings.json inteiro — poda só as entradas owned e preserva o resto ───────────────
+echo "[12] desativar o adapter claude preserva .claude/settings.json quando sobra conteúdo não-owned (chave autoral ou hook de terceiro)"
+T12="$(mktemp -d "$TMPROOT/forge-w238-12.XXXXXX")"; track "$T12"
+nova_fixture "$T12"
+fixture_vellus_settled "$T12"
+PERM_BEFORE12="$(json_get "$T12/.claude/settings.json" permissions)"
+OUT12="$(bash "$T12/.forge/scripts/sync-adapters.sh" --set codex 2>&1)"
+if [ ! -f "$T12/.claude/settings.json" ]; then
+  echo "FAIL [12]: .claude/settings.json foi apagado ao desativar o adapter claude, mesmo tendo chave autoral e hook de terceiro: $OUT12"
+  overall_rc=1
+else
+  PERM_AFTER12="$(json_get "$T12/.claude/settings.json" permissions)"
+  if [ "$PERM_AFTER12" != "$PERM_BEFORE12" ]; then
+    echo "FAIL [12]: 'permissions' não ficou byte-idêntico depois de desativar o adapter — antes $PERM_BEFORE12, depois $PERM_AFTER12"
+    overall_rc=1
+  elif ! grep -q 'prevent-secrets-leak.sh' "$T12/.claude/settings.json"; then
+    echo "FAIL [12]: o hook de terceiro não sobreviveu à desativação do adapter claude"
+    overall_rc=1
+  elif grep -q 'enforce-worktree-location.sh' "$T12/.claude/settings.json"; then
+    echo "FAIL [12]: o hook OWNED (enforce-worktree-location.sh) sobreviveu à desativação — deveria ter sido podado, já que nenhum adapter ativo o deriva mais"
+    overall_rc=1
+  else
+    echo "OK [12] — .claude/settings.json mantido com permissions/env/includeCoAuthoredBy intactos, hook de terceiro presente, hook owned podado"
+  fi
+fi
+
+# [12b] positivo — quando NADA sobra (só hooks, e todos owned), o arquivo É removido.
+echo "[12b] desativar o adapter claude remove .claude/settings.json quando só sobrava fiação owned (nada autoral, nenhum hook de terceiro)"
+T12B="$(mktemp -d "$TMPROOT/forge-w238-12b.XXXXXX")"; track "$T12B"
+nova_fixture "$T12B"
+bash "$T12B/.forge/scripts/sync-adapters.sh" --set claude >/dev/null 2>&1
+OUT12B="$(bash "$T12B/.forge/scripts/sync-adapters.sh" --set codex 2>&1)"
+if [ -f "$T12B/.claude/settings.json" ]; then
+  echo "FAIL [12b]: .claude/settings.json sobreviveu vazio (só tinha fiação owned) — deveria ter sido removido: $(cat "$T12B/.claude/settings.json")"
+  overall_rc=1
+else
+  echo "OK [12b] — .claude/settings.json removido quando não sobra nenhum conteúdo não-owned"
+fi
+
+# ── [13] mutação — pruneSettingsJson voltando ao unlink incondicional faz [12] falhar ───────────
+echo "[13] mutação: pruneSettingsJson reduzido a 'unlinkSync incondicional' faz o cenário [12] falhar (permissions some)"
+T13="$(mktemp -d "$TMPROOT/forge-w238-13.XXXXXX")"; track "$T13"
+nova_fixture "$T13"
+LIB13="$T13/$LIB_REL"
+BACKUP13="$(mktemp "$TMPROOT/forge-w238-13-backup.XXXXXX")"; track "$BACKUP13"
+cp "$LIB13" "$BACKUP13"
+
+perl -0777 -pi -e "s/function pruneSettingsJson\(abs\) \{\n  if \(!exists\(abs\)\) return false;/function pruneSettingsJson(abs) {\n  if (!exists(abs)) return false;\n  unlinkSync(abs); return true; \/\/ MUTACAO w238 [13]\n  \/* eslint-disable-next-line no-unreachable *\//" "$LIB13"
+if cmp -s "$LIB13" "$BACKUP13"; then
+  echo "FAIL [13]: a mutação não alterou nenhum byte da lib — o perl não achou o início de pruneSettingsJson"
+  overall_rc=1
+else
+  T13C="$(mktemp -d "$TMPROOT/forge-w238-13c.XXXXXX")"; track "$T13C"
+  nova_fixture "$T13C"
+  cp "$LIB13" "$T13C/$LIB_REL"
+  fixture_vellus_settled "$T13C"
+  bash "$T13C/.forge/scripts/sync-adapters.sh" --set codex >/dev/null 2>&1
+  if [ -f "$T13C/.claude/settings.json" ]; then
+    echo "FAIL [13]: com o unlink incondicional restaurado, .claude/settings.json AINDA sobreviveu — a mutação não acusa"
+    overall_rc=1
+  else
+    echo "OK [13] — mutação acusa: com pruneSettingsJson reduzido a unlink incondicional, .claude/settings.json (com permissions) some ao desativar o adapter"
+  fi
+fi
+
+cp "$BACKUP13" "$LIB13"
+if ! cmp -s "$LIB13" "$BACKUP13"; then
+  echo "FAIL [13]: a restauração da lib mutada não bateu byte a byte com a cópia salva"
+  overall_rc=1
+else
+  T13R="$(mktemp -d "$TMPROOT/forge-w238-13r.XXXXXX")"; track "$T13R"
+  nova_fixture "$T13R"
+  cp "$LIB13" "$T13R/$LIB_REL"
+  fixture_vellus_settled "$T13R"
+  bash "$T13R/.forge/scripts/sync-adapters.sh" --set codex >/dev/null 2>&1
+  if [ ! -f "$T13R/.claude/settings.json" ]; then
+    echo "FAIL [13]: recontrole — com a lib restaurada, .claude/settings.json ainda não sobrevive à desativação"
+    overall_rc=1
+  else
+    echo "OK [13] recontrole — lib restaurada byte a byte, .claude/settings.json volta a sobreviver com permissions"
+  fi
+fi
+
+# ── [14] mutação — mergeHooksObject sem a condição 'group.hooks.length > 0' faz [11e] falhar ────
+echo "[14] mutação: mergeHooksObject descartando por 'keptHooks.length===0' sozinho faz o grupo 'Stop' vazio de [11e] desaparecer"
+T14="$(mktemp -d "$TMPROOT/forge-w238-14.XXXXXX")"; track "$T14"
+nova_fixture "$T14"
+LIB14="$T14/$LIB_REL"
+BACKUP14="$(mktemp "$TMPROOT/forge-w238-14-backup.XXXXXX")"; track "$BACKUP14"
+cp "$LIB14" "$BACKUP14"
+
+perl -0777 -pi -e "s/if \(group\.hooks\.length > 0 && keptHooks\.length === 0\) continue; \/\/ grupo inteiro era do gerador — descarta/if (keptHooks.length === 0) continue; \/\/ MUTACAO w238 [14]/" "$LIB14"
+if cmp -s "$LIB14" "$BACKUP14"; then
+  echo "FAIL [14]: a mutação não alterou nenhum byte da lib — o perl não achou a condição de descarte"
+  overall_rc=1
+else
+  bash "$T14/.forge/scripts/sync-adapters.sh" --set claude >/dev/null 2>&1
+  node -e 'const fs=require("fs");const p=process.argv[1];const j=JSON.parse(fs.readFileSync(p,"utf8"));j.hooks.Stop=[{matcher:"",hooks:[]}];fs.writeFileSync(p,JSON.stringify(j,null,2)+"\n");' "$T14/.claude/settings.json"
+  bash "$T14/.forge/scripts/sync-adapters.sh" >/dev/null 2>&1
+  if node -e "const j=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')); process.exit(j.hooks.Stop ? 0 : 1)" "$T14/.claude/settings.json"; then
+    echo "FAIL [14]: com a condição antiga restaurada, o grupo 'Stop' vazio AINDA sobreviveu — a mutação não acusa"
+    overall_rc=1
+  else
+    echo "OK [14] — mutação acusa: sem checar 'group.hooks.length > 0', o grupo de terceiro com hooks:[] desaparece"
+  fi
+fi
+
+cp "$BACKUP14" "$LIB14"
+if ! cmp -s "$LIB14" "$BACKUP14"; then
+  echo "FAIL [14]: a restauração da lib mutada não bateu byte a byte com a cópia salva"
+  overall_rc=1
+else
+  T14R="$(mktemp -d "$TMPROOT/forge-w238-14r.XXXXXX")"; track "$T14R"
+  nova_fixture "$T14R"
+  cp "$LIB14" "$T14R/$LIB_REL"
+  bash "$T14R/.forge/scripts/sync-adapters.sh" --set claude >/dev/null 2>&1
+  node -e 'const fs=require("fs");const p=process.argv[1];const j=JSON.parse(fs.readFileSync(p,"utf8"));j.hooks.Stop=[{matcher:"",hooks:[]}];fs.writeFileSync(p,JSON.stringify(j,null,2)+"\n");' "$T14R/.claude/settings.json"
+  bash "$T14R/.forge/scripts/sync-adapters.sh" >/dev/null 2>&1
+  if ! node -e "const j=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')); process.exit(j.hooks.Stop ? 0 : 1)" "$T14R/.claude/settings.json"; then
+    echo "FAIL [14]: recontrole — com a lib restaurada, o grupo 'Stop' vazio ainda não sobrevive"
+    overall_rc=1
+  else
+    echo "OK [14] recontrole — lib restaurada byte a byte, grupo 'Stop' vazio volta a sobreviver"
+  fi
 fi
 
 if [ "$overall_rc" -eq 0 ]; then

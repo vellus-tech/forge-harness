@@ -81,6 +81,21 @@
 #       `topMatchesProjection` faz [39] voltar a bloquear o legado sem `fix_files` mesmo depois
 #       do waive válido
 #
+# Achado MEDIUM da revisão adversarial da #139 (iteração 3), coberto a partir do [41]:
+#  [41] MEDIUM — `cmdEnsure`, com `entries: []` presente no arquivo bruto (scaffold recém-criado
+#       por `record`, ou um topo legado ainda preenchido mas nunca migrado para `entries[]`),
+#       caía no ramo de legado (`entries.length <= 1` mas `entries.length > 0` falso) e tratava o
+#       TOPO como vetor de replay — só que `data.entries` já é array, então não é legado de
+#       verdade: `upsertSingleEntry` recusa endereçar (nenhuma entrada registrada),
+#       `persistReplayResult` devolve `{ refused: true }` SEM `.data`, e o acesso a
+#       `persisted.data.status` estourava `TypeError`. Cobre as duas formas medidas — scaffold
+#       com todos os escalares do topo `null`, e um topo legado com os escalares preenchidos à
+#       mão mas `entries: []` já presente — em ambas `ensure` sai `rc 0` sem `TypeError`,
+#       imprimindo que não há nada a replayar, e `check-red-first` continua bloqueando (`rc≠0`,
+#       item 1 — nenhuma entrada resolvida)
+#  [42] MUTAÇÃO (sandbox) — remover a guarda `entries.length === 0` de `cmdEnsure` faz [41]
+#       voltar a estourar (ensure sai rc≠0, com "TypeError" na saída) em vez de rc 0 limpo
+#
 # Achado MEDIUM da correção: as mutações [17]-[19] rodam inteiramente dentro de uma árvore
 # SANDBOX (`mk_root` num `mktemp -d` novo) — nunca sobre `template/.forge/scripts/lib/*.mjs` do
 # worktree real. `red-evidence.sh` resolve sua própria lib por `SCRIPT_DIR` (a pasta do próprio
@@ -1489,5 +1504,105 @@ echo "OK [39]"
 
 echo "[40] MUTAÇÃO (sandbox) — remover a guarda '!Array.isArray(data.entries) -> sem 2ª fonte' de topMatchesProjection faz [39] voltar a bloquear o legado sem fix_files mesmo depois do waive válido"
 run_mutation "40" 's/if \(!Array\.isArray\(data\.entries\)\) return true;//' scenario_legacy_no_fixfiles_waivable "red-evidence.mjs"
+
+scenario_ensure_empty_entries() { # scenario_ensure_empty_entries <root> <suffix>
+  # MEDIUM da revisão adversarial (iteração 3, w218 [41]) — `entries: []` já presente no arquivo
+  # bruto não é legado: cobre as duas formas medidas, scaffold com os escalares do topo todos
+  # `null` e um topo legado com os escalares preenchidos à mão (nenhum dos dois nunca passou por
+  # um `record` que criasse uma entrada de verdade). Nos dois casos, `ensure` tinha de sair rc 0
+  # sem TypeError, e `check-red-first` continua bloqueando (item 1 — nenhuma entrada resolvida).
+  local root="$1" suffix="$2"
+  local id_a="bug-empty-scaffold$suffix"
+  local id_b="bug-empty-legado$suffix"
+
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/spec-new.sh" "$id_a" --type bugfix --scale 1 >/dev/null 2>&1 || return 1
+  local ev_a="$root/.forge/specs/active/$id_a/evidence/red/red-evidence.json"
+  node -e "
+const fs = require('fs');
+const d = {
+  schema: 'red-evidence/v1',
+  change_id: '$id_a',
+  status: 'pending',
+  test_path: null,
+  test_id: null,
+  command: null,
+  base_commit: null,
+  failure_pattern: null,
+  excerpt: null,
+  excerpt_sha256: null,
+  classification: null,
+  base_result: null,
+  base_strategy: null,
+  revert_patch: null,
+  graft_from: null,
+  replay_head: null,
+  setup_command: null,
+  reproduces: 'bugfix.md §1',
+  fix_files: [],
+  waiver: null,
+  recorded_at: null,
+  replayed_at: null,
+  waived_at: null,
+  entries: []
+};
+fs.writeFileSync(process.argv[1], JSON.stringify(d, null, 2) + '\n');
+" "$ev_a"
+
+  set +e
+  local out_a rc_a
+  out_a="$(FORGE_ROOT="$root" bash "$root/.forge/scripts/red-evidence.sh" ensure "$id_a" 2>&1)"; rc_a=$?
+  set -e
+  [ "$rc_a" -eq 0 ] || return 1
+  grep -qi "typeerror" <<<"$out_a" && return 1
+
+  set +e
+  local outc_a rcc_a
+  outc_a="$(FORGE_ROOT="$root" bash "$root/.forge/scripts/check-red-first.sh" check "$id_a" 2>&1)"; rcc_a=$?
+  set -e
+  [ "$rcc_a" -ne 0 ] || return 1
+
+  FORGE_ROOT="$root" bash "$root/.forge/scripts/spec-new.sh" "$id_b" --type bugfix --scale 1 >/dev/null 2>&1 || return 1
+  local ev_b="$root/.forge/specs/active/$id_b/evidence/red/red-evidence.json"
+  node -e "
+const fs = require('fs');
+const d = {
+  schema: 'red-evidence/v1',
+  change_id: '$id_b',
+  status: 'pending',
+  test_path: 'tests/legado-empty$suffix.test.mjs',
+  test_id: 'legado-empty-case$suffix',
+  command: 'node --test tests/legado-empty$suffix.test.mjs',
+  failure_pattern: 'AssertionError',
+  fix_files: ['src/legado$suffix.sh'],
+  entries: []
+};
+fs.writeFileSync(process.argv[1], JSON.stringify(d, null, 2) + '\n');
+" "$ev_b"
+
+  set +e
+  local out_b rc_b
+  out_b="$(FORGE_ROOT="$root" bash "$root/.forge/scripts/red-evidence.sh" ensure "$id_b" 2>&1)"; rc_b=$?
+  set -e
+  [ "$rc_b" -eq 0 ] || return 1
+  grep -qi "typeerror" <<<"$out_b" && return 1
+
+  set +e
+  local outc_b rcc_b
+  outc_b="$(FORGE_ROOT="$root" bash "$root/.forge/scripts/check-red-first.sh" check "$id_b" 2>&1)"; rcc_b=$?
+  set -e
+  [ "$rcc_b" -ne 0 ] || return 1
+
+  return 0
+}
+
+echo "[41] MEDIUM — entries: [] (scaffold e topo legado preenchido) faz ensure sair rc 0 sem TypeError; check-red-first continua bloqueando"
+if ! scenario_ensure_empty_entries "$T" ""; then
+  echo "FAIL [41]: entries: [] deveria fazer ensure sair rc 0 sem TypeError, com check-red-first ainda bloqueando (item 1)"
+  exit 1
+fi
+echo "OK [41]"
+
+echo "[42] MUTAÇÃO (sandbox) — remover a guarda 'entries.length === 0' de cmdEnsure faz [41] voltar a estourar (TypeError, rc≠0) em vez de rc 0 limpo"
+run_mutation "42" 's/if \(Array\.isArray\(data\.entries\) && data\.entries\.length === 0\) \{/if (false) {/' scenario_ensure_empty_entries
 
 echo "OK"

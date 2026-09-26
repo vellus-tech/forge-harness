@@ -229,9 +229,11 @@ function cmdRecord(changeDir, argv) {
 // Onda (`legacy:true`): nem `ensure`/`replay`/`waive` introduzem `entries[]` em arquivo legado só
 // por rodar — isso seria uma migração de formato silenciosa disparada por toda chamada de rotina
 // de /forge:verify e /forge:archive, fora do escopo desta issue (o escopo dela é `record`). É
-// também o que preserva a superfície de detecção de forja de w106/w107 [3-FORJA]: quando o change
-// tem ≤1 entrada, `ensure` roda o motor de replay sobre o TOPO (não sobre a entrada) — ver
-// comentário de `cmdEnsure` — e o resultado é gravado aqui.
+// também o que preserva a superfície de detecção de forja de w106/w107 [3-FORJA]: o TOPO só é
+// vetor de replay no legado de verdade (arquivo sem a chave `entries[]`); com `entries[]` presente
+// no arquivo bruto — mesmo com 0 ou 1 entrada —, `ensure` sempre replaya `projectEntryToFlat` de
+// cada entrada não dispensada (`entries[0]` isolada, ou cada uma, com 2+) e endereça a escrita por
+// id — ver comentário de `cmdEnsure` — e o resultado é gravado aqui.
 //
 // Com `entries[]` já presente (qualquer `record` desta Onda já rodou), a escrita SEMPRE endereça
 // por id via `resolveEntryId` — toda entrada tem id não nulo e estável (redesenho da #139), então
@@ -385,16 +387,22 @@ async function cmdReplay(changeDir, argv) {
 // check-red-first.mjs, que roda em seguida e lê o que ESTA chamada acabou de gravar. rc≠0 aqui é
 // reservado a erro de setup genuíno (manifest ilegível).
 //
-// Redesenho de causa raiz da #139 (4ª rodada): com ≤1 entrada, o VETOR sob teste continua sendo
-// o TOPO (`data`), nunca a projeção da entrada — é essa escolha, preservada do design anterior,
-// que mantém w106/w107 [3-FORJA] pegando uma forja que edita só os escalares do topo (uma forja
-// que toca só `entries[]` sozinho é um vetor de ataque diferente, coberto pelo laço de 2+ entradas
-// abaixo, e pela checagem estática de adulteração em check-red-first.mjs). Com 2+ entradas, o
-// topo é ambíguo (só reflete entries[0]) e `ensure` ITERA cada entrada não dispensada
-// (`status !== 'waived'`), replayando a projeção de CADA UMA — como toda entrada tem id não nulo
-// (item 2 do redesenho), o endereçamento nunca mais recusa por "entrada sem nome" (o furo HIGH-1/
-// HIGH-2 medido na 3ª rodada de correção: uma entrada com `id: null` era pulada em silêncio pelo
-// laço, e sua forja sobrevivia porque `persistReplayResult` nunca conseguia escrever nela).
+// Redesenho de causa raiz da #139 (5ª rodada, modelo final): `entries[]` no arquivo bruto é o
+// sinal de que o TOPO deixou de ser vetor de replay — `data.entries` presente e vazio (scaffold
+// ou topo legado ainda preenchido sem nenhuma entrada declarada) sai limpo, sem tocar o motor de
+// replay (`check-red-first.mjs` cobre a ausência de declaração); com 1 entrada, `ensure` replaya
+// SEMPRE `projectEntryToFlat(entries[0])` e endereça a escrita por id — nunca mais o TOPO bruto —,
+// o que fecha o furo MEDIUM da revisão adversarial (w218): tratar um `entries[]` vazio como o
+// mesmo caso de "≤1 entrada, replay pelo topo" caía no ramo de legado com um topo possivelmente
+// incompleto, produzindo TypeError ou um replay espúrio. O TOPO só continua sendo a ÚNICA fonte no
+// legado de verdade — arquivo sem a chave `entries[]` —, onde não existe segunda fonte para
+// divergir (`extractEntryFromTop`, `deriveEntries`); é esse caso, e só ele, que preserva a
+// detecção de forja de w106/w107 [3-FORJA]. Com 2+ entradas, o topo é ambíguo (só reflete
+// entries[0]) e `ensure` ITERA cada entrada não dispensada (`status !== 'waived'`), replayando a
+// projeção de CADA UMA — como toda entrada tem id não nulo (item 2 do redesenho da 4ª rodada), o
+// endereçamento nunca mais recusa por "entrada sem nome" (o furo HIGH-1/HIGH-2 medido na 3ª
+// rodada de correção: uma entrada com `id: null` era pulada em silêncio pelo laço, e sua forja
+// sobrevivia porque `persistReplayResult` nunca conseguia escrever nela).
 async function cmdEnsure(changeDir, argv) {
   const man = readManifest(changeDir);
   if (!man) { console.log('FAIL (manifest.yaml ausente/ilegível)'); process.exit(1); }
@@ -414,6 +422,19 @@ async function cmdEnsure(changeDir, argv) {
   // ('waived' forjado) pular o replay inteiro em silêncio.
   if (deriveTopStatus(entries) === 'waived') { console.log("OK ensure — status: waived (nada a replayar)"); return; }
 
+  // Correção da #139 (revisão adversarial, achado MEDIUM, w218): `entries: []` no arquivo bruto
+  // (scaffold recém-criado por `record`, ou topo legado ainda preenchido sem nenhuma entrada
+  // declarada) é um `entries[]` VAZIO, não um legado — `data.entries` já é array, então o ramo de
+  // legado abaixo (que assume o TOPO como única fonte) nunca deveria ser alcançado neste caso; sem
+  // esta guarda, `entries.length <= 1` era verdadeiro, mas nada em `entries[]` havia para replayar
+  // e o fluxo caía no ramo de legado tratando um topo possivelmente incompleto como declaração de
+  // teste, produzindo TypeError ou um replay espúrio. `check-red-first.mjs` já cobre a ausência de
+  // declaração (item 1 da rule); aqui só precisamos sair limpo, sem tocar o motor de replay.
+  if (Array.isArray(data.entries) && data.entries.length === 0) {
+    console.log('OK ensure (entries[] vazio — nada a replayar; check-red-first cobre)');
+    return;
+  }
+
   if (entries.length <= 1) {
     // Correção da #139 (revisão adversarial, achado HIGH): com `entries[]` presente (o change já
     // passou por um `record` desta Onda), `entries[0]` é a ÚNICA fonte da verdade — replayar o
@@ -429,6 +450,15 @@ async function cmdEnsure(changeDir, argv) {
       const view = projectEntryToFlat(data.change_id, entry);
       const result = await runReplay({ root, evidence: view, timeoutS });
       const persisted = persistReplayResult(ev, data, result, { id: entry.id });
+      if (persisted.refused) {
+        // inalcançável em condições normais desde que toda entrada tenha id não nulo (redesenho
+        // da #139) — mesmo tratamento fail-closed do laço de 2+ entradas abaixo (defesa em
+        // profundidade contra uma corrida com outro processo escrevendo entries[] no meio do
+        // replay); sem esta checagem, `persisted.data` é `undefined` aqui e o acesso a
+        // `.status` estourava TypeError em vez de reportar a recusa.
+        console.log(`OK ensure — entrada ${entry.id}: replay recusado (${persisted.reason}); nada escrito para ela`);
+        return;
+      }
       console.log(`OK ensure — replay executado (verdict: ${result.verdict}, status: ${persisted.data.status})`);
       return;
     }

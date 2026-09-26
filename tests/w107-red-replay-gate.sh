@@ -472,7 +472,11 @@ node -e "
   const fs = require('fs');
   const p = process.argv[1];
   const d = JSON.parse(fs.readFileSync(p, 'utf8'));
-  d.excerpt = d.excerpt + ' (editado à mão depois do replay)';
+  // redesenho de causa raiz da #139 (4ª rodada): entries[] é a fonte única de verdade — editar só
+  // os escalares do topo agora é pego por uma checagem DIFERENTE, mais geral (topo adulterado —
+  // diverge da projeção de entries[], item 4 da rule); para exercitar especificamente a checagem
+  // de excerpt_sha256 (Furo 11), a edição à mão precisa tocar a ENTRADA de verdade.
+  d.entries[0].excerpt = d.entries[0].excerpt + ' (editado à mão depois do replay)';
   // excerpt_sha256 NÃO recalculado — é exatamente essa a adulteração.
   fs.writeFileSync(p, JSON.stringify(d, null, 2) + '\n');
 " "$DIR14/evidence/red/red-evidence.json"

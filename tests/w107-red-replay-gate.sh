@@ -242,9 +242,12 @@ grep -qi "bug-2" <<<"$out" || { echo "FAIL: pre-push não citou o change pendent
 [ "$wt_before7" = "$wt_after7" ] || { echo "FAIL: pre-push criou worktree — replay não pode rodar no hook"; exit 1; }
 elapsed=$((end_ts - start_ts))
 [ "$elapsed" -le 15 ] || { echo "FAIL: pre-push demorou ${elapsed}s — check estático deveria ser rápido (sem rodar teste algum)"; exit 1; }
-! grep -Eq '(bash|node)[^#]*(red-evidence\.sh[^#]*replay|red-replay\.mjs|red-evidence-ops\.mjs)' \
-  "$WS/template/.forge/hooks/git/lib/check-red-first.sh" \
-  || { echo "FAIL: hook de pre-push invoca o motor de replay — deveria ser só o check estático"; exit 1; }
+# LDG-0182: NÃO é `! cmd` nu — já é `! cmd || { FAIL; exit 1; }` (medido: mutação com uma invocação
+# real de replay no hook faz reprovar hoje, antes de qualquer mudança). Só reflui em uma linha para
+# não ser sinalizada pelo grep cego do DoD da Onda 0 (que olha linha a linha e não enxerga a
+# continuação por `\`); sem mudança de semântica.
+! grep -Eq '(bash|node)[^#]*(red-evidence\.sh[^#]*replay|red-replay\.mjs|red-evidence-ops\.mjs)' "$WS/template/.forge/hooks/git/lib/check-red-first.sh" || \
+  { echo "FAIL: hook de pre-push invoca o motor de replay — deveria ser só o check estático"; exit 1; }
 echo "OK [7]"
 
 echo "[8] pre-push NÃO bloqueia fix(...) que não intersecta fix_files do change pendente"
@@ -469,7 +472,11 @@ node -e "
   const fs = require('fs');
   const p = process.argv[1];
   const d = JSON.parse(fs.readFileSync(p, 'utf8'));
-  d.excerpt = d.excerpt + ' (editado à mão depois do replay)';
+  // redesenho de causa raiz da #139 (4ª rodada): entries[] é a fonte única de verdade — editar só
+  // os escalares do topo agora é pego por uma checagem DIFERENTE, mais geral (topo adulterado —
+  // diverge da projeção de entries[], item 4 da rule); para exercitar especificamente a checagem
+  // de excerpt_sha256 (Furo 11), a edição à mão precisa tocar a ENTRADA de verdade.
+  d.entries[0].excerpt = d.entries[0].excerpt + ' (editado à mão depois do replay)';
   // excerpt_sha256 NÃO recalculado — é exatamente essa a adulteração.
   fs.writeFileSync(p, JSON.stringify(d, null, 2) + '\n');
 " "$DIR14/evidence/red/red-evidence.json"

@@ -71,3 +71,4 @@ subir de `0.1.x` para `0.2.x`", em vez de "reconcilie em algum ponto entre `rc17
   precisam declarar a **mesma** versão — conferido por `tests/plugin-sync-gate.sh`, e sincronizado
   automaticamente por `npm run build:plugin` (o marketplace já saiu uma versão atrás por ser passo
   manual atrelado a bump).
+- `template/machinery-history.json` → histórico dos sha256 da maquinaria em cada versão publicada, que o `forge update` usa para provar que um arquivo sem entrada no `machinery.lock` está intocado (revisão da DH-1). O PR de release roda `node tools/build-machinery-history.mjs --release vX.Y.Z` e commita o arquivo, para que a versão publicada já carregue os próprios shas; `tests/w239-update-preserva-deriva-gate.sh` [12] reprova quando alguma tag `v*` alcançável de HEAD não está no histórico versionado (regenerar sem `--release` é seguro: o gerador une com o arquivo existente e nunca remove entrada).

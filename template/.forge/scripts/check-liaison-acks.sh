@@ -172,16 +172,16 @@ const { pathToFileURL } = require('url');
     const localLogDir = join(liaisonDir, channel, 'log');
     const transport = C.getTransport(doc, channel);
 
-    // Hub diretamente legível (sem rede): fs multi-canal em <path>/<canal>/log, manual já
+    // Hub diretamente legível (sem rede): fs e fs-union multi-canal em <path>/<canal>/log, manual já
     // apontando para o canal em <path>/log. git/gh e canal sem transporte caem no fallback da
     // réplica local logo abaixo — ver nota de escopo no topo do arquivo.
     let hubLogDir = null;
-    if (transport && (transport.kind === 'fs' || transport.kind === 'manual')) {
+    if (transport && (transport.kind === 'fs' || transport.kind === 'fs-union' || transport.kind === 'manual')) {
       if (!transport.path) {
         hubFail.push(`${channel}: transporte ${transport.kind} sem 'path' no liaison.yaml`);
         continue;
       }
-      hubLogDir = transport.kind === 'fs' ? join(transport.path, channel, 'log') : join(transport.path, 'log');
+      hubLogDir = (transport.kind === 'fs' || transport.kind === 'fs-union') ? join(transport.path, channel, 'log') : join(transport.path, 'log');
       if (!existsSync(hubLogDir)) {
         hubFail.push(`${channel}: hub inacessível em '${hubLogDir}' (transporte ${transport.kind}) — probe: liaison-ops.sh transport probe ${channel}`);
         continue;

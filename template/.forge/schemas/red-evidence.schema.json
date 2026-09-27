@@ -104,6 +104,50 @@
       "type": ["string", "null"],
       "minLength": 10,
       "description": "Timestamp do waive (§ Quando o Red não é possível). Campo próprio — não sobrescreve recorded_at, que preserva quando a evidência foi originalmente declarada."
+    },
+    "entries": {
+      "type": "array",
+      "description": "Onda #139 (issue #139) — um registro por defeito, endereçado por 'id' estável (`record --id`). Propriedade ADITIVA e opcional: um red-evidence.json legado (formato de entrada única, sem esta chave) continua válido — os escalares do topo passam a ser projeção de entries[0], mantida para leitores antigos.",
+      "items": { "$ref": "#/$defs/entry" }
+    }
+  },
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "id": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Identificador estável do defeito dentro do change (`record --id`, ou auto-gerado — 'd1', 'd2', ... — quando `record` declara o primeiro defeito sem `--id`). Redesenho de causa raiz da #139 (4ª rodada): toda entrada ESCRITA por esta versão tem id não nulo — `null` só aparece em disco por compatibilidade de leitura de um arquivo legado ou de um `entries[]` gravado por uma versão anterior desta própria branch; `lib/red-evidence.mjs#deriveEntries` migra qualquer `id: null` na LEITURA para um id estável ('legado' para uma única entrada sem nome, 'd1'/'d2'/... por posição quando há 2+), nunca lido de volta como `null`. String vazia é inválida — o validador em lib/red-evidence.mjs espelha esta regra e também rejeita ids duplicados dentro de `entries`."
+        },
+        "id_explicit": {
+          "type": "boolean",
+          "description": "Redesenho de causa raiz da #139 (4ª rodada) — true quando o `id` desta entrada veio de um `--id` explícito em algum `record`; false quando foi auto-gerado (0 entradas, `record` sem `--id`) ou atribuído pela migração de um id nulo legado. Só afeta `record`: uma entrada com `id_explicit:true` exige `--id` explícito em qualquer `record` seguinte (evita a ambiguidade que é o próprio defeito original da issue); `replay`/`waive`/`ensure` endereçam por `id` sem se importar com este campo."
+        },
+        "status": { "$ref": "#/properties/status" },
+        "test_path": { "$ref": "#/properties/test_path" },
+        "test_id": { "$ref": "#/properties/test_id" },
+        "command": { "$ref": "#/properties/command" },
+        "base_commit": { "$ref": "#/properties/base_commit" },
+        "failure_pattern": { "$ref": "#/properties/failure_pattern" },
+        "excerpt": { "$ref": "#/properties/excerpt" },
+        "excerpt_sha256": { "$ref": "#/properties/excerpt_sha256" },
+        "classification": { "$ref": "#/properties/classification" },
+        "base_result": { "$ref": "#/properties/base_result" },
+        "base_strategy": { "$ref": "#/properties/base_strategy" },
+        "graft_from": { "$ref": "#/properties/graft_from" },
+        "revert_patch": { "$ref": "#/properties/revert_patch" },
+        "replay_head": { "$ref": "#/properties/replay_head" },
+        "setup_command": { "$ref": "#/properties/setup_command" },
+        "reproduces": { "$ref": "#/properties/reproduces" },
+        "fix_files": { "$ref": "#/properties/fix_files" },
+        "waiver": { "$ref": "#/properties/waiver" },
+        "recorded_at": { "$ref": "#/properties/recorded_at" },
+        "replayed_at": { "$ref": "#/properties/replayed_at" },
+        "waived_at": { "$ref": "#/properties/waived_at" }
+      }
     }
   }
 }

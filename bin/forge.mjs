@@ -122,7 +122,7 @@ const pkgVersion = () => {
 
 // ── arg parsing ────────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
-const flags = { force: false, forceContent: false, noSymlink: false, noPlugin: false, yes: false, help: false, version: false, dryRun: false, noBackup: false };
+const flags = { force: false, forceContent: false, noSymlink: false, noPlugin: false, yes: false, help: false, version: false, dryRun: false, noBackup: false, overwriteDrift: false };
 const vals = { target: '', source: '', slug: '', name: '', desc: '', adapters: '', out: '' };
 let cmd = '';
 for (let i = 0; i < argv.length; i++) {
@@ -133,6 +133,7 @@ for (let i = 0; i < argv.length; i++) {
     case 'install-plugin': cmd = 'install-plugin'; break;
     case '--dry-run': flags.dryRun = true; break;              // update: mostra o que mudaria, sem escrever
     case '--no-backup': flags.noBackup = true; break;          // update: não cria .forge.bak-N
+    case '--overwrite-drift': flags.overwriteDrift = true; break; // update: aceita o template sobre a deriva local
     case '--out': vals.out = argv[++i] ?? ''; break;            // install-plugin: destino do plugin
     case '--force': flags.force = true; break;
     case '--force-content': flags.force = true; flags.forceContent = true; break;
@@ -158,7 +159,7 @@ const HELP = `forge-harness ${pkgVersion()} — Spec-Driven Development harness
 
 Uso:
   npx forge-harness init [opções]
-  npx forge-harness update [--dry-run] [--no-backup] [--no-plugin] [--target <dir>]
+  npx forge-harness update [--dry-run] [--no-backup] [--overwrite-drift] [--no-plugin] [--target <dir>]
   npx forge-harness install-plugin [--out <dir>]
 
 Instala o harness Forge (.forge/) no projeto-alvo: fonte única projetada para
@@ -187,6 +188,7 @@ Opções:
   --no-plugin           (init/update) não auto-instala o plugin /forge:*
   --dry-run             (update) lista o que mudaria sem escrever nada
   --no-backup           (update) não cria .forge.bak-N (o .forge já é versionado em git)
+  --overwrite-drift     (update) sobrescreve, com backup, a maquinaria em deriva local (fora de agents/rules/skills/templates, sem exceção declarada, sem prova de intocado pelo machinery.lock nem por uma versão publicada do template) — por padrão ela é preservada e a versão nova do template vai para .forge/cache/template-pendente/
   -y, --yes             não-interativo: usa os padrões derivados sem perguntar
   -h, --help            mostra esta ajuda
   -v, --version         mostra a versão
@@ -352,7 +354,75 @@ function machineryFiles(src) {
 const ENRICHABLE_DIRS = ['agents', 'rules', 'skills', 'templates'];
 const isEnrichable = (rel) => ENRICHABLE_DIRS.includes(rel.split(sep)[0]);
 
+// Deriva local fora de ENRICHABLE_DIRS (revisão da DH-1 pelo dono, 2026-09-26). Até a 0.16.0, maquinaria própria (scripts/, hooks/, commands/, schemas/...) que divergia do template novo sem exceção declarada era sobrescrita com a linha `SOBRESCRITO (não declarado)`. O ensaio de campo da 0.16.0 mediu cerca de 40 consertos deliberados sobrescritos em cinco consumidores que nunca tinham declarado exceção (azim-crm 7, com a suíte do próprio consumidor reprovando depois). A decisão por arquivo passou a ser:
+//   exceção declarada (viva ou expirada) ............................ preserva, como na #131 (inalterado)
+//   com entrada no lock e sha local == lock (intocado) ............... sobrescreve, linha `ATUALIZADO`
+//   sha local == versão pendente que o update anterior guardou ....... sobrescreve, linha `ATUALIZADO` (reconciliação à mão pela saída 2 do /forge:upgrade)
+//   sha local em alguma versão PUBLICADA (com ou sem entrada no lock) . sobrescreve, linha `ATUALIZADO` (prova pelo histórico, ver readMachineryHistory)
+//   com entrada no lock e sha local != lock, fora dos dois acima ..... PRESERVA: `PRESERVADO (deriva local)`
+//   sem entrada no lock e sha local fora dos dois acima .............. PRESERVA: `PRESERVADO (sem lock para provar)`, dizendo se havia histórico de versões publicadas para consultar
+//   --overwrite-drift ................................................ sobrescreve a deriva com backup, `SOBRESCRITO`
+// Nos dois casos de preservação a versão nova do template vai para TEMPLATE_PENDING_REL/<rel> e o lock daquele caminho não avança. O diretório de pendentes fica sob `.forge/cache/` (ignorado pelo bloco gerenciado do .gitignore), fora de qualquer caminho que hook, runner ou sync-adapters executem ou leiam, e é reconstruído a cada aplicação real: reflete só a deriva que o último update preservou.
+const TEMPLATE_PENDING_REL = '.forge/cache/template-pendente';
+// `hasHistory`: havia histórico de versões publicadas para consultar (readMachineryHistory != null). Sem ele, o texto não afirma que o conteúdo está fora de toda versão publicada — só que não havia como provar.
+const driftWarnLine = (n, semLock, dry, hasHistory) => `WARN: ${n} arquivo(s) de maquinaria ${dry ? 'seriam preservado(s)' : 'preservado(s)'} por deriva local`
+  + `${semLock ? ` (${semLock} sem lock para provar que estava(m) intocado(s): ${hasHistory ? 'conteúdo fora de toda versão publicada do template' : 'sem histórico de versões publicadas para provar'})` : ''} — `
+  + `a versão nova do template de cada um ${dry ? 'iria para' : 'está em'} ${TEMPLATE_PENDING_REL}/. Reconcilie cada arquivo: `
+  + 'declare a divergência em .forge/machinery-exceptions.txt (se o conserto local deve ficar), incorpore a versão pendente à mão, '
+  + 'ou aceite o template com `npx forge-harness update --overwrite-drift` (sobrescreve com backup)';
+
 const sha256File = (p) => createHash('sha256').update(readFileSync(p)).digest('hex');
+
+// Histórico de versões publicadas do template: `<template>/../machinery-history.json` (no pacote, `template/machinery-history.json`, ao lado de `template/.forge`), gerado por tools/build-machinery-history.mjs a partir das tags v*. Mapa caminho -> Set(sha256) de todo conteúdo que aquele caminho já teve numa versão publicada. É a prova de "intocado" quando o machinery.lock não prova (sem entrada para o caminho: consumidor que só rodou `init`, clone novo, outra máquina, porque `.forge/cache/` é ignorado pelo .gitignore gerenciado; ou entrada defasada: update feito em outra worktree que chegou por pull): um arquivo byte-idêntico a uma versão publicada nunca foi editado pelo consumidor. Sem ele, o update congelava toda a maquinaria de quem não tinha lock (medido: consumidor pristino da 0.15.0 com 22 de 22 arquivos alterados retidos, inclusive o gancho de segredos da #125). Ausente, ilegível ou vazio (paths de tipo errado ou sem entradas): sem prova, e o caminho sem entrada no lock volta ao fallback conservador (preservar).
+function readMachineryHistory(src) {
+  const p = join(dirname(src), 'machinery-history.json');
+  if (!existsSync(p)) return null;
+  try {
+    const j = JSON.parse(readFileSync(p, 'utf8'));
+    const paths = j && typeof j === 'object' && !Array.isArray(j) ? j.paths : undefined;
+    const map = new Map();
+    if (paths && typeof paths === 'object' && !Array.isArray(paths))
+      for (const [rel, arr] of Object.entries(paths)) if (Array.isArray(arr)) map.set(rel, new Set(arr));
+    // `paths` ausente, de tipo errado (array, string, ...) ou vazio ({} / {"paths":{}} / []) é a MESMA
+    // ausência de histórico que o arquivo ilegível: sem nenhuma entrada, este `readMachineryHistory`
+    // não consultou nada, e devolver um Map vazio (em vez de null) fazia o chamador afirmar "não é
+    // nenhuma versão publicada" (hasHistory=true) sobre um histórico que nunca existiu de fato — o
+    // WARN e o retorno null abaixo espelham o caminho do catch, para que o chamador trate os dois
+    // como a mesma coisa: nada para provar.
+    if (map.size === 0) {
+      console.log(`WARN: ${p} sem entradas de histórico (paths ausente, de tipo inesperado, ou vazio) — sem histórico de versões publicadas, arquivo sem entrada no machinery.lock é preservado`);
+      return null;
+    }
+    return map;
+  } catch (e) {
+    console.log(`WARN: ${p} ilegível (${e.message}) — sem histórico de versões publicadas, arquivo sem entrada no machinery.lock é preservado`);
+    return null;
+  }
+}
+
+// Veredito de um arquivo de maquinaria própria que diverge do template novo (fora de ENRICHABLE_DIRS, sem exceção declarada), o MESMO no --dry-run e na aplicação real:
+//   'lock' ........ intocado, provado pelo machinery.lock
+//   'pendente' .... intocado: byte-idêntico à versão pendente que o update anterior guardou (o consumidor reconciliou à mão aceitando-a)
+//   'historico' ... intocado, provado por uma versão publicada do template
+//   'deriva' ...... o lock tem entrada, ela difere do local, e o local não é nenhuma versão que o harness entregou
+//   'sem-lock' .... sem entrada no lock e o local não é nenhuma versão que o harness entregou, consultado o histórico de versões publicadas
+//   'sem-historico' sem entrada no lock, o local não é a versão pendente e NÃO havia histórico de versões publicadas para consultar: não se sabe se é uma delas, e a linha diz isso em vez de afirmar que não é
+// Todo conteúdo que o próprio harness entregou conta como intocado, com ou sem entrada no lock: o lock é por checkout (`.forge/cache/` é ignorado e `.forge/` é versionado), então fica defasado quando o update foi feito em outra worktree ou por um colega e chegou por pull, e a versão pendente aceita à mão nunca entra no lock. Deixar a entrada do lock decidir sozinha retinha como "deriva local" um arquivo que o consumidor nunca editou, e o consumidor que seguia a saída (2) do /forge:upgrade entrava num laço a cada release, com a correção do template congelada. Custo aceito (DA-27): voltar um arquivo, de propósito, a uma versão publicada mais antiga deixa de ser reconhecido como deriva — o update o atualiza com backup e linha ATUALIZADO; quem quer manter a versão antiga declara a exceção.
+function driftVerdict(rel, dstHash, lock, history, pendingSha) {
+  if (lock && lock.get(rel) === dstHash) return 'lock';
+  if (pendingSha && pendingSha === dstHash) return 'pendente';
+  const known = history && history.get(rel.split(sep).join('/'));
+  if (known && known.has(dstHash)) return 'historico';
+  if (lock && lock.has(rel)) return 'deriva';
+  return history ? 'sem-lock' : 'sem-historico';
+}
+// sha256 da versão pendente que o update anterior guardou para `rel`, ou null. Lido ANTES de o update real reconstruir o diretório de pendentes.
+function pendingShaOf(target, rel) {
+  const p = join(target, TEMPLATE_PENDING_REL, rel);
+  return existsSync(p) ? sha256File(p) : null;
+}
+const DRIFT_LABEL = { deriva: 'deriva local', 'sem-lock': 'sem lock para provar', 'sem-historico': 'sem lock para provar' };
+const isSemLock = (verdict) => verdict === 'sem-lock' || verdict === 'sem-historico';
 
 // Lock de maquinaria: registra o sha256 dos arquivos do TEMPLATE na versão aplicada por último —
 // é a referência que permite distinguir "consumidor nunca tocou" (upgrade limpo) de "customização
@@ -372,20 +442,149 @@ function readMachineryLock(forge) {
   if (invalid) console.log(`WARN: machinery.lock com ${invalid} linha(s) ilegível(is) — entradas perdidas caem no fallback conservador (preservar); o lock é reescrito ao fim deste update`);
   return map;
 }
-// O lock cobre TODA a maquinaria (não só ENRICHABLE_DIRS) de propósito: as entradas enriquecíveis
-// decidem preservar-vs-sobrescrever, e as demais alimentam o WARN de drift local em scripts/
-// commands. Estreitar o escopo "para enxugar o lock" quebraria o segundo uso em silêncio.
-function writeMachineryLock(forge, files, version, sourceNote) {
+// O lock cobre TODA a maquinaria (não só ENRICHABLE_DIRS) de propósito: as entradas enriquecíveis decidem preservar-vs-sobrescrever, e as demais decidem se a divergência fora de ENRICHABLE_DIRS é refresh do template (ATUALIZADO) ou deriva local (preservada). Estreitar o escopo "para enxugar o lock" quebraria o segundo uso em silêncio.
+//
+// `keep` (revisão da DH-1): caminhos preservados por deriva local NÃO avançam para o sha do template novo — o lock continua registrando o que o consumidor recebeu por último (ou nada, se não havia entrada), para que o próximo update continue reconhecendo a deriva em vez de tomá-la por "intocado" e sobrescrevê-la. Map rel -> sha anterior (ou null: a linha é omitida).
+function writeMachineryLock(forge, files, version, sourceNote, keep = new Map()) {
   const lines = files
-    .map(([rel, srcAbs]) => [rel, sha256File(srcAbs)])
+    .map(([rel, srcAbs]) => [rel, keep.has(rel) ? keep.get(rel) : sha256File(srcAbs)])
+    .filter(([, hash]) => hash)
     .sort((a, b) => (a[0] < b[0] ? -1 : 1))
     .map(([rel, hash]) => `${hash}  ${rel}`);
   mkdirSync(join(forge, 'cache'), { recursive: true });
   writeFileSync(join(forge, 'cache', 'machinery.lock'),
     `# forge machinery.lock — sha256 dos arquivos do template v${version} (última aplicação).\n`
-    + '# Referência do update para preservar customizações locais em rules/agents/skills — não edite.\n'
+    + '# Referência do update para distinguir arquivo intocado de customização/deriva local — não edite.\n'
     + (sourceNote ? `# ATENÇÃO: aplicado de --source ${sourceNote} (não o template publicado desta versão).\n` : '')
     + lines.join('\n') + '\n');
+}
+
+// Divergências DELIBERADAS entre a árvore do consumidor e a maquinaria do template (issues
+// #101/#131): `.forge/machinery-exceptions.txt`, uma linha por arquivo, no formato
+// "<sha256 do template no momento da declaração>  <caminho relativo a .forge/>  # razão".
+// O mecanismo nasceu em campo — o axis-fare-validator já opera esse arquivo com o próprio
+// `check-machinery-drift.sh` —, e a gramática aqui replica a dele por medição, não pelo formato
+// literal acima: separador de colunas por espaço livre (uma ou mais), corte no primeiro `#` (o
+// resto da linha é a razão; comentário-only e linha em branco são ignorados) e sha hexadecimal
+// minúsculo com pelo menos 32 dígitos, não travado em 64. Qualquer token além de `<sha> <caminho>`
+// malforma a linha, com ou sem `#` — igual ao parser de origem (`check-machinery-drift.sh:201-206`,
+// `read -r e_sha e_rel e_resto <<< "$corpo"`; `[ -n "$e_resto" ]` marca a linha como MALFORMADA).
+// Pela mesma razão, o sha é comparado por IGUALDADE ESTRITA
+// contra o sha de 64 dígitos do template (`check-machinery-drift.sh:321`, `[ "${exc_sha[$EXC_IDX]}" = "$sha" ]`),
+// nunca por prefixo: um sha declarado com menos de 64 dígitos (sintaxe válida, >= 32 dígitos) nunca
+// é igual ao sha do template e cai sempre em EXPIRADA — a gramática aceita o comprimento truncado,
+// mas a comparação nunca o trata como prefixo válido. O sha é sempre o do TEMPLATE, nunca o do
+// disco: é o que permite a exceção EXPIRAR quando o template muda o arquivo de novo (DH-1 —
+// expirada preserva e nomeia os dois shas, não bloqueia). Arquivo ilegível, linha malformada ou
+// caminho declarado duas vezes param o update ANTES de escrever qualquer coisa, nomeando a linha —
+// fail-closed, como o parser de origem: o que este parser não sabe ler não pode absolver ninguém.
+// Um caminho declarado com prefixo `./` ou `.forge/` nunca bate com o `rel` real (sempre relativo
+// a `.forge/`, sem prefixo), então caía em `fora-do-template` — a exceção ficava OCIOSA em
+// silêncio e o conserto local do consumidor era sobrescrito sem aviso do porquê (achado do review
+// adversarial, LOW). Os dois prefixos nunca aparecem num `rel` legítimo do template (nenhum
+// caminho do template começa com `.` nem duplica `.forge/`), então normalizar aqui nunca colide
+// com uma declaração já correta — é estritamente aditivo: só passa a enxergar declarações que
+// antes eram sempre ociosas. `raw` preserva a grafia original para nomear a normalização no
+// relatório, em vez de normalizar em silêncio.
+function normalizeExceptionPath(rel) {
+  let out = rel;
+  while (out.startsWith('./')) out = out.slice(2);
+  if (out.startsWith('.forge/')) out = out.slice('.forge/'.length);
+  return out;
+}
+
+function readMachineryExceptions(forge) {
+  const p = join(forge, 'machinery-exceptions.txt');
+  const entries = new Map();
+  if (!existsSync(p)) return { path: p, entries };
+  let raw;
+  try {
+    raw = readFileSync(p, 'utf8');
+  } catch (e) {
+    fail(`machinery-exceptions.txt em ${p} não pôde ser lido (${e.code || e.message}) — o update para antes de escrever qualquer arquivo`, 1);
+  }
+  const malformed = [];
+  const duplicates = [];
+  raw.split('\n').forEach((line, idx) => {
+    const lineNo = idx + 1;
+    const hashIdx = line.indexOf('#');
+    const body = (hashIdx === -1 ? line : line.slice(0, hashIdx)).trim();
+    const reason = hashIdx === -1 ? '' : line.slice(hashIdx + 1).trim();
+    if (!body) return; // linha em branco ou só comentário
+    const tokens = body.split(/\s+/).filter(Boolean);
+    const [sha, relRaw, ...resto] = tokens;
+    const shaOk = typeof sha === 'string' && sha.length >= 32 && /^[0-9a-f]+$/.test(sha);
+    // Qualquer token além de "<sha> <caminho>" malforma a linha, com ou sem '#' — igual ao parser
+    // de origem (`check-machinery-drift.sh:201-206`: `read -r e_sha e_rel e_resto <<< "$corpo"`,
+    // `[ -n "$e_resto" ]` marca MALFORMADA). `resto` já vem de `body`, que foi cortado no primeiro
+    // '#' antes da tokenização — um token extra antes do '#' malforma a linha do mesmo jeito que
+    // um token extra sem '#' nenhum.
+    if (!shaOk || !relRaw || resto.length > 0) { malformed.push(lineNo); return; }
+    const rel = normalizeExceptionPath(relRaw);
+    if (entries.has(rel)) { duplicates.push({ rel, lines: [entries.get(rel).line, lineNo] }); return; }
+    entries.set(rel, { sha, reason, line: lineNo, raw: relRaw !== rel ? relRaw : undefined });
+  });
+  if (malformed.length || duplicates.length) {
+    const msgs = [];
+    if (malformed.length)
+      msgs.push(`${malformed.length} linha(s) malformada(s) em ${p}: linha ${malformed.join(', ')} — formato esperado "<sha256 hex do template>  <caminho relativo a .forge/>  # razão"`);
+    for (const d of duplicates)
+      msgs.push(`caminho declarado duas vezes em ${p}: ${d.rel} (linhas ${d.lines.join(' e ')})`);
+    fail(`machinery-exceptions.txt inválido — nenhum arquivo foi escrito.\n  ${msgs.join('\n  ')}`, 1);
+  }
+  return { path: p, entries };
+}
+
+// Classifica CADA exceção declarada contra o universo real do template, antes de qualquer decisão
+// de escrita — usada tanto pelo `--dry-run` quanto pela aplicação real, para que as duas rotas
+// enxerguem a MESMA verdade sobre uma exceção declarada: a prévia mostrada ao humano antes de
+// confirmar nunca pode anunciar `~ rel` (sobrescrita) para um arquivo que a aplicação real preserva.
+//   viva ......... sha declarado == sha do template NOVO -> preserva (issue #131)
+//   expirada ..... sha declarado != sha do template novo -> preserva mesmo assim (DH-1),
+//                  nomeando os dois shas para reexame — não bloqueia o update
+//   identica ..... arquivo local já é byte-idêntico ao template novo -> nada a fazer, ociosa
+//   enrichable ... caminho está em ENRICHABLE_DIRS -> a preservação por lock já cobre; a
+//                  exceção aqui não se aplica e é reportada como ociosa
+//   nao-instalado  caminho existe no template mas ainda não neste consumidor -> ociosa (o
+//                  arquivo VAI ser instalado pelo overlay; a exceção não impede isso)
+//   fora-do-template  caminho declarado que o template atual não tem -> ociosa
+//   tombstone-preservado  caminho que o template REMOVEU e que existe no consumidor (tombstone) ->
+//                  a exceção declarada barra a poda de órfãos (ver orphan-pruning); reportado uma
+//                  vez só, na seção de tombstones, nunca duplicado como "ociosa"
+function classifyExceptions(forge, files, exceptions, tombstoned) {
+  const relSet = new Set(files.map(([rel]) => rel));
+  const status = new Map();
+  for (const [rel, exc] of exceptions.entries) {
+    if (!relSet.has(rel)) {
+      if (tombstoned && tombstoned.has(rel)) { status.set(rel, { status: 'tombstone-preservado', reason: exc.reason }); continue; }
+      status.set(rel, { status: 'fora-do-template' });
+      continue;
+    }
+    const srcAbs = files.find(([r]) => r === rel)[1];
+    const newHash = sha256File(srcAbs);
+    const dst = join(forge, rel);
+    if (!existsSync(dst)) { status.set(rel, { status: 'nao-instalado' }); continue; }
+    const dstHash = sha256File(dst);
+    if (dstHash === newHash) { status.set(rel, { status: 'identica' }); continue; }
+    if (isEnrichable(rel)) { status.set(rel, { status: 'enrichable' }); continue; }
+    // Casamento por IGUALDADE ESTRITA, nunca por prefixo — igual ao parser de origem
+    // (`check-machinery-drift.sh:321`: `[ "${exc_sha[$EXC_IDX]}" = "$sha" ]`). Uma versão anterior
+    // comparava por prefixo achando que o parser de origem fazia o mesmo; não faz. Um sha declarado
+    // com menos de 64 dígitos (sintaxe válida, >= 32 dígitos) nunca é igual ao sha de 64 dígitos do
+    // template — cai sempre em EXPIRADA, e ainda assim preserva o arquivo (DH-1), nunca bloqueia.
+    if (exc.sha === newHash) { status.set(rel, { status: 'viva', reason: exc.reason }); continue; }
+    status.set(rel, { status: 'expirada', declared: exc.sha, atual: newHash });
+  }
+  return status;
+}
+
+// Nomeia, no relatório, quando o caminho declarado em machinery-exceptions.txt levou normalização
+// de prefixo (normalizeExceptionPath) — nunca normaliza em silêncio: quem declarou
+// './scripts/doctor.sh' vê a própria grafia ao lado da forma que o update de fato usou para casar
+// contra o template.
+function excRawNote(exceptions, rel) {
+  const exc = exceptions.entries.get(rel);
+  return exc && exc.raw ? ` (declarado como '${exc.raw}')` : '';
 }
 
 // Só o campo harness.template_version é atualizado no forge.yaml — adapters e flags ficam intactos.
@@ -480,6 +679,88 @@ const APPEND_SOFTEN = new Map([
   ['secrets', [[/^(\s*enforce:\s*)block\b/m, '$1warn']]],
 ]);
 
+// #142: recurso do heavy-mutex resolvido pela MESMA lib e a MESMA precedência (env >
+// heavy_mutex.resource do forge.yaml > default "forge-heavy-suite") que `heavy-run.sh` usa em
+// produção — nunca uma reimplementação paralela em JS, que poderia divergir silenciosamente da
+// lib (é exatamente o tipo de gêmeo-mentiroso que criou a partição da issue). Só RESOLVE, nunca
+// adquire: `forge_heavy_mutex_path` não cria diretório de lock nenhum (mesma garantia de
+// isolamento do gate w154 sobre `_fhm_resolve_root`) — chamável em qualquer ponto do update sem
+// tocar a exclusão real da máquina.
+//
+// Devolve `{ resource, path }` no sucesso e `{ resource: null, path: null, reason }` em qualquer
+// falha (lib ausente, raiz inutilizável — rc 69 do próprio `_fhm_resolve_root`, symlink recusado
+// etc.): a linha informativa do update é best-effort e nunca pode derrubar a aplicação por causa
+// dela, mas o chamador tem o MOTIVO para avisar em voz alta em vez de sumir a linha em silêncio
+// (uma resolução que falha não pode produzir o mesmo "nada aconteceu"
+// que uma chave inexistente).
+//
+// `resource` vem DIRETO da lib (`_fhm_resource`), nunca derivado de `basename(path)`: um recurso
+// declarado com `/` (nome inválido, mas a lib não recusa) produziria um path com subdiretório, e
+// `basename` devolveria só o último segmento — um nome resolvido diferente do que a lib realmente
+// usa para nomear o lock. `forge_heavy_mutex_path` não muda a assinatura (continua imprimindo só
+// `<path><TAB><proveniência>`, o formato que outros leitores da lib já esperam); esta função só
+// pede o `resource` numa segunda chamada, na MESMA invocação de bash, para nunca divergir da
+// resolução real de `path`.
+// `opts.dryRun`: usado pela prévia de `--dry-run` para nunca criar o
+// diretório-raiz do heavy-mutex. `forge_heavy_mutex_path` → `_fhm_resolve_root` faz `mkdir` quando
+// a raiz DECLARADA (env ou `heavy_mutex.root` do forge.yaml) ainda não existe — comportamento
+// correto na aplicação real, mas uma PRÉVIA que só deveria informar não pode ter esse efeito
+// colateral no disco. Com `dryRun`, o script só resolve o `resource` (nunca cria nada) e, se a
+// raiz declarada não existir, devolve o `resource` sem `path` e um motivo — nunca chama
+// `forge_heavy_mutex_path` nesse caso, então o `mkdir` da lib nunca roda. Raiz não declarada
+// (default `/tmp`) ou token `${TMPDIR:-/tmp}` nunca passam por `mkdir` na lib de qualquer forma
+// (só checam e falham), então seguem pelo caminho normal mesmo em dry-run.
+function resolveHeavyMutexPath(forge, target, opts = {}) {
+  const lib = join(forge, 'scripts', 'lib', 'heavy-mutex.sh');
+  if (!existsSync(lib)) return { resource: null, path: null, reason: 'lib heavy-mutex.sh ausente' };
+  const script = opts.dryRun
+    ? [
+        '. "$0" || exit 1',
+        'res="$(_fhm_resource)"',
+        'root="${FORGE_HEAVY_MUTEX_ROOT:-}"',
+        '[ -n "$root" ] || root="$(_fhm_yaml_root)"',
+        'case "$root" in',
+        '  ""|\'${TMPDIR:-/tmp}\') declroot="" ;;',
+        '  /*) declroot="$root" ;;',
+        '  *) declroot="" ;;',
+        'esac',
+        'if [ -n "$declroot" ] && [ ! -d "$declroot" ]; then',
+        '  printf "%s\\t\\t%s\\n" "$res" "raiz declarada ($declroot) ainda não existe — dry-run não cria"',
+        '  exit 0',
+        'fi',
+        'p="$(forge_heavy_mutex_path)" || exit $?',
+        'printf "%s\\t%s\\t\\n" "$res" "$p"',
+      ].join('\n')
+    : '. "$0" && res="$(_fhm_resource)" && p="$(forge_heavy_mutex_path)" && printf "%s\\t%s\\n" "$res" "$p"';
+  try {
+    const out = execFileSync('bash', ['-c', script, lib], {
+      cwd: target,
+      env: { ...process.env, FORGE_ROOT: target },
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const [resource, path, reason] = out.trim().split('\t');
+    if (!resource) return { resource: null, path: null, reason: reason || 'saída da lib incompleta' };
+    if (!path) return { resource, path: null, reason: reason || 'raiz declarada ainda não existe' };
+    return { resource, path };
+  } catch (e) {
+    const rc = e.status;
+    const lastErrLine = String(e.stderr || '').trim().split('\n').filter(Boolean).pop() || '';
+    const reason = rc != null ? `rc ${rc}${lastErrLine ? `: ${lastErrLine}` : ''}` : (lastErrLine || 'falha desconhecida ao invocar a lib');
+    return { resource: null, path: null, reason };
+  }
+}
+
+// Extrai o valor de `resource:` de um bloco `heavy_mutex:` (texto do TEMPLATE, como
+// `newForgeKeys` devolve em `blocks.get('heavy_mutex')`) — usado só para nomear o que SERIA
+// escrito quando a resolução real falha (WARN de resolução indeterminada) ou na prévia do
+// `--dry-run`. Nunca lido do consumidor: o bloco do consumidor, quando existe, barra o merge
+// inteiro antes de chegar aqui.
+function templateHeavyMutexResource(blockText) {
+  const m = /^[ \t]*resource:[ \t]*['"]?([^'"\n#]+?)['"]?[ \t]*(#.*)?$/m.exec(blockText || '');
+  return m ? m[1].trim() : 'forge-heavy-suite';
+}
+
 function mergeNewForgeKeys(src, forge) {
   const { blocks, keys, skipped } = newForgeKeys(src, forge);
   const softened = [];
@@ -540,30 +821,78 @@ async function updateHarness() {
   const src = vals.source ? resolve(vals.source) : TEMPLATE_FORGE;
   const version = pkgVersion();
   const files = machineryFiles(src);
+  // Validado ANTES do dry-run e de qualquer escrita (backup incluso): arquivo malformado ou
+  // ilegível para o processo inteiro, dry-run também.
+  const exceptions = readMachineryExceptions(forge);
+  // Tombstones PRESENTES no consumidor, calculado antes de qualquer escrita — nem o overlay nem o
+  // backup tocam caminho tombstoned (invariante do template: tombstone nunca está no template
+  // atual), então o mesmo conjunto vale aqui e no laço de poda mais abaixo.
+  const tombstonedPresent = new Set(orphansToPrune(forge));
+  const excStatusByRel = classifyExceptions(forge, files, exceptions, tombstonedPresent);
 
-  // dry-run: lista o que mudaria (conteúdo diferente ou arquivo novo), sem escrever nada.
+  // dry-run: lista o que mudaria (conteúdo diferente ou arquivo novo), sem escrever nada. Usa a
+  // MESMA classificação de exceções que a aplicação real usa (ver classifyExceptions) — a prévia
+  // não pode anunciar sobrescrita de arquivo que o update real preserva.
   if (flags.dryRun) {
     const changes = [];
+    let driftDry = 0, driftDrySemLock = 0;
     const lockDry = readMachineryLock(forge);
+    const historyDry = readMachineryHistory(src);
     for (const [rel, srcAbs] of files) {
       const dst = join(forge, rel);
-      if (!existsSync(dst)) changes.push(`+ ${rel}`);
-      else if (readFileSync(srcAbs, 'utf8') !== readFileSync(dst, 'utf8')) {
-        const custom = isEnrichable(rel) && !(lockDry && lockDry.get(rel) === sha256File(dst));
+      if (!existsSync(dst)) { changes.push(`+ ${rel}`); continue; }
+      if (readFileSync(srcAbs, 'utf8') === readFileSync(dst, 'utf8')) continue;
+      if (isEnrichable(rel)) {
+        const custom = !(lockDry && lockDry.get(rel) === sha256File(dst));
         changes.push(custom ? `= ${rel} (preservado — customização local)` : `~ ${rel}`);
+        continue;
+      }
+      const est = excStatusByRel.get(rel);
+      if (est && est.status === 'viva') { changes.push(`= ${rel} (preservado — exceção declarada)${excRawNote(exceptions, rel)}`); continue; }
+      if (est && est.status === 'expirada') { changes.push(`= ${rel} (preservado — EXCEÇÃO EXPIRADA: declarado ${est.declared}, template ${est.atual})${excRawNote(exceptions, rel)}`); continue; }
+      const verdict = driftVerdict(rel, sha256File(dst), lockDry, historyDry, pendingShaOf(target, rel));
+      if (verdict === 'lock') changes.push(`~ ${rel} (o template evoluiu — arquivo intocado localmente)`);
+      else if (verdict === 'pendente') changes.push(`~ ${rel} (o template evoluiu — arquivo intocado, idêntico à versão pendente que o update anterior guardou)`);
+      else if (verdict === 'historico') changes.push(`~ ${rel} (o template evoluiu — arquivo intocado, idêntico a uma versão publicada)`);
+      else if (flags.overwriteDrift) changes.push(`~ ${rel} (sobrescrita não declarada — --overwrite-drift)`);
+      else {
+        changes.push(`= ${rel} (PRESERVADO (${DRIFT_LABEL[verdict]}) — versão nova do template iria para ${TEMPLATE_PENDING_REL}/${rel})`);
+        driftDry++;
+        if (isSemLock(verdict)) driftDrySemLock++;
       }
     }
     const fy = join(forge, 'forge.yaml');
     if (existsSync(fy) && !new RegExp(`template_version:\\s*"?${version}"?`).test(readFileSync(fy, 'utf8')))
       changes.push('~ forge.yaml (template_version)');
-    for (const rel of orphansToPrune(forge)) changes.push(`- ${rel} (órfão — removido/renomeado no template)`);
+    for (const rel of orphansToPrune(forge)) {
+      if (exceptions.entries.has(rel)) changes.push(`= ${rel} (tombstone pulado — exceção declarada)${excRawNote(exceptions, rel)}`);
+      else changes.push(`- ${rel} (órfão — removido/renomeado no template)`);
+    }
     const nk = newForgeKeys(src, forge);
-    for (const key of nk.keys) changes.push(`~ forge.yaml (+ ${key}: bloco novo)`);
+    for (const key of nk.keys) {
+      // #142 (LOW do review): a prévia também antecipa a identidade de lock que a aplicação real
+      // vai anunciar — sem isso, `--dry-run` mostrava só "bloco novo" e o operador só descobria o
+      // recurso resolvido depois de já ter aplicado.
+      if (key === 'heavy_mutex') {
+        const before = resolveHeavyMutexPath(forge, target, { dryRun: true });
+        const depoisPrevisto = process.env.FORGE_HEAVY_MUTEX_RESOURCE || templateHeavyMutexResource(nk.blocks.get('heavy_mutex'));
+        if (before && before.resource) {
+          changes.push(before.resource === depoisPrevisto
+            ? `~ forge.yaml (+ heavy_mutex: recurso previsto ${depoisPrevisto})`
+            : `~ forge.yaml (+ heavy_mutex: recurso previsto ${before.resource} → ${depoisPrevisto})`);
+        } else {
+          changes.push(`~ forge.yaml (+ heavy_mutex: bloco novo — recurso previsto ${depoisPrevisto}${before && before.reason ? ` — antes não determinado (${before.reason})` : ''})`);
+        }
+        continue;
+      }
+      changes.push(`~ forge.yaml (+ ${key}: bloco novo)`);
+    }
     for (const key of nk.skipped) changes.push(`! forge.yaml (${key}: seção nova exige preenchimento manual — não mesclada)`);
     console.log(`forge update — dry-run (${target})`);
     console.log(changes.length ? changes.sort().join('\n') : '(nada a atualizar — já na versão do template)');
     console.log(`\n${changes.length} mudança(s) de arquivo. Rode sem --dry-run para aplicar.`);
     console.log('(a aplicação também reconcilia adapters/plugin/hooksPath/.gitignore — não previstos acima)');
+    if (driftDry) console.log(driftWarnLine(driftDry, driftDrySemLock, true, historyDry !== null));
     return;
   }
 
@@ -572,6 +901,10 @@ async function updateHarness() {
   // backup por CÓPIA (o update edita in place; não move como o init --force). Pulável com --no-backup.
   // Exclui worktrees/ (working trees de git worktrees linkados — potencialmente enormes e com ponteiros
   // gitdir que quebram numa cópia) além do cruft do macOS.
+  // `mostra` (destino do backup, para exibição) hoisted para fora do bloco: as linhas
+  // `SOBRESCRITO (não declarado)` do overlay abaixo apontam para ele mesmo com --no-backup
+  // (nesse caso, null — a mensagem por arquivo diz que não há backup).
+  let mostra = null;
   if (!flags.noBackup) {
     // FORA da árvore de trabalho (issue #76). O backup vivia em `.forge.bak-N`, dentro do repo, e
     // todo gate que aceita `--path` e varre recursivamente passava a varrer também a CÓPIA — e a
@@ -603,7 +936,7 @@ async function updateHarness() {
       recursive: true,
       filter: (p) => basename(p) !== '.DS_Store' && !relative(forge, p).split(sep).includes('worktrees'),
     });
-    const mostra = gitDir ? relative(target, bakDir) : `.forge.bak-${n}`;
+    mostra = gitDir ? relative(target, bakDir) : `.forge.bak-${n}`;
     console.log(`backup: .forge copiado para ${mostra}`);
     if (!gitDir) console.log('  (fora de um repositório git: o backup ficou DENTRO da árvore — remova-o antes de rodar gates com --path)');
   }
@@ -612,9 +945,34 @@ async function updateHarness() {
   // Em ENRICHABLE_DIRS a sobrescrita é condicionada ao lock de template (ver comentário da
   // constante — issue #16): customização local é preservada e reportada, nunca revertida.
   const oldLock = readMachineryLock(forge);
+  const history = readMachineryHistory(src);
+
+  // excStatusByRel já foi calculado antes do dry-run (classifyExceptions, acima) — "todo caminho
+  // declarado aparece exatamente uma vez no relatório" vale porque É A MESMA classificação usada
+  // pela prévia e pela aplicação real; não recalcula aqui.
+
   let written = 0;
   const preservedFiles = [];
+  // Caminhos preservados por exceção declarada (viva ou expirada), fora de ENRICHABLE_DIRS —
+  // somado a `preservedFiles` só no orphan-check de placeholders (ver abaixo). Mantido separado de
+  // `preservedFiles` porque as duas listas têm reportagem própria (a seção de exceções, mais
+  // abaixo, já nomeia cada uma) e misturá-las duplicaria a linha `preservados: N arquivo(s)`.
+  const excPreservedFiles = [];
   const driftWarned = [];
+  const overwrittenUndeclared = [];
+  // Arquivo NEM enriquecível NEM coberto por exceção, que diverge do template novo, mas cujo hash
+  // local bate com o `machinery.lock` da última aplicação: o consumidor nunca tocou o arquivo —
+  // foi o TEMPLATE que evoluiu. Rotular isso como `SOBRESCRITO (não declarado)` seria tecnicamente
+  // correto, mas, numa atualização real com dezenas de arquivos defasados, afogaria a única
+  // sobrescrita local de verdade em dezenas de linhas idênticas de refresh rotineiro. Continua
+  // nomeado (uma linha por arquivo, nunca em silêncio) — só que sob um rótulo (`ATUALIZADO`) que
+  // não confunde "template mudou" com "sua customização foi revertida".
+  const templateUpdated = [];
+  // Idem, mas a prova de intocado veio da versão pendente que o update anterior guardou (reconciliação à mão) ou do histórico de versões publicadas.
+  const templateUpdatedByPending = [];
+  const templateUpdatedByHistory = [];
+  // Deriva local preservada (ver TEMPLATE_PENDING_REL): trios [rel, srcAbs, veredito] — o srcAbs alimenta a cópia da versão pendente depois do laço, e o veredito ('deriva' ou 'sem-lock') escolhe o rótulo.
+  const driftPreserved = [];
   for (const [rel, srcAbs] of files) {
     const dst = join(forge, rel);
     if (existsSync(dst)) {
@@ -624,10 +982,34 @@ async function updateHarness() {
         preservedFiles.push(rel);
         continue;
       }
-      // maquinaria própria (scripts/commands/...): sobrescreve, mas fix local vira aviso — o
-      // fluxo certo para fix em maquinaria é upstream no template; o backup .forge.bak-N cobre.
-      if (!isEnrichable(rel) && oldLock && oldLock.has(rel) && dstHash !== oldLock.get(rel) && dstHash !== newHash)
-        driftWarned.push(rel);
+      if (!isEnrichable(rel)) {
+        const est = excStatusByRel.get(rel);
+        // Exceção viva ou expirada preserva sempre (issue #131, DH-1): o updater deixa de ser
+        // cego a `.forge/machinery-exceptions.txt` e para de reverter em silêncio a decisão
+        // humana registrada ali, com ou sem `machinery.lock`.
+        if (est && (est.status === 'viva' || est.status === 'expirada')) { excPreservedFiles.push(rel); continue; }
+        if (dstHash !== newHash) {
+          const verdict = driftVerdict(rel, dstHash, oldLock, history, pendingShaOf(target, rel));
+          if (verdict === 'lock') {
+            templateUpdated.push(rel);
+          } else if (verdict === 'pendente') {
+            templateUpdatedByPending.push(rel);
+          } else if (verdict === 'historico') {
+            templateUpdatedByHistory.push(rel);
+          } else if (!flags.overwriteDrift) {
+            // Nem enriquecível, nem coberto por exceção, nem provadamente intocado (pelo lock ou por uma versão publicada): é deriva local. Preserva o arquivo e guarda a versão nova do template como pendente — revisão da DH-1.
+            driftPreserved.push([rel, srcAbs, verdict]);
+            continue;
+          } else {
+            // --overwrite-drift: o operador aceitou o template sobre a deriva. Nomeado sempre, com o caminho do backup, porque o silêncio aqui é exatamente o defeito da #101.
+            overwrittenUndeclared.push(rel);
+            // maquinaria própria (scripts/commands/...): sobrescreve, mas fix local vira aviso — o
+            // fluxo certo para fix em maquinaria é upstream no template; o backup cobre.
+            if (oldLock && oldLock.has(rel) && dstHash !== oldLock.get(rel))
+              driftWarned.push(rel);
+          }
+        }
+      }
     }
     mkdirSync(dirname(dst), { recursive: true });
     cpSync(srcAbs, dst);
@@ -639,14 +1021,89 @@ async function updateHarness() {
     for (const rel of preservedFiles.sort()) console.log(`  = ${rel}`);
     console.log('  (se o template também mudou nesses paths, reconcilie à mão — diff contra .forge.bak-N)');
   }
-  for (const rel of driftWarned.sort())
-    console.log(`WARN: drift local em ${rel} sobrescrito pelo template (fix local em maquinaria? faça upstream; backup em .forge.bak-N)`);
-  writeMachineryLock(forge, files, version, vals.source ? src : '');
+  // O backup mudou para fora da árvore desde a #76 (`.git/forge-backups/`, não mais `.forge.bak-N`);
+  // `mostra` já resolve o ponteiro real e é o mesmo usado pelas linhas ATUALIZADO/SOBRESCRITO abaixo.
+  for (const rel of driftWarned.sort()) {
+    const backupPointer = mostra ? join(mostra, rel) : '(sem backup — rodado com --no-backup)';
+    console.log(`WARN: drift local em ${rel} sobrescrito pelo template (fix local em maquinaria? faça upstream; conteúdo anterior em ${backupPointer})`);
+  }
+  for (const rel of templateUpdated.sort()) {
+    const backupPointer = mostra ? join(mostra, rel) : '(sem backup — rodado com --no-backup)';
+    console.log(`ATUALIZADO: ${rel} — sem edição local (idêntico ao lock anterior); o template evoluiu; conteúdo anterior em ${backupPointer}`);
+  }
+  for (const rel of templateUpdatedByPending.sort()) {
+    const backupPointer = mostra ? join(mostra, rel) : '(sem backup — rodado com --no-backup)';
+    console.log(`ATUALIZADO: ${rel} — sem edição local (idêntico à versão pendente que o update anterior guardou); o template evoluiu; conteúdo anterior em ${backupPointer}`);
+  }
+  for (const rel of templateUpdatedByHistory.sort()) {
+    const backupPointer = mostra ? join(mostra, rel) : '(sem backup — rodado com --no-backup)';
+    console.log(`ATUALIZADO: ${rel} — sem edição local (idêntico a uma versão publicada do template); o template evoluiu; conteúdo anterior em ${backupPointer}`);
+  }
+  for (const rel of overwrittenUndeclared.sort()) {
+    const backupPointer = mostra ? join(mostra, rel) : '(sem backup — rodado com --no-backup)';
+    console.log(`SOBRESCRITO (não declarado): ${rel} — conteúdo anterior em ${backupPointer}`);
+  }
+  // Versões pendentes: reconstruídas a cada aplicação real, para refletir só a deriva que ESTE update preservou — um caminho reconciliado desde então (exceção declarada, arquivo igualado ao template, --overwrite-drift) sai do diretório sem limpeza manual.
+  const pendingRoot = join(target, TEMPLATE_PENDING_REL);
+  rmSync(pendingRoot, { recursive: true, force: true });
+  driftPreserved.sort((a, b) => (a[0] < b[0] ? -1 : 1));
+  for (const [rel, srcAbs, verdict] of driftPreserved) {
+    const pend = join(pendingRoot, rel);
+    mkdirSync(dirname(pend), { recursive: true });
+    cpSync(srcAbs, pend);
+    console.log(verdict === 'sem-lock'
+      ? `PRESERVADO (sem lock para provar): ${rel} — o conteúdo local não é nenhuma versão publicada do template; versão nova do template em ${TEMPLATE_PENDING_REL}/${rel}`
+      : verdict === 'sem-historico'
+        ? `PRESERVADO (sem lock para provar): ${rel} — sem histórico de versões publicadas para provar; versão nova do template em ${TEMPLATE_PENDING_REL}/${rel}`
+        : `PRESERVADO (deriva local): ${rel} — versão nova do template em ${TEMPLATE_PENDING_REL}/${rel}`);
+  }
 
-  // orphan-check defensivo: nenhum arquivo de maquinaria deve conter <PROJECT_*> após overlay
+  // Relatório de exceções: todo caminho declarado em machinery-exceptions.txt aparece aqui
+  // exatamente uma vez, na categoria que excStatusByRel já decidiu antes do laço. tombstone-
+  // preservado é reportado só na seção de tombstones abaixo (senão o caminho apareceria duas
+  // vezes — achado do review adversarial, MEDIUM).
+  const excViva = [], excExpirada = [], excOciosa = [];
+  for (const [rel, exc] of exceptions.entries) {
+    const est = excStatusByRel.get(rel) || { status: 'fora-do-template' };
+    if (est.status === 'tombstone-preservado') continue;
+    if (est.status === 'viva') excViva.push({ rel, reason: exc.reason });
+    else if (est.status === 'expirada') excExpirada.push({ rel, declared: est.declared, atual: est.atual });
+    else if (est.status === 'identica') excOciosa.push({ rel, motivo: 'arquivo já idêntico ao template' });
+    else if (est.status === 'enrichable') excOciosa.push({ rel, motivo: 'caminho enriquecível — a preservação de rules/agents/skills já cobre; exceção não se aplica' });
+    else if (est.status === 'nao-instalado') excOciosa.push({ rel, motivo: 'arquivo ausente — será instalado do template; exceção não se aplica' });
+    else excOciosa.push({ rel, motivo: 'caminho fora do template atual' });
+  }
+  if (excViva.length) {
+    console.log(`exceções declaradas: ${excViva.length} arquivo(s) preservado(s) por divergência deliberada:`);
+    for (const e of excViva.sort((a, b) => (a.rel < b.rel ? -1 : 1)))
+      console.log(`  PRESERVADO (exceção declarada): ${e.rel} — razão: ${e.reason || '(sem razão declarada)'}${excRawNote(exceptions, e.rel)}`);
+  }
+  if (excExpirada.length) {
+    console.log(`exceções expiradas: ${excExpirada.length} arquivo(s) com a declaração desatualizada (preservados mesmo assim):`);
+    for (const e of excExpirada.sort((a, b) => (a.rel < b.rel ? -1 : 1)))
+      console.log(`  EXCEÇÃO EXPIRADA: ${e.rel} — sha declarado ${e.declared}, sha do template novo ${e.atual}${excRawNote(exceptions, e.rel)}`);
+  }
+  if (excOciosa.length) {
+    console.log(`exceções ociosas: ${excOciosa.length} declaração(ões) sem efeito nesta execução:`);
+    for (const e of excOciosa.sort((a, b) => (a.rel < b.rel ? -1 : 1)))
+      console.log(`  EXCEÇÃO OCIOSA: ${e.rel} — ${e.motivo}${excRawNote(exceptions, e.rel)}`);
+  }
+  writeMachineryLock(forge, files, version, vals.source ? src : '',
+    new Map(driftPreserved.map(([rel]) => [rel, (oldLock && oldLock.get(rel)) || null])));
+
+  // orphan-check defensivo: nenhum arquivo de maquinaria deve conter <PROJECT_*> após overlay.
+  // Isento tanto `preservedFiles` (customização local em ENRICHABLE_DIRS) quanto
+  // `excPreservedFiles` (exceção declarada viva ou expirada fora de ENRICHABLE_DIRS) — as duas
+  // listas guardam conteúdo do CONSUMIDOR, nunca do template, e por isso não podem reprovar este
+  // check. Achado MEDIUM do review adversarial: antes desta correção, só `preservedFiles` entrava
+  // no conjunto isento; um arquivo preservado por exceção que contivesse `<PROJECT_*>` literal
+  // (por exemplo, uma nota local com um placeholder nunca substituído de propósito) fazia o update
+  // abortar com rc 1 DEPOIS de já ter escrito o overlay e o `machinery.lock`, culpando "o template"
+  // por um conteúdo que era do próprio consumidor.
   const isTemplated = (f) => /\.(md|ya?ml)$/.test(f);
   const underTemplates = (f) => relative(forge, f).split(sep).includes('templates');
-  const preservedSet = new Set(preservedFiles);
+  // A deriva local preservada (revisão da DH-1) também é conteúdo do consumidor.
+  const preservedSet = new Set([...preservedFiles, ...excPreservedFiles, ...driftPreserved.map(([rel]) => rel)]);
   const orphans = files
     .filter(([rel]) => !preservedSet.has(rel)) // conteúdo preservado é do consumidor, não do template
     .map(([rel]) => join(forge, rel))
@@ -661,9 +1118,19 @@ async function updateHarness() {
   // A mesma invariante do overlay vale aqui (revisão do PR #17): tombstone em path ENRIQUECÍVEL
   // só deleta se o arquivo local é o template intocado (hash == lock da última aplicação);
   // customização local é mantida com aviso — remover diretiva de owner é decisão humana.
+  // Achado do review adversarial (MEDIUM): exceção declarada para um caminho tombstoned era
+  // relatada como "EXCEÇÃO OCIOSA — sem efeito" e, na sequência, o mesmo caminho era apagado pela
+  // poda — a exceção não tinha NENHUM efeito real sobre o único ramo que poderia apagar o arquivo.
+  // Exceção declarada barra a poda incondicionalmente (não depende de lock nem de sha — não há
+  // "sha do template atual" para um caminho que o template já removeu).
   const stale = [];
   const keptTombstones = [];
+  const keptExceptionTombstones = [];
   for (const rel of orphansToPrune(forge)) {
+    if (exceptions.entries.has(rel)) {
+      keptExceptionTombstones.push(rel);
+      continue;
+    }
     if (isEnrichable(rel) && !(oldLock && oldLock.get(rel) === sha256File(join(forge, rel)))) {
       keptTombstones.push(rel);
       continue;
@@ -680,11 +1147,55 @@ async function updateHarness() {
   }
   for (const rel of keptTombstones.sort())
     console.log(`= ${rel} (tombstone pulado — customização local; o template removeu este path, remova à mão se não precisar mais)`);
+  for (const rel of keptExceptionTombstones.sort()) {
+    const exc = exceptions.entries.get(rel);
+    console.log(`= ${rel} (tombstone pulado — exceção declarada: ${exc.reason || '(sem razão declarada)'})${excRawNote(exceptions, rel)}`);
+  }
 
   // forge.yaml: template_version + merge aditivo de chaves de topo novas do template (ex.: autonomy:)
   if (bumpTemplateVersion(forge, version)) console.log(`forge.yaml: template_version -> ${version}`);
+  // #142: recurso do heavy-mutex ANTES do merge — só quando o bloco está ausente e vai ser
+  // mesclado (a única rota pela qual o update introduz o default do template em quem nunca
+  // declarou nada; `resource`/`root`/`enabled` já declarados nunca são tocados, ver
+  // `newForgeKeys`/DH-3). Resolvido ANTES de `mergeNewForgeKeys` escrever, contra o forge.yaml que
+  // o consumidor tinha até aqui.
+  //
+  // Semântica de "antes" (achado LOW do review): o overlay de arquivos (mais acima, `cpSync` por
+  // `rel`) já rodou quando chegamos aqui — `scripts/lib/heavy-mutex.sh` no disco já é a versão
+  // NOVA do template. "Antes" significa "o forge.yaml antigo do consumidor, resolvido pela lib
+  // nova", nunca "o que `heavy-run.sh` do consumidor resolvia com a lib que ele tinha até agora".
+  // Se a precedência ou o default da lib mudarem entre versões, o "antes" anunciado pode não ser
+  // o que o processo do consumidor via rodando minutos atrás — documentado aqui em vez de
+  // reordenar a resolução para antes do overlay, que exigiria segurar uma cópia da lib antiga só
+  // para este relatório informativo.
+  const nkHm = newForgeKeys(src, forge);
+  const hmWillMerge = nkHm.keys.includes('heavy_mutex');
+  const hmBefore = hmWillMerge ? resolveHeavyMutexPath(forge, target) : null;
   const { added, skipped, softened } = mergeNewForgeKeys(src, forge);
   if (added.length) console.log(`forge.yaml: ${added.length} chave(s) de topo nova(s) do template mescladas: ${added.join(', ')}`);
+  // Linha nominal (DH-3): o nome default do recurso é MANTIDO — quem já declarava outro caminho
+  // de serialização (heavy_mutex.resource próprio) nunca passa por aqui, porque a chave já
+  // existente barra o merge inteiro. Só o consumidor que nunca declarou nada ganha o bloco do
+  // template, e a linha nomeia o que resolvia antes e o que resolve depois pela MESMA precedência
+  // da lib (env > forge.yaml > default) — WARN quando os dois divergem, nunca em silêncio.
+  //
+  // Achado MEDIUM do review: a versão anterior só imprimia a linha quando as DUAS resoluções
+  // tinham sucesso (`if (hmBefore && hmAfter)`) — uma resolução que falhasse (lib preservada por
+  // machinery-exception sem `forge_heavy_mutex_path`, root inutilizável, bash ausente) fazia a
+  // chave ser mesclada em SILÊNCIO TOTAL, exatamente o sintoma original da issue reproduzido pela
+  // própria correção. Agora, qualquer falha em qualquer lado vira um WARN nomeando o motivo e o
+  // `resource` que o bloco do template escreveu — nunca ausência de linha nenhuma.
+  if (added.includes('heavy_mutex')) {
+    const hmAfter = resolveHeavyMutexPath(forge, target);
+    if (hmBefore && hmBefore.resource && hmAfter && hmAfter.resource) {
+      const linha = `heavy_mutex: recurso resolvido ${hmBefore.resource} → ${hmAfter.resource} (lock ${hmAfter.path})`;
+      console.log(hmBefore.resource === hmAfter.resource ? linha : `WARN: ${linha}`);
+    } else {
+      const motivo = (hmAfter && hmAfter.reason) || (hmBefore && hmBefore.reason) || 'motivo desconhecido';
+      const resTemplate = templateHeavyMutexResource(nkHm.blocks.get('heavy_mutex'));
+      console.log(`WARN: heavy_mutex: recurso resolvido não determinado (${motivo}) — bloco mesclado com resource: ${resTemplate}`);
+    }
+  }
   // Em voz alta: um bloco que muda POLÍTICA não pode entrar calado num upgrade de maquinaria.
   for (const key of (softened || [])) {
     console.log(`forge.yaml: '${key}:' entrou com enforce: warn (não block) — este repositório já existia e pode ter passivo.`);
@@ -716,6 +1227,8 @@ async function updateHarness() {
   console.log(`\n✔ Forge atualizado em ${target} (template v${version})`);
   console.log(`  ${preserved}`);
   if (!flags.noBackup) console.log('  backup fora da árvore, em .git/forge-backups/ (não é varrido por gate nem aparece em git status)');
+  // Por último, para não se perder na rolagem do sync-adapters e do doctor.
+  if (driftPreserved.length) console.log(driftWarnLine(driftPreserved.length, driftPreserved.filter(([, , v]) => isSemLock(v)).length, false, history !== null));
 }
 
 async function main() {

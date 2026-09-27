@@ -112,13 +112,44 @@ check_harness() {
   # content is authored by the user (spec text may quote the generated dir; deploy files under
   # worktrees may carry the app's own PROJECT-style tokens) and is not the canonical harness source.
   USER_DATA='/(specs|worktrees|product|evals|custom)/'
-  leaks="$(grep -rl '\.claude/' "$ROOT/.forge" 2>/dev/null | grep -vE "/(adapters|scripts|hooks)/|/commands/harness/|$USER_DATA" | wc -l | tr -d ' ')"
+  # `.forge/cache/template-pendente/` guarda a versão nova do template de arquivos preservados por deriva local (revisão da DH-1): é cache, não fonte canônica, e fica fora das duas varreduras.
+  PENDING_CACHE='/cache/template-pendente/'
+  leaks="$(grep -rl '\.claude/' "$ROOT/.forge" 2>/dev/null | grep -vE "/(adapters|scripts|hooks)/|/commands/harness/|$USER_DATA|$PENDING_CACHE" | wc -l | tr -d ' ')"
   if [ "$leaks" -eq 0 ]; then ok "harness: fonte canônica sem refs .claude/"
   else miss "harness: $leaks arquivo(s) da fonte canônica com refs .claude/"; MISSING_DIAG=1; fi
 
-  orphans="$(grep -rl '<PROJECT_[A-Z_]*>' "$ROOT/.forge" 2>/dev/null | grep -vE "/templates/|$USER_DATA" | wc -l | tr -d ' ')"
+  orphans="$(grep -rl '<PROJECT_[A-Z_]*>' "$ROOT/.forge" 2>/dev/null | grep -vE "/templates/|$USER_DATA|$PENDING_CACHE" | wc -l | tr -d ' ')"
   if [ "$orphans" -eq 0 ]; then ok "harness: sem placeholders <PROJECT_*> órfãos"
   else miss "harness: $orphans arquivo(s) com placeholders <PROJECT_*> não preenchidos"; MISSING_DIAG=1; fi
+
+  # Versão nova do template pendente de reconciliação (revisão da DH-1): o `update` preserva a maquinaria em deriva local e grava a versão do template em .forge/cache/template-pendente/<rel>. A linha nomeia o que ainda difere do arquivo local (contagem + primeiros caminhos) até alguém reconciliar: declarar a exceção, incorporar a versão à mão ou aceitar com --overwrite-drift. É aviso, não diagnóstico faltante: não muda o rc do doctor.
+  # Caminho já declarado em .forge/machinery-exceptions.txt (qualquer sha: viva ou expirada, o update preserva por exceção e não grava mais pendente) sai da lista na hora — a decisão humana está registrada, e cobrar até o próximo update seria ruído. Mesma leitura do parser do update: corte no primeiro `#`, exatamente dois tokens, sha hexadecimal minúsculo com pelo menos 32 dígitos, prefixos `./` e `.forge/` normalizados.
+  pend_dir="$ROOT/.forge/cache/template-pendente"
+  if [ -d "$pend_dir" ]; then
+    pend_n=0; pend_list=""; pend_decl=""
+    if [ -f "$ROOT/.forge/machinery-exceptions.txt" ]; then
+      while IFS= read -r exc_line || [ -n "$exc_line" ]; do
+        exc_line="${exc_line%%#*}"; exc_line="${exc_line//$'\r'/}"
+        read -r exc_sha exc_rel exc_resto <<<"$exc_line" || true
+        [ -n "${exc_rel:-}" ] && [ -z "${exc_resto:-}" ] || continue
+        [[ "$exc_sha" =~ ^[0-9a-f]{32,}$ ]] || continue
+        while [ "${exc_rel#./}" != "$exc_rel" ]; do exc_rel="${exc_rel#./}"; done
+        exc_rel="${exc_rel#.forge/}"
+        pend_decl="$pend_decl"$'\n'"$exc_rel"
+      done < "$ROOT/.forge/machinery-exceptions.txt"
+    fi
+    while IFS= read -r pend_f; do
+      pend_rel="${pend_f#"$pend_dir"/}"
+      cmp -s "$pend_f" "$ROOT/.forge/$pend_rel" && continue
+      grep -qxF -- "$pend_rel" <<<"$pend_decl" && continue
+      pend_n=$((pend_n + 1))
+      [ "$pend_n" -le 5 ] && pend_list="${pend_list:+$pend_list, }$pend_rel"
+    done < <(find "$pend_dir" -type f ! -name .DS_Store 2>/dev/null | LC_ALL=C sort)
+    if [ "$pend_n" -gt 0 ]; then
+      [ "$pend_n" -gt 5 ] && pend_list="$pend_list, … (+$((pend_n - 5)))"
+      warn "harness: TEMPLATE-PENDENTE: $pend_n arquivo(s) com versão nova do template aguardando reconciliação em .forge/cache/template-pendente/: $pend_list — declare a divergência em .forge/machinery-exceptions.txt, incorpore a versão pendente à mão ou aceite com npx forge-harness update --overwrite-drift"
+    fi
+  fi
 
   # Cabeçalho "Generated from" na 1ª linha do artefato gerado.
 #
@@ -134,27 +165,186 @@ _generated_header() { # _generated_header <arquivo>
   return 1
 }
 
+# _settings_hooks_is_derived <root> — issue #160/LDG-0189. O lockfile guarda o sha256 do
+# `.claude/settings.json` INTEIRO, então uma edição em QUALQUER chave de topo (`permissions`,
+# `env`, `includeCoAuthoredBy`, ...) muda esse hash e acusa "drift" — mesmo sabendo, desde a
+# #160, que o `sync` preserva essas chaves em vez de apagá-las. Recomendar
+# "rode sync-adapters.sh" sem ressalva nesse caso sugere uma correção quando não há nada a
+# corrigir. Aqui comparamos só a PROJEÇÃO de `hooks` que pertence ao gerador (achado de correção
+# HIGH: `current.hooks` também carrega hooks de terceiro preservados pelo próprio `sync` desde a
+# #160 — comparar a árvore INTEIRA nunca bate byte a byte quando existe um, e a supressão de aviso
+# falharia justamente nos dois consumidores reais medidos no plano, vellus e axis-fare-validator,
+# que têm hook de terceiro) contra o que `preToolUseWiring(root)` derivaria agora — a mesma leitura
+# pura e já exportada que #125/#160 usam (issue #130); NUNCA um export novo, que quebraria o
+# contrato de superfície travado pelo gate w216 [1] ("expõe SÓ preToolUseWiring"). Se a projeção
+# bater byte a byte com o derivado, a fiação do gerador já está correta e o hash mudou só por causa
+# de uma chave autoral (ou de um hook de terceiro, que a projeção também ignora). Imprime
+# "yes"/"no"; qualquer erro (node ausente, settings.json ilegível, etc.) cai em "no" — modo
+# conservador, mantém a recomendação de sync.
+_settings_hooks_is_derived() { # _settings_hooks_is_derived <root>
+  local root="$1" lib="$1/.forge/scripts/lib/sync-adapters.mjs" settings="$1/.claude/settings.json"
+  command -v node >/dev/null 2>&1 && [ -f "$lib" ] && [ -f "$settings" ] || { echo "no"; return; }
+  # Achado de correção (versão mista doctor×lib, MEDIUM): antes de IMPORTAR a lib para leitura de
+  # diagnóstico, confirma por leitura ESTÁTICA (grep sobre o texto — nunca `import`) que ela já tem
+  # a guarda de módulo principal da #130 (`isMainModule`) e a exportação estável da #160
+  # (`preToolUseWiring`). Uma `sync-adapters.mjs` local mais antiga — preservada por exceção de
+  # machinery declarada (#101/#131) enquanto o overlay já entrega o `doctor.sh` novo — sem essa
+  # guarda RECONCILIA o consumidor como efeito colateral do próprio import (a mesma classe de dano
+  # que a #130 fechou), apagando chaves de topo autorais nessa MESMA leitura de diagnóstico e
+  # escondendo o drift real na execução seguinte. Sem as duas âncoras, cai em "no" sem importar.
+  # Achado de correção LOW (revisão adversarial): as âncoras de `isMainModule`/`preToolUseWiring`
+  # são da #130 — uma lib ENTRE a #130 e a #160 (ex.: f24b029) já as tem, mas AINDA emite
+  # `{ hooks }` puro e apagaria `permissions`/`env` a cada sync. `function mergeSettingsJson` é a
+  # âncora da PRÓPRIA #160 (a fusão que preserva chaves de topo autorais); sem ela, a projeção que
+  # este helper compara não tem garantia nenhuma de que o `sync` real vá preservar o resto do
+  # arquivo, então cai em "no" (recomendação normal), nunca "yes" (suprimir aviso).
+  if ! grep -q 'function isMainModule' "$lib" || ! grep -q 'export function preToolUseWiring' "$lib" \
+     || ! grep -q 'function mergeSettingsJson' "$lib"; then
+    echo "no"; return
+  fi
+  # Variáveis de ambiente, NUNCA argv posicional (achado de correção): passar o caminho da lib
+  # como argumento de `-e` grava esse MESMO caminho em `process.argv[1]` dentro do script — e
+  # `isMainModule()` (dentro de sync-adapters.mjs) compara `process.argv[1]` contra a URL do
+  # PRÓPRIO módulo. Os dois batendo faz o import ser tratado como invocação principal e reconciliar
+  # o consumidor como efeito colateral desta leitura de diagnóstico (a mesma classe de dano que a
+  # #130 fecha) — reproduzido durante o desenvolvimento desta issue.
+  DOCTOR_SETTINGS_LIB="$lib" DOCTOR_SETTINGS_ROOT="$root" DOCTOR_SETTINGS_FILE="$settings" \
+  node --input-type=module -e '
+    import { pathToFileURL } from "node:url";
+    import { readFileSync } from "node:fs";
+    const { DOCTOR_SETTINGS_LIB: libPath, DOCTOR_SETTINGS_ROOT: root, DOCTOR_SETTINGS_FILE: settingsPath } = process.env;
+    // OWNED — mesmo universo de TEMPLATE/.forge/scripts/lib/sync-adapters.mjs
+    // (ownedHookCommandsFor, issue #125 — antes um Set fixo de três comandos,
+    // OWNED_HOOK_COMMANDS), duplicado aqui porque a lib não o exporta (contrato travado pelo
+    // w216 [1]: expõe SÓ preToolUseWiring). Duplicar é seguro no sentido CONSERVADOR desta função:
+    // se um comando owned novo for esquecido nesta lista, o pior efeito é "no" (recomenda sync sem
+    // necessidade), nunca "yes" escondendo perda real de hook de terceiro. Desde a #125 o universo
+    // de PreToolUse não é mais fixo (deriva de `.forge/hooks/pre-tool-use/`), então esta lista
+    // cobre hoje os quatro ganchos distribuídos pelo template, nas duas formas de comando que o
+    // gerador pode emitir (direta e via `lib/argv-bridge.sh`) — um gancho de consumidor adicionado
+    // depois cai no "no" conservador, nunca escondido. As formas COM ASPAS em `$CLAUDE_PROJECT_DIR`
+    // e as formas *Legacy* SEM aspas convivem aqui (achado de correção MEDIUM, iteração 3 do modo
+    // correção — mesma migração sem duplicar de `hookCommandDirect`/`hookCommandDirectLegacy` na
+    // lib): um consumidor recém-migrado tem a forma nova fiada, um ainda não sincronizado tem a
+    // legada, e as duas são igualmente owned para efeito deste diagnóstico.
+    const HOOK_FILES = ["enforce-worktree-location.sh", "prevent-secrets-leak.sh", "check-language-policy.sh", "validate-naming-conventions.sh"];
+    const OWNED = new Set([
+      "\"$CLAUDE_PROJECT_DIR\"/.forge/hooks/session/on-session-start.sh",
+      "\"$CLAUDE_PROJECT_DIR\"/.forge/hooks/session/on-session-end.sh",
+      "$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-start.sh",
+      "$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-end.sh",
+      ...HOOK_FILES.map((h) => `"$CLAUDE_PROJECT_DIR"/.forge/hooks/pre-tool-use/${h}`),
+      ...HOOK_FILES.map((h) => `$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/${h}`),
+      ...HOOK_FILES.map((h) => `"$CLAUDE_PROJECT_DIR"/.forge/hooks/pre-tool-use/lib/argv-bridge.sh "$CLAUDE_PROJECT_DIR"/.forge/hooks/pre-tool-use/${h}`),
+      ...HOOK_FILES.map((h) => `$CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/lib/argv-bridge.sh $CLAUDE_PROJECT_DIR/.forge/hooks/pre-tool-use/${h}`),
+    ]);
+    function ownedProjection(hooksObj) {
+      const out = {};
+      for (const cat of Object.keys(hooksObj)) {
+        const groups = Array.isArray(hooksObj[cat]) ? hooksObj[cat] : [];
+        const kept = [];
+        for (const g of groups) {
+          if (!g || !Array.isArray(g.hooks)) continue;
+          const keptHooks = g.hooks.filter((h) => h && OWNED.has(h.command));
+          if (keptHooks.length) kept.push(keptHooks.length === g.hooks.length ? g : { ...g, hooks: keptHooks });
+        }
+        if (kept.length) out[cat] = kept;
+      }
+      return out;
+    }
+    try {
+      const m = await import(pathToFileURL(libPath).href);
+      const derived = m.preToolUseWiring(root);
+      const current = JSON.parse(readFileSync(settingsPath, "utf8"));
+      const currentHooks = (current && current.hooks && typeof current.hooks === "object" && !Array.isArray(current.hooks)) ? current.hooks : {};
+      const projected = ownedProjection(currentHooks);
+      console.log(JSON.stringify(projected) === JSON.stringify(derived) ? "yes" : "no");
+    } catch { console.log("no"); }
+  ' 2>/dev/null || echo "no"
+}
+
+# _settings_lib_needs_160_upgrade_warning <root> — issue #160/LDG-0189, achado de correção LOW
+# (âncora incompleta). Independente de `_settings_hooks_is_derived` (que só decide se SUPRIME o
+# aviso de drift autoral): esta função decide se a RECOMENDAÇÃO de drift real precisa virar um
+# AVISO de risco em vez do "rode sync-adapters.sh" de sempre. Responde "yes" só quando as DUAS
+# condições valem — a lib local não tem `function mergeSettingsJson` (é anterior à #160, então o
+# `sync` real ainda emitiria `{ hooks }` puro) E o `.claude/settings.json` atual tem alguma chave
+# de topo além de `hooks` (só aí existe algo autoral para o sync apagar). Nunca importa a lib —
+# só `grep` estático e leitura do `settings.json` — então não tem o risco de reconciliar como
+# efeito colateral (a classe de dano da #130) em NENHUMA versão da lib. Qualquer erro cai em "no"
+# — modo conservador: a ausência desta função só muda a MENSAGEM, nunca o rc nem o fato de o
+# doctor continuar reportando drift.
+_settings_lib_needs_160_upgrade_warning() {
+  local root="$1" lib="$1/.forge/scripts/lib/sync-adapters.mjs" settings="$1/.claude/settings.json"
+  [ -f "$lib" ] && [ -f "$settings" ] || { echo "no"; return; }
+  grep -q 'function mergeSettingsJson' "$lib" && { echo "no"; return; }
+  node -e '
+    const fs = require("fs");
+    try {
+      const j = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+      const extra = j && typeof j === "object" && !Array.isArray(j) && Object.keys(j).some((k) => k !== "hooks");
+      console.log(extra ? "yes" : "no");
+    } catch { console.log("no"); }
+  ' "$settings" 2>/dev/null || echo "no"
+}
+
 locks_found=0
   for lock in "$ROOT"/.forge/adapters/*.lock.yaml; do
     [ -f "$lock" ] || continue
     locks_found=$((locks_found + 1))
     aname="$(basename "$lock" .lock.yaml)"
     drift=0
+    authordrift=0
+    settings_real_drift=0
     while read -r dest hash; do
       [ -n "$dest" ] || continue
       if [ "$hash" = "symlink" ]; then
         { [ -L "$ROOT/$dest" ] || _generated_header "$ROOT/$dest"; } || drift=$((drift + 1))
       elif [ -f "$ROOT/$dest" ]; then
         actual="sha256:$(shasum -a 256 "$ROOT/$dest" | cut -d' ' -f1)"
-        [ "$actual" = "$hash" ] || drift=$((drift + 1))
+        if [ "$actual" = "$hash" ]; then
+          :
+        elif [ "$dest" = ".claude/settings.json" ] && [ "$(_settings_hooks_is_derived "$ROOT")" = "yes" ]; then
+          # #160/LDG-0189: a fiação (`hooks`) já bate com o que o gerador derivaria agora — o
+          # sha mudou só por causa de uma chave de topo autoral, que o sync preserva.
+          authordrift=$((authordrift + 1))
+        else
+          drift=$((drift + 1))
+          [ "$dest" = ".claude/settings.json" ] && settings_real_drift=1
+        fi
       else
         drift=$((drift + 1))
+        [ "$dest" = ".claude/settings.json" ] && settings_real_drift=1
       fi
     done <<EOF_LOCK
 $(awk '/^  - dest: /{d=$3} /^    sha256: /{print d" "$2}' "$lock")
 EOF_LOCK
-    if [ "$drift" -eq 0 ]; then ok "harness: adapter $aname sem drift (lockfile íntegro)"
-    else miss "harness: $drift alvo(s) do adapter $aname com drift (rode .forge/scripts/sync-adapters.sh)"; MISSING_DIAG=1; fi
+    if [ "$drift" -eq 0 ] && [ "$authordrift" -eq 0 ]; then
+      ok "harness: adapter $aname sem drift (lockfile íntegro)"
+    elif [ "$drift" -eq 0 ]; then
+      # Achado de correção LOW: o texto antigo dizia "$authordrift chave(s) autoral(is)", mas
+      # $authordrift conta ALVOS do lockfile com drift só autoral (aqui, sempre 1 — só existe um
+      # .claude/settings.json por adapter), nunca chaves de fato alteradas. A frase não afirma mais
+      # uma contagem que não faz.
+      info "harness: adapter $aname — .claude/settings.json alterado só fora da fiação do gerador (permissions/env/...); o sync preserva essas chaves, nenhuma ação necessária"
+    elif [ "$settings_real_drift" -eq 1 ] && [ "$(_settings_lib_needs_160_upgrade_warning "$ROOT")" = "yes" ]; then
+      # Achado de correção LOW (âncora incompleta, LDG-0189): a lib local não tem a fusão da #160 e
+      # o settings.json tem chave de topo além de `hooks` — recomendar "rode sync-adapters.sh" sem
+      # ressalva sugeriria uma correção seguindo o mesmo caminho que apagaria essas chaves.
+      miss "harness: $drift alvo(s) do adapter $aname com drift — a lib local .forge/scripts/lib/sync-adapters.mjs é anterior à #160: o sync APAGARIA chave(s) autoral(is) (permissions/env/...) de .claude/settings.json; atualize a lib ou revise a exceção de machinery antes de rodar sync-adapters.sh"; MISSING_DIAG=1
+    else
+      # Achado de correção LOW: quando o alvo com drift real é o próprio .claude/settings.json (lib
+      # já com a fusão da #160), a recomendação padrão ganha a ressalva de que rodar o sync não
+      # apaga chave autoral nem hook de terceiro — só corrige a fiação do gerador.
+      if [ "$settings_real_drift" -eq 1 ]; then
+        miss "harness: $drift alvo(s) do adapter $aname com drift (rode .forge/scripts/sync-adapters.sh) (o sync preserva chaves autorais e hooks de terceiro)"; MISSING_DIAG=1
+      else
+        miss "harness: $drift alvo(s) do adapter $aname com drift (rode .forge/scripts/sync-adapters.sh)"; MISSING_DIAG=1
+      fi
+      if [ "$authordrift" -gt 0 ]; then
+        info "harness: .claude/settings.json também tem alteração fora da fiação do gerador — preservada pelo sync, sem ação"
+      fi
+    fi
   done
   if [ "$locks_found" -eq 0 ]; then
     info "harness: nenhum lockfile de adapter (rode .forge/scripts/sync-adapters.sh)"

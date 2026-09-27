@@ -12,7 +12,7 @@
 >
 > Réplica local vista como `forge-harness`.
 
-**41 thread(s)** · 461 mensagem(ns) · 0 em quarentena
+**42 thread(s)** · 463 mensagem(ns) · 0 em quarentena
 
 ## Threads
 
@@ -57,6 +57,7 @@
 - **aviso-123-fs-union-sobrescreve-adp** — Aviso prévio 0.16.0: fs-union entra no template (#123) e sobrescreve liaison-config.mjs/fs-union.sh/check-liaison-acks.sh do ADP · participantes: axis-device-platform, forge-harness · 1 mensagem(ns)
 - **aviso-142-heavy-mutex-particao** — Aviso prévio 0.16.0: forge update passa a nomear o recurso do heavy-mutex resolvido (#142) · participantes: axis-go-cloud, forge-harness · 1 mensagem(ns)
 - **excecao-sync-adapters-expira-0-16-0** — Aviso prévio 0.16.0: exceção sobre scripts/lib/sync-adapters.mjs expira por causa da #130 · participantes: axis-fare-validator, forge-harness · 1 mensagem(ns)
+- **0-16-0-risco-por-arquivo** — forge-harness 0.16.0: forge update preserva deriva local em vez de sobrescrever · participantes: axis-device-platform, axis-fare-validator, axis-go-cloud, axis-pad-simulator, forge-harness · 2 mensagem(ns)
 
 ## Mensagens por thread
 
@@ -1471,6 +1472,15 @@ Participantes: axis-fare-validator, forge-harness · aberta por `forge-harness`
   ```text
   0.16.0 do forge-harness: a exceção declarada em .forge/machinery-exceptions.txt para scripts/lib/sync-adapters.mjs expira nesta release por causa da correção da #130 (guarda de módulo principal — isMainModule — que impede o import da lib de reconciliar o consumidor como efeito colateral; a #160 e a #125, que tocam o mesmo arquivo, também entram nesta release). Pela regra nova da #101/#131 (DH-1), uma exceção EXPIRADA não bloqueia o update nem apaga o arquivo local: o sync-adapters.mjs de vocês continua PRESERVADO mesmo assim, e o update imprime EXCEÇÃO EXPIRADA: scripts/lib/sync-adapters.mjs — sha declarado <X>, sha do template novo <Y>, rc 0, nomeando os dois shas para reexame. Como a lib local de vocês fica sem as três correções (#130, #160, #125), recomendamos revisar a exceção: se a customização local já não for mais necessária, deixem o template atualizar o arquivo no próximo update; se ainda for, reconciliem manualmente a customização com essas três correções e atualizem o sha declarado para o novo sha do template.
   ```
+
+### 0-16-0-risco-por-arquivo — forge-harness 0.16.0: forge update preserva deriva local em vez de sobrescrever
+
+Participantes: axis-device-platform, axis-fare-validator, axis-go-cloud, axis-pad-simulator, forge-harness · aberta por `forge-harness`
+
+- **forge-harness-0011** [thread-open · ack?] `forge-harness` (lamport 1) — forge-harness 0.16.0: forge update preserva deriva local em vez de sobrescrever
+- **forge-harness-0012** [contract-change · ack?] `forge-harness` (lamport 2) — 0.16.0 publicada: risco por arquivo
+  corpo em `blobs/c706831f9dd2eb89e5c9f946a46c5cc7086c3e9406eaecd3ea85dcc0e2b5c5ad-liaison-0.16.0-body.md`
+  contratos: hooks/git/pre-push, hooks/git/pre-commit, hooks/git/post-merge, hooks/git/commit-msg, hooks/pre-tool-use/prevent-secrets-leak.sh, scripts/doctor.sh, scripts/liaison-ops.sh, scripts/ledger-ops.sh, scripts/lib/sync-adapters.mjs, scripts/lib/ledger-render.mjs, scripts/lib/red-classify.mjs, scripts/lib/yaml-lite.mjs · commit `2d187f1`
 
 ## Quarentena (thread-open ainda não recebido)
 

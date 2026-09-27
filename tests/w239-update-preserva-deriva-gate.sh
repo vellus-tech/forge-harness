@@ -345,7 +345,7 @@ WARN15_COM='(1 sem lock para provar que estava(m) intocado(s): conteúdo fora de
 WARN15_SEM='(1 sem lock para provar que estava(m) intocado(s): sem histórico de versões publicadas para provar)'
 N15=0
 confere15() {  # confere15 <forge.mjs> <com|sem|vazio> -> rc 0 se a linha e o WARN (aplicação real E --dry-run) do caso batem e os do outro caso não aparecem; motivo em $MOTIVO15
-  local bin="$1" caso="$2" src linha outra warn outrowarn c out cdry outdry
+  local bin="$1" caso="$2" src linha outra warn outrowarn c out cdry outdry warnline
   N15=$((N15 + 1))
   case "$caso" in
     com)   src="$TPL";          linha="$LINHA15_COM"; outra="$LINHA15_SEM"; warn="$WARN15_COM"; outrowarn="$WARN15_SEM" ;;
@@ -359,7 +359,8 @@ confere15() {  # confere15 <forge.mjs> <com|sem|vazio> -> rc 0 se a linha e o WA
   out="$(node "$bin" update --target "$c" --no-plugin --no-backup --source "$src" 2>&1)" || { MOTIVO15="update saiu rc≠0: $(tail -3 <<<"$out")"; return 1; }
   grep -qxF "$linha" <<<"$out" || { MOTIVO15="linha esperada ausente ($caso histórico): $linha | obtido: $(grep -F "): $REL" <<<"$out")"; return 1; }
   grep -qF "$outra" <<<"$out" && { MOTIVO15="linha do outro caso presente ($caso histórico)"; return 1; }
-  grep '^WARN: 1 arquivo(s) de maquinaria preservado(s)' <<<"$out" | grep -qF "$warn" || { MOTIVO15="WARN agregado sem o texto esperado ($caso histórico): $(grep '^WARN: 1 arquivo(s)' <<<"$out")"; return 1; }
+  warnline="$(grep '^WARN: 1 arquivo(s) de maquinaria preservado(s)' <<<"$out" || true)"
+  grep -qF "$warn" <<<"$warnline" || { MOTIVO15="WARN agregado sem o texto esperado ($caso histórico): $warnline"; return 1; }
   grep -qF "$outrowarn" <<<"$out" && { MOTIVO15="WARN do outro caso presente ($caso histórico)"; return 1; }
   # LOW-2: o --dry-run agregado precisa afirmar o MESMO texto (com/sem histórico) que a aplicação
   # real — num consumidor SEPARADO (o --dry-run não escreve; reaproveitar o de cima já teria o
@@ -369,8 +370,9 @@ confere15() {  # confere15 <forge.mjs> <com|sem|vazio> -> rc 0 se a linha e o WA
   [ ! -f "$cdry/.forge/cache/machinery.lock" ] || { MOTIVO15="(setup --dry-run) o consumidor já tem machinery.lock"; return 1; }
   printf '\n# CONSERTO-LOCAL-w239-c15-%s\n' "$N15" >> "$cdry/.forge/$REL"
   outdry="$(node "$bin" update --target "$cdry" --no-plugin --no-backup --source "$src" --dry-run 2>&1)" || { MOTIVO15="--dry-run saiu rc≠0: $(tail -3 <<<"$outdry")"; return 1; }
-  grep '^WARN: 1 arquivo(s) de maquinaria seriam preservado(s)' <<<"$outdry" | grep -qF "$warn" \
-    || { MOTIVO15="WARN do --dry-run sem o texto esperado ($caso histórico): $(grep '^WARN: 1 arquivo(s)' <<<"$outdry")"; return 1; }
+  warnline="$(grep '^WARN: 1 arquivo(s) de maquinaria seriam preservado(s)' <<<"$outdry" || true)"
+  grep -qF "$warn" <<<"$warnline" \
+    || { MOTIVO15="WARN do --dry-run sem o texto esperado ($caso histórico): $warnline"; return 1; }
   grep -qF "$outrowarn" <<<"$outdry" && { MOTIVO15="WARN do --dry-run do outro caso presente ($caso histórico)"; return 1; }
   return 0
 }

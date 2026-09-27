@@ -122,7 +122,7 @@ const pkgVersion = () => {
 
 // ── arg parsing ────────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
-const flags = { force: false, forceContent: false, noSymlink: false, noPlugin: false, yes: false, help: false, version: false, dryRun: false, noBackup: false };
+const flags = { force: false, forceContent: false, noSymlink: false, noPlugin: false, yes: false, help: false, version: false, dryRun: false, noBackup: false, overwriteDrift: false };
 const vals = { target: '', source: '', slug: '', name: '', desc: '', adapters: '', out: '' };
 let cmd = '';
 for (let i = 0; i < argv.length; i++) {
@@ -133,6 +133,7 @@ for (let i = 0; i < argv.length; i++) {
     case 'install-plugin': cmd = 'install-plugin'; break;
     case '--dry-run': flags.dryRun = true; break;              // update: mostra o que mudaria, sem escrever
     case '--no-backup': flags.noBackup = true; break;          // update: não cria .forge.bak-N
+    case '--overwrite-drift': flags.overwriteDrift = true; break; // update: aceita o template sobre a deriva local
     case '--out': vals.out = argv[++i] ?? ''; break;            // install-plugin: destino do plugin
     case '--force': flags.force = true; break;
     case '--force-content': flags.force = true; flags.forceContent = true; break;
@@ -158,7 +159,7 @@ const HELP = `forge-harness ${pkgVersion()} — Spec-Driven Development harness
 
 Uso:
   npx forge-harness init [opções]
-  npx forge-harness update [--dry-run] [--no-backup] [--no-plugin] [--target <dir>]
+  npx forge-harness update [--dry-run] [--no-backup] [--overwrite-drift] [--no-plugin] [--target <dir>]
   npx forge-harness install-plugin [--out <dir>]
 
 Instala o harness Forge (.forge/) no projeto-alvo: fonte única projetada para
@@ -187,6 +188,7 @@ Opções:
   --no-plugin           (init/update) não auto-instala o plugin /forge:*
   --dry-run             (update) lista o que mudaria sem escrever nada
   --no-backup           (update) não cria .forge.bak-N (o .forge já é versionado em git)
+  --overwrite-drift     (update) sobrescreve, com backup, a maquinaria em deriva local (fora de agents/rules/skills/templates, sem exceção declarada, sem prova de intocado pelo machinery.lock nem por uma versão publicada do template) — por padrão ela é preservada e a versão nova do template vai para .forge/cache/template-pendente/
   -y, --yes             não-interativo: usa os padrões derivados sem perguntar
   -h, --help            mostra esta ajuda
   -v, --version         mostra a versão
@@ -352,7 +354,75 @@ function machineryFiles(src) {
 const ENRICHABLE_DIRS = ['agents', 'rules', 'skills', 'templates'];
 const isEnrichable = (rel) => ENRICHABLE_DIRS.includes(rel.split(sep)[0]);
 
+// Deriva local fora de ENRICHABLE_DIRS (revisão da DH-1 pelo dono, 2026-09-26). Até a 0.16.0, maquinaria própria (scripts/, hooks/, commands/, schemas/...) que divergia do template novo sem exceção declarada era sobrescrita com a linha `SOBRESCRITO (não declarado)`. O ensaio de campo da 0.16.0 mediu cerca de 40 consertos deliberados sobrescritos em cinco consumidores que nunca tinham declarado exceção (azim-crm 7, com a suíte do próprio consumidor reprovando depois). A decisão por arquivo passou a ser:
+//   exceção declarada (viva ou expirada) ............................ preserva, como na #131 (inalterado)
+//   com entrada no lock e sha local == lock (intocado) ............... sobrescreve, linha `ATUALIZADO`
+//   sha local == versão pendente que o update anterior guardou ....... sobrescreve, linha `ATUALIZADO` (reconciliação à mão pela saída 2 do /forge:upgrade)
+//   sha local em alguma versão PUBLICADA (com ou sem entrada no lock) . sobrescreve, linha `ATUALIZADO` (prova pelo histórico, ver readMachineryHistory)
+//   com entrada no lock e sha local != lock, fora dos dois acima ..... PRESERVA: `PRESERVADO (deriva local)`
+//   sem entrada no lock e sha local fora dos dois acima .............. PRESERVA: `PRESERVADO (sem lock para provar)`, dizendo se havia histórico de versões publicadas para consultar
+//   --overwrite-drift ................................................ sobrescreve a deriva com backup, `SOBRESCRITO`
+// Nos dois casos de preservação a versão nova do template vai para TEMPLATE_PENDING_REL/<rel> e o lock daquele caminho não avança. O diretório de pendentes fica sob `.forge/cache/` (ignorado pelo bloco gerenciado do .gitignore), fora de qualquer caminho que hook, runner ou sync-adapters executem ou leiam, e é reconstruído a cada aplicação real: reflete só a deriva que o último update preservou.
+const TEMPLATE_PENDING_REL = '.forge/cache/template-pendente';
+// `hasHistory`: havia histórico de versões publicadas para consultar (readMachineryHistory != null). Sem ele, o texto não afirma que o conteúdo está fora de toda versão publicada — só que não havia como provar.
+const driftWarnLine = (n, semLock, dry, hasHistory) => `WARN: ${n} arquivo(s) de maquinaria ${dry ? 'seriam preservado(s)' : 'preservado(s)'} por deriva local`
+  + `${semLock ? ` (${semLock} sem lock para provar que estava(m) intocado(s): ${hasHistory ? 'conteúdo fora de toda versão publicada do template' : 'sem histórico de versões publicadas para provar'})` : ''} — `
+  + `a versão nova do template de cada um ${dry ? 'iria para' : 'está em'} ${TEMPLATE_PENDING_REL}/. Reconcilie cada arquivo: `
+  + 'declare a divergência em .forge/machinery-exceptions.txt (se o conserto local deve ficar), incorpore a versão pendente à mão, '
+  + 'ou aceite o template com `npx forge-harness update --overwrite-drift` (sobrescreve com backup)';
+
 const sha256File = (p) => createHash('sha256').update(readFileSync(p)).digest('hex');
+
+// Histórico de versões publicadas do template: `<template>/../machinery-history.json` (no pacote, `template/machinery-history.json`, ao lado de `template/.forge`), gerado por tools/build-machinery-history.mjs a partir das tags v*. Mapa caminho -> Set(sha256) de todo conteúdo que aquele caminho já teve numa versão publicada. É a prova de "intocado" quando o machinery.lock não prova (sem entrada para o caminho: consumidor que só rodou `init`, clone novo, outra máquina, porque `.forge/cache/` é ignorado pelo .gitignore gerenciado; ou entrada defasada: update feito em outra worktree que chegou por pull): um arquivo byte-idêntico a uma versão publicada nunca foi editado pelo consumidor. Sem ele, o update congelava toda a maquinaria de quem não tinha lock (medido: consumidor pristino da 0.15.0 com 22 de 22 arquivos alterados retidos, inclusive o gancho de segredos da #125). Ausente, ilegível ou vazio (paths de tipo errado ou sem entradas): sem prova, e o caminho sem entrada no lock volta ao fallback conservador (preservar).
+function readMachineryHistory(src) {
+  const p = join(dirname(src), 'machinery-history.json');
+  if (!existsSync(p)) return null;
+  try {
+    const j = JSON.parse(readFileSync(p, 'utf8'));
+    const paths = j && typeof j === 'object' && !Array.isArray(j) ? j.paths : undefined;
+    const map = new Map();
+    if (paths && typeof paths === 'object' && !Array.isArray(paths))
+      for (const [rel, arr] of Object.entries(paths)) if (Array.isArray(arr)) map.set(rel, new Set(arr));
+    // `paths` ausente, de tipo errado (array, string, ...) ou vazio ({} / {"paths":{}} / []) é a MESMA
+    // ausência de histórico que o arquivo ilegível: sem nenhuma entrada, este `readMachineryHistory`
+    // não consultou nada, e devolver um Map vazio (em vez de null) fazia o chamador afirmar "não é
+    // nenhuma versão publicada" (hasHistory=true) sobre um histórico que nunca existiu de fato — o
+    // WARN e o retorno null abaixo espelham o caminho do catch, para que o chamador trate os dois
+    // como a mesma coisa: nada para provar.
+    if (map.size === 0) {
+      console.log(`WARN: ${p} sem entradas de histórico (paths ausente, de tipo inesperado, ou vazio) — sem histórico de versões publicadas, arquivo sem entrada no machinery.lock é preservado`);
+      return null;
+    }
+    return map;
+  } catch (e) {
+    console.log(`WARN: ${p} ilegível (${e.message}) — sem histórico de versões publicadas, arquivo sem entrada no machinery.lock é preservado`);
+    return null;
+  }
+}
+
+// Veredito de um arquivo de maquinaria própria que diverge do template novo (fora de ENRICHABLE_DIRS, sem exceção declarada), o MESMO no --dry-run e na aplicação real:
+//   'lock' ........ intocado, provado pelo machinery.lock
+//   'pendente' .... intocado: byte-idêntico à versão pendente que o update anterior guardou (o consumidor reconciliou à mão aceitando-a)
+//   'historico' ... intocado, provado por uma versão publicada do template
+//   'deriva' ...... o lock tem entrada, ela difere do local, e o local não é nenhuma versão que o harness entregou
+//   'sem-lock' .... sem entrada no lock e o local não é nenhuma versão que o harness entregou, consultado o histórico de versões publicadas
+//   'sem-historico' sem entrada no lock, o local não é a versão pendente e NÃO havia histórico de versões publicadas para consultar: não se sabe se é uma delas, e a linha diz isso em vez de afirmar que não é
+// Todo conteúdo que o próprio harness entregou conta como intocado, com ou sem entrada no lock: o lock é por checkout (`.forge/cache/` é ignorado e `.forge/` é versionado), então fica defasado quando o update foi feito em outra worktree ou por um colega e chegou por pull, e a versão pendente aceita à mão nunca entra no lock. Deixar a entrada do lock decidir sozinha retinha como "deriva local" um arquivo que o consumidor nunca editou, e o consumidor que seguia a saída (2) do /forge:upgrade entrava num laço a cada release, com a correção do template congelada. Custo aceito (DA-27): voltar um arquivo, de propósito, a uma versão publicada mais antiga deixa de ser reconhecido como deriva — o update o atualiza com backup e linha ATUALIZADO; quem quer manter a versão antiga declara a exceção.
+function driftVerdict(rel, dstHash, lock, history, pendingSha) {
+  if (lock && lock.get(rel) === dstHash) return 'lock';
+  if (pendingSha && pendingSha === dstHash) return 'pendente';
+  const known = history && history.get(rel.split(sep).join('/'));
+  if (known && known.has(dstHash)) return 'historico';
+  if (lock && lock.has(rel)) return 'deriva';
+  return history ? 'sem-lock' : 'sem-historico';
+}
+// sha256 da versão pendente que o update anterior guardou para `rel`, ou null. Lido ANTES de o update real reconstruir o diretório de pendentes.
+function pendingShaOf(target, rel) {
+  const p = join(target, TEMPLATE_PENDING_REL, rel);
+  return existsSync(p) ? sha256File(p) : null;
+}
+const DRIFT_LABEL = { deriva: 'deriva local', 'sem-lock': 'sem lock para provar', 'sem-historico': 'sem lock para provar' };
+const isSemLock = (verdict) => verdict === 'sem-lock' || verdict === 'sem-historico';
 
 // Lock de maquinaria: registra o sha256 dos arquivos do TEMPLATE na versão aplicada por último —
 // é a referência que permite distinguir "consumidor nunca tocou" (upgrade limpo) de "customização
@@ -372,18 +442,19 @@ function readMachineryLock(forge) {
   if (invalid) console.log(`WARN: machinery.lock com ${invalid} linha(s) ilegível(is) — entradas perdidas caem no fallback conservador (preservar); o lock é reescrito ao fim deste update`);
   return map;
 }
-// O lock cobre TODA a maquinaria (não só ENRICHABLE_DIRS) de propósito: as entradas enriquecíveis
-// decidem preservar-vs-sobrescrever, e as demais alimentam o WARN de drift local em scripts/
-// commands. Estreitar o escopo "para enxugar o lock" quebraria o segundo uso em silêncio.
-function writeMachineryLock(forge, files, version, sourceNote) {
+// O lock cobre TODA a maquinaria (não só ENRICHABLE_DIRS) de propósito: as entradas enriquecíveis decidem preservar-vs-sobrescrever, e as demais decidem se a divergência fora de ENRICHABLE_DIRS é refresh do template (ATUALIZADO) ou deriva local (preservada). Estreitar o escopo "para enxugar o lock" quebraria o segundo uso em silêncio.
+//
+// `keep` (revisão da DH-1): caminhos preservados por deriva local NÃO avançam para o sha do template novo — o lock continua registrando o que o consumidor recebeu por último (ou nada, se não havia entrada), para que o próximo update continue reconhecendo a deriva em vez de tomá-la por "intocado" e sobrescrevê-la. Map rel -> sha anterior (ou null: a linha é omitida).
+function writeMachineryLock(forge, files, version, sourceNote, keep = new Map()) {
   const lines = files
-    .map(([rel, srcAbs]) => [rel, sha256File(srcAbs)])
+    .map(([rel, srcAbs]) => [rel, keep.has(rel) ? keep.get(rel) : sha256File(srcAbs)])
+    .filter(([, hash]) => hash)
     .sort((a, b) => (a[0] < b[0] ? -1 : 1))
     .map(([rel, hash]) => `${hash}  ${rel}`);
   mkdirSync(join(forge, 'cache'), { recursive: true });
   writeFileSync(join(forge, 'cache', 'machinery.lock'),
     `# forge machinery.lock — sha256 dos arquivos do template v${version} (última aplicação).\n`
-    + '# Referência do update para preservar customizações locais em rules/agents/skills — não edite.\n'
+    + '# Referência do update para distinguir arquivo intocado de customização/deriva local — não edite.\n'
     + (sourceNote ? `# ATENÇÃO: aplicado de --source ${sourceNote} (não o template publicado desta versão).\n` : '')
     + lines.join('\n') + '\n');
 }
@@ -764,7 +835,9 @@ async function updateHarness() {
   // não pode anunciar sobrescrita de arquivo que o update real preserva.
   if (flags.dryRun) {
     const changes = [];
+    let driftDry = 0, driftDrySemLock = 0;
     const lockDry = readMachineryLock(forge);
+    const historyDry = readMachineryHistory(src);
     for (const [rel, srcAbs] of files) {
       const dst = join(forge, rel);
       if (!existsSync(dst)) { changes.push(`+ ${rel}`); continue; }
@@ -777,8 +850,16 @@ async function updateHarness() {
       const est = excStatusByRel.get(rel);
       if (est && est.status === 'viva') { changes.push(`= ${rel} (preservado — exceção declarada)${excRawNote(exceptions, rel)}`); continue; }
       if (est && est.status === 'expirada') { changes.push(`= ${rel} (preservado — EXCEÇÃO EXPIRADA: declarado ${est.declared}, template ${est.atual})${excRawNote(exceptions, rel)}`); continue; }
-      const intocado = lockDry && lockDry.get(rel) === sha256File(dst);
-      changes.push(intocado ? `~ ${rel} (o template evoluiu — arquivo intocado localmente)` : `~ ${rel} (sobrescrita não declarada)`);
+      const verdict = driftVerdict(rel, sha256File(dst), lockDry, historyDry, pendingShaOf(target, rel));
+      if (verdict === 'lock') changes.push(`~ ${rel} (o template evoluiu — arquivo intocado localmente)`);
+      else if (verdict === 'pendente') changes.push(`~ ${rel} (o template evoluiu — arquivo intocado, idêntico à versão pendente que o update anterior guardou)`);
+      else if (verdict === 'historico') changes.push(`~ ${rel} (o template evoluiu — arquivo intocado, idêntico a uma versão publicada)`);
+      else if (flags.overwriteDrift) changes.push(`~ ${rel} (sobrescrita não declarada — --overwrite-drift)`);
+      else {
+        changes.push(`= ${rel} (PRESERVADO (${DRIFT_LABEL[verdict]}) — versão nova do template iria para ${TEMPLATE_PENDING_REL}/${rel})`);
+        driftDry++;
+        if (isSemLock(verdict)) driftDrySemLock++;
+      }
     }
     const fy = join(forge, 'forge.yaml');
     if (existsSync(fy) && !new RegExp(`template_version:\\s*"?${version}"?`).test(readFileSync(fy, 'utf8')))
@@ -811,6 +892,7 @@ async function updateHarness() {
     console.log(changes.length ? changes.sort().join('\n') : '(nada a atualizar — já na versão do template)');
     console.log(`\n${changes.length} mudança(s) de arquivo. Rode sem --dry-run para aplicar.`);
     console.log('(a aplicação também reconcilia adapters/plugin/hooksPath/.gitignore — não previstos acima)');
+    if (driftDry) console.log(driftWarnLine(driftDry, driftDrySemLock, true, historyDry !== null));
     return;
   }
 
@@ -863,6 +945,7 @@ async function updateHarness() {
   // Em ENRICHABLE_DIRS a sobrescrita é condicionada ao lock de template (ver comentário da
   // constante — issue #16): customização local é preservada e reportada, nunca revertida.
   const oldLock = readMachineryLock(forge);
+  const history = readMachineryHistory(src);
 
   // excStatusByRel já foi calculado antes do dry-run (classifyExceptions, acima) — "todo caminho
   // declarado aparece exatamente uma vez no relatório" vale porque É A MESMA classificação usada
@@ -885,6 +968,11 @@ async function updateHarness() {
   // nomeado (uma linha por arquivo, nunca em silêncio) — só que sob um rótulo (`ATUALIZADO`) que
   // não confunde "template mudou" com "sua customização foi revertida".
   const templateUpdated = [];
+  // Idem, mas a prova de intocado veio da versão pendente que o update anterior guardou (reconciliação à mão) ou do histórico de versões publicadas.
+  const templateUpdatedByPending = [];
+  const templateUpdatedByHistory = [];
+  // Deriva local preservada (ver TEMPLATE_PENDING_REL): trios [rel, srcAbs, veredito] — o srcAbs alimenta a cópia da versão pendente depois do laço, e o veredito ('deriva' ou 'sem-lock') escolhe o rótulo.
+  const driftPreserved = [];
   for (const [rel, srcAbs] of files) {
     const dst = join(forge, rel);
     if (existsSync(dst)) {
@@ -901,14 +989,19 @@ async function updateHarness() {
         // humana registrada ali, com ou sem `machinery.lock`.
         if (est && (est.status === 'viva' || est.status === 'expirada')) { excPreservedFiles.push(rel); continue; }
         if (dstHash !== newHash) {
-          if (oldLock && oldLock.get(rel) === dstHash) {
+          const verdict = driftVerdict(rel, dstHash, oldLock, history, pendingShaOf(target, rel));
+          if (verdict === 'lock') {
             templateUpdated.push(rel);
+          } else if (verdict === 'pendente') {
+            templateUpdatedByPending.push(rel);
+          } else if (verdict === 'historico') {
+            templateUpdatedByHistory.push(rel);
+          } else if (!flags.overwriteDrift) {
+            // Nem enriquecível, nem coberto por exceção, nem provadamente intocado (pelo lock ou por uma versão publicada): é deriva local. Preserva o arquivo e guarda a versão nova do template como pendente — revisão da DH-1.
+            driftPreserved.push([rel, srcAbs, verdict]);
+            continue;
           } else {
-            // Nem enriquecível, nem coberto por exceção, nem provadamente intocado pelo lock: vai
-            // ser sobrescrito. Nomeado sempre — com ou sem lock — porque o silêncio aqui é
-            // exatamente o defeito da #101: um conserto local em `scripts/`/`hooks/`/`commands/`
-            // revertido com rc=0 e sem aviso no PRIMEIRO update depois de editado (quando ainda não
-            // existe lock nenhum).
+            // --overwrite-drift: o operador aceitou o template sobre a deriva. Nomeado sempre, com o caminho do backup, porque o silêncio aqui é exatamente o defeito da #101.
             overwrittenUndeclared.push(rel);
             // maquinaria própria (scripts/commands/...): sobrescreve, mas fix local vira aviso — o
             // fluxo certo para fix em maquinaria é upstream no template; o backup cobre.
@@ -938,9 +1031,31 @@ async function updateHarness() {
     const backupPointer = mostra ? join(mostra, rel) : '(sem backup — rodado com --no-backup)';
     console.log(`ATUALIZADO: ${rel} — sem edição local (idêntico ao lock anterior); o template evoluiu; conteúdo anterior em ${backupPointer}`);
   }
+  for (const rel of templateUpdatedByPending.sort()) {
+    const backupPointer = mostra ? join(mostra, rel) : '(sem backup — rodado com --no-backup)';
+    console.log(`ATUALIZADO: ${rel} — sem edição local (idêntico à versão pendente que o update anterior guardou); o template evoluiu; conteúdo anterior em ${backupPointer}`);
+  }
+  for (const rel of templateUpdatedByHistory.sort()) {
+    const backupPointer = mostra ? join(mostra, rel) : '(sem backup — rodado com --no-backup)';
+    console.log(`ATUALIZADO: ${rel} — sem edição local (idêntico a uma versão publicada do template); o template evoluiu; conteúdo anterior em ${backupPointer}`);
+  }
   for (const rel of overwrittenUndeclared.sort()) {
     const backupPointer = mostra ? join(mostra, rel) : '(sem backup — rodado com --no-backup)';
     console.log(`SOBRESCRITO (não declarado): ${rel} — conteúdo anterior em ${backupPointer}`);
+  }
+  // Versões pendentes: reconstruídas a cada aplicação real, para refletir só a deriva que ESTE update preservou — um caminho reconciliado desde então (exceção declarada, arquivo igualado ao template, --overwrite-drift) sai do diretório sem limpeza manual.
+  const pendingRoot = join(target, TEMPLATE_PENDING_REL);
+  rmSync(pendingRoot, { recursive: true, force: true });
+  driftPreserved.sort((a, b) => (a[0] < b[0] ? -1 : 1));
+  for (const [rel, srcAbs, verdict] of driftPreserved) {
+    const pend = join(pendingRoot, rel);
+    mkdirSync(dirname(pend), { recursive: true });
+    cpSync(srcAbs, pend);
+    console.log(verdict === 'sem-lock'
+      ? `PRESERVADO (sem lock para provar): ${rel} — o conteúdo local não é nenhuma versão publicada do template; versão nova do template em ${TEMPLATE_PENDING_REL}/${rel}`
+      : verdict === 'sem-historico'
+        ? `PRESERVADO (sem lock para provar): ${rel} — sem histórico de versões publicadas para provar; versão nova do template em ${TEMPLATE_PENDING_REL}/${rel}`
+        : `PRESERVADO (deriva local): ${rel} — versão nova do template em ${TEMPLATE_PENDING_REL}/${rel}`);
   }
 
   // Relatório de exceções: todo caminho declarado em machinery-exceptions.txt aparece aqui
@@ -973,7 +1088,8 @@ async function updateHarness() {
     for (const e of excOciosa.sort((a, b) => (a.rel < b.rel ? -1 : 1)))
       console.log(`  EXCEÇÃO OCIOSA: ${e.rel} — ${e.motivo}${excRawNote(exceptions, e.rel)}`);
   }
-  writeMachineryLock(forge, files, version, vals.source ? src : '');
+  writeMachineryLock(forge, files, version, vals.source ? src : '',
+    new Map(driftPreserved.map(([rel]) => [rel, (oldLock && oldLock.get(rel)) || null])));
 
   // orphan-check defensivo: nenhum arquivo de maquinaria deve conter <PROJECT_*> após overlay.
   // Isento tanto `preservedFiles` (customização local em ENRICHABLE_DIRS) quanto
@@ -986,7 +1102,8 @@ async function updateHarness() {
   // por um conteúdo que era do próprio consumidor.
   const isTemplated = (f) => /\.(md|ya?ml)$/.test(f);
   const underTemplates = (f) => relative(forge, f).split(sep).includes('templates');
-  const preservedSet = new Set([...preservedFiles, ...excPreservedFiles]);
+  // A deriva local preservada (revisão da DH-1) também é conteúdo do consumidor.
+  const preservedSet = new Set([...preservedFiles, ...excPreservedFiles, ...driftPreserved.map(([rel]) => rel)]);
   const orphans = files
     .filter(([rel]) => !preservedSet.has(rel)) // conteúdo preservado é do consumidor, não do template
     .map(([rel]) => join(forge, rel))
@@ -1110,6 +1227,8 @@ async function updateHarness() {
   console.log(`\n✔ Forge atualizado em ${target} (template v${version})`);
   console.log(`  ${preserved}`);
   if (!flags.noBackup) console.log('  backup fora da árvore, em .git/forge-backups/ (não é varrido por gate nem aparece em git status)');
+  // Por último, para não se perder na rolagem do sync-adapters e do doctor.
+  if (driftPreserved.length) console.log(driftWarnLine(driftPreserved.length, driftPreserved.filter(([, , v]) => isSemLock(v)).length, false, history !== null));
 }
 
 async function main() {

@@ -1,6 +1,6 @@
 # Analítico — catálogo de antipatterns
 
-Conjunto fechado de ids deste catálogo (design §2.5 do change `data-engineer-agent`): A-01 a A-14, todos da base consolidada (§5.6). Id fora desse conjunto reprova o w250.
+Conjunto fechado de ids deste catálogo (design §2.5 do change `data-engineer-agent`): A-01 a A-14, da base consolidada (§5.6), mais A-15 e A-16, acrescentados na revisão de DBA do change (eliminação do titular no lakehouse). Id fora desse conjunto reprova o w250.
 
 Cada entrada tem cinco campos. `Detecção` usa um de quatro rótulos: `scan.sh <ID>` (estática, o `scripts/scan.sh` executa), `ferramenta`, `runtime` (consulta contra o sistema real, documentada e nunca executada pelo scanner) e `revisão`; um segundo rótulo complementar pode vir depois de `;`. As consultas de runtime foram redigidas pela pesquisa e não executadas contra sistema real; a sintaxe de detectores específicos de produto (INFORMATION_SCHEMA do BigQuery, `DESCRIBE DETAIL`, tabela `files` do Iceberg, `SYSTEM$CLUSTERING_INFORMATION`) é [Incerto] até ser conferida. Toda varredura recursiva de exemplo usa `grep -a` ou `rg`.
 
@@ -43,7 +43,7 @@ Cada entrada tem cinco campos. `Detecção` usa um de quatro rótulos: `scan.sh 
 - **Sintoma:** `PARTITIONED BY (dt)` e `INSERT ... PARTITION (dt=...)`; consultas sem predicado de partição fazendo varredura total.
 - **Por quê:** no estilo Hive o consumidor precisa conhecer o layout; formato errado da coluna de partição dá resultado silenciosamente incorreto e esquecer o filtro varre tudo.
 - **Correção:** particionamento oculto (Iceberg, com transformação sobre a coluna de evento) ou liquid clustering; Hive só para arquivo bruto.
-- **Detecção:** `scan.sh A-06` (estática em `*.sql`; `PARTITIONED BY (days(ts))` de Iceberg também casa e é legítimo — julgue); revisão — consultas sem predicado de partição.
+- **Detecção:** `scan.sh A-06` (estática em `*.sql`; `PARTITIONED BY` cujo primeiro termo é transformação do Iceberg — `days(`, `months(`, `years(`, `hours(`, `bucket(`, `truncate(` — é o particionamento oculto recomendado e fica fora); revisão — consultas sem predicado de partição.
 - **Evidência:** [1F] Iceberg partitioning; detector [Heurística].
 
 ### A-07 — Clustering na cardinalidade errada
@@ -57,7 +57,7 @@ Cada entrada tem cinco campos. `Detecção` usa um de quatro rótulos: `scan.sh 
 - **Sintoma:** linhas duplicadas no grão depois de reprocessar; fato atrasado que nunca entra.
 - **Por quê:** sem `unique_key` a carga incremental só acrescenta; sem lookback o dado que chega atrasado fica de fora.
 - **Correção:** `unique_key` na chave de grão, janela de lookback, `--full-refresh` periódico; microbatch com `event_time`, `batch_size` e `lookback`.
-- **Detecção:** `scan.sh A-08` (estática em `models/**/*.sql`: `materialized='incremental'` sem `unique_key` no arquivo).
+- **Detecção:** `scan.sh A-08` (estática em `models/**/*.sql`: `materialized='incremental'` sem `unique_key` nem estratégia `microbatch` no arquivo; o microbatch do dbt 1.9+ reprocessa por `event_time` e dispensa `unique_key`).
 - **Evidência:** [1F] dbt incremental.
 
 ### A-09 — Modelo público sem contrato
@@ -101,3 +101,17 @@ Cada entrada tem cinco campos. `Detecção` usa um de quatro rótulos: `scan.sh 
 - **Correção:** migrar para `hard_deletes: invalidate` (ou `new_record` quando a exclusão precisa virar linha com `dbt_is_deleted`).
 - **Detecção:** `scan.sh A-14` (estática em `snapshots/`, `*.yml` e `*.sql`).
 - **Evidência:** [J] dbt snapshots.
+
+### A-15 — Eliminação do titular que para no DELETE
+- **Sintoma:** o `DELETE` ou `MERGE` do pedido de eliminação roda, mas a linha continua legível por `VERSION AS OF`/`TIMESTAMP AS OF` (Delta) ou por snapshot anterior (Iceberg) até a manutenção.
+- **Por quê:** Delta e Iceberg são versionados: o `DELETE` grava uma versão nova e os arquivos antigos, com o dado do titular, só saem no `VACUUM` (Delta, depois da retenção de `delta.deletedFileRetentionDuration`) ou no `expire_snapshots` seguido de `remove_orphan_files` (Iceberg). Enquanto isso o dado pessoal continua armazenado e recuperável, e a LGPD (art. 16 e art. 18, VI) pede eliminação, não ocultação.
+- **Correção:** o procedimento de eliminação é `DELETE`/`MERGE` e, dentro do prazo acordado com o DPO, `VACUUM` (Delta) ou `expire_snapshots` + `remove_orphan_files` (Iceberg); a retenção de time travel da tabela com dado pessoal fica menor que esse prazo; deletion vectors do Delta exigem `REORG TABLE ... APPLY (PURGE)` antes do `VACUUM` para reescrever os arquivos.
+- **Detecção:** runtime — `DESCRIBE HISTORY <tabela>` (Delta) ou a tabela de metadados `snapshots` (Iceberg) conferindo que nenhuma versão anterior ao pedido sobrevive além do prazo; revisão — tabela com campo pessoal sem política de retenção de time travel.
+- **Evidência:** [1F] Delta Lake (VACUUM, time travel) e Iceberg maintenance; a ligação com o prazo da LGPD é [Interp.].
+
+### A-16 — Dimensão SCD2 com atributo pessoal
+- **Sintoma:** `dbt snapshot` ou dimensão tipo 2 com nome, e-mail, telefone ou endereço como coluna rastreada; cada mudança do titular vira uma linha nova.
+- **Por quê:** o SCD2 guarda por construção todo o histórico do atributo, então a eliminação do titular precisa apagar N linhas em N versões, e o time travel da tabela multiplica o problema (A-15).
+- **Correção:** a dimensão histórica guarda só a chave substituta ou o token; os atributos pessoais ficam numa tabela SCD1 mutável e eliminável, juntada por essa chave quando necessário; se o histórico do atributo pessoal é requisito, ele tem base legal e prazo próprios registrados.
+- **Detecção:** revisão — colunas de `snapshots/*.sql` e de `dim_*` com nomes de dado pessoal (`grep -arniE '(cpf|email|telefone|nome|endereco|data_nasc)' snapshots/ models/marts/`).
+- **Evidência:** [Interp.] da base §7.2 (pseudonimização) sobre [2F] Kimball e dbt snapshots.

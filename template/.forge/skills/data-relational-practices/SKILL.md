@@ -30,11 +30,11 @@ Ordem fixa. É a ordem que torna a resposta auditável.
 
 ## O que o scanner não faz
 
-Ele lê texto, não o banco: não vê FK sem índice (R-01), tabela sem PK (R-02), N+1 (R-05), transação ociosa (R-09) nem banco compartilhado (R-16) — esses têm consulta de runtime ou ferramenta documentada no catálogo, que quem tem acesso roda. Ele também não entende SQL: `CREATE INDEX` numa tabela vazia recém-criada é seguro e aparece como R-03; `SET search_path` só é defeito atrás de PgBouncer em modo transaction; o RLS pode estar noutra migração (R-20). O scanner localiza; quem revisa decide. Um relatório que trata todo `FOUND` como defeito treina o time a ignorar o relatório.
+Ele lê texto, não o banco: não vê FK sem índice (R-01), tabela sem PK (R-02), N+1 (R-05), transação ociosa (R-09) nem banco compartilhado (R-16) — esses têm consulta de runtime ou ferramenta documentada no catálogo, que quem tem acesso roda. Ele também não entende SQL: `CREATE INDEX` sobre tabela criada no mesmo arquivo e `SET NOT NULL` precedido de `VALIDATE CONSTRAINT` no mesmo arquivo ficam fora do R-03, mas índice sobre tabela criada noutra migração ainda sem tráfego aparece; migração MySQL (marcada por `ENGINE=`, `AUTO_INCREMENT`, `ALGORITHM=` ou identificador entre crases) sai do trecho de índice do R-03 e cai no R-22; `SET search_path` só é defeito atrás de PgBouncer em modo transaction; o RLS pode estar noutra migração (R-20). A maquinaria do harness (`.forge/agents`, `.forge/scripts`, `.forge/schemas`, `.forge/skills`, `.forge/rules` e afins) e os diretórios de adapter (`.claude` e `.agents`) ficam fora do universo, como os worktrees aninhados: numa instalação nova `--root .` só varre o projeto; `.forge/specs` e `.forge/product` entram. O scanner localiza; quem revisa decide. Um relatório que trata todo `FOUND` como defeito treina o time a ignorar o relatório.
 
 ## Referências
 
 - `references/best-practices.md` — modelagem, chaves e índices, migrações reversíveis, transações e isolamento, locks, N+1, paginação e pool, com fonte e marca de evidência.
-- `references/antipatterns.md` — catálogo R-01 a R-21: sintoma, por quê, correção, detecção e evidência.
-- `scripts/scan.sh` — detecção estática de R-03, R-04, R-06, R-10, R-12, R-13, R-14, R-17, R-18, R-19, R-20 e R-21; contrato em `--help`.
+- `references/antipatterns.md` — catálogo R-01 a R-22: sintoma, por quê, correção, detecção e evidência.
+- `scripts/scan.sh` — detecção estática de R-03, R-04, R-06, R-10, R-12, R-13, R-14, R-17, R-18, R-19, R-20, R-21 e R-22; contrato em `--help`.
 - Ferramentas externas que o projeto pode rodar e o catálogo cita: squawk, strong_migrations, SQLFluff.

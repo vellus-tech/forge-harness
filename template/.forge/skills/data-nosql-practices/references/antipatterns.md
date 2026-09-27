@@ -1,6 +1,6 @@
 # NoSQL — catálogo de antipatterns
 
-Conjunto fechado de ids deste catálogo (design §2.5 do change `data-engineer-agent`): N-01 a N-17 vêm da base consolidada (§2.7); N-18 e N-19 foram acrescentados pelo design (exposição de banco pela regra de integração do dono). Id fora desse conjunto reprova o w250.
+Conjunto fechado de ids deste catálogo (design §2.5 do change `data-engineer-agent`): N-01 a N-17 vêm da base consolidada (§2.7); N-18 e N-19 foram acrescentados pelo design (exposição de banco pela regra de integração do dono); N-20 a N-23 foram acrescentados pela revisão de DBA de 2026-09-26 (transacional de negócio no MongoDB, H-01 a). Id fora desse conjunto reprova o w250.
 
 Cada entrada tem cinco campos. `Detecção` usa um de quatro rótulos: `scan.sh <ID>` (estática, o `scripts/scan.sh` executa), `ferramenta`, `runtime` (comando contra o sistema real, documentado e nunca executado pelo scanner) e `revisão`; um segundo rótulo complementar pode vir depois de `;`. Comandos de runtime foram redigidos pela pesquisa e não executados contra sistema real. Toda varredura recursiva de exemplo usa `grep -a` ou `rg`.
 
@@ -50,14 +50,14 @@ Cada entrada tem cinco campos. `Detecção` usa um de quatro rótulos: `scan.sh 
 - **Sintoma:** escrita confirmada ao cliente que some depois de um failover.
 - **Por quê:** `w: 1` confirma com um só membro; numa topologia com árbitro (P-S-A) o default cai de `majority` para `w: 1`. O transacional de negócio da casa é MongoDB e exige `majority` (`data-transactional-nosql.md`).
 - **Correção:** `w: "majority"` explícito (e `j: true` quando exigido), topologia P-S-S em vez de P-S-A, transação multi-documento com retry em `TransientTransactionError`.
-- **Detecção:** `scan.sh N-07` (estática em código, fronteira explícita antes de `w` e depois do `1` — `flow: 1` e `w: 10` não casam); runtime — `rs.conf()` com árbitro.
+- **Detecção:** `scan.sh N-07` (estática em código de arquivo com marca de MongoDB, fronteira explícita antes de `w` e depois do `1` — `flow: 1`, `w: 10` e `{ w: 1, h: 2 }` fora de arquivo MongoDB não casam); runtime — `rs.conf()` com árbitro.
 - **Evidência:** [J] MongoDB write concern.
 
 ### N-08 — Scan no caminho da requisição (DynamoDB)
 - **Sintoma:** latência e custo proporcionais ao tamanho da tabela; throttling em toda partição.
 - **Por quê:** `Scan` lê a tabela inteira (1 MB por página) e consome capacidade de todas as partições.
 - **Correção:** `Query` por partition key e sort key; GSI para o padrão de acesso que falta; `Scan` só em job offline paralelo.
-- **Detecção:** `scan.sh N-08` (estática em código).
+- **Detecção:** `scan.sh N-08` (estática em código, só a API do DynamoDB: `ScanCommand`, `ScanInput`, `ScanRequest`, `scan({ TableName`, `table.scan(`; `redis.scan(` e `rows.Scan(` não casam).
 - **Evidência:** [1F] DynamoDB.
 
 ### N-09 — Item que cresce (DynamoDB)
@@ -92,7 +92,7 @@ Cada entrada tem cinco campos. `Detecção` usa um de quatro rótulos: `scan.sh 
 - **Sintoma:** consulta que varre o cluster; timeouts de leitura sob carga.
 - **Por quê:** `ALLOW FILTERING` e índice secundário consultam todas as partições; os guardrails vêm habilitados por padrão.
 - **Correção:** uma tabela por consulta, com a partição no predicado; desligar os guardrails `allow_filtering_enabled` e `secondary_indexes_enabled`; SAI só com a partição já filtrada.
-- **Detecção:** `scan.sh N-13` (estática: `ALLOW FILTERING` em CQL e código, `CREATE INDEX` em `*.cql`); runtime — guardrails no `cassandra.yaml`.
+- **Detecção:** `scan.sh N-13` (estática: `ALLOW FILTERING` em CQL e código, `CREATE INDEX` em `*.cql`, exceto SAI — `StorageAttachedIndex`, que a skill admite); runtime — guardrails no `cassandra.yaml`.
 - **Evidência:** [2F] problema; [J] defaults do `cassandra.yaml`.
 
 ### N-14 — Partição ilimitada ou fila sobre Cassandra
@@ -136,3 +136,31 @@ Cada entrada tem cinco campos. `Detecção` usa um de quatro rótulos: `scan.sh 
 - **Correção:** CIDR da VPC ou security group de origem.
 - **Detecção:** `scan.sh N-19` (estática em IaC: `0.0.0.0/0` e 27017 no mesmo arquivo; localização na linha do CIDR).
 - **Evidência:** [Interp.] norma da regra do dono; detector [Heurística].
+
+### N-20 — Read concern local ou available no transacional de negócio
+- **Sintoma:** transação ou leitura de saldo que enxerga dado desfeito depois de um failover; em cluster shardado, leitura que não bate entre shards.
+- **Por quê:** `local` e `available` devolvem dado que a maioria ainda não confirmou; só `snapshot` (ou `majority`) com commit em `w: "majority"` protege contra rollback, e só `snapshot` sincroniza a visão entre shards.
+- **Correção:** `readConcern: "snapshot"` e `writeConcern: { w: "majority" }` na transação (`withTransaction` com as opções), `readPreference: "primary"`.
+- **Detecção:** `scan.sh N-20` (estática: `ReadConcern.LOCAL`/`AVAILABLE`, `readConcern: { level: "local" }`, `read_concern=ReadConcern("local")`); revisão — opção herdada do cliente ou da sessão.
+- **Evidência:** [1F] MongoDB, transactions and read concern; detector [Heurística].
+
+### N-21 — Decimal128 ou ponto flutuante em valor monetário
+- **Sintoma:** valor com `Decimal128`/`NumberDecimal` ou `double` em documento do transacional; soma divergente entre serviços em linguagens diferentes.
+- **Por quê:** a regra da casa (`money-as-cents.md`) manda inteiro na menor unidade em toda a stack; `Decimal128` não tem tipo nativo em várias linguagens e `double` não é exato.
+- **Correção:** `Int64`/`NumberLong` em centavos, com a moeda num campo próprio; validator `$jsonSchema` com `bsonType: "long"` no campo.
+- **Detecção:** `scan.sh N-21` (estática: `Decimal128`, `NumberDecimal(`, `$numberDecimal`); revisão — `double` em campo de valor.
+- **Evidência:** [1F] MongoDB BSON types; regra da casa `money-as-cents.md`; detector [Heurística] (Decimal128 fora de dinheiro também casa).
+
+### N-22 — Invariante entre documentos sem documento de contenção
+- **Sintoma:** saldo negativo ou limite estourado com duas transações concorrentes que passaram as duas.
+- **Por quê:** a transação MongoDB é snapshot isolation e só detecta conflito de escrita no mesmo documento; ler vários documentos, decidir e escrever em documentos diferentes permite write skew.
+- **Correção:** invariante num documento que toda transação escreve: update condicional com filtro e `$inc` no mesmo documento (`{ _id: conta, saldo: { $gte: v } }` com `$inc: { saldo: -v }`), ou campo de versão conferido no filtro; conferir `matchedCount` e abortar quando zero.
+- **Detecção:** revisão — transação que lê um documento para decidir e escreve em outro sem update condicional.
+- **Evidência:** [Interp.] sobre a semântica de conflito de escrita documentada pela MongoDB.
+
+### N-23 — Commit pela API core sem retry de UnknownTransactionCommitResult
+- **Sintoma:** transação que o cliente dá como falha e que foi confirmada no servidor, ou o inverso; duplicata ao repetir a transação inteira.
+- **Por quê:** erro de rede ou eleição no `commitTransaction` deixa o resultado desconhecido; o certo é repetir só o commit, e a transação inteira só em `TransientTransactionError`.
+- **Correção:** `withTransaction` (o driver faz os dois retries), ou laço próprio de `commitTransaction` em `UnknownTransactionCommitResult` separado do laço da transação.
+- **Detecção:** `scan.sh N-23` (estática: arquivo com `commitTransaction`/`commit_transaction` sem `withTransaction` nem `UnknownTransactionCommitResult`).
+- **Evidência:** [1F] MongoDB, transactions in applications; detector [Heurística].

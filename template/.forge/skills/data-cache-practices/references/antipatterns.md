@@ -1,6 +1,6 @@
 # Cache — catálogo de antipatterns
 
-Conjunto fechado de ids deste catálogo (design §2.5 do change `data-engineer-agent`): C-01 a C-15 e os transversais T-01 e T-04 vêm da base consolidada (§3.3 e §7.1); C-16 foi acrescentado pelo design (exposição de cache pela regra de integração do dono). Id fora desse conjunto reprova o w250.
+Conjunto fechado de ids deste catálogo (design §2.5 do change `data-engineer-agent`): C-01 a C-15 e os transversais T-01 e T-04 vêm da base consolidada (§3.3 e §7.1); C-16 foi acrescentado pelo design (exposição de cache pela regra de integração do dono); C-17 foi acrescentado pela revisão de DBA de 2026-09-26 (bind em todas as interfaces com autenticação, separado do C-11). Id fora desse conjunto reprova o w250.
 
 Cada entrada tem cinco campos. `Detecção` usa um de quatro rótulos: `scan.sh <ID>` (estática, o `scripts/scan.sh` executa), `ferramenta`, `runtime` (comando contra o sistema real, documentado e nunca executado pelo scanner) e `revisão`; um segundo rótulo complementar pode vir depois de `;`. Comandos de runtime foram redigidos pela pesquisa e não executados contra sistema real. Toda varredura recursiva de exemplo usa `grep -a` ou `rg`.
 
@@ -15,7 +15,7 @@ Cada entrada tem cinco campos. `Detecção` usa um de quatro rótulos: `scan.sh 
 - **Sintoma:** memória cresce até a eviction; dado velho servido indefinidamente.
 - **Por quê:** sem expiração, a chave vive até ser despejada; a `data-cache.md` exige TTL explícito em toda entrada.
 - **Correção:** TTL proporcional à tolerância a dado velho, com jitter em carga em lote (`SET k v EX 300`, `{ EX: 300 }`, `ex=300`).
-- **Detecção:** `scan.sh C-02` (estática: `.set(`/`.hset(`/`.hmset(` de receptor redis, cache, valkey, client ou r sem `EX`/`PX`/`expire`/`ttl`/`timeout` na linha); runtime — `redis-cli --scan | head -1000 | xargs -n1 redis-cli TTL | grep -c '^-1$'`.
+- **Detecção:** `scan.sh C-02` (estática: `.set(`/`.hset(`/`.hmset(` de receptor redis, cache, valkey, client ou r sem `EX`/`PX`/`expir…`/`ttl`/`timeout` na linha; Spring `opsForValue().set(` sem `Duration`/`TimeUnit`; StackExchange.Redis `StringSet`/`HashSet` sem `TimeSpan`; go-redis `Set(ctx, …, 0)`); runtime — `redis-cli --scan | head -1000 | xargs -n1 redis-cli TTL | grep -c '^-1$'`.
 - **Evidência:** [Heurística] detector e amostragem.
 
 ### C-03 — TTL constante sem jitter em carga em lote
@@ -75,10 +75,10 @@ Cada entrada tem cinco campos. `Detecção` usa um de quatro rótulos: `scan.sh 
 - **Evidência:** [J] Redis eviction.
 
 ### C-11 — Redis exposto, sem autenticação ou sem TLS
-- **Sintoma:** instância alcançável da internet; `protected-mode no`; `bind 0.0.0.0`.
+- **Sintoma:** instância alcançável da internet; `protected-mode no`; `bind 0.0.0.0`, `bind *` ou `bind * -::*` (sintaxe do Redis 7 para todas as interfaces) sem `requirepass` nem ACL.
 - **Por quê:** Redis nunca deve ser exposto; nenhum terceiro recebe rota de rede para cache interno (regra de integração do dono).
 - **Correção:** `bind` em interface privada, `protected-mode yes`, ACL por aplicação, TLS em cliente, replicação e barramento.
-- **Detecção:** `scan.sh C-11` (estática em IaC e `redis.conf`); ferramenta — Checkov CKV_AWS_29/30/31/191, CKV_AZURE_89/148, CKV_GCP_95/97.
+- **Detecção:** `scan.sh C-11` (estática em IaC e `redis.conf`: `protected-mode no`, e bind em todas as interfaces em arquivo sem `requirepass`, `aclfile` nem `user ... on`; com autenticação o achado é o C-17); ferramenta — Checkov CKV_AWS_29/30/31/191, CKV_AZURE_89/148, CKV_GCP_95/97.
 - **Evidência:** [2F] Redis security e Checkov.
 
 ### C-12 — Multi-chave cross-slot
@@ -103,18 +103,25 @@ Cada entrada tem cinco campos. `Detecção` usa um de quatro rótulos: `scan.sh 
 - **Evidência:** [1F] Redis.
 
 ### C-15 — Campo de cartão escrito em cache
-- **Sintoma:** chamada de escrita em cache com `pan`, `card_number`, `cvv`, `cvc`, `track1/2`, `pin_block` ou `expiry` como identificador.
+- **Sintoma:** chamada de escrita em cache com `pan`, `card_number`, `cvv`, `cvc`, `track1/2` ou `pin_block` como identificador (inclusive Go `rdb.Set`, .NET `StringSet`, Spring `opsForValue().set`).
 - **Por quê:** SAD não é armazenado após a autorização (PCI DSS 3.3.1) e Redis com persistência, réplica ou snapshot é armazenamento persistente; a `data-cache.md` proíbe PAN/CVV/track em cache.
 - **Correção:** cachear o token e metadados não sensíveis (BIN, últimos quatro, marca); SAD só em memória não persistente e pelo tempo da autorização.
-- **Detecção:** `scan.sh C-15` (estática em código, fronteira explícita dos dois lados — `span`, `company` e `expand` não casam; complemento de severidade `aviso` do `check-data-governance.sh`, que é a fonte quando há `data-classification.json`); runtime — DLP offline de dump RDB com regex de PAN e Luhn.
+- **Detecção:** `scan.sh C-15` (estática em código, chamada sem caixa, fronteira explícita dos dois lados — `span`, `company` e `expand` não casam; `expiry` saiu da lista por ser também o nome da opção de TTL, e cabeçalho, parâmetro e formulário (`headers.put`) não contam como cache; complemento de severidade `aviso` do `check-data-governance.sh`, que é a fonte quando há `data-classification.json`); runtime — DLP offline de dump RDB com regex de PAN e Luhn.
 - **Evidência:** [Heurística] detector (T-01 da base §7.1); prática [J] PCI DSS 3.3.1.
 
 ### C-16 — Regra de rede aberta na porta do Redis
-- **Sintoma:** security group ou firewall com `0.0.0.0/0` e porta 6379.
+- **Sintoma:** security group ou firewall com `0.0.0.0/0` e porta do Redis (6379, TLS 6380, barramento de cluster 16379, Sentinel 26379).
 - **Por quê:** rota de qualquer origem para cache interno, contra a regra de integração.
 - **Correção:** CIDR da VPC ou security group de origem.
-- **Detecção:** `scan.sh C-16` (estática em IaC: `0.0.0.0/0` e 6379 no mesmo arquivo; localização na linha do CIDR).
+- **Detecção:** `scan.sh C-16` (estática em IaC: `0.0.0.0/0` e uma das portas 6379, 6380, 16379 ou 26379 no mesmo arquivo; localização na linha do CIDR).
 - **Evidência:** [Interp.] norma da regra do dono; detector [Heurística].
+
+### C-17 — Redis em todas as interfaces com autenticação
+- **Sintoma:** `bind 0.0.0.0` (ou `*`, `::`) num `redis.conf` que também tem `requirepass`, `aclfile` ou `user ... on`, típico de pod em Kubernetes.
+- **Por quê:** a senha ou a ACL tiram o Redis do C-11, mas a exposição passa a depender de controles fora do arquivo (NetworkPolicy, security group, TLS); sem eles, qualquer origem da rede tenta autenticar.
+- **Correção:** NetworkPolicy ou security group que só admite os pods ou serviços do produto, TLS (`tls-port`), ACL por aplicação sem o usuário `default` habilitado; bind em interface privada quando o ambiente permite.
+- **Detecção:** `scan.sh C-17` (estática em IaC e `redis.conf`: bind em todas as interfaces em arquivo com autenticação); revisão — NetworkPolicy do namespace.
+- **Evidência:** [2F] Redis security; [Interp.] quanto à dependência de controle de rede; detector [Heurística].
 
 ### T-01 — PAN ou SAD em cache
 - **Sintoma:** PAN em claro ou SAD (CVV, trilha, PIN block) em cache distribuído, inclusive por pouco tempo "para a retentativa".
@@ -126,6 +133,6 @@ Cada entrada tem cinco campos. `Detecção` usa um de quatro rótulos: `scan.sh 
 ### T-04 — Log ou métrica com chave ou payload sensível
 - **Sintoma:** PAN, CPF ou e-mail em chave de cache, visíveis no `SLOWLOG`, no `MONITOR`, no APM ou no SIEM.
 - **Por quê:** slowlog, monitor e APM registram argumentos de comando; payload logado no consumidor contamina o SIEM.
-- **Correção:** chave com identificador substituto ou hash; mascarar argumentos no APM; nunca logar payload sensível.
+- **Correção:** chave com identificador substituto (token) ou HMAC com chave secreta gerida em KMS, fora do cache e do código (PCI DSS 3.5.1.1 exige hash criptográfico com chave para PAN); nunca hash sem chave de PAN ou CPF — o espaço do CPF (cerca de 10^9) e o do PAN (BIN conhecido mais dígito verificador) são revertidos por força bruta em segundos, então hash sem chave não torna o PAN ilegível nem serve como pseudonimização para a LGPD; mascarar argumentos no APM; nunca logar payload sensível.
 - **Detecção:** revisão — chave montada com dado pessoal ou de cartão; ferramenta — `check-data-governance.sh` para dado sensível em chamada de log.
-- **Evidência:** [Interp.] base §7.1.
+- **Evidência:** [Interp.] base §7.1; [1F] PCI DSS v4.0.1 3.5.1.1 (hash com chave, obrigatório desde 31/03/2025) — validar com o QSA.

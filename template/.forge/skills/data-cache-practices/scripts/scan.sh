@@ -29,6 +29,10 @@ UNIVERSO="codigo iac"
 # diferentes e o relatório mudaria conforme a máquina. Aqui o `find` decide O QUE é examinado (mesmo filtro de
 # diretório nos dois casos, inclusive os worktrees aninhados de .forge/worktrees e .claude/worktrees, que num checkout
 # principal somam a maior parte dos arquivos), e o motor só decide ONDE casa, sobre a lista explícita de arquivos.
+# A maquinaria do harness também fica fora (.forge/{agents,adapters,capabilities,commands,contracts,evals,graph,hooks,
+# ledger,liaison,rules,schemas,scripts,skills,templates}, .claude e .agents): numa instalação nova ela é tudo o que
+# existe, e o schema de classificação do próprio harness virava achado de T-02. .forge/specs e .forge/product ficam
+# dentro, porque são do projeto. Um --root que aponta explicitamente para dentro de um desses diretórios é respeitado.
 # O `rg` roda com --no-unicode (sem ele, uma classe negada não casa byte UTF-8 inválido e o grep em C casa) e
 # --no-config (um RIPGREP_CONFIG_PATH do operador mudaria a saída). Padrões sem \b, que o grep BSD não reconhece:
 # fronteira sempre por classe explícita. Toda saída passa por LC_ALL=C sort antes de ser contada e emitida.
@@ -71,7 +75,11 @@ for _r in "${RAIZES[@]}"; do
   else
     find "$_r" -mindepth 1 \( -type d \( -name node_modules -o -name dist -o -name build -o -name .git -o -name vendor \
       -o -name target -o -name .venv -o -name coverage -o -name generated -o -path '*/.forge/worktrees' \
-      -o -path '*/.claude/worktrees' \) -prune \) -o -type f -print
+      -o -path '*/.claude' -o -path '*/.agents' -o -path '*/.forge/agents' -o -path '*/.forge/adapters' \
+      -o -path '*/.forge/capabilities' -o -path '*/.forge/commands' -o -path '*/.forge/contracts' \
+      -o -path '*/.forge/evals' -o -path '*/.forge/graph' -o -path '*/.forge/hooks' -o -path '*/.forge/ledger' \
+      -o -path '*/.forge/liaison' -o -path '*/.forge/rules' -o -path '*/.forge/schemas' -o -path '*/.forge/scripts' \
+      -o -path '*/.forge/skills' -o -path '*/.forge/templates' \) -prune \) -o -type f -print
   fi
 done > "$TMP/brutos"
 sed -e 's#^\./##' -e 's#//*#/#g' "$TMP/brutos" | LC_ALL=C sort -u > "$TMP/todos"
@@ -239,10 +247,16 @@ inicio
 
 # >>> C-02
 r_C_02() {
-  linhas -i -X 'ex=|px=|["'"'"'](ex|px)["'"'"']|[{][[:space:]]*(ex|px)[[:space:]]*:|expire|ttl|timeout' codigo \
+  linhas -i -X 'ex=|px=|["'"'"'](ex|px)["'"'"']|[{][[:space:]]*(ex|px)[[:space:]]*:|expir|ttl|timeout' codigo \
     '(^|[^A-Za-z0-9_])(r|redis[A-Za-z0-9_]*|cache[A-Za-z0-9_]*|valkey[A-Za-z0-9_]*|client)\.(set|hset|hmset)\('
+  # Spring Data Redis: opsForValue().set(k, v) sem Duration nem TimeUnit na linha.
+  linhas -X 'duration|timeunit|timeout|expir|ttl' codigo 'opsFor(Value|Hash)\(\)\.(set|put|putAll)\('
+  # StackExchange.Redis (.NET): StringSet/HashSet sem expiry (TimeSpan) na linha.
+  linhas -X 'timespan|expir|ttl' codigo '(^|[^A-Za-z0-9_])[A-Za-z_][A-Za-z0-9_]*\.(StringSet|HashSet)(Async)?\('
+  # go-redis: Set(ctx, chave, valor, 0) — expiração zero é "sem TTL".
+  linhas codigo '\.Set\([[:space:]]*ctx[^)]*,[[:space:]]*0[[:space:]]*\)'
 }
-regra C-02 aviso "escrita em cache sem TTL na mesma linha: sem expiração o valor velho vive até a eviction (receptor heurístico: redis, cache, valkey, client, r)" r_C_02
+regra C-02 aviso "escrita em cache sem TTL na mesma linha: sem expiração o valor velho vive até a eviction (receptor heurístico: redis, cache, valkey, client, r; Spring opsForValue, StackExchange StringSet/HashSet, go-redis Set com 0)" r_C_02
 # <<< C-02
 
 # >>> C-08
@@ -268,15 +282,24 @@ regra C-10 alto "instância de cache sem limite de memória (maxmemory 0) ou com
 # <<< C-10
 
 # >>> C-11
+# bind em todas as interfaces: 0.0.0.0, `*` (sintaxe do Redis 7, inclusive `* -::*`) e `::`.
+BIND_TODAS='(^|[[:space:]"'"'"'-])bind[[:space:]]+(0\.0\.0\.0|\*|-?::(\*)?)([[:space:]"'"'"']|$)'
+AUTH_REDIS='(^|[[:space:]"'"'"'-])(requirepass|aclfile)[[:space:]]|(^|[[:space:]])user[[:space:]]+[^[:space:]]+[[:space:]]+on([[:space:]]|$)'
 r_C_11() {
-  linhas iac 'protected-mode[[:space:]]+no([^A-Za-z0-9_]|$)|protected-mode"?[[:space:]]*[=:][[:space:]]*"?no([^A-Za-z0-9_]|$)|(^|[[:space:]"'"'"'-])bind[[:space:]]+0\.0\.0\.0'
+  local auth; auth="$(tmpf)"
+  arquivos_com iac "$AUTH_REDIS" > "$auth"
+  linhas iac 'protected-mode[[:space:]]+no([^A-Za-z0-9_]|$)|protected-mode"?[[:space:]]*[=:][[:space:]]*"?no([^A-Za-z0-9_]|$)'
+  linhas iac "$BIND_TODAS" | exceto_arquivos "$auth"
 }
-regra C-11 alto "Redis exposto: protected-mode desligado ou bind em todas as interfaces (nunca exposto; regra de integração)" r_C_11
+regra C-11 alto "Redis exposto: protected-mode desligado, ou bind em todas as interfaces sem requirepass nem ACL no arquivo (nunca exposto; regra de integração)" r_C_11
 # <<< C-11
 
 # >>> C-15
 r_C_15() {
-  linhas -E '(^|[^a-z0-9])(pan|card_num|cardnumber|card_number|cvv|cvv2|cvc|track1|track2|track_data|pin_block|expiry)([^a-z0-9]|$)' codigo \
+  # `expiry` saiu da lista: é também o nome da opção de TTL (`{ expiry: 300 }`); cabeçalho, parâmetro e formulário não
+  # são cache.
+  linhas -i -E '(^|[^a-z0-9])(pan|card_num|cardnumber|card_number|cvv|cvv2|cvc|track1|track2|track_data|pin_block)([^a-z0-9]|$)' \
+    -X '(headers|header|params|searchparams|query|form|body|props|url)\.(set|put|append)\(' codigo \
     '(set|setex|hset|hmset|put|cache)[A-Za-z0-9_]*\('
 }
 regra C-15 aviso "escrita em cache com campo de cartão (PAN/SAD) como identificador: SAD não persiste após a autorização (PCI DSS 3.3.1) e Redis persiste; complemento do check-data-governance.sh" r_C_15
@@ -285,10 +308,19 @@ regra C-15 aviso "escrita em cache com campo de cartão (PAN/SAD) como identific
 # >>> C-16
 r_C_16() {
   local porta; porta="$(tmpf)"
-  arquivos_com iac '(from_port|to_port|port)"?[[:space:]]*[=:][[:space:]]*"?6379([^0-9]|$)' > "$porta"
+  arquivos_com iac '(from_port|to_port|port)"?[[:space:]]*[=:][[:space:]]*"?(6379|6380|16379|26379)([^0-9]|$)' > "$porta"
   linhas iac '0\.0\.0\.0/0' | so_arquivos "$porta"
 }
-regra C-16 aviso "regra de rede aberta a 0.0.0.0/0 no mesmo arquivo que a porta 6379: rota de terceiro para cache interno" r_C_16
+regra C-16 aviso "regra de rede aberta a 0.0.0.0/0 no mesmo arquivo que a porta do Redis (6379, TLS 6380, barramento de cluster 16379, Sentinel 26379): rota de terceiro para cache interno" r_C_16
 # <<< C-16
+
+# >>> C-17
+r_C_17() {
+  local auth; auth="$(tmpf)"
+  arquivos_com iac "$AUTH_REDIS" > "$auth"
+  linhas iac "$BIND_TODAS" | so_arquivos "$auth"
+}
+regra C-17 aviso "Redis em todas as interfaces com senha ou ACL: a exposição passa a depender de NetworkPolicy, security group e TLS fora do arquivo; confira que só a rede interna alcança a porta" r_C_17
+# <<< C-17
 
 fim

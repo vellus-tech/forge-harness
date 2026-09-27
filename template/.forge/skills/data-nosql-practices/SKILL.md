@@ -24,10 +24,10 @@ Ordem fixa. É a ordem que torna a resposta auditável.
 
 ## O que o scanner não faz
 
-Ele lê texto: não mede cardinalidade real de chave, partição quente, RU consumida, tombstones nem supernó — isso é runtime (`analyzeShardKey`, Contributor Insights, `nodetool tablehistograms`, consulta de grau no Neo4j), documentado no catálogo e executado por quem tem acesso. `w: 1` num script de teste não é defeito; `$lookup` num relatório noturno pode ser aceitável; `Scan` numa migração offline é o uso certo. O scanner localiza; quem revisa decide.
+Ele lê texto: não mede cardinalidade real de chave, partição quente, RU consumida, tombstones nem supernó — isso é runtime (`analyzeShardKey`, Contributor Insights, `nodetool tablehistograms`, consulta de grau no Neo4j), documentado no catálogo e executado por quem tem acesso. `w: 1` num script de teste não é defeito; `$lookup` num relatório noturno pode ser aceitável; `Scan` numa migração offline é o uso certo. Write skew entre documentos (N-22) e a idempotência do callback da transação não têm detector: são revisão obrigatória em todo transacional de negócio. A maquinaria do harness (`.forge/agents`, `.forge/scripts`, `.forge/schemas`, `.forge/skills`, `.forge/rules` e afins) e os diretórios de adapter (`.claude` e `.agents`) ficam fora do universo, como os worktrees aninhados: numa instalação nova `--root .` só varre o projeto; `.forge/specs` e `.forge/product` entram. O scanner localiza; quem revisa decide.
 
 ## Referências
 
-- `references/best-practices.md` — modelagem por padrão de acesso, chave de partição, consistência, documento, chave-valor, coluna larga e grafo, com fonte e marca de evidência.
-- `references/antipatterns.md` — catálogo N-01 a N-19.
-- `scripts/scan.sh` — detecção estática de N-01, N-04, N-06, N-07, N-08, N-09, N-10, N-11, N-13, N-15, N-17, N-18 e N-19; contrato em `--help`.
+- `references/best-practices.md` — modelagem por padrão de acesso, chave de partição, consistência, transacional de negócio no MongoDB (withTransaction, snapshot com majority, write skew, idempotência, `$jsonSchema`, outbox), documento, chave-valor, coluna larga e grafo, com fonte e marca de evidência.
+- `references/antipatterns.md` — catálogo N-01 a N-23.
+- `scripts/scan.sh` — detecção estática de N-01, N-04, N-06, N-07, N-08, N-09, N-10, N-11, N-13, N-15, N-17, N-18, N-19, N-20, N-21 e N-23; contrato em `--help`.

@@ -29,6 +29,10 @@ UNIVERSO="codigo iac cql cypher"
 # diferentes e o relatório mudaria conforme a máquina. Aqui o `find` decide O QUE é examinado (mesmo filtro de
 # diretório nos dois casos, inclusive os worktrees aninhados de .forge/worktrees e .claude/worktrees, que num checkout
 # principal somam a maior parte dos arquivos), e o motor só decide ONDE casa, sobre a lista explícita de arquivos.
+# A maquinaria do harness também fica fora (.forge/{agents,adapters,capabilities,commands,contracts,evals,graph,hooks,
+# ledger,liaison,rules,schemas,scripts,skills,templates}, .claude e .agents): numa instalação nova ela é tudo o que
+# existe, e o schema de classificação do próprio harness virava achado de T-02. .forge/specs e .forge/product ficam
+# dentro, porque são do projeto. Um --root que aponta explicitamente para dentro de um desses diretórios é respeitado.
 # O `rg` roda com --no-unicode (sem ele, uma classe negada não casa byte UTF-8 inválido e o grep em C casa) e
 # --no-config (um RIPGREP_CONFIG_PATH do operador mudaria a saída). Padrões sem \b, que o grep BSD não reconhece:
 # fronteira sempre por classe explícita. Toda saída passa por LC_ALL=C sort antes de ser contada e emitida.
@@ -71,7 +75,11 @@ for _r in "${RAIZES[@]}"; do
   else
     find "$_r" -mindepth 1 \( -type d \( -name node_modules -o -name dist -o -name build -o -name .git -o -name vendor \
       -o -name target -o -name .venv -o -name coverage -o -name generated -o -path '*/.forge/worktrees' \
-      -o -path '*/.claude/worktrees' \) -prune \) -o -type f -print
+      -o -path '*/.claude' -o -path '*/.agents' -o -path '*/.forge/agents' -o -path '*/.forge/adapters' \
+      -o -path '*/.forge/capabilities' -o -path '*/.forge/commands' -o -path '*/.forge/contracts' \
+      -o -path '*/.forge/evals' -o -path '*/.forge/graph' -o -path '*/.forge/hooks' -o -path '*/.forge/ledger' \
+      -o -path '*/.forge/liaison' -o -path '*/.forge/rules' -o -path '*/.forge/schemas' -o -path '*/.forge/scripts' \
+      -o -path '*/.forge/skills' -o -path '*/.forge/templates' \) -prune \) -o -type f -print
   fi
 done > "$TMP/brutos"
 sed -e 's#^\./##' -e 's#//*#/#g' "$TMP/brutos" | LC_ALL=C sort -u > "$TMP/todos"
@@ -259,17 +267,22 @@ regra N-06 aviso "chave de partição de baixa cardinalidade (status, tipo, data
 # <<< N-06
 
 # >>> N-07
+# Contexto de MongoDB no arquivo: `w: 1` sozinho casa largura de caixa, coordenada e afins (`{ w: 1, h: 2 }`).
+MONGO_MARCAS='mongo|writeconcern|write_concern|readconcern|read_concern|startsession|start_session|withtransaction|with_transaction'
 r_N_07() {
-  linhas codigo '(^|[^A-Za-z0-9_])w[[:space:]]*[:=][[:space:]]*['"'"'"]?1([^0-9]|$)|WriteConcern\.(W1|ACKNOWLEDGED)'
+  local mg; mg="$(tmpf)"
+  arquivos_com -i codigo "$MONGO_MARCAS" > "$mg"
+  linhas codigo '(^|[^A-Za-z0-9_])w[[:space:]]*[:=][[:space:]]*['"'"'"]?1([^0-9]|$)|WriteConcern\.(W1|ACKNOWLEDGED)' | so_arquivos "$mg"
 }
 regra N-07 alto "write concern w:1 em dado crítico perde escrita confirmada no failover; use majority e P-S-S" r_N_07
 # <<< N-07
 
 # >>> N-08
 r_N_08() {
-  linhas codigo 'ScanCommand|\.scan\(|(^|[^A-Za-z0-9_])Scan\('
+  # só a API do DynamoDB: `redis.scan(` (SCAN incremental, o que a skill de cache recomenda) e `rows.Scan(` do Go não casam.
+  linhas codigo 'ScanCommand|ScanInput|ScanRequest|(^|[^A-Za-z0-9_])[Ss]can\([[:space:]]*\{?[[:space:]]*"?TableName|(^|[^A-Za-z0-9_])(table|tabela|[a-z_]*_table)\.scan\('
 }
-regra N-08 aviso "Scan no caminho da requisição lê a tabela inteira e consome capacidade de todas as partições; use Query" r_N_08
+regra N-08 aviso "Scan do DynamoDB no caminho da requisição lê a tabela inteira e consome capacidade de todas as partições; use Query" r_N_08
 # <<< N-08
 
 # >>> N-09
@@ -296,9 +309,10 @@ regra N-11 alto "ConsistentRead em leitura de GSI: índice global só oferece le
 # >>> N-13
 r_N_13() {
   linhas -i 'cql codigo' 'allow[[:space:]]+filtering'
-  linhas -i cql 'create[[:space:]]+(custom[[:space:]]+)?index'
+  # SAI (StorageAttachedIndex) é o índice secundário que a skill admite, restrito a consulta que já filtra a partição.
+  linhas -i -X 'storageattachedindex|using[[:space:]]+.sai.' cql 'create[[:space:]]+(custom[[:space:]]+)?index'
 }
-regra N-13 alto "ALLOW FILTERING ou índice secundário como consulta principal no Cassandra varre partições; uma tabela por consulta" r_N_13
+regra N-13 alto "ALLOW FILTERING ou índice secundário legado (2i/SASI) como consulta principal no Cassandra varre partições; uma tabela por consulta" r_N_13
 # <<< N-13
 
 # >>> N-15
@@ -330,5 +344,28 @@ r_N_19() {
 }
 regra N-19 aviso "regra de rede aberta a 0.0.0.0/0 no mesmo arquivo que a porta 27017: rota de terceiro para banco interno" r_N_19
 # <<< N-19
+
+# >>> N-20
+r_N_20() {
+  linhas -i codigo 'readconcern\.(local|available)|readconcern[[:space:]]*\([[:space:]]*["'"'"'](local|available)|read_concern[[:space:]]*=[[:space:]]*readconcern\([[:space:]]*["'"'"']?(local|available)|readconcern[[:space:]]*:[[:space:]]*\{[[:space:]]*level[[:space:]]*:[[:space:]]*["'"'"'](local|available)|readconcernlevel\.(local|available)'
+}
+regra N-20 aviso "read concern local/available em transação ou leitura do transacional de negócio: lê dado que o failover pode desfazer; use snapshot (ou majority) com w majority" r_N_20
+# <<< N-20
+
+# >>> N-21
+r_N_21() {
+  linhas codigo 'Decimal128|NumberDecimal\(|\$numberDecimal|Decimal128Codec|BsonDecimal128'
+}
+regra N-21 aviso "Decimal128 em documento: valor monetário é inteiro na menor unidade (money-as-cents.md), nunca Decimal128 nem ponto flutuante" r_N_21
+# <<< N-21
+
+# >>> N-23
+r_N_23() {
+  local ok; ok="$(tmpf)"
+  arquivos_com codigo 'UnknownTransactionCommitResult|withTransaction|with_transaction|WithTransaction' > "$ok"
+  linhas codigo 'commitTransaction(Async)?\(|commit_transaction\(|CommitTransaction(Async)?\(' | exceto_arquivos "$ok"
+}
+regra N-23 aviso "commit de transação MongoDB pela API core sem tratar UnknownTransactionCommitResult: o commit precisa de retry próprio, separado do retry da transação inteira; prefira withTransaction" r_N_23
+# <<< N-23
 
 fim

@@ -29,6 +29,10 @@ UNIVERSO="codigo iac proto avsc"
 # diferentes e o relatório mudaria conforme a máquina. Aqui o `find` decide O QUE é examinado (mesmo filtro de
 # diretório nos dois casos, inclusive os worktrees aninhados de .forge/worktrees e .claude/worktrees, que num checkout
 # principal somam a maior parte dos arquivos), e o motor só decide ONDE casa, sobre a lista explícita de arquivos.
+# A maquinaria do harness também fica fora (.forge/{agents,adapters,capabilities,commands,contracts,evals,graph,hooks,
+# ledger,liaison,rules,schemas,scripts,skills,templates}, .claude e .agents): numa instalação nova ela é tudo o que
+# existe, e o schema de classificação do próprio harness virava achado de T-02. .forge/specs e .forge/product ficam
+# dentro, porque são do projeto. Um --root que aponta explicitamente para dentro de um desses diretórios é respeitado.
 # O `rg` roda com --no-unicode (sem ele, uma classe negada não casa byte UTF-8 inválido e o grep em C casa) e
 # --no-config (um RIPGREP_CONFIG_PATH do operador mudaria a saída). Padrões sem \b, que o grep BSD não reconhece:
 # fronteira sempre por classe explícita. Toda saída passa por LC_ALL=C sort antes de ser contada e emitida.
@@ -71,7 +75,11 @@ for _r in "${RAIZES[@]}"; do
   else
     find "$_r" -mindepth 1 \( -type d \( -name node_modules -o -name dist -o -name build -o -name .git -o -name vendor \
       -o -name target -o -name .venv -o -name coverage -o -name generated -o -path '*/.forge/worktrees' \
-      -o -path '*/.claude/worktrees' \) -prune \) -o -type f -print
+      -o -path '*/.claude' -o -path '*/.agents' -o -path '*/.forge/agents' -o -path '*/.forge/adapters' \
+      -o -path '*/.forge/capabilities' -o -path '*/.forge/commands' -o -path '*/.forge/contracts' \
+      -o -path '*/.forge/evals' -o -path '*/.forge/graph' -o -path '*/.forge/hooks' -o -path '*/.forge/ledger' \
+      -o -path '*/.forge/liaison' -o -path '*/.forge/rules' -o -path '*/.forge/schemas' -o -path '*/.forge/scripts' \
+      -o -path '*/.forge/skills' -o -path '*/.forge/templates' \) -prune \) -o -type f -print
   fi
 done > "$TMP/brutos"
 sed -e 's#^\./##' -e 's#//*#/#g' "$TMP/brutos" | LC_ALL=C sort -u > "$TMP/todos"
@@ -242,7 +250,8 @@ PUBLICA='basicPublish\(|basic_publish\(|\.publish\(|PublishWithContext\(|BasicPu
 
 # >>> RMQ-AP-01
 r_RMQ_AP_01() {
-  linhas 'codigo iac' 'basicConsume\([^,]+,[[:space:]]*true|auto_ack[[:space:]]*=[[:space:]]*True|noAck[[:space:]]*:[[:space:]]*true|autoAck[[:space:]]*:[[:space:]]*true|AcknowledgeMode\.NONE|acknowledge-mode[[:space:]]*:[[:space:]]*none'
+  # Go (amqp091): Consume(fila, consumidor, autoAck, ...) — o terceiro argumento posicional é o auto-ack.
+  linhas 'codigo iac' '[Bb]asicConsume(Async)?\([^,]+,[[:space:]]*(autoAck:[[:space:]]*)?true|auto_ack[[:space:]]*=[[:space:]]*True|noAck[[:space:]]*:[[:space:]]*true|autoAck[[:space:]]*:[[:space:]]*true|AcknowledgeMode\.NONE|acknowledge-mode[[:space:]]*:[[:space:]]*none|\.Consume\([^,()]+,[^,()]*,[[:space:]]*true[[:space:]]*,'
 }
 regra RMQ-AP-01 alto "auto-ack: a mensagem é dada como entregue antes do efeito persistir e se perde na queda do consumidor" r_RMQ_AP_01
 # <<< RMQ-AP-01
@@ -293,9 +302,15 @@ regra RMQ-AP-09 aviso "confirm síncrono por mensagem limita a centenas de mensa
 
 # >>> RMQ-AP-10
 r_RMQ_AP_10() {
-  linhas 'codigo iac' '[Bb]asicNack\([^,]+,[[:space:]]*(true|false),[[:space:]]*true[[:space:]]*\)|basic_nack\([^)]*requeue[[:space:]]*=[[:space:]]*True|\.nack\([[:space:]]*[A-Za-z_][A-Za-z0-9_.]*[[:space:]]*\)|\.nack\([^,)]+,[^,)]+,[[:space:]]*true[[:space:]]*\)|\.Nack\([[:space:]]*(true|false)[[:space:]]*,[[:space:]]*true[[:space:]]*\)|default-requeue-rejected[[:space:]]*[:=][[:space:]]*true'
+  # Java/.NET basicNack(tag, múltiplo, requeue=true) e basicReject(tag, true); Go Nack(múltiplo, true) e Reject(true);
+  # amqplib nack(msg), nack(msg, allUpTo) — o segundo argumento é allUpTo, não requeue, e o requeue fica true —,
+  # nack(msg, x, true) e reject(msg) ou reject(msg, true) sobre o canal; Spring default-requeue-rejected: true.
+  linhas 'codigo iac' '[Bb]asicNack(Async)?\([^,]+,[[:space:]]*(true|false),[[:space:]]*true[[:space:]]*\)|[Bb]asicReject(Async)?\([^,]+,[[:space:]]*true[[:space:]]*\)|\.nack\([[:space:]]*[A-Za-z_][A-Za-z0-9_.]*[[:space:]]*\)|\.nack\([^,)]+,[[:space:]]*(true|false)[[:space:]]*\)|\.nack\([^,)]+,[^,)]+,[[:space:]]*true[[:space:]]*\)|\.Nack\([[:space:]]*(true|false)[[:space:]]*,[[:space:]]*true[[:space:]]*\)|\.Reject\([[:space:]]*true[[:space:]]*\)|(^|[^A-Za-z0-9_])(ch|chan|channel|canal)\.reject\([[:space:]]*[A-Za-z_][A-Za-z0-9_.]*[[:space:]]*(,[[:space:]]*true[[:space:]]*)?\)|default-requeue-rejected[[:space:]]*[:=][[:space:]]*true'
+  # pika: requeue=True por padrão em basic_nack(tag, multiple, requeue) e basic_reject(tag, requeue).
+  linhas -X 'requeue[[:space:]]*=[[:space:]]*false|basic_nack\([^,)]*,[^,)]*,[[:space:]]*false' codigo 'basic_nack\('
+  linhas -X 'requeue[[:space:]]*=[[:space:]]*false|basic_reject\([^,)]*,[[:space:]]*false' codigo 'basic_reject\('
 }
-regra RMQ-AP-10 alto "requeue infinito: nack com requeue (default true no amqplib e no Spring) volta a mensagem à fila, e basic.nack não conta para o delivery-limit da quorum" r_RMQ_AP_10
+regra RMQ-AP-10 alto "requeue infinito: nack ou reject com requeue (default true no amqplib, no pika e no Spring) volta a mensagem à fila, e basic.nack não conta para o delivery-limit da quorum" r_RMQ_AP_10
 # <<< RMQ-AP-10
 
 # >>> RMQ-AP-12
@@ -349,6 +364,24 @@ r_RMQ_AP_20() {
 regra RMQ-AP-20 aviso "usuário guest liberado fora do loopback: remova o guest e use usuário por aplicação (T-05; regra de integração)" r_RMQ_AP_20
 # <<< RMQ-AP-20
 
+# >>> RMQ-AP-22
+r_RMQ_AP_22() {
+  local ret; ret="$(tmpf)"
+  arquivos_com 'codigo iac' 'x-max-age|x-max-length-bytes|max-age|max-length-bytes|MaxAge|MaxLengthBytes' > "$ret"
+  linhas 'codigo iac' 'x-queue-type"?'"'"'?[^A-Za-z0-9]{1,6}stream([^A-Za-z0-9_]|$)|queue-type"?[[:space:]]*[:=][[:space:]]*"?stream([^A-Za-z0-9_]|$)' | exceto_arquivos "$ret"
+}
+regra RMQ-AP-22 aviso "stream declarado sem retenção (x-max-age ou x-max-length-bytes) no arquivo: o log cresce sem limite de disco e retém dado pessoal indefinidamente (LGPD); confira se há policy" r_RMQ_AP_22
+# <<< RMQ-AP-22
+
+# >>> RMQ-AP-28
+r_RMQ_AP_28() {
+  local drr; drr="$(tmpf)"
+  arquivos_com iac 'default-requeue-rejected|defaultRequeueRejected' > "$drr"
+  linhas -p '(^|/)application[^/]*\.(ya?ml|properties)$' iac 'spring\.rabbitmq|^[[:space:]]+rabbitmq:' | exceto_arquivos "$drr"
+}
+regra RMQ-AP-28 aviso "projeto Spring AMQP sem default-requeue-rejected: false no application.*: o default é true, e exceção no listener volta a mensagem à fila em laço (RMQ-AP-10 implícito)" r_RMQ_AP_28
+# <<< RMQ-AP-28
+
 # >>> KFK-AP-01
 r_KFK_AP_01() {
   linhas 'codigo iac' 'enable\.auto\.commit"?[[:space:]]*[=:][[:space:]]*"?true|enableAutoCommit[[:space:]]*[=:][[:space:]]*true|EnableAutoCommit[[:space:]]*=[[:space:]]*true|ENABLE_AUTO_COMMIT_CONFIG[[:space:]]*,[[:space:]]*"?true'
@@ -357,10 +390,14 @@ regra KFK-AP-01 alto "auto-commit com efeito colateral: o offset avança antes d
 # <<< KFK-AP-01
 
 # >>> KFK-AP-02
+# Arquivo com marca de Kafka: `retries: 0` e `acks: 1` sozinhos são comuns fora do Kafka (Playwright, async-retry).
+MARCAS_KAFKA='kafka|bootstrap[._-]servers|producerconfig'
 r_KFK_AP_02() {
-  linhas 'codigo iac' '(^|[^A-Za-z0-9_.])acks"?[[:space:]]*[=:][[:space:]]*"?(0|1)"?([^0-9]|$)|ACKS_CONFIG[[:space:]]*,[[:space:]]*"(0|1)"|enable\.idempotence"?[[:space:]]*[=:][[:space:]]*"?false|(^|[^A-Za-z0-9_.])retries"?[[:space:]]*[=:][[:space:]]*"?0"?([^0-9]|$)'
+  local kf; kf="$(tmpf)"
+  arquivos_com -i 'codigo iac' "$MARCAS_KAFKA" > "$kf"
+  linhas 'codigo iac' '(^|[^A-Za-z0-9_])acks"?[[:space:]]*[=:][[:space:]]*"?(0|1)"?([^0-9]|$)|ACKS_CONFIG[[:space:]]*,[[:space:]]*"(0|1)"|enable\.idempotence"?[[:space:]]*[=:][[:space:]]*"?false|(^|[^A-Za-z0-9_])retries"?[[:space:]]*[=:][[:space:]]*"?0"?([^0-9]|$)' | so_arquivos "$kf"
 }
-regra KFK-AP-02 alto "acks 0/1, idempotência desligada ou retries=0: com idempotência implícita, acks diferente de all ou retries=0 a desligam em silêncio" r_KFK_AP_02
+regra KFK-AP-02 alto "acks 0/1, idempotência desligada ou retries=0 em arquivo de Kafka: com idempotência implícita, acks diferente de all ou retries=0 a desligam em silêncio" r_KFK_AP_02
 # <<< KFK-AP-02
 
 # >>> KFK-AP-03
@@ -388,10 +425,18 @@ regra KFK-AP-09 aviso "listener Kafka PLAINTEXT em todas as interfaces: sem TLS 
 r_KFK_AP_10() {
   local ac; ac="$(tmpf)"
   arquivos_com 'codigo iac' 'enable\.auto\.commit|enableAutoCommit|EnableAutoCommit|ENABLE_AUTO_COMMIT' > "$ac"
-  linhas 'codigo iac' 'group\.id|groupId|GroupId|GROUP_ID_CONFIG' | exceto_arquivos "$ac"
+  # Spring Kafka (@KafkaListener, spring.kafka.*) já usa enable.auto.commit=false por padrão desde o 2.3.
+  linhas -x '@KafkaListener|spring\.kafka' 'codigo iac' 'group\.id|groupId|GroupId|GROUP_ID_CONFIG' | exceto_arquivos "$ac"
 }
-regra KFK-AP-10 aviso "configuração de consumidor sem enable.auto.commit no arquivo: o default é true (KFK-AP-01 implícito)" r_KFK_AP_10
+regra KFK-AP-10 aviso "configuração de consumidor sem enable.auto.commit no arquivo: o default do cliente é true (KFK-AP-01 implícito; Spring Kafka excluído)" r_KFK_AP_10
 # <<< KFK-AP-10
+
+# >>> KFK-AP-14
+r_KFK_AP_14() {
+  linhas iac 'zookeeper\.connect|ZOOKEEPER_CONNECT|zookeeper[[:space:]]*[:=]'
+}
+regra KFK-AP-14 aviso "Kafka com ZooKeeper: o Kafka 4.0 removeu o ZooKeeper (só KRaft); cluster novo nasce em KRaft e o existente migra antes do upgrade" r_KFK_AP_14
+# <<< KFK-AP-14
 
 # >>> INB-AP-01
 r_INB_AP_01() {
@@ -427,10 +472,10 @@ regra D-AP-02 aviso "permissão total .* em vhost: se o usuário for de parceiro
 # >>> D-AP-04
 r_D_AP_04() {
   local porta; porta="$(tmpf)"
-  arquivos_com iac '(from_port|to_port|port)"?[[:space:]]*[=:][[:space:]]*"?(5672|5671|9092|9093)([^0-9]|$)' > "$porta"
+  arquivos_com iac '(from_port|to_port|port)"?[[:space:]]*[=:][[:space:]]*"?(5672|5671|5552|5551|15672|15671|9092|9093)([^0-9]|$)' > "$porta"
   linhas iac '0\.0\.0\.0/0' | so_arquivos "$porta"
 }
-regra D-AP-04 aviso "regra de rede aberta a 0.0.0.0/0 no mesmo arquivo que a porta do broker (5672/5671/9092/9093): rota de terceiro para broker interno" r_D_AP_04
+regra D-AP-04 aviso "regra de rede aberta a 0.0.0.0/0 no mesmo arquivo que a porta do broker (AMQP 5672/5671, streams 5552/5551, API de gestão 15672/15671, Kafka 9092/9093): rota de terceiro para broker interno" r_D_AP_04
 # <<< D-AP-04
 
 # >>> D-AP-05
@@ -448,10 +493,16 @@ regra SCH-AP-01 alto "campo required em .proto: remover ou tornar opcional depoi
 # <<< SCH-AP-01
 
 # >>> T-02
+# Fronteira inclui `_`: pan_token, masked_pan e pan_last4 (dado já tratado, o formato que a regra recomenda) não casam.
+CARTAO='(^|[^a-z0-9_])(pan|card_number|cardnumber|cvv|cvc|track|track1|track2|pin_block)([^a-z0-9_]|$)'
+# No código, `track` sozinho é genérico demais (analytics.track, faixa de áudio): só os nomes inequívocos.
+CARTAO_COD='(^|[^a-z0-9_])(pan|card_number|cardnumber|cvv|cvc|track1|track2|track_data|pin_block)([^a-z0-9_]|$)'
 r_T_02() {
-  linhas -i 'proto avsc jsonschema' '(^|[^a-z0-9])(pan|card_number|cardnumber|cvv|cvc|track|track1|track2|pin_block)([^a-z0-9]|$)'
+  linhas -i 'proto avsc jsonschema' "$CARTAO"
+  # payload publicado por código: campo de cartão na mesma linha de publish/send/produce/emit, ou no literal de evento.
+  linhas -i -E "$CARTAO_COD" codigo '(publish|send|produce|emit)[A-Za-z]*\(|(evt|event|evento|message|mensagem|payload)[A-Za-z0-9_]*[[:space:]]*[:=][[:space:]]*\{'
 }
-regra T-02 aviso "campo de cartão (PAN/SAD) em schema de evento: evento carrega token; complemento do check-data-governance.sh" r_T_02
+regra T-02 aviso "campo de cartão (PAN/SAD) em schema de evento ou em payload publicado por código: evento carrega token; complemento do check-data-governance.sh" r_T_02
 # <<< T-02
 
 fim

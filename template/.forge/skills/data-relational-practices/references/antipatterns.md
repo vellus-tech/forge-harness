@@ -1,6 +1,6 @@
 # Relacional OLTP — catálogo de antipatterns
 
-Conjunto fechado de ids deste catálogo (design §2.5 do change `data-engineer-agent`): R-01 a R-16 vêm da base consolidada (§1.3); R-17 a R-21 foram acrescentados pelo design (exposição de banco pela regra de integração do dono, dinheiro pela `money-as-cents.md`, RLS pela `data-governance.md` e `lock_timeout` da própria base R-03). Id fora desse conjunto reprova o w250.
+Conjunto fechado de ids deste catálogo (design §2.5 do change `data-engineer-agent`): R-01 a R-16 vêm da base consolidada (§1.3); R-17 a R-21 foram acrescentados pelo design (exposição de banco pela regra de integração do dono, dinheiro pela `money-as-cents.md`, RLS pela `data-governance.md` e `lock_timeout` da própria base R-03); R-22 foi acrescentado pela revisão de DBA de 2026-09-26 (índice em migração MySQL). Id fora desse conjunto reprova o w250.
 
 Cada entrada tem cinco campos. `Detecção` usa um de quatro rótulos: `scan.sh <ID>` (estática, o `scripts/scan.sh` executa), `ferramenta` (linter ou analisador que o projeto roda), `runtime` (consulta contra o sistema real, documentada e nunca executada pelo scanner) e `revisão` (sem detector confiável); um segundo rótulo complementar pode vir depois de `;`. Consultas e comandos foram redigidos pela pesquisa e, salvo indicação, não foram executados contra sistema real: teste em ambiente não produtivo antes de promover a gate. Todo exemplo de varredura recursiva usa `grep -a` ou `rg`, para não perder a linha em arquivo com byte de controle.
 
@@ -22,7 +22,7 @@ Cada entrada tem cinco campos. `Detecção` usa um de quatro rótulos: `scan.sh 
 - **Sintoma:** deploy trava a tabela: fila de conexões, timeouts em cascata, aplicação fora do ar durante a migração.
 - **Por quê:** `CREATE INDEX` sem `CONCURRENTLY` bloqueia escrita; `ALTER COLUMN ... TYPE` reescreve a tabela; `RENAME` in-place quebra a versão da aplicação que ainda está no ar; `SET NOT NULL` varre a tabela sob lock forte.
 - **Correção:** `CREATE INDEX CONCURRENTLY` fora de transação; coluna nova + backfill + troca de leitura para tipo e nome (expand → migrate → contract); `CHECK (...) NOT VALID` + `VALIDATE CONSTRAINT` antes de `SET NOT NULL`; `lock_timeout` curto na sessão.
-- **Detecção:** `scan.sh R-03` (estática em `*.sql`); ferramenta — `squawk migrations/*.sql` ou strong_migrations no CI.
+- **Detecção:** `scan.sh R-03` (estática em `*.sql`; `CREATE INDEX` sobre tabela criada no mesmo arquivo, `SET NOT NULL` em arquivo com `VALIDATE CONSTRAINT` e o trecho de índice de migração MySQL ficam fora — o MySQL é o R-22); ferramenta — `squawk migrations/*.sql` ou strong_migrations no CI.
 - **Evidência:** [2F] PostgreSQL sql-createindex e sql-altertable; squawk; strong_migrations.
 
 ### R-04 — Tipos problemáticos no PostgreSQL
@@ -75,18 +75,18 @@ Cada entrada tem cinco campos. `Detecção` usa um de quatro rótulos: `scan.sh 
 - **Evidência:** [1F] SQL Server SET TRANSACTION ISOLATION LEVEL.
 
 ### R-11 — Deadlock ou falha de serialização sem retry
-- **Sintoma:** erro 500 esporádico sob carga com `40001`, `40P01` ou 1205 no log.
+- **Sintoma:** erro 500 esporádico sob carga com `40001`, `40P01`, 1205 (SQL Server) ou 1213 (MySQL) no log.
 - **Por quê:** em Repeatable Read e Serializable o banco aborta a transação e espera que a aplicação a reexecute.
-- **Correção:** retry com backoff da transação inteira nos códigos `40001`, `40P01` (PostgreSQL) e 1205 (SQL Server); ordem consistente de locks.
-- **Detecção:** revisão — ausência de tratamento de `40001|40P01|1205` na camada de dados.
-- **Evidência:** [J] apêndice de códigos de erro do PostgreSQL e guia de deadlocks do SQL Server.
+- **Correção:** retry com backoff da transação inteira nos códigos `40001`, `40P01` (PostgreSQL), 1205 (SQL Server) e 1213 (MySQL; no MySQL o 1205 é lock wait timeout, que desfaz só a instrução por padrão, não a transação); ordem consistente de locks.
+- **Detecção:** revisão — ausência de tratamento de `40001|40P01|1205|1213` na camada de dados.
+- **Evidência:** [J] apêndice de códigos de erro do PostgreSQL e guia de deadlocks do SQL Server; [1F] MySQL, server error reference (1205, 1213).
 
-### R-12 — Sessão incompatível com PgBouncer em modo transaction
-- **Sintoma:** `search_path` trocado entre requisições, `LISTEN` que nunca recebe, advisory lock que "some", prepared statement inexistente.
-- **Por quê:** em modo transaction a conexão física muda a cada transação; estado de sessão vaza ou se perde.
-- **Correção:** `SET LOCAL` dentro da transação, prepared statement de protocolo com `max_prepared_statements > 0`, advisory lock de transação (`pg_advisory_xact_lock`), conexão dedicada para `LISTEN`.
-- **Detecção:** `scan.sh R-12` (estática em código; só é defeito atrás de PgBouncer em modo transaction).
-- **Evidência:** [J] PgBouncer features.
+### R-12 — Estado de sessão com pool de conexões
+- **Sintoma:** `search_path` trocado entre requisições, `LISTEN` que nunca recebe, advisory lock que "some", prepared statement inexistente; tenant de uma requisição aparecendo na seguinte (`SET app.tenant_id` ou `set_config('app.tenant_id', $1, false)` lidos pela policy de RLS).
+- **Por quê:** em modo transaction do PgBouncer a conexão física muda a cada transação; em qualquer pool que reaproveita conexão (Npgsql e EF, HikariCP, node-postgres), GUC de sessão fica na conexão devolvida e vaza o tenant para a próxima requisição, e a RLS filtra pelo tenant errado.
+- **Correção:** `SET LOCAL` ou `set_config(..., true)` dentro da transação (vale só até o commit), prepared statement de protocolo com `max_prepared_statements > 0`, advisory lock de transação (`pg_advisory_xact_lock`), conexão dedicada para `LISTEN`.
+- **Detecção:** `scan.sh R-12` (estática em código: `SET search_path`, `LISTEN`, `pg_advisory_lock(`, `SET` de GUC com ponto sem `LOCAL`, `set_config(..., false)`; os três primeiros só são defeito atrás de PgBouncer em modo transaction, os dois últimos com qualquer pool).
+- **Evidência:** [J] PgBouncer features; [1F] PostgreSQL `set_config` e `SET LOCAL`; [Interp.] quanto ao vazamento de tenant por pool.
 
 ### R-13 — ALGORITHM=COPY ou LOCK forçado no MySQL
 - **Sintoma:** `ALTER TABLE` que bloqueia escrita por minutos ou horas.
@@ -130,18 +130,18 @@ Cada entrada tem cinco campos. `Detecção` usa um de quatro rótulos: `scan.sh 
 - **Detecção:** `scan.sh R-18` (estática em IaC: `0.0.0.0/0` e a porta no mesmo arquivo; localização na linha do CIDR). Aproximação deliberada: Terraform espalha CIDR e porta em linhas diferentes.
 - **Evidência:** [Interp.] norma da regra do dono; detector [Heurística].
 
-### R-19 — Coluna monetária em NUMERIC ou DECIMAL
-- **Sintoma:** coluna `valor_total NUMERIC(12,2)`, `amount DECIMAL(...)`; conversão entre centavos e reais espalhada pelo código.
+### R-19 — Coluna monetária em NUMERIC, DECIMAL ou ponto flutuante
+- **Sintoma:** coluna `valor_total NUMERIC(12,2)`, `amount DECIMAL(...)`, `amount double precision`, `fee real` (o pior caso: flutuante nem é exato); conversão entre centavos e reais espalhada pelo código.
 - **Por quê:** a regra da casa (`rules/domain/money-as-cents.md` §4) manda `BIGINT NOT NULL` na menor unidade, nunca `DECIMAL`/`NUMERIC`; pela decisão H-03 (a) do dono esta skill aplica isso a qualquer `*.sql`, em qualquer stack, sem mudar o `applies_to` da rule.
 - **Correção:** coluna `..._em_centavos BIGINT NOT NULL`, conversão só na borda (apresentação e entrada), arredondamento NBR 5891; migração expand/contract com backfill multiplicado por 100.
-- **Detecção:** `scan.sh R-19` (estática em `*.sql`: nome monetário tipado `NUMERIC`/`DECIMAL`; heurística pelo nome — `taxa_juros NUMERIC` não é dinheiro e não casa).
+- **Detecção:** `scan.sh R-19` (estática em `*.sql`: nome monetário tipado `NUMERIC`/`DECIMAL`/`real`/`float`/`double precision`; heurística pelo nome — `taxa_juros NUMERIC` não é dinheiro e não casa).
 - **Evidência:** [Heurística] detector; norma da rule da casa (seção Verificação da `money-as-cents.md`).
 
 ### R-20 — Tabela multi-tenant sem RLS
 - **Sintoma:** `CREATE TABLE` com `tenant_id` e nenhum `ENABLE ROW LEVEL SECURITY`; isolamento dependendo só do filtro da aplicação.
 - **Por quê:** a `data-governance.md` torna RLS obrigatório em tabela multi-tenant de domínio no PostgreSQL, dispensável só por exceção formal; um filtro esquecido vaza dado entre tenants.
-- **Correção:** `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` e `CREATE POLICY` por `tenant_id` (com `FORCE ROW LEVEL SECURITY` quando o dono da tabela também acessa), `SET LOCAL` do tenant por transação; exceção só com ADR.
-- **Detecção:** `scan.sh R-20` (estática em `*.sql`, localização na declaração do `tenant_id`; `aviso` porque o RLS pode estar noutra migração); runtime — tabelas de negócio sem política em `pg_policies`.
+- **Correção:** `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` **e** `FORCE ROW LEVEL SECURITY` por padrão (sem `FORCE`, o dono da tabela ignora a policy, e a aplicação que conecta com o papel que roda a migração é dona), `CREATE POLICY` por `tenant_id`, papel da aplicação diferente do dono e criado com `NOBYPASSRLS`, tenant por `SET LOCAL` ou `set_config(..., true)` na transação (R-12); exceção só com ADR.
+- **Detecção:** `scan.sh R-20` (estática em `*.sql`: `tenant_id` em arquivo com `CREATE TABLE` e sem `ENABLE ROW LEVEL SECURITY`, localização na declaração do `tenant_id`; `ENABLE ROW LEVEL SECURITY` sem `FORCE` no mesmo arquivo; papel com `BYPASSRLS`; `aviso` porque o RLS pode estar noutra migração); runtime — `SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class WHERE relkind = 'r'`, `SELECT rolname FROM pg_roles WHERE rolbypassrls` e tabelas de negócio sem política em `pg_policies`.
 - **Evidência:** [Interp.] base §7.3 (multi-tenant), subordinada à rule da casa; detector [Heurística].
 
 ### R-21 — Migração sem lock_timeout
@@ -150,3 +150,10 @@ Cada entrada tem cinco campos. `Detecção` usa um de quatro rótulos: `scan.sh 
 - **Correção:** `SET lock_timeout = '5s'` (e `statement_timeout`) na sessão da migração, com retry do passo.
 - **Detecção:** `scan.sh R-21` (estática em `*.sql`: `ALTER TABLE` ou `CREATE INDEX` sem `lock_timeout` no mesmo arquivo); ferramenta — squawk e strong_migrations.
 - **Evidência:** [2F] base R-03 ("ausência de lock_timeout"); detector [Heurística].
+
+### R-22 — Índice em migração MySQL sem ALGORITHM e LOCK explícitos
+- **Sintoma:** `CREATE INDEX` ou `ALTER TABLE ... ADD INDEX` numa migração MySQL sem `ALGORITHM=INPLACE, LOCK=NONE`.
+- **Por quê:** no MySQL 8.x o índice secundário é INPLACE e online por padrão, mas sem os dois explícitos uma variação da operação (coluna de tipo que não suporta INPLACE, versão diferente) cai em cópia bloqueante em silêncio; com eles explícitos o MySQL recusa a DDL em vez de travar a tabela.
+- **Correção:** `ALTER TABLE t ADD INDEX idx (c), ALGORITHM=INPLACE, LOCK=NONE` (ou o mesmo em `CREATE INDEX ... ALGORITHM=INPLACE LOCK=NONE`); para o que não é online, ferramenta de schema change online (gh-ost, pt-online-schema-change).
+- **Detecção:** `scan.sh R-22` (estática em `*.sql` com marca de MySQL — `ENGINE=`, `AUTO_INCREMENT`, `ALGORITHM=`, identificador entre crases —: índice sem `ALGORITHM=` na linha); ferramenta — squawk não cobre MySQL, gh-ost e pt-osc sim.
+- **Evidência:** [1F] MySQL 8.4, online DDL operations; detector [Heurística].

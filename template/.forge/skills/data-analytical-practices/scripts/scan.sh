@@ -29,6 +29,10 @@ UNIVERSO="sql yml"
 # diferentes e o relatório mudaria conforme a máquina. Aqui o `find` decide O QUE é examinado (mesmo filtro de
 # diretório nos dois casos, inclusive os worktrees aninhados de .forge/worktrees e .claude/worktrees, que num checkout
 # principal somam a maior parte dos arquivos), e o motor só decide ONDE casa, sobre a lista explícita de arquivos.
+# A maquinaria do harness também fica fora (.forge/{agents,adapters,capabilities,commands,contracts,evals,graph,hooks,
+# ledger,liaison,rules,schemas,scripts,skills,templates}, .claude e .agents): numa instalação nova ela é tudo o que
+# existe, e o schema de classificação do próprio harness virava achado de T-02. .forge/specs e .forge/product ficam
+# dentro, porque são do projeto. Um --root que aponta explicitamente para dentro de um desses diretórios é respeitado.
 # O `rg` roda com --no-unicode (sem ele, uma classe negada não casa byte UTF-8 inválido e o grep em C casa) e
 # --no-config (um RIPGREP_CONFIG_PATH do operador mudaria a saída). Padrões sem \b, que o grep BSD não reconhece:
 # fronteira sempre por classe explícita. Toda saída passa por LC_ALL=C sort antes de ser contada e emitida.
@@ -71,7 +75,11 @@ for _r in "${RAIZES[@]}"; do
   else
     find "$_r" -mindepth 1 \( -type d \( -name node_modules -o -name dist -o -name build -o -name .git -o -name vendor \
       -o -name target -o -name .venv -o -name coverage -o -name generated -o -path '*/.forge/worktrees' \
-      -o -path '*/.claude/worktrees' \) -prune \) -o -type f -print
+      -o -path '*/.claude' -o -path '*/.agents' -o -path '*/.forge/agents' -o -path '*/.forge/adapters' \
+      -o -path '*/.forge/capabilities' -o -path '*/.forge/commands' -o -path '*/.forge/contracts' \
+      -o -path '*/.forge/evals' -o -path '*/.forge/graph' -o -path '*/.forge/hooks' -o -path '*/.forge/ledger' \
+      -o -path '*/.forge/liaison' -o -path '*/.forge/rules' -o -path '*/.forge/schemas' -o -path '*/.forge/scripts' \
+      -o -path '*/.forge/skills' -o -path '*/.forge/templates' \) -prune \) -o -type f -print
   fi
 done > "$TMP/brutos"
 sed -e 's#^\./##' -e 's#//*#/#g' "$TMP/brutos" | LC_ALL=C sort -u > "$TMP/todos"
@@ -239,18 +247,20 @@ inicio
 
 # >>> A-06
 r_A_06() {
-  linhas -i sql 'partitioned[[:space:]]+by[[:space:]]*\(|insert[[:space:]].*[[:space:]]partition[[:space:]]*\('
+  # Transformação do Iceberg (days, months, years, hours, bucket, truncate) é o particionamento oculto recomendado.
+  linhas -i -X 'partitioned[[:space:]]+by[[:space:]]*\([[:space:]]*(years?|months?|days?|hours?|bucket|truncate)[[:space:]]*\(' sql 'partitioned[[:space:]]+by[[:space:]]*\(|insert[[:space:]].*[[:space:]]partition[[:space:]]*\('
 }
-regra A-06 aviso "partição estilo Hive declarada à mão em tabela: formato errado da coluna dá resultado silenciosamente incorreto; prefira particionamento oculto ou liquid clustering (Iceberg com transformação também casa: julgue)" r_A_06
+regra A-06 aviso "partição estilo Hive declarada à mão em tabela: formato errado da coluna dá resultado silenciosamente incorreto; prefira particionamento oculto (transformação Iceberg) ou liquid clustering" r_A_06
 # <<< A-06
 
 # >>> A-08
 r_A_08() {
   local uk; uk="$(tmpf)"
-  arquivos_com sql 'unique_key' > "$uk"
+  # microbatch (dbt 1.9+) usa event_time e batch_size, não unique_key.
+  arquivos_com sql 'unique_key|microbatch' > "$uk"
   linhas -i -p '(^|/)models/' sql 'materialized[[:space:]]*=[[:space:]]*["'"'"']incremental["'"'"']' | exceto_arquivos "$uk"
 }
-regra A-08 aviso "modelo incremental sem unique_key: reprocessamento duplica linhas no grão" r_A_08
+regra A-08 aviso "modelo incremental sem unique_key (e sem estratégia microbatch): reprocessamento duplica linhas no grão" r_A_08
 # <<< A-08
 
 # >>> A-10

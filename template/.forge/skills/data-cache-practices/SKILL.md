@@ -24,10 +24,10 @@ Ordem fixa. É a ordem que torna a resposta auditável.
 
 ## O que o scanner não faz
 
-Ele lê texto: não mede hit ratio, chave quente, chave grande, CROSSSLOT nem a política efetiva do servidor — isso é runtime (`INFO stats`, `redis-cli --hotkeys`, `--bigkeys`, `CONFIG GET`), documentado no catálogo e executado por quem tem acesso. `.set(` sem TTL na mesma linha pode ter `EXPIRE` na linha seguinte; `KEYS` num script de manutenção offline pode ser aceitável. O receptor de C-02 e C-09 é heurístico (`redis`, `cache`, `valkey`, `client`, `r`). O scanner localiza; quem revisa decide.
+Ele lê texto: não mede hit ratio, chave quente, chave grande, CROSSSLOT nem a política efetiva do servidor — isso é runtime (`INFO stats`, `redis-cli --hotkeys`, `--bigkeys`, `CONFIG GET`), documentado no catálogo e executado por quem tem acesso. `.set(` sem TTL na mesma linha pode ter `EXPIRE` na linha seguinte; `KEYS` num script de manutenção offline pode ser aceitável. O receptor de C-02 e C-09 é heurístico (`redis`, `cache`, `valkey`, `client`, `r`; no C-02 também Spring `opsForValue`, StackExchange `StringSet`/`HashSet` e go-redis `Set(ctx, …, 0)`). `bind` em todas as interfaces com `requirepass` ou ACL no mesmo arquivo é C-17 (`aviso`), não C-11. A maquinaria do harness (`.forge/agents`, `.forge/scripts`, `.forge/schemas`, `.forge/skills`, `.forge/rules` e afins) e os diretórios de adapter (`.claude` e `.agents`) ficam fora do universo, como os worktrees aninhados: numa instalação nova `--root .` só varre o projeto; `.forge/specs` e `.forge/product` entram. O scanner localiza; quem revisa decide.
 
 ## Referências
 
 - `references/best-practices.md` — cache-aside, write-through, TTL, invalidação, stampede, chave quente, cache como fonte da verdade, memória e segurança, com fonte e marca de evidência.
-- `references/antipatterns.md` — catálogo C-01 a C-16, T-01 e T-04.
-- `scripts/scan.sh` — detecção estática de C-02, C-08, C-09, C-10, C-11, C-15 e C-16; contrato em `--help`.
+- `references/antipatterns.md` — catálogo C-01 a C-17, T-01 e T-04.
+- `scripts/scan.sh` — detecção estática de C-02, C-08, C-09, C-10, C-11, C-15, C-16 e C-17; contrato em `--help`.

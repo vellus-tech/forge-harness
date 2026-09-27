@@ -5,17 +5,17 @@ Conjunto fechado de ids deste catálogo (design §2.5 do change `data-engineer-a
 Cada entrada tem cinco campos. `Detecção` usa um de quatro rótulos: `scan.sh <ID>` (estática, o `scripts/scan.sh` executa), `ferramenta`, `runtime` (comando contra o sistema real, documentado e nunca executado pelo scanner) e `revisão`; um segundo rótulo complementar pode vir depois de `;`. Comandos de runtime foram redigidos pela pesquisa e não executados contra sistema real. Toda varredura recursiva de exemplo usa `grep -a` ou `rg`.
 
 ### O-01 — Bucket ou objeto público
-- **Sintoma:** ACL `public-read`, Block Public Access desligado, `allUsers`/`allAuthenticatedUsers` no GCS, `allowBlobPublicAccess: true` na Azure.
+- **Sintoma:** ACL `public-read`, qualquer das quatro chaves do Block Public Access em `false` (`block_public_acls`, `block_public_policy`, `ignore_public_acls`, `restrict_public_buckets`), policy de bucket com `Principal: "*"` (ou `{"AWS": "*"}`) sem `Condition`, `allUsers`/`allAuthenticatedUsers` no GCS, `allowBlobPublicAccess: true` ou contêiner com `container_access_type = "blob"`/`"container"` na Azure.
 - **Por quê:** vazamento direto de dado; e acesso de terceiro a bucket fora das formas admitidas pela decisão H-02 (a) é reprovado pela regra de integração.
 - **Correção:** Block Public Access nas quatro opções no nível de conta, public access prevention imposto por org policy, `AllowBlobPublicAccess=false`; conteúdo público em bucket separado atrás de CDN; entrega a terceiro por REST ou URL pré-assinada nas restrições do H-02 (a).
-- **Detecção:** `scan.sh O-01` (estática em IaC); ferramenta — Checkov CKV2_AWS_6, CKV_AWS_20/53/54/55/56/57/70, CKV_GCP_28/29/114, CKV_AZURE_34/59/190; runtime — `aws s3api get-public-access-block`, IAM Access Analyzer, `gcloud storage buckets describe ... publicAccessPrevention`, Resource Graph `allowBlobPublicAccess`.
+- **Detecção:** `scan.sh O-01` (estática em IaC: as formas do Sintoma; `Principal "*"` em arquivo com `Condition` — endpoint de VPC, organização, conta de origem — fica para a revisão, porque a condição pode torná-lo privado); ferramenta — Checkov CKV2_AWS_6, CKV_AWS_20/53/54/55/56/57/70, CKV_GCP_28/29/114, CKV_AZURE_34/59/190; runtime — `aws s3api get-public-access-block`, IAM Access Analyzer, `gcloud storage buckets describe ... publicAccessPrevention`, Resource Graph `allowBlobPublicAccess`.
 - **Evidência:** [2F] S3 Block Public Access, GCS public access prevention, Azure.
 
 ### O-02 — URL pré-assinada ou SAS longa ou ampla
 - **Sintoma:** `ExpiresIn: 604800`; SAS de conta ou de contêiner; URL enviada a parceiro por e-mail valendo dias.
 - **Por quê:** a URL é bearer token: quem a tem lê o objeto até expirar. Para terceiro, a decisão H-02 (a) só admite HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão e bucket privado.
 - **Correção:** expiração em minutos, um objeto e um método, restrição por `s3:signatureAge` e origem; user delegation SAS; emissão por endpoint REST autenticado com log.
-- **Detecção:** `scan.sh O-02` (estática em código: expiração com 4+ dígitos em segundos; revisar acima de 900–3600 s); ferramenta — Checkov CKV2_AZURE_40; revisão — `generate_(account|container)_sas|AccountSasBuilder`.
+- **Detecção:** `scan.sh O-02` (estática em código: expiração com 4+ dígitos em segundos, produto aritmético com duas multiplicações — `60 * 60 * 24` —, `Duration.ofDays`/`ofHours` em presign e `AddDays`/`AddHours` em SAS; linhas de JWT — `jwt`, `jsonwebtoken`, `jose` — ficam fora; revisar acima de 900–3600 s); ferramenta — Checkov CKV2_AZURE_40; revisão — `generate_(account|container)_sas|AccountSasBuilder`.
 - **Evidência:** [2F] S3 e GCS presigned URLs, Azure SAS; limiar [Heurística].
 
 ### O-03 — Multipart órfão
@@ -75,7 +75,7 @@ Cada entrada tem cinco campos. `Detecção` usa um de quatro rótulos: `scan.sh 
 - **Evidência:** [J] escrita condicional existe (anúncios AWS 2024–2025); detector [Heurística].
 
 ### O-11 — MinIO comunitário arquivado em produção
-- **Sintoma:** `image: minio/minio` em compose, Helm ou Dockerfile.
+- **Sintoma:** `image: minio/minio` em compose, Helm ou Dockerfile, com ou sem registry antes do nome (`quay.io/minio/minio`, `docker.io/minio/minio`).
 - **Por quê:** a edição comunitária está em modo de manutenção desde 2025 e o repositório foi arquivado em 25/04/2026: sem correção de segurança.
 - **Correção:** plano de migração para alternativa mantida ou suporte comercial; imagem com data de tag e dono.
 - **Detecção:** `scan.sh O-11` (estática em IaC, compose e Dockerfile).
@@ -91,7 +91,7 @@ Cada entrada tem cinco campos. `Detecção` usa um de quatro rótulos: `scan.sh 
 ### O-13 — Bronze mutável
 - **Sintoma:** job que faz `overwrite`, `MERGE INTO` ou `DELETE FROM` na zona raw ou bronze.
 - **Por quê:** o bronze é o registro imutável do que chegou; sem ele não há reprocessamento nem auditoria.
-- **Correção:** append-only no bronze; correção e dedupe na silver; política que nega `DeleteObject` no prefixo bruto.
+- **Correção:** append-only no bronze; correção e dedupe na silver; política que nega `DeleteObject` no prefixo bruto, **exceto** no prefixo que recebe dado de cartão ou pessoal sujeito a eliminação: lá o ciclo de vida expira o objeto no prazo da política de retenção, e a eliminação segura (PCI DSS 3.2.1, LGPD) prevalece sobre a imutabilidade (T-03).
 - **Detecção:** `scan.sh O-13` (estática em código e `*.sql`: escrita destrutiva na mesma linha que `raw`/`bronze` como palavra); revisão — ausência de política negando `DeleteObject` no prefixo.
 - **Evidência:** [2F] princípio (Databricks e Fabric); detector [Heurística].
 
@@ -105,6 +105,6 @@ Cada entrada tem cinco campos. `Detecção` usa um de quatro rótulos: `scan.sh 
 ### T-03 — Bucket bronze com dado de cartão
 - **Sintoma:** arquivo bruto de adquirente ou gateway com PAN em claro no bronze.
 - **Por quê:** bronze que recebe CHD está no ambiente de dados de cartão e precisa de PAN ilegível onde estiver armazenado (PCI DSS 3.5.1).
-- **Correção:** criptografia com chave do cliente e acesso restrito no bronze; tokenizar ou mascarar PAN ao sair dele; bronze com CHD no inventário do CDE.
+- **Correção:** tokenizar na borda de ingestão, antes de gravar no bronze: o bronze de fonte com CHD recebe só o token, e o arquivo original com PAN nunca chega ao lake. Quando a tokenização na borda for inviável (arquivo de adquirente que precisa ser guardado como chegou), criptografia em nível de campo ou de arquivo com chave gerida fora do lake (KMS ou HSM do CDE), de modo que o SSE do bucket não seja o único controle — SSE-KMS/CMEK é criptografia transparente no nível de armazenamento e, pelo PCI DSS 3.5.1.2, não basta sozinha em mídia não removível. Chave por lote ou por período para permitir crypto-shredding; ciclo de vida com expiração alinhada à política de retenção (PCI DSS 3.2.1), e o prefixo com CHD isento do deny-`DeleteObject` do O-13; bronze com CHD no inventário do CDE.
 - **Detecção:** revisão — origem do arquivo e classificação no `data-classification.json`; runtime — DLP amostral com regex de PAN e Luhn.
-- **Evidência:** [Interp.] apoiada em PCI DSS 3.5.1 (base §7.1) — validar com o QSA.
+- **Evidência:** [Interp.] apoiada em PCI DSS 3.5.1 (base §7.1); [1F] PCI DSS v4.0.1 3.2.1 (retenção e descarte) e 3.5.1.2 (criptografia transparente de disco ou partição não basta sozinha em mídia não removível) — validar com o QSA.

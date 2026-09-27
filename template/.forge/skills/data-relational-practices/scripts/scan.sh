@@ -29,6 +29,10 @@ UNIVERSO="sql codigo iac"
 # diferentes e o relatório mudaria conforme a máquina. Aqui o `find` decide O QUE é examinado (mesmo filtro de
 # diretório nos dois casos, inclusive os worktrees aninhados de .forge/worktrees e .claude/worktrees, que num checkout
 # principal somam a maior parte dos arquivos), e o motor só decide ONDE casa, sobre a lista explícita de arquivos.
+# A maquinaria do harness também fica fora (.forge/{agents,adapters,capabilities,commands,contracts,evals,graph,hooks,
+# ledger,liaison,rules,schemas,scripts,skills,templates}, .claude e .agents): numa instalação nova ela é tudo o que
+# existe, e o schema de classificação do próprio harness virava achado de T-02. .forge/specs e .forge/product ficam
+# dentro, porque são do projeto. Um --root que aponta explicitamente para dentro de um desses diretórios é respeitado.
 # O `rg` roda com --no-unicode (sem ele, uma classe negada não casa byte UTF-8 inválido e o grep em C casa) e
 # --no-config (um RIPGREP_CONFIG_PATH do operador mudaria a saída). Padrões sem \b, que o grep BSD não reconhece:
 # fronteira sempre por classe explícita. Toda saída passa por LC_ALL=C sort antes de ser contada e emitida.
@@ -71,7 +75,11 @@ for _r in "${RAIZES[@]}"; do
   else
     find "$_r" -mindepth 1 \( -type d \( -name node_modules -o -name dist -o -name build -o -name .git -o -name vendor \
       -o -name target -o -name .venv -o -name coverage -o -name generated -o -path '*/.forge/worktrees' \
-      -o -path '*/.claude/worktrees' \) -prune \) -o -type f -print
+      -o -path '*/.claude' -o -path '*/.agents' -o -path '*/.forge/agents' -o -path '*/.forge/adapters' \
+      -o -path '*/.forge/capabilities' -o -path '*/.forge/commands' -o -path '*/.forge/contracts' \
+      -o -path '*/.forge/evals' -o -path '*/.forge/graph' -o -path '*/.forge/hooks' -o -path '*/.forge/ledger' \
+      -o -path '*/.forge/liaison' -o -path '*/.forge/rules' -o -path '*/.forge/schemas' -o -path '*/.forge/scripts' \
+      -o -path '*/.forge/skills' -o -path '*/.forge/templates' \) -prune \) -o -type f -print
   fi
 done > "$TMP/brutos"
 sed -e 's#^\./##' -e 's#//*#/#g' "$TMP/brutos" | LC_ALL=C sort -u > "$TMP/todos"
@@ -238,11 +246,29 @@ fim() {
 inicio
 
 # >>> R-03
+# Arquivo de migração MySQL (marcas do dialeto) sai do trecho de índice: no MySQL 8.x o índice secundário é INPLACE e
+# online, e quem cobre o MySQL é a R-13 (COPY/LOCK forçado) e a R-22 (ALGORITHM/LOCK não explícitos).
+MYSQL_MARCAS='engine[[:space:]]*=|auto_increment|algorithm[[:space:]]*=|`[a-z_][a-z0-9_]*`[[:space:]]*\('
 r_R_03() {
-  linhas -i -X 'concurrently' sql 'create[[:space:]]+(unique[[:space:]]+)?index[[:space:]]'
-  linhas -i sql 'alter[[:space:]]+column[[:space:]]+[^[:space:]]+[[:space:]]+(set[[:space:]]+data[[:space:]]+)?type[[:space:]]|rename[[:space:]]+(column|to)[[:space:]]|set[[:space:]]+not[[:space:]]+null'
+  local my criadas vc; my="$(tmpf)"; criadas="$(tmpf)"; vc="$(tmpf)"
+  arquivos_com -i sql "$MYSQL_MARCAS" > "$my"
+  arquivos_com -i sql 'validate[[:space:]]+constraint' > "$vc"
+  # tabelas criadas no próprio arquivo: índice sobre tabela nova não trava ninguém (ela ainda não tem tráfego).
+  linhas -i sql 'create[[:space:]]+table[[:space:]]' \
+    | LC_ALL=C awk -F'\t' '{ t = tolower($3); sub(/.*create[[:space:]]+table[[:space:]]+(if[[:space:]]+not[[:space:]]+exists[[:space:]]+)?/, "", t)
+        gsub(/"/, "", t); sub(/[[:space:](].*/, "", t); sub(/.*\./, "", t); if (t != "") print $1 "\t" t }' > "$criadas"
+  linhas -i -X 'concurrently' sql 'create[[:space:]]+(unique[[:space:]]+)?index[[:space:]]' | exceto_arquivos "$my" \
+    | C="$criadas" LC_ALL=C awk -F'\t' 'BEGIN { while ((getline l < ENVIRON["C"]) > 0) { split(l, a, "\t"); nova[a[1] "\t" a[2]] = 1 } }
+        { t = tolower($3); if (match(t, /[[:space:]]on[[:space:]]+(only[[:space:]]+)?[^[:space:](]+/)) {
+            u = substr(t, RSTART, RLENGTH); sub(/^[[:space:]]on[[:space:]]+(only[[:space:]]+)?/, "", u); gsub(/"/, "", u); sub(/.*\./, "", u)
+            if (($1 "\t" u) in nova) next }
+          print }'
+  linhas -i sql 'alter[[:space:]]+column[[:space:]]+[^[:space:]]+[[:space:]]+(set[[:space:]]+data[[:space:]]+)?type[[:space:]]|rename[[:space:]]+(column|to)[[:space:]]'
+  # SET NOT NULL precedido do padrão seguro (CHECK ... NOT VALID e VALIDATE CONSTRAINT no mesmo arquivo) não varre a
+  # tabela sob ACCESS EXCLUSIVE: o PostgreSQL 12+ usa a constraint validada como prova.
+  linhas -i sql 'set[[:space:]]+not[[:space:]]+null' | exceto_arquivos "$vc"
 }
-regra R-03 alto "migração bloqueante: índice sem CONCURRENTLY, troca de tipo, rename in-place ou SET NOT NULL direto travam a tabela com a aplicação no ar" r_R_03
+regra R-03 alto "migração bloqueante: índice sem CONCURRENTLY em tabela existente, troca de tipo, rename in-place ou SET NOT NULL sem VALIDATE CONSTRAINT antes travam a tabela com a aplicação no ar" r_R_03
 # <<< R-03
 
 # >>> R-04
@@ -269,8 +295,12 @@ regra R-10 alto "NOLOCK/READ UNCOMMITTED lê dado não confirmado, linha duplica
 # >>> R-12
 r_R_12() {
   linhas codigo '[Ss][Ee][Tt][[:space:]]+search_path|(^|[^A-Za-z0-9_])LISTEN[[:space:]]+[A-Za-z_"]|pg_advisory_lock\('
+  # GUC custom de sessão (app.tenant_id) sem LOCAL, e set_config(..., false), que vale para a sessão inteira: com pool
+  # que reaproveita a conexão, o tenant de uma requisição vaza para a próxima e a policy de RLS lê o valor errado.
+  linhas codigo '(^|[^A-Za-z0-9_])[Ss][Ee][Tt][[:space:]]+([Ss][Ee][Ss][Ss][Ii][Oo][Nn][[:space:]]+)?[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*[[:space:]]*(=|[Tt][Oo][[:space:]])'
+  linhas -i codigo 'set_config\([^)]*,[[:space:]]*false[[:space:]]*\)'
 }
-regra R-12 aviso "SET de sessão, LISTEN e advisory lock de sessão quebram atrás de PgBouncer em modo transaction (só é defeito nesse modo)" r_R_12
+regra R-12 aviso "estado de sessão com pool: SET de GUC sem LOCAL, set_config(..., false), search_path, LISTEN e advisory lock de sessão vazam entre requisições (tenant da RLS inclusive) ou quebram atrás de PgBouncer em modo transaction" r_R_12
 # <<< R-12
 
 # >>> R-13
@@ -305,19 +335,24 @@ regra R-18 aviso "regra de rede aberta a 0.0.0.0/0 no mesmo arquivo que a porta 
 
 # >>> R-19
 r_R_19() {
-  linhas -i sql '[a-z_]*(valor|amount|price|preco|total|saldo|balance|fee|tarifa)[a-z_]*"?[[:space:]]+(numeric|decimal)'
+  linhas -i sql '[a-z_]*(valor|amount|price|preco|total|saldo|balance|fee|tarifa)[a-z_]*"?[[:space:]]+(numeric|decimal|real|float[0-9]*|double[[:space:]]+precision)([^a-z0-9_]|$)'
 }
-regra R-19 aviso "coluna de nome monetário tipada NUMERIC/DECIMAL: a regra da casa (money-as-cents.md) manda BIGINT NOT NULL na menor unidade" r_R_19
+regra R-19 aviso "coluna de nome monetário tipada NUMERIC, DECIMAL ou ponto flutuante (real, float, double precision): a regra da casa (money-as-cents.md) manda BIGINT NOT NULL na menor unidade, e flutuante nem é exato" r_R_19
 # <<< R-19
 
 # >>> R-20
 r_R_20() {
-  local ct rls; ct="$(tmpf)"; rls="$(tmpf)"
+  local ct rls force; ct="$(tmpf)"; rls="$(tmpf)"; force="$(tmpf)"
   arquivos_com -i sql 'create[[:space:]]+table' > "$ct"
   arquivos_com -i sql 'enable[[:space:]]+row[[:space:]]+level[[:space:]]+security' > "$rls"
+  arquivos_com -i sql 'force[[:space:]]+row[[:space:]]+level[[:space:]]+security' > "$force"
   linhas -i sql '(^|[^a-z0-9_])tenant_id"?[[:space:]]+[a-z]' | so_arquivos "$ct" | exceto_arquivos "$rls"
+  # ENABLE sem FORCE: o dono da tabela (a aplicação, quando conecta com o papel que roda a migração) ignora a policy.
+  linhas -i sql 'enable[[:space:]]+row[[:space:]]+level[[:space:]]+security' | exceto_arquivos "$force"
+  # papel com BYPASSRLS ignora toda policy (NOBYPASSRLS é o correto e não casa pela fronteira).
+  linhas -i sql '(^|[^a-z0-9_])bypassrls([^a-z0-9_]|$)'
 }
-regra R-20 aviso "tabela multi-tenant (tenant_id) sem ENABLE ROW LEVEL SECURITY no mesmo arquivo: RLS é obrigatório pela data-governance.md (pode estar noutra migração; confira)" r_R_20
+regra R-20 aviso "RLS incompleto: tabela multi-tenant (tenant_id) sem ENABLE ROW LEVEL SECURITY no arquivo, ENABLE sem FORCE ROW LEVEL SECURITY (o dono da tabela ignora a policy) ou papel com BYPASSRLS; RLS é obrigatório pela data-governance.md (pode estar noutra migração; confira)" r_R_20
 # <<< R-20
 
 # >>> R-21
@@ -328,5 +363,14 @@ r_R_21() {
 }
 regra R-21 aviso "migração com ALTER TABLE ou CREATE INDEX sem lock_timeout na sessão: um lock em espera enfileira todo o tráfego atrás dele" r_R_21
 # <<< R-21
+
+# >>> R-22
+r_R_22() {
+  local my; my="$(tmpf)"
+  arquivos_com -i sql "$MYSQL_MARCAS" > "$my"
+  linhas -i -X 'algorithm[[:space:]]*=|concurrently' sql 'create[[:space:]]+(unique[[:space:]]+)?index[[:space:]]|add[[:space:]]+(unique[[:space:]]+)?(index|key)[[:space:]]' | so_arquivos "$my"
+}
+regra R-22 aviso "índice em migração MySQL sem ALGORITHM=INPLACE, LOCK=NONE explícitos: com eles o MySQL recusa a DDL em vez de cair em cópia bloqueante em silêncio" r_R_22
+# <<< R-22
 
 fim

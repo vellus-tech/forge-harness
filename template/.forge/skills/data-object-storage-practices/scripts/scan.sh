@@ -29,6 +29,10 @@ UNIVERSO="codigo iac sql"
 # diferentes e o relatório mudaria conforme a máquina. Aqui o `find` decide O QUE é examinado (mesmo filtro de
 # diretório nos dois casos, inclusive os worktrees aninhados de .forge/worktrees e .claude/worktrees, que num checkout
 # principal somam a maior parte dos arquivos), e o motor só decide ONDE casa, sobre a lista explícita de arquivos.
+# A maquinaria do harness também fica fora (.forge/{agents,adapters,capabilities,commands,contracts,evals,graph,hooks,
+# ledger,liaison,rules,schemas,scripts,skills,templates}, .claude e .agents): numa instalação nova ela é tudo o que
+# existe, e o schema de classificação do próprio harness virava achado de T-02. .forge/specs e .forge/product ficam
+# dentro, porque são do projeto. Um --root que aponta explicitamente para dentro de um desses diretórios é respeitado.
 # O `rg` roda com --no-unicode (sem ele, uma classe negada não casa byte UTF-8 inválido e o grep em C casa) e
 # --no-config (um RIPGREP_CONFIG_PATH do operador mudaria a saída). Padrões sem \b, que o grep BSD não reconhece:
 # fronteira sempre por classe explícita. Toda saída passa por LC_ALL=C sort antes de ser contada e emitida.
@@ -71,7 +75,11 @@ for _r in "${RAIZES[@]}"; do
   else
     find "$_r" -mindepth 1 \( -type d \( -name node_modules -o -name dist -o -name build -o -name .git -o -name vendor \
       -o -name target -o -name .venv -o -name coverage -o -name generated -o -path '*/.forge/worktrees' \
-      -o -path '*/.claude/worktrees' \) -prune \) -o -type f -print
+      -o -path '*/.claude' -o -path '*/.agents' -o -path '*/.forge/agents' -o -path '*/.forge/adapters' \
+      -o -path '*/.forge/capabilities' -o -path '*/.forge/commands' -o -path '*/.forge/contracts' \
+      -o -path '*/.forge/evals' -o -path '*/.forge/graph' -o -path '*/.forge/hooks' -o -path '*/.forge/ledger' \
+      -o -path '*/.forge/liaison' -o -path '*/.forge/rules' -o -path '*/.forge/schemas' -o -path '*/.forge/scripts' \
+      -o -path '*/.forge/skills' -o -path '*/.forge/templates' \) -prune \) -o -type f -print
   fi
 done > "$TMP/brutos"
 sed -e 's#^\./##' -e 's#//*#/#g' "$TMP/brutos" | LC_ALL=C sort -u > "$TMP/todos"
@@ -239,16 +247,25 @@ inicio
 
 # >>> O-01
 r_O_01() {
-  linhas iac 'acl"?[[:space:]]*[=:][[:space:]]*"?public-read|block_public_acls[[:space:]]*=[[:space:]]*false|(^|[^A-Za-z])allUsers([^A-Za-z]|$)|allAuthenticatedUsers|allowBlobPublicAccess"?[[:space:]]*[=:][[:space:]]*"?true|allow_nested_items_to_be_public[[:space:]]*=[[:space:]]*true'
+  local cond; cond="$(tmpf)"
+  linhas iac 'acl"?[[:space:]]*[=:][[:space:]]*"?public-read|(block_public_acls|block_public_policy|ignore_public_acls|restrict_public_buckets)[[:space:]]*=[[:space:]]*false|(BlockPublicAcls|BlockPublicPolicy|IgnorePublicAcls|RestrictPublicBuckets)"?[[:space:]]*:[[:space:]]*"?false|(^|[^A-Za-z])allUsers([^A-Za-z]|$)|allAuthenticatedUsers|allowBlobPublicAccess"?[[:space:]]*[=:][[:space:]]*"?true|allow_nested_items_to_be_public[[:space:]]*=[[:space:]]*true|container_access_type[[:space:]]*=[[:space:]]*"(blob|container)"|publicAccess"?[[:space:]]*:[[:space:]]*"?(Blob|Container)"?'
+  # Principal "*" em policy de bucket é leitura anônima, salvo quando a mesma policy restringe por Condition (endpoint
+  # de VPC, organização, conta de origem): o arquivo com Condition sai deste trecho e fica para a revisão.
+  arquivos_com iac 'Condition|aws:SourceVpce|aws:SourceVpc|aws:PrincipalOrgID|aws:SourceAccount|aws:SourceArn' > "$cond"
+  linhas iac 'Principal"?[[:space:]]*[=:][[:space:]]*"\*"|Principal"?[[:space:]]*[=:][[:space:]]*\{[[:space:]]*"?AWS"?[[:space:]]*[=:][[:space:]]*\[?[[:space:]]*"\*"|identifiers[[:space:]]*=[[:space:]]*\[[[:space:]]*"\*"[[:space:]]*\]' | exceto_arquivos "$cond"
 }
-regra O-01 alto "bucket ou objeto público: ACL public-read, Block Public Access desligado, allUsers ou acesso anônimo no Azure" r_O_01
+regra O-01 alto "bucket ou objeto público: ACL public-read, Block Public Access desligado (qualquer das quatro chaves), policy com Principal * sem Condition, allUsers ou acesso anônimo no Azure (container blob/container)" r_O_01
 # <<< O-01
 
 # >>> O-02
 r_O_02() {
-  linhas codigo '(ExpiresIn|expires_in|expiresIn|Expires)"?[[:space:]]*[:=][[:space:]]*[0-9][0-9][0-9][0-9]'
+  # jwt/jsonwebtoken também usam expiresIn: não é URL pré-assinada.
+  linhas -X 'jwt|jsonwebtoken|jose' codigo '(ExpiresIn|expires_in|expiresIn|Expires)"?[[:space:]]*[:=][[:space:]]*[0-9][0-9][0-9][0-9]'
+  linhas -X 'jwt|jsonwebtoken|jose' codigo '(ExpiresIn|expires_in|expiresIn|Expires)"?[[:space:]]*[:=][[:space:]]*[0-9]+[[:space:]]*\*[[:space:]]*[0-9]+[[:space:]]*\*'
+  # Kotlin/Java (Duration.ofDays/ofHours) e .NET (AddDays/AddHours) na expiração de presign ou SAS.
+  linhas -X 'jwt|jsonwebtoken|jose' codigo '(signatureExpiration|[Pp]resign|ExpiresOn|[Ss]as[A-Z])[^;]*(Duration\.of(Days|Hours)\(|\.Add(Days|Hours)\()'
 }
-regra O-02 aviso "URL pré-assinada com expiração de 4+ dígitos em segundos: é bearer token; para terceiro, só minutos, objeto único e emissão por endpoint REST autenticado (H-02 a)" r_O_02
+regra O-02 aviso "URL pré-assinada ou SAS com expiração em horas ou dias (4+ dígitos em segundos, produto aritmético, Duration.ofDays/ofHours, AddDays/AddHours): é bearer token; para terceiro, só minutos, objeto único e emissão por endpoint REST autenticado (H-02 a)" r_O_02
 # <<< O-02
 
 # >>> O-08
@@ -262,7 +279,8 @@ regra O-08 aviso "SSE-KMS sem Bucket Key no mesmo arquivo: cada objeto chama o K
 
 # >>> O-11
 r_O_11() {
-  linhas iac '(image[[:space:]]*[:=][[:space:]]*"?|FROM[[:space:]]+)(docker\.io/)?minio/minio([:@[:space:]"]|$)'
+  # registry opcional antes do nome (docker.io, quay.io, registry privado).
+  linhas iac '(image[[:space:]]*[:=][[:space:]]*"?|FROM[[:space:]]+)([A-Za-z0-9.-]+\.[A-Za-z]+(:[0-9]+)?/)?minio/minio([:@[:space:]"]|$)'
 }
 regra O-11 alto "imagem minio/minio comunitária: repositório arquivado em 2026 (somente leitura); planeje migração ou suporte comercial" r_O_11
 # <<< O-11

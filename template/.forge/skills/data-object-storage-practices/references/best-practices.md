@@ -72,7 +72,7 @@ Consumidor de evento idempotente (entrega at-least-once, dedupe por `eTag` ou `v
 
 - Bronze imutável no formato original, com acesso restrito; silver e gold em formato de tabela transacional; contêineres ou buckets separados por camada [2F: Databricks e Microsoft Fabric]. Escrita destrutiva (overwrite, MERGE, DELETE) na zona bruta é antipattern (O-13) [2F no princípio].
 - Arquivos de 128 MB a 1 GB nas camadas de consumo (O-12) [1F: Fabric].
-- Bronze que recebe dado de cartão está no CDE e precisa de PAN ilegível (PCI DSS 3.5.1); tokenizar ou mascarar PAN e CPF ao sair do bronze (T-03) [Interp. apoiada em PCI 3.5.1].
+- Bronze que recebe dado de cartão está no CDE e precisa de PAN ilegível (PCI DSS 3.5.1). Tokenize na borda de ingestão, antes de gravar: o bronze de fonte com CHD recebe só o token. Se o arquivo precisa ser guardado como chegou, criptografia em nível de campo ou de arquivo com chave gerida fora do lake, porque SSE-KMS/CMEK sozinho não atende o 3.5.1.2 em mídia não removível; chave por lote para crypto-shredding e ciclo de vida que expira o objeto no prazo de retenção (3.2.1), com o prefixo de CHD isento do deny-`DeleteObject` do bronze (T-03, O-13) [Interp. apoiada em PCI 3.2.1, 3.5.1 e 3.5.1.2; validar com o QSA].
 
 ## Integração com a regra do dono
 

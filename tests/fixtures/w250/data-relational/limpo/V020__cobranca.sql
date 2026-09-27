@@ -11,5 +11,6 @@ CREATE TABLE cobranca (
   sigla varchar(3)
 );
 ALTER TABLE cobranca ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cobranca FORCE ROW LEVEL SECURITY;
 CREATE INDEX CONCURRENTLY idx_cobranca_tenant ON cobranca (tenant_id, id);
 ALTER TABLE pedido ADD COLUMN canal VARCHAR(20), ALGORITHM=INPLACE, LOCK=NONE;

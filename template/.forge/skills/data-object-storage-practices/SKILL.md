@@ -26,7 +26,7 @@ Ordem fixa. É a ordem que torna a resposta auditável.
 
 ## O que o scanner não faz
 
-Ele lê texto: não vê multipart órfão, versões não correntes acumuladas, objeto pequeno transitando para classe fria, loop de evento nem small files — isso é runtime (`list-multipart-uploads`, S3 Inventory, Storage Lens) ou ferramenta (Checkov), documentado no catálogo. `overwrite` num job de silver é legítimo; o detector O-13 só olha a linha que cita `raw` ou `bronze`. O scanner localiza; quem revisa decide.
+Ele lê texto: não vê multipart órfão, versões não correntes acumuladas, objeto pequeno transitando para classe fria, loop de evento nem small files — isso é runtime (`list-multipart-uploads`, S3 Inventory, Storage Lens) ou ferramenta (Checkov), documentado no catálogo. `overwrite` num job de silver é legítimo; o detector O-13 só olha a linha que cita `raw` ou `bronze`. Policy com `Principal "*"` em arquivo com `Condition` fica para a revisão, e `public_network_access_enabled` não é tratado como bucket público (é acesso de rede com credencial, não leitura anônima). A maquinaria do harness (`.forge/agents`, `.forge/scripts`, `.forge/schemas`, `.forge/skills`, `.forge/rules` e afins) e os diretórios de adapter (`.claude` e `.agents`) ficam fora do universo, como os worktrees aninhados: numa instalação nova `--root .` só varre o projeto; `.forge/specs` e `.forge/product` entram. O scanner localiza; quem revisa decide.
 
 ## Referências
 

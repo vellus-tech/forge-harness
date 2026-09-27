@@ -92,23 +92,30 @@ for cand in "$WS/node_modules" \
             "$(dirname "$(git -C "$WS" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || echo /nao-existe/.git)")/node_modules"; do
   if [ -f "$cand/yaml/package.json" ]; then YAML_MOD="$cand/yaml"; break; fi
 done
+# W250_FORCAR_SEM_YAML=1 simula a instalação sem o pacote (clone novo sem node_modules): é o que o [21] usa para provar
+# que dependência ausente sai 127 e nunca 1 (REQ-08, critério 3).
+[ "${W250_FORCAR_SEM_YAML:-}" = 1 ] && YAML_MOD=""
+# Caminho absoluto deste arquivo, para o [21] reexecutar o próprio gate (inclusive uma cópia mutada dele).
+SELF="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
 
 # ── tabelas do design (§2.5) ────────────────────────────────────────────────────────────────────────────────────────
 # regras_estaticas <esp> — "ID severidade" de cada regra que o scan.sh da skill executa.
 regras_estaticas() {
   case "$1" in
     data-relational) printf '%s\n' "R-03 alto" "R-04 aviso" "R-06 aviso" "R-10 alto" "R-12 aviso" "R-13 alto" "R-14 aviso" \
-                       "R-17 aviso" "R-18 aviso" "R-19 aviso" "R-20 aviso" "R-21 aviso" ;;
+                       "R-17 aviso" "R-18 aviso" "R-19 aviso" "R-20 aviso" "R-21 aviso" "R-22 aviso" ;;
     data-nosql) printf '%s\n' "N-01 aviso" "N-04 aviso" "N-06 aviso" "N-07 alto" "N-08 aviso" "N-09 aviso" "N-10 aviso" \
-                  "N-11 alto" "N-13 alto" "N-15 aviso" "N-17 aviso" "N-18 aviso" "N-19 aviso" ;;
-    data-cache) printf '%s\n' "C-02 aviso" "C-08 aviso" "C-09 aviso" "C-10 alto" "C-11 alto" "C-15 aviso" "C-16 aviso" ;;
+                  "N-11 alto" "N-13 alto" "N-15 aviso" "N-17 aviso" "N-18 aviso" "N-19 aviso" "N-20 aviso" \
+                  "N-21 aviso" "N-23 aviso" ;;
+    data-cache) printf '%s\n' "C-02 aviso" "C-08 aviso" "C-09 aviso" "C-10 alto" "C-11 alto" "C-15 aviso" "C-16 aviso" "C-17 aviso" ;;
     data-object-storage) printf '%s\n' "O-01 alto" "O-02 aviso" "O-08 aviso" "O-11 alto" "O-13 aviso" "O-14 aviso" ;;
     data-analytical) printf '%s\n' "A-06 aviso" "A-08 aviso" "A-10 alto" "A-12 aviso" "A-14 alto" ;;
     data-streaming) printf '%s\n' "RMQ-AP-01 alto" "RMQ-AP-03 aviso" "RMQ-AP-04 aviso" "RMQ-AP-06 alto" "RMQ-AP-07 aviso" \
                       "RMQ-AP-08 aviso" "RMQ-AP-09 aviso" "RMQ-AP-10 alto" "RMQ-AP-12 aviso" "RMQ-AP-14 aviso" \
                       "RMQ-AP-15 aviso" "RMQ-AP-17 alto" "RMQ-AP-18 alto" "RMQ-AP-19 aviso" "RMQ-AP-20 aviso" \
+                      "RMQ-AP-22 aviso" "RMQ-AP-28 aviso" \
                       "KFK-AP-01 alto" "KFK-AP-02 alto" "KFK-AP-03 aviso" "KFK-AP-06 alto" "KFK-AP-09 aviso" \
-                      "KFK-AP-10 aviso" "INB-AP-01 aviso" "INB-AP-02 aviso" "D-AP-01 aviso" "D-AP-02 aviso" \
+                      "KFK-AP-10 aviso" "KFK-AP-14 aviso" "INB-AP-01 aviso" "INB-AP-02 aviso" "D-AP-01 aviso" "D-AP-02 aviso" \
                       "D-AP-04 aviso" "D-AP-05 aviso" "SCH-AP-01 alto" "T-02 aviso" ;;
   esac
 }
@@ -118,14 +125,14 @@ regras_estaticas() {
 ids_catalogo() {
   local i
   case "$1" in
-    data-relational) for i in $(seq 1 21); do printf 'R-%02d\n' "$i"; done ;;
-    data-nosql) for i in $(seq 1 19); do printf 'N-%02d\n' "$i"; done ;;
-    data-cache) for i in $(seq 1 16); do printf 'C-%02d\n' "$i"; done; echo "T-01"; echo "T-04" ;;
+    data-relational) for i in $(seq 1 22); do printf 'R-%02d\n' "$i"; done ;;
+    data-nosql) for i in $(seq 1 23); do printf 'N-%02d\n' "$i"; done ;;
+    data-cache) for i in $(seq 1 17); do printf 'C-%02d\n' "$i"; done; echo "T-01"; echo "T-04" ;;
     data-object-storage) for i in $(seq 1 14); do printf 'O-%02d\n' "$i"; done; echo "T-03" ;;
-    data-analytical) for i in $(seq 1 14); do printf 'A-%02d\n' "$i"; done ;;
+    data-analytical) for i in $(seq 1 16); do printf 'A-%02d\n' "$i"; done ;;
     data-streaming)
-      for i in $(seq 1 20); do printf 'RMQ-AP-%02d\n' "$i"; done
-      for i in $(seq 1 10); do printf 'KFK-AP-%02d\n' "$i"; done
+      for i in $(seq 1 28); do printf 'RMQ-AP-%02d\n' "$i"; done
+      for i in $(seq 1 15); do printf 'KFK-AP-%02d\n' "$i"; done
       for i in $(seq 1 5); do printf 'D-AP-%02d\n' "$i"; done
       echo "T-02"; echo "SCH-AP-01"; echo "INB-AP-01"; echo "INB-AP-02"; echo "OBX-AP-01"; echo "CDC-AP-01"
       echo "FAMILIA:SCH-AP-"; echo "FAMILIA:INB-AP-"; echo "FAMILIA:OBX-AP-"; echo "FAMILIA:CDC-AP-" ;;
@@ -371,11 +378,11 @@ if (modo === "rmq") { // [9]
     for (const [a, b] of pares) if (!plat.split("\n").some((l) => l.includes(a) && l.includes(b) && l.includes("[J]"))) fail(`[9] fato de plataforma ausente em 'Plataforma 4.x': par (${a}, ${b}) com [J] na mesma linha`);
   }
   const bpIds = new Set([...bp.matchAll(/RMQ-BP-(\d{2})/g)].map((m) => +m[1]));
-  for (let i = 1; i <= 17; i++) if (!bpIds.has(i)) fail(`[9] best-practices.md sem RMQ-BP-${String(i).padStart(2, "0")}`);
-  for (const i of bpIds) if (i < 1 || i > 17) fail(`[9] best-practices.md com RMQ-BP-${i} fora de 01..17`);
+  for (let i = 1; i <= 24; i++) if (!bpIds.has(i)) fail(`[9] best-practices.md sem RMQ-BP-${String(i).padStart(2, "0")}`);
+  for (const i of bpIds) if (i < 1 || i > 24) fail(`[9] best-practices.md com RMQ-BP-${i} fora de 01..24`);
   const apIds = new Set([...ap.matchAll(/^### RMQ-AP-(\d{2}) — /gm)].map((m) => +m[1]));
-  for (let i = 1; i <= 20; i++) if (!apIds.has(i)) fail(`[9] antipatterns.md sem RMQ-AP-${String(i).padStart(2, "0")}`);
-  for (const i of apIds) if (i < 1 || i > 20) fail(`[9] antipatterns.md com RMQ-AP-${i} fora de 01..20`);
+  for (let i = 1; i <= 28; i++) if (!apIds.has(i)) fail(`[9] antipatterns.md sem RMQ-AP-${String(i).padStart(2, "0")}`);
+  for (const i of apIds) if (i < 1 || i > 28) fail(`[9] antipatterns.md com RMQ-AP-${i} fora de 01..28`);
   console.log(out.join("\n")); process.exit(0);
 }
 
@@ -1083,11 +1090,19 @@ mutacao() { # mutacao <letra> <arquivo-rel> <perl-subst> <funcao> <alvo-esperado
   local L="$1" rel="$2" sub="$3" fn="$4" alvo="$5" c="$TMPD/14-copia" out r
   [ -f "$TEMPLATE/$rel" ] || { echo "FAIL [14]($L) alvo da mutação ausente: $rel"; return 1; }
   $fn "$c" > "$TMPD/14-controle.txt" 2>&1 || { echo "FAIL [14]($L) controle: a cópia íntegra já reprova em $fn"; sed 's/^/      /' "$TMPD/14-controle.txt" | head -5; return 1; }
+  # Cenário sem a dependência (pacote yaml) não aprova nem reprova: a mutação dele também não pode ser provada, e ler
+  # esse "não verificado" como "mutação não detectada" transformaria dependência ausente em FAIL (rc 1 em vez de 127).
+  if grep -qE '^(NAO-VERIFICADO|NAOVERIF)' "$TMPD/14-controle.txt"; then
+    echo "NAO-VERIFICADO [14]($L) $fn sem dependência no controle — a mutação de $rel não pode ser provada"; return 0
+  fi
   perl -0pi -e "$sub" "$c/$rel"
   cmp -s "$TEMPLATE/$rel" "$c/$rel" && { echo "FAIL [14]($L) a mutação não alterou $rel (padrão não casou)"; return 1; }
   out="$($fn "$c" 2>&1)"; r=$?
   cp "$TEMPLATE/$rel" "$c/$rel"
   cmp -s "$TEMPLATE/$rel" "$c/$rel" || { echo "FAIL [14]($L) restauração de $rel não é byte-idêntica"; return 1; }
+  if printf '%s\n' "$out" | grep -qE '^(NAO-VERIFICADO|NAOVERIF)'; then
+    echo "NAO-VERIFICADO [14]($L) $fn sem dependência na execução mutada — a mutação de $rel não pode ser provada"; return 0
+  fi
   if [ "$r" -eq 0 ] || ! printf '%s\n' "$out" | grep -q '^FAIL' || ! printf '%s\n' "$out" | grep '^FAIL' | grep -qF -- "$alvo"; then
     echo "FAIL [14]($L) mutação em $rel não fez $fn reprovar nomeando '$alvo' (rc $r)"; printf '%s\n' "$out" | grep '^FAIL' | head -3 | sed 's/^/      /'; return 1
   fi
@@ -1112,6 +1127,8 @@ confere_14() {
 cenario() { # cenario <n> <descrição> <funcao> [args]
   local n="$1" desc="$2" fn="$3" saida r
   shift 3
+  # W250_CENARIOS="<n> <n> ..." restringe a execução (uso do [21]); vazio roda todos.
+  if [ -n "${W250_CENARIOS:-}" ] && ! printf ' %s ' "$W250_CENARIOS" | grep -qF " $n "; then return 0; fi
   echo "[$n] $desc"
   saida="$($fn "$@" 2>&1)"; r=$?
   [ -n "$saida" ] && printf '%s\n' "$saida"

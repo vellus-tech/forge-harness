@@ -24,10 +24,10 @@ Ordem fixa. É a ordem que torna a resposta auditável.
 
 ## O que o scanner não faz
 
-Ele lê texto: não verifica grão, sobreposição de SCD2, chave de grão sem teste, modelo público sem contrato nem tamanho de partição — isso é consulta de runtime ou ferramenta (dbt-project-evaluator, SQLFluff), documentado no catálogo. O scanner localiza; quem revisa decide.
+Ele lê texto: não verifica grão, sobreposição de SCD2, chave de grão sem teste, modelo público sem contrato nem tamanho de partição, nem se a eliminação do titular chegou ao time travel (A-15) — isso é consulta de runtime ou ferramenta (dbt-project-evaluator, SQLFluff), documentado no catálogo. A maquinaria do harness (`.forge/agents`, `.forge/scripts`, `.forge/schemas`, `.forge/skills`, `.forge/rules` e afins) e os diretórios de adapter (`.claude` e `.agents`) ficam fora do universo, como os worktrees aninhados: numa instalação nova `--root .` só varre o projeto; `.forge/specs` e `.forge/product` entram. O scanner localiza; quem revisa decide.
 
 ## Referências
 
 - `references/best-practices.md` — modelagem dimensional, SCD, warehouse e lakehouse, formatos colunares, particionamento e clustering, manutenção, dbt e contratos, com fonte e marca de evidência.
-- `references/antipatterns.md` — catálogo A-01 a A-14.
+- `references/antipatterns.md` — catálogo A-01 a A-16.
 - `scripts/scan.sh` — detecção estática de A-06, A-08, A-10, A-12 e A-14; contrato em `--help`.

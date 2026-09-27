@@ -26,10 +26,10 @@ Ordem fixa. É a ordem que torna a resposta auditável.
 
 ## O que o scanner não faz
 
-Ele lê texto: não vê fila sem limite, fila longa, DLQ sem consumidor, canal compartilhado entre threads, slot de replicação retendo WAL, subject em modo NONE nem consumidor de fora do domínio num tópico de CDC — isso é runtime (`rabbitmqctl`, API HTTP de gestão, `pg_replication_slots`, Schema Registry) ou revisão, documentado no catálogo. Os padrões de API de cliente são heurísticos por linguagem (amqplib e Spring confirmados; Java, pika, Go e .NET por conhecimento prévio). O scanner localiza; quem revisa decide.
+Ele lê texto: não vê fila sem limite, fila longa, DLQ sem consumidor, `delivery-limit` sem DLX, `consumer_timeout` curto para o job, publicador sem handler de `connection.blocked`, lag de consumidor, canal compartilhado entre threads, slot de replicação retendo WAL, subject em modo NONE nem consumidor de fora do domínio num tópico de CDC — isso é runtime (`rabbitmqctl`, API HTTP de gestão, `pg_replication_slots`, Schema Registry) ou revisão, documentado no catálogo. Os padrões de API de cliente são heurísticos por linguagem (amqplib e Spring confirmados; Java, pika, Go e .NET por conhecimento prévio). A maquinaria do harness (`.forge/agents`, `.forge/scripts`, `.forge/schemas`, `.forge/skills`, `.forge/rules` e afins) e os diretórios de adapter (`.claude` e `.agents`) ficam fora do universo, como os worktrees aninhados: numa instalação nova `--root .` só varre o projeto; `.forge/specs` e `.forge/product` entram. O scanner localiza; quem revisa decide.
 
 ## Referências
 
-- `references/best-practices.md` — `## RabbitMQ` (13 subseções, RMQ-BP-01 a RMQ-BP-17, receita de referência), `## Kafka` (KFK-BP-01 a KFK-BP-09), `## Padrões de integração`, `## Escolha de transporte` e dado sensível, com fonte e marca de evidência.
+- `references/best-practices.md` — `## RabbitMQ` (13 subseções, RMQ-BP-01 a RMQ-BP-24, receita de referência), `## Kafka` (KFK-BP-01 a KFK-BP-13), `## Padrões de integração`, `## Escolha de transporte` e dado sensível, com fonte e marca de evidência.
 - `references/antipatterns.md` — catálogo RMQ-AP, KFK-AP, D-AP, T-02, SCH-AP, INB-AP, OBX-AP e CDC-AP.
-- `scripts/scan.sh` — detecção estática das 29 regras com `Detecção: scan.sh <ID>`; contrato em `--help`.
+- `scripts/scan.sh` — detecção estática das 32 regras com `Detecção: scan.sh <ID>`; contrato em `--help`.

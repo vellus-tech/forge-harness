@@ -38,6 +38,8 @@ Comece pela camada barata e determinística, nesta ordem: `bash .forge/scripts/d
 
 Rode os comandos declarados em `FORGE.md`; na ausência deles, proponha `dotnet build` e `dotnet test` sem executá-los se o ambiente não estiver preparado. Para mudança de schema, aplique `data/schema-evolution.md`. Para API, teste contrato HTTP e autorização. Para domínio, aplique TDD e PBT quando houver propriedades matemáticas.
 
+Persistência relacional: o catálogo de antipatterns e a varredura estática da skill `data-relational-practices` (`bash .forge/skills/data-relational-practices/scripts/scan.sh --root <path>`, uma linha por regra, achado com `arquivo:linha`) cobrem migração bloqueante, tipos, OFFSET profundo, NOLOCK, dinheiro em `NUMERIC` e tabela multi-tenant sem RLS; decisão de desenho de dados (modelo, store, chave, isolamento) vai ao agente `data-engineer`, que delega ao `data-relational`.
+
 ## Não fazer
 
 - Não usar `latest` como versão de pacote ou imagem.

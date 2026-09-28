@@ -1,0 +1,4 @@
+services:
+  pagamentos:
+    expose:
+      - "50051"

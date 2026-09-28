@@ -15,6 +15,9 @@
 #   [6] ESTE repositório passa: tests/run-all.sh é de fato invocado pelos pontos de entrada
 #   [7] os gates de w144–w147 e da leva w190–w198 estão dentro da rede que run-all.sh executa
 set -uo pipefail
+# Isolamento git (LDG-0201): GIT_DIR herdado do ambiente faria os comandos git abaixo
+# obedecerem ao repositório de quem invocou o gate, e não ao repositório sintético criado aqui.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CHECK="$WS/template/.forge/scripts/check-suite-wiring.sh"

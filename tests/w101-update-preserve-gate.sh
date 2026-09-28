@@ -8,6 +8,9 @@
 #   [4] script (maquinaria própria) com fix local e --overwrite-drift → sobrescrito COM aviso de drift (sem a flag, a deriva local é preservada — revisão da DH-1, provada no w239)
 #   [5] dry-run marca "= <rel> (preservado — customização local)" e não escreve
 set -euo pipefail
+# Isolamento git (LDG-0201): GIT_DIR herdado do ambiente faria os comandos git abaixo
+# obedecerem ao repositório de quem invocou o gate, e não ao repositório sintético criado aqui.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 T="$(mktemp -d /tmp/forge-w101.XXXXXX)"

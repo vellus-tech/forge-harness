@@ -21,6 +21,15 @@
 # "rodei e passou" não podem terminar no mesmo silêncio: é o defeito canônico que a suíte deste
 # harness existe para eliminar, e ele seria reintroduzido aqui por um runner mudo.
 set -uo pipefail
+# Isolamento git (LDG-0201): GIT_DIR herdado do ambiente (de uma sessão paralela mal isolada) faria
+# os testes que criam repositório git temporário obedecerem ao repositório de quem invocou a suíte,
+# em vez do repositório sintético de cada teste — incidente P1 medido em 2026-09-26. O unset aqui,
+# no processo do runner, cobre todo alvo despachado abaixo mesmo quando o próprio teste não tem
+# preâmbulo equivalente, porque a variável não exportada não chega ao processo-filho.
+# GIT_CONFIG_COUNT e GIT_CONFIG_PARAMETERS ficam FORA do unset de propósito: medido que não
+# redirecionam escrita (o repositório sintético continua sendo o gravado), e carregam config
+# legítima — o `git -c chave=valor` de quem invocou.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 while [ $# -gt 0 ]; do

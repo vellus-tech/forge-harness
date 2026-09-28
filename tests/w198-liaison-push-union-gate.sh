@@ -31,6 +31,9 @@
 #   [6]  contador de controle: universo vazio reprova
 #   [7]  mutação — remover a união do `_dir_push` faz [2] reprovar; restaurar volta a passar
 set -euo pipefail
+# Isolamento git (LDG-0201): GIT_DIR herdado do ambiente faria os comandos git abaixo
+# obedecerem ao repositório de quem invocou o gate, e não ao repositório sintético criado aqui.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 T="$(mktemp -d /tmp/forge-w198.XXXXXX)"

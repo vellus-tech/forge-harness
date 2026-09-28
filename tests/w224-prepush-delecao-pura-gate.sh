@@ -67,6 +67,7 @@
 #       enquanto um push misto continua BLOQUEADO (mutex desligado, isola a variável sob teste)
 #   [10] contador de controle: zero cenário executado reprova
 set -uo pipefail
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 T="$(mktemp -d /tmp/forge-w224.XXXXXX)"

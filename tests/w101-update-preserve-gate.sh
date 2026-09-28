@@ -5,7 +5,7 @@
 #       machinery.lock escrito com hashes do TEMPLATE
 #   [2] com lock: rule NÃO customizada + template muda → sobrescrita (upgrade limpo via lock)
 #   [3] com lock: rule customizada + template muda → PRESERVADA (nunca revertida)
-#   [4] script (maquinaria própria) com fix local → sobrescrito COM aviso de drift
+#   [4] script (maquinaria própria) com fix local e --overwrite-drift → sobrescrito COM aviso de drift (sem a flag, a deriva local é preservada — revisão da DH-1, provada no w239)
 #   [5] dry-run marca "= <rel> (preservado — customização local)" e não escreve
 set -euo pipefail
 # Isolamento git (LDG-0201): GIT_DIR herdado do ambiente faria os comandos git abaixo
@@ -62,9 +62,9 @@ node "$WS/bin/forge.mjs" update --target "$T" --no-plugin --no-backup --source "
 grep -q "= $RULE_REL" "$T/up3.log" || { echo "FAIL [3]: preservação não reportada no update 3"; exit 1; }
 echo "OK [3]"
 
-echo "[4] script com fix local → sobrescrito com WARN de drift"
+echo "[4] script com fix local e --overwrite-drift → sobrescrito com WARN de drift"
 printf '\n# fix local no script (deveria ser upstream)\n' >> "$T/.forge/scripts/handoff-gen.sh"
-node "$WS/bin/forge.mjs" update --target "$T" --no-plugin --no-backup --source "$SRC2" >"$T/up4.log" 2>&1 \
+node "$WS/bin/forge.mjs" update --target "$T" --no-plugin --no-backup --overwrite-drift --source "$SRC2" >"$T/up4.log" 2>&1 \
   || { echo "FAIL (update 4 falhou)"; cat "$T/up4.log"; exit 1; }
 grep -q 'fix local no script' "$T/.forge/scripts/handoff-gen.sh" && { echo "FAIL [4]: script não foi sobrescrito (scripts são maquinaria própria)"; exit 1; }
 grep -q 'WARN: drift local em scripts/handoff-gen.sh' "$T/up4.log" || { echo "FAIL [4]: drift de script sobrescrito sem aviso"; grep -i drift "$T/up4.log"; exit 1; }

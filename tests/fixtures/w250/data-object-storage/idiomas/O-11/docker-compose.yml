@@ -1,0 +1,3 @@
+services: # w250:contexto
+  s3: # w250:contexto
+    image: quay.io/minio/minio:latest

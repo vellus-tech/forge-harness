@@ -1,0 +1,1 @@
+conexao = pika.BlockingConnection(parametros)

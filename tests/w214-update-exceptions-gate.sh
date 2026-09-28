@@ -13,14 +13,12 @@
 #
 #   [1] exceção VIVA (sha declarado == sha do template novo): preserva o arquivo local e nomeia
 #       com `PRESERVADO (exceção declarada)` — mesmo sem machinery.lock (primeiro update)
-#   [2] NÃO declarada: sobrescreve e nomeia com `SOBRESCRITO (não declarado)`, apontando para o
-#       backup real onde o conteúdo anterior sobrevive
+#   [2] NÃO declarada, com --overwrite-drift: sobrescreve e nomeia com `SOBRESCRITO (não declarado)`, apontando para o backup real onde o conteúdo anterior sobrevive (sem a flag, a deriva local é preservada — revisão da DH-1, provada no w239)
 #   [3] EXPIRADA (sha declarado != sha do template novo): preserva mesmo assim (DH-1) e nomeia
 #       com `EXCEÇÃO EXPIRADA`, os dois shas, rc 0 — não bloqueia a fronteira publicada do update
 #   [4] malformada (sha inválido) e duplicada (mesmo caminho duas vezes): param o update ANTES de
 #       escrever qualquer arquivo, a recusa nomeia o número da linha, rc != 0
-#   [5] ausência de `.forge/machinery-exceptions.txt`: comportamento igual ao de antes desta
-#       entrega, mais as linhas `SOBRESCRITO` novas — nada além disso aparece
+#   [5] ausência de `.forge/machinery-exceptions.txt`, com --overwrite-drift: comportamento igual ao de antes desta entrega, mais as linhas `SOBRESCRITO` novas — nada além disso aparece
 #   [6] fixture real: cópia literal do `.forge/machinery-exceptions.txt` do axis-fare-validator
 #       (34 linhas, só leitura em disco, sanitizada por grep prévio — sem PII/segredo) — o parser
 #       aceita as 34 linhas e todas são nomeadas, com rc 0 (a categoria de cada uma — viva ou
@@ -104,10 +102,10 @@ grep -q 'PRESERVADO (exceção declarada): scripts/lib/transports/_common.sh' <<
   || { echo "FAIL [1]: linha PRESERVADO (exceção declarada) ausente"; echo "$out1"; exit 1; }
 echo "OK [1]"
 
-echo "[2] NÃO declarada: sobrescreve e nomeia com o backup real"
+echo "[2] NÃO declarada, com --overwrite-drift: sobrescreve e nomeia com o backup real"
 C2="$(consumidor c2)"
 printf '\n# fix-local-sem-declarar\n' >> "$C2/.forge/scripts/handoff-gen.sh"
-out2="$(node "$FORGE" update --target "$C2" --no-plugin --source "$TPL" 2>&1)"; rc2=$?
+out2="$(node "$FORGE" update --target "$C2" --no-plugin --source "$TPL" --overwrite-drift 2>&1)"; rc2=$?
 [ "$rc2" -eq 0 ] || { echo "FAIL [2]: update saiu rc=$rc2"; echo "$out2"; exit 1; }
 grep -q 'fix-local-sem-declarar' "$C2/.forge/scripts/handoff-gen.sh" \
   && { echo "FAIL [2]: fix local sobreviveu — deveria ter sido sobrescrito (sem exceção declarada)"; exit 1; }
@@ -172,11 +170,11 @@ grep -q 'linhas 1 e 2' <<<"$out4b" || { echo "FAIL [4b]: recusa não nomeia as d
   || { echo "FAIL [4b]: machinery.lock foi escrito mesmo com exceção duplicada"; exit 1; }
 echo "OK [4b]"
 
-echo "[5] ausência de machinery-exceptions.txt: só as linhas SOBRESCRITO são novas"
+echo "[5] ausência de machinery-exceptions.txt, com --overwrite-drift: só as linhas SOBRESCRITO são novas"
 C5="$(consumidor c5)"
 [ ! -f "$C5/.forge/machinery-exceptions.txt" ] || rm -f "$C5/.forge/machinery-exceptions.txt"
 printf '\n# fix-sem-arquivo-de-excecoes\n' >> "$C5/.forge/scripts/handoff-gen.sh"
-out5="$(node "$FORGE" update --target "$C5" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc5=$?
+out5="$(node "$FORGE" update --target "$C5" --no-plugin --no-backup --source "$TPL" --overwrite-drift 2>&1)"; rc5=$?
 [ "$rc5" -eq 0 ] || { echo "FAIL [5]: update sem arquivo de exceções saiu rc=$rc5"; echo "$out5"; exit 1; }
 grep -q 'fix-sem-arquivo-de-excecoes' "$C5/.forge/scripts/handoff-gen.sh" \
   && { echo "FAIL [5]: fix local sobreviveu sem exceção declarada"; exit 1; }
@@ -556,7 +554,8 @@ const prop = (states, flags) => {
 
   let out = '', rc = 0;
   try {
-    out = execFileSync('node', [FORGE, 'update', '--target', dir, '--no-plugin', '--no-backup', '--source', TPL], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    // --overwrite-drift: esta propriedade é a das exceções declaradas (#131) e exercita a sobrescrita nomeada do caminho 'divergente' não declarado (#101); a preservação por deriva local sem a flag (revisão da DH-1) é a propriedade do w239.
+    out = execFileSync('node', [FORGE, 'update', '--target', dir, '--no-plugin', '--no-backup', '--overwrite-drift', '--source', TPL], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
   } catch (e) {
     rc = e.status ?? 1;
     out = (e.stdout || '') + (e.stderr || '');

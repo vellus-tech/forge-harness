@@ -1,0 +1,37 @@
+approvals:
+  - gate: requirements_reviewed
+    decision: approve
+    reason: "Decisão humana do dono (Milton) em 2026-09-26: requirements aprovados depois das duas rodadas do validador (design §3.1 e §3.2); os critérios que dependiam de H-01, H-02 e H-03 foram fixados pela opção (a) de cada decisão, registrada no gate design_reviewed."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-09-26T14:59:43-03:00"
+    commit: "247ee1b"
+    scope: "requirements.md"
+  - gate: design_reviewed
+    decision: approve
+    reason: "H-01 = opção (a): aplicar a regra da casa rules/data/data-governance.md. O especialista data-nosql responde pelo transacional de negócio (MongoDB com transação multi-documento, write concern majority); o data-relational fica com parametrização/configuração e com projetos cujo ADR escolheu SQL; pedido de relacional para transacional sem ADR devolve o bloco CONFLITO. Nenhuma rule muda."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-09-26T14:59:43-03:00"
+    commit: "247ee1b"
+    scope: "H-01 (design §2.9)"
+  - gate: design_reviewed
+    decision: approve
+    reason: "H-02 = opção (a): URL pré-assinada é entrega REST admitida com restrições (HTTPS, objeto único nomeado, expiração em minutos, emitida por endpoint REST autenticado do produto, log de emissão, bucket privado); demais formas de acesso de terceiro a bucket são reprovadas."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-09-26T14:59:43-03:00"
+    commit: "247ee1b"
+    scope: "H-02 (design §2.9)"
+  - gate: design_reviewed
+    decision: approve
+    reason: "H-03 = opção (a): BIGINT na menor unidade em toda stack, citando rules/domain/money-as-cents.md como regra da casa; a rule não muda (applies_to intacto); R-19 e o cenário [17] valem para qualquer *.sql."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-09-26T14:59:43-03:00"
+    commit: "247ee1b"
+    scope: "H-03 (design §2.9)"
+  - gate: tasks_reviewed
+    decision: approve
+    autonomous: true
+    reason: "Verificado por execução, não por leitura. (1) validate-spec.sh OK no change. (2) Rastreabilidade total medida por script: REQ-01..REQ-11 e NFR-01..NFR-04 têm todos ao menos uma TASK; 18 TASKs sem id duplicado, todas com rastreia, paths e depende; o grafo de dependência só aponta para TASK anterior (acíclico). (3) Sem linha condicional: nenhuma ocorrência de 'conforme H-0N', '(H-0N)' ou 'condicional' pendente em tasks, requirements e design; TASK-01 [X] bate com o commit que fixou H-01, H-02 e H-03 pela opção (a), e approvals.yaml já registra as três decisões humanas antes deste gate, como a REQ-11 e a conflict-handling §2.1 exigem. (4) Ondas coerentes: Wave 1 é o gate vermelho (TASK-02, commit só de teste), Waves 2 e 3 dependem dele, a integração (TASK-12/13/16) espera o merge da evals-100 declarado como dependência externa, e verificação e A/B fecham. (5) DoD por task: cada uma nomeia os cenários do w250 que torna verdes ou os gates que revalida. Ressalvas não bloqueantes: (a) a TASK-03 não cita a linha do H-01 (a) no conteúdo da skill relacional, que chega pelo REQ-03 e pela §2.9 que todo subagente recebe; (b) a linha do H-01 nos agentes é verificada pelo eval (desenho do data-relational e fronteira do data-nosql), não por literal no w250; (c) TASKs de 12 em diante ficam paradas até o merge da evals-100; (d) o change tem affected_paths e grafo construído, então o guardrail G5 do spec-transition exige impact.json fresco antes de implementing."
+    decided_by: "forge-yolo (opus, high)"
+    decided_at: "2026-09-26T15:00:36-03:00"
+    commit: "c7ee606"
+    scope: "tasks.md"

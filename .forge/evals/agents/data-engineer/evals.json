@@ -1,0 +1,469 @@
+{
+  "skill_name": "data-engineer",
+  "artifact_kind": "agent",
+  "artifact_path": "template/.forge/agents/data/data-engineer.md",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "dominio-relacional",
+      "prompt": "@data-engineer Como faço a migração que troca a coluna status de text para um enum numa tabela de configuração de 30 milhões de linhas no PostgreSQL, sem derrubar a aplicação?",
+      "expected_output": "O orquestrador declara a classificação em uma linha e cria exatamente um subagente, do tipo data-relational (lido do trace, subagent_type), e sintetiza atribuindo a resposta a ele.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "roteia-para-data-relational",
+          "text": "O único subagente criado abaixo do data-engineer (tool_use Agent/Task com input.subagent_type no trace) é data-relational"
+        },
+        {
+          "name": "declara-classificacao",
+          "text": "A resposta declara a classificação do pedido (padrão de acesso, forma do dado, produto) antes da síntese"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "dominio-nosql",
+      "prompt": "@data-engineer Qual chave de partição usar no Cosmos DB para leituras de telemetria de validadores por equipamento e dia?",
+      "expected_output": "O orquestrador declara a classificação em uma linha e cria exatamente um subagente, do tipo data-nosql (lido do trace, subagent_type), e sintetiza atribuindo a resposta a ele.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "roteia-para-data-nosql",
+          "text": "O único subagente criado abaixo do data-engineer (tool_use Agent/Task com input.subagent_type no trace) é data-nosql"
+        },
+        {
+          "name": "declara-classificacao",
+          "text": "A resposta declara a classificação do pedido (padrão de acesso, forma do dado, produto) antes da síntese"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "dominio-cache",
+      "prompt": "@data-engineer Nosso Redis de cache está com evicted_keys alto e hit ratio caindo; como ajusto maxmemory e a política de eviction?",
+      "expected_output": "O orquestrador declara a classificação em uma linha e cria exatamente um subagente, do tipo data-cache (lido do trace, subagent_type), e sintetiza atribuindo a resposta a ele.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "roteia-para-data-cache",
+          "text": "O único subagente criado abaixo do data-engineer (tool_use Agent/Task com input.subagent_type no trace) é data-cache"
+        },
+        {
+          "name": "declara-classificacao",
+          "text": "A resposta declara a classificação do pedido (padrão de acesso, forma do dado, produto) antes da síntese"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "eval_name": "dominio-object-storage",
+      "prompt": "@data-engineer Como organizo prefixos e ciclo de vida do bucket de backups diários para reter 90 dias e apagar o resto?",
+      "expected_output": "O orquestrador declara a classificação em uma linha e cria exatamente um subagente, do tipo data-object-storage (lido do trace, subagent_type), e sintetiza atribuindo a resposta a ele.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "roteia-para-data-object-storage",
+          "text": "O único subagente criado abaixo do data-engineer (tool_use Agent/Task com input.subagent_type no trace) é data-object-storage"
+        },
+        {
+          "name": "declara-classificacao",
+          "text": "A resposta declara a classificação do pedido (padrão de acesso, forma do dado, produto) antes da síntese"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "eval_name": "dominio-analitico",
+      "prompt": "@data-engineer Devo usar warehouse gerenciado ou lakehouse com Iceberg para o BI de mobilidade, com três motores de consulta diferentes?",
+      "expected_output": "O orquestrador declara a classificação em uma linha e cria exatamente um subagente, do tipo data-analytical (lido do trace, subagent_type), e sintetiza atribuindo a resposta a ele.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "roteia-para-data-analytical",
+          "text": "O único subagente criado abaixo do data-engineer (tool_use Agent/Task com input.subagent_type no trace) é data-analytical"
+        },
+        {
+          "name": "declara-classificacao",
+          "text": "A resposta declara a classificação do pedido (padrão de acesso, forma do dado, produto) antes da síntese"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "eval_name": "dominio-streaming",
+      "prompt": "@data-engineer Como garanto ordem por pedido no consumo de eventos do RabbitMQ com vários consumidores?",
+      "expected_output": "O orquestrador declara a classificação em uma linha e cria exatamente um subagente, do tipo data-streaming (lido do trace, subagent_type), e sintetiza atribuindo a resposta a ele.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "roteia-para-data-streaming",
+          "text": "O único subagente criado abaixo do data-engineer (tool_use Agent/Task com input.subagent_type no trace) é data-streaming"
+        },
+        {
+          "name": "declara-classificacao",
+          "text": "A resposta declara a classificação do pedido (padrão de acesso, forma do dado, produto) antes da síntese"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "eval_name": "critico-multi-outbox-e-invalidacao",
+      "prompt": "@data-engineer Quando um pedido muda de status, preciso publicar o evento para outros serviços e invalidar o cache do pedido no Redis. Como desenho isso sem perder evento nem servir dado velho?",
+      "expected_output": "Decompõe em duas perguntas: data-streaming (outbox transacional, relay com confirms, CDC ou polling) e data-cache (política de invalidação por delete depois do commit, TTL); cria os dois subagentes e a síntese atribui cada recomendação à origem.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "cria-streaming-e-cache",
+          "text": "O trace mostra a criação de data-streaming e de data-cache abaixo do data-engineer, e nenhum outro tipo"
+        },
+        {
+          "name": "atribui-origem",
+          "text": "A síntese atribui a parte de outbox/evento ao data-streaming e a política de invalidação ao data-cache"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "eval_name": "critico-multi-comprovante-e-evento-ao-parceiro",
+      "prompt": "@data-engineer Ao concluir um pagamento geramos um comprovante PDF; o parceiro precisa baixar o PDF e ser avisado da conclusão. Desenhe o armazenamento e o aviso.",
+      "expected_output": "Decompõe em data-object-storage (bucket privado, URL pré-assinada nas restrições do H-02 (a) emitida por endpoint REST autenticado) e data-streaming (fila dedicada ao parceiro ou webhook para o aviso); cria os dois e atribui cada parte.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "cria-objeto-e-streaming",
+          "text": "O trace mostra a criação de data-object-storage e de data-streaming abaixo do data-engineer, e nenhum outro tipo"
+        },
+        {
+          "name": "entrega-valida",
+          "text": "O aviso ao parceiro é por fila dedicada ou webhook, e o download por REST ou URL pré-assinada nas restrições do H-02 (a)"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "eval_name": "critico-fora-cobertura-busca-vetorial",
+      "prompt": "@data-engineer Precisamos de busca semântica vetorial sobre 50 milhões de documentos com latência abaixo de 100 ms. Qual banco vetorial e como indexar?",
+      "expected_output": "Responde que busca vetorial dedicada nessa escala está fora da cobertura dos especialistas de dados, sem improvisar desenho e sem criar subagente.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "nenhum-subagente",
+          "text": "O trace não mostra nenhum subagente criado abaixo do data-engineer"
+        },
+        {
+          "name": "fora-da-cobertura",
+          "text": "A resposta diz explicitamente que o pedido está fora da cobertura e não recomenda produto nem desenho de índice vetorial"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "eval_name": "critico-conflito-rule-redis-sessao-duravel",
+      "prompt": "@data-engineer Vamos usar o Redis como armazenamento primário das sessões dos usuários, que precisam durar 30 dias e não podem se perder.",
+      "expected_output": "Devolve o bloco CONFLITO citando data-governance.md/data-cache.md (Redis nunca é fonte de verdade), roteia a escolha do store durável a data-nosql ou data-relational pela matriz, e nunca aceita Redis como fonte de verdade.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "bloco-conflito",
+          "text": "A resposta contém o bloco CONFLITO com decisão, posição A (data-governance.md ou data-cache.md), posição B, precedência, opções e registro"
+        },
+        {
+          "name": "store-duravel-roteado",
+          "text": "A escolha do store durável é roteada a data-nosql ou data-relational, e a resposta não aceita o Redis como armazenamento primário"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "eval_name": "critico-degradado-dominio-unico",
+      "prompt": "@data-engineer Qual política de eviction do Redis usar para um cache de catálogo onde poucos produtos concentram a maioria das leituras?",
+      "expected_output": "Executado com CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1: devolve o bloco PLANO DE ROTEAMENTO com data-cache e a pergunta reformulada, sem criar subagente e sem responder no lugar do especialista.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "plano-de-roteamento",
+          "text": "A resposta contém o bloco PLANO DE ROTEAMENTO com classificação, especialistas: data-cache e a pergunta por especialista"
+        },
+        {
+          "name": "sem-subagente-e-sem-improviso",
+          "text": "O trace não mostra subagente criado e a resposta não recomenda política de eviction por conta própria"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "eval_name": "critico-degradado-multi-dominio",
+      "prompt": "@data-engineer Os eventos de pedido vão para o Kafka e depois para o lakehouse; como particiono o tópico e a tabela de destino?",
+      "expected_output": "Executado com CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1: devolve o PLANO DE ROTEAMENTO com data-streaming e data-analytical, uma pergunta para cada, sem criar subagente e sem improvisar as recomendações.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "plano-dois-especialistas",
+          "text": "O PLANO DE ROTEAMENTO lista data-streaming e data-analytical com uma pergunta para cada"
+        },
+        {
+          "name": "sem-subagente",
+          "text": "O trace não mostra subagente criado e a resposta não traz recomendação de particionamento própria"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "eval_name": "disparo-relacional",
+      "prompt": "Essa migração com ALTER TABLE ... SET NOT NULL na tabela de parâmetros tarifários vai travar o banco em produção?",
+      "expected_output": "Rodado sem menção ao agente (claude -p sem @), o trace mostra a criação do data-engineer ou do data-relational.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "dispara-data-relational",
+          "text": "O trace contém a criação do data-engineer ou do data-relational (tool_use Agent/Task com esse subagent_type)"
+        },
+        {
+          "name": "responde-no-dominio",
+          "text": "A resposta trata a pergunta pelo domínio do data-relational"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "eval_name": "disparo-nosql",
+      "prompt": "Meu DynamoDB está dando throttling numa partição só; o hash_key é o tipo do evento. O que está errado?",
+      "expected_output": "Rodado sem menção ao agente (claude -p sem @), o trace mostra a criação do data-engineer ou do data-nosql.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "dispara-data-nosql",
+          "text": "O trace contém a criação do data-engineer ou do data-nosql (tool_use Agent/Task com esse subagent_type)"
+        },
+        {
+          "name": "responde-no-dominio",
+          "text": "A resposta trata a pergunta pelo domínio do data-nosql"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "eval_name": "disparo-cache",
+      "prompt": "Quando o cache das tarifas expira, o banco recebe centenas de consultas iguais ao mesmo tempo. Como evitar?",
+      "expected_output": "Rodado sem menção ao agente (claude -p sem @), o trace mostra a criação do data-engineer ou do data-cache.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "dispara-data-cache",
+          "text": "O trace contém a criação do data-engineer ou do data-cache (tool_use Agent/Task com esse subagent_type)"
+        },
+        {
+          "name": "responde-no-dominio",
+          "text": "A resposta trata a pergunta pelo domínio do data-cache"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "eval_name": "disparo-object-storage",
+      "prompt": "Qual deve ser a expiração da URL pré-assinada para o app baixar o comprovante do S3?",
+      "expected_output": "Rodado sem menção ao agente (claude -p sem @), o trace mostra a criação do data-engineer ou do data-object-storage.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "dispara-data-object-storage",
+          "text": "O trace contém a criação do data-engineer ou do data-object-storage (tool_use Agent/Task com esse subagent_type)"
+        },
+        {
+          "name": "responde-no-dominio",
+          "text": "A resposta trata a pergunta pelo domínio do data-object-storage"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "eval_name": "disparo-analitico",
+      "prompt": "Meu modelo incremental do dbt está duplicando linhas depois de um reprocessamento. Por quê?",
+      "expected_output": "Rodado sem menção ao agente (claude -p sem @), o trace mostra a criação do data-engineer ou do data-analytical.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "dispara-data-analytical",
+          "text": "O trace contém a criação do data-engineer ou do data-analytical (tool_use Agent/Task com esse subagent_type)"
+        },
+        {
+          "name": "responde-no-dominio",
+          "text": "A resposta trata a pergunta pelo domínio do data-analytical"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "eval_name": "disparo-streaming",
+      "prompt": "O consumidor do RabbitMQ fica reentregando a mesma mensagem com erro para sempre. Como resolvo?",
+      "expected_output": "Rodado sem menção ao agente (claude -p sem @), o trace mostra a criação do data-engineer ou do data-streaming.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "dispara-data-streaming",
+          "text": "O trace contém a criação do data-engineer ou do data-streaming (tool_use Agent/Task com esse subagent_type)"
+        },
+        {
+          "name": "responde-no-dominio",
+          "text": "A resposta trata a pergunta pelo domínio do data-streaming"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "eval_name": "disparo-negativo-componente-react",
+      "prompt": "Crie um componente React de botão com estado de carregamento e acessibilidade (aria-busy).",
+      "expected_output": "Nenhum agente data-* é criado; a pergunta não envolve dados.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "nenhum-agente-data",
+          "text": "O trace não contém a criação de nenhum agente cujo subagent_type comece por data-"
+        },
+        {
+          "name": "responde-o-pedido",
+          "text": "A resposta trata do componente React pedido"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "eval_name": "disparo-negativo-pipeline-ci",
+      "prompt": "Ajuste o workflow do GitHub Actions para rodar os testes em paralelo por pasta.",
+      "expected_output": "Nenhum agente data-* é criado; a pergunta é de pipeline de CI.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "nenhum-agente-data",
+          "text": "O trace não contém a criação de nenhum agente cujo subagent_type comece por data-"
+        },
+        {
+          "name": "responde-o-pedido",
+          "text": "A resposta trata do workflow de CI pedido"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "eval_name": "holdout-dominio-unico-nosql-grafo",
+      "prompt": "@data-engineer Precisamos detectar anéis de fraude entre contas que transferem entre si em até 6 saltos. Como modelo?",
+      "expected_output": "Roteia para data-nosql (subdomínio grafo) e só ele.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "roteia-nosql",
+          "text": "O único subagente criado abaixo do data-engineer é data-nosql"
+        },
+        {
+          "name": "declara-classificacao",
+          "text": "A resposta declara a classificação do pedido antes da síntese"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "eval_name": "holdout-multi-relacional-e-analitico",
+      "prompt": "@data-engineer O relatório mensal de faturamento está rodando no primário PostgreSQL e derrubando a latência das transações de configuração; como separo isso?",
+      "expected_output": "Cria data-relational (réplica de leitura, R-15) e data-analytical (modelo analítico e carga), e atribui cada parte.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "cria-relacional-e-analitico",
+          "text": "O trace mostra data-relational e data-analytical criados abaixo do data-engineer, e nenhum outro tipo"
+        },
+        {
+          "name": "atribui-origem",
+          "text": "A síntese atribui cada recomendação ao especialista de origem"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    }
+  ]
+}

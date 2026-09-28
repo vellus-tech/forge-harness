@@ -1,0 +1,107 @@
+{
+  "skill_name": "data-object-storage",
+  "artifact_kind": "agent",
+  "artifact_path": "template/.forge/agents/data/data-object-storage.md",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "desenho-comprovantes-pdf-5-anos",
+      "prompt": "Vamos guardar comprovantes em PDF com retenção de 5 anos e download pelo app do próprio produto. Desenhe o bucket.",
+      "expected_output": "Bucket privado com Block Public Access, SSE-KMS com Bucket Key, versionamento com expiração de versões não correntes, abort de multipart incompleto, URL pré-assinada de minutos para o app (cliente próprio, não terceiro), WORM só se houver obrigação legal, com conciliação LGPD antes de travar.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "privado-e-kms",
+          "text": "O bucket é privado com bloqueio de acesso público e SSE-KMS com Bucket Key"
+        },
+        {
+          "name": "lifecycle",
+          "text": "A resposta inclui ciclo de vida com abort de multipart e expiração de versões não correntes"
+        },
+        {
+          "name": "url-minutos-e-worm",
+          "text": "O download usa URL pré-assinada de minutos e a resposta só recomenda WORM condicionado a obrigação legal, mencionando a LGPD"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "revisao-bucket-publico-url-longa-minio",
+      "prompt": "Revise:\n\n# infra/bucket.tf\nresource \"aws_s3_bucket_acl\" \"comprovantes\" { acl = \"public-read\" }\n\n// src/comprovante/url.ts\nconst url = await getSignedUrl(s3, cmd, { ExpiresIn: 604800 });\n\n# docker-compose.yml\n  objetos:\n    image: minio/minio:latest",
+      "expected_output": "Aponta O-01 (bucket público), O-02 (URL pré-assinada de 7 dias) e O-11 (MinIO comunitário arquivado), com correções.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "o01",
+          "text": "A resposta aponta O-01 e bloqueia o acesso público"
+        },
+        {
+          "name": "o02",
+          "text": "A resposta aponta O-02 e reduz a expiração para minutos"
+        },
+        {
+          "name": "o11",
+          "text": "A resposta aponta O-11 e diz que o repositório minio/minio foi arquivado"
+        },
+        {
+          "name": "cita-id-e-localizacao",
+          "text": "todo antipattern apontado cita o id do catálogo e, quando o scanner o detecta, `arquivo:linha`"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "fronteira-parceiro-pede-credencial-iam",
+      "prompt": "O parceiro de conciliação pediu uma credencial IAM de leitura no nosso bucket interno de arquivos de liquidação para baixar os arquivos quando quiser. Gere a policy.",
+      "expected_output": "Recusa a credencial e a policy para o parceiro; entrega por REST do produto ou por URL pré-assinada somente nas restrições da decisão H-02 (a): HTTPS, objeto único nomeado, expiração em minutos, emitida por endpoint REST autenticado do produto que autentica o parceiro, com log de emissão e bucket privado; reprova qualquer outra forma de acesso do parceiro ao bucket; nunca gRPC externo.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "recusa-iam",
+          "text": "A resposta não gera policy nem credencial IAM para o parceiro e diz que terceiro não recebe credencial ou permissão sobre bucket interno"
+        },
+        {
+          "name": "url-nas-restricoes",
+          "text": "Se propõe URL pré-assinada, ela vem com todas as restrições: HTTPS, objeto único, minutos, endpoint REST autenticado, log de emissão e bucket privado; ou a resposta propõe entrega por API REST do produto"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "eval_name": "holdout-revisao-bronze-mutavel-e-particao",
+      "prompt": "Revise jobs/ingestao.py:\n\ndf.write.mode('overwrite').parquet('s3://lake/bronze/vendas/')\ndf.write.partitionBy('customer_id').parquet('s3://lake/raw/eventos/')",
+      "expected_output": "Aponta O-13 (bronze mutável) e O-14 (partição por coluna de alta cardinalidade), com correção: append-only no bronze e partição por data de ingestão.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "o13",
+          "text": "A resposta aponta O-13 e torna o bronze append-only"
+        },
+        {
+          "name": "o14",
+          "text": "A resposta aponta O-14 e troca a partição por data de ingestão"
+        },
+        {
+          "name": "cita-id-e-localizacao",
+          "text": "todo antipattern apontado cita o id do catálogo e, quando o scanner o detecta, `arquivo:linha`"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    }
+  ]
+}

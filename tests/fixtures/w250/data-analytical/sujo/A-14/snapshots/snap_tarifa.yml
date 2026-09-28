@@ -1,0 +1,5 @@
+snapshots:
+  - name: snap_tarifa
+    config:
+      strategy: timestamp
+      invalidate_hard_deletes: true

@@ -1,0 +1,6 @@
+syntax = "proto3";
+message PagamentoPago {
+  string pan_token = 1;
+  string masked_pan = 2;
+  string pan_last4 = 3;
+}

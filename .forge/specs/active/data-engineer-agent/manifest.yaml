@@ -1,0 +1,69 @@
+id: data-engineer-agent
+type: feature
+mode: brownfield
+rigor: spec-anchored
+scale: 2
+status: implementing
+created_at: "2026-09-26"
+updated_at: "2026-09-26"
+owner: "Milton Antonio da Silva Jr"
+parent:
+  baseline: .forge/product/current
+affected_capabilities:
+  - forge-harness-template
+affected_paths:
+  - template/.forge/agents/data/
+  - template/.forge/agents/README.md
+  - template/.forge/agents/code-review/node-reviewer.md
+  - template/.forge/agents/code-review/java-reviewer.md
+  - template/.forge/agents/code-review/python-reviewer.md
+  - template/.forge/agents/code-review/dotnet-reviewer.md
+  - template/.forge/agents/review/platform-reviewer.md
+  - template/.forge/templates/AGENTS.md
+  - template/.forge/capabilities/backend-java-relational/PROFILE.md
+  - template/.forge/capabilities/backend-python-relational/PROFILE.md
+  - template/.forge/capabilities/backend-dotnet-relational/PROFILE.md
+  - template/.forge/capabilities/backend-node-postgres/PROFILE.md
+  - template/.forge/skills/data-relational-practices/
+  - template/.forge/skills/data-nosql-practices/
+  - template/.forge/skills/data-cache-practices/
+  - template/.forge/skills/data-object-storage-practices/
+  - template/.forge/skills/data-analytical-practices/
+  - template/.forge/skills/data-streaming-practices/
+  - template/.forge/skills/capability-dispatcher/SKILL.md
+  - template/.forge/scripts/data-agent-allowlist.sh
+  - template/.forge/scripts/data-agent-bash-guard.sh
+  - contracts/claude-adapter-contract.md
+  - .github/workflows/ci.yml
+  - tests/w250-data-engineer-agents-gate.sh
+  - tests/fixtures/w250/
+  - .forge/evals/agents/data-engineer/
+  - .forge/evals/agents/data-relational/
+  - .forge/evals/agents/data-nosql/
+  - .forge/evals/agents/data-cache/
+  - .forge/evals/agents/data-object-storage/
+  - .forge/evals/agents/data-analytical/
+  - .forge/evals/agents/data-streaming/
+  - .forge/graph/graph.json
+  - README.md
+  - CHANGELOG.md
+dependencies:
+  specs: []
+  code: []
+gates:
+  requirements_reviewed: true
+  design_reviewed: true
+  tasks_reviewed: true
+  implementation_verified: false
+  human_archive_approval: false
+dev_loop:
+  sharded: false
+  stories_path: stories/
+  epic_context_compiled: false
+quick_plan:
+  enabled: false
+  skipped_phases: []
+  justification:
+archive:
+  eligible: false
+  reason: "tasks not implemented"

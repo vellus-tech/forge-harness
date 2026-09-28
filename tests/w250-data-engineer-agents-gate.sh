@@ -53,7 +53,7 @@
 # que o `classificar` do run-all.sh lê como "não verificado (dependência ausente)"; nunca aprova. FAIL domina: com
 # qualquer FAIL o gate sai 1.
 set -uo pipefail
-unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TEMPLATE="$WS/template/.forge"

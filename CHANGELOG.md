@@ -6,6 +6,10 @@ e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **CI cancelava o job `gates` sem nenhum FAIL, só por estourar o teto de tempo.** Medido no PR #182 (2026-09-28): a suíte já variava entre 16 e 22min mesmo sem gate novo (`w151` e `w217`, os dois gates de `heavy-mutex`, somam ~7,4min sozinhos), e `w239` (revisão da DH-1, PBT de 75 casos, cada um chamando `node forge.mjs update`) levou 5,7min sozinho numa execução real; acrescentar `w250` (43s) bastou para cancelar duas execuções seguidas em ~24m50s, com `The operation was canceled` em vez de qualquer veredito. `timeout-minutes` do job `gates` sobe de 25 para 35, com a medição registrada no comentário ao lado.
+
 ## [0.16.0] — 2026-09-27
 
 ### Fixed

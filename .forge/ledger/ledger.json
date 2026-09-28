@@ -3235,6 +3235,30 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0201"
+    },
+    {
+      "id": "LDG-0202",
+      "type": "tech-debt",
+      "title": "w239 (revisão da DH-1) custa 5,7min de PBT sozinho e empurra o CI perto do teto",
+      "detail": "Medido no PR #182 (2026-09-28): w239 sozinho levou 5,7min numa execução real do CI (75 casos de PBT, cada um chamando node forge.mjs update num consumidor sintético). Somado a w151 e w217 (heavy-mutex, ~7,4min), a suíte já ocupava ~13 dos 25min do teto antes de qualquer gate novo. O teto subiu para 35min (chore/ci-timeout-35min), mas isso é alívio, não correção: se a suíte continuar crescendo, o w239 é o primeiro candidato a enxugar (menos casos de PBT com cobertura equivalente, ou paralelizar as chamadas de node forge.mjs update dentro do próprio gate).",
+      "severity": "medium",
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": "docs/plans/2026-09-15-plano-issues-abertas.md"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-27T16:57:19-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0202"
     }
   ]
 }

@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**39 itens ativos** · roadmap 8 · tech-debt 22 · known-bug 9 · (93 encerrados)
+**40 itens ativos** · roadmap 8 · tech-debt 23 · known-bug 9 · (93 encerrados)
 
 ## Roadmap
 
@@ -84,6 +84,8 @@ _Encerrados: 2 (resolved 2)_
   Achado J-27 da revisão adversarial do plano v2 (scratchpad/judge.json), citado na nota de resolução do LDG-0163 e registrado aqui como item próprio conforme a correção do próprio achado. O caminho --repair-own-log em template/.forge/scripts/lib/transports/_common.sh:206-207 (origin/develop) publica o log próprio direto por cp/mv, sem passar por liaison-push-union.mjs — ou seja, sem a validação de um-escritor-por-arquivo que o LDG-0163 fechou para o caminho normal de push. Só roda com a flag LIAISON_PUSH_REPAIR=1 explícita e emite WARN, então o raio de exposição é menor que o defeito original, mas a mesma classe de dano (sobrescrever o hub com um log próprio corrompido) continua alcançável por esse caminho de reparo. Onda alvo: Onda 7 (Bloco E, dívida interna), junto da fusão LDG-0171/LDG-0183 e dos demais itens de robustez do liaison/ledger.
 - **LDG-0191** [open] (P3) — Lote restante de '! comando' nus sob set -e (12 linhas em 12 gates) e lacunas residuais da anti-recursão do w80 [4]
   Depois do LDG-0182 (PR #161), a varredura grep -nE '^[[:space:]]*! ' tests/*.sh | grep -v '||' ainda acha 12 linhas em 12 gates fora dos 14 revalidados pelo Bloco A: w51, w32, w211, w20, w175, w169, w163, infra-scan, gw3-data-governance, graph-deps, check-authz e changelog-merge. Cada uma precisa ser medida (mutação que deveria reprovar → rc hoje) antes de converter, porque '! ' dentro de if/while ou seguido de || na linha seguinte está vivo. Mesma frente: lacunas LOW da revisão do PR #161 no w80 [4] — zsh/dash/ksh, "$0"/${BASH_SOURCE[0]}, source/., execução direta tests/run-all.sh, e o grep com rc>1 (regex inválida) que abre o guarda em silêncio. Correção: conversão por gate com mutação e recontrole, e no [4] manter também a regex ampla de develop com filtro de comentário.
+- **LDG-0202** [open] (P3/medium) — w239 (revisão da DH-1) custa 5,7min de PBT sozinho e empurra o CI perto do teto
+  Medido no PR #182 (2026-09-28): w239 sozinho levou 5,7min numa execução real do CI (75 casos de PBT, cada um chamando node forge.mjs update num consumidor sintético). Somado a w151 e w217 (heavy-mutex, ~7,4min), a suíte já ocupava ~13 dos 25min do teto antes de qualquer gate novo. O teto subiu para 35min (chore/ci-timeout-35min), mas isso é alívio, não correção: se a suíte continuar crescendo, o w239 é o primeiro candidato a enxugar (menos casos de PBT com cobertura equivalente, ou paralelizar as chamadas de node forge.mjs update dentro do próprio gate).
 
 _Encerrados: 38 (resolved 33 · wont-fix 5)_
 

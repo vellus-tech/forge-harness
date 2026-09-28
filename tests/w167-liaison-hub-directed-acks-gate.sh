@@ -17,6 +17,9 @@
 #       não satisfaz a cobrança do canal certo, mesmo com o MESMO texto de msg_id nos dois (seq é
 #       por remetente-E-canal, então a colisão de string é legítima e esperada)
 set -euo pipefail
+# Isolamento git (LDG-0201): GIT_DIR herdado do ambiente faria os comandos git abaixo
+# obedecerem ao repositório de quem invocou o gate, e não ao repositório sintético criado aqui.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 T="$(mktemp -d /tmp/forge-w167.XXXXXX)"

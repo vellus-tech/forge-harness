@@ -54,6 +54,9 @@
 # Três estados, nunca dois: `node` ausente, `git` sem commit ou fixture não montada terminam em
 # NÃO VERIFICADO com rc 3, distinto do FAIL (rc 1) e do PASS (rc 0).
 set -euo pipefail
+# Isolamento git (LDG-0201): GIT_DIR herdado do ambiente faria os comandos git abaixo
+# obedecerem ao repositório de quem invocou o gate, e não ao repositório sintético criado aqui.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 SCN_DECLARED=21   # [0]..[20] — contagem do PRÓPRIO gate, a única exceção legítima ao literal
 SCN_RUN=0

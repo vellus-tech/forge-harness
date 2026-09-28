@@ -8,6 +8,9 @@
 #   [5] range só .forge/** (ex.: `forge update` sincronizando maquinaria) → exit 0, mesmo
 #       tocando .sh/.mjs — não é código do projeto, é maquinaria sincronizada do harness
 set -euo pipefail
+# Isolamento git (LDG-0201): GIT_DIR herdado do ambiente faria os comandos git abaixo
+# obedecerem ao repositório de quem invocou o gate, e não ao repositório sintético criado aqui.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LIB="$WS/template/.forge/hooks/git/lib/check-docs-reviewed.sh"

@@ -39,7 +39,7 @@
 set -euo pipefail
 # Isolamento git: um GIT_DIR herdado faria os `git -C` abaixo gravarem no repositório de quem
 # invocou o gate, e não no repositório sintético.
-unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 FIX="$WS/tests/fixtures/w220"

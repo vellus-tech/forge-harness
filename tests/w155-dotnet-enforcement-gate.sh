@@ -30,6 +30,12 @@
 #   [11] fiação: reviewer, verify-build, doctor, init e PROFILE citam a maquinaria nova
 #   [12] frontmatter válido nos artefatos novos
 set -uo pipefail
+# Isolamento git (LDG-0201): GIT_DIR/GIT_WORK_TREE/GIT_INDEX_FILE/GIT_COMMON_DIR/GIT_OBJECT_DIRECTORY
+# herdados do ambiente (de uma sessão paralela mal isolada) fariam este gate — que cria
+# repositório git sintético e/ou instala via installer/install.sh ou forge.mjs init/update, que
+# gravam core.hooksPath e identidade no repositório do alvo — obedecer ao repositório real de
+# quem exportou a variável, não ao alvo sintético. Incidente P1 medido em 2026-09-26.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ROOT="$WS/template/.forge"

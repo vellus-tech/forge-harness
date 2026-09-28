@@ -6,6 +6,9 @@
 #   [1] nenhum `mktemp` nos hooks tem caractere após a sequência de X (footgun BSD)
 #   [2] o pre-push é sintaticamente válido (bash -n) — o gate de docs não pode ter regressão de shell
 set -euo pipefail
+# Isolamento git (LDG-0201): GIT_DIR herdado do ambiente faria os comandos git abaixo
+# obedecerem ao repositório de quem invocou o gate, e não ao repositório sintético criado aqui.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 HOOKS="$WS/template/.forge/hooks"

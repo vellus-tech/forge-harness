@@ -12,6 +12,9 @@
 #   [7] ack sem corpo nenhum continua funcionando (retrocompatibilidade do recibo puro)
 #   [8] --subject continua aceito e independente do corpo
 set -euo pipefail
+# Isolamento git (LDG-0201): GIT_DIR herdado do ambiente faria os comandos git abaixo
+# obedecerem ao repositório de quem invocou o gate, e não ao repositório sintético criado aqui.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 T="$(mktemp -d /tmp/forge-w166.XXXXXX)"

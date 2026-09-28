@@ -48,7 +48,12 @@ esac
 
 # Estrutura .NET canônica permite PascalCase em qualquer profundidade
 # (<project_name> usa src/, tests/, deploy/; refactoring-plan introduzirá services/).
-if [[ "$DIR" =~ /(src|tests|services|deploy)(/|$) ]]; then
+# Âncora nas duas pontas — (^|/) — porque o caminho pode chegar RELATIVO (git diff
+# --cached --name-only, ou a ponte lib/argv-bridge.sh) e começar exatamente pelo segmento
+# isento, sem barra antes dele; exigir só "/" nunca casava esse caso (issue #129). "(^|/)"
+# preserva o caso absoluto e o aninhado (services/token-vault/src/...) sem alargar a isenção
+# para um nome que apenas CONTÉM o segmento (mysrc/, srcx/ continuam reprovando).
+if [[ "$DIR" =~ (^|/)(src|tests|services|deploy)(/|$) ]]; then
     : # PascalCase permitido em código .NET
 elif [[ "$BASENAME" =~ [A-Z] ]] && [[ ! "$FILE" =~ \.(csproj|sln|props|targets)$ ]]; then
     violations+=("Diretório '$BASENAME' não está em kebab-case")

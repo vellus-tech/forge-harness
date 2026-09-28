@@ -1,0 +1,1 @@
+await session.withTransaction(async () => { await col.updateOne({ _id: id, saldo: { $gte: v } }, { $inc: { saldo: -v } }, { session }); }, { readConcern: { level: "snapshot" }, writeConcern: { w: "majority" } });

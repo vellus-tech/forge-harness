@@ -1,0 +1,119 @@
+{
+  "skill_name": "data-relational",
+  "artifact_kind": "agent",
+  "artifact_path": "template/.forge/agents/data/data-relational.md",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "desenho-ledger-multitenant-postgres",
+      "prompt": "Preciso do DDL de um ledger multi-tenant em PostgreSQL 16 para o serviço de cobrança: tabela de contas com saldo, tabela de lançamentos de crédito e débito, e a transação que debita uma conta e credita outra sem deixar saldo negativo. Diga também qual nível de isolamento usar.",
+      "expected_output": "Antes do DDL, a resposta devolve o bloco CONFLITO sobre a escolha do store: posição A é a rules/data/data-governance.md (transacional de negócio → MongoDB), posição B o relacional pedido, precedência da rule, e o DDL vem explicitamente condicionado a um ADR que escolha PostgreSQL para o ledger, sem o especialista recomendar o relacional por conta própria (decisão H-01 (a)). No DDL condicionado: valor monetário em BIGINT NOT NULL na menor unidade citando money-as-cents.md (nunca numeric, money ou float), timestamptz, bigint identity ou UUIDv7, índice nas FKs, RLS habilitado nas tabelas multi-tenant (obrigatório pela data-governance.md) com tenant_id à frente do índice composto como complemento, e Serializable ou lock explícito (SELECT ... FOR UPDATE em ordem consistente) com retry em 40001/40P01. Tipo monetário e RLS seguem as rules sem abrir outro conflito.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "conflito-store-antes-do-ddl",
+          "text": "A resposta contém o bloco CONFLITO (com os campos decisão, posição A, posição B, precedência, opções e registro) sobre o store do transacional, com a data-governance.md na posição A, e ele aparece antes de qualquer CREATE TABLE"
+        },
+        {
+          "name": "ddl-condicionado-ao-adr",
+          "text": "O DDL é apresentado como condicionado a um ADR que escolha PostgreSQL para o ledger; a resposta não recomenda por conta própria usar PostgreSQL para o transacional de negócio"
+        },
+        {
+          "name": "dinheiro-bigint-e-rls",
+          "text": "As colunas monetárias são BIGINT (ou bigint) NOT NULL em centavos com citação de money-as-cents.md, nenhuma coluna monetária é numeric/decimal/money/float, e as tabelas com tenant_id têm ENABLE ROW LEVEL SECURITY com política por tenant"
+        },
+        {
+          "name": "isolamento-com-retry",
+          "text": "A transação usa Serializable ou lock explícito em ordem consistente e trata retry nos SQLSTATE 40001 e 40P01"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "revisao-migracao-indice-e-rename",
+      "prompt": "Revise esta migração que vai rodar no deploy com a aplicação no ar, sobre a tabela pedido (80 milhões de linhas), arquivo db/migrations/V031__ajustes.sql:\n\nALTER TABLE pedido RENAME COLUMN cliente TO cliente_id;\nCREATE INDEX idx_pedido_cliente ON pedido (cliente_id);",
+      "expected_output": "A resposta aponta R-03 (migração bloqueante) nas duas linhas e R-21 (sem lock_timeout), com db/migrations/V031__ajustes.sql:1 e :2 quando o scanner roda; corrige com CREATE INDEX CONCURRENTLY fora de transação, rename por expand/contract (coluna nova, dual-write, backfill em lotes, troca de leitura, remoção em deploy separado) e SET lock_timeout curto na sessão da migração.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "concurrently-fora-de-transacao",
+          "text": "A correção do índice usa CREATE INDEX CONCURRENTLY e diz que ele não pode rodar dentro de bloco de transação"
+        },
+        {
+          "name": "rename-expand-contract",
+          "text": "A correção do rename descreve expand/contract com coluna nova, dual-write ou trigger, backfill em lotes e remoção da coluna antiga em deploy separado, sem RENAME in-place"
+        },
+        {
+          "name": "lock-timeout",
+          "text": "A resposta recomenda lock_timeout na sessão da migração e cita R-21 ou R-03 por esse motivo"
+        },
+        {
+          "name": "cita-id-e-localizacao",
+          "text": "todo antipattern apontado cita o id do catálogo e, quando o scanner o detecta, `arquivo:linha`"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "fronteira-adquirente-quer-acesso-a-tabela",
+      "prompt": "O adquirente parceiro pediu um usuário read-only direto na nossa tabela transacao do PostgreSQL de produção para fazer a conciliação dele todo dia. Crie o usuário e o GRANT, por favor.",
+      "expected_output": "A resposta recusa criar usuário ou GRANT para terceiro no banco interno (regra de integração), propõe entrega por API REST do produto (com paginação e idempotência) ou arquivo diário exposto por endpoint REST autenticado, ou fila dedicada ao parceiro, trata PAN como token e não propõe gRPC externo.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "recusa-acesso-direto",
+          "text": "A resposta não fornece CREATE USER/CREATE ROLE/GRANT para o parceiro e diz explicitamente que terceiro não recebe credencial nem permissão sobre banco interno"
+        },
+        {
+          "name": "alternativa-rest-ou-fila",
+          "text": "A resposta propõe ao menos uma via válida: API REST do produto, arquivo servido por endpoint REST autenticado ou fila dedicada ao parceiro"
+        },
+        {
+          "name": "pan-como-token",
+          "text": "A resposta diz que os dados entregues não levam PAN em claro (token, BIN ou últimos quatro)"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "eval_name": "holdout-revisao-tipos-e-paginacao",
+      "prompt": "Revise o arquivo db/migrations/V040__extrato.sql e a consulta do repositório:\n\nCREATE TABLE extrato (id serial PRIMARY KEY, tenant_id uuid NOT NULL, criado_em timestamp NOT NULL, valor_total NUMERIC(14,2) NOT NULL, dados json);\n\n-- src/extrato/repositorio.ts\nconst r = await db.query('SELECT * FROM extrato WHERE tenant_id = $1 ORDER BY id LIMIT 50 OFFSET $2', [t, p * 50]);",
+      "expected_output": "Aponta R-04 (serial, timestamp sem fuso, json), R-19 (valor_total NUMERIC → BIGINT em centavos pela money-as-cents.md), R-20 (tenant_id sem RLS), R-14 (SELECT *) e R-06 (OFFSET profundo → keyset), com correções.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "r19-bigint",
+          "text": "A resposta aponta R-19 e corrige valor_total para BIGINT NOT NULL em centavos citando money-as-cents.md"
+        },
+        {
+          "name": "r20-rls",
+          "text": "A resposta aponta R-20 e exige ENABLE ROW LEVEL SECURITY com política por tenant"
+        },
+        {
+          "name": "r06-keyset",
+          "text": "A resposta aponta R-06 e propõe paginação por keyset com índice na chave de ordenação"
+        },
+        {
+          "name": "cita-id-e-localizacao",
+          "text": "todo antipattern apontado cita o id do catálogo e, quando o scanner o detecta, `arquivo:linha`"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    }
+  ]
+}

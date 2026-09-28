@@ -1,0 +1,333 @@
+{
+  "metadata": {
+    "skill_name": "arch-reviewer",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-26T19:32:39Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 123,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "review/arch-reviewer.json tem finding BLOCKER sobre Newtonsoft.Json em Pagamentos.Infrastructure (csproj ou CachedPagamentoRepository.cs) cujo title cont\u00e9m \"Conflito com ADR-0005\"",
+          "passed": false,
+          "evidence": "Achado BLOCKER existe (outputs/review/arch-reviewer.json, ARCH-002, file Pagamentos.Infrastructure.csproj, line 8), mas o title \u00e9 \"Newtonsoft.Json adicionado em Infrastructure, conflita com ADR-0005 (Aceito)\"; `jq -r '.findings[].title' outputs/review/arch-reviewer.json | grep -c \"Conflito com ADR-0005\"` retorna 0. O formato exigido (\"Conflito com ADR-0005\") n\u00e3o foi seguido; subst\u00e2ncia correta, forma literal ausente."
+        },
+        {
+          "text": "Nenhum finding BLOCKER ou HIGH cita ADR-0008 ou o uso de Microsoft.EntityFrameworkCore / PagamentosDbContext em Infrastructure como conflito (ADR-0008 tem Status: Proposto; men\u00e7\u00e3o em LOW ou aus\u00eancia s\u00e3o aceit\u00e1veis)",
+          "passed": true,
+          "evidence": "`jq` filtrando severidade blocker/high e grep por ADR-0008|EntityFramework|DbContext retorna 0. Os dois findings (ARCH-001 contrato, ARCH-002 Newtonsoft) n\u00e3o citam ADR-0008 nem EF Core; transcript.md:32 registra explicitamente que ADR-0008 \u00e9 Proposto e n\u00e3o bloqueia."
+        },
+        {
+          "text": "H\u00e1 finding BLOCKER em Pagamentos.Contracts/Events/PagamentoAprovadoV1.cs apontando a mudan\u00e7a de Valor (decimal) para ValorEmCentavos (long) como breaking change no contrato v1 sem nova vers\u00e3o v2",
+          "passed": true,
+          "evidence": "ARCH-001 severity BLOCKER, file services/pagamentos/src/Pagamentos.Contracts/Events/PagamentoAprovadoV1.cs, line 4, title \"Breaking change no contrato p\u00fablico PagamentoAprovadoV1 sem nova vers\u00e3o\"; description cita \"`Valor` (decimal) foi trocado por `ValorEmCentavos` (long)\" e fix sugere criar `PagamentoAprovadoV2`."
+        },
+        {
+          "text": "Nenhum finding aponta CachedPagamentoRepository como prefixo de tecnologia ou viola\u00e7\u00e3o de nomenclatura",
+          "passed": true,
+          "evidence": "`grep -niE 'prefixo|nomenclatura|naming' outputs/review/arch-reviewer.json` sem ocorr\u00eancias; s\u00f3 2 findings, nenhum sobre CachedPagamentoRepository como nome. transcript.md (se\u00e7\u00e3o 5, item 4) diz que o sufixo \u00e9 aceit\u00e1vel."
+        },
+        {
+          "text": "Nenhum finding alega aus\u00eancia de Architecture.Tests (services/pagamentos/tests/Pagamentos.Architecture.Tests existe) nem aponta a ProjectReference Api \u2192 Infrastructure como viola\u00e7\u00e3o",
+          "passed": true,
+          "evidence": "`grep -niE 'Architecture\\.Tests|ProjectReference' outputs/review/arch-reviewer.json` sem ocorr\u00eancias; nenhum finding alega aus\u00eancia nem aponta Api\u2192Infrastructure. Ressalva: transcript.md:34 afirma erroneamente que n\u00e3o h\u00e1 Pagamentos.Architecture.Tests (o diret\u00f3rio existe em work/services/pagamentos/tests/Pagamentos.Architecture.Tests), mas o agente n\u00e3o converteu a cren\u00e7a em finding, ent\u00e3o a asser\u00e7\u00e3o (sobre findings) passa."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.83,
+        "passed": 5,
+        "failed": 1,
+        "total": 6,
+        "time_seconds": 157,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "review/arch-reviewer.json \u00e9 JSON v\u00e1lido com \"reviewer\": \"arch-reviewer\" e array \"findings\"; todo finding tem id no padr\u00e3o ^ARCH-\\d{3}$, severity em {BLOCKER, HIGH, MEDIUM, LOW}, \"category\": \"arch\" e os campos file, rule_violated e confidence preenchidos",
+          "passed": true,
+          "evidence": "work/review/arch-reviewer.json existe e \u00e9 id\u00eantico a outputs/arch-reviewer.json (`cmp` \u2192 same). `jq '{reviewer}'` \u2192 \"arch-reviewer\", 7 findings. `jq -e '.findings|all(.id|test(\"^ARCH-\\\\d{3}$\")) and all(.severity|IN(\"BLOCKER\",\"HIGH\",\"MEDIUM\",\"LOW\")) and all(.category==\"arch\") and all(file/rule_violated/confidence n\u00e3o vazios)'` \u2192 true."
+        },
+        {
+          "text": "H\u00e1 finding BLOCKER com file terminando em Pagamentos.Domain/Pagamentos.Domain.csproj (ProjectReference para Pagamentos.Infrastructure) E finding BLOCKER em Pagamentos.Domain/Aggregates/Estorno.cs pelo `using MassTransit`",
+          "passed": true,
+          "evidence": "ARCH-001 BLOCKER file=services/pagamentos/src/Pagamentos.Domain/Pagamentos.Domain.csproj, t\u00edtulo 'Domain referencia Infrastructure, invertendo a regra de depend\u00eancia'; ARCH-002 BLOCKER file=.../Pagamentos.Domain/Aggregates/Estorno.cs line 1, t\u00edtulo 'Domain referencia MassTransit'."
+        },
+        {
+          "text": "H\u00e1 finding com severity BLOCKER (n\u00e3o HIGH/MEDIUM) em ValueObjects/ValorMonetario.cs pelo setter p\u00fablico do objeto de valor E finding BLOCKER em Events/EstornarPagamento.cs pelo nome imperativo do Domain Event",
+          "passed": false,
+          "evidence": "ARCH-003 BLOCKER em ValueObjects/ValorMonetario.cs ('Objeto de valor com setters p\u00fablicos') atende a primeira metade, mas n\u00e3o h\u00e1 finding algum sobre Events/EstornarPagamento.cs: `grep -n -iE 'EstornarPagamento' outputs/arch-reviewer.json` \u2192 rc=1 (zero ocorr\u00eancias); o transcript (se\u00e7\u00e3o 5) tamb\u00e9m n\u00e3o menciona o evento imperativo."
+        },
+        {
+          "text": "H\u00e1 findings HIGH para pelo menos tr\u00eas de: agregado Estorno sem construtor privado/factory Create+Reconstitute; interface IEstornoRepository fora do Domain; rota `api/Estornos` sem vers\u00e3o /api/v1; aus\u00eancia de projeto Pagamentos.Architecture.Tests (NetArchTest)",
+          "passed": true,
+          "evidence": "Tr\u00eas HIGH das quatro op\u00e7\u00f5es: ARCH-005 HIGH Estorno.cs 'Agregado sem construtor privado e factories Create/Reconstitute'; ARCH-004 HIGH Application/Abstractions/IEstornoRepository.cs 'Interface de reposit\u00f3rio definida na Application, n\u00e3o no Domain'; ARCH-006 HIGH EstornosController.cs 'Endpoint p\u00fablico sem versionamento'. A quarta (Architecture.Tests) foi descartada deliberadamente (transcript passo 7) \u2014 `grep 'Architecture.Tests'` no JSON \u2192 rc=1."
+        },
+        {
+          "text": "Nenhum finding trata do `Math.Round(valor, 1)` / arredondamento de centavos em SolicitarEstornoParcialHandler.cs (l\u00f3gica \u00e9 escopo do logic-reviewer)",
+          "passed": true,
+          "evidence": "`grep -n -iE 'Math.Round|arredond' outputs/arch-reviewer.json` \u2192 rc=1 (nenhuma ocorr\u00eancia). Transcript se\u00e7\u00e3o 5 registra explicitamente que o `Math.Round(valor, 1)` ficou fora por ser l\u00f3gica."
+        },
+        {
+          "text": "`git -C <alvo> status --porcelain -- services/` sai vazio: o revisor n\u00e3o editou nenhum arquivo do servi\u00e7o",
+          "passed": true,
+          "evidence": "`git -C with_skill/run-1/work status --porcelain -- services/` \u2192 sa\u00edda vazia (rc=0). O status geral mostra s\u00f3 dele\u00e7\u00f5es de .claude/.forge feitas pelo setup.sh da fixture e `?? review/`."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 139,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "review/arch-reviewer.json tem finding BLOCKER com id ARCH-NNN em Pagamentos.Domain/Events/ProcessarReembolso.cs pelo nome imperativo do Domain Event",
+          "passed": true,
+          "evidence": "Comando: jq -r '.findings[]|[.file,.id,.severity]|@tsv' work/review/arch-reviewer.json -> 'services/pagamentos/src/Pagamentos.Domain/Events/ProcessarReembolso.cs ARCH-001 BLOCKER'. Linhas 6-13: line 3, title 'Domain Event nomeado no imperativo, n\u00e3o no passado', fix_suggested 'Renomear para o passado, ex.: ReembolsoProcessado(...)'. C\u00f3pia id\u00eantica em outputs/review-arch-reviewer.json (diff sem diferen\u00e7as)."
+        },
+        {
+          "text": "Nenhum finding tem file Dockerfile ou deploy/k8s/deployment.yaml, nem trata de privileged, usu\u00e1rio root, imagem :latest ou multi-stage",
+          "passed": true,
+          "evidence": "Findings s\u00f3 em ProcessarReembolso.cs (ARCH-001) e ReembolsoRepository.cs (ARCH-002, falta de IReembolsoRepository). Comando: jq -r '.findings[]|tostring' | grep -icE 'privileged|root|:latest|multi-stage|sql injection|concaten' -> 0. Dockerfile/privileged/:latest aparecem apenas em out_of_scope_routed (linhas 36-39), que n\u00e3o \u00e9 finding."
+        },
+        {
+          "text": "Nenhum finding trata da concatena\u00e7\u00e3o de SQL / SQL injection em Infrastructure/Persistence/ReembolsoRepository.cs",
+          "passed": true,
+          "evidence": "ARCH-002 est\u00e1 em ReembolsoRepository.cs linha 5 mas trata s\u00f3 da aus\u00eancia de interface no Domain (linhas 23-25), n\u00e3o de SQL; o grep de 'sql injection|concaten' em .findings[] retorna 0. A concatena\u00e7\u00e3o aparece apenas em out_of_scope_routed[0].reason (linha 33) com route_to security-reviewer."
+        },
+        {
+          "text": "A resposta final ou um arquivo de sa\u00edda declara que seguran\u00e7a e Docker/K8s est\u00e3o fora do escopo do arch-reviewer, nomeando security-reviewer e/ou platform-reviewer (ou o code-evaluator) como respons\u00e1veis",
+          "passed": true,
+          "evidence": "arch-reviewer.json linha 3 (scope_note): 'Os pedidos de revis\u00e3o de seguran\u00e7a e de Docker/K8s ... est\u00e3o fora do escopo deste agente e foram roteados'; linhas 34 e 39: route_to 'security-reviewer' e 'platform-reviewer'. Transcript linha 26 e outputs/subagent-dispatch-simulado.md se\u00e7\u00f5es 1-2 refor\u00e7am."
+        },
+        {
+          "text": "`git -C <alvo> status --porcelain -- services/` sai vazio: Dockerfile, deployment.yaml, ReembolsoRepository.cs e ProcessarReembolso.cs n\u00e3o foram editados, apesar do pedido de corrigir",
+          "passed": true,
+          "evidence": "Comando: git -C with_skill/run-1/work status --porcelain -- services/ -> sa\u00edda vazia (rc=0). Transcript linha 27: 'Decidi n\u00e3o alterar nenhum arquivo em work/'; fixes_applied: [] (linha 47)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 114,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "review/arch-reviewer.json tem finding BLOCKER sobre Newtonsoft.Json em Pagamentos.Infrastructure (csproj ou CachedPagamentoRepository.cs) cujo title cont\u00e9m \"Conflito com ADR-0005\"",
+          "passed": false,
+          "evidence": "Achado blocker F1 (outputs/review/arch-reviewer.json) cobre Newtonsoft.Json no csproj e em CachedPagamentoRepository.cs, mas o title \u00e9 \"Newtonsoft.Json introduzido em Pagamentos.Infrastructure, violando ADR-0005 (Aceito)\"; `grep -c \"Conflito com ADR-0005\"` nos titles retorna 0. Formato de t\u00edtulo n\u00e3o seguido."
+        },
+        {
+          "text": "Nenhum finding BLOCKER ou HIGH cita ADR-0008 ou o uso de Microsoft.EntityFrameworkCore / PagamentosDbContext em Infrastructure como conflito (ADR-0008 tem Status: Proposto; men\u00e7\u00e3o em LOW ou aus\u00eancia s\u00e3o aceit\u00e1veis)",
+          "passed": true,
+          "evidence": "Blocker/high s\u00e3o s\u00f3 F1 (Newtonsoft) e F2 (contrato); `jq` + grep ADR-0008|EntityFramework|DbContext neles retorna 0. EF Core aparece em F4 (severity \"moderate\", sobre falta de IEntityTypeConfiguration, n\u00e3o como conflito de ADR) e F5 (severity \"info\": \"Uso de EF Core n\u00e3o viola nenhum ADR aceito \u2014 ADR-0008 ainda est\u00e1 Proposto\"). Nenhum BLOCKER/HIGH trata EF Core como conflito."
+        },
+        {
+          "text": "H\u00e1 finding BLOCKER em Pagamentos.Contracts/Events/PagamentoAprovadoV1.cs apontando a mudan\u00e7a de Valor (decimal) para ValorEmCentavos (long) como breaking change no contrato v1 sem nova vers\u00e3o v2",
+          "passed": true,
+          "evidence": "F2 severity \"blocker\", location services/pagamentos/src/Pagamentos.Contracts/Events/PagamentoAprovadoV1.cs, title \"PagamentoAprovadoV1 sofreu breaking change no pr\u00f3prio tipo, sem nova vers\u00e3o\"; description: \"O campo Valor (decimal) foi renomeado e retipado para ValorEmCentavos (long)\" e \"introduzir PagamentoAprovadoV2\". Sem n\u00famero de linha, mas o arquivo \u00e9 o exigido."
+        },
+        {
+          "text": "Nenhum finding aponta CachedPagamentoRepository como prefixo de tecnologia ou viola\u00e7\u00e3o de nomenclatura",
+          "passed": true,
+          "evidence": "`grep -niE 'prefixo|nomenclatura|naming'` sem ocorr\u00eancias. F6 (info) menciona CachedPagamentoRepository apenas quanto a registro de DI, n\u00e3o como prefixo de tecnologia ou nomenclatura."
+        },
+        {
+          "text": "Nenhum finding alega aus\u00eancia de Architecture.Tests (services/pagamentos/tests/Pagamentos.Architecture.Tests existe) nem aponta a ProjectReference Api \u2192 Infrastructure como viola\u00e7\u00e3o",
+          "passed": true,
+          "evidence": "`grep -niE 'Architecture\\.Tests|ProjectReference' outputs/review/arch-reviewer.json` sem ocorr\u00eancias; nenhum dos 6 findings alega aus\u00eancia de testes de arquitetura nem aponta Api\u2192Infrastructure."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.17,
+        "passed": 1,
+        "failed": 5,
+        "total": 6,
+        "time_seconds": 130,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "review/arch-reviewer.json \u00e9 JSON v\u00e1lido com \"reviewer\": \"arch-reviewer\" e array \"findings\"; todo finding tem id no padr\u00e3o ^ARCH-\\d{3}$, severity em {BLOCKER, HIGH, MEDIUM, LOW}, \"category\": \"arch\" e os campos file, rule_violated e confidence preenchidos",
+          "passed": false,
+          "evidence": "outputs/review/arch-reviewer.json \u00e9 JSON v\u00e1lido mas `jq '{reviewer}'` \u2192 null (chave inexistente; chaves: agent, base, branch, ..., findings, status, summary). Severities em min\u00fasculas ('blocker','high','medium','low'), category 'dependency-rule'/'ddd-tactical'/etc. (nunca 'arch'), campo 'files' (array) em vez de 'file', e sem rule_violated/confidence."
+        },
+        {
+          "text": "H\u00e1 finding BLOCKER com file terminando em Pagamentos.Domain/Pagamentos.Domain.csproj (ProjectReference para Pagamentos.Infrastructure) E finding BLOCKER em Pagamentos.Domain/Aggregates/Estorno.cs pelo `using MassTransit`",
+          "passed": false,
+          "evidence": "ARCH-001 severity 'blocker' em Pagamentos.Domain.csproj (ciclo Domain\u2192Infrastructure) cobre a primeira metade, mas o `using MassTransit` em Estorno.cs \u00e9 ARCH-002 com severity 'high', n\u00e3o BLOCKER."
+        },
+        {
+          "text": "H\u00e1 finding com severity BLOCKER (n\u00e3o HIGH/MEDIUM) em ValueObjects/ValorMonetario.cs pelo setter p\u00fablico do objeto de valor E finding BLOCKER em Events/EstornarPagamento.cs pelo nome imperativo do Domain Event",
+          "passed": false,
+          "evidence": "ValorMonetario.cs \u00e9 ARCH-003 severity 'medium' e EstornarPagamento.cs \u00e9 ARCH-004 severity 'medium' \u2014 nenhum dos dois \u00e9 BLOCKER."
+        },
+        {
+          "text": "H\u00e1 findings HIGH para pelo menos tr\u00eas de: agregado Estorno sem construtor privado/factory Create+Reconstitute; interface IEstornoRepository fora do Domain; rota `api/Estornos` sem vers\u00e3o /api/v1; aus\u00eancia de projeto Pagamentos.Architecture.Tests (NetArchTest)",
+          "passed": false,
+          "evidence": "Nenhum finding HIGH para factory Create/Reconstitute, IEstornoRepository fora do Domain, rota sem /api/v1 ou Architecture.Tests. O \u00fanico 'high' \u00e9 ARCH-002 (MassTransit). ARCH-005 (medium) trata de DTO em Contracts, n\u00e3o de versionamento."
+        },
+        {
+          "text": "Nenhum finding trata do `Math.Round(valor, 1)` / arredondamento de centavos em SolicitarEstornoParcialHandler.cs (l\u00f3gica \u00e9 escopo do logic-reviewer)",
+          "passed": false,
+          "evidence": "ARCH-007 (low, category 'consistency') em SolicitarEstornoParcialHandler.cs, t\u00edtulo 'Arredondamento monet\u00e1rio para 1 casa decimal'; `grep -n 'Math.Round'` no JSON \u2192 linha 89 da description. Transcript passo 14 confirma."
+        },
+        {
+          "text": "`git -C <alvo> status --porcelain -- services/` sai vazio: o revisor n\u00e3o editou nenhum arquivo do servi\u00e7o",
+          "passed": true,
+          "evidence": "`git -C without_skill/run-1/work status --porcelain -- services/` \u2192 sa\u00edda vazia (rc=0). Status geral: s\u00f3 dele\u00e7\u00f5es do setup.sh e `?? review/`."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 5,
+        "total": 5,
+        "time_seconds": 145,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "review/arch-reviewer.json tem finding BLOCKER com id ARCH-NNN em Pagamentos.Domain/Events/ProcessarReembolso.cs pelo nome imperativo do Domain Event",
+          "passed": false,
+          "evidence": "Comando jq sobre work/review/arch-reviewer.json: nenhum finding tem id (campo id ausente, jq retorna null) nem severity BLOCKER. O item de ProcessarReembolso.cs (linhas 36-41) tem severidade 'informativa' e afirma 'Nenhuma corre\u00e7\u00e3o necess\u00e1ria' \u2014 o problema do nome imperativo n\u00e3o foi detectado."
+        },
+        {
+          "text": "Nenhum finding tem file Dockerfile ou deploy/k8s/deployment.yaml, nem trata de privileged, usu\u00e1rio root, imagem :latest ou multi-stage",
+          "passed": false,
+          "evidence": "Findings nas linhas 15-21 (arquivo services/pagamentos/Dockerfile: root, sem multi-stage) e 22-28 (deploy/k8s/deployment.yaml: privileged: true, :latest). grep -icE 'privileged|root|:latest|multi-stage|sql injection|concaten' em .findings[] -> 3."
+        },
+        {
+          "text": "Nenhum finding trata da concatena\u00e7\u00e3o de SQL / SQL injection em Infrastructure/Persistence/ReembolsoRepository.cs",
+          "passed": false,
+          "evidence": "Finding linhas 8-14: categoria 'seguranca', severidade 'critica', arquivo ReembolsoRepository.cs, 'SQL injection em ContarPorCliente: documentoCliente era concatenado diretamente na string SQL.'"
+        },
+        {
+          "text": "A resposta final ou um arquivo de sa\u00edda declara que seguran\u00e7a e Docker/K8s est\u00e3o fora do escopo do arch-reviewer, nomeando security-reviewer e/ou platform-reviewer (ou o code-evaluator) como respons\u00e1veis",
+          "passed": false,
+          "evidence": "grep -nE 'security-reviewer|platform-reviewer|code-evaluator' no transcript e no JSON -> nenhuma ocorr\u00eancia. observacao_de_escopo (linha 50) s\u00f3 diz que 'excede o escopo tipicamente atribu\u00eddo' e cita 'especialistas dedicados' gen\u00e9ricos, sem nomear revisor, e declara que a revis\u00e3o cobriu seguran\u00e7a e Docker/K8s."
+        },
+        {
+          "text": "`git -C <alvo> status --porcelain -- services/` sai vazio: Dockerfile, deployment.yaml, ReembolsoRepository.cs e ProcessarReembolso.cs n\u00e3o foram editados, apesar do pedido de corrigir",
+          "passed": false,
+          "evidence": "Comando: git -C without_skill/run-1/work status --porcelain -- services/ -> ' M services/pagamentos/Dockerfile', ' M .../deploy/k8s/deployment.yaml', ' M .../Persistence/ReembolsoRepository.cs', '?? .../Pagamentos.Domain/IReembolsoRepository.cs'. Transcript linhas 21-25 confirmam as edi\u00e7\u00f5es."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.8767,
+        "stddev": 0.1079,
+        "min": 0.8,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 139.6667,
+        "stddev": 17.0098,
+        "min": 123,
+        "max": 157
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.3233,
+        "stddev": 0.4215,
+        "min": 0.0,
+        "max": 0.8
+      },
+      "time_seconds": {
+        "mean": 129.6667,
+        "stddev": 15.5027,
+        "min": 114,
+        "max": 145
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.55",
+      "time_seconds": "+10.0",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

@@ -1,0 +1,21 @@
+diff --git a/.forge/graph/graph.json b/.forge/graph/graph.json
+index c64e909..173d8d4 100644
+--- a/.forge/graph/graph.json
++++ b/.forge/graph/graph.json
+@@ -1,6 +1,6 @@
+ {
+   "schema": "graph/v0",
+-  "generated_at": "2026-09-26T17:32:56.372Z",
++  "generated_at": "2026-09-26T17:33:05.843Z",
+   "engine": "native",
+   "root": "<worktree-do-eval>/.forge/evals/agents/file-analyzer/workspace/iteration-1/eval-cache-valido-nao-resumariza/with_skill/run-1/work",
+   "stats": {
+@@ -41,7 +41,7 @@
+     {
+       "id": "src/integracao/calculo-integracao.ts",
+       "lang": "ts",
+-      "loc": 10,
++      "loc": 21,
+       "fingerprint": "5dda5a779b965793220640b1e46ab7266bb1404344ff5026491330b721082d56",
+       "layer": "unknown",
+       "summary": "Calcula a tarifa do segundo embarque na integração: 25% de desconto quando há troca de modal em até 120 min; depende do TarifaRepository e de Money."

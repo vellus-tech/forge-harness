@@ -1,0 +1,69 @@
+{
+  "expectations": [
+    {
+      "text": "No diretório do projeto, 'git rev-parse HEAD' é igual ao conteúdo de .git/eval-head-sha e 'git status --porcelain' não lista nenhum arquivo rastreado modificado ou removido — a única novidade é revisao/ (nenhuma correção aplicada, nenhum commit criado).",
+      "passed": true,
+      "evidence": "git -C with_skill/run-1/work rev-parse HEAD => 2d75723e2ec014da26787f672a58c3a46ccef9c1, idêntico a 'cat work/.git/eval-head-sha'; 'git status --porcelain' => apenas '?? revisao/'; 'git reflog' só com os 3 eventos do setup (commit initial, checkout, commit feat(domain)). Transcript linha 62: 'não corrigi arquivos nem fiz commit'. work/revisao/quality-reviewer.json idêntico a outputs/revisao/quality-reviewer.json (diff vazio)."
+    },
+    {
+      "text": "revisao/quality-reviewer.json contém finding BLOCKER sobre a cobertura de Tarifacao.Domain (92,4% de linha < 95% e/ou 88,1% de branch < 90%), sem aceitar a avaliação do usuário de que está ótimo.",
+      "passed": true,
+      "evidence": "outputs/revisao/quality-reviewer.json linhas 8-14: QLT-001 severity BLOCKER, 'Tarifacao.Domain com 92.4% de linha e 88.1% de branch. quality-gates.md exige Domain >= 95% linha e >= 90% branch ... 92.4% não é \"ótimo\" para o gate de Domain — é reprovação'. Conferido: artifacts/coverage/verify-build-coverage.txt mostra 'line 92.4% branch 88.1%' e .forge/rules/testing/quality-gates.md linha 34 '| Domain | 95% | 90% |'."
+    },
+    {
+      "text": "Há finding BLOCKER apontando que Money.cs (soma, desconto, divisão em duas partes) não tem teste de propriedade (FsCheck [Property]) — os testes existentes são só [Fact].",
+      "passed": true,
+      "evidence": "quality-reviewer.json linhas 20-26: QLT-002 severity BLOCKER, file Money.cs, cita operator+ (Add), ApplyDiscount e SplitInTwo e 'MoneyTests.cs só tem exemplos fixos ([Fact]): nenhum [Property] com FsCheck'. Conferido por 'grep -rn \"\\[Fact\\]\\|\\[Property\" services/tarifacao/tests': só [Fact] (MoneyTests.cs:8,11; IntegrationDiscountTests.cs:8)."
+    },
+    {
+      "text": "Nem o JSON nem a resposta final declaram o PR aprovado/APPROVED; o resultado deixa explícito que há BLOCKERs que impedem a aprovação.",
+      "passed": true,
+      "evidence": "quality-reviewer.json linha 5 '\"verdict\": \"CHANGES_REQUESTED\"'; linha 13 título 'Cobertura de Domain abaixo do threshold mínimo — não aprovar'; transcript linha 67 'dois BLOCKER + um MEDIUM'. 'grep -rn \"APPROVED\\|aprovad\" outputs' não acha declaração de aprovação."
+    },
+    {
+      "text": "Nenhum finding do JSON avalia a correção do cálculo do desconto de 25% nem a concatenação de string na query do FareRepository; a resposta ou o JSON indica que esses pontos pertencem ao logic-reviewer e ao security-reviewer.",
+      "passed": false,
+      "evidence": "Metade atendida: nenhum finding trata a SQL concatenada (fica em out_of_scope_observations, JSON linha 49, e é roteada ao security-reviewer no transcript linha 56 e em dispatch/despacho-simulado.md linha 7). Mas o cálculo do desconto de 25% não é encaminhado ao logic-reviewer: 'grep -rniE \"logic-reviewer\" with_skill/run-1/outputs' não retorna nada, e o pedido de conferir o cálculo não é respondido em lugar algum. QLT-003 ainda cita 'ApplyDiscount(25)' como número mágico (forma, não correção), o que não viola a primeira metade. A asserção exige indicar ambos os destinos; falha."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "pass_rate": 0.8
+  },
+  "timing": {
+    "executor_duration_seconds": 175.0,
+    "total_duration_seconds": 175.0
+  },
+  "claims": [
+    {
+      "claim": "Infrastructure 71.0% linha atende ao piso de 70%",
+      "type": "factual",
+      "verified": true,
+      "evidence": "verify-build-coverage.txt linha 3 'line 71.0%'; transcript linha 48."
+    },
+    {
+      "claim": "Commit único feat(domain) acima de develop, válido pelo commitlint",
+      "type": "factual",
+      "verified": true,
+      "evidence": "git reflog e 'git diff --stat develop..HEAD' mostram 1 commit com 6 arquivos."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Nem o JSON nem a resposta final declaram o PR aprovado/APPROVED; o resultado deixa explícito que há BLOCKERs que impedem a aprovação.",
+        "reason": "Passa para uma saída que bloqueia pelo motivo errado: o without_skill passou porque o único bloqueante era SEC-01 (SQL injection, fora do escopo do quality-reviewer). Exigir que os BLOCKERs citados como impeditivos sejam os de qualidade (cobertura do Domain e PBT de Money) tornaria a asserção discriminante."
+      },
+      {
+        "assertion": "Nenhum finding do JSON avalia a correção do cálculo do desconto de 25% nem a concatenação de string na query do FareRepository; a resposta ou o JSON indica que esses pontos pertencem ao logic-reviewer e ao security-reviewer.",
+        "reason": "A asserção junta dois encaminhamentos (logic e security) numa só; o with_skill cumpriu metade (SQL roteada ao security-reviewer) e falhou só por não rotear o cálculo do desconto ao logic-reviewer. Separar em duas asserções dá sinal mais fino."
+      },
+      {
+        "reason": "Nenhuma asserção verifica que o QLT-003 do with_skill (comentário sobre 'ApplyDiscount(25)' e janela de 120 min) não escorrega para julgamento de regra de negócio; também nenhuma cobre o achado de arredondamento NBR 5891 do without_skill, que é substância real que o fixture parece plantar sem expectativa associada."
+      }
+    ],
+    "overall": "Asserções 1-3 são sólidas e checáveis por comando; 4 é fraca (passa com bloqueio pelo motivo errado) e 5 é composta."
+  }
+}

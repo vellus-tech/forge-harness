@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "registra-outbox-proximo-numero",
+  "prompt": "Precisamos registrar em ADR a decisão de adotar o padrão Transactional Outbox no serviço `validacao` para publicar os eventos de validação de embarque no RabbitMQ. Motivo: na semana passada perdemos cerca de 1.200 eventos quando pods caíram entre o commit no PostgreSQL e o publish na fila `validacao.eventos`, e a compensação das operadoras ficou divergente. Além do outbox, avaliamos CDC com Debezium lendo o WAL e publish-antes-do-commit com retentativa. A proposta é da @joana-lima e vai para a revisão de arquitetura de quinta — ainda não foi aprovada. Escreve o ADR seguindo o padrão do repositório em docs/product/adr/.",
+  "assertions": [
+    "Existe exatamente um ADR novo em docs/product/adr/, com nome no padrão 0006-<titulo-em-kebab-case>.md (quatro dígitos, minúsculas, hífens, sem acentos), e nenhum outro número novo foi criado.",
+    "docs/product/adr/README.md contém uma linha nova na tabela mestra para 0006, com link relativo para o arquivo criado, título, status e data; as linhas 0001–0005 permanecem inalteradas.",
+    "O campo Status do novo ADR é 'Proposto' ou 'Em Revisão' (a decisão ainda vai para a revisão de quinta), e não 'Aceito' nem 'accepted'; o mesmo status aparece na linha 0006 do README.",
+    "O novo ADR tem uma seção intitulada Conformidade (ou equivalente explícito) com pelo menos um critério objetivamente checável — por exemplo teste automatizado, consulta, métrica com limiar ou regra de CI que detecta publish direto fora do outbox.",
+    "A seção de Consequências lista ao menos uma consequência negativa do outbox (ex.: latência extra de publicação, crescimento da tabela outbox, entrega duplicada) acompanhada de mitigação concreta.",
+    "O novo ADR referencia por link relativo os ADRs relacionados 0003 (RabbitMQ para eventos de validação) e 0004 (idempotência nos consumidores)."
+  ]
+}

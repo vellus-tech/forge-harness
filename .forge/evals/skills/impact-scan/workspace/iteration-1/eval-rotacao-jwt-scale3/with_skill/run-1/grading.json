@@ -1,0 +1,45 @@
+{
+  "expectations": [
+    {
+      "text": "Existe .forge/specs/active/2026-09-rotacao-jwt/impact.json e `node .forge/scripts/lib/impact-freshness.mjs .forge/specs/active/2026-09-rotacao-jwt .` imprime exatamente 'fresh'.",
+      "passed": true,
+      "evidence": "`ls work/.forge/specs/active/2026-09-rotacao-jwt/` lista impact.json (454 bytes); `cd work && node .forge/scripts/lib/impact-freshness.mjs .forge/specs/active/2026-09-rotacao-jwt .` imprimiu exatamente 'fresh' (rc=0). transcript.md passo 6 registra a gravação."
+    },
+    {
+      "text": "O campo impacted do impact.json contém src/api/server.ts, src/api/routes/payments.ts, src/api/routes/users.ts, src/middleware/auth.ts e src/middleware/rate-limit.ts, e NÃO contém src/billing/invoice.ts nem src/utils/logger.ts (dependências, não dependentes).",
+      "passed": true,
+      "evidence": "`jq -c .impacted work/.forge/specs/active/2026-09-rotacao-jwt/impact.json` = [src/api/routes/payments.ts, src/api/routes/users.ts, src/api/server.ts, src/auth/index.ts, src/auth/jwt.ts, src/middleware/auth.ts, src/middleware/rate-limit.ts]: contém os 5 exigidos e não contém src/billing/invoice.ts nem src/utils/logger.ts."
+    },
+    {
+      "text": "O sha256 de .forge/graph/graph.json ao fim da execução é igual ao valor gravado pelo setup em .git/eval-graph.sha256 (o grafo não foi reconstruído nem atualizado).",
+      "passed": true,
+      "evidence": "`cat work/.git/eval-graph.sha256` = 46fc8779…3ee6 e `shasum -a 256 work/.forge/graph/graph.json` = 46fc8779…3ee6 (idênticos)."
+    },
+    {
+      "text": "Existe /tmp/impact-scan.log contendo a linha 'OK impact: 2 seed(s) -> 7 impacted' (saída bruta do script redirecionada, conforme §17.6).",
+      "passed": false,
+      "evidence": "`ls -la /tmp/impact-scan.log` → No such file or directory. A saída bruta foi salva só em outputs/impact-scan-stdout.log (linha 1: 'OK impact: 2 seed(s) -> 7 impacted'); transcript.md passos 5-6 não mostram redirecionamento para /tmp/impact-scan.log. Reverificado em 2026-09-28: /tmp/impact-scan.log existe agora (mtime 28 set 13:09, posterior à execução de 26 set), mas contém 'OK impact: 3 seed(s) -> 6 impacted' com caminhos de refunds/billing, ou seja, é de outro caso de eval e não contém a linha exigida; `grep -rn impact-scan.log outputs/` não retorna nada."
+    },
+    {
+      "text": "A resposta final contém uma linha no formato 'Impact scan: <n> arquivos tocados → <m> módulos afetados', uma linha de 'Módulos de alto risco' que cita src/middleware/, e a confirmação de que impact.json foi gravado com freshness OK.",
+      "passed": false,
+      "evidence": "`grep -nE 'Impact scan: [0-9]+ arquivos tocados → [0-9]+ módulos afetados' outputs/resposta-usuario.md` → rc=1 (sem casamento). A linha 3 é 'Impact scan: 2 arquivos tocados (`src/auth/jwt.ts`, `src/auth/index.ts`) → 7 módulos afetados (incluindo os 2 tocados).', que intercala a lista de caminhos entre 'tocados' e '→' e desvia do formato literal do contrato (SKILL.md linha 35: 'Impact scan: 3 arquivos tocados → 7 módulos afetados.'). As outras duas partes estão presentes (linha 5 'Módulos de alto risco' cita src/middleware/auth.ts; linha 7 confirma impact.json gravado com 'freshness OK'), mas a asserção exige as três e, na dúvida sobre o formato, o veredito é falha."
+    },
+    {
+      "text": "A resposta final NÃO reproduz a lista bruta indentada de todos os 7 caminhos impactados emitida pelo script (no máximo os módulos de alto risco são nomeados).",
+      "passed": false,
+      "evidence": "Não há lista indentada, mas resposta-usuario.md nomeia em prosa os 7 caminhos impactados (grep -oE 'src/…\\.ts' retorna payments.ts, users.ts, server.ts, auth/index.ts, auth/jwt.ts, middleware/auth.ts, middleware/rate-limit.ts, além de billing/invoice.ts) nas linhas 3, 5 e na seção 'Superfície de API exposta'; a asserção limita a nomeação aos módulos de alto risco."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 3,
+    "total": 6,
+    "pass_rate": 0.5
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 360000,
+    "total_duration_seconds": 360
+  }
+}

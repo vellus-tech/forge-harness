@@ -1,0 +1,20 @@
+=== check-data-governance.sh --path analytics ===
+FAIL data-governance/universo-vazio — 0 arquivo(s) examinado(s) (analytics): o gate não examinou nada.
+      Universo vazio não é ausência de violação, é ausência de verificação — os dois não
+      podem colapsar no mesmo verde. Confira o alvo, o glob e o range.
+      Se o vazio for legítimo, declare em <worktree-do-eval>/.forge/evals/skills/data-analytical-practices/workspace/iteration-1/eval-revisao-dbt-projeto-viagens/with_skill/run-1/work/.forge/empty-universe-allowlist.txt: 'data-governance  # motivo: <justificativa>'.
+
+=== scan.sh --root analytics (via template, mesma versão do skill) ===
+INFO data-analytical-practices motor=rg raizes=1 universo=sql yml
+FOUND A-06 [aviso] 2 ocorrência(s) — partição estilo Hive declarada à mão em tabela: formato errado da coluna dá resultado silenciosamente incorreto; prefira particionamento oculto (transformação Iceberg) ou liquid clustering
+  <worktree-do-eval>/.forge/evals/skills/data-analytical-practices/workspace/iteration-1/eval-revisao-dbt-projeto-viagens/with_skill/run-1/work/analytics/ddl/gold_receita_linha.sql:9: PARTITIONED BY (dt);
+  <worktree-do-eval>/.forge/evals/skills/data-analytical-practices/workspace/iteration-1/eval-revisao-dbt-projeto-viagens/with_skill/run-1/work/analytics/ddl/gold_receita_linha.sql:11: INSERT OVERWRITE TABLE lake.gold.receita_linha PARTITION (dt='2026-09-27')
+FOUND A-08 [aviso] 1 ocorrência(s) — modelo incremental sem unique_key (e sem estratégia microbatch): reprocessamento duplica linhas no grão
+  <worktree-do-eval>/.forge/evals/skills/data-analytical-practices/workspace/iteration-1/eval-revisao-dbt-projeto-viagens/with_skill/run-1/work/analytics/models/intermediate/int_viagens_diarias.sql:1: {{ config(materialized='incremental') }}
+FOUND A-10 [alto] 1 ocorrência(s) — mart lendo source() direto pula staging e contratos; leia de ref()
+  <worktree-do-eval>/.forge/evals/skills/data-analytical-practices/workspace/iteration-1/eval-revisao-dbt-projeto-viagens/with_skill/run-1/work/analytics/models/marts/fct_viagens.sql:10: from {{ source('bilhetagem', 'viagens') }} v
+FOUND A-12 [aviso] 1 ocorrência(s) — SELECT * em mart propaga qualquer coluna nova ou removida ao consumidor
+  <worktree-do-eval>/.forge/evals/skills/data-analytical-practices/workspace/iteration-1/eval-revisao-dbt-projeto-viagens/with_skill/run-1/work/analytics/models/marts/dim_linha.sql:3: select *
+FOUND A-14 [alto] 1 ocorrência(s) — snapshot com invalidate_hard_deletes, substituído por hard_deletes no dbt 1.9
+  <worktree-do-eval>/.forge/evals/skills/data-analytical-practices/workspace/iteration-1/eval-revisao-dbt-projeto-viagens/with_skill/run-1/work/analytics/snapshots/snap_linhas.yml:9: invalidate_hard_deletes: true
+ARQUIVOS-VARRIDOS 11

@@ -1,0 +1,19 @@
+:root {
+  --surface: #ffffff;
+  --surface-raised: #f7f8fa;
+  --text-primary: #111827;
+  --text-muted: #6b7280;
+  --border-subtle: #e5e7eb;
+  --color-primary-500: #0051e6;
+  --space-2: 8px;
+  --space-4: 16px;
+  --radius-md: 8px;
+}
+[data-theme="dark"] {
+  --surface: #0f172a;
+  --surface-raised: #1e293b;
+  --text-primary: #f1f5f9;
+  --text-muted: #94a3b8;
+  --border-subtle: #334155;
+  --color-primary-500: #4d8dff;
+}

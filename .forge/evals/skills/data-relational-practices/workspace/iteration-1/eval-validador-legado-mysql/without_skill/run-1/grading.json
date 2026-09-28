@@ -1,0 +1,52 @@
+{
+  "expectations": [
+    {
+      "text": "docs/parecer-validador.md classifica o ADD INDEX de 20260930_idx_linha_data.sql como R-22 (id citado) e o SQL corrigido desse arquivo contém ALGORITHM=INPLACE e LOCK=NONE explícitos; o parecer não prescreve CREATE INDEX CONCURRENTLY para esse arquivo nem o classifica como R-03",
+      "passed": false,
+      "evidence": "O parecer trata o índice na seção 2 com SQL corrigido contendo \"ALGORITHM=INPLACE, LOCK=NONE\" e sem CONCURRENTLY, mas não cita o id R-22 (grep por 'R-[0-9]+' no parecer retorna zero ocorrências). A asserção exige o id citado."
+    },
+    {
+      "text": "O parecer aponta ALGORITHM=COPY, LOCK=SHARED de 20260930_cartao_uid_varchar.sql:2 como R-13 e a correção é coluna nova com backfill em lotes e troca de leitura (expand → migrate → contract) ou ferramenta online (gh-ost ou pt-online-schema-change); apenas apagar a cláusula ALGORITHM/LOCK e manter o MODIFY COLUMN não conta",
+      "passed": false,
+      "evidence": "Substância correta (seção 3 bloqueia ALGORITHM=COPY, LOCK=SHARED e propõe pt-online-schema-change/gh-ost ou expand/contract com coluna nova cartao_uid_novo, backfill em lotes e dupla escrita), porém o parecer não classifica o achado como R-13 — nenhum id do catálogo aparece no documento. A asserção exige a classificação R-13."
+    },
+    {
+      "text": "O parecer afirma que no MySQL o código 1205 é lock wait timeout e o deadlock é 1213, e o trecho de retry corrigido de ValidacaoRepository.kt trata 1213 e reexecuta a transação inteira (rollback e novo laço sobre todas as validações), não só a última instrução",
+      "passed": true,
+      "evidence": "Seção 4: \"o código correto de deadlock é **1213**, ER_LOCK_DEADLOCK; 1205 é ER_LOCK_WAIT_TIMEOUT\" e \"InnoDB ... já fez rollback automático e completo da transação\". Código corrigido: codigosRetentaveis = setOf(1213, 1205), nova conexão por tentativa, validacoes.forEach { inserir }, rollback no erro e volta ao topo do while com backoff; o lote inteiro é reexecutado."
+    },
+    {
+      "text": "O parecer corrige a afirmação de docs/banco.md: o nível de isolamento default do InnoDB é REPEATABLE READ, não READ COMMITTED, e alerta contra portar a suposição do PostgreSQL para o MySQL",
+      "passed": true,
+      "evidence": "Seção 1: \"O nível de isolamento default do InnoDB é **REPEATABLE READ**, não READ COMMITTED — ao contrário do Postgres\", explica o efeito prático (gap/next-key locks) e recomenda corrigir banco.md antes de basear decisões nele. O alerta contra portar a suposição do Postgres é implícito no contraste explícito com o Postgres, e não em frase dedicada; aceito por ser substancial."
+    },
+    {
+      "text": "O parecer não aponta 20260815_idx_dispositivo.sql (que já tem ALGORITHM=INPLACE, LOCK=NONE) como R-22/R-03 nem como problema a corrigir, e não trata o CHAR(14) do comentário da linha 1 de 20260930_cartao_uid_varchar.sql como achado R-04",
+      "passed": true,
+      "evidence": "20260815_idx_dispositivo.sql aparece só como referência de convenção (\"declara isso explicitamente\"), sem ser apontado como problema; CHAR(14) não é tratado como achado (só mencionado no transcript como tipo de origem da troca). Nenhum R-04 no parecer."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 2,
+    "total": 5,
+    "pass_rate": 0.6
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 118000,
+    "total_duration_seconds": 118
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "docs/parecer-validador.md classifica o ADD INDEX de 20260930_idx_linha_data.sql como R-22 (id citado) e o SQL corrigido desse arquivo contém ALGORITHM=INPLACE e LOCK=NONE explícitos; o parecer não prescreve CREATE INDEX CONCURRENTLY para esse arquivo nem o classifica como R-03",
+        "reason": "As asserções 1 e 2 medem o id do catálogo; sem a skill a substância (INPLACE/NONE, expand-contract/gh-ost) saiu correta e a diferença A/B fica só na nomenclatura R-xx. Vale uma asserção separada de substância para distinguir vocabulário de qualidade técnica."
+      },
+      {
+        "reason": "Nenhuma asserção cobre o ponto que as duas execuções acharam: o retry original reexecuta só validacoes.last() e comita, perdendo linhas silenciosamente; é o bug mais grave do caso."
+      }
+    ],
+    "overall": "Asserções 3-5 não discriminam (passam nas duas configurações)."
+  }
+}

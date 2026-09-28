@@ -1,0 +1,52 @@
+{
+  "expectations": [
+    {
+      "text": "O cabeçalho do design.md mostra 'Versão: 1.1.0' (não 1.0.0, 1.0.1 nem 2.0.0) e o Status continua 'Aprovado para desenvolvimento' — não regrediu para Rascunho.",
+      "passed": true,
+      "evidence": "outputs/docs/product/modules/recarga/design.md:4 'Versão: 1.1.0' e :6 'Status: Aprovado para desenvolvimento' (original na fixture: 1.0.0, mesmo status; verificado com git -C work show HEAD:docs/product/modules/recarga/design.md)."
+    },
+    {
+      "text": "A tabela 'Histórico de Versões' mantém a linha 1.0.0 original e ganha uma linha 1.1.0 descrevendo a inclusão do estorno (RF-06); a 'Referência base' passou a citar requirements.md v1.3.0.",
+      "passed": true,
+      "evidence": "outputs/docs/product/modules/recarga/design.md:15 mantém a linha 1.0.0 original ('aprovado por @joao-reis'); :16 nova linha 1.1.0 'Inclui RF-06 (estorno de recarga)...'; :7 'Referência base: ...requirements.md v1.3.0' (antes v1.2.0)."
+    },
+    {
+      "text": "O evento RecargaEstornada é especificado no RabbitMQ (exchange mobi.eventos / outbox) e nenhuma DD, seção de mensageria ou contrato do design adota Kafka como mecanismo de publicação; o pedido de Kafka aparece registrado como conflito com a ADR-0002 (em Riscos, DD ou nota) com recomendação de nova ADR, ou é apontado na resposta final como bloqueado por ela.",
+      "passed": true,
+      "evidence": "grep -n -i kafka outputs/docs/product/modules/recarga/design.md: nenhuma adoção. :90 (6.3) routing key '<tenant>.recarga.estornada' no RabbitMQ/mobi.eventos; :120 (9) 'via Transactional Outbox ... **Não publicado diretamente no Kafka** — ver DD-002'; :231-241 DD-002 'Evento de estorno via RabbitMQ/Outbox, não Kafka direto', cita que a ADR-0002 rejeitou Kafka e 'adotar Kafka exige nova ADR'; alternativa (c) 'uma ADR nova propõe um conector RabbitMQ→Kafka'; :249 Riscos registra decisão pendente. O diagrama 16.4 (:203) publica só no RabbitMQ."
+    },
+    {
+      "text": "A seção de API Contracts ganha um endpoint REST de estorno (ex.: POST /v1/recargas/{id}/estornos) que referencia códigos RCG-ERR-NNN novos presentes na tabela do Catálogo de Erros, cobrindo ao menos prazo de 7 dias excedido e saldo insuficiente; os códigos 001–010 existentes continuam com o mesmo significado.",
+      "passed": true,
+      "evidence": "outputs/docs/product/modules/recarga/design.md:113 'POST /v1/recargas/{id}/estornos' com erros RCG-ERR-002, 011, 012, 013, 010; catálogo :141 RCG-ERR-011 'Saldo insuficiente para estorno', :142 RCG-ERR-012 'Fora do prazo de estorno' (7 dias), :143 013, :144 014. diff das linhas 001–006 e 010 entre HEAD da fixture e o output: idênticas."
+    },
+    {
+      "text": "RF-06 e PBT-03 aparecem literalmente no design.md ligados a command/handler e teste, e a state machine (seção 4.5 e o stateDiagram da 16.5) inclui a transição de 'paga' para 'estornada' (com ou sem estado intermediário).",
+      "passed": true,
+      "evidence": "outputs/docs/product/modules/recarga/design.md:60 SolicitarEstornoCommand/ConfirmarReembolsoCommand marcados (RF-06); :148 Testes 'FsCheck para PBT-01, PBT-02 e PBT-03 (RF-06)' e handler SolicitarEstornoCommand testado; :50 (4.5) 'paga → estornada (RF-06)'; :214 (16.5 stateDiagram) 'paga --> estornada'."
+    },
+    {
+      "text": "O evento de integração de estorno está descrito na seção 9 com event_version (ou versão explícita v1), correlation_id, causation_id e idempotency_key.",
+      "passed": true,
+      "evidence": "outputs/docs/product/modules/recarga/design.md:120 (seção 9) 'RecargaEstornadaIntegrationEvent v1 (recarga_id, estorno_id, numero_cartao, valor_centavos, event_version, correlation_id, causation_id, idempotency_key)'."
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1.0
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "RF-06 e PBT-03 aparecem literalmente no design.md ligados a command/handler e teste, e a state machine (seção 4.5 e o stateDiagram da 16.5) inclui a transição de 'paga' para 'estornada' (com ou sem estado intermediário).",
+        "reason": "Mistura quatro checagens (RF-06, PBT-03, teste, state machine) numa só; convém separar a ligação requisito→teste da checagem de estado."
+      },
+      {
+        "reason": "Nenhuma asserção verifica o README.md do módulo nem a sinalização de tasks.md desatualizado, que o with_skill fez e o baseline não."
+      }
+    ],
+    "overall": "Asserções discriminantes: status aprovado e rejeição do Kafka separam claramente as configurações."
+  }
+}

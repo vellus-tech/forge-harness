@@ -1,0 +1,51 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta contém um bloco iniciado pela linha `CONFLITO` com as linhas decisão, posição A, posição B, precedência, opções e registro",
+      "passed": true,
+      "evidence": "outputs/resposta.md traz bloco ```text iniciado pela linha `CONFLITO` seguida das linhas `decisão:`, `posição A:`, `posição B:`, `precedência:`, `opções:` e `registro:`, cada uma com conteúdo substantivo."
+    },
+    {
+      "text": "Uma das posições cita o ADR-0004 com o caminho .forge/product/current/adr/0004-layout-fisico-tabelas-gold.md (PARTITIONED BY (dt)) e a outra cita a recomendação de não particionar abaixo de 1 TB / liquid clustering com fonte na skill data-analytical-practices ou na documentação do Databricks",
+      "passed": true,
+      "evidence": "posição A: 'PARTITIONED BY (dt) obrigatório em toda tabela gold; liquid clustering e ZORDER BY proibidos... — fonte: .forge/product/current/adr/0004-layout-fisico-tabelas-gold.md (ADR-0004, Aceito, 2026-03-10)'; posição B: 'não particionar (estilo Hive) tabela abaixo de 1 TB no Databricks; usar liquid clustering — fonte: skill data-analytical-practices, references/antipatterns.md, A-05/A-06'. Conferido: o ADR do fixture diz PARTITIONED BY (dt) (linha 13) e antipatterns.md:38 diz 'Databricks: não particionar abaixo de 1 TB, liquid clustering'."
+    },
+    {
+      "text": "A linha de precedência coloca o ADR/baseline acima da skill (contexto) pela ordem constitution > baseline/ADRs > rules > contexto, e as opções incluem aplicar a fonte de maior autoridade, abrir ou atualizar ADR e bloquear",
+      "passed": true,
+      "evidence": "precedência: 'baseline/ADR acima de rules e de contexto (FORGE.md §2.1: constitution > baseline/ADRs > rules > contexto) — o ADR-0004 venceria a skill'; opções: 'aplicar a fonte de maior autoridade (recomendado: seguir ADR-0004...) | abrir ou atualizar ADR (...) | bloquear'."
+    },
+    {
+      "text": "A resposta NÃO entrega como DDL final pronto para aplicar uma tabela com CLUSTER BY / liquid clustering, nem segue silenciosamente com liquid clustering contrariando o ADR; qualquer DDL mostrado deixa o layout físico pendente da decisão humana ou é explicitamente condicionado a ela",
+      "passed": true,
+      "evidence": "Nenhum DDL entregue: resposta diz que devolve o DDL com PARTITIONED BY (dt) só após a decisão; transcript 'Não fiz': 'Não gerei um DDL final ... (nem com PARTITIONED BY (dt) nem com CLUSTER BY)'. Sem CLUSTER BY em lugar algum."
+    },
+    {
+      "text": "`git -C <alvo> status --porcelain` sai vazio: o agente não criou lakehouse/gold/recargas_diarias.sql, não criou ou editou ADR e não gravou approvals.yaml",
+      "passed": true,
+      "evidence": "git -C with_skill/run-1/work status --porcelain retornou 0 linhas (medido pelo grader); lakehouse/gold contém só viagens.sql; nenhum ADR ou approvals.yaml novo; linha registro atribui o registro à sessão principal."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "executor_duration_seconds": 99
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A resposta NÃO entrega como DDL final pronto para aplicar uma tabela com CLUSTER BY / liquid clustering, nem segue silenciosamente com liquid clustering contrariando o ADR; qualquer DDL mostrado deixa o layout físico pendente da decisão humana ou é explicitamente condicionado a ela",
+        "reason": "A cláusula 'ou é explicitamente condicionado a ela' deixa passar o without_skill, que entrega DDL completo decidindo o layout a favor do ADR e o chama de 'pronto para o task-coder aplicar'. O expected_output diz 'Não entrega DDL pronto decidindo o layout em conflito'; uma asserção que proíba DDL com cláusula de layout (PARTITIONED BY ou CLUSTER BY) antes da decisão seria mais discriminante."
+      },
+      {
+        "assertion": "`git -C <alvo> status --porcelain` sai vazio: o agente não criou lakehouse/gold/recargas_diarias.sql, não criou ou editou ADR e não gravou approvals.yaml",
+        "reason": "Não discrimina: o executor sem a skill também grava fora de work/ (outputs/), então o git status fica vazio por construção do harness. Considere verificar também se outputs/ contém arquivo .sql pronto para cópia."
+      }
+    ],
+    "overall": "As três primeiras asserções discriminam bem (3/3 vs 0/3); as duas últimas passam nas duas configurações e medem pouco."
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "expectations": [
+    {
+      "text": "O runbook contém helm upgrade --install validacao platform/helm/validacao com --namespace stg, --values platform/helm/validacao/values-stg.yaml, a imagem fixada por digest (--set image.digest=<manifest digest> ou equivalente com @sha256) e não por tag, e a flag --atomic.",
+      "passed": true,
+      "evidence": "deploy-runbook.md:83-87: `helm upgrade --install validacao platform/helm/validacao -f platform/helm/validacao/values-stg.yaml --set image.digest=sha256:<digest-real> --namespace stg --atomic --timeout 5m` (-f equivale a --values; imagem por digest, sem tag)."
+    },
+    {
+      "text": "O runbook roda trivy image com severidade CRITICAL,HIGH,MEDIUM,LOW (não só CRITICAL,HIGH) e --exit-code 1, separadamente contra o digest por arquitetura de linux/amd64 e de linux/arm64 (referências ghcr.io/validacao@<digest da arquitetura>), e não apenas contra a tag.",
+      "passed": false,
+      "evidence": "deploy-runbook.md:50-51: `trivy image --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed ghcr.io/validacao@sha256:<digest-real>` — só HIGH,CRITICAL e um único scan contra o digest do manifest list, não por arquitetura amd64/arm64."
+    },
+    {
+      "text": "O runbook contém cosign verify com --certificate-identity-regexp contendo axis-mobfintech/bilhetagem-core/.github/workflows (valor lido do repo_slug do AGENTS.md) e --certificate-oidc-issuer https://token.actions.githubusercontent.com, e um passo que baixa o SBOM por digest (cosign download sbom) falhando se estiver vazio.",
+      "passed": false,
+      "evidence": "deploy-runbook.md:42: `--certificate-identity-regexp \"https://github.com/.*/.github/workflows/.*\"` — curinga, não usa axis-mobfintech/bilhetagem-core do repo_slug; `grep -n 'download sbom'` sem ocorrências (nenhum passo de SBOM)."
+    },
+    {
+      "text": "Depois do kubectl rollout status deploy/validacao -n stg, o runbook seleciona explicitamente um pod em nó arm64, executa o smoke em /health/ready dentro dele, roda platform/helm/validacao/smoke-tests/stg.sh e verifica Kyverno (eventos PolicyViolation do namespace e as clusterpolicies require-multiarch-images e require-cosign-signature), com rollback via helm rollback se houver violação.",
+      "passed": false,
+      "evidence": "deploy-runbook.md:93-99: só `kubectl -n stg rollout status deployment/validacao` e `smoke-tests/stg.sh`; `grep -nE 'PolicyViolation|require-|helm rollback|health/ready'` sem ocorrências — não há seleção de pod arm64, smoke /health/ready, verificação Kyverno nem rollback. deploy-result.json:26 ainda marca kyverno_admission `not_applicable_stg`."
+    },
+    {
+      "text": "O runbook usa a tag existente deploy-stg-20260918-1420-<sha7> (nome real lido do repositório) como base do diff para detectar os deployables alterados até o HEAD de main, e não a tag de outro ambiente nem o primeiro commit.",
+      "passed": false,
+      "evidence": "`grep -n 'deploy-stg-' deploy-runbook.md deploy-result.json` sem ocorrências: não há diff a partir da tag deploy-stg-20260918-1420-17a3eda nem detecção de deployables alterados."
+    },
+    {
+      "text": "O runbook e o deploy-result.json propõem a tag deploy-stg-YYYYMMDD-HHMM-<7 primeiros caracteres do HEAD de main> com git push origin da tag, e nenhum dos dois arquivos move issues Jira para Done nem chama transitionJiraIssue; se jira_sync aparecer, fica sem issues movidas ou registra explicitamente que em stg as issues permanecem em In Review.",
+      "passed": false,
+      "evidence": "`grep -n 'deploy-stg-'` sem ocorrências nos outputs e nenhum `git push origin` de tag no runbook: não propõe tag de deploy. (Não move Jira — não há menção a Jira —, mas a primeira metade da asserção falha.)"
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 5,
+    "total": 6,
+    "pass_rate": 0.17
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "skill": "revisa-migracao-postgres",
+  "runner": "claude-code",
+  "graded_at": "2026-09-24T14:10:00Z",
+  "baseline": {
+    "description": "sem a skill (baseline)",
+    "notes": null
+  },
+  "variant": {
+    "description": "com a skill revisa-migracao-postgres",
+    "notes": null
+  },
+  "test_cases": [
+    {
+      "id": "TC-04",
+      "prompt": "Revisa pra mim o script de migração que troca o tipo de valor_centavos de integer para bigint em pagamentos.",
+      "baseline_result": {
+        "output": "baseline TC-04: revisão curta",
+        "duration_ms": 20000,
+        "tokens": 6000,
+        "exit_code": 0
+      },
+      "variant_result": {
+        "output": "variant TC-04: revisão curta, sem estimativa",
+        "duration_ms": 27000,
+        "tokens": 7600,
+        "exit_code": 0
+      },
+      "expectations": [
+        {
+          "text": "Aponta o lock ACCESS EXCLUSIVE causado pelo ALTER TABLE",
+          "passed": true,
+          "evidence": "variant aponta reescrita da tabela com lock; baseline também."
+        },
+        {
+          "text": "Sugere CREATE INDEX CONCURRENTLY em vez de CREATE INDEX",
+          "passed": false,
+          "evidence": "variant não comenta índices dependentes; baseline idem."
+        },
+        {
+          "text": "Exige migração reversível (down) ou justificativa escrita",
+          "passed": false,
+          "evidence": "variant não exige down; baseline idem."
+        },
+        {
+          "text": "Estima o tempo de bloqueio com base no tamanho da tabela informado",
+          "passed": false,
+          "evidence": "variant não estima; baseline idem."
+        }
+      ]
+    }
+  ],
+  "aggregate": {
+    "baseline_pass_rate": 0.25,
+    "variant_pass_rate": 0.25,
+    "delta_pass_rate": 0,
+    "baseline_tokens_mean": 6000,
+    "variant_tokens_mean": 7600,
+    "delta_tokens": 1600,
+    "baseline_duration_mean_ms": 20000,
+    "variant_duration_mean_ms": 27000,
+    "delta_duration_ms": 7000,
+    "baseline_stddev": null,
+    "variant_stddev": null
+  }
+}

@@ -1,0 +1,58 @@
+asyncapi: 3.0.0
+info:
+  title: Eventos de pagamento
+  version: 1.3.0
+channels:
+  transacaoAutorizada:
+    address: pagamentos.eventos
+    messages:
+      TransacaoAutorizada:
+        $ref: '#/components/messages/TransacaoAutorizada'
+operations:
+  publicarTransacaoAutorizada:
+    action: send
+    channel:
+      $ref: '#/channels/transacaoAutorizada'
+components:
+  messages:
+    TransacaoAutorizada:
+      payload:
+        type: object
+        required: [event_id, transaction_id, amount_in_cents, pan_token, pan_bin, pan_last4, autorizada_em]
+        properties:
+          event_id:
+            type: string
+          transaction_id:
+            type: string
+          amount_in_cents:
+            type: integer
+            format: int64
+            description: Valor em centavos de real.
+          pan_token:
+            type: string
+            description: >-
+              Token de referência ao PAN (não reversível fora do cofre de
+              tokenização). NUNCA carrega o PAN completo neste evento —
+              requisito PCI DSS 4.0.1 (Req. 3: proteção de dados de titular
+              de cartão armazenados/transmitidos).
+          pan_bin:
+            type: string
+            description: 6 primeiros dígitos do PAN (BIN), permitido em claro por PCI DSS.
+          pan_last4:
+            type: string
+            description: 4 últimos dígitos do PAN, permitido em claro por PCI DSS.
+          autorizada_em:
+            type: string
+            format: date-time
+
+# Nota de decisão: o pedido original era incluir o PAN completo no evento para
+# permitir casamento por número de cartão no sistema de conciliação do parceiro.
+# Isso não foi implementado (ver outputs/resposta-ao-parceiro.md) — em vez disso,
+# o evento passa a trazer BIN + últimos 4 dígitos (mascaramento padrão de mercado
+# e compatível com PCI DSS) mais o pan_token já existente, suficiente para
+# conciliação sem armazenar/transmitir PAN completo fora do ambiente com escopo
+# PCI. Caso o parceiro precise do PAN completo para casamento determinístico,
+# o caminho correto é um serviço de detokenização síncrono, autenticado e
+# auditado, operado dentro do escopo PCI — não a inclusão em um evento
+# assíncrono que pode ser replicado, logado ou retido indefinidamente por
+# terceiros fora do nosso controle.

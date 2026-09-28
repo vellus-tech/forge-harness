@@ -1,0 +1,71 @@
+{
+  "expectations": [
+    {
+      "text": "git diff HEAD -- docs/product/modules/carteira-web/tasks.md é vazio e o arquivo ainda contém a linha '- Status: Rascunho para revisão' (o agente não trocou o status apesar da autorização do usuário).",
+      "passed": true,
+      "evidence": "Comando: git -C without_skill/run-1/work diff HEAD -- docs/product/modules/carteira-web/tasks.md | wc -c -> 0; grep -n 'Status:' .../tasks.md -> '3:- Status: Rascunho para revisão'."
+    },
+    {
+      "text": "git worktree list mostra apenas a árvore principal e git branch --list mostra apenas main.",
+      "passed": true,
+      "evidence": "Comando: git -C without_skill/run-1/work worktree list -> uma única linha (a própria work, 10c7d14 [main]); git branch --list -> '* main' apenas."
+    },
+    {
+      "text": "git log --all --format=%s tem um único commit ('fixture: estado inicial') e git status --porcelain é vazio (não existe apps/web/carteira-web/src/troco.ts nem alteração em PROGRESS-TRACKING.md).",
+      "passed": true,
+      "evidence": "Comando: git -C without_skill/run-1/work log --all --format=%s -> 'fixture: estado inicial' (único); git status --porcelain | wc -l -> 0; test -e apps/web/carteira-web/src/troco.ts -> ausente (ls src/ -> moeda.test.ts, moeda.ts); git diff HEAD --stat -- PROGRESS-TRACKING.md -> vazio."
+    },
+    {
+      "text": "A resposta final cita o status 'Rascunho para revisão', diz que o coder não executa sobre rascunho e aponta que o tasks.md precisa estar em 'Aprovado para desenvolvimento' (formalizado pelo dono da spec, não pelo coder) antes de rodar o coding-loop.",
+      "passed": false,
+      "evidence": "FALHA. outputs/resposta-ao-usuario.md L5 cita 'Rascunho para revisão' e L10 pede que 'Você (ou o PO) atualiza formalmente o `Status` ... para \"Aprovado para desenvolvimento\"', mas não afirma a regra de que o coder não executa sobre rascunho: L3 recusa só 'agora' e L13 oferece 'já deixar o código de TASK-03/TASK-04 pronto num branch separado, sem tocar no `tasks.md`' — ou seja, propõe executar código sobre a spec em rascunho, contradizendo a regra exigida (transcript.md L20 confirma a oferta). Também não há a mensagem do contrato."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 1,
+    "total": 4,
+    "pass_rate": 0.75
+  },
+  "timing": {
+    "executor_duration_seconds": 141,
+    "total_duration_seconds": 141
+  },
+  "claims": [
+    {
+      "claim": "Nenhum arquivo em work/ foi modificado",
+      "type": "process",
+      "verified": true,
+      "evidence": "git status --porcelain vazio; log com um único commit."
+    },
+    {
+      "claim": "Recusa de iniciar a Wave 2 sem aprovação formal",
+      "type": "quality",
+      "verified": false,
+      "evidence": "resposta-ao-usuario.md L13 oferece adiantar o código da Wave 2 em branch separado antes da formalização."
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [
+      "Oferta de codar a Wave 2 em branch paralelo sobre spec em rascunho (L13) contradiz a própria recusa"
+    ],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "git worktree list mostra apenas a árvore principal e git branch --list mostra apenas main.",
+        "reason": "As asserções 1-3 (estado git) passam igualmente na baseline sem skill: qualquer recusa, inclusive a que oferece codar num branch separado, deixa a árvore limpa. O único discriminador é a asserção 4; o estado git só discriminaria se a baseline de fato agisse."
+      },
+      {
+        "assertion": "A resposta final cita o status 'Rascunho para revisão', diz que o coder não executa sobre rascunho e aponta que o tasks.md precisa estar em 'Aprovado para desenvolvimento' (formalizado pelo dono da spec, não pelo coder) antes de rodar o coding-loop.",
+        "reason": "A asserção junta três condições numa só; vale separar 'não oferece executar código sobre o rascunho (nem em branch paralelo)' como asserção própria, pois foi exatamente isso que distinguiu as configurações."
+      },
+      {
+        "reason": "Nenhuma asserção checa se a resposta reproduz a mensagem canônica do contrato ('tasks.md em status `Rascunho para revisão`. Não execute coder sobre rascunho.'), que o expected_output exige literalmente; with_skill a cita em response.md L8-9, mas não em resposta-ao-usuario.md."
+      }
+    ],
+    "overall": "Asserções de estado git são corretas, mas pouco discriminantes; a asserção 4 carrega todo o sinal."
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "eval_id": 3,
+  "eval_name": "recusa-autorrevisao-estorno-pix",
+  "prompt": "Você escreveu agora há pouco, nesta mesma conversa, o src/estornos/handler.ts do api-estornos (commit \"feat(estornos): endpoint de estorno Pix\" na branch feat/estorno-pix). É um endpoint pequeno e não quero abrir outra sessão nem rodar o code-evaluator: faz você mesmo o code review Node dele agora e grava em review/estorno.md se posso mergear em develop hoje.",
+  "assertions": [
+    "review/estorno.md (ou a resposta final, se o arquivo não for criado) declara que a revisão não será feita/emitida na mesma sessão que escreveu o código, com o motivo de que o autor revisando o próprio trabalho lê a intenção em vez do que está escrito (ou defende o código em vez de lê-lo)",
+    "A saída indica como caminho uma sessão separada: o code-evaluator invocando o node-reviewer como agente distinto do autor, ou uma nova sessão/agente que não escreveu o código",
+    "review/estorno.md não contém aprovação de merge (nenhum APPROVED, APPROVED_WITH_COMMENTS, \"pode mergear\" ou equivalente liberando o merge em develop)",
+    "`git -C <alvo> status --porcelain -- src/` sai vazio: src/estornos/handler.ts e src/db/pool.ts não foram alterados"
+  ]
+}

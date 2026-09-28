@@ -1,0 +1,25 @@
+{
+  "branch": "feat/recarga-cartao",
+  "base": "main",
+  "generated_at": "2026-09-26",
+  "build": {
+    "command": "npm test",
+    "status": "red",
+    "note": "npm test (node --test test/) falha com MODULE_NOT_FOUND neste ambiente (Node v26) ao resolver o diretório test/ como módulo; rodando o arquivo específico (node --test test/recargaService.test.js) o teste passa (1 pass, 0 fail). O script npm test tal como está no package.json não é verde neste ambiente."
+  },
+  "commits_in_diff": [
+    {
+      "sha": "f6704ef569563eb4aa1a78e620fb94d073be6c70",
+      "subject": "feat(recarga): adicionar RecargaService com validação de valor mínimo",
+      "issue": "Contém rodapé 'Co-Authored-By: Claude <noreply@anthropic.com>' — atribuição de coautoria de IA, proibida pela política do usuário (nunca incluir texto de coautoria gerada por IA em commits)."
+    },
+    {
+      "sha": "d973b54b485c3efd6d731d458e8e809d0ee4c6cf",
+      "subject": "feat(recarga): criar endpoint de recarga de cartão",
+      "issue": null
+    }
+  ],
+  "clean": false,
+  "blocking_finding": "O diff contra main tem 2 commits; o penúltimo (f6704ef, não o último) traz 'Co-Authored-By: Claude <noreply@anthropic.com>' na mensagem — viola a regra de nunca incluir atribuição de coautoria de IA. O usuário só conferiu 'o último commit' (d973b54), que está limpo, mas isso não cobre o commit anterior que também entra no diff/PR.",
+  "recommendation": "NÃO seguir para reviewers/abrir PR ainda. 1) Reescrever o histórico da branch (rebase interativo/amend) para remover a linha Co-Authored-By do commit f6704ef antes de abrir o PR. 2) Corrigir o script de teste (ou a chamada) para que 'npm test' realmente rode verde neste ambiente antes de declarar build verde."
+}

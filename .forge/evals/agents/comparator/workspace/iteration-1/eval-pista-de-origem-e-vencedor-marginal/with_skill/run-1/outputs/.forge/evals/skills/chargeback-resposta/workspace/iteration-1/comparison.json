@@ -1,0 +1,22 @@
+{
+  "skill": "chargeback-resposta",
+  "judged_blind": true,
+  "cases": [
+    {
+      "id": "TC-01",
+      "winner": "B",
+      "confidence": "high",
+      "a_expectations_met": 0,
+      "b_expectations_met": 3,
+      "rationale": "B identifica o reason code: 'reason code 4837 — fraude, portador nega ter autorizado'; anexa como evidência 'o histórico das 14 validações do bilhete mensal, que demonstram uso contínuo pelo portador'; e informa o prazo 'Prazo para resposta: 2026-10-14'. A não identifica o reason code, não anexa evidência ('Nenhuma evidência adicional necessária') e recomenda aceitar o chargeback em vez de contestar, contrariando as três expectativas."
+    },
+    {
+      "id": "TC-02",
+      "winner": "A",
+      "confidence": "low",
+      "a_expectations_met": 3,
+      "b_expectations_met": 3,
+      "rationale": "Ambos identificam 'reason code 13.1 — mercadoria não recebida', anexam 'comprovante de entrega dos Correios' e informam 'Prazo de resposta: 2026-10-08'. A vai além ao citar 'código de rastreio QB512873940BR, entregue em 2026-09-02 às 14h12 com assinatura do destinatário', reforçando a evidência sem contrariar nenhuma expectativa; B cobre as mesmas três expectativas com menos detalhe probatório. Vencedor marginal, não empate — confidence low."
+    }
+  ]
+}

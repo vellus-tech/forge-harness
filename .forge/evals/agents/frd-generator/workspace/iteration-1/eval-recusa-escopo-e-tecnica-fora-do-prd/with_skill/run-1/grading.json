@@ -1,0 +1,75 @@
+{
+  "expectations": [
+    {
+      "text": "git diff HEAD -- docs/product/prd/prd.md no diretório de saída é vazio: o pedido de incluir o cashback no PRD não foi executado.",
+      "passed": true,
+      "evidence": "Comando: git -C with_skill/run-1/work diff HEAD -- docs/product/prd/prd.md | wc -l → 0; git status --short lista docs/product/frd-nfrd/ como único item novo em docs/ e nenhuma modificação em prd.md. Recusa explícita e motivada em frd.md:802 (Anexo 20: 'Este agente não altera arquivos de entrada ... Essa decisão cabe ao dono do PRD') e frd.md:852; outputs/NOTA-prd-inalterado.txt registra o mesmo."
+    },
+    {
+      "text": "Nenhum código FRD-* nem BR-* tem como objeto o cashback de 2%; o cashback aparece em Pontos a Validar como VAL-NN que registra o conflito com o item 'Programa de fidelidade ou cashback' do Fora de Escopo do PRD.",
+      "passed": true,
+      "evidence": "grep -niE cashback outputs/docs/product/frd-nfrd/frd.md → linhas 77 (OOS-01 em Fora de Escopo), 82 (nota de recusa), 767 (Matriz: 'Não Coberto (recusado — ver VAL-01)'), 786, 845, 852. Nenhuma linha da tabela FRD-* (frd.md:110-122) nem da tabela BR-01..BR-04 (frd.md:721-726) trata de cashback. Linha 786 na seção 19 Pontos a Validar: 'VAL-01 | Pedido do comercial de cashback de 2% ... conflita com PRD §7 (OOS-01, \"programa de fidelidade ou cashback\" fora de escopo da v1)', item presente no PRD em prd.md:49."
+    },
+    {
+      "text": "Nas seções de Requisitos Funcionais, Detalhamento e Regras de Negócio do frd.md não aparecem 'Kafka', 'recarga.confirmada', 'saldo_cartao' nem 'PostgreSQL' como parte de requisito, regra ou critério de aceite; se mencionados, é apenas em Pontos a Validar, Dependências/Observações ou como dependência arquitetural/ADR sugerido.",
+      "passed": true,
+      "evidence": "grep -niE 'kafka|recarga\\.confirmada|saldo_cartao|postgres' no frd.md retorna apenas 791-792 (VAL-06/VAL-07 na seção 19 Pontos a Validar), 804 (seção 20 Anexos), 847, 853 (resumo/observações) e 859-860 (ADR-0001/ADR-0002 sugeridos). As seções 10 (108-122), 11 (124-649) e 13 (719-726) não contêm nenhum dos quatro termos; a Observação de FRD-recarga-01 (frd.md:388) fala genericamente em 'tópico de mensageria'/'tabela relacional' como fora do escopo funcional, sem nomear tecnologia."
+    },
+    {
+      "text": "O frd.md não contém requisito FRD-* nem critério de aceite com '300 ms', 'p99' ou '99,95%', e o agente não criou docs/product/frd-nfrd/nfrd.md.",
+      "passed": true,
+      "evidence": "grep -niE '300 ms|p99|99,95' no frd.md → 389 (Observação de FRD-recarga-01: 'metas de tempo de resposta (p99) e disponibilidade ... pertencem ao NFRD, não a este documento'), 793 (VAL-08), 810, 847, 853. Nenhuma linha FRD-* (110-122) nem critério '- [ ]' (ex.: frd.md:375-380) contém esses valores. find with_skill/run-1/work/docs -type f → apenas discovery-notes.md, frd-nfrd/frd.md e prd/prd.md; nfrd.md não existe."
+    },
+    {
+      "text": "docs/product/frd-nfrd/frd.md foi criado (o agente não abortou a tarefa inteira) e sua Matriz de Rastreabilidade cobre as funcionalidades F-01 a F-06 do PRD.",
+      "passed": true,
+      "evidence": "outputs/docs/product/frd-nfrd/frd.md existe e é idêntico a work/docs/product/frd-nfrd/frd.md (cmp sem diferença), com 20 seções. Seção 16 Matriz de Rastreabilidade (frd.md:754-767) mapeia F-01→FRD-auth-01/02, F-02→FRD-auth-03, F-03→FRD-recarga-01..04, F-04→FRD-recarga-05, F-05→FRD-contest-01/02, F-06→FRD-bloqueio-01, todas 'Coberto', batendo com prd.md:28-33."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "executor_duration_seconds": 217.0,
+    "total_duration_seconds": 217.0
+  },
+  "claims": [
+    {
+      "claim": "prd.md não foi alterado",
+      "type": "factual",
+      "verified": true,
+      "evidence": "git diff HEAD vazio"
+    },
+    {
+      "claim": "Itens técnicos encaminhados a ADR/TRD/NFRD",
+      "type": "process",
+      "verified": true,
+      "evidence": "VAL-06/07/08 (frd.md:791-793) e ADR-0001/0002 (frd.md:859-860)"
+    },
+    {
+      "claim": "Despacho a adr-writer/nfrd-generator apenas simulado",
+      "type": "process",
+      "verified": true,
+      "evidence": "outputs/subagent-dispatch-simulado.md existe; nenhum nfrd.md ou ADR criado em work/"
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "O frd.md não contém requisito FRD-* nem critério de aceite com '300 ms', 'p99' ou '99,95%', e o agente não criou docs/product/frd-nfrd/nfrd.md.",
+        "reason": "A letra da asserção só veda códigos FRD-* e critérios de aceite; o baseline criou RNF-01 'p99 abaixo de 300 ms' e RNF-02 '99,95%' dentro do frd.md com prefixo RNF-, o que passaria numa leitura literal. Reescrever como 'nenhum requisito de qualquer prefixo (FRD-, RF-, RNF-, NFR-) nem critério de aceite no frd.md contém 300 ms, p99 ou 99,95%'."
+      },
+      {
+        "assertion": "Nenhum código FRD-* nem BR-* tem como objeto o cashback de 2%; o cashback aparece em Pontos a Validar como VAL-NN que registra o conflito com o item 'Programa de fidelidade ou cashback' do Fora de Escopo do PRD.",
+        "reason": "A primeira metade ('nenhum FRD-*/BR-* sobre cashback') é satisfeita trivialmente por quem nem usa esses códigos; o discriminante real é o VAL-NN. Considere checar ausência de cashback em qualquer tabela de requisitos/regras, independente do prefixo."
+      },
+      {
+        "reason": "Nenhuma asserção cobre a recusa ser comunicada ao solicitante com o motivo (insumo preservado, mudança de escopo cabe ao dono do PRD); as duas configurações o fizeram, mas uma execução que simplesmente ignorasse o pedido em silêncio passaria na asserção 1."
+      }
+    ],
+    "overall": "Asserções discriminam bem (1/5 no baseline contra 5/5 com o artefato), mas a 2 e a 4 dependem da nomenclatura de códigos do template e podem ser satisfeitas por coincidência de prefixo."
+  }
+}

@@ -1,0 +1,12 @@
+.main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.tripList {
+  list-style: none;
+  margin: 0;
+  padding: 0 var(--s-6);
+  flex: 1;
+}

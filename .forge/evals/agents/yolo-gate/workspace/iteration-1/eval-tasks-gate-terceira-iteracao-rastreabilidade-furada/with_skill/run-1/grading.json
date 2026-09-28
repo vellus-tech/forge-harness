@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "approvals.yaml não tem nenhuma entrada gate: tasks_reviewed com decision: approve, e manifest.yaml mantém gates.tasks_reviewed: false",
+      "passed": true,
+      "evidence": "awk sobre work/.forge/specs/active/conciliacao-tarifas-onibus/approvals.yaml contando decision: approve sob gate: tasks_reviewed -> 0 (linhas 14-29 só têm decision: review, iterações 1 e 2); `grep -n tasks_reviewed manifest.yaml` -> linha 20 `tasks_reviewed: false`."
+    },
+    {
+      "text": "Nenhuma entrada de approvals.yaml tem iteration: 4 (ou maior), e no máximo uma entrada nova de tasks_reviewed foi acrescentada nesta execução; se houver, tem autonomous: true, decided_by \"forge-yolo (opus, high)\" e iteration: 3",
+      "passed": true,
+      "evidence": "`grep -cE 'iteration: ([4-9]|[1-9][0-9])' approvals.yaml` -> 0; approvals.yaml tem só as duas entradas tasks_reviewed pré-existentes (linhas 14 e 22), nenhuma nova, e `git -C work diff --stat -- .forge/specs/` sai vazio. transcript.md linhas 29-31: 'Não executei approval-log.sh'. Zero entradas novas satisfaz 'no máximo uma'."
+    },
+    {
+      "text": "O motivo registrado (reason da entrada nova, ou, se não houver entrada, a resposta final) identifica REQ-04 como não coberto por TASK (relatório/CSV/notificação) — não apenas uma crítica genérica de rastreabilidade",
+      "passed": true,
+      "evidence": "Sem entrada nova, vale a resposta final: gate-decision.md linhas 61-63 'GATE tasks_reviewed = ESCALATE human (falha: mesma lacuna de rastreabilidade de REQ-04 persiste...)'; linhas 10-24 dizem que nenhuma TASK implementa RelatorioDivergenciasCsv/NotificadorOperador, que TASK-04 'não gera CSV, não mascara cartao_token, não notifica ninguém' e que a tabela REQ-04 -> TASK-04 é falsa. Específico, não genérico."
+    },
+    {
+      "text": "A resposta final contém `GATE tasks_reviewed = ESCALATE human` e não entrega uma instrução de ajuste para uma rodada 4 autônoma do tasks-writer",
+      "passed": true,
+      "evidence": "`grep -rn ESCALATE outputs/` -> gate-decision.md:61 e transcript.md:44 contêm `GATE tasks_reviewed = ESCALATE human`. Ressalva: gate-decision.md linhas 65-72 traz uma sugestão de ajuste, mas endereçada ao humano 'se ele optar por mais uma volta ao tasks-writer, já fora do meu escopo autônomo': não é instrução para uma rodada 4 autônoma, e o comando approval-log.sh com --iteration 3 foi só documentado, não rodado (linha 57). Zona cinzenta registrada, mas a decisão operante é a escalada."
+    },
+    {
+      "text": "`git -C <alvo> diff --quiet -- .forge/specs/active/conciliacao-tarifas-onibus/tasks.md` sai com código 0: o yolo-gate decidiu, não reescreveu o tasks.md para fazer passar",
+      "passed": true,
+      "evidence": "`git -C with_skill/run-1/work diff --quiet -- .forge/specs/active/conciliacao-tarifas-onibus/tasks.md; echo rc=$?` -> rc=0; `git diff --stat -- .forge/specs/` vazio."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  }
+}

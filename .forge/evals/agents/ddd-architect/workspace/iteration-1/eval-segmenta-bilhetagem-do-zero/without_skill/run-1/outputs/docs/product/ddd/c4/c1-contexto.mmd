@@ -1,0 +1,20 @@
+%% C4 Nível 1 — Diagrama de Contexto do Sistema — Tarifa Viva
+flowchart TB
+    PASSAGEIRO(["Passageiro<br/>usa cartão físico ou app"])
+    GESTOR(["Gestor do Consórcio<br/>backoffice"])
+    PDV(["Ponto de Venda Credenciado"])
+
+    TARIFAVIVA[["Tarifa Viva<br/>plataforma de bilhetagem eletrônica"]]
+
+    OPERADORAS(["Operadoras do Consórcio<br/>Viação Serrana, Expresso Vale, TransSereno"])
+    VALIDABUS[("Firmware ValidaBus<br/>fornecedor terceiro")]
+    ADQUIRENTE[("Adquirente de Cartão / PSP Pix")]
+    FCM[("Firebase Cloud Messaging")]
+
+    PASSAGEIRO -- "embarca, recarrega, consulta histórico" --> TARIFAVIVA
+    GESTOR -- "bloqueia cartão, acompanha clearing" --> TARIFAVIVA
+    PDV -- "registra recarga em dinheiro" --> TARIFAVIVA
+    TARIFAVIVA -- "repasse diário auditável" --> OPERADORAS
+    TARIFAVIVA -- "protocolo proprietário de sincronização" --> VALIDABUS
+    TARIFAVIVA -- "autoriza recarga por cartão" --> ADQUIRENTE
+    TARIFAVIVA -- "envia push de saldo baixo" --> FCM

@@ -1,0 +1,97 @@
+{
+  "reviewer": "security-reviewer",
+  "target": {
+    "repo": "payment-monorepo",
+    "branch": "feature/checkout-cartao",
+    "base": "develop",
+    "service": "services/payment",
+    "pci_scope": true,
+    "cde": true
+  },
+  "status": "REQUEST_CHANGES",
+  "summary": "Diff introduz checkout com cartão no serviço payment (escopo PCI/CDE). Encontrados 6 achados: 2 críticos (PAN em log sem mascaramento; PAN armazenado em texto puro sem tokenização), 1 alto (segredo hardcoded em appsettings.json), 1 alto (SQL injection por concatenação de string), 1 alto (desativação de ValidateAudience no JWT), 1 médio (ClockSkew ampliado sem ADR).",
+  "findings": [
+    {
+      "id": "SEC-001",
+      "severity": "critical",
+      "category": "pci-dss",
+      "rule_refs": [".forge/rules/architecture/pii-pci-classification.md", ".forge/rules/architecture/security-and-compliance.md"],
+      "file": "services/payment/src/Payment.Application/Checkout/CreateCheckoutHandler.cs",
+      "line": 18,
+      "title": "PAN e CPF em log sem mascaramento",
+      "description": "Handle() loga cmd.CardNumber (PAN) e cmd.CustomerCpf em texto puro via _logger.LogInformation. security-and-compliance.md proíbe dado de cartão em logs (PCI DSS Req 3) e pii-pci-classification.md trata PAN/PII em log como violação sempre em modo enforce, independente de modo warn global.",
+      "evidence": "_logger.LogInformation(\"Checkout iniciado merchant={MerchantId} cpf={Cpf} cartao={CardNumber}\", cmd.MerchantId, cmd.CustomerCpf, cmd.CardNumber);",
+      "recommendation": "Remover PAN e CPF do log ou aplicar mascaramento na borda de emissão (ex.: últimos 4 dígitos do PAN, hash do CPF) antes de logar. Declarar os campos em data-classification.schema.json com estratégia de masking."
+    },
+    {
+      "id": "SEC-002",
+      "severity": "critical",
+      "category": "pci-dss",
+      "rule_refs": [".forge/rules/architecture/pii-pci-classification.md"],
+      "file": "services/payment/src/Payment.Infrastructure/PaymentRepository.cs",
+      "line": 15,
+      "title": "PAN armazenado em texto puro sem fronteira de tokenização",
+      "description": "InsertAsync grava cardNumber diretamente na coluna card_number sem qualquer tokenização. pii-pci-classification.md exige que o PAN seja substituído por token opaco no primeiro ponto de contato; PAN não deve circular além do componente de tokenização (PCI DSS Req 3).",
+      "recommendation": "Tokenizar o PAN no gateway/adquirente antes de persistir (armazenar apenas token opaco, ex.: last4 + token id) e declarar o campo com tokenization_boundary no mapa de classificação."
+    },
+    {
+      "id": "SEC-003",
+      "severity": "high",
+      "category": "secrets",
+      "rule_refs": [".forge/rules/architecture/security-and-secrets.md"],
+      "file": "services/payment/src/Payment.Api/appsettings.json",
+      "line": 4,
+      "title": "Segredo (API key do adquirente) hardcoded em appsettings.json",
+      "description": "\"ApiKey\": \"acq_live_EXEMPLO-NAOREAL_7Hq2Lx9Pz4\" adicionado direto no appsettings.json versionado. security-and-secrets.md proíbe explicitamente segredos hardcoded em appsettings.json e exige injeção apenas em runtime (K8s Secrets/ESO em stg/prd).",
+      "recommendation": "Remover a chave do appsettings.json; injetar via variável de ambiente ou Kubernetes Secret gerenciado pelo External Secrets Operator, seguindo o path convencionado <env>/<bc-modulo>/<chave>. Se a chave já foi commitada, tratar como comprometida e rotacionar mesmo sendo valor de exemplo."
+    },
+    {
+      "id": "SEC-004",
+      "severity": "high",
+      "category": "injection",
+      "rule_refs": ["OWASP Top 10 - A03:2021 Injection"],
+      "file": "services/payment/src/Payment.Infrastructure/PaymentRepository.cs",
+      "line": 23,
+      "title": "SQL injection por concatenação de string em ListByMerchantAsync",
+      "description": "A query é montada por concatenação (\"... WHERE merchant_id = '\" + merchantId + \"'\") em vez de parâmetro Dapper, enquanto InsertAsync no mesmo arquivo já usa o padrão correto (@id, @merchantId, ...). merchantId controlado por chamador externo permite injeção de SQL arbitrária.",
+      "evidence": "var sql = \"SELECT id, total FROM payments WHERE merchant_id = '\" + merchantId + \"'\";",
+      "recommendation": "Usar parâmetro Dapper: conn.QueryAsync(\"SELECT id, total FROM payments WHERE merchant_id = @merchantId\", new { merchantId })."
+    },
+    {
+      "id": "SEC-005",
+      "severity": "high",
+      "category": "jwt-authentication",
+      "rule_refs": [".forge/rules/architecture/jwt-authentication.md"],
+      "file": "services/payment/src/Payment.Api/Program.cs",
+      "line": 13,
+      "title": "ValidateAudience desligado na validação do JWT",
+      "description": "jwt-authentication.md define ValidateAudience=true e ValidAudience=\"api\" como parâmetros obrigatórios e lista alteração desses parâmetros como proibição explícita sem ADR. O diff desativa ValidateAudience com um comentário informal (\"desligado até alinhar com o auth-service\"), o que permite que um token emitido para qualquer outra audience seja aceito pelo serviço payment — risco de token confusion/replay entre serviços.",
+      "evidence": "ValidateAudience = false, // audience \"checkout\" não bate com \"api\"",
+      "recommendation": "Não desativar a validação; alinhar a audience emitida pelo auth-service (ex.: emitir \"checkout\" ou aceitar múltiplas audiences válidas de forma explícita) e manter ValidateAudience=true. Se uma mudança de audience for necessária, documentar em ADR conforme a rule exige."
+    },
+    {
+      "id": "SEC-006",
+      "severity": "medium",
+      "category": "jwt-authentication",
+      "rule_refs": [".forge/rules/architecture/jwt-authentication.md"],
+      "file": "services/payment/src/Payment.Api/Program.cs",
+      "line": 15,
+      "title": "ClockSkew ampliado para 5 minutos sem ADR",
+      "description": "jwt-authentication.md exige ClockSkew=TimeSpan.Zero e lista 'ClockSkew > TimeSpan.Zero sem justificativa documentada em ADR' como proibição explícita. O diff muda para TimeSpan.FromMinutes(5) sem referência a ADR.",
+      "recommendation": "Reverter para TimeSpan.Zero ou registrar um ADR justificando a tolerância de 5 minutos antes do merge."
+    }
+  ],
+  "informational": [
+    {
+      "id": "SEC-INFO-001",
+      "severity": "low",
+      "category": "pci-dss",
+      "file": "services/payment/src/Payment.Application/Checkout/CreateCheckoutHandler.cs",
+      "title": "CVV trafega no command além do ponto de autorização",
+      "description": "CreateCheckoutCommand carrega Cvv, que não é persistido neste diff, mas convém confirmar que o valor não sobrevive em memória/log além do fluxo síncrono de autorização — PCI DSS proíbe reter CVV após a autorização sob qualquer forma."
+    }
+  ],
+  "not_reviewed": {
+    "scope_note": "Revisão restrita ao diff develop..HEAD; não avaliado runtime, testes, infraestrutura ou dependências (SCA/Trivy)."
+  }
+}

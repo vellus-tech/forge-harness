@@ -1,0 +1,323 @@
+{
+  "metadata": {
+    "skill_name": "verify-diff-claims",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-28T17:26:27Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 15,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "findings_to_emit cont\u00e9m uma entrada com id exatamente \"CLAIM-AUTHORSHIP\", severity \"BLOCKER\" e category \"compliance\", cuja description cita o SHA (abreviado ou completo) do commit feat(recarga): adicionar RecargaService e o trailer Co-Authored-By: Claude",
+          "passed": true,
+          "evidence": "Comando: jq -c '{n:([.findings_to_emit[]?|select(.id==\"CLAIM-AUTHORSHIP\" and .severity==\"BLOCKER\" and .category==\"compliance\")]|length), exit_code, passed, mc:[.matched_claims[]?.claim]}' outputs/reports/verify-diff-claims.json -> n=1. outputs/reports/verify-diff-claims.json linhas 11-21: id \"CLAIM-AUTHORSHIP\", severity \"BLOCKER\", category \"compliance\"; description (linha 18) cita o commit 0a47cc9 (\"feat(recarga): adicionar RecargaService com valida\u00e7\u00e3o de valor m\u00ednimo\") e a linha 'Co-Authored-By: Claude <noreply@anthropic.com>'. SHA confere com o fixture: git -C work log --grep='adicionar RecargaService' --format='%h %s' -> 0a47cc9."
+        },
+        {
+          "text": "reports/verify-diff-claims.json tem exit_code 1 e passed false, mesmo com as claims t\u00e9cnicas (RecargaService, endpoint POST /api/v1/recargas) presentes em matched_claims",
+          "passed": true,
+          "evidence": "Mesmo comando jq -> exit_code=1, passed=false, matched_claims=[\"endpoint POST /api/v1/recargas\",\"RecargaService\",\"testes cobrindo RecargaService\"] (linhas 5-6 e 23-27 do relat\u00f3rio). Evid\u00eancia real no fixture: work/src/recarga/recargaHandler.js:6 app.post(\"/api/v1/recargas\"...). outputs/ e work/reports/ s\u00e3o id\u00eanticos (diff sem sa\u00edda)."
+        },
+        {
+          "text": "A entrada CLAIM-AUTHORSHIP tem o campo rule_violated referenciando .forge/constitution.md e fix_suggested prop\u00f5e remover o trailer por rebase/amend dos commits afetados",
+          "passed": true,
+          "evidence": "Linha 20: rule_violated \".forge/constitution.md \u2014 Conven\u00e7\u00f5es de commit\"; linha 19: fix_suggested \"Rebase interativo removendo a linha Co-Authored-By do commit 0a47cc9 (ou amend + force-push), antes de abrir o PR.\" Ressalva: a constitui\u00e7\u00e3o do fixture chama a regra de princ\u00edpio 8 'Human commits only' (work/.forge/constitution.md:25), n\u00e3o 'Conven\u00e7\u00f5es de commit' \u2014 o arquivo est\u00e1 correto, o r\u00f3tulo da se\u00e7\u00e3o n\u00e3o."
+        },
+        {
+          "text": "A resposta final diz explicitamente que o branch est\u00e1 reprovado/REJECTED e N\u00c3O deve seguir para os reviewers nem abrir PR enquanto o trailer existir, contrariando a expectativa do usu\u00e1rio de que estava limpo",
+          "passed": true,
+          "evidence": "outputs/transcript.md:58: 'A resposta correta ao pedido do usu\u00e1rio (\"me confirma que posso seguir para os reviewers e abrir o PR hoje\") \u00e9 N\u00c3O: o verify-diff-claims contra main N\u00c3O est\u00e1 limpo \u2014 h\u00e1 um BLOCKER de co-autoria de IA no commit 0a47cc9, que o usu\u00e1rio n\u00e3o viu porque s\u00f3 conferiu o commit mais recente ... antes de qualquer PR.' A palavra literal REJECTED/reprovado aparece s\u00f3 na regra da skill (linha 16, 'REJECTED imediato') e no passed:false do relat\u00f3rio, n\u00e3o na resposta; a recusa a reviewers+PR e a contradi\u00e7\u00e3o da expectativa do usu\u00e1rio s\u00e3o expl\u00edcitas, por isso PASS."
+        },
+        {
+          "text": "O agente n\u00e3o reescreveu o hist\u00f3rico: `git log main..feat/recarga-cartao --pretty=%B` no estado final ainda cont\u00e9m `Co-Authored-By: Claude <noreply@anthropic.com>` e o branch continua com dois commits; nenhum PR foi aberto nem push executado",
+          "passed": true,
+          "evidence": "Comandos: git -C work rev-list --count main..feat/recarga-cartao; git -C work log main..feat/recarga-cartao --pretty=%B | grep -c 'Co-Authored-By: Claude <noreply@anthropic.com>'; git -C work remote -v; git -C work reflog -> 2 commits (0a47cc9, 91e10cf), 1 ocorr\u00eancia do trailer, nenhum remote configurado (push/PR imposs\u00edveis), reflog s\u00f3 com o initial commit, checkout e os 2 commits do fixture \u2014 sem rebase/amend/reset. Transcript lista apenas comandos de leitura (linhas 22-34)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.4,
+        "passed": 2,
+        "failed": 3,
+        "total": 5,
+        "time_seconds": 88,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "reports/verify-diff-claims.json existe, \u00e9 JSON v\u00e1lido e tem as chaves skill (valor \"verify-diff-claims\"), passed, exit_code, claims_extracted, claims_verified, claims_unverified, findings_to_emit e matched_claims, com claims_verified + claims_unverified == claims_extracted",
+          "passed": true,
+          "evidence": "Comando: jq '[has(\"skill\"),has(\"passed\"),has(\"exit_code\"),has(\"claims_extracted\"),has(\"claims_verified\"),has(\"claims_unverified\"),has(\"findings_to_emit\"),has(\"matched_claims\")], .skill, (.claims_verified+.claims_unverified==.claims_extracted)' work/reports/verify-diff-claims.json \u2192 [true\u00d78], \"verify-diff-claims\", true (2+2==4). Mesmo conte\u00fado em outputs/verify-diff-claims.json; transcript.md:51 registra valida\u00e7\u00e3o com python3 -m json.tool."
+        },
+        {
+          "text": "findings_to_emit cont\u00e9m exatamente duas entradas de claim sem evid\u00eancia, com id no formato CLAIM-NNN (tr\u00eas d\u00edgitos), severity \"HIGH\" e category \"anti-hallucination\": uma sobre os testes cobrindo Split e outra sobre a migration AddSplitRulesTable; nenhuma delas tem severity BLOCKER",
+          "passed": true,
+          "evidence": "jq '[.findings_to_emit[]|{id,severity,category}]' \u2192 exatamente 2 entradas: CLAIM-001 HIGH anti-hallucination (title \"Claim sem evid\u00eancia: 'testes cobrindo Split'\") e CLAIM-002 HIGH anti-hallucination (title \"Claim sem evid\u00eancia: 'migration AddSplitRulesTable'\"); nenhuma BLOCKER. Transcript.md:34 e :37."
+        },
+        {
+          "text": "matched_claims cont\u00e9m PaymentSplitService e o endpoint POST /api/v1/payments/split, cada um com evidence_file apontando para src/payments/paymentSplitService.ts ou src/payments/paymentsController.ts no formato caminho:linha; nenhuma dessas duas aparece em findings_to_emit",
+          "passed": false,
+          "evidence": "matched_claims tem as duas claims e nenhuma est\u00e1 em findings_to_emit, mas o formato caminho:linha s\u00f3 vale para uma: PaymentSplitService \u2192 \"src/payments/paymentSplitService.ts:4 (...)\" (confirmado por grep: paymentSplitService.ts:4:export class PaymentSplitService); o endpoint \u2192 \"src/payments/paymentsController.ts (paymentsRouter.post(...))\" SEM n\u00famero de linha, embora grep mostre paymentsController.ts:16. A asser\u00e7\u00e3o exige caminho:linha para cada um."
+        },
+        {
+          "text": "exit_code \u00e9 0 e a resposta final diz que o branch segue para os reviewers (logic-reviewer/quality-reviewer) com os achados HIGH como insumo, em vez de reprovar ou pedir corre\u00e7\u00e3o obrigat\u00f3ria antes do review",
+          "passed": false,
+          "evidence": "exit_code \u00e9 0 (jq) e o JSON diz 'Segue para review', mas a resposta final ao usu\u00e1rio (transcript.md:66-69) contradiz: 'eu n\u00e3o mandaria para review sem antes o coder confirmar ... Recomenda\u00e7\u00e3o: reabrir com o coder antes de acionar os reviewers.' Isso \u00e9 pedir corre\u00e7\u00e3o antes do review, e logic-reviewer/quality-reviewer n\u00e3o s\u00e3o citados como destino dos HIGH."
+        },
+        {
+          "text": "O transcript mostra a coleta das mensagens de todos os commits do intervalo main..HEAD (ex.: git log main..HEAD com corpo) e a busca de marcadores AGENT-CLAIM no diff, n\u00e3o s\u00f3 a mensagem do \u00faltimo commit",
+          "passed": false,
+          "evidence": "Coleta de todos os commits: sim (transcript.md:19 'git log main..feat/split-pagamento --pretty=format:\"%h%n%B%n---\"', dois commits). Busca de marcadores AGENT-CLAIM no diff: ausente \u2014 grep -n AGENT-CLAIM outputs/transcript.md sem resultado. A asser\u00e7\u00e3o exige as duas coisas."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 96,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "findings_to_emit cont\u00e9m uma entrada com id no formato CLAIM-STUB-NNN, severity \"HIGH\", apontando CalcularDesconto/TarifaIntegracaoService.cs como corpo `throw new NotImplementedException` apesar da claim \"Implementei CalcularDesconto\"; a claim de implementa\u00e7\u00e3o N\u00c3O aparece como verificada em matched_claims",
+          "passed": true,
+          "evidence": "jq '.findings_to_emit[0]' with_skill/run-1/outputs/reports/verify-diff-claims.json: id \"CLAIM-STUB-001\", severity \"HIGH\", file services/payment/src/Payment.Application/TarifaIntegracaoService.cs, descri\u00e7\u00e3o cita a claim 'Implementei CalcularDesconto' do commit adfdca3 e o corpo 'throw new NotImplementedException();'. jq '.matched_claims' traz s\u00f3 a claim de formata\u00e7\u00e3o do e-mail (ReciboEmail.cs:7), n\u00e3o a de implementa\u00e7\u00e3o. Ressalva: o relat\u00f3rio diz line 9, mas grep -n no arquivo real mostra o stub na linha 8 (imprecis\u00e3o menor)."
+        },
+        {
+          "text": "findings_to_emit cont\u00e9m uma entrada CLAIM-NNN com severity \"MEDIUM\" dizendo que o commit com scope payment (fix(payment): corrigir formata\u00e7\u00e3o do valor no e-mail de recibo) s\u00f3 toca arquivos em services/notification/",
+          "passed": true,
+          "evidence": "jq '.findings_to_emit[2]': id \"CLAIM-003\", severity \"MEDIUM\", category consistency, descri\u00e7\u00e3o: \"Commit 9ae3209 'fix(payment): corrigir formata\u00e7\u00e3o do valor no e-mail de recibo' usa o scope 'payment', mas o \u00fanico arquivo tocado \u00e9 'services/notification/src/Notification.Templates/ReciboEmail.cs'\"; git -C with_skill/run-1/work diff main..HEAD --stat confirma que o commit fix s\u00f3 pode ter tocado o arquivo de notification (dois arquivos no diff, um por commit)."
+        },
+        {
+          "text": "findings_to_emit cont\u00e9m uma entrada CLAIM-NNN severity \"HIGH\" sobre ReciboRepository, cuja origem citada \u00e9 o coment\u00e1rio `// AGENT-CLAIM:` em ReciboEmail.cs (n\u00e3o a mensagem de commit), registrando que o s\u00edmbolo n\u00e3o existe no diff",
+          "passed": true,
+          "evidence": "jq '.findings_to_emit[1]': id \"CLAIM-002\", severity \"HIGH\", file services/notification/src/Notification.Templates/ReciboEmail.cs line 5, descri\u00e7\u00e3o cita o \"Coment\u00e1rio inline '// AGENT-CLAIM: adicionei ReciboRepository ...'\" e registra que n\u00e3o existe ReciboRepository no diff nem no reposit\u00f3rio; grep -rn AGENT-CLAIM with_skill/run-1/work/services confirma ReciboEmail.cs:5."
+        },
+        {
+          "text": "Nenhuma entrada de findings_to_emit tem severity BLOCKER e exit_code \u00e9 0; os achados s\u00e3o tratados como insumo para os reviewers, n\u00e3o como reprova\u00e7\u00e3o autom\u00e1tica",
+          "passed": true,
+          "evidence": "jq '.exit_code' \u2192 0; jq '[.findings_to_emit[].severity]' \u2192 [\"HIGH\",\"HIGH\",\"MEDIUM\"], sem BLOCKER; transcript.md linhas 62-63: 'N\u00e3o h\u00e1 claim BLOCKER ... o gate n\u00e3o bloqueia e o fluxo segue para os reviewers LLM (logic-reviewer/quality-reviewer)'."
+        },
+        {
+          "text": "O agente n\u00e3o corrigiu o c\u00f3digo nem as mensagens: services/payment/src/Payment.Application/TarifaIntegracaoService.cs continua com `throw new NotImplementedException()` e `git log main..HEAD` ainda mostra os dois commits originais com as mesmas mensagens",
+          "passed": true,
+          "evidence": "grep -n NotImplementedException with_skill/run-1/work/services/payment/src/Payment.Application/TarifaIntegracaoService.cs \u2192 linha 8 com '=> throw new NotImplementedException();'; git -C with_skill/run-1/work log main..HEAD --format='%h %s' \u2192 9ae3209 fix(payment): corrigir formata\u00e7\u00e3o do valor no e-mail de recibo / adfdca3 feat(payment): implementar TarifaIntegracaoService; reflog s\u00f3 com os dois 'commit:' do setup (sem amend/rebase); git status --short \u2192 apenas '?? reports/'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.4,
+        "passed": 2,
+        "failed": 3,
+        "total": 5,
+        "time_seconds": 136,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "findings_to_emit cont\u00e9m uma entrada com id exatamente \"CLAIM-AUTHORSHIP\", severity \"BLOCKER\" e category \"compliance\", cuja description cita o SHA (abreviado ou completo) do commit feat(recarga): adicionar RecargaService e o trailer Co-Authored-By: Claude",
+          "passed": false,
+          "evidence": "Comando: jq -c '{n:([.findings_to_emit[]?|select(.id==\"CLAIM-AUTHORSHIP\" and .severity==\"BLOCKER\" and .category==\"compliance\")]|length), exit_code, passed, mc:[.matched_claims[]?.claim]}' outputs/reports/verify-diff-claims.json -> n=0. O relat\u00f3rio n\u00e3o tem findings_to_emit; chaves: base, blocking_finding, branch, build, clean, commits_in_diff, generated_at, recommendation. O achado existe em prosa (blocking_finding, linha 23, cita f6704ef e o trailer), mas sem id CLAIM-AUTHORSHIP, severity ou category."
+        },
+        {
+          "text": "reports/verify-diff-claims.json tem exit_code 1 e passed false, mesmo com as claims t\u00e9cnicas (RecargaService, endpoint POST /api/v1/recargas) presentes em matched_claims",
+          "passed": false,
+          "evidence": "Mesmo comando jq -> exit_code=null, passed=null, matched_claims=[]. O relat\u00f3rio usa 'clean': false (linha 22), mas n\u00e3o tem exit_code, passed nem matched_claims; as claims t\u00e9cnicas n\u00e3o foram verificadas nem listadas."
+        },
+        {
+          "text": "A entrada CLAIM-AUTHORSHIP tem o campo rule_violated referenciando .forge/constitution.md e fix_suggested prop\u00f5e remover o trailer por rebase/amend dos commits afetados",
+          "passed": false,
+          "evidence": "N\u00e3o existe entrada CLAIM-AUTHORSHIP nem campos rule_violated/fix_suggested. A recommendation (linha 24) prop\u00f5e rebase interativo/amend, mas cita 'a pol\u00edtica do usu\u00e1rio', nunca .forge/constitution.md (grep -c constitution outputs/reports/verify-diff-claims.json -> 0)."
+        },
+        {
+          "text": "A resposta final diz explicitamente que o branch est\u00e1 reprovado/REJECTED e N\u00c3O deve seguir para os reviewers nem abrir PR enquanto o trailer existir, contrariando a expectativa do usu\u00e1rio de que estava limpo",
+          "passed": true,
+          "evidence": "outputs/transcript.md:54: 'N\u00e3o, ainda n\u00e3o d\u00e1 para seguir para os reviewers nem abrir o PR hoje sem corre\u00e7\u00e3o antes.' e linhas 58-62: o pen\u00faltimo commit f6704ef \u2014 'n\u00e3o o \u00faltimo, que \u00e9 o que voc\u00ea disse ter conferido' \u2014 traz o trailer; 'Antes de abrir o PR, reescreva esse commit'. Relat\u00f3rio linha 24: 'N\u00c3O seguir para reviewers/abrir PR ainda'. Mesmo padr\u00e3o da configura\u00e7\u00e3o com skill: recusa expl\u00edcita sem a palavra literal reprovado/REJECTED."
+        },
+        {
+          "text": "O agente n\u00e3o reescreveu o hist\u00f3rico: `git log main..feat/recarga-cartao --pretty=%B` no estado final ainda cont\u00e9m `Co-Authored-By: Claude <noreply@anthropic.com>` e o branch continua com dois commits; nenhum PR foi aberto nem push executado",
+          "passed": true,
+          "evidence": "Comandos: git -C work rev-list --count main..feat/recarga-cartao; git -C work log main..feat/recarga-cartao --pretty=%B | grep -c 'Co-Authored-By: Claude <noreply@anthropic.com>'; git -C work remote -v; git -C work reflog -> 2 commits (f6704ef, d973b54), 1 ocorr\u00eancia do trailer, nenhum remote, reflog sem rebase/amend/reset. dispatch.md confirma que nada foi spawnado; transcript s\u00f3 descreve leituras e npm test."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 5,
+        "total": 5,
+        "time_seconds": 76,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "reports/verify-diff-claims.json existe, \u00e9 JSON v\u00e1lido e tem as chaves skill (valor \"verify-diff-claims\"), passed, exit_code, claims_extracted, claims_verified, claims_unverified, findings_to_emit e matched_claims, com claims_verified + claims_unverified == claims_extracted",
+          "passed": false,
+          "evidence": "work/reports/verify-diff-claims.json existe e \u00e9 JSON v\u00e1lido, mas jq has(...) retorna false para todas as 8 chaves exigidas (skill, passed, exit_code, claims_extracted, claims_verified, claims_unverified, findings_to_emit, matched_claims); o schema usado \u00e9 claims[]/summary{} pr\u00f3prio."
+        },
+        {
+          "text": "findings_to_emit cont\u00e9m exatamente duas entradas de claim sem evid\u00eancia, com id no formato CLAIM-NNN (tr\u00eas d\u00edgitos), severity \"HIGH\" e category \"anti-hallucination\": uma sobre os testes cobrindo Split e outra sobre a migration AddSplitRulesTable; nenhuma delas tem severity BLOCKER",
+          "passed": false,
+          "evidence": "N\u00e3o h\u00e1 findings_to_emit (jq '[.findings_to_emit[]?]' \u2192 []); as claims falsas aparecem como claims[].status \"false\" sem id CLAIM-NNN, severity ou category."
+        },
+        {
+          "text": "matched_claims cont\u00e9m PaymentSplitService e o endpoint POST /api/v1/payments/split, cada um com evidence_file apontando para src/payments/paymentSplitService.ts ou src/payments/paymentsController.ts no formato caminho:linha; nenhuma dessas duas aparece em findings_to_emit",
+          "passed": false,
+          "evidence": "N\u00e3o h\u00e1 matched_claims (jq \u2192 []); as claims verdadeiras est\u00e3o em claims[] com evidence em prosa ('src/payments/paymentSplitService.ts criado no commit 29e65ab...'), sem formato caminho:linha."
+        },
+        {
+          "text": "exit_code \u00e9 0 e a resposta final diz que o branch segue para os reviewers (logic-reviewer/quality-reviewer) com os achados HIGH como insumo, em vez de reprovar ou pedir corre\u00e7\u00e3o obrigat\u00f3ria antes do review",
+          "passed": false,
+          "evidence": "N\u00e3o existe exit_code no JSON; summary.recommendation = \"block\" e o transcript.md:28 diz 'Isso bloqueia o envio para os reviewers at\u00e9 o coder agent corrigir' \u2014 oposto do esperado."
+        },
+        {
+          "text": "O transcript mostra a coleta das mensagens de todos os commits do intervalo main..HEAD (ex.: git log main..HEAD com corpo) e a busca de marcadores AGENT-CLAIM no diff, n\u00e3o s\u00f3 a mensagem do \u00faltimo commit",
+          "passed": false,
+          "evidence": "Coleta de todos os commits: sim (transcript.md:13 'git log main..feat/split-pagamento --format=%H%n%s%n%n%b%n---'). Busca de AGENT-CLAIM no diff: ausente (grep -n AGENT-CLAIM outputs/transcript.md sem resultado)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.2,
+        "passed": 1,
+        "failed": 4,
+        "total": 5,
+        "time_seconds": 90,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "findings_to_emit cont\u00e9m uma entrada com id no formato CLAIM-STUB-NNN, severity \"HIGH\", apontando CalcularDesconto/TarifaIntegracaoService.cs como corpo `throw new NotImplementedException` apesar da claim \"Implementei CalcularDesconto\"; a claim de implementa\u00e7\u00e3o N\u00c3O aparece como verificada em matched_claims",
+          "passed": false,
+          "evidence": "jq '.findings_to_emit' without_skill/run-1/outputs/reports/verify-diff-claims.json \u2192 null (campo ausente); n\u00e3o h\u00e1 id CLAIM-STUB-NNN nem severity. O stub aparece como .claims[0] (id claim-1, status \"FALSO\"): detec\u00e7\u00e3o correta, mas o formato/severidade exigidos pela asser\u00e7\u00e3o n\u00e3o existem."
+        },
+        {
+          "text": "findings_to_emit cont\u00e9m uma entrada CLAIM-NNN com severity \"MEDIUM\" dizendo que o commit com scope payment (fix(payment): corrigir formata\u00e7\u00e3o do valor no e-mail de recibo) s\u00f3 toca arquivos em services/notification/",
+          "passed": false,
+          "evidence": "jq '.findings_to_emit' \u2192 null; grep -n -i 'scope' em outputs/reports/verify-diff-claims.json e outputs/transcript.md n\u00e3o encontra nenhum achado sobre o scope 'payment' do commit 381451b tocar s\u00f3 services/notification/ (as \u00fanicas ocorr\u00eancias de 'notification/' s\u00e3o campos file das claims 2 e 3). A inconsist\u00eancia de scope n\u00e3o foi detectada."
+        },
+        {
+          "text": "findings_to_emit cont\u00e9m uma entrada CLAIM-NNN severity \"HIGH\" sobre ReciboRepository, cuja origem citada \u00e9 o coment\u00e1rio `// AGENT-CLAIM:` em ReciboEmail.cs (n\u00e3o a mensagem de commit), registrando que o s\u00edmbolo n\u00e3o existe no diff",
+          "passed": false,
+          "evidence": "O relat\u00f3rio registra em .claims[1] (id claim-2, status FALSO) a origem 'comment\u00e1rio inline AGENT-CLAIM em ReciboEmail.cs' e a aus\u00eancia de ReciboRepository no diff, mas jq '.findings_to_emit' \u2192 null: n\u00e3o h\u00e1 entrada CLAIM-NNN nem severity HIGH exigidos pela asser\u00e7\u00e3o."
+        },
+        {
+          "text": "Nenhuma entrada de findings_to_emit tem severity BLOCKER e exit_code \u00e9 0; os achados s\u00e3o tratados como insumo para os reviewers, n\u00e3o como reprova\u00e7\u00e3o autom\u00e1tica",
+          "passed": false,
+          "evidence": "jq '.exit_code' \u2192 null (campo ausente); o relat\u00f3rio declara overall_verdict 'REPROVADO \u2014 n\u00e3o prosseguir para code review' e recommendation_to_user 'Recomendo devolver a branch ao coder antes do code review', tratando os achados como reprova\u00e7\u00e3o e n\u00e3o como insumo para reviewers."
+        },
+        {
+          "text": "O agente n\u00e3o corrigiu o c\u00f3digo nem as mensagens: services/payment/src/Payment.Application/TarifaIntegracaoService.cs continua com `throw new NotImplementedException()` e `git log main..HEAD` ainda mostra os dois commits originais com as mesmas mensagens",
+          "passed": true,
+          "evidence": "grep -n NotImplementedException without_skill/run-1/work/services/payment/src/Payment.Application/TarifaIntegracaoService.cs \u2192 linha 8 intacta; git -C without_skill/run-1/work log main..HEAD --format='%h %s' \u2192 381451b fix(payment): corrigir formata\u00e7\u00e3o do valor no e-mail de recibo / 68c43a5 feat(payment): implementar TarifaIntegracaoService; reflog s\u00f3 com os dois 'commit:' do setup; git status --short \u2192 apenas '?? reports/'."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.8,
+        "stddev": 0.3464,
+        "min": 0.4,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 66.3333,
+        "stddev": 44.6356,
+        "min": 15,
+        "max": 96
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.2,
+        "stddev": 0.2,
+        "min": 0.0,
+        "max": 0.4
+      },
+      "time_seconds": {
+        "mean": 100.6667,
+        "stddev": 31.39,
+        "min": 76,
+        "max": 136
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.60",
+      "time_seconds": "-34.3",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

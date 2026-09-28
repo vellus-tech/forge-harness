@@ -1,0 +1,127 @@
+diff --git a/apps/android/validador-bordo/core/database/src/androidTest/kotlin/br/com/axis/validador/database/ValidatorDatabaseMigrationTest.kt b/apps/android/validador-bordo/core/database/src/androidTest/kotlin/br/com/axis/validador/database/ValidatorDatabaseMigrationTest.kt
+index 2e3c5a4..dbe9193 100644
+--- a/apps/android/validador-bordo/core/database/src/androidTest/kotlin/br/com/axis/validador/database/ValidatorDatabaseMigrationTest.kt
++++ b/apps/android/validador-bordo/core/database/src/androidTest/kotlin/br/com/axis/validador/database/ValidatorDatabaseMigrationTest.kt
+@@ -3,6 +3,7 @@ package br.com.axis.validador.database
+ import androidx.room.testing.MigrationTestHelper
+ import androidx.test.platform.app.InstrumentationRegistry
+ import org.junit.Assert.assertEquals
++import org.junit.Assert.assertTrue
+ import org.junit.Rule
+ import org.junit.Test
+ 
+@@ -25,4 +26,33 @@ class ValidatorDatabaseMigrationTest {
+             assertEquals(0, it.getInt(0))
+         }
+     }
++
++    @Test
++    fun migrate3To4_backfillsIdempotencyKeyWithoutDroppingData() {
++        helper.createDatabase("migration-test-3-4", 3).apply {
++            execSQL("INSERT INTO validation_event (event_id, device_id, card_uid, route_id, fare_cents, validated_at, sync_status, retry_count) VALUES ('e1', 'd1', 'c1', '8012', 480, 1700000000000, 'PENDING', 0)")
++            execSQL("INSERT INTO validation_event (event_id, device_id, card_uid, route_id, fare_cents, validated_at, sync_status, retry_count) VALUES ('e2', 'd1', 'c2', '8012', 480, 1700000001000, 'SYNCED', 0)")
++            close()
++        }
++        val db = helper.runMigrationsAndValidate("migration-test-3-4", 4, true, MIGRATION_3_4)
++
++        // Nenhum evento perdido na migração (nem os já sincronizados, nem os pendentes).
++        db.query("SELECT COUNT(*) FROM validation_event").use {
++            it.moveToFirst()
++            assertEquals(2, it.getInt(0))
++        }
++
++        // Toda linha recebe uma idempotency_key não vazia e com pelo menos 16 caracteres,
++        // como o contrato validation-sync/v2 exige.
++        db.query("SELECT idempotency_key FROM validation_event ORDER BY event_id").use { cursor ->
++            val keys = mutableListOf<String>()
++            while (cursor.moveToNext()) {
++                keys += cursor.getString(0)
++            }
++            assertEquals(2, keys.size)
++            keys.forEach { key -> assertTrue(key.length >= 16) }
++            // Chaves distintas por evento (backfill não gera colisão entre linhas diferentes).
++            assertEquals(keys.toSet().size, keys.size)
++        }
++    }
+ }
+diff --git a/apps/android/validador-bordo/core/database/src/main/kotlin/br/com/axis/validador/database/Migrations.kt b/apps/android/validador-bordo/core/database/src/main/kotlin/br/com/axis/validador/database/Migrations.kt
+index 146c28c..0ffcd29 100644
+--- a/apps/android/validador-bordo/core/database/src/main/kotlin/br/com/axis/validador/database/Migrations.kt
++++ b/apps/android/validador-bordo/core/database/src/main/kotlin/br/com/axis/validador/database/Migrations.kt
+@@ -16,4 +16,21 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
+     }
+ }
+ 
+-val ALL_MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
++// Contrato validation-sync/v2 passa a exigir idempotency_key (minLength 16) em toda validação.
++// Migração não-destrutiva: adiciona a coluna com default vazio e faz backfill de uma chave
++// estável por linha para os eventos já persistidos no dispositivo (pendentes ou já sincronizados)
++// antes de reabrir o banco para uso normal, sem apagar nenhum dado de validação em campo.
++val MIGRATION_3_4 = object : Migration(3, 4) {
++    override fun migrate(db: SupportSQLiteDatabase) {
++        db.execSQL("ALTER TABLE validation_event ADD COLUMN idempotency_key TEXT NOT NULL DEFAULT ''")
++        // randomblob(16) -> 16 bytes aleatórios -> hex(...) -> 32 chars hexadecimais, satisfaz o
++        // minLength 16 do contrato. Gerada uma única vez por linha nesta migração, portanto
++        // reenvios do mesmo evento pelo worker repetem a mesma chave, como o contrato exige.
++        db.execSQL(
++            "UPDATE validation_event SET idempotency_key = lower(hex(randomblob(16))) " +
++                "WHERE idempotency_key = ''",
++        )
++    }
++}
++
++val ALL_MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+diff --git a/apps/android/validador-bordo/core/database/src/main/kotlin/br/com/axis/validador/database/ValidationEventEntity.kt b/apps/android/validador-bordo/core/database/src/main/kotlin/br/com/axis/validador/database/ValidationEventEntity.kt
+index 8d4acdd..0ce3701 100644
+--- a/apps/android/validador-bordo/core/database/src/main/kotlin/br/com/axis/validador/database/ValidationEventEntity.kt
++++ b/apps/android/validador-bordo/core/database/src/main/kotlin/br/com/axis/validador/database/ValidationEventEntity.kt
+@@ -18,4 +18,5 @@ data class ValidationEventEntity(
+     @ColumnInfo(name = "validated_at") val validatedAt: Long,
+     @ColumnInfo(name = "sync_status") val syncStatus: String,
+     @ColumnInfo(name = "retry_count") val retryCount: Int,
++    @ColumnInfo(name = "idempotency_key") val idempotencyKey: String,
+ )
+diff --git a/apps/android/validador-bordo/core/database/src/main/kotlin/br/com/axis/validador/database/ValidatorDatabase.kt b/apps/android/validador-bordo/core/database/src/main/kotlin/br/com/axis/validador/database/ValidatorDatabase.kt
+index f5debeb..c4cef11 100644
+--- a/apps/android/validador-bordo/core/database/src/main/kotlin/br/com/axis/validador/database/ValidatorDatabase.kt
++++ b/apps/android/validador-bordo/core/database/src/main/kotlin/br/com/axis/validador/database/ValidatorDatabase.kt
+@@ -5,7 +5,7 @@ import androidx.room.Database
+ import androidx.room.Room
+ import androidx.room.RoomDatabase
+ 
+-@Database(entities = [ValidationEventEntity::class], version = 3, exportSchema = true)
++@Database(entities = [ValidationEventEntity::class], version = 4, exportSchema = true)
+ abstract class ValidatorDatabase : RoomDatabase() {
+     abstract fun validationEventDao(): ValidationEventDao
+ 
+diff --git a/apps/android/validador-bordo/feature/sync/src/main/kotlin/br/com/axis/validador/sync/ValidationSyncApi.kt b/apps/android/validador-bordo/feature/sync/src/main/kotlin/br/com/axis/validador/sync/ValidationSyncApi.kt
+index 01c1b23..872cac2 100644
+--- a/apps/android/validador-bordo/feature/sync/src/main/kotlin/br/com/axis/validador/sync/ValidationSyncApi.kt
++++ b/apps/android/validador-bordo/feature/sync/src/main/kotlin/br/com/axis/validador/sync/ValidationSyncApi.kt
+@@ -20,4 +20,5 @@ data class ValidationEventPayload(
+     @SerialName("route_id") val routeId: String,
+     @SerialName("fare_cents") val fareCents: Long,
+     @SerialName("validated_at") val validatedAt: Long,
++    @SerialName("idempotency_key") val idempotencyKey: String,
+ )
+diff --git a/apps/android/validador-bordo/feature/sync/src/main/kotlin/br/com/axis/validador/sync/ValidationSyncWorker.kt b/apps/android/validador-bordo/feature/sync/src/main/kotlin/br/com/axis/validador/sync/ValidationSyncWorker.kt
+index da229fd..4aa2625 100644
+--- a/apps/android/validador-bordo/feature/sync/src/main/kotlin/br/com/axis/validador/sync/ValidationSyncWorker.kt
++++ b/apps/android/validador-bordo/feature/sync/src/main/kotlin/br/com/axis/validador/sync/ValidationSyncWorker.kt
+@@ -23,6 +23,7 @@ class ValidationSyncWorker(
+                 routeId = it.routeId,
+                 fareCents = it.fareCents,
+                 validatedAt = it.validatedAt,
++                idempotencyKey = it.idempotencyKey,
+             )
+         }
+         return when (api.send(payload)) {
+@@ -31,6 +32,8 @@ class ValidationSyncWorker(
+                 Result.success()
+             }
+             SyncResponse.Retryable -> {
++                // idempotencyKey não muda no retry: vem da própria entidade persistida,
++                // então o reenvio repete a mesma chave, como o contrato v2 exige.
+                 dao.incrementRetry(batch.map { it.eventId })
+                 Result.retry()
+             }

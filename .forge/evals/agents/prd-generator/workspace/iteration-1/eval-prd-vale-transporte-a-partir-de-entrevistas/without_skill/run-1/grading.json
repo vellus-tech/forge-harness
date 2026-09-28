@@ -1,0 +1,40 @@
+{
+  "expectations": [
+    {
+      "text": "Existe docs/product/prd/prd.md e nenhum outro arquivo de PRD foi criado fora desse caminho (ex.: docs/prd.md, PRD.md na raiz, docs/product/prd/portal-vt.md).",
+      "passed": false,
+      "evidence": "Não existe docs/product/prd/prd.md: `ls without_skill/run-1/work/docs/product/*` → 'no matches found'. O PRD foi gravado em work/.forge/product/current/prd/prd-portal-vt-corporativo.md (transcript.md passo 7) e copiado para outputs/prd/prd-portal-vt-corporativo.md — nome e caminho fora do esperado."
+    },
+    {
+      "text": "O prd.md contém os 13 headings de nível 2 do template, na ordem: 1. Resumo Executivo, 2. Contexto e Problema, 3. Personas, 4. Visão do Produto e Objetivos, 5. Escopo do Produto, 6. Jornadas de Usuário, 7. Requisitos Funcionais, 8. Requisitos Não Funcionais, 9. Restrições, Premissas e Lacunas, 10. Riscos e Mitigações, 11. Métricas de Sucesso, 12. Documentos Relacionados, 13. Anexos — nenhuma suprimida ou fundida.",
+      "passed": false,
+      "evidence": "`grep -n '^## ' outputs/prd/prd-portal-vt-corporativo.md` mostra 11 seções com outra estrutura: '1. Resumo executivo', '2. Problema e contexto', '3. Objetivos do produto', '4. Personas e usuários', '5. Jornadas e requisitos funcionais' (fundidas), '6. Fora de escopo', '7. Requisitos não funcionais', '8. Decisões técnicas...', '9. Métricas de sucesso', '10. Perguntas em aberto', '11. Rastreabilidade'; faltam Visão/Escopo, Restrições/Premissas/Lacunas, Riscos, Documentos Relacionados e Anexos."
+    },
+    {
+      "text": "A § 9.3 tem tabela com códigos LAC-01, LAC-02... contínuos cobrindo pelo menos: meta de disponibilidade/volume de pico, prazo contratual de crédito com o CMT e base legal/retenção de dados dos colaboradores; e em nenhum lugar do documento aparece meta numérica de disponibilidade (ex.: 99,5%, 99,9%) ou de latência/RPS apresentada como requisito.",
+      "passed": false,
+      "evidence": "`grep -n 'LAC-' outputs/prd/prd-portal-vt-corporativo.md` retorna vazio: não há § 9.3 nem tabela LAC-NN. As lacunas (disponibilidade, pico, SLA de crédito com o CMT, base legal/retenção) aparecem em bullets da § 7 (l.78-85) e perguntas da § 10, sem códigos. Não há meta numérica de disponibilidade/latência (`grep -nE '99[,.][0-9]|%|RPS|p9[59]'` vazio), mas a parte estrutural da asserção falha."
+    },
+    {
+      "text": "O prd.md não contém 'POST /v1/pedidos-recarga' nem 'pedido_recarga_item' como requisito ou capacidade; se RabbitMQ/Postgres forem citados, é apenas como item encaminhado ao TRD.md/ADR, nunca em RF-NN.",
+      "passed": true,
+      "evidence": "`grep -nE 'POST /v1|pedido_recarga_item|RabbitMQ|Postgres' outputs/prd/prd-portal-vt-corporativo.md` casa só a l.89, na § 8 'Decisões técnicas já sinalizadas (para o TRD, não deste documento)', que diz explicitamente 'não deve ser tratada como requisito de produto'; nenhum RF cita esses termos. Ressalva: o arquivo não é o prd.md (ver asserção 1)."
+    },
+    {
+      "text": "Os requisitos funcionais são numerados RF-01, RF-02, ... sem saltos nem duplicatas, e cada RF-NN traz 'Personas impactadas' com códigos P-NN existentes e 'Documentos filhos relacionados' apontando frd.md (ou FRD-XX.md); a matriz 7.1 lista os mesmos códigos.",
+      "passed": false,
+      "evidence": "Requisitos numerados RF1.1..RF1.4, RF2.1..RF2.4, RF3.1..RF3.4, RF4.1 (l.43-70), não RF-NN; nenhuma persona tem código P-NN (`grep -n 'P-0' outputs/prd/prd-portal-vt-corporativo.md` vazio), nenhum RF traz 'Personas impactadas' nem 'Documentos filhos relacionados', e não há matriz 7.1."
+    },
+    {
+      "text": "Nenhum requisito, critério ou meta do prd.md usa 'rápido', 'intuitivo', 'amigável' ou 'simples' como critério; a fala da entrevistada, se citada, aparece convertida em critério mensurável ou registrada como lacuna.",
+      "passed": true,
+      "evidence": "`grep -niE 'rápid|intuitiv|amigáv|simples' outputs/prd/prd-portal-vt-corporativo.md` casa só a l.30 (\"meios de pagamento mais rápidos que boleto\"), na descrição da persona gerente financeiro, não em requisito/critério/meta; a fala \"rápido e intuitivo\" da entrevistada não é citada no documento. Métricas da § 9 (l.91-96) são referências mensuráveis. Ressalva: o arquivo avaliado não é o prd.md exigido (ver asserção 1)."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 4,
+    "total": 6,
+    "pass_rate": 0.33
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "eval_id": 2,
+  "eval_name": "bronze-liquidacao-adquirente-worm",
+  "prompt": "Vamos começar a ingerir o arquivo de liquidação da adquirente (descrição em docs/fonte-liquidacao.md) em bronze/liquidacao/, do jeito que ele chega. Quero bronze imutável de verdade: coloca no infra/terraform/bronze.tf Object Lock em modo compliance de 5 anos no bucket inteiro e uma policy negando s3:DeleteObject para todo mundo em bronze/*. A parte PCI já está resolvida porque o bucket usa SSE-KMS. Aplica no terraform e documenta o desenho em docs/design-bronze.md.",
+  "assertions": [
+    "infra/terraform/bronze.tf final NÃO contém object_lock_configuration (ou equivalente) com mode = \"COMPLIANCE\" de 5 anos aplicado ao bucket inteiro; se houver Object Lock, é GOVERNANCE ou restrito a outro bucket/escopo, e docs/design-bronze.md justifica citando que WORM compliance exige obrigação legal registrada e conflita com a eliminação exigida (18 meses / LGPD)",
+    "docs/design-bronze.md afirma que SSE-KMS no bucket não basta para o PAN do arquivo da adquirente (PCI DSS 3.5.1 ou 3.5.1.2) e prescreve tokenização na borda de ingestão ou criptografia em nível de arquivo/campo com chave gerida fora do lake; aceitar o 'PCI já resolvido pelo SSE-KMS' reprova",
+    "A policy de deny s3:DeleteObject, se criada em bronze.tf, exclui bronze/liquidacao/ (NotResource, condição de prefixo ou statement restrito a outros prefixos), e bronze.tf ganha regra de ciclo de vida que expira objetos de bronze/liquidacao/ em cerca de 18 meses (~540 a 550 dias)",
+    "docs/design-bronze.md prevê chave por lote ou por período (ou crypto-shredding) para permitir eliminar o arquivo com PAN, ou registra que o bronze de liquidação entra no inventário/escopo do CDE"
+  ]
+}

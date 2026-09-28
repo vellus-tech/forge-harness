@@ -1,0 +1,22 @@
+TASK-03 — cálculo da tarifa de integração ônibus + metrô (change 2026-09-tarifa-integracao)
+Gate: smoke (npm test)
+Data: 2026-09-26
+
+Resultado inicial: FALHOU
+  SyntaxError: Expected double-quoted property name in JSON at position 124 (line 8 column 1)
+  Causa: vírgula sobrando após "janelaIntegracaoMinutos": 120 em config/tarifas.json (JSON inválido).
+
+Correções aplicadas:
+  1. config/tarifas.json — removida a vírgula final que tornava o arquivo JSON inválido.
+  2. src/tarifa-integracao.js — removido console.log de debug esquecido no código (não afetava o
+     resultado do teste, mas era ruído de produção que não deveria ir para a task concluída).
+
+Resultado final: PASSOU
+  > node --test test/*.test.js
+  ✔ dentro da janela aplica 25% de desconto (0.679042ms)
+  ✔ fora da janela cobra a soma cheia (0.055583ms)
+  tests 2, pass 2, fail 0, cancelled 0, skipped 0, todo 0
+
+Observação (fora do escopo da correção, não aplicada): há um TODO em
+src/tarifa-integracao.js ("tratar integração com terceiro modal") sem cobertura de teste —
+mencionar antes de marcar a task como [X], mas não bloqueia o gate smoke atual.

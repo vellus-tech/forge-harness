@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "tarifacao-acima-de-2000-linhas",
+  "prompt": "O requirements da Tarifação (docs/product/modules/tarifacao/requirements.md) ficou enorme porque o writer colocou o catálogo de tarifa de todas as linhas das três operadoras, mas é assim mesmo, não dá para quebrar: é um módulo só. Revisa pelo menos os Req 1 a 20 e me diz se posso aprovar e seguir para o design. Salva o parecer em outputs/validacao-tarifacao.md.",
+  "assertions": [
+    "outputs/validacao-tarifacao.md cita a contagem de linhas do requirements.md (2.448, ou um número acima de 2.000 com a medição declarada) e o limite de 2.000 linhas, e a tabela Checks Executados marca 'Tamanho até 2.000 linhas' como Falhou.",
+    "O parecer declara 'Status: Reprovado' e contém um achado [BLOCKER-NN] cujo problema é o tamanho do documento acima de 2.000 linhas.",
+    "O parecer não contém achados sobre o conteúdo de requisitos individuais (nenhum achado com Local apontando para Req 1 a Req 20 ou para critérios como '3.1', '12.2'), e explica que a revisão detalhada foi bloqueada pelo tamanho, mesmo com o pedido explícito do usuário.",
+    "As recomendações para o requirements-writer pedem a quebra em documentos menores por feature, função de negócio ou capacidade funcional e reproduzem o formato recomendado pelo contrato, com '# [nome-da-feature]/requirements.md' (ou nome concreto equivalente), seção '## User Story' no molde 'As a ..., I want to ..., so that ...' e '## Acceptance Criteria' com checkboxes.",
+    "A Decisão para o Pipeline marca 'Pode seguir para design.md: Não' e 'Requer nova execução do requirements-writer: Sim', e git diff HEAD -- docs/ está vazio (o validador não fatiou nem editou o documento por conta própria)."
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "expectations": [
+    {
+      "text": "docs/revisao-mensageria.md cita os ids RMQ-AP-06, RMQ-AP-08, RMQ-AP-10, RMQ-AP-12 e RMQ-AP-17, cada um com a localização arquivo:linha correta (definitions.json:15, publicador.js:11, consumidor.js:24, publicador.js:11, enabled_plugins:1); descrição do problema sem o id do catálogo ou sem a linha não conta",
+      "passed": true,
+      "evidence": "outputs/revisao-mensageria.md, tabela de Detecção (linhas 20-24): 'RMQ-AP-06 | alto | definitions.json:15', 'RMQ-AP-08 | aviso | publicador.js:11', 'RMQ-AP-10 | alto | consumidor.js:24', 'RMQ-AP-12 | aviso | publicador.js:11', 'RMQ-AP-17 | alto | enabled_plugins:1'; os cinco ids com a linha esperada, repetidos no julgamento ponto a ponto."
+    },
+    {
+      "text": "O relatório explica que canal.nack(msg) no amqplib reenfileira por padrão (requeue default true) e que basic.nack com requeue não é contido pelo delivery-limit da quorum queue, e prescreve reject ou nack com requeue=false para uma DLX/parking lot; dizer apenas 'evite nack' ou 'adicione limite de tentativas' não conta",
+      "passed": true,
+      "evidence": "Seção 3: 'em amqplib, nack(msg) tem requeue=true por padrão'; 'basic.nack não incrementa o delivery-count da quorum (só basic.reject incrementa) — nack com requeue nunca é contido pelo delivery-limit'; prescreve 'reject/nack(msg, false, false) (terceiro argumento requeue=false) para a DLX' e filas *.parking atrás da DLX."
+    },
+    {
+      "text": "O relatório recomenda desabilitar/remover o rabbitmq_delayed_message_exchange por estar depreciado e arquivado e propõe como retry com espera o retry atrasado nativo da quorum queue do 4.3 (delayed-retry-type, delayed-retry-min, delayed-retry-max) ou filas de espera por patamar com TTL de fila e DLX de volta; qualquer recomendação de continuar usando x-delayed-message reprova",
+      "passed": false,
+      "evidence": "Parcial. Propõe corretamente as duas alternativas (filas de espera por patamar com 'TTL de fila (não de mensagem)' e DLX de volta; depois 'delayed-retry-type: failed, delayed-retry-min, delayed-retry-max') e diz que o plugin foi 'depreciado e arquivado' e 'Não usar'. Mas não recomenda desabilitar/remover o plugin: a tabela-resumo diz 'enabled_plugins | Não adotar o delayed exchange para o retry (plugin depreciado); manter habilitado só se algo mais o usa hoje'. A asserção exige a recomendação de desabilitar/remover; recomendação condicional de manter habilitado não satisfaz. Na dúvida, reprovado."
+    },
+    {
+      "text": "O relatório afirma que as filas espelhadas clássicas (ha-mode da policy ha-todas) foram removidas no RabbitMQ 4.0 e que a migração para quorum queue precisa acontecer antes do upgrade para 4.3 (não depois, nem como 'melhoria opcional')",
+      "passed": true,
+      "evidence": "Seção 4: 'A policy ha-todas (ha-mode: all ...) usa espelhamento clássico, removido no RabbitMQ 4.0 ... É o achado mais crítico do ponto de vista do upgrade e precisa ser resolvido antes da janela'; 'migrar para quorum é pré-requisito para ter HA real no cluster 4.3'; tabela Pré-upgrade: rodar check de deprecated features 'depois de tirar a policy ha-todas e migrar para quorum'."
+    },
+    {
+      "text": "O relatório aponta o Set 'processados' de src/recarga/consumidor.js como dedupe em memória (INB-AP-01, perde estado no restart e não vale entre réplicas) e o uso de msg.fields.redelivered como descarte (INB-AP-02), e propõe inbox transacional ou operação idempotente com o id do evento gravado na mesma transação do crédito de saldo e ack só depois do commit",
+      "passed": true,
+      "evidence": "Seção 3: 'INB-AP-01 — dedupe em memória ... const processados = new Set() ... o estado zera a cada restart e não é compartilhado entre réplicas' (registrado como achado manual, 'O scan.sh não pegou este caso'); 'INB-AP-02 — redelivered como prova de duplicata. Linha 10'; correção: 'inbox transacional — tabela (subscriber_id, message_id) com chave única, inserida na mesma transação Postgres que credita o saldo ... ack só depois do commit dessa transação'."
+    },
+    {
+      "text": "O relatório NÃO classifica o amqp.connect de src/infra/rabbit.js:7 como conexão por mensagem (reconhece como conexão única de bootstrap ou não o lista como defeito) e registra como não verificado pela varredura estática ao menos um item de runtime do catálogo (RMQ-AP-02 fila sem limite, RMQ-AP-11 DLX sem consumidor ou RMQ-AP-23 delivery-limit sem DLX), em vez de dar esses pontos como aprovados",
+      "passed": true,
+      "evidence": "Seção 1: 'RMQ-AP-03 é falso positivo: amqp.connect está exatamente no lugar certo — módulo de bootstrap, chamado uma vez na subida do processo'. Detecção: 'O scanner lê texto e não vê ausência de coisas (limite de fila, DLX, retenção) ... os três pontos abaixo (RMQ-AP-02, RMQ-AP-11/23, INB-AP-01) são achados de revisão manual, fora do alcance do scan.sh'; seção 4: 'RMQ-AP-02 / sem max-length (achado manual — não coberto pelo scanner, que só audita isso em runtime)'. Não são dados como aprovados."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 1,
+    "total": 6,
+    "pass_rate": 0.8333
+  }
+}

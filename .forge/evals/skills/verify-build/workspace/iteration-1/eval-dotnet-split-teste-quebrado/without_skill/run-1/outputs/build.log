@@ -1,0 +1,15 @@
+  Determinando os projetos a serem restaurados...
+<worktree-do-eval>/.forge/evals/skills/verify-build/workspace/iteration-1/eval-dotnet-split-teste-quebrado/without_skill/run-1/work/tests/Pagamentos.Domain.Tests/Pagamentos.Domain.Tests.csproj : warning NU1900: Ocorreu um erro ao obter os dados de vulnerabilidade do pacote: Não é possível carregar o índice de serviço para a origem https://axis-mobfintech-833342657354.d.codeartifact.us-west-2.amazonaws.com/nuget/Axis/v3/index.json. [<worktree-do-eval>/.forge/evals/skills/verify-build/workspace/iteration-1/eval-dotnet-split-teste-quebrado/without_skill/run-1/work/Pagamentos.sln]
+  Todos os projetos estão atualizados para restauração.
+<worktree-do-eval>/.forge/evals/skills/verify-build/workspace/iteration-1/eval-dotnet-split-teste-quebrado/without_skill/run-1/work/tests/Pagamentos.Domain.Tests/Pagamentos.Domain.Tests.csproj : warning NU1900: Ocorreu um erro ao obter os dados de vulnerabilidade do pacote: Não é possível carregar o índice de serviço para a origem https://axis-mobfintech-833342657354.d.codeartifact.us-west-2.amazonaws.com/nuget/Axis/v3/index.json.
+  Pagamentos.Domain -> <worktree-do-eval>/.forge/evals/skills/verify-build/workspace/iteration-1/eval-dotnet-split-teste-quebrado/without_skill/run-1/work/src/Pagamentos.Domain/bin/Debug/net10.0/Pagamentos.Domain.dll
+  Pagamentos.Domain.Tests -> <worktree-do-eval>/.forge/evals/skills/verify-build/workspace/iteration-1/eval-dotnet-split-teste-quebrado/without_skill/run-1/work/tests/Pagamentos.Domain.Tests/bin/Debug/net10.0/Pagamentos.Domain.Tests.dll
+
+Compilação com êxito.
+
+<worktree-do-eval>/.forge/evals/skills/verify-build/workspace/iteration-1/eval-dotnet-split-teste-quebrado/without_skill/run-1/work/tests/Pagamentos.Domain.Tests/Pagamentos.Domain.Tests.csproj : warning NU1900: Ocorreu um erro ao obter os dados de vulnerabilidade do pacote: Não é possível carregar o índice de serviço para a origem https://axis-mobfintech-833342657354.d.codeartifact.us-west-2.amazonaws.com/nuget/Axis/v3/index.json. [<worktree-do-eval>/.forge/evals/skills/verify-build/workspace/iteration-1/eval-dotnet-split-teste-quebrado/without_skill/run-1/work/Pagamentos.sln]
+<worktree-do-eval>/.forge/evals/skills/verify-build/workspace/iteration-1/eval-dotnet-split-teste-quebrado/without_skill/run-1/work/tests/Pagamentos.Domain.Tests/Pagamentos.Domain.Tests.csproj : warning NU1900: Ocorreu um erro ao obter os dados de vulnerabilidade do pacote: Não é possível carregar o índice de serviço para a origem https://axis-mobfintech-833342657354.d.codeartifact.us-west-2.amazonaws.com/nuget/Axis/v3/index.json.
+    2 Aviso(s)
+    0 Erro(s)
+
+Tempo Decorrido 00:00:03.36

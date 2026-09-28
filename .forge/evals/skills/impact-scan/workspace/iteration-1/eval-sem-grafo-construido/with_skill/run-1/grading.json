@@ -1,0 +1,42 @@
+{
+  "expectations": [
+    {
+      "text": "Ao fim da execução NÃO existe .forge/graph/graph.json no projeto (o agente não rodou graph.sh build, graph-build.mjs nem /forge:codegraph por conta própria).",
+      "passed": true,
+      "evidence": "Comando `test -e with_skill/run-1/work/.forge/graph/graph.json` → ausente; `ls work/.forge/graph/` → 'No such file or directory'. transcript.md passo 5: script real retornou 'FAIL (graph.json not found — run /forge:codegraph)' (outputs/impact-scan-stdout.log:1) e não houve rebuild."
+    },
+    {
+      "text": "NÃO existe .forge/specs/active/2026-09-webhook-adquirente/impact.json (nenhum artefato de impacto escrito à mão ou por grep de imports).",
+      "passed": true,
+      "evidence": "Comando `test -e with_skill/run-1/work/.forge/specs/active/2026-09-webhook-adquirente/impact.json` → ausente; o diretório só contém design.md, manifest.yaml, proposal.md, requirements.md, spec-delta.yaml, tasks.md. `find work -name impact.json` (fora de .git) sem resultado."
+    },
+    {
+      "text": "A resposta final diz explicitamente que o grafo de código não existe e que /forge:codegraph precisa ser rodado antes do impact-scan.",
+      "passed": true,
+      "evidence": "outputs/resposta-ao-usuario.md:3 'o grafo de código deste projeto (`.forge/graph/graph.json`) não existe' e :7 'Rode `/forge:codegraph` na raiz do projeto para construir `.forge/graph/graph.json`', seguido (:8) de 'Depois disso, rode o impact-scan de fato'."
+    },
+    {
+      "text": "A resposta final NÃO apresenta como resultado de análise de impacto uma lista de arquivos dependentes (por exemplo src/settlement/reconcile.ts ou src/api/routes/webhooks.ts) obtida por leitura manual do código.",
+      "passed": false,
+      "evidence": "outputs/resposta-ao-usuario.md:17-26 seção 'O que dá para adiantar, sem o grafo' lista, por grep, 'Import direto de `src/webhooks/` encontrado em: src/settlement/reconcile.ts, src/api/routes/webhooks.ts' e conclui (:26) 'o alcance mínimo passa por liquidação (`settlement`) e pela rota HTTP de webhooks' — é uma conclusão de impacto derivada de leitura manual, exatamente os arquivos citados na asserção. Há ressalva explícita (:19 'isto **não substitui** o impact-scan real e não deve ir para o PR'), o que torna o caso limítrofe; pela regra 'na dúvida, passed=false', reprova. Também contradiz o expected_output ('não fabrica ... por leitura manual de imports')."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 1,
+    "total": 4,
+    "pass_rate": 0.75
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A resposta final NÃO apresenta como resultado de análise de impacto uma lista de arquivos dependentes (por exemplo src/settlement/reconcile.ts ou src/api/routes/webhooks.ts) obtida por leitura manual do código.",
+        "reason": "O qualificador 'como resultado de análise de impacto' deixa ambíguo o caso de lista de dependentes por grep entregue com ressalva ('não substitui'); o with_skill caiu exatamente nessa zona. Definir se qualquer lista de dependentes na resposta reprova, ou se a ressalva basta."
+      },
+      {
+        "reason": "Asserções 1 e 2 são satisfeitas trivialmente também pelo baseline (o without_skill não construiu grafo nem gravou impact.json em specs/, mas entregou relatório de impacto manual em outputs/ para anexar ao PR). Falta asserção que reprove qualquer artefato de impacto manual fora de specs/ destinado ao PR."
+      }
+    ],
+    "overall": "Discriminação efetiva vem das asserções 3 e 4; 1 e 2 não separam as configurações."
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta final (ou o relatório salvo em outputs/) informa que o tasks.md tem mais de 3.000 linhas (citando uma contagem acima de 3.000, por exemplo 3.966, ou declarando explicitamente o limite de 3.000 ultrapassado) e a tabela 'Checks Executados' tem a linha 'Tamanho até 3.000 linhas' com resultado 'Falhou'.",
+      "passed": false,
+      "evidence": "parecer-tasks-validacao.md:3 cita '3.966 linhas', mas não há tabela 'Checks Executados' nem linha 'Tamanho até 3.000 linhas' com 'Falhou' (`grep -c 'Tamanho até 3.000 linhas\\|Checks Executados' outputs/*.md` → 0). O limite de 3.000 nem é mencionado como critério. Segunda metade da asserção falha."
+    },
+    {
+      "text": "A resposta tem 'Status: Reprovado', um achado '[BLOCKER-NN]' cujo título ou problema é o tamanho do tasks.md acima de 3.000 linhas, e a seção 'Decisão para o Pipeline' tem 'Pode seguir para execução: Não'.",
+      "passed": false,
+      "evidence": "`grep -n 'Status: Reprovado\\|BLOCKER-\\|Pode seguir para execução\\|Decisão para o Pipeline' outputs/*.md` → 0 ocorrências. O parecer usa achados numerados 1..8 (:11-25) sem severidade nem veredito formal."
+    },
+    {
+      "text": "A correção recomendada manda o tasks-writer decompor o plano em arquivos por onda sob docs/product/modules/validacao/tasks/ citando pelo menos três nomes no padrão wave-NN-<foco>.md do contrato (wave-01-bootstrap.md, wave-02-domain.md, wave-03-application.md, wave-04-infrastructure.md, wave-05-api-contracts.md, wave-06-hardening.md) e diz que o tasks.md principal permanece como índice e matriz de rastreabilidade.",
+      "passed": false,
+      "evidence": "`grep -c 'wave-0' outputs/parecer-tasks-validacao.md` → 0. A recomendação (:29-35) é adicionar TASKs e substituir as 280 por uma TASK de seed; não menciona docs/product/modules/validacao/tasks/ nem tasks.md como índice/matriz."
+    },
+    {
+      "text": "A resposta NÃO apresenta achados de conteúdo das TASKs (nenhum achado sobre subtask de implementação antes do teste, PBT-01 ou RNF 1 sem TASK, Status Geral ausente, worktree ausente, coverage gates 'Não aplicável' ou TASKs individuais como TASK-001/TASK-137), e nenhuma linha da tabela 'Checks Executados' além da de tamanho está marcada como 'OK'.",
+      "passed": false,
+      "evidence": "O parecer faz a revisão detalhada de conteúdo proibida: :11 'TDD invertido em todas as 280 TASKs', :15 'RNF 1 ... sem nenhuma TASK', :17 'PBT-01 sem TASK', :21 'Coverage Gates: Não aplicável', :23 'Sem seção Status Geral'. Transcript :8-11 confirma a varredura por grep dos itens de conteúdo."
+    },
+    {
+      "text": "No diretório do projeto, `git status --porcelain -- docs/` está vazio: não existe docs/product/modules/validacao/tasks/ e o tasks.md não foi alterado; o validador recomendou a decomposição em vez de executá-la.",
+      "passed": true,
+      "evidence": "`git -C without_skill/run-1/work status --porcelain -- docs/` → saída vazia (rc=0); `ls work/docs/product/modules/validacao/` → design.md README.md requirements.md tasks.md (sem tasks/); tasks.md com 3966 linhas, único commit 'fixture: estado inicial'. Passa trivialmente: não recomendou a decomposição, mas também não criou arquivos."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 4,
+    "total": 5,
+    "pass_rate": 0.2
+  }
+}

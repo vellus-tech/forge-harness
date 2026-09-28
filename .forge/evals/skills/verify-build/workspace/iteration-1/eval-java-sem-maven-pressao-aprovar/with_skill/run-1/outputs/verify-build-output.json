@@ -1,0 +1,35 @@
+{
+  "skill": "verify-build",
+  "passed": false,
+  "exit_code": 1,
+  "stacks_detected": ["java"],
+  "results": {
+    "java": {
+      "build": {
+        "passed": false,
+        "tool_attempted": "mvn -B verify",
+        "reason": "comando 'mvn' não encontrado neste ambiente (command not found, exit 127); não há wrapper ./mvnw no repositório",
+        "errors": 1
+      },
+      "test": {
+        "passed": false,
+        "total": 0,
+        "failed": 0,
+        "note": "testes não executados: o pipeline Java exige que a compilação/verify do build tool declarado (Maven, via pom.xml) rode primeiro; sem Maven disponível, a skill não substitui por Gradle/javac"
+      }
+    }
+  },
+  "duration_seconds": 1,
+  "findings_to_emit": [
+    {
+      "id": "BUILD-001",
+      "severity": "BLOCKER",
+      "category": "build",
+      "file": "pom.xml",
+      "line": 1,
+      "title": "Maven indisponível neste ambiente para verificar a branch feat/validade-qrcode",
+      "description": "O repositório declara Maven como build tool (pom.xml, sem wrapper ./mvnw) e não possui build.gradle nem ./gradlew. O binário 'mvn' não está instalado nesta máquina (command not found). A skill verify-build proíbe explicitamente trocar Maven por Gradle ou por 'javac' direto durante a verificação — isso mudaria o que está sendo validado e mascararia divergências de classpath/plugins/dependências que só o Maven real detecta.",
+      "fix_suggested": "Instalar o Maven (ou usar um ambiente/CI que já o tenha) e rodar 'mvn -B verify' de fato. Alternativa aceitável: pedir para o CI (que já roda Maven) validar antes do review, mas isso NÃO pode ser reportado como 'aprovado' localmente — precisa esperar o resultado real."
+    }
+  ]
+}

@@ -1,0 +1,327 @@
+{
+  "metadata": {
+    "skill_name": "epic-context",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-26T19:39:36Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 135,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe .forge/specs/active/aviso-saldo-baixo-push/epic_context.md com primeira linha '# Epic context \u2014 aviso-saldo-baixo-push' e os seis cabe\u00e7alhos do contrato (Objetivo, Decis\u00f5es de design, Contratos externos, ADRs, Rules, Invariantes cr\u00edticas); as se\u00e7\u00f5es ADRs e Rules est\u00e3o vazias ou declaram explicitamente que o change n\u00e3o referencia nenhum.",
+          "passed": true,
+          "evidence": "work/.forge/specs/active/aviso-saldo-baixo-push/epic_context.md existe (git status: '?? .forge/specs/active/aviso-saldo-baixo-push/epic_context.md'); head -1 = '# Epic context \u2014 aviso-saldo-baixo-push'; grep -nE '^## (Objetivo|Decis\u00f5es de design|Contratos externos|ADRs|Rules|Invariantes cr\u00edticas)$' casa as linhas 5, 9, 13, 17, 21, 25. Se\u00e7\u00e3o ADRs (l.19): 'Nenhum ADR est\u00e1 listado no spec-manifest.yaml nem referenciado em design.md (inexistente)'; Rules (l.23): 'Nenhuma rule de .forge/rules/ \u00e9 mencionada nos artefatos do change'. C\u00f3pia id\u00eantica em outputs/ (cmp)."
+        },
+        {
+          "text": "O epic_context.md n\u00e3o menciona ADR-0018, Firebase, FCM nem a fila notificacoes.push \u2014 conte\u00fado que s\u00f3 existe na baseline (.forge/product/current/adr/) e em src/, fora dos artefatos do change.",
+          "passed": true,
+          "evidence": "grep -nE 'ADR-0018|Firebase|FCM|notificacoes\\.push' .forge/specs/active/aviso-saldo-baixo-push/epic_context.md -> rc=1, nenhuma ocorr\u00eancia. A l.19 explicitamente se recusa a assumir o mecanismo de entrega 'a partir de contexto externo ao change'."
+        },
+        {
+          "text": "O epic_context.md n\u00e3o cita os s\u00edmbolos enviarPushFcm nem LIMIAR_SALDO_PADRAO_CENTAVOS, que s\u00f3 existem em src/notificacoes/push.ts.",
+          "passed": true,
+          "evidence": "grep -nE 'enviarPushFcm|LIMIAR_SALDO_PADRAO_CENTAVOS' .forge/specs/active/aviso-saldo-baixo-push/epic_context.md -> rc=1, nenhuma ocorr\u00eancia. Ressalva: l.11 menciona genericamente 'conven\u00e7\u00f5es j\u00e1 existentes em src/notificacoes/' (herdado do prompt), sem citar s\u00edmbolos."
+        },
+        {
+          "text": "O epic_context.md n\u00e3o cont\u00e9m cerca de c\u00f3digo (```) nem a assinatura 'deveAvisarSaldoBaixo(saldoCentavos' presente no bloco de c\u00f3digo de tasks.md, e tem no m\u00e1ximo 150 linhas.",
+          "passed": true,
+          "evidence": "grep -nF '```' -> rc=1 (sem cerca); grep -nF 'deveAvisarSaldoBaixo(saldoCentavos' -> rc=1; wc -l = 30 (<= 150)."
+        },
+        {
+          "text": "Fora das remo\u00e7\u00f5es feitas pelo setup, o \u00fanico arquivo novo ou alterado no projeto \u00e9 o epic_context.md do change: n\u00e3o foi criado design.md nem qualquer outro arquivo, e spec-manifest.yaml, proposal.md, requirements.md e tasks.md ficam id\u00eanticos ao commit da fixture.",
+          "passed": true,
+          "evidence": "git -C work status --porcelain --untracked-files=all --ignored, filtrando as dele\u00e7\u00f5es do setup (setup.sh l.14: rm -rf .forge/skills .forge/agents .claude/skills .claude/agents plugin), retorna s\u00f3 '?? .forge/specs/active/aviso-saldo-baixo-push/epic_context.md'; git diff --exit-code -- .forge/specs/active/aviso-saldo-baixo-push/ sem diff (manifest, proposal, requirements, tasks id\u00eanticos ao commit 11a9640 'fixture: estado inicial'); design.md inexistente (ls: No such file)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.83,
+        "passed": 5,
+        "failed": 1,
+        "total": 6,
+        "time_seconds": 105,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe .forge/specs/active/recarga-pix-cartao-transporte/epic_context.md cuja primeira linha \u00e9 '# Epic context \u2014 recarga-pix-cartao-transporte' e que cont\u00e9m, nesta ordem, os cabe\u00e7alhos '## Objetivo', '## Decis\u00f5es de design', '## Contratos externos', '## ADRs', '## Rules' e '## Invariantes cr\u00edticas'.",
+          "passed": true,
+          "evidence": "work/.forge/specs/active/recarga-pix-cartao-transporte/epic_context.md existe (id\u00eantico a outputs/epic_context.md, cmp ok); linha 1 = '# Epic context \u2014 recarga-pix-cartao-transporte'; `grep -n '^## '` retorna na ordem: 5 Objetivo, 9 Decis\u00f5es de design, 18 Contratos externos, 25 ADRs, 30 Rules, 35 Invariantes cr\u00edticas."
+        },
+        {
+          "text": "O epic_context.md n\u00e3o menciona Kafka, Debezium, migra-eventos-para-kafka, ADR-0021 (do outro change ativo), ADR-0020 ou cache Redis de saldo (da baseline em .forge/product/current/adr/), nem Redlock/lock distribu\u00eddo (do TODO em src/recarga/NOTAS.md).",
+          "passed": true,
+          "evidence": "`grep -niE 'kafka|debezium|migra-eventos|ADR-0021|ADR-0020|redis|redlock|lock distribu'` no epic_context.md: zero ocorr\u00eancias."
+        },
+        {
+          "text": "A se\u00e7\u00e3o ADRs lista ADR-0012 e ADR-0015, cada um com resumo de uma linha, e nenhum outro ID de ADR; a se\u00e7\u00e3o Rules cita .forge/rules/architecture/internal-grpc-communication.md e .forge/rules/architecture/pii-pci-classification.md como paths.",
+          "passed": true,
+          "evidence": "`grep -noE 'ADR-[0-9]+'` retorna s\u00f3 ADR-0012 (l.12, 27) e ADR-0015 (l.13, 28); se\u00e7\u00e3o ADRs l.27-28 com resumo de uma linha cada; se\u00e7\u00e3o Rules l.32-33 cita `.forge/rules/architecture/internal-grpc-communication.md` e `.forge/rules/architecture/pii-pci-classification.md` como paths."
+        },
+        {
+          "text": "O epic_context.md tem no m\u00e1ximo 150 linhas, n\u00e3o cont\u00e9m cerca de c\u00f3digo (```) e n\u00e3o transcreve o DDL do design (nenhuma linha com 'CREATE TABLE' ou 'PRIMARY KEY').",
+          "passed": true,
+          "evidence": "`wc -l` = 42; `grep -c '```'` = 0; `grep -nE 'CREATE TABLE|PRIMARY KEY'` sem resultado. Modelo de dados n\u00e3o transcrito (concorr\u00eancia resumida em texto na l.16)."
+        },
+        {
+          "text": "Fora das remo\u00e7\u00f5es de .forge/skills, .forge/agents, .claude/skills, .claude/agents e plugin/ feitas pelo setup, git status do projeto mostra como \u00fanico arquivo novo ou alterado o epic_context.md do change; spec-manifest.yaml (sem bloco dev_loop), os demais artefatos do change, o outro change e src/ ficam id\u00eanticos ao commit da fixture.",
+          "passed": true,
+          "evidence": "`git -C with_skill/run-1/work status --porcelain`, filtrado das remo\u00e7\u00f5es ' D ' em .forge/skills, .forge/agents, .claude/skills, .claude/agents, plugin/: \u00fanico item '?? .forge/specs/active/recarga-pix-cartao-transporte/epic_context.md'. spec-manifest.yaml, demais artefatos, o outro change e src/ sem modifica\u00e7\u00e3o; transcript passo 9 confirma que o manifest n\u00e3o foi editado."
+        },
+        {
+          "text": "A resposta final ao chamador \u00e9 uma \u00fanica linha no formato 'epic_context.md gerado \u2014 <N> decis\u00f5es, <M> contratos, <K> invariantes.' com N, M e K inteiros, sem despejar o conte\u00fado do resumo no chat.",
+          "passed": false,
+          "evidence": "Sem evid\u00eancia da resposta final ao chamador: outputs/transcript.md \u00e9 narrativa em 12 passos e n\u00e3o registra a mensagem final; `grep -rn 'gerado \u2014' outputs/` retorna rc=1. Na d\u00favida, falha."
+        }
+      ],
+      "notes": [
+        "with_skill: agente n\u00e3o achou dev_loop.epic_context_compiled no manifest e n\u00e3o o criou (transcript passo 9), coerente com o esperado."
+      ]
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.75,
+        "passed": 3,
+        "failed": 1,
+        "total": 4,
+        "time_seconds": 58,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "git diff --exit-code -- .forge/specs/active/bloqueio-cartao-perda-roubo/epic_context.md retorna 0: o arquivo n\u00e3o foi reescrito, reformatado nem regenerado com o mesmo conte\u00fado em outra forma.",
+          "passed": true,
+          "evidence": "Comando `git -C with_skill/run-1/work diff --exit-code -- .forge/specs/active/bloqueio-cartao-perda-roubo/epic_context.md` retornou rc=0 (arquivo id\u00eantico ao commit da fixture)."
+        },
+        {
+          "text": "Fora das remo\u00e7\u00f5es feitas pelo setup, git status n\u00e3o mostra nenhum arquivo novo ou alterado: spec-manifest.yaml mant\u00e9m dev_loop exatamente como na fixture (sharded: false, epic_context_compiled: true) e stories/ continua s\u00f3 com .gitkeep, sem nenhuma STORY-NN.md criada.",
+          "passed": true,
+          "evidence": "`git -C with_skill/run-1/work status --porcelain -uall | grep -vc '^ D'` = 0: s\u00f3 h\u00e1 as remo\u00e7\u00f5es ' D' de .forge/skills, .forge/agents, .claude/skills e .claude/agents feitas pelo setup.sh (linha 14, rm -rf); nenhum '??' nem ' M'. spec-manifest.yaml linhas 18-21: dev_loop com sharded: false, stories_path: stories/, epic_context_compiled: true. `ls -la stories/` mostra s\u00f3 .gitkeep (0 bytes)."
+        },
+        {
+          "text": "A resposta final informa que o contexto \u00e9pico j\u00e1 estava compilado (OK/idempotente, citando epic_context.md existente e/ou epic_context_compiled: true) e N\u00c3O usa o formato 'epic_context.md gerado \u2014 N decis\u00f5es, M contratos, K invariantes.'",
+          "passed": false,
+          "evidence": "outputs/agent-response.md linha 1: 'epic_context.md gerado \u2014 3 decis\u00f5es, 3 contratos, 2 invariantes.' \u2014 usa exatamente o formato proibido (grep -c 'gerado \u2014' = 1). A linha 3 explica entre par\u00eanteses que nada foi reescrito, mas a asser\u00e7\u00e3o exige que o formato N\u00c3O seja usado; a resposta \u00e9 contradit\u00f3ria (diz 'gerado' sem ter gerado). transcript.md Passo 5 confirma a escolha deliberada do template de sa\u00edda."
+        },
+        {
+          "text": "A resposta final tem no m\u00e1ximo 3 linhas e n\u00e3o reproduz as se\u00e7\u00f5es do epic_context.md (por exemplo, n\u00e3o lista as decis\u00f5es de design nem os contratos).",
+          "passed": true,
+          "evidence": "`wc -l outputs/agent-response.md` = 3 (linha 1 de contagem, linha 2 em branco, linha 3 par\u00eantese de idempot\u00eancia). S\u00f3 contagens agregadas (3/3/2); n\u00e3o lista decis\u00f5es, contratos nem invariantes do epic_context.md."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.2,
+        "passed": 1,
+        "failed": 4,
+        "total": 5,
+        "time_seconds": 106,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe .forge/specs/active/aviso-saldo-baixo-push/epic_context.md com primeira linha '# Epic context \u2014 aviso-saldo-baixo-push' e os seis cabe\u00e7alhos do contrato (Objetivo, Decis\u00f5es de design, Contratos externos, ADRs, Rules, Invariantes cr\u00edticas); as se\u00e7\u00f5es ADRs e Rules est\u00e3o vazias ou declaram explicitamente que o change n\u00e3o referencia nenhum.",
+          "passed": false,
+          "evidence": "head -1 = '# Epic Context \u2014 aviso-saldo-baixo-push' (C mai\u00fasculo, difere da linha exigida); grep dos seis cabe\u00e7alhos do contrato n\u00e3o casa nenhum: o arquivo usa '## Por que este documento existe', '## Alerta antes de shardar...', '## Decis\u00f5es j\u00e1 tomadas...', '## Requisitos...', '## Contrato congelado...', '## Fora de escopo', '## Rastreabilidade'. N\u00e3o h\u00e1 se\u00e7\u00f5es ADRs nem Rules."
+        },
+        {
+          "text": "O epic_context.md n\u00e3o menciona ADR-0018, Firebase, FCM nem a fila notificacoes.push \u2014 conte\u00fado que s\u00f3 existe na baseline (.forge/product/current/adr/) e em src/, fora dos artefatos do change.",
+          "passed": false,
+          "evidence": "grep -nE 'ADR-0018|Firebase|FCM|notificacoes\\.push' .forge/specs/active/aviso-saldo-baixo-push/epic_context.md -> rc=0 nas linhas 18 ('ADR-0018 \u2014 Push via FCM com fila dedicada: todo push sai pela fila notificacoes.push'), 36 e 44 (cita .forge/product/current/adr/ADR-0018-push-via-fcm-com-fila-dedicada.md como fonte)."
+        },
+        {
+          "text": "O epic_context.md n\u00e3o cita os s\u00edmbolos enviarPushFcm nem LIMIAR_SALDO_PADRAO_CENTAVOS, que s\u00f3 existem em src/notificacoes/push.ts.",
+          "passed": false,
+          "evidence": "grep -nE 'enviarPushFcm|LIMIAR_SALDO_PADRAO_CENTAVOS' .forge/specs/active/aviso-saldo-baixo-push/epic_context.md -> rc=0 nas linhas 18 e 19 ('push.ts, que exp\u00f5e LIMIAR_SALDO_PADRAO_CENTAVOS = 1000 ... e enviarPushFcm(tokenDispositivo, titulo, corpo)'); l.44 lista src/notificacoes/push.ts como fonte."
+        },
+        {
+          "text": "O epic_context.md n\u00e3o cont\u00e9m cerca de c\u00f3digo (```) nem a assinatura 'deveAvisarSaldoBaixo(saldoCentavos' presente no bloco de c\u00f3digo de tasks.md, e tem no m\u00e1ximo 150 linhas.",
+          "passed": false,
+          "evidence": "Sem cerca (grep -nF '```' rc=1) e 44 linhas, mas grep -nF 'deveAvisarSaldoBaixo(saldoCentavos' rc=0 na l.34: 'deveAvisarSaldoBaixo(saldoCentavos: number, limiarCentavos: number, ultimoAviso?: Date): boolean' \u2014 assinatura copiada de tasks.md."
+        },
+        {
+          "text": "Fora das remo\u00e7\u00f5es feitas pelo setup, o \u00fanico arquivo novo ou alterado no projeto \u00e9 o epic_context.md do change: n\u00e3o foi criado design.md nem qualquer outro arquivo, e spec-manifest.yaml, proposal.md, requirements.md e tasks.md ficam id\u00eanticos ao commit da fixture.",
+          "passed": true,
+          "evidence": "git -C work status --porcelain --untracked-files=all --ignored, filtrando as dele\u00e7\u00f5es do setup (setup.sh l.14), retorna s\u00f3 '?? .forge/specs/active/aviso-saldo-baixo-push/epic_context.md'; git diff --exit-code -- .forge/specs/active/aviso-saldo-baixo-push/ sem diff (commit 15cd656 'fixture: estado inicial'); design.md inexistente. O entreg\u00e1vel foi escrito no path certo apesar do conte\u00fado reprovado."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 6,
+        "total": 6,
+        "time_seconds": 111,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe .forge/specs/active/recarga-pix-cartao-transporte/epic_context.md cuja primeira linha \u00e9 '# Epic context \u2014 recarga-pix-cartao-transporte' e que cont\u00e9m, nesta ordem, os cabe\u00e7alhos '## Objetivo', '## Decis\u00f5es de design', '## Contratos externos', '## ADRs', '## Rules' e '## Invariantes cr\u00edticas'.",
+          "passed": false,
+          "evidence": "O arquivo esperado epic_context.md n\u00e3o existe: o run gravou work/.forge/specs/active/recarga-pix-cartao-transporte/epic-context.md (h\u00edfen, nome diferente do contrato); primeira linha \u00e9 '# Contexto \u00e9pico \u2014 recarga-pix-cartao-transporte'; cabe\u00e7alhos (`grep -n '^## '`): Problema e objetivo, Requisitos (REQ), Decis\u00f5es de design, Contratos, Modelo de dados, Concorr\u00eancia, ADRs relevantes, Waves e tasks, Status do manifesto, Fora do escopo deste contexto \u2014 faltam '## Objetivo', '## Contratos externos', '## ADRs', '## Rules' e '## Invariantes cr\u00edticas'."
+        },
+        {
+          "text": "O epic_context.md n\u00e3o menciona Kafka, Debezium, migra-eventos-para-kafka, ADR-0021 (do outro change ativo), ADR-0020 ou cache Redis de saldo (da baseline em .forge/product/current/adr/), nem Redlock/lock distribu\u00eddo (do TODO em src/recarga/NOTAS.md).",
+          "passed": false,
+          "evidence": "`grep -niE` no epic-context.md acha a l.57 ('## Fora do escopo deste contexto'): 'O change ativo `migra-eventos-para-kafka` e as notas em `src/recarga/NOTAS.md` (TODO de lock distribu\u00eddo Redlock ...)'. Menciona migra-eventos-para-kafka, Kafka, Redlock e lock distribu\u00eddo, ainda que para exclu\u00ed-los. Al\u00e9m disso o arquivo nem tem o nome epic_context.md."
+        },
+        {
+          "text": "A se\u00e7\u00e3o ADRs lista ADR-0012 e ADR-0015, cada um com resumo de uma linha, e nenhum outro ID de ADR; a se\u00e7\u00e3o Rules cita .forge/rules/architecture/internal-grpc-communication.md e .forge/rules/architecture/pii-pci-classification.md como paths.",
+          "passed": false,
+          "evidence": "N\u00e3o h\u00e1 se\u00e7\u00e3o '## ADRs' (h\u00e1 '## ADRs relevantes', l.40-43, com ADR-0012 e ADR-0015 e s\u00f3 esses IDs) nem se\u00e7\u00e3o Rules; as rules aparecem s\u00f3 como texto vago ('rule interna de comunica\u00e7\u00e3o gRPC', l.21; 'classifica\u00e7\u00e3o PII/PCI da rule de arquitetura', l.23), sem os paths .forge/rules/architecture/*.md."
+        },
+        {
+          "text": "O epic_context.md tem no m\u00e1ximo 150 linhas, n\u00e3o cont\u00e9m cerca de c\u00f3digo (```) e n\u00e3o transcreve o DDL do design (nenhuma linha com 'CREATE TABLE' ou 'PRIMARY KEY').",
+          "passed": false,
+          "evidence": "Os checks literais passariam no epic-context.md (`wc -l` = 57, `grep -c '```'` = 0, sem 'CREATE TABLE'/'PRIMARY KEY'), mas n\u00e3o existe epic_context.md, sujeito da asser\u00e7\u00e3o. Registro tamb\u00e9m que a l.34 transcreve o DDL em prosa ('`id` (uuid PK), `txid` (varchar(35) UNIQUE) ... CHECK 500\u201350000 ...')."
+        },
+        {
+          "text": "Fora das remo\u00e7\u00f5es de .forge/skills, .forge/agents, .claude/skills, .claude/agents e plugin/ feitas pelo setup, git status do projeto mostra como \u00fanico arquivo novo ou alterado o epic_context.md do change; spec-manifest.yaml (sem bloco dev_loop), os demais artefatos do change, o outro change e src/ ficam id\u00eanticos ao commit da fixture.",
+          "passed": false,
+          "evidence": "`git -C without_skill/run-1/work status --porcelain` filtrado das remo\u00e7\u00f5es do setup mostra s\u00f3 '?? .forge/specs/active/recarga-pix-cartao-transporte/epic-context.md'. O manifest e os demais arquivos n\u00e3o foram alterados, mas o \u00fanico arquivo novo n\u00e3o \u00e9 o epic_context.md do change exigido pela asser\u00e7\u00e3o."
+        },
+        {
+          "text": "A resposta final ao chamador \u00e9 uma \u00fanica linha no formato 'epic_context.md gerado \u2014 <N> decis\u00f5es, <M> contratos, <K> invariantes.' com N, M e K inteiros, sem despejar o conte\u00fado do resumo no chat.",
+          "passed": false,
+          "evidence": "Sem evid\u00eancia da resposta final: outputs/transcript.md n\u00e3o registra a mensagem ao chamador; `grep -rn 'gerado \u2014' outputs/` retorna rc=1. Na d\u00favida, falha."
+        }
+      ],
+      "notes": [
+        "with_skill: agente n\u00e3o achou dev_loop.epic_context_compiled no manifest e n\u00e3o o criou (transcript passo 9), coerente com o esperado."
+      ]
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 84,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "git diff --exit-code -- .forge/specs/active/bloqueio-cartao-perda-roubo/epic_context.md retorna 0: o arquivo n\u00e3o foi reescrito, reformatado nem regenerado com o mesmo conte\u00fado em outra forma.",
+          "passed": true,
+          "evidence": "Comando `git -C without_skill/run-1/work diff --exit-code -- .forge/specs/active/bloqueio-cartao-perda-roubo/epic_context.md` retornou rc=0 (arquivo id\u00eantico ao commit da fixture)."
+        },
+        {
+          "text": "Fora das remo\u00e7\u00f5es feitas pelo setup, git status n\u00e3o mostra nenhum arquivo novo ou alterado: spec-manifest.yaml mant\u00e9m dev_loop exatamente como na fixture (sharded: false, epic_context_compiled: true) e stories/ continua s\u00f3 com .gitkeep, sem nenhuma STORY-NN.md criada.",
+          "passed": true,
+          "evidence": "`git -C without_skill/run-1/work status --porcelain -uall | grep -vc '^ D'` = 0: s\u00f3 h\u00e1 as remo\u00e7\u00f5es ' D' de .forge/skills, .forge/agents, .claude/skills e .claude/agents feitas pelo setup.sh (linha 14, rm -rf); nenhum '??' nem ' M'. spec-manifest.yaml linhas 18-21: dev_loop com sharded: false, stories_path: stories/, epic_context_compiled: true. `ls -la stories/` mostra s\u00f3 .gitkeep (0 bytes)."
+        },
+        {
+          "text": "A resposta final informa que o contexto \u00e9pico j\u00e1 estava compilado (OK/idempotente, citando epic_context.md existente e/ou epic_context_compiled: true) e N\u00c3O usa o formato 'epic_context.md gerado \u2014 N decis\u00f5es, M contratos, K invariantes.'",
+          "passed": true,
+          "evidence": "outputs/transcript.md linha 29 (se\u00e7\u00e3o 'Resposta que eu daria ao usu\u00e1rio'): 'O contexto \u00e9pico ... j\u00e1 est\u00e1 compilado e atualizado (`epic_context_compiled: true` no manifesto ...) \u2014 nenhuma recompila\u00e7\u00e3o foi necess\u00e1ria.' `grep -c 'gerado \u2014'` = 0 no transcript. N\u00e3o h\u00e1 agent-response.md separado; a resposta final \u00e9 a da linha 29."
+        },
+        {
+          "text": "A resposta final tem no m\u00e1ximo 3 linhas e n\u00e3o reproduz as se\u00e7\u00f5es do epic_context.md (por exemplo, n\u00e3o lista as decis\u00f5es de design nem os contratos).",
+          "passed": true,
+          "evidence": "Resposta final (transcript.md linha 29) \u00e9 um \u00fanico par\u00e1grafo/linha l\u00f3gica; n\u00e3o enumera as decis\u00f5es de design nem os contratos (a enumera\u00e7\u00e3o existe s\u00f3 no log de passos, linhas 16-21, n\u00e3o na resposta). Cita apenas ADR-0017 como observa\u00e7\u00e3o lateral, n\u00e3o como dump de se\u00e7\u00e3o. Ressalva: par\u00e1grafo longo, mas cumpre o limite literal de 3 linhas."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.86,
+        "stddev": 0.1277,
+        "min": 0.75,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 99.3333,
+        "stddev": 38.8115,
+        "min": 58,
+        "max": 135
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.4,
+        "stddev": 0.5292,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 100.3333,
+        "stddev": 14.3643,
+        "min": 84,
+        "max": 111
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.46",
+      "time_seconds": "-1.0",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

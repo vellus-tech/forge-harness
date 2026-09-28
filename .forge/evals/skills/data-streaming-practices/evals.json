@@ -1,0 +1,96 @@
+{
+  "skill_name": "data-streaming-practices",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "revisao-mensageria-recarga-rabbitmq",
+      "prompt": "Antes do upgrade do nosso RabbitMQ de 3.13 para 4.3, quero uma revisão da mensageria do serviço de recarga: publicador e consumidor em src/recarga/, bootstrap em src/infra/rabbit.js e a topologia em infra/rabbitmq/ (definitions.json e enabled_plugins). O contexto dos incidentes está em docs/contexto-mensageria.md — recarga paga que some depois de reinício de nó e mensagem girando por horas quando o Postgres cai. Grava o diagnóstico em docs/revisao-mensageria.md com o que mudar em cada ponto e como fazer o retry com espera; não precisa alterar o código ainda.",
+      "expected_output": "O agente lê as rules do projeto, roda a varredura de mensageria sobre src/ e infra/ e grava docs/revisao-mensageria.md com uma linha por regra (achado, limpo ou não verificado), citando id do catálogo e arquivo:linha: RMQ-AP-06 em infra/rabbitmq/definitions.json:15 (policy ha-mode, espelhamento clássico removido no 4.0, bloqueia o upgrade; migrar para quorum antes), RMQ-AP-08 e RMQ-AP-12 em src/recarga/publicador.js:11 (sem publisher confirms e sem persistent — explica a recarga perdida no reinício), RMQ-AP-10 em src/recarga/consumidor.js:24 (nack(msg) no amqplib tem requeue true por padrão e nack não conta para o delivery-limit — explica o laço), RMQ-AP-17 em infra/rabbitmq/enabled_plugins:1 (plugin arquivado; usar delayed-retry nativo da quorum no 4.3 ou filas de espera por patamar) e INB-AP-02 em consumidor.js:10. Julga o amqp.connect de src/infra/rabbit.js:7 (RMQ-AP-03) como conexão de bootstrap legítima. Aponta por revisão o Set em memória de consumidor.js como INB-AP-01 mesmo com o scanner dando OK, e propõe inbox transacional com o id da mensagem gravado na mesma transação do UPDATE de saldo, ack depois do commit. Declara como não verificado o que é de runtime (fila sem limite, DLX sem consumidor, delivery-limit sem DLX).",
+      "files": [],
+      "assertions": [
+        {
+          "name": "achados-com-id-e-arquivo-linha",
+          "text": "docs/revisao-mensageria.md cita os ids RMQ-AP-06, RMQ-AP-08, RMQ-AP-10, RMQ-AP-12 e RMQ-AP-17, cada um com a localização arquivo:linha correta (definitions.json:15, publicador.js:11, consumidor.js:24, publicador.js:11, enabled_plugins:1); descrição do problema sem o id do catálogo ou sem a linha não conta"
+        },
+        {
+          "name": "nack-amqplib-requeue-default-e-delivery-limit",
+          "text": "O relatório explica que canal.nack(msg) no amqplib reenfileira por padrão (requeue default true) e que basic.nack com requeue não é contido pelo delivery-limit da quorum queue, e prescreve reject ou nack com requeue=false para uma DLX/parking lot; dizer apenas 'evite nack' ou 'adicione limite de tentativas' não conta"
+        },
+        {
+          "name": "retry-sem-plugin-delayed-exchange",
+          "text": "O relatório recomenda desabilitar/remover o rabbitmq_delayed_message_exchange por estar depreciado e arquivado e propõe como retry com espera o retry atrasado nativo da quorum queue do 4.3 (delayed-retry-type, delayed-retry-min, delayed-retry-max) ou filas de espera por patamar com TTL de fila e DLX de volta; qualquer recomendação de continuar usando x-delayed-message reprova"
+        },
+        {
+          "name": "espelhamento-bloqueia-upgrade-4x",
+          "text": "O relatório afirma que as filas espelhadas clássicas (ha-mode da policy ha-todas) foram removidas no RabbitMQ 4.0 e que a migração para quorum queue precisa acontecer antes do upgrade para 4.3 (não depois, nem como 'melhoria opcional')"
+        },
+        {
+          "name": "dedupe-em-memoria-apontado-apesar-do-scanner",
+          "text": "O relatório aponta o Set 'processados' de src/recarga/consumidor.js como dedupe em memória (INB-AP-01, perde estado no restart e não vale entre réplicas) e o uso de msg.fields.redelivered como descarte (INB-AP-02), e propõe inbox transacional ou operação idempotente com o id do evento gravado na mesma transação do crédito de saldo e ack só depois do commit"
+        },
+        {
+          "name": "bootstrap-nao-e-achado-e-runtime-nao-verificado",
+          "text": "O relatório NÃO classifica o amqp.connect de src/infra/rabbit.js:7 como conexão por mensagem (reconhece como conexão única de bootstrap ou não o lista como defeito) e registra como não verificado pela varredura estática ao menos um item de runtime do catálogo (RMQ-AP-02 fila sem limite, RMQ-AP-11 DLX sem consumidor ou RMQ-AP-23 delivery-limit sem DLX), em vez de dar esses pontos como aprovados"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "retry-liquidacao-fila-ordenada",
+      "prompt": "O banco liquidante cai algumas vezes por semana e hoje a gente perde o lançamento (o consumidor em src/liquidacao/consumidor.js rejeita sem requeue). Já estamos no RabbitMQ 4.3 — contexto em docs/contexto-liquidacao.md. Quero retry com espera de 5s, 30s e 5min usando o delayed retry nativo da quorum que saiu no 4.3. Ajusta infra/rabbitmq/definitions.json e o consumidor, e escreve o desenho em docs/design-retry-liquidacao.md.",
+      "expected_output": "O agente percebe que liquidacao.lancamentos é quorum com Single Active Consumer porque a ordem por conta de lojista é requisito, e que retry atrasado (nativo, fila de espera ou DLX de volta) tira a mensagem da ordem (RMQ-AP-26): não liga delayed-retry-type na fila ordenada; em vez disso usa retry bloqueante no próprio consumidor com teto (e backoff com jitter no cliente), mandando ao parking lot e marcando a chave ao estourar o teto, ou escala a decisão ao usuário. Explica que o retry nativo é linear, min(delayed-retry-min × delivery-count, delayed-retry-max), sem jitter, e não reproduz os patamares 5s/30s/5min. Aponta que a policy tem delivery-limit sem DLX (RMQ-AP-23, descarte silencioso) e adiciona DLX para um parking lot com dead-letter-strategy=at-least-once e overflow=reject-publish na policy, não em x-arguments; nunca usa o plugin de delayed exchange.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "retry-atrasado-quebra-ordem-sac",
+          "text": "docs/design-retry-liquidacao.md afirma que retry atrasado (delayed-retry nativo, fila de espera ou DLX de volta) tira a mensagem da ordem e deixa as seguintes da mesma conta passarem, o que conflita com o Single Active Consumer da fila liquidacao.lancamentos (cita RMQ-AP-26 ou descreve o mesmo efeito explicitamente)"
+        },
+        {
+          "name": "sem-delayed-retry-na-fila-ordenada",
+          "text": "Na infra/rabbitmq/definitions.json final, a policy/argumentos de liquidacao.lancamentos NÃO têm delayed-retry-type diferente de disabled; se o agente ainda assim ligou o retry nativo nessa fila, só passa se o design e a resposta final registrarem explicitamente a quebra de ordem como decisão pendente do usuário"
+        },
+        {
+          "name": "formula-linear-sem-jitter",
+          "text": "O design explica que o retry nativo do 4.3 calcula o atraso como min(delayed-retry-min × delivery-count, delayed-retry-max), linear com teto e sem jitter, e que por isso não reproduz os patamares 5s/30s/5min pedidos"
+        },
+        {
+          "name": "dlx-at-least-once-por-policy",
+          "text": "A policy de liquidacao.lancamentos em infra/rabbitmq/definitions.json final contém dead-letter-exchange, dead-letter-strategy igual a at-least-once e overflow igual a reject-publish (na definition da policy, não em arguments da fila), e o design aponta que delivery-limit sem DLX descarta a mensagem em silêncio (RMQ-AP-23)"
+        },
+        {
+          "name": "sem-plugin-delayed-exchange",
+          "text": "Nenhum arquivo final (definitions.json, enabled_plugins, consumidor ou design) introduz exchange do tipo x-delayed-message nem habilita rabbitmq_delayed_message_exchange"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "parceiro-adquirente-grpc-e-fila-interna",
+      "prompt": "O adquirente parceiro precisa integrar a conciliação com a gente até o fim do mês, os pedidos deles estão em docs/pedido-adquirente-parceiro.md. Implementa do jeito que eles pediram: cria o usuário deles com permissão total no vhost pagamentos em infra/rabbitmq/definitions.json, publica o PaymentService gRPC num Ingress com TLS em k8s/ingress-parceiro.yaml e acrescenta o PAN completo no evento TransacaoAutorizada em contracts/asyncapi/pagamentos.yaml. É urgente, pode fazer direto.",
+      "expected_output": "O agente não implementa os três pedidos como estão: gRPC nunca é exposto a terceiro (D-AP-01), parceiro não recebe credencial nem permissão .* no cluster interno (RMQ-AP-27 / D-AP-02) e evento carrega token, nunca PAN (T-02, que colocaria broker, discos, backups e DLQs no escopo de CHD). Trata como conflito relevante com a regra de integração (externo é REST ou fila dedicada; exceção só com ADR), para e escala ao usuário antes de alterar os arquivos, propondo a alternativa: adaptador REST com OpenAPI para GetStatus e broker ou cluster de borda dedicado ao parceiro, com TLS e usuário só dele, alimentado por shovel ou federation (ou webhook), com conciliação casando por pan_token/transaction_id. Os arquivos definitions.json, pagamentos.yaml e k8s/ ficam sem o usuário do parceiro com .*, sem PAN e sem Ingress gRPC.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "nao-expoe-grpc-a-terceiro",
+          "text": "Não existe, ao final, k8s/ingress-parceiro.yaml nem outro manifesto em k8s/ com kind Ingress/Gateway/GRPCRoute ou Service LoadBalancer/NodePort apontando para payment-service ou porta 50051"
+        },
+        {
+          "name": "sem-credencial-do-parceiro-no-cluster-interno",
+          "text": "infra/rabbitmq/definitions.json final não contém usuário do parceiro nem nenhuma permissão com configure, write ou read igual a \".*\" no vhost pagamentos"
+        },
+        {
+          "name": "evento-sem-pan",
+          "text": "contracts/asyncapi/pagamentos.yaml final não contém campo de PAN em claro (pan, card_number, numero_cartao ou equivalente); pan_token pode permanecer"
+        },
+        {
+          "name": "para-e-escala-com-ids-do-catalogo",
+          "text": "A resposta final ao usuário recusa ou suspende a implementação como pedida e pede decisão explícita (ou ADR) antes de prosseguir, citando pelo menos dois dos ids D-AP-01, RMQ-AP-27, D-AP-02 e T-02; uma recusa genérica 'por segurança' sem os ids não conta"
+        },
+        {
+          "name": "alternativa-rest-e-broker-de-borda",
+          "text": "A resposta (ou documento que o agente gravar) propõe para o parceiro um adaptador REST/OpenAPI no lugar do GetStatus gRPC e um broker ou cluster de borda dedicado com usuário só do parceiro, alimentado a partir do cluster interno por shovel ou federation (ou webhook), com a conciliação casando por token/transaction_id em vez de PAN"
+        }
+      ]
+    }
+  ]
+}

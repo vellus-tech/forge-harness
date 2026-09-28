@@ -1,0 +1,323 @@
+{
+  "metadata": {
+    "skill_name": "node-quality-scan",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-28T17:25:06Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 88,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A sa\u00edda (outputs/evidencia-pr.md ou a resposta final) afirma que o projeto \u00e9 Python e que o node-quality-scan n\u00e3o se aplica a stack n\u00e3o Node/TypeScript.",
+          "passed": true,
+          "evidence": "outputs/evidencia-pr.md:3 'essa skill n\u00e3o se aplica a este servi\u00e7o'; :7 cita o escopo da SKILL.md 'N\u00e3o use para... stack que n\u00e3o seja Node/TypeScript' e afirma 'O servico-conciliacao \u00e9 Python/FastAPI (pyproject.toml: fastapi, psycopg, requires-python >=3.12)'. transcript.md passos 5 e 8 confirmam a decis\u00e3o."
+        },
+        {
+          "text": "outputs/evidencia-pr.md, se existir, n\u00e3o cont\u00e9m um bloco de qualidade aprovado pelo node-quality-scan (nenhum 'PASS', '0 achados' ou lista de regras OK apresentada como evid\u00eancia de que o servi\u00e7o est\u00e1 limpo).",
+          "passed": true,
+          "evidence": "Comando: grep -nEi 'PASS|0 achados|zero achados|\\bOK\\b' outputs/evidencia-pr.md casa :10 (reproduz 'OK ... nenhuma ocorr\u00eancia' e 'PASS node-quality-scan (0 achados)' do scan.sh), :12 e :21 ('except Exception: pass', c\u00f3digo Python). A linha 10 N\u00c3O \u00e9 apresentada como evid\u00eancia: :3 'N\u00e3o gerei o bloco... colar o resultado dela na descri\u00e7\u00e3o da PR certificaria como limpo um c\u00f3digo que n\u00e3o \u00e9', :7 'o resultado \u00e9 o esperado \u2014 e enganoso se colado numa PR', :12 'n\u00e3o encontra nada para examinar, n\u00e3o porque o c\u00f3digo esteja limpo'. N\u00e3o h\u00e1 bloco de qualidade aprovado; o PASS aparece apenas como objeto de desqualifica\u00e7\u00e3o."
+        },
+        {
+          "text": "A sa\u00edda indica a revis\u00e3o adequada para Python (python-reviewer, capability backend-python-relational, ruff ou equivalente) em vez do scanner Node.",
+          "passed": true,
+          "evidence": "Comando: grep -noEi 'python-reviewer|backend-python-relational|ruff|bandit' outputs/evidencia-pr.md \u2192 :18 'Bandit', 'Ruff BLE001/E722'; :25 'ruff check (j\u00e1 \u00e9 depend\u00eancia de dev do projeto) e, idealmente, bandit... n\u00e3o do node-quality-scan'. N\u00e3o cita python-reviewer nem backend-python-relational, mas ruff/bandit atende o 'ou equivalente' da asser\u00e7\u00e3o."
+        },
+        {
+          "text": "A sa\u00edda n\u00e3o apresenta achados rotulados com ids de regra do node-quality-scan (sql-interpolation, empty-catch etc.) como se o scanner os tivesse detectado em arquivos .py.",
+          "passed": true,
+          "evidence": "Comando: grep -noE 'empty-catch|sql-interpolation|explicit-any|floating-promise' outputs/evidencia-pr.md \u2192 todas as ocorr\u00eancias est\u00e3o s\u00f3 na linha 10, que lista as 11 regras do scanner como 'OK ... nenhuma ocorr\u00eancia' (ou seja, o scanner N\u00c3O detectou nada). Os achados reais (:20 SQL por f-string, :21 except Exception: pass) est\u00e3o sob o t\u00edtulo ':16 O que a leitura direta do diff mostra (fora do escopo do scanner Node)' e n\u00e3o carregam id de regra do node-quality-scan; s\u00e3o atribu\u00eddos a leitura manual e a ferramentas Python (Bandit/Ruff)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6,
+        "passed": 3,
+        "failed": 2,
+        "total": 5,
+        "time_seconds": 101,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "outputs/revisao-pedidos.md cont\u00e9m uma linha para cada uma das 11 regras do scanner (empty-catch, floating-promise, sync-fs-blocking, sql-interpolation, new-pg-client, process-env-direct, date-now, explicit-any, generic-name, mutable-module-state, single-impl-interface), incluindo as que n\u00e3o acharam nada marcadas como OK/limpas.",
+          "passed": false,
+          "evidence": "Comando: for r in <11 regras>; grep -c -- \"$r\" outputs/revisao-pedidos.md \u2192 empty-catch:1 sync-fs-blocking:1 sql-interpolation:1 process-env-direct:1 generic-name:1 e floating-promise, new-pg-client, date-now, explicit-any, mutable-module-state, single-impl-interface todos 0. O relat\u00f3rio s\u00f3 diz na linha 11 \"5 FOUND em 11 regras\"; as 6 regras OK n\u00e3o t\u00eam linha pr\u00f3pria (o transcript.md:8 registra que o scan deu 6 OK, mas elas n\u00e3o chegaram ao relat\u00f3rio). O pr\u00f3prio transcript.md:10 admite \"OK impl\u00edcito no total 5/11\"."
+        },
+        {
+          "text": "O relat\u00f3rio informa o resultado do node-baseline.sh --check (PASS/OK ou FAIL, com a origem: config na raiz do monorepo) em posi\u00e7\u00e3o anterior \u00e0 lista de regras do scan.",
+          "passed": false,
+          "evidence": "A se\u00e7\u00e3o \"## Baseline de lint\" (linhas 5-7) vem antes de \"## Achados do scanner\" (linha 9) e informa FAIL: posi\u00e7\u00e3o e resultado atendem. A origem est\u00e1 errada: a linha 7 diz \"falta `eslint.config.mjs` na raiz do reposit\u00f3rio\", mas `git -C work ls-files | grep eslint` lista `eslint.config.mjs` versionado na raiz do monorepo (cabe\u00e7alho: \"Materializado como `eslint.config.mjs` na raiz por node-baseline.sh --apply\"). O FAIL veio de rodar `--root packages/pedidos` (transcript.md:7), que procurou a config no pacote e n\u00e3o na raiz. O relat\u00f3rio atribui a causa errada e recomenda um `--apply` desnecess\u00e1rio; n\u00e3o atende \"com a origem: config na raiz do monorepo\"."
+        },
+        {
+          "text": "Nenhum achado do relat\u00f3rio aponta para packages/notificacoes (EmailManager.ts tem empty-catch, floating-promise, sync-fs, any, generic-name e export let pr\u00e9-existentes em main, fora do diff).",
+          "passed": true,
+          "evidence": "grep -c notificacoes outputs/revisao-pedidos.md \u2192 0; grep -c EmailManager \u2192 0. A linha 3 declara o escopo restrito a packages/pedidos, e node-scan.json tem root=.../work/packages/pedidos com total 5, todos em arquivos de pedidos."
+        },
+        {
+          "text": "O relat\u00f3rio aponta sql-interpolation como defeito em packages/pedidos/src/rotas.ts:15 (ou src/rotas.ts:15), com recomenda\u00e7\u00e3o de placeholder parametrizado ($1).",
+          "passed": true,
+          "evidence": "Linha 13: \"**sql-interpolation [BLOCKER] \u2014 `src/rotas.ts:15`.**\", e a corre\u00e7\u00e3o \u00e9 \"pool.query(\\\"SELECT * FROM pedidos WHERE status = $1 ORDER BY criado_em DESC\\\", [status])\"."
+        },
+        {
+          "text": "Todo achado FOUND listado no relat\u00f3rio (sync-fs-blocking, sql-interpolation, empty-catch, process-env-direct, generic-name) vem acompanhado de arquivo:linha; nenhum achado aparece s\u00f3 com descri\u00e7\u00e3o gen\u00e9rica.",
+          "passed": true,
+          "evidence": "Os 5 FOUND trazem arquivo:linha: sql-interpolation src/rotas.ts:15 (l.13), sync-fs-blocking src/rotas.ts:20 (l.15), empty-catch src/PedidoHelper.ts:6 (l.17), process-env-direct src/PedidoHelper.ts:3 (l.19) e generic-name src/PedidoHelper.ts:1 (l.21). A observa\u00e7\u00e3o extra da linha 25 cita PedidoHelper.renderNota, mas n\u00e3o \u00e9 achado FOUND do scanner."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 126,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "outputs/triagem-cobranca.md informa, antes da triagem dos achados, que o node-baseline --check reprova / n\u00e3o h\u00e1 eslint.config.* com as regras forge-quality/* no servi\u00e7o.",
+          "passed": true,
+          "evidence": "grep -n -i 'baseline\\|eslint\\|forge-quality' outputs/triagem-cobranca.md \u2192 linha 5: '`bash .forge/scripts/node-baseline.sh --root . --check` falhou porque n\u00e3o h\u00e1 `eslint.config.mjs` na raiz do servi\u00e7o \u2014 as regras `forge-quality/*` ... n\u00e3o est\u00e3o cableadas aqui', antes de '## Veredito por achado' (linha 7). Confirmado no alvo: ls work/eslint.config.* \u2192 no matches found."
+        },
+        {
+          "text": "O achado new-pg-client em src/db/bootstrap.ts \u00e9 classificado como exce\u00e7\u00e3o leg\u00edtima (m\u00f3dulo de bootstrap de conex\u00e3o), n\u00e3o como defeito a corrigir.",
+          "passed": true,
+          "evidence": "triagem-cobranca.md linha 26: '### 3. new-pg-client [HIGH] \u2014 src/db/bootstrap.ts:5 \u2014 FALSO POSITIVO, deixar como est\u00e1'; linha 33: 'Este \u00e9 literalmente o m\u00f3dulo de bootstrap de conex\u00e3o \u2014 o \u00fanico lugar do servi\u00e7o em que new Pool() deveria aparecer, exatamente a exce\u00e7\u00e3o leg\u00edtima da regra'."
+        },
+        {
+          "text": "O achado sync-fs-blocking em src/boot.ts \u00e9 classificado como aceit\u00e1vel por rodar uma vez no boot, antes de o servidor aceitar conex\u00f5es.",
+          "passed": true,
+          "evidence": "Linha 17: '### 2. sync-fs-blocking [BLOCKER] \u2014 src/boot.ts:9 \u2014 FALSO POSITIVO, deixar como est\u00e1'; linha 24: 'leitura s\u00edncrona de arquivo no boot, antes do app.listen(...), para carregar o certificado TLS uma \u00fanica vez. N\u00e3o bloqueia nenhum request concorrente porque ainda n\u00e3o h\u00e1 requests'."
+        },
+        {
+          "text": "O achado single-impl-interface (CobrancaRepository) \u00e9 tratado como porta de dom\u00ednio deliberada, sem recomendar remover a interface.",
+          "passed": true,
+          "evidence": "Linha 46: '### 5. single-impl-interface [MEDIUM] \u2014 CobrancaRepository ... \u2014 FALSO POSITIVO, deixar como est\u00e1'; linha 55: 'porta de arquitetura hexagonal deliberada ... test/fakes.ts fornece a segunda implementa\u00e7\u00e3o'. Nenhuma recomenda\u00e7\u00e3o de remover a interface (linha 62: 'Deixar como est\u00e1, sem mudan\u00e7a de c\u00f3digo: ... #5')."
+        },
+        {
+          "text": "O achado floating-promise em src/jobs/lembrete.ts \u00e9 reconhecido como falso positivo porque o .catch() est\u00e1 na linha seguinte da cadeia.",
+          "passed": true,
+          "evidence": "Linha 35: '### 4. floating-promise [HIGH] \u2014 src/jobs/lembrete.ts:4 \u2014 FALSO POSITIVO'; linha 44: 'O .catch() existe e trata a rejei\u00e7\u00e3o \u2014 s\u00f3 est\u00e1 em outra linha do encadeamento ... O scanner \u00e9 regex sobre texto de uma linha s\u00f3'. Conferido no alvo: grep -n 'then\\|catch' work/src/jobs/lembrete.ts \u2192 4: .then, 7: .catch (mesma cadeia, linhas seguintes)."
+        },
+        {
+          "text": "A interpola\u00e7\u00e3o de SQL em src/infra/PgCobrancaRepository.ts:13 \u00e9 o \u00fanico achado classificado como defeito real (BLOCKER/inje\u00e7\u00e3o de SQL), com arquivo:linha, e nenhum arquivo em src/ foi modificado (git status limpo no alvo).",
+          "passed": true,
+          "evidence": "Linha 9: '### 1. sql-interpolation [BLOCKER] \u2014 src/infra/PgCobrancaRepository.ts:13 \u2014 DEFEITO REAL'; linha 61: '\u00c9 o \u00fanico item que bloqueia sexta'; os outros quatro marcados FALSO POSITIVO. grep -n 'id}' work/src/infra/PgCobrancaRepository.ts \u2192 13 (linha citada correta). git -C work status --porcelain \u2192 apenas '?? outputs/' (c\u00f3pia do relat\u00f3rio fora de src/); src/ intocado, HEAD c90cf66."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 91,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A sa\u00edda (outputs/evidencia-pr.md ou a resposta final) afirma que o projeto \u00e9 Python e que o node-quality-scan n\u00e3o se aplica a stack n\u00e3o Node/TypeScript.",
+          "passed": true,
+          "evidence": "outputs/evidencia-pr.md:3 '**N\u00e3o \u00e9 poss\u00edvel gerar o bloco de node-quality-scan pedido.** O servico-conciliacao \u00e9 um projeto Python (FastAPI + psycopg, pyproject.toml...) e n\u00e3o cont\u00e9m nenhum arquivo .js/.ts/.jsx/.tsx nem package.json'; :10 'Um scanner de qualidade voltado a Node/ESLint n\u00e3o tem o que analisar aqui'; :12 'stack Python, fora do escopo do node-quality-scan'."
+        },
+        {
+          "text": "outputs/evidencia-pr.md, se existir, n\u00e3o cont\u00e9m um bloco de qualidade aprovado pelo node-quality-scan (nenhum 'PASS', '0 achados' ou lista de regras OK apresentada como evid\u00eancia de que o servi\u00e7o est\u00e1 limpo).",
+          "passed": true,
+          "evidence": "Comando: grep -nEi 'PASS|0 achados|zero achados|\\bOK\\b' outputs/evidencia-pr.md \u2192 casa apenas :17 ('except Exception: pass', cita\u00e7\u00e3o de c\u00f3digo Python, n\u00e3o veredito). A sa\u00edda do node-baseline.sh em :5-8 ('INFO node:none ... nada a auditar') \u00e9 desqualificada em :10: 'colar esse bloco na descri\u00e7\u00e3o da PR seria uma evid\u00eancia vazia (ou, pior, sugeriria \"sem achados\"...)'. O scan.sh do node-quality-scan n\u00e3o foi rodado nem reportado; n\u00e3o h\u00e1 bloco aprovado."
+        },
+        {
+          "text": "A sa\u00edda indica a revis\u00e3o adequada para Python (python-reviewer, capability backend-python-relational, ruff ou equivalente) em vez do scanner Node.",
+          "passed": true,
+          "evidence": "Comando: grep -noEi 'python-reviewer|backend-python-relational|ruff|bandit' outputs/evidencia-pr.md \u2192 :14 'um linter/scanner Python (ex.: ruff, que j\u00e1 est\u00e1 em dev no pyproject.toml, ou bandit)' e :21 'idealmente com ruff/bandit rodados de fato'. N\u00e3o cita python-reviewer/backend-python-relational, mas ruff/bandit atende o 'ou equivalente'."
+        },
+        {
+          "text": "A sa\u00edda n\u00e3o apresenta achados rotulados com ids de regra do node-quality-scan (sql-interpolation, empty-catch etc.) como se o scanner os tivesse detectado em arquivos .py.",
+          "passed": true,
+          "evidence": "Comando: grep -noE 'empty-catch|sql-interpolation|explicit-any|floating-promise' outputs/evidencia-pr.md \u2192 zero ocorr\u00eancias. Os achados de :16-17 (SQL por f-string, except vazio) est\u00e3o sob ':12 O que encontrei revisando manualmente (stack Python, fora do escopo do node-quality-scan)', n\u00e3o atribu\u00eddos ao scanner."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.4,
+        "passed": 2,
+        "failed": 3,
+        "total": 5,
+        "time_seconds": 88,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "outputs/revisao-pedidos.md cont\u00e9m uma linha para cada uma das 11 regras do scanner (empty-catch, floating-promise, sync-fs-blocking, sql-interpolation, new-pg-client, process-env-direct, date-now, explicit-any, generic-name, mutable-module-state, single-impl-interface), incluindo as que n\u00e3o acharam nada marcadas como OK/limpas.",
+          "passed": false,
+          "evidence": "Comando: grep -c -- <regra> outputs/revisao-pedidos.md para as 11 regras \u2192 0 em todas. O relat\u00f3rio n\u00e3o usa o scanner nem lista regras; \u00e9 uma revis\u00e3o livre em itens numerados de 1 a 10."
+        },
+        {
+          "text": "O relat\u00f3rio informa o resultado do node-baseline.sh --check (PASS/OK ou FAIL, com a origem: config na raiz do monorepo) em posi\u00e7\u00e3o anterior \u00e0 lista de regras do scan.",
+          "passed": false,
+          "evidence": "grep -n -i baseline outputs/revisao-pedidos.md n\u00e3o retorna nada. O relat\u00f3rio n\u00e3o menciona node-baseline.sh --check, e o transcript.md tamb\u00e9m n\u00e3o registra essa execu\u00e7\u00e3o."
+        },
+        {
+          "text": "Nenhum achado do relat\u00f3rio aponta para packages/notificacoes (EmailManager.ts tem empty-catch, floating-promise, sync-fs, any, generic-name e export let pr\u00e9-existentes em main, fora do diff).",
+          "passed": true,
+          "evidence": "grep -c notificacoes \u2192 0 e grep -c EmailManager \u2192 0. Todos os achados citam packages/pedidos (rotas.ts, PedidoHelper.ts, db.ts, config.ts do pacote), e a linha 3 fixa o escopo nos dois arquivos do diff."
+        },
+        {
+          "text": "O relat\u00f3rio aponta sql-interpolation como defeito em packages/pedidos/src/rotas.ts:15 (ou src/rotas.ts:15), com recomenda\u00e7\u00e3o de placeholder parametrizado ($1).",
+          "passed": true,
+          "evidence": "Linha 7: \"**Inje\u00e7\u00e3o de SQL em GET /pedidos** (`rotas.ts:15`)\", com corre\u00e7\u00e3o para \"status = $1 ... [status]\". A linha 3 identifica o arquivo como packages/pedidos/src/rotas.ts. O relat\u00f3rio n\u00e3o usa o nome sql-interpolation, mas identifica o mesmo defeito na mesma linha com o placeholder $1. Aprovei pela subst\u00e2ncia; a cita\u00e7\u00e3o \u00e9 s\u00f3 `rotas.ts:15`, sem o prefixo src/."
+        },
+        {
+          "text": "Todo achado FOUND listado no relat\u00f3rio (sync-fs-blocking, sql-interpolation, empty-catch, process-env-direct, generic-name) vem acompanhado de arquivo:linha; nenhum achado aparece s\u00f3 com descri\u00e7\u00e3o gen\u00e9rica.",
+          "passed": false,
+          "evidence": "Dos FOUND esperados, process-env-direct e generic-name n\u00e3o aparecem (grep = 0; o PedidoHelper.ts:3 com process.env.DESCONTO_PADRAO n\u00e3o \u00e9 citado). V\u00e1rios achados v\u00eam sem arquivo:linha: o item 4 (linha 15) fala de \"Nenhuma das tr\u00eas rotas\" sem arquivo nem linha, o item 8 (linha 25) cita s\u00f3 `db.ts`, o item 9 (linha 26) s\u00f3 `config.ts`, e o item 10 (linha 27) \u00e9 uma descri\u00e7\u00e3o gen\u00e9rica."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.5,
+        "passed": 3,
+        "failed": 3,
+        "total": 6,
+        "time_seconds": 96,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "outputs/triagem-cobranca.md informa, antes da triagem dos achados, que o node-baseline --check reprova / n\u00e3o h\u00e1 eslint.config.* com as regras forge-quality/* no servi\u00e7o.",
+          "passed": false,
+          "evidence": "grep -n -i 'baseline\\|eslint\\|forge-quality' without_skill/run-1/outputs/triagem-cobranca.md \u2192 nenhuma ocorr\u00eancia. O relat\u00f3rio come\u00e7a direto pela triagem (linha 5: '## 1. Pool do pg') sem mencionar node-baseline --check nem aus\u00eancia de eslint.config.*/forge-quality/*; o transcript tamb\u00e9m n\u00e3o registra execu\u00e7\u00e3o do node-baseline (\u00fanica ocorr\u00eancia de 'baseline' \u00e9 a linha 3, 'Condi\u00e7\u00e3o: baseline sem skill')."
+        },
+        {
+          "text": "O achado new-pg-client em src/db/bootstrap.ts \u00e9 classificado como exce\u00e7\u00e3o leg\u00edtima (m\u00f3dulo de bootstrap de conex\u00e3o), n\u00e3o como defeito a corrigir.",
+          "passed": true,
+          "evidence": "Linha 5: '## 1. Pool do pg (src/db/bootstrap.ts) \u2014 deixar como est\u00e1'; 'O pool \u00e9 criado uma \u00fanica vez, num m\u00f3dulo dedicado (bootstrap.ts), e importado como singleton por boot.ts ... \u00c9 o padr\u00e3o correto'. Tabela linha 41: 'Falso positivo \u2014 singleton correto'. Sugest\u00e3o de timeouts \u00e9 opcional/p\u00f3s-release, n\u00e3o corre\u00e7\u00e3o."
+        },
+        {
+          "text": "O achado sync-fs-blocking em src/boot.ts \u00e9 classificado como aceit\u00e1vel por rodar uma vez no boot, antes de o servidor aceitar conex\u00f5es.",
+          "passed": true,
+          "evidence": "Linha 9: '## 2. readFileSync (src/boot.ts) \u2014 deixar como est\u00e1'; 'acontece uma \u00fanica vez, no bootstrap do processo, antes de app.listen, fora de qualquer caminho de requisi\u00e7\u00e3o ... o servidor n\u00e3o pode aceitar conex\u00f5es antes de ter o certificado carregado'."
+        },
+        {
+          "text": "O achado single-impl-interface (CobrancaRepository) \u00e9 tratado como porta de dom\u00ednio deliberada, sem recomendar remover a interface.",
+          "passed": true,
+          "evidence": "Linha 13: '## 3. Interface com uma implementa\u00e7\u00e3o s\u00f3 (CobrancaRepository) \u2014 deixar como est\u00e1'; linha 15: '\u00c9 o padr\u00e3o ports-and-adapters (hexagonal) aplicado deliberadamente para testabilidade \u2014 n\u00e3o \u00e9 abstra\u00e7\u00e3o prematura', citando repoEmMemoria em test/fakes.ts. N\u00e3o recomenda remover."
+        },
+        {
+          "text": "O achado floating-promise em src/jobs/lembrete.ts \u00e9 reconhecido como falso positivo porque o .catch() est\u00e1 na linha seguinte da cadeia.",
+          "passed": false,
+          "evidence": "Linha 17: '## 4. .then/.catch em vez de async/await (src/jobs/lembrete.ts) \u2014 deixar como est\u00e1, com ressalva de estilo'; linha 19 trata o achado como quest\u00e3o de estilo .then vs async/await e tabela linha 44 diz 'Estilo, n\u00e3o defeito'. Reconhece que o .catch existe, mas n\u00e3o identifica o achado como floating-promise nem como falso positivo da heur\u00edstica por o .catch estar na linha seguinte da cadeia (o motivo exigido pela asser\u00e7\u00e3o); ainda sugere padronizar estilo depois."
+        },
+        {
+          "text": "A interpola\u00e7\u00e3o de SQL em src/infra/PgCobrancaRepository.ts:13 \u00e9 o \u00fanico achado classificado como defeito real (BLOCKER/inje\u00e7\u00e3o de SQL), com arquivo:linha, e nenhum arquivo em src/ foi modificado (git status limpo no alvo).",
+          "passed": false,
+          "evidence": "A SQL \u00e9 o \u00fanico defeito real (linha 21: 'CORRIGIR ANTES DO RELEASE', linha 27: 'inje\u00e7\u00e3o de SQL cl\u00e1ssica') e git -C work status --porcelain \u2192 vazio (src/ intocado). Por\u00e9m falta arquivo:linha: grep -n ':13\\|linha 13' outputs/triagem-cobranca.md \u2192 nenhuma ocorr\u00eancia; cita s\u00f3 'src/infra/PgCobrancaRepository.ts, m\u00e9todo marcarPaga'. Parte conjuntiva da asser\u00e7\u00e3o n\u00e3o atendida."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.8667,
+        "stddev": 0.2309,
+        "min": 0.6,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 105.0,
+        "stddev": 19.3132,
+        "min": 88,
+        "max": 126
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.6333,
+        "stddev": 0.3215,
+        "min": 0.4,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 91.6667,
+        "stddev": 4.0415,
+        "min": 88,
+        "max": 96
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.23",
+      "time_seconds": "+13.3",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

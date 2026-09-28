@@ -1,0 +1,122 @@
+{
+  "schema": "graph/v0",
+  "generated_at": "2026-09-26T17:37:55.605Z",
+  "engine": "native",
+  "root": "<worktree-do-eval>/.forge/evals/agents/graph-reviewer/workspace/iteration-1/eval-go-validador-validate-ok-orfaos/with_skill/run-1/work",
+  "stats": {
+    "nodes": 5,
+    "edges": 9,
+    "languages": [
+      "go"
+    ],
+    "summaries_stale": 5,
+    "census": {
+      "go": 5
+    },
+    "layer_coverage": {
+      "classified": 0,
+      "unclassified": 5,
+      "out_of_taxonomy": 0,
+      "denominator": 5,
+      "ratio": 0
+    }
+  },
+  "nodes": [
+    {
+      "id": "cmd/validador/main.go",
+      "lang": "go",
+      "loc": 16,
+      "fingerprint": "5de13fcab1acefe3e30423a833673b6307ad86512fb8da55b8691aad9a76d83e",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "internal/cartao/cartao.go",
+      "lang": "go",
+      "loc": 28,
+      "fingerprint": "570d7fd7cf9fdd0b0b816899af1d19a5a7bd570ff59e89253b7ea06a0abed8c6",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "internal/catraca/catraca.go",
+      "lang": "go",
+      "loc": 12,
+      "fingerprint": "a9542617b11e7394c99971ff4e2797171ba84e27bfdd08745b01b08e9d3f4190",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "internal/embarque/validar.go",
+      "lang": "go",
+      "loc": 27,
+      "fingerprint": "4b05484d2317f73309dbba3c1735cd8ead98131aeb409a54657ff3cec51701c1",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "internal/tarifa/tarifa.go",
+      "lang": "go",
+      "loc": 14,
+      "fingerprint": "927d47392db2f9709e37678f2d66589c4093680675a3df75ff320d8262434c03",
+      "layer": "unknown",
+      "summary": null
+    }
+  ],
+  "edges": [
+    {
+      "from": "cmd/validador/main.go",
+      "to": "github.com/axis-mobfintech/validador-embarque/internal/catraca",
+      "kind": "import",
+      "resolved": false
+    },
+    {
+      "from": "cmd/validador/main.go",
+      "to": "github.com/axis-mobfintech/validador-embarque/internal/embarque",
+      "kind": "import",
+      "resolved": false
+    },
+    {
+      "from": "cmd/validador/main.go",
+      "to": "github.com/rs/zerolog",
+      "kind": "import",
+      "resolved": false
+    },
+    {
+      "from": "internal/cartao/cartao.go",
+      "to": "github.com/axis-mobfintech/validador-embarque/internal/tarifa",
+      "kind": "import",
+      "resolved": false
+    },
+    {
+      "from": "internal/catraca/catraca.go",
+      "to": "github.com/axis-mobfintech/validador-embarque/internal/embarque",
+      "kind": "import",
+      "resolved": false
+    },
+    {
+      "from": "internal/catraca/catraca.go",
+      "to": "github.com/rs/zerolog",
+      "kind": "import",
+      "resolved": false
+    },
+    {
+      "from": "internal/embarque/validar.go",
+      "to": "github.com/axis-mobfintech/validador-embarque/internal/cartao",
+      "kind": "import",
+      "resolved": false
+    },
+    {
+      "from": "internal/embarque/validar.go",
+      "to": "github.com/axis-mobfintech/validador-embarque/internal/tarifa",
+      "kind": "import",
+      "resolved": false
+    },
+    {
+      "from": "internal/embarque/validar.go",
+      "to": "github.com/google/uuid",
+      "kind": "import",
+      "resolved": false
+    }
+  ]
+}

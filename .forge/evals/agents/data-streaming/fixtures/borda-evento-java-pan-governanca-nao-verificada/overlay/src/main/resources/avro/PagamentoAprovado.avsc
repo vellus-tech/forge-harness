@@ -1,0 +1,13 @@
+{
+  "type": "record",
+  "name": "PagamentoAprovado",
+  "namespace": "com.exemplo.pagamentos.eventos",
+  "fields": [
+    { "name": "pagamentoId", "type": "string" },
+    { "name": "pan", "type": "string" },
+    { "name": "nomeTitular", "type": "string" },
+    { "name": "cpfTitular", "type": "string" },
+    { "name": "valor", "type": "double" },
+    { "name": "aprovadoEm", "type": { "type": "long", "logicalType": "timestamp-millis" } }
+  ]
+}

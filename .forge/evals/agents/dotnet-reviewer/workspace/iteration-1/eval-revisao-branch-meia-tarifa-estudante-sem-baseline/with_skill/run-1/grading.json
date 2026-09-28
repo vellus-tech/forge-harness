@@ -1,0 +1,75 @@
+{
+  "expectations": [
+    {
+      "text": "Em review/dotnet-review.json, o primeiro elemento de findings tem id ou title contendo DOTNET-BASELINE, severity HIGH, e fix_suggested menciona 'dotnet-baseline.sh' com '--apply'.",
+      "passed": true,
+      "evidence": "PASS. jq '.findings[0]' outputs/review/dotnet-review.json (diff -r outputs/review work/review vazio) → title \"DOTNET-BASELINE ausente\", severity \"HIGH\", fix_suggested \"Rodar 'bash .forge/scripts/dotnet-baseline.sh --apply' (ou adotar o capability pack backend-dotnet-relational...)\". id é null, mas a asserção aceita id OU title. Transcript linha 27 registra o --check reprovando por falta de Directory.Build.props, .editorconfig e Directory.Packages.props."
+    },
+    {
+      "text": "review/resumo.md contém uma linha (ou linha de tabela) para cada uma das 11 regras do scan — async-void, blocking-wait, new-httpclient, region, generic-name, bool-param, empty-catch, datetime-now, sql-interpolation, mutable-static e single-impl-interface — cada uma com status explícito (OK/limpo ou FOUND/achado); as regras sem ocorrência aparecem como OK, não são omitidas.",
+      "passed": false,
+      "evidence": "FAIL. cat -n outputs/review/resumo.md: as 11 regras aparecem com status explícito, mas todas concatenadas numa ÚNICA linha (linha 31: \"`async-void` OK · `blocking-wait` FOUND (no diff) · ... · `single-impl-interface` OK\"). A asserção exige uma linha (ou linha de tabela) por regra; a cobertura existe (as 5 sem ocorrência — async-void, empty-catch, sql-interpolation, mutable-static, single-impl-interface — estão como OK), o formato pedido não. Na dúvida, falha."
+    },
+    {
+      "text": "Há um finding com file terminando em src/Tarifa.Api/Program.cs e line 9 (o AddSingleton<DescontoService>) cuja descrição identifica que o singleton captura o TarifaDbContext de ciclo de vida Scoped (captive dependency).",
+      "passed": false,
+      "evidence": "FAIL. jq -c '.findings[]|{severity,file,line,title}' outputs/review/dotnet-review.json → o finding \"Captive dependency: DescontoService (Singleton) injeta TarifaDbContext (Scoped)\" está em src/Tarifa.Api/Program.cs line 7, não 9. grep -n AddSingleton work/src/Tarifa.Api/Program.cs → '9:builder.Services.AddSingleton<DescontoService>();' (a linha 7 é o AddDbContext). Diagnóstico correto, âncora arquivo:linha errada."
+    },
+    {
+      "text": "review/dotnet-review.json é JSON válido com a chave reviewer e o array findings; todo finding tem id único, severity em {BLOCKER, HIGH, MEDIUM, LOW}, file não vazio, line inteiro positivo, title, description e fix_suggested — nenhum finding sem arquivo:linha.",
+      "passed": false,
+      "evidence": "FAIL. jq -e . → JSON válido; keys incluem reviewer e findings (10 itens). Porém jq '[.findings[].id]' → todos null (nenhum id, logo nenhum id único), e o primeiro finding tem file \"N/A (raiz do repositório)\" e line 0 (não positivo). Severidades (HIGH/BLOCKER/MEDIUM/LOW), title, description e fix_suggested presentes em todos."
+    },
+    {
+      "text": "Nenhum finding em review/dotnet-review.json aponta arquivo sob src/Legado.Relatorios/ (o RelatorioHelper com #region, DateTime.Now e parâmetro bool existe só na main e não foi tocado pela branch).",
+      "passed": true,
+      "evidence": "PASS. jq '[.findings[]|select(.file|tostring|contains(\"Legado\"))]|length' outputs/review/dotnet-review.json → 0. As 4 ocorrências em src/Legado.Relatorios/RelatorioHelper.cs (region, generic-name, bool-param, datetime-now; confirmadas em outputs/dotnet-quality-scan.json, total 6) ficaram fora dos findings, com exclusão explicada em resumo.md linha 15 e transcript linha 33."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 3,
+    "total": 5,
+    "pass_rate": 0.4
+  },
+  "timing": {
+    "executor_duration_seconds": 243.0,
+    "total_duration_seconds": 243.0
+  },
+  "claims": [
+    {
+      "claim": "Escrevi work/review/dotnet-review.json (9 findings...)",
+      "type": "factual",
+      "verified": false,
+      "evidence": "transcript linha 46 diz 9, mas jq '.findings|length' → 10."
+    },
+    {
+      "claim": "dotnet-baseline.sh --check reprovou por falta dos três arquivos",
+      "type": "process",
+      "verified": true,
+      "evidence": "Coerente com a fixture sem-baseline e com o finding DOTNET-BASELINE; saída bruta do --check não foi anexada em outputs/."
+    },
+    {
+      "claim": "Scan achou 6 ocorrências, 2 no diff e 4 no legado",
+      "type": "factual",
+      "verified": true,
+      "evidence": "outputs/dotnet-quality-scan.json total 6 com as regras citadas."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "review/resumo.md contém uma linha (ou linha de tabela) para cada uma das 11 regras do scan — async-void, blocking-wait, new-httpclient, region, generic-name, bool-param, empty-catch, datetime-now, sql-interpolation, mutable-static e single-impl-interface — cada uma com status explícito (OK/limpo ou FOUND/achado); as regras sem ocorrência aparecem como OK, não são omitidas.",
+        "reason": "Mistura formato com cobertura: a configuração with_skill cobriu as 11 regras com status, mas em linha única, e falhou só pelo formato. Se o objetivo é 'não omitir as OK', reescrever para 'cada regra com status explícito' ou exigir tabela explicitamente."
+      },
+      {
+        "reason": "O expected_output exige findings para .Result, new HttpClient() e .ToList() antes do Where em DescontoService.cs, mas nenhuma asserção os checa. Ambas as configurações os acharam (linhas 19, 18, 22), então hoje não discrimina, mas uma regressão passaria despercebida."
+      },
+      {
+        "assertion": "review/dotnet-review.json é JSON válido com a chave reviewer e o array findings; todo finding tem id único, severity em {BLOCKER, HIGH, MEDIUM, LOW}, file não vazio, line inteiro positivo, title, description e fix_suggested — nenhum finding sem arquivo:linha.",
+        "reason": "Um finding de baseline (nível repositório) naturalmente não tem arquivo:linha; a asserção 1 exige esse finding e a 4 exige file/line positivos em todos, o que força o executor a inventar uma âncora (ex.: Directory.Build.props:1). Explicitar a convenção esperada para findings de repositório."
+      }
+    ],
+    "overall": "Agente fez as camadas determinísticas e o escopo certo, mas errou a linha da captive dependency (7 vs 9), omitiu id e usou line 0 no finding de baseline; transcript afirma 9 findings quando há 10."
+  }
+}

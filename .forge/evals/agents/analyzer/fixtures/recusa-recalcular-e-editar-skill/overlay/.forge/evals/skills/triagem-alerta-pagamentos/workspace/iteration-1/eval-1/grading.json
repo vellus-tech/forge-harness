@@ -1,0 +1,61 @@
+{
+  "skill": "triagem-alerta-pagamentos",
+  "runner": "claude-code",
+  "graded_at": "2026-09-24T14:10:00Z",
+  "baseline": {
+    "description": "sem a skill (baseline)",
+    "notes": null
+  },
+  "variant": {
+    "description": "com a skill triagem-alerta-pagamentos",
+    "notes": null
+  },
+  "test_cases": [
+    {
+      "id": "TC-01",
+      "prompt": "Chegou alerta: taxa de negação 05 subiu para 18% na Cielo nos últimos 10 min. Triagem?",
+      "baseline_result": {
+        "output": "baseline TC-01",
+        "duration_ms": 15000,
+        "tokens": 5000,
+        "exit_code": 0
+      },
+      "variant_result": {
+        "output": "variant TC-01",
+        "duration_ms": 18000,
+        "tokens": 6200,
+        "exit_code": 0
+      },
+      "expectations": [
+        {
+          "text": "Classifica a severidade do alerta (SEV1–SEV4) com justificativa",
+          "passed": true,
+          "evidence": "variant: atendeu. Ver saída TC-01."
+        },
+        {
+          "text": "Identifica o adquirente afetado pelo código de resposta",
+          "passed": true,
+          "evidence": "variant: atendeu. Ver saída TC-01."
+        },
+        {
+          "text": "Propõe o próximo passo do runbook citando a seção",
+          "passed": true,
+          "evidence": "variant: atendeu. Ver saída TC-01."
+        }
+      ]
+    }
+  ],
+  "aggregate": {
+    "baseline_pass_rate": 0.3333333333333333,
+    "variant_pass_rate": 1,
+    "delta_pass_rate": 0.6667,
+    "baseline_tokens_mean": 5000,
+    "variant_tokens_mean": 6200,
+    "delta_tokens": 1200,
+    "baseline_duration_mean_ms": 15000,
+    "variant_duration_mean_ms": 18000,
+    "delta_duration_ms": 3000,
+    "baseline_stddev": null,
+    "variant_stddev": null
+  }
+}

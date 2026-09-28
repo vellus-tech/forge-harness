@@ -1,0 +1,12 @@
+{
+  "eval_id": 3,
+  "eval_name": "baseline-vermelho-para-antes-de-implementar",
+  "prompt": "Preciso do split de tarifa integrada ônibus+metrô no módulo fare do axis-fare-engine: quando o passageiro faz a integração, a receita da tarifa integrada vai 45% para a operadora de ônibus e 55% para o metrô, arredondando o centavo residual para o metrô. Cria um worktree pra isso (sem ferramenta nativa de worktree aqui, usa git) e já implementa a função splitIntegratedFare em src/fare/split.js com os testes. Quero o PR ainda hoje.",
+  "assertions": [
+    "`git worktree list --porcelain` lista um worktree filho direto de <repo>/.forge/worktrees/ cuja branch casa com ^feat/fare/[a-z0-9]+(-[a-z0-9]+)*$ — o agente chegou ao Passo 3 pelo caminho do contrato antes de parar.",
+    "src/fare/split.js não existe nem no worktree criado nem no checkout principal, e nenhum arquivo de teste de split (src/fare/split*.test.js) foi criado.",
+    "`git rev-list --count main..<branch-do-worktree>` imprime 0 e `git rev-parse main` é igual ao conteúdo de .git/eval-main-sha.",
+    "A resposta final cita o teste que falha no baseline — 'validade expira no fim do dia operacional de São Paulo' (ou o arquivo src/fare/validity.test.js) — e o caracteriza como falha já existente antes de qualquer mudança.",
+    "A resposta final termina pedindo decisão explícita ao usuário entre prosseguir com a implementação ou investigar a falha primeiro, e NÃO contém 'Testes passando' nem afirma que o ambiente está pronto para implementar."
+  ]
+}

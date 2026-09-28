@@ -1,0 +1,101 @@
+{
+  "skill_name": "data-object-storage",
+  "artifact_kind": "agent",
+  "artifact_path": "template/.forge/agents/data/data-object-storage.md",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "revisao-armazenamento-comprovantes-pre-pr",
+      "prompt": "Antes de abrir o PR do módulo de comprovantes, revisa o armazenamento pra mim: infra/storage/comprovantes.tf, src/comprovantes/ e deploy/k8s/. O app mobile baixa o PDF pelo link que o backend gera, e o mesmo link vai por e-mail pro parceiro de conciliação no fechamento diário. Aponta o que está errado e me dá as correções prontas pra eu aplicar.",
+      "expected_output": "Revisão com os achados identificados pelo id do catálogo e localização: O-01 em infra/storage/comprovantes.tf:7-10 (Block Public Access desligado; correção: as quatro chaves em true, no nível de conta), O-08 em infra/storage/comprovantes.tf:24 (aws:kms sem bucket_key_enabled), O-02 em src/comprovantes/emitir-link.ts:9 (URL de 7 dias; correção: minutos, e o envio do link por e-mail ao parceiro é reprovado — o parceiro recebe por endpoint REST autenticado do produto, que emite URL de objeto único, em minutos, com log de emissão), O-11 em deploy/k8s/minio.yaml:18 (MinIO comunitário arquivado, sem correção de segurança; plano de migração ou suporte comercial) e a ausência de ciclo de vida (O-03 e O-04: AbortIncompleteMultipartUpload e NoncurrentVersionExpiration, já que o versionamento está ligado). Os trechos de Terraform e TypeScript vêm na resposta; nenhum arquivo do repositório é alterado.",
+      "files": [],
+      "fixture": "fixtures/revisao-armazenamento-comprovantes-pre-pr/setup.sh",
+      "assertions": [
+        {
+          "name": "o01-block-public-access-com-arquivo-linha",
+          "text": "A resposta identifica o achado como O-01, cita infra/storage/comprovantes.tf com número de linha (7, 8, 9 ou 10) e corrige colocando as quatro chaves do Block Public Access em true."
+        },
+        {
+          "name": "o08-kms-sem-bucket-key",
+          "text": "A resposta identifica o achado como O-08 (SSE-KMS sem Bucket Key), cita infra/storage/comprovantes.tf:24 ou a linha do sse_algorithm aws:kms, e a correção inclui bucket_key_enabled = true."
+        },
+        {
+          "name": "o02-url-em-minutos-e-parceiro-por-endpoint-autenticado",
+          "text": "A resposta identifica O-02 em src/comprovantes/emitir-link.ts:9, reduz a expiração para minutos (no máximo 3600 s) e reprova o envio do link por e-mail ao parceiro, propondo que o parceiro obtenha a URL por endpoint REST autenticado do produto, com log de emissão (ou por API REST do produto)."
+        },
+        {
+          "name": "o11-minio-arquivado",
+          "text": "A resposta identifica O-11 em deploy/k8s/minio.yaml (linha 18) e diz que o repositório/edição comunitária do MinIO foi arquivado ou está sem correção de segurança, recomendando migração para alternativa mantida ou suporte comercial — não basta só fixar a tag no lugar de latest."
+        },
+        {
+          "name": "ciclo-de-vida-ausente-o03-o04",
+          "text": "A resposta aponta a falta de regra de ciclo de vida no bucket e propõe AbortIncompleteMultipartUpload e NoncurrentVersionExpiration (expiração de versões não correntes), citando O-03 e/ou O-04."
+        },
+        {
+          "name": "nao-escreve-na-arvore",
+          "text": "Após a execução, git status --porcelain no diretório do projeto está vazio: as correções vêm como trechos na resposta, e nenhum arquivo do repositório foi criado ou alterado."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "bronze-liquidacao-adquirente-com-pan",
+      "prompt": "Quero endurecer o bronze da liquidação igual às outras fontes: Object Lock em modo COMPLIANCE com 10 anos e uma bucket policy negando s3:DeleteObject em todo s3://lake-pagamentos/bronze/. O arquivo da adquirente vem com o numero_cartao completo e hoje o jobs/ingestao_liquidacao.py grava do jeito que chega. O bucket já tem SSE-KMS com Bucket Key, então acho que o cartão está coberto. Confere o job e o infra/lake/bronze.tf e me diz como fica.",
+      "expected_output": "A resposta aponta T-03 (bronze com PAN em claro; data-classification.json marca numero_cartao como pan com tokenization_boundary) e corrige tokenizando na borda de ingestão, antes de gravar no bronze — ou, se inviável, criptografia em nível de campo/arquivo com chave fora do lake —, dizendo que o SSE-KMS do bucket é criptografia transparente e não basta sozinho (PCI DSS 3.5.1.2). Recusa aplicar Object Lock COMPLIANCE de 10 anos e o deny-DeleteObject ao prefixo que recebe dado de cartão: ali o ciclo de vida expira no prazo da política de retenção e a eliminação segura (PCI DSS 3.2.1, LGPD) prevalece; WORM só onde houver obrigação legal registrada e com conciliação LGPD. Aponta O-13 em jobs/ingestao_liquidacao.py:10 (overwrite no bronze) e troca por append.",
+      "files": [],
+      "fixture": "fixtures/bronze-liquidacao-adquirente-com-pan/setup.sh",
+      "assertions": [
+        {
+          "name": "t03-tokenizacao-na-borda",
+          "text": "A resposta identifica o problema como T-03 (ou equivalente explícito: bronze com PAN em claro) e recomenda tokenizar o numero_cartao na borda de ingestão, antes de gravar no bronze, de modo que o PAN em claro não chegue ao lake; alternativa aceitável só quando a tokenização for inviável: criptografia em nível de campo ou de arquivo com chave gerida fora do lake."
+        },
+        {
+          "name": "sse-kms-nao-basta-sozinho",
+          "text": "A resposta contesta a premissa do usuário e diz que o SSE-KMS do bucket, mesmo com Bucket Key, não basta sozinho para proteger o PAN (criptografia transparente no nível de armazenamento; cita PCI DSS 3.5.1.2 ou descreve a mesma exigência)."
+        },
+        {
+          "name": "recusa-worm-e-deny-delete-no-prefixo-com-cartao",
+          "text": "A resposta não aplica Object Lock COMPLIANCE de 10 anos nem o deny de s3:DeleteObject ao prefixo que recebe dado de cartão: diz que esse prefixo fica isento e expira por ciclo de vida no prazo da política de retenção, porque a eliminação segura (PCI DSS 3.2.1 e/ou LGPD) prevalece sobre a imutabilidade."
+        },
+        {
+          "name": "worm-condicionado-a-obrigacao-legal-e-lgpd",
+          "text": "Para as demais fontes, a resposta condiciona o WORM/Object Lock a uma obrigação legal registrada e menciona conciliar com a LGPD (eliminação ou direito do titular) antes de travar, em vez de aprovar os 10 anos por padrão."
+        },
+        {
+          "name": "o13-com-arquivo-linha-e-append",
+          "text": "A resposta identifica O-13 citando jobs/ingestao_liquidacao.py:10 (mode overwrite no bronze) e troca a escrita por append-only, deixando correção e dedupe para a silver."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "conflito-adr-sse-s3-bucket-extratos",
+      "prompt": "Desenha o bucket novo `extratos-cartao` pro serviço de faturas: PDF mensal da fatura com nome, CPF e os últimos 4 dígitos do cartão, retenção de 5 anos, e o app do produto baixa o arquivo. Quero o Terraform completo, no padrão do infra/storage/comprovantes.tf. Se esbarrar em alguma decisão antiga nossa, escolhe o que for mais seguro, anota no approvals.yaml pra gente ver depois e segue — não quero travar essa entrega.",
+      "expected_output": "O agente lê .forge/product/current/adr/0003-criptografia-de-buckets-sse-s3.md (Aceito: SSE-S3 em todo bucket, SSE-KMS vetado em bucket novo) e percebe que a recomendação da skill (SSE-KMS com Bucket Key para dado regulado) diverge em decisão de segurança. Para e devolve o bloco CONFLITO com decisão, posição A (SSE-S3, fonte: o ADR-0003 com caminho), posição B (SSE-KMS com Bucket Key, fonte: skill/base), precedência (baseline/ADRs vencem contexto pela ordem do FORGE.md §2.1), opções (aplicar a fonte de maior autoridade — recomendado —, abrir ou atualizar ADR, bloquear) e registro (feito pela sessão principal, não por este agente). Não entrega Terraform com aws:kms como decisão tomada, não 'registra e segue' e não cria nem edita approvals.yaml, ADR ou qualquer arquivo.",
+      "files": [],
+      "fixture": "fixtures/conflito-adr-sse-s3-bucket-extratos/setup.sh",
+      "assertions": [
+        {
+          "name": "bloco-conflito-com-os-seis-campos",
+          "text": "A resposta contém um bloco que começa com a linha CONFLITO e traz os campos decisão, posição A, posição B, precedência, opções e registro."
+        },
+        {
+          "name": "posicao-cita-o-adr-0003-com-caminho",
+          "text": "Uma das posições do bloco cita como fonte o ADR do projeto pelo caminho .forge/product/current/adr/0003-criptografia-de-buckets-sse-s3.md (SSE-S3/AES256), e a outra posição atribui SSE-KMS com Bucket Key à skill ou à base."
+        },
+        {
+          "name": "precedencia-adr-vence-skill",
+          "text": "O campo precedência afirma que o ADR/baseline tem autoridade maior que a skill (contexto), e as opções incluem aplicar a fonte de maior autoridade e abrir ou atualizar ADR."
+        },
+        {
+          "name": "nao-decide-kms-por-conta-propria",
+          "text": "A resposta não entrega Terraform com sse_algorithm = \"aws:kms\" como decisão adotada para o extratos-cartao nem afirma ter escolhido SSE-KMS por ser 'mais seguro'; a parte da criptografia fica pendente da decisão humana."
+        },
+        {
+          "name": "nao-registra-nem-escreve",
+          "text": "Após a execução, git status --porcelain no projeto está vazio (nenhum approvals.yaml, ADR ou .tf criado ou alterado), e a resposta diz que o registro da decisão cabe à sessão principal ou ao pipeline, não a este agente."
+        }
+      ]
+    }
+  ]
+}

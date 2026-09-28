@@ -1,0 +1,21 @@
+# Transcript — eval-pr-recarga-fastapi-async / without_skill / run-1
+
+Caso: baseline "without_skill" — execução com conhecimento próprio, sem ler `.forge/skills`, `.forge/agents`, `plugin/` nem `.forge/evals` da árvore `evals-100` (proibido pelo protocolo do eval).
+
+1. Confirmei o diretório de trabalho designado e o marquei como raiz de escrita (`.../without_skill/run-1`).
+2. Gravei o instante inicial em `.t0` com `date +%s` (epoch `1790441386`).
+3. Criei `work/` e rodei `fixtures/pr-recarga-fastapi-async/setup.sh work/`, que materializou um repositório git local com duas branches: `main` (commit `b52bed3`, estado inicial da fixture) e `feat/recargas-gateway` (commit `9167b00`, o PR em avaliação).
+4. Inspecionei a árvore resultante (`app/`, `alembic/versions/`, `tests/`) e confirmei que a fixture também recria `.claude/` e `.forge/` como parte do "estado inicial" do repositório simulado (esses arquivos aparecem como `deleted` no `git status` porque o setup não materializa os symlinks do template — ruído esperado da fixture, não relacionado à tarefa; não toquei nisso).
+5. Rodei `git diff main..feat/recargas-gateway --stat` e depois o diff completo, restrito a `app/`, `alembic/`, `tests/` (o diff efetivo do PR): `alembic/versions/0002_valor_em_centavos.py`, `app/main.py`, `app/recargas/__init__.py`, `app/recargas/router.py`, `tests/test_recargas.py`.
+6. Li o contexto necessário para avaliar o diff com segurança: `app/auth.py` (extração de `usuario_id` do Bearer token), `app/config.py` (settings via `pydantic_settings`), `app/db.py` (engine/sessionmaker assíncronos) e `alembic/versions/0001_cria_recargas.py` (schema anterior da tabela `recargas`, coluna `valor` como `Numeric(10,2)`). Também abri `app/legado/relatorio.py` para confirmar que não faz parte do diff (código legado com SQL via f-string, fora do escopo desta revisão porque não foi tocado no PR).
+7. Revisão linha a linha do diff, focada em: bloqueio de event loop, vazamento de segredo em log, ausência de tratamento de erro do gateway (rede/timeout/status HTTP), ordenação cobrança-antes-de-persistência e falta de idempotência, autorização em nível de objeto no GET, ausência de 404 quando o registro não existe, ausência de validação de payload (Pydantic), risco de perda de dado/quebra na migration 0002 (drop antes de add, `NOT NULL` sem backfill em tabela populada), e cobertura de teste (só caminho feliz).
+8. Escrevi os achados em `review/python-reviewer.json` (dentro de `work/`), no formato {reviewer, target, summary, findings[]}, cada finding com `file`, `line`, `severity`, `scenario` e `recommendation` — sete achados: 1 critical (migration destrutiva), 4 high (log de segredo, chamada síncrona bloqueante, ausência de tratamento de erro do gateway, cobrança sem persistência atômica/idempotência), 1 high adicional (IDOR no GET), 1 medium (ausência de 404), 1 medium (payload sem validação Pydantic) e 1 low (cobertura de teste). Validei o JSON com `python3 -c "json.load(...)"`.
+9. Copiei `work/review/python-reviewer.json` para `outputs/python-reviewer.json` e escrevi este transcript em `outputs/transcript.md`.
+10. Não spawnei nenhum subagente (proibido pelo protocolo do eval) — não houve nenhum ponto da tarefa em que um artefato pedisse explicitamente o despacho de subagentes; a revisão foi conduzida integralmente por mim. Por isso não há `outputs/subagent-dispatch.json` — nenhum despacho foi necessário ou simulado.
+11. Ao final, apaguei `.t0` só depois de ler seu valor para calcular `timing.json` (mantive o arquivo, conforme instrução — a instrução não pediu para apagá-lo, só o `work/` se passasse de 20 MB).
+
+## Decisões relevantes
+
+- Restringi a revisão ao diff real do PR (`app/`, `alembic/`, `tests/`), ignorando o ruído de `.claude/`/`.forge/` que o `git status` mostra como deletado — esse ruído vem da fixture, não do PR.
+- Tratei a migration 0002 como achado `critical` porque, em uma tabela `recargas` não vazia, ela perde o valor monetário original e pode falhar em bancos que não aceitam `NOT NULL` sem default em coluna recém-criada — risco financeiro direto, mais grave que os achados de segurança/robustez do endpoint.
+- Não reportei o SQL via f-string em `app/legado/relatorio.py` porque esse arquivo não está no diff contra `main` — está fora do escopo pedido ("revisão Python do diff contra main").

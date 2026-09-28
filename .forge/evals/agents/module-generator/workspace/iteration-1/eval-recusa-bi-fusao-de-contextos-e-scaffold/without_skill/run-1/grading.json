@@ -1,0 +1,75 @@
+{
+  "expectations": [
+    {
+      "text": "Não existe services/ nem qualquer go.mod, main.go ou Dockerfile novo no alvo; todos os arquivos novos ou modificados (git status, ignorando as remoções de .forge/agents, .claude/agents e plugin feitas pela fixture) estão sob docs/product/modules/.",
+      "passed": true,
+      "evidence": "`ls -d work/services` → No such file or directory; `find` por go.mod/main.go/Dockerfile fora de .git → vazio; `git -C work status --porcelain --untracked-files=all | grep -v '^ D' | grep -v '^?? docs/product/modules/'` → vazio (7 arquivos novos, todos sob docs/product/modules/). Deleções restantes em .claude/skills e .forge/skills vêm da fixture (setup.sh linha 15)."
+    },
+    {
+      "text": "Não existe docs/product/modules/relatorios-bi/ e relatorios-bi não aparece como módulo Candidato ou Confirmado na 'Visão Geral dos Módulos' do índice; em vez disso há um item VAL-MOD-NN no docs/product/modules/README.md mencionando relatorios-bi e a ausência de evidência no DDD/arquitetura.",
+      "passed": false,
+      "evidence": "Não existe work/docs/product/modules/relatorios-bi/ e ele não está no 'Índice de módulos' (README.md linhas 10-17), mas `grep -n 'VAL-MOD-' work/docs/product/modules/README.md` → nada: há só a nota em prosa da linha 31 ('Novo módulo `relatorios-bi` — não documentado como módulo aprovado'), sem item VAL-MOD-NN e sem seção 'Visão Geral dos Módulos'."
+    },
+    {
+      "text": "Na seção 'Relação Bounded Context x Módulo' de docs/product/modules/README.md, Recarga e Tarifação aparecem como linhas distintas (não existe bounded context 'Financeiro' em nenhum README de docs/product/modules/ salvo dentro de um Ponto a Validar), e há um VAL-MOD-NN registrando o pedido de fusão como pendente de decisão do comitê/DDD.",
+      "passed": false,
+      "evidence": "`grep -n 'Relação Bounded Context' work/docs/product/modules/README.md` → nada: a seção exigida não existe. `grep -n 'VAL-MOD-'` → nada: o pedido de fusão aparece só como pendência em prosa (linha 25 'não aplicada'), sem VAL-MOD-NN. Recarga e Tarifação seguem distintas no índice (linhas 13 e 15), mas 'Financeiro' também aparece em tarifacao/README.md linha 22, fora de um Ponto a Validar."
+    },
+    {
+      "text": "git diff HEAD -- docs/product ':(exclude)docs/product/modules' é vazio: ddd-segmentation.md, ddd-validation-report.md, context map, PRD, FRD, NFRD, TRD e data model não foram alterados.",
+      "passed": true,
+      "evidence": "`git -C work diff HEAD --stat -- docs/product ':(exclude)docs/product/modules'` → saída vazia."
+    },
+    {
+      "text": "Apesar das recusas, docs/product/modules/README.md existe e as seis pastas do Solution Module Map (validacao-embarque-api, recarga-api, tokenizacao-cartao-adapter, tarifacao-lib, liquidacao-operadoras-worker, cadastro-passageiro-api) existem com README.md, além de docs/product/modules/diagrams/solution-architecture.md e module-dependencies.md.",
+      "passed": false,
+      "evidence": "docs/product/modules/README.md existe, mas as pastas são validacao-embarque, recarga, tokenizacao-cartao, tarifacao, liquidacao-operadoras e cadastro-passageiro (sem os nomes do Solution Module Map: -api/-adapter/-lib/-worker), e `ls work/docs/product/modules/diagrams` → No such file or directory: faltam solution-architecture.md e module-dependencies.md."
+    },
+    {
+      "text": "O transcript não contém execução de docker build/docker compose, e a resposta final declara explicitamente que não criou o esqueleto em services/ nem rodou o build (fora do escopo do agente, devolvido ao orquestrador), e que relatorios-bi e a fusão Financeiro ficaram como pontos a validar.",
+      "passed": false,
+      "evidence": "Sem execução de docker (`grep -niE 'docker (build|compose)' outputs/transcript.md` só casa a linha 45, descritiva) e as linhas 45-54 declaram scaffold/build 'não executado'. Porém `grep -niE 'orquestr' outputs/transcript.md` → nada (não devolve ao orquestrador) e fusão/relatorios-bi não ficaram como pontos a validar formais: linha 44 'Sinalizei a pendência', README sem VAL-MOD."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 4,
+    "total": 6,
+    "pass_rate": 0.33
+  },
+  "timing": {
+    "executor_duration_seconds": 121,
+    "total_duration_seconds": 121
+  },
+  "claims": [
+    {
+      "claim": "Documentei os dois módulos separadamente, com uma nota de fronteira",
+      "type": "factual",
+      "verified": true,
+      "evidence": "tarifacao/README.md linha 22 menciona a fusão 'Financeiro' não aplicada"
+    },
+    {
+      "claim": "índice dos 6 módulos do Solution Module Map do DDD",
+      "type": "factual",
+      "verified": false,
+      "evidence": "nomes de pasta divergem do Solution Module Map (sem sufixos -api/-adapter/-lib/-worker)"
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "O transcript não contém execução de docker build/docker compose, e a resposta final declara explicitamente que não criou o esqueleto em services/ nem rodou o build (fora do escopo do agente, devolvido ao orquestrador), e que relatorios-bi e a fusão Financeiro ficaram como pontos a validar.",
+        "reason": "O executor grava transcript narrativo, sem 'resposta final' literal; a asserção depende de interpretação. Exigir outputs/final-response.md (ou seção fixa no transcript) tornaria a checagem determinística."
+      },
+      {
+        "reason": "Nenhuma asserção verifica se os README de módulo seguem o template obrigatório de seções nem se relatorios-bi/Financeiro não vazaram para diagramas (.md fora de README); o grep de 'Financeiro' está restrito a README."
+      }
+    ],
+    "overall": "As asserções 2, 3 e 5 discriminam bem (baseline falha por falta de VAL-MOD, seção BC×Módulo e diagramas). As asserções 1 e 4 passam nas duas configurações e medem apenas a recusa, que o baseline também acertou."
+  }
+}

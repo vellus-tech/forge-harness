@@ -1,0 +1,65 @@
+{
+  "expectations": [
+    {
+      "text": "docs/product/trd/trd.md passou a conter as seções 'Observabilidade' (com logs estruturados, correlation_id, métricas RED/alerta de p99 e health checks derivados de NFRD-OBS-01/02) e 'Pontos a Validar', ausentes na versão da fixture — a correção foi feita no TRD, não só descrita no relatório.",
+      "passed": false,
+      "evidence": "Seção 14 criada: `grep -n '^#'` em without_skill/run-1/work/docs/product/trd/trd.md mostra '## 14. Observabilidade' (linha 74) com logs estruturados JSON, correlation_id, RED, alerta p99 > 300 ms por 5 min e health checks (NFRD-OBS-01/02). Porém NÃO existe seção 'Pontos a Validar': os cabeçalhos seguem '## 21. Riscos Técnicos' (linha 118) → '## 23. Anexos' (linha 124); o parecer (outputs/parecer-trd-sprint14.md, item 6) declara explicitamente que não criou a seção 22 ('Não há como saber pelos insumos disponíveis o que a seção 22 deveria conter'). Metade da asserção falha."
+    },
+    {
+      "text": "A seção de eventos de docs/product/trd/trd.md lista ValidacaoRegistrada.v1 com produtor validacao-api (ou módulo validacao) e consumidores tarifacao e liquidacao, no canal dominio.eventos/RabbitMQ (ADR-0004).",
+      "passed": true,
+      "evidence": "trd.md seção 9: '| `ValidacaoRegistrada.v1` | validacao-api | tarifacao-svc, liquidacao-worker | `dominio.eventos` (RabbitMQ) | 3 tentativas, DLQ `liquidacao.dlq` |' e nota 'A DLQ retém as mensagens por 7 dias (ADR-0004)'. Produtor, consumidores e canal corretos. Observação: a coluna Retry/DLQ copia 'DLQ liquidacao.dlq' para um evento que também é consumido por tarifacao-svc — retry/DLQ sem base nos insumos, não coberto pela asserção."
+    },
+    {
+      "text": "A tabela Controle de Versão de docs/product/trd/trd.md mantém a linha v0.1 e ganha uma linha nova (versão maior que v0.1) cuja descrição menciona ajustes do TRD Validator.",
+      "passed": false,
+      "evidence": "Controle de Versão mantém a linha v0.1 e acrescenta v0.2 (linhas 5-8), mas a descrição é 'Revisão crítica contra PRD/FRD/NFRD/ADRs/DDD/Modules/Data Model: evento `ValidacaoRegistrada.v1` adicionado ...' — `grep -n 'TRD Validator' without_skill/run-1/work/docs/product/trd/trd.md` não retorna nada; a descrição não menciona ajustes do TRD Validator."
+    },
+    {
+      "text": "Existe docs/product/trd/trd-validation-report.md com uma seção de Ajustes Aplicados no TRD em tabela, com IDs no formato ADJ-TRD-NNN (três dígitos) e uma coluna de Fonte Utilizada preenchida com o insumo de origem (ex.: NFRD-OBS-01, Modules, DDD).",
+      "passed": false,
+      "evidence": "`ls without_skill/run-1/work/docs/product/trd/` → apenas trd.md; não existe trd-validation-report.md (nem em outputs/). O parecer foi gravado fora do projeto, em outputs/parecer-trd-sprint14.md, em prosa numerada sem tabela e sem IDs ADJ-TRD-NNN (`grep -c ADJ-TRD` = 0)."
+    },
+    {
+      "text": "O relatório declara um Parecer Final que é exatamente 'Aprovado', 'Aprovado com Ressalvas' ou 'Reprovado', acompanhado de seção de Métricas da Validação com contagem de ajustes aplicados e de achados por severidade (Crítica/Alta/Média/Baixa).",
+      "passed": false,
+      "evidence": "Não há trd-validation-report.md. O parecer alternativo (outputs/parecer-trd-sprint14.md linha 5) diz '**Parecer:** o TRD pode seguir como baseline técnico após as correções abaixo' — não é uma das três classes literais ('Aprovado', 'Aprovado com Ressalvas', 'Reprovado') e não há seção de Métricas da Validação com contagem por severidade Crítica/Alta/Média/Baixa."
+    },
+    {
+      "text": "git status/diff no projeto mostra alterações apenas em docs/product/trd/ (trd.md modificado e relatório novo, opcionalmente outros arquivos trd-*.md); prd.md, frd.md, nfrd.md, os ADRs, ddd-segmentation.md, modules/README.md e data-model.md estão byte a byte iguais ao commit da fixture.",
+      "passed": true,
+      "evidence": "`git -C without_skill/run-1/work status --short -- docs/product` → apenas ' M docs/product/trd/trd.md'; `git diff --quiet HEAD -- docs/product/prd docs/product/frd-nfrd docs/product/adr docs/product/ddd docs/product/modules docs/product/data-model` retorna 0. As deleções em .claude/ e .forge/ vêm do setup.sh da fixture (linha 14, rm -rf após o commit) e são idênticas nas duas configurações. Passa pelo critério literal, embora o agente só não tenha tocado outros arquivos porque não criou o relatório."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 4,
+    "total": 6,
+    "pass_rate": 0.33
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 194000,
+    "total_duration_seconds": 194
+  },
+  "claims": [
+    {
+      "claim": "Diagrama Mermaid atualizado com a aresta validacao-api -> liquidacao-worker via ValidacaoRegistrada.v1",
+      "type": "process",
+      "verified": true,
+      "evidence": "transcript passo 6; diff do trd.md seção 19 (19 inserções no total)."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A seção de eventos de docs/product/trd/trd.md lista ValidacaoRegistrada.v1 com produtor validacao-api (ou módulo validacao) e consumidores tarifacao e liquidacao, no canal dominio.eventos/RabbitMQ (ADR-0004).",
+        "reason": "Não verifica o diagrama Mermaid da seção 19: with_skill deixou o diagrama sem ValidacaoRegistrada.v1 (FIND-TRD-001, não corrigido) enquanto without_skill o atualizou; também não checa se retry/DLQ do evento novo tem base nos insumos (without_skill inventou 'DLQ liquidacao.dlq')."
+      },
+      {
+        "reason": "Nenhuma asserção cobre a coerência interna do relatório (ex.: toda linha ADJ-TRD corresponde a uma alteração real no git diff do trd.md); um relatório com ajustes fictícios passaria na asserção 4."
+      }
+    ],
+    "overall": "Asserções 1, 3, 4 e 5 são discriminantes (dependem do protocolo do agente); 2 e 6 passam nas duas configurações."
+  }
+}

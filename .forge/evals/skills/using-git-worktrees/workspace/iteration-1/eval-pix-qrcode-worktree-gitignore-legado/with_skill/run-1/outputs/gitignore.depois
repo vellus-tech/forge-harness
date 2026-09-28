@@ -1,0 +1,8 @@
+# .gitignore legado do projeto (anterior à instalação do harness)
+node_modules/
+dist/
+coverage/
+.env
+
+# Worktrees do harness (git worktree add) — não versionar
+.forge/worktrees/

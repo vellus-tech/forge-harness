@@ -1,0 +1,5 @@
+{
+  "numero_cartao": { "classification": "pan", "masking": "primeiros 6 e últimos 4", "tokenization_boundary": true },
+  "nome_portador": { "classification": "pii", "masking": "iniciais", "tokenization_boundary": false },
+  "valor_centavos": { "classification": "public", "masking": "nenhum", "tokenization_boundary": false }
+}

@@ -1,0 +1,48 @@
+{
+  "expectations": [
+    {
+      "text": "git diff contra o commit inicial mostra docs/product/frd-nfrd/frd.md, docs/product/frd-nfrd/nfrd.md e docs/product/prd/prd.md sem nenhuma alteração (versões continuam 0.2.0 e 1.1.0; 'FRD-CHB-1' continua presente no frd.md).",
+      "passed": true,
+      "evidence": "`git -C with_skill/run-1/work diff --stat HEAD -- docs/product/frd-nfrd/frd.md docs/product/frd-nfrd/nfrd.md docs/product/prd/prd.md docs/product/adr` retorna vazio (rc=0); `git status --short docs` mostra só `?? docs/product/frd-nfrd/frd-nfrd-validation-report.md`. frd.md:4 e nfrd.md:4 '**Versão:** 0.2.0', prd.md:4 '**Versão:** 1.1.0'; `grep -c FRD-CHB-1 frd.md` = 1. Cópias em outputs/ idênticas (cmp)."
+    },
+    {
+      "text": "O relatório tem a seção 'ADRs Sugeridos' com pelo menos uma linha cobrindo política de senha/hash e uma cobrindo retenção de dados de vendas; cada linha tem ID sugerido ADR-0003 ou superior (não 0001/0002, que já existem), título em kebab-case, origem apontando para um FIND-NNN ou VAL-NN existente no relatório e severidade em {Alta, Média, Baixa}.",
+      "passed": true,
+      "evidence": "outputs/docs/product/frd-nfrd/frd-nfrd-validation-report.md:294-299 tem '## 18. ADRs Sugeridos' com ADR-0003 'politica-de-senha-e-hash-de-credenciais' (origem FIND-001, FIND-002; Alta) e ADR-0004 'politica-de-retencao-e-expurgo-de-vendas' (origem FIND-003; Alta). IDs >= 0003, títulos kebab-case, FIND-001/002/003 existem na tabela § 14 (linhas 228-230), severidades no conjunto permitido."
+    },
+    {
+      "text": "Pelo menos um FIND-NNN do relatório tem na recomendação a referência cruzada ao ADR sugerido no formato 'Resolver via ADR-NNNN sugerido (ver § 18)' (ou texto equivalente que cite o número do ADR e a seção 18).",
+      "passed": true,
+      "evidence": "outputs/docs/product/frd-nfrd/frd-nfrd-validation-report.md:228 FIND-001 recomendação 'Resolver via ADR-0003 sugerido (ver § 18)'; :229 FIND-002 idem; :230 FIND-003 'Resolver via ADR-0004 sugerido (ver § 18)'."
+    },
+    {
+      "text": "Para cada linha da seção de ADRs Sugeridos, a severidade é igual ou superior à severidade do FIND-NNN de origem na tabela de achados (um FIND Alta nunca origina ADR Média ou Baixa).",
+      "passed": false,
+      "evidence": "ADR-0003 (Alta) tem origem FIND-001 (Alta) e FIND-002 (Alta): ok. Mas ADR-0004 (linha 299) tem severidade Alta e origem FIND-003, que na tabela de achados (linha 230) é 'Crítica' — ADR com severidade inferior à do FIND de origem, violando a asserção literal. Observação: a escala de ADR da asserção 2 não inclui Crítica, o que cria tensão entre as asserções (ver eval_feedback)."
+    },
+    {
+      "text": "docs/product/adr/ contém apenas README.md, 0001-react-spa-com-bff.md e 0002-totp-como-segundo-fator.md, sem alterações; e, havendo ADR sugerido de severidade Alta, o parecer final do relatório é 'Aprovado com Ressalvas' ou 'Reprovado', nunca 'Aprovado'.",
+      "passed": true,
+      "evidence": "`ls with_skill/run-1/work/docs/product/adr` = 0001-react-spa-com-bff.md, 0002-totp-como-segundo-fator.md, README.md; `git diff HEAD -- docs/product/adr` vazio. Há ADRs Alta (linhas 298-299) e o parecer é '**Aprovado com Ressalvas**' (linhas 23 e 273)."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "pass_rate": 0.8
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Para cada linha da seção de ADRs Sugeridos, a severidade é igual ou superior à severidade do FIND-NNN de origem na tabela de achados (um FIND Alta nunca origina ADR Média ou Baixa).",
+        "reason": "A escala de severidade de ADR (asserção 2) é {Alta, Média, Baixa}, mas FINDs podem ser Crítica; um FIND Crítica nunca consegue gerar ADR de severidade igual ou superior. Explicitar se Crítica→Alta é aceito ou se o agente deveria aceitar Crítica no ADR."
+      },
+      {
+        "assertion": "docs/product/adr/ contém apenas README.md, 0001-react-spa-com-bff.md e 0002-totp-como-segundo-fator.md, sem alterações; e, havendo ADR sugerido de severidade Alta, o parecer final do relatório é 'Aprovado com Ressalvas' ou 'Reprovado', nunca 'Aprovado'.",
+        "reason": "A segunda cláusula é condicional e passa vacuamente quando não há seção de ADRs; considerar exigir explicitamente a existência de parecer final."
+      }
+    ],
+    "overall": "Asserções 1-3 discriminam bem entre as configurações."
+  }
+}

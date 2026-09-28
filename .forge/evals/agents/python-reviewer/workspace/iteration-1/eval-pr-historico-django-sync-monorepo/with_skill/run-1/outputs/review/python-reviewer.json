@@ -1,0 +1,29 @@
+{
+  "reviewer": "python-reviewer",
+  "findings": [
+    {
+      "id": "PY-001",
+      "severity": "BLOCKER",
+      "category": "security",
+      "file": "services/validador/embarques/views.py",
+      "line": 20,
+      "title": "Histórico de embarques vaza dados de cartão alheio (IDOR)",
+      "description": "`historico_cartao` filtra só por `cartao_id`, sem exigir `cartao__titular=request.user` como `detalhe_embarque` já faz duas linhas acima no mesmo arquivo. Qualquer usuário autenticado que souber ou adivinhar um `cartao_id` recebe os embarques (linha, tarifa, horário) do titular de outro cartão. O único teste que cobriria isso, `test_historico_de_cartao_alheio_retorna_404`, está marcado `@pytest.mark.skip` — pendência de infraestrutura de CI não é aprovação de comportamento correto.",
+      "fix_suggested": "Filtrar por titular na mesma query, igual ao padrão já usado em `detalhe_embarque`: `Embarque.objects.filter(cartao_id=cartao_id, cartao__titular=request.user)`. Depois disso, destravar o teste skipado (provisionando Postgres de teste ou usando o banco de teste padrão do pytest-django) para fechar a evidência antes do merge.",
+      "rule_violated": ".forge/agents/code-review/python-reviewer.md § \"Endpoints de recurso exigem teste de ownership quando aplicável; testes de infraestrutura pendente não contam como aprovado\"",
+      "confidence": "high"
+    },
+    {
+      "id": "PY-002",
+      "severity": "LOW",
+      "category": "quality",
+      "file": "services/validador/embarques/views.py",
+      "line": 15,
+      "title": "`Any` e `type: ignore` sem justificativa em `_serializar`",
+      "description": "`_serializar(embarque: Any) -> dict` usa `Any` e suprime o erro de tipo com `# type: ignore[no-untyped-def]` sem comentário explicando por quê. O parâmetro é sempre uma instância de `Embarque` (vem de `Embarque.objects.filter(...)`), então dá para tipar precisamente.",
+      "fix_suggested": "Tipar como `embarque: Embarque` e remover o `type: ignore`; se o `-> dict` genérico for intencional, considerar `dict[str, str | float]` ou um `TypedDict` para o payload.",
+      "rule_violated": ".forge/agents/code-review/python-reviewer.md § \"Type hints e validação runtime na borda; Any e type: ignore exigem justificativa\"",
+      "confidence": "high"
+    }
+  ]
+}

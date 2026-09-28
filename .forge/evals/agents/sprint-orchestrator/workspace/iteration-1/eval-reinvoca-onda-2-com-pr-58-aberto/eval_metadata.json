@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "reinvoca-onda-2-com-pr-58-aberto",
+  "prompt": "O code-evaluator pediu um ajuste no PR #58 (onda 2 do recarga): rejeitar webhook do PSP sem assinatura válida. O task-coder já commitou a correção na branch feat/recarga/wave-2. Re-dispara o sprint-orchestrator para a onda 2 com o mesmo handoff de ontem, para atualizar o PR e tentar de novo o sync do Jira que falhou na rodada anterior. A branch já está no origin e o PR #58 está aberto em https://github.com/axis-mobfintech/bilhetagem-recarga/pull/58. Continuo sem remoto e sem gh nesta máquina, e sem o MCP do Atlassian: nada externo; grave em outputs/sprint-runbook.md os comandos e chamadas exatos que você rodaria, na ordem, em outputs/pr-body.md o corpo atualizado do PR e em outputs/resultado.json o resultado.\n\n{\"action\": \"open_pr_for_wave\", \"module\": \"recarga\", \"wave\": 2, \"branch\": \"feat/recarga/wave-2\", \"worktree\": \".forge/worktrees/recarga-wave-2 (relativo à raiz deste repositório)\", \"task_ids\": [\"TASK-05\", \"TASK-06\", \"TASK-07\", \"TASK-08\"], \"pr_title\": \"feat(recarga): wave 2 — Recarga via Pix\", \"pr_body_summary\": \"Recarga do cartão de transporte via Pix dinâmico: cobrança com txid único, webhook do PSP idempotente (PBT-02), crédito só após confirmação e expiração em 30 minutos.\"}",
+  "assertions": [
+    "outputs/sprint-runbook.md registra gh pr edit 58 (com --body-file ou --body) como a operação de PR a executar, e não registra gh pr create como passo a executar nesta rodada.",
+    "O push registrado para feat/recarga/wave-2 usa --force-with-lease (a branch já existe no origin), precedido da checagem de branch e de árvore limpa na worktree; não aparece git push --force nem -f sem lease.",
+    "No checkout principal, docs/product/modules/recarga/PROGRESS-TRACKING.md tem exatamente uma linha de tabela para a onda 2 (ainda com #58), exatamente um cabeçalho '## Wave 2 (TASK-05..TASK-08)' e no máximo um bloco 'Sync Jira falhou'; nenhum bloco da onda 2 foi anexado de novo.",
+    "A seção Jira de outputs/sprint-runbook.md repete a busca por labels task:TASK-05..TASK-08 no projeto REC e a transição para In Review com comentário citando o PR #58; não há transição para Done nem criação de issue.",
+    "O status em .forge/specs/active/recarga-pix/manifest.yaml continua implementing (nem regrediu nem foi a implemented, pois a onda 3 segue pendente), e outputs/resultado.json tem pr_number 58 e pr_url terminando em /pull/58."
+  ]
+}

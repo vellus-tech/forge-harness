@@ -1,0 +1,30 @@
+.primary,
+.secondary {
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-md);
+  transition: background 150ms ease;
+}
+
+.primary {
+  background: var(--bg-brand);
+  color: var(--text-on-brand);
+  border: none;
+}
+
+.secondary {
+  background: var(--surface-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+}
+
+.primary:disabled,
+.secondary:disabled {
+  opacity: 0.4;
+}
+
+.primary:focus-visible,
+.secondary:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}

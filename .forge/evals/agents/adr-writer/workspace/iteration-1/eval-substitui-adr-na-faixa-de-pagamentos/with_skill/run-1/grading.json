@@ -1,0 +1,49 @@
+{
+  "expectations": [
+    {
+      "text": "O novo ADR foi criado como docs/product/adr/0104-<titulo-em-kebab-case>.md — próximo livre da faixa 0100–0199 definida no README — e não como 0008 (próximo da faixa de plataforma) nem 0200+.",
+      "passed": true,
+      "evidence": "Comando `ls outputs/docs/product/adr/ | grep -E '^0(008|2[0-9]{2})'` não retorna nada; o arquivo criado é outputs/docs/product/adr/0104-antifraude-assincrono-pos-autorizacao.md (kebab-case), também presente e não rastreado em work/ (`git status`: '?? docs/product/adr/0104-antifraude-assincrono-pos-autorizacao.md'). README do fixture define 0100–0199 para pagamentos e 0103 era o último ocupado; transcript passo 6 justifica 0104 pela faixa."
+    },
+    {
+      "text": "O Status de docs/product/adr/0102-antifraude-sincrono-na-autorizacao.md foi alterado de 'Aceito' para 'Substituído por ADR-0104' (texto equivalente com o número 0104), preservando o restante do conteúdo.",
+      "passed": true,
+      "evidence": "`git diff HEAD` em work/ mostra única alteração no 0102: '-- **Status:** Aceito' → '+- **Status:** Substituído por [ADR-0104](./0104-antifraude-assincrono-pos-autorizacao.md)' (1 linha, '2 +-' no stat); Data 2026-06-09 e Autores preservados; outputs/0102 idêntico ao de work/ (diff vazio)."
+    },
+    {
+      "text": "O ADR 0104 menciona explicitamente que substitui o ADR-0102 e contém link relativo para 0102-antifraude-sincrono-na-autorizacao.md.",
+      "passed": true,
+      "evidence": "0104 linha 9: 'Este ADR substitui o ADR-0102 e registra a decisão...'; linha 32: '- Supera: [ADR-0102](./0102-antifraude-sincrono-na-autorizacao.md)' (grep -n '0102-antifraude-sincrono-na-autorizacao.md' casa na linha 32). Link relativo presente."
+    },
+    {
+      "text": "Na tabela mestra docs/product/adr/README.md a linha 0102 mostra status de substituído por 0104 e existe uma linha 0104 com link, título, status e data 2026-09-24, posicionada no bloco da faixa 0100.",
+      "passed": true,
+      "evidence": "outputs/README.md linha 28: '| [0102](...) | Antifraude síncrono no caminho de autorização | Substituído por ADR-0104 | 2026-06-09 |'; linha 30: '| [0104](./0104-antifraude-assincrono-pos-autorizacao.md) | Antifraude assíncrono pós-autorização com anulação antes da captura | Aceito | 2026-09-24 |', logo após 0103 (bloco 0100–0199, depois de todo o bloco 0001–0007). Confirmado por `git diff HEAD -- docs/product/adr/README.md`."
+    },
+    {
+      "text": "Os títulos de seção e o corpo do ADR 0104 estão em português brasileiro (ex.: 'Contexto', 'Opções Consideradas', 'Decisão', 'Consequências'); nenhuma seção é cópia em inglês das notas do Slack.",
+      "passed": true,
+      "evidence": "`grep -nE '^## '` no 0104: 'Contexto e Problema', 'Opções Consideradas', 'Decisão', 'Consequências', 'Conformidade', 'Links' — todos em pt-BR. `grep -ncE '\\b(Decision|Options|Context|Consequences|Chosen|Downside)\\b'` = 0. Corpo em prosa pt-BR (ex.: linha 19 'Opção 2 — pontuação de fraude assíncrona...'); nenhuma frase copiada das notas em inglês."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "reason": "As 5 asserções passam nas duas configurações (5/5 vs 5/5): o caso não discrimina o artefato. O próprio README do fixture explicita a regra de faixa ('Cada decisão usa o próximo número livre da faixa do seu escopo'), então o baseline acerta 0104 sem o agente. Para discriminar, a fixture poderia omitir essa frase ou ter um buraco na faixa (ex.: 0103 inexistente) ou um ADR 0104 já em status Proposto."
+      },
+      {
+        "assertion": null,
+        "reason": "O expected_output exige consequência negativa COM mitigação, três opções com prós E contras, autor @rafael-costa e Conformidade verificável, mas nenhuma asserção cobre isso. Observado: without_skill não tem mitigação alguma (linha 24 só descreve o custo) e ambas listam apenas 'Contra' nas opções, sem prós; with_skill tem mitigação fraca (linha 24 admite que a taxa não é recuperável). Asserções sobre esses pontos seriam as discriminantes."
+      },
+      {
+        "reason": "with_skill usa 'Supera:' na seção Links e cita 'a Vellus/Axis paga a taxa' (linha 24) — nome de empresa inventado, não presente nas notas nem na fixture; nenhuma asserção pega alucinação de entidades."
+      }
+    ]
+  }
+}

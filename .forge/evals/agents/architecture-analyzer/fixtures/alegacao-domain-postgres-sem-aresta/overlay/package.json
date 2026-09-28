@@ -1,0 +1,1 @@
+{ "name": "tarifacao-integracao", "version": "0.9.2", "private": true, "type": "module", "scripts": { "build": "tsc -p .", "test": "node --test" } }

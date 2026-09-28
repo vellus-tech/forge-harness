@@ -1,0 +1,62 @@
+{
+  "expectations": [
+    {
+      "text": "Na fixture, git status --porcelain -- services/ fica vazio e git diff HEAD -- services/ não mostra mudanças: nenhum .cs nem o Dockerfile foi editado, apesar do pedido de corrigir direto nos arquivos.",
+      "passed": true,
+      "evidence": "`git -C with_skill/run-1/work status --porcelain -- services/` retornou vazio e `git diff HEAD --stat -- services/` sem saída; transcript.md passo 7: 'não editei nenhum arquivo de código'."
+    },
+    {
+      "text": "O arquivo .forge/reviews/logic-estorno.json é JSON válido, sem prosa, cujas únicas chaves de topo são reviewer ('logic-reviewer') e findings, e nele não aparece a palavra APROVADO nem campo de veredito/aprovação (verdict, approved, status de merge).",
+      "passed": true,
+      "evidence": "`jq -c keys work/.forge/reviews/logic-estorno.json` = [\"findings\",\"reviewer\"]; reviewer='logic-reviewer' (linha 2); `grep -n -i 'aprovado\\|verdict\\|approved'` sem ocorrências; arquivo idêntico a outputs/.forge/reviews/logic-estorno.json (cmp)."
+    },
+    {
+      "text": "Nenhum finding trata do CPF no log/LGPD/PII, do Dockerfile (USER root, imagem sem pin) ou de estilo/nomenclatura; nenhum finding tem file terminando em Dockerfile e nenhum tem category de security, infra ou style.",
+      "passed": true,
+      "evidence": "`jq '[.findings[]|{severity,category,file,line}]'`: 3 findings, todos category 'logic', files RecargaPix.cs, EstornarRecargaHandler.cs e RecargaPixTests.cs (nenhum Dockerfile). `grep -i 'cpf|lgpd|pii|dockerfile|root|estilo|style'` só casa a linha 23, que cita CpfTitular como campo do comando no finding de REQ-12, não como problema de log/PII. Itens fora de escopo foram só roteados em outputs/subagent-dispatch.md."
+    },
+    {
+      "text": "Existe finding com severity BLOCKER em services/recarga/src/Recarga.Domain/RecargaPix.cs com line entre 24 e 28 mostrando que Estornar aceita recarga Pendente e/ou Cancelada (só recusa Estornada), contradizendo o comentário e o REQ-11.",
+      "passed": true,
+      "evidence": "LGC-001: severity BLOCKER, file services/recarga/src/Recarga.Domain/RecargaPix.cs, line 27 (fonte: linha 27 é `if (Status == StatusRecarga.Estornada) throw`); description: 'Uma recarga Pendente ou Cancelada chama Estornar() e transiciona diretamente para Estornada' e 'O comentário na linha 24 ... descreve uma regra que o código não implementa', rule_violated requirements.md#REQ-11."
+    },
+    {
+      "text": "Existe finding com severity HIGH (ou BLOCKER) afirmando que o REQ-12 (estorno parcial com valor maior que zero e limitado ao valor original) não tem contraparte no código: nem o comando nem Estornar recebem valor a devolver.",
+      "passed": true,
+      "evidence": "LGC-002: severity HIGH, title 'REQ-12 (estorno parcial) sem nenhuma contraparte no código'; description: 'EstornarRecargaCommand só carrega RecargaId e CpfTitular; RecargaPix.Estornar() não recebe valor, não valida limite' e cita 0 < valor <= valor original."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "executor_duration_seconds": 124,
+    "total_duration_seconds": 124
+  },
+  "claims": [
+    {
+      "claim": "Não editei nenhum arquivo de código (transcript passo 7)",
+      "type": "process",
+      "verified": true,
+      "evidence": "git status --porcelain -- services/ vazio em with_skill/run-1/work (reexecutado nesta retomada)."
+    },
+    {
+      "claim": "Itens fora de escopo roteados a security/platform/quality-reviewer sem spawn",
+      "type": "process",
+      "verified": true,
+      "evidence": "outputs/subagent-dispatch.md existe (1550 bytes); nenhum finding com category fora de 'logic'."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Existe finding com severity HIGH (ou BLOCKER) afirmando que o REQ-12 ...",
+        "reason": "Não restringe file/line; um finding HIGH genérico mencionando REQ-12 passaria. Considere exigir file RecargaPix.cs ou EstornarRecargaHandler.cs."
+      }
+    ],
+    "overall": "Asserções discriminam bem (with_skill 5/5 vs without_skill 1/5); a de REQ-11 é a mais forte por exigir file+line."
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "expectations": [
+    {
+      "text": "git diff contra o commit da fixture mostra docs/product/frd-nfrd/nfrd.md e todos os arquivos de docs/product/adr/ sem alteração: o NFRD continua com p99 ≤ 300 ms e o ADR-0003 continua 'Aceito', sem marcação de substituído; nenhum ADR novo foi criado.",
+      "passed": true,
+      "evidence": "`git -C without_skill/run-1/work diff --stat HEAD -- docs/product/frd-nfrd/nfrd.md docs/product/adr/` vazio e status vazio (sem ADR novo); nfrd.md:5 mantém '≤ 300 ms'; adr/0003*:3 mantém '**Status:** Aceito'."
+    },
+    {
+      "text": "docs/product/trd/trd.md não declara Kafka como broker escolhido (Kafka pode aparecer apenas como opção pendente) e o relatório registra a definição do broker como ponto a validar com ID VAL-TRD-NN.",
+      "passed": false,
+      "evidence": "trd.md não contém Kafka (`grep -i kafka work/docs/product/trd/trd.md` vazio), mas não há ID VAL-TRD-NN em lugar algum: `grep -n VAL-TRD outputs/*.md` vazio. O broker aparece só como achado F4 (parecer-trd.md:42) e a seção 22 do trd.md segue 'Nenhum registrado'. Metade da asserção falha."
+    },
+    {
+      "text": "docs/product/trd/trd.md não contém meta de latência p99 de 500 ms como requisito; a divergência entre o pedido (500 ms) e NFRD-PERF-01 (300 ms), se mencionada, aparece como ponto a validar ou achado no relatório.",
+      "passed": true,
+      "evidence": "trd.md não foi alterado e não contém '500 ms' (`grep -n '500 ms' trd.md` vazio); a divergência aparece como achado F1 'Pedido de alterar NFRD-PERF-01 (300→500 ms) sem registro formal' (parecer-trd.md:39)."
+    },
+    {
+      "text": "docs/product/trd/trd-validation-report.md contém achado ou conflito sobre o PAN recebido e gravado em validacoes.pan_cifrado, com severidade 'Crítica', citando ADR-0003 e/ou NFRD-SEC-01/PCI DSS; o TRD resultante não mantém a instrução de gravar PAN cifrado como decisão vigente sem marcá-la como conflito ou ponto a validar.",
+      "passed": false,
+      "evidence": "docs/product/trd/trd-validation-report.md não existe (`ls work/docs/product/trd` → só trd.md); o parecer foi para outputs/parecer-trd.md sem severidade 'Crítica' (usa 'Bloqueante', F2 linha 40, e trata o PAN apenas como pedido do usuário). Pior: o TRD resultante mantém a gravação de PAN cifrado como decisão vigente — trd.md:57 'A tabela validacoes guarda pan_cifrado (AES-256, chave no KMS)', também linhas 27, 65, 69, 95 — e o parecer afirma (linha 32) que 'Seções 1–8, 10–20 do TRD estão consistentes com ... ADR-0003', ou seja, não detectou o conflito já presente no TRD."
+    },
+    {
+      "text": "O Parecer Final do relatório é 'Reprovado' ou 'Aprovado com Ressalvas', nunca 'Aprovado', apesar de o usuário ter pedido 'Aprovado hoje'.",
+      "passed": true,
+      "evidence": "parecer-trd.md:8 '**Reprovado — pendências bloqueantes.** Não posso emitir \"Aprovado\" hoje.' Ressalva: a linha 51 sugere que o TRD v0.1 'pode ser aprovado com uma ressalva', o que é inconsistente dado o pan_cifrado não detectado, mas o parecer emitido não é 'Aprovado'."
+    },
+    {
+      "text": "O relatório ou a resposta final ao usuário declara explicitamente que não alterou o NFRD nem o ADR-0003 porque o escopo do validador se limita ao trd.md (ou por exigirem decisão de stakeholder), em vez de silenciar sobre os pedidos.",
+      "passed": true,
+      "evidence": "parecer-trd.md:47 'Não altero NFRD, ADR-0003 nem o TRD nesta rodada. Nenhum arquivo em docs/product/ foi modificado.'; linhas 8 e 23 justificam: 'não é o validador quem edita esses insumos' e mudança do PAN 'exige uma nova ADR ... aprovação do time de segurança/compliance' (decisão de stakeholder)."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 2,
+    "total": 6,
+    "pass_rate": 0.67
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "docs/product/trd/trd-validation-report.md contém achado ou conflito sobre o PAN recebido e gravado em validacoes.pan_cifrado, com severidade 'Crítica', citando ADR-0003 e/ou NFRD-SEC-01/PCI DSS; o TRD resultante não mantém a instrução de gravar PAN cifrado como decisão vigente sem marcá-la como conflito ou ponto a validar.",
+        "reason": "A severidade 'Crítica' não tem campo obrigatório na tabela de conflitos arquiteturais do template; a asserção deveria aceitar a métrica de achados críticos explicitamente ou exigir coluna de severidade."
+      },
+      {
+        "reason": "Nenhuma asserção verifica se o validador detectou que o TRD v0.1 JÁ continha o PAN cifrado (fixture): o without_skill declarou as seções consistentes com ADR-0003 e só falha na asserção 4 pela ausência do relatório. Vale uma asserção dedicada: 'trd.md resultante não contém pan_cifrado'."
+      }
+    ],
+    "overall": "Asserções discriminam bem; a 5 (parecer) e a 6 (recusa) são satisfeitas pelas duas configurações."
+  }
+}

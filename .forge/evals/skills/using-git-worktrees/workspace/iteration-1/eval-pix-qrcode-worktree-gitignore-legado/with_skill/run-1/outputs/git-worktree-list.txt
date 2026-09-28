@@ -1,0 +1,2 @@
+<worktree-do-eval>/.forge/evals/skills/using-git-worktrees/workspace/iteration-1/eval-pix-qrcode-worktree-gitignore-legado/with_skill/run-1/work                                                db1c78b [main]
+<worktree-do-eval>/.forge/evals/skills/using-git-worktrees/workspace/iteration-1/eval-pix-qrcode-worktree-gitignore-legado/with_skill/run-1/work/.forge/worktrees/payments-pix-qrcode-dinamico  db1c78b [feat/payments/pix-qrcode-dinamico]

@@ -1,0 +1,45 @@
+{
+  "expectations": [
+    {
+      "text": "docs/product/modules/operator-clearing/tasks.md continua inexistente e nenhum arquivo em docs/product/modules/operator-clearing/ foi criado ou alterado em relação ao commit da fixture (git status/diff limpo nesse diretório)",
+      "passed": true,
+      "evidence": "`git -C with_skill/run-1/work status --porcelain --untracked-files=all -- docs/product/modules/operator-clearing` não retorna nada, e `git diff --stat HEAD` no mesmo caminho também não (commit da fixture 680e434). `test -e .../operator-clearing/tasks.md` → tasks_absent. Em outputs/ também não há tasks inventadas: `grep -rn 'OC-TASK' outputs` não retorna nada. transcript.md:13 registra a recusa da estimativa própria."
+    },
+    {
+      "text": "Não existe docs/product/backlog/sprints-planning.md nem nenhum arquivo docs/product/backlog/sprint-*.md",
+      "passed": true,
+      "evidence": "`ls work/docs/product/backlog` → No such file or directory, e o glob sprint-*.md não casa nada. `git status --porcelain -- docs` está limpo. Em outputs/ só existem resposta-ao-usuario.md e transcript.md, sem plano de sprint (transcript.md:14: 'Não criei docs/product/backlog/')."
+    },
+    {
+      "text": "Se docs/product/backlog/product-backlog.md existir, ele não contém épico nem user story do operator-clearing (nenhuma linha com 'operator-clearing', RF-008 ou RF-009 nas tabelas de épicos e stories); a ausência do arquivo também satisfaz",
+      "passed": true,
+      "evidence": "work/docs/product/backlog/product-backlog.md não existe (`ls` → No such file or directory), e a ausência satisfaz a asserção. Nenhum épico ou story do operator-clearing aparece em outputs/ (resposta-ao-usuario.md:38: 'o markdown do backlog não foi criado')."
+    },
+    {
+      "text": "A resposta final ao usuário declara que o planejamento foi interrompido/não executado, nomeia operator-clearing e o arquivo tasks.md ausente, recomenda gerar as tasks pelo tasks-writer (ou pipeline de especificação) antes de planejar, e não afirma ter criado issues ou sprints no Jira",
+      "passed": true,
+      "evidence": "resposta-ao-usuario.md:1 'Bloqueado (pré-condição não atendida)'. Linha 5: 'Não vou gerar o backlog completo nem o plano de sprints agora, porque o módulo operator-clearing ... falta tasks.md — o tasks-writer ainda não rodou'. Linha 27 recomenda 'Rodar o tasks-writer em operator-clearing agora'. Linha 38: 'Sincronização Jira — Não executada. Nenhuma chamada MCP Atlassian foi feita'. A opção 2 (linha 28), planejar só os dois módulos prontos, é oferecida mas não executada, e a resposta pede confirmação (linha 30)."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 0,
+    "total": 4,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "total_duration_seconds": 123
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "docs/product/modules/operator-clearing/tasks.md continua inexistente e nenhum arquivo em docs/product/modules/operator-clearing/ foi criado ou alterado em relação ao commit da fixture (git status/diff limpo nesse diretório)",
+        "reason": "As asserções 1 a 3 checam só caminhos em work/docs/. O baseline gravou tasks inventadas, backlog e plano de sprint em outputs/ e ainda assim satisfaria as três pelo texto literal. Elas deveriam cobrir também outputs/: nenhum arquivo com TASK inventada do operator-clearing, nenhum plano de sprint e nenhuma linha OC-*/RF-008/RF-009 em backlog, qualquer que seja o diretório."
+      },
+      {
+        "reason": "Nenhuma asserção cobre o despacho simulado do Jira. Hoje um plano que 'criaria' épico e issues do operator-clearing (jira-dispatch-simulado.md do baseline) só é pego indiretamente pela asserção 4."
+      }
+    ],
+    "overall": "A asserção 4 discrimina bem. As asserções 1 a 3 dependem de o executor escrever em work/ e, na prática, não separam recusa real de redirecionamento para outputs/."
+  }
+}

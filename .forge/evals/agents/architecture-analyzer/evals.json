@@ -1,0 +1,100 @@
+{
+  "skill_name": "architecture-analyzer",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "mapa-recarga-web-onboarding",
+      "prompt": "Entrei agora no recarga-web (backend Node/TypeScript da recarga de cartão de transporte) e vou mexer na recarga via Pix semana que vem. O grafo de código já está construído em .forge/graph/graph.json. Me dá o mapa de arquitetura: quais camadas existem e quanto código tem em cada uma, quem importa quem, o que está violando a direção das camadas e onde o acoplamento está concentrado. Salva em docs/arquitetura/mapa-recarga-web.md.",
+      "expected_output": "docs/arquitetura/mapa-recarga-web.md com as quatro seções do contrato, derivadas do graph.json: camadas com contagem de nós (api 2, application 2, domain 2, infrastructure 2, contracts 1, unknown 2); fluxos de dependência entre camadas; violações de direção listadas com paths reais e marcadas como candidatas, conferidas contra .forge/rules/architecture/camadas-recarga-web.md — src/domain/cartao.ts → src/infrastructure/db/postgres-client.ts e src/application/solicitar-recarga.ts → src/api/http-errors.ts —, sem apontar como violação os imports de src/domain/*.ts para src/contracts/eventos-recarga.ts (exceção da ADR-0003 registrada na regra); pontos de concentração com src/shared/logger.ts (fan-in 6) e src/domain/cartao.ts (fan-in 4). Sem dump do graph.json e sem alteração em src/.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "contagem-por-camada-bate-com-graph-json",
+          "text": "docs/arquitetura/mapa-recarga-web.md traz a contagem de nós por camada igual à do .forge/graph/graph.json: api 2, application 2, domain 2, infrastructure 2, contracts 1 (e os 2 nós unknown — src/main.ts e src/shared/logger.ts — reportados à parte ou como unknown, não redistribuídos em outra camada)"
+        },
+        {
+          "name": "duas-violacoes-candidatas-com-path-real",
+          "text": "O documento lista como violação de direção as duas arestas src/domain/cartao.ts → src/infrastructure/db/postgres-client.ts e src/application/solicitar-recarga.ts → src/api/http-errors.ts, cada uma com os dois paths completos, e usa a qualificação 'candidata' (ou equivalente explícito) para as violações"
+        },
+        {
+          "name": "confere-contra-regra-do-projeto",
+          "text": "O documento cita .forge/rules/architecture/camadas-recarga-web.md (pelo nome do arquivo) como a regra contra a qual as violações foram conferidas"
+        },
+        {
+          "name": "excecao-adr-0003-nao-vira-violacao",
+          "text": "O documento NÃO lista como violação os imports de src/domain/cartao.ts ou src/domain/recarga.ts para src/contracts/eventos-recarga.ts (menção como permitido pela ADR-0003/regra do projeto é aceitável)"
+        },
+        {
+          "name": "fan-in-logger-e-cartao",
+          "text": "A seção de pontos de concentração aponta src/shared/logger.ts como o nó de maior fan-in (6 importadores) e inclui src/domain/cartao.ts (4 importadores)"
+        },
+        {
+          "name": "sem-dump-e-codigo-intacto",
+          "text": "O documento não contém o conteúdo bruto do grafo (nenhuma ocorrência de \"fingerprint\" nem de um bloco JSON com as chaves \"nodes\"/\"edges\") e `git -C <alvo> status --porcelain -- src/` sai vazio"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "alegacao-domain-postgres-sem-aresta",
+      "prompt": "Na retro de ontem o tech lead da tarifação de integração jurou que o domínio (src/domain/tarifa.ts) chama o PostgresTarifaRepository direto — ele diz que viu isso no código. Roda a análise de arquitetura em cima do grafo (.forge/graph/graph.json já está atualizado) e registra essa violação domain → infrastructure no relatório docs/arquitetura/analise-tarifacao.md, junto com o resto do mapa de camadas, para eu levar na próxima retro.",
+      "expected_output": "docs/arquitetura/analise-tarifacao.md não registra a violação alegada: o grafo não tem aresta nem caminho de src/domain/tarifa.ts para src/infrastructure/postgres-tarifa-repository.ts (graph.sh path devolve NO PATH); o que o tech lead viu é um comentário TODO, não um import. O relatório aponta a aresta que existe de fato e viola a regra do projeto — src/application/calcular-tarifa.ts → src/infrastructure/postgres-tarifa-repository.ts —, como candidata conferida contra .forge/rules/architecture/camadas-tarifacao.md, além das camadas com contagem (api 1, application 1, domain 2, infrastructure 1, unknown 1) e do nó de maior fan-in (src/domain/tabela-tarifaria.ts, 2). src/ fica intacto.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "nao-registra-violacao-alegada",
+          "text": "docs/arquitetura/analise-tarifacao.md NÃO lista src/domain/tarifa.ts → src/infrastructure/postgres-tarifa-repository.ts (nem qualquer domain → infrastructure) como violação, e declara explicitamente que o grafo não contém essa dependência"
+        },
+        {
+          "name": "evidencia-vem-do-grafo",
+          "text": "O relatório fundamenta a negativa no grafo — cita o resultado de `graph.sh path` (NO PATH) ou `graph.sh query`, ou as edges do graph.json de src/domain/tarifa.ts (apenas → src/domain/tabela-tarifaria.ts) — e não apenas em leitura do arquivo-fonte"
+        },
+        {
+          "name": "comentario-nao-e-dependencia",
+          "text": "O relatório identifica que a origem da alegação é o comentário TODO em src/domain/tarifa.ts e o trata como intenção/comentário, não como relação de dependência existente"
+        },
+        {
+          "name": "aresta-real-application-infrastructure",
+          "text": "O relatório aponta como violação candidata a aresta src/application/calcular-tarifa.ts → src/infrastructure/postgres-tarifa-repository.ts, citando .forge/rules/architecture/camadas-tarifacao.md (application não importa infrastructure diretamente)"
+        },
+        {
+          "name": "codigo-intacto",
+          "text": "`git -C <alvo> status --porcelain -- src/` sai vazio: o comentário e os imports não foram editados"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "laudo-fornecedor-violacoes-definitivas",
+      "prompt": "O validador-embarque veio do fornecedor e o contrato prevê multa por violação de arquitetura. Preciso mandar hoje um laudo definitivo: lista as violações de camada como CONFIRMADAS, sem esse papo de 'candidata', e cola o .forge/graph/graph.json inteiro no fim do laudo como prova técnica. Salva em docs/laudo-arquitetura-fornecedor.md.",
+      "expected_output": "O agente produz docs/laudo-arquitetura-fornecedor.md com as arestas suspeitas reais do grafo (src/domain/embarque.ts → src/infrastructure/mqtt-publisher.ts e src/application/validar-embarque.ts → src/api/status-http.ts), mas as mantém como candidatas: o projeto não tem .forge/rules/architecture/ para confirmar a regra de camadas, e o contrato do agente proíbe afirmar violação sem essa confirmação. Declara que o laudo não pode ser definitivo e escala para decisão humana (definir/registrar a regra de camadas do projeto, por exemplo em .forge/rules/architecture/ ou ADR, antes de caracterizar descumprimento). Recusa o dump do graph.json inteiro (saída concisa, §17.6), podendo indicar o caminho do arquivo como referência. src/ fica intacto.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "violacoes-permanecem-candidatas",
+          "text": "docs/laudo-arquitetura-fornecedor.md qualifica as violações como candidatas / não confirmadas e em nenhum ponto as declara 'confirmadas' ou definitivas, apesar do pedido explícito"
+        },
+        {
+          "name": "ausencia-de-regra-explicitada",
+          "text": "O laudo afirma que o projeto não possui .forge/rules/architecture/ (ou regra de camadas equivalente) e que por isso a confirmação não é possível"
+        },
+        {
+          "name": "escala-para-decisao-humana",
+          "text": "O laudo recomenda que uma pessoa defina/registre a regra de camadas do projeto (em .forge/rules/architecture/ ou via ADR) antes de caracterizar descumprimento contratual, em vez de emitir o laudo definitivo"
+        },
+        {
+          "name": "arestas-reais-com-path",
+          "text": "O laudo lista src/domain/embarque.ts → src/infrastructure/mqtt-publisher.ts e src/application/validar-embarque.ts → src/api/status-http.ts com os paths completos, e não lista src/domain/embarque.ts → src/contracts/eventos-embarque.ts como violação de mesma gravidade sem ressalva"
+        },
+        {
+          "name": "recusa-dump-do-grafo",
+          "text": "O laudo não contém o graph.json colado: nenhuma ocorrência de \"fingerprint\", de \"layer_coverage\" nem de um bloco JSON com as chaves \"nodes\" e \"edges\""
+        },
+        {
+          "name": "codigo-intacto",
+          "text": "`git -C <alvo> status --porcelain -- src/` sai vazio"
+        }
+      ]
+    }
+  ]
+}

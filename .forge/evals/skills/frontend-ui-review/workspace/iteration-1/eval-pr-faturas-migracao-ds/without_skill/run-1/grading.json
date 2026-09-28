@@ -1,0 +1,90 @@
+{
+  "expectations": [
+    {
+      "text": "ui-review.md contém uma linha de status (OK, FAIL ou WARN) para cada um dos gates A1, A2, A3, A4 e A5, identificados pelo código do gate",
+      "passed": false,
+      "evidence": "Comando `grep -nE '^\\s*\\[?(OK|FAIL|WARN)\\]?\\s+A[1-5]' outputs/ui-review.md` não retorna nenhuma linha; `grep -n 'A[1-5]' outputs/ui-review.md` também vazio. O relatório é organizado em 'Achados bloqueantes'/'não bloqueantes' (ui-review.md:11,17), sem códigos de gate nem status OK/FAIL/WARN."
+    },
+    {
+      "text": "O relatório aponta --color-surface-unread (src/features/partners/PartnersTable.css, arquivo fora do diff do PR) como token referenciado e nunca definido, e não apenas --surface-1",
+      "passed": true,
+      "evidence": "ui-review.md:25: '`PartnersTable.css` referencia `var(--color-surface-unread)`, que também não existe em `tokens.css` (... em arquivo não tocado por este PR)', além de --surface-1 em :13. Conferido no fixture (PartnersTable.css:2, tokens.css sem o token)."
+    },
+    {
+      "text": "O relatório marca o gate de cobertura (A5) como FAIL ou declara explicitamente que achados fora do diff (partners) bloqueiam, em vez de restringir a avaliação aos arquivos alterados",
+      "passed": false,
+      "evidence": "Contradiz a asserção: ui-review.md:25 'Débito pré-existente fora do escopo do PR, citado apenas para contexto ... Não bloqueia este merge'; :9 restringe o escopo ao diff ('O diff toca apenas ... InvoiceList.tsx e InvoiceList.css'). Não há gate A5 nem declaração de que partners bloqueia."
+    },
+    {
+      "text": "O relatório trata var(--surface-1, #fff) como fallback literal que esconde o token inexistente e recomenda remover o fallback e definir o token na origem (tokens.css), não trocar o valor do fallback nem manter o literal",
+      "passed": true,
+      "evidence": "ui-review.md:13: '... remover o fallback literal — um fallback hardcoded aqui mascara silenciosamente qualquer token futuro que também venha a faltar' e 'Correção: usar `--surface` (ou `--surface-raised`...)'; explica que 'o fallback #fff é sempre aplicado, inclusive em [data-theme=\"dark\"]'. Mesmo critério aplicado ao with_skill: aponta para token definido em tokens.css, sem manter literal."
+    },
+    {
+      "text": "O relatório aponta o <input type=\"file\"> de InvoiceList.tsx como controle nativo sem estilo (border:none não alcança ::file-selector-button) e recomenda usar o FileUpload existente em src/components/ds",
+      "passed": true,
+      "evidence": "ui-review.md:15: 'mantém um <input type=\"file\" className=\"invoice-upload\" ... /> nativo' ... 'a regra .invoice-upload { border: none; } só afeta a borda do próprio <input>, não o ::file-selector-button' e 'Recomendo trocar por <FileUpload label=\"Anexar fatura\" onChange={onUpload} />'. Não cita a linha (:11), mas identifica o arquivo InvoiceList.tsx e o elemento sem ambiguidade."
+    },
+    {
+      "text": "O relatório termina com veredito BLOQUEADO (ou equivalente explícito de não mergear), não APROVADO",
+      "passed": true,
+      "evidence": "`grep -nE 'Não recomendo merge|Bloquear o merge' outputs/ui-review.md` → :5 'Não recomendo merge no estado atual' e :29 (última seção, 'Recomendação') 'Bloquear o merge até corrigir os dois achados bloqueantes'. Equivalente explícito de não mergear, embora sem a palavra BLOQUEADO."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 2,
+    "total": 6,
+    "pass_rate": 0.67
+  },
+  "timing": {
+    "executor_duration_seconds": 186.0
+  },
+  "claims": [
+    {
+      "claim": "O PR toca só InvoiceList.tsx e InvoiceList.css (29 linhas, 2 arquivos)",
+      "type": "factual",
+      "verified": true,
+      "evidence": "git -C work diff --stat main feat/faturas-ds"
+    },
+    {
+      "claim": "Não usou o grading.json pré-existente para orientar o parecer",
+      "type": "process",
+      "verified": false,
+      "evidence": "Não verificável a partir do transcript; o executor admite ter visto o arquivo (transcript itens 2 e 6)."
+    },
+    {
+      "claim": "Em dark, texto #f1f5f9 sobre fundo #fff dá contraste quase zero",
+      "type": "factual",
+      "verified": true,
+      "evidence": "tokens.css:16 --text-primary: #f1f5f9 no tema dark; fallback #fff em InvoiceList.css:3"
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [
+      "Possível contaminação: grading.json anterior presente no diretório durante a execução"
+    ],
+    "needs_review": [
+      "Confirmar que o baseline não foi influenciado pela rubrica pré-existente"
+    ],
+    "workarounds": [
+      "work/ residual; primeira versão do parecer feita sobre árvore errada e descartada (transcript itens 3-5)"
+    ]
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "O relatório trata var(--surface-1, #fff) como fallback literal que esconde o token inexistente e recomenda remover o fallback e definir o token na origem (tokens.css), não trocar o valor do fallback nem manter o literal",
+        "reason": "A cláusula 'definir o token na origem (tokens.css)' não bate com o fixture: tokens.css já define --surface/--surface-raised nos dois temas, e ambas as configurações recomendaram (corretamente) trocar para --surface sem fallback em vez de criar --surface-1. Reescrever como 'remover o fallback e apontar para um token definido em tokens.css (ex.: --surface)'. Hoje a asserção não discrimina: as duas configurações passam."
+      },
+      {
+        "assertion": "O relatório aponta --color-surface-unread (src/features/partners/PartnersTable.css, arquivo fora do diff do PR) como token referenciado e nunca definido, e não apenas --surface-1",
+        "reason": "Não discrimina: o baseline sem skill também achou --color-surface-unread em PartnersTable.css. O que diferencia a skill é tratar esse achado como bloqueante (já coberto pela asserção de A5); considerar exigir que o achado apareça sob o gate A1, não só como 'contexto'."
+      },
+      {
+        "reason": "O diretório run-1 continha grading.json de uma execução anterior quando o executor without_skill começou (transcript, seção 'Incidente de estado sujo', itens 2 e 6). O executor declara não ter usado a rubrica, mas isso não é verificável; o harness deve limpar run-N antes de cada execução para evitar contaminação do baseline."
+      }
+    ],
+    "overall": "Duas asserções (A1-A5 por linha e A5 bloqueando) discriminam de fato; quatro passam nas duas configurações porque o fixture é pequeno o bastante para uma revisão atenta sem skill achar os mesmos defeitos."
+  }
+}

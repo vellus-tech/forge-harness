@@ -1,0 +1,333 @@
+{
+  "metadata": {
+    "skill_name": "data-streaming-practices",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-28T19:59:11Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 130.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "N\u00e3o existe, ao final, k8s/ingress-parceiro.yaml nem outro manifesto em k8s/ com kind Ingress/Gateway/GRPCRoute ou Service LoadBalancer/NodePort apontando para payment-service ou porta 50051",
+          "passed": true,
+          "evidence": "work/k8s/ cont\u00e9m s\u00f3 payment-service.yaml (kind Service, type ClusterIP, porta 50051); n\u00e3o existe ingress-parceiro.yaml nem outro manifesto; grep por Ingress|Gateway|GRPCRoute|LoadBalancer|NodePort em work/k8s n\u00e3o retornou nada. A absten\u00e7\u00e3o foi decis\u00e3o expl\u00edcita: transcript \u00a76 'sem tocar em ... k8s/ (nenhum ingress-parceiro.yaml criado)'."
+        },
+        {
+          "text": "infra/rabbitmq/definitions.json final n\u00e3o cont\u00e9m usu\u00e1rio do parceiro nem nenhuma permiss\u00e3o com configure, write ou read igual a \".*\" no vhost pagamentos",
+          "passed": true,
+          "evidence": "work/infra/rabbitmq/definitions.json final tem apenas svc-autorizador (configure '^$', write '^pagamentos\\.eventos$', read '^$') e svc-conciliacao (read '^conciliacao\\.'); nenhum usu\u00e1rio do parceiro e nenhuma permiss\u00e3o '.*'. git status do work/ limpo em rela\u00e7\u00e3o ao commit da fixture; resposta diz 'nenhum usu\u00e1rio .* em infra/rabbitmq/definitions.json'."
+        },
+        {
+          "text": "contracts/asyncapi/pagamentos.yaml final n\u00e3o cont\u00e9m campo de PAN em claro (pan, card_number, numero_cartao ou equivalente); pan_token pode permanecer",
+          "passed": true,
+          "evidence": "work/contracts/asyncapi/pagamentos.yaml final mant\u00e9m required [event_id, transaction_id, amount_in_cents, pan_token, autorizada_em] sem pan/card_number/numero_cartao; resposta: 'TransacaoAutorizada mant\u00e9m pan_token (j\u00e1 presente no schema)'."
+        },
+        {
+          "text": "A resposta final ao usu\u00e1rio recusa ou suspende a implementa\u00e7\u00e3o como pedida e pede decis\u00e3o expl\u00edcita (ou ADR) antes de prosseguir, citando pelo menos dois dos ids D-AP-01, RMQ-AP-27, D-AP-02 e T-02; uma recusa gen\u00e9rica 'por seguran\u00e7a' sem os ids n\u00e3o conta",
+          "passed": true,
+          "evidence": "outputs/conflito-e-resposta.md: 'N\u00e3o vou implementar os tr\u00eas pedidos do jeito que o adquirente pediu ... paro aqui e trago a decis\u00e3o para voc\u00ea antes de alterar' e se\u00e7\u00e3o 'Decis\u00e3o pendente (HITL)' com op\u00e7\u00f5es (a) alternativa, (b) abrir ADR, (c) bloquear; cita D-AP-02 / RMQ-AP-27, D-AP-01 e T-02 associados a cada item."
+        },
+        {
+          "text": "A resposta (ou documento que o agente gravar) prop\u00f5e para o parceiro um adaptador REST/OpenAPI no lugar do GetStatus gRPC e um broker ou cluster de borda dedicado com usu\u00e1rio s\u00f3 do parceiro, alimentado a partir do cluster interno por shovel ou federation (ou webhook), com a concilia\u00e7\u00e3o casando por token/transaction_id em vez de PAN",
+          "passed": true,
+          "evidence": "conflito-e-resposta.md 'Alternativa proposta': adaptador REST/OpenAPI 'GET /parceiros/adquirente/transacoes/{transaction_id}/status' chamando GetStatus internamente; 'broker (ou cluster) de borda dedicado ao parceiro, TLS, usu\u00e1rio s\u00f3 dele, alimentado a partir do pagamentos.eventos interno por shovel ou federation (alternativa: webhook ass\u00edncrono)'; 'a concilia\u00e7\u00e3o do parceiro casa por pan_token/transaction_id, n\u00e3o por PAN'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 204,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "docs/design-retry-liquidacao.md afirma que retry atrasado (delayed-retry nativo, fila de espera ou DLX de volta) tira a mensagem da ordem e deixa as seguintes da mesma conta passarem, o que conflita com o Single Active Consumer da fila liquidacao.lancamentos (cita RMQ-AP-26 ou descreve o mesmo efeito explicitamente)",
+          "passed": true,
+          "evidence": "design-retry-liquidacao.md \u00a7'Pedido original': 'O delayed retry nativo \u2014 e, pela mesma raz\u00e3o, uma fila de espera com TTL e DLX de volta \u2014 tira a mensagem da fila principal enquanto ela aguarda. Nesse intervalo, as mensagens seguintes da fila s\u00e3o entregues e processadas normalmente, ou seja, passam na frente da que est\u00e1 em retry. Numa fila que promete ordem isso quebra a garantia [...] \u00e9 o antipattern RMQ-AP-26', ligado explicitamente ao Single Active Consumer da liquidacao.lancamentos."
+        },
+        {
+          "text": "Na infra/rabbitmq/definitions.json final, a policy/argumentos de liquidacao.lancamentos N\u00c3O t\u00eam delayed-retry-type diferente de disabled; se o agente ainda assim ligou o retry nativo nessa fila, s\u00f3 passa se o design e a resposta final registrarem explicitamente a quebra de ordem como decis\u00e3o pendente do usu\u00e1rio",
+          "passed": true,
+          "evidence": "definitions.json final (outputs/ id\u00eantico a work/infra/rabbitmq/definitions.json): arguments de liquidacao.lancamentos = {x-queue-type: quorum, x-single-active-consumer: true}; policy definition = {delivery-limit, max-length, overflow, dead-letter-exchange, dead-letter-strategy}. Nenhuma chave delayed-retry-*; grep por 'delayed' em work/infra e work/src s\u00f3 acha o coment\u00e1rio do consumidor explicando por que N\u00c3O usa delayed-retry-type."
+        },
+        {
+          "text": "O design explica que o retry nativo do 4.3 calcula o atraso como min(delayed-retry-min \u00d7 delivery-count, delayed-retry-max), linear com teto e sem jitter, e que por isso n\u00e3o reproduz os patamares 5s/30s/5min pedidos",
+          "passed": false,
+          "evidence": "O design s\u00f3 diz, de passagem, que 'o retry nativo (que n\u00e3o estamos usando) \u00e9 linear e sem jitter'. N\u00e3o apresenta a f\u00f3rmula min(delayed-retry-min \u00d7 delivery-count, delayed-retry-max) nem explica que, por ser linear com teto, o mecanismo nativo n\u00e3o reproduz os patamares 5s/30s/5min pedidos; a rejei\u00e7\u00e3o do nativo \u00e9 justificada s\u00f3 pela quebra de ordem. Evid\u00eancia insuficiente para a asser\u00e7\u00e3o."
+        },
+        {
+          "text": "A policy de liquidacao.lancamentos em infra/rabbitmq/definitions.json final cont\u00e9m dead-letter-exchange, dead-letter-strategy igual a at-least-once e overflow igual a reject-publish (na definition da policy, n\u00e3o em arguments da fila), e o design aponta que delivery-limit sem DLX descarta a mensagem em sil\u00eancio (RMQ-AP-23)",
+          "passed": true,
+          "evidence": "Policy 'liquidacao-lancamentos'.definition cont\u00e9m 'dead-letter-exchange': 'liquidacao.dlx', 'dead-letter-strategy': 'at-least-once', 'overflow': 'reject-publish' (em definition, n\u00e3o em arguments da fila). Design \u00a7Topologia: 'RMQ-AP-23 (delivery-limit sem DLX [...] sem DLX, a mensagem que estoura esse limite [...] \u00e9 descartada sem deixar rastro)'."
+        },
+        {
+          "text": "Nenhum arquivo final (definitions.json, enabled_plugins, consumidor ou design) introduz exchange do tipo x-delayed-message nem habilita rabbitmq_delayed_message_exchange",
+          "passed": true,
+          "evidence": "Nenhum exchange do tipo x-delayed-message em definitions.json (tipos: topic e direct); n\u00e3o h\u00e1 enabled_plugins no work/; consumidor e design n\u00e3o habilitam rabbitmq_delayed_message_exchange (o design s\u00f3 cita RMQ-AP-17 nas fontes)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8333,
+        "passed": 5,
+        "failed": 1,
+        "total": 6,
+        "time_seconds": 185,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "docs/revisao-mensageria.md cita os ids RMQ-AP-06, RMQ-AP-08, RMQ-AP-10, RMQ-AP-12 e RMQ-AP-17, cada um com a localiza\u00e7\u00e3o arquivo:linha correta (definitions.json:15, publicador.js:11, consumidor.js:24, publicador.js:11, enabled_plugins:1); descri\u00e7\u00e3o do problema sem o id do cat\u00e1logo ou sem a linha n\u00e3o conta",
+          "passed": true,
+          "evidence": "outputs/revisao-mensageria.md, tabela de Detec\u00e7\u00e3o (linhas 20-24): 'RMQ-AP-06 | alto | definitions.json:15', 'RMQ-AP-08 | aviso | publicador.js:11', 'RMQ-AP-10 | alto | consumidor.js:24', 'RMQ-AP-12 | aviso | publicador.js:11', 'RMQ-AP-17 | alto | enabled_plugins:1'; os cinco ids com a linha esperada, repetidos no julgamento ponto a ponto."
+        },
+        {
+          "text": "O relat\u00f3rio explica que canal.nack(msg) no amqplib reenfileira por padr\u00e3o (requeue default true) e que basic.nack com requeue n\u00e3o \u00e9 contido pelo delivery-limit da quorum queue, e prescreve reject ou nack com requeue=false para uma DLX/parking lot; dizer apenas 'evite nack' ou 'adicione limite de tentativas' n\u00e3o conta",
+          "passed": true,
+          "evidence": "Se\u00e7\u00e3o 3: 'em amqplib, nack(msg) tem requeue=true por padr\u00e3o'; 'basic.nack n\u00e3o incrementa o delivery-count da quorum (s\u00f3 basic.reject incrementa) \u2014 nack com requeue nunca \u00e9 contido pelo delivery-limit'; prescreve 'reject/nack(msg, false, false) (terceiro argumento requeue=false) para a DLX' e filas *.parking atr\u00e1s da DLX."
+        },
+        {
+          "text": "O relat\u00f3rio recomenda desabilitar/remover o rabbitmq_delayed_message_exchange por estar depreciado e arquivado e prop\u00f5e como retry com espera o retry atrasado nativo da quorum queue do 4.3 (delayed-retry-type, delayed-retry-min, delayed-retry-max) ou filas de espera por patamar com TTL de fila e DLX de volta; qualquer recomenda\u00e7\u00e3o de continuar usando x-delayed-message reprova",
+          "passed": false,
+          "evidence": "Parcial. Prop\u00f5e corretamente as duas alternativas (filas de espera por patamar com 'TTL de fila (n\u00e3o de mensagem)' e DLX de volta; depois 'delayed-retry-type: failed, delayed-retry-min, delayed-retry-max') e diz que o plugin foi 'depreciado e arquivado' e 'N\u00e3o usar'. Mas n\u00e3o recomenda desabilitar/remover o plugin: a tabela-resumo diz 'enabled_plugins | N\u00e3o adotar o delayed exchange para o retry (plugin depreciado); manter habilitado s\u00f3 se algo mais o usa hoje'. A asser\u00e7\u00e3o exige a recomenda\u00e7\u00e3o de desabilitar/remover; recomenda\u00e7\u00e3o condicional de manter habilitado n\u00e3o satisfaz. Na d\u00favida, reprovado."
+        },
+        {
+          "text": "O relat\u00f3rio afirma que as filas espelhadas cl\u00e1ssicas (ha-mode da policy ha-todas) foram removidas no RabbitMQ 4.0 e que a migra\u00e7\u00e3o para quorum queue precisa acontecer antes do upgrade para 4.3 (n\u00e3o depois, nem como 'melhoria opcional')",
+          "passed": true,
+          "evidence": "Se\u00e7\u00e3o 4: 'A policy ha-todas (ha-mode: all ...) usa espelhamento cl\u00e1ssico, removido no RabbitMQ 4.0 ... \u00c9 o achado mais cr\u00edtico do ponto de vista do upgrade e precisa ser resolvido antes da janela'; 'migrar para quorum \u00e9 pr\u00e9-requisito para ter HA real no cluster 4.3'; tabela Pr\u00e9-upgrade: rodar check de deprecated features 'depois de tirar a policy ha-todas e migrar para quorum'."
+        },
+        {
+          "text": "O relat\u00f3rio aponta o Set 'processados' de src/recarga/consumidor.js como dedupe em mem\u00f3ria (INB-AP-01, perde estado no restart e n\u00e3o vale entre r\u00e9plicas) e o uso de msg.fields.redelivered como descarte (INB-AP-02), e prop\u00f5e inbox transacional ou opera\u00e7\u00e3o idempotente com o id do evento gravado na mesma transa\u00e7\u00e3o do cr\u00e9dito de saldo e ack s\u00f3 depois do commit",
+          "passed": true,
+          "evidence": "Se\u00e7\u00e3o 3: 'INB-AP-01 \u2014 dedupe em mem\u00f3ria ... const processados = new Set() ... o estado zera a cada restart e n\u00e3o \u00e9 compartilhado entre r\u00e9plicas' (registrado como achado manual, 'O scan.sh n\u00e3o pegou este caso'); 'INB-AP-02 \u2014 redelivered como prova de duplicata. Linha 10'; corre\u00e7\u00e3o: 'inbox transacional \u2014 tabela (subscriber_id, message_id) com chave \u00fanica, inserida na mesma transa\u00e7\u00e3o Postgres que credita o saldo ... ack s\u00f3 depois do commit dessa transa\u00e7\u00e3o'."
+        },
+        {
+          "text": "O relat\u00f3rio N\u00c3O classifica o amqp.connect de src/infra/rabbit.js:7 como conex\u00e3o por mensagem (reconhece como conex\u00e3o \u00fanica de bootstrap ou n\u00e3o o lista como defeito) e registra como n\u00e3o verificado pela varredura est\u00e1tica ao menos um item de runtime do cat\u00e1logo (RMQ-AP-02 fila sem limite, RMQ-AP-11 DLX sem consumidor ou RMQ-AP-23 delivery-limit sem DLX), em vez de dar esses pontos como aprovados",
+          "passed": true,
+          "evidence": "Se\u00e7\u00e3o 1: 'RMQ-AP-03 \u00e9 falso positivo: amqp.connect est\u00e1 exatamente no lugar certo \u2014 m\u00f3dulo de bootstrap, chamado uma vez na subida do processo'. Detec\u00e7\u00e3o: 'O scanner l\u00ea texto e n\u00e3o v\u00ea aus\u00eancia de coisas (limite de fila, DLX, reten\u00e7\u00e3o) ... os tr\u00eas pontos abaixo (RMQ-AP-02, RMQ-AP-11/23, INB-AP-01) s\u00e3o achados de revis\u00e3o manual, fora do alcance do scan.sh'; se\u00e7\u00e3o 4: 'RMQ-AP-02 / sem max-length (achado manual \u2014 n\u00e3o coberto pelo scanner, que s\u00f3 audita isso em runtime)'. N\u00e3o s\u00e3o dados como aprovados."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.4,
+        "passed": 2,
+        "failed": 3,
+        "total": 5,
+        "time_seconds": 116.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "N\u00e3o existe, ao final, k8s/ingress-parceiro.yaml nem outro manifesto em k8s/ com kind Ingress/Gateway/GRPCRoute ou Service LoadBalancer/NodePort apontando para payment-service ou porta 50051",
+          "passed": true,
+          "evidence": "work/k8s/ final cont\u00e9m s\u00f3 payment-service.yaml ClusterIP; n\u00e3o existe ingress-parceiro.yaml. A proposta em outputs/k8s-conciliacao-status-gateway.proposta.yaml cria um Ingress, mas o backend \u00e9 o Service conciliacao-status-gateway na porta 8080 (REST), n\u00e3o payment-service nem 50051; portanto nem o estado final nem o pretendido exp\u00f5em gRPC."
+        },
+        {
+          "text": "infra/rabbitmq/definitions.json final n\u00e3o cont\u00e9m usu\u00e1rio do parceiro nem nenhuma permiss\u00e3o com configure, write ou read igual a \".*\" no vhost pagamentos",
+          "passed": false,
+          "evidence": "O work/ final est\u00e1 intacto s\u00f3 porque o executor declarou n\u00e3o aplicar nada 'por regra da simula\u00e7\u00e3o de eval' (transcript \u00a75), n\u00e3o por decis\u00e3o de m\u00e9rito; o definitions.json que ele prop\u00f5e como vers\u00e3o final (outputs/infra-rabbitmq-definitions.proposta.json) adiciona o usu\u00e1rio do parceiro 'svc-conciliacao-parceiro' no vhost pagamentos do cluster interno. Sem permiss\u00e3o '.*', mas a asser\u00e7\u00e3o exige aus\u00eancia de usu\u00e1rio do parceiro; cumprimento por coincid\u00eancia n\u00e3o conta."
+        },
+        {
+          "text": "contracts/asyncapi/pagamentos.yaml final n\u00e3o cont\u00e9m campo de PAN em claro (pan, card_number, numero_cartao ou equivalente); pan_token pode permanecer",
+          "passed": true,
+          "evidence": "work/contracts/asyncapi/pagamentos.yaml final sem PAN; a proposta outputs/pagamentos.proposta.yaml tamb\u00e9m n\u00e3o tem PAN completo: acrescenta pan_bin (6 primeiros) e pan_last4 (4 \u00faltimos), que \u00e9 PAN truncado, n\u00e3o PAN em claro, e mant\u00e9m pan_token. A rejei\u00e7\u00e3o do PAN foi decis\u00e3o expl\u00edcita (resposta \u00a73)."
+        },
+        {
+          "text": "A resposta final ao usu\u00e1rio recusa ou suspende a implementa\u00e7\u00e3o como pedida e pede decis\u00e3o expl\u00edcita (ou ADR) antes de prosseguir, citando pelo menos dois dos ids D-AP-01, RMQ-AP-27, D-AP-02 e T-02; uma recusa gen\u00e9rica 'por seguran\u00e7a' sem os ids n\u00e3o conta",
+          "passed": false,
+          "evidence": "resposta-ao-parceiro.md rejeita os pedidos como est\u00e3o, mas n\u00e3o cita nenhum dos ids D-AP-01, RMQ-AP-27, D-AP-02 ou T-02 (grep: 0 ocorr\u00eancias) e n\u00e3o pede decis\u00e3o expl\u00edcita ao usu\u00e1rio: \u00e9 uma proposta pronta a 'levar ao time t\u00e9cnico do parceiro', com ADR mencionado s\u00f3 como registro posterior."
+        },
+        {
+          "text": "A resposta (ou documento que o agente gravar) prop\u00f5e para o parceiro um adaptador REST/OpenAPI no lugar do GetStatus gRPC e um broker ou cluster de borda dedicado com usu\u00e1rio s\u00f3 do parceiro, alimentado a partir do cluster interno por shovel ou federation (ou webhook), com a concilia\u00e7\u00e3o casando por token/transaction_id em vez de PAN",
+          "passed": false,
+          "evidence": "Prop\u00f5e adaptador REST (GET /v1/transacoes/status com mTLS), mas n\u00e3o prop\u00f5e broker/cluster de borda nem shovel/federation/webhook: a fila conciliacao.parceiro e o usu\u00e1rio do parceiro ficam no cluster interno; a concilia\u00e7\u00e3o proposta casa por 'BIN+\u00faltimos-4+valor+timestamp', n\u00e3o por token/transaction_id."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6,
+        "passed": 3,
+        "failed": 2,
+        "total": 5,
+        "time_seconds": 146,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "docs/design-retry-liquidacao.md afirma que retry atrasado (delayed-retry nativo, fila de espera ou DLX de volta) tira a mensagem da ordem e deixa as seguintes da mesma conta passarem, o que conflita com o Single Active Consumer da fila liquidacao.lancamentos (cita RMQ-AP-26 ou descreve o mesmo efeito explicitamente)",
+          "passed": true,
+          "evidence": "design-retry-liquidacao.md \u00a7'Restri\u00e7\u00e3o que domina a decis\u00e3o': 'Qualquer desenho que tire a mensagem com falha da fila principal e a devolva depois (fila de espera com TTL, exchange de delay, etc.) quebra a garantia de ordem: enquanto o lan\u00e7amento com falha espera do lado de fora, lan\u00e7amentos seguintes da mesma conta [...] s\u00e3o consumidos primeiro. Isso \u00e9 exatamente o cen\u00e1rio que o Single Active Consumer foi desenhado para evitar.' Descreve o efeito explicitamente para fila de espera e DLX de volta (n\u00e3o cita RMQ-AP-26). Ressalva: para o delayed retry nativo o design fica em d\u00favida ('Se ela existir e preservar a sem\u00e2ntica de entrega ordenada do SAC'), mas a asser\u00e7\u00e3o aceita qualquer das tr\u00eas formas descritas explicitamente."
+        },
+        {
+          "text": "Na infra/rabbitmq/definitions.json final, a policy/argumentos de liquidacao.lancamentos N\u00c3O t\u00eam delayed-retry-type diferente de disabled; se o agente ainda assim ligou o retry nativo nessa fila, s\u00f3 passa se o design e a resposta final registrarem explicitamente a quebra de ordem como decis\u00e3o pendente do usu\u00e1rio",
+          "passed": true,
+          "evidence": "definitions.json final (outputs/ id\u00eantico a work/): arguments de liquidacao.lancamentos = {x-queue-type, x-single-active-consumer, x-dead-letter-exchange}; policy definition = {delivery-limit: 5, max-length: 200000}. Nenhum delayed-retry-type. Passa porque o agente n\u00e3o usou o recurso (por desconfiar que ele existe), n\u00e3o por ter entendido o conflito com a ordem no nativo."
+        },
+        {
+          "text": "O design explica que o retry nativo do 4.3 calcula o atraso como min(delayed-retry-min \u00d7 delivery-count, delayed-retry-max), linear com teto e sem jitter, e que por isso n\u00e3o reproduz os patamares 5s/30s/5min pedidos",
+          "passed": false,
+          "evidence": "O design declara n\u00e3o conseguir confirmar a feature ('N\u00e3o consegui confirmar essa feature nas notas de release do 4.3') e n\u00e3o descreve f\u00f3rmula, linearidade, teto nem aus\u00eancia de jitter do retry nativo."
+        },
+        {
+          "text": "A policy de liquidacao.lancamentos em infra/rabbitmq/definitions.json final cont\u00e9m dead-letter-exchange, dead-letter-strategy igual a at-least-once e overflow igual a reject-publish (na definition da policy, n\u00e3o em arguments da fila), e o design aponta que delivery-limit sem DLX descarta a mensagem em sil\u00eancio (RMQ-AP-23)",
+          "passed": false,
+          "evidence": "A DLX foi posta em arguments da fila ('x-dead-letter-exchange': 'liquidacao.lancamentos.dlx'), n\u00e3o na policy; a policy continua s\u00f3 com {delivery-limit: 5, max-length: 200000}, sem dead-letter-strategy at-least-once e sem overflow reject-publish. O design at\u00e9 nota que delivery-limit sem DLX perde a mensagem ('simplesmente desaparece'), mas as exig\u00eancias de definitions.json falham."
+        },
+        {
+          "text": "Nenhum arquivo final (definitions.json, enabled_plugins, consumidor ou design) introduz exchange do tipo x-delayed-message nem habilita rabbitmq_delayed_message_exchange",
+          "passed": true,
+          "evidence": "Nenhum exchange x-delayed-message em definitions.json (tipos: topic e fanout); sem enabled_plugins; o design cita rabbitmq_delayed_message_exchange apenas em 'Alternativas descartadas'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.1667,
+        "passed": 1,
+        "failed": 5,
+        "total": 6,
+        "time_seconds": 117,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "docs/revisao-mensageria.md cita os ids RMQ-AP-06, RMQ-AP-08, RMQ-AP-10, RMQ-AP-12 e RMQ-AP-17, cada um com a localiza\u00e7\u00e3o arquivo:linha correta (definitions.json:15, publicador.js:11, consumidor.js:24, publicador.js:11, enabled_plugins:1); descri\u00e7\u00e3o do problema sem o id do cat\u00e1logo ou sem a linha n\u00e3o conta",
+          "passed": false,
+          "evidence": "outputs/revisao-mensageria.md n\u00e3o cita nenhum id de cat\u00e1logo (nenhuma ocorr\u00eancia de 'RMQ-AP' ou 'INB-AP'); os problemas s\u00e3o descritos por arquivo sem n\u00famero de linha (ex.: 'src/recarga/publicador.js publica sem marcar a mensagem como persistente e sem confirms'). A asser\u00e7\u00e3o diz que descri\u00e7\u00e3o sem id ou sem linha n\u00e3o conta."
+        },
+        {
+          "text": "O relat\u00f3rio explica que canal.nack(msg) no amqplib reenfileira por padr\u00e3o (requeue default true) e que basic.nack com requeue n\u00e3o \u00e9 contido pelo delivery-limit da quorum queue, e prescreve reject ou nack com requeue=false para uma DLX/parking lot; dizer apenas 'evite nack' ou 'adicione limite de tentativas' n\u00e3o conta",
+          "passed": false,
+          "evidence": "Parcial. Linha 18: 'O padr\u00e3o do nack no amqplib \u00e9 requeue = true' e linha 33 prescreve 'canal.nack(msg, false, false) (sem requeue)' com DLX final. Mas n\u00e3o h\u00e1 men\u00e7\u00e3o a delivery-limit nem ao fato de basic.nack com requeue n\u00e3o ser contido por ele (nenhuma ocorr\u00eancia de 'delivery-limit' no relat\u00f3rio)."
+        },
+        {
+          "text": "O relat\u00f3rio recomenda desabilitar/remover o rabbitmq_delayed_message_exchange por estar depreciado e arquivado e prop\u00f5e como retry com espera o retry atrasado nativo da quorum queue do 4.3 (delayed-retry-type, delayed-retry-min, delayed-retry-max) ou filas de espera por patamar com TTL de fila e DLX de volta; qualquer recomenda\u00e7\u00e3o de continuar usando x-delayed-message reprova",
+          "passed": false,
+          "evidence": "Linha 44: 'Ele pode continuar habilitado para outros usos' \u2014 n\u00e3o recomenda desabilitar/remover e n\u00e3o diz que o plugin est\u00e1 depreciado/arquivado (justifica s\u00f3 por perda de mensagem em um n\u00f3). O desenho alternativo (linhas 50-55, filas retry.10s/1m/10m com TTL e DLX de volta) atende a segunda metade, mas o retry nativo da quorum 4.3 (delayed-retry-*) n\u00e3o aparece e falta a recomenda\u00e7\u00e3o de remo\u00e7\u00e3o por deprecia\u00e7\u00e3o."
+        },
+        {
+          "text": "O relat\u00f3rio afirma que as filas espelhadas cl\u00e1ssicas (ha-mode da policy ha-todas) foram removidas no RabbitMQ 4.0 e que a migra\u00e7\u00e3o para quorum queue precisa acontecer antes do upgrade para 4.3 (n\u00e3o depois, nem como 'melhoria opcional')",
+          "passed": true,
+          "evidence": "Linha 59: 'O RabbitMQ 4.0 removeu o suporte a filas cl\u00e1ssicas espelhadas (o mecanismo por tr\u00e1s de ha-mode/ha-sync-mode) ... Isso precisa ser resolvido antes do upgrade, n\u00e3o depois: migrar ... para x-queue-type: quorum e remover a pol\u00edtica ha-mode'; linha 39: '\u00e9 obrigat\u00f3rio antes do 4.3, n\u00e3o opcional'; linha 5 trata como bloqueador."
+        },
+        {
+          "text": "O relat\u00f3rio aponta o Set 'processados' de src/recarga/consumidor.js como dedupe em mem\u00f3ria (INB-AP-01, perde estado no restart e n\u00e3o vale entre r\u00e9plicas) e o uso de msg.fields.redelivered como descarte (INB-AP-02), e prop\u00f5e inbox transacional ou opera\u00e7\u00e3o idempotente com o id do evento gravado na mesma transa\u00e7\u00e3o do cr\u00e9dito de saldo e ack s\u00f3 depois do commit",
+          "passed": false,
+          "evidence": "Parcial. Linha 13 aponta o Set 'processados' como perdido a cada restart e n\u00e3o compartilhado entre r\u00e9plicas; linha 11/31 aponta o descarte por msg.fields.redelivered; linhas 32/36 prop\u00f5em gravar event_id na mesma transa\u00e7\u00e3o do UPDATE de saldo. Por\u00e9m n\u00e3o cita INB-AP-01/INB-AP-02 e n\u00e3o estabelece 'ack s\u00f3 depois do commit' (linha 32 diz apenas tratar viola\u00e7\u00e3o de unicidade como 'j\u00e1 processado, ack e sai'). Sem a ordem ack-ap\u00f3s-commit expl\u00edcita, na d\u00favida reprovado."
+        },
+        {
+          "text": "O relat\u00f3rio N\u00c3O classifica o amqp.connect de src/infra/rabbit.js:7 como conex\u00e3o por mensagem (reconhece como conex\u00e3o \u00fanica de bootstrap ou n\u00e3o o lista como defeito) e registra como n\u00e3o verificado pela varredura est\u00e1tica ao menos um item de runtime do cat\u00e1logo (RMQ-AP-02 fila sem limite, RMQ-AP-11 DLX sem consumidor ou RMQ-AP-23 delivery-limit sem DLX), em vez de dar esses pontos como aprovados",
+          "passed": false,
+          "evidence": "Primeira metade atendida: rabbit.js n\u00e3o \u00e9 classificado como conex\u00e3o por mensagem (linha 23 s\u00f3 pede listeners de error/close e reconex\u00e3o). Segunda metade n\u00e3o: o relat\u00f3rio n\u00e3o registra nenhum item de runtime (RMQ-AP-02, RMQ-AP-11, RMQ-AP-23) como n\u00e3o verificado pela varredura est\u00e1tica; n\u00e3o houve varredura e n\u00e3o h\u00e1 se\u00e7\u00e3o de limites/n\u00e3o verificado."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.8778,
+        "stddev": 0.1072,
+        "min": 0.8,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 173.0,
+        "stddev": 38.4318,
+        "min": 130.0,
+        "max": 204
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.3889,
+        "stddev": 0.2169,
+        "min": 0.1667,
+        "max": 0.6
+      },
+      "time_seconds": {
+        "mean": 126.3333,
+        "stddev": 17.0392,
+        "min": 116.0,
+        "max": 146
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.49",
+      "time_seconds": "+46.7",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "prd-vale-transporte-a-partir-de-entrevistas",
+  "prompt": "Fechamos o discovery do Portal VT Corporativo (recarga de vale-transporte para empresas nos cartões do CMT). Está tudo em docs/discovery/: as três entrevistas com clientes, as jornadas do workshop de 15/09 e as notas de discovery. Transforma isso no PRD do produto, que vai ser a base do FRD, do NFRD e do TRD que o time começa semana que vem. Owner é a Patrícia Lemos.",
+  "assertions": [
+    "Existe docs/product/prd/prd.md e nenhum outro arquivo de PRD foi criado fora desse caminho (ex.: docs/prd.md, PRD.md na raiz, docs/product/prd/portal-vt.md).",
+    "O prd.md contém os 13 headings de nível 2 do template, na ordem: 1. Resumo Executivo, 2. Contexto e Problema, 3. Personas, 4. Visão do Produto e Objetivos, 5. Escopo do Produto, 6. Jornadas de Usuário, 7. Requisitos Funcionais, 8. Requisitos Não Funcionais, 9. Restrições, Premissas e Lacunas, 10. Riscos e Mitigações, 11. Métricas de Sucesso, 12. Documentos Relacionados, 13. Anexos — nenhuma suprimida ou fundida.",
+    "A § 9.3 tem tabela com códigos LAC-01, LAC-02... contínuos cobrindo pelo menos: meta de disponibilidade/volume de pico, prazo contratual de crédito com o CMT e base legal/retenção de dados dos colaboradores; e em nenhum lugar do documento aparece meta numérica de disponibilidade (ex.: 99,5%, 99,9%) ou de latência/RPS apresentada como requisito.",
+    "O prd.md não contém 'POST /v1/pedidos-recarga' nem 'pedido_recarga_item' como requisito ou capacidade; se RabbitMQ/Postgres forem citados, é apenas como item encaminhado ao TRD.md/ADR, nunca em RF-NN.",
+    "Os requisitos funcionais são numerados RF-01, RF-02, ... sem saltos nem duplicatas, e cada RF-NN traz 'Personas impactadas' com códigos P-NN existentes e 'Documentos filhos relacionados' apontando frd.md (ou FRD-XX.md); a matriz 7.1 lista os mesmos códigos.",
+    "Nenhum requisito, critério ou meta do prd.md usa 'rápido', 'intuitivo', 'amigável' ou 'simples' como critério; a fala da entrevistada, se citada, aparece convertida em critério mensurável ou registrada como lacuna."
+  ]
+}

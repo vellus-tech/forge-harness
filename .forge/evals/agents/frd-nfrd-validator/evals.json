@@ -1,0 +1,101 @@
+{
+  "skill_name": "frd-nfrd-validator",
+  "artifact_kind": "agent",
+  "artifact_path": "template/.forge/agents/specifications/frd-nfrd-validator.md",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "aplica-correcoes-editaveis-recarga-pix",
+      "prompt": "O frd-generator e o nfrd-generator do RecargaJá (recarga do cartão de transporte via Pix) fecharam a rodada e os dois documentos já estão como Aprovado para desenvolvimento, v1.0.0. Antes de passar para o ddd-architect, valida o docs/product/frd-nfrd/frd.md e o docs/product/frd-nfrd/nfrd.md contra o docs/product/prd/prd.md e deixa tudo registrado no padrão do repositório. Na daily o pessoal comentou que a matriz de rastreabilidade do FRD está esquisita e que o NFR de performance ficou vago.",
+      "expected_output": "Relatório docs/product/frd-nfrd/frd-nfrd-validation-report.md na estrutura obrigatória (baseline PRD-BASE-NN, coberturas, achados FIND-NNN com severidade, parecer Aprovado ou Aprovado com Ressalvas, seção 18 de ADRs Sugeridos). Como o parecer não é Reprovado e os achados são editáveis (ID FRD-XX fora da convenção, matriz de rastreabilidade trocada entre F2 e F3, detalhe de Kafka/Spring Boot/PostgreSQL dentro do FRD, NFRD-PERF-01 sem métrica embora o PRD dê 95% em até 10 s), as correções são aplicadas diretamente no frd.md e no nfrd.md, ambos passam de 1.0.0 para 1.0.1 com linha no Histórico citando 'Aplicação de FIND-...', e cada FIND no relatório fica marcado Aplicado com a localização. Nenhum RF ou NFR novo é criado.",
+      "files": [],
+      "fixture": "fixtures/aplica-correcoes-editaveis-recarga-pix/setup.sh",
+      "assertions": [
+        {
+          "name": "relatorio-canonico-com-baseline-find-e-parecer",
+          "text": "docs/product/frd-nfrd/frd-nfrd-validation-report.md existe e contém: tabela de baseline com códigos PRD-BASE-NN, tabela de achados com IDs no formato FIND-NNN (três dígitos) cada um com severidade em {Crítica, Alta, Média, Baixa}, e um parecer final que é literalmente 'Aprovado' ou 'Aprovado com Ressalvas' (não 'Reprovado')."
+        },
+        {
+          "name": "frd-corrigido-id-matriz-e-detalhe-tecnico",
+          "text": "No frd.md final: o identificador 'FRD-XX' não aparece mais (substituído por ID na convenção, ex.: FRD-REC-03); a matriz de rastreabilidade associa F2 ao requisito de consulta de saldo e F3 ao de histórico, coerente com o corpo; e o texto do requisito de recarga não contém mais 'Kafka', 'Spring Boot', 'Resilience4j' nem 'PostgreSQL 16' (detalhe movido/encaminhado ao TRD)."
+        },
+        {
+          "name": "nfrd-perf-01-com-metrica-derivada-do-prd",
+          "text": "No nfrd.md final, a linha NFRD-PERF-01 não usa mais 'Rápida' como métrica e passa a expressar a meta do PRD: 10 segundos para 95% das recargas (p95 ≤ 10 s ou equivalente)."
+        },
+        {
+          "name": "bump-patch-1-0-1-com-historico-da-rodada",
+          "text": "Tanto frd.md quanto nfrd.md têm Versão 1.0.1 no cabeçalho (não 1.0.0, não 1.1.0, não 2.0.0) e uma linha nova no Histórico de Versões para 1.0.1 cuja descrição cita a aplicação de achados FIND-NNN do relatório de validação."
+        },
+        {
+          "name": "finds-marcados-aplicado-com-localizacao",
+          "text": "No relatório, os achados corrigidos estão marcados com status 'Aplicado' indicando onde a correção foi feita (ex.: 'frd.md § 1' ou 'nfrd.md tabela 1'), e não apenas listados como recomendação."
+        },
+        {
+          "name": "escopo-preservado-sem-rf-ou-nfr-novo",
+          "text": "O frd.md final continua com exatamente três requisitos funcionais (recarga, saldo, histórico) e o nfrd.md com exatamente três NFRs (PERF-01, SEC-01, AUD-01); nenhum requisito novo sem origem no PRD foi adicionado e o prd.md está inalterado."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "somente-relatorio-portal-lojista-sugere-adr",
+      "prompt": "Roda a validação do FRD e do NFRD do Portal do Lojista contra o PRD, mas só relatório: apenas validar, sem corrigir. O Rafael está editando o frd.md e o nfrd.md numa branch em paralelo e não quero conflito. Me preocupa principalmente a parte de senha e o prazo de retenção de vendas, que o jurídico ainda não fechou — o portal está no escopo PCI DSS da adquirente.",
+      "expected_output": "Somente docs/product/frd-nfrd/frd-nfrd-validation-report.md é criado; frd.md, nfrd.md e prd.md ficam byte a byte iguais, inclusive os achados editáveis (FRD-CHB-1 fora da convenção, FRD-POR-03 sem critérios de aceite) que viram FIND sem ser aplicados. A política de senha (algoritmo de hash, complexidade, troca periódica) e a retenção de dados de vendas sob PCI DSS viram sugestões de ADR na seção '18. ADRs Sugeridos', numeradas a partir do próximo livre (ADR-0003), com origem FIND/VAL, severidade igual ou superior à do achado de origem, e o FIND correspondente recomenda 'Resolver via ADR-NNNN sugerido (ver § 18)'. Nenhum ADR é criado em docs/product/adr/. Com ADR de severidade Alta, o parecer não pode ser Aprovado.",
+      "files": [],
+      "fixture": "fixtures/somente-relatorio-portal-lojista-sugere-adr/setup.sh",
+      "assertions": [
+        {
+          "name": "frd-nfrd-prd-intocados-em-modo-somente-relatorio",
+          "text": "git diff contra o commit inicial mostra docs/product/frd-nfrd/frd.md, docs/product/frd-nfrd/nfrd.md e docs/product/prd/prd.md sem nenhuma alteração (versões continuam 0.2.0 e 1.1.0; 'FRD-CHB-1' continua presente no frd.md)."
+        },
+        {
+          "name": "secao-18-adrs-sugeridos-a-partir-de-0003-com-origem",
+          "text": "O relatório tem a seção 'ADRs Sugeridos' com pelo menos uma linha cobrindo política de senha/hash e uma cobrindo retenção de dados de vendas; cada linha tem ID sugerido ADR-0003 ou superior (não 0001/0002, que já existem), título em kebab-case, origem apontando para um FIND-NNN ou VAL-NN existente no relatório e severidade em {Alta, Média, Baixa}."
+        },
+        {
+          "name": "find-com-referencia-cruzada-ao-adr-sugerido",
+          "text": "Pelo menos um FIND-NNN do relatório tem na recomendação a referência cruzada ao ADR sugerido no formato 'Resolver via ADR-NNNN sugerido (ver § 18)' (ou texto equivalente que cite o número do ADR e a seção 18)."
+        },
+        {
+          "name": "severidade-do-adr-nao-inferior-ao-find",
+          "text": "Para cada linha da seção de ADRs Sugeridos, a severidade é igual ou superior à severidade do FIND-NNN de origem na tabela de achados (um FIND Alta nunca origina ADR Média ou Baixa)."
+        },
+        {
+          "name": "nenhum-adr-criado-e-parecer-nao-aprovado",
+          "text": "docs/product/adr/ contém apenas README.md, 0001-react-spa-com-bff.md e 0002-totp-como-segundo-fator.md, sem alterações; e, havendo ADR sugerido de severidade Alta, o parecer final do relatório é 'Aprovado com Ressalvas' ou 'Reprovado', nunca 'Aprovado'."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "reprovado-validador-embarcado-nao-corrige",
+      "prompt": "Valida o FRD e o NFRD do validador embarcado (docs/product/frd-nfrd/) contra o PRD e já aproveita para corrigir o que precisar direto nos documentos — a gente quer rodar o ddd-architect hoje à tarde e não dá tempo de outra rodada do gerador. Se faltar alguma coisa no FRD, pode completar a partir do PRD mesmo.",
+      "expected_output": "Relatório docs/product/frd-nfrd/frd-nfrd-validation-report.md com parecer Reprovado: F3 (EMV), F4 (offline 72 h), F5 (integração temporal) e F6 (sincronização) Não Cobertos; RF-3 (fidelidade) Extrapolado; NFRs sem métrica nem método de validação de forma generalizada; mistura grave com TRD (libnfc, Android 13, Room, Kubernetes/Istio); IDs sem rastreabilidade; ao menos um achado Crítico. Apesar do pedido do usuário, por ser Reprovado o agente não aplica correções nem completa requisitos: frd.md e nfrd.md ficam intactos, os achados ficam como 'Pendente — regeneração' e o próximo passo é nova rodada do frd-generator/nfrd-generator, não o ddd-architect. Nenhum artefato de DDD ou TRD é gerado.",
+      "files": [],
+      "fixture": "fixtures/reprovado-validador-embarcado-nao-corrige/setup.sh",
+      "assertions": [
+        {
+          "name": "parecer-reprovado-com-achado-critico",
+          "text": "O parecer final em docs/product/frd-nfrd/frd-nfrd-validation-report.md é 'Reprovado' e a tabela de achados contém pelo menos um FIND-NNN com severidade 'Crítica'."
+        },
+        {
+          "name": "frd-e-nfrd-nao-corrigidos-apesar-do-pedido",
+          "text": "git diff contra o commit inicial mostra docs/product/frd-nfrd/frd.md e docs/product/frd-nfrd/nfrd.md sem nenhuma alteração: nenhum requisito para EMV, offline, integração temporal ou sincronização foi adicionado, RF-3 não foi removido e a versão continua 0.1.0."
+        },
+        {
+          "name": "cobertura-marca-nao-coberto-e-extrapolado",
+          "text": "A tabela de cobertura PRD → FRD do relatório marca como 'Não Coberto' ao menos três dos itens F3 (EMV), F4 (offline), F5 (integração temporal) e F6 (sincronização), e marca o programa de fidelidade (RF-3) como 'Extrapolado'."
+        },
+        {
+          "name": "achados-pendente-regeneracao-e-proximo-passo-gerador",
+          "text": "Os achados no relatório estão marcados com status 'Pendente — regeneração' (ou 'Pendente — ADR'/'Pendente — produto' quando for o caso), nenhum como 'Aplicado', e os próximos passos indicam nova rodada do frd-generator e/ou nfrd-generator antes de avançar para DDD."
+        },
+        {
+          "name": "nao-gera-ddd-nem-trd",
+          "text": "git status mostra como novos/alterados apenas arquivos sob docs/product/frd-nfrd/ (o relatório e, no máximo, os relatórios opcionais do § 4); não existe nenhum arquivo novo de DDD, TRD, backlog ou ADR em docs/."
+        }
+      ]
+    }
+  ]
+}

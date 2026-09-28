@@ -1,0 +1,55 @@
+{
+  "expectations": [
+    {
+      "text": ".forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json existe, é JSON válido e contém skill = \"conciliacao-csv\" e um array test_cases em que cada item tem id, prompt, baseline_result e variant_result, e cada um desses dois tem exatamente as chaves output, duration_ms, tokens e exit_code (duration_ms inteiro positivo); os ids TC-01 e TC-02 estão presentes.",
+      "passed": false,
+      "evidence": "`ls work/.forge/evals/skills/conciliacao-csv/workspace/iteration-1` → 'No such file or directory': results.json não foi gravado no eval_dir. A cópia outputs/results.json usa formato próprio: array 'cases' (não test_cases), campos exit_code/duration_ms/usage direto no caso, sem baseline_result/variant_result e sem output. Reverificado em 2026-09-28: `ls .../iteration-1/results.json` → No such file or directory; `jq keys outputs/results.json` → [aggregate,arm,cases,runner,runner_command,skill]."
+    },
+    {
+      "text": ".eval-runner/calls.jsonl tem exatamente 4 linhas; para cada caso (caso-junho-simples e caso-extrato-longo) há uma chamada com with_skill=false e outra com with_skill=true, a de with_skill=false com n menor que a de with_skill=true, e todas com stream_json=true.",
+      "passed": false,
+      "evidence": "`cat work/.eval-runner/calls.jsonl` tem 2 linhas, não 4: ambas com \"with_skill\":false (caso-junho-simples n=1, caso-extrato-longo n=2). Nenhuma chamada variant; transcript.md linha 13: 'não incluí nada da skill no prompt'. Reverificado: `wc -l < work/.eval-runner/calls.jsonl` → 2."
+    },
+    {
+      "text": "Em .forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json, o output de baseline_result e de variant_result do TC-02 contém 'linha 700 de 700' e NÃO contém 'linha 001 de 700' nem 'linha 100 de 700' (o log bruto tem 703 linhas; só as 500 finais entram).",
+      "passed": false,
+      "evidence": "O results.json do eval_dir não existe, e outputs/results.json não tem campo output algum (o log fica em tc02-stdout.jsonl); `grep -c 'linha 700 de 700' outputs/results.json` → 0. Sem baseline_result/variant_result, a redução ao tail-500 não aconteceu."
+    },
+    {
+      "text": "Em .forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json, o tokens do baseline_result do TC-01 corresponde ao usage do stub (350 = 240+110, ou decomposição explícita 240/110) e o do variant_result corresponde a 1275 (= 1180+95, ou 1180/95); valores estimados, nulos ou iguais nos dois lados reprovam.",
+      "passed": false,
+      "evidence": "Sem results.json no eval_dir. Em outputs/results.json, TC-01 tem usage 240/110 (bate com o baseline do stub), mas não há variant_result com 1180/95; o braço variant não foi executado (calls.jsonl só com with_skill=false)."
+    },
+    {
+      "text": "Nenhum grading.json, comparison.json ou analysis.json foi criado sob .forge/evals/skills/conciliacao-csv/, e results.json não tem chaves como passed, score, nota, winner, vencedor ou verdict.",
+      "passed": true,
+      "evidence": "`find work/.forge/evals/skills -type f` → só .gitkeep; nenhum grading.json, comparison.json ou analysis.json sob .forge/evals/skills/conciliacao-csv/. `grep -Eo '\"(passed|score|nota|winner|vencedor|verdict)\"' outputs/results.json` → nenhuma ocorrência (há 'all_exit_zero' em aggregate, que não é julgamento de qualidade)."
+    },
+    {
+      "text": "git diff e git status do alvo não mostram alteração em skills-dev/ nem em data/ (o SKILL.md e o CSV continuam byte a byte iguais ao commit da fixture).",
+      "passed": true,
+      "evidence": "`git -C work diff --quiet HEAD -- skills-dev data` → rc=0; `git -C work status --porcelain -- skills-dev data | wc -l` → 0. Transcript linha 26 afirma não ter lido o SKILL.md, e nada em skills-dev/ ou data/ mudou."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 4,
+    "total": 6,
+    "pass_rate": 0.33
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "reason": "As duas runs dividiram o A/B por braço (with_skill só variant, without_skill só baseline), mas o caso exige que o agente execute baseline e variant na mesma run. O harness de execução precisa deixar claro que ambos os braços do eval-executor rodam dentro de cada configuração; senão as asserções 1-4 são inalcançáveis por construção."
+      },
+      {
+        "reason": "As asserções 5 e 6 passam trivialmente quando o agente não grava nada no eval_dir; não discriminam um executor correto de um que não produziu o artefato."
+      }
+    ],
+    "overall": "Asserções 1-4 são discriminantes; 5 e 6 são fracas isoladamente."
+  },
+  "timing": {
+    "executor_duration_seconds": 122.0,
+    "total_duration_seconds": 122.0
+  }
+}

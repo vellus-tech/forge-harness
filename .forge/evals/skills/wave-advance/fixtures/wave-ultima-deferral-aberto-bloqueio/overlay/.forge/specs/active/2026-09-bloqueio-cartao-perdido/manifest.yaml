@@ -1,0 +1,5 @@
+change_id: 2026-09-bloqueio-cartao-perdido
+type: feature
+scale: 3
+status: implementing
+title: Bloqueio de cartão perdido pelo app com preservação de saldo

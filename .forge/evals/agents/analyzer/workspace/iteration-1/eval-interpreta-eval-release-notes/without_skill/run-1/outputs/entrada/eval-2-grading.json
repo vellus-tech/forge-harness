@@ -1,0 +1,66 @@
+{
+  "skill": "release-notes-ptbr",
+  "runner": "claude-code",
+  "graded_at": "2026-09-24T14:10:00Z",
+  "baseline": {
+    "description": "sem a skill (baseline)",
+    "notes": null
+  },
+  "variant": {
+    "description": "com a skill release-notes-ptbr",
+    "notes": null
+  },
+  "test_cases": [
+    {
+      "id": "TC-02",
+      "prompt": "Monte as notas de versão do validador v1.8.2 (hotfix) com base no diff entre as tags v1.8.1 e v1.8.2.",
+      "baseline_result": {
+        "output": "baseline TC-02: notas geradas (ver evidências)",
+        "duration_ms": 34000,
+        "tokens": 9000,
+        "exit_code": 0
+      },
+      "variant_result": {
+        "output": "variant TC-02: notas geradas (ver evidências)",
+        "duration_ms": 47000,
+        "tokens": 12500,
+        "exit_code": 0
+      },
+      "expectations": [
+        {
+          "text": "Escreve em pt-BR com acentuação correta",
+          "passed": true,
+          "evidence": "variant: pt-BR correto. baseline: pt-BR correto."
+        },
+        {
+          "text": "Cita o número de cada PR entre parênteses",
+          "passed": false,
+          "evidence": "variant: citou apenas \"(hotfix)\" sem o número #377. baseline: citava \"(#377)\"."
+        },
+        {
+          "text": "Agrupa itens em Novidades / Correções / Interno",
+          "passed": true,
+          "evidence": "variant: seção Correções. baseline: seção Correções."
+        },
+        {
+          "text": "Separa breaking changes em uma seção própria \"Mudanças incompatíveis\"",
+          "passed": false,
+          "evidence": "variant: não há seção de incompatíveis, embora o hotfix mude o código de erro 422→409. baseline: idem."
+        }
+      ]
+    }
+  ],
+  "aggregate": {
+    "baseline_pass_rate": 0.75,
+    "variant_pass_rate": 0.5,
+    "delta_pass_rate": -0.25,
+    "baseline_tokens_mean": 9000,
+    "variant_tokens_mean": 12500,
+    "delta_tokens": 3500,
+    "baseline_duration_mean_ms": 34000,
+    "variant_duration_mean_ms": 47000,
+    "delta_duration_ms": 13000,
+    "baseline_stddev": null,
+    "variant_stddev": null
+  }
+}

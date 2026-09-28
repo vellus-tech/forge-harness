@@ -1,0 +1,68 @@
+{
+  "expectations": [
+    {
+      "text": "packages/design-tokens/src/css/tokens.css é byte a byte idêntico ao da fixture (fixtures/brownfield-tokens-existentes-completa-so-o-faltante/overlay/packages/design-tokens/src/css/tokens.css), inclusive o comentário 'rotaviva-tokens: ... fonte canônica v1.2.0', e packages/design-tokens/package.json continua com \"version\": \"1.2.0\" (git diff vazio para esses dois arquivos).",
+      "passed": true,
+      "evidence": "`cmp` contra a fixture → CMP_OK; tokens.css:3 mantém 'rotaviva-tokens: ... fonte canônica v1.2.0'; package.json:3 '\"version\": \"1.2.0\"'; `git -C work diff --stat HEAD -- <os dois arquivos>` vazio."
+    },
+    {
+      "text": "docs/product/design-system/tokens.md mantém a linha de Histórico de Versões '1.2.0 | 2026-09-10' e a frase 'O pacote `@rotaviva/design-tokens` vence em caso de divergência'; qualquer mudança é apenas acréscimo (git diff do arquivo sem linhas removidas).",
+      "passed": true,
+      "evidence": "work/docs/product/design-system/tokens.md:13 '| 1.2.0 | 2026-09-10 | ...' e :15 'O pacote `@rotaviva/design-tokens` vence em caso de divergência com este documento.'; `git diff --stat HEAD` do arquivo vazio."
+    },
+    {
+      "text": "packages/ui-components/src/blocks/ contém AppHeader, BalanceCard, TripRow, ShortcutGrid e BottomNav, cada um com <Nome>.tsx, <Nome>.module.css, <Nome>.stories.tsx cujo title começa com 'Blocos/' e <Nome>.test.tsx que chama runA11y.",
+      "passed": false,
+      "evidence": "`ls src/blocks` → arquivos planos AppHeader.tsx, BalanceCard.tsx, BottomNav.tsx, ShortcutGrid.tsx, TripRow.tsx; laço de existência reportou MISSING para <Nome>.module.css, <Nome>.stories.tsx e <Nome>.test.tsx dos 5 blocos; `grep -rn 'runA11y\\|stories' packages/ui-components` sem resultado."
+    },
+    {
+      "text": "HomeScreen e RechargeScreen existem como stories sob packages/ui-components/src/patterns/ com title começando por 'Padrões/', há um componente PhoneFrame em patterns/, e packages/ui-components/src/index.ts não importa nem reexporta nada de patterns/.",
+      "passed": false,
+      "evidence": "`ls src/patterns` → No such file or directory; sem PhoneFrame; telas em src/screens/ sem stories, e src/index.ts:12-13 reexporta publicamente HomeScreen e RechargeScreen de './screens/…' — contrário a 'padrões só no Storybook'."
+    },
+    {
+      "text": "docs/product/design-system/design-system.md, components.md e accessibility.md foram criados com Versão, Data, Status e Histórico de Versões, components.md cita os cinco blocos; o branch atual é feat/design-system/rotaviva-ui-kit e main continua com 1 commit só.",
+      "passed": false,
+      "evidence": "Os três docs têm Versão/Data/Status (l.5-7), mas `grep -n 'Histórico de Versões'` só acha design-system.md:9; components.md e accessibility.md não têm a seção. Branch: `git -C work branch --show-current` = 'main', nenhum feat/design-system/rotaviva-ui-kit; transcript não menciona branch."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 3,
+    "total": 5,
+    "pass_rate": 0.4
+  },
+  "timing": {
+    "executor_duration_seconds": 295.0
+  },
+  "claims": [
+    {
+      "claim": "Nenhum arquivo pré-existente foi modificado",
+      "type": "process",
+      "verified": true,
+      "evidence": "`git status --porcelain` só mostra arquivos novos (??)"
+    },
+    {
+      "claim": "Docs seguem o formato de cabeçalho (Versão/Data/Status + Histórico) de tokens.md",
+      "type": "factual",
+      "verified": false,
+      "evidence": "components.md e accessibility.md sem Histórico de Versões"
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "docs/product/design-system/design-system.md, components.md e accessibility.md foram criados com Versão, Data, Status e Histórico de Versões, components.md cita os cinco blocos; o branch atual é feat/design-system/rotaviva-ui-kit e main continua com 1 commit só.",
+        "reason": "A parte de branch é insatisfazível sob as regras do harness do eval, que proíbem git checkout; o executor with_skill tratou git switch -c como coberto (transcript.md:59) e ficou em main. A asserção mistura docs, components.md e branch: uma restrição de ambiente derruba o crédito dos docs. Separe 'branch' numa asserção própria ou libere git switch -c no workspace descartável."
+      },
+      {
+        "assertion": "HomeScreen e RechargeScreen existem como stories sob packages/ui-components/src/patterns/ com title começando por 'Padrões/', há um componente PhoneFrame em patterns/, e packages/ui-components/src/index.ts não importa nem reexporta nada de patterns/.",
+        "reason": "Não verifica que HomeScreen/RechargeScreen compõem os blocos; RechargeScreen.tsx do with_skill importa só Input/Button de ../components (linhas 2-3), nenhum bloco. Considere exigir import de ../blocks nas telas."
+      },
+      {
+        "reason": "Nenhuma asserção cobre packages/icons (esperado no expected_output) nem o hard-no do handoff de usar os PNGs da marca em vez de SVG redesenhado; o without_skill criou 5 ícones SVG próprios (packages/icons/src/{Bus,Bell,Wallet,CreditCard,CircleHelp}.tsx) e isso não é capturado."
+      }
+    ],
+    "overall": "A1/A2 são checáveis por comando mas não discriminam (as duas configurações preservaram tokens); a discriminação real vem de A3/A4. A5 precisa ser desmembrada."
+  }
+}

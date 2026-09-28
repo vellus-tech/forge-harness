@@ -1,0 +1,30 @@
+{
+  "expectations": [
+    {
+      "text": "git diff --exit-code -- .forge/specs/active/bloqueio-cartao-perda-roubo/epic_context.md retorna 0: o arquivo não foi reescrito, reformatado nem regenerado com o mesmo conteúdo em outra forma.",
+      "passed": true,
+      "evidence": "Comando `git -C without_skill/run-1/work diff --exit-code -- .forge/specs/active/bloqueio-cartao-perda-roubo/epic_context.md` retornou rc=0 (arquivo idêntico ao commit da fixture)."
+    },
+    {
+      "text": "Fora das remoções feitas pelo setup, git status não mostra nenhum arquivo novo ou alterado: spec-manifest.yaml mantém dev_loop exatamente como na fixture (sharded: false, epic_context_compiled: true) e stories/ continua só com .gitkeep, sem nenhuma STORY-NN.md criada.",
+      "passed": true,
+      "evidence": "`git -C without_skill/run-1/work status --porcelain -uall | grep -vc '^ D'` = 0: só há as remoções ' D' de .forge/skills, .forge/agents, .claude/skills e .claude/agents feitas pelo setup.sh (linha 14, rm -rf); nenhum '??' nem ' M'. spec-manifest.yaml linhas 18-21: dev_loop com sharded: false, stories_path: stories/, epic_context_compiled: true. `ls -la stories/` mostra só .gitkeep (0 bytes)."
+    },
+    {
+      "text": "A resposta final informa que o contexto épico já estava compilado (OK/idempotente, citando epic_context.md existente e/ou epic_context_compiled: true) e NÃO usa o formato 'epic_context.md gerado — N decisões, M contratos, K invariantes.'",
+      "passed": true,
+      "evidence": "outputs/transcript.md linha 29 (seção 'Resposta que eu daria ao usuário'): 'O contexto épico ... já está compilado e atualizado (`epic_context_compiled: true` no manifesto ...) — nenhuma recompilação foi necessária.' `grep -c 'gerado —'` = 0 no transcript. Não há agent-response.md separado; a resposta final é a da linha 29."
+    },
+    {
+      "text": "A resposta final tem no máximo 3 linhas e não reproduz as seções do epic_context.md (por exemplo, não lista as decisões de design nem os contratos).",
+      "passed": true,
+      "evidence": "Resposta final (transcript.md linha 29) é um único parágrafo/linha lógica; não enumera as decisões de design nem os contratos (a enumeração existe só no log de passos, linhas 16-21, não na resposta). Cita apenas ADR-0017 como observação lateral, não como dump de seção. Ressalva: parágrafo longo, mas cumpre o limite literal de 3 linhas."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 0,
+    "total": 4,
+    "pass_rate": 1.0
+  }
+}

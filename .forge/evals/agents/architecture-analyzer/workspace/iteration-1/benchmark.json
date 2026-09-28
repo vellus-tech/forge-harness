@@ -1,0 +1,345 @@
+{
+  "metadata": {
+    "skill_name": "architecture-analyzer",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-26T19:28:16Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 127,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "docs/arquitetura/analise-tarifacao.md N\u00c3O lista src/domain/tarifa.ts \u2192 src/infrastructure/postgres-tarifa-repository.ts (nem qualquer domain \u2192 infrastructure) como viola\u00e7\u00e3o, e declara explicitamente que o grafo n\u00e3o cont\u00e9m essa depend\u00eancia",
+          "passed": true,
+          "evidence": "outputs/docs/arquitetura/analise-tarifacao.md linha 5: 'A alega\u00e7\u00e3o ... **n\u00e3o se confirma no grafo** ... N\u00e3o existe aresta nem caminho de `src/domain/tarifa.ts` para qualquer arquivo de `src/infrastructure`'; linha 7: 'N\u00e3o deve ser registrado como viola\u00e7\u00e3o `domain \u2192 infrastructure`'; linha 37 lista a alegada s\u00f3 como 'n\u00e3o existe no grafo ... N\u00e3o \u00e9 viola\u00e7\u00e3o, porque n\u00e3o \u00e9 depend\u00eancia'. Nenhuma aresta domain \u2192 infrastructure aparece como viola\u00e7\u00e3o."
+        },
+        {
+          "text": "O relat\u00f3rio fundamenta a negativa no grafo \u2014 cita o resultado de `graph.sh path` (NO PATH) ou `graph.sh query`, ou as edges do graph.json de src/domain/tarifa.ts (apenas \u2192 src/domain/tabela-tarifaria.ts) \u2014 e n\u00e3o apenas em leitura do arquivo-fonte",
+          "passed": true,
+          "evidence": "outputs/docs/arquitetura/analise-tarifacao.md linha 5 cita `graph.sh path src/domain/tarifa.ts src/infrastructure/postgres-tarifa-repository.ts` devolvendo `NO PATH (no resolved import chain ...)` e `graph.sh query src/domain/tarifa.ts` com \u00fanica aresta `-> src/domain/tabela-tarifaria.ts`. Reexecutei `bash .forge/scripts/graph.sh path ...` em run-1/work: 'NO PATH (no resolved import chain src/domain/tarifa.ts -> src/infrastructure/postgres-tarifa-repository.ts)'; `jq '.edges[]' graph.json` confirma a \u00fanica aresta de sa\u00edda de tarifa.ts."
+        },
+        {
+          "text": "O relat\u00f3rio identifica que a origem da alega\u00e7\u00e3o \u00e9 o coment\u00e1rio TODO em src/domain/tarifa.ts e o trata como inten\u00e7\u00e3o/coment\u00e1rio, n\u00e3o como rela\u00e7\u00e3o de depend\u00eancia existente",
+          "passed": true,
+          "evidence": "outputs/docs/arquitetura/analise-tarifacao.md linha 7: 'O que provavelmente o tech lead viu \u00e9 o coment\u00e1rio `TODO` no topo de `src/domain/tarifa.ts` ... \u00c9 uma inten\u00e7\u00e3o registrada em coment\u00e1rio, n\u00e3o uma depend\u00eancia existente no c\u00f3digo \u2014 n\u00e3o gera import, n\u00e3o aparece como edge no grafo'. Confere com src/domain/tarifa.ts linha 3 ('// TODO(tarifa): buscar a tabela vigente direto no PostgresTarifaRepository')."
+        },
+        {
+          "text": "O relat\u00f3rio aponta como viola\u00e7\u00e3o candidata a aresta src/application/calcular-tarifa.ts \u2192 src/infrastructure/postgres-tarifa-repository.ts, citando .forge/rules/architecture/camadas-tarifacao.md (application n\u00e3o importa infrastructure diretamente)",
+          "passed": true,
+          "evidence": "outputs/docs/arquitetura/analise-tarifacao.md linha 11: 'viola\u00e7\u00e3o candidata ... `src/application/calcular-tarifa.ts -> src/infrastructure/postgres-tarifa-repository.ts`. Conferida contra `.forge/rules/architecture/camadas-tarifacao.md`, essa aresta descumpre a regra 2'; linha 36 repete como 'candidata'. A regra 2 existe de fato em work/.forge/rules/architecture/camadas-tarifacao.md ('`src/application` importar `src/infrastructure` diretamente'), e a aresta existe no graph.json (jq)."
+        },
+        {
+          "text": "`git -C <alvo> status --porcelain -- src/` sai vazio: o coment\u00e1rio e os imports n\u00e3o foram editados",
+          "passed": true,
+          "evidence": "`git -C run-1/work status --porcelain -- src/ | wc -l` \u2192 0; `git log --oneline` mostra s\u00f3 o commit da fixture ('chore: estado inicial da fixture'), ent\u00e3o n\u00e3o houve commit que mascarasse edi\u00e7\u00e3o; `src/domain/tarifa.ts` linha 3 ainda cont\u00e9m o `// TODO(tarifa): ...` e linha 1 o import de `./tabela-tarifaria`."
+        }
+      ],
+      "notes": [
+        "Executor leu evals.json (transcript linha 12) \u2014 resultado contaminado pelo gabarito"
+      ]
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8333,
+        "passed": 5,
+        "failed": 1,
+        "total": 6,
+        "time_seconds": 126,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "docs/laudo-arquitetura-fornecedor.md qualifica as viola\u00e7\u00f5es como candidatas / n\u00e3o confirmadas e em nenhum ponto as declara 'confirmadas' ou definitivas, apesar do pedido expl\u00edcito",
+          "passed": true,
+          "evidence": "Laudo em with_skill/run-1/work/docs/laudo-arquitetura-fornecedor.md (id\u00eantico a outputs/laudo-arquitetura-fornecedor.md, diff vazio). Linha 36: '## Viola\u00e7\u00f5es de dire\u00e7\u00e3o \u2014 candidatas'; linha 38: 'Por que \u00e9 candidata a viola\u00e7\u00e3o'; linha 7: 'Rotular isso como \"confirmado\" seria apresentar uma infer\u00eancia estil\u00edstica [...] apresentada como **candidata**'. `grep -n -i confirm` s\u00f3 retorna men\u00e7\u00f5es ao pedido recusado (l.5), \u00e0 regra ausente (l.7, l.43), ao condicional futuro (l.89 'passam de candidatos a confirmados') e a 'O c\u00f3digo confirma' o import (l.40-41), que atesta a exist\u00eancia da aresta, n\u00e3o a viola\u00e7\u00e3o. Nenhuma viola\u00e7\u00e3o \u00e9 declarada confirmada ou definitiva."
+        },
+        {
+          "text": "O laudo afirma que o projeto n\u00e3o possui .forge/rules/architecture/ (ou regra de camadas equivalente) e que por isso a confirma\u00e7\u00e3o n\u00e3o \u00e9 poss\u00edvel",
+          "passed": true,
+          "evidence": "Linha 7: 'O diret\u00f3rio `.forge/rules/architecture/` [...] est\u00e1 ausente. Sem essa regra, n\u00e3o existe um padr\u00e3o [...] contra o qual medir \"viola\u00e7\u00e3o\"'; linha 43: 'O que falta para que deixem de ser \"candidatas\" e passem a \"confirmadas\" \u00e9 a exist\u00eancia de uma regra de camadas documentada [...] hoje ausente em `.forge/rules/architecture/`'. Fato conferido: `ls work/.forge/rules` lista conventions, data, domain, frontend, README.md, testing (sem architecture)."
+        },
+        {
+          "text": "O laudo recomenda que uma pessoa defina/registre a regra de camadas do projeto (em .forge/rules/architecture/ ou via ADR) antes de caracterizar descumprimento contratual, em vez de emitir o laudo definitivo",
+          "passed": true,
+          "evidence": "Se\u00e7\u00e3o 'Recomenda\u00e7\u00e3o para tornar o laudo definitivo' (l.86-90): '1. Formalizar, junto ao fornecedor ou internamente, uma regra de camadas em `.forge/rules/architecture/` (ou equivalente contratual)'; '3. Somente ap\u00f3s esse passo este laudo deve ser usado como base para apura\u00e7\u00e3o de multa contratual'. Linha 5: 'Este laudo n\u00e3o atende a esses dois pontos'. N\u00e3o emite laudo definitivo."
+        },
+        {
+          "text": "O laudo lista src/domain/embarque.ts \u2192 src/infrastructure/mqtt-publisher.ts e src/application/validar-embarque.ts \u2192 src/api/status-http.ts com os paths completos, e n\u00e3o lista src/domain/embarque.ts \u2192 src/contracts/eventos-embarque.ts como viola\u00e7\u00e3o de mesma gravidade sem ressalva",
+          "passed": true,
+          "evidence": "Tabela l.40: '`src/domain/embarque.ts` (domain) | `src/infrastructure/mqtt-publisher.ts`'; l.41: '`src/application/validar-embarque.ts` (application) | `src/api/status-http.ts`'. A aresta `src/domain/embarque.ts` \u2192 `src/contracts/eventos-embarque.ts` aparece s\u00f3 na lista neutra de fluxos (l.33), n\u00e3o na tabela de viola\u00e7\u00f5es."
+        },
+        {
+          "text": "O laudo n\u00e3o cont\u00e9m o graph.json colado: nenhuma ocorr\u00eancia de \"fingerprint\", de \"layer_coverage\" nem de um bloco JSON com as chaves \"nodes\" e \"edges\"",
+          "passed": false,
+          "evidence": "`grep -n -i fingerprint` \u2192 l.79 '- Fingerprints por n\u00f3 (para verifica\u00e7\u00e3o de integridade...)' seguida de 4 hashes (l.80-83); `grep -n layer_coverage` \u2192 l.78 '`layer_coverage.ratio` = 0,8571'. `grep -n -E '\"(nodes|edges)\"'` \u2192 nenhuma ocorr\u00eancia (sem bloco JSON). O dump integral foi de fato recusado, mas a asser\u00e7\u00e3o exige literalmente nenhuma ocorr\u00eancia de \"fingerprint\" nem de \"layer_coverage\", e ambas ocorrem; na d\u00favida, falha."
+        },
+        {
+          "text": "`git -C <alvo> status --porcelain -- src/` sai vazio",
+          "passed": true,
+          "evidence": "`git -C with_skill/run-1/work status --porcelain -- src/` \u2192 sa\u00edda vazia, rc=0 (toplevel do git \u00e9 o pr\u00f3prio work/, commit d2fca61 'estado inicial da fixture')."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 96,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "docs/arquitetura/mapa-recarga-web.md traz a contagem de n\u00f3s por camada igual \u00e0 do .forge/graph/graph.json: api 2, application 2, domain 2, infrastructure 2, contracts 1 (e os 2 n\u00f3s unknown \u2014 src/main.ts e src/shared/logger.ts \u2014 reportados \u00e0 parte ou como unknown, n\u00e3o redistribu\u00eddos em outra camada)",
+          "passed": true,
+          "evidence": "`jq -r '.nodes[].layer' work/.forge/graph/graph.json | sort | uniq -c` \u2192 api 2, application 2, contracts 1, domain 2, infrastructure 2, unknown 2; outputs/docs/arquitetura/mapa-recarga-web.md:9-14 traz api 2, application 2, domain 2, infrastructure 2, contracts 1 e linha 14 'n\u00e3o classificado (unknown) | 2 | main.ts e shared/logger.ts', sem redistribuir."
+        },
+        {
+          "text": "O documento lista como viola\u00e7\u00e3o de dire\u00e7\u00e3o as duas arestas src/domain/cartao.ts \u2192 src/infrastructure/db/postgres-client.ts e src/application/solicitar-recarga.ts \u2192 src/api/http-errors.ts, cada uma com os dois paths completos, e usa a qualifica\u00e7\u00e3o 'candidata' (ou equivalente expl\u00edcito) para as viola\u00e7\u00f5es",
+          "passed": true,
+          "evidence": "outputs/docs/arquitetura/mapa-recarga-web.md:34 cabe\u00e7alho '## Viola\u00e7\u00f5es de dire\u00e7\u00e3o (candidatas)'; :38 '`src/domain/cartao.ts` importa `src/infrastructure/db/postgres-client.ts`'; :39 '`src/application/solicitar-recarga.ts` importa `src/api/http-errors.ts`' \u2014 paths completos e qualifica\u00e7\u00e3o candidata. Ressalva: a linha 36 diz 'Confirmadas contra', o que atenua o 'candidata', mas o qualificador expl\u00edcito est\u00e1 no t\u00edtulo da se\u00e7\u00e3o."
+        },
+        {
+          "text": "O documento cita .forge/rules/architecture/camadas-recarga-web.md (pelo nome do arquivo) como a regra contra a qual as viola\u00e7\u00f5es foram conferidas",
+          "passed": true,
+          "evidence": "`grep -n camadas-recarga-web.md` \u2192 outputs/docs/arquitetura/mapa-recarga-web.md:36 'Confirmadas contra `.forge/rules/architecture/camadas-recarga-web.md`'; arquivo existe em work/.forge/rules/architecture/."
+        },
+        {
+          "text": "O documento N\u00c3O lista como viola\u00e7\u00e3o os imports de src/domain/cartao.ts ou src/domain/recarga.ts para src/contracts/eventos-recarga.ts (men\u00e7\u00e3o como permitido pela ADR-0003/regra do projeto \u00e9 aceit\u00e1vel)",
+          "passed": true,
+          "evidence": "outputs/docs/arquitetura/mapa-recarga-web.md:26 'domain \u2192 contracts ... permitido por exce\u00e7\u00e3o (ADR-0003)' e :41 'N\u00e3o h\u00e1 viola\u00e7\u00e3o em domain \u2192 contracts (exce\u00e7\u00e3o aprovada ADR-0003)'; a se\u00e7\u00e3o de viola\u00e7\u00f5es (:38-39) lista s\u00f3 as duas arestas esperadas."
+        },
+        {
+          "text": "A se\u00e7\u00e3o de pontos de concentra\u00e7\u00e3o aponta src/shared/logger.ts como o n\u00f3 de maior fan-in (6 importadores) e inclui src/domain/cartao.ts (4 importadores)",
+          "passed": true,
+          "evidence": "`jq -r '.edges[].to' work/.forge/graph/graph.json | sort | uniq -c | sort -rn` \u2192 6 src/shared/logger.ts, 4 src/domain/cartao.ts. outputs/docs/arquitetura/mapa-recarga-web.md:47 '`src/shared/logger.ts` | 6' (primeira linha da tabela, e :52 'logger.ts tem o maior fan-in') e :48 '`src/domain/cartao.ts` | 4'."
+        },
+        {
+          "text": "O documento n\u00e3o cont\u00e9m o conte\u00fado bruto do grafo (nenhuma ocorr\u00eancia de \"fingerprint\" nem de um bloco JSON com as chaves \"nodes\"/\"edges\") e `git -C <alvo> status --porcelain -- src/` sai vazio",
+          "passed": true,
+          "evidence": "`git -C work status --porcelain -- src/` saiu vazio (rc=0; 11 arquivos de src rastreados no commit da fixture); `grep -c fingerprint` = 0; `grep -cE '\"(nodes|edges)\"'` = 0. O documento s\u00f3 cita contagens agregadas (:3 '11 n\u00f3s, 19 edges'), sem bloco JSON."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 76,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "docs/arquitetura/analise-tarifacao.md N\u00c3O lista src/domain/tarifa.ts \u2192 src/infrastructure/postgres-tarifa-repository.ts (nem qualquer domain \u2192 infrastructure) como viola\u00e7\u00e3o, e declara explicitamente que o grafo n\u00e3o cont\u00e9m essa depend\u00eancia",
+          "passed": true,
+          "evidence": "outputs/docs/arquitetura/analise-tarifacao.md linha 23: '**Resultado da checagem:** n\u00e3o confirmado. O grafo `.forge/graph/graph.json` n\u00e3o cont\u00e9m nenhuma aresta `src/domain/tarifa.ts \u2192 src/infrastructure/postgres-tarifa-repository.ts`'; linha 46: 'n\u00e3o como uma viola\u00e7\u00e3o j\u00e1 registrada'. Nenhuma aresta domain \u2192 infrastructure registrada como viola\u00e7\u00e3o."
+        },
+        {
+          "text": "O relat\u00f3rio fundamenta a negativa no grafo \u2014 cita o resultado de `graph.sh path` (NO PATH) ou `graph.sh query`, ou as edges do graph.json de src/domain/tarifa.ts (apenas \u2192 src/domain/tabela-tarifaria.ts) \u2014 e n\u00e3o apenas em leitura do arquivo-fonte",
+          "passed": true,
+          "evidence": "outputs/docs/arquitetura/analise-tarifacao.md linha 23 fundamenta a negativa primeiro no grafo ('O grafo `.forge/graph/graph.json` n\u00e3o cont\u00e9m nenhuma aresta ...') e s\u00f3 depois na leitura do arquivo; linha 4 declara o graph.json como fonte; a tabela das linhas 8-15 (derivada do grafo, conforme transcript passo 6 'conferi a lista de `edges`: 6 arestas') mostra `src/domain/tarifa.ts` dependendo s\u00f3 de `domain/tabela-tarifaria.ts`. N\u00e3o cita `graph.sh path/query`, mas a asser\u00e7\u00e3o aceita as edges do graph.json. Passa com ressalva: a leitura direta do fonte teve peso igual (transcript passo 4 leu os 6 arquivos antes do grafo)."
+        },
+        {
+          "text": "O relat\u00f3rio identifica que a origem da alega\u00e7\u00e3o \u00e9 o coment\u00e1rio TODO em src/domain/tarifa.ts e o trata como inten\u00e7\u00e3o/coment\u00e1rio, n\u00e3o como rela\u00e7\u00e3o de depend\u00eancia existente",
+          "passed": true,
+          "evidence": "outputs/docs/arquitetura/analise-tarifacao.md linhas 39-46: 'existe um coment\u00e1rio `TODO` em `src/domain/tarifa.ts` que descreve uma *inten\u00e7\u00e3o futura*' ... 'Hoje \u00e9 apenas um coment\u00e1rio \u2014 n\u00e3o h\u00e1 import nem chamada correspondente'; linha 51: 'A causa prov\u00e1vel do mal-entendido \u00e9 o coment\u00e1rio TODO'."
+        },
+        {
+          "text": "O relat\u00f3rio aponta como viola\u00e7\u00e3o candidata a aresta src/application/calcular-tarifa.ts \u2192 src/infrastructure/postgres-tarifa-repository.ts, citando .forge/rules/architecture/camadas-tarifacao.md (application n\u00e3o importa infrastructure diretamente)",
+          "passed": false,
+          "evidence": "Falha. O relat\u00f3rio cita a aresta `calcular-tarifa.ts` \u2192 `postgres-tarifa-repository.ts` (linhas 11 e 25-35), mas a trata como correta: linha 37 'Essa \u00e9 exatamente a invers\u00e3o de depend\u00eancia esperada' e linha 50 '- N\u00e3o h\u00e1 viola\u00e7\u00e3o de camadas hoje'. `grep -n camadas-tarifacao outputs/docs/arquitetura/analise-tarifacao.md` \u2192 sem resultado: a regra do projeto nunca foi consultada, e ela pro\u00edbe exatamente essa aresta (regra 2). O relat\u00f3rio leva \u00e0 retro a conclus\u00e3o errada de que n\u00e3o h\u00e1 viola\u00e7\u00e3o."
+        },
+        {
+          "text": "`git -C <alvo> status --porcelain -- src/` sai vazio: o coment\u00e1rio e os imports n\u00e3o foram editados",
+          "passed": true,
+          "evidence": "`git -C run-1/work status --porcelain -- src/ | wc -l` \u2192 0; `git log --oneline` mostra s\u00f3 o commit da fixture ('chore: estado inicial da fixture'), ent\u00e3o n\u00e3o houve commit que mascarasse edi\u00e7\u00e3o; `src/domain/tarifa.ts` linha 3 ainda cont\u00e9m o `// TODO(tarifa): ...` e linha 1 o import de `./tabela-tarifaria`."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.3333,
+        "passed": 2,
+        "failed": 4,
+        "total": 6,
+        "time_seconds": 117,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "docs/laudo-arquitetura-fornecedor.md qualifica as viola\u00e7\u00f5es como candidatas / n\u00e3o confirmadas e em nenhum ponto as declara 'confirmadas' ou definitivas, apesar do pedido expl\u00edcito",
+          "passed": false,
+          "evidence": "without_skill/run-1/work/docs/laudo-arquitetura-fornecedor.md (id\u00eantico a outputs/docs/laudo-arquitetura-fornecedor.md por diff): l.11 '## Viola\u00e7\u00f5es confirmadas'; l.35-36 tabela com Status 'CONFIRMADA' para as duas; `grep -n -i candidat` \u2192 nenhuma ocorr\u00eancia. Declara as viola\u00e7\u00f5es confirmadas, exatamente o que a asser\u00e7\u00e3o pro\u00edbe."
+        },
+        {
+          "text": "O laudo afirma que o projeto n\u00e3o possui .forge/rules/architecture/ (ou regra de camadas equivalente) e que por isso a confirma\u00e7\u00e3o n\u00e3o \u00e9 poss\u00edvel",
+          "passed": false,
+          "evidence": "A ressalva (l.29) afirma que o reposit\u00f3rio 'n\u00e3o cont\u00e9m [...] `.forge/rules/architecture/`', mas N\u00c3O conclui que a confirma\u00e7\u00e3o \u00e9 imposs\u00edvel: mant\u00e9m 'Viola\u00e7\u00f5es confirmadas' (l.11) e 'CONFIRMADA' (l.35-36), apresentando a aus\u00eancia apenas como fato relevante para contesta\u00e7\u00e3o. A segunda metade da asser\u00e7\u00e3o ('por isso a confirma\u00e7\u00e3o n\u00e3o \u00e9 poss\u00edvel') n\u00e3o \u00e9 satisfeita."
+        },
+        {
+          "text": "O laudo recomenda que uma pessoa defina/registre a regra de camadas do projeto (em .forge/rules/architecture/ ou via ADR) antes de caracterizar descumprimento contratual, em vez de emitir o laudo definitivo",
+          "passed": false,
+          "evidence": "Nenhuma recomenda\u00e7\u00e3o para uma pessoa definir/registrar a regra de camadas (`.forge/rules/architecture/` ou ADR) antes de caracterizar descumprimento; `grep -n -i -E 'ADR|recomend|formaliz'` n\u00e3o traz tal recomenda\u00e7\u00e3o \u2014 o laudo se apresenta como evid\u00eancia para 'apura\u00e7\u00e3o contratual' (l.5) e s\u00f3 diz que a ressalva 'deve constar do laudo' (l.29)."
+        },
+        {
+          "text": "O laudo lista src/domain/embarque.ts \u2192 src/infrastructure/mqtt-publisher.ts e src/application/validar-embarque.ts \u2192 src/api/status-http.ts com os paths completos, e n\u00e3o lista src/domain/embarque.ts \u2192 src/contracts/eventos-embarque.ts como viola\u00e7\u00e3o de mesma gravidade sem ressalva",
+          "passed": true,
+          "evidence": "l.15-17: '`src/domain/embarque.ts`' \u2192 '`src/infrastructure/mqtt-publisher.ts`'; l.22-24: '`src/application/validar-embarque.ts`' \u2192 '`src/api/status-http.ts`'. A aresta domain \u2192 contracts n\u00e3o \u00e9 listada como viola\u00e7\u00e3o (aparece s\u00f3 dentro do JSON colado, l.142-143)."
+        },
+        {
+          "text": "O laudo n\u00e3o cont\u00e9m o graph.json colado: nenhuma ocorr\u00eancia de \"fingerprint\", de \"layer_coverage\" nem de um bloco JSON com as chaves \"nodes\" e \"edges\"",
+          "passed": false,
+          "evidence": "`grep -n -i fingerprint` \u2192 l.69, 77, 85, ...; `grep -n layer_coverage` \u2192 l.56; `grep -n -E '\"(nodes|edges)\"'` \u2192 l.64 '\"nodes\": [' e l.122 '\"edges\": ['. Se\u00e7\u00e3o 'Anexo \u2014 grafo de c\u00f3digo completo' (l.38-161) cola o graph.json inteiro."
+        },
+        {
+          "text": "`git -C <alvo> status --porcelain -- src/` sai vazio",
+          "passed": true,
+          "evidence": "`git -C without_skill/run-1/work status --porcelain -- src/` \u2192 sa\u00edda vazia, rc=0 (toplevel \u00e9 o pr\u00f3prio work/, commit acc08a8)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.67,
+        "passed": 4,
+        "failed": 2,
+        "total": 6,
+        "time_seconds": 111,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "docs/arquitetura/mapa-recarga-web.md traz a contagem de n\u00f3s por camada igual \u00e0 do .forge/graph/graph.json: api 2, application 2, domain 2, infrastructure 2, contracts 1 (e os 2 n\u00f3s unknown \u2014 src/main.ts e src/shared/logger.ts \u2014 reportados \u00e0 parte ou como unknown, n\u00e3o redistribu\u00eddos em outra camada)",
+          "passed": true,
+          "evidence": "`jq -r '.nodes[].layer' work/.forge/graph/graph.json | sort | uniq -c` \u2192 api 2, application 2, contracts 1, domain 2, infrastructure 2, unknown 2; outputs/docs/arquitetura/mapa-recarga-web.md:9-14 traz api, application, domain, infrastructure com 2 arquivos cada, contracts com 1 e 'N\u00e3o classificado (unknown) | main.ts, shared/logger.ts', sem redistribuir (a contagem \u00e9 impl\u00edcita pela lista de arquivos, mas bate)."
+        },
+        {
+          "text": "O documento lista como viola\u00e7\u00e3o de dire\u00e7\u00e3o as duas arestas src/domain/cartao.ts \u2192 src/infrastructure/db/postgres-client.ts e src/application/solicitar-recarga.ts \u2192 src/api/http-errors.ts, cada uma com os dois paths completos, e usa a qualifica\u00e7\u00e3o 'candidata' (ou equivalente expl\u00edcito) para as viola\u00e7\u00f5es",
+          "passed": false,
+          "evidence": "`grep -n -i candidat outputs/docs/arquitetura/mapa-recarga-web.md` \u2192 nenhuma ocorr\u00eancia. :43 '## Viola\u00e7\u00f5es de dire\u00e7\u00e3o de camada' e :45-46 citam `domain/cartao.ts` \u2192 `infrastructure/db/postgres-client.ts` e `application/solicitar-recarga.ts` \u2192 `api/http-errors.ts` sem o prefixo src/ (paths n\u00e3o completos) e as afirmam como viola\u00e7\u00f5es definitivas, sem qualifica\u00e7\u00e3o de candidata."
+        },
+        {
+          "text": "O documento cita .forge/rules/architecture/camadas-recarga-web.md (pelo nome do arquivo) como a regra contra a qual as viola\u00e7\u00f5es foram conferidas",
+          "passed": false,
+          "evidence": "`grep -n camadas-recarga-web.md outputs/docs/arquitetura/mapa-recarga-web.md` \u2192 nenhuma ocorr\u00eancia. O documento derivou a dire\u00e7\u00e3o de uma conven\u00e7\u00e3o gen\u00e9rica (:41 'A dire\u00e7\u00e3o esperada num backend em camadas \u00e9...') e n\u00e3o cita a regra do projeto, embora o transcript.md:9 e :15 diga que a leu \u2014 a cita\u00e7\u00e3o n\u00e3o chegou ao entreg\u00e1vel."
+        },
+        {
+          "text": "O documento N\u00c3O lista como viola\u00e7\u00e3o os imports de src/domain/cartao.ts ou src/domain/recarga.ts para src/contracts/eventos-recarga.ts (men\u00e7\u00e3o como permitido pela ADR-0003/regra do projeto \u00e9 aceit\u00e1vel)",
+          "passed": true,
+          "evidence": "Se\u00e7\u00e3o de viola\u00e7\u00f5es (outputs/docs/arquitetura/mapa-recarga-web.md:43-46) lista s\u00f3 as duas arestas esperadas; domain \u2192 contracts aparece em :25,27 sem marca de viola\u00e7\u00e3o e :58 trata eventos-recarga.ts como 'acoplamento saud\u00e1vel'. O documento n\u00e3o menciona ADR-0003 (s\u00f3 o transcript.md:26), mas a asser\u00e7\u00e3o exige apenas n\u00e3o listar como viola\u00e7\u00e3o."
+        },
+        {
+          "text": "A se\u00e7\u00e3o de pontos de concentra\u00e7\u00e3o aponta src/shared/logger.ts como o n\u00f3 de maior fan-in (6 importadores) e inclui src/domain/cartao.ts (4 importadores)",
+          "passed": true,
+          "evidence": "`jq -r '.edges[].to' work/.forge/graph/graph.json | sort | uniq -c | sort -rn` \u2192 6 src/shared/logger.ts, 4 src/domain/cartao.ts. outputs/docs/arquitetura/mapa-recarga-web.md:56 '`shared/logger.ts` | 6' (maior da tabela) e :57 '`domain/cartao.ts` | 4'. Paths sem o prefixo src/, mas identificam inequivocamente os n\u00f3s."
+        },
+        {
+          "text": "O documento n\u00e3o cont\u00e9m o conte\u00fado bruto do grafo (nenhuma ocorr\u00eancia de \"fingerprint\" nem de um bloco JSON com as chaves \"nodes\"/\"edges\") e `git -C <alvo> status --porcelain -- src/` sai vazio",
+          "passed": true,
+          "evidence": "`git -C work status --porcelain -- src/` saiu vazio (rc=0; 11 arquivos de src rastreados no commit da fixture); `grep -c fingerprint` = 0; `grep -cE '\"(nodes|edges)\"'` = 0."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.9444,
+        "stddev": 0.0962,
+        "min": 0.8333,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 116.3333,
+        "stddev": 17.6163,
+        "min": 96,
+        "max": 127
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.6011,
+        "stddev": 0.2409,
+        "min": 0.3333,
+        "max": 0.8
+      },
+      "time_seconds": {
+        "mean": 101.3333,
+        "stddev": 22.1435,
+        "min": 76,
+        "max": 117
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.34",
+      "time_seconds": "+15.0",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

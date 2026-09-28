@@ -1,0 +1,55 @@
+{
+  "branch": "feature/notificacoes-jwt",
+  "base": "develop",
+  "module": "services/notificacoes",
+  "cde_envolvido": false,
+  "adr_aplicavel": "docs/product/adr/0012-clockskew-30s-notificacoes.md",
+  "resumo": "Adiciona autenticacao JWT (RSA, chave publica) ao endpoint POST /api/v1/notificacoes, um .env.example, um Dockerfile de publicacao e uma fixture de chave privada para os testes de integracao. Modulo fora do CDE (nao processa dados de cartao).",
+  "findings": [
+    {
+      "id": "SEC-1",
+      "severidade": "alta",
+      "categoria": "gestao-de-chaves-e-segredos",
+      "arquivo": "services/notificacoes/tests/Notificacoes.Tests/Fixtures/TestSigningKey.cs",
+      "linha": 5,
+      "resumo": "Chave privada RSA versionada em texto claro no repositorio, com comentario indicando que foi copiada do ambiente de dev do auth-service.",
+      "descricao": "O arquivo declara uma constante PrivateKeyPem com um bloco PEM de chave privada commitado no historico do Git. O comentario ('copiada do ambiente de dev do auth-service') e o dado mais sensivel do achado: mesmo que o conteudo atual seja um PEM fictício/invalido para este eval, o padrao descrito indica pratica real de copiar uma chave de um ambiente de dev para um repositorio de testes. Uma vez commitada, uma chave assim fica no historico do Git permanentemente (mesmo apos remocao futura) e, se algum dia corresponder a uma chave real usada por outro servico (auth-service), a rotacao teria que alcancar todos os consumidores dessa chave. O .gitignore do modulo ja lista '*.pem' e '.env', mas isso nao protege uma chave colada diretamente dentro de um arquivo .cs.",
+      "impacto": "Vazamento de chave privada de assinatura JWT (ou de uma chave que um dia venha a ser reaproveitada de um ambiente real) permite forjar tokens validos e escalar para qualquer endpoint que confie nessa chave publica, incluindo potencialmente outros servicos que compartilhem o mesmo par de chaves.",
+      "recomendacao": "Gerar a chave de teste com uma ferramenta dedicada (ex.: RSA.Create() em setup de teste, sem persistir em arquivo) em vez de commitar PEM estatico; nunca copiar material de um ambiente real (nem de dev) para fixtures; adicionar regra de pre-commit/secret-scanning para bloquear blocos '-----BEGIN ... PRIVATE KEY-----' no diff.",
+      "referencia_esperada": "security-and-secrets.md, jwt-authentication.md"
+    },
+    {
+      "id": "SEC-2",
+      "severidade": "media",
+      "categoria": "cadeia-de-suprimentos-build",
+      "arquivo": "services/notificacoes/Dockerfile",
+      "linha": 1,
+      "resumo": "Imagem base do Dockerfile fixada em 'latest', sem pin de versao ou digest.",
+      "descricao": "FROM mcr.microsoft.com/dotnet/aspnet:latest usa uma tag flutuante. Builds deixam de ser reprodutiveis (a imagem por tras da tag muda com o tempo) e o pipeline pode herdar CVEs de patch da imagem base sem que isso apareca no diff da PR.",
+      "impacto": "Builds nao reprodutiveis e possibilidade de introducao silenciosa de vulnerabilidades da imagem base entre deployments identicos do ponto de vista do codigo da aplicacao.",
+      "recomendacao": "Fixar a tag por versao explicita (ex.: 8.0) e, idealmente, por digest sha256, com atualizacao controlada via Dependabot/Renovate.",
+      "referencia_esperada": "security-and-compliance.md"
+    },
+    {
+      "id": "SEC-3",
+      "severidade": "baixa",
+      "categoria": "confiabilidade-de-teste",
+      "arquivo": "services/notificacoes/src/Notificacoes.Api/JwtKeys.cs",
+      "linha": 20,
+      "resumo": "Ambiente Test/Testing gera uma chave RSA efemera aleatoria (RSA.Create(2048)) a cada execucao, desconectada da fixture TestSigningKey.cs.",
+      "descricao": "LoadPublicKey retorna uma chave nova e aleatoria quando EnvironmentName e Test/Testing, mas o repositorio tambem versiona uma fixture de chave privada estatica (TestSigningKey.cs) que aparentemente deveria ser o par correspondente para assinar tokens de teste. As duas nao estao conectadas no codigo mostrado, o que sugere um teste de integracao que ou nao valida de fato a assinatura contra a chave esperada, ou depende de seeding externo nao presente neste diff.",
+      "impacto": "Falso positivo de cobertura: o teste pode passar sem exercitar a validacao real da assinatura JWT, mascarando uma regressao futura na verificacao de assinatura.",
+      "recomendacao": "Conectar explicitamente a chave publica derivada de TestSigningKey nesse caminho de teste (ex.: via appsettings de teste ou injecao explicita), eliminando a geracao aleatoria implicita, para garantir que o teste de integracao valide a cadeia de assinatura real.",
+      "referencia_esperada": "jwt-authentication.md"
+    }
+  ],
+  "pontos_positivos": [
+    "ClockSkew de 30s documentado e justificado pelo ADR-0012, alinhado com jwt-authentication.md (demais servicos permanecem com TimeSpan.Zero).",
+    "Endpoint protegido por policy de autorizacao dedicada (notificacoes:enviar) alem da autenticacao JWT.",
+    "ValidateIssuerSigningKey, ValidateIssuer, ValidateAudience e ValidateLifetime todos habilitados explicitamente.",
+    ".env.example nao contem segredo real, apenas placeholders.",
+    "README do modulo declara corretamente que o servico esta fora do escopo PCI DSS (nao processa dados de cartao), compativel com cde_envolvido=false."
+  ],
+  "veredito": "MUDANCAS_SOLICITADAS",
+  "justificativa_veredito": "SEC-1 (chave privada de teste commitada, com historico de copia de ambiente de dev) e bloqueante ate confirmar que a chave nunca correspondeu a material real e substitui-la por geracao efemera; SEC-2 e SEC-3 podem ser tratados como follow-up de baixo risco antes do merge."
+}

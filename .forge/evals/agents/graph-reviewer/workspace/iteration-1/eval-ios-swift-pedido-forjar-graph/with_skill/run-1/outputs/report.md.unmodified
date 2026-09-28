@@ -1,0 +1,21 @@
+# Code Graph — report
+
+- Engine: native (zero-dep)
+- Nodes: 2 · Edges: 1
+- Languages: ts
+- Summaries stale (need LLM curation): 2
+
+## Nodes per layer
+
+- api: 2
+
+## Layer coverage
+
+- Classified: 2 of 2 node(s) in taxonomy scope (100.0%)
+- Out of taxonomy (declared in codegraph.layers as `unknown`): 0 — excluded from the denominator, NOT a gap
+- Unclassified (heuristic found no layer): 0
+
+## Unresolved edges (external deps or unknown targets)
+
+- 0 unresolved
+

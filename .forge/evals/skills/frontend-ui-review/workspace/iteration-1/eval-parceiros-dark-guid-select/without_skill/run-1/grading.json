@@ -1,0 +1,79 @@
+{
+  "expectations": [
+    {
+      "text": "O relatório identifica --surface-2 (PartnersPage.css) como token referenciado e nunca definido em tokens.css e o liga ao defeito do dark mode",
+      "passed": true,
+      "evidence": "ui-review.md:10 'src/features/partners/PartnersPage.css:1 usa background: var(--surface-2). Esse token não existe em src/styles/tokens.css' ... 'exatamente o sintoma relatado (\"tabela clara no meio da tela escura\")'."
+    },
+    {
+      "text": "O relatório não classifica --progress como token fantasma a corrigir: reconhece que é injetado em runtime via style inline (allowlist) e o separa de --surface-2",
+      "passed": false,
+      "evidence": "`grep -c -- '--progress' outputs/ui-review.md` = 0. O relatório não o classifica como fantasma, mas também não reconhece a injeção em runtime nem o separa de --surface-2: a asserção exige as duas coisas, e a segunda não tem evidência (transcript também não menciona --progress)."
+    },
+    {
+      "text": "O relatório classifica a BU exibida como UUID como dado cru vazando por falta de fonte id->nome no backend (endpoint/contrato de API) e o encaminha como tarefa de backend, em vez de propor apenas truncar, formatar ou estilizar o UUID no front",
+      "passed": true,
+      "evidence": "ui-review.md:14-16 'Isso não é um bug de CSS/estilo: o front não tem de onde tirar o nome ... nenhuma resolvível só no front: Pedir ao time de backend um campo bu_name no payload de /partners (mudança de contrato...)'. A linha 17 sugere truncar o UUID como paliativo ('Enquanto o nome não existir, pelo menos truncar ... primeiros 8 caracteres'), mas não como única proposta, então o critério 'em vez de propor apenas truncar' é atendido; resumo linha 34 reforça 'depende de alinhamento com o backend'."
+    },
+    {
+      "text": "O relatório aponta que o DS não tem primitivo Select, cita que mais de uma tela (partners e users) improvisa <select> nativo, e encaminha a criação do primitivo ao dono do design system separado das correções locais da tela",
+      "passed": false,
+      "evidence": "ui-review.md:23-25 reconhece que o DS não tem Select, mas o achado 4 cita só PartnersPage e o rebaixa ('Médio ... Não é exatamente um bug'); a menção às duas telas aparece só no resumo (linha 36: 'avaliar um componente Select oficial ... PartnersPage e UsersPage reimplementam'). Não há encaminhamento ao dono do design system: 'registrar ... como item de backlog'/'avaliar' não atribui dono nem pede a criação do primitivo (`grep -niE 'dono do (DS|design system)'` sem ocorrência). Na dúvida, falha."
+    },
+    {
+      "text": "ui-review.md traz o bloco de gates determinísticos com status por gate (A1 a A5) e uma linha final de veredito APROVADO ou BLOQUEADO, com BLOQUEADO neste caso",
+      "passed": false,
+      "evidence": "Não há bloco de gates nem veredito: `grep -nE 'A[1-5] ' outputs/ui-review.md` e `grep -nE 'BLOQUEADO|APROVADO' outputs/ui-review.md` sem ocorrência. O relatório termina em 'Resumo do que corrigir no front' (linhas 30-36)."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 3,
+    "total": 5,
+    "pass_rate": 0.4
+  },
+  "timing": {
+    "executor_duration_seconds": 177,
+    "total_duration_seconds": 177
+  },
+  "claims": [
+    {
+      "claim": "var() com custom property indefinida sem fallback faz background-color computar transparent",
+      "type": "factual",
+      "verified": true,
+      "evidence": "Comportamento CSS padrão (invalid at computed-value time → initial para propriedade não herdada)."
+    },
+    {
+      "claim": "Nenhum lugar define color-scheme",
+      "type": "factual",
+      "verified": true,
+      "evidence": "Plausível pelo fixture lido; achado legítimo não coberto por asserção."
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [],
+    "workarounds": [
+      "Despacho de subagentes simulado em outputs/subagent-dispatch-would-have-done.md; execução feita diretamente."
+    ]
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "O relatório identifica --surface-2 (PartnersPage.css) como token referenciado e nunca definido em tokens.css e o liga ao defeito do dark mode",
+        "reason": "Não discrimina: o baseline sem skill também achou --surface-2 com um grep simples (without_skill transcript passo 7). Serve como piso, não como sinal do valor da skill."
+      },
+      {
+        "assertion": "ui-review.md traz o bloco de gates determinísticos com status por gate (A1 a A5) e uma linha final de veredito APROVADO ou BLOQUEADO, com BLOQUEADO neste caso",
+        "reason": "Asserção de formato que só a skill pode satisfazer; mede aderência ao template, não qualidade da revisão. Manter, mas não ler o delta de pass_rate como ganho de substância."
+      },
+      {
+        "reason": "Nenhuma asserção cobre o border-radius hardcoded (4px em PartnersPage.css:5, 6px em UsersPage.css, token --radius-md: 8px ignorado): o baseline achou, a execução com skill não (seu A2 só varre cor). É uma lacuna real dos gates da skill que a eval deixa passar."
+      },
+      {
+        "reason": "Nenhuma asserção cobre color-scheme para o popup nativo do <select> no dark; o baseline propôs a correção concreta, a execução com skill só mencionou que o chrome nativo não segue o tema. Considerar asserção sobre o tratamento do chrome nativo no dark."
+      }
+    ],
+    "overall": "As asserções 2 a 4 são discriminantes e bem desenhadas; a 1 é piso e a 5 é de formato. Faltam asserções para achados legítimos fora dos gates da skill (radius, color-scheme), onde o baseline foi melhor."
+  }
+}

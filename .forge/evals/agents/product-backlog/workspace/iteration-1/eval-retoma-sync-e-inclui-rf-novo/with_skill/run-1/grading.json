@@ -1,0 +1,66 @@
+{
+  "expectations": [
+    {
+      "text": "A tabela '## 5. Mapeamento Local ↔ Jira' de product-backlog.md mantém EP-001→PLD-1, US-001→PLD-2, US-002→PLD-3 e US-003→PLD-4, cada ID local aparecendo uma única vez; a tabela de épicos continua com exatamente dois épicos (card-wallet e fare-validation), sem épico duplicado para card-wallet",
+      "passed": true,
+      "evidence": "Comando: sed -n '/## 5/,$p' product-backlog.md | grep '|' e grep -oE 'PLD-[0-9]+' product-backlog.md | sort | uniq -c. outputs/docs/product/backlog/product-backlog.md:48-51 = '| EP-001 | PLD-1 |', '| US-001 | PLD-2 |', '| US-002 | PLD-3 |', '| US-003 | PLD-4 |', cada PLD-1..4 com contagem 1 e §5 sem outras linhas (git diff do work/ não toca §5); tabela de épicos (§1) tem 2 linhas '| EP-' (EP-001 card-wallet linha 14, EP-002 fare-validation linha 15). outputs/ idêntico a work/ (cmp)."
+    },
+    {
+      "text": "product-backlog.md tem uma story US-007 (e nenhuma outra story nova além dela) no épico card-wallet com RF-007 na coluna RF, as stories US-001..US-006 continuam com os mesmos IDs e RFs, e a TASK-08 do card-wallet aparece referenciada (como task técnica com 'TASK-08' ou nos critérios/tasks da US-007)",
+      "passed": false,
+      "evidence": "US-007 é a única story nova (product-backlog.md:24 '| US-007 | card-wallet | ... | RF-007 | 5 | Sprint 2 | TO DO |'; US-001..006 nas linhas 21-23 e 25-27 com RF-001..RF-006 inalterados, diff só acrescenta a linha 24). Porém 'grep -rn TASK-08 product-backlog.md sprint-*.md' retorna vazio: TASK-08 não aparece como task técnica em §3 (que continua com T-001..T-005 e 'Total de tasks: 5') nem nos critérios da US-007 em sprint-2-recarga-pix.md:41-49 (critério único 'Conforme RF-007 em .../requirements.md'). A única menção é progress-tracking.md:35, nota de histórico justificando ausência ('TASK-08 ... já coberta pela própria story'), o que não satisfaz a exigência de referência no backlog."
+    },
+    {
+      "text": "US-007 aparece em exatamente um arquivo docs/product/backlog/sprint-<N>-<slug>.md, o N desse arquivo coincide com a coluna Sprint da US-007 em product-backlog.md, e N é maior ou igual ao número da sprint da US-001 (a TASK-08 depende da TASK-03 do RF-001)",
+      "passed": true,
+      "evidence": "Comando: grep -l 'US-007' docs/product/backlog/sprint-*-*.md → apenas sprint-2-recarga-pix.md (seção '### US-007 — Bloquear cartão perdido', linha 41, colada a '- [ ] PR mergeado' no mesmo padrão pré-existente do fixture: 'git show HEAD:...sprint-2-recarga-pix.md' já tem 'PR mergeado### US-003' e '### US-004'). Coluna Sprint da US-007 em product-backlog.md:24 = 'Sprint 2' = N do arquivo; US-001 em 'Sprint 1' (linha 21), 2 ≥ 1. sprints-planning.md atualizado coerentemente (Sprint 2: 4 stories/24 pts) e 'Story Points totais: 24' no arquivo da sprint."
+    },
+    {
+      "text": "A tabela '## 3. Histórico de Ações' de progress-tracking.md ainda contém as quatro linhas originais com timestamps 2026-09-25T18:01:50Z, 2026-09-25T18:02:11Z, 2026-09-25T18:03:31Z e 2026-09-25T18:04:02Z, e tem ao menos uma linha nova com timestamp posterior a elas",
+      "passed": true,
+      "evidence": "Comando: grep -nE '2026-09-2[5-9]T' progress-tracking.md. Linhas 30-33 contêm as quatro linhas originais (18:01:50Z, 18:02:11Z, 18:03:31Z, 18:04:02Z) idênticas às do fixture (git diff mostra só adições após a linha 33); linhas 34-36 novas com 2026-09-26T09:15:00Z (retomada, inclusão RF-007, sync US-007 PENDENTE)."
+    },
+    {
+      "text": "Em progress-tracking.md §2 a operação do épico EP-002 continua listada como pendente (ou, se removida, §3 registra uma chamada createJiraIssue bem-sucedida para ela) e há registro pendente para a US-007; product-backlog.md §5 não contém nenhuma Issue Key PLD-<n> além de PLD-1..PLD-4 sem uma linha OK correspondente em §3",
+      "passed": true,
+      "evidence": "progress-tracking.md:22 mantém '| 2026-09-25T18:04:02Z | createJiraIssue (Epic) | EP-002 fare-validation | HTTP 429 ... | Reprocessado nesta execução (simulado ...)' como pendente; linha 24 adiciona '| 2026-09-26T09:15:00Z | createJiraIssue (Story) | US-007 ... | Não executado — MCP Atlassian indisponível'. grep -oE 'PLD-[0-9]+' product-backlog.md → só PLD-1..PLD-4. 'PLD-5' aparece apenas como exemplo explícito em outputs/jira-dispatch-simulado.md:21 ('só gravar em §5 após confirmação real'), não em §5."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "pass_rate": 0.8
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 327000,
+    "total_duration_seconds": 327
+  },
+  "user_notes_summary": {
+    "uncertainties": [
+      "Timestamp 2026-09-26T09:15:00Z não parece medido."
+    ],
+    "needs_review": [
+      "TASK-08 omitida do backlog por decisão de modelagem; 'Total de tasks' não recalculado."
+    ],
+    "workarounds": [
+      "Sync Jira simulada em outputs/jira-dispatch-simulado.md; MCP indisponível."
+    ]
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "product-backlog.md tem uma story US-007 (e nenhuma outra story nova além dela) no épico card-wallet com RF-007 na coluna RF, as stories US-001..US-006 continuam com os mesmos IDs e RFs, e a TASK-08 do card-wallet aparece referenciada (como task técnica com 'TASK-08' ou nos critérios/tasks da US-007)",
+        "reason": "Mistura três checagens independentes (ID novo, preservação de RFs, referência a TASK-08); a falha do with_skill vem só da última, que é uma escolha de modelagem defensável (feature com RF vira story). Separar em asserções distintas tornaria o sinal legível."
+      },
+      {
+        "reason": "Nenhuma asserção verifica a integridade de totais/formato: o with_skill manteve 'Total de tasks: 5' e reproduziu a concatenação '- [ ] PR mergeado### US-007' (heading não renderiza), e o without_skill deixou §5 com linhas '—' que o agente spec trata como fonte de idempotência. Vale uma asserção de totais consistentes e de headings '### US-' no início de linha."
+      },
+      {
+        "reason": "A asserção 3 penaliza 'backlog não alocado' mesmo com justificativa de capacidade; se o comportamento desejado é sempre alocar, o prompt deveria indicar isso ou o agente spec precisa exigir; hoje é o principal discriminador entre as configs."
+      }
+    ],
+    "overall": "As cinco asserções são checáveis por grep e discriminam razoavelmente; empate 4/5 x 4/5 com falhas em asserções diferentes."
+  }
+}

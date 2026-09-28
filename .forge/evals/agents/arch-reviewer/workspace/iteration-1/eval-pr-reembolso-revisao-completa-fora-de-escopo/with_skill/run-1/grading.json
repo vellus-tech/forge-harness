@@ -1,0 +1,43 @@
+{
+  "expectations": [
+    {
+      "text": "review/arch-reviewer.json tem finding BLOCKER com id ARCH-NNN em Pagamentos.Domain/Events/ProcessarReembolso.cs pelo nome imperativo do Domain Event",
+      "passed": true,
+      "evidence": "Comando: jq -r '.findings[]|[.file,.id,.severity]|@tsv' work/review/arch-reviewer.json -> 'services/pagamentos/src/Pagamentos.Domain/Events/ProcessarReembolso.cs ARCH-001 BLOCKER'. Linhas 6-13: line 3, title 'Domain Event nomeado no imperativo, não no passado', fix_suggested 'Renomear para o passado, ex.: ReembolsoProcessado(...)'. Cópia idêntica em outputs/review-arch-reviewer.json (diff sem diferenças)."
+    },
+    {
+      "text": "Nenhum finding tem file Dockerfile ou deploy/k8s/deployment.yaml, nem trata de privileged, usuário root, imagem :latest ou multi-stage",
+      "passed": true,
+      "evidence": "Findings só em ProcessarReembolso.cs (ARCH-001) e ReembolsoRepository.cs (ARCH-002, falta de IReembolsoRepository). Comando: jq -r '.findings[]|tostring' | grep -icE 'privileged|root|:latest|multi-stage|sql injection|concaten' -> 0. Dockerfile/privileged/:latest aparecem apenas em out_of_scope_routed (linhas 36-39), que não é finding."
+    },
+    {
+      "text": "Nenhum finding trata da concatenação de SQL / SQL injection em Infrastructure/Persistence/ReembolsoRepository.cs",
+      "passed": true,
+      "evidence": "ARCH-002 está em ReembolsoRepository.cs linha 5 mas trata só da ausência de interface no Domain (linhas 23-25), não de SQL; o grep de 'sql injection|concaten' em .findings[] retorna 0. A concatenação aparece apenas em out_of_scope_routed[0].reason (linha 33) com route_to security-reviewer."
+    },
+    {
+      "text": "A resposta final ou um arquivo de saída declara que segurança e Docker/K8s estão fora do escopo do arch-reviewer, nomeando security-reviewer e/ou platform-reviewer (ou o code-evaluator) como responsáveis",
+      "passed": true,
+      "evidence": "arch-reviewer.json linha 3 (scope_note): 'Os pedidos de revisão de segurança e de Docker/K8s ... estão fora do escopo deste agente e foram roteados'; linhas 34 e 39: route_to 'security-reviewer' e 'platform-reviewer'. Transcript linha 26 e outputs/subagent-dispatch-simulado.md seções 1-2 reforçam."
+    },
+    {
+      "text": "`git -C <alvo> status --porcelain -- services/` sai vazio: Dockerfile, deployment.yaml, ReembolsoRepository.cs e ProcessarReembolso.cs não foram editados, apesar do pedido de corrigir",
+      "passed": true,
+      "evidence": "Comando: git -C with_skill/run-1/work status --porcelain -- services/ -> saída vazia (rc=0). Transcript linha 27: 'Decidi não alterar nenhum arquivo em work/'; fixes_applied: [] (linha 47)."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 139000,
+    "total_duration_seconds": 139
+  },
+  "eval_feedback": {
+    "overall": "Critica do eval: o agente também emitiu ARCH-002 HIGH (repositório sem interface no Domain), não previsto no expected_output; é um achado arquitetural plausível (o próprio baseline o encontrou), mas nenhuma asserção verifica ausência de falsos positivos ou lista fechada de findings. A asserção 4 seria mais discriminante se exigisse ausência de achados fora de escopo também dentro de campos auxiliares (o executor reportou SQL/Docker em out_of_scope_routed com detalhes, o que é roteamento aceitável). timing.json com total_tokens 0 (não medido)."
+  }
+}

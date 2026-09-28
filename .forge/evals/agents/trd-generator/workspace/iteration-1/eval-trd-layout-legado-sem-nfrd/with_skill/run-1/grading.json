@@ -1,0 +1,84 @@
+{
+  "expectations": [
+    {
+      "text": "Existe docs/product/trd/trd.md e não existe docs/trd/ nem qualquer TRD.md em maiúsculas; a seção de Referências do trd.md aponta para docs/prd/prd.md, docs/frd/frd.md e docs/adr/0001-monolito-modular.md (os paths que realmente existem).",
+      "passed": true,
+      "evidence": "`find work -iname trd.md` retorna só work/docs/product/trd/trd.md; `test -d work/docs/trd` → ausente; nenhum TRD.md maiúsculo. with_skill/run-1/outputs/docs/product/trd/trd.md linhas 65-68 (seção 3 Referências) apontam `docs/prd/prd.md`, `docs/frd/frd.md` e `docs/adr/0001-monolito-modular.md`, que existem na fixture. outputs/ e work/ idênticos (cmp)."
+    },
+    {
+      "text": "A tabela de Pontos a Validar contém ao menos um VAL-TRD-NN cujo texto menciona os paths legados (docs/prd, docs/frd ou docs/adr) e recomenda a migração para docs/product/.",
+      "passed": false,
+      "evidence": "Nenhum VAL-TRD-NN menciona docs/prd, docs/frd ou docs/adr: `grep -n 'VAL-TRD-[0-9][0-9] ' trd.md | grep -iE 'docs/(prd|frd|adr)'` retorna vazio. A recomendação de migração existe (with_skill/run-1/outputs/docs/product/trd/trd.md linha 74 e linha 820), mas a linha 820 da tabela de Pontos a Validar tem código '**Recomendação de migração de layout**', não VAL-TRD-NN; VAL-TRD-01 (linha 802) cita só `docs/product/frd-nfrd/nfrd.md` / `docs/nfrd/`. O transcript (passo 9) afirma a recomendação 'na seção 22', o que é verdade, mas sem código VAL-TRD rastreável."
+    },
+    {
+      "text": "A tabela de Pontos a Validar contém um VAL-TRD-NN registrando a ausência do NFRD; e toda meta numérica de latência (ms), disponibilidade (%) ou retenção (anos) que apareça no trd.md está na mesma linha ou parágrafo que 'Inferência Técnica' ou 'Ponto a Validar' (nenhuma aparece como requisito definido sem marcação).",
+      "passed": true,
+      "evidence": "VAL-TRD-01 (with_skill/run-1/outputs/docs/product/trd/trd.md linha 802): 'NFRD não existe no repositório — nenhum requisito não funcional formal'. `grep -nE '[0-9]+ ?ms|[0-9]+([.,][0-9]+)? ?%|[0-9]+ anos'` acha só a linha 575 ('**Inferência Técnica: alvo sugerido < 500ms**', mesma linha cita VAL-TRD-01) e a linha 665 (cobertura de testes 95%/85%/70%, que não é disponibilidade). Nenhuma meta de disponibilidade ou retenção em anos; retenções remetem a VAL-TRD-12."
+    },
+    {
+      "text": "As rotas de API do trd.md seguem '/api/v1/<resource>' em kebab-case e a seção de Arquitetura de APIs (ou a linha da rota) contém a marcação literal 'Inferência Técnica' justificando o padrão por falta de padrão definido no projeto.",
+      "passed": true,
+      "evidence": "`grep -oE '/api/v1/[A-Za-z0-9{}/_-]+'` → /api/v1/trips, /api/v1/deny-list, /api/v1/passengers/{cardToken}/trips (segmentos de recurso em kebab-case; o parâmetro de path é camelCase). Seção 8 (linhas 261-302) contém o literal 'Inferência Técnica' nas linhas das rotas (280-282) e a linha 274 justifica: 'o projeto não tem padrão de API definido ... As APIs abaixo seguem `/api/v1/[resource]` em kebab-case por inferência técnica'; seção 7 linhas 223-225 marcam cada rota '(Inferência Técnica)'. Ressalva: a frase de justificativa usa minúsculas; o literal capitalizado está nas linhas das rotas, o que a asserção aceita ('ou a linha da rota')."
+    },
+    {
+      "text": "A seção Módulos e Deployables/Estilo Arquitetural adota o monólito modular do ADR-0001 como estilo (um deployable de backend para os módulos de negócio, PostgreSQL com schema por módulo); se microsserviços forem mencionados, é como evolução futura, risco ou Ponto a Validar, nunca como decisão do TRD.",
+      "passed": true,
+      "evidence": "Seção 6 (linha 186) 'Monólito modular, conforme ADR-0001. Um único deployable de backend ... cada um com seu schema PostgreSQL dedicado'; seção 7 (linha 194) um único deployable `tarifa-aberta-backend` com os 4 módulos; seção 10 linha 366 'PostgreSQL (único, schema-per-module)'. `grep -iE 'microsservi|microservi'` vazio; extração de serviços aparece só como futuro condicionado ao ADR (linhas 124, 307)."
+    },
+    {
+      "text": "git diff HEAD -- docs/prd docs/frd docs/adr no diretório de saída é vazio: o agente não moveu, renomeou nem editou os documentos legados.",
+      "passed": true,
+      "evidence": "`git -C with_skill/run-1/work diff HEAD --name-status -- docs/prd docs/frd docs/adr | wc -l` → 0; `git status --porcelain -- docs/` mostra só '?? docs/product/'. (O status do repositório também lista .claude/ e .forge/ agents/skills como deletados, idêntico na configuração baseline — artefato do isolamento do eval, fora de docs/.)"
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 1,
+    "total": 6,
+    "pass_rate": 0.83
+  },
+  "execution_metrics": {
+    "output_chars": 49860,
+    "transcript_chars": 7327
+  },
+  "timing": {
+    "executor_duration_seconds": 342,
+    "total_duration_seconds": 342
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A tabela de Pontos a Validar contém ao menos um VAL-TRD-NN cujo texto menciona os paths legados (docs/prd, docs/frd ou docs/adr) e recomenda a migração para docs/product/.",
+        "reason": "Discriminou de fato: o with_skill fez a recomendação de migração, mas fora de um código VAL-TRD-NN. Se o contrato do agente exige VAL-TRD numerado para toda recomendação da seção 22, a asserção está certa e o agente deve ser corrigido; se não exige, o autor do eval deve decidir se o código é essencial."
+      },
+      {
+        "assertion": "As rotas de API do trd.md seguem '/api/v1/<resource>' em kebab-case e a seção de Arquitetura de APIs (ou a linha da rota) contém a marcação literal 'Inferência Técnica' justificando o padrão por falta de padrão definido no projeto.",
+        "reason": "A asserção não exige que a frase de justificativa (e não só a célula de autenticação) contenha o literal 'Inferência Técnica'; um TRD que marca só a coluna de autenticação passaria. Considere exigir o literal na mesma linha da rota ou do parágrafo que justifica o prefixo /api/v1."
+      },
+      {
+        "reason": "Nenhuma asserção verifica que o TRD evita decisões não suportadas pelo insumo (ex.: o with_skill importou regras do .forge/rules como cobertura ≥95%, Pact obrigatório, multi-arch e tenant_id, mesmo com stack indefinida, parcialmente mitigado por VAL-TRD-09/17). Vale uma asserção de que convenções herdadas de rules genéricas aparecem marcadas como inferência."
+      }
+    ],
+    "overall": "Asserções majoritariamente discriminantes e checáveis por comando; a de API aceita uma marcação fraca."
+  },
+  "claims": [
+    {
+      "claim": "TRD com 23 seções e 18 VAL-TRD (01 a 18)",
+      "type": "factual",
+      "verified": true,
+      "evidence": "Sumário linhas 21-43; tabela da seção 22 linhas 802-819 vai de VAL-TRD-01 a VAL-TRD-18."
+    },
+    {
+      "claim": "Nenhuma alteração em PRD, FRD ou ADR",
+      "type": "process",
+      "verified": true,
+      "evidence": "git diff HEAD vazio para docs/prd docs/frd docs/adr."
+    },
+    {
+      "claim": "Recomendação de migração registrada na seção 22",
+      "type": "factual",
+      "verified": true,
+      "evidence": "Linha 820, porém sem código VAL-TRD-NN."
+    }
+  ]
+}

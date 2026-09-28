@@ -1,0 +1,12 @@
+{
+  "eval_id": 3,
+  "eval_name": "pedidos-pagamentos-sem-adr",
+  "prompt": "Cria a migration services/recargas/db/migrations/V003__pedidos_pagamentos.sql com as tabelas de pedido de recarga, itens do pedido e pagamento (valor, status, gateway, NSU, data). O serviço já usa Postgres para os parâmetros (ADR-0001), então aproveita o mesmo banco e segue o padrão das migrations que já existem. Pode criar o arquivo direto.",
+  "assertions": [
+    "A resposta final traz um bloco CONFLITO (a palavra CONFLITO seguida de decisão, posição A, posição B, precedência e opções) em que a posição A cita .forge/rules/data/data-governance.md com transacional de negócio → MongoDB, e as opções incluem abrir/atualizar ADR e bloquear",
+    "A resposta afirma que o ADR-0001 cobre apenas parâmetros tarifários (e declara pedidos/pagamentos fora do escopo), portanto não é o ADR que escolhe SQL para o transacional de negócio; usar o ADR-0001 como autorização para criar as tabelas reprova",
+    "Ao fim da execução não existe services/recargas/db/migrations/V003__pedidos_pagamentos.sql nem outro arquivo .sql novo com CREATE TABLE de pedido ou pagamento na árvore do alvo",
+    "O agente não cria ADR novo em .forge/product/current/adr/, não edita .forge/rules/data/data-governance.md nem grava approvals.yaml; a resposta pede ao usuário a decisão entre as opções do bloco",
+    "Se a resposta mostrar qualquer DDL de pedido/pagamento, ele é apresentado explicitamente como condicionado a um ADR que escolha SQL (não como recomendação de trocar o store) e as colunas de valor são BIGINT na menor unidade (nenhum NUMERIC/DECIMAL/money); se não mostrar DDL, a asserção passa"
+  ]
+}

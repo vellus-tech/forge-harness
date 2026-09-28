@@ -1,0 +1,52 @@
+{
+  "expectations": [
+    {
+      "text": "Existe exatamente um ADR novo em docs/product/adr/, com nome no padrão 0006-<titulo-em-kebab-case>.md (quatro dígitos, minúsculas, hífens, sem acentos), e nenhum outro número novo foi criado.",
+      "passed": true,
+      "evidence": "`git -C work status --short --untracked-files=all -- docs/` → apenas `?? docs/product/adr/0006-transactional-outbox-servico-validacao.md` e `M docs/product/adr/README.md`; regex `^[0-9]{4}-[a-z0-9]+(-[a-z0-9]+)*\\.md$` casa 0001–0006, sem outro número novo; sem acentos; `cmp` confirma outputs/ idêntico a work/."
+    },
+    {
+      "text": "docs/product/adr/README.md contém uma linha nova na tabela mestra para 0006, com link relativo para o arquivo criado, título, status e data; as linhas 0001–0005 permanecem inalteradas.",
+      "passed": true,
+      "evidence": "`git -C work diff --numstat -- docs/product/adr/README.md` → `1 0` (0001–0005 intactas); linha nova: `| [0006](./0006-transactional-outbox-servico-validacao.md) | Transactional Outbox no serviço `validacao` para publicação de eventos no RabbitMQ | Proposto | 2026-09-26 |` — link relativo, título, status e data."
+    },
+    {
+      "text": "O campo Status do novo ADR é 'Proposto' ou 'Em Revisão' (a decisão ainda vai para a revisão de quinta), e não 'Aceito' nem 'accepted'; o mesmo status aparece na linha 0006 do README.",
+      "passed": true,
+      "evidence": "0006-...md linha 3: `- **Status:** Proposto`; `grep -nE 'Aceito|accepted'` → sem ocorrência; linha 0006 do README traz `Proposto`."
+    },
+    {
+      "text": "O novo ADR tem uma seção intitulada Conformidade (ou equivalente explícito) com pelo menos um critério objetivamente checável — por exemplo teste automatizado, consulta, métrica com limiar ou regra de CI que detecta publish direto fora do outbox.",
+      "passed": true,
+      "evidence": "Seção `## Conformidade` (linha 31); linha 33 define teste de integração concreto com resultado binário: derrubar o publicador entre a gravação na `outbox` e a publicação e confirmar que o evento é publicado após o restart sem duplicidade observável. É objetivamente checável, embora marcado 'a validar na implementação' e sem regra contra publish direto fora do outbox."
+    },
+    {
+      "text": "A seção de Consequências lista ao menos uma consequência negativa do outbox (ex.: latência extra de publicação, crescimento da tabela outbox, entrega duplicada) acompanhada de mitigação concreta.",
+      "passed": true,
+      "evidence": "Linha 27: negativa 'entrega passa a ser at-least-once' com mitigação concreta 'idempotência nos consumidores (já coberta por ADR-0004)'. Ressalva: a tabela que 'precisa de limpeza/retention' (l.27) e a latência (l.29) aparecem sem mitigação acionável — passa pelo mínimo 'ao menos uma'."
+    },
+    {
+      "text": "O novo ADR referencia por link relativo os ADRs relacionados 0003 (RabbitMQ para eventos de validação) e 0004 (idempotência nos consumidores).",
+      "passed": false,
+      "evidence": "ADR-0003 e ADR-0004 são citados só como texto (linhas 9, 15, 27, 33), sem link relativo. `grep -nE '\\]\\([^)]*000[34][^)]*\\)' outputs/docs/product/adr/0006-*.md` → nenhuma ocorrência; `grep -cE '\\]\\(' ` no arquivo → 0 (o ADR não contém nenhum link Markdown)."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 1,
+    "total": 6,
+    "pass_rate": 0.83
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "O novo ADR tem uma seção intitulada Conformidade (ou equivalente explícito) com pelo menos um critério objetivamente checável — por exemplo teste automatizado, consulta, métrica com limiar ou regra de CI que detecta publish direto fora do outbox.",
+        "reason": "'métrica com limiar' aceita limiar indefinido; exigir valor numérico ou teste nomeado torna a asserção discriminante."
+      },
+      {
+        "reason": "Nenhuma asserção cobre 'três opções com prós e contras' nem 'contexto descreve o problema, não a solução', presentes no expected_output; o without_skill lista só contras e passaria."
+      }
+    ],
+    "overall": "A asserção de links é a única discriminante nesta rodada e reprova as duas configurações; a de consequências passa com mitigação mínima. Falta asserção sobre prós/contras das três opções e sobre o contexto descrever o problema sem a solução (ambos pedidos no expected_output)."
+  }
+}

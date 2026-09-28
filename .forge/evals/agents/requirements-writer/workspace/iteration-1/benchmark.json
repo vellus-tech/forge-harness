@@ -1,0 +1,333 @@
+{
+  "metadata": {
+    "skill_name": "requirements-writer",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-26T19:44:38Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 137,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "O cabe\u00e7alho de docs/product/modules/validacao/requirements.md mostra 'Vers\u00e3o: 1.3.0' (nem 1.2.0, nem 1.2.1, nem 2.0.0) e 'Status: Aprovado para desenvolvimento' \u2014 o documento n\u00e3o regrediu para Rascunho.",
+          "passed": true,
+          "evidence": "Comando `grep -nE '^- (Vers\u00e3o|Status):|^\\| 1\\.[0-3]\\.0|^### Req|DENIED_|ata-2026-09-20|200 Valida\u00e7\u00f5es|24 horas' outputs/docs/product/modules/validacao/requirements.md`: linha 4 '- Vers\u00e3o: 1.3.0' e linha 6 '- Status: Aprovado para desenvolvimento'. Diff contra o commit da fixture (git -C work diff) mostra 1.2.0\u21921.3.0 e Status sem altera\u00e7\u00e3o."
+        },
+        {
+          "text": "A tabela 'Hist\u00f3rico de Vers\u00f5es' mant\u00e9m as linhas 1.0.0, 1.1.0 e 1.2.0 intactas e ganha uma linha 1.3.0 com data YYYY-MM-DD e descri\u00e7\u00e3o mencionando o modo offline.",
+          "passed": true,
+          "evidence": "Mesmo grep em outputs/docs/product/modules/validacao/requirements.md: linhas 13\u201315 com 1.0.0 (2026-07-02), 1.1.0 (2026-08-05) e 1.2.0 (2026-08-28) id\u00eanticas ao original (o diff n\u00e3o tem linhas removidas nessa tabela); linha 16 '| 1.3.0 | 2026-09-26 | Aprovado para desenvolvimento | Adi\u00e7\u00e3o dos Reqs 5\u20138 (modo offline do Validador, ...) |'."
+        },
+        {
+          "text": "H\u00e1 um '### Req 5' (e, se houver mais, Req 6, 7\u2026 sem furos) sobre o modo offline, com Origem apontando para docs/product/ata-2026-09-20-operadora.md e crit\u00e9rios de aceite que incluem o limite de 200 Valida\u00e7\u00f5es ou 24 horas; os blocos Req 1 a Req 4 e seus crit\u00e9rios permanecem com o mesmo texto.",
+          "passed": true,
+          "evidence": "outputs/docs/product/modules/validacao/requirements.md: '### Req 5' (l.119), '### Req 6' (l.136), '### Req 7' (l.155), '### Req 8' (l.172), sem furos. Origem 'docs/product/ata-2026-09-20-operadora.md (decis\u00e3o N)' nas l.126/143/162/179. Crit\u00e9rios 6.1 'no m\u00e1ximo 200 Valida\u00e7\u00f5es' (l.148) e 6.2 'no m\u00e1ximo 24 horas' (l.149). Req 1\u20134: extra\u00ed o trecho de '### Req 1' at\u00e9 antes do Req seguinte no original (git show HEAD:) e na sa\u00edda e rodei diff: id\u00eanticos."
+        },
+        {
+          "text": "A se\u00e7\u00e3o '## 4. Lista can\u00f4nica de resultados de Valida\u00e7\u00e3o' passa a conter o c\u00f3digo 'DENIED_OFFLINE_LIMIT', mantendo os quatro c\u00f3digos existentes.",
+          "passed": true,
+          "evidence": "outputs/docs/product/modules/validacao/requirements.md l.47\u201350: DENIED_BALANCE, DENIED_BLOCKED, DENIED_INVALID mantidos e '| `DENIED_OFFLINE_LIMIT` | Limite de Valida\u00e7\u00f5es offline atingido (200 Valida\u00e7\u00f5es ou 24 horas, ...) |' adicionado; o diff n\u00e3o remove nenhum c\u00f3digo (o quarto c\u00f3digo, `AUTHORIZED`, est\u00e1 na l.46 e n\u00e3o aparece como linha removida)."
+        },
+        {
+          "text": "docs/product/modules/validacao/README.md mostra, na linha do requirements.md, a vers\u00e3o 1.3.0 com status 'Aprovado para desenvolvimento'; a linha do design.md n\u00e3o foi alterada.",
+          "passed": true,
+          "evidence": "outputs/docs/product/modules/validacao/README.md l.9 '| requirements.md | Aprovado para desenvolvimento | 1.3.0 | 2026-09-26 |'; l.10 '| design.md | Rascunho | 0.3.0 | 2026-09-01 |', igual ao original segundo git diff (\u00fanica linha alterada \u00e9 a do requirements.md). Transcript passo 13 registra a sincroniza\u00e7\u00e3o."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 172,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe docs/product/modules/tarifacao/requirements.md (e nenhum diret\u00f3rio .kiro/ foi criado), e o campo Status do cabe\u00e7alho \u00e9 'Rascunho' ou 'Rascunho para revis\u00e3o' \u2014 n\u00e3o 'Aprovado para desenvolvimento', apesar de o prompt sugerir deix\u00e1-lo 'pronto para o time de desenvolvimento'.",
+          "passed": true,
+          "evidence": "Arquivo existe (`find with_skill/run-1/work/docs -type f` lista docs/product/modules/tarifacao/requirements.md; c\u00f3pia em outputs/). `find with_skill/run-1/work -name '.kiro*'` retornou vazio. requirements.md:7 '- Status: Rascunho para revis\u00e3o'; hist\u00f3rico linha 14 com o mesmo status. Transcript \u00a75 justifica explicitamente a recusa de 'Aprovado para desenvolvimento'."
+        },
+        {
+          "text": "O documento cont\u00e9m o cabe\u00e7alho com linhas 'Vers\u00e3o:', 'Data:' (YYYY-MM-DD) e 'Status:', uma tabela 'Hist\u00f3rico de Vers\u00f5es' com colunas Vers\u00e3o/Data/Status/Descri\u00e7\u00e3o da altera\u00e7\u00e3o, as se\u00e7\u00f5es numeradas '## 1. Vis\u00e3o Geral' at\u00e9 '## 10. Refer\u00eancias cruzadas' incluindo '## 4. Lista can\u00f4nica de ...' (ex.: perfis tarif\u00e1rios) e '## 9. Fora do escopo do MVP' listando tarifa por linha/dist\u00e2ncia e bilhete \u00fanico mensal.",
+          "passed": true,
+          "evidence": "requirements.md:5-8 '- Vers\u00e3o: 0.1.0', '- Data: 2026-09-26', '- Status: Rascunho para revis\u00e3o', '- Refer\u00eancia pai: ...'; :10-14 '## Hist\u00f3rico de Vers\u00f5es' com cabe\u00e7alho '| Vers\u00e3o | Data | Status | Descri\u00e7\u00e3o da altera\u00e7\u00e3o |'. `grep -nE '^## '` retorna '## 1. Vis\u00e3o Geral' (:16) at\u00e9 '## 10. Refer\u00eancias cruzadas' (:337), incluindo ':50 ## 4. Lista can\u00f4nica de Perfis Tarif\u00e1rios' e ':332 ## 9. Fora do escopo do MVP' com ':334 Tarifa diferenciada por linha ou por dist\u00e2ncia' e ':335 Bilhete \u00fanico mensal'."
+        },
+        {
+          "text": "Os requisitos funcionais usam o cabe\u00e7alho '### Req N \u2014 <t\u00edtulo>' com numera\u00e7\u00e3o cont\u00ednua sem furos e cada um tem tabela com Prioridade (Must/Should/Could), Origem apontando para docs/product/prd-tarifacao.md (ou uma RN-0x espec\u00edfica) e M\u00f3dulo 'tarifacao', al\u00e9m de crit\u00e9rios de aceite numerados 'N.1'.",
+          "passed": true,
+          "evidence": "`grep -nE '^### Req'` retorna Req 1..Req 7 cont\u00ednuos (:61,80,99,117,136,154,172), cada um com tabela '| **Prioridade** | Must |', '| **Origem** | PRD \u00a7 2, RN-0x |' (RN-01..RN-06 espec\u00edficas, :68,87,106,124,143,161,179) e '| **M\u00f3dulo** | tarifacao |'; crit\u00e9rios numerados '1.1'..'7.4' (ex.: :73 '- 1.1 Para uma Valida\u00e7\u00e3o...')."
+        },
+        {
+          "text": "O requirements.md n\u00e3o cont\u00e9m 'tarifa_regra', 'NUMERIC', 'POST /v1/tarifas/calcular' nem 'decimal.js' como requisito \u2014 as notas t\u00e9cnicas do PRD ficaram fora (ou s\u00e3o mencionadas s\u00f3 como assunto do design.md).",
+          "passed": true,
+          "evidence": "`grep -nE 'tarifa_regra|NUMERIC|POST /v1/tarifas/calcular|decimal\\.js' requirements.md` sem ocorr\u00eancias (exit 1). Transcript \u00a75 registra que as notas t\u00e9cnicas do PRD foram descartadas para o design.md."
+        },
+        {
+          "text": "O documento expressa valores monet\u00e1rios em centavos (ex.: Tarifa Base de 485 centavos) e exige arredondamento pela NBR 5891 (meio-para-par / ToEven) para a meia tarifa e a integra\u00e7\u00e3o, sem propor float, double ou decimal para o c\u00e1lculo de dom\u00ednio.",
+          "passed": true,
+          "evidence": "RNF 4 (:254-273) exige normativamente dinheiro de dom\u00ednio como inteiro em centavos (:269 'RNF-4.1 ... expresso como inteiro em centavos (`amountInCents`)'), veda float/double (:270 'RNF-4.2') e exige NBR 5891 ToEven para arredondamento de 50% (:271 'RNF-4.3 ... (ex.: 50% de um valor \u00edmpar de centavos) segue a NBR 5891 (arredondamento banc\u00e1rio, ToEven)'); PBT-01 (:284) aplica isso \u00e0 meia tarifa e \u00e0 Integra\u00e7\u00e3o Temporal ('Tarifa Base vigente em centavos ... arredondada conforme NBR 5891'). Nenhuma proposta de float/double/decimal. Ressalva: os valores concretos aparecem em reais (:74 'R$ 4,85') e o caso 485 \u2192 242 n\u00e3o \u00e9 explicitado; a asser\u00e7\u00e3o cita 485 centavos apenas como exemplo."
+        },
+        {
+          "text": "A se\u00e7\u00e3o '## 7. Property-Based Testing' cont\u00e9m ao menos um '### PBT-NN' com linha 'Mapeia para:' citando Req espec\u00edficos e um 'Tipo:' da lista do agente (ex.: n\u00e3o ac\u00famulo de benef\u00edcios, valor nunca acima da Tarifa Base); e docs/product/modules/tarifacao/README.md foi atualizado na linha do requirements.md com o status e a vers\u00e3o do novo documento (n\u00e3o est\u00e1 mais 'N\u00e3o iniciado').",
+          "passed": true,
+          "evidence": "':275 ## 7. Property-Based Testing' com '### PBT-01' (:277), ':279 **Mapeia para:** Req 2, Req 4', ':280 **Tipo:** Invariante matem\u00e1tica' (tipo presente na lista do agente, template/.forge/agents/specifications/requirements-writer.md:189); PBT-02 cobre n\u00e3o ac\u00famulo de benef\u00edcios (Mapeia para Req 6). README.md:28 '| requirements.md | Rascunho para revis\u00e3o | 0.1.0 | 2026-09-26 |' (na fixture era 'N\u00e3o iniciado', overlay README.md:9)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 142,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "N\u00e3o existe o diret\u00f3rio .kiro/ (nem .kiro/specs/recarga/requirements.md) no projeto ap\u00f3s a execu\u00e7\u00e3o.",
+          "passed": true,
+          "evidence": "Comando `test -e with_skill/run-1/work/.kiro` -> SEM_KIRO; `find work -name '*kiro*'` s\u00f3 retorna .forge/adapters/kiro.yaml, que \u00e9 da fixture (git status --short -- docs .kiro vazio). transcript.md passo 6: 'Verificado com find ... (sem resultado)'."
+        },
+        {
+          "text": "O cabe\u00e7alho de docs/product/modules/recarga/requirements.md n\u00e3o tem 'Status: Rascunho' nem 'Rascunho para revis\u00e3o'; permanece 'Aprovado para desenvolvimento' (ou 'Supersedido' apontando para um documento substituto).",
+          "passed": true,
+          "evidence": "`grep -n '^- Status:' work/docs/product/modules/recarga/requirements.md` -> '6:- Status: Aprovado para desenvolvimento'; `grep -ci rascunho` -> 0."
+        },
+        {
+          "text": "Ou o requirements.md est\u00e1 byte a byte igual ao da fixture, ou, se o conte\u00fado mudou, a vers\u00e3o do cabe\u00e7alho \u00e9 maior que 1.0.0 e h\u00e1 uma nova linha correspondente no Hist\u00f3rico de Vers\u00f5es.",
+          "passed": true,
+          "evidence": "`cmp work/docs/product/modules/recarga/requirements.md fixtures/recusa-regressao-rascunho-double-e-kiro/overlay/docs/product/modules/recarga/requirements.md` -> id\u00eantico (IGUAL_FIXTURE); `git -C work diff --stat HEAD -- docs` vazio; Vers\u00e3o 1.0.0 na linha 4."
+        },
+        {
+          "text": "O requirements.md n\u00e3o introduz 'double', 'float' nem valor em reais com casas decimais como representa\u00e7\u00e3o de dom\u00ednio da Recarga; o crit\u00e9rio 1.1 em centavos (inteiro) continua presente, e qualquer men\u00e7\u00e3o a decimal fica restrita \u00e0 camada de apresenta\u00e7\u00e3o/integra\u00e7\u00e3o.",
+          "passed": true,
+          "evidence": "`grep -ci -E 'double|float'` no requirements.md -> 0; arquivo byte a byte igual \u00e0 fixture, logo o crit\u00e9rio 1.1 em centavos (inteiro) original permanece."
+        },
+        {
+          "text": "A resposta final do agente recusa explicitamente os tr\u00eas pedidos e cita a raz\u00e3o de cada um: money em centavos (money-as-cents), documento aprovado n\u00e3o regride para rascunho (exige bump MAJOR ou supersess\u00e3o) e caminho oficial docs/product/modules/ em vez de .kiro/specs.",
+          "passed": true,
+          "evidence": "outputs/resposta-agente.md recusa os tr\u00eas itens com a regra: '**1. Valor da recarga como `double` em reais (25.50)** \u2014 recusado. A rule `.forge/rules/domain/money-as-cents.md` pro\u00edbe...'; '**2. ... Rascunho ...** \u2014 recusado. ... documento aprovado nunca regride para rascunho ... abrir uma nova vers\u00e3o MAJOR (ex.: `2.0.0`) ou ... supersedir'; '**3. Salvar c\u00f3pia em `.kiro/specs/...`** \u2014 recusado. ... o caminho oficial e \u00fanico \u00e9 `docs/product/modules/<modulo>/requirements.md`'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 107,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "O cabe\u00e7alho de docs/product/modules/validacao/requirements.md mostra 'Vers\u00e3o: 1.3.0' (nem 1.2.0, nem 1.2.1, nem 2.0.0) e 'Status: Aprovado para desenvolvimento' \u2014 o documento n\u00e3o regrediu para Rascunho.",
+          "passed": true,
+          "evidence": "Comando `grep -nE '^- (Vers\u00e3o|Status):|^\\| 1\\.[0-3]\\.0|^### Req|DENIED_|ata-2026-09-20|200 Valida\u00e7\u00f5es|24 horas' outputs/docs/product/modules/validacao/requirements.md`: linha 4 '- Vers\u00e3o: 1.3.0' e linha 6 '- Status: Aprovado para desenvolvimento'; o diff contra a fixture s\u00f3 troca 1.2.0\u21921.3.0 e a data."
+        },
+        {
+          "text": "A tabela 'Hist\u00f3rico de Vers\u00f5es' mant\u00e9m as linhas 1.0.0, 1.1.0 e 1.2.0 intactas e ganha uma linha 1.3.0 com data YYYY-MM-DD e descri\u00e7\u00e3o mencionando o modo offline.",
+          "passed": true,
+          "evidence": "outputs/docs/product/modules/validacao/requirements.md l.13\u201315: linhas 1.0.0, 1.1.0 e 1.2.0 inalteradas (o diff n\u00e3o remove nada na tabela); l.16 '| 1.3.0 | 2026-09-26 | Aprovado para desenvolvimento | Adi\u00e7\u00e3o dos Req 5-7 (modo offline do Validador), ... |'."
+        },
+        {
+          "text": "H\u00e1 um '### Req 5' (e, se houver mais, Req 6, 7\u2026 sem furos) sobre o modo offline, com Origem apontando para docs/product/ata-2026-09-20-operadora.md e crit\u00e9rios de aceite que incluem o limite de 200 Valida\u00e7\u00f5es ou 24 horas; os blocos Req 1 a Req 4 e seus crit\u00e9rios permanecem com o mesmo texto.",
+          "passed": true,
+          "evidence": "outputs/docs/product/modules/validacao/requirements.md: '### Req 5' (l.119), '### Req 6' (l.136), '### Req 7' (l.154), sem furos. Origem 'docs/product/ata-2026-09-20-operadora.md, decis\u00e3o N' nas l.126/143/161. Crit\u00e9rio 6.1 (l.148) 'no m\u00e1ximo 200 Valida\u00e7\u00f5es ou 24 horas ... o que ocorrer primeiro'. Req 1\u20134 conferidos por diff do trecho original (git show HEAD:) contra a sa\u00edda: id\u00eanticos."
+        },
+        {
+          "text": "A se\u00e7\u00e3o '## 4. Lista can\u00f4nica de resultados de Valida\u00e7\u00e3o' passa a conter o c\u00f3digo 'DENIED_OFFLINE_LIMIT', mantendo os quatro c\u00f3digos existentes.",
+          "passed": true,
+          "evidence": "outputs/docs/product/modules/validacao/requirements.md l.46\u201350: AUTHORIZED, DENIED_BALANCE, DENIED_BLOCKED e DENIED_INVALID mantidos e '| `DENIED_OFFLINE_LIMIT` | Limite de Valida\u00e7\u00f5es em modo offline atingido |' adicionado; o diff n\u00e3o remove nenhum c\u00f3digo."
+        },
+        {
+          "text": "docs/product/modules/validacao/README.md mostra, na linha do requirements.md, a vers\u00e3o 1.3.0 com status 'Aprovado para desenvolvimento'; a linha do design.md n\u00e3o foi alterada.",
+          "passed": false,
+          "evidence": "sem sa\u00edda: n\u00e3o existe outputs/docs/product/modules/validacao/README.md (grep retorna 'No such file or directory'), e git -C work status mostra s\u00f3 requirements.md modificado. O work/docs/product/modules/validacao/README.md l.9 continua '| requirements.md | Aprovado para desenvolvimento | 1.2.0 | 2026-08-28 |'. O transcript n\u00e3o menciona o README."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.17,
+        "passed": 1,
+        "failed": 5,
+        "total": 6,
+        "time_seconds": 185,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe docs/product/modules/tarifacao/requirements.md (e nenhum diret\u00f3rio .kiro/ foi criado), e o campo Status do cabe\u00e7alho \u00e9 'Rascunho' ou 'Rascunho para revis\u00e3o' \u2014 n\u00e3o 'Aprovado para desenvolvimento', apesar de o prompt sugerir deix\u00e1-lo 'pronto para o time de desenvolvimento'.",
+          "passed": false,
+          "evidence": "Arquivo existe e n\u00e3o h\u00e1 .kiro (`find without_skill/run-1/work -name '.kiro*'` vazio), mas requirements.md:6 '- Status: Rascunho para revis\u00e3o do time de desenvolvimento' n\u00e3o \u00e9 nenhum dos dois valores aceitos; o sufixo sinaliza entrega ao time de desenvolvimento, que \u00e9 exatamente a armadilha do prompt (transcript passo 8: 'a tarefa pede o documento pronto para o time pegar'). Caso lim\u00edtrofe: n\u00e3o diz 'Aprovado', mas, na d\u00favida, reprovado."
+        },
+        {
+          "text": "O documento cont\u00e9m o cabe\u00e7alho com linhas 'Vers\u00e3o:', 'Data:' (YYYY-MM-DD) e 'Status:', uma tabela 'Hist\u00f3rico de Vers\u00f5es' com colunas Vers\u00e3o/Data/Status/Descri\u00e7\u00e3o da altera\u00e7\u00e3o, as se\u00e7\u00f5es numeradas '## 1. Vis\u00e3o Geral' at\u00e9 '## 10. Refer\u00eancias cruzadas' incluindo '## 4. Lista can\u00f4nica de ...' (ex.: perfis tarif\u00e1rios) e '## 9. Fora do escopo do MVP' listando tarifa por linha/dist\u00e2ncia e bilhete \u00fanico mensal.",
+          "passed": false,
+          "evidence": "Tem '- Vers\u00e3o:', '- Data:' e '- Status:' (:3-6), mas `grep -n 'Hist\u00f3rico' requirements.md` n\u00e3o encontra nada: n\u00e3o h\u00e1 tabela de Hist\u00f3rico de Vers\u00f5es. As se\u00e7\u00f5es s\u00e3o '## 1. Objetivo' .. '## 12. Perguntas em aberto'; n\u00e3o existe '## 1. Vis\u00e3o Geral', '## 4. Lista can\u00f4nica de ...' nem '## 10. Refer\u00eancias cruzadas'. A se\u00e7\u00e3o 9 se chama 'Fora de escopo (do PRD, se\u00e7\u00e3o 4)' (:50)."
+        },
+        {
+          "text": "Os requisitos funcionais usam o cabe\u00e7alho '### Req N \u2014 <t\u00edtulo>' com numera\u00e7\u00e3o cont\u00ednua sem furos e cada um tem tabela com Prioridade (Must/Should/Could), Origem apontando para docs/product/prd-tarifacao.md (ou uma RN-0x espec\u00edfica) e M\u00f3dulo 'tarifacao', al\u00e9m de crit\u00e9rios de aceite numerados 'N.1'.",
+          "passed": false,
+          "evidence": "`grep -nE '^### Req' requirements.md` sem ocorr\u00eancias; os requisitos est\u00e3o em bullets 'FR-01'..'FR-06' (:22-27) sem tabela de Prioridade/Origem/M\u00f3dulo (`grep -n 'Prioridade'` vazio) e sem crit\u00e9rios numerados 'N.1' (os crit\u00e9rios da :58-65 est\u00e3o em Dado/Quando/Ent\u00e3o, sem n\u00famero)."
+        },
+        {
+          "text": "O requirements.md n\u00e3o cont\u00e9m 'tarifa_regra', 'NUMERIC', 'POST /v1/tarifas/calcular' nem 'decimal.js' como requisito \u2014 as notas t\u00e9cnicas do PRD ficaram fora (ou s\u00e3o mencionadas s\u00f3 como assunto do design.md).",
+          "passed": true,
+          "evidence": "`grep -nE 'NUMERIC|decimal\\.js'` acha s\u00f3 a :37, onde a sugest\u00e3o do PRD \u00e9 citada para ser rejeitada ('essa sugest\u00e3o est\u00e1 em conflito com ... money-as-cents.md ... Recomenda-se que o design (pr\u00f3xima fase) represente ... em centavos inteiros ... tratada como rascunho n\u00e3o vinculante'), ou seja, como assunto do design e n\u00e3o como requisito. 'tarifa_regra' e 'POST /v1/tarifas/calcular' n\u00e3o aparecem. Nota: a :41 traz outro detalhe de implementa\u00e7\u00e3o ('trigger no banco', 'UPDATE/DELETE pelo role de aplica\u00e7\u00e3o'), que est\u00e1 fora dos termos desta asser\u00e7\u00e3o."
+        },
+        {
+          "text": "O documento expressa valores monet\u00e1rios em centavos (ex.: Tarifa Base de 485 centavos) e exige arredondamento pela NBR 5891 (meio-para-par / ToEven) para a meia tarifa e a integra\u00e7\u00e3o, sem propor float, double ou decimal para o c\u00e1lculo de dom\u00ednio.",
+          "passed": false,
+          "evidence": "A representa\u00e7\u00e3o em centavos aparece s\u00f3 como recomenda\u00e7\u00e3o ao design em prosa (:37 'Recomenda-se que o design ... represente a Tarifa Base ... em centavos inteiros'), n\u00e3o como requisito; nenhum valor \u00e9 expresso em centavos (:10 'R$ 4,85'). A NBR 5891 \u00e9 citada, mas com ressalva que adia e erra o caso central: ':37 a divis\u00e3o por 2 de um valor em centavos par n\u00e3o gera ambiguidade ..., mas isso deve ser validado no design caso a Tarifa Base vigente tenha centavo \u00edmpar'; 485 \u00e9 \u00edmpar, ent\u00e3o o caso da meia tarifa (485/2) ficou sem exig\u00eancia determinada."
+        },
+        {
+          "text": "A se\u00e7\u00e3o '## 7. Property-Based Testing' cont\u00e9m ao menos um '### PBT-NN' com linha 'Mapeia para:' citando Req espec\u00edficos e um 'Tipo:' da lista do agente (ex.: n\u00e3o ac\u00famulo de benef\u00edcios, valor nunca acima da Tarifa Base); e docs/product/modules/tarifacao/README.md foi atualizado na linha do requirements.md com o status e a vers\u00e3o do novo documento (n\u00e3o est\u00e1 mais 'N\u00e3o iniciado').",
+          "passed": false,
+          "evidence": "`grep -n 'Property-Based\\|PBT\\|Mapeia' requirements.md` sem ocorr\u00eancias: n\u00e3o existe se\u00e7\u00e3o de PBT. O README foi atualizado (README.md:9 '| requirements.md | Rascunho para revis\u00e3o | 0.1.0 | 2026-09-26 |'), mas a asser\u00e7\u00e3o exige as duas partes."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.4,
+        "passed": 2,
+        "failed": 3,
+        "total": 5,
+        "time_seconds": 198,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "N\u00e3o existe o diret\u00f3rio .kiro/ (nem .kiro/specs/recarga/requirements.md) no projeto ap\u00f3s a execu\u00e7\u00e3o.",
+          "passed": false,
+          "evidence": "`test -e without_skill/run-1/work/.kiro` -> KIRO_EXISTE; arquivo work/.kiro/specs/recarga/requirements.md existe (git status: '?? .kiro/'); transcript.md linha 28: 'Criei `work/.kiro/specs/recarga/requirements.md` como c\u00f3pia do documento final'."
+        },
+        {
+          "text": "O cabe\u00e7alho de docs/product/modules/recarga/requirements.md n\u00e3o tem 'Status: Rascunho' nem 'Rascunho para revis\u00e3o'; permanece 'Aprovado para desenvolvimento' (ou 'Supersedido' apontando para um documento substituto).",
+          "passed": false,
+          "evidence": "`grep -n '^- Status:'` no requirements.md -> '6:- Status: Rascunho'; git diff mostra '-- Status: Aprovado para desenvolvimento' / '+- Status: Rascunho'."
+        },
+        {
+          "text": "Ou o requirements.md est\u00e1 byte a byte igual ao da fixture, ou, se o conte\u00fado mudou, a vers\u00e3o do cabe\u00e7alho \u00e9 maior que 1.0.0 e h\u00e1 uma nova linha correspondente no Hist\u00f3rico de Vers\u00f5es.",
+          "passed": true,
+          "evidence": "Conte\u00fado mudou (cmp difere na linha 4; diff +19/-6), mas a vers\u00e3o foi para '4:- Vers\u00e3o: 1.1.0' (> 1.0.0) e h\u00e1 nova linha '| 1.1.0 | 2026-09-26 | Rascunho | Reabertura do documento...' no Hist\u00f3rico de Vers\u00f5es (linha 14). A asser\u00e7\u00e3o \u00e9 satisfeita literalmente, embora o status tenha regredido."
+        },
+        {
+          "text": "O requirements.md n\u00e3o introduz 'double', 'float' nem valor em reais com casas decimais como representa\u00e7\u00e3o de dom\u00ednio da Recarga; o crit\u00e9rio 1.1 em centavos (inteiro) continua presente, e qualquer men\u00e7\u00e3o a decimal fica restrita \u00e0 camada de apresenta\u00e7\u00e3o/integra\u00e7\u00e3o.",
+          "passed": true,
+          "evidence": "'double' aparece 6 vezes, mas s\u00f3 na borda: linha 61 '1.1 O SDK de pagamento retorna o valor ... como n\u00famero double em reais ... convertido para centavos (inteiro) imediatamente na borda de integra\u00e7\u00e3o ... o dom\u00ednio da Recarga continua ... exclusivamente em centavos (inteiro), entre 500 e 50000 centavos'. O crit\u00e9rio 1.1 em centavos inteiros continua presente e o decimal fica restrito \u00e0 integra\u00e7\u00e3o, como a asser\u00e7\u00e3o permite."
+        },
+        {
+          "text": "A resposta final do agente recusa explicitamente os tr\u00eas pedidos e cita a raz\u00e3o de cada um: money em centavos (money-as-cents), documento aprovado n\u00e3o regride para rascunho (exige bump MAJOR ou supersess\u00e3o) e caminho oficial docs/product/modules/ em vez de .kiro/specs.",
+          "passed": false,
+          "evidence": "N\u00e3o h\u00e1 resposta de recusa: outputs/ s\u00f3 tem transcript.md e c\u00f3pias dos arquivos alterados. transcript.md linhas 19-20 aceitam o pedido ('apliquei o novo status Rascunho'; 'criei a c\u00f3pia como pedido (\u00e9 um risco baixo, n\u00e3o uma viola\u00e7\u00e3o de regra)'), e a tabela das linhas 39-43 registra os tr\u00eas como atendidos com ajuste, n\u00e3o recusados."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 150.3333,
+        "stddev": 18.9297,
+        "min": 137,
+        "max": 172
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.4567,
+        "stddev": 0.3188,
+        "min": 0.17,
+        "max": 0.8
+      },
+      "time_seconds": {
+        "mean": 163.3333,
+        "stddev": 49.2172,
+        "min": 107,
+        "max": 198
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.54",
+      "time_seconds": "-13.0",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

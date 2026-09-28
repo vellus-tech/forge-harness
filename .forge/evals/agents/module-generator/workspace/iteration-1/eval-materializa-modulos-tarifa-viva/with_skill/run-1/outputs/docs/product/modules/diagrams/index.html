@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tarifa Viva — Diagramas de Módulos</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  body { font-family: -apple-system, sans-serif; margin: 0; padding: 2rem; background: #0b0d12; color: #e6e6e6; }
+  h1 { font-size: 1.4rem; }
+  nav { margin-bottom: 1.5rem; }
+  nav button { margin-right: 0.5rem; margin-bottom: 0.5rem; padding: 0.5rem 0.9rem; background: #1c2230; color: #e6e6e6; border: 1px solid #313a4d; border-radius: 6px; cursor: pointer; }
+  nav button.active { background: #3457d5; border-color: #3457d5; }
+  section { display: none; }
+  section.active { display: block; }
+  .mermaid { background: #12151c; padding: 1rem; border-radius: 8px; }
+</style>
+</head>
+<body>
+<h1>Tarifa Viva — Diagramas de Arquitetura Modular</h1>
+<nav id="nav"></nav>
+<div id="panels"></div>
+<script>
+  const diagrams = [
+    { id: "solution", title: "Arquitetura da Solução", src: "flowchart TB\n    subgraph External[\"Atores e Sistemas Externos\"]\n        App[App do Passageiro]\n        Validador[Validador de Bordo]\n        Adquirente[Adquirente de Pagamento]\n        Operadoras[Operadoras: Aurora, TransVale, Expresso Sol]\n    end\n    subgraph CoreModules[\"Modulos Nucleo\"]\n        Validacao[validacao-embarque-api]\n        TarifaLib[tarifacao-lib]\n        Recarga[recarga-api]\n        Cadastro[cadastro-passageiro-api]\n        Liquidacao[liquidacao-operadoras-worker]\n    end\n    subgraph CDE[\"CDE - Escopo PCI\"]\n        Token[tokenizacao-cartao-adapter]\n    end\n    Validador --> Validacao\n    App --> Recarga\n    Validacao --> TarifaLib\n    Recarga --> Token\n    Token --> Adquirente\n    Cadastro --> Validacao\n    Validacao --> Liquidacao\n    Liquidacao --> Operadoras" },
+    { id: "deps", title: "Dependências entre Módulos", src: "flowchart LR\n    Validacao[validacao-embarque-api] -->|Package| TarifaLib[tarifacao-lib]\n    Recarga[recarga-api] -->|gRPC| Token[tokenizacao-cartao-adapter]\n    Recarga -->|Evento| Broker[RabbitMQ]\n    Broker --> Validacao\n    Cadastro[cadastro-passageiro-api] -->|Evento| Broker\n    Validacao -->|Evento| Broker\n    Broker --> Liquidacao[liquidacao-operadoras-worker]\n    Token --> Adquirente[Adquirente Externa]" },
+    { id: "integration", title: "Fluxos de Integração", src: "sequenceDiagram\n    participant App as App do Passageiro\n    participant R as recarga-api\n    participant T as tokenizacao-cartao-adapter\n    participant A as Adquirente\n    participant B as RabbitMQ\n    participant M as validacao-embarque-api\n    App->>R: POST /v1/recargas\n    R->>T: Solicitar tokenizacao\n    T->>A: Autorizar com token\n    A-->>T: Resultado\n    T-->>R: Token e resultado\n    R->>B: Publica RecargaConfirmada\n    B->>M: Atualiza saldo" },
+    { id: "pci", title: "Compliance PCI DSS", src: "flowchart TB\n    subgraph Outside[\"Fora do CDE\"]\n        RecargaApi[recarga-api]\n        ValidacaoApi[validacao-embarque-api]\n    end\n    subgraph CDE[\"CDE\"]\n        SecureEntry[tokenizacao-cartao-adapter]\n        HSM[HSM]\n    end\n    subgraph ExternalPayment[\"Externo\"]\n        Acquirer[Adquirente]\n    end\n    App[App do Passageiro] -->|PAN| SecureEntry\n    SecureEntry --> HSM\n    SecureEntry --> Acquirer\n    SecureEntry -->|Token| RecargaApi\n    RecargaApi --> ValidacaoApi" },
+    { id: "lgpd", title: "Compliance LGPD", src: "flowchart TB\n    Passageiro[Passageiro] --> Cadastro[cadastro-passageiro-api]\n    Cadastro --> Db[(Banco de Passageiros)]\n    Cadastro --> Audit[Trilha de Auditoria]\n    Cadastro -->|Elegibilidade sem PII| Broker[RabbitMQ]\n    Broker --> Downstream[validacao-embarque-api]\n    Passageiro --> Direitos[Direitos do Titular]\n    Direitos --> Cadastro" }
+  ];
+
+  const nav = document.getElementById("nav");
+  const panels = document.getElementById("panels");
+
+  diagrams.forEach((d, i) => {
+    const btn = document.createElement("button");
+    btn.textContent = d.title;
+    btn.className = i === 0 ? "active" : "";
+    btn.onclick = () => show(d.id);
+    nav.appendChild(btn);
+
+    const section = document.createElement("section");
+    section.id = d.id;
+    section.className = i === 0 ? "active" : "";
+    const pre = document.createElement("div");
+    pre.className = "mermaid";
+    pre.textContent = d.src;
+    section.appendChild(pre);
+    panels.appendChild(section);
+  });
+
+  function show(id) {
+    document.querySelectorAll("section").forEach(s => s.classList.toggle("active", s.id === id));
+    document.querySelectorAll("nav button").forEach(b => b.classList.toggle("active", b.textContent === diagrams.find(d => d.id === id).title));
+  }
+
+  try {
+    mermaid.initialize({ startOnLoad: true, theme: "dark" });
+  } catch (e) {
+    panels.innerHTML = "<p>Falha ao carregar Mermaid (offline). Consulte os arquivos .md correspondentes.</p>";
+  }
+</script>
+</body>
+</html>

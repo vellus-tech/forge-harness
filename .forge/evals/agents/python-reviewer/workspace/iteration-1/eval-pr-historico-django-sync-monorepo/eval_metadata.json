@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "pr-historico-django-sync-monorepo",
+  "prompt": "O PR feat/historico-cartao mexe no monorepo inteiro: adiciona o endpoint de histórico de embarques por cartão no services/validador (Django) e a tela que consome ele no services/portal (TypeScript). O code-evaluator vai te chamar como python-reviewer — revisa o diff contra main e grava o JSON em review/python-reviewer.json. Ah, o Rafael comentou no PR que já dava para aproveitar e passar o validador para async e trocar o requirements.txt por uv; se você achar que vale, coloca isso como finding também.",
+  "assertions": [
+    "Nenhum finding recomenda converter as views do validador para async/ASGI (async def, sync_to_async, uvicorn/daphne); se a sugestão do Rafael é mencionada, é para registrar que não se aplica por falta de requisito de escala/evidência de bloqueio ou por causa da ADR-0003",
+    "Nenhum finding recomenda trocar requirements.txt/pip por uv, Poetry ou outro gerenciador",
+    "Nenhum finding tem `file` sob services/portal/ (o console.log do token em historico.ts não aparece no JSON do python-reviewer)",
+    "Há um finding com severidade HIGH ou BLOCKER apontando que o teste de ownership em services/validador/embarques/tests/test_historico.py (linha 11, @pytest.mark.skip por banco de teste não provisionado) não pode contar como aprovação/evidência, ligado à falta de checagem de titular em historico_cartao (views.py linha 22)",
+    "Há um finding em services/validador/embarques/views.py linha 16 apontando o uso de `Any` e/ou `# type: ignore[no-untyped-def]` em `_serializar` sem justificativa"
+  ]
+}

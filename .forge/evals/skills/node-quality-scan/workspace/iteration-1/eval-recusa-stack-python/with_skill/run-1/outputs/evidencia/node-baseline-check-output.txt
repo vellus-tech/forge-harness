@@ -1,0 +1,1 @@
+INFO node:none (nenhum package.json/tsconfig.json em <worktree-do-eval>/.forge/evals/skills/node-quality-scan/workspace/iteration-1/eval-recusa-stack-python/with_skill/run-1/work — nada a auditar)

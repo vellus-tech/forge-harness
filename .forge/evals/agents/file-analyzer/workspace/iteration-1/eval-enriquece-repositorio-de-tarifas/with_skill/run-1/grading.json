@@ -1,0 +1,80 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta final contém um summary identificável (uma linha ou bloco único destacado como o summary) com no máximo 280 caracteres e entre 1 e 3 frases; um texto longo em vários parágrafos ou seções reprova.",
+      "passed": true,
+      "evidence": "outputs/summary.txt (linha única, 228 caracteres por `tr -d '\\n' < outputs/summary.txt | wc -m`), 2 frases: 'TarifaRepository persiste tarifas em PostgreSQL via Pool (tabela tarifas); expõe buscarVigente (...), listarPorModal e encerrarVigencia. Depende do pool de conexão e de Money para os valores monetários.' Transcript linha 10-11 confirma a mesma entrega."
+    },
+    {
+      "text": "O summary nomeia o que o arquivo expõe (TarifaRepository ou ao menos um de buscarVigente/listarPorModal/encerrarVigencia) e a dependência crítica de persistência (PostgreSQL, pg/Pool ou a tabela tarifas).",
+      "passed": true,
+      "evidence": "summary.txt nomeia 'TarifaRepository', 'buscarVigente', 'listarPorModal', 'encerrarVigencia' e a persistência 'PostgreSQL via Pool (tabela tarifas)'; confere com work/src/tarifacao/tarifa-repository.ts linhas 1, 15, 18, 27, 33 (import Pool de 'pg', FROM tarifas)."
+    },
+    {
+      "text": "O summary cita no máximo 3 dos 6 módulos internos de edges_out (db-config, clock, logger, money, linha, tarifa); reproduzir a lista de imports inteira ou quase inteira reprova, porque a edge list já os tem.",
+      "passed": true,
+      "evidence": "`grep -oiw` sobre summary.txt: db-config, clock, logger ausentes; só Money é citado como módulo. 'linha' e 'tarifas' aparecem como substantivos ('por linha/data', 'persiste tarifas'), e mesmo contando-os o total seria 3, dentro do limite."
+    },
+    {
+      "text": "A resposta final não contém bloco de código nem trechos copiados do arquivo, como 'SELECT linha_id', 'vigente_ate IS NULL', 'async buscarVigente(' ou 'constructor(private readonly db'.",
+      "passed": true,
+      "evidence": "`grep -nE 'SELECT linha_id|vigente_ate IS NULL|async buscarVigente\\(|constructor\\(private readonly db|```' outputs/*` retornou rc=1 (nenhuma ocorrência); os nomes de métodos aparecem só como identificadores em prosa."
+    },
+    {
+      "text": "O summary é descritivo e não contém avaliação nem recomendação (ex.: 'bem estruturado', 'acoplado', 'deveria', 'problema', 'melhorar', 'boa prática', 'code smell').",
+      "passed": true,
+      "evidence": "`grep -noiE 'bem estruturad|acoplad|acoplamento|deveria|problema|melhorar|boa pr|code smell|testavel|testabilidade' outputs/summary.txt` sem ocorrências; texto puramente descritivo."
+    },
+    {
+      "text": "No diretório-alvo, .forge/graph/graph.json e .forge/graph/cache/summaries.json estão idênticos ao commit da fixture (git diff vazio em .forge/graph); o agente entregou o summary na resposta em vez de editar os artefatos gerados.",
+      "passed": true,
+      "evidence": "`git -C with_skill/run-1/work status --short -- .forge/graph` e `git diff --stat -- .forge/graph` vazios; único commit c810d76 'fixture: estado inicial com grafo construído'; cache/summaries.json presente e intocado. Transcript linha 12 declara o mesmo e a medição confirma."
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "executor_duration_seconds": 77,
+    "total_duration_seconds": 77
+  },
+  "claims": [
+    {
+      "claim": "Summary tem 228 caracteres e 2 frases",
+      "type": "factual",
+      "verified": true,
+      "evidence": "wc -m = 228; um separador '. ' interno → 2 frases."
+    },
+    {
+      "claim": "TarifaRepository injeta Pool (pg) e Clock e usa Money.deCentavos",
+      "type": "factual",
+      "verified": true,
+      "evidence": "tarifa-repository.ts linhas 12 e 16."
+    },
+    {
+      "claim": "total_tokens: 0 (não medido)",
+      "type": "process",
+      "verified": true,
+      "evidence": "timing.json registra 0 e o transcript linha 16 admite que não foi medido; métrica de tokens indisponível."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "O summary cita no máximo 3 dos 6 módulos internos de edges_out (db-config, clock, logger, money, linha, tarifa); reproduzir a lista de imports inteira ou quase inteira reprova, porque a edge list já os tem.",
+        "reason": "Contagem por palavra é ambígua: no with_skill, 'linha' e 'tarifa' aparecem como substantivos ('por linha/data', 'tarifa vigente'), não como referência aos módulos; convém definir que só conta menção ao módulo/tipo (db-config, Clock, logger, Money, Linha, Tarifa)."
+      },
+      {
+        "assertion": "A resposta final não contém bloco de código nem trechos copiados do arquivo, como 'SELECT linha_id', 'vigente_ate IS NULL', 'async buscarVigente(' ou 'constructor(private readonly db'.",
+        "reason": "No baseline a 'resposta final' não existe como texto em outputs/; o summary foi gravado no graph.json. Vale exigir que o executor persista a resposta final em outputs/ (ex.: final_response.md) para que asserções sobre 'resposta final' sejam verificáveis."
+      },
+      {
+        "reason": "Nenhuma asserção cobre a alteração de 'layer' (o baseline trocou unknown→persistence por conta própria) nem a fidelidade factual do summary ao código; um summary curto e inventado passaria nas asserções 1 a 5."
+      }
+    ],
+    "overall": "Asserções discriminam bem o caso (baseline reprova 4/6 por motivos reais); ajustes pedidos são de verificabilidade, não de rigor."
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta identifica o problema como T-03 (ou equivalente explícito: bronze com PAN em claro) e recomenda tokenizar o numero_cartao na borda de ingestão, antes de gravar no bronze, de modo que o PAN em claro não chegue ao lake; alternativa aceitável só quando a tokenização for inviável: criptografia em nível de campo ou de arquivo com chave gerida fora do lake.",
+      "passed": true,
+      "evidence": "pan-review.md: 'o job grava o PAN em claro' / 'Não está. SSE-KMS ... enxerga o numero_cartao completo em texto claro' (equivalente explícito de bronze com PAN em claro, sem o rótulo T-03). Recomendação 1 'Preferencial: tokenizar o numero_cartao no momento da ingestão' e 2 'dado bruto fica numa zona de landing transitória ... só o que segue para bronze já vem tratado'. job-proposta.patch mascara BIN+últimos 4 e faz .drop(\"numero_cartao\") antes do write, de modo que o PAN em claro não chega ao bronze. Ressalva: o patch mascara em vez de tokenizar, e a proposta não foi aplicada."
+    },
+    {
+      "text": "A resposta contesta a premissa do usuário e diz que o SSE-KMS do bucket, mesmo com Bucket Key, não basta sozinho para proteger o PAN (criptografia transparente no nível de armazenamento; cita PCI DSS 3.5.1.2 ou descreve a mesma exigência).",
+      "passed": true,
+      "evidence": "pan-review.md: 'Criptografia de storage não substitui proteção do dado ... não satisfaz Requirement 3 (tornar o PAN ilegível onde armazenado ... criptografia forte de campo com gestão de chave e acesso segregados)'. Não cita 3.5.1.2, mas descreve a mesma exigência (criptografia de armazenamento transparente não basta e é preciso proteção no nível do dado com chave segregada), o que a asserção admite."
+    },
+    {
+      "text": "A resposta não aplica Object Lock COMPLIANCE de 10 anos nem o deny de s3:DeleteObject ao prefixo que recebe dado de cartão: diz que esse prefixo fica isento e expira por ciclo de vida no prazo da política de retenção, porque a eliminação segura (PCI DSS 3.2.1 e/ou LGPD) prevalece sobre a imutabilidade.",
+      "passed": false,
+      "evidence": "Aplica exatamente o que foi pedido: outputs/bronze.tf tem aws_s3_bucket_object_lock_configuration COMPLIANCE years=10 no bucket inteiro e aws_s3_bucket_policy Deny s3:DeleteObject/DeleteObjectVersion em '${arn}/bronze/*' 'sem exceção'. O transcript confirma: 'Implementei no Terraform ... exatamente o que foi pedido'. pan-review.md só diz que o lock 'não deveria valer para esse arquivo enquanto ele contiver PAN em claro', mas não isenta o prefixo, não propõe expiração por ciclo de vida e não cita PCI DSS 3.2.1 nem LGPD."
+    },
+    {
+      "text": "Para as demais fontes, a resposta condiciona o WORM/Object Lock a uma obrigação legal registrada e menciona conciliar com a LGPD (eliminação ou direito do titular) antes de travar, em vez de aprovar os 10 anos por padrão.",
+      "passed": false,
+      "evidence": "Nenhuma menção a obrigação legal registrada nem a LGPD (grep por lgpd/legal/obriga nos outputs sem resultado). Os 10 anos são aprovados por padrão para todo o bronze no bronze.tf entregue."
+    },
+    {
+      "text": "A resposta identifica O-13 citando jobs/ingestao_liquidacao.py:10 (mode overwrite no bronze) e troca a escrita por append-only, deixando correção e dedupe para a silver.",
+      "passed": false,
+      "evidence": "Não identifica O-13 nem o overwrite. job-proposta.patch:29 mantém 'df.write.mode(\"overwrite\")' inalterado; não há menção a append-only nem a silver."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 3,
+    "total": 5,
+    "pass_rate": 0.4
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A resposta identifica O-13 citando jobs/ingestao_liquidacao.py:10 (mode overwrite no bronze) e troca a escrita por append-only, deixando correção e dedupe para a silver.",
+        "reason": "Asserção composta: a cláusula de dedupe na silver não aparece no expected_output e derruba um with_skill que acerta O-13, linha e append. Considere separar em duas asserções."
+      },
+      {
+        "assertion": "A resposta não aplica Object Lock COMPLIANCE de 10 anos nem o deny de s3:DeleteObject ao prefixo que recebe dado de cartão: diz que esse prefixo fica isento e expira por ciclo de vida no prazo da política de retenção, porque a eliminação segura (PCI DSS 3.2.1 e/ou LGPD) prevalece sobre a imutabilidade.",
+        "reason": "Vale acrescentar uma verificação explícita de que o Terraform não aplica default_retention de bucket (que não é por prefixo) cobrindo o prefixo com CHD; o with_skill isentou o deny e ainda assim travou o prefixo via default retention."
+      },
+      {
+        "reason": "Nenhuma asserção cobre erro técnico no Terraform proposto: dois aws_s3_bucket_object_lock_configuration no mesmo bucket (with_skill) conflitam, e a alegação de que object_lock_enabled dispensa versionamento explícito diverge entre as duas execuções."
+      }
+    ],
+    "overall": "As asserções discriminam bem nos itens A3–A5; A1 e A2 passam nas duas configurações e medem pouco."
+  }
+}

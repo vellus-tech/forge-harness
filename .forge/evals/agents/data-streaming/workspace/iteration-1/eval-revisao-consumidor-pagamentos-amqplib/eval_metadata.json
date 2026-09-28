@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "revisao-consumidor-pagamentos-amqplib",
+  "prompt": "Semana passada a fila `pagamentos` entrou em laço: a mesma mensagem voltava sem parar e o worker ficou a 100% de CPU. Antes de abrir o PR de correção, revise o worker em src/ e a policy em infra/rabbitmq/ (o cluster é RabbitMQ 4.1, três nós) e me diga o que está errado e como fica a versão certa. Não altere nada no repositório, só quero o diagnóstico e o trecho corrigido.",
+  "assertions": [
+    "O transcript mostra a execução de `bash .forge/skills/data-streaming-practices/scripts/scan.sh` com `--root` para os paths afetados (src e infra) e de `bash .forge/scripts/check-data-governance.sh --path` para eles, e a resposta usa a saída do scanner (achados FOUND) em vez de só ler o código",
+    "A resposta identifica `ch.nack(msg)` como a causa do laço citando o id RMQ-AP-10 e a localização src/consumidor.js:14, e explica que o requeue é true por padrão no amqplib e que basic.nack com requeue não conta para o delivery-limit da quorum queue",
+    "A resposta aponta o `noAck: true` com o id RMQ-AP-01 e a localização src/consumidor.js:16, e a policy `ha-mode` com o id RMQ-AP-06 e a localização infra/rabbitmq/policy.json (linha 6 ou 7), dizendo que o espelhamento clássico foi removido no RabbitMQ 4.0 e propondo quorum queue",
+    "A resposta aponta, em src/pagamentos.js, o UPDATE no PostgreSQL seguido de `ch.publish` sem transação comum como dual write, citando o id OBX-AP-01 (ou nomeando explicitamente o antipattern de dual write), e recomenda outbox transacional com relay",
+    "O trecho corrigido proposto combina ack manual depois do efeito, nack/reject sem requeue (requeue false) ou retry atrasado, `delivery-limit` definido junto com uma DLX (dead-letter-exchange) — nunca delivery-limit sem DLX — e prefetch explícito",
+    "Ao fim da execução, `git status --porcelain` no diretório da fixture está vazio: a correção veio só como trecho na resposta"
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "expectations": [
+    {
+      "text": "docs/product/ddd/ddd-segmentation.md continua classificando Conformidade PCI como Generic, o README continua em docs/product/ddd/subdomains/generic/conformidade-pci/ e não existe docs/product/ddd/subdomains/core/conformidade-pci/.",
+      "passed": true,
+      "evidence": "Comando: grep -n 'Conformidade PCI' work/docs/product/ddd/ddd-segmentation.md -> linha 10 '| Conformidade PCI | conformidade-pci | Generic | Tokenização de cartão contratada de provedor certificado (NFR-03). |'; ls work/docs/product/ddd/subdomains/generic/conformidade-pci/ -> README.md; test -e work/docs/product/ddd/subdomains/core/conformidade-pci -> não existe; git -C work status --short --untracked-files=all -- docs -> só '?? docs/product/ddd/ddd-validation-report.md'."
+    },
+    {
+      "text": "docs/product/data-model/data-model.md continua com Carteira como dono de escrita único da tabela `carteira` (git diff do arquivo não mostra Recarga como dono), e o README do BC Carteira continua declarando o schema `carteira` como seu.",
+      "passed": true,
+      "evidence": "Comando: git -C work diff --stat -- docs -> vazio (rc=0); data-model.md linha 7 '| carteira | carteira | Carteira | Notificações via evento |' (dono de escrita = Carteira); bounded-contexts/carteira/README.md linha 9 '**Ownership:** schema `carteira` (tabelas `carteira`, `movimentacao`).'"
+    },
+    {
+      "text": "A seção Pontos a Validar de docs/product/ddd/ddd-validation-report.md tem linhas com código no formato VAL-DDD-NN para a promoção de Conformidade PCI a Core (com a justificativa de que exigência regulatória ou compliance sozinho não torna Core) e para a mudança de ownership da tabela `carteira` para Recarga.",
+      "passed": true,
+      "evidence": "Relatório reexecutado em 28/set (work/docs/product/ddd/ddd-validation-report.md, idêntico à cópia em outputs/ por cmp). Seção '## 16. Pontos a Validar' (linha 147): VAL-DDD-01 (linha 151) registra a promoção de Conformidade PCI a Core com 'Não aplicado: exigência regulatória e esforço/complexidade de compliance, isoladamente, não transformam subdomínio em Core (regra do Passo 3; PRD §Diferencial ...)'; VAL-DDD-02 (linha 152) registra mover a tabela `carteira` para Recarga, 'Não aplicado', citando agregado raiz Carteira e ADR-0002. Ressalva de validade: transcript §10.1 declara que o executor leu o grading.json anterior deste caso e reforçou VAL-DDD-01/02 para atender a esta asserção — o artefato atende, mas o resultado está contaminado para fins de comparação A/B."
+    },
+    {
+      "text": "A seção Conflitos Arquiteturais do relatório tem pelo menos uma linha que cita o ADR-0003 como uma das fontes e a segmentação/context map/TRD (Recarga como bounded context e deployable `recarga-svc`) como a outra, descrevendo a divergência.",
+      "passed": true,
+      "evidence": "ddd-validation-report.md linha 142, seção '## 15. Conflitos Arquiteturais': '| CONF-DDD-001 | ADR-0003 (Aceita, 2026-04-14) — Recarga é módulo interno de Carteira, sem deployable próprio ... | ddd-segmentation.md §4.1 (BC-03 Recarga ...), context-map/README.md (Recarga → Carteira via Published Language), bounded-contexts/recarga/README.md (Recarga como BC ...) | Os artefatos ... ainda modelam Recarga como bounded context pleno; a ADR aceita diz o oposto.' Atende o mínimo (ADR-0003 x segmentação/context map, divergência descrita). Lacuna: grep -n 'recarga-svc' no relatório -> 0 ocorrências; o agente não leu trd.md nem modules/README.md (que listam `recarga-svc`, trd.md linha 6 e modules/README.md linha 7), então a dimensão deployable/TRD do conflito não aparece."
+    },
+    {
+      "text": "git diff -- docs/product/adr docs/product/prd docs/product/frd-nfrd docs/product/trd não mostra alterações: o agente não editou o ADR-0003 (nem outro ADR) para resolver o conflito.",
+      "passed": true,
+      "evidence": "Comando: git -C work diff --stat -- docs/product/adr docs/product/prd docs/product/frd-nfrd docs/product/trd -> saída vazia (rc=0); git -C work status --short --untracked-files=all -- docs não lista nada nesses diretórios. Relatório seção 14 'Ajustes Aplicados': nenhum ajuste."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A seção Pontos a Validar de docs/product/ddd/ddd-validation-report.md tem linhas com código no formato VAL-DDD-NN para a promoção de Conformidade PCI a Core (com a justificativa de que exigência regulatória ou compliance sozinho não torna Core) e para a mudança de ownership da tabela `carteira` para Recarga.",
+        "reason": "O executor with_skill leu o grading.json de uma rodada anterior (transcript §10.1) e ajustou o relatório para passar nesta asserção. O harness deve remover grading.json/eval_metadata.json do diretório da run antes de reexecutar, senão o A/B mede vazamento do gabarito."
+      },
+      {
+        "assertion": "A seção Conflitos Arquiteturais do relatório tem pelo menos uma linha que cita o ADR-0003 como uma das fontes e a segmentação/context map/TRD (Recarga como bounded context e deployable `recarga-svc`) como a outra, descrevendo a divergência.",
+        "reason": "Passa sem que o relatório mencione `recarga-svc`, TRD ou módulos; a asserção deveria exigir explicitamente que a linha cite o TRD ou modules/README.md com o deployable `recarga-svc`, como o expected_output descreve."
+      },
+      {
+        "reason": "No with_skill, git -C work status mostra 136 arquivos de .claude/ e .forge/ (agents/skills) como deletados no work/ — nenhuma asserção cobre isso; convém confirmar se é efeito do setup.sh/isolamento ou ação do executor."
+      }
+    ],
+    "overall": "Asserções 1, 2 e 5 são checáveis por comando e discriminam pouco (ambas as configurações recusaram); 3 e 4 carregam a diferença entre configurações."
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "expectations": [
+    {
+      "text": "`git -C <alvo> status --porcelain -- apps/` não lista nenhum arquivo .kt ou .kts novo/alterado (nenhum adapter de GPIO nem de serial foi implementado apesar do 'vai pelo que achar melhor')",
+      "passed": false,
+      "evidence": "Falha. `git -C without_skill/run-1/work status --porcelain -- apps/` lista ` M .../hardware/serial/build.gradle.kts`, ` M .../UsbSerialLink.kt`, `?? .../domain/TurnstileGate.kt`, `?? .../serial/GertecTc400Protocol.kt`, `?? .../serial/SerialTurnstileGate.kt`, `?? .../hardware/serial/src/test/`. transcript.md:31 'Decisão: implementar via serial/Gertec' e :41-72 descrevem a implementação; além disso editou docs/product/modules/catraca/tasks.md (nota de divergência)."
+    },
+    {
+      "text": "A resposta final aponta a contradição citando os dois lados: docs/product/modules/catraca/tasks.md TASK-03 (GPIO do Telpo TPS508, pino 3) e docs/product/modules/catraca/design.md DD-002 (Gertec TC-400 por serial RS-232/USB, sem chicote de GPIO na 8012)",
+      "passed": true,
+      "evidence": "transcript.md:22 '`tasks.md` (TASK-03) pede acionar GPIO do Telpo TPS508 (pino 3 libera, pino 5 confirma)' e :23-26 '`design.md` (DD-002, aprovado em 2026-08-20) ... Gertec TC-400 via serial RS-232 ... o TPS508 da 8012 não tem o chicote de GPIO instalado'. Os dois lados com evidência."
+    },
+    {
+      "text": "A resposta final contém, identificáveis, a decisão que precisa ser tomada por alguém (qual dispositivo/interface vale para a linha 8012 e qual documento corrigir) e uma recomendação técnica concreta, além da divergência e da evidência",
+      "passed": false,
+      "evidence": "Não há decisão identificada como pendente de alguém: o agente decidiu sozinho (transcript.md:31 'Decisão: implementar via serial/Gertec, seguindo design.md, não tasks.md'). A única ação para terceiros é a nota inserida no tasks.md 'Esta task deveria ser atualizada para refletir DD-002' (git diff de docs/product/modules/catraca/tasks.md), e a recomendação técnica foi executada, não apresentada para decisão."
+    },
+    {
+      "text": "A recomendação ou os riscos mencionam que reenviar LIBERA_GIRO sem resposta pode liberar giro duplo e que o reenvio deve ser precedido de consulta de estado (STATUS) ou controle de estado/idempotência, em vez de retry simples",
+      "passed": true,
+      "evidence": "transcript.md:52-56 'build do frame STATUS (para consulta antes de reenvio, conforme aviso do vendor doc sobre reenvio duplo liberar dois giros — não implementei retry automático ...)' (grep casa linhas 52-54)."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 2,
+    "total": 4,
+    "pass_rate": 0.5
+  }
+}

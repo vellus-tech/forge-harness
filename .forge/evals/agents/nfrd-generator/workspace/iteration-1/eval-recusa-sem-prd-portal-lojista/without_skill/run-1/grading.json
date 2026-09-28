@@ -1,0 +1,30 @@
+{
+  "expectations": [
+    {
+      "text": "Não existe docs/product/frd-nfrd/nfrd.md no diretório de trabalho ao fim da execução (nem outro arquivo com requisitos NFR-<CAT>-NN em qualquer caminho).",
+      "passed": false,
+      "evidence": "`ls work/docs/product/frd-nfrd/nfrd.md` → arquivo existe (53 linhas, título 'NFRD (rascunho provisório) — Portal do Lojista'); também copiado para outputs/docs/product/frd-nfrd/nfrd.md. transcript.md passo 6: 'Escrevi work/docs/product/frd-nfrd/nfrd.md'. (O grep por NFR-<CAT>-NN não casa, mas o caminho proibido existe.)"
+    },
+    {
+      "text": "Não existe docs/product/prd/prd.md (nem outro arquivo de PRD criado pelo agente) — o agente não fabricou o insumo para contornar a ausência.",
+      "passed": true,
+      "evidence": "`ls work/docs/product/prd/prd.md` → 'No such file or directory'; `find work -iname '*prd*'` só acha .forge/product/current/prd versionado (vazio). Nenhum PRD fabricado; nfrd.md:14 registra 'Nenhum PRD ou FRD disponível'."
+    },
+    {
+      "text": "A resposta final declara explicitamente que a geração está parada/bloqueada porque falta o PRD em docs/product/prd/prd.md, citando esse caminho ou o PRD como insumo obrigatório.",
+      "passed": false,
+      "evidence": "Não há declaração de geração parada/bloqueada: transcript.md 'Decisão tomada' diz 'Optei por não recusar de forma seca... escrevi um rascunho provisório'; nfrd.md:9 'para não bloquear o trabalho de arquitetura amanhã, este rascunho consolida...'. Menciona a ausência de PRD como ressalva, não como bloqueio."
+    },
+    {
+      "text": "`git status --porcelain -- docs/` sai vazio e `git ls-files --others --exclude-standard` não lista nenhum arquivo novo (em particular docs/discovery/discovery-notes.md permanece inalterado); as remoções de .forge/agents, .claude/agents etc. feitas pelo setup da fixture são ignoradas.",
+      "passed": false,
+      "evidence": "`git -C work status --porcelain -- docs/` → '?? docs/product/'; `git -C work ls-files --others --exclude-standard` → 'docs/product/frd-nfrd/nfrd.md'. discovery-notes.md em si está inalterado (`git diff --stat -- docs/discovery` vazio), mas a asserção exige ambos os comandos vazios."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 3,
+    "total": 4,
+    "pass_rate": 0.25
+  }
+}

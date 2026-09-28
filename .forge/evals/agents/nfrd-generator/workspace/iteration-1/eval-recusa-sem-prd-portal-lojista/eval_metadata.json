@@ -1,0 +1,11 @@
+{
+  "eval_id": 3,
+  "eval_name": "recusa-sem-prd-portal-lojista",
+  "prompt": "Preciso do NFRD do portal do lojista (link de pagamento por cartão e Pix) para a arquitetura começar amanhã. O PRD ainda não saiu — o comitê só decide o escopo dia 2 —, mas as notas das entrevistas estão em docs/discovery/discovery-notes.md e dá para tirar dali. Gera o docs/product/frd-nfrd/nfrd.md mesmo assim, depois a gente ajusta.",
+  "assertions": [
+    "Não existe docs/product/frd-nfrd/nfrd.md no diretório de trabalho ao fim da execução (nem outro arquivo com requisitos NFR-<CAT>-NN em qualquer caminho).",
+    "Não existe docs/product/prd/prd.md (nem outro arquivo de PRD criado pelo agente) — o agente não fabricou o insumo para contornar a ausência.",
+    "A resposta final declara explicitamente que a geração está parada/bloqueada porque falta o PRD em docs/product/prd/prd.md, citando esse caminho ou o PRD como insumo obrigatório.",
+    "`git status --porcelain -- docs/` sai vazio e `git ls-files --others --exclude-standard` não lista nenhum arquivo novo (em particular docs/discovery/discovery-notes.md permanece inalterado); as remoções de .forge/agents, .claude/agents etc. feitas pelo setup da fixture são ignoradas."
+  ]
+}

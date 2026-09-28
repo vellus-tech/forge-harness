@@ -1,0 +1,30 @@
+{
+  "skill": "release-notes-ptbr",
+  "verdict": "inconclusive",
+  "summary": "O pass-rate médio sobe de 0,4167 para 0,6667 (+0,25), mas essa média esconde uma regressão pontual em TC-02 na garantia mais básica da skill (citar o número do PR), uma expectativa que falha em 3 de 3 casos com ou sem a skill (\"Mudanças incompatíveis\"), e um custo de +65% em tokens e +60% em duração. Com apenas 3 casos, a amostra não sustenta promoção sem antes fechar essas duas lacunas.",
+  "findings": [
+    {
+      "kind": "regression",
+      "case": "TC-02",
+      "detail": "Expectativa 'Cita o número de cada PR entre parênteses': baseline passou citando '(#377)', variant falhou citando apenas '(hotfix)'. O prompt de TC-02 fornece um intervalo de tags (v1.8.1→v1.8.2), não uma lista de PRs — o SKILL.md instrui apenas 'Liste os PRs do intervalo', sem dizer como extrair o número do PR quando a entrada é um diff de tags. É o único caso com delta de pass-rate negativo (0,75→0,5) entre os três, e regride justamente a garantia central da skill."
+    },
+    {
+      "kind": "systematic_miss",
+      "expectation": "Separa breaking changes em uma seção própria \"Mudanças incompatíveis\"",
+      "detail": "Falha nos 3 casos, com e sem a skill: TC-01 (PR #409 remove campo legacy_fare, ficou em Correções), TC-02 (troca de código de erro 422→409, sem seção própria), TC-03 (troca de protocolo de fila, ficou em Novidades). O tools/claude-skills/release-notes-ptbr/SKILL.md não menciona breaking changes em nenhum dos seus 3 passos — a skill não falha em executar uma instrução, a instrução simplesmente não existe no arquivo."
+    },
+    {
+      "kind": "cost_tradeoff",
+      "detail": "Tokens: baseline 8000 → variant 13200 (+5200, +65%). Duração: baseline 31000ms → variant 49666,7ms (+18666,7ms, +60%). O ganho de pass-rate (+0,25) vem com custo proporcionalmente maior em tokens/tempo por execução — vale ponderar contra o caso de uso (release notes não é latency-sensitive, mas o custo por chamada mais que dobra o baseline em tokens)."
+    },
+    {
+      "kind": "variance_check",
+      "detail": "stddev da variant é 0,1179 sobre mean 0,6667 (~17,7% do mean), abaixo do limiar de metade do mean — não configura 'alta variância' pelo critério formal. Ainda assim, com N=3, um único caso (TC-02) responde por toda a variação observada, então o sinal é frágil."
+    },
+    {
+      "kind": "triggering_ok",
+      "detail": "Não há indício de não-disparo: a variant muda o comportamento nos 3 casos (agrupamento em seções, números de PR presentes em TC-01 e TC-03) — a description está acionando a skill quando esperado, então não é candidata a /forge:skill-lifecycle optimize por esse motivo."
+    }
+  ],
+  "recommendation": "Não promover ainda. Editar tools/claude-skills/release-notes-ptbr/SKILL.md para (1) adicionar um passo explícito de detecção de breaking changes (heurística: remoção/rename de campo público, mudança de código de status, mudança de protocolo/contrato) com a seção obrigatória 'Mudanças incompatíveis', e (2) instruir o que fazer quando a entrada é um intervalo de tags sem lista de PRs (TC-02), indicando como obter o número do PR a partir do diff (ex.: git log --grep ou API de commits associados à tag). Depois disso, rodar /forge:skill-lifecycle eval de novo com mais casos — N=3 é baixo para decisão de promoção — cobrindo explicitamente 'entrada = diff de tags sem PRs listados' e 'PR com breaking change' como casos dedicados."
+}

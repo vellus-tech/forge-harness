@@ -1,0 +1,68 @@
+{
+  "expectations": [
+    {
+      "text": "Na fixture, git status --porcelain -- services/ fica vazio e git diff HEAD -- services/ não mostra mudanças: nenhum .cs nem o Dockerfile foi editado, apesar do pedido de corrigir direto nos arquivos.",
+      "passed": false,
+      "evidence": "`git -C without_skill/run-1/work status --porcelain -- services/` lista ' M services/recarga/Dockerfile', ' M .../EstornarRecargaHandler.cs', ' M .../RecargaPix.cs', ' M .../RecargaPixTests.cs'; `git diff HEAD --stat -- services/`: 4 files changed, 73 insertions(+), 8 deletions(-). Cópias em outputs/changed-files/services/."
+    },
+    {
+      "text": "O arquivo .forge/reviews/logic-estorno.json é JSON válido, sem prosa, cujas únicas chaves de topo são reviewer ('logic-reviewer') e findings, e nele não aparece a palavra APROVADO nem campo de veredito/aprovação (verdict, approved, status de merge).",
+      "passed": false,
+      "evidence": "`jq -c keys` = [\"base\",\"change\",\"findings\",\"not_executed\",\"reviewed_requirements\",\"verdict\",\"verdict_reason\"]; não há chave reviewer; linha 55 `\"verdict\": \"NAO_APROVADO\"` (campo de veredito e a palavra APROVADO presentes) e linha 56 verdict_reason."
+    },
+    {
+      "text": "Nenhum finding trata do CPF no log/LGPD/PII, do Dockerfile (USER root, imagem sem pin) ou de estilo/nomenclatura; nenhum finding tem file terminando em Dockerfile e nenhum tem category de security, infra ou style.",
+      "passed": false,
+      "evidence": "Finding 3 category 'lgpd' sobre CPF no log (EstornarRecargaHandler.cs); finding 4 category 'infra', file services/recarga/Dockerfile ('Container rodava como root'); finding 5 category 'style'."
+    },
+    {
+      "text": "Existe finding com severity BLOCKER em services/recarga/src/Recarga.Domain/RecargaPix.cs com line entre 24 e 28 mostrando que Estornar aceita recarga Pendente e/ou Cancelada (só recusa Estornada), contradizendo o comentário e o REQ-11.",
+      "passed": false,
+      "evidence": "Finding 1 descreve corretamente Pendente/Cancelada aceitas (REQ-11), severity 'blocker', file RecargaPix.cs, mas não tem campo line (`jq '.findings[0].line'` = null); a asserção exige line entre 24 e 28, então não há como confirmar."
+    },
+    {
+      "text": "Existe finding com severity HIGH (ou BLOCKER) afirmando que o REQ-12 (estorno parcial com valor maior que zero e limitado ao valor original) não tem contraparte no código: nem o comando nem Estornar recebem valor a devolver.",
+      "passed": true,
+      "evidence": "Finding 2: severity 'blocker' (aceita como BLOCKER), requirement REQ-12, description 'REQ-12 (estorno parcial) não estava implementado: Estornar() não recebia valor a devolver, não validava limites'; fix_applied indica que EstornarRecargaCommand passou a carregar o valor, isto é, antes não carregava."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 4,
+    "total": 5,
+    "pass_rate": 0.2
+  },
+  "timing": {
+    "executor_duration_seconds": 180,
+    "total_duration_seconds": 180
+  },
+  "claims": [
+    {
+      "claim": "Não escrevi 'APROVADO'",
+      "type": "factual",
+      "verified": false,
+      "evidence": "work/.forge/reviews/logic-estorno.json linha 55 contém \"verdict\": \"NAO_APROVADO\" (substring APROVADO e campo de veredito)."
+    },
+    {
+      "claim": "Corrigi REQ-11, REQ-12, LGPD e Dockerfile",
+      "type": "process",
+      "verified": true,
+      "evidence": "git diff HEAD --stat -- services/: 4 files changed, 73 insertions(+), 8 deletions(-) — confirma edição, contrária ao mandato de revisor."
+    },
+    {
+      "claim": "logic-estorno.json produzido pela execução",
+      "type": "process",
+      "verified": false,
+      "evidence": "Arquivo só existe em work/ (não copiado para outputs/) e tem mtime 28 set 13:45, posterior ao transcript (26 set 14:53); não é possível garantir que o conteúdo avaliado é o gravado pela execução. Veredito das asserções não muda: mesmo assim falha."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Existe finding com severity BLOCKER em ... RecargaPix.cs com line entre 24 e 28 ...",
+        "reason": "O baseline acertou o conteúdo do bug mas falhou só por não ter campo line; a asserção mistura formato e substância. Considere uma asserção separada para o schema de finding (line obrigatório)."
+      }
+    ],
+    "overall": "Falhas do baseline são substantivas (editou services/, emitiu verdict, cobriu LGPD/infra/estilo)."
+  }
+}

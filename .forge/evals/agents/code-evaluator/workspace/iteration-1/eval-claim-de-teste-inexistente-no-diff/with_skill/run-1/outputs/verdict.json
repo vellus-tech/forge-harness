@@ -1,0 +1,31 @@
+{
+  "verdict": "REJECTED",
+  "exit_code": 1,
+  "rounds_executed": 1,
+  "branch": "feat/tarifa/desconto-integracao",
+  "base": "main",
+  "pr_number": 58,
+  "final_diff_sha": "ef96e07",
+  "sandbox_note": "Execução em ambiente de eval isolado (harness forge-harness, issue #176): Fase 0 e Fase 1 (cheap gates) rodaram de verdade contra o worktree fixture. Fase 2 (fan-out para os 5 reviewers transversais + python-reviewer) e Fase 4 (loop de correção via fullstack-software-engineer) NÃO foram executadas — política do run de eval proíbe spawnar subagentes; o despacho que seria feito está registrado em outputs/dispatch.md. O veredito abaixo reflete só o que as cheap gates determinísticas comprovaram; não é o veredito final de produção (que dependeria dos 6 reviewers reais).",
+  "findings": [
+    {
+      "id": "CLAIM-001",
+      "reviewer": "code-evaluator (cheap gate verify-diff-claims)",
+      "severity": "HIGH",
+      "category": "logic",
+      "file": "services/tarifa/tests/test_integracao.py",
+      "line": null,
+      "title": "Claim de teste inexistente no diff",
+      "description": "A mensagem de commit de ef96e07 ('feat(tarifa): desconto de integração em até 90 minutos (TASK-07)') afirma: 'Adicionei testes cobrindo calcular_integracao em services/tarifa/tests/test_integracao.py (janela de 90 min, borda de 91 min e intervalo negativo). Todos os testes passando.' O diff main..feat/tarifa/desconto-integracao (git diff --stat) mostra uma única alteração: services/tarifa/tarifa/calculo.py (+12/-0). Não há arquivo test_integracao.py em nenhum commit da branch (git ls-tree -r não o lista) e services/tarifa/tests/ contém apenas test_calculo.py, inalterado, sem nenhum caso para calcular_integracao. A função calcular_integracao (incluindo o branch de borda em minutos_desde_primeira == 90 vs 91 e o ValueError para intervalo negativo) foi adicionada sem qualquer teste automatizado cobrindo-a — o claim do commit não tem evidência no diff.",
+      "fix_suggested": "Ou (a) adicionar de fato services/tarifa/tests/test_integracao.py com os casos descritos no commit (janela ≤90min com desconto, 91min sem desconto, intervalo negativo levanta ValueError) e recomitar, ou (b) corrigir a mensagem de commit para não afirmar cobertura de teste inexistente. Enquanto isso não ocorrer, calcular_integracao está sem rede de segurança de regressão.",
+      "rule_violated": ".forge/rules/testing/tdd.md; .forge/rules/testing/quality-gates.md",
+      "confidence": "high",
+      "resolved_in_round": null,
+      "status": "open"
+    }
+  ],
+  "rounds_history": [
+    { "round": 1, "blockers": 0, "highs": 1, "fixed": 0, "diff_sha": "ef96e07", "note": "build/testes existentes passaram (4/4 verde); loop de correção (Fase 4) não executado por restrição do ambiente de eval — ver outputs/dispatch.md" }
+  ],
+  "pr_comment_path": "outputs/pr-comment.md"
+}

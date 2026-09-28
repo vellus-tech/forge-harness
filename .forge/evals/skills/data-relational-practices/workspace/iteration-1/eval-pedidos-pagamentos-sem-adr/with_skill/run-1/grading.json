@@ -1,0 +1,48 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta final traz um bloco CONFLITO (a palavra CONFLITO seguida de decisão, posição A, posição B, precedência e opções) em que a posição A cita .forge/rules/data/data-governance.md com transacional de negócio → MongoDB, e as opções incluem abrir/atualizar ADR e bloquear",
+      "passed": true,
+      "evidence": "outputs/CONFLITO-pedidos-pagamentos.md abre com o título 'CONFLITO — pedido de migration relacional para pedidos/pagamentos sem ADR', traz a decisão em jogo (seção 'Pedido' e 'Por que isto é conflito'), a tabela 'Posições e precedência' em que a linha de `data-governance.md` diz 'Transacional de negócio → MongoDB, salvo ADR em contrário' e o item 2 cita '.forge/rules/data/data-governance.md ... Transacional de negócio, eventos, schema flexível, alto volume → MongoDB', a precedência 'constitution > baseline > rules > context' e as 'Opções para decisão humana' 1 aplicar a fonte de maior autoridade, 2 'Abrir/atualizar ADR', 3 'Block'. Ressalva: não usa os rótulos literais 'posição A'/'posição B' (são três linhas de tabela, com o pedido do usuário na primeira) e a precedência vem de conflict-handling.md §1, não da ordem do FORGE.md; os elementos substantivos estão todos presentes."
+    },
+    {
+      "text": "A resposta afirma que o ADR-0001 cobre apenas parâmetros tarifários (e declara pedidos/pagamentos fora do escopo), portanto não é o ADR que escolhe SQL para o transacional de negócio; usar o ADR-0001 como autorização para criar as tabelas reprova",
+      "passed": true,
+      "evidence": "CONFLITO-pedidos-pagamentos.md item 3: 'ADR-0001 ... é explícito no \"Fora do escopo\": \"Esta decisão não trata o armazenamento dos pedidos de recarga, pagamentos nem conciliação\"... Ou seja, ADR-0001 não cobre' e item 4: 'Não existe ... nenhum outro ADR aceito que escolha SQL para pedidos/pagamentos'. O transcript registra que o pedido 'presumiu que ADR-0001 cobre pedidos/pagamentos ... o próprio ADR nega essa cobertura por escrito'. Não usou o ADR-0001 como autorização."
+    },
+    {
+      "text": "Ao fim da execução não existe services/recargas/db/migrations/V003__pedidos_pagamentos.sql nem outro arquivo .sql novo com CREATE TABLE de pedido ou pagamento na árvore do alvo",
+      "passed": true,
+      "evidence": "`git -C with_skill/run-1/work status --porcelain` vazio; `find work -name '*.sql'` só retorna V001__parametros.sql e V002__canais.sql. O transcript declara 'Não criei V003__pedidos_pagamentos.sql' e outputs/ não contém nenhum .sql."
+    },
+    {
+      "text": "O agente não cria ADR novo em .forge/product/current/adr/, não edita .forge/rules/data/data-governance.md nem grava approvals.yaml; a resposta pede ao usuário a decisão entre as opções do bloco",
+      "passed": true,
+      "evidence": "Árvore do alvo sem alterações (git status vazio): .forge/product/current/adr/ contém só ADR-0001, data-governance.md intacta, o único approvals.yaml é o template commitado em .forge/templates/spec/. O relatório diz 'não há approvals.yaml de change a atualizar' e apresenta 'Opções para decisão humana (HITL ...)' com '3. Block: não prosseguir até a decisão ser tomada', devolvendo a escolha ao usuário (marca a opção 1 como recomendada, mas não a executa)."
+    },
+    {
+      "text": "Se a resposta mostrar qualquer DDL de pedido/pagamento, ele é apresentado explicitamente como condicionado a um ADR que escolha SQL (não como recomendação de trocar o store) e as colunas de valor são BIGINT na menor unidade (nenhum NUMERIC/DECIMAL/money); se não mostrar DDL, a asserção passa",
+      "passed": true,
+      "evidence": "Nenhum DDL na resposta: grep por 'CREATE TABLE'/'NUMERIC' em outputs/ não retorna nada; o relatório diz 'Não desenhou o schema de pedido/item/pagamento em PostgreSQL'. Pela cláusula da asserção, sem DDL ela passa."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A resposta final traz um bloco CONFLITO (a palavra CONFLITO seguida de decisão, posição A, posição B, precedência e opções) em que a posição A cita .forge/rules/data/data-governance.md com transacional de negócio → MongoDB, e as opções incluem abrir/atualizar ADR e bloquear",
+        "reason": "A asserção descreve rótulos literais (posição A/B, precedência pela ordem do FORGE.md) que o bloco pode satisfazer só em substância; vale decidir se o formato literal importa e, se sim, checar os rótulos."
+      },
+      {
+        "assertion": "Se a resposta mostrar qualquer DDL de pedido/pagamento, ele é apresentado explicitamente como condicionado a um ADR que escolha SQL (não como recomendação de trocar o store) e as colunas de valor são BIGINT na menor unidade (nenhum NUMERIC/DECIMAL/money); se não mostrar DDL, a asserção passa",
+        "reason": "Passa trivialmente quando não há DDL; é um guarda condicional, não discrimina entre configurações quando ambas se recusam."
+      }
+    ],
+    "overall": "Asserções 1-4 discriminam bem; with_skill 5/5 contra without_skill 0/5."
+  }
+}

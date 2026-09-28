@@ -1,0 +1,97 @@
+{
+  "expectations": [
+    {
+      "text": "O campo Versão do prd.md passou de 1.2.0 para 1.3.0 (MINOR) — não permaneceu 1.2.0, não virou 1.2.1 nem 2.0.0 — e a Data foi atualizada.",
+      "passed": true,
+      "evidence": "Comando `diff fixtures/evolui-prd-aprovado-com-gestor-de-frota/overlay/docs/product/prd/prd.md outputs/docs/product/prd/prd.md`: hunk `6,7c6,7` troca `- **Versão:** 1.2.0` por `- **Versão:** 1.3.0` e `- **Data:** 2026-08-10` por `- **Data:** 2026-09-26` (outputs/docs/product/prd/prd.md:6-7). `grep -n 'Versão:\\|Data:'` confirma as linhas 6 e 7."
+    },
+    {
+      "text": "O Status continua 'Aprovado para desenvolvimento' (não voltou a Rascunho nem Em revisão) e o Histórico mantém as entradas 1.0.0, 1.1.0 e 1.2.0 e ganha uma entrada 1.3.0 descrevendo a inclusão da persona e da recarga agendada.",
+      "passed": true,
+      "evidence": "outputs/docs/product/prd/prd.md:8 `- **Status:** Aprovado para desenvolvimento` (nenhum hunk do diff toca a linha 8); `sed -n 11,17p` mostra 1.0.0 (2026-06-02), 1.1.0 (2026-07-14) e 1.2.0 (2026-08-10) intactas e a nova linha 16 `1.3.0 — 2026-09-26 — inclusão da persona P-03 (gestor de frota fretada) e dos RF-06/RF-07 (cadastro de veículos e recarga agendada por veículo com limite mensal)` (hunk `15a16`)."
+    },
+    {
+      "text": "A nova persona é P-03 (gestor de frota) e o(s) novo(s) requisito(s) começam em RF-06, sem renumerar nem alterar RF-01..RF-05; a matriz 7.1 inclui as novas linhas.",
+      "passed": true,
+      "evidence": "`grep -n '^###'`: `### P-03 — Gestor de frota fretada` (linha 107), `### RF-06 — Cadastro de veículos da frota` (226) e `### RF-07 — Recarga agendada por veículo com limite mensal` (234), após RF-05 (218). Os hunks do diff contra o fixture são só `6,7c`, `10c`, `15a`, `62c`, `66a`, `72a`, `103a`, `136a`, `141d`, `164a`, `208a`, `217a`, `249a` — nenhum c/d na faixa de RF-01..RF-05 (fixture ~182-208) nem nas linhas da matriz; matriz 7.1 (linha 242) ganha `| RF-06 |` e `| RF-07 |` (hunk `217a251,252`)."
+    },
+    {
+      "text": "A § 9.3 ganha lacunas numeradas a partir de LAC-03 para (a) a suposta exigência da ANTT e (b) a origem do pagamento da recarga agendada (saldo pré-pago vs. boleto); nenhuma norma da ANTT é citada como obrigação em § 8.8 Compliance ou restrição REST-NN, e a forma de pagamento não é decidida como regra.",
+      "passed": true,
+      "evidence": "`grep -n -i 'antt\\|pré-pago\\|boleto'`: ANTT e pré-pago aparecem só nas linhas 285 (`LAC-03 | Gestor de frota mencionou possível exigência da ANTT ... não confirmado nos insumos | ... | Compliance | Aberto`) e 286 (`LAC-04 | Origem do pagamento da recarga agendada — saldo pré-pago ... vs. boleto por ciclo ... não respondido pelo Financeiro | ... | Aberto`), dentro da § 9.3 (linha 279). A § 8 (linhas 256-261) só remete a nfrd.md e LAC-01, não há § 8.8; a única restrição é `### REST-01 — Emissores de cartão homologados` (266), sem ANTT. RF-07 (linha 236) não fixa forma de pagamento; as demais ocorrências de boleto são do RF-04/J-01 pré-existentes."
+    },
+    {
+      "text": "O item 'Recarga recorrente' não aparece mais em § 5.2 Fora do Escopo (movido para Dentro do Escopo ou coerentemente substituído), eliminando a contradição com o novo RF.",
+      "passed": true,
+      "evidence": "`sed -n '/^### 5.2/,/^### 5.3/p'` retorna só `- Cartão de combustível`; `grep -c 'Recarga recorrente'` = 0; hunk `141d152` remove o item e `136a148` inclui em § 5.1 'Cadastro de veículos ... e recarga agendada por veículo com limite mensal e bloqueio automático'."
+    },
+    {
+      "text": "A alteração foi feita em docs/product/prd/prd.md; não foi criado prd-v1.3.md, prd-novo.md ou outro arquivo de PRD paralelo.",
+      "passed": true,
+      "evidence": "`find with_skill/run-1 -iname '*prd*' -not -path '*/.git/*'` lista work/docs/product/prd/prd.md, outputs/docs/product/prd/prd.md (idêntico ao de work por `diff -q`), outputs/prd.diff (diff unificado de auditoria, não é PRD) e o diretório work/.forge/product/current/prd (vazio de PRD, também presente na outra configuração). `git -C work status --short` mostra `M docs/product/prd/prd.md` e nenhum arquivo de PRD novo não rastreado."
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "executor_duration_seconds": 110.0
+  },
+  "claims": [
+    {
+      "claim": "O prd.md de work/ já estava em v1.3.0 antes desta execução (retomada) e foi apenas revisado e copiado",
+      "type": "process",
+      "verified": true,
+      "evidence": "transcript §0; `ls -laT` mostra work/docs/product/prd/prd.md com mtime 26 set 15:19:50 e outputs/.../prd.md com mtime 28 set 13:52:44; conteúdo idêntico por `diff -q`. Proveniência: a geração ocorreu numa sessão with_skill anterior cujo transcript não sobreviveu; timing.json (110 s) mede só a retomada."
+    },
+    {
+      "claim": "`outputs/` e `timing.json` ainda não existiam",
+      "type": "factual",
+      "verified": false,
+      "evidence": "O diretório outputs/docs/product/prd tem mtime 26 set 15:20:04 e havia grading.json de 26 set 16:12 citando outputs/docs/product/prd/prd.md — outputs/ já existia parcialmente."
+    },
+    {
+      "claim": "Nenhum KPI novo foi adicionado por falta de meta numérica na entrevista",
+      "type": "quality",
+      "verified": true,
+      "evidence": "Diff contra o fixture não tem hunk na § 11; decisão consistente com a regra de não inventar."
+    },
+    {
+      "claim": "Única remoção é 'Recarga recorrente' em § 5.2",
+      "type": "factual",
+      "verified": true,
+      "evidence": "Único hunk `d` do diff é `141d152`; hunks `c` (6,7 / 10 / 62) são alterações, não remoções de conteúdo aprovado."
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [
+      "Proveniência do PRD: gerado numa passagem with_skill anterior sem transcript preservado"
+    ],
+    "needs_review": [],
+    "workarounds": [
+      "Execução retomada reaproveitou work/ existente em vez de regenerar"
+    ]
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "O campo Versão do prd.md passou de 1.2.0 para 1.3.0 (MINOR) — não permaneceu 1.2.0, não virou 1.2.1 nem 2.0.0 — e a Data foi atualizada.",
+        "reason": "Não discrimina: o baseline sem skill também fez o bump MINOR, porque o próprio histórico do fixture (1.1.0 e 1.2.0 por adição) ensina o padrão."
+      },
+      {
+        "assertion": "A § 9.3 ganha lacunas numeradas a partir de LAC-03 para (a) a suposta exigência da ANTT e (b) a origem do pagamento da recarga agendada (saldo pré-pago vs. boleto); nenhuma norma da ANTT é citada como obrigação em § 8.8 Compliance ou restrição REST-NN, e a forma de pagamento não é decidida como regra.",
+        "reason": "A cláusula 'nenhuma norma citada em § 8.8' é satisfeita trivialmente porque o fixture não tem § 8.8; checar também que a ANTT não aparece em RF, PRM nem em REST-NN seria mais honesto."
+      },
+      {
+        "reason": "Nenhuma asserção verifica se o executor inventou conteúdo não suportado pela entrevista (o baseline acrescentou KPI-04 com meta '60% em 6 meses' e RISCO-O02 sem evidência na entrevista, e o with_skill registrou explicitamente que não criou KPI por falta de meta). Essa é a diferença real entre as configurações e passa despercebida."
+      },
+      {
+        "reason": "As seis asserções passam nas duas configurações (6/6 vs 6/6): o caso não discrimina skill vs. baseline. Sugestão: asserção de 'nada inventado' (KPI/meta/risco sem fonte) e de rastreabilidade à fonte nas LAC."
+      }
+    ],
+    "overall": "Asserções corretas mas fáceis; o modelo base já resolve o caso. Endurecer com verificação de não-invenção para medir o valor do prd-generator."
+  }
+}

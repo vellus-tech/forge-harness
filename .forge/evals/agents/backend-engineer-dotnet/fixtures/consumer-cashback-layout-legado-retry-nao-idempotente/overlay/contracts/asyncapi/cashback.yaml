@@ -1,0 +1,16 @@
+asyncapi: 2.6.0
+info:
+  title: cashback-worker
+  version: 0.3.0
+channels:
+  cashback.creditado:
+    publish:
+      message:
+        name: CashbackCreditado
+        payload:
+          type: object
+          required: [passageiroId, valorCentavos, correlationId]
+          properties:
+            passageiroId: { type: string, format: uuid }
+            valorCentavos: { type: integer, format: int64 }
+            correlationId: { type: string }

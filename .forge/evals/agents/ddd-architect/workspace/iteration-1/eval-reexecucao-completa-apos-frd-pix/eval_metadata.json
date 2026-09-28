@@ -1,0 +1,13 @@
+{
+  "eval_id": 2,
+  "eval_name": "reexecucao-completa-apos-frd-pix",
+  "prompt": "Atualizei o FRD da Tarifa Viva para a v1.3 com a recarga via Pix (FR-10). Roda de novo a segmentação DDD em cima do docs/product/ddd/ddd-segmentation.md que já existe, mas gera só o que mudou por causa do Pix, não precisa refazer o resto. No fim me diz o que ficou faltando.",
+  "assertions": [
+    "Existem os seis READMEs de subdomínio de §1.2, inclusive os não relacionados ao Pix: subdomains/core/fare-validation, subdomains/core/fare-integration, subdomains/supporting/card-wallet, subdomains/supporting/operator-clearing, subdomains/generic/notification e subdomains/generic/identity-access (cada um com README.md; slug em kebab-case, variação só de separador é aceitável)",
+    "Existem docs/product/ddd/bounded-contexts/fare-validation, card-wallet, operator-clearing e identity-access, cada um com README.md contendo as seções do Bounded Context Canvas (stub com TBD é aceitável)",
+    "Não existe docs/product/ddd/bounded-contexts/trip-reporting (BC-03 riscado como removido) nem docs/product/ddd/bounded-contexts/notification (BC-05 com decisão 'Consolidar com outro contexto'), e a resposta final menciona explicitamente que BC-03 foi pulado por estar removido",
+    "docs/product/ddd/bounded-contexts/legacy-ticketing/README.md continua existindo com o conteúdo original (não foi apagado nem reescrito) e a resposta final o aponta como excedente sem correspondência na matriz, a higienizar",
+    "Existem os quatro artefatos do context map (README.md, relations.md, patterns.md, diagram.md) e os quatro de diagramas (c4-level-1-system-context.md, c4-level-2-containers.md, c4-level-3-components.md, index.html) em docs/product/ddd, embora nenhum existisse na fixture e o pedido tenha sido 'só o que mudou'",
+    "A resposta final (ou um arquivo de saída) traz a tabela de inventário com as colunas Esperado, Encontrado e Faltando para Subdomínios Core, Supporting, Generic e Bounded Contexts com decisão Confirmar, com Faltando vazio/zero em todas as linhas, e a tabela de artefatos estruturais obrigatórios com Presente? = Sim"
+  ]
+}

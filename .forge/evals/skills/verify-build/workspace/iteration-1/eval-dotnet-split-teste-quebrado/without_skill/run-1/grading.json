@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "outputs/verify-build-output.json é JSON válido com skill == \"verify-build\", passed == false, exit_code == 1, stacks_detected == [\"dotnet\"] e objeto results.dotnet contendo as chaves build e test.",
+      "passed": false,
+      "evidence": "`jq -c '[keys,.skill,.passed,.exit_code,.stacks_detected,.results]'` → chaves [base_branch, base_branch_result, branch, commands, feature_branch_result, repo, strict_mode, task, verdict, warnings_note]; skill, passed, exit_code, stacks_detected e results são null (usa task=\"verify-build\", formato próprio fora do contrato)."
+    },
+    {
+      "text": "findings_to_emit contém um item com id == \"DOTNET-BASELINE\" e severity == \"HIGH\" (resultado de .forge/scripts/dotnet-baseline.sh --check reprovado por ausência de Directory.Build.props).",
+      "passed": false,
+      "evidence": "`jq '.findings_to_emit'` → null; nenhum item DOTNET-BASELINE; `grep -c 'dotnet-baseline' outputs/transcript.md` → 0 (o script de baseline nunca foi rodado)."
+    },
+    {
+      "text": "results.dotnet.test registra total == 3 e failed == 2, e findings_to_emit contém itens com id começando por \"TEST-\" e severity == \"BLOCKER\", ao menos um deles nomeando Split_ParcelasZero_LancaDomainException com file apontando para tests/Pagamentos.Domain.Tests/PagamentoTests.cs.",
+      "passed": false,
+      "evidence": "Há feature_branch_result.test com total=3 e failed=2, mas não em results.dotnet.test (results é null); findings_to_emit ausente, nenhum item TEST-* BLOCKER nem file apontando tests/Pagamentos.Domain.Tests/PagamentoTests.cs."
+    },
+    {
+      "text": "findings_to_emit contém um item com id começando por \"LINT-\" e severity == \"HIGH\" apontando src/Pagamentos.Domain/Pagamento.cs (divergência de formatação/whitespace), e `git status --porcelain` no projeto não mostra Pagamento.cs modificado (dotnet format não foi rodado sem --verify-no-changes).",
+      "passed": false,
+      "evidence": "findings_to_emit ausente (jq → null), nenhum finding LINT-*; transcript.md não registra `dotnet format --verify-no-changes` (grep 'dotnet format' → 0). Pagamento.cs não modificado (git status limpo) não basta para a asserção composta."
+    },
+    {
+      "text": "outputs/resumo.md afirma que a branch não segue para os reviewers (REJECTED/rejeitada por falha determinística) e o repositório não ganhou Directory.Build.props, .editorconfig nem alteração em arquivos .cs/.csproj (git status sem mudanças rastreadas nem novos arquivos fora de bin/obj/TestResults).",
+      "passed": true,
+      "evidence": "resumo.md linha 3: \"Veredito: a branch NÃO pode seguir para os reviewers.\" (rejeição por falha de teste, 2 de 3); `ls work/Directory.Build.props work/.editorconfig` → No such file or directory; `git -C work status --porcelain --ignored` só mostra !! bin/ e obj/, sem mudanças rastreadas nem arquivos novos."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 4,
+    "total": 5,
+    "pass_rate": 0.2
+  }
+}

@@ -1,0 +1,5 @@
+$ bash .forge/scripts/doctor.sh
+[OK]   adapters sincronizados
+[OK]   constitution presente
+[INFO] stack detectada: python (requirements.txt), relational-database (psycopg, migrations/*.sql)
+[SUGGEST] capability pack aplicável: backend-python-relational — ative em .forge/forge.yaml (capabilities.active) se fizer sentido para o projeto

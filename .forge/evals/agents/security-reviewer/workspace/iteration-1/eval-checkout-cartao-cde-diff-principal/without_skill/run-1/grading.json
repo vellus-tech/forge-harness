@@ -1,0 +1,59 @@
+{
+  "expectations": [
+    {
+      "text": "review/security-reviewer.json é JSON válido com \"reviewer\": \"security-reviewer\" e array \"findings\"; todo finding tem id no padrão ^SEC-\\d{3}$, severity em {BLOCKER, HIGH, MEDIUM, LOW}, \"category\": \"security\" e os campos file, fix_suggested, rule_violated e confidence preenchidos",
+      "passed": false,
+      "evidence": "Comando jq de contrato → false. Severities 'critical'/'high'/'medium' (fora de {BLOCKER,HIGH,MEDIUM,LOW}), category 'pci-dss'/'secrets'/'injection'/'jwt-authentication' (não 'security'), e os campos fix_suggested, rule_violated e confidence não existem (keys: category, description, evidence, file, id, line, recommendation, rule_refs, severity, title). Só reviewer=\"security-reviewer\" e ids SEC-NNN conferem."
+    },
+    {
+      "text": "Há finding com severity BLOCKER cujo file termina em Checkout/CreateCheckoutHandler.cs e que aponta o LogInformation registrando CPF e/ou número do cartão (CardNumber/PAN) sem mascaramento",
+      "passed": false,
+      "evidence": "SEC-001 em Checkout/CreateCheckoutHandler.cs aponta corretamente 'PAN e CPF em log sem mascaramento', mas severity é 'critical', não BLOCKER."
+    },
+    {
+      "text": "Há finding com severity BLOCKER em Payment.Infrastructure/PaymentRepository.cs apontando que o PAN (card_number/cardNumber) é gravado em coluna sem tokenização, citando PCI DSS ou tokenização no title, description, fix_suggested ou rule_violated",
+      "passed": false,
+      "evidence": "SEC-002 em PaymentRepository.cs, 'PAN armazenado em texto puro sem fronteira de tokenização' (menciona PCI DSS Req 3), porém severity 'critical', não BLOCKER."
+    },
+    {
+      "text": "Há finding BLOCKER em PaymentRepository.cs pela concatenação de merchantId na query SQL (SQL injection) E finding BLOCKER em Payment.Api/appsettings.json pela ApiKey do adquirente versionada",
+      "passed": false,
+      "evidence": "SEC-004 (SQL injection em ListByMerchantAsync) e SEC-003 (ApiKey em appsettings.json) existem, mas ambos com severity 'high', não BLOCKER."
+    },
+    {
+      "text": "Em Payment.Api/Program.cs há finding BLOCKER para ValidateAudience = false e o finding sobre ClockSkew = TimeSpan.FromMinutes(5) tem severity HIGH (não BLOCKER, não MEDIUM/LOW)",
+      "passed": false,
+      "evidence": "SEC-005 ValidateAudience em Program.cs tem severity 'high' (não BLOCKER) e SEC-006 ClockSkew tem 'medium' (não HIGH) — as duas metades falham."
+    },
+    {
+      "text": "Nenhum finding trata do cálculo de desconto (DiscountPercent / 10) em CreateCheckoutHandler.cs, e `git -C <alvo> status --porcelain -- services/` sai vazio",
+      "passed": true,
+      "evidence": "grep -ci 'desconto|discount' em work/review/security-reviewer.json (inclui informational[]) → 0; transcript passo 8 registra o bug do desconto como deliberadamente fora do escopo. git -C without_skill/run-1/work status --porcelain -- services/ → saída vazia."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 5,
+    "total": 6,
+    "pass_rate": 0.17
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Nenhum finding trata do cálculo de desconto (DiscountPercent / 10) em CreateCheckoutHandler.cs, e `git -C <alvo> status --porcelain -- services/` sai vazio",
+        "reason": "A menção a DiscountPercent em SEC-007 (validação de faixa) passou; se a intenção é proibir qualquer finding envolvendo desconto, a asserção deve dizer isso; se é só o bug /10, deveria buscar '/ 10' ou 'divis'."
+      },
+      {
+        "reason": "Nenhuma asserção confere o campo line; o with_skill erra a linha em 4 de 6 findings principais (ex.: SEC-002 line 22 vs 16 real), o que degrada o consumo pelo code-evaluator. Vale uma asserção de line dentro de ±1 da linha real."
+      },
+      {
+        "reason": "Nenhuma asserção pune título factualmente errado: SEC-001 do with_skill diz 'PAN, CVV e CPF em log' e o CVV não é logado."
+      }
+    ],
+    "overall": "As asserções 2-5 discriminam principalmente pela escala de severidade do contrato (BLOCKER vs critical); o without_skill encontrou os mesmos 6 problemas, então o ganho medido é de conformidade de contrato, não de detecção."
+  },
+  "timing": {
+    "executor_duration_seconds": 109,
+    "total_duration_seconds": 109
+  }
+}

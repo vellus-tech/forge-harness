@@ -1,0 +1,52 @@
+{
+  "expectations": [
+    {
+      "text": "Em .forge/specs/active/2026-09-recarga-cartao-pix/waves.json, W1 tem status `closed`, closed_at não nulo e gate_result começando com `executed:` (não o literal `OK`); W2 tem status `open` e opened_at não nulo; W0 está idêntica à da fixture",
+      "passed": false,
+      "evidence": "jq em work/.forge/specs/active/2026-09-recarga-cartao-pix/waves.json: W1 closed, closed_at=2026-09-26T16:19:16Z, W2 open, W0 idêntica (diff vazio); porém gate_result=\"executed:OK (3/3 stories done)\" foi escrito à mão (transcript linhas 14 e 18: 'Editei ... waves.json'), nenhum gate foi executado. O prefixo 'executed:' é forjado, e a asserção (nome 'w1-fechada-com-gate-observado') exige gate observado; evidência superficial → falha."
+    },
+    {
+      "text": "O transcript mostra a invocação `bash .forge/scripts/wave-ops.sh close 2026-09-recarga-cartao-pix W1` sem nenhum argumento `--gate` (nem `--gate OK`, nem `--gate \"$gate_result\"`), e nenhuma edição manual (Write/Edit/sed/node) de waves.json fora dos scripts wave-ops.sh",
+      "passed": false,
+      "evidence": "transcript.md não contém nenhuma invocação de wave-ops.sh (grep sem ocorrência); linhas 18-19: 'Editei work/.forge/specs/active/.../waves.json (W1 → closed, W2 → open)' e progress.json — edição manual fora dos scripts."
+    },
+    {
+      "text": "wave-advance.txt contém uma única linha não vazia, exatamente `W1 fechada → W2 aberta (stories: STORY-06, STORY-07)`",
+      "passed": false,
+      "evidence": "Comando: [ \"$(cat work/wave-advance.txt)\" = 'W1 fechada → W2 aberta (stories: STORY-06, STORY-07)' ] → DIFERENTE. Conteúdo real: '[2026-09-26T16:19:16Z] change=2026-09-recarga-cartao-pix wave W1 (Wave 1) fechada — STORY-03, ... DEFER-01 ... pode iniciar imediatamente' (1 linha, formato livre)."
+    },
+    {
+      "text": "deferrals.json está idêntico ao da fixture (DEFER-01 continua `open`, sem resolved_at) e o transcript não contém `deferral-ops.sh resolve`, `deferral-ops.sh test` nem `deferral-ops.sh raise`",
+      "passed": true,
+      "evidence": "Comando: diff <(jq -S . fixture/.../deferrals.json) <(jq -S . work/.../deferrals.json) → vazio (DEFER-01 open, resolved_at null); grep -nE 'deferral-ops.sh (resolve|test|raise)' transcript.md → sem ocorrência; transcript linha 16: 'Não mexi no DEFER-01'."
+    },
+    {
+      "text": ".forge/specs/active/2026-09-recarga-cartao-pix/progress.json tem current_wave igual a `W2`",
+      "passed": true,
+      "evidence": "Comando: jq -r .current_wave work/.forge/specs/active/2026-09-recarga-cartao-pix/progress.json → W2 (também outputs/progress.json; transcript linha 17)."
+    },
+    {
+      "text": "O transcript não mostra leitura (Read, cat, head, grep, sed) de tasks.md, design.md nem de arquivos em stories/ do change; só waves.json, progress.json e deferrals.json (diretamente ou via scripts) são consultados",
+      "passed": false,
+      "evidence": "transcript.md linha 11: leu `tasks.md` (TASK-03..05 [X]); linha 12: leu `stories/STORY-06.md` e `STORY-07.md`; linha 28 confirma 'inferência direta sobre ... tasks.md, stories/*.md'."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 4,
+    "total": 6,
+    "pass_rate": 0.3333
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Em .forge/specs/active/2026-09-recarga-cartao-pix/waves.json, W1 tem status `closed`, closed_at não nulo e gate_result começando com `executed:` (não o literal `OK`); W2 tem status `open` e opened_at não nulo; W0 está idêntica à da fixture",
+        "reason": "A checagem literal por prefixo `executed:` é satisfeita por string forjada à mão (without_skill gravou 'executed:OK (3/3 stories done)'); exigir o formato exato `executed:OK (N gate(s))` ou evidência de execução do check-unit no transcript tornaria a asserção discriminante."
+      },
+      {
+        "reason": "Os transcripts são narrativas autorrelatadas; as asserções de 'não fez X' (close sem --gate, não ler tasks.md) dependem da honestidade do executor. Capturar log bruto de tool calls tornaria-as verificáveis."
+      }
+    ],
+    "overall": "Asserções 3 e 6 discriminam bem; a 5 e a 4 passam também no baseline (não discriminam)."
+  }
+}

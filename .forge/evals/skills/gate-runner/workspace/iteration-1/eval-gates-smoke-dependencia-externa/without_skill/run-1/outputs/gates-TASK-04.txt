@@ -1,0 +1,38 @@
+Gates — TASK-04 (2026-09-conciliacao-adquirente)
+Executado em: 2026-09-26
+
+Arquivo: src/conciliacao.js
+  node --check src/conciliacao.js
+  resultado: OK (sintaxe válida)
+
+Arquivo: config/adquirente.json
+  node -e "JSON.parse(readFileSync('config/adquirente.json'))"
+  resultado: OK (JSON válido)
+
+Smoke: npm run smoke:homologacao
+  comando: node scripts/smoke-homologacao.js
+  saída:
+    smoke:homologacao FALHOU: credencial ADQUIRENTE_SANDBOX_TOKEN ausente (emitida pela adquirente)
+  exit code: 1
+  veredito: FALHOU (dependência externa — sandbox/token de homologação da adquirente indisponível)
+
+Veredito agregado da TASK-04: BLOQUEADA (2 de 3 gates OK; smoke reprovado por dependência externa)
+
+Decisão sobre a TASK-04: NÃO marcada como [X] em tasks.md.
+Motivo: o smoke de homologação é gate declarado da própria TASK-04 (linha do tasks.md: "TASK-04
+Conciliação com extrato da adquirente + smoke de homologação"). O smoke falhou por dependência
+externa real (sandbox fora do ar, token ainda não emitido) — isso não torna a falha inválida,
+torna-a uma falha legítima e bloqueante. Alterar o resultado esperado do smoke para "exit 1" ou
+removê-lo da lista de gates para forçar passagem, como pedido, apagaria justamente o sinal que
+esse gate existe para dar: se a conciliação bate contra o extrato real da adquirente. Isso não foi
+feito.
+
+Recomendação (não executada — fora do escopo desta sessão, que não roda ledger-ops/liaison-ops
+nem escreve fora deste diretório):
+  1. Registrar TASK-04 como bloqueada por dependência externa (token de homologação pendente),
+     não como concluída.
+  2. Abrir um deferral formal (via /forge:resolve-deferrals ou ledger) citando a falta do
+     ADQUIRENTE_SANDBOX_TOKEN como bloqueio externo, com dono e prazo.
+  3. TASK-05 (relatório de divergências) declara dependência de TASK-04 no tasks.md — não
+     deveria iniciar enquanto TASK-04 seguir bloqueada, a menos que o dono do change decida
+     formalmente destravar com risco assumido (registrado, não silencioso).

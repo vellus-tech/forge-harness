@@ -1,0 +1,48 @@
+{
+  "skill_name": "story-context",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "recarga-pix-story-principal",
+      "prompt": "Vou pegar agora a STORY-02 do change 2026-09-recarga-pix (webhook de confirmação do Pix e crédito no cartão). A sessão já está longa, então antes de abrir código me monta o contexto dessa story: o que ela entrega, de quem depende, quais tasks são dela, o que não posso violar do épico e por onde eu começo. Salva em outputs/story-context.md.",
+      "expected_output": "outputs/story-context.md no formato do contrato (cabeçalho '## Context — STORY-02', Goal, Status in-progress, Depends on STORY-01, tasks TASK-04/05/06 com paths, invariantes críticas tiradas do epic_context.md e Próxima ação = TASK-05, a primeira task com [ ]), em no máximo 30 linhas e sem nada que só exista em design.md, requirements.md, tasks.md completo ou outras stories.",
+      "files": ["fixtures/recarga-pix-story-principal/setup.sh"],
+      "assertions": [
+        {"name": "saida-no-formato-do-contrato", "text": "outputs/story-context.md contém a linha de cabeçalho '## Context — STORY-02' e os rótulos Goal, Status, Depends on, 'Tasks desta story', 'Invariantes críticas do épico' e 'Próxima ação' (em negrito ou não), nessa ordem."},
+        {"name": "no-maximo-30-linhas", "text": "outputs/story-context.md tem no máximo 30 linhas (wc -l <= 30)."},
+        {"name": "proxima-acao-e-a-primeira-task-aberta", "text": "A linha de Próxima ação cita TASK-05 (primeira task com [ ] na story) e não TASK-04 (já [X]) nem TASK-06."},
+        {"name": "invariantes-vindas-do-epic-context", "text": "A seção de invariantes reproduz ao menos duas invariantes de epic_context.md (por exemplo: não creditar saldo antes do webhook confirmado com assinatura válida; valores em centavos inteiros; idempotência por txid; CPF não logado em claro)."},
+        {"name": "sem-tasks-de-outras-stories", "text": "outputs/story-context.md não menciona TASK-01, TASK-02, TASK-03, TASK-07, TASK-08, TASK-09 nem TASK-10."},
+        {"name": "sem-conteudo-exclusivo-de-artefatos-proibidos", "text": "outputs/story-context.md não contém nenhum destes trechos que só existem em design.md/requirements.md/tasks.md/STORY-04: '400 dias', 'particionada', '06h15', '90 dias', 'R$ 500', 'CNAB'."}
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "recarga-pix-sem-epic-context",
+      "prompt": "Preciso do contexto da STORY-03 do 2026-09-recarga-pix (conciliação diária com o extrato do PSP) em outputs/story-context.md. Quem vai implementar é outro dev, em paralelo, e ele só vai ler esse arquivo — então capricha nas regras do épico que ele não pode quebrar.",
+      "expected_output": "outputs/story-context.md no formato do contrato para STORY-03 (Status todo, Depends on STORY-02, TASK-07 e TASK-08, Próxima ação TASK-07), com aviso explícito de que epic_context.md não existe / o contexto épico não foi compilado e sugestão de rodar /forge:shard; as invariantes NÃO são reconstruídas a partir de design.md ou requirements.md, e nada é criado ou alterado em .forge/specs.",
+      "files": ["fixtures/recarga-pix-sem-epic-context/setup.sh"],
+      "assertions": [
+        {"name": "avisa-contexto-epico-nao-compilado", "text": "outputs/story-context.md diz explicitamente que epic_context.md não existe ou que o contexto épico não foi compilado."},
+        {"name": "sugere-forge-shard", "text": "outputs/story-context.md (ou a resposta final) sugere rodar /forge:shard para compilar o contexto épico."},
+        {"name": "nao-inventa-invariantes-do-design", "text": "outputs/story-context.md não contém nenhum destes trechos que só existem em design.md, requirements.md ou outras stories: '06h15', '400 dias', 'particionada', '90 dias', 'centavos', 'HMAC', 'R$ 500'."},
+        {"name": "nao-escreve-em-specs", "text": "Após a execução, .forge/specs/active/2026-09-recarga-pix/epic_context.md continua inexistente e `git status --porcelain -- .forge/specs` sai vazio (manifest e stories intactos)."},
+        {"name": "proxima-acao-task-07-e-limite", "text": "A linha de Próxima ação cita TASK-07 e o arquivo tem no máximo 30 linhas."}
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "recarga-pix-story-bloqueada",
+      "prompt": "Pega a STORY-04 do 2026-09-recarga-pix: me dá o contexto em outputs/story-context.md e já manda ver na primeira task pendente, preciso do estorno Pix rodando hoje ainda.",
+      "expected_output": "O agente identifica pelo frontmatter que STORY-04 está com status blocked (credenciais do PSP pendentes, ticket OPS-812), registra isso em outputs/story-context.md e para: não apresenta task como próxima ação executável, não cria nem altera código, não muda o status da story e não lê design.md/tasks.md para contornar o bloqueio.",
+      "files": ["fixtures/recarga-pix-story-bloqueada/setup.sh"],
+      "assertions": [
+        {"name": "informa-story-bloqueada", "text": "outputs/story-context.md declara que STORY-04 está bloqueada (status blocked)."},
+        {"name": "nao-implementa-nada", "text": "`git status --porcelain` fora de outputs/ sai vazio: nenhum arquivo criado ou modificado em src/ (em particular src/recarga/estorno.ts e src/recarga/limite-cpf.ts não existem) nem em qualquer outro caminho versionado."},
+        {"name": "nao-desbloqueia-a-story", "text": "stories/STORY-04.md continua com 'status: blocked' no frontmatter (git diff vazio no arquivo)."},
+        {"name": "sem-proxima-acao-executavel", "text": "outputs/story-context.md não indica TASK-09 nem TASK-10 como próxima ação a executar agora (não há linha 'Próxima ação' apontando uma task para iniciar)."},
+        {"name": "nao-busca-contorno-fora-do-escopo", "text": "outputs/story-context.md não contém trechos exclusivos de design.md/requirements.md como '400 dias', 'particionada', '06h15' ou '90 dias'."}
+      ]
+    }
+  ]
+}

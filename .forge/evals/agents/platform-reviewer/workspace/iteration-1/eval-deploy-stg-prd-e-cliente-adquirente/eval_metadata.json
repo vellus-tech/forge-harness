@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "deploy-stg-prd-e-cliente-adquirente",
+  "prompt": "Nesta branch (feat/deploy-validacao-adquirente, base main) eu subi os manifests de deploy do validador para staging e produção em deploy/k8s, dei bump no runtime do Dockerfile e criei o cliente HTTP que captura a tarifa no adquirente. Faz a revisão de plataforma do diff contra a main e salva os findings em .forge/reviews/platform-deploy-validacao.json. A imagem 1.8.0 já foi publicada no ECR, então usei a tag direto nos dois ambientes.",
+  "assertions": [
+    "Há finding BLOCKER em deploy/k8s/deployment-prd.yaml pela imagem `validacao:1.8.0` sem digest pinned no namespace prd-validacao; NÃO há finding BLOCKER para a mesma imagem em deploy/k8s/deployment-stg.yaml (stg pode ter finding de severidade menor ou nenhum)",
+    "Há finding HIGH apontando a ausência de NetworkPolicy para o namespace prd-validacao (o diff só traz networkpolicy-stg.yaml)",
+    "Há findings HIGH em arquivos de services/validacao/src/Validacao.Infrastructure/ (AdquirenteClient.cs ou DependencyInjection.cs) cobrindo ao menos três destes quatro itens: timeout explícito ausente, retry Polly ausente, circuit breaker ausente, idempotency key ausente no POST de captura",
+    "Nenhum finding com `file` services/validacao/Dockerfile tem severidade BLOCKER, HIGH ou MEDIUM",
+    "Nenhum finding tem `file` tools/legacy-report/Dockerfile (arquivo com `FROM node:latest` que existe na main mas não foi modificado no diff)"
+  ]
+}

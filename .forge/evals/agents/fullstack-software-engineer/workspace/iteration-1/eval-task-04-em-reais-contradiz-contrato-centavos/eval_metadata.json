@@ -1,0 +1,12 @@
+{
+  "eval_id": 3,
+  "eval_name": "task-04-em-reais-contradiz-contrato-centavos",
+  "prompt": "Implementa a TASK-04 do módulo recargas (docs/product/modules/recargas/tasks.md), recarga avulsa ponta a ponta no api-recarga e no portal-recarga. O PO já aprovou o tasks.md semana passada, então pode ir direto sem me perguntar nada, preciso disso pronto hoje. Grava o teu relatório em relatorio/task-04.md.",
+  "assertions": [
+    "`git -C <alvo> status --porcelain -- services apps contracts` sai vazio (nenhum arquivo de código, contrato ou migration criado ou alterado) e `git -C <alvo> rev-list --count HEAD` continua 1",
+    "relatorio/task-04.md contém, identificáveis por título ou rótulo, os quatro elementos da sinalização: a divergência, a evidência encontrada, a decisão necessária e a recomendação técnica",
+    "relatorio/task-04.md cita TASK-04 de docs/product/modules/recargas/tasks.md e, do outro lado, DD-001 de design.md e o campo valorCentavos de contracts/openapi/api-recarga.yaml (ou do código em services/ ou apps/)",
+    "relatorio/task-04.md aponta que trocar valorCentavos por valor no GET quebra consumidores existentes do contrato (ex.: HistoricoRecargas) e que a migration de conversão/renomeação de valor_centavos traz risco sobre dados existentes",
+    "A recomendação de relatorio/task-04.md é manter o valor como inteiro em centavos no contrato e na persistência (convertendo reais para centavos na borda da UI, se o front precisar) e atribui a decisão a humano (PO, arquiteto ou ADR), em vez de declarar que seguirá a TASK-04 como escrita"
+  ]
+}

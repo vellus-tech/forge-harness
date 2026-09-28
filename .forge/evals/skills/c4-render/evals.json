@@ -1,0 +1,96 @@
+{
+  "skill_name": "c4-render",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "c4-geracao-overview-projeto-ts",
+      "prompt": "Acabei de instalar o Forge no pagamentos-core (TypeScript, módulos billing, ledger, notifications e shared em src/). Quinta tenho reunião com o time de adquirência e quero levar um mapa visual da arquitetura no formato C4, com contexto, containers e componentes. Gera aí e me diz onde eu abro pra navegar.",
+      "expected_output": "O agente garante o grafo de código com o script do harness (graph.sh build/update, já que .forge/graph/graph.json não existe), roda bash .forge/scripts/c4.sh e produz .forge/graph/c4/c1-context.md, c2-container.md e c3-component-*.md mais .forge/graph/overview.html. A resposta aponta os caminhos (em especial o overview.html para abrir no navegador) sem colar o Mermaid nem o HTML no chat, e nenhum diagrama é desenhado à mão fora de .forge/graph/.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "grafo-construido-pelo-script-do-harness",
+          "text": "Existe .forge/graph/graph.json no alvo, com nós para src/billing/invoice.service.ts e src/ledger/journal.repo.ts (evidência de que o grafo foi garantido via .forge/scripts/graph.sh, e não substituído por leitura manual do repositório)."
+        },
+        {
+          "name": "tres-niveis-c4-gerados-em-forge-graph-c4",
+          "text": "Existem .forge/graph/c4/c1-context.md, .forge/graph/c4/c2-container.md e ao menos um .forge/graph/c4/c3-component-*.md, cada um com bloco ```mermaid contendo 'flowchart'."
+        },
+        {
+          "name": "overview-html-gerado",
+          "text": "Existe .forge/graph/overview.html e ele embute os diagramas (contém 'class=\"mermaid\"' ou equivalente e referencia os níveis C1/C2/C3)."
+        },
+        {
+          "name": "resposta-aponta-arquivo-sem-colar-diagrama",
+          "text": "A resposta final ao usuário cita o caminho .forge/graph/overview.html e NÃO contém bloco ```mermaid, a palavra-chave 'flowchart' nem marcação HTML do overview colada (regra §17.6: apontar arquivos, não colar)."
+        },
+        {
+          "name": "labels-sem-ponto-nem-travessao",
+          "text": "Em todos os .md de .forge/graph/c4/, nenhum rótulo entre [\"...\"] no bloco Mermaid contém '.', '—' ou '–' (ex.: aparece 'invoice service ts', nunca 'invoice.service.ts')."
+        },
+        {
+          "name": "nenhum-diagrama-avulso-fora-do-harness",
+          "text": "Não foi criado arquivo de diagrama fora de .forge/graph/ (ex.: docs/architecture.md, ARCHITECTURE.md, *.mmd na raiz ou em docs/): git status do alvo não lista arquivo novo contendo 'mermaid' fora de .forge/graph/."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "c4-curadoria-rotulo-com-ponto-e-travessao",
+      "prompt": "O C4 do pagamentos-core já foi gerado em .forge/graph/c4. Antes de mandar para o QSA, quero curar os rótulos: no C1 o sistema tem que aparecer exatamente como \"Pagamentos Core v1.4.0 — PCI DSS 4.0.1\", e no C2 troca \"src/billing\" por \"Billing — faturas e impostos (v2.1)\" e \"src/ledger\" por \"Ledger — lançamentos contábeis\". Edita os diagramas e atualiza o overview pra eu abrir.",
+      "expected_output": "O agente edita à mão c1-context.md e c2-container.md em .forge/graph/c4/, mas aplica a convenção inegociável de labels: sem pontos e sem em-dash/en-dash (ex.: 'Pagamentos Core v1 4 0 - PCI DSS 4 0 1' ou 'v140'), preservando o conteúdo semântico pedido, e explica ao usuário por que não usou o texto literal. A curadoria sobrevive: o agente não roda c4.sh depois de editar (o que regeneraria e apagaria os rótulos); se atualizar o overview, usa apenas o gerador do overview ou avisa que o overview reflete os .md.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "c1-rotulo-curado-sem-ponto-nem-travessao",
+          "text": "Em .forge/graph/c4/c1-context.md o rótulo do nó do sistema contém 'Pagamentos Core' e 'PCI DSS' e NÃO contém '.', '—' nem '–' dentro de [\"...\"]."
+        },
+        {
+          "name": "c2-rotulos-de-dominio-sem-ponto-nem-travessao",
+          "text": "Em .forge/graph/c4/c2-container.md existem rótulos contendo 'Billing' (com 'faturas') e 'Ledger' (com 'lançamentos' ou 'lancamentos'), e nenhum rótulo entre [\"...\"] do bloco Mermaid contém '.', '—' ou '–'."
+        },
+        {
+          "name": "curadoria-nao-sobrescrita-por-regeneracao",
+          "text": "Os rótulos curados persistem no estado final dos arquivos: c2-container.md não voltou a exibir 'src/billing (2)' como rótulo do container de billing (sinal de que c4.sh foi re-executado depois da edição e apagou a curadoria)."
+        },
+        {
+          "name": "arestas-do-c2-preservadas",
+          "text": "As arestas do C2 continuam exatamente as do grafo: o bloco Mermaid de c2-container.md tem as mesmas duas relações originais (billing -> shared e ledger -> shared) e nenhuma aresta nova."
+        },
+        {
+          "name": "resposta-explica-convencao-de-labels",
+          "text": "A resposta final explica que o texto literal pedido não foi usado porque labels Mermaid do harness não podem conter ponto nem travessão (convenção de labels), mostrando a forma adaptada — em vez de aplicar silenciosamente ou de gravar o texto literal."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "c4-recusa-inventar-relacoes-e-versionar",
+      "prompt": "O C2 do pagamentos-core ficou pobre, só tem duas setas. Completa com as dependências que com certeza existem: o billing chama o ledger pra lançar cada fatura e dispara e-mail pelo notifications. Depois dá um commit com os diagramas e o overview.html pro time ver direto no GitHub.",
+      "expected_output": "O agente confere no grafo (graph.sh query/path ou graph.json) que não há import de src/billing para src/ledger nem para src/notifications, e NÃO adiciona essas arestas ao C2 como se fossem estrutura do código: para, explica que o C4 só mostra relações que o grafo tem e oferece alternativa (registrar como intenção/ADR, ou implementar a dependência e regenerar). Também não versiona .forge/graph/c4/ nem overview.html, explicando que são artefatos gerados de visualização, fora do commit, a regenerar quando o grafo mudar.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "c2-sem-arestas-inventadas",
+          "text": "O bloco Mermaid de .forge/graph/c4/c2-container.md não contém aresta de billing para ledger nem de billing para notifications; as únicas relações continuam billing -> shared e ledger -> shared (c0 --> c3 e c1 --> c3 na numeração gerada)."
+        },
+        {
+          "name": "nenhum-commit-com-artefatos-gerados",
+          "text": "No repositório alvo, 'git log --all --name-only' não lista nenhum caminho sob .forge/graph/c4/ nem .forge/graph/overview.html, e 'git ls-files .forge/graph/c4 .forge/graph/overview.html' é vazio."
+        },
+        {
+          "name": "verificacao-no-grafo-antes-de-responder",
+          "text": "A resposta (ou o transcript) mostra evidência de consulta ao grafo — saída de 'graph.sh query'/'graph.sh path' ou leitura de .forge/graph/graph.json — constatando que não existe import de src/billing para src/ledger/src/notifications."
+        },
+        {
+          "name": "recusa-fundamentada-no-contrato-do-c4",
+          "text": "A resposta final recusa ou suspende a inclusão das setas, dizendo que o diagrama deriva do grafo de código e não deve exibir relações que o grafo não tem, e oferece um caminho alternativo (ex.: registrar como relação pretendida/ADR ou implementar e regenerar)."
+        },
+        {
+          "name": "recusa-de-versionar-overview-explicada",
+          "text": "A resposta final explica que overview.html e .forge/graph/c4/ são artefatos gerados de visualização, fora do commit, a regenerar a partir do grafo — em vez de simplesmente commitar ou ignorar o pedido sem justificativa."
+        }
+      ]
+    }
+  ]
+}

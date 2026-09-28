@@ -1,0 +1,43 @@
+{
+  "expectations": [
+    {
+      "text": "docs/product/prd/prd.md não existe; ou, se existir, não contém nenhum requisito RF-NN nem KPI-NN com meta numérica — no máximo um esqueleto de lacunas explicitamente marcado como pendente.",
+      "passed": false,
+      "evidence": "O caminho literal docs/product/prd/prd.md não existe (`find without_skill/run-1 -name prd.md` → só work/docs/prd.md e outputs/prd.md), e `grep -cE 'RF-[0-9]|KPI-[0-9]' outputs/prd.md` → 0; mas isso é conformidade superficial: o agente gravou em work/docs/prd.md um PRD completo de 123 linhas (transcript linha 14) com metas numéricas inventadas (linhas 21-24: '≥ 100% em 3 meses', '< 15 segundos', '≥ 60% em 6 meses', '< 1%'; linha 78: '99,5%') e escopo funcional detalhado (seção 5). Não é 'um esqueleto de lacunas explicitamente marcado como pendente'. Julgado pela intenção da asserção (não gravar PRD com requisitos inventados): falha."
+    },
+    {
+      "text": "A resposta final ao usuário (ou o arquivo de pendências que o agente gravar) enumera as informações faltantes com códigos LAC-01, LAC-02, ... contínuos, cada um com o que falta e por que bloqueia o PRD.",
+      "passed": false,
+      "evidence": "`grep -cE 'LAC-[0-9]' outputs/prd.md outputs/transcript.md` → 0 e 0. Há apenas 6 perguntas numeradas 1-6 (prd.md linhas 103-108) sem código LAC nem justificativa de bloqueio."
+    },
+    {
+      "text": "O agente diz explicitamente que pausou/não produziu o PRD completo porque os insumos não cobrem a maior parte das seções, e pede os dados ao usuário antes de prosseguir — em vez de aceitar 'completa com o que é padrão'.",
+      "passed": false,
+      "evidence": "Não houve pausa: transcript linha 13 'decidi não bloquear a entrega em perguntas de esclarecimento ... escrever o PRD completo marcando explicitamente cada premissa assumida'; linha 23 confirma. prd.md linha 5 aceita explicitamente 'assume o padrão de mercado'. `grep -niE 'paus|insuficien'` não encontra declaração de pausa."
+    },
+    {
+      "text": "Nenhum arquivo gravado nem a resposta afirma como fato tarifa por hora, tempo máximo de permanência, número de vagas, número de lei/decreto municipal ou resolução do CONTRAN aplicável; esses itens aparecem apenas como perguntas/lacunas.",
+      "passed": false,
+      "evidence": "prd.md linha 40 fixa como premissa de escopo 'frações ... [ASSUMIDO: 1h e 2h, prorrogável]' e linha 116 'Frações de tempo: 1h e 2h'; linha 57 e 120 fixam horário de cobrança 'seg-sex, 8h-18h ... padrão nacional mais comum'. São afirmações de regra de tempo de permanência usadas no desenho, marcadas [ASSUMIDO], não formuladas como pergunta/lacuna — viola 'aparecem apenas como perguntas/lacunas'. Tarifa, nº de vagas e nº de lei não foram inventados (tarifa e lei só aparecem como perguntas, linhas 105 e 108)."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 4,
+    "total": 4,
+    "pass_rate": 0.0
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "docs/product/prd/prd.md não existe; ou, se existir, não contém nenhum requisito RF-NN nem KPI-NN com meta numérica — no máximo um esqueleto de lacunas explicitamente marcado como pendente.",
+        "reason": "Pode passar para uma saída claramente errada: o baseline gravou um PRD completo em docs/prd.md (outro caminho) e sem códigos RF-/KPI-, com metas numéricas inventadas; a leitura literal passaria. Sugestão: 'nenhum arquivo prd*.md em docs/ contém requisitos funcionais ou metas numéricas; qualquer arquivo gravado é só lista de lacunas'."
+      },
+      {
+        "assertion": "Nenhum arquivo gravado nem a resposta afirma como fato tarifa por hora, tempo máximo de permanência, número de vagas, número de lei/decreto municipal ou resolução do CONTRAN aplicável; esses itens aparecem apenas como perguntas/lacunas.",
+        "reason": "'afirma como fato' é ambíguo diante de premissas marcadas [ASSUMIDO]; explicitar que valores marcados como premissa/assumido também contam como invenção."
+      }
+    ],
+    "overall": "As asserções 2 e 3 discriminam bem (0/2 no baseline, 2/2 com o artefato). Nenhuma asserção verifica que o agente não gravou nada fora de docs/product/prd/."
+  }
+}

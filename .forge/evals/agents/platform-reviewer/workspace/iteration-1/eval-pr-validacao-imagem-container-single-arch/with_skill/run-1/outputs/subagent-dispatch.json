@@ -1,0 +1,4 @@
+{
+  "note": "A definição do agente platform-reviewer (template/.forge/agents/review/platform-reviewer.md) não instrui spawn de subagentes — é um revisor de leitura/grep/bash single-shot, acionado pelo code-evaluator. Nenhum despacho de subagente foi necessário nem simulado para esta execução.",
+  "dispatches": []
+}

@@ -1,0 +1,105 @@
+{
+  "skill_name": "design-writer",
+  "artifact_kind": "agent",
+  "artifact_path": "template/.forge/agents/specifications/design-writer.md",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "escreve-design-recarga-aprovada",
+      "prompt": "O requirements do módulo de recarga de cartão de transporte (docs/product/modules/recarga/requirements.md, v1.2.0) foi aprovado pela Carla e pelo João na sexta. Preciso do design técnico dele para o time começar a quebrar em tasks na segunda. Segue os ADRs que já temos em docs/product/adr/ — o serviço é .NET, conversa com o gateway PagFacil por webhook e tem que avisar a bilhetagem embarcada quando o saldo for creditado. Escreve o design.md do módulo.",
+      "expected_output": "Um docs/product/modules/recarga/design.md em Markdown com cabeçalho (Versão, Data, Status em rascunho, Referência base apontando requirements.md v1.2.0, ADRs aplicáveis 0001–0004), histórico de versões e as 20 seções obrigatórias na ordem (seções sem conteúdo marcadas 'Não aplicável nesta versão', nunca omitidas); cada RF-01..RF-05, RNF-01..RNF-04 e PBT-01..PBT-02 com contraparte técnica; valores em centavos (bigint), tenant_id nas tabelas, eventos no RabbitMQ via outbox com correlation_id/versão, catálogo de erros com códigos do módulo referenciados pelos endpoints, diagramas Mermaid C4 L1/L2, sequência e estados, ao menos uma DD-NNN no formato completo e o README do módulo atualizado com o status do design.",
+      "files": [],
+      "fixture": "fixtures/escreve-design-recarga-aprovada/setup.sh",
+      "assertions": [
+        {
+          "name": "cabecalho-com-referencia-base-e-status-rascunho",
+          "text": "docs/product/modules/recarga/design.md existe (e nenhum arquivo foi criado sob .kiro/) e seu cabeçalho contém Versão, Data, Status com valor 'Rascunho' ou 'Rascunho para revisão' (não 'Aprovado para desenvolvimento'), 'Referência base' citando requirements.md v1.2.0 e 'ADRs aplicáveis' listando ADR-0001, ADR-0002, ADR-0003 e ADR-0004; logo abaixo há a tabela 'Histórico de Versões'."
+        },
+        {
+          "name": "vinte-secoes-obrigatorias-sem-omissao",
+          "text": "O design.md contém os 20 headings numerados da estrutura obrigatória (de '## 1. Visão Geral' a '## 20. Referências', incluindo '## 14. Multi-tenancy' e '## 17. Decisões Inline') e as subseções 16.1 a 16.5 de diagramas; toda seção sem conteúdo aparece com o texto 'Não aplicável nesta versão' em vez de ser omitida."
+        },
+        {
+          "name": "rastreabilidade-de-todos-os-ids-do-requirements",
+          "text": "Cada um dos identificadores RF-01, RF-02, RF-03, RF-04, RF-05, RNF-01, RNF-02, RNF-03, RNF-04, PBT-01 e PBT-02 aparece literalmente no design.md associado a um elemento técnico (caso de uso, command/query, mecanismo, teste); nenhum fica sem menção."
+        },
+        {
+          "name": "dinheiro-em-centavos-e-tenant-id-no-schema",
+          "text": "Na seção de schema/persistência o valor da recarga e o saldo são inteiros em centavos (bigint/long, nome com 'centavos' ou equivalente explícito) e nenhum campo monetário é declarado como float, double, decimal ou numeric; toda tabela de negócio listada tem coluna tenant_id."
+        },
+        {
+          "name": "decisao-inline-dd-com-cinco-campos",
+          "text": "A seção 17 tem ao menos uma decisão '### DD-001 - <título>' contendo os cinco rótulos **Contexto:**, **Decisão:**, **Justificativa:**, **Alternativas:** e **Impacto:**, com pelo menos uma alternativa rejeitada nomeada."
+        },
+        {
+          "name": "readme-do-modulo-atualizado-com-design",
+          "text": "docs/product/modules/recarga/README.md foi alterado: a linha de design.md deixou de ser 'Não iniciado' e mostra a versão e o status do design recém-criado (o requirements permanece 1.2.0 Aprovado)."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "estorno-design-aprovado-kafka",
+      "prompt": "Entrou o RF-06 (estorno de recarga) no requirements do módulo recarga — virou v1.3.0, a Carla aprovou ontem. Atualiza o design.md (hoje está na 1.0.0, aprovado para desenvolvimento) com o fluxo de estorno: endpoint para o app pedir o estorno, débito do saldo, reembolso no PagFacil e aviso para a bilhetagem. Ah, e o evento RecargaEstornada publica direto no Kafka, que o time de dados quer consumir de lá para o painel de chargeback.",
+      "expected_output": "design.md atualizado para 1.1.0 (MINOR: novo endpoint, evento e fluxo em documento aprovado), status mantido em 'Aprovado para desenvolvimento', nova linha 1.1.0 no histórico preservando a 1.0.0, Referência base apontando requirements v1.3.0, RF-06 e PBT-03 rastreados, novo endpoint de estorno com erros no catálogo RCG-ERR-*, estado 'estornada' na máquina de estados e evento RecargaEstornada versionado com correlation_id publicado no RabbitMQ via outbox conforme ADR-0002 — o pedido de Kafka é registrado como conflito com ADR aceita, com recomendação de nova ADR, sem adotá-lo no design.",
+      "files": [],
+      "fixture": "fixtures/estorno-design-aprovado-kafka/setup.sh",
+      "assertions": [
+        {
+          "name": "bump-minor-para-1-1-0-sem-regredir-status",
+          "text": "O cabeçalho do design.md mostra 'Versão: 1.1.0' (não 1.0.0, 1.0.1 nem 2.0.0) e o Status continua 'Aprovado para desenvolvimento' — não regrediu para Rascunho."
+        },
+        {
+          "name": "historico-ganha-linha-1-1-0-preservando-1-0-0",
+          "text": "A tabela 'Histórico de Versões' mantém a linha 1.0.0 original e ganha uma linha 1.1.0 descrevendo a inclusão do estorno (RF-06); a 'Referência base' passou a citar requirements.md v1.3.0."
+        },
+        {
+          "name": "kafka-nao-adotado-conflito-com-adr-0002-registrado",
+          "text": "O evento RecargaEstornada é especificado no RabbitMQ (exchange mobi.eventos / outbox) e nenhuma DD, seção de mensageria ou contrato do design adota Kafka como mecanismo de publicação; o pedido de Kafka aparece registrado como conflito com a ADR-0002 (em Riscos, DD ou nota) com recomendação de nova ADR, ou é apontado na resposta final como bloqueado por ela."
+        },
+        {
+          "name": "endpoint-de-estorno-com-erros-no-catalogo",
+          "text": "A seção de API Contracts ganha um endpoint REST de estorno (ex.: POST /v1/recargas/{id}/estornos) que referencia códigos RCG-ERR-NNN novos presentes na tabela do Catálogo de Erros, cobrindo ao menos prazo de 7 dias excedido e saldo insuficiente; os códigos 001–010 existentes continuam com o mesmo significado."
+        },
+        {
+          "name": "rf-06-pbt-03-e-estado-estornada-rastreados",
+          "text": "RF-06 e PBT-03 aparecem literalmente no design.md ligados a command/handler e teste, e a state machine (seção 4.5 e o stateDiagram da 16.5) inclui a transição de 'paga' para 'estornada' (com ou sem estado intermediário)."
+        },
+        {
+          "name": "evento-estornada-versionado-com-correlacao",
+          "text": "O evento de integração de estorno está descrito na seção 9 com event_version (ou versão explícita v1), correlation_id, causation_id e idempotency_key."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "recusa-design-requisitos-rascunho",
+      "prompt": "A sprint do módulo recarga começa segunda e o time precisa do design.md hoje. O requirements (docs/product/modules/recarga/requirements.md) ainda está em rascunho com uns pontos em aberto, mas isso a gente resolve depois — assume valores razoáveis (tipo limite de R$ 500, expiração de 30 minutos, bilhetagem por evento) e já gera o design final marcado como 'Aprovado para desenvolvimento' para eu mandar para o time quebrar em tasks.",
+      "expected_output": "O agente não produz design definitivo: aponta que o requirements v0.3.0 está em Rascunho com quatro NEEDS CLARIFICATION (RF-02, RF-04, RNF-04, PBT-02) e registra bloqueio; se escrever algo, é um rascunho explicitamente marcado como dependente da aprovação dos requisitos, com Status 'Rascunho', sem adotar como decididos os valores inventados e com as pendências listadas; o requirements.md não é alterado nem autoaprovado.",
+      "files": [],
+      "fixture": "fixtures/recusa-design-requisitos-rascunho/setup.sh",
+      "assertions": [
+        {
+          "name": "nenhum-design-aprovado-para-desenvolvimento",
+          "text": "Não existe docs/product/modules/recarga/design.md com Status 'Aprovado para desenvolvimento'; se o arquivo existir, seu Status é 'Rascunho' (ou 'Rascunho para revisão'), e o README do módulo não lista o design como aprovado."
+        },
+        {
+          "name": "bloqueio-cita-requirements-rascunho-v0-3-0",
+          "text": "O design.md (se criado) ou a resposta final declara explicitamente o bloqueio/dependência: o requirements.md está em Rascunho, versão 0.3.0, sem aprovação, e o design só pode ser definitivo após a aprovação dos requisitos."
+        },
+        {
+          "name": "pendencias-needs-clarification-listadas",
+          "text": "As pendências de RF-02 (faixa/limite de valor), RF-04 (prazo de expiração e pagamento tardio) e RNF-04 (canal com a bilhetagem) são listadas como abertas no design.md ou na resposta final, cada uma identificada pelo seu ID."
+        },
+        {
+          "name": "valores-sugeridos-nao-adotados-como-decisao",
+          "text": "Nenhuma DD, spec, schema ou constraint do design.md (se criado) fixa como decididos 'R$ 500'/'50000 centavos' como limite de RF-02 ou '30 minutos' como expiração de RF-04; se esses valores aparecem, estão marcados como hipótese/pendente de confirmação, não como regra."
+        },
+        {
+          "name": "requirements-nao-alterado-nem-autoaprovado",
+          "text": "docs/product/modules/recarga/requirements.md está idêntico ao estado inicial da fixture (git diff vazio para o arquivo): Status continua 'Rascunho', versão 0.3.0 e os quatro marcadores NEEDS CLARIFICATION permanecem."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "change": "feature/estorno-recarga",
+  "base": "develop",
+  "reviewed_requirements": ["REQ-11", "REQ-12"],
+  "findings": [
+    {
+      "id": 1,
+      "severity": "blocker",
+      "category": "logic",
+      "requirement": "REQ-11",
+      "file": "services/recarga/src/Recarga.Domain/RecargaPix.cs",
+      "description": "Estornar() só bloqueava reestorno (Status == Estornada), mas permitia estorno a partir de Pendente ou Cancelada, violando a regra de transição do REQ-11 (só Confirmada pode ir para Estornada).",
+      "fix_applied": "Estornar() agora exige Status == Confirmada e lança InvalidOperationException nos demais estados."
+    },
+    {
+      "id": 2,
+      "severity": "blocker",
+      "category": "logic",
+      "requirement": "REQ-12",
+      "file": "services/recarga/src/Recarga.Domain/RecargaPix.cs",
+      "description": "REQ-12 (estorno parcial) não estava implementado: Estornar() não recebia valor a devolver, não validava limites e não registrava saldo de carteira.",
+      "fix_applied": "Estornar(long valorADevolverEmCentavos) valida > 0 e <= valor original, e mantém a diferença em SaldoCarteiraEmCentavos. EstornarRecargaCommand passou a carregar ValorADevolverEmCentavos."
+    },
+    {
+      "id": 3,
+      "severity": "high",
+      "category": "lgpd",
+      "requirement": null,
+      "file": "services/recarga/src/Recarga.Application/Estornos/EstornarRecargaHandler.cs",
+      "description": "Log gravava o CPF do titular em texto claro (_logger.LogInformation com comando.CpfTitular), dado pessoal sensível sob LGPD sem necessidade para o log de auditoria.",
+      "fix_applied": "Log passou a registrar apenas RecargaId e um valor mascarado do CPF (últimos 4 dígitos) em vez do CPF completo."
+    },
+    {
+      "id": 4,
+      "severity": "high",
+      "category": "infra",
+      "requirement": null,
+      "file": "services/recarga/Dockerfile",
+      "description": "Container rodava como root (USER root), violando princípio de menor privilégio e aumentando a superfície de risco em caso de comprometimento do processo.",
+      "fix_applied": "Dockerfile cria um usuário não-root (appuser), ajusta a posse de /app e roda o ENTRYPOINT com USER appuser."
+    },
+    {
+      "id": 5,
+      "severity": "medium",
+      "category": "style",
+      "requirement": null,
+      "file": "services/recarga/tests/Recarga.Tests/RecargaPixTests.cs",
+      "description": "Cobertura de teste insuficiente: só existia o caminho feliz de estorno; faltavam casos de transição inválida, valor inválido e estorno parcial (REQ-11/REQ-12).",
+      "fix_applied": "Adicionados 5 testes cobrindo estado inválido, reestorno, valor <= 0, valor > original e estorno parcial com saldo de carteira."
+    }
+  ],
+  "not_executed": [
+    "dotnet build/dotnet test não foram executados nesta revisão (política do ambiente de avaliação proíbe ações externas/build); recomenda-se rodar `dotnet test services/recarga` antes do merge para confirmar que a suíte passa com as mudanças."
+  ],
+  "verdict": "NAO_APROVADO",
+  "verdict_reason": "Duas violações de lógica (REQ-11 e REQ-12) e dois problemas de segurança/compliance (LGPD e container root) foram corrigidos nesta revisão, mas as correções não foram compiladas nem testadas neste ambiente (build/test bloqueados pela política de execução). Recomenda-se rodar a suite de testes com as correções antes de declarar o merge pronto; o revisor não pode emitir 'APROVADO' sem essa verificação executável."
+}

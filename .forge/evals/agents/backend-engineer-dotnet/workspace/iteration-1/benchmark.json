@@ -1,0 +1,333 @@
+{
+  "metadata": {
+    "skill_name": "backend-engineer-dotnet",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-28T17:29:33Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 697.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "O consumer do ViagemValidada foi criado sob src/Cashback.Worker/ (ou outro projeto existente em src/); n\u00e3o existe no alvo diret\u00f3rio services/ nem apps/backend/ criado pela entrega.",
+          "passed": true,
+          "evidence": "Consumer em outputs/src/Cashback.Worker/Consumers/ViagemValidadaConsumer.cs:20 (projeto existente src/Cashback.Worker, namespace Cashback.Worker.Consumers linha 7). `find with_skill/run-1 -type d \\( -name services -o -path '*apps/backend*' \\) -not -path '*/.git/*'` retornou vazio."
+        },
+        {
+          "text": "O POST /v1/creditos feito pelo CarteiraClient (ou pelo consumer) envia o header Idempotency-Key com valor derivado do eventoId do ViagemValidada, e qualquer pol\u00edtica de retry adicionada (Polly, resilience handler ou retry do MassTransit) s\u00f3 se aplica a essa chamada com a chave presente; n\u00e3o h\u00e1 retry sobre o POST sem Idempotency-Key.",
+          "passed": true,
+          "evidence": "outputs/src/Cashback.Infrastructure/Carteira/CarteiraClient.cs:24 ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey); linha 26 POST /v1/creditos; linha 30 Headers.Add(\"Idempotency-Key\", idempotencyKey). Consumer passa idempotencyKey: evento.EventoId.ToString() (ViagemValidadaConsumer.cs:38). Retry de 5 tentativas (CarteiraResiliencia.cs:16-26) registrado s\u00f3 no HttpClient tipado de ICarteiraClient via AddResilienceHandler (Program.cs:14-19), cujo \u00fanico m\u00e9todo \u00e9 o POST com chave obrigat\u00f3ria. `grep -rn UseMessageRetry outputs/src` vazio: sem retry do MassTransit."
+        },
+        {
+          "text": "entrega.md explica que o retry de 5 tentativas pedido n\u00e3o foi aplicado \u00e0s cegas porque o cr\u00e9dito na carteira n\u00e3o \u00e9 idempotente e pode ser efetivado mesmo com timeout, citando Idempotency-Key e/ou deduplica\u00e7\u00e3o como condi\u00e7\u00e3o.",
+          "passed": true,
+          "evidence": "outputs/entrega.md:5 'Implementei o retry, mas n\u00e3o do jeito ing\u00eanuo: a API da carteira n\u00e3o \u00e9 idempotente por padr\u00e3o ... pro\u00edbe retry cego ... sobre uma opera\u00e7\u00e3o que j\u00e1 pode ter sido efetivada no servidor antes do timeout, multiplicaria os cr\u00e9ditos'; linha 7 condiciona ao header Idempotency-Key com o eventoId e cita redelivery at-least-once."
+        },
+        {
+          "text": "Existe em tests/ um teste que entrega o mesmo ViagemValidada (mesmo eventoId) duas vezes e verifica que o cr\u00e9dito \u00e9 solicitado uma \u00fanica vez ou sempre com a mesma Idempotency-Key.",
+          "passed": false,
+          "evidence": "Nenhum teste entrega o mesmo eventoId duas vezes: outputs/tests/Cashback.UnitTests/ViagemValidadaConsumerTests.cs tem dois testes (linhas 14 e 44), cada um publica um \u00fanico evento com Guid.NewGuid() (linhas 26 e 55); o da linha 14 s\u00f3 verifica Assert.Single das chamadas com IdempotencyKey = EventoId. CarteiraClientTests e CarteiraResilienciaTests n\u00e3o reentregam evento. entrega.md:30 confirma o escopo dos testes, sem reentrega."
+        },
+        {
+          "text": "contracts/asyncapi/cashback.yaml passa a descrever o evento ViagemValidada consumido (canal/exchange bilhetagem.viagens) com payload contendo eventoId, passageiroId, tarifaCentavos e correlationId.",
+          "passed": true,
+          "evidence": "outputs/contracts/asyncapi/cashback.yaml:17-30 adiciona canal bilhetagem.viagens (subscribe) com mensagem ViagemValidada e payload required [eventoId, passageiroId, tarifaCentavos, validadaEm, correlationId]; vers\u00e3o 0.3.0 -> 0.4.0 (linha 4). `grep -c 'bilhetagem.viagens\\|eventoId\\|tarifaCentavos'` = 4."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.83,
+        "passed": 5,
+        "failed": 1,
+        "total": 6,
+        "time_seconds": 260,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe em services/tarifa-service/tests/Tarifa.UnitTests/ um teste novo que exercita o reajuste de TarifaLinha com os exemplos da TASK-03: 430 com 1250 bp resultando em 484, 420 com 1250 bp resultando em 472 (empate half-even) e 5001 bp rejeitado.",
+          "passed": true,
+          "evidence": "outputs/services/tarifa-service/tests/Tarifa.UnitTests/TarifaLinhaTests.cs: m\u00e9todos novos (git -C with_skill/run-1/work diff mostra +40 linhas) Reajustar_rounds_up_when_fraction_is_above_half (L15-24: new TarifaLinha(...,430).Reajustar(1250) \u2192 Assert.Equal(484, resultado.ValorNovoCentavos)), Reajustar_rounds_half_to_even_on_exact_tie (L27-36: 420, 1250 \u2192 472) e Reajustar_rejects_percentual_above_5000_bp (L39-44: Assert.Throws<ArgumentOutOfRangeException>(() => tarifa.Reajustar(5001))). Transcript L35-53 registra Red (4 erros CS1061) e depois 5/5 verdes."
+        },
+        {
+          "text": "O c\u00f3digo de reajuste adicionado em services/tarifa-service/src/Tarifa.Domain/ n\u00e3o declara nem converte valor monet\u00e1rio para double, float ou decimal (grep por 'double', 'float', 'decimal' e 'Math.Round(' com double nos arquivos alterados do Domain n\u00e3o encontra uso para dinheiro); o valor novo \u00e9 long em centavos.",
+          "passed": true,
+          "evidence": "grep -rnE \"double|float|decimal|Math\\.Round\\(\" outputs/services/tarifa-service/src/Tarifa.Domain/ \u2192 rc=1, nenhuma ocorr\u00eancia (tamb\u00e9m zero em todo src/). TarifaLinha.cs L4 record struct ReajusteTarifa(long ValorAnteriorCentavos, long ValorNovoCentavos); L43-53 aritm\u00e9tica em long com Math.DivRem e desempate half-even manual (restoDobrado == 10000 && quociente % 2 != 0)."
+        },
+        {
+          "text": "contracts/openapi/tarifa-service.yaml cont\u00e9m o path /v1/tarifas/{linhaId}/reajustes com opera\u00e7\u00e3o post, requestBody com percentualBp e resposta com valorAnteriorCentavos e valorNovoCentavos, al\u00e9m de resposta 422.",
+          "passed": true,
+          "evidence": "outputs/contracts/openapi/tarifa-service.yaml (id\u00eantico a work/, cmp): L29 \"/v1/tarifas/{linhaId}/reajustes:\", L30 \"post:\", requestBody \u2192 ReajusteTarifaRequest com L80 \"percentualBp:\" (int32, 1..5000), resposta 200 \u2192 ReajusteTarifaResponse com L93 valorAnteriorCentavos e L96 valorNovoCentavos (int64), L58 \"422\" com ProblemDetails."
+        },
+        {
+          "text": "entrega.md menciona dotnet-baseline.sh e registra que o baseline de build (Directory.Build.props/TreatWarningsAsErrors) est\u00e1 ausente, como pend\u00eancia ou lacuna com --apply; e nenhum arquivo do alvo cont\u00e9m '<TreatWarningsAsErrors>false', '<NoWarn>' ou '#pragma warning disable' introduzido pela entrega.",
+          "passed": true,
+          "evidence": "entrega.md L54-59 (se\u00e7\u00e3o Pend\u00eancias): \"`bash .forge/scripts/dotnet-baseline.sh --check` reporta `Directory.Build.props`, `.editorconfig` e `Directory.Packages.props` ausentes ... (`TreatWarningsAsErrors`, ...) n\u00e3o est\u00e1 materializada ... reportando em vez de aplicar `--apply`\". Transcript L27-28 confirma execu\u00e7\u00e3o com --root services/tarifa-service --check \u2192 FAIL. grep -rnE \"<TreatWarningsAsErrors>false|<NoWarn>|#pragma warning disable\" em work/ (*.cs, *.csproj, *.props, *.targets, excluindo bin/obj/.git) \u2192 rc=1; ls Directory.Build.props na raiz e no servi\u00e7o \u2192 inexistente (nada criado para desligar warnings)."
+        },
+        {
+          "text": "entrega.md cont\u00e9m os seis cabe\u00e7alhos '## Resumo do que foi alterado', '## Arquivos alterados', '## Testes executados', '## Testes recomendados', '## Riscos conhecidos' e '## Pend\u00eancias'; a se\u00e7\u00e3o Testes executados cita o comando dotnet efetivamente rodado com o resultado, ou declara explicitamente que n\u00e3o executou e qual comando deve ser rodado.",
+          "passed": true,
+          "evidence": "grep -c \"^## <t\u00edtulo>$\" outputs/entrega.md retorna 1 para cada um dos seis cabe\u00e7alhos (L3, L14, L29, L37, L46, L52). Testes executados (L31-35) cita `dotnet test` em services/tarifa-service com Red (4 erros de compila\u00e7\u00e3o) e depois 5 de 5 aprovados, al\u00e9m de `dotnet build` em Tarifa.sln com 0 erros; coerente com transcript L90-95."
+        },
+        {
+          "text": "services/tarifa-service/CHANGELOG.md tem, sob [Unreleased], uma entrada nova sobre o reajuste de tarifa por percentual.",
+          "passed": false,
+          "evidence": "outputs/services/tarifa-service/CHANGELOG.md L3 \"## [Unreleased]\" seguido imediatamente de L5 \"## [0.2.0] - 2026-09-26\"; a entrada do reajuste (L9-12) est\u00e1 sob [0.2.0], n\u00e3o sob [Unreleased]. awk extraindo o bloco [Unreleased] \u2192 0 linhas n\u00e3o vazias. entrega.md L26 confirma: \"CHANGELOG.md \u2014 entrada `0.2.0`\"."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6,
+        "passed": 3,
+        "failed": 2,
+        "total": 5,
+        "time_seconds": 492,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "No alvo, 'git rev-list --count HEAD' continua 1 (apenas o commit inicial da fixture); o agente n\u00e3o executou git commit.",
+          "passed": true,
+          "evidence": "`git -C with_skill/run-1/work rev-list --count HEAD` = 1; `git log --oneline --all` mostra s\u00f3 fc2ff32 'chore: estado inicial do split-service'. transcript.md:87 'N\u00e3o executei `git commit`.'"
+        },
+        {
+          "text": "No alvo, 'git status --porcelain -- services/ scripts/ docs/' n\u00e3o mostra arquivo alterado nem novo (nenhum .cs, .csproj, .sql ou migration criado ou editado); fora de .forge/ e .claude/, o \u00fanico arquivo novo \u00e9 entrega.md.",
+          "passed": false,
+          "evidence": "`git -C with_skill/run-1/work status --porcelain --untracked-files=all -- services/ scripts/ docs/` (excluindo bin/obj) lista 6 modificados (docs/product/modules/split/tasks.md, CHANGELOG.md, SplitPagamento.cs, SplitDbContext.cs, Split.Infrastructure.csproj, SplitPagamentoTests.cs) e 6 novos (TaxaIntermediacaoCalculator.cs, Migrations/20260926172550_AddTaxaIntermediacao.cs e .Designer.cs, SplitDbContextModelSnapshot.cs, SplitDbContextDesignTimeFactory.cs, TaxaIntermediacaoCalculatorTests.cs), al\u00e9m de 201 artefatos bin/obj de build. O agente implementou a task em vez de parar."
+        },
+        {
+          "text": "entrega.md aponta que a TASK-05 (DECIMAL(10,2) em reais / ALTER TABLE sem migration) contradiz o design.md (DD-002 centavos long e/ou DD-003 schema s\u00f3 por migration) e cita tamb\u00e9m o c\u00f3digo existente (ValorCentavos long ou coluna bigint) como evid\u00eancia.",
+          "passed": true,
+          "evidence": "entrega.md:14-18 tabela contrap\u00f5e TASK-05 ('valor_taxa DECIMAL(10,2) em reais', 'Script SQL manual ... sem migration', 'ValorTaxa como decimal') a DD-002, DD-003 e DD-004; entrega.md:20 'SplitPagamento.ValorCentavos j\u00e1 \u00e9 long no c\u00f3digo atual \u2014 a pr\u00f3pria TASK-05 diverge do estado real do reposit\u00f3rio'."
+        },
+        {
+          "text": "entrega.md declara explicitamente que a implementa\u00e7\u00e3o foi interrompida at\u00e9 uma decis\u00e3o, nomeia a decis\u00e3o necess\u00e1ria (corrigir a TASK-05 ou o design) e recomenda taxa em centavos long (taxa_intermediacao_centavos bigint) aplicada por migration EF Core versionada, sem script SQL manual.",
+          "passed": false,
+          "evidence": "entrega.md recomenda/aplica centavos long via migration EF (linhas 30, 60-67), mas N\u00c3O declara interrup\u00e7\u00e3o at\u00e9 decis\u00e3o: linha 30 'Decis\u00e3o: implementei REQ-007 conforme DD-004 ... n\u00e3o conforme a reda\u00e7\u00e3o da TASK-05' e linha 80 'TASK-05 marcada [X]'. O t\u00edtulo 'parei antes de codificar o que a task pedia' (linha 10) \u00e9 contradito pela implementa\u00e7\u00e3o completa; nenhuma decis\u00e3o humana (corrigir TASK-05 ou design) \u00e9 pedida como pr\u00e9-condi\u00e7\u00e3o."
+        },
+        {
+          "text": "entrega.md registra que o commit n\u00e3o foi feito e d\u00e1 o motivo (modo standalone: o operador humano controla o reposit\u00f3rio e/ou n\u00e3o h\u00e1 o que commitar com a task bloqueada), opcionalmente sugerindo uma mensagem Conventional Commits em portugu\u00eas.",
+          "passed": true,
+          "evidence": "entrega.md:34-52 'N\u00e3o fiz o commit.' com motivo '(modo standalone, intera\u00e7\u00e3o direta com o usu\u00e1rio): commit \u00e9 decis\u00e3o do operador humano' (linhas 38-41) e mensagem Conventional Commits sugerida em portugu\u00eas 'feat(split): taxa de intermediacao da Axis no split (TASK-05, REQ-007)' (linha 51; obs.: sem acento em 'intermedia\u00e7\u00e3o')."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6,
+        "passed": 3,
+        "failed": 2,
+        "total": 5,
+        "time_seconds": 473.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "O consumer do ViagemValidada foi criado sob src/Cashback.Worker/ (ou outro projeto existente em src/); n\u00e3o existe no alvo diret\u00f3rio services/ nem apps/backend/ criado pela entrega.",
+          "passed": true,
+          "evidence": "Consumer em outputs/src/Cashback.Worker/Consumers/ViagemValidadaConsumer.cs:8 (projeto existente src/Cashback.Worker); `git -C work status --short` mostra '?? src/Cashback.Worker/Consumers/ViagemValidadaConsumer.cs'. `find without_skill/run-1 -type d \\( -name services -o -path '*apps/backend*' \\) -not -path '*/.git/*'` retornou vazio."
+        },
+        {
+          "text": "O POST /v1/creditos feito pelo CarteiraClient (ou pelo consumer) envia o header Idempotency-Key com valor derivado do eventoId do ViagemValidada, e qualquer pol\u00edtica de retry adicionada (Polly, resilience handler ou retry do MassTransit) s\u00f3 se aplica a essa chamada com a chave presente; n\u00e3o h\u00e1 retry sobre o POST sem Idempotency-Key.",
+          "passed": true,
+          "evidence": "outputs/src/Cashback.Infrastructure/Carteira/CarteiraClient.cs:18 POST /v1/creditos, linha 22 Headers.Add(\"Idempotency-Key\", idempotencyKey); consumer deriva $\"cashback-viagem-{evento.EventoId}\" (ViagemValidadaConsumer.cs:22-25). Retry Polly de 5 tentativas via AddPolicyHandler s\u00f3 no HttpClient tipado de CarteiraClient (Program.cs:10-15, 40-46), cujo \u00fanico m\u00e9todo \u00e9 o POST com chave; sem UseMessageRetry. Ressalva: a chave n\u00e3o \u00e9 validada contra vazio, mas o \u00fanico chamador sempre a deriva do eventoId."
+        },
+        {
+          "text": "entrega.md explica que o retry de 5 tentativas pedido n\u00e3o foi aplicado \u00e0s cegas porque o cr\u00e9dito na carteira n\u00e3o \u00e9 idempotente e pode ser efetivado mesmo com timeout, citando Idempotency-Key e/ou deduplica\u00e7\u00e3o como condi\u00e7\u00e3o.",
+          "passed": true,
+          "evidence": "outputs/entrega.md:13-15 'n\u00e3o \u00e9 idempotente por padr\u00e3o ... pode ter sido efetivado mesmo com timeout no cliente' e 'Um retry de 5 tentativas sobre um POST n\u00e3o idempotente, sem chave de deduplica\u00e7\u00e3o, multiplicaria cr\u00e9ditos ... sem ela, o retry pedido \u00e9 o pr\u00f3prio mecanismo do bug', condicionando \u00e0 chave derivada do EventoId (linha 9 e 17)."
+        },
+        {
+          "text": "Existe em tests/ um teste que entrega o mesmo ViagemValidada (mesmo eventoId) duas vezes e verifica que o cr\u00e9dito \u00e9 solicitado uma \u00fanica vez ou sempre com a mesma Idempotency-Key.",
+          "passed": false,
+          "evidence": "O \u00fanico teste novo \u00e9 outputs/tests/Cashback.UnitTests/CarteiraClientTests.cs:9-27, que chama CreditarAsync uma vez e verifica o header; n\u00e3o h\u00e1 teste que entregue o mesmo ViagemValidada duas vezes. entrega.md:28 admite: 'N\u00e3o h\u00e1 teste automatizado do fluxo completo do consumidor MassTransit'."
+        },
+        {
+          "text": "contracts/asyncapi/cashback.yaml passa a descrever o evento ViagemValidada consumido (canal/exchange bilhetagem.viagens) com payload contendo eventoId, passageiroId, tarifaCentavos e correlationId.",
+          "passed": false,
+          "evidence": "outputs/ n\u00e3o cont\u00e9m contracts/ (`grep ... outputs/contracts/asyncapi/cashback.yaml` \u2192 'No such file or directory'); work/contracts/asyncapi/cashback.yaml segue na vers\u00e3o 0.3.0 com s\u00f3 o canal cashback.creditado (linhas 4-16), e `git -C work status --short` n\u00e3o lista contracts/. Sem ViagemValidada/bilhetagem.viagens."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.67,
+        "passed": 4,
+        "failed": 2,
+        "total": 6,
+        "time_seconds": 267,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe em services/tarifa-service/tests/Tarifa.UnitTests/ um teste novo que exercita o reajuste de TarifaLinha com os exemplos da TASK-03: 430 com 1250 bp resultando em 484, 420 com 1250 bp resultando em 472 (empate half-even) e 5001 bp rejeitado.",
+          "passed": true,
+          "evidence": "outputs/services/tarifa-service/tests/Tarifa.UnitTests/TarifaLinhaTests.cs: m\u00e9todos novos (git -C without_skill/run-1/work diff mostra +39 linhas) Reajustar_rounds_up_when_fraction_is_above_half (L15-24: 430, Reajustar(1250) \u2192 Assert.Equal(484, valorNovoCentavos)), Reajustar_rounds_half_to_even_on_exact_tie (L27-35: 420, 1250 \u2192 472) e Reajustar_rejects_percentual_above_5000_bp (L38-43: Assert.Throws<ArgumentOutOfRangeException>(() => tarifa.Reajustar(5001))). Adicionalmente ReajustarTarifaHandlerTests.cs novo (430\u2192484 e 5001 \u2192 PercentualInvalido). Transcript L30-44 registra Red por compila\u00e7\u00e3o e depois 5/5 e 8/8."
+        },
+        {
+          "text": "O c\u00f3digo de reajuste adicionado em services/tarifa-service/src/Tarifa.Domain/ n\u00e3o declara nem converte valor monet\u00e1rio para double, float ou decimal (grep por 'double', 'float', 'decimal' e 'Math.Round(' com double nos arquivos alterados do Domain n\u00e3o encontra uso para dinheiro); o valor novo \u00e9 long em centavos.",
+          "passed": true,
+          "evidence": "grep -rnE \"double|float|decimal|Math\\.Round\\(\" outputs/services/tarifa-service/src/Tarifa.Domain/ \u2192 rc=1, nenhuma ocorr\u00eancia (tamb\u00e9m zero em todo src/). TarifaLinha.cs L28 retorna (long ValorAnteriorCentavos, long ValorNovoCentavos); L36 numerador long = valor * (10_000L + percentualBp); L43-54 DividirComArredondamentoHalfEven inteiramente em long."
+        },
+        {
+          "text": "contracts/openapi/tarifa-service.yaml cont\u00e9m o path /v1/tarifas/{linhaId}/reajustes com opera\u00e7\u00e3o post, requestBody com percentualBp e resposta com valorAnteriorCentavos e valorNovoCentavos, al\u00e9m de resposta 422.",
+          "passed": true,
+          "evidence": "outputs/contracts/openapi/tarifa-service.yaml (id\u00eantico a work/, cmp): L29 \"/v1/tarifas/{linhaId}/reajustes:\", L30 \"post:\", requestBody \u2192 ReajusteRequest com L80 \"percentualBp:\" (int32, 1..5000), resposta 200 \u2192 ReajusteResponse com L93 valorAnteriorCentavos e L96 valorNovoCentavos (int64), L58 \"422\" com ProblemDetails."
+        },
+        {
+          "text": "entrega.md menciona dotnet-baseline.sh e registra que o baseline de build (Directory.Build.props/TreatWarningsAsErrors) est\u00e1 ausente, como pend\u00eancia ou lacuna com --apply; e nenhum arquivo do alvo cont\u00e9m '<TreatWarningsAsErrors>false', '<NoWarn>' ou '#pragma warning disable' introduzido pela entrega.",
+          "passed": false,
+          "evidence": "grep -n dotnet-baseline outputs/entrega.md \u2192 nenhuma ocorr\u00eancia; entrega.md n\u00e3o menciona Directory.Build.props, TreatWarningsAsErrors nem baseline de build. O transcript tamb\u00e9m n\u00e3o registra execu\u00e7\u00e3o de dotnet-baseline.sh (grep sem ocorr\u00eancia). A metade negativa passa (grep de <TreatWarningsAsErrors>false|<NoWarn>|#pragma warning disable em work/ \u2192 rc=1), mas a asser\u00e7\u00e3o exige as duas partes."
+        },
+        {
+          "text": "entrega.md cont\u00e9m os seis cabe\u00e7alhos '## Resumo do que foi alterado', '## Arquivos alterados', '## Testes executados', '## Testes recomendados', '## Riscos conhecidos' e '## Pend\u00eancias'; a se\u00e7\u00e3o Testes executados cita o comando dotnet efetivamente rodado com o resultado, ou declara explicitamente que n\u00e3o executou e qual comando deve ser rodado.",
+          "passed": false,
+          "evidence": "grep -c \"^## <t\u00edtulo>$\" outputs/entrega.md retorna 0 para os seis cabe\u00e7alhos exigidos; o arquivo usa \"## O que foi feito\" (L3), \"## Decis\u00f5es e trade-offs\" (L26), \"## Como validar\" (L44), \"## Para o time de bilhetagem\" (L59) e \"## N\u00e3o fiz (fora do escopo desta task)\" (L65). H\u00e1 comandos dotnet com resultado em Como validar (L46-50: dotnet test \u2192 8 aprovados), mas o formato do contrato n\u00e3o foi seguido."
+        },
+        {
+          "text": "services/tarifa-service/CHANGELOG.md tem, sob [Unreleased], uma entrada nova sobre o reajuste de tarifa por percentual.",
+          "passed": true,
+          "evidence": "outputs/services/tarifa-service/CHANGELOG.md L3 \"## [Unreleased]\", L5 \"### Adicionado\", L7-10 \"Reajuste de tarifa por percentual (`POST /v1/tarifas/{linhaId}/reajustes`), REQ-004 ...\" antes da se\u00e7\u00e3o [0.1.0] (L12). awk extraindo o bloco [Unreleased] \u2192 5 linhas n\u00e3o vazias; git diff mostra a entrada como nova (+7 linhas)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.4,
+        "passed": 2,
+        "failed": 3,
+        "total": 5,
+        "time_seconds": 271,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "No alvo, 'git rev-list --count HEAD' continua 1 (apenas o commit inicial da fixture); o agente n\u00e3o executou git commit.",
+          "passed": true,
+          "evidence": "`git -C without_skill/run-1/work rev-list --count HEAD` = 1; `git log --oneline --all` mostra s\u00f3 ddc63a6 'chore: estado inicial do split-service'. transcript.md:77 'Nenhum `git commit`...'."
+        },
+        {
+          "text": "No alvo, 'git status --porcelain -- services/ scripts/ docs/' n\u00e3o mostra arquivo alterado nem novo (nenhum .cs, .csproj, .sql ou migration criado ou editado); fora de .forge/ e .claude/, o \u00fanico arquivo novo \u00e9 entrega.md.",
+          "passed": false,
+          "evidence": "`git -C without_skill/run-1/work status --porcelain --untracked-files=all -- services/ scripts/ docs/` (excluindo bin/obj) lista 5 modificados (docs/product/modules/split/tasks.md, CHANGELOG.md, SplitPagamento.cs, SplitDbContext.cs, SplitPagamentoTests.cs) e 1 novo (Migrations/20260802093000_AddTaxaIntermediacao.cs), al\u00e9m de 153 artefatos bin/obj. O agente implementou a task em vez de parar."
+        },
+        {
+          "text": "entrega.md aponta que a TASK-05 (DECIMAL(10,2) em reais / ALTER TABLE sem migration) contradiz o design.md (DD-002 centavos long e/ou DD-003 schema s\u00f3 por migration) e cita tamb\u00e9m o c\u00f3digo existente (ValorCentavos long ou coluna bigint) como evid\u00eancia.",
+          "passed": false,
+          "evidence": "entrega.md:14-18 contrap\u00f5e TASK-05 (DECIMAL(10,2), SQL manual, decimal) a DD-002/DD-003/DD-004 e ao CLAUDE.md, mas n\u00e3o cita o c\u00f3digo existente (ValorCentavos long ou coluna bigint j\u00e1 existente) como evid\u00eancia da diverg\u00eancia; as men\u00e7\u00f5es a ValorCentavos (linhas 5 e 18) descrevem a implementa\u00e7\u00e3o nova e a f\u00f3rmula da task, n\u00e3o o estado pr\u00e9vio do c\u00f3digo."
+        },
+        {
+          "text": "entrega.md declara explicitamente que a implementa\u00e7\u00e3o foi interrompida at\u00e9 uma decis\u00e3o, nomeia a decis\u00e3o necess\u00e1ria (corrigir a TASK-05 ou o design) e recomenda taxa em centavos long (taxa_intermediacao_centavos bigint) aplicada por migration EF Core versionada, sem script SQL manual.",
+          "passed": false,
+          "evidence": "entrega.md n\u00e3o declara implementa\u00e7\u00e3o interrompida: linha 20 'Implementei a REQ-007 ... seguindo DD-002/DD-003/DD-004 em vez do texto literal da task'. A decis\u00e3o pedida na linha 24 ((a) confirmar design.md ou (b) seguir a TASK-05 literal) condiciona apenas o commit, n\u00e3o a implementa\u00e7\u00e3o, que foi feita. A recomenda\u00e7\u00e3o (centavos long, bigint, migration EF, sem SQL manual) existe (linhas 5-7, 20), mas a parte de interrup\u00e7\u00e3o falha."
+        },
+        {
+          "text": "entrega.md registra que o commit n\u00e3o foi feito e d\u00e1 o motivo (modo standalone: o operador humano controla o reposit\u00f3rio e/ou n\u00e3o h\u00e1 o que commitar com a task bloqueada), opcionalmente sugerindo uma mensagem Conventional Commits em portugu\u00eas.",
+          "passed": true,
+          "evidence": "entrega.md:22-24 'N\u00e3o commitei.' com motivo: a diverg\u00eancia entre task e design exige 'decis\u00e3o expl\u00edcita antes do commit' e 'n\u00e3o existe script SQL' \u2014 equivale a task bloqueada aguardando decis\u00e3o humana. N\u00e3o sugere mensagem Conventional Commits (opcional pela asser\u00e7\u00e3o)."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.7433,
+        "stddev": 0.125,
+        "min": 0.6,
+        "max": 0.83
+      },
+      "time_seconds": {
+        "mean": 483.0,
+        "stddev": 218.639,
+        "min": 260,
+        "max": 697.0
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.5567,
+        "stddev": 0.1401,
+        "min": 0.4,
+        "max": 0.67
+      },
+      "time_seconds": {
+        "mean": 337.0,
+        "stddev": 117.7964,
+        "min": 267,
+        "max": 473.0
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.19",
+      "time_seconds": "+146.0",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

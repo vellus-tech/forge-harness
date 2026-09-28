@@ -1,0 +1,44 @@
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) 0;
+  border-bottom: 1px solid var(--n-100);
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r-md);
+  background: var(--surface-muted);
+  color: var(--fg);
+  flex-shrink: 0;
+}
+
+.info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.line {
+  font-family: var(--font-ui);
+  font-size: var(--fs-14);
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.when {
+  font-size: var(--fs-12);
+  color: var(--fg-muted);
+}
+
+.amount {
+  font-family: var(--font-ui);
+  font-size: var(--fs-14);
+  font-weight: 600;
+  color: var(--fg);
+}

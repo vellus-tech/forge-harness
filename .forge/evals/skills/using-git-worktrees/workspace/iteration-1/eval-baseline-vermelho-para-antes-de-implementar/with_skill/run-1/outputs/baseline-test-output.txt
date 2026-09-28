@@ -1,0 +1,36 @@
+✔ validade de duas horas a partir da primeira validação (2.638417ms)
+✖ validade expira no fim do dia operacional de São Paulo (0.861167ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 1
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 131.518916
+
+✖ failing tests:
+
+test at src/fare/validity.test.js:9:1
+✖ validade expira no fim do dia operacional de São Paulo (0.861167ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + '2026-09-02T04:30:00.000Z'
+  - '2026-09-02T02:59:59.000Z'
+                 ^
+  
+      at TestContext.<anonymous> (file://<worktree-do-eval>/.forge/evals/skills/using-git-worktrees/workspace/iteration-1/eval-baseline-vermelho-para-antes-de-implementar/with_skill/run-1/work/src/fare/validity.test.js:11:10)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+      at Test.run (node:internal/test_runner/test:1258:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '2026-09-02T04:30:00.000Z',
+    expected: '2026-09-02T02:59:59.000Z',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

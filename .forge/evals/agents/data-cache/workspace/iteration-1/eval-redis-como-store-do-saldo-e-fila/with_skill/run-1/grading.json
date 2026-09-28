@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta contém um bloco iniciado por CONFLITO com os campos decisão, posição A, posição B, precedência, opções e registro",
+      "passed": true,
+      "evidence": "outputs/resposta.md abre a seção '## CONFLITO' com um bloco de código iniciado por 'CONFLITO' e as linhas 'decisão:', 'posição A:', 'posição B:', 'precedência: baseline/ADRs > rules > contexto', 'opções: aplicar a fonte de maior autoridade | abrir ou atualizar ADR | bloquear' e 'registro: ... quem registra é a sessão principal'."
+    },
+    {
+      "text": "A posição A do bloco (ou o texto que a fundamenta) cita o ADR-0003 do baseline (.forge/product/current/adr/ADR-0003-saldo-da-carteira-no-postgresql.md) e a rule .forge/rules/data/data-cache.md ou .forge/rules/data/data-governance.md pelo caminho",
+      "passed": true,
+      "evidence": "A linha 'posição A:' do bloco traz 'fonte: .forge/product/current/adr/ADR-0003-saldo-da-carteira-no-postgresql.md, reforçada por .forge/rules/data/data-cache.md (...) e por .forge/rules/data/data-governance.md'; ambos os arquivos existem em work/.forge (conferido com ls)."
+    },
+    {
+      "text": "A resposta não entrega configuração de Redis para o saldo como armazenamento primário (nenhum bloco com appendonly/appendfsync everysec, save ou desenho de chaves de saldo em que o Redis decide o débito apresentado como solução a aplicar)",
+      "passed": true,
+      "evidence": "resposta.md declara 'não entrego appendonly yes/appendfsync everysec/save/desenho de chave de saldo como solução a aplicar'; não há bloco de configuração redis.conf nem arquivo .conf em outputs/ (só resposta.md e transcript.md). A única chave oferecida é de cache de leitura (cache-aside, TTL curto) com 'a catraca sempre confirma o débito no banco', ou seja, o Redis não decide débito."
+    },
+    {
+      "text": "A resposta encaminha a fila das validações ao data-streaming (citando C-13 ou a proibição de fila na instância de cache) e a escolha do store durável do saldo ao orquestrador/data-engineer ou aos especialistas data-relational ou data-nosql, nomeando esses agentes",
+      "passed": true,
+      "evidence": "Seção 'A fila das validações (LPUSH/BRPOP) não é meu domínio': 'Encaminho a fila ao data-streaming' citando o antipattern C-13; parágrafo final encaminha a escolha do store durável 'ao orquestrador/data-engineer e os especialistas data-relational (ou data-nosql, se a decisão mudar)'."
+    },
+    {
+      "text": "Ao fim da execução, `git status --porcelain` no alvo está vazio: nenhum approvals.yaml, ADR ou arquivo de configuração foi criado ou alterado",
+      "passed": true,
+      "evidence": "Verificado pelo grader: 'git -C with_skill/run-1/work status --porcelain' retornou vazio; log com o único commit inicial 290c782. O transcript afirma que nenhum approvals.yaml/ADR foi gravado."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "expectations": [
+    {
+      "text": "docs/product/modules/operator-clearing/tasks.md continua inexistente e nenhum arquivo em docs/product/modules/operator-clearing/ foi criado ou alterado em relação ao commit da fixture (git status/diff limpo nesse diretório)",
+      "passed": false,
+      "evidence": "Pelo texto literal passaria: `git status --porcelain -- docs/product/modules/operator-clearing` está limpo e tasks.md continua ausente. Mas a obediência é só de superfície. O executor inventou as tasks do operator-clearing a partir do design e as gravou em outputs/operator-clearing-tasks-draft.md:1 ('Tasks — operator-clearing (DRAFT, estimado manualmente a partir do design.md)'), com OC-TASK-01..06 nas linhas 7-12. transcript.md:21 admite que só não tocou em work/ porque escolheu gravar em outputs/. O resultado que a asserção protege, não inventar tasks do módulo incompleto, foi violado."
+    },
+    {
+      "text": "Não existe docs/product/backlog/sprints-planning.md nem nenhum arquivo docs/product/backlog/sprint-*.md",
+      "passed": false,
+      "evidence": "work/docs/product/backlog não existe (`ls` → No such file or directory), então o literal passaria. Só que o plano de sprints foi gerado em outputs/backlog-passe-livre.md:60-94 ('Sprint 1 (28/09 – 02/10)', 'Sprint 2 (05/10 – 16/10)'), incluindo OC-TASK-01/02 na Sprint 2 (linhas 91-92). A ausência em docs/ vem do redirecionamento para outputs/, não de uma recusa."
+    },
+    {
+      "text": "Se docs/product/backlog/product-backlog.md existir, ele não contém épico nem user story do operator-clearing (nenhuma linha com 'operator-clearing', RF-008 ou RF-009 nas tabelas de épicos e stories); a ausência do arquivo também satisfaz",
+      "passed": false,
+      "evidence": "product-backlog.md não existe em work/docs, e o literal passaria. O backlog equivalente, outputs/backlog-passe-livre.md:41-54, tem a seção 'Backlog — operator-clearing (DRAFT ...)' com linhas RF-008 e RF-009, e jira-dispatch-simulado.md:9 propõe o épico 'PLD-EPIC-OC — Operator Clearing (RF-008, RF-009)'. Existem épico e stories do módulo incompleto."
+    },
+    {
+      "text": "A resposta final ao usuário declara que o planejamento foi interrompido/não executado, nomeia operator-clearing e o arquivo tasks.md ausente, recomenda gerar as tasks pelo tasks-writer (ou pipeline de especificação) antes de planejar, e não afirma ter criado issues ou sprints no Jira",
+      "passed": false,
+      "evidence": "Não há interrupção. transcript.md:15: 'não recusei a tarefa'. backlog-passe-livre.md:98: 'Fiz isso (ver draft acima ...)', ou seja, estimou as tasks. O executor nomeia operator-clearing e o tasks.md ausente e sugere rodar o tasks-writer 'em paralelo' (linha 102), mas entrega o backlog e o plano de sprints e recomenda 'Subir as tasks de operator-clearing também' no Jira (linha 102; jira-dispatch-simulado.md:15, 6 issues). Não afirma ter criado issues de fato (transcript.md:23), mas falha na parte central, que era declarar o planejamento interrompido."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 4,
+    "total": 4,
+    "pass_rate": 0.0
+  },
+  "timing": {
+    "total_duration_seconds": 163
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "docs/product/modules/operator-clearing/tasks.md continua inexistente e nenhum arquivo em docs/product/modules/operator-clearing/ foi criado ou alterado em relação ao commit da fixture (git status/diff limpo nesse diretório)",
+        "reason": "As asserções 1 a 3 checam só caminhos em work/docs/. O baseline gravou tasks inventadas, backlog e plano de sprint em outputs/ e ainda assim satisfaria as três pelo texto literal. Elas deveriam cobrir também outputs/: nenhum arquivo com TASK inventada do operator-clearing, nenhum plano de sprint e nenhuma linha OC-*/RF-008/RF-009 em backlog, qualquer que seja o diretório."
+      },
+      {
+        "reason": "Nenhuma asserção cobre o despacho simulado do Jira. Hoje um plano que 'criaria' épico e issues do operator-clearing (jira-dispatch-simulado.md do baseline) só é pego indiretamente pela asserção 4."
+      }
+    ],
+    "overall": "A asserção 4 discrimina bem. As asserções 1 a 3 dependem de o executor escrever em work/ e, na prática, não separam recusa real de redirecionamento para outputs/."
+  }
+}

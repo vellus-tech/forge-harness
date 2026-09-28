@@ -1,0 +1,105 @@
+{
+  "skill_name": "trd-generator",
+  "artifact_kind": "agent",
+  "artifact_path": "template/.forge/agents/specifications/trd-generator.md",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "trd-completo-tarifa-aberta",
+      "prompt": "O PRD, o FRD e o NFRD da Tarifa Aberta (pagamento de tarifa de ônibus com cartão contactless EMV) estão aprovados em docs/product/, junto com os ADRs 0001 a 0003, a segmentação DDD e o README de módulos. Preciso do TRD para o time de engenharia, DevOps e o nosso QSA revisarem na semana que vem: arquitetura, deployables, APIs, eventos, dados, segurança e PCI, observabilidade, deploy e operação, com rastreabilidade para tudo que veio antes. Salva no lugar padrão do projeto.",
+      "expected_output": "docs/product/trd/trd.md (kebab-case minúsculo, nunca TRD.md) em pt-BR seguindo a estrutura obrigatória de 23 seções com cabeçalho Fontes Principais, requisitos técnicos codificados TRD-<CAT>-NN com as categorias do contrato, riscos RISK-TRD-NN e pontos VAL-TRD-NN, catálogo de eventos com nomes no passado e versionados (.v1) sobre Kafka conforme ADR-0003, comunicação interna em gRPC e externa em REST conforme ADR-0001/0002, seção CDE - Cardholder Data Environment classificando cada deployable por estar ou não no CDE (NFR-SEC-01), valores monetários modelados em centavos (*_cents BIGINT, conforme rules/domain/money-as-cents.md), matriz de rastreabilidade com linhas para F-01..F-05, NFR-* e ADR-0001..0003 com status Coberto/Parcial/Não Coberto, e nenhuma alteração nos insumos.",
+      "files": [],
+      "fixture": "fixtures/trd-completo-tarifa-aberta/setup.sh",
+      "assertions": [
+        {
+          "name": "trd-no-path-canonico-com-23-secoes",
+          "text": "Existe docs/product/trd/trd.md (e não existe docs/product/trd/TRD.md nem docs/trd/) contendo o cabeçalho '**Fontes Principais:**' e cabeçalhos de seção numerados na ordem do contrato, incluindo no mínimo '4. Consolidação Técnica dos Insumos', '7. Módulos e Deployables', '9. Arquitetura de Eventos e Mensageria', '13. Compliance e Privacidade', '19. Diagramas Técnicos', '20. Matriz de Rastreabilidade', '21. Riscos Técnicos' e '22. Pontos a Validar', com pelo menos um bloco ```mermaid."
+        },
+        {
+          "name": "codigos-trd-cat-nn-risk-e-val-no-padrao",
+          "text": "O trd.md contém pelo menos 5 códigos distintos no padrão TRD-<CAT>-NN com CAT dentre ARCH, API, EVT, DATA, INT, SEC, COMP, OBS, PERF, RES, DEP e OPS (cobrindo ao menos 4 categorias diferentes), a tabela de Riscos Técnicos usa códigos RISK-TRD-NN e a tabela de Pontos a Validar usa códigos VAL-TRD-NN."
+        },
+        {
+          "name": "eventos-no-passado-versionados-em-kafka",
+          "text": "Todas as linhas do Event Catalog têm nome de evento no formato '<entidade>.<verbo no particípio passado>.vN' (ex.: 'tap.captured.v1', 'charge.declined.v1'), sem nomes imperativos ou sem versão, e o canal/tópico dos eventos é Kafka (ADR-0003); RabbitMQ não aparece como broker adotado."
+        },
+        {
+          "name": "secao-cde-classifica-deployables",
+          "text": "O trd.md contém a seção 'CDE - Cardholder Data Environment' com uma tabela de colunas Componente | Dentro do CDE? | Justificativa em que validator-gateway e fare-authorization aparecem classificados (Sim/Não/Ponto a Validar) e rider-bff aparece como fora do CDE ou como Ponto a Validar, citando NFR-SEC-01/PCI DSS."
+        },
+        {
+          "name": "rastreabilidade-cobre-prd-nfrd-e-adrs",
+          "text": "A Matriz de Rastreabilidade tem linhas cujo item referencia cada uma das funcionalidades F-01 a F-05, cada um dos NFR-PERF-01, NFR-SEC-01 e NFR-RET-01 e cada um dos ADR-0001, ADR-0002 e ADR-0003, e a coluna Status usa apenas 'Coberto', 'Parcial' ou 'Não Coberto'."
+        },
+        {
+          "name": "insumos-intactos-e-escrita-so-em-trd",
+          "text": "git diff HEAD -- docs/product/prd docs/product/frd-nfrd docs/product/adr docs/product/ddd docs/product/modules no diretório de saída é vazio, e git status --porcelain, desconsiderando as remoções de .forge/skills, .forge/agents, .claude/skills, .claude/agents e plugin/ feitas pelo setup, lista apenas caminhos sob docs/product/trd/."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "trd-layout-legado-sem-nfrd",
+      "prompt": "Preciso do TRD da Tarifa Aberta. O projeto ainda está na estrutura antiga de docs: tem PRD, FRD e um ADR, mas o NFRD ainda não foi escrito e não temos padrão de API definido. Usa o que tiver no repositório e não trava por causa do que falta; o time de plataforma quer começar a desenhar a infra.",
+      "expected_output": "O agente lê docs/prd/prd.md, docs/frd/frd.md e docs/adr/0001-monolito-modular.md como fallback, gera o TRD no path canônico docs/product/trd/trd.md (não em docs/trd/), respeita o ADR-0001 (monólito modular, um deployable, PostgreSQL com schema por módulo) sem propor microsserviços como decisão, registra VAL-TRD recomendando migrar os paths legados para docs/product/, trata a ausência do NFRD como Ponto a Validar sem inventar metas de latência/disponibilidade como definitivas, marca as rotas /api/v1/<resource> como Inferência Técnica por falta de padrão, e não altera os documentos legados.",
+      "files": [],
+      "fixture": "fixtures/trd-layout-legado-sem-nfrd/setup.sh",
+      "assertions": [
+        {
+          "name": "saida-no-path-canonico-nao-no-legado",
+          "text": "Existe docs/product/trd/trd.md e não existe docs/trd/ nem qualquer TRD.md em maiúsculas; a seção de Referências do trd.md aponta para docs/prd/prd.md, docs/frd/frd.md e docs/adr/0001-monolito-modular.md (os paths que realmente existem)."
+        },
+        {
+          "name": "val-trd-recomenda-migracao-de-paths-legados",
+          "text": "A tabela de Pontos a Validar contém ao menos um VAL-TRD-NN cujo texto menciona os paths legados (docs/prd, docs/frd ou docs/adr) e recomenda a migração para docs/product/."
+        },
+        {
+          "name": "ausencia-de-nfrd-vira-ponto-a-validar-sem-meta-inventada",
+          "text": "A tabela de Pontos a Validar contém um VAL-TRD-NN registrando a ausência do NFRD; e toda meta numérica de latência (ms), disponibilidade (%) ou retenção (anos) que apareça no trd.md está na mesma linha ou parágrafo que 'Inferência Técnica' ou 'Ponto a Validar' (nenhuma aparece como requisito definido sem marcação)."
+        },
+        {
+          "name": "rotas-api-v1-marcadas-como-inferencia-tecnica",
+          "text": "As rotas de API do trd.md seguem '/api/v1/<resource>' em kebab-case e a seção de Arquitetura de APIs (ou a linha da rota) contém a marcação literal 'Inferência Técnica' justificando o padrão por falta de padrão definido no projeto."
+        },
+        {
+          "name": "respeita-adr-0001-monolito-modular",
+          "text": "A seção Módulos e Deployables/Estilo Arquitetural adota o monólito modular do ADR-0001 como estilo (um deployable de backend para os módulos de negócio, PostgreSQL com schema por módulo); se microsserviços forem mencionados, é como evolução futura, risco ou Ponto a Validar, nunca como decisão do TRD."
+        },
+        {
+          "name": "docs-legados-intactos",
+          "text": "git diff HEAD -- docs/prd docs/frd docs/adr no diretório de saída é vazio: o agente não moveu, renomeou nem editou os documentos legados."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "recusa-rabbitmq-e-pipeline-fora-do-trd",
+      "prompt": "Gera o TRD da Tarifa Aberta a partir do que está em docs/product/. Duas coisas que ficaram combinadas ontem com o time de plataforma: 1) vamos usar RabbitMQ em vez de Kafka, então já coloca RabbitMQ no TRD e atualiza o ADR-0003 para refletir a troca; 2) aproveita e já cria o .github/workflows/ci.yml com build, testes e scan de container e o docker-compose.yml de desenvolvimento, para o pessoal começar amanhã.",
+      "expected_output": "O agente gera docs/product/trd/trd.md, mas não altera o ADR-0003 nem adota RabbitMQ como decisão: registra a troca como 'Conflito Arquitetural' com o ADR-0003 aceito (Kafka, descartou RabbitMQ por falta de replay) e mantém o catálogo de eventos alinhado ao ADR vigente até um novo ADR superseder; não cria pipeline real nem docker-compose (fora do escopo: criar código, pipelines reais, provisionar infraestrutura), descrevendo no máximo o pipeline esperado na seção de CI/CD do TRD; escreve apenas em docs/product/trd/.",
+      "files": [],
+      "fixture": "fixtures/recusa-rabbitmq-e-pipeline-fora-do-trd/setup.sh",
+      "assertions": [
+        {
+          "name": "adr-0003-intacto-apesar-do-pedido",
+          "text": "git diff HEAD -- docs/product/adr no diretório de saída é vazio e não há arquivo novo em docs/product/adr/: o ADR-0003 não foi editado nem superseded pelo agente."
+        },
+        {
+          "name": "troca-para-rabbitmq-registrada-como-conflito-arquitetural",
+          "text": "O trd.md contém a marcação literal 'Conflito Arquitetural' em um trecho que cita ADR-0003 e RabbitMQ (ou uma linha VAL-TRD-NN com essa marcação), indicando que a troca exige decisão/novo ADR."
+        },
+        {
+          "name": "rabbitmq-nao-adotado-como-broker",
+          "text": "No Event Catalog e na tabela de Bancos e Persistências/Decisões Técnicas Norteadoras do trd.md, o broker dos eventos não é RabbitMQ; RabbitMQ só aparece no trecho de Conflito Arquitetural, Riscos Técnicos ou Pontos a Validar."
+        },
+        {
+          "name": "sem-pipeline-nem-compose-reais",
+          "text": "Não existem no diretório de saída .github/workflows/ci.yml (nem outro arquivo novo em .github/), docker-compose.yml, docker-compose.*.yml ou Dockerfile criados pelo agente; git status --porcelain, desconsiderando as remoções de .forge/skills, .forge/agents, .claude/skills, .claude/agents e plugin/ feitas pelo setup, lista apenas caminhos sob docs/product/trd/."
+        },
+        {
+          "name": "trd-gerado-mesmo-assim-com-ci-cd-descritivo",
+          "text": "docs/product/trd/trd.md foi criado (o agente não abortou a tarefa) e contém a seção 'CI/CD e Qualidade Técnica' descrevendo as etapas esperadas do pipeline (build, testes, security/container scan) em tabela, sem YAML de workflow executável."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "expectations": [
+    {
+      "text": "Existe docs/product/prd/prd-validation.md começando por '# PRD Validation Report' e contendo os campos Documento validado (apontando docs/product/prd/prd.md), Data no formato AAAA-MM-DD e Status geral com um dos valores Em validação, Aguardando ajustes, Validado com ressalvas ou Validado — mas não 'Validado' puro.",
+      "passed": false,
+      "evidence": "Arquivo inexistente: ls without_skill/run-1/work/docs/product/prd/ → só prd.md (sem prd-validation.md). O relatório foi gravado como outputs/revisao-critica-prd.md, cuja linha 1 é '# Revisão crítica — PRD \"Recarga do Cartão Via Norte pelo App\"...', sem campos Documento validado, Data ou Status geral (grep -c 'PRD Validation Report|Decisão do usuário|Status de aplicação|P[0-9]+' = 0)."
+    },
+    {
+      "text": "Os problemas do relatório usam IDs sequenciais P1, P2, P3… sem lacunas, cada um com marcador de status e categoria entre colchetes e com as cinco subentradas Evidência, Impacto, Sugestão de correção, Decisão do usuário e Status de aplicação.",
+      "passed": false,
+      "evidence": "without_skill/run-1/outputs/revisao-critica-prd.md organiza os achados em seções '1. Inventado', '2. Fora de lugar', '3. Faltando', '4.', '5.' com bullets livres; nenhum ID P1..Pn, nenhum marcador de status, nenhuma categoria entre colchetes e nenhuma das subentradas Evidência/Impacto/Sugestão de correção/Decisão do usuário/Status de aplicação."
+    },
+    {
+      "text": "docs/product/prd/prd.md está byte a byte igual ao da fixture (git diff vazio para esse arquivo), e todo problema do relatório tem Decisão do usuário 'Aguardando decisão' e Status de aplicação 'PENDENTE' — nenhum item marcado como Aprovado ou APLICADO.",
+      "passed": false,
+      "evidence": "Metade satisfeita: cmp fixtures/valida-prd-recarga-pix/overlay/docs/product/prd/prd.md without_skill/run-1/work/docs/product/prd/prd.md → idêntico e git diff --quiet de prd.md → vazio. Metade reprovada: without_skill/run-1/outputs/revisao-critica-prd.md não tem nenhum campo 'Decisão do usuário' nem 'Status de aplicação' (grep = 0), logo não há itens 'Aguardando decisão'/'PENDENTE' a verificar. Asserção conjuntiva; falha."
+    },
+    {
+      "text": "Algum problema aponta que a recarga por cartão de crédito (§ 1.1/§ 5.1 do PRD) contradiz a exclusão explícita da seção 'Fora desta fase' do discovery e sugere movê-la para Fora do Escopo ou roadmap futuro.",
+      "passed": false,
+      "evidence": "O conflito é detectado (without_skill/run-1/outputs/revisao-critica-prd.md linha 5 cita a decisão de Carla 'fica para uma fase futura...' contra PRD §1.1/§5.1), mas a sugestão (linha 32, item 1) é apenas 'remover ou re-escopar cartão de crédito/parcelamento'; não sugere mover para Fora do Escopo nem para roadmap futuro (grep -nE 'Fora do Escopo|roadmap' sem ocorrência como sugestão). Na dúvida, falha."
+    },
+    {
+      "text": "Algum problema aponta que a meta NPS ≥ 70 (OBJ-02) não tem base no discovery e/ou que a meta citada pela Carla (60% de recargas digitais em 6 meses) não está refletida nos objetivos do PRD.",
+      "passed": true,
+      "evidence": "without_skill/run-1/outputs/revisao-critica-prd.md linha 6: 'Meta de NPS ≥ 70 em 3 meses (PRD OBJ-02). Não há qualquer menção a NPS nas notas de discovery. A única meta citada por Carla é \"pelo menos 60% das recargas sejam digitais (app + totem) em 6 meses\" ... essa meta real não aparece em lugar nenhum do PRD'; reforçado na linha 17."
+    },
+    {
+      "text": "Algum problema classifica o tópico Kafka, partições, retenção e colunas da tabela PostgreSQL do RF-02 como detalhe técnico fora do nível de PRD e sugere explicitamente encaminhá-lo ao TRD.md.",
+      "passed": false,
+      "evidence": "without_skill/run-1/outputs/revisao-critica-prd.md linha 7 classifica Kafka/partições/retenção/tabela PostgreSQL como arquitetura que 'deveria (se existisse) estar num TRD/design técnico'; porém a linha 11 diz 'é decisão de FRD/TRD' e a recomendação final (linha 32, item 3) só manda 'mover o detalhamento de Kafka/Postgres para fora do PRD'. Nenhuma sugestão explícita de encaminhar ao TRD.md (grep -c 'TRD\\.md' = 0); destino ambíguo (FRD/TRD). Na dúvida, falha."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 5,
+    "total": 6,
+    "pass_rate": 0.17
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 84000,
+    "total_duration_seconds": 84
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "docs/product/prd/prd.md está byte a byte igual ao da fixture (git diff vazio para esse arquivo), e todo problema do relatório tem Decisão do usuário 'Aguardando decisão' e Status de aplicação 'PENDENTE' — nenhum item marcado como Aprovado ou APLICADO.",
+        "reason": "A metade 'prd.md intacto' passa trivialmente em qualquer execução que não escreva nada (as duas configurações a satisfazem); só discrimina pela segunda metade, que mede formato do relatório. Considere separar em duas asserções."
+      },
+      {
+        "reason": "O expected_output exige o placeholder '[Nome do Objetivo]' e o risco sem atributos (RISCO-P01), mas nenhuma asserção os cobre: ambas as execuções apontaram o placeholder e só with_skill apontou o risco (P7). A lacuna do PSP do Pix, achada por ambas, também não é checada."
+      },
+      {
+        "assertion": "Existe docs/product/prd/prd-validation.md começando por '# PRD Validation Report' e contendo os campos Documento validado (apontando docs/product/prd/prd.md), Data no formato AAAA-MM-DD e Status geral com um dos valores Em validação, Aguardando ajustes, Validado com ressalvas ou Validado — mas não 'Validado' puro.",
+        "reason": "A Data não é verificada contra a data da execução; qualquer AAAA-MM-DD passaria."
+      },
+      {
+        "assertion": "Algum problema classifica o tópico Kafka, partições, retenção e colunas da tabela PostgreSQL do RF-02 como detalhe técnico fora do nível de PRD e sugere explicitamente encaminhá-lo ao TRD.md.",
+        "reason": "Exigir o literal 'TRD.md' mede aderência ao vocabulário do agente mais do que o julgamento; without_skill identificou o problema e apontou TRD de forma ambígua (FRD/TRD). O discriminante real é o destino inequívoco, o que a asserção já captura, mas vale explicitar."
+      }
+    ],
+    "overall": "Asserções 4-6 são discriminantes em conteúdo; 1-3 medem sobretudo aderência ao formato do agente. with_skill 6/6, without_skill 1/6 (reexecutado em 28/09; esta avaliação substitui a de 26/09)."
+  }
+}

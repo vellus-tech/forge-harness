@@ -1,0 +1,1 @@
+nenhum subagente despachado — tarefa cabia integralmente no trabalho direto (leitura de ~10 arquivos pequenos, sem paralelismo necessario)

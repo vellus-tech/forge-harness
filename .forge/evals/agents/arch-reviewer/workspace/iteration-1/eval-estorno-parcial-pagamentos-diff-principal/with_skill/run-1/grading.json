@@ -1,0 +1,86 @@
+{
+  "expectations": [
+    {
+      "text": "review/arch-reviewer.json é JSON válido com \"reviewer\": \"arch-reviewer\" e array \"findings\"; todo finding tem id no padrão ^ARCH-\\d{3}$, severity em {BLOCKER, HIGH, MEDIUM, LOW}, \"category\": \"arch\" e os campos file, rule_violated e confidence preenchidos",
+      "passed": true,
+      "evidence": "Comandos: `cmp outputs/arch-reviewer.json work/review/arch-reviewer.json` → idênticos; `jq -c '{reviewer, n:(.findings|length)}'` → {\"reviewer\":\"arch-reviewer\",\"n\":7}; `jq -e '.findings|all(.id|test(\"^ARCH-\\\\d{3}$\")) and all(.severity|IN(\"BLOCKER\",\"HIGH\",\"MEDIUM\",\"LOW\")) and all(.category==\"arch\") and all(file/rule_violated não vazios e confidence não nulo)'` → true. IDs ARCH-001..ARCH-007, todos com rule_violated apontando para .forge/rules/architecture/*.md."
+    },
+    {
+      "text": "Há finding BLOCKER com file terminando em Pagamentos.Domain/Pagamentos.Domain.csproj (ProjectReference para Pagamentos.Infrastructure) E finding BLOCKER em Pagamentos.Domain/Aggregates/Estorno.cs pelo `using MassTransit`",
+      "passed": true,
+      "evidence": "outputs/arch-reviewer.json: ARCH-001 severity BLOCKER, file services/pagamentos/src/Pagamentos.Domain/Pagamentos.Domain.csproj, title 'Domain referencia Infrastructure, invertendo a regra de dependência'; ARCH-002 severity BLOCKER, file .../Pagamentos.Domain/Aggregates/Estorno.cs line 1, title 'Domain referencia MassTransit' (fixture: `using MassTransit;` na linha 1 de Estorno.cs, confirmado por `git -C work show HEAD:...Estorno.cs`)."
+    },
+    {
+      "text": "Há finding com severity BLOCKER (não HIGH/MEDIUM) em ValueObjects/ValorMonetario.cs pelo setter público do objeto de valor E finding BLOCKER em Events/EstornarPagamento.cs pelo nome imperativo do Domain Event",
+      "passed": false,
+      "evidence": "Metade satisfeita: ARCH-003 BLOCKER em ValueObjects/ValorMonetario.cs, title 'Objeto de valor com setters públicos'. Metade faltante: `grep -c EstornarPagamento outputs/arch-reviewer.json` → 0; nenhum finding trata do Domain Event imperativo Events/EstornarPagamento.cs (que está no diff, `git diff develop..HEAD --stat` lista o arquivo), e o transcript §5 também não o menciona. Asserção conjuntiva, portanto falha."
+    },
+    {
+      "text": "Há findings HIGH para pelo menos três de: agregado Estorno sem construtor privado/factory Create+Reconstitute; interface IEstornoRepository fora do Domain; rota `api/Estornos` sem versão /api/v1; ausência de projeto Pagamentos.Architecture.Tests (NetArchTest)",
+      "passed": true,
+      "evidence": "Três HIGH presentes: ARCH-004 HIGH 'Interface de repositório definida na Application, não no Domain' (Application/Abstractions/IEstornoRepository.cs); ARCH-005 HIGH 'Agregado sem construtor privado e factories Create/Reconstitute' (Aggregates/Estorno.cs); ARCH-006 HIGH 'Endpoint público sem versionamento' (Controllers/EstornosController.cs). O quarto item (Architecture.Tests) não foi reportado: `grep -iE 'Architecture.Tests|NetArchTest' outputs/arch-reviewer.json` → rc=1, e o transcript §5 'Passo 7' diz que não elevou a achado de propósito. Basta 3 de 4, logo passa."
+    },
+    {
+      "text": "Nenhum finding trata do `Math.Round(valor, 1)` / arredondamento de centavos em SolicitarEstornoParcialHandler.cs (lógica é escopo do logic-reviewer)",
+      "passed": true,
+      "evidence": "`grep -n -iE 'Math.Round|arredond' outputs/arch-reviewer.json` → rc=1 (zero ocorrências); nenhum finding aponta SolicitarEstornoParcialHandler.cs. O transcript linha 34 registra que viu o `Math.Round(valor, 1)` e o deixou fora por ser escopo de lógica."
+    },
+    {
+      "text": "`git -C <alvo> status --porcelain -- services/` sai vazio: o revisor não editou nenhum arquivo do serviço",
+      "passed": true,
+      "evidence": "`git -C with_skill/run-1/work status --porcelain -- services/` → saída vazia (rc=0). Único untracked no repo é `review/`; HEAD continua adaf0e3 em feature/estorno-parcial."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 1,
+    "total": 6,
+    "pass_rate": 0.83
+  },
+  "timing": {
+    "executor_duration_seconds": 157
+  },
+  "claims": [
+    {
+      "claim": "Os números de linha dos findings apontam o local da violação",
+      "type": "factual",
+      "verified": false,
+      "evidence": "Deslocados em -1 contra o fixture: ProjectReference na linha 7 do .csproj (finding diz 6); `{ get; set; }` na linha 5 de ValorMonetario.cs (diz 4); construtor público na linha 13 de Estorno.cs (diz 12); [Route(\"api/Estornos\")] na linha 7 do controller (diz 6). ARCH-002 line 1 está correta."
+    },
+    {
+      "claim": "Seguiu os 7 passos da pipeline do agente",
+      "type": "process",
+      "verified": false,
+      "evidence": "O passo 7 (NetArchTest) foi descartado por julgamento próprio ('característico da fixture'), e o evento imperativo EstornarPagamento, parte do DDD tático (passo 3), foi omitido sem registro."
+    },
+    {
+      "claim": "Não alterou nenhum arquivo de código do fixture",
+      "type": "process",
+      "verified": true,
+      "evidence": "`git status --porcelain -- services/` vazio."
+    },
+    {
+      "claim": "Sessão de retomada sobrescreveu .t0 mas não recalculou timing.json",
+      "type": "process",
+      "verified": true,
+      "evidence": "transcript §9; timing.json mantém duration_ms=157000."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "review/arch-reviewer.json é JSON válido com \"reviewer\": \"arch-reviewer\" e array \"findings\"; todo finding tem id no padrão ^ARCH-\\d{3}$, severity em {BLOCKER, HIGH, MEDIUM, LOW}, \"category\": \"arch\" e os campos file, rule_violated e confidence preenchidos",
+        "reason": "A asserção não confere a exatidão de `line`: no with_skill todos os números de linha estão deslocados em -1 em relação ao fixture (ARCH-001 line 6, mas o ProjectReference está na linha 7 do .csproj; ARCH-003 line 4, setter na linha 5; ARCH-005 line 12, construtor na linha 13; ARCH-006 line 6, [Route] na linha 7). O code-evaluator consolida por file:line, então vale exigir line exata ao menos para os BLOCKERs."
+      },
+      {
+        "assertion": "Há findings HIGH para pelo menos três de: agregado Estorno sem construtor privado/factory Create+Reconstitute; interface IEstornoRepository fora do Domain; rota `api/Estornos` sem versão /api/v1; ausência de projeto Pagamentos.Architecture.Tests (NetArchTest)",
+        "reason": "'Pelo menos três de quatro' deixou passar o with_skill, que decidiu conscientemente não reportar a ausência de Pagamentos.Architecture.Tests (transcript §5, 'Passo 7'), justamente um item que o expected_output lista como HIGH. Se o teste de arquitetura é requisito do agente, considere torná-lo obrigatório numa asserção própria."
+      },
+      {
+        "assertion": "`git -C <alvo> status --porcelain -- services/` sai vazio: o revisor não editou nenhum arquivo do serviço",
+        "reason": "Asserção fracamente discriminante: passou nas duas configurações (inclusive no baseline que errou quase tudo). Continua útil como guarda-corpo, mas não separa qualidade."
+      }
+    ],
+    "overall": "As asserções 1 a 5 discriminam bem (with_skill 5/6 contra without_skill 1/6). As lacunas são exatidão de linha e a tolerância de 3/4 nos HIGH, que mascarou uma omissão deliberada."
+  }
+}

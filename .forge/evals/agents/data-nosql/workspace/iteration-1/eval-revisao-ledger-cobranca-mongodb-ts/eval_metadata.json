@@ -1,0 +1,31 @@
+{
+  "eval_id": 1,
+  "eval_name": "revisao-ledger-cobranca-mongodb-ts",
+  "prompt": "Antes de abrir o PR do serviço de cobrança, revisa a persistência do ledger em services/cobranca (MongoDB, TypeScript; o README diz como o replica set está montado). Quero saber o que está errado em consistência, dinheiro, multi-tenant e crescimento de documento, com o que trocar em cada ponto. Só revisão: não mexe nos arquivos, quem aplica é o task-coder depois.",
+  "assertions": [
+    {
+      "name": "n07-com-linha-e-pss",
+      "text": "A resposta aponta o id N-07 citando conta-repository.ts com as linhas 19 e 25 (formato arquivo:linha ou equivalente inequívoco) e recomenda write concern majority explícito E substituir o árbitro por um segundo secundário (topologia P-S-S), relacionando o árbitro do README ao risco de perda de escrita"
+    },
+    {
+      "name": "dinheiro-em-centavos-inteiros-nao-decimal128",
+      "text": "A resposta aponta o uso de Decimal128 (id N-21 ou citação da money-as-cents.md) e recomenda armazenar valor como inteiro de 64 bits na menor unidade (Int64/NumberLong/long em centavos); a resposta NÃO recomenda Decimal128 nem double/number de ponto flutuante como correção"
+    },
+    {
+      "name": "tenant-colecao-unica-filtro-e-indice",
+      "text": "A resposta aponta a coleção interpolada contas_${tenant} como antipattern (N-03 ou equivalente) e recomenda as três coisas juntas: coleção única com campo tenant obrigatório, filtro de tenant injetado no repositório/interceptor e índice composto começando por tenant; e aponta que movimentos/extrato são lidos ou gravados sem tenant"
+    },
+    {
+      "name": "lancamentos-fora-do-array",
+      "text": "A resposta aponta o $push de lancamentos sem teto (N-01 ou limite de 16 MiB do documento) e propõe tirar os lançamentos do array ilimitado (documento por lançamento em coleção própria ou bucket com teto), não apenas acrescentar $slice que descartaria lançamentos contábeis"
+    },
+    {
+      "name": "transacao-snapshot-e-retry-de-commit",
+      "text": "A resposta recomenda readConcern snapshot (ou majority) em lugar de local na transação de transferir E withTransaction ou retry próprio de UnknownTransactionCommitResult/TransientTransactionError no commit"
+    },
+    {
+      "name": "arvore-intacta",
+      "text": "Após a execução, `git -C <alvo> status --porcelain` sai vazio: nenhum arquivo do alvo foi criado ou alterado, e o código corrigido aparece só na resposta"
+    }
+  ]
+}

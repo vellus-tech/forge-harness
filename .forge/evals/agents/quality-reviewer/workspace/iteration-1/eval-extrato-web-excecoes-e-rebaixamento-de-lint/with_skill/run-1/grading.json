@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "Há um finding HIGH em apps/web/.eslintrc.json sobre @typescript-eslint/no-explicit-any rebaixada de 'error' para 'warn', citando quality-gates.md (portão de decisão A/B/C para burndown de lint) e a ausência desse registro na descrição do PR.",
+      "passed": true,
+      "evidence": "outputs/revisao/quality-reviewer.json linhas 7-15: QLT-001 severity HIGH, file apps/web/.eslintrc.json linha 6, título \"rebaixada de error para warn sem o portão de decisão A/B/C — viola quality-gates.md\", descrição afirma que a descrição de PR prevista não menciona a mudança de config; rule_violated .forge/rules/testing/quality-gates.md#portão-de-decisão-para-burndown-de-lint (grep -n \"quality-gates\\|A/B/C\" confirma linhas 12,13,15)."
+    },
+    {
+      "text": "Há um finding MEDIUM em apps/web/src/features/statement/utils.ts tratando-o como depósito genérico de helpers, citando code-style.md (corte de arquivo grande / costuras) e sugerindo módulos nomeados pelo domínio em vez de utils.ts.",
+      "passed": true,
+      "evidence": "quality-reviewer.json linhas 30-40: QLT-003 severity MEDIUM, file apps/web/src/features/statement/utils.ts, título \"utils.ts novo como depósito genérico — não segue nenhuma das quatro costuras de code-style.md §11\"; fix_suggested propõe serviço de domínio do extrato, statement-api.ts e currency-formatting.ts \"nomeado pelo domínio\"."
+    },
+    {
+      "text": "Nenhum finding classifica docs/product/modules/extrato/requirements-validation-report.md como arquivo de resumo proibido (é a exceção *-validation-report.md em docs/product/).",
+      "passed": true,
+      "evidence": "grep -c validation-report no JSON = 1, e a única ocorrência está em compliant_checks (linha 48): \"casa com a exceção documentada de *-validation-report.md em docs/product/ — não é arquivo de resumo proibido\". Nenhum finding em findings[] cita o arquivo; transcript passo 11 confirma a checagem contra no-summary-files.md."
+    },
+    {
+      "text": "Nenhum finding de severidade MEDIUM ou superior aponta a linha '// eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- ver ISSUE-412' de statement-page.tsx como supressão sem justificativa.",
+      "passed": true,
+      "evidence": "Nenhum item de findings[] aponta statement-page.tsx; o eslint-disable com ISSUE-412 aparece só em compliant_checks (linha 47) como \"padrão correto de supressão pontual (opção B do portão de lint)\"."
+    },
+    {
+      "text": "Nenhum finding trata do CPF impresso em console.info (logFilterUsage) nem da comparação exclusiva 'e.date < end' em filterByPeriod; se forem mencionados, é apenas como encaminhamento explícito a security-reviewer/logic-reviewer, sem severidade atribuída pelo quality-reviewer.",
+      "passed": true,
+      "evidence": "findings[] contém apenas QLT-001/002/003 (lint, testes, utils genérico). CPF aparece só em out_of_scope_observed linha 51: \"fora do escopo do quality-reviewer, ver security-reviewer\", sem severidade; grep \"< end\" no JSON não retorna nada (comparação exclusiva não mencionada)."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  }
+}

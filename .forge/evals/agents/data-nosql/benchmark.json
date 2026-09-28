@@ -1,0 +1,343 @@
+{
+  "metadata": {
+    "skill_name": "data-nosql",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-28T19:57:34Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 83,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta cont\u00e9m um bloco iniciado pela palavra CONFLITO com as seis linhas rotuladas do contrato: 'decis\u00e3o:', 'posi\u00e7\u00e3o A:', 'posi\u00e7\u00e3o B:', 'preced\u00eancia:', 'op\u00e7\u00f5es:' e 'registro:'",
+          "passed": true,
+          "evidence": "resposta-agente.md traz bloco ```text iniciado por 'CONFLITO' com as seis linhas rotuladas: 'decis\u00e3o: usar o Redis como armazenamento prim\u00e1rio...', 'posi\u00e7\u00e3o A: ...', 'posi\u00e7\u00e3o B: manter o saldo s\u00f3 no Redis... fonte: pedido do usu\u00e1rio', 'preced\u00eancia: constitution > baseline > rules > contexto/defaults (FORGE.md \u00a72.1)...', 'op\u00e7\u00f5es: aplicar a fonte de maior autoridade | abrir/atualizar ADR | bloquear', 'registro: ... quem registra \u00e9 a sess\u00e3o principal ou o pipeline /forge:* em curso; este agente n\u00e3o registra'."
+        },
+        {
+          "text": "A posi\u00e7\u00e3o A (ou o texto do bloco) cita pelo caminho .forge/rules/data/data-governance.md e/ou .forge/rules/data/data-cache.md como fonte de que Redis nunca \u00e9 fonte de verdade, e a preced\u00eancia coloca a rule acima do pedido/contexto",
+          "passed": true,
+          "evidence": "Posi\u00e7\u00e3o A: 'fonte: .forge/rules/data/data-governance.md (\"Transacional de neg\u00f3cio ... \u2192 MongoDB\") e .forge/rules/data/data-cache.md (\"Nunca fonte de verdade ...\")'; preced\u00eancia: 'a rule (posi\u00e7\u00e3o A) vence o pedido do usu\u00e1rio (posi\u00e7\u00e3o B, mero contexto)'."
+        },
+        {
+          "text": "A resposta N\u00c3O entrega, como desenho do armazenamento do saldo, esquema de chaves Redis do saldo, script Lua/EVAL ou MULTI/WATCH de d\u00e9bito, nem configura\u00e7\u00e3o appendonly/appendfsync; a aus\u00eancia desses tr\u00eas \u00e9 o que passa",
+          "passed": true,
+          "evidence": "N\u00e3o h\u00e1 script Lua/EVAL nem MULTI/WATCH, nem bloco appendonly/appendfsync de configura\u00e7\u00e3o; appendfsync aparece s\u00f3 citando o pedido. A \u00fanica chave Redis mencionada (`tenant:{id}:saldo:{contaId}`) \u00e9 explicitamente cache de leitura com TTL sobre o saldo em MongoDB, e o texto diz 'n\u00e3o \u00e9 entregue aqui como definitivo'. Nenhum arquivo al\u00e9m de resposta-agente.md e transcript.md em outputs/."
+        },
+        {
+          "text": "A resposta n\u00e3o afirma ter registrado a decis\u00e3o em approvals.yaml nem ter criado ADR, deixa o registro para a sess\u00e3o principal/HITL, e `git -C <alvo> status --porcelain` sai vazio",
+          "passed": true,
+          "evidence": "Linha 'registro: ... quem registra \u00e9 a sess\u00e3o principal ou o pipeline /forge:* em curso; este agente n\u00e3o registra'; transcript passo 10 'Nenhuma escrita de git'; `git -C with_skill/run-1/work status --porcelain` medido pelo grader saiu vazio."
+        },
+        {
+          "text": "A resposta indica que o saldo como fonte de verdade pertence ao transacional de neg\u00f3cio (MongoDB com w majority, pela data-governance.md, salvo ADR que escolha SQL) e que qualquer uso de Redis para o saldo seria c\u00f3pia derivada sob responsabilidade do data-cache",
+          "passed": true,
+          "evidence": "Op\u00e7\u00e3o recomendada 'MongoDB, ou Postgres com ADR expl\u00edcito, como fonte de verdade do saldo'; posi\u00e7\u00e3o A cita 'write concern majority' e data-governance.md; 'Redis pode continuar como cache derivado'; devolu\u00e7\u00e3o: 'a configura\u00e7\u00e3o de persist\u00eancia do Redis como *cache* (TTL, maxmemory-policy, namespacing por tenant) \u00e9 do data-cache'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.83,
+        "passed": 5,
+        "failed": 1,
+        "total": 6,
+        "time_seconds": 146,
+        "tokens": 15063,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta aponta o id N-07 citando conta-repository.ts com as linhas 19 e 25 (formato arquivo:linha ou equivalente inequ\u00edvoco) e recomenda write concern majority expl\u00edcito E substituir o \u00e1rbitro por um segundo secund\u00e1rio (topologia P-S-S), relacionando o \u00e1rbitro do README ao risco de perda de escrita",
+          "passed": true,
+          "evidence": "revisao-ledger-cobranca.md \u00a71: \"N-07 [alto] \u2014 write concern `w:1` em dado cr\u00edtico (`conta-repository.ts:19` e `:25`)\"; recomenda \"Troque `writeConcern: { w: 1 }` por `writeConcern: { w: 'majority' }` ... nas duas chamadas\"; relaciona o README (\"prim\u00e1rio, secund\u00e1rio e \u00e1rbitro \u2014 topologia P-S-A. Com \u00e1rbitro, o `w:1` confirma escrita num \u00fanico membro; num failover essa escrita pode desaparecer\") e recomenda \"Trocar para P-S-S (segundo secund\u00e1rio com dado) \u00e9 o que a rule pede\". Linhas 19 e 25 conferem com o fixture (w:1 em ambas)."
+        },
+        {
+          "text": "A resposta aponta o uso de Decimal128 (id N-21 ou cita\u00e7\u00e3o da money-as-cents.md) e recomenda armazenar valor como inteiro de 64 bits na menor unidade (Int64/NumberLong/long em centavos); a resposta N\u00c3O recomenda Decimal128 nem double/number de ponto flutuante como corre\u00e7\u00e3o",
+          "passed": false,
+          "evidence": "Aponta N-21 com :1/:9/:34 e cita money-as-cents.md, mas a corre\u00e7\u00e3o principal \u00e9 \"Troque `Decimal128` por `number` (ou `bigint`/`long` se o volume justificar)\" e \"`interface Lancamento { valor: number /* valorEmCentavos */ }`\". `number` em JS \u00e9 IEEE-754 (double) e o driver serializa inteiro fora de int32 como double; Int64/Long aparece s\u00f3 como alternativa condicional. A asser\u00e7\u00e3o exige recomendar inteiro de 64 bits e N\u00c3O recomendar number de ponto flutuante como corre\u00e7\u00e3o \u2014 reprova."
+        },
+        {
+          "text": "A resposta aponta a cole\u00e7\u00e3o interpolada contas_${tenant} como antipattern (N-03 ou equivalente) e recomenda as tr\u00eas coisas juntas: cole\u00e7\u00e3o \u00fanica com campo tenant obrigat\u00f3rio, filtro de tenant injetado no reposit\u00f3rio/interceptor e \u00edndice composto come\u00e7ando por tenant; e aponta que movimentos/extrato s\u00e3o lidos ou gravados sem tenant",
+          "passed": true,
+          "evidence": "\u00a73: \"N-03 ... `db.collection(`contas_${tenant}`)` \u2014 nome de cole\u00e7\u00e3o interpolado por tenant\"; corre\u00e7\u00e3o: \"cole\u00e7\u00e3o `contas` \u00fanica, com campo `tenant` obrigat\u00f3rio em todo documento, \u00edndice composto `{ tenant: 1, _id: 1 }` ... e um filtro de `tenant` injetado no reposit\u00f3rio (nunca confiar no chamador) em toda query\". Achado adicional: \"`movimentos` e `extrato` sem tenant algum\" com filtro `{ tenant, origem: contaId }`. Ressalva: as linhas citadas para N-03 (:14, :24) est\u00e3o deslocadas em uma/duas linhas (real: :15 e :26), e movimentos/extrato citados em :33/:40 (real :33 e :41-42); a asser\u00e7\u00e3o n\u00e3o exige linha."
+        },
+        {
+          "text": "A resposta aponta o $push de lancamentos sem teto (N-01 ou limite de 16 MiB do documento) e prop\u00f5e tirar os lan\u00e7amentos do array ilimitado (documento por lan\u00e7amento em cole\u00e7\u00e3o pr\u00f3pria ou bucket com teto), n\u00e3o apenas acrescentar $slice que descartaria lan\u00e7amentos cont\u00e1beis",
+          "passed": true,
+          "evidence": "\u00a74: \"N-01 [aviso] \u2014 array sem teto (`conta-repository.ts:18`) ... at\u00e9 o limite de 16 MiB do BSON\"; \"Corrija movendo `lancamentos` para uma cole\u00e7\u00e3o separada ... dado que este \u00e9 um ledger de cobran\u00e7a (hist\u00f3rico financeiro que n\u00e3o pode ser descartado), a cole\u00e7\u00e3o separada \u00e9 a escolha correta, n\u00e3o o `$slice` isolado\"."
+        },
+        {
+          "text": "A resposta recomenda readConcern snapshot (ou majority) em lugar de local na transa\u00e7\u00e3o de transferir E withTransaction ou retry pr\u00f3prio de UnknownTransactionCommitResult/TransientTransactionError no commit",
+          "passed": true,
+          "evidence": "\u00a71: \"`readConcern: { level: 'local' }` por `'majority'` (ou `'snapshot'` na transa\u00e7\u00e3o...)\" e N-23: \"Troque `startSession/startTransaction/commitTransaction/abortTransaction` manual por `session.withTransaction(async () => { ... }, { readConcern: 'majority', writeConcern: { w: 'majority' } })` ... j\u00e1 resolve retry de `TransientTransactionError` e de `UnknownTransactionCommitResult`\". Ressalva factual: a frase \"'snapshot' ... que j\u00e1 \u00e9 o default de startTransaction sem session options\" \u00e9 incorreta (sem op\u00e7\u00e3o, a transa\u00e7\u00e3o herda o readConcern do client/db, n\u00e3o snapshot), mas n\u00e3o afeta a recomenda\u00e7\u00e3o."
+        },
+        {
+          "text": "Ap\u00f3s a execu\u00e7\u00e3o, `git -C <alvo> status --porcelain` sai vazio: nenhum arquivo do alvo foi criado ou alterado, e o c\u00f3digo corrigido aparece s\u00f3 na resposta",
+          "passed": true,
+          "evidence": "`git -C with_skill/run-1/work status --porcelain` saiu vazio (medido pelo grader); `git log` mostra s\u00f3 o commit do fixture (c075747), sem commit do executor; revis\u00e3o e fragmentos de c\u00f3digo corrigido (`w: 'majority'`, `withTransaction(...)`, `interface Lancamento { valor: number }`, filtro `{ tenant, origem: contaId }`) est\u00e3o s\u00f3 em outputs/revisao-ledger-cobranca.md. Observa\u00e7\u00e3o: s\u00e3o fragmentos, n\u00e3o o arquivo corrigido inteiro."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.83,
+        "passed": 5,
+        "failed": 1,
+        "total": 6,
+        "time_seconds": 208,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta diz explicitamente que o check-data-governance n\u00e3o examinou o c\u00f3digo Java (universo vazio / n\u00e3o l\u00ea .java / 'n\u00e3o verificado') e, por isso, N\u00c3O confirma aus\u00eancia de problema de PAN com base nele; a resposta n\u00e3o trata a sa\u00edda do gate como aprova\u00e7\u00e3o",
+          "passed": true,
+          "evidence": "review.md, se\u00e7\u00e3o 'Sobre o gate': 'O gate n\u00e3o verificou nada \u2014 n\u00e3o \u00e9 aprova\u00e7\u00e3o, \u00e9 aus\u00eancia de verifica\u00e7\u00e3o. Rodei check-data-governance.sh --path services/pedidos ... FAIL data-governance/universo-vazio \u2014 0 arquivo(s) examinado(s)'; 'Esse verificador s\u00f3 l\u00ea .go, .kt, .ts, .rego, .py e .md; services/pedidos \u00e9 Java'. transcript.md \u00a76 mostra o comando executado e EXIT=1, interpretado como 'n\u00e3o verificado por escopo', nem aprova\u00e7\u00e3o nem conflito."
+        },
+        {
+          "text": "A resposta aponta que numeroCartao \u00e9 gravado em claro no item do DynamoDB (PedidoRepository.java, linha 26 ou o m\u00e9todo salvar), cita services/pedidos/data-classification.json (classification pan e/ou tokenization_boundary true) como base, e recomenda substituir o PAN por token ou refer\u00eancia do cofre, sem sugerir apenas mascarar na exibi\u00e7\u00e3o",
+          "passed": true,
+          "evidence": "review.md 'Achado cr\u00edtico': cita data-classification.json com numeroCartao 'pan' e tokenization_boundary: true; 'PedidoRepository.java (salvar) grava AttributeValue.fromS(p.numeroCartao()) \u2014 o PAN completo, em claro' (a linha 26 do fixture est\u00e1 dentro de salvar); recomenda 'tokenizar numeroCartao na borda de ingest\u00e3o ... manter no agregado s\u00f3 o token' e o PAN 's\u00f3 no provedor/vault PCI'. Mascaramento aparece s\u00f3 para exibi\u00e7\u00e3o, como complemento ao token, n\u00e3o como solu\u00e7\u00e3o \u00fanica."
+        },
+        {
+          "text": "A resposta cita N-06 em infra/dynamo.tf (linha 4, hash_key status) propondo partition key de alta cardinalidade alinhada ao acesso dominante (clienteId ou equivalente) E cita N-10 em infra/dynamo.tf (linha 24, projection_type ALL) propondo KEYS_ONLY ou INCLUDE",
+          "passed": true,
+          "evidence": "review.md: 'FOUND N-06 [aviso] services/pedidos/infra/dynamo.tf:4: hash_key = \"status\"' com corre\u00e7\u00e3o 'chave de alta cardinalidade alinhada ao padr\u00e3o de acesso dominante (ex.: pedidoId ... ou clienteId)'; 'FOUND N-10 [aviso] services/pedidos/infra/dynamo.tf:24: projection_type = \"ALL\"' com corre\u00e7\u00e3o 'proje\u00e7\u00e3o KEYS_ONLY ou INCLUDE'. Ressalva: o texto do PAN cita 'dynamo.tf:16-22' para o GSI (faixa imprecisa), mas o N-10 aparece com a linha 24 correta."
+        },
+        {
+          "text": "A resposta cita N-08 no m\u00e9todo pendentes (PedidoRepository.java:45) e substitui o Scan por Query num \u00edndice de status que espalha a carga (write sharding por sufixo calculado ou chave composta equivalente), sem manter Scan no caminho do painel",
+          "passed": false,
+          "evidence": "review.md N-08 cita pendentes() em PedidoRepository.java:45 e troca Scan por Query, mas a corre\u00e7\u00e3o \u00e9 'GSI esparso por status (atributo presente s\u00f3 quando PENDENTE)' ou 'fila/stream'. N\u00e3o h\u00e1 write sharding por sufixo calculado nem chave composta que espalhe a carga: um GSI esparso com partition key status=PENDENTE concentra todos os pendentes numa \u00fanica parti\u00e7\u00e3o, justamente no pico de ~8 mil/s. O requisito de espalhar a carga n\u00e3o \u00e9 atendido."
+        },
+        {
+          "text": "A resposta cita N-11 (ou 'leitura forte em GSI') na chamada .consistentRead(true) com indexName por-cliente (PedidoRepository.java:37), explicando que GSI s\u00f3 oferece leitura eventual e propondo ler da tabela base ou aceitar consist\u00eancia eventual",
+          "passed": true,
+          "evidence": "review.md, se\u00e7\u00e3o 'N-11 (achado manual \u2014 n\u00e3o pego pelo scanner)': '.indexName(\"por-cliente\") e .consistentRead(true) no mesmo builder (PedidoRepository.java, linhas do m\u00e9todo ultimosDoCliente)'; 'GSI s\u00f3 entrega leitura eventual \u2014 a API ... rejeita ConsistentRead: true combinado com IndexName'; corre\u00e7\u00e3o: 'remover .consistentRead(true) ... (aceitar eventual) ou ... Query/GetItem na tabela base'. Ressalva: n\u00e3o cita o n\u00famero de linha 37, mas identifica o m\u00e9todo que cont\u00e9m essa chamada sem ambiguidade."
+        },
+        {
+          "text": "Ap\u00f3s a execu\u00e7\u00e3o, `git -C <alvo> status --porcelain` sai vazio",
+          "passed": true,
+          "evidence": "git -C with_skill/run-1/work status --porcelain executado pelo grader: sa\u00edda vazia, rc=0 (HEAD b3b0f7a). review.md: 'Nenhum arquivo de services/pedidos foi alterado'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 5,
+        "total": 5,
+        "time_seconds": 119,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta cont\u00e9m um bloco iniciado pela palavra CONFLITO com as seis linhas rotuladas do contrato: 'decis\u00e3o:', 'posi\u00e7\u00e3o A:', 'posi\u00e7\u00e3o B:', 'preced\u00eancia:', 'op\u00e7\u00f5es:' e 'registro:'",
+          "passed": false,
+          "evidence": "resposta.md n\u00e3o cont\u00e9m bloco CONFLITO nem as linhas rotuladas 'decis\u00e3o:', 'posi\u00e7\u00e3o A:', 'posi\u00e7\u00e3o B:', 'preced\u00eancia:', 'op\u00e7\u00f5es:', 'registro:'; \u00e9 uma an\u00e1lise em prosa com se\u00e7\u00f5es 'Resposta direta ao pedido', 'Recomenda\u00e7\u00e3o' etc."
+        },
+        {
+          "text": "A posi\u00e7\u00e3o A (ou o texto do bloco) cita pelo caminho .forge/rules/data/data-governance.md e/ou .forge/rules/data/data-cache.md como fonte de que Redis nunca \u00e9 fonte de verdade, e a preced\u00eancia coloca a rule acima do pedido/contexto",
+          "passed": false,
+          "evidence": "Nenhuma men\u00e7\u00e3o a .forge/rules/data/data-governance.md nem data-cache.md; transcript diz que a decis\u00e3o foi tomada 'sem consultar skill/agent do harness, s\u00f3 conhecimento de dom\u00ednio'; n\u00e3o h\u00e1 preced\u00eancia rule > pedido."
+        },
+        {
+          "text": "A resposta N\u00c3O entrega, como desenho do armazenamento do saldo, esquema de chaves Redis do saldo, script Lua/EVAL ou MULTI/WATCH de d\u00e9bito, nem configura\u00e7\u00e3o appendonly/appendfsync; a aus\u00eancia desses tr\u00eas \u00e9 o que passa",
+          "passed": false,
+          "evidence": "Entrega os tr\u00eas itens proibidos: se\u00e7\u00e3o 'Desenho das chaves (Redis)' com 'saldo:{conta_id} -> ... (fonte \u00fanica se Redis-only)', outputs/debitar.lua com script Lua de d\u00e9bito (DECRBY com verifica\u00e7\u00e3o de saldo) e outputs/redis.conf com 'appendonly yes' / 'appendfsync always'."
+        },
+        {
+          "text": "A resposta n\u00e3o afirma ter registrado a decis\u00e3o em approvals.yaml nem ter criado ADR, deixa o registro para a sess\u00e3o principal/HITL, e `git -C <alvo> status --porcelain` sai vazio",
+          "passed": false,
+          "evidence": "git status --porcelain em without_skill/run-1/work saiu vazio e n\u00e3o afirma ter registrado, mas n\u00e3o deixa o registro para a sess\u00e3o principal/HITL: instrui o task-coder a criar 'docs/decisions/saldo-redis-only.md (ou ADR)' registrando a decis\u00e3o Redis como fonte \u00fanica; a exig\u00eancia de devolver o registro \u00e0 sess\u00e3o principal n\u00e3o \u00e9 atendida."
+        },
+        {
+          "text": "A resposta indica que o saldo como fonte de verdade pertence ao transacional de neg\u00f3cio (MongoDB com w majority, pela data-governance.md, salvo ADR que escolha SQL) e que qualquer uso de Redis para o saldo seria c\u00f3pia derivada sob responsabilidade do data-cache",
+          "passed": false,
+          "evidence": "Recomenda Postgres como ledger fonte da verdade (double-entry), n\u00e3o MongoDB com w majority pela data-governance.md; n\u00e3o menciona data-cache como respons\u00e1vel pelo uso de Redis derivado, e ainda entrega Redis como storage \u00fanico alternativo."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.5,
+        "passed": 3,
+        "failed": 3,
+        "total": 6,
+        "time_seconds": 125,
+        "tokens": 14255,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta aponta o id N-07 citando conta-repository.ts com as linhas 19 e 25 (formato arquivo:linha ou equivalente inequ\u00edvoco) e recomenda write concern majority expl\u00edcito E substituir o \u00e1rbitro por um segundo secund\u00e1rio (topologia P-S-S), relacionando o \u00e1rbitro do README ao risco de perda de escrita",
+          "passed": false,
+          "evidence": "A revis\u00e3o n\u00e3o cita o id N-07 (nenhum id de cat\u00e1logo aparece), n\u00e3o d\u00e1 arquivo:linha (\"`registrarLancamento` grava com `writeConcern: { w: 1 }`\", sem :19/:25) e recomenda s\u00f3 `w: 'majority'`; n\u00e3o recomenda substituir o \u00e1rbitro por segundo secund\u00e1rio (P-S-S) \u2014 apenas explica que \"o \u00e1rbitro n\u00e3o guarda dado\"."
+        },
+        {
+          "text": "A resposta aponta o uso de Decimal128 (id N-21 ou cita\u00e7\u00e3o da money-as-cents.md) e recomenda armazenar valor como inteiro de 64 bits na menor unidade (Int64/NumberLong/long em centavos); a resposta N\u00c3O recomenda Decimal128 nem double/number de ponto flutuante como corre\u00e7\u00e3o",
+          "passed": false,
+          "evidence": "N\u00e3o cita N-21 nem money-as-cents.md e n\u00e3o recomenda Int64/Long em centavos como corre\u00e7\u00e3o: prop\u00f5e consertar a convers\u00e3o para `Decimal128` via string e admite \"se a decis\u00e3o \u00e9 `Decimal128`, `saldo` tamb\u00e9m deveria ser `Decimal128`\" \u2014 ou seja, Decimal128 \u00e9 oferecido como corre\u00e7\u00e3o v\u00e1lida; a men\u00e7\u00e3o a \"`number`/`Long`\" \u00e9 condicional. Reprova nas duas pernas."
+        },
+        {
+          "text": "A resposta aponta a cole\u00e7\u00e3o interpolada contas_${tenant} como antipattern (N-03 ou equivalente) e recomenda as tr\u00eas coisas juntas: cole\u00e7\u00e3o \u00fanica com campo tenant obrigat\u00f3rio, filtro de tenant injetado no reposit\u00f3rio/interceptor e \u00edndice composto come\u00e7ando por tenant; e aponta que movimentos/extrato s\u00e3o lidos ou gravados sem tenant",
+          "passed": false,
+          "evidence": "Aponta `contas_${tenant}` e recomenda \"uma \u00fanica cole\u00e7\u00e3o `contas` com campo `tenant` indexado (\u00edndice composto `{ tenant: 1, _id: 1 }`)\" e aponta `movimentos`/`extrato` sem tenant. Falta a terceira perna exigida: filtro de tenant injetado no reposit\u00f3rio/interceptor para toda query \u2014 s\u00f3 prop\u00f5e o filtro pontual em `extrato`; tamb\u00e9m n\u00e3o diz campo tenant obrigat\u00f3rio. Na d\u00favida, reprova."
+        },
+        {
+          "text": "A resposta aponta o $push de lancamentos sem teto (N-01 ou limite de 16 MiB do documento) e prop\u00f5e tirar os lan\u00e7amentos do array ilimitado (documento por lan\u00e7amento em cole\u00e7\u00e3o pr\u00f3pria ou bucket com teto), n\u00e3o apenas acrescentar $slice que descartaria lan\u00e7amentos cont\u00e1beis",
+          "passed": true,
+          "evidence": "\u00a74: \"`$push: { lancamentos: lanc }` ... sem limite ... esbarra no limite de 16 MB por documento\"; \"Trocar por lan\u00e7amentos em cole\u00e7\u00e3o pr\u00f3pria (`lancamentos`, um documento por lan\u00e7amento, com `contaId`/`tenant` indexados) \u2014 o padr\u00e3o de 'bucket' ... \u00e9 uma alternativa\". N\u00e3o prop\u00f5e `$slice`."
+        },
+        {
+          "text": "A resposta recomenda readConcern snapshot (ou majority) em lugar de local na transa\u00e7\u00e3o de transferir E withTransaction ou retry pr\u00f3prio de UnknownTransactionCommitResult/TransientTransactionError no commit",
+          "passed": true,
+          "evidence": "\u00a71: \"Trocar por `readConcern: { level: 'snapshot' }` ... combinado com `writeConcern: 'majority'`\" e \"n\u00e3o h\u00e1 o retry recomendado pelo driver para `TransientTransactionError`/`UnknownTransactionCommitResult`. Trocar por um wrapper padr\u00e3o ... com retry nos dois pontos (execu\u00e7\u00e3o e commit)\"."
+        },
+        {
+          "text": "Ap\u00f3s a execu\u00e7\u00e3o, `git -C <alvo> status --porcelain` sai vazio: nenhum arquivo do alvo foi criado ou alterado, e o c\u00f3digo corrigido aparece s\u00f3 na resposta",
+          "passed": true,
+          "evidence": "`git -C without_skill/run-1/work status --porcelain` saiu vazio (medido pelo grader); `git log` mostra s\u00f3 o commit do fixture (c0fe42d); fragmentos de corre\u00e7\u00e3o (wrapper try/catch/finally, constru\u00e7\u00e3o de string sem divis\u00e3o flutuante, filtro `{ tenant, origem: contaId }`, valida\u00e7\u00e3o `Number.isInteger`) aparecem s\u00f3 em outputs/revisao-ledger-cobranca.md."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.5,
+        "passed": 3,
+        "failed": 3,
+        "total": 6,
+        "time_seconds": 105,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta diz explicitamente que o check-data-governance n\u00e3o examinou o c\u00f3digo Java (universo vazio / n\u00e3o l\u00ea .java / 'n\u00e3o verificado') e, por isso, N\u00c3O confirma aus\u00eancia de problema de PAN com base nele; a resposta n\u00e3o trata a sa\u00edda do gate como aprova\u00e7\u00e3o",
+          "passed": false,
+          "evidence": "O check-data-governance nunca foi executado (transcript.md n\u00e3o registra o comando). A nota sobre o gate s\u00f3 especula: 'Ou o gate atual n\u00e3o avalia uso de campo contra a classifica\u00e7\u00e3o declarada ... ou n\u00e3o cobre este caminho de c\u00f3digo'. A resposta n\u00e3o diz que o verificador n\u00e3o examina .java nem que o universo estava vazio ou 'n\u00e3o verificado'. Ela n\u00e3o trata o gate como aprova\u00e7\u00e3o, mas falta a parte expl\u00edcita que a asser\u00e7\u00e3o exige."
+        },
+        {
+          "text": "A resposta aponta que numeroCartao \u00e9 gravado em claro no item do DynamoDB (PedidoRepository.java, linha 26 ou o m\u00e9todo salvar), cita services/pedidos/data-classification.json (classification pan e/ou tokenization_boundary true) como base, e recomenda substituir o PAN por token ou refer\u00eancia do cofre, sem sugerir apenas mascarar na exibi\u00e7\u00e3o",
+          "passed": true,
+          "evidence": "revisao-pedidos-dynamodb.md achado 1: 'Onde: PedidoRepository.java:26 (salvar)'; cita data-classification.json com '\"classification\": \"pan\"' e '\"tokenization_boundary\": true'; recomenda\u00e7\u00e3o: 'armazenar apenas o token retornado pelo provedor de pagamento' e 'mover o PAN real para fora do dom\u00ednio de pedidos'. O fallback '(ou, no m\u00ednimo, a forma mascarada)' fala de persist\u00eancia, n\u00e3o de mascarar s\u00f3 na exibi\u00e7\u00e3o."
+        },
+        {
+          "text": "A resposta cita N-06 em infra/dynamo.tf (linha 4, hash_key status) propondo partition key de alta cardinalidade alinhada ao acesso dominante (clienteId ou equivalente) E cita N-10 em infra/dynamo.tf (linha 24, projection_type ALL) propondo KEYS_ONLY ou INCLUDE",
+          "passed": false,
+          "evidence": "Os ids N-06 e N-10 n\u00e3o aparecem na resposta. Em subst\u00e2ncia, o achado 4 cita dynamo.tf:4 com hash_key status, mas prop\u00f5e pedidoId como hash key, que n\u00e3o se alinha ao acesso dominante por cliente, e o sharding que sugere \u00e9 sobre status. O achado 2 cita 'dynamo.tf:20-25' e prop\u00f5e INCLUDE. Falta a cita\u00e7\u00e3o de N-06 e de N-10 que a asser\u00e7\u00e3o exige."
+        },
+        {
+          "text": "A resposta cita N-08 no m\u00e9todo pendentes (PedidoRepository.java:45) e substitui o Scan por Query num \u00edndice de status que espalha a carga (write sharding por sufixo calculado ou chave composta equivalente), sem manter Scan no caminho do painel",
+          "passed": false,
+          "evidence": "O id N-08 n\u00e3o aparece. O achado 5 (PedidoRepository.java:44-51, pendentes) prop\u00f5e 'Query com keyConditionExpression(\"status = :p\") diretamente na tabela base', ou seja, uma Query na parti\u00e7\u00e3o quente status=PENDENTE, sem write sharding. O sharding por sufixo aparece s\u00f3 no achado 4, como alternativa para a chave da tabela, e n\u00e3o est\u00e1 ligado ao caminho do painel."
+        },
+        {
+          "text": "A resposta cita N-11 (ou 'leitura forte em GSI') na chamada .consistentRead(true) com indexName por-cliente (PedidoRepository.java:37), explicando que GSI s\u00f3 oferece leitura eventual e propondo ler da tabela base ou aceitar consist\u00eancia eventual",
+          "passed": true,
+          "evidence": "revisao-pedidos-dynamodb.md achado 3: 'Onde: PedidoRepository.java:37'; 'DynamoDB n\u00e3o suporta leitura fortemente consistente (ConsistentRead=true) em Global Secondary Index \u2014 apenas eventual consistency ... lan\u00e7a ValidationException'; recomenda\u00e7\u00e3o: remover consistentRead(true) e aceitar eventual, ou usar a tabela base. A asser\u00e7\u00e3o aceita 'leitura forte em GSI' como alternativa ao id N-11."
+        },
+        {
+          "text": "Ap\u00f3s a execu\u00e7\u00e3o, `git -C <alvo> status --porcelain` sai vazio",
+          "passed": true,
+          "evidence": "git -C without_skill/run-1/work status --porcelain executado pelo grader: sa\u00edda vazia, rc=0 (HEAD 10d8824)."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.8867,
+        "stddev": 0.0981,
+        "min": 0.83,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 145.6667,
+        "stddev": 62.5007,
+        "min": 83,
+        "max": 208
+      },
+      "tokens": {
+        "mean": 5021.0,
+        "stddev": 8696.6271,
+        "min": 0,
+        "max": 15063
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.3333,
+        "stddev": 0.2887,
+        "min": 0.0,
+        "max": 0.5
+      },
+      "time_seconds": {
+        "mean": 116.3333,
+        "stddev": 10.2632,
+        "min": 105,
+        "max": 125
+      },
+      "tokens": {
+        "mean": 4751.6667,
+        "stddev": 8230.1281,
+        "min": 0,
+        "max": 14255
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.55",
+      "time_seconds": "+29.3",
+      "tokens": "+269"
+    }
+  },
+  "notes": []
+}

@@ -1,0 +1,40 @@
+{
+  "skill": "verify-build",
+  "passed": true,
+  "exit_code": 0,
+  "branch": "feat/integracao-60min",
+  "base": "main",
+  "stacks_detected": ["python"],
+  "diff_files": [
+    "docs/tarifas.md",
+    "services/tarifa/tarifa/calculo.py",
+    "services/tarifa/tests/test_integracao.py"
+  ],
+  "results": {
+    "python": {
+      "test": {
+        "command": "cd services/tarifa && python3 -m unittest discover -s tests -t .",
+        "passed": true,
+        "total": 7,
+        "failed": 0,
+        "failures": []
+      },
+      "lint": {
+        "passed": null,
+        "configured": false,
+        "note": "runtime.lint vazio em .forge/FORGE.md; nenhum ruff.toml/[tool.ruff] no projeto. Não avaliado, não aprovado."
+      },
+      "typecheck": {
+        "passed": null,
+        "configured": false,
+        "note": "runtime.typecheck vazio em .forge/FORGE.md; nenhum mypy/pyright configurado. Não avaliado, não aprovado."
+      }
+    },
+    "node": {
+      "skipped": true,
+      "reason": "Nenhum arquivo sob web/ no diff main...feat/integracao-60min (0 arquivos node/ts alterados) — stack node não detectada pelo verify-build. O typecheck quebrado de web/painel (épico PAINEL-12, pré-existente) é dívida separada e não faz parte deste diff."
+    }
+  },
+  "duration_seconds": 0,
+  "findings_to_emit": []
+}

@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "revisao-grafo-bilhetagem-api",
+  "prompt": "Acabei de rodar o /forge:codegraph no bilhetagem-api (backend TypeScript da tarifação/emissão de bilhete, migrado para ESM NodeNext em maio) e o grafo está em .forge/graph/. Antes de usar esse grafo como pré-flight do /forge:impact na mudança da janela de integração tarifária, revisa a qualidade dele: cobertura, summaries, órfãos e edges não resolvidos. Quero o veredito e a ação recomendada em docs/qualidade/revisao-grafo-bilhetagem.md.",
+  "assertions": [
+    "docs/qualidade/revisao-grafo-bilhetagem.md contém uma linha que começa exatamente com `## Status: ` seguida de `CURADORIA RECOMENDADA` ou `NÃO CONFIÁVEL` (não `CONFIÁVEL` sozinho), e há uma ação recomendada explícita logo após essa linha",
+    "O documento registra scripts/conciliacao/ (ou os arquivos .rb dele) como código fora do grafo por linguagem não suportada pelo extractor nativo e o qualifica como candidato a tree-sitter opt-in ou cita a ADR 0001",
+    "O documento classifica ../application/calcular-tarifa.js e ../domain/desconto.js como edges internos que deveriam resolver (arquivo .ts existe; causa: sufixo .js do NodeNext) e ../../config/tarifas.json como alvo não-código/esperado — os três nomeados individualmente, não só a contagem 3",
+    "O documento afirma que src/domain/desconto.ts é órfão por perda do extractor (importado por src/api/tarifa-controller.ts) e trata src/jobs/expurgo-legado.ts de forma distinta, como isolado de fato/candidato a código morto",
+    "O documento nomeia src/domain/tarifa.ts e src/shared/money.ts como nós críticos (alto fan-in) com summary stale e recomenda curadoria deles via file-analyzer (o nome do agente aparece)",
+    "`git -C <alvo> status --porcelain -- src/ scripts/ config/ tsconfig.json` sai vazio (o revisor não corrige imports nem código)"
+  ]
+}

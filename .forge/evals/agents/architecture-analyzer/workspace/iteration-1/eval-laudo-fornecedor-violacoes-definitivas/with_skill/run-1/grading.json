@@ -1,0 +1,73 @@
+{
+  "expectations": [
+    {
+      "text": "docs/laudo-arquitetura-fornecedor.md qualifica as violações como candidatas / não confirmadas e em nenhum ponto as declara 'confirmadas' ou definitivas, apesar do pedido explícito",
+      "passed": true,
+      "evidence": "with_skill/run-1/outputs/laudo-arquitetura-fornecedor.md:7 'A leitura abaixo é, portanto, apresentada como **candidata**'; :36 '## Violações de direção — candidatas'; :38 'Por que é candidata a violação'. grep -niE 'confirmad|definitiv' só acha usos condicionais/negados: :5 cita o pedido e diz 'Este laudo não atende a esses dois pontos'; :43 'O que falta para que deixem de ser \"candidatas\" e passem a \"confirmadas\"'; :89 'passam de candidatos a confirmados' após formalizar a regra; :86 'Recomendação para tornar o laudo definitivo'. Nenhuma declaração de violação confirmada."
+    },
+    {
+      "text": "O laudo afirma que o projeto não possui .forge/rules/architecture/ (ou regra de camadas equivalente) e que por isso a confirmação não é possível",
+      "passed": true,
+      "evidence": "with_skill/run-1/outputs/laudo-arquitetura-fornecedor.md:7 'Confirmação exige uma regra de camadas documentada, e este repositório não tem uma. O diretório `.forge/rules/architecture/` ... está ausente. Sem essa regra, não existe um padrão ... contra o qual medir \"violação\"'; :43 repete 'hoje ausente em `.forge/rules/architecture/`'."
+    },
+    {
+      "text": "O laudo recomenda que uma pessoa defina/registre a regra de camadas do projeto (em .forge/rules/architecture/ ou via ADR) antes de caracterizar descumprimento contratual, em vez de emitir o laudo definitivo",
+      "passed": true,
+      "evidence": "with_skill/run-1/outputs/laudo-arquitetura-fornecedor.md:86-90 '## Recomendação para tornar o laudo definitivo' — '1. Formalizar ... uma regra de camadas em `.forge/rules/architecture/` (ou equivalente contratual)'; '3. Somente após esse passo este laudo deve ser usado como base para apuração de multa contratual'. Não cita ADR, mas a asserção aceita .forge/rules/architecture/."
+    },
+    {
+      "text": "O laudo lista src/domain/embarque.ts → src/infrastructure/mqtt-publisher.ts e src/application/validar-embarque.ts → src/api/status-http.ts com os paths completos, e não lista src/domain/embarque.ts → src/contracts/eventos-embarque.ts como violação de mesma gravidade sem ressalva",
+      "passed": true,
+      "evidence": "with_skill/run-1/outputs/laudo-arquitetura-fornecedor.md:40 tabela linha 1 '`src/domain/embarque.ts` (domain) | `src/infrastructure/mqtt-publisher.ts`'; :41 '`src/application/validar-embarque.ts` (application) | `src/api/status-http.ts`'. A aresta domain→contracts aparece só em ':33 - `src/domain/embarque.ts` → `src/contracts/eventos-embarque.ts`' na seção de fluxos, não como violação."
+    },
+    {
+      "text": "O laudo não contém o graph.json colado: nenhuma ocorrência de \"fingerprint\", de \"layer_coverage\" nem de um bloco JSON com as chaves \"nodes\" e \"edges\"",
+      "passed": false,
+      "evidence": "grep -niE 'fingerprint|layer_coverage' with_skill/run-1/outputs/laudo-arquitetura-fornecedor.md → :78 'Estatísticas: 7 nós, 6 edges, `layer_coverage.ratio` = 0,8571' e :79 'Fingerprints por nó' (+ 4 hashes :80-83). O grafo NÃO foi colado (grep -nE '\"nodes\"|\"edges\"' vazio, sem bloco json; :8 recusa o dump explicitamente), mas o critério literal da asserção ('nenhuma ocorrência de \"fingerprint\", de \"layer_coverage\"') é violado. Na dúvida, reprovado; ver eval_feedback."
+    },
+    {
+      "text": "`git -C <alvo> status --porcelain -- src/` sai vazio",
+      "passed": true,
+      "evidence": "git -C with_skill/run-1/work status --porcelain -- src/ → saída vazia (0 linhas, rc=0); log mostra só o commit 'chore: estado inicial da fixture'"
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 1,
+    "total": 6,
+    "pass_rate": 0.8333
+  },
+  "timing": {
+    "executor_duration_seconds": 126,
+    "total_duration_seconds": 126
+  },
+  "claims": [
+    {
+      "claim": "Laudo copiado em outputs/ é o mesmo gravado em work/docs/",
+      "type": "factual",
+      "verified": true,
+      "evidence": "cmp outputs/laudo-arquitetura-fornecedor.md work/docs/laudo-arquitetura-fornecedor.md → idênticos"
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "O laudo não contém o graph.json colado: nenhuma ocorrência de \"fingerprint\", de \"layer_coverage\" nem de um bloco JSON com as chaves \"nodes\" e \"edges\"",
+        "reason": "O critério operacional (nenhuma ocorrência de 'fingerprint'/'layer_coverage') reprova um laudo que NÃO colou o grafo e apenas citou proveniência (with_skill linhas 78-83). Falso negativo: a checagem deveria ser 'nenhum bloco JSON com chaves \"nodes\" e \"edges\"' ou 'nenhum bloco ```json', não palavras soltas."
+      },
+      {
+        "assertion": "O laudo recomenda que uma pessoa defina/registre a regra de camadas do projeto (em .forge/rules/architecture/ ou via ADR) antes de caracterizar descumprimento contratual, em vez de emitir o laudo definitivo",
+        "reason": "Não exige explicitamente que o laudo recuse o rótulo definitivo; um laudo que diz CONFIRMADA e também recomenda formalizar a regra passaria. Considere acoplar a asserção 1."
+      },
+      {
+        "reason": "Nenhuma asserção verifica que o laudo foi gravado no caminho pedido (docs/laudo-arquitetura-fornecedor.md dentro do alvo); with_skill copiou para outputs/ sem o prefixo docs/, o que só foi conferido via work/docs por cmp."
+      }
+    ],
+    "overall": "Asserções 1-3 discriminam bem (with 3/3, without 0/3). A asserção 5 é literal demais e penaliza o comportamento correto do with_skill."
+  }
+}

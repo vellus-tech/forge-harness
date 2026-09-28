@@ -1,0 +1,96 @@
+{
+  "skill_name": "arch-reviewer",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "estorno-parcial-pagamentos-diff-principal",
+      "prompt": "Estou na branch feature/estorno-parcial do serviço de pagamentos (base: develop). O code-evaluator vai consolidar as revisões antes do PR e preciso da parte de arquitetura: revisa o diff develop..HEAD em services/pagamentos quanto a Clean Architecture, DDD tático, regra de dependência entre os .csproj e contratos públicos. Não mexe no código. Grava o resultado em review/arch-reviewer.json, no formato que o code-evaluator consome.",
+      "expected_output": "review/arch-reviewer.json é um JSON com reviewer=\"arch-reviewer\" e findings com IDs ARCH-NNN, category \"arch\", file, line, title, description, fix_suggested, rule_violated e confidence. BLOCKER: ProjectReference de Pagamentos.Domain.csproj:7 para Infrastructure; `using MassTransit` em Aggregates/Estorno.cs:1; setter público em ValueObjects/ValorMonetario.cs:5; evento imperativo Events/EstornarPagamento.cs:3 (sugerir nome no passado, ex. PagamentoEstornado). HIGH: agregado Estorno com construtor público e sem Create/Reconstitute (Estorno.cs:13); IEstornoRepository em Application/Abstractions em vez de Domain; rota `api/Estornos` sem versão (EstornosController.cs:7), com MEDIUM opcional por não ser kebab-case; ausência de Pagamentos.Architecture.Tests. O arredondamento `Math.Round(valor, 1)` do handler (bug de lógica) não é reportado. Nenhum arquivo de services/ é alterado.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "json-no-contrato-do-arch-reviewer",
+          "text": "review/arch-reviewer.json é JSON válido com \"reviewer\": \"arch-reviewer\" e array \"findings\"; todo finding tem id no padrão ^ARCH-\\d{3}$, severity em {BLOCKER, HIGH, MEDIUM, LOW}, \"category\": \"arch\" e os campos file, rule_violated e confidence preenchidos"
+        },
+        {
+          "name": "blocker-domain-referencia-infrastructure-e-masstransit",
+          "text": "Há finding BLOCKER com file terminando em Pagamentos.Domain/Pagamentos.Domain.csproj (ProjectReference para Pagamentos.Infrastructure) E finding BLOCKER em Pagamentos.Domain/Aggregates/Estorno.cs pelo `using MassTransit`"
+        },
+        {
+          "name": "blocker-setter-publico-e-evento-imperativo",
+          "text": "Há finding com severity BLOCKER (não HIGH/MEDIUM) em ValueObjects/ValorMonetario.cs pelo setter público do objeto de valor E finding BLOCKER em Events/EstornarPagamento.cs pelo nome imperativo do Domain Event"
+        },
+        {
+          "name": "high-factory-repositorio-versao-e-architecture-tests",
+          "text": "Há findings HIGH para pelo menos três de: agregado Estorno sem construtor privado/factory Create+Reconstitute; interface IEstornoRepository fora do Domain; rota `api/Estornos` sem versão /api/v1; ausência de projeto Pagamentos.Architecture.Tests (NetArchTest)"
+        },
+        {
+          "name": "bug-de-arredondamento-fora-do-escopo",
+          "text": "Nenhum finding trata do `Math.Round(valor, 1)` / arredondamento de centavos em SolicitarEstornoParcialHandler.cs (lógica é escopo do logic-reviewer)"
+        },
+        {
+          "name": "codigo-intacto",
+          "text": "`git -C <alvo> status --porcelain -- services/` sai vazio: o revisor não editou nenhum arquivo do serviço"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "adr-aceito-vs-proposto-e-contrato-v1-quebrado",
+      "prompt": "Revisão arquitetural da branch feature/cache-pagamentos contra develop. Contexto do code-evaluator: ADRs aplicáveis ADR-0005 e ADR-0008 (em docs/product/adr/); rules clean-architecture.md, ddd.md e api-and-contracts.md. A mudança troca o valor do PagamentoAprovadoV1 para centavos, adiciona um repositório com cache e um DbContext. Grava os findings em review/arch-reviewer.json.",
+      "expected_output": "O revisor lê os dois ADRs e distingue o status: ADR-0005 (Aceito) proíbe Newtonsoft.Json, logo o PackageReference em Pagamentos.Infrastructure.csproj:8 (e o uso em CachedPagamentoRepository.cs) vira BLOCKER com título no formato \"ARCH-NNN — Conflito com ADR-0005\"; ADR-0008 está Proposto, então o EF Core em Infrastructure não é conflito com ADR aceito e não gera BLOCKER (no máximo LOW/observação). A troca de `decimal Valor` por `long ValorEmCentavos` no PagamentoAprovadoV1 (Contracts/Events/PagamentoAprovadoV1.cs:4) é breaking change sem v2 → BLOCKER. CachedPagamentoRepository coexistindo com PagamentoRepository em Infrastructure é aceitável (sufixo de contexto, não prefixo de tecnologia) e não é sinalizado; Architecture.Tests existe, então não há HIGH por ausência.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "blocker-conflito-com-adr-0005-no-formato",
+          "text": "review/arch-reviewer.json tem finding BLOCKER sobre Newtonsoft.Json em Pagamentos.Infrastructure (csproj ou CachedPagamentoRepository.cs) cujo title contém \"Conflito com ADR-0005\""
+        },
+        {
+          "name": "adr-proposto-nao-vira-blocker",
+          "text": "Nenhum finding BLOCKER ou HIGH cita ADR-0008 ou o uso de Microsoft.EntityFrameworkCore / PagamentosDbContext em Infrastructure como conflito (ADR-0008 tem Status: Proposto; menção em LOW ou ausência são aceitáveis)"
+        },
+        {
+          "name": "breaking-change-v1-sem-v2-blocker",
+          "text": "Há finding BLOCKER em Pagamentos.Contracts/Events/PagamentoAprovadoV1.cs apontando a mudança de Valor (decimal) para ValorEmCentavos (long) como breaking change no contrato v1 sem nova versão v2"
+        },
+        {
+          "name": "cached-repository-nao-e-prefixo-de-tecnologia",
+          "text": "Nenhum finding aponta CachedPagamentoRepository como prefixo de tecnologia ou violação de nomenclatura"
+        },
+        {
+          "name": "sem-falso-positivo-de-architecture-tests",
+          "text": "Nenhum finding alega ausência de Architecture.Tests (services/pagamentos/tests/Pagamentos.Architecture.Tests existe) nem aponta a ProjectReference Api → Infrastructure como violação"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "pr-reembolso-revisao-completa-fora-de-escopo",
+      "prompt": "O PR #87 (branch feature/reembolso-pr-87, base develop) mexe no Dockerfile, no deployment do Kubernetes, no repositório de reembolso e cria um evento de domínio. Como arch-reviewer, faz a revisão completa: segurança, Docker/K8s, lógica e arquitetura, e já corrige nos arquivos o que achar para eu não perder tempo. Salva o resultado em review/arch-reviewer.json.",
+      "expected_output": "O agente se limita ao próprio escopo: reporta em review/arch-reviewer.json apenas o evento de domínio imperativo ProcessarReembolso (Domain/Events/ProcessarReembolso.cs:3) como BLOCKER, sugerindo nome no passado (ex. ReembolsoProcessado). Não reporta a concatenação de SQL em ReembolsoRepository.cs:10 (security-reviewer), o Dockerfile sem multi-stage/USER nem o `privileged: true` do deployment.yaml (platform-reviewer), e declara na resposta que esses itens pertencem a outros revisores do code-evaluator. Não edita nenhum arquivo, mesmo com o pedido explícito de corrigir.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "evento-imperativo-blocker",
+          "text": "review/arch-reviewer.json tem finding BLOCKER com id ARCH-NNN em Pagamentos.Domain/Events/ProcessarReembolso.cs pelo nome imperativo do Domain Event"
+        },
+        {
+          "name": "nada-de-docker-ou-k8s",
+          "text": "Nenhum finding tem file Dockerfile ou deploy/k8s/deployment.yaml, nem trata de privileged, usuário root, imagem :latest ou multi-stage"
+        },
+        {
+          "name": "nada-de-sql-injection",
+          "text": "Nenhum finding trata da concatenação de SQL / SQL injection em Infrastructure/Persistence/ReembolsoRepository.cs"
+        },
+        {
+          "name": "fora-de-escopo-encaminhado-a-outros-revisores",
+          "text": "A resposta final ou um arquivo de saída declara que segurança e Docker/K8s estão fora do escopo do arch-reviewer, nomeando security-reviewer e/ou platform-reviewer (ou o code-evaluator) como responsáveis"
+        },
+        {
+          "name": "nenhuma-correcao-aplicada",
+          "text": "`git -C <alvo> status --porcelain -- services/` sai vazio: Dockerfile, deployment.yaml, ReembolsoRepository.cs e ProcessarReembolso.cs não foram editados, apesar do pedido de corrigir"
+        }
+      ]
+    }
+  ]
+}

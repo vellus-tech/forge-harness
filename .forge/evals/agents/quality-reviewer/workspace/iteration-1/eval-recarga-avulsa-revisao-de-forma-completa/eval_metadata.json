@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "recarga-avulsa-revisao-de-forma-completa",
+  "prompt": "O code-evaluator vai pedir a revisão de forma da branch feature/recarga-avulsa (base develop) antes de eu abrir o PR do serviço de recarga. Faz a revisão de qualidade dos três commits — mensagens, nomes de arquivos e identificadores, idioma, a migration nova do PostgreSQL, testes correspondentes e arquivos que não deveriam estar ali — e grava o resultado em revisao/quality-reviewer.json.",
+  "assertions": [
+    "revisao/quality-reviewer.json é JSON válido com reviewer igual a 'quality-reviewer' e um array findings em que todo item tem id no padrão QLT-NNN (três dígitos), severity em {BLOCKER, HIGH, MEDIUM, LOW}, file, title, fix_suggested e rule_violated apontando um arquivo de .forge/rules/ ou .commitlintrc.json.",
+    "Existe um finding de severidade BLOCKER sobre o trailer 'Co-Authored-By: Claude' do commit 'feat(recarga): adicionar recarga avulsa no domínio' (atribuição de autoria a IA), e não apenas uma observação em texto livre.",
+    "Existe um finding de severidade HIGH apontando que o scope 'recarga' do commit feat(recarga) não está na lista canônica de scopes do .commitlintrc.json.",
+    "Há um finding BLOCKER no arquivo 20260920120000_AddSingleTopUps.cs sobre tabela/colunas em PascalCase (SingleTopUps, CardNumber etc.) exigindo snake_case, e um finding HIGH (separado ou explícito no mesmo arquivo) sobre a coluna monetária Amount sem o sufixo _cents.",
+    "Há um finding BLOCKER para docs/recarga-avulsa-implementation-summary.md citando a proibição de arquivos de resumo (no-summary-files.md).",
+    "Há finding HIGH em services/recarga/src/Recarga.Domain/SingleTopUp.cs para os identificadores em pt-BR (ProcessarRecarga e/ou ValorEmReais) citando language-policy.md, e finding HIGH para a classe de domínio nova SingleTopUp sem SingleTopUpTests.cs correspondente no diff."
+  ]
+}

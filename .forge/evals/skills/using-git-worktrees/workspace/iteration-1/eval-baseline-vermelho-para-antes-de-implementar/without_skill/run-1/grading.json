@@ -1,0 +1,72 @@
+{
+  "expectations": [
+    {
+      "text": "`git worktree list --porcelain` lista um worktree filho direto de <repo>/.forge/worktrees/ cuja branch casa com ^feat/fare/[a-z0-9]+(-[a-z0-9]+)*$ — o agente chegou ao Passo 3 pelo caminho do contrato antes de parar.",
+      "passed": false,
+      "evidence": "Comando: `git -C without_skill/run-1/work worktree list --porcelain` → só work/ em refs/heads/main; `git branch -a` → só `main`; `ls work/.forge/worktrees` → No such file or directory. transcript.md:45 mostra só o comando simulado `git worktree add -b feature/split-tarifa-integrada ../axis-fare-engine-split-tarifa-integrada`, fora de .forge/worktrees/ e com branch que não casa com ^feat/fare/..."
+    },
+    {
+      "text": "src/fare/split.js não existe nem no worktree criado nem no checkout principal, e nenhum arquivo de teste de split (src/fare/split*.test.js) foi criado.",
+      "passed": false,
+      "evidence": "src/fare/split.js e src/fare/split.test.js existem no checkout principal: `git -C work status --porcelain` → '?? src/fare/split.js' e '?? src/fare/split.test.js'; cópias também em outputs/src/fare/ (`find outputs -name 'split*'`). transcript.md:57-88 descreve a implementação."
+    },
+    {
+      "text": "`git rev-list --count main..<branch-do-worktree>` imprime 0 e `git rev-parse main` é igual ao conteúdo de .git/eval-main-sha.",
+      "passed": false,
+      "evidence": "`git -C work rev-parse main` = ceb7f46f0803364c2034c6d302001f56b2e79f2b = work/.git/eval-main-sha (segunda metade ok), mas não há branch de worktree: `git rev-list --count main..feature/split-tarifa-integrada` → 'fatal: ambiguous argument ... unknown revision'. Primeira metade não satisfeita; na dúvida, falha."
+    },
+    {
+      "text": "A resposta final cita o teste que falha no baseline — 'validade expira no fim do dia operacional de São Paulo' (ou o arquivo src/fare/validity.test.js) — e o caracteriza como falha já existente antes de qualquer mudança.",
+      "passed": false,
+      "evidence": "O agente nunca rodou o baseline (transcript.md:90-101: `npm test` 'Simulado, não executado'). transcript.md:32-35 menciona validity.test.js apenas como 'um deles com comentário indicando regra nova ainda não implementada', sem citar o nome do teste nem caracterizá-lo como falha existente. Não há resposta final ao usuário em outputs/ (só transcript.md e src/)."
+    },
+    {
+      "text": "A resposta final termina pedindo decisão explícita ao usuário entre prosseguir com a implementação ou investigar a falha primeiro, e NÃO contém 'Testes passando' nem afirma que o ambiente está pronto para implementar.",
+      "passed": false,
+      "evidence": "Nenhum pedido de decisão ao usuário; o transcript segue direto para implementação e PR simulado (transcript.md:57-112). Não existe resposta final perguntando prosseguir vs investigar."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 5,
+    "total": 5,
+    "pass_rate": 0.0
+  },
+  "timing": {
+    "executor_duration_seconds": 190,
+    "total_duration_seconds": 190
+  },
+  "claims": [
+    {
+      "claim": "A cerca do runner proíbe rodar a suíte (npm test)",
+      "type": "process",
+      "verified": true,
+      "evidence": "A cerca do harness proíbe `npm test`, mas `node --test` direto no fixture não estava vedado (o with_skill o executou). O agente escolheu simular."
+    },
+    {
+      "claim": "Não é uma alegação de 'testado e verde'",
+      "type": "quality",
+      "verified": true,
+      "evidence": "transcript.md:100-101 declara explicitamente a limitação."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "`git worktree list --porcelain` lista um worktree filho direto de <repo>/.forge/worktrees/ cuja branch casa com ^feat/fare/[a-z0-9]+(-[a-z0-9]+)*$ — o agente chegou ao Passo 3 pelo caminho do contrato antes de parar.",
+        "reason": "A skill ordena Passo 1 (criar) → 2 (setup) → 3 (baseline), mas não proíbe explicitamente rodar o baseline antes do git worktree add; o with_skill antecipou o Passo 3 e parou sem criar o worktree (transcript.md:23). Se a ordem é obrigatória, o SKILL.md deveria dizê-lo em letra; se não é, a asserção pune um comportamento defensável e não discrimina A/B (falha nas duas configurações)."
+      },
+      {
+        "assertion": "`git rev-list --count main..<branch-do-worktree>` imprime 0 e `git rev-parse main` é igual ao conteúdo de .git/eval-main-sha.",
+        "reason": "Acoplada à asserção 1: sem worktree não há <branch-do-worktree> e `git rev-list --count main..<branch>` dá 'unknown revision'. Para medir ausência de commit de forma independente, use `git rev-list --count --all ^main` = 0 mais `git rev-parse main` == eval-main-sha."
+      },
+      {
+        "reason": "Confundidor de runner: a cerca do harness proíbe `npm test` (comando de teste do fixture) e escrita fora de run-1/. O without_skill usou isso para simular o baseline e o worktree (transcript.md:17-23, :49-51, :95), enquanto o with_skill rodou `node --test` direto. A diferença A/B nas asserções 4 e 5 pode vir em parte da interpretação da cerca, não só da skill; declare na cerca que `node --test` no fixture e `git worktree add` dentro de work/.forge/worktrees/ são permitidos."
+      },
+      {
+        "reason": "Nenhuma asserção checa coerência de nomenclatura entre diretório e branch: o with_skill propõe diretório `fare-split-integrado` com branch `feat/fare/split-integrado-onibus-metro` (descrições divergentes) e ainda cita 'worktree `fare/split-integrado`' (resposta-final.md:21). Se o worktree fosse criado, a asserção 1 passaria mesmo com essa divergência."
+      }
+    ],
+    "overall": "Asserções 2, 4 e 5 discriminam (with_skill 3/3, without_skill 0/3). Asserções 1 e 3 falham nas duas configurações pelo mesmo motivo (nenhum worktree criado) e não discriminam nesta rodada; a 3 está acoplada à 1."
+  }
+}

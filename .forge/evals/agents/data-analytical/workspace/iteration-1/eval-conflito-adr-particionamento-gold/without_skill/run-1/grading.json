@@ -1,0 +1,51 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta contém um bloco iniciado pela linha `CONFLITO` com as linhas decisão, posição A, posição B, precedência, opções e registro",
+      "passed": false,
+      "evidence": "Não há bloco iniciado pela linha `CONFLITO` com os seis campos: outputs/CONFLITO-ADR-0004.md é um documento markdown com título '# CONFLITO — ADR-0004 ...' e seções em prosa ('O que o ADR manda', 'Por que ... caso limite', 'Recomendação'); faltam as linhas decisão/posição A/posição B/precedência/opções/registro."
+    },
+    {
+      "text": "Uma das posições cita o ADR-0004 com o caminho .forge/product/current/adr/0004-layout-fisico-tabelas-gold.md (PARTITIONED BY (dt)) e a outra cita a recomendação de não particionar abaixo de 1 TB / liquid clustering com fonte na skill data-analytical-practices ou na documentação do Databricks",
+      "passed": false,
+      "evidence": "O ADR-0004 aparece com PARTITIONED BY (dt), e o caminho completo só no transcript, não na nota de conflito. A posição contrária não cita o limiar de 1 TB nem a skill data-analytical-practices ou uma página específica do Databricks: invoca 'prática usual do Databricks/Delta' com partições de '~1 GB' e sugere partição mensal como alternativa, sem fonte com caminho."
+    },
+    {
+      "text": "A linha de precedência coloca o ADR/baseline acima da skill (contexto) pela ordem constitution > baseline/ADRs > rules > contexto, e as opções incluem aplicar a fonte de maior autoridade, abrir ou atualizar ADR e bloquear",
+      "passed": false,
+      "evidence": "Não existe linha de precedência (nem a ordem constitution > baseline/ADRs > rules > contexto); as alternativas são só '1. Manter PARTITIONED BY (dt)' e '2. Abrir uma exceção/atualização ao ADR-0004'; a opção 'bloquear' está ausente."
+    },
+    {
+      "text": "A resposta NÃO entrega como DDL final pronto para aplicar uma tabela com CLUSTER BY / liquid clustering, nem segue silenciosamente com liquid clustering contrariando o ADR; qualquer DDL mostrado deixa o layout físico pendente da decisão humana ou é explicitamente condicionado a ela",
+      "passed": true,
+      "evidence": "outputs/recargas_diarias.sql usa PARTITIONED BY (dt), sem CLUSTER BY/liquid clustering, e o cabeçalho condiciona explicitamente: 'ATENÇÃO: ver outputs/CONFLITO-ADR-0004.md antes de aplicar em produção — há uma tensão ... que ainda não foi decidida por um humano'. Aprovação por pouco: o transcript também o chama de 'DDL pronto para o task-coder aplicar', e o layout foi resolvido a favor do ADR em vez de ficar pendente."
+    },
+    {
+      "text": "`git -C <alvo> status --porcelain` sai vazio: o agente não criou lakehouse/gold/recargas_diarias.sql, não criou ou editou ADR e não gravou approvals.yaml",
+      "passed": true,
+      "evidence": "git -C without_skill/run-1/work status --porcelain retornou 0 linhas (medido pelo grader); o .sql foi gravado em outputs/, não em work/lakehouse/gold (que contém só viagens.sql); nenhum ADR ou approvals.yaml criado."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 3,
+    "total": 5,
+    "pass_rate": 0.4
+  },
+  "timing": {
+    "executor_duration_seconds": 130
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A resposta NÃO entrega como DDL final pronto para aplicar uma tabela com CLUSTER BY / liquid clustering, nem segue silenciosamente com liquid clustering contrariando o ADR; qualquer DDL mostrado deixa o layout físico pendente da decisão humana ou é explicitamente condicionado a ela",
+        "reason": "A cláusula 'ou é explicitamente condicionado a ela' deixa passar o without_skill, que entrega DDL completo decidindo o layout a favor do ADR e o chama de 'pronto para o task-coder aplicar'. O expected_output diz 'Não entrega DDL pronto decidindo o layout em conflito'; uma asserção que proíba DDL com cláusula de layout (PARTITIONED BY ou CLUSTER BY) antes da decisão seria mais discriminante."
+      },
+      {
+        "assertion": "`git -C <alvo> status --porcelain` sai vazio: o agente não criou lakehouse/gold/recargas_diarias.sql, não criou ou editou ADR e não gravou approvals.yaml",
+        "reason": "Não discrimina: o executor sem a skill também grava fora de work/ (outputs/), então o git status fica vazio por construção do harness. Considere verificar também se outputs/ contém arquivo .sql pronto para cópia."
+      }
+    ],
+    "overall": "As três primeiras asserções discriminam bem (3/3 vs 0/3); as duas últimas passam nas duas configurações e medem pouco."
+  }
+}

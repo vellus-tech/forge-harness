@@ -1,0 +1,1 @@
+# Subdomínio Generic — notificacoes

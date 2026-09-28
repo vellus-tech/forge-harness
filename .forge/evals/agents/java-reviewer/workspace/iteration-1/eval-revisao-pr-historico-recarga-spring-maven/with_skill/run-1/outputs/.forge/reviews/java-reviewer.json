@@ -1,0 +1,101 @@
+{
+  "reviewer": "java-reviewer",
+  "findings": [
+    {
+      "id": "JAVA-001",
+      "severity": "BLOCKER",
+      "category": "security",
+      "file": "src/main/java/br/com/axis/bilhetagem/recarga/RecargaHistoricoQuery.java",
+      "line": 17,
+      "title": "Injeção de SQL em RecargaHistoricoQuery.listar",
+      "description": "O método monta a query concatenando `status` (valor de `@RequestParam` do controller, string livre do chamador) diretamente na string SQL, sem parametrização, ao contrário de `inserir` no mesmo arquivo e de `CartaoRepository.findById`, que usam `.param(...)`. Um valor como `CONFIRMADA' OR '1'='1` ou `CONFIRMADA'; DROP TABLE recarga; --` altera a cláusula WHERE ou encerra a instrução, permitindo leitura de histórico de qualquer cartão ou dano ao dado. `cartaoId` é `long` e portanto tipado de forma segura pelo Spring antes de chegar aqui, mas `status` não tem essa proteção.",
+      "fix_suggested": "Usar `.param(\"cartaoId\", cartaoId).param(\"status\", status)` com placeholders `:cartaoId`/`:status` na string SQL, no mesmo padrão já usado em `inserir` (linhas 23-28) e em `CartaoRepository.findById`.",
+      "rule_violated": ".forge/capabilities/backend-java-relational/PROFILE.md (uso de JdbcClient já parametrizado no próprio arquivo, ver `inserir`)",
+      "confidence": "high"
+    },
+    {
+      "id": "JAVA-002",
+      "severity": "HIGH",
+      "category": "security",
+      "file": "src/main/java/br/com/axis/bilhetagem/recarga/RecargaController.java",
+      "line": 28,
+      "title": "GET de histórico de recarga sem checagem de ownership do cartão",
+      "description": "`GET /api/v1/cartoes/{cartaoId}/recargas` aceita qualquer `cartaoId` do path e devolve o histórico de recargas do cartão sem verificar se ele pertence ao titular autenticado. O projeto já tem o padrão de ownership testável em `CartaoService.buscarDoTitular(cartaoId, titularId)` (lança `CartaoNaoEncontradoException` quando o titular não bate), mas `RecargaController`/`RecargaService` não o reusam nem implementam equivalente — basta trocar o `cartaoId` na URL para ler o extrato de recarga de outro titular. `POST /api/v1/recargas` tem o mesmo problema: `RecargaRequest.cartaoId()` não é validado contra o titular da requisição antes de `recarregar` inserir a recarga.",
+      "fix_suggested": "Antes de chamar `historicoQuery.listar`/`historicoQuery.inserir`, resolver o titular autenticado (contexto de segurança, já que `spring-boot-starter-security` está no pom) e chamar `cartaoService.buscarDoTitular(cartaoId, titularId)`, propagando `CartaoNaoEncontradoException` (ou equivalente 403/404) quando não bater.",
+      "rule_violated": ".forge/agents/code-review/java-reviewer.md § \"Endpoints de recurso exigem autorização/ownership testável quando aplicável\"",
+      "confidence": "high"
+    },
+    {
+      "id": "JAVA-003",
+      "severity": "HIGH",
+      "category": "logic",
+      "file": "src/main/java/br/com/axis/bilhetagem/recarga/RecargaController.java",
+      "line": 24,
+      "title": "Bean Validation de RecargaRequest não é acionada (falta @Valid)",
+      "description": "`RecargaRequest` declara `@NotNull` em `cartaoId` e `@Positive` em `valorCentavos`, e `spring-boot-starter-validation` está no pom, mas o parâmetro do controller é `@RequestBody RecargaRequest request` sem `@Valid`/`@Validated`. Sem essa anotação o Spring não dispara a validação do bean na borda: um `valorCentavos` zero ou negativo, ou `cartaoId` nulo, chega a `RecargaService.recarregar` e é inserido no banco antes de qualquer checagem de caso de uso.",
+      "fix_suggested": "Trocar a assinatura para `recarregar(@Valid @RequestBody RecargaRequest request)`, o que faz o Spring devolver 400 com `MethodArgumentNotValidException` para valores inválidos antes de chegar ao service.",
+      "rule_violated": ".forge/agents/code-review/java-reviewer.md § \"Validação ocorre antes do caso de uso\"",
+      "confidence": "high"
+    },
+    {
+      "id": "JAVA-004",
+      "severity": "HIGH",
+      "category": "arch",
+      "file": "src/main/resources/db/migration/V7__renomeia_valor_recarga.sql",
+      "line": 2,
+      "title": "Rename destrutivo de coluna sem fase expand/migrate/contract",
+      "description": "V7 executa `ALTER TABLE recarga RENAME COLUMN valor TO valor_centavos` diretamente, sem uma etapa de expand (nova coluna) nem período de coexistência. `rules/data/schema-evolution.md` classifica renomear coluna como mudança de \"contract\", só permitida depois que todos os produtores/consumidores já migraram para o novo nome e a janela de compatibilidade encerrou; aqui a rename e o código que já assume `valor_centavos` (`RecargaHistoricoQuery`) chegam no mesmo commit/PR, sem registro de estratégia de rollback, sem ADR e sem análise dos consumidores existentes de `valor` (ex.: outro serviço ou relatório que ainda leia essa coluna via SQL direto).",
+      "fix_suggested": "Seguir o fluxo expand→migrate/backfill→contract: primeiro adicionar `valor_centavos` (nullable ou com default), backfill em lote a partir de `valor`, manter as duas colunas em paralelo por uma release, e só then remover/renomear `valor` numa migration de contract separada — ou, se a rename direta for aceitável (app single-consumer, sem downtime), documentar essa decisão como exceção humana no manifest/ADR, conforme o gate de design da rule.",
+      "rule_violated": ".forge/rules/data/schema-evolution.md § \"Fluxo padrão\" e § \"Gate de design\"",
+      "confidence": "high"
+    },
+    {
+      "id": "JAVA-005",
+      "severity": "MEDIUM",
+      "category": "arch",
+      "file": "src/main/java/br/com/axis/bilhetagem/recarga/RecargaService.java",
+      "line": 14,
+      "title": "Injeção por campo com @Autowired em vez de injeção por construtor",
+      "description": "`RecargaService` usa `@Autowired` em campos privados (`historicoQuery`, `cartaoRepository`), enquanto todo o restante do código-base já existente (`CartaoRepository`, `CartaoService`) usa injeção por construtor com campos `final`. Isso quebra a convenção adotada pelo projeto e pelo capability pack (`backend-java-relational`: \"prefira injeção por construtor\"), além de impedir que as dependências sejam `final` e dificultar testes unitários sem contexto Spring.",
+      "fix_suggested": "Declarar `historicoQuery` e `cartaoRepository` como `private final` e injetá-los via construtor de `RecargaService`, no mesmo padrão de `CartaoService`.",
+      "rule_violated": ".forge/capabilities/backend-java-relational/PROFILE.md § \"prefira injeção por construtor\"",
+      "confidence": "high"
+    },
+    {
+      "id": "JAVA-006",
+      "severity": "MEDIUM",
+      "category": "quality",
+      "file": "src/main/java/br/com/axis/bilhetagem/recarga/RecargaService.java",
+      "line": 28,
+      "title": "Busca redundante do mesmo cartão dentro do loop do histórico",
+      "description": "`historico(cartaoId, status)` já recebe um único `cartaoId` fixo, mas o loop chama `cartaoRepository.findById(recarga.cartaoId())` uma vez por recarga retornada — ou seja, a mesma linha de `cartao` é buscada N vezes (uma consulta SQL por item do histórico) quando bastaria uma consulta antes do loop, já que todas as recargas pertencem ao mesmo cartão da assinatura do método.",
+      "fix_suggested": "Buscar `Cartao cartao = cartaoRepository.findById(cartaoId).orElseThrow(...)` uma vez, fora do loop, e reutilizar `cartao.numeroMascarado()` para montar cada `RecargaHistoricoItem`.",
+      "rule_violated": ".forge/agents/code-review/java-reviewer.md § \"Evite N+1, carregamento desnecessário\"",
+      "confidence": "high"
+    },
+    {
+      "id": "JAVA-007",
+      "severity": "MEDIUM",
+      "category": "logic",
+      "file": "src/main/java/br/com/axis/bilhetagem/recarga/RecargaService.java",
+      "line": 29,
+      "title": "orElseThrow() sem exceção de domínio mapeada para HTTP",
+      "description": "No loop de `historico`, `cartaoRepository.findById(...).orElseThrow()` (sem argumento) lança `NoSuchElementException`, que não é tratada por nenhum `@ExceptionHandler` visível no diff/base e por padrão vira 500 Internal Server Error. O projeto já tem `CartaoNaoEncontradoException` para esse cenário (usada em `CartaoService.buscarDoTitular`), que presumivelmente mapeia para um 404/400 controlado.",
+      "fix_suggested": "Usar `.orElseThrow(CartaoNaoEncontradoException::new)` (ou o handler equivalente do projeto) para manter resposta HTTP consistente, em vez de deixar vazar `NoSuchElementException` como 500.",
+      "rule_violated": ".forge/agents/code-review/java-reviewer.md § \"respostas HTTP seguem o contrato do projeto\"",
+      "confidence": "medium"
+    },
+    {
+      "id": "JAVA-008",
+      "severity": "LOW",
+      "category": "quality",
+      "file": "src/main/java/br/com/axis/bilhetagem/recarga/RecargaController.java",
+      "line": 30,
+      "title": "Parâmetro status do histórico aceita qualquer string, sem validação contra os valores do domínio",
+      "description": "`status` chega como `String` livre via `@RequestParam(defaultValue = \"CONFIRMADA\")` e é repassado até o SQL sem checagem contra os valores conhecidos do domínio (`PENDENTE`/`CONFIRMADA`/outros que a coluna `VARCHAR(20)` aceite). Corrigido o JAVA-001 (parametrização), o risco de injeção desaparece, mas um valor arbitrário ainda passa silenciosamente e resulta em lista vazia sem sinalizar erro de uso da API.",
+      "fix_suggested": "Modelar `status` como enum Java (ou validar contra um `Set` de valores permitidos) e devolver 400 para valor fora do domínio, em vez de aceitar qualquer string.",
+      "rule_violated": null,
+      "confidence": "medium"
+    }
+  ]
+}

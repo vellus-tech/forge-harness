@@ -1,0 +1,22 @@
+INFO dotnet-quality-scan root=<worktree-do-eval>/.forge/evals/skills/dotnet-quality-scan/workspace/iteration-1/eval-revisao-recarga-pix/with_skill/run-1/work/src/Recarga engine=rg
+OK async-void [HIGH] nenhuma ocorrência
+FOUND blocking-wait [BLOCKER] 3 ocorrência(s) — bloquear em código async é deadlock em contexto com SynchronizationContext e esgota o pool no resto
+     Recarga.Seed/Program.cs:8:        var total = SeedRunner.PopularAsync(args.Length > 0 ? args[0] : "local").GetAwaiter().GetResult();
+     Recarga.Api/Controllers/RecargaController.cs:23:        var saldo = _saldoService.ConsultarAsync(cartaoId).Result;
+     Recarga.Api/Infra/PixGatewayClient.cs:15:        http.PostAsJsonAsync("https://psp.example.invalid/cob", recarga).Wait();
+FOUND new-httpclient [HIGH] 1 ocorrência(s) — HttpClient instanciado direto esgota sockets (TIME_WAIT) e ignora rotação de DNS; use IHttpClientFactory
+     Recarga.Api/Infra/PixGatewayClient.cs:14:        using var http = new HttpClient();
+OK region [MEDIUM] nenhuma ocorrência
+OK generic-name [MEDIUM] nenhuma ocorrência
+OK bool-param [MEDIUM] nenhuma ocorrência
+FOUND empty-catch [HIGH] 1 ocorrência(s) — erro engolido some do log e reaparece como corrupção de dado
+     Recarga.Api/Controllers/RecargaController.cs:29:        catch { }
+FOUND datetime-now [MEDIUM] 1 ocorrência(s) — DateTime.Now amarra o domínio ao fuso da máquina e ao relógio real; use UtcNow ou abstração de tempo
+     Recarga.Api/Domain/RecargaPix.cs:10:        ExpiraEm = DateTime.Now.AddMinutes(30);
+FOUND sql-interpolation [BLOCKER] 1 ocorrência(s) — interpolação em SQL é injeção; use parâmetro ou a variante Interpolated do EF Core
+     Recarga.Api/Infra/PixGatewayClient.cs:20:        return _db.Recargas.FromSqlRaw($"SELECT * FROM recargas WHERE cartao_id = '{cartaoId}'").ToList();
+OK mutable-static [HIGH] nenhuma ocorrência
+FOUND single-impl-interface [MEDIUM] 1 ocorrência(s) — interface com uma única implementação costuma ser abstração especulativa
+    ISaldoService
+INFO json=<worktree-do-eval>/.forge/evals/skills/dotnet-quality-scan/workspace/iteration-1/eval-revisao-recarga-pix/with_skill/run-1/outputs/scan.json
+FAIL dotnet-quality-scan (8 achado(s) — julgue caso a caso; nem todo achado é defeito)

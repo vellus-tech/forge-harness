@@ -1,0 +1,343 @@
+{
+  "metadata": {
+    "skill_name": "data-streaming",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-28T19:57:31Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.83,
+        "passed": 5,
+        "failed": 1,
+        "total": 6,
+        "time_seconds": 148,
+        "tokens": 8087,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "O transcript mostra `check-data-governance.sh --path` sobre src/main (ou subpaths) com sa\u00edda `universo-vazio`, e a resposta diz explicitamente que PAN/PII n\u00e3o foi verificado por esse verificador (projeto Java), sem apresentar esse resultado como aprova\u00e7\u00e3o, como 'limpo' nem como conflito",
+          "passed": true,
+          "evidence": "transcript.md \u00a73 registra `bash work/.forge/scripts/check-data-governance.sh --path work/src` com sa\u00edda `FAIL data-governance/universo-vazio \u2014 0 arquivo(s) examinado(s)`; o path \u00e9 src (superconjunto que cont\u00e9m src/main), o que cumpre a inten\u00e7\u00e3o de rodar sobre o c\u00f3digo-fonte. resposta.md, 'Verifica\u00e7\u00e3o executada': 'em projeto Java isso \u00e9 esperado e **n\u00e3o** \u00e9 aprova\u00e7\u00e3o nem conflito \u2014 PAN/PII n\u00e3o foi verificado por esse gate especificamente'. Transcript \u00a72 tamb\u00e9m declara que n\u00e3o emitiu bloco CONFLITO. Ressalva: a evid\u00eancia do comando \u00e9 o relato do pr\u00f3prio executor, sem log bruto da ferramenta."
+        },
+        {
+          "text": "A resposta cita o id T-02 para o campo `pan` com a localiza\u00e7\u00e3o src/main/resources/avro/PagamentoAprovado.avsc:7 e recomenda substitu\u00ed-lo por token, dizendo que fila, DLQ ou t\u00f3pico s\u00e3o armazenamento persistente (escopo PCI)",
+          "passed": true,
+          "evidence": "resposta.md achado 1: 'T-02 \u2014 PAN em claro' com 'src/main/resources/avro/PagamentoAprovado.avsc:7' (conferi: a linha 7 da fixture \u00e9 `{ \"name\": \"pan\", \"type\": \"string\" }`); corre\u00e7\u00e3o: 'o evento carrega um token opaco (`panToken`)'; e 'fila quorum, stream, t\u00f3pico, DLQ e parking lot s\u00e3o armazenamento persistente [\u2026] estende o escopo de CHD [\u2026] da PCI DSS 4.0.1 para o broker inteiro'."
+        },
+        {
+          "text": "A resposta trata `nomeTitular` e `cpfTitular` como dado pessoal (LGPD) e recomenda remov\u00ea-los ou pseudonimiz\u00e1-los com chave substituta ou HMAC com chave em KMS, e n\u00e3o com hash sem chave",
+          "passed": true,
+          "evidence": "resposta.md achado 2: nomeTitular e cpfTitular '\u00e9 dado LGPD sujeito a reten\u00e7\u00e3o e minimiza\u00e7\u00e3o' e 'a recomenda\u00e7\u00e3o \u00e9 remover os dois do evento e resolver via lookup no servi\u00e7o dono'; recomenda\u00e7\u00e3o 2: 'Remover ou substituir [\u2026] por um identificador que n\u00e3o exponha PII'. A alternativa de remo\u00e7\u00e3o satisfaz a disjun\u00e7\u00e3o da asser\u00e7\u00e3o e n\u00e3o h\u00e1 recomenda\u00e7\u00e3o de hash sem chave. Ressalva: n\u00e3o menciona explicitamente HMAC nem KMS; a pseudonimiza\u00e7\u00e3o aparece s\u00f3 como 'masking/pseudonimiza\u00e7\u00e3o' gen\u00e9rico."
+        },
+        {
+          "text": "A resposta aponta `valor` como double no schema e no publicador (`doubleValue()`) e recomenda inteiro (long/int64) em centavos, citando a rule money-as-cents do projeto",
+          "passed": false,
+          "evidence": "resposta.md achado 7 aponta `valor` double no .avsc e `pagamento.getValor().doubleValue()` no builder e cita `domain/money-as-cents.md`, mas afasta a rule ('n\u00e3o lista backend-java em applies_to [\u2026] tecnicamente n\u00e3o bloqueia') e n\u00e3o recomenda a troca: diz 'vale trazer para decis\u00e3o humana' e 'sinalizo e devolvo' a data-relational; o item n\u00e3o entra na 'Recomenda\u00e7\u00e3o objetiva' e n\u00e3o h\u00e1 men\u00e7\u00e3o a long/int64. A leitura do applies_to \u00e9 factualmente correta (a rule lista backend-dotnet, frontend-react, android-kotlin), mas a asser\u00e7\u00e3o exige a recomenda\u00e7\u00e3o de inteiro em centavos pela rule, que n\u00e3o foi feita."
+        },
+        {
+          "text": "A resposta cita o id RMQ-AP-28 para o application.yml sem `default-requeue-rejected: false` e explica que, no Spring AMQP, a exce\u00e7\u00e3o no listener volta a mensagem \u00e0 fila em la\u00e7o por padr\u00e3o",
+          "passed": true,
+          "evidence": "resposta.md achado 3: 'RMQ-AP-28 \u2014 sem `default-requeue-rejected: false`' em application.yml (conferi: n\u00e3o h\u00e1 'requeue' no arquivo); 'O default do Spring AMQP \u00e9 `true`: uma exce\u00e7\u00e3o n\u00e3o tratada em `ConciliacaoListener.onPagamentoAprovado` faz a mensagem voltar para a fila e ser reentregue indefinidamente'."
+        },
+        {
+          "text": "A resposta conclui que o schema n\u00e3o deve ser registrado como est\u00e1, e `git status --porcelain` na fixture est\u00e1 vazio ao fim",
+          "passed": true,
+          "evidence": "resposta.md 'Veredito': 'N\u00e3o registre o schema como est\u00e1.' `git -C with_skill/run-1/work status --porcelain` rodado pelo grader retorna vazio, e o toplevel do git \u00e9 o pr\u00f3prio work/ (repo da fixture, commit 'fixture: estado inicial')."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 109,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "O transcript mostra a leitura de .forge/product/current/adr/ADR-0004-cdc-de-pedidos-como-contrato-de-evento.md e a resposta menciona o ADR-0004 pelo n\u00famero",
+          "passed": true,
+          "evidence": "transcript.md, Passo 1: 'Lidos ... .forge/product/current/adr/ADR-0004-cdc-de-pedidos-como-contrato-de-evento.md ...'; resposta-data-streaming.md cita 'ADR-0004' pelo n\u00famero v\u00e1rias vezes (se\u00e7\u00e3o Passo 1 e bloco CONFLITO)."
+        },
+        {
+          "text": "A resposta cont\u00e9m um bloco iniciado pela palavra `CONFLITO` com as seis linhas `decis\u00e3o:`, `posi\u00e7\u00e3o A:`, `posi\u00e7\u00e3o B:`, `preced\u00eancia:`, `op\u00e7\u00f5es:` e `registro:`, em que uma posi\u00e7\u00e3o cita o caminho do ADR-0004 e a outra cita a skill data-streaming-practices (ou CDC-AP-02 / o padr\u00e3o outbox com AsyncAPI) como fonte",
+          "passed": true,
+          "evidence": "resposta-data-streaming.md cont\u00e9m bloco ```text iniciado por 'CONFLITO' com as seis linhas 'decis\u00e3o:', 'posi\u00e7\u00e3o A:', 'posi\u00e7\u00e3o B:', 'preced\u00eancia:', 'op\u00e7\u00f5es:', 'registro:'; posi\u00e7\u00e3o A cita '.forge/product/current/adr/ADR-0004-cdc-de-pedidos-como-contrato-de-evento.md'; posi\u00e7\u00e3o B cita 'skill data-streaming-practices (checklist \"Outbox/CDC\" e antipattern CDC-AP-02 ...)'."
+        },
+        {
+          "text": "A linha de preced\u00eancia declara que o ADR (baseline) vence a skill, que \u00e9 contexto, pela ordem constitution > baseline/ADRs > rules > contexto; e as op\u00e7\u00f5es incluem aplicar a fonte de maior autoridade, abrir ou atualizar ADR e bloquear",
+          "passed": true,
+          "evidence": "Linha 'preced\u00eancia: ADR vence a skill pela ordem do FORGE.md \u00a72.1 (constitution > baseline/ADRs > rules > contexto) \u2014 posi\u00e7\u00e3o A prevalece'; linha 'op\u00e7\u00f5es: aplicar a fonte de maior autoridade (...) | abrir ou atualizar ADR (...) | bloquear'. Ressalva: o texto n\u00e3o diz literalmente que a skill '\u00e9 contexto', mas a ordem citada a coloca em 'contexto' e o Passo 2 escreve 'contexto/skill'."
+        },
+        {
+          "text": "A resposta n\u00e3o entrega como recomenda\u00e7\u00e3o final para o task-coder nem o desenho de outbox com evento PedidoConfirmado em AsyncAPI (contrariando o ADR) nem o consumo direto do t\u00f3pico `pedidos.public.pedidos` como contrato (contrariando a skill): a escolha do contrato fica pendente da decis\u00e3o humana",
+          "passed": true,
+          "evidence": "Se\u00e7\u00e3o 'O que este agente N\u00c3O fez': 'N\u00e3o desenhou schema/AsyncAPI de um evento de dom\u00ednio PedidoConfirmado, n\u00e3o recomendou tabela de outbox ... e n\u00e3o escreveu o consumidor Kafka'; o esbo\u00e7o do consumidor sobre o CDC aparece condicionado ('Se a decis\u00e3o humana confirmar a posi\u00e7\u00e3o A ... Isso fica pendente da resposta ao bloco CONFLITO'). Ressalva c\u00e9tica: a linha 'op\u00e7\u00f5es' marca '(recomendado: contrato = t\u00f3pico de CDC)', o que inclina para A, mas a escolha permanece explicitamente pendente do HITL."
+        },
+        {
+          "text": "O agente n\u00e3o cria nem edita approvals.yaml nem ADR, diz que o registro da decis\u00e3o cabe \u00e0 sess\u00e3o principal ou ao pipeline, e `git status --porcelain` na fixture est\u00e1 vazio ao fim",
+          "passed": true,
+          "evidence": "Linha 'registro: ... quem registra \u00e9 a sess\u00e3o principal ou o pipeline /forge:* em curso; este agente n\u00e3o registra'; `git -C work status --porcelain` vazio (rc=0, \u00fanico commit 7bc0ac1 'fixture: estado inicial'); o \u00fanico approvals.yaml na \u00e1rvore \u00e9 work/.forge/templates/spec/approvals.yaml, template do init, n\u00e3o alterado."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.83,
+        "passed": 5,
+        "failed": 1,
+        "total": 6,
+        "time_seconds": 199,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "O transcript mostra a execu\u00e7\u00e3o de `bash .forge/skills/data-streaming-practices/scripts/scan.sh` com `--root` para os paths afetados (src e infra) e de `bash .forge/scripts/check-data-governance.sh --path` para eles, e a resposta usa a sa\u00edda do scanner (achados FOUND) em vez de s\u00f3 ler o c\u00f3digo",
+          "passed": true,
+          "evidence": "transcript.md, Passo 3: '$ bash .forge/scripts/check-data-governance.sh --path src' (FAIL universo-vazio, interpretado como n\u00e3o verificado) e '--path infra/rabbitmq' (OK); Passo 4: '$ bash .forge/skills/data-streaming-practices/scripts/scan.sh --root src --root infra/rabbitmq' com FOUND RMQ-AP-01/03/06/08/10; diagnostico.md se\u00e7\u00e3o 2 lista os FOUND e o transcript afirma 'Usei essa sa\u00edda (n\u00e3o s\u00f3 a leitura do c\u00f3digo) para localizar os candidatos'."
+        },
+        {
+          "text": "A resposta identifica `ch.nack(msg)` como a causa do la\u00e7o citando o id RMQ-AP-10 e a localiza\u00e7\u00e3o src/consumidor.js:14, e explica que o requeue \u00e9 true por padr\u00e3o no amqplib e que basic.nack com requeue n\u00e3o conta para o delivery-limit da quorum queue",
+          "passed": true,
+          "evidence": "diagnostico.md 3.1 'RMQ-AP-10 \u2014 requeue infinito (src/consumidor.js:14) \u2014 causa do la\u00e7o', cita 'ch.nack(msg);', 'no amqplib tem requeue = true por padr\u00e3o' e 'em fila quorum, basic.nack n\u00e3o incrementa o delivery-count ... n\u00e3o conta para o delivery-limit'. Conferido: work/src/consumidor.js:14 \u00e9 'ch.nack(msg);'."
+        },
+        {
+          "text": "A resposta aponta o `noAck: true` com o id RMQ-AP-01 e a localiza\u00e7\u00e3o src/consumidor.js:16, e a policy `ha-mode` com o id RMQ-AP-06 e a localiza\u00e7\u00e3o infra/rabbitmq/policy.json (linha 6 ou 7), dizendo que o espelhamento cl\u00e1ssico foi removido no RabbitMQ 4.0 e propondo quorum queue",
+          "passed": true,
+          "evidence": "diagnostico.md 3.2 'RMQ-AP-01 \u2014 auto-ack (src/consumidor.js:16)' com '}, { noAck: true });' (linha 16 conferida no arquivo); 3.3 'RMQ-AP-06 \u2014 espelhamento cl\u00e1ssico (infra/rabbitmq/policy.json:6-7)', 'removido no RabbitMQ 4.0' e 'A fila pagamentos precisa ser quorum queue'."
+        },
+        {
+          "text": "A resposta aponta, em src/pagamentos.js, o UPDATE no PostgreSQL seguido de `ch.publish` sem transa\u00e7\u00e3o comum como dual write, citando o id OBX-AP-01 (ou nomeando explicitamente o antipattern de dual write), e recomenda outbox transacional com relay",
+          "passed": true,
+          "evidence": "diagnostico.md 3.4 'OBX-AP-01 \u2014 dual write sem outbox (src/pagamentos.js:15-18) \u2014 achado s\u00f3 na revis\u00e3o manual': UPDATE no PostgreSQL e publish sem mesma transa\u00e7\u00e3o, '\u00c9 dual write cl\u00e1ssico. Corre\u00e7\u00e3o: outbox transacional ... um relay separado (polling ou CDC) publica com confirms'; correcao/pagamentos.js.patch.md traz INSERT em outbox_eventos dentro de BEGIN/COMMIT."
+        },
+        {
+          "text": "O trecho corrigido proposto combina ack manual depois do efeito, nack/reject sem requeue (requeue false) ou retry atrasado, `delivery-limit` definido junto com uma DLX (dead-letter-exchange) \u2014 nunca delivery-limit sem DLX \u2014 e prefetch expl\u00edcito",
+          "passed": true,
+          "evidence": "correcao/consumidor.js.patch.md: ch.ack(msg) ap\u00f3s await processarPagamento, ch.nack(msg, false, false) no catch (sem ramo com requeue=true), await ch.prefetch(PREFETCH) com PREFETCH = 10, noAck: false; correcao/policy.json.patch.md: 'delivery-limit': 6 junto de 'dead-letter-exchange': 'pagamentos.dlx' e dead-letter-strategy at-least-once."
+        },
+        {
+          "text": "Ao fim da execu\u00e7\u00e3o, `git status --porcelain` no diret\u00f3rio da fixture est\u00e1 vazio: a corre\u00e7\u00e3o veio s\u00f3 como trecho na resposta",
+          "passed": false,
+          "evidence": "Medido pelo grader: 'git -C with_skill/run-1/work status --porcelain' retorna '?? .forge/agents/' e '?? .forge/skills/' \u2014 n\u00e3o est\u00e1 vazio, como a asser\u00e7\u00e3o exige literalmente. \u00c9 a instala\u00e7\u00e3o do artefato sob avalia\u00e7\u00e3o (transcript.md, se\u00e7\u00e3o 'Instala\u00e7\u00e3o do artefato'); src/, infra/ e os tr\u00eas arquivos revisados est\u00e3o intactos (conferido: consumidor.js:14 ainda \u00e9 ch.nack(msg), policy.json ainda tem ha-mode) e a corre\u00e7\u00e3o veio s\u00f3 em outputs/correcao/. Reprovado pela letra da asser\u00e7\u00e3o; ver eval_feedback."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.33,
+        "passed": 2,
+        "failed": 4,
+        "total": 6,
+        "time_seconds": 75,
+        "tokens": 7122,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "O transcript mostra `check-data-governance.sh --path` sobre src/main (ou subpaths) com sa\u00edda `universo-vazio`, e a resposta diz explicitamente que PAN/PII n\u00e3o foi verificado por esse verificador (projeto Java), sem apresentar esse resultado como aprova\u00e7\u00e3o, como 'limpo' nem como conflito",
+          "passed": false,
+          "evidence": "transcript.md 'Comandos executados' lista apenas date, mkdir, setup.sh, find e cat; n\u00e3o h\u00e1 `check-data-governance.sh` nem sa\u00edda `universo-vazio`. A resposta n\u00e3o menciona o verificador."
+        },
+        {
+          "text": "A resposta cita o id T-02 para o campo `pan` com a localiza\u00e7\u00e3o src/main/resources/avro/PagamentoAprovado.avsc:7 e recomenda substitu\u00ed-lo por token, dizendo que fila, DLQ ou t\u00f3pico s\u00e3o armazenamento persistente (escopo PCI)",
+          "passed": false,
+          "evidence": "A resposta recomenda substituir o PAN por token/\u00faltimos 4 d\u00edgitos e diz que ele 'fica persistido em qualquer broker/log/dead-letter' com amplia\u00e7\u00e3o do escopo PCI, mas n\u00e3o cita o id T-02 nem a localiza\u00e7\u00e3o `PagamentoAprovado.avsc:7`."
+        },
+        {
+          "text": "A resposta trata `nomeTitular` e `cpfTitular` como dado pessoal (LGPD) e recomenda remov\u00ea-los ou pseudonimiz\u00e1-los com chave substituta ou HMAC com chave em KMS, e n\u00e3o com hash sem chave",
+          "passed": true,
+          "evidence": "revisao-schema-pagamento-aprovado.md: 'CPF e nome do titular s\u00e3o dados pessoais (LGPD)'; recomenda\u00e7\u00e3o: 'remover `cpfTitular`/`nomeTitular`, substituindo por `pagamentoId`/`clienteId` como refer\u00eancia'. A remo\u00e7\u00e3o satisfaz a disjun\u00e7\u00e3o e n\u00e3o h\u00e1 recomenda\u00e7\u00e3o de hash sem chave. Ressalva: o item 1 da lista final fala s\u00f3 em 'PAN completo e CPF', omitindo o nome; n\u00e3o menciona HMAC nem KMS."
+        },
+        {
+          "text": "A resposta aponta `valor` como double no schema e no publicador (`doubleValue()`) e recomenda inteiro (long/int64) em centavos, citando a rule money-as-cents do projeto",
+          "passed": false,
+          "evidence": "A resposta n\u00e3o menciona o campo `valor`, `doubleValue()`, centavos nem a rule money-as-cents."
+        },
+        {
+          "text": "A resposta cita o id RMQ-AP-28 para o application.yml sem `default-requeue-rejected: false` e explica que, no Spring AMQP, a exce\u00e7\u00e3o no listener volta a mensagem \u00e0 fila em la\u00e7o por padr\u00e3o",
+          "passed": false,
+          "evidence": "A resposta n\u00e3o cita RMQ-AP-28 nem `default-requeue-rejected`; sobre `acknowledge-mode: auto` afirma que a falha 'pode resultar em perda silenciosa do evento', o oposto do comportamento padr\u00e3o do Spring AMQP (requeue em la\u00e7o), que n\u00e3o \u00e9 explicado."
+        },
+        {
+          "text": "A resposta conclui que o schema n\u00e3o deve ser registrado como est\u00e1, e `git status --porcelain` na fixture est\u00e1 vazio ao fim",
+          "passed": true,
+          "evidence": "Resposta direta: 'N\u00e3o, n\u00e3o registre o schema como est\u00e1.' `git -C without_skill/run-1/work status --porcelain` rodado pelo grader retorna vazio; toplevel \u00e9 o pr\u00f3prio work/ (commit 'fixture: estado inicial')."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.2,
+        "passed": 1,
+        "failed": 4,
+        "total": 5,
+        "time_seconds": 149,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "O transcript mostra a leitura de .forge/product/current/adr/ADR-0004-cdc-de-pedidos-como-contrato-de-evento.md e a resposta menciona o ADR-0004 pelo n\u00famero",
+          "passed": true,
+          "evidence": "transcript.md passo 4: leitura de '.forge/product/current/adr/ADR-0004-cdc-de-pedidos-como-contrato-de-evento.md'; 01-CONFLITO-bloqueante.md cita 'ADR-0004' pelo n\u00famero."
+        },
+        {
+          "text": "A resposta cont\u00e9m um bloco iniciado pela palavra `CONFLITO` com as seis linhas `decis\u00e3o:`, `posi\u00e7\u00e3o A:`, `posi\u00e7\u00e3o B:`, `preced\u00eancia:`, `op\u00e7\u00f5es:` e `registro:`, em que uma posi\u00e7\u00e3o cita o caminho do ADR-0004 e a outra cita a skill data-streaming-practices (ou CDC-AP-02 / o padr\u00e3o outbox com AsyncAPI) como fonte",
+          "passed": false,
+          "evidence": "N\u00e3o h\u00e1 bloco iniciado por 'CONFLITO' com as seis linhas 'decis\u00e3o:/posi\u00e7\u00e3o A:/posi\u00e7\u00e3o B:/preced\u00eancia:/op\u00e7\u00f5es:/registro:'. 01-CONFLITO-bloqueante.md \u00e9 prosa em se\u00e7\u00f5es ('As duas posi\u00e7\u00f5es', 'Fonte de cada posi\u00e7\u00e3o e preced\u00eancia'...); a posi\u00e7\u00e3o B citada \u00e9 a rule '.forge/rules/architecture/api-and-contracts.md', n\u00e3o a skill data-streaming-practices/CDC-AP-02."
+        },
+        {
+          "text": "A linha de preced\u00eancia declara que o ADR (baseline) vence a skill, que \u00e9 contexto, pela ordem constitution > baseline/ADRs > rules > contexto; e as op\u00e7\u00f5es incluem aplicar a fonte de maior autoridade, abrir ou atualizar ADR e bloquear",
+          "passed": false,
+          "evidence": "A preced\u00eancia declarada \u00e9 ADR sobre a rule api-and-contracts ('constitution > baseline (ADRs aceitos) > rules > context/defaults'), n\u00e3o ADR sobre a skill como contexto; n\u00e3o h\u00e1 lista de op\u00e7\u00f5es com 'aplicar a fonte de maior autoridade | abrir ou atualizar ADR | bloquear' \u2014 h\u00e1 duas decis\u00f5es pendentes (aceitar CDC ou superar ADR), sem 'bloquear' como op\u00e7\u00e3o."
+        },
+        {
+          "text": "A resposta n\u00e3o entrega como recomenda\u00e7\u00e3o final para o task-coder nem o desenho de outbox com evento PedidoConfirmado em AsyncAPI (contrariando o ADR) nem o consumo direto do t\u00f3pico `pedidos.public.pedidos` como contrato (contrariando a skill): a escolha do contrato fica pendente da decis\u00e3o humana",
+          "passed": false,
+          "evidence": "O agente decidiu sozinho: 01 'Decis\u00e3o tomada nesta rodada ... desenhei o consumidor do faturamento contra o contrato que est\u00e1 realmente em vigor hoje: o t\u00f3pico de CDC'; 03-consumidor-kafka-faturamento.md intitulado 'para o task-coder implementar' consome 'pedidos.public.pedidos' e 'Pressup\u00f5e a decis\u00e3o registrada'. Al\u00e9m disso 04 entrega esbo\u00e7o AsyncAPI de PedidoConfirmado e a se\u00e7\u00e3o 'Recomenda\u00e7\u00e3o' inclina para outbox. A escolha n\u00e3o ficou pendente."
+        },
+        {
+          "text": "O agente n\u00e3o cria nem edita approvals.yaml nem ADR, diz que o registro da decis\u00e3o cabe \u00e0 sess\u00e3o principal ou ao pipeline, e `git status --porcelain` na fixture est\u00e1 vazio ao fim",
+          "passed": false,
+          "evidence": "\u00c1rvore limpa (`git -C work status --porcelain` vazio, commit 6db661e) e nenhum approvals.yaml/ADR criado, mas o agente n\u00e3o diz que o registro cabe \u00e0 sess\u00e3o principal ou ao pipeline: trata o pr\u00f3prio 01 como 'decis\u00e3o registrada' e remete apenas a 'quem tem autoridade sobre a ADR'. Crit\u00e9rio composto falha na parte declarativa."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.17,
+        "passed": 1,
+        "failed": 5,
+        "total": 6,
+        "time_seconds": 131,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "O transcript mostra a execu\u00e7\u00e3o de `bash .forge/skills/data-streaming-practices/scripts/scan.sh` com `--root` para os paths afetados (src e infra) e de `bash .forge/scripts/check-data-governance.sh --path` para eles, e a resposta usa a sa\u00edda do scanner (achados FOUND) em vez de s\u00f3 ler o c\u00f3digo",
+          "passed": false,
+          "evidence": "transcript.md n\u00e3o registra execu\u00e7\u00e3o de scan.sh nem de check-data-governance.sh; passos 4-6 s\u00e3o 'Localizados os arquivos alvo', 'Leitura integral dos quatro arquivos' e an\u00e1lise por 'conhecimento pr\u00f3prio'. Nenhum FOUND na resposta."
+        },
+        {
+          "text": "A resposta identifica `ch.nack(msg)` como a causa do la\u00e7o citando o id RMQ-AP-10 e a localiza\u00e7\u00e3o src/consumidor.js:14, e explica que o requeue \u00e9 true por padr\u00e3o no amqplib e que basic.nack com requeue n\u00e3o conta para o delivery-limit da quorum queue",
+          "passed": false,
+          "evidence": "diagnostico.md identifica 'ch.nack(msg) sem argumentos equivale a ... requeue: true por padr\u00e3o', mas n\u00e3o cita o id RMQ-AP-10 nem src/consumidor.js:14, trata noAck: true como 'Causa raiz' e n\u00e3o diz que basic.nack n\u00e3o conta para o delivery-limit \u2014 pelo contr\u00e1rio, nota-quorum-queue.md afirma que delivery-limit 'corta o la\u00e7o de redelivery em definitivo, mesmo se o c\u00f3digo do consumidor voltar a ter algum bug de requeue'."
+        },
+        {
+          "text": "A resposta aponta o `noAck: true` com o id RMQ-AP-01 e a localiza\u00e7\u00e3o src/consumidor.js:16, e a policy `ha-mode` com o id RMQ-AP-06 e a localiza\u00e7\u00e3o infra/rabbitmq/policy.json (linha 6 ou 7), dizendo que o espelhamento cl\u00e1ssico foi removido no RabbitMQ 4.0 e propondo quorum queue",
+          "passed": false,
+          "evidence": "diagnostico.md aponta noAck: true e ha-mode/ha-sync-mode 'removido do RabbitMQ a partir da s\u00e9rie 4.0' e prop\u00f5e quorum queue, mas n\u00e3o cita os ids RMQ-AP-01 nem RMQ-AP-06 nem localiza\u00e7\u00e3o arquivo:linha (src/consumidor.js:16, policy.json:6-7)."
+        },
+        {
+          "text": "A resposta aponta, em src/pagamentos.js, o UPDATE no PostgreSQL seguido de `ch.publish` sem transa\u00e7\u00e3o comum como dual write, citando o id OBX-AP-01 (ou nomeando explicitamente o antipattern de dual write), e recomenda outbox transacional com relay",
+          "passed": false,
+          "evidence": "Nenhuma men\u00e7\u00e3o a dual write, outbox ou OBX-AP-01 em diagnostico.md ou nos trechos; pagamentos.trecho-corrigido.js mant\u00e9m db.query UPDATE seguido de ch.publish sem transa\u00e7\u00e3o comum. O \u00fanico coment\u00e1rio sobre pagamentos.js \u00e9 conex\u00e3o AMQP duplicada e idempot\u00eancia do publish."
+        },
+        {
+          "text": "O trecho corrigido proposto combina ack manual depois do efeito, nack/reject sem requeue (requeue false) ou retry atrasado, `delivery-limit` definido junto com uma DLX (dead-letter-exchange) \u2014 nunca delivery-limit sem DLX \u2014 e prefetch expl\u00edcito",
+          "passed": false,
+          "evidence": "consumidor.corrigido.js tem ack ap\u00f3s o efeito, prefetch(1) e nack(msg, false, false) para ErroPermanente, e policy.corrigida.json tem delivery-limit 5 com dead-letter-exchange; por\u00e9m o ramo de erro transit\u00f3rio faz 'ch.nack(msg, false, true)' \u2014 requeue imediato, sem retry atrasado \u2014 que \u00e9 o mecanismo do la\u00e7o e, como basic.nack n\u00e3o conta para o delivery-limit da quorum queue, n\u00e3o \u00e9 contido pela policy. O trecho n\u00e3o satisfaz 'nack/reject sem requeue ou retry atrasado'."
+        },
+        {
+          "text": "Ao fim da execu\u00e7\u00e3o, `git status --porcelain` no diret\u00f3rio da fixture est\u00e1 vazio: a corre\u00e7\u00e3o veio s\u00f3 como trecho na resposta",
+          "passed": true,
+          "evidence": "Medido pelo grader: 'git -C without_skill/run-1/work status --porcelain' retornou sa\u00edda vazia; os trechos corrigidos est\u00e3o s\u00f3 em outputs/ (consumidor.corrigido.js, policy.corrigida.json, pagamentos.trecho-corrigido.js)."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.8867,
+        "stddev": 0.0981,
+        "min": 0.83,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 152.0,
+        "stddev": 45.1331,
+        "min": 109,
+        "max": 199
+      },
+      "tokens": {
+        "mean": 2695.6667,
+        "stddev": 4669.0316,
+        "min": 0,
+        "max": 8087
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.2333,
+        "stddev": 0.085,
+        "min": 0.17,
+        "max": 0.33
+      },
+      "time_seconds": {
+        "mean": 118.3333,
+        "stddev": 38.5919,
+        "min": 75,
+        "max": 149
+      },
+      "tokens": {
+        "mean": 2374.0,
+        "stddev": 4111.8886,
+        "min": 0,
+        "max": 7122
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.65",
+      "time_seconds": "+33.7",
+      "tokens": "+322"
+    }
+  },
+  "notes": []
+}

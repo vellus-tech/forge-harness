@@ -1,0 +1,22 @@
+=== git worktree list (a partir do repo alvo) ===
+<worktree-do-eval>/.forge/evals/skills/using-git-worktrees/workspace/iteration-1/eval-worktree-destacada-com-commit/with_skill/run-1/work                                        611ed85 [main]
+<worktree-do-eval>/.forge/evals/skills/using-git-worktrees/workspace/iteration-1/eval-worktree-destacada-com-commit/with_skill/run-1/work/.forge/worktrees/agent-tarifa-noturna  ab223a4 [feat/fare/tarifa-noturna]
+
+=== git branch --show-current (na worktree agent-tarifa-noturna) ===
+feat/fare/tarifa-noturna
+
+=== git log --oneline (agent-tarifa-noturna) ===
+ab223a4 feat(fare): esqueleto da tarifa noturna
+611ed85 chore: estado inicial da fixture
+
+=== git status (agent-tarifa-noturna) ===
+On branch feat/fare/tarifa-noturna
+nothing to commit, working tree clean
+
+=== conteúdo src/fare/night.js ===
+// Esqueleto da tarifa noturna (22h-5h): desconto ainda a definir.
+import { BASE_FARE_CENTS } from './base.js';
+
+export function nightFare() {
+  return BASE_FARE_CENTS;
+}

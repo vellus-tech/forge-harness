@@ -1,0 +1,5 @@
+[project]
+name = "tarifa"
+version = "0.4.0"
+requires-python = ">=3.11"
+dependencies = []

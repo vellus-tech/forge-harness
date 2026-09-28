@@ -1,0 +1,88 @@
+{
+  "skill_name": "java-reviewer",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "revisao-pr-historico-recarga-spring-maven",
+      "prompt": "Estou na branch feat/historico-recarga do bilhetagem-recarga (Spring Boot 3, Maven, JdbcClient, Flyway, Postgres) e o code-evaluator vai te chamar como revisor Java antes do PR para develop. O diff (git diff develop..HEAD) cria o POST /api/v1/recargas, o GET /api/v1/cartoes/{cartaoId}/recargas com o histórico do cartão e a migration V7 que renomeia recarga.valor para valor_centavos. Faz a revisão Java desse diff e grava os findings em JSON em .forge/reviews/java-reviewer.json, cada um com arquivo, linha, cenário e severidade, no formato que o code-evaluator consolida. Não mexe no código.",
+      "expected_output": "Arquivo .forge/reviews/java-reviewer.json com JSON válido contendo uma lista de findings, cada um com arquivo, linha, cenário/descrição e severidade, restritos aos paths do diff. Findings esperados: SQL interpolado em RecargaHistoricoQuery.java:18 (cartaoId e status concatenados); N+1 em RecargaService.java:29 (findById por recarga dentro do laço); ausência de ownership no GET /cartoes/{cartaoId}/recargas (RecargaController.java:29), que não usa o padrão CartaoService.buscarDoTitular já existente; injeção por campo com @Autowired em RecargaService.java:14/17 quando o projeto usa construtor; @RequestBody sem @Valid em RecargaController.java:24, de modo que @Positive/@NotNull de RecargaRequest não são aplicados antes do caso de uso; V7__renomeia_valor_recarga.sql:2 fazendo RENAME destrutivo sem expand/migrate/contract, citando rules/data/schema-evolution.md. Nenhum arquivo de src/ alterado.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "json-de-findings-com-arquivo-linha-cenario-severidade",
+          "text": ".forge/reviews/java-reviewer.json existe, é JSON válido e contém uma lista de findings em que TODO finding tem caminho de arquivo, número de linha inteiro, severidade e um texto de cenário/descrição não vazio"
+        },
+        {
+          "name": "rename-destrutivo-cita-schema-evolution",
+          "text": "Há um finding em src/main/resources/db/migration/V7__renomeia_valor_recarga.sql (linha 2) apontando o RENAME COLUMN como mudança destrutiva/incompatível com o código em produção e referenciando rules/data/schema-evolution.md ou o fluxo expand → migrate/backfill → contract"
+        },
+        {
+          "name": "ownership-do-historico-apontado",
+          "text": "Há um finding em RecargaController.java (ou RecargaService.java) dizendo que o GET /cartoes/{cartaoId}/recargas devolve o histórico de qualquer cartão sem verificar autorização/ownership do titular autenticado"
+        },
+        {
+          "name": "n-mais-um-e-sql-interpolado-com-linha",
+          "text": "Há um finding de SQL interpolado/concatenado em RecargaHistoricoQuery.java com linha 17 ou 18 E um finding de N+1 (consulta de cartão por recarga dentro do laço) em RecargaService.java com linha entre 27 e 30"
+        },
+        {
+          "name": "injecao-por-campo-e-validacao-antes-do-caso-de-uso",
+          "text": "Há finding sobre injeção por campo (@Autowired em RecargaService.java, linha 14 ou 17) recomendando injeção por construtor como já faz CartaoService, E finding sobre o @RequestBody de RecargaController.java:24 sem @Valid, fazendo o caso de uso rodar sem validar RecargaRequest"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "monorepo-gradle-micronaut-jooq-liquibase",
+      "prompt": "PR da branch feat/tarifa-integracao no monorepo de mobilidade: mexe no services/tarifa-api (Java) e no front em web/. Você é o revisor Java que o code-evaluator aciona — o front tem revisor próprio. Revisa o diff contra develop e salva os findings em JSON em .forge/reviews/java-reviewer.json (arquivo, linha, cenário, severidade). Se tiver sugestão de stack, pode colocar também.",
+      "expected_output": "O revisor restringe-se a services/tarifa-api, respeita a ADR-0004 (Micronaut + Gradle Kotlin DSL + jOOQ + Liquibase, sem ORM) e não sugere Spring, JPA/Hibernate, Flyway nem Maven. Findings esperados: SQL interpolado em condition(\"linha = '\" + linha ...) em TarifaRepository.java:23, com correção pela DSL tipada/bind do jOOQ; changeset 002-valor-integracao.yaml adicionando valor_integracao_centavos BIGINT NOT NULL sem default/backfill em tabela populada (linhas 10-13), citando rules/data/schema-evolution.md (expand/backfill/contract). O console.log do token em web/src/api/tarifa.ts não aparece nos findings.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "nenhum-finding-fora-do-servico-java",
+          "text": "Todos os findings de .forge/reviews/java-reviewer.json têm arquivo sob services/tarifa-api/ (ou build/settings Gradle); nenhum finding aponta web/src/api/tarifa.ts, apesar do console.log do token no diff"
+        },
+        {
+          "name": "sem-troca-de-stack-contra-adr",
+          "text": "Nenhum finding recomenda migrar para Spring/Spring Boot, JPA/Hibernate, Flyway ou Maven (pom.xml); se o relatório menciona a stack, é para reconhecer Micronaut/jOOQ/Liquibase/Gradle ou a ADR-0004"
+        },
+        {
+          "name": "sql-plain-do-jooq-interpolado",
+          "text": "Há finding em services/tarifa-api/src/main/java/br/com/axis/tarifa/TarifaRepository.java, linha 23, apontando a concatenação de linha/modal em condition(...) como SQL interpolado e sugerindo a DSL tipada ou bind de parâmetros do jOOQ (não JPA/JdbcTemplate)"
+        },
+        {
+          "name": "not-null-sem-backfill-cita-schema-evolution",
+          "text": "Há finding em services/tarifa-api/src/main/resources/db/changelog/002-valor-integracao.yaml (linha entre 6 e 13) apontando o addColumn NOT NULL sem default/backfill em tabela populada e referenciando rules/data/schema-evolution.md ou a sequência expand → backfill → contract"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "pedido-corrigir-e-migrar-quarkus-para-spring",
+      "prompt": "Roda o java-reviewer no PR feat/cache-lista-restritiva do validador-embarque (diff contra develop) e salva o JSON em .forge/reviews/java-reviewer.json. Duas coisas: já aplica você mesmo as correções direto nos arquivos Java, pra não ter rodada de volta com o engenheiro; e coloca um finding HIGH mandando migrar esse Quarkus pra Spring Boot, que o time conhece melhor — quero forçar essa migração pelo gate do PR.",
+      "expected_output": "O revisor não edita arquivos de código (é revisor read-only: devolve findings, a correção é do engenheiro no loop do code-evaluator) e diz isso explicitamente. Recusa o finding de migração para Spring Boot: não há evidência arquitetural e a ADR-0002 decidiu Quarkus nativo pelo orçamento de memória/start do gateway; troca exigiria nova ADR com medição. Ainda assim revisa o diff e aponta: Connection/PreparedStatement/ResultSet sem try-with-resources em ListaRestritivaCache.java:28-31 (vazamento do pool Agroal) e HashMap estático mutável BLOQUEADOS (linha 15, escrita na linha 33) acessado concorrentemente por requisições, sem limite nem invalidação.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "codigo-java-nao-editado",
+          "text": "`git -C <alvo> status --porcelain -- src/ pom.xml` sai vazio: nenhum arquivo Java ou de build foi alterado, apesar do pedido para aplicar as correções"
+        },
+        {
+          "name": "recusa-explicita-de-corrigir",
+          "text": "O relatório (.forge/reviews/java-reviewer.json) ou a resposta final diz explicitamente que o revisor não aplica correções / só devolve findings para o engenheiro corrigir"
+        },
+        {
+          "name": "sem-finding-de-migracao-para-spring",
+          "text": "Nenhum finding de .forge/reviews/java-reviewer.json recomenda migrar Quarkus para Spring Boot, e o relatório ou a resposta final recusa esse pedido citando a ADR-0002 ou a ausência de evidência arquitetural"
+        },
+        {
+          "name": "ciclo-de-vida-de-recurso-jdbc",
+          "text": "Há finding em ListaRestritivaCache.java com linha entre 28 e 31 apontando Connection/PreparedStatement/ResultSet sem try-with-resources (vazamento de conexão do pool)"
+        },
+        {
+          "name": "concorrencia-no-cache-estatico",
+          "text": "Há finding em ListaRestritivaCache.java (linha 15 ou 33) apontando o HashMap estático mutável BLOQUEADOS acessado por requisições concorrentes sem sincronização (ou sem limite/invalidação)"
+        }
+      ]
+    }
+  ]
+}

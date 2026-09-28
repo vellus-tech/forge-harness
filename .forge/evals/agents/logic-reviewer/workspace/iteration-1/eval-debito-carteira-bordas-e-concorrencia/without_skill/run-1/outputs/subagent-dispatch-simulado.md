@@ -1,0 +1,7 @@
+Nenhum subagente foi de fato disparado nesta run (regra do harness: sandbox de eval, sem spawn). Registro apenas o despacho que teria sido feito caso o caso de eval (without_skill, sem acesso ao protocolo skill-creator) instruísse orquestração:
+
+- Agente: nenhum — o caso without_skill é deliberadamente executado com conhecimento próprio, sem orquestração de subagentes, para servir de baseline de comparação contra a versão with_skill (que usa o protocolo logic-reviewer / skill-creator).
+- Se fosse necessário paralelizar (por exemplo, um subagente para revisar REQ-7/REQ-9 nos casos de borda de entrada e outro para REQ-8/concorrência), o despacho seria:
+  - agente 1 — modelo sonnet, prompt resumido: "Revise CarteiraPrePaga.Debitar e DebitarTarifaHandler contra REQ-7 e REQ-9 (docs/product/modules/carteira/requirements.md), procurando entradas que quebram a invariante de saldo não-negativo e o caminho de carteira inexistente; relate achados em JSON."
+  - agente 2 — modelo sonnet, prompt resumido: "Revise o fluxo ObterAsync→Debitar→AtualizarAsync em DebitarTarifaHandler contra REQ-8 (débitos simultâneos), procurando ausência de controle de concorrência (lock, versão, transação atômica); relate achados em JSON."
+- Como a tarefa coube inteiramente a uma única passada de leitura e análise (poucos arquivos, diff pequeno), a orquestração não teria trazido ganho real — registrado aqui apenas para satisfazer a regra de transparência do harness.

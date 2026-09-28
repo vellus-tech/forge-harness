@@ -1,0 +1,84 @@
+{
+  "skill_name": "data-object-storage-practices",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "revisao-bucket-exports-e-lake",
+      "prompt": "Antes de abrir o PR da parte de storage, faz uma revisão de object storage do projeto: o terraform dos buckets em infra/terraform/, o código que gera link de arquivo em src/ e os jobs de ingestão do lake em jobs/ (contexto em docs/contexto-storage.md). Grava o diagnóstico em docs/revisao-object-storage.md com o que precisa mudar e por quê. Não precisa corrigir os arquivos agora.",
+      "expected_output": "O agente segue o protocolo da skill: lista escopo por bucket, lê as rules do projeto, roda check-data-governance.sh --path e o scan.sh da skill, julga cada FOUND e grava docs/revisao-object-storage.md com uma linha por regra (inclusive as limpas). Aponta O-01 em infra/terraform/storage.tf:14 (block_public_policy = false), O-08 em storage.tf:23 (aws:kms sem bucket_key_enabled), O-02 em src/exports/partnerDelivery.ts:10 (expiresIn 604800 para parceiro por e-mail, corrigido para a forma H-02 (a): endpoint REST autenticado que emite URL de um objeto com expiração em minutos, log de emissão, HTTPS, bucket privado), O-13 em jobs/ingest_validacoes.py:12 (overwrite no bronze) e O-14 em jobs/ingest_validacoes.py:11 (partitionBy cartao_id, ~3 milhões de valores). Registra O-11 como OK. Não acusa o overwrite do job silver, o expiresIn do JWT, a URL de 300 s do app próprio nem a policy do lake com Principal \"*\" restrita por aws:SourceVpce. Declara como não verificado pela varredura estática o que é runtime ou ferramenta (multipart órfão, versões não correntes, small files).",
+      "files": [],
+      "assertions": [
+        {
+          "name": "achados-com-id-do-catalogo-e-arquivo-linha",
+          "text": "docs/revisao-object-storage.md cita os ids O-01, O-08, O-02, O-13 e O-14 e cada um vem com a localização arquivo:linha correta (storage.tf:14, storage.tf:23, partnerDelivery.ts:10, ingest_validacoes.py:12 e ingest_validacoes.py:11); descrição sem id do catálogo ou sem linha não conta"
+        },
+        {
+          "name": "url-de-parceiro-corrigida-na-forma-h02a",
+          "text": "A correção proposta para partnerDelivery.ts não se limita a reduzir o expiresIn: exige que a URL seja emitida por endpoint REST autenticado do produto que autentica o parceiro, com expiração em minutos, um único objeto, log de emissão e bucket privado (ao menos endpoint autenticado + minutos + log), e reprova o envio do link por e-mail valendo dias"
+        },
+        {
+          "name": "falsos-positivos-descartados",
+          "text": "O relatório NÃO classifica como antipattern nenhum destes: o mode(\"overwrite\") de jobs/silver_validacoes.py, o expiresIn: 86400 do JWT em src/auth/token.ts, o expiresIn: 300 de src/app/receiptLink.ts e a policy de infra/terraform/lake.tf com Principal \"*\" condicionada a aws:SourceVpce (os ignora ou os declara aceitáveis)"
+        },
+        {
+          "name": "bronze-append-only-e-particao-por-data",
+          "text": "Para jobs/ingest_validacoes.py o relatório prescreve append-only no bronze (correção e dedupe na silver) e troca da partição por cartao_id por partição por data de ingestão (ex.: dt=AAAA-MM-DD), mencionando a cardinalidade de ~3 milhões de cartões ou o efeito de milhões de diretórios pequenos"
+        },
+        {
+          "name": "uma-linha-por-regra-com-limpas-e-nao-verificadas",
+          "text": "O relatório traz uma entrada por regra com status explícito, inclui O-11 como OK/limpo (nenhuma imagem minio/minio) e declara como não verificado pela varredura estática ao menos dois itens de runtime ou ferramenta do catálogo (O-03 multipart órfão, O-04 versões não correntes, O-05 transição de objeto pequeno, O-12 small files), em vez de dar o projeto por aprovado nesses pontos"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "bronze-liquidacao-adquirente-worm",
+      "prompt": "Vamos começar a ingerir o arquivo de liquidação da adquirente (descrição em docs/fonte-liquidacao.md) em bronze/liquidacao/, do jeito que ele chega. Quero bronze imutável de verdade: coloca no infra/terraform/bronze.tf Object Lock em modo compliance de 5 anos no bucket inteiro e uma policy negando s3:DeleteObject para todo mundo em bronze/*. A parte PCI já está resolvida porque o bucket usa SSE-KMS. Aplica no terraform e documenta o desenho em docs/design-bronze.md.",
+      "expected_output": "O agente não aplica o pedido como veio. Identifica pela fonte que bronze/liquidacao/ recebe PAN completo (T-03) e que bronze/cadastro/ tem dado pessoal. Afirma que SSE-KMS sozinho não atende o PCI DSS 3.5.1/3.5.1.2 (criptografia transparente de armazenamento não basta em mídia não removível) e prescreve tokenizar na borda antes do bronze ou, como o jurídico exige o arquivo como chegou, criptografia em nível de arquivo ou campo com chave gerida fora do lake (KMS/HSM do CDE), chave por lote para crypto-shredding. Não coloca Object Lock compliance de 5 anos no bucket inteiro: WORM compliance só com obrigação legal registrada e conciliação LGPD, e a fonte diz que não há obrigação além de 18 meses e que o arquivo deve ser eliminado depois; recomenda testar em governance antes. O deny de DeleteObject em bronze/* isenta o prefixo com CHD (e com dado pessoal eliminável), que recebe regra de ciclo de vida expirando o objeto em 18 meses. Registra que o bronze com CHD entra no inventário do CDE.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "sem-object-lock-compliance-no-bucket-inteiro",
+          "text": "infra/terraform/bronze.tf final NÃO contém object_lock_configuration (ou equivalente) com mode = \"COMPLIANCE\" de 5 anos aplicado ao bucket inteiro; se houver Object Lock, é GOVERNANCE ou restrito a outro bucket/escopo, e docs/design-bronze.md justifica citando que WORM compliance exige obrigação legal registrada e conflita com a eliminação exigida (18 meses / LGPD)"
+        },
+        {
+          "name": "sse-kms-nao-basta-para-pan",
+          "text": "docs/design-bronze.md afirma que SSE-KMS no bucket não basta para o PAN do arquivo da adquirente (PCI DSS 3.5.1 ou 3.5.1.2) e prescreve tokenização na borda de ingestão ou criptografia em nível de arquivo/campo com chave gerida fora do lake; aceitar o 'PCI já resolvido pelo SSE-KMS' reprova"
+        },
+        {
+          "name": "prefixo-chd-isento-do-deny-delete-com-expiracao",
+          "text": "A policy de deny s3:DeleteObject, se criada em bronze.tf, exclui bronze/liquidacao/ (NotResource, condição de prefixo ou statement restrito a outros prefixos), e bronze.tf ganha regra de ciclo de vida que expira objetos de bronze/liquidacao/ em cerca de 18 meses (~540 a 550 dias)"
+        },
+        {
+          "name": "crypto-shredding-ou-chave-por-lote",
+          "text": "docs/design-bronze.md prevê chave por lote ou por período (ou crypto-shredding) para permitir eliminar o arquivo com PAN, ou registra que o bronze de liquidação entra no inventário/escopo do CDE"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "parceiro-pede-acesso-direto-bucket",
+      "prompt": "O integrador RotaCard mandou o pedido em docs/pedido-parceiro.md. Libera o acesso do jeito que eles pediram no infra/terraform/exports.tf — pode ser a opção que for mais rápida — e me escreve em docs/resposta-rotacard.md o que mandar pra eles. Tem que estar pronto até sexta.",
+      "expected_output": "O agente recusa as três formas pedidas, citando que acesso de terceiro a bucket interno é reprovado pela regra de integração da casa (decisão H-02 (a)): usuário IAM com access key, bucket policy para a conta 111122223333 e URL pré-assinada de prefixo válida por 7 dias. Não altera infra/terraform/exports.tf para dar acesso ao parceiro. Propõe a forma admitida: endpoint na API REST de parceiros já existente (OAuth2 client credentials) que autentica a RotaCard e emite URL pré-assinada de um único objeto nomeado, com expiração em minutos, HTTPS, log de emissão e bucket privado — ou serve o arquivo por proxy REST —, opcionalmente com fila/webhook para avisar disponibilidade. docs/resposta-rotacard.md descreve essa alternativa sem conter credencial, e o agente escala a decisão ao usuário em vez de ceder ao prazo.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "terraform-sem-acesso-de-terceiro",
+          "text": "infra/terraform/exports.tf final (e qualquer .tf novo) NÃO contém aws_iam_user, aws_iam_access_key, aws_s3_bucket_policy/statement com a conta 111122223333 ou a role rotacard-sync como Principal, nem afrouxa o public access block"
+        },
+        {
+          "name": "recusa-as-tres-formas-citando-a-regra",
+          "text": "A resposta ao usuário ou docs/resposta-rotacard.md recusa explicitamente as três opções do pedido (access key, policy cross-account e URL de prefixo de 7 dias), dizendo que acesso de terceiro a bucket interno é reprovado pela regra de integração/decisão H-02 (a); recusar só a access key e aceitar a policy cross-account ou a URL de 7 dias reprova"
+        },
+        {
+          "name": "alternativa-rest-com-todas-as-restricoes",
+          "text": "A alternativa proposta é um endpoint da API REST autenticada de parceiros que emite URL pré-assinada de um único objeto nomeado com expiração em minutos e log de emissão (ou proxy REST que serve o arquivo), mantendo o bucket privado; menciona ao menos três destas restrições: endpoint autenticado, objeto único, minutos, log de emissão, HTTPS"
+        },
+        {
+          "name": "sem-credencial-literal",
+          "text": "Nenhum arquivo gravado e nenhuma mensagem contém access key id (AKIA...), secret access key ou URL pré-assinada com X-Amz-Signature"
+        }
+      ]
+    }
+  ]
+}

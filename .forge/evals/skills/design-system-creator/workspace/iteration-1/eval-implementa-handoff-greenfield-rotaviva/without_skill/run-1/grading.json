@@ -1,0 +1,61 @@
+{
+  "expectations": [
+    {
+      "text": "No projeto de saída, `git branch --show-current` retorna feat/design-system/rotaviva-ui-kit e tanto main quanto o branch de feature têm exatamente 1 commit (o inicial da fixture): o trabalho ficou não-commitado e main não recebeu nada.",
+      "passed": false,
+      "evidence": "`git -C without_skill/run-1/work branch --show-current` → `main`; `git rev-parse --verify -q feat/design-system/rotaviva-ui-kit` rc=1 (branch inexistente); `git rev-list --count main` = 1 (03a24d6); `git status --short` mostra ` M package.json`, `?? docs/`, `?? packages/`. Sem branch de feature (o transcript não menciona criá-lo)."
+    },
+    {
+      "text": "packages/design-tokens/src/css/tokens.css existe, sua primeira regra CSS (ignorando comentários e linhas em branco) é o @import de fonts.googleapis.com com Sora e Manrope, define --brand: #0F9D8A, e nem ele nem nenhum outro arquivo sob packages/ contém #7A3CF0 (roxo descartado no chat) ou #FF4000 (marca do exemplo da skill).",
+      "passed": false,
+      "evidence": "`ls work/packages/design-tokens/src/css/tokens.css` → No such file or directory. O arquivo foi gravado em packages/design-tokens/src/tokens.css (caminho diferente do exigido), embora nele a linha 1 seja o @import Sora/Manrope e a linha 5 `--brand: #0F9D8A;` e `grep -rniE '#7A3CF0|#FF4000' packages` seja vazio. Caminho exigido ausente → falha."
+    },
+    {
+      "text": "Nenhum package.json (raiz ou packages/*) declara tailwindcss, @radix-ui/*, styled-components ou @emotion/*; cada primitivo em packages/ui-components/src/components/<Nome>/ tem <Nome>.module.css, e nenhum arquivo *.module.css sob packages/ui-components contém literal de cor hexadecimal (grep -E '#[0-9a-fA-F]{3,8}\\b' vazio).",
+      "passed": false,
+      "evidence": "Deps OK (`grep -nE 'tailwind|@radix-ui|styled-components|@emotion'` rc=1), mas `ls packages/ui-components/src/components` → No such file or directory; primitivos em src/primitives/{Button,Badge,Card,Input}.tsx com um único primitives.css global; `find packages/ui-components -name '*.module.css' | wc -l` = 0. Sem CSS Modules por primitivo."
+    },
+    {
+      "text": "packages/icons/src/Icon.tsx declara IconSize exatamente como a união 16 | 20 | 24 | 32 | 40 | 48; o componente de mark da marca referencia um PNG via new URL('../assets/...png', import.meta.url) e não contém <svg> nem <path>; packages/icons/assets/ contém os PNGs rotaviva-mark-* copiados do handoff.",
+      "passed": false,
+      "evidence": "packages/icons não existe (`ls packages/icons/src` e `packages/icons/assets` → No such file or directory). Os PNGs de marca foram copiados para packages/ui-components/src/assets/brand/, não para packages/icons/assets/; não há Icon.tsx nem IconSize."
+    },
+    {
+      "text": "packages/ui-components/.storybook/preview.tsx importa @rotaviva/design-tokens/css e define storySort na ordem Fundamentos, Componentes, Blocos, Padrões; packages/ui-components/vite.config.ts fixa thresholds de coverage lines 80, branches 75, functions 80; e packages/ui-components/src/index.ts não exporta nada de patterns/.",
+      "passed": false,
+      "evidence": "Não existem packages/ui-components/.storybook/preview.tsx nem packages/ui-components/vite.config.ts (grep → No such file or directory); não há Storybook, storySort nem thresholds de coverage. src/index.ts não tem patterns/, mas as demais cláusulas falham."
+    },
+    {
+      "text": "Existem os quatro arquivos docs/product/design-system/{design-system,tokens,components,accessibility}.md, cada um com Versão, Data, Status e Histórico de Versões; design-system.md afirma explicitamente que a stack não usa Tailwind nem Radix e que não há camada/modo dark nos tokens; accessibility.md registra o contraste da marca sobre branco (~3.4:1) como limite para texto normal, reservando-a a CTA curto/texto grande/ícone.",
+      "passed": false,
+      "evidence": "Os 4 arquivos existem em work/docs/product/design-system/, mas nenhum tem Versão/Data/Status/Histórico de Versões (contagens 0/0/0/0 nos quatro). design-system.md não menciona Tailwind, Radix, dark nem escuro (`grep -niE 'tailwind|radix|dark|escuro'` vazio; só diz 'tema claro apenas nesta versão'). accessibility.md:5 registra o ~3.4:1 abaixo de 4.5:1 para texto normal com restrição a CTA curto e ícone-ação — essa cláusula passaria, mas as demais falham."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 6,
+    "total": 6,
+    "pass_rate": 0.0
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 307000,
+    "total_duration_seconds": 307
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "No projeto de saída, `git branch --show-current` retorna feat/design-system/rotaviva-ui-kit e tanto main quanto o branch de feature têm exatamente 1 commit (o inicial da fixture): o trabalho ficou não-commitado e main não recebeu nada.",
+        "reason": "Insatisfazível no ambiente de eval: as regras do harness proíbem git checkout/branch, então falha nas duas configurações e não discrimina. Aceitar o comando registrado em outputs/ ou liberar git switch no work/ descartável."
+      },
+      {
+        "assertion": "Nenhum package.json (raiz ou packages/*) declara tailwindcss, @radix-ui/*, styled-components ou @emotion/*; cada primitivo em packages/ui-components/src/components/<Nome>/ tem <Nome>.module.css, e nenhum arquivo *.module.css sob packages/ui-components contém literal de cor hexadecimal (grep -E '#[0-9a-fA-F]{3,8}\\b' vazio).",
+        "reason": "Discriminante e útil: pegou hex literal em Badge.module.css que o resto do kit tokeniza."
+      },
+      {
+        "reason": "Nenhuma asserção verifica que testes/coverage/storybook:build rodaram ou que o agente relatou com precisão quais não rodaram, embora o expected_output peça isso."
+      }
+    ],
+    "overall": "Asserções 2-6 discriminam bem (with_skill 4/6 contra without_skill 0/6); a 1 é ruído estrutural do ambiente."
+  }
+}

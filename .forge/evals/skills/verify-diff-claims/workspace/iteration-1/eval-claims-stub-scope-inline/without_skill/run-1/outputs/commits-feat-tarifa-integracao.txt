@@ -1,0 +1,2 @@
+381451b fix(payment): corrigir formatação do valor no e-mail de recibo
+68c43a5 feat(payment): implementar TarifaIntegracaoService

@@ -1,0 +1,35 @@
+asyncapi: 3.0.0
+info:
+  title: Eventos de pagamento
+  version: 1.2.0
+channels:
+  transacaoAutorizada:
+    address: pagamentos.eventos
+    messages:
+      TransacaoAutorizada:
+        $ref: '#/components/messages/TransacaoAutorizada'
+operations:
+  publicarTransacaoAutorizada:
+    action: send
+    channel:
+      $ref: '#/channels/transacaoAutorizada'
+components:
+  messages:
+    TransacaoAutorizada:
+      payload:
+        type: object
+        required: [event_id, transaction_id, amount_in_cents, pan_token, autorizada_em]
+        properties:
+          event_id:
+            type: string
+          transaction_id:
+            type: string
+          amount_in_cents:
+            type: integer
+            format: int64
+            description: Valor em centavos de real.
+          pan_token:
+            type: string
+          autorizada_em:
+            type: string
+            format: date-time

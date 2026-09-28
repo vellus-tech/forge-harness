@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "recarga-outbox-cache-com-pan",
+  "prompt": "@data-engineer Em src/recarga/confirmar-recarga.ts a confirmação da recarga grava no MongoDB, depois publica o evento recarga.confirmada no RabbitMQ e invalida o saldo no Redis. Às vezes o evento some quando o pod cai e o app mostra saldo velho por alguns minutos. Revisa esse fluxo e me diz como desenhar direito, sem perder evento e sem servir saldo errado. Cada operadora é um tenant.",
+  "assertions": [
+    "A resposta contém uma linha que começa com 'classificação:' e traz os três eixos separados por '/' (padrão de acesso, forma do dado, produto), antes da síntese das recomendações.",
+    "O trace mostra tool_use Agent/Task abaixo do data-engineer com subagent_type data-streaming, data-nosql e data-cache — os três, e nenhum outro tipo; alternativamente, na ausência da ferramenta Agent, a resposta traz o bloco PLANO DE ROTEAMENTO com 'especialistas:' listando exatamente esses três. data-relational não aparece (não há ADR que escolha SQL para recarga).",
+    "O texto de cada pergunta delegada (input.prompt no trace, ou a pergunta por especialista do PLANO DE ROTEAMENTO) contém 'check-data-governance.sh --path' e 'scan.sh --root' apontando para src/recarga (ou um arquivo dentro dela).",
+    "A síntese atribui explicitamente o schema da coleção outbox e a gravação na mesma transação do MongoDB ao data-nosql, o relay/publicação com confirms ao data-streaming e a política de invalidação ao data-cache — cada recomendação com o especialista de origem nomeado.",
+    "A resposta aponta que numeroCartao é PAN (pela data-classification.json) e não pode ir no evento — o evento leva token — e que a chave de cache com sha256 do CPF é hash sem chave, a substituir por HMAC com chave secreta em KMS ou token, com namespace por tenant na chave.",
+    "Depois da execução, git status --porcelain no diretório do projeto está vazio: o data-engineer não criou nem editou arquivo."
+  ]
+}

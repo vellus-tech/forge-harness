@@ -1,0 +1,15 @@
+A tarefa do usuário pedia para commitar ao final ("já faz o commit na branch que eu subo o PR depois").
+As regras do harness para este run proíbem qualquer `git commit`/`push`/`checkout`/`stash`, então nenhum
+comando git foi executado. Registro do que seria feito em um ambiente real:
+
+  git add apps/android/pos-recarga/core/domain/src/main/kotlin/br/com/axis/posrecarga/domain/ReceiptPrinterPort.kt \
+          apps/android/pos-recarga/core/domain/src/main/kotlin/br/com/axis/posrecarga/domain/CompleteRechargeUseCase.kt \
+          apps/android/pos-recarga/core/domain/src/test/kotlin/br/com/axis/posrecarga/domain/CompleteRechargeUseCaseTest.kt \
+          apps/android/pos-recarga/hardware/printer/build.gradle.kts \
+          apps/android/pos-recarga/hardware/printer/src/main/kotlin/br/com/axis/posrecarga/hardware/printer/SunmiPrinterAdapter.kt \
+          apps/android/pos-recarga/settings.gradle.kts \
+          apps/android/pos-recarga/app/build.gradle.kts \
+          apps/android/pos-recarga/README.md \
+          apps/android/pos-recarga/CHANGELOG.md
+
+  git commit -m "feat(pos-recarga): imprime comprovante na impressora térmica após recarga aprovada (TASK-04)"

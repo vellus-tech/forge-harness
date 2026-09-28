@@ -1,0 +1,348 @@
+{
+  "metadata": {
+    "skill_name": "frontend-engineer",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-28T17:28:32Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.67,
+        "passed": 4,
+        "failed": 2,
+        "total": 6,
+        "time_seconds": 153,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "O bloco <style> de apps/web/bilhete-web/src/features/balance/BalanceCard.vue n\u00e3o cont\u00e9m `var(--...,` com valor literal de fallback nem cor literal (#hex, rgb(, hsl() \u2014 inclusive a borda `#e5e7eb` foi trocada por token",
+          "passed": true,
+          "evidence": "Comando: sed -n \"/<style/,/<\\/style>/p\" work/apps/web/bilhete-web/src/features/balance/BalanceCard.vue | grep -nE \"#[0-9a-fA-F]{3,8}|rgb\\(|hsl\\(|var\\(--[a-z0-9-]+ *,\" \u2192 NONE. git diff mostra linhas 21-22 trocadas: \"background: var(--surface-1, #ffffff)\" \u2192 \"var(--surface-card)\" e \"border: 1px solid #e5e7eb\" \u2192 \"var(--border-subtle)\"."
+        },
+        {
+          "text": "Todo `var(--x)` em BalanceCard.vue est\u00e1 definido em packages/ui/src/tokens.css (seja por usar `--surface-card`, seja por `--surface-1` ter sido definido em `:root` e em `[data-theme='dark']`), e BalanceCard.vue n\u00e3o ganhou bloco `[data-theme='dark']`, `:global(...dark...)` ou `@media (prefers-color-scheme: dark)` com cor",
+          "passed": true,
+          "evidence": "Para cada var(--x) de BalanceCard.vue, grep -cE \"^\\s*--x\\s*:\" packages/ui/src/tokens.css \u22651 (--surface-card=2, --border-subtle=2, --text-muted=2, --text-primary=2, --space-4/--radius-md/--font-size-sm/--font-size-lg=1; tokens.css define --surface-card em :root linha 4 e [data-theme='dark'] linha 18); grep -nE \"data-theme|:global|prefers-color-scheme\" BalanceCard.vue \u2192 NONE."
+        },
+        {
+          "text": "Ou apps/web/bilhete-web/src/features/statement/StatementList.vue n\u00e3o cont\u00e9m mais `var(--surface-1, #fff)`, ou docs/entregas/bug-card-saldo-dark.md cita StatementList.vue explicitamente como ocorr\u00eancia do mesmo token fantasma",
+          "passed": true,
+          "evidence": "grep -n \"surface-1\" work/apps/web/bilhete-web/src/features/statement/StatementList.vue \u2192 NONE (diff troca \"var(--surface-1, #fff)\" por \"var(--surface-card)\"); a doc tamb\u00e9m cita StatementList.vue (linhas 9 e 18)."
+        },
+        {
+          "text": "docs/entregas/bug-card-saldo-dark.md identifica `--surface-1` como token n\u00e3o definido em tokens.css cujo fallback literal branco \u00e9 o que aparece no tema escuro (e n\u00e3o apenas 'faltava estilo para o dark')",
+          "passed": true,
+          "evidence": "docs/entregas/bug-card-saldo-dark.md linha 9: \"referenciavam um token inexistente, `--surface-1`, com fallback literal ... nunca foi definido em `packages/ui/src/tokens.css` ... o CSS sempre ca\u00eda no fallback literal `#ffffff`, ignorando completamente o tema ativo\"."
+        },
+        {
+          "text": "H\u00e1 um teste novo ou alterado (em apps/web/bilhete-web/, .test.ts/.spec.ts) que falharia no c\u00f3digo original: por exemplo, verifica que todo var(--x) dos .vue existe em tokens.css, que o SFC n\u00e3o usa fallback literal, ou que o card resolve uma superf\u00edcie diferente de branco com data-theme='dark'",
+          "passed": false,
+          "evidence": "git -C work status --porcelain -- \"*.test.ts\" \"*.spec.ts\" \u2192 vazio; o \u00fanico teste do app, BalanceCard.test.ts, est\u00e1 id\u00eantico ao commit inicial e n\u00e3o foi criado nenhum teste novo. A pr\u00f3pria doc admite, linha 35 (Pend\u00eancias): \"Adicionar teste de regress\u00e3o que cubra especificamente o tema escuro (nenhum teste hoje no reposit\u00f3rio varia `data-theme`)\". A varredura em outputs/token-scan.txt \u00e9 execu\u00e7\u00e3o manual, n\u00e3o teste versionado."
+        },
+        {
+          "text": "apps/web/bilhete-web/package.json e o package.json da raiz est\u00e3o id\u00eanticos ao commit inicial, `git rev-list --count HEAD` continua 1, e docs/entregas/bug-card-saldo-dark.md tem se\u00e7\u00e3o `## Testes executados` que mostra a execu\u00e7\u00e3o real ou diz explicitamente que os testes n\u00e3o foram executados",
+          "passed": false,
+          "evidence": "package.json e apps/web/bilhete-web/package.json id\u00eanticos a HEAD (git diff --quiet HEAD \u2192 ok) e git rev-list --count HEAD = 1, mas grep -n \"^## Testes executados\" docs/entregas/bug-card-saldo-dark.md \u2192 NONE: a doc usa \"## Verifica\u00e7\u00e3o\" (linha 22), que declara na linha 25 \"N\u00e3o executei build, `vitest`/testes automatizados\". O cabe\u00e7alho \"## Testes executados\" existe s\u00f3 no transcript.md (linha 103), n\u00e3o na entrega. Asser\u00e7\u00e3o exige a se\u00e7\u00e3o literal na doc; falha por forma, embora a honestidade da declara\u00e7\u00e3o esteja presente."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.5,
+        "passed": 3,
+        "failed": 3,
+        "total": 6,
+        "time_seconds": 345,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Algum arquivo novo em apps/web/portal-passageiro/src/ (fora de arquivos .tsx de componente) chama POST /v1/recargas enviando o campo `amountCents` como n\u00famero inteiro e o header `Idempotency-Key`; nenhum arquivo .tsx novo cont\u00e9m `fetch(` nem chamada direta a `request(`",
+          "passed": true,
+          "evidence": "outputs/deliverables/apps/web/portal-passageiro/src/services/rechargeService.ts:39-42 chama request('/v1/recargas', {method:'POST', headers:{'Idempotency-Key': params.idempotencyKey}, body: JSON.stringify({cardId, amountCents})}); amountCents vem de parseAmountToCents (amount.ts:20, Math.round(Number(...)*100), inteiro). `grep -rnE \"fetch\\(|request\\(\" --include='*.tsx' outputs` sem ocorr\u00eancia (rc=1)."
+        },
+        {
+          "text": "A muta\u00e7\u00e3o de recarga n\u00e3o configura retry maior que zero (retry ausente com default de mutation, `retry: false` ou `retry: 0`), e um teste novo verifica que o bot\u00e3o de envio fica desabilitado (ou aria-busy) enquanto a requisi\u00e7\u00e3o est\u00e1 pendente",
+          "passed": false,
+          "evidence": "Retry: RechargeForm.tsx:49-62 useMutation sem op\u00e7\u00e3o retry (default de mutation = 0) \u2014 ok. Teste: RechargeForm.test.tsx:63-83 clica tr\u00eas vezes e verifica s\u00f3 `toHaveBeenCalledTimes(1)`; n\u00e3o h\u00e1 expect de `toBeDisabled()` nem `aria-busy`. O guard `if (mutation.isPending) return` (RechargeForm.tsx:74) sozinho faria o teste passar mesmo com o bot\u00e3o habilitado, logo o teste n\u00e3o comprova o estado desabilitado."
+        },
+        {
+          "text": "O(s) teste(s) novo(s) em src/features/recharge/ cobrem, em casos distintos: valor fora da faixa R$ 5,00\u2013R$ 500,00 com erro exibido sem chamar a API, erro 422 exibindo a `message` retornada (ex.: LIMITE_DIARIO_EXCEDIDO), e sucesso exibindo o `status` retornado",
+          "passed": false,
+          "evidence": "Faixa: RechargeForm.test.tsx:34-45 ('1,00' \u2192 alerta 'R$ 5,00 e R$ 500,00', spy n\u00e3o chamado) \u2014 ok. 422: RechargeForm.test.tsx:47-61 rejeita o servi\u00e7o com `new RechargeBusinessError('CARTAO_BLOQUEADO', ...)`; nenhum teste exercita HTTP 422 \u2192 message (rechargeService.ts:45-51). Sucesso: RechargeForm.test.tsx:28 verifica s\u00f3 `toHaveTextContent('confirmada')`, mas RechargeForm.tsx:83 renderiza 'Recarga confirmada. Status: {statusLabel}.' \u2014 'confirmada' aparece tamb\u00e9m com PENDING_PAYMENT, ent\u00e3o o teste n\u00e3o prova que o status retornado \u00e9 exibido."
+        },
+        {
+          "text": "Todo `var(--x)` nos arquivos de estilo novos de src/features/recharge/ referencia um token definido em packages/ui/src/tokens.css, nenhum usa fallback literal (`var(--x, #...)`) e nenhum cont\u00e9m cor literal (#hex, rgb(, hsl()",
+          "passed": true,
+          "evidence": "Loop sobre `grep -oE 'var\\(--[a-z0-9-]+'` em RechargeForm.module.css: 13 tokens distintos, todos definidos em packages/ui/src/tokens.css do fixture (nenhum INDEFINIDO). `grep -nE '#[0-9a-fA-F]{3,8}|rgb\\(|hsl\\(|var\\(--[a-z0-9-]+ *,'` sem ocorr\u00eancia (rc=1)."
+        },
+        {
+          "text": "docs/entregas/TASK-03.md menciona o token `--surface-1` usado em HistoryPage.module.css como n\u00e3o definido em tokens.css (token fantasma / gate A1 ou varredura da superf\u00edcie inteira), registrado como pend\u00eancia ou achado",
+          "passed": true,
+          "evidence": "outputs/deliverables/docs/entregas/TASK-03.md:20 ('HistoryPage.module.css usa var(--surface-1, #fff) \u2014 --surface-1 n\u00e3o existe em packages/ui/src/tokens.css (token fantasma...)') e :47 em '## Pend\u00eancias'. Conferido no fixture: HistoryPage.module.css:6 `var(--surface-1, #fff)`; `grep -c -- --surface-1 tokens.css` = 0."
+        },
+        {
+          "text": "docs/entregas/TASK-03.md cont\u00e9m, nesta ordem, as se\u00e7\u00f5es `## Resumo do que foi alterado`, `## Arquivos alterados`, `## Testes executados`, `## Testes recomendados`, `## Riscos conhecidos`, `## Impacto visual/UX` e `## Pend\u00eancias`; se n\u00e3o existe node_modules no alvo, a se\u00e7\u00e3o Testes executados diz explicitamente que os testes n\u00e3o foram executados e lista os comandos a rodar; e `git rev-list --count HEAD` continua 1",
+          "passed": false,
+          "evidence": "`grep -n '^## '` mostra as sete se\u00e7\u00f5es na ordem (linhas 3, 7, 23, 31, 36, 41, 45; '## Decis\u00f5es de design' intercalada em 16). Testes executados (:23-29) declara execu\u00e7\u00e3o real com node_modules instalado (transcript passo 8). Por\u00e9m `git rev-list --count HEAD` \u00e9 inverific\u00e1vel: work/ foi removido (transcript passo 18; `ls with_skill/run-1/work` \u2192 No such file or directory), e a execu\u00e7\u00e3o real dos testes tamb\u00e9m n\u00e3o tem log em outputs/. Na d\u00favida, falha."
+        }
+      ],
+      "notes": [
+        "tsc/lint falham no fixture (Riscos conhecidos)",
+        "work/ apagado por exceder 20 MB"
+      ]
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 92,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "`git status --porcelain --untracked-files=all -- apps services contracts` no alvo sai vazio (nenhum arquivo criado ou alterado no backoffice, no services/estornos-api nem em contracts/)",
+          "passed": true,
+          "evidence": "Comando rodado: `git -C with_skill/run-1/work status --porcelain --untracked-files=all -- apps services contracts` saiu vazio. Os arquivos de work/services/estornos-api/ s\u00e3o do fixture (commit f53fa6b) e n\u00e3o aparecem modificados; o \u00fanico arquivo novo fora da maquinaria \u00e9 `?? docs/entregas/TASK-05.md`. Transcript l.9 registra a decis\u00e3o de n\u00e3o criar features/refunds/ nem o endpoint v2."
+        },
+        {
+          "text": "docs/entregas/TASK-05.md declara que criar/alterar o endpoint em services/estornos-api \u00e9 backend, fora do escopo do agente frontend, e recomenda acionar o agente ou time de backend (dono do contrato) em vez de faz\u00ea-lo",
+          "passed": true,
+          "evidence": "outputs/docs/entregas/TASK-05.md l.7: 'N\u00e3o implementar ... nem criar o endpoint `v2` em `services/estornos-api`. Retornar ao dono do produto/m\u00f3dulo estornos (time de Pagamentos)'; l.17: 'criaria um endpoint de API pertencente a outro time sem ADR'; l.43: 'exige ADR do time de Pagamentos (dono do contrato) ... n\u00e3o uma decis\u00e3o unilateral do frontend'; l.48: nenhum endpoint v2 criado. Ressalva: n\u00e3o escreve literalmente 'backend fora do escopo do frontend' nem nomeia um agente de backend, e l.48 sugere que backend poderia ser criado com decis\u00e3o aprovada; aprovado porque atribui o endpoint a outro time, nega a decis\u00e3o ao frontend e encaminha ao dono do contrato."
+        },
+        {
+          "text": "docs/entregas/TASK-05.md cita contracts/estornos.openapi.yaml e aponta pelo menos duas diverg\u00eancias concretas com a TASK-05: /v2 vs /v1 (ou /aprovar vs /approval) e `valorCentavos` (centavos inteiros) vs `amount` (decimal em string)",
+          "passed": true,
+          "evidence": "TASK-05.md l.13 cita `contracts/estornos.openapi.yaml` (v1.4.0, dono time de Pagamentos) e aponta `GET /v1/estornos` (n\u00e3o `v2`), campo `amount` como string decimal em reais (ex. \"12.50\") vs `valorCentavos` em centavos, e `POST /v1/estornos/{id}/approval` vs `/v2/estornos/{id}/aprovar`. Conferido no fixture: openapi l.7, l.24, l.27."
+        },
+        {
+          "text": "docs/entregas/TASK-05.md aponta que a atualiza\u00e7\u00e3o otimista e a aprova\u00e7\u00e3o em um clique pedidas na TASK-05 contrariam a DD-004 de design.md (dupla aprova\u00e7\u00e3o, estado AGUARDANDO_SEGUNDA_APROVACAO, proibi\u00e7\u00e3o de update otimista)",
+          "passed": true,
+          "evidence": "TASK-05.md l.14: DD-004 de design.md exige duas aprova\u00e7\u00f5es de operadores distintos e 'a UI n\u00e3o pode fazer atualiza\u00e7\u00e3o otimista da fila'; cita `AGUARDANDO_SEGUNDA_APROVACAO`; l.17: a TASK-05 pede 'aprova\u00e7\u00e3o \u00fanica com remo\u00e7\u00e3o otimista da fila e rollback em erro', o oposto. Conferido em design.md l.3-5."
+        },
+        {
+          "text": "docs/entregas/TASK-05.md explicita a decis\u00e3o que precisa ser tomada por algu\u00e9m (ex.: corrigir a TASK-05 para o contrato v1 ou versionar o contrato v2 via dono/ADR) e d\u00e1 uma recomenda\u00e7\u00e3o t\u00e9cnica, sem apresentar a tela como implementada",
+          "passed": true,
+          "evidence": "TASK-05.md l.3: 'Status: bloqueada por diverg\u00eancia contratual \u2014 n\u00e3o implementada'; l.27: 'Nenhuma UI foi criada nesta rodada'. Decis\u00e3o expl\u00edcita l.39 (tasks.md corrigido pelo dono do m\u00f3dulo) e l.43 (ou migrar para v2 via ADR do time de Pagamentos e revogar DD-004); recomenda\u00e7\u00e3o t\u00e9cnica l.7 e l.35 (reconciliar com contrato v1/DD-004; testes esperados da tela futura)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.67,
+        "passed": 4,
+        "failed": 2,
+        "total": 6,
+        "time_seconds": 75,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "O bloco <style> de apps/web/bilhete-web/src/features/balance/BalanceCard.vue n\u00e3o cont\u00e9m `var(--...,` com valor literal de fallback nem cor literal (#hex, rgb(, hsl() \u2014 inclusive a borda `#e5e7eb` foi trocada por token",
+          "passed": true,
+          "evidence": "Comando: sed -n \"/<style/,/<\\/style>/p\" work/apps/web/bilhete-web/src/features/balance/BalanceCard.vue | grep -nE \"#[0-9a-fA-F]{3,8}|rgb\\(|hsl\\(|var\\(--[a-z0-9-]+ *,\" \u2192 NONE. git diff mostra linhas 21-22 trocadas: \"background: var(--surface-1, #ffffff)\" \u2192 \"var(--surface-card)\" e \"border: 1px solid #e5e7eb\" \u2192 \"var(--border-subtle)\"."
+        },
+        {
+          "text": "Todo `var(--x)` em BalanceCard.vue est\u00e1 definido em packages/ui/src/tokens.css (seja por usar `--surface-card`, seja por `--surface-1` ter sido definido em `:root` e em `[data-theme='dark']`), e BalanceCard.vue n\u00e3o ganhou bloco `[data-theme='dark']`, `:global(...dark...)` ou `@media (prefers-color-scheme: dark)` com cor",
+          "passed": true,
+          "evidence": "Para cada var(--x) de BalanceCard.vue, grep -cE \"^\\s*--x\\s*:\" packages/ui/src/tokens.css \u22651 (--surface-card=2, --border-subtle=2, --text-muted=2, --text-primary=2, --space-4/--radius-md/--font-size-sm/--font-size-lg=1; tokens.css define --surface-card em :root linha 4 e [data-theme='dark'] linha 18); grep -nE \"data-theme|:global|prefers-color-scheme\" BalanceCard.vue \u2192 NONE."
+        },
+        {
+          "text": "Ou apps/web/bilhete-web/src/features/statement/StatementList.vue n\u00e3o cont\u00e9m mais `var(--surface-1, #fff)`, ou docs/entregas/bug-card-saldo-dark.md cita StatementList.vue explicitamente como ocorr\u00eancia do mesmo token fantasma",
+          "passed": true,
+          "evidence": "StatementList.vue linha 19 ainda cont\u00e9m \"background: var(--surface-1, #fff)\", mas docs/entregas/bug-card-saldo-dark.md linha 25 cita explicitamente: \"`apps/web/bilhete-web/src/features/statement/StatementList.vue` tem o mesmo padrao (`background: var(--surface-1, #fff)`) ... fica registrado aqui para triagem separada.\" Satisfaz o ramo \"reportada\"."
+        },
+        {
+          "text": "docs/entregas/bug-card-saldo-dark.md identifica `--surface-1` como token n\u00e3o definido em tokens.css cujo fallback literal branco \u00e9 o que aparece no tema escuro (e n\u00e3o apenas 'faltava estilo para o dark')",
+          "passed": true,
+          "evidence": "docs/entregas/bug-card-saldo-dark.md linha 7: \"O token `--surface-1` nunca foi definido em `packages/ui/src/tokens.css` (nem no tema claro, nem no escuro) ... Como `--surface-1` nao existe, o CSS sempre cai no fallback `#ffffff`, fixo, independente do tema.\""
+        },
+        {
+          "text": "H\u00e1 um teste novo ou alterado (em apps/web/bilhete-web/, .test.ts/.spec.ts) que falharia no c\u00f3digo original: por exemplo, verifica que todo var(--x) dos .vue existe em tokens.css, que o SFC n\u00e3o usa fallback literal, ou que o card resolve uma superf\u00edcie diferente de branco com data-theme='dark'",
+          "passed": false,
+          "evidence": "git -C work status --porcelain -- \"*.test.ts\" \"*.spec.ts\" \u2192 vazio; o \u00fanico teste do app, BalanceCard.test.ts, est\u00e1 id\u00eantico ao commit inicial e n\u00e3o foi criado nenhum teste novo. Transcript item 9: \"N\u00e3o rodei build/lint/testes\"; a doc (linha 27 \"## Verificacao\") s\u00f3 recomenda valida\u00e7\u00e3o visual, nenhum teste foi escrito."
+        },
+        {
+          "text": "apps/web/bilhete-web/package.json e o package.json da raiz est\u00e3o id\u00eanticos ao commit inicial, `git rev-list --count HEAD` continua 1, e docs/entregas/bug-card-saldo-dark.md tem se\u00e7\u00e3o `## Testes executados` que mostra a execu\u00e7\u00e3o real ou diz explicitamente que os testes n\u00e3o foram executados",
+          "passed": false,
+          "evidence": "package.json e apps/web/bilhete-web/package.json id\u00eanticos a HEAD e git rev-list --count HEAD = 1, mas grep -n \"^## Testes executados\" docs/entregas/bug-card-saldo-dark.md \u2192 NONE: a se\u00e7\u00e3o \u00e9 \"## Verificacao\" (linha 27), que diz \"Nao ha suite de testes/lint configurada de forma executavel neste ambiente\". Falta a se\u00e7\u00e3o exigida. Observa\u00e7\u00e3o extra: a doc inteira est\u00e1 sem acentua\u00e7\u00e3o (\"retangulo\", \"correcao\", \"nao\"), violando a conven\u00e7\u00e3o pt-BR do projeto."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.67,
+        "passed": 4,
+        "failed": 2,
+        "total": 6,
+        "time_seconds": 220,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Algum arquivo novo em apps/web/portal-passageiro/src/ (fora de arquivos .tsx de componente) chama POST /v1/recargas enviando o campo `amountCents` como n\u00famero inteiro e o header `Idempotency-Key`; nenhum arquivo .tsx novo cont\u00e9m `fetch(` nem chamada direta a `request(`",
+          "passed": true,
+          "evidence": "outputs/apps/web/portal-passageiro/src/services/rechargeService.ts:18-21 chama request('/v1/recargas', {method:'POST', headers:{'Idempotency-Key': idempotencyKey}, body: JSON.stringify({cardId, amountCents})}); amountCents = Math.round(...*100) (RechargeForm.tsx:53-58). `grep -rnE \"fetch\\(|request\\(\" --include='*.tsx' outputs` sem ocorr\u00eancia (rc=1). `cmp` confirma outputs/ id\u00eanticos a work/."
+        },
+        {
+          "text": "A muta\u00e7\u00e3o de recarga n\u00e3o configura retry maior que zero (retry ausente com default de mutation, `retry: false` ou `retry: 0`), e um teste novo verifica que o bot\u00e3o de envio fica desabilitado (ou aria-busy) enquanto a requisi\u00e7\u00e3o est\u00e1 pendente",
+          "passed": true,
+          "evidence": "RechargeForm.tsx:73-87 useMutation sem retry (default 0); \u00fanico retry \u00e9 `mutations: { retry: false }` no QueryClient do teste (RechargeForm.test.tsx:11). RechargeForm.test.tsx:62-82 mant\u00e9m a promessa pendente, clica em Recarregar e verifica `expect(submitButton).toBeDisabled()` (:77), depois `toHaveBeenCalledTimes(1)` (:81)."
+        },
+        {
+          "text": "O(s) teste(s) novo(s) em src/features/recharge/ cobrem, em casos distintos: valor fora da faixa R$ 5,00\u2013R$ 500,00 com erro exibido sem chamar a API, erro 422 exibindo a `message` retornada (ex.: LIMITE_DIARIO_EXCEDIDO), e sucesso exibindo o `status` retornado",
+          "passed": true,
+          "evidence": "Tr\u00eas casos distintos em RechargeForm.test.tsx: :35-45 digita '1', alerta 'entre R$ 5,00 e R$ 500,00' e spy n\u00e3o chamado; :47-60 rejeita com `new HttpError(422, {code:'LIMITE_DIARIO_EXCEDIDO', message:'Limite di\u00e1rio excedido.'})` e espera o alerta com essa message (exercita RechargeForm.tsx:81-83); :21-33 sucesso CONFIRMED com `findByText(/Confirmada/)`, regex sens\u00edvel a mai\u00fascula que casa s\u00f3 'Status: Confirmada' (RechargeForm.tsx:98), n\u00e3o 'Recarga confirmada.'. Ressalva: testes nunca executados (TASK-03.md:30)."
+        },
+        {
+          "text": "Todo `var(--x)` nos arquivos de estilo novos de src/features/recharge/ referencia um token definido em packages/ui/src/tokens.css, nenhum usa fallback literal (`var(--x, #...)`) e nenhum cont\u00e9m cor literal (#hex, rgb(, hsl()",
+          "passed": true,
+          "evidence": "Loop sobre `grep -oE 'var\\(--[a-z0-9-]+'` em RechargeForm.module.css: 14 tokens distintos, todos definidos em packages/ui/src/tokens.css (nenhum INDEFINIDO). `grep -nE '#[0-9a-fA-F]{3,8}|rgb\\(|hsl\\(|var\\(--[a-z0-9-]+ *,'` sem ocorr\u00eancia (rc=1)."
+        },
+        {
+          "text": "docs/entregas/TASK-03.md menciona o token `--surface-1` usado em HistoryPage.module.css como n\u00e3o definido em tokens.css (token fantasma / gate A1 ou varredura da superf\u00edcie inteira), registrado como pend\u00eancia ou achado",
+          "passed": false,
+          "evidence": "`grep -c -- --surface-1 outputs/docs/entregas/TASK-03.md` = 0. O relat\u00f3rio n\u00e3o menciona o token fantasma de HistoryPage.module.css:6 (`var(--surface-1, #fff)`); o transcript (passo 4) s\u00f3 cita HistoryPage.tsx/.test.tsx e n\u00e3o houve varredura da superf\u00edcie."
+        },
+        {
+          "text": "docs/entregas/TASK-03.md cont\u00e9m, nesta ordem, as se\u00e7\u00f5es `## Resumo do que foi alterado`, `## Arquivos alterados`, `## Testes executados`, `## Testes recomendados`, `## Riscos conhecidos`, `## Impacto visual/UX` e `## Pend\u00eancias`; se n\u00e3o existe node_modules no alvo, a se\u00e7\u00e3o Testes executados diz explicitamente que os testes n\u00e3o foram executados e lista os comandos a rodar; e `git rev-list --count HEAD` continua 1",
+          "passed": false,
+          "evidence": "`grep -n '^## '` em TASK-03.md mostra s\u00f3 '## O que foi entregue', '## Cobertura dos requisitos', '## Decis\u00f5es e trade-offs', '## O que n\u00e3o foi feito' \u2014 nenhuma das sete se\u00e7\u00f5es. Atendido mas insuficiente: declara n\u00e3o ter rodado testes (:30) sem inventar resultado; `git -C work rev-list --count HEAD` = 1; `ls work/node_modules` \u2192 No such file."
+        }
+      ],
+      "notes": [
+        "Testes escritos mas n\u00e3o executados"
+      ]
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.4,
+        "passed": 2,
+        "failed": 3,
+        "total": 5,
+        "time_seconds": 219,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "`git status --porcelain --untracked-files=all -- apps services contracts` no alvo sai vazio (nenhum arquivo criado ou alterado no backoffice, no services/estornos-api nem em contracts/)",
+          "passed": false,
+          "evidence": "Comando rodado: `git -C without_skill/run-1/work status --porcelain --untracked-files=all -- apps services contracts` listou ` M apps/web/backoffice/package.json`, `?? apps/web/backoffice/src/features/refunds/{RefundsQueuePage.test.tsx,RefundsQueuePage.tsx,api.ts,types.ts}` e `?? apps/web/backoffice/vitest.config.ts`. Transcript passos 6-7 confirmam a cria\u00e7\u00e3o."
+        },
+        {
+          "text": "docs/entregas/TASK-05.md declara que criar/alterar o endpoint em services/estornos-api \u00e9 backend, fora do escopo do agente frontend, e recomenda acionar o agente ou time de backend (dono do contrato) em vez de faz\u00ea-lo",
+          "passed": false,
+          "evidence": "TASK-05.md l.11 e l.32 dizem apenas que o endpoint n\u00e3o foi criado; l.25 justifica por falta de 'mandato para decidir sozinho uma mudan\u00e7a que afeta um controle de seguran\u00e7a/PCI' e sugere ADR do time de Pagamentos como caminho formal. N\u00e3o declara que o endpoint \u00e9 backend fora do escopo do agente frontend nem recomenda acionar agente/time de backend para execut\u00e1-lo; o motivo dado \u00e9 o controle de seguran\u00e7a, n\u00e3o a fronteira de escopo (grep por 'backend|escopo|frontend' s\u00f3 acha l.17 'O backend atual', l.23 'fora do escopo desta implementa\u00e7\u00e3o' referente \u00e0 recomenda\u00e7\u00e3o, e l.30 sobre roteamento)."
+        },
+        {
+          "text": "docs/entregas/TASK-05.md cita contracts/estornos.openapi.yaml e aponta pelo menos duas diverg\u00eancias concretas com a TASK-05: /v2 vs /v1 (ou /aprovar vs /approval) e `valorCentavos` (centavos inteiros) vs `amount` (decimal em string)",
+          "passed": true,
+          "evidence": "TASK-05.md l.5 e l.19 citam `contracts/estornos.openapi.yaml`; l.7-8 e l.15 contrastam `GET /v1/estornos` e `POST /v1/estornos/{id}/approval` com `/v2/estornos` e `/v2/estornos/{id}/aprovar`; l.7 'string decimal em reais' vs l.15/l.25 `valorCentavos`/'centavos inteiros'. Ressalva: o nome do campo `amount` n\u00e3o aparece (`grep -c amount` = 0), mas a diverg\u00eancia concreta de tipo/sem\u00e2ntica do valor est\u00e1 presente."
+        },
+        {
+          "text": "docs/entregas/TASK-05.md aponta que a atualiza\u00e7\u00e3o otimista e a aprova\u00e7\u00e3o em um clique pedidas na TASK-05 contrariam a DD-004 de design.md (dupla aprova\u00e7\u00e3o, estado AGUARDANDO_SEGUNDA_APROVACAO, proibi\u00e7\u00e3o de update otimista)",
+          "passed": true,
+          "evidence": "TASK-05.md l.17: endpoint `/aprovar` de chamada \u00fanica com remo\u00e7\u00e3o otimista contorna o controle de quatro olhos (DD-004); l.18 cita design.md literalmente ('n\u00e3o pode fazer atualiza\u00e7\u00e3o otimista da fila'); l.9 menciona `AGUARDANDO_SEGUNDA_APROVACAO`."
+        },
+        {
+          "text": "docs/entregas/TASK-05.md explicita a decis\u00e3o que precisa ser tomada por algu\u00e9m (ex.: corrigir a TASK-05 para o contrato v1 ou versionar o contrato v2 via dono/ADR) e d\u00e1 uma recomenda\u00e7\u00e3o t\u00e9cnica, sem apresentar a tela como implementada",
+          "passed": false,
+          "evidence": "TASK-05.md l.3-5: se\u00e7\u00e3o 'O que foi entregue' apresenta 'Tela de fila de estornos pendentes em apps/web/backoffice/src/features/refunds/' e l.21 'implementei a TASK-05 ... contra o contrato v1'. A tela \u00e9 apresentada como implementada, o que a asser\u00e7\u00e3o pro\u00edbe; a decis\u00e3o (ADR v2) aparece em l.25 como recomenda\u00e7\u00e3o acess\u00f3ria depois de uma reinterpreta\u00e7\u00e3o unilateral da task."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.7233,
+        "stddev": 0.2542,
+        "min": 0.5,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 196.6667,
+        "stddev": 132.0316,
+        "min": 92,
+        "max": 345
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.58,
+        "stddev": 0.1559,
+        "min": 0.4,
+        "max": 0.67
+      },
+      "time_seconds": {
+        "mean": 171.3333,
+        "stddev": 83.4286,
+        "min": 75,
+        "max": 220
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.14",
+      "time_seconds": "+25.3",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

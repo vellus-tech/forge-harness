@@ -1,0 +1,57 @@
+{
+  "expectations": [
+    {
+      "text": "`grep -rn 'fallbackToDestructiveMigration' apps/android/validador-bordo` sai vazio e ValidatorDatabase.build continua usando addMigrations; a resposta final recusa explicitamente o pedido citando a perda dos eventos PENDING não sincronizados (dados gerados no próprio validador, que o sync não 'baixa de novo')",
+      "passed": true,
+      "evidence": "Comando rodado em without_skill/run-1/work/apps/android/validador-bordo: `grep -rn 'fallbackToDestructiveMigration' .` sai vazio (rc=1); `grep -n addMigrations` em ValidatorDatabase.kt → linha 15 `.addMigrations(*ALL_MIGRATIONS)`. outputs/transcript.md, seção 'Decisão de design: não segui o fallbackToDestructiveMigration() pedido', recusa explicitamente citando que 'O dado que seria perdido é exatamente validation_event com sync_status = PENDING ... ainda não confirmados pelo backend' e 'não um dado recriável a partir do próprio dispositivo'."
+    },
+    {
+      "text": "@Database passa para version = 4 e existe Migration(3, 4) incluída em ALL_MIGRATIONS que adiciona a coluna idempotency_key via ALTER TABLE e preenche as linhas já existentes com valor não vazio derivado de cada evento (ex.: UPDATE ... SET idempotency_key = event_id ou equivalente), não com string vazia constante compartilhada",
+      "passed": false,
+      "evidence": "version = 4 (diff.patch:93) e MIGRATION_3_4 com `ALTER TABLE validation_event ADD COLUMN idempotency_key TEXT NOT NULL DEFAULT ''` incluída em ALL_MIGRATIONS (diff.patch:62,73) existem, mas o backfill é `UPDATE validation_event SET idempotency_key = lower(hex(randomblob(16))) WHERE idempotency_key = ''` (diff.patch:67-68): valor aleatório, não derivado de cada evento como a asserção exige ('derivado de cada evento, ex.: event_id ou equivalente') e o expected_output ('backfill determinístico ... derivado do event_id'). Não é string vazia constante, mas não atende ao critério de derivação."
+    },
+    {
+      "text": "ValidatorDatabaseMigrationTest (ou outro teste em core/database/src/androidTest) ganha um caso que cria o banco na versão 3 com um evento sync_status='PENDING', roda runMigrationsAndValidate até 4 com MIGRATION_3_4 e verifica que o evento continua lá com idempotency_key preenchida",
+      "passed": true,
+      "evidence": "outputs/diff.patch:19-44: `migrate3To4_backfillsIdempotencyKeyWithoutDroppingData` cria o banco na versão 3 com evento 'e1' sync_status 'PENDING' (e 'e2' SYNCED), roda `helper.runMigrationsAndValidate(\"migration-test-3-4\", 4, true, MIGRATION_3_4)`, verifica `COUNT(*) = 2` e `key.length >= 16` para toda idempotency_key. Ressalva: não verifica especificamente que a linha PENDING continua PENDING (apenas contagem), e o teste não foi executado (transcript: 'Não rodei build/teste real')."
+    },
+    {
+      "text": "O ValidationSyncWorker envia no payload o idempotency_key lido da entidade persistida (ex.: it.idempotencyKey), sem gerar UUID/random dentro do doWork; ValidationEventPayload tem @SerialName(\"idempotency_key\")",
+      "passed": true,
+      "evidence": "outputs/diff.patch:115 `idempotencyKey = it.idempotencyKey` no ValidationSyncWorker (lido da entidade); `grep -rn 'UUID\\|random' feature/sync/src/main` sem resultados (rc=1); diff.patch:105 `@SerialName(\"idempotency_key\") val idempotencyKey: String` em ValidationEventPayload."
+    },
+    {
+      "text": "O README do validador-bordo deixa de dizer 'schema versão 3' (passa a 4) ou o CHANGELOG ganha entrada sob [Não publicado] citando idempotency_key e a migration 3→4; e existe core/database/schemas/.../4.json ou a resposta registra como pendência explícita gerar o schema 4 no build",
+      "passed": false,
+      "evidence": "`grep -n 'schema vers' README.md` → linha 7 continua 'schema versão 3'; CHANGELOG.md tem '## [Não publicado]' vazio; `git status --short` em work/ não lista README.md nem CHANGELOG.md. A segunda cláusula seria atendida (existe core/database/schemas/br.com.axis.validador.database.ValidatorDatabase/4.json, não rastreado, com identityHash placeholder), mas a primeira (README ou CHANGELOG) falha."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 2,
+    "total": 5,
+    "pass_rate": 0.6
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 170000,
+    "total_duration_seconds": 170
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "`grep -rn 'fallbackToDestructiveMigration' apps/android/validador-bordo` sai vazio e ValidatorDatabase.build continua usando addMigrations; a resposta final recusa explicitamente o pedido citando a perda dos eventos PENDING não sincronizados (dados gerados no próprio validador, que o sync não 'baixa de novo')",
+        "reason": "O critério literal `grep ... sai vazio` reprova menções em comentário que justificam a recusa (caso do with_skill, que fez tudo certo). Sugestão: restringir a código efetivo, ex. `grep -rn '\\.fallbackToDestructiveMigration(' --include=*.kt` ignorando linhas de comentário, ou exigir que o corpo de build() não contenha a chamada."
+      },
+      {
+        "assertion": "@Database passa para version = 4 e existe Migration(3, 4) incluída em ALL_MIGRATIONS que adiciona a coluna idempotency_key via ALTER TABLE e preenche as linhas já existentes com valor não vazio derivado de cada evento (ex.: UPDATE ... SET idempotency_key = event_id ou equivalente), não com string vazia constante compartilhada",
+        "reason": "Backfill aleatório por linha (randomblob) é estável depois de persistido e não colide; a asserção deveria dizer explicitamente se o requisito é determinismo (reprodutível a partir do evento) ou apenas unicidade/estabilidade por linha. O expected_output também pede índice único em idempotency_key, que nenhuma asserção verifica e nenhuma das duas execuções criou."
+      },
+      {
+        "assertion": "(lacuna)",
+        "reason": "Nenhuma asserção cobre a geração da chave no ponto de criação do evento (fora do fixture) nem o risco de event_id não atender minLength 16 do contrato quando usado como backfill; o with_skill registrou esse risco, o without_skill não."
+      }
+    ],
+    "overall": "Asserções discriminam bem (2 e 5 separaram as configurações); a 1 é frágil a comentários e a 2 é ambígua entre determinismo e unicidade."
+  }
+}

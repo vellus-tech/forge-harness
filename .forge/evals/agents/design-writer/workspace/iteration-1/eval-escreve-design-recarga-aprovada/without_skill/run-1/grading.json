@@ -1,0 +1,74 @@
+{
+  "expectations": [
+    {
+      "text": "docs/product/modules/recarga/design.md existe (e nenhum arquivo foi criado sob .kiro/) e seu cabeçalho contém Versão, Data, Status com valor 'Rascunho' ou 'Rascunho para revisão' (não 'Aprovado para desenvolvimento'), 'Referência base' citando requirements.md v1.2.0 e 'ADRs aplicáveis' listando ADR-0001, ADR-0002, ADR-0003 e ADR-0004; logo abaixo há a tabela 'Histórico de Versões'.",
+      "passed": false,
+      "evidence": "Sem .kiro (ls work/.kiro -> 'No such file or directory'), mas o cabeçalho de outputs/docs/product/modules/recarga/design.md L4-7 tem apenas '- Versão: 0.1.0', '- Data: 2026-09-26', '- Baseado em: requirements.md v1.2.0 ...', '- ADRs aplicados: ...': não há campo Status, o rótulo é 'Baseado em' e não 'Referência base', 'ADRs aplicados' em vez de 'ADRs aplicáveis', e grep 'Histórico de Versões' não encontra tabela alguma (L9 já é '## 1. Visão geral')."
+    },
+    {
+      "text": "O design.md contém os 20 headings numerados da estrutura obrigatória (de '## 1. Visão Geral' a '## 20. Referências', incluindo '## 14. Multi-tenancy' e '## 17. Decisões Inline') e as subseções 16.1 a 16.5 de diagramas; toda seção sem conteúdo aparece com o texto 'Não aplicável nesta versão' em vez de ser omitida.",
+      "passed": false,
+      "evidence": "grep -n '^## ' mostra só 8 seções: '## 1. Visão geral', '## 2. Modelo de domínio', '## 3. API REST', '## 4. Webhook do PagFacil', '## 5. Job de expiração', '## 6. Evento de integração', '## 7. Auditoria e observabilidade', '## 8. Riscos e pontos em aberto'. Faltam '## 14. Multi-tenancy', '## 17. Decisões Inline', '## 20. Referências', subseções 16.1-16.5; grep -c 'Não aplicável nesta versão' = 0 — seções omitidas, não marcadas."
+    },
+    {
+      "text": "Cada um dos identificadores RF-01, RF-02, RF-03, RF-04, RF-05, RNF-01, RNF-02, RNF-03, RNF-04, PBT-01 e PBT-02 aparece literalmente no design.md associado a um elemento técnico (caso de uso, command/query, mecanismo, teste); nenhum fica sem menção.",
+      "passed": true,
+      "evidence": "grep -c por id no design.md: RF-01:1 RF-02:1 RF-03:2 RF-04:3 RF-05:2 RNF-01:1 RNF-02:2 RNF-03:2 RNF-04:2 PBT-01:3 PBT-02:1 — todos presentes e ligados a elemento técnico: L61 'POST /api/v1/recargas — RF-01 ... Valida RF-02 (... PBT-02) ... timeout de 3 s, RNF-01'; L62 'GET /api/v1/recargas — RF-05'; seção 4 webhook/ConfirmarPagamentoRecarga garante 'RF-03/PBT-01'; L76 'Job de expiração (RF-04)'; seção 2.3 filtro global 'cobre RNF-02'; seção 7 auditoria (RNF-03); seção 6 Outbox/Inbox 'cobre RNF-04'."
+    },
+    {
+      "text": "Na seção de schema/persistência o valor da recarga e o saldo são inteiros em centavos (bigint/long, nome com 'centavos' ou equivalente explícito) e nenhum campo monetário é declarado como float, double, decimal ou numeric; toda tabela de negócio listada tem coluna tenant_id.",
+      "passed": false,
+      "evidence": "Valor atende: L25 '`valor_centavos` (bigint, ADR-0001 ...)'; sem float/double/decimal/numeric (grep vazio). Seção 2.3 declara tabelas 'recargas e recarga_auditorias. Ambas com tenant_id uuid not null' (a lista de campos de RecargaAuditoria na L2.2 omite tenant_id, mas a 2.3 o afirma). Saldo NÃO atende: não há coluna de saldo na persistência; só aparece 'saldo_atual_centavos': 0 no payload JSON do evento (seção 6), sem tipo declarado, e a seção 8 admite que o dono do saldo é indefinido. Mesmo critério do with_skill: falha."
+    },
+    {
+      "text": "A seção 17 tem ao menos uma decisão '### DD-001 - <título>' contendo os cinco rótulos **Contexto:**, **Decisão:**, **Justificativa:**, **Alternativas:** e **Impacto:**, com pelo menos uma alternativa rejeitada nomeada.",
+      "passed": false,
+      "evidence": "grep -nE '^### DD-|\\*\\*(Contexto|Decisão|Justificativa|Alternativas|Impacto):\\*\\*' no design.md não retorna nada; não existe seção 17 nem qualquer DD-NNN."
+    },
+    {
+      "text": "docs/product/modules/recarga/README.md foi alterado: a linha de design.md deixou de ser 'Não iniciado' e mostra a versão e o status do design recém-criado (o requirements permanece 1.2.0 Aprovado).",
+      "passed": true,
+      "evidence": "git -C without_skill/run-1/work diff HEAD -- docs/product/modules/recarga/README.md: '-| design.md | — | Não iniciado | — |' / '+| design.md | 0.1.0 | Em revisão | 2026-09-26 |'; linha requirements '| 1.2.0 | Aprovado | 2026-09-18 |' inalterada."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 4,
+    "total": 6,
+    "pass_rate": 0.33
+  },
+  "timing": {
+    "executor_duration_seconds": 128.0,
+    "total_duration_seconds": 128.0
+  },
+  "claims": [
+    {
+      "claim": "Payload e routing key do evento RecargaPaga via Transactional Outbox com Inbox/DLQ",
+      "type": "factual",
+      "verified": true,
+      "evidence": "Seção 6: exchange mobi.eventos, routing key '<tenant_id>.recarga.paga', payload com event_version/correlation_id, DLQ 'recarga.paga.dlq'."
+    },
+    {
+      "claim": "design.md cobre o módulo de forma completa para quebrar em tasks",
+      "type": "quality",
+      "verified": false,
+      "evidence": "108 linhas, 8 seções, sem diagramas (0 blocos mermaid), sem catálogo de erros, sem DDs; o próprio documento (seção 8) lista pontos que 'precisam de confirmação antes de virar tasks'."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "O design.md contém os 20 headings numerados da estrutura obrigatória (de '## 1. Visão Geral' a '## 20. Referências', incluindo '## 14. Multi-tenancy' e '## 17. Decisões Inline') e as subseções 16.1 a 16.5 de diagramas; toda seção sem conteúdo aparece com o texto 'Não aplicável nesta versão' em vez de ser omitida.",
+        "reason": "A cláusula 'Não aplicável nesta versão' é vacuamente satisfeita quando nenhuma seção está vazia (grep -c retorna 0 no with_skill); a asserção não distingue uma seção 16.5 que só remete a 4.5 de uma seção preenchida. Considerar exigir que 16.5 contenha um bloco stateDiagram ou o texto literal."
+      },
+      {
+        "assertion": "Na seção de schema/persistência o valor da recarga e o saldo são inteiros em centavos (bigint/long, nome com 'centavos' ou equivalente explícito) e nenhum campo monetário é declarado como float, double, decimal ou numeric; toda tabela de negócio listada tem coluna tenant_id.",
+        "reason": "O prompt não diz se o módulo recarga é dono do saldo; as duas execuções não declaram coluna de saldo no schema (o without_skill admite a dúvida em Riscos). A asserção pune a falta de saldo sem que a fixture defina o dono do saldo — convém explicitar no requirements da fixture ou aceitar saldo declarado em contrato/evento com tipo inteiro."
+      },
+      {
+        "reason": "O expected_output pede catálogo de erros referenciado pelos endpoints, eventos via outbox com correlation_id/versão e diagramas Mermaid C4 L1/L2, sequência e estados, mas nenhuma asserção os verifica; o without_skill não tem nenhum bloco mermaid nem catálogo de erros e isso não pesa na nota."
+      }
+    ],
+    "overall": "Asserções 1, 2, 5 e 6 são bem discriminantes; a 4 depende de uma premissa (dono do saldo) que a fixture não fixa, e faltam asserções para catálogo de erros, eventos e diagramas."
+  }
+}

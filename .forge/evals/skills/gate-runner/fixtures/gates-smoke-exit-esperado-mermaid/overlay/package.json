@@ -1,0 +1,7 @@
+{
+  "name": "vellus-token-gateway",
+  "version": "1.8.0",
+  "type": "module",
+  "private": true,
+  "bin": { "validar-pan": "bin/validar-pan.js" }
+}

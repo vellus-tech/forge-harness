@@ -1,0 +1,50 @@
+/* Primitivos — portados literalmente dos preview/*.html do handoff (mesmas classes/valores). */
+
+.btn {
+  font-family: var(--font-ui);
+  font-size: var(--fs-16);
+  padding: var(--s-3) var(--s-6);
+  border-radius: var(--r-pill);
+  border: 0;
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.btn:active { transform: scale(0.96); }
+.btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.btn.primary { background: var(--brand); color: var(--n-0); }
+.btn.secondary { background: var(--brand-soft); color: var(--n-900); }
+.btn.ghost { background: transparent; color: var(--n-700); }
+.btn.danger { background: var(--danger); color: var(--n-0); }
+.btn.sm { padding: var(--s-2) var(--s-4); font-size: var(--fs-14); }
+
+.field { display: flex; flex-direction: column; gap: var(--s-1); font-family: var(--font-ui); }
+.input {
+  height: 48px;
+  padding: 0 var(--s-4);
+  border: 1px solid var(--n-300);
+  border-radius: var(--r-md);
+  font-family: var(--font-ui);
+  font-size: var(--fs-16);
+}
+.input:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.input[aria-invalid="true"] { border-color: var(--danger); }
+.hint { font-size: var(--fs-12); color: var(--fg-muted); }
+
+.badge { font-size: var(--fs-12); padding: var(--s-1) var(--s-2); border-radius: var(--r-pill); }
+.badge.success { background: #E6F4EA; color: var(--success); }
+.badge.warning { background: #FFF4E0; color: var(--warning); }
+.badge.neutral { background: var(--n-100); color: var(--n-700); }
+
+.card {
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
+  padding: var(--s-6);
+}
+.eyebrow {
+  font-family: var(--font-ui);
+  font-size: var(--fs-12);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}

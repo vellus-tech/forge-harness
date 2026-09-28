@@ -1,0 +1,5 @@
+# .gitignore legado do projeto (anterior à instalação do harness)
+node_modules/
+dist/
+coverage/
+.env

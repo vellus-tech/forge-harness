@@ -1,0 +1,41 @@
+{
+  "vhosts": [{ "name": "liquidacao" }],
+  "exchanges": [
+    { "name": "pagamentos.eventos", "vhost": "liquidacao", "type": "topic", "durable": true, "auto_delete": false, "arguments": {} },
+    { "name": "liquidacao.lancamentos.dlx", "vhost": "liquidacao", "type": "fanout", "durable": true, "auto_delete": false, "arguments": {} }
+  ],
+  "queues": [
+    {
+      "name": "liquidacao.lancamentos",
+      "vhost": "liquidacao",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-single-active-consumer": true,
+        "x-dead-letter-exchange": "liquidacao.lancamentos.dlx"
+      }
+    },
+    {
+      "name": "liquidacao.lancamentos.dlq",
+      "vhost": "liquidacao",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": { "x-queue-type": "quorum" }
+    }
+  ],
+  "bindings": [
+    { "source": "pagamentos.eventos", "vhost": "liquidacao", "destination": "liquidacao.lancamentos", "destination_type": "queue", "routing_key": "lancamento.#", "arguments": {} },
+    { "source": "liquidacao.lancamentos.dlx", "vhost": "liquidacao", "destination": "liquidacao.lancamentos.dlq", "destination_type": "queue", "routing_key": "", "arguments": {} }
+  ],
+  "policies": [
+    {
+      "vhost": "liquidacao",
+      "name": "liquidacao-lancamentos",
+      "pattern": "^liquidacao\\.lancamentos$",
+      "apply-to": "quorum_queues",
+      "priority": 1,
+      "definition": { "delivery-limit": 5, "max-length": 200000 }
+    }
+  ]
+}

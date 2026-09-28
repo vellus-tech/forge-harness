@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pagamentos Core — Arquitetura C4</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root { --bg:#0f1115; --panel:#171a21; --border:#2a2f3a; --text:#e6e8ec; --muted:#9aa3b2; --accent:#5b9dff; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+  header { padding: 24px 20px 8px; border-bottom: 1px solid var(--border); }
+  h1 { margin: 0 0 4px; font-size: 20px; }
+  p.sub { margin: 0; color: var(--muted); font-size: 14px; }
+  nav { display:flex; gap:8px; padding: 16px 20px 0; flex-wrap: wrap; }
+  nav button { background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; font-size: 14px; cursor: pointer; }
+  nav button.active { background: var(--accent); border-color: var(--accent); color: #06111f; font-weight: 600; }
+  main { padding: 20px; }
+  section { display:none; }
+  section.active { display:block; }
+  .diagram-panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 20px; overflow:auto; }
+  .diagram-panel .mermaid { display:flex; justify-content:center; }
+  .legend { color: var(--muted); font-size: 13px; margin-top: 12px; }
+  footer { padding: 20px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--border); margin-top: 24px; }
+  code { background: #0006; padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Pagamentos Core — Mapa de arquitetura (C4)</h1>
+  <p class="sub">Gerado a partir da inspeção do código em <code>src/</code> (módulos billing, ledger, notifications, shared). Abra este arquivo em qualquer navegador para navegar entre os três níveis.</p>
+</header>
+<nav>
+  <button data-target="context" class="active">1. Contexto</button>
+  <button data-target="container">2. Containers</button>
+  <button data-target="component">3. Componentes</button>
+</nav>
+<main>
+  <section id="context" class="active">
+    <div class="diagram-panel"><pre class="mermaid" id="mmd-context"></pre></div>
+    <p class="legend">Visão de contexto: quem usa o Pagamentos Core e com quais sistemas externos ele troca dados (adquirente de pagamentos e provedor de e-mail).</p>
+  </section>
+  <section id="container">
+    <div class="diagram-panel"><pre class="mermaid" id="mmd-container"></pre></div>
+    <p class="legend">Visão de containers: hoje o projeto é um único serviço Node.js/TypeScript que concentra os módulos de billing, ledger e notifications — não há separação em serviços independentes no código atual.</p>
+  </section>
+  <section id="component">
+    <div class="diagram-panel"><pre class="mermaid" id="mmd-component"></pre></div>
+    <p class="legend">Visão de componentes: os quatro módulos encontrados em <code>src/</code> e suas dependências internas, mais a saída externa de e-mail feita por <code>notifications</code>.</p>
+  </section>
+</main>
+<footer>
+  Fontes: <code>docs/architecture/c4-context.mmd</code>, <code>docs/architecture/c4-container.mmd</code>, <code>docs/architecture/c4-component.mmd</code>. Diagramas renderizados com Mermaid (sintaxe C4). Este mapa reflete apenas o que existe hoje em <code>src/</code>; billing, ledger e notifications ainda estão no mesmo processo, então a fronteira de container é única.
+</footer>
+<script>
+  mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose' });
+
+  const diagrams = {
+    context: `C4Context
+title Pagamentos Core — Diagrama de Contexto
+
+Person(operador, "Operador financeiro", "Time interno que emite cobrancas e concilia lancamentos")
+System(pagamentosCore, "Pagamentos Core", "Nucleo de cobranca, razao contabil e notificacoes (TypeScript)")
+System_Ext(adquirente, "Adquirente de pagamentos", "Processa transacoes de cartao e repassa liquidacao")
+System_Ext(smtp, "Provedor de e-mail (SMTP)", "Entrega notificacoes transacionais")
+
+Rel(operador, pagamentosCore, "Consulta faturas e lancamentos", "HTTPS")
+Rel(pagamentosCore, adquirente, "Envia cobrancas e recebe confirmacao", "REST/Webhook")
+Rel(pagamentosCore, smtp, "Envia e-mails de notificacao", "SMTP/API")`,
+    container: `C4Container
+title Pagamentos Core — Diagrama de Containers
+
+Person(operador, "Operador financeiro")
+System_Boundary(pagamentosCore, "Pagamentos Core") {
+  Container(api, "Servico Pagamentos Core", "Node.js / TypeScript", "Modulos billing, ledger, notifications e shared, empacotados em um unico processo")
+}
+System_Ext(adquirente, "Adquirente de pagamentos")
+System_Ext(smtp, "Provedor de e-mail (SMTP)")
+
+Rel(operador, api, "Usa", "HTTPS")
+Rel(api, adquirente, "Envia cobrancas", "REST/Webhook")
+Rel(api, smtp, "Envia notificacoes", "SMTP/API")`,
+    component: `C4Component
+title Pagamentos Core — Diagrama de Componentes (dentro do servico)
+
+Container_Boundary(api, "Servico Pagamentos Core") {
+  Component(billing, "Billing", "src/billing", "Calcula totais de fatura e regras de imposto (invoice.service.ts, tax.rules.ts)")
+  Component(ledger, "Ledger", "src/ledger", "Registra lancamentos contabeis (journal.repo.ts)")
+  Component(notifications, "Notifications", "src/notifications", "Envia e-mails transacionais (email.sender.ts)")
+  Component(shared, "Shared", "src/shared", "Tipos e utilitarios de dinheiro (money.ts)")
+}
+System_Ext(smtp, "Provedor de e-mail (SMTP)")
+
+Rel(billing, shared, "Usa tipo Money / brl()")
+Rel(ledger, shared, "Usa tipo Money")
+Rel(notifications, smtp, "Envia e-mail", "SMTP/API")`
+  };
+
+  function renderAll() {
+    Object.entries(diagrams).forEach(([key, src]) => {
+      const el = document.getElementById('mmd-' + key);
+      el.textContent = src;
+    });
+    mermaid.run({ querySelector: '.mermaid' });
+  }
+
+  document.querySelectorAll('nav button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('main section').forEach(s => s.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.target).classList.add('active');
+    });
+  });
+
+  renderAll();
+</script>
+</body>
+</html>

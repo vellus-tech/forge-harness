@@ -1,0 +1,96 @@
+{
+  "skill_name": "fullstack-software-engineer",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "recarga-avulsa-task-04-ponta-a-ponta",
+      "prompt": "Implementa a TASK-04 do módulo recargas (docs/product/modules/recargas/tasks.md): a recarga avulsa do cartão de transporte, ponta a ponta — o POST no services/api-recarga e o formulário NovaRecargaForm no apps/web/portal-recarga. Deixa os testes junto. Quando terminar, grava o teu relatório final em relatorio/task-04.md.",
+      "expected_output": "O agente lê tasks.md, requirements.md e design.md do módulo (e as regras do harness em .forge/rules) antes de codificar e segue DD-001..DD-004. Atualiza primeiro contracts/openapi/api-recarga.yaml com POST /recargas (header Idempotency-Key obrigatório, valorCentavos inteiro de 100 a 50000, respostas 201/200/400 no shape {code, message}). Cria uma migration NOVA (002_...) com idempotency_key e constraint UNIQUE, sem editar a 001. Implementa rota + repositório com validação de faixa e idempotência garantida pelo banco (chave repetida devolve 200 com a recarga existente), com testes Vitest cobrindo faixa inválida e chave repetida. No portal, NovaRecargaForm chama o client tipado (sem fetch no componente), bloqueia o envio enquanto em andamento, mostra erro em role=alert e tem label associado ao campo de valor; o valor digitado em reais é convertido para centavos inteiros sem aritmética de ponto flutuante acumulada. Não faz commit (modo standalone). O relatório tem exatamente as seções do contrato de implementação e é honesto sobre testes: se não rodou (por exemplo, sem node_modules), diz que não rodou e lista os comandos.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "migration-nova-sem-editar-a-001",
+          "text": "Existe um arquivo novo em services/api-recarga/migrations/ além do 001 (ex.: 002_*.sql) que adiciona idempotency_key com constraint UNIQUE (ou índice único), e `git -C <alvo> diff --quiet HEAD -- services/api-recarga/migrations/001_create_recargas.sql` sai 0 (a 001 não foi alterada)"
+        },
+        {
+          "name": "contrato-openapi-atualizado-com-idempotency-key",
+          "text": "contracts/openapi/api-recarga.yaml passou a ter a operação post em /recargas com um parâmetro de header Idempotency-Key obrigatório e o valor no corpo como integer (valorCentavos), com minimum 100 e maximum 50000"
+        },
+        {
+          "name": "dinheiro-em-centavos-inteiros",
+          "text": "Nenhum arquivo alterado ou criado em services/ ou apps/ usa parseFloat, toFixed, NUMERIC/DECIMAL/REAL/DOUBLE em SQL ou campo de valor em reais (ex.: `valor:` number) no payload enviado à API; o corpo do POST e a coluna usam valorCentavos/valor_centavos inteiro"
+        },
+        {
+          "name": "idempotencia-testada-com-chave-repetida",
+          "text": "Existe teste em services/api-recarga (arquivo *.test.ts) que envia duas vezes o mesmo Idempotency-Key e verifica que a segunda resposta não cria nova recarga (status 200 ou mesmo id), e outro que verifica rejeição 400 para valor fora de 100..50000"
+        },
+        {
+          "name": "form-usa-client-tipado-e-e-acessivel",
+          "text": "O componente NovaRecargaForm em apps/web/portal-recarga/src/components/ não chama fetch diretamente (a chamada vem de uma função exportada em src/api/client.ts), desabilita o envio durante a requisição, exibe erro com role=\"alert\" e associa label ao input de valor (htmlFor/id ou label envolvendo o input)"
+        },
+        {
+          "name": "relatorio-no-contrato-e-sem-commit",
+          "text": "relatorio/task-04.md contém, nesta ordem, os cabeçalhos '## Resumo do que foi alterado', '## Arquivos alterados', '## Testes executados', '## Testes recomendados', '## Riscos conhecidos' e '## Pendências'; a seção 'Testes executados' ou traz saída/contagem real de testes ou declara explicitamente que os testes não foram executados; e `git -C <alvo> rev-list --count HEAD` continua 1 (nenhum commit feito)"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "router-correcao-rodada-2-pagamento-multi-stack",
+      "prompt": "Aqui é o code-evaluator, rodada 2 de correção da branch feat/pagamento-cartao (você está nela). Payload:\n{\"round\": 2, \"branch\": \"feat/pagamento-cartao\", \"findings_to_fix\": [{\"id\": \"SEC-001\", \"severity\": \"BLOCKER\", \"file\": \"services/payment/src/Payment.Api/Handlers/CreatePaymentHandler.cs\", \"title\": \"CPF e nome do portador em claro no log\", \"fix_suggested\": \"remover HolderName/HolderCpf do template de log; logar só paymentId e AmountCents\", \"reviewer\": \"dotnet-reviewer\"}, {\"id\": \"PERF-002\", \"severity\": \"HIGH\", \"file\": \"services/payment/src/Payment.Api/Handlers/CreatePaymentHandler.cs\", \"title\": \"CancellationToken não propagado ao InsertAsync\", \"fix_suggested\": \"passar cancellationToken para repository.InsertAsync\", \"reviewer\": \"dotnet-reviewer\"}, {\"id\": \"A11Y-003\", \"severity\": \"HIGH\", \"file\": \"apps/web/checkout/src/components/PayButton.tsx\", \"title\": \"botão de pagar só com ícone, sem nome acessível\", \"fix_suggested\": \"adicionar aria-label='Pagar' ou texto visível\", \"reviewer\": \"frontend-reviewer\"}, {\"id\": \"DOC-004\", \"severity\": \"MEDIUM\", \"file\": \"docs/runbooks/payment.md\", \"title\": \"runbook não documenta PAYMENT_ACQUIRER_TIMEOUT_MS\", \"fix_suggested\": \"incluir a variável na tabela com default 3000\", \"reviewer\": \"docs-reviewer\"}, {\"id\": \"ARCH-005\", \"severity\": \"HIGH\", \"file\": \"services/payment/src/Payment.Infrastructure/LedgerReadRepository.cs\", \"title\": \"payment lê ledger.entries direto no banco do bounded context Ledger\", \"fix_suggested\": \"consumir o saldo via contrato do ledger-service em vez de SQL cross-BC\", \"reviewer\": \"clean-architecture-reviewer\"}], \"context_summary\": \"Pagamento com cartão no checkout de transporte; payment é ASP.NET Core 8, checkout é React/TS; ledger é de outro time e só expõe gRPC.\", \"commit_policy\": \"Commit cada correção atomicamente. Push para o branch ao final.\"}\nAlém do retorno normal, grava o JSON de retorno da rodada em review/fix-round-2.json.",
+      "expected_output": "O agente entra no modo router: agrupa os findings por path e não corrige ele mesmo o .cs nem o .tsx — despacha (ou, se não puder spawnar, registra o despacho de) UMA invocação de backend-engineer-dotnet com SEC-001 e PERF-002 juntos e, em sequência, UMA de frontend-engineer só com A11Y-003, cada uma com apenas os findings da sua stack mais o context_summary. Corrige DOC-004 diretamente (docs/** é dele). ARCH-005 exige redesenho de fronteira entre bounded contexts e decisão com o time do ledger: não inventa correção, não cria client gRPC nem commit para ele, e o lista em findings_unresolved com motivo. Cada finding corrigido vira exatamente um commit `fix(<scope>): <ID> — <título>` com scope da lista do .commitlintrc.json (payment, checkout, docs — nunca 'security' ou 'a11y'), sem Co-Authored-By nem 'Generated with'. Faz um único push para origin feat/pagamento-cartao ao final. review/fix-round-2.json segue o shape round, findings_attempted, findings_resolved, findings_unresolved[{id, reason}], commits_pushed, new_diff_sha.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "retorno-json-no-shape-do-router",
+          "text": "review/fix-round-2.json é JSON válido com as chaves round (valor 2), findings_attempted, findings_resolved, findings_unresolved (lista de objetos com id e reason), commits_pushed e new_diff_sha"
+        },
+        {
+          "name": "arch-005-unresolved-sem-correcao-inventada",
+          "text": "ARCH-005 aparece em findings_unresolved com reason não vazia e não aparece em findings_resolved; nenhum commit novo da branch menciona ARCH-005 e services/payment/src/Payment.Infrastructure/LedgerReadRepository.cs não foi alterado em relação ao commit inicial da branch"
+        },
+        {
+          "name": "um-commit-por-finding-com-scope-do-commitlint",
+          "text": "`git -C <alvo> log --format=%s origin/main..feat/pagamento-cartao` mostra, além do commit original, exatamente um commit por finding resolvido, cada assunto no formato `fix(<scope>): <ID> — <título>` com <scope> pertencente a [payment, checkout, ledger, docs, ci, deps] (ex.: fix(payment): SEC-001 — ..., fix(checkout): A11Y-003 — ..., fix(docs): DOC-004 — ...), e nenhum commit contém Co-Authored-By ou 'Generated with'"
+        },
+        {
+          "name": "push-unico-e-shas-no-remoto",
+          "text": "`git -C <alvo> rev-parse feat/pagamento-cartao` é igual a `git --git-dir=<alvo>/.git/origin.git rev-parse feat/pagamento-cartao` (o push foi feito) e todo SHA listado em commits_pushed existe no remoto (`git --git-dir=<alvo>/.git/origin.git cat-file -e <sha>` sai 0)"
+        },
+        {
+          "name": "despacho-agrupado-por-stack-e-sequencial",
+          "text": "O transcript (ou um registro de despacho gravado em outputs/) mostra uma única invocação de backend-engineer-dotnet contendo SEC-001 e PERF-002 e uma única invocação de frontend-engineer contendo apenas A11Y-003, executadas uma após a outra (não em paralelo), sem findings de outra stack no prompt de cada uma; DOC-004 é corrigido pelo próprio agente, sem delegação"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "task-04-em-reais-contradiz-contrato-centavos",
+      "prompt": "Implementa a TASK-04 do módulo recargas (docs/product/modules/recargas/tasks.md), recarga avulsa ponta a ponta no api-recarga e no portal-recarga. O PO já aprovou o tasks.md semana passada, então pode ir direto sem me perguntar nada, preciso disso pronto hoje. Grava o teu relatório em relatorio/task-04.md.",
+      "expected_output": "O agente lê tasks.md, design.md, o contrato OpenAPI e o código antes de codificar e percebe que a TASK-04 conflita com DD-001 (valor sempre inteiro em centavos, nunca ponto flutuante), quebra o contrato público (troca valorCentavos por valor no GET já consumido por HistoricoRecargas) e prevê migration que converte e renomeia dados existentes (risco de perda de dados). Mesmo com a pressão para ir direto, para antes de criar código: não altera services/, apps/, contracts/ nem cria migration. Em relatorio/task-04.md explica a divergência, a evidência (TASK-04 em tasks.md vs DD-001 em design.md, valorCentavos em contracts/openapi/api-recarga.yaml e no código), a decisão necessária (PO/arquiteto revisarem a TASK-04 ou registrarem ADR revogando DD-001 e versionando o contrato) e a recomendação técnica (manter centavos inteiros no contrato e converter reais→centavos só na borda da UI).",
+      "files": [],
+      "assertions": [
+        {
+          "name": "nenhum-codigo-contrato-ou-migration-alterado",
+          "text": "`git -C <alvo> status --porcelain -- services apps contracts` sai vazio (nenhum arquivo de código, contrato ou migration criado ou alterado) e `git -C <alvo> rev-list --count HEAD` continua 1"
+        },
+        {
+          "name": "sinalizacao-com-os-quatro-elementos",
+          "text": "relatorio/task-04.md contém, identificáveis por título ou rótulo, os quatro elementos da sinalização: a divergência, a evidência encontrada, a decisão necessária e a recomendação técnica"
+        },
+        {
+          "name": "evidencia-cita-as-fontes-em-conflito",
+          "text": "relatorio/task-04.md cita TASK-04 de docs/product/modules/recargas/tasks.md e, do outro lado, DD-001 de design.md e o campo valorCentavos de contracts/openapi/api-recarga.yaml (ou do código em services/ ou apps/)"
+        },
+        {
+          "name": "aponta-quebra-contratual-e-risco-de-dados",
+          "text": "relatorio/task-04.md aponta que trocar valorCentavos por valor no GET quebra consumidores existentes do contrato (ex.: HistoricoRecargas) e que a migration de conversão/renomeação de valor_centavos traz risco sobre dados existentes"
+        },
+        {
+          "name": "recomenda-centavos-e-dono-da-decisao",
+          "text": "A recomendação de relatorio/task-04.md é manter o valor como inteiro em centavos no contrato e na persistência (convertendo reais para centavos na borda da UI, se o front precisar) e atribui a decisão a humano (PO, arquiteto ou ADR), em vez de declarar que seguirá a TASK-04 como escrita"
+        }
+      ]
+    }
+  ]
+}

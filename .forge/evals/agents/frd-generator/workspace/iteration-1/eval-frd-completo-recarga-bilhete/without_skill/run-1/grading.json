@@ -1,0 +1,59 @@
+{
+  "expectations": [
+    {
+      "text": "docs/product/frd-nfrd/frd.md existe e contém, na ordem, cabeçalhos para as seções obrigatórias do contrato, incluindo no mínimo 'Controle de Versão', 'Módulos Funcionais', 'Detalhamento dos Requisitos Funcionais', 'Regras de Negócio', 'Mensagens de Erro e Validação', 'Matriz de Permissões Funcionais', 'Matriz de Rastreabilidade', 'Dependências Funcionais', 'Premissas' e 'Pontos a Validar', além do campo '**Fonte Principal:** docs/product/prd/prd.md' no cabeçalho.",
+      "passed": false,
+      "evidence": "O arquivo não existe: a execução gravou docs/product/frd/frd.md (`ls outputs/docs/product/` → 'frd'; não há frd-nfrd). Além disso, `grep -n '^#'` em {N} mostra 11 seções próprias (Objetivo e escopo, Perfis e permissões, RF-01..RF-06, Requisitos não funcionais, Matriz de rastreabilidade com o PRD, Pendências), sem 'Controle de Versão', 'Módulos Funcionais', 'Detalhamento dos Requisitos Funcionais', 'Mensagens de Erro e Validação', 'Dependências Funcionais', 'Premissas' ou 'Pontos a Validar'; o cabeçalho (l.7) usa '**Origem:**', não '**Fonte Principal:**'."
+    },
+    {
+      "text": "Todo requisito funcional listado usa o padrão FRD-<módulo>-NN (ex.: FRD-rec-01), sem códigos duplicados, e cada requisito detalhado na seção de detalhamento tem uma subseção 'Critérios de Aceite' com pelo menos um item em checklist Markdown '- [ ]'.",
+      "passed": false,
+      "evidence": "`grep -oE '\\b(FRD|RF)-[A-Za-z0-9-]+' outputs/docs/product/frd/frd.md` retorna só RF-01..RF-06; nenhum código FRD-<módulo>-NN. Critérios de aceite estão em formato CA-03.1 'dado/quando/então' em bullets comuns; `grep -c -- '- \\[ \\]'` = 0."
+    },
+    {
+      "text": "A Matriz de Rastreabilidade tem uma linha para cada funcionalidade F-01, F-02, F-03, F-04, F-05 e F-06 do PRD, cada uma apontando para pelo menos um código FRD-*, e a coluna Status usa apenas os valores 'Coberto', 'Parcialmente Coberto', 'Não Coberto' ou 'Ponto a Validar'.",
+      "passed": false,
+      "evidence": "Seção 10 (l.253-262) tem colunas 'RF (FRD) | Funcionalidade (PRD) | Regra(s) | Jornada(s)': cobre F-01..F-06, mas aponta para RF-01..RF-06 (nenhum FRD-*) e não tem coluna Status."
+    },
+    {
+      "text": "A seção Pontos a Validar contém entradas VAL-NN para (a) o valor máximo por recarga da RN-04, (b) o prazo para abrir contestação e (c) se o atendente SAC pode bloquear cartão; e em nenhum ponto do FRD aparece um valor máximo de recarga em reais nem um prazo de contestação em dias apresentado como regra definida.",
+      "passed": false,
+      "evidence": "Não há nenhum VAL-NN (`grep -n 'VAL-'` vazio); as lacunas estão em 'Pendências' (l.264-271). Valores inventados como regra de trabalho: l.27 e l.126 'valor inicial de R$ 500,00 (50000 centavos)' para o teto da RN-04; l.26 e l.189 (CA-05.8) 'prazo de 90 dias corridos a partir da recarga' para contestação, com mensagem E-05.2 e critério de aceite testável sobre esse prazo. Viola explicitamente a segunda metade da asserção. Nuance reverificada: os dois valores vêm rotulados como \"valor de trabalho a confirmar\"/NEEDS CLARIFICATION (l.26-27, CA-05.8 l.189), o que atenua a segunda metade; a falha se sustenta de qualquer modo pela primeira metade (nenhum VAL-NN, nenhuma seção Pontos a Validar)."
+    },
+    {
+      "text": "Cashback/fidelidade, recarga por boleto e transferência de saldo entre cartões aparecem apenas na seção Fora de Escopo (ou em Pontos a Validar), e nenhum código FRD-* tem como objeto essas funcionalidades.",
+      "passed": false,
+      "evidence": "Os três itens aparecem apenas em l.13 da seção '1. Objetivo e escopo deste documento' ('Ficam fora deste FRD ...') e l.219/232 (transferência como v2), e nenhum RF-* tem esses objetos. Porém o documento não tem seção Fora de Escopo nem Pontos a Validar, e não usa códigos FRD-*, logo a condição literal não é satisfeita; o comportamento substantivo (não virar requisito) está correto."
+    },
+    {
+      "text": "git diff HEAD -- docs/product/prd/prd.md docs/discovery/discovery-notes.md no diretório de saída é vazio: o agente não alterou os arquivos de entrada.",
+      "passed": true,
+      "evidence": "`git -C without_skill/run-1/work diff HEAD -- docs/product/prd/prd.md docs/discovery/discovery-notes.md | wc -l` = 0; `git ls-files` confirma os dois rastreados; `git status --short -- docs/` só mostra '?? docs/product/frd/'."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 5,
+    "total": 6,
+    "pass_rate": 0.17
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A Matriz de Rastreabilidade tem uma linha para cada funcionalidade F-01, F-02, F-03, F-04, F-05 e F-06 do PRD, cada uma apontando para pelo menos um código FRD-*, e a coluna Status usa apenas os valores 'Coberto', 'Parcialmente Coberto', 'Não Coberto' ou 'Ponto a Validar'.",
+        "reason": "A falha do with_skill vem de anotação na célula Status; decidir se o enum é estrito (então manter) ou se prefixo válido basta, e escrever isso na asserção para o grader não arbitrar."
+      },
+      {
+        "assertion": "Cashback/fidelidade, recarga por boleto e transferência de saldo entre cartões aparecem apenas na seção Fora de Escopo (ou em Pontos a Validar), e nenhum código FRD-* tem como objeto essas funcionalidades.",
+        "reason": "'Aparecem apenas na seção Fora de Escopo' é impossível de cumprir literalmente para transferência, porque o próprio texto de F-06 do PRD diz 'transferência futura'; reescrever como 'nenhum requisito tem como objeto ...' e 'os três constam na seção Fora de Escopo'."
+      },
+      {
+        "reason": "Nenhuma asserção checa a matriz de permissões com os três perfis nem as mensagens MSG-NNN com tipos permitidos, ambos pedidos no expected_output; o with_skill as tem (l.1629-1668) mas o eval não discrimina isso."
+      },
+      {
+        "reason": "Os dois transcripts afirmam que a fixture criou o diretório de destino vazio (frd-nfrd/ num, frd/ no outro); setup.sh e overlay/ não criam nenhum dos dois, e git status mostra ambos como não rastreados. Afirmação não verificada nos transcripts."
+      }
+    ],
+    "overall": "Asserções 1, 2 e 4 discriminam bem (path canônico, IDs, não inventar valores). A 6 é não discriminante (as duas passam)."
+  }
+}

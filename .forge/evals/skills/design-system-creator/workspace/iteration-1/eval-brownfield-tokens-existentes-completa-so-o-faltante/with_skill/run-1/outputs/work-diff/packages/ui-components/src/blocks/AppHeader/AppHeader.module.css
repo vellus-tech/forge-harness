@@ -1,0 +1,32 @@
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-4);
+}
+
+.greeting {
+  flex: 1;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: var(--fs-16);
+  color: var(--fg);
+}
+
+.notif {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--surface-muted);
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.notif:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}

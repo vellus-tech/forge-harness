@@ -1,0 +1,41 @@
+{
+  "reviewer": "security-reviewer",
+  "findings": [
+    {
+      "id": "SEC-001",
+      "severity": "BLOCKER",
+      "category": "security",
+      "file": "services/webhooks/src/Webhooks.Api/appsettings.Development.json",
+      "line": 4,
+      "title": "Secret de webhook versionado em appsettings.Development.json",
+      "description": "Partners.WebhookSecret está commitado em texto plano (\"whsec_dev-EXEMPLO_9fK2mQ7xR4tV8bN1\"). Zero tolerance para secrets em código, mesmo em arquivo/ambiente de dev: uma vez no histórico do git, o valor é considerado comprometido e pode ser lido por qualquer pessoa com acesso ao repositório (incluindo forks e clones antigos).",
+      "fix_suggested": "Rotacionar/revogar o WebhookSecret exposto junto ao parceiro imediatamente, mover o valor para um secret manager ou variável de ambiente não versionada, e reescrever o histórico do git (git filter-repo / BFG) para remover o valor comprometido — apagar apenas a linha do arquivo atual não invalida a exposição já registrada no histórico.",
+      "rule_violated": ".forge/rules/architecture/security-and-secrets.md § secrets em código (zero tolerance)",
+      "confidence": "high"
+    },
+    {
+      "id": "SEC-002",
+      "severity": "BLOCKER",
+      "category": "security",
+      "file": "services/webhooks/.env",
+      "line": 2,
+      "title": ".env commitado com secret do webhook em texto plano",
+      "description": "services/webhooks/.env foi adicionado ao repositório (via git add -f, ignorando o .gitignore) contendo PARTNER_WEBHOOK_SECRET em texto plano, duplicando a exposição do SEC-001. Arquivo .env commitado é BLOCKER independentemente do ambiente (dev/test/prod).",
+      "fix_suggested": "Remover o arquivo do índice do git (git rm --cached), garantir que .env permaneça no .gitignore sem uso de -f, rotacionar o mesmo segredo já apontado em SEC-001 (é o mesmo valor) e limpar o histórico do git.",
+      "rule_violated": ".forge/rules/architecture/security-and-secrets.md § .env commitado",
+      "confidence": "high"
+    },
+    {
+      "id": "SEC-003",
+      "severity": "BLOCKER",
+      "category": "security",
+      "file": "services/webhooks/src/Webhooks.Api/Handlers/PartnerCallbackHandler.cs",
+      "line": 16,
+      "title": "PII (e-mail do usuário) em log, mesmo em nível Debug",
+      "description": "_logger.LogDebug registra cb.UserEmail sem mascaramento. O fato de o nível Debug normalmente estar desabilitado em produção não é controle de segurança: LogLevel é configuração (appsettings.Development.json já mostra \"Default\": \"Debug\" versionado no próprio serviço), pode ser alterado em runtime/appsettings.Production sem novo deploy, e a política do projeto trata PII em log como zero tolerance independentemente do nível.",
+      "fix_suggested": "Remover UserEmail do log estruturado ou mascará-lo (ex.: hash ou máscara parcial), mantendo apenas identificadores não sensíveis (PartnerId, EventType, correlationId).",
+      "rule_violated": ".forge/rules/architecture/security-and-compliance.md § PII em logs",
+      "confidence": "high"
+    }
+  ]
+}

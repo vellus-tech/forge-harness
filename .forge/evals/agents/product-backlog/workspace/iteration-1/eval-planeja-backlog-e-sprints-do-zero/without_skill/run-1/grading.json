@@ -1,0 +1,59 @@
+{
+  "expectations": [
+    {
+      "text": "Existem docs/product/backlog/product-backlog.md, sprints-planning.md, progress-tracking.md e pelo menos dois arquivos no padrão sprint-<N>-<slug>.md numerados a partir de 1 sem lacuna (sprint-1-*, sprint-2-*, ...); cada nome de sprint listado na tabela de sprints de sprints-planning.md tem o arquivo correspondente",
+      "passed": false,
+      "evidence": "Comando `ls without_skill/run-1/outputs/docs/product/backlog/` retorna só backlog.md e sprint-plan.md; não existem product-backlog.md, sprints-planning.md, progress-tracking.md nem arquivos sprint-<N>-<slug>.md."
+    },
+    {
+      "text": "Todo arquivo sprint-<N>-<slug>.md tem uma linha '**Objetivo:**' contendo uma única frase que começa com 'ao final desta sprint' (sem diferenciar maiúsculas) e contém o verbo 'consegue'",
+      "passed": false,
+      "evidence": "Não há arquivos sprint-<N>-<slug>.md; comando `grep -c 'Objetivo' outputs/docs/product/backlog/*.md` = 0 em backlog.md e em sprint-plan.md."
+    },
+    {
+      "text": "A tabela '## 1. Épicos' de product-backlog.md tem exatamente duas linhas de épico, uma com 'card-wallet' e outra com 'fare-validation'; não existe épico transversal (ex.: 'Fundação', 'Infraestrutura', 'Plataforma') que não seja um desses dois módulos",
+      "passed": false,
+      "evidence": "product-backlog.md não existe. backlog.md tem dois épicos como headings ('## Épico 1 — Carteira do Passageiro (card-wallet)' l.11, '## Épico 2 — Validação de Embarque (fare-validation)' l.23), mas não a tabela '## 1. Épicos' no arquivo exigido."
+    },
+    {
+      "text": "Na tabela de user stories de product-backlog.md cada um de RF-001, RF-002, RF-003, RF-004, RF-005 e RF-006 aparece na coluna RF de ao menos uma story, com story points em {1,2,3,5,8,13}; e as TASKs sem valor direto ao usuário (card-wallet TASK-01, TASK-02 e TASK-07; fare-validation TASK-01 e TASK-07) aparecem na tabela de tasks com referência à TASK de origem (ex.: 'task:TASK-01'), não como user stories",
+      "passed": false,
+      "evidence": "product-backlog.md não existe. Além disso, em backlog.md as TASKs de infra viraram stories 'enabler': CW-1 (TASK-01, TASK-02) l.15, CW-5 (TASK-07) l.19, FV-1 (TASK-01) l.27, FV-7 (TASK-07) l.33 — o oposto do exigido; não há tabela de tasks."
+    },
+    {
+      "text": "A story do RF-005 (integração temporal do fare-validation) está numa sprint de número maior que a sprint da story do RF-002 (recarga Pix do card-wallet, de cujo TASK-05 ela depende); a Sprint 1 vai de 2026-10-05 a 2026-10-18 e cada sprint seguinte começa no dia seguinte ao fim da anterior; nenhum arquivo sprint-<N> declara em 'Dependências' uma sprint de número maior ou igual a N",
+      "passed": false,
+      "evidence": "RF-005 (FV-4, Sprint 3) vem depois de RF-002 (CW-3, Sprint 1), mas sprint-plan.md l.11 declara 'Sprint 1 — 2026-10-05 a 2026-10-16' (não 2026-10-18) e l.34 'Sprint 3 — 2026-11-02 a 2026-11-13'; não existem arquivos sprint-<N> com 'Dependências'."
+    },
+    {
+      "text": "progress-tracking.md tem ao menos uma linha na tabela '## 2. Operações pendentes de sincronização com Jira' descrevendo uma operação de criação no Jira (épico/story/sprint) com o erro ou indisponibilidade do MCP; e a tabela '## 5. Mapeamento Local ↔ Jira' de product-backlog.md não contém nenhuma Issue Key no formato 'PLD-<número>' (não houve chamada MCP bem-sucedida que a justificasse)",
+      "passed": false,
+      "evidence": "progress-tracking.md não existe, logo não há tabela '## 2. Operações pendentes de sincronização com Jira'; a simulação ficou só em outputs/jira-dispatch-simulado.md. Também não existe a tabela '## 5. Mapeamento Local ↔ Jira' (comando `grep -rnE 'PLD-[0-9]+' outputs` retorna vazio, rc=1, mas a estrutura exigida está ausente)."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 6,
+    "total": 6,
+    "pass_rate": 0.0
+  },
+  "timing": {
+    "executor_duration_seconds": 152
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Na tabela de user stories de product-backlog.md cada um de RF-001, RF-002, RF-003, RF-004, RF-005 e RF-006 aparece na coluna RF de ao menos uma story, com story points em {1,2,3,5,8,13}; e as TASKs sem valor direto ao usuário (card-wallet TASK-01, TASK-02 e TASK-07; fare-validation TASK-01 e TASK-07) aparecem na tabela de tasks com referência à TASK de origem (ex.: 'task:TASK-01'), não como user stories",
+        "reason": "Aceita 'card-wallet TASK-01' como referência e tasks de infra sem story pai; se o formato 'task:TASK-NN' e o vínculo 'sob uma story' do expected_output importam, a asserção deve exigi-los literalmente — hoje o with_skill passa sem cumprir nenhum dos dois."
+      },
+      {
+        "assertion": "progress-tracking.md tem ao menos uma linha na tabela '## 2. Operações pendentes de sincronização com Jira' descrevendo uma operação de criação no Jira (épico/story/sprint) com o erro ou indisponibilidade do MCP; e a tabela '## 5. Mapeamento Local ↔ Jira' de product-backlog.md não contém nenhuma Issue Key no formato 'PLD-<número>' (não houve chamada MCP bem-sucedida que a justificasse)",
+        "reason": "A linha de §2 do with_skill registra 'não executado por regra do ambiente', não um erro/indisponibilidade real do MCP; como nenhuma chamada foi tentada, a asserção não distingue 'tentou e falhou' de 'nem tentou'. Considere exigir evidência de tentativa (ou aceitar explicitamente o registro por restrição)."
+      },
+      {
+        "reason": "Nenhuma asserção checa se a resposta final ao usuário lista as pendências de sync e sugere retomar (parte do expected_output), nem se a capacidade (~24 pontos) foi respeitada por sprint."
+      }
+    ],
+    "overall": "Asserções discriminam bem a estrutura contratual (0/6 no baseline contra 5/6 com o artefato); as duas folgas acima deixam passar desvios do expected_output."
+  }
+}

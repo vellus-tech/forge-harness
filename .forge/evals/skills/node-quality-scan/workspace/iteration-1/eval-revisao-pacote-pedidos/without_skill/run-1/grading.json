@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "outputs/revisao-pedidos.md contém uma linha para cada uma das 11 regras do scanner (empty-catch, floating-promise, sync-fs-blocking, sql-interpolation, new-pg-client, process-env-direct, date-now, explicit-any, generic-name, mutable-module-state, single-impl-interface), incluindo as que não acharam nada marcadas como OK/limpas.",
+      "passed": false,
+      "evidence": "Comando: grep -c -- <regra> outputs/revisao-pedidos.md para as 11 regras → 0 em todas. O relatório não usa o scanner nem lista regras; é uma revisão livre em itens numerados de 1 a 10."
+    },
+    {
+      "text": "O relatório informa o resultado do node-baseline.sh --check (PASS/OK ou FAIL, com a origem: config na raiz do monorepo) em posição anterior à lista de regras do scan.",
+      "passed": false,
+      "evidence": "grep -n -i baseline outputs/revisao-pedidos.md não retorna nada. O relatório não menciona node-baseline.sh --check, e o transcript.md também não registra essa execução."
+    },
+    {
+      "text": "Nenhum achado do relatório aponta para packages/notificacoes (EmailManager.ts tem empty-catch, floating-promise, sync-fs, any, generic-name e export let pré-existentes em main, fora do diff).",
+      "passed": true,
+      "evidence": "grep -c notificacoes → 0 e grep -c EmailManager → 0. Todos os achados citam packages/pedidos (rotas.ts, PedidoHelper.ts, db.ts, config.ts do pacote), e a linha 3 fixa o escopo nos dois arquivos do diff."
+    },
+    {
+      "text": "O relatório aponta sql-interpolation como defeito em packages/pedidos/src/rotas.ts:15 (ou src/rotas.ts:15), com recomendação de placeholder parametrizado ($1).",
+      "passed": true,
+      "evidence": "Linha 7: \"**Injeção de SQL em GET /pedidos** (`rotas.ts:15`)\", com correção para \"status = $1 ... [status]\". A linha 3 identifica o arquivo como packages/pedidos/src/rotas.ts. O relatório não usa o nome sql-interpolation, mas identifica o mesmo defeito na mesma linha com o placeholder $1. Aprovei pela substância; a citação é só `rotas.ts:15`, sem o prefixo src/."
+    },
+    {
+      "text": "Todo achado FOUND listado no relatório (sync-fs-blocking, sql-interpolation, empty-catch, process-env-direct, generic-name) vem acompanhado de arquivo:linha; nenhum achado aparece só com descrição genérica.",
+      "passed": false,
+      "evidence": "Dos FOUND esperados, process-env-direct e generic-name não aparecem (grep = 0; o PedidoHelper.ts:3 com process.env.DESCONTO_PADRAO não é citado). Vários achados vêm sem arquivo:linha: o item 4 (linha 15) fala de \"Nenhuma das três rotas\" sem arquivo nem linha, o item 8 (linha 25) cita só `db.ts`, o item 9 (linha 26) só `config.ts`, e o item 10 (linha 27) é uma descrição genérica."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 3,
+    "total": 5,
+    "pass_rate": 0.4
+  }
+}

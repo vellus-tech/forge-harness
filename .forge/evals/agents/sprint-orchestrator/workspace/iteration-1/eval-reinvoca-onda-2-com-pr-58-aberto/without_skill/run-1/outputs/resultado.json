@@ -1,0 +1,38 @@
+{
+  "action": "reinvoke_wave_for_open_pr",
+  "module": "recarga",
+  "wave": 2,
+  "branch": "feat/recarga/wave-2",
+  "worktree": ".forge/worktrees/recarga-wave-2",
+  "pr": {
+    "number": 58,
+    "url": "https://github.com/axis-mobfintech/bilhetagem-recarga/pull/58",
+    "state": "open",
+    "action_taken": "simulated_edit_and_comment",
+    "reason": "sem remoto configurado, gh indisponivel nesta maquina — nenhuma chamada de escrita foi executada de fato"
+  },
+  "code_evaluator_followup": {
+    "requested": "rejeitar webhook do PSP sem assinatura valida",
+    "resolved_by_commit": "142544b",
+    "file": "services/recarga/pix/assinatura.go",
+    "function": "AssinaturaValida",
+    "status": "commit_present_on_branch_pr_not_yet_updated"
+  },
+  "jira_sync": {
+    "attempted": true,
+    "result": "failed",
+    "reason": "MCP do Atlassian nao disponivel neste ambiente",
+    "pending_issues": ["REC-21", "REC-22", "REC-23", "REC-24"],
+    "target_transition": "In Review",
+    "same_failure_as_previous_round": true
+  },
+  "task_ids": ["TASK-05", "TASK-06", "TASK-07", "TASK-08"],
+  "outputs_written": [
+    "outputs/sprint-runbook.md",
+    "outputs/pr-body.md",
+    "outputs/transcript.md",
+    "outputs/subagent-dispatch.md"
+  ],
+  "external_actions_executed": false,
+  "notes": "Todos os comandos gh/git push/MCP descritos em sprint-runbook.md sao simulados; nada foi executado contra o GitHub, Jira ou origin real."
+}

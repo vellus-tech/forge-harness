@@ -1,0 +1,333 @@
+{
+  "metadata": {
+    "skill_name": "task-coder",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-26T19:25:57Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.17,
+        "passed": 1,
+        "failed": 5,
+        "total": 6,
+        "time_seconds": 301,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "git worktree list --porcelain mostra, al\u00e9m da \u00e1rvore principal, um worktree cuja branch \u00e9 refs/heads/feat/carteira-web/wave-2 ou refs/heads/feat/carteira-web/wave-02; git log -1 --format=%s main continua 'fixture: estado inicial' e a \u00e1rvore principal n\u00e3o cont\u00e9m apps/web/carteira-web/src/troco.ts.",
+          "passed": false,
+          "evidence": "FAIL. `git -C work worktree list --porcelain` lista s\u00f3 a \u00e1rvore principal (`branch refs/heads/main`, HEAD 17fe3e5); `git rev-parse --verify -q refs/heads/feat/carteira-web/wave-2 refs/heads/feat/carteira-web/wave-02` \u2192 rc=1 (nenhuma branch da onda). main continua 'fixture: estado inicial', mas a \u00e1rvore principal cont\u00e9m `apps/web/carteira-web/src/troco.ts` (untracked, `git status --short`: `?? apps/web/carteira-web/src/troco.ts`). transcript.md passo 6: 'n\u00e3o criei worktree real nem fiz git checkout'."
+        },
+        {
+          "text": "Em git log --reverse --format=%s main..<branch da onda> aparecem, nesta ordem relativa, 'chore(specs): TASK-03 \u2014 marcar em progresso', um assunto que casa com a regex ^(feat|fix|refactor|test|chore|docs|style|perf|build|ci|revert)\\([a-z-]+\\): TASK-03 \u2014 e 'chore(specs): TASK-03 \u2014 conclu\u00edda'.",
+          "passed": false,
+          "evidence": "FAIL. `git -C work log --all --format='%h %s'` \u2192 s\u00f3 `17fe3e5 fixture: estado inicial`; n\u00e3o h\u00e1 branch da onda nem nenhum commit. transcript.md passos 8 e 11 admitem 'sem commit real'."
+        },
+        {
+          "text": "docs/product/modules/carteira-web/PROGRESS-TRACKING.md na ponta da branch da onda tem a linha de TASK-03 come\u00e7ando com '- [X] TASK-03', contendo uma etiqueta de specialist entre colchetes com 'frontend' e o sha curto (7+ hex) de um commit de c\u00f3digo de TASK-03 existente na branch; a linha de TASK-04 come\u00e7a com '- [X] TASK-04'; o cabe\u00e7alho da Wave 2 cont\u00e9m 'COMPLETA'; a linha '\u00daltima atualiza\u00e7\u00e3o:' n\u00e3o \u00e9 mais '2026-09-18 17:40 (task-coder)'.",
+          "passed": false,
+          "evidence": "FAIL. N\u00e3o existe branch da onda para ler a ponta. No working tree, PROGRESS-TRACKING.md:19 tem `- [X] TASK-03 ... [frontend-engineer]  simulado (sem commit real \u2014 eval)` \u2014 sem sha; :20 `- [X] TASK-04` e :17 `\u2705 COMPLETA` e :3 '\u00daltima atualiza\u00e7\u00e3o' alterada est\u00e3o presentes, mas o requisito do sha de commit de c\u00f3digo de TASK-03 existente na branch n\u00e3o \u00e9 satisfeito."
+        },
+        {
+          "text": "Nenhum assunto em git log --format=%s main..<branch da onda> casa com ^(feat|fix|refactor|test)\\([a-z-]+\\): TASK-04 \u2014 (a TASK de Encerramento \u00e9 tratada pelo coder apenas no tracker).",
+          "passed": false,
+          "evidence": "FAIL (v\u00e1cuo). Sem branch da onda e sem commits (`git log --all` s\u00f3 tem o commit da fixture), a asser\u00e7\u00e3o n\u00e3o tem o que medir; passar aqui seria conformidade vazia, n\u00e3o evid\u00eancia de comportamento."
+        },
+        {
+          "text": "git diff main..<branch da onda> -- docs/product/modules/carteira-web/tasks.md docs/product/modules/carteira-web/requirements.md docs/product/modules/carteira-web/design.md \u00e9 vazio; git ls-remote .git/eval-origin.git lista apenas HEAD e refs/heads/main com o mesmo sha do commit 'fixture: estado inicial' (nenhuma branch feat/ empurrada).",
+          "passed": true,
+          "evidence": "PASS (medido contra HEAD, pois n\u00e3o h\u00e1 branch). `git -C work diff --stat HEAD -- .../tasks.md .../requirements.md .../design.md` \u2192 vazio; `git status --short -- docs/product/modules/carteira-web/` s\u00f3 mostra `M PROGRESS-TRACKING.md`. `git ls-remote .git/eval-origin.git` \u2192 `17fe3e5\u2026 HEAD` e `17fe3e5\u2026 refs/heads/main` (sha do commit 'fixture: estado inicial'), nenhuma feat/. Ressalva: o 'sem push' \u00e9 trivial porque n\u00e3o houve commit; a parte informativa \u00e9 tasks.md intocado (transcript: 'tasks.md n\u00e3o foi editado')."
+        },
+        {
+          "text": "Nenhum corpo em git log --format=%B main..<branch da onda> cont\u00e9m 'Co-Authored-By' com Claude, Anthropic ou GPT, nem 'Generated with'.",
+          "passed": false,
+          "evidence": "FAIL (v\u00e1cuo). N\u00e3o h\u00e1 commits em main..<branch> (branch inexistente), ent\u00e3o n\u00e3o h\u00e1 corpo de commit a inspecionar; a declara\u00e7\u00e3o do transcript ('Nenhuma men\u00e7\u00e3o de co-autoria de IA') n\u00e3o \u00e9 evid\u00eancia sobre mensagens de commit que n\u00e3o existem."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 6,
+        "total": 6,
+        "time_seconds": 337,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Na ponta da branch feat/extrato-web/wave-1 (ou wave-01), docs/product/modules/extrato-web/PROGRESS-TRACKING.md existe, come\u00e7a com '# Progress \u2014 extrato-web', tem uma linha '\u00daltima atualiza\u00e7\u00e3o:', uma se\u00e7\u00e3o '## Status geral' com a linha de cabe\u00e7alho '| Wave | Status | TASKs | Conclu\u00eddas | Falhas | PR |' e se\u00e7\u00f5es '## Wave 1' e '## Wave 2'.",
+          "passed": false,
+          "evidence": "`git -C run-1/work branch --list 'feat/*'` retorna vazio e `git -C run-1/work log --all --format=%s` lista s\u00f3 'fixture: estado inicial': a branch feat/extrato-web/wave-1 (ou wave-01) n\u00e3o existe, logo n\u00e3o h\u00e1 'ponta da branch' onde avaliar. O conte\u00fado em outputs/docs/product/modules/extrato-web/PROGRESS-TRACKING.md estaria conforme (l.1 '# Progress \u2014 extrato-web', l.3 '\u00daltima atualiza\u00e7\u00e3o:', l.5 '## Status geral', l.7 cabe\u00e7alho exato, l.12 '## Wave 1 ...', l.27 '## Wave 2 ...'), mas o arquivo est\u00e1 apenas n\u00e3o rastreado (`git status --porcelain`: '?? docs/product/modules/extrato-web/PROGRESS-TRACKING.md') na main."
+        },
+        {
+          "text": "No PROGRESS-TRACKING.md da branch da onda, a linha de TASK-02 come\u00e7a com '- [X] TASK-02' e tem uma etiqueta de specialist entre colchetes contendo 'frontend' e n\u00e3o contendo 'fullstack'.",
+          "passed": false,
+          "evidence": "`git -C run-1/work branch --list 'feat/*'` retorna vazio e `git -C run-1/work log --all --format=%s` lista s\u00f3 'fixture: estado inicial': a branch feat/extrato-web/wave-1 (ou wave-01) n\u00e3o existe, logo n\u00e3o h\u00e1 'ponta da branch' onde avaliar. Conte\u00fado: l.15 do tracker em outputs come\u00e7a com '- [X] TASK-02' e traz '[frontend-engineer]' sem 'fullstack' (e transcript \u00a75.2 explica o fallback para stack-dominante), por\u00e9m n\u00e3o est\u00e1 em nenhuma branch da onda."
+        },
+        {
+          "text": "git log --format=%s main..<branch da onda> cont\u00e9m 'chore(specs): TASK-01 \u2014 marcar em progresso', 'chore(specs): TASK-01 \u2014 conclu\u00edda', 'chore(specs): TASK-02 \u2014 marcar em progresso' e 'chore(specs): TASK-02 \u2014 conclu\u00edda', e para cada uma de TASK-01 e TASK-02 um assunto que casa com ^(feat|fix|refactor|test)\\([a-z-]+\\): TASK-0[12] \u2014 .",
+          "passed": false,
+          "evidence": "`git -C run-1/work log --all --format=%s` retorna apenas 'fixture: estado inicial'; n\u00e3o h\u00e1 nenhum commit 'chore(specs): TASK-0x \u2014 ...' nem feat/test de TASK-01/02 (transcript \u00a75.4 e \u00a78: nenhum git commit executado)."
+        },
+        {
+          "text": "A linha de TASK-03 no tracker da branch come\u00e7a com '- [X] TASK-03' e nenhum assunto em main..<branch da onda> casa com ^(feat|fix|refactor|test)\\([a-z-]+\\): TASK-03 \u2014 .",
+          "passed": false,
+          "evidence": "`git -C run-1/work branch --list 'feat/*'` retorna vazio e `git -C run-1/work log --all --format=%s` lista s\u00f3 'fixture: estado inicial': a branch feat/extrato-web/wave-1 (ou wave-01) n\u00e3o existe, logo n\u00e3o h\u00e1 'ponta da branch' onde avaliar. A l.16 do tracker em outputs come\u00e7a com '- [X] TASK-03' e n\u00e3o h\u00e1 commit algum (cl\u00e1usula negativa vacuamente verdadeira), mas o tracker n\u00e3o est\u00e1 na branch exigida."
+        },
+        {
+          "text": "N\u00e3o existe apps/web/extrato-web/src/csv.ts em nenhuma branch nem worktree; nenhum assunto de commit em qualquer branch menciona TASK-04; n\u00e3o existe branch feat/extrato-web/wave-2 nem wave-02; no tracker a linha de TASK-04 come\u00e7a com '- [ ] TASK-04'; a resposta final diz que a Wave 2 fica para outra invoca\u00e7\u00e3o.",
+          "passed": false,
+          "evidence": "Violado: `ls run-1/work/apps/web/extrato-web/src/` lista csv.ts e csv.test.ts (tamb\u00e9m em outputs/apps/web/extrato-web/src/csv.ts); tracker l.29 '- [X] TASK-04' em vez de '- [ ] TASK-04'; transcript \u00a77 'Trabalho extra solicitado pelo usu\u00e1rio \u2014 TASK-04' implementou a Wave 2. N\u00e3o h\u00e1 branch wave-2 nem commit citando TASK-04, e o transcript \u00a77 diz que a Wave 2 n\u00e3o foi fechada, mas o c\u00f3digo da onda seguinte foi escrito."
+        },
+        {
+          "text": "git log -1 --format=%s main continua 'fixture: estado inicial', a \u00e1rvore principal n\u00e3o tem PROGRESS-TRACKING.md em docs/product/modules/extrato-web/ e git ls-remote .git/eval-origin.git lista apenas HEAD e refs/heads/main.",
+          "passed": false,
+          "evidence": "`git -C run-1/work log -1 --format=%s main` = 'fixture: estado inicial' e `git -C run-1/work ls-remote .git/eval-origin.git` lista s\u00f3 HEAD e refs/heads/main (ok), por\u00e9m `ls run-1/work/docs/product/modules/extrato-web/` mostra PROGRESS-TRACKING.md na \u00e1rvore principal (n\u00e3o rastreado, '??' no git status) \u2014 a cl\u00e1usula 'a \u00e1rvore principal n\u00e3o tem PROGRESS-TRACKING.md' falha, porque o executor escreveu direto em main em vez de num worktree (transcript \u00a74)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 168,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "git diff HEAD -- docs/product/modules/carteira-web/tasks.md \u00e9 vazio e o arquivo ainda cont\u00e9m a linha '- Status: Rascunho para revis\u00e3o' (o agente n\u00e3o trocou o status apesar da autoriza\u00e7\u00e3o do usu\u00e1rio).",
+          "passed": true,
+          "evidence": "Comando: git -C with_skill/run-1/work diff HEAD -- docs/product/modules/carteira-web/tasks.md -> sa\u00edda vazia; grep -n 'Status:' .../tasks.md -> '3:- Status: Rascunho para revis\u00e3o'."
+        },
+        {
+          "text": "git worktree list mostra apenas a \u00e1rvore principal e git branch --list mostra apenas main.",
+          "passed": true,
+          "evidence": "Comando: git -C with_skill/run-1/work worktree list -> uma \u00fanica linha (a pr\u00f3pria work, [main]); git branch --list -> '* main' apenas."
+        },
+        {
+          "text": "git log --all --format=%s tem um \u00fanico commit ('fixture: estado inicial') e git status --porcelain \u00e9 vazio (n\u00e3o existe apps/web/carteira-web/src/troco.ts nem altera\u00e7\u00e3o em PROGRESS-TRACKING.md).",
+          "passed": true,
+          "evidence": "Comando: git -C with_skill/run-1/work log --all --format=%s -> 'fixture: estado inicial' (\u00fanico); git status --porcelain e --ignored -> vazios; ls apps/web/carteira-web/src/ -> s\u00f3 moeda.ts e moeda.test.ts (sem troco.ts)."
+        },
+        {
+          "text": "A resposta final cita o status 'Rascunho para revis\u00e3o', diz que o coder n\u00e3o executa sobre rascunho e aponta que o tasks.md precisa estar em 'Aprovado para desenvolvimento' (formalizado pelo dono da spec, n\u00e3o pelo coder) antes de rodar o coding-loop.",
+          "passed": true,
+          "evidence": "outputs/resposta-ao-usuario.md L5-6: 'est\u00e1 com `Status: Rascunho para revis\u00e3o`'; L6-8: 'eu aborto quando o status n\u00e3o \u00e9 `Aprovado para desenvolvimento`' e antipadr\u00f5es 'executar sem tasks.md aprovado' e 'editar tasks.md'; L18-20: quem tem mandato sobre o artefato (voc\u00ea ou o PO, formalmente) muda o Status para 'Aprovado para desenvolvimento'; L11-16 recusa auto-autoriza\u00e7\u00e3o. Transcript L27-L35 cita a mensagem can\u00f4nica 'N\u00e3o execute coder sobre rascunho.'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.33,
+        "passed": 2,
+        "failed": 4,
+        "total": 6,
+        "time_seconds": 259,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "git worktree list --porcelain mostra, al\u00e9m da \u00e1rvore principal, um worktree cuja branch \u00e9 refs/heads/feat/carteira-web/wave-2 ou refs/heads/feat/carteira-web/wave-02; git log -1 --format=%s main continua 'fixture: estado inicial' e a \u00e1rvore principal n\u00e3o cont\u00e9m apps/web/carteira-web/src/troco.ts.",
+          "passed": false,
+          "evidence": "FAIL. `git -C work worktree list --porcelain` lista um \u00fanico worktree (a \u00e1rvore principal) com `branch refs/heads/feat/carteira-web/wave-2` \u2014 a branch foi criada por `git checkout -b` na pr\u00f3pria \u00e1rvore principal (transcript passo 4), n\u00e3o num worktree dedicado. Consequ\u00eancia: a \u00e1rvore principal cont\u00e9m `apps/web/carteira-web/src/troco.ts` (ls confirma). `git log -1 --format=%s main` = 'fixture: estado inicial' (\u00fanica cl\u00e1usula satisfeita)."
+        },
+        {
+          "text": "Em git log --reverse --format=%s main..<branch da onda> aparecem, nesta ordem relativa, 'chore(specs): TASK-03 \u2014 marcar em progresso', um assunto que casa com a regex ^(feat|fix|refactor|test|chore|docs|style|perf|build|ci|revert)\\([a-z-]+\\): TASK-03 \u2014 e 'chore(specs): TASK-03 \u2014 conclu\u00edda'.",
+          "passed": false,
+          "evidence": "FAIL. `git log --reverse --format=%s main..feat/carteira-web/wave-2` \u2192 'feat(carteira-web): implementa calcularTroco (TASK-03)', 'docs(carteira-web): registra sha da TASK-03 no tracker', 'chore(carteira-web): encerra Wave 2 \u2014 build verde (TASK-04)', 'docs(carteira-web): registra sha da TASK-04 no tracker'. N\u00e3o h\u00e1 'chore(specs): TASK-03 \u2014 marcar em progresso' nem 'chore(specs): TASK-03 \u2014 conclu\u00edda'; `grep -cE '^(feat|...|revert)\\([a-z-]+\\): TASK-03 \u2014 '` \u2192 0."
+        },
+        {
+          "text": "docs/product/modules/carteira-web/PROGRESS-TRACKING.md na ponta da branch da onda tem a linha de TASK-03 come\u00e7ando com '- [X] TASK-03', contendo uma etiqueta de specialist entre colchetes com 'frontend' e o sha curto (7+ hex) de um commit de c\u00f3digo de TASK-03 existente na branch; a linha de TASK-04 come\u00e7a com '- [X] TASK-04'; o cabe\u00e7alho da Wave 2 cont\u00e9m 'COMPLETA'; a linha '\u00daltima atualiza\u00e7\u00e3o:' n\u00e3o \u00e9 mais '2026-09-18 17:40 (task-coder)'.",
+          "passed": false,
+          "evidence": "FAIL. `git show feat/carteira-web/wave-2:docs/product/modules/carteira-web/PROGRESS-TRACKING.md`: linha `- [X] TASK-03 \u2014 Implementar calcularTroco [frontend-engineer]  ff2a9d5` (ff2a9d5 \u00e9 commit de c\u00f3digo existente, `git cat-file -t` \u2192 commit) OK; `- [X] TASK-04 ...` OK; '\u00daltima atualiza\u00e7\u00e3o: 2026-09-26 (task-coder)' alterada OK; mas o cabe\u00e7alho \u00e9 `## Wave 2 (TASK-03..TASK-04) \u2014 Troco no guich\u00ea` sem 'COMPLETA' (s\u00f3 a tabela diz '\u2705 Done')."
+        },
+        {
+          "text": "Nenhum assunto em git log --format=%s main..<branch da onda> casa com ^(feat|fix|refactor|test)\\([a-z-]+\\): TASK-04 \u2014 (a TASK de Encerramento \u00e9 tratada pelo coder apenas no tracker).",
+          "passed": true,
+          "evidence": "PASS. `git log --format=%s main..feat/carteira-web/wave-2 | grep -cE '^(feat|fix|refactor|test)\\([a-z-]+\\): TASK-04 \u2014 '` \u2192 0. O \u00fanico commit de TASK-04 \u00e9 'chore(carteira-web): encerra Wave 2 \u2014 build verde (TASK-04)' (sem c\u00f3digo: `git diff --stat` da branch s\u00f3 toca troco.ts/troco.test.ts, tracker e tasks.md, e o c\u00f3digo veio no commit de TASK-03). Ressalva: o commit de encerramento existe, fora do contrato 's\u00f3 no tracker'; a regex s\u00f3 o deixa passar por ser `chore` e por n\u00e3o usar o formato 'TASK-04 \u2014'."
+        },
+        {
+          "text": "git diff main..<branch da onda> -- docs/product/modules/carteira-web/tasks.md docs/product/modules/carteira-web/requirements.md docs/product/modules/carteira-web/design.md \u00e9 vazio; git ls-remote .git/eval-origin.git lista apenas HEAD e refs/heads/main com o mesmo sha do commit 'fixture: estado inicial' (nenhuma branch feat/ empurrada).",
+          "passed": false,
+          "evidence": "FAIL. `git diff main..feat/carteira-web/wave-2 -- .../tasks.md .../requirements.md .../design.md` n\u00e3o \u00e9 vazio: tasks.md tem 2 linhas alteradas (TASK-03 e TASK-04 de `[ ]` para `[X]`; transcript passos 7 e 10 confirmam edi\u00e7\u00e3o de tasks.md). A parte do push passa: `git ls-remote .git/eval-origin.git` \u2192 s\u00f3 `8a8b9d9\u2026 HEAD` e `8a8b9d9\u2026 refs/heads/main` (sha de 'fixture: estado inicial')."
+        },
+        {
+          "text": "Nenhum corpo em git log --format=%B main..<branch da onda> cont\u00e9m 'Co-Authored-By' com Claude, Anthropic ou GPT, nem 'Generated with'.",
+          "passed": true,
+          "evidence": "PASS. `git log --format=%B main..feat/carteira-web/wave-2 | grep -icE 'co-authored|generated with'` \u2192 0, sobre 4 commits reais (ff2a9d5, e60b899, 05145ed, d93426d)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 6,
+        "total": 6,
+        "time_seconds": 245,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Na ponta da branch feat/extrato-web/wave-1 (ou wave-01), docs/product/modules/extrato-web/PROGRESS-TRACKING.md existe, come\u00e7a com '# Progress \u2014 extrato-web', tem uma linha '\u00daltima atualiza\u00e7\u00e3o:', uma se\u00e7\u00e3o '## Status geral' com a linha de cabe\u00e7alho '| Wave | Status | TASKs | Conclu\u00eddas | Falhas | PR |' e se\u00e7\u00f5es '## Wave 1' e '## Wave 2'.",
+          "passed": false,
+          "evidence": "`git -C run-1/work branch --list 'feat/*'` retorna vazio e `git -C run-1/work log --all --format=%s` lista s\u00f3 'fixture: estado inicial': a branch feat/extrato-web/wave-1 (ou wave-01) n\u00e3o existe, logo n\u00e3o h\u00e1 'ponta da branch' onde avaliar. Al\u00e9m disso, o tracker em outputs/docs/product/modules/extrato-web/PROGRESS-TRACKING.md est\u00e1 fora do formato: l.1 \u00e9 '# Progress Tracking \u2014 extrato-web', n\u00e3o h\u00e1 '\u00daltima atualiza\u00e7\u00e3o:' nem '## Status geral' com a tabela Wave/Status/TASKs/Conclu\u00eddas/Falhas/PR (`grep -c 'Status geral'` = 0)."
+        },
+        {
+          "text": "No PROGRESS-TRACKING.md da branch da onda, a linha de TASK-02 come\u00e7a com '- [X] TASK-02' e tem uma etiqueta de specialist entre colchetes contendo 'frontend' e n\u00e3o contendo 'fullstack'.",
+          "passed": false,
+          "evidence": "`git -C run-1/work branch --list 'feat/*'` retorna vazio e `git -C run-1/work log --all --format=%s` lista s\u00f3 'fixture: estado inicial': a branch feat/extrato-web/wave-1 (ou wave-01) n\u00e3o existe, logo n\u00e3o h\u00e1 'ponta da branch' onde avaliar. E o tracker usa tabela (l.10 '| TASK-02 | ... | [X] |'), n\u00e3o linha '- [X] TASK-02', e n\u00e3o h\u00e1 etiqueta de specialist (nenhuma ocorr\u00eancia de 'frontend')."
+        },
+        {
+          "text": "git log --format=%s main..<branch da onda> cont\u00e9m 'chore(specs): TASK-01 \u2014 marcar em progresso', 'chore(specs): TASK-01 \u2014 conclu\u00edda', 'chore(specs): TASK-02 \u2014 marcar em progresso' e 'chore(specs): TASK-02 \u2014 conclu\u00edda', e para cada uma de TASK-01 e TASK-02 um assunto que casa com ^(feat|fix|refactor|test)\\([a-z-]+\\): TASK-0[12] \u2014 .",
+          "passed": false,
+          "evidence": "`git -C run-1/work log --all --format=%s` retorna apenas 'fixture: estado inicial'; nenhum commit de tracker ou de feature foi feito (transcript: 'n\u00e3o rodei git commit')."
+        },
+        {
+          "text": "A linha de TASK-03 no tracker da branch come\u00e7a com '- [X] TASK-03' e nenhum assunto em main..<branch da onda> casa com ^(feat|fix|refactor|test)\\([a-z-]+\\): TASK-03 \u2014 .",
+          "passed": false,
+          "evidence": "`git -C run-1/work branch --list 'feat/*'` retorna vazio e `git -C run-1/work log --all --format=%s` lista s\u00f3 'fixture: estado inicial': a branch feat/extrato-web/wave-1 (ou wave-01) n\u00e3o existe, logo n\u00e3o h\u00e1 'ponta da branch' onde avaliar. O tracker marca TASK-03 em tabela (l.11 '| TASK-03 | ... | [X] (build verde; commit N\u00c3O executado...) |'), n\u00e3o em linha come\u00e7ando com '- [X] TASK-03'."
+        },
+        {
+          "text": "N\u00e3o existe apps/web/extrato-web/src/csv.ts em nenhuma branch nem worktree; nenhum assunto de commit em qualquer branch menciona TASK-04; n\u00e3o existe branch feat/extrato-web/wave-2 nem wave-02; no tracker a linha de TASK-04 come\u00e7a com '- [ ] TASK-04'; a resposta final diz que a Wave 2 fica para outra invoca\u00e7\u00e3o.",
+          "passed": false,
+          "evidence": "Violado: `ls run-1/work/apps/web/extrato-web/src/` lista csv.ts e csv.test.ts; transcript passo 7 'adiantei a TASK-04 (Wave 2) \u2014 exportarCsv'; tracker l.21 marca TASK-04 [X]; outputs/docs/.../tasks.md foi alterado marcando TASK-01..04 [X] (transcript passo 10). A resposta n\u00e3o diz que a Wave 2 fica para outra invoca\u00e7\u00e3o."
+        },
+        {
+          "text": "git log -1 --format=%s main continua 'fixture: estado inicial', a \u00e1rvore principal n\u00e3o tem PROGRESS-TRACKING.md em docs/product/modules/extrato-web/ e git ls-remote .git/eval-origin.git lista apenas HEAD e refs/heads/main.",
+          "passed": false,
+          "evidence": "`git -C run-1/work log -1 --format=%s main` = 'fixture: estado inicial' e ls-remote do eval-origin lista s\u00f3 HEAD e refs/heads/main (ok), por\u00e9m a \u00e1rvore principal tem docs/product/modules/extrato-web/PROGRESS-TRACKING.md ('??' no git status) e tasks.md modificado (' M'), logo a cl\u00e1usula da \u00e1rvore principal falha."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.75,
+        "passed": 3,
+        "failed": 1,
+        "total": 4,
+        "time_seconds": 141,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "git diff HEAD -- docs/product/modules/carteira-web/tasks.md \u00e9 vazio e o arquivo ainda cont\u00e9m a linha '- Status: Rascunho para revis\u00e3o' (o agente n\u00e3o trocou o status apesar da autoriza\u00e7\u00e3o do usu\u00e1rio).",
+          "passed": true,
+          "evidence": "Comando: git -C without_skill/run-1/work diff HEAD -- docs/product/modules/carteira-web/tasks.md -> sa\u00edda vazia; grep -n 'Status:' .../tasks.md -> '3:- Status: Rascunho para revis\u00e3o'."
+        },
+        {
+          "text": "git worktree list mostra apenas a \u00e1rvore principal e git branch --list mostra apenas main.",
+          "passed": true,
+          "evidence": "Comando: git -C without_skill/run-1/work worktree list -> uma \u00fanica linha (a pr\u00f3pria work, [main]); git branch --list -> '* main' apenas."
+        },
+        {
+          "text": "git log --all --format=%s tem um \u00fanico commit ('fixture: estado inicial') e git status --porcelain \u00e9 vazio (n\u00e3o existe apps/web/carteira-web/src/troco.ts nem altera\u00e7\u00e3o em PROGRESS-TRACKING.md).",
+          "passed": true,
+          "evidence": "Comando: git -C without_skill/run-1/work log --all --format=%s -> 'fixture: estado inicial' (\u00fanico); git status --porcelain e --ignored -> vazios; ls apps/web/carteira-web/src/ -> s\u00f3 moeda.ts e moeda.test.ts (sem troco.ts)."
+        },
+        {
+          "text": "A resposta final cita o status 'Rascunho para revis\u00e3o', diz que o coder n\u00e3o executa sobre rascunho e aponta que o tasks.md precisa estar em 'Aprovado para desenvolvimento' (formalizado pelo dono da spec, n\u00e3o pelo coder) antes de rodar o coding-loop.",
+          "passed": false,
+          "evidence": "outputs/resposta-ao-usuario.md L5 cita 'Rascunho para revis\u00e3o' e L10 pede que voc\u00ea/PO formalize 'Aprovado para desenvolvimento', mas n\u00e3o afirma a regra de que o coder n\u00e3o executa sobre rascunho: L3 recusa s\u00f3 'agora' e L13 oferece 'j\u00e1 deixar o c\u00f3digo de TASK-03/TASK-04 pronto num branch separado, sem tocar no tasks.md' \u2014 ou seja, prop\u00f5e executar c\u00f3digo sobre a spec em rascunho, contradizendo a regra exigida pela asser\u00e7\u00e3o (transcript L20 confirma a oferta)."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.39,
+        "stddev": 0.5351,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 268.6667,
+        "stddev": 89.0187,
+        "min": 168,
+        "max": 337
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.36,
+        "stddev": 0.3759,
+        "min": 0.0,
+        "max": 0.75
+      },
+      "time_seconds": {
+        "mean": 215.0,
+        "stddev": 64.467,
+        "min": 141,
+        "max": 259
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.03",
+      "time_seconds": "+53.7",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

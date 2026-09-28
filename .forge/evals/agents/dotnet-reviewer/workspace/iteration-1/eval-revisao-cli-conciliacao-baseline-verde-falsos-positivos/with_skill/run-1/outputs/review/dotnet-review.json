@@ -1,0 +1,45 @@
+{
+  "agent": "dotnet-reviewer",
+  "branch": "feature/conciliacao-cli",
+  "base": "main",
+  "baseline_check": "PASS dotnet-baseline (brownfield, 8 arquivos .cs) — TreatWarningsAsErrors, AnalysisMode, EnforceCodeStyleInBuild, .editorconfig e Central Package Management todos no lugar",
+  "quality_scan": [
+    {"rule": "async-void", "severity": "HIGH", "result": "OK", "detail": "nenhuma ocorrência"},
+    {"rule": "blocking-wait", "severity": "BLOCKER", "result": "OK (exceção legítima)", "detail": "1 ocorrência em Program.cs:30, dentro do Main síncrono da ferramenta de console — a exceção documentada da própria regra. Não é finding."},
+    {"rule": "new-httpclient", "severity": "HIGH", "result": "OK", "detail": "nenhuma ocorrência"},
+    {"rule": "region", "severity": "MEDIUM", "result": "OK", "detail": "nenhuma ocorrência"},
+    {"rule": "generic-name", "severity": "MEDIUM", "result": "OK", "detail": "nenhuma ocorrência"},
+    {"rule": "bool-param", "severity": "MEDIUM", "result": "OK", "detail": "nenhuma ocorrência"},
+    {"rule": "empty-catch", "severity": "HIGH", "result": "OK", "detail": "nenhuma ocorrência"},
+    {"rule": "datetime-now", "severity": "MEDIUM", "result": "OK", "detail": "nenhuma ocorrência"},
+    {"rule": "sql-interpolation", "severity": "BLOCKER", "result": "OK", "detail": "LoteRepositorioSql usa NpgsqlCommand parametrizado (AddWithValue), sem interpolação"},
+    {"rule": "mutable-static", "severity": "HIGH", "result": "OK", "detail": "nenhuma ocorrência"},
+    {"rule": "single-impl-interface", "severity": "MEDIUM", "result": "OK (exceção legítima)", "detail": "IRelogio tem uma única implementação (RelogioSistema), mas é porta de arquitetura hexagonal deliberada — o próprio código comenta 'Porta do domínio: o relógio é infraestrutura'. Não é finding."}
+  ],
+  "findings": [
+    {
+      "severity": "BLOCKER",
+      "file": "tests/Conciliacao.Testes/ConciliadorTests.cs",
+      "line": 18,
+      "title": "Teste do Conciliador não verifica nada (passa sempre)",
+      "description": "ValidarLote_ComExtratoIgualAoLote_Concilia executa ValidarLoteAsync e só faz Assert.NotNull(lote) — uma asserção tautológica, já que 'lote' é a variável local construída duas linhas acima e nunca poderia ser nula. O teste não confere lote.Status (deveria virar Conciliado), não confere lote.ConciliadoEm, não confere o valor de retorno de ValidarLoteAsync (deveria ser true) e não confere se repositorio.Salvos contém o lote persistido. O CI está verde porque o teste não testa a lógica de conciliação — não porque a lógica esteja correta. Essa é exatamente a ferramenta que decide, às 3h, se um lote de bilhetagem diverge do extrato do adquirente; um teste que não afirma nada dá falsa confiança sobre o caminho mais crítico do PR.",
+      "fix_suggested": "Trocar a asserção por Assert.True(await conciliador.ValidarLoteAsync(...)), Assert.Equal(StatusLote.Conciliado, lote.Status) e Assert.Contains(lote, repositorio.Salvos). Adicionar um segundo teste para o caminho divergente (extrato != ValorTotal), afirmando StatusLote.Divergente e o retorno false — hoje esse caminho, que é o que dispara o exit code 1 do cron, não tem nenhuma cobertura."
+    },
+    {
+      "severity": "MEDIUM",
+      "file": "src/Conciliacao.Dominio/Conciliador.cs",
+      "line": 14,
+      "title": "ConciliadoEm é preenchido mesmo quando o lote diverge",
+      "description": "lote.ConciliadoEm = relogio.AgoraUtc roda incondicionalmente, inclusive quando confere é false e o status vira Divergente. O nome do campo ('conciliado em') afirma que o lote foi reconciliado com sucesso, mas ele também é usado para lotes que ficaram divergentes. Qualquer consulta ou relatório futuro que filtre 'lotes conciliados desde X' usando esse campo vai incluir divergências por engano.",
+      "fix_suggested": "Renomear para algo neutro como ProcessadoEm (cobre os dois desfechos), ou manter ConciliadoEm mas só atribuir quando confere for true, registrando a data de tentativa em outro campo (ex.: UltimaTentativaEm) para o caso divergente."
+    },
+    {
+      "severity": "LOW",
+      "file": "tools/Conciliacao.Cli/Program.cs",
+      "line": 43,
+      "title": "Parsing de CSV sem validação de formato — crash sem diagnóstico às 3h",
+      "description": "LerLote e LerLancamento indexam campos[0]/campos[1] direto e chamam decimal.Parse sem checar Length nem capturar FormatException/IndexOutOfRangeException. Uma linha mal formada (campo faltando, separador errado, valor não numérico) num dos dois CSVs do lote da noite derruba o processo inteiro com uma exceção não tratada e stack trace genérico no log do cron, em vez de reportar qual linha/arquivo está com problema.",
+      "fix_suggested": "Envolver a leitura de cada linha em try/catch, logar arquivo + número da linha + conteúdo antes de relançar (ou pular e contar como divergência), para que a falha às 3h aponte o CSV problemático em vez de só um stack trace."
+    }
+  ]
+}

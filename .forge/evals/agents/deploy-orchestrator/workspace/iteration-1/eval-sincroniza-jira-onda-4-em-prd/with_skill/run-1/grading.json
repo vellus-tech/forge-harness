@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "O runbook tem um passo de dupla confirmação de produção que define APPROVED_BY com o nome Carla Mendes e aborta o deploy se APPROVED_BY estiver vazio, antes de qualquer build ou helm.",
+      "passed": true,
+      "evidence": "outputs/deploy-runbook.md:58-59 APPROVED_BY=\"Carla Mendes\" seguido de [ -n \"$APPROVED_BY\" ] || { echo \"APPROVED_BY não definido — abortando deploy prd\"; exit 1; }, na Fase 0, antes do build (gh workflow run, linha 84) e do helm (linha 134). grep -nE APPROVED_BY confirma."
+    },
+    {
+      "text": "A base do diff de deployables é a tag deploy-prd-20260910-1430-<sha7> (último deploy de prd), e não deploy-stg-20260922-1610-<sha7> nem deploy-stg-20260909-1005-<sha7>.",
+      "passed": true,
+      "evidence": "outputs/deploy-runbook.md:15 e 66-72: LAST_TAG=$(git tag --list \"deploy-prd-*\" ...) resolvendo deploy-prd-20260910-1430-f922ba7 e git diff --name-only f922ba7..21fbd0f; nenhuma tag deploy-stg-* é usada como base do diff (a stg 21fbd0f só aparece como contexto na linha 27)."
+    },
+    {
+      "text": "As operações de Jira listadas cobrem exatamente TASK-41, TASK-42, TASK-43 e TASK-44, cada uma com busca no formato labels = task:TASK-4N AND status = 'In Review' (ou JQL equivalente por label task:TASK-4N filtrando In Review); nenhuma operação é listada para TASK-31 a TASK-34 da onda 3, já em produção.",
+      "passed": true,
+      "evidence": "outputs/deploy-runbook.md:207-211: \"Para cada task da onda 4 (TASK-41, TASK-42, TASK-43, TASK-44)\" com JQL \"project = BIL AND labels = task:TASK-41 AND status = 'In Review'\" repetida para TASK-42/43/44; grep -nE \"TASK-3[1-4]\" no runbook retorna vazio; deploy-result.json planned_jql_labels = [task:TASK-41..task:TASK-44]."
+    },
+    {
+      "text": "Para cada issue da onda 4 o runbook prevê consultar as transições disponíveis (getTransitionsForJiraIssue) antes de transitionJiraIssue para Done, e um comentário (addCommentToJiraIssue) que contém a referência ghcr.io/recarga@<manifest digest> e o nome da aprovadora Carla Mendes.",
+      "passed": true,
+      "evidence": "outputs/deploy-runbook.md:212-217: getTransitionsForJiraIssue(issueKey) no passo 2, antes de transitionJiraIssue (passo 3), e addCommentToJiraIssue com \"Manifest: ghcr.io/recarga@sha256:<pendente-build>\" e \"Aprovador: Carla Mendes (CAB de hoje)\". O digest é placeholder, aceitável por ser dry-run."
+    },
+    {
+      "text": "docs/product/modules/recarga/PROGRESS-TRACKING.md ganhou um registro de warning dizendo que a sincronização do Jira não foi feita por indisponibilidade do MCP do Atlassian, e o runbook não trata essa indisponibilidade como motivo para abortar (helm, rollout, smoke e tag de deploy continuam no plano).",
+      "passed": false,
+      "evidence": "git -C with_skill/run-1/work diff --stat -- docs/product/modules/recarga/PROGRESS-TRACKING.md retorna vazio e grep -ciE \"warning|MCP\" no arquivo dá 0: o tracker não ganhou warning algum. O transcript (linha 60) admite: \"Não alterei PROGRESS-TRACKING.md real\". O runbook (linhas 220-222) só anota \"NÃO EXECUTADO — MCP do Atlassian não está conectado\" e mantém helm/rollout/smoke/tag no plano, mas a metade do registro no tracker falta; como a asserção é conjuntiva, falha."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "pass_rate": 0.8
+  }
+}

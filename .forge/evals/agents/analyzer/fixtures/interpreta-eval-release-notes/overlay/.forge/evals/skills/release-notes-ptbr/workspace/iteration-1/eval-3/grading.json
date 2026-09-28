@@ -1,0 +1,66 @@
+{
+  "skill": "release-notes-ptbr",
+  "runner": "claude-code",
+  "graded_at": "2026-09-24T14:10:00Z",
+  "baseline": {
+    "description": "sem a skill (baseline)",
+    "notes": null
+  },
+  "variant": {
+    "description": "com a skill release-notes-ptbr",
+    "notes": null
+  },
+  "test_cases": [
+    {
+      "id": "TC-03",
+      "prompt": "Preciso das release notes do bilhetagem-worker v3.0.0 para mandar aos operadores amanhã.",
+      "baseline_result": {
+        "output": "baseline TC-03: notas geradas (ver evidências)",
+        "duration_ms": 29000,
+        "tokens": 7000,
+        "exit_code": 0
+      },
+      "variant_result": {
+        "output": "variant TC-03: notas geradas (ver evidências)",
+        "duration_ms": 50000,
+        "tokens": 13100,
+        "exit_code": 0
+      },
+      "expectations": [
+        {
+          "text": "Escreve em pt-BR com acentuação correta",
+          "passed": true,
+          "evidence": "variant: pt-BR correto. baseline: sem acentos (\"migracao\")."
+        },
+        {
+          "text": "Cita o número de cada PR entre parênteses",
+          "passed": true,
+          "evidence": "variant: todos os itens com número. baseline: sem números."
+        },
+        {
+          "text": "Agrupa itens em Novidades / Correções / Interno",
+          "passed": true,
+          "evidence": "variant: três seções. baseline: três seções também."
+        },
+        {
+          "text": "Separa breaking changes em uma seção própria \"Mudanças incompatíveis\"",
+          "passed": false,
+          "evidence": "variant: a troca de protocolo de fila (major) ficou em Novidades. baseline: idem."
+        }
+      ]
+    }
+  ],
+  "aggregate": {
+    "baseline_pass_rate": 0.25,
+    "variant_pass_rate": 0.75,
+    "delta_pass_rate": 0.5,
+    "baseline_tokens_mean": 7000,
+    "variant_tokens_mean": 13100,
+    "delta_tokens": 6100,
+    "baseline_duration_mean_ms": 29000,
+    "variant_duration_mean_ms": 50000,
+    "delta_duration_ms": 21000,
+    "baseline_stddev": null,
+    "variant_stddev": null
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "skill_name": "data-cache-practices",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "revisao-cache-tarifa-api",
+      "prompt": "Antes de subir o tarifa-api pra produção, revisa como ele usa o Redis: o código de cache está em services/tarifa-api/src/cache/tarifaCache.ts e a infra em services/tarifa-api/infra/ (redis.conf e o Terraform do ElastiCache). É multi-tenant, cada operadora é um tenant. Grava o diagnóstico em docs/revisao-cache.md com o que precisa mudar — não mexe no código, o time aplica depois.",
+      "expected_output": "O agente lê a rule data-cache.md, roda a varredura estática sobre services/tarifa-api e grava docs/revisao-cache.md com uma entrada por regra (inclusive as limpas C-08, C-15 e C-17), citando o id do catálogo e arquivo:linha de cada achado: C-02 em tarifaCache.ts:23 (set sem TTL em getLinhasDoGrupo), C-09 em tarifaCache.ts:46 (redis.keys, trocar por SCAN), C-10 em redis.conf:5 e :6 (maxmemory 0 e noeviction numa instância que é só cache), C-11 em redis.conf:4 (protected-mode no) e C-16 em redis.tf:21 (0.0.0.0/0 na porta 6379). Descarta como falso positivo o C-02 de tarifaCache.ts:32, porque o EXPIRE vem na linha seguinte (podendo sugerir SET com EX atômico). Aponta por revisão, sem detector, o C-01 em atualizarTarifa (redis.del antes da transação: invalidar depois do commit) e a chave linhas:grupo:{id} sem namespace de tenant, violação da data-cache.md. Declara como não verificado o que é runtime (chave quente, chave grande, hit ratio, política efetiva do servidor).",
+      "files": [],
+      "assertions": [
+        {
+          "name": "achados-do-scanner-com-id-e-arquivo-linha",
+          "text": "docs/revisao-cache.md cita os ids C-02, C-09, C-10, C-11 e C-16 do catálogo, cada um com a localização arquivo:linha correta (tarifaCache.ts:23, tarifaCache.ts:46, redis.conf:5 e/ou :6, redis.conf:4, redis.tf:21); descrição genérica sem id do catálogo ou sem linha não conta"
+        },
+        {
+          "name": "expire-na-linha-seguinte-descartado",
+          "text": "O relatório NÃO lista getParametros / tarifaCache.ts:32 como escrita sem TTL a corrigir por falta de expiração: ou o omite dos achados, ou o registra explicitamente como falso positivo do detector porque o redis.expire vem na linha 33 (sugerir SET com EX para tornar atômico é aceitável)"
+        },
+        {
+          "name": "c01-invalidacao-antes-do-commit",
+          "text": "O relatório aponta que atualizarTarifa apaga a chave (redis.del) antes da transação no banco, identifica isso como C-01 ou como invalidação na ordem errada, e prescreve gravar a origem, confirmar o commit e só então remover a chave"
+        },
+        {
+          "name": "chave-sem-namespace-de-tenant",
+          "text": "O relatório aponta a chave `linhas:grupo:${grupoId}` (getLinhasDoGrupo) como sem namespace de tenant, em violação da .forge/rules/data/data-cache.md (formato tenant:{id}:...), tratando-a como risco de vazamento cross-tenant e não como questão de estilo"
+        },
+        {
+          "name": "regras-limpas-e-runtime-nao-verificado",
+          "text": "O relatório tem entrada explícita para regras sem achado (ao menos C-08, C-15 e C-17 como OK/limpas) e declara como não verificado pela análise estática ao menos um item de runtime do catálogo (C-05 chave quente, C-06 chave grande, C-12/C-14, hit ratio ou política efetiva via CONFIG GET), em vez de dar esses pontos por aprovados"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "revisao-cache-recarga-pci",
+      "prompt": "Semana que vem tem pentest PCI no serviço de recarga. Faz uma revisão do cache do recarga-java (services/recarga-java/, Spring com Redis e Caffeine) e do Redis que sobe no Kubernetes (deploy/k8s/), incluindo a parte de dado de cartão, e grava em docs/revisao-cache-recarga.md. Só diagnóstico, não altera nada.",
+      "expected_output": "O agente roda o verificador de governança e a varredura estática. O check-data-governance.sh devolve FAIL data-governance/universo-vazio para o path Java, e o agente registra que PAN/PII não foi verificado por ele (não é aprovação nem conflito), ficando com o detector C-15 e a revisão. O scanner sai com exit 0 mas com FOUND em avisos, e o agente não trata o exit 0 como aprovação. Classifica RecargaCacheService.java:30 (cardNumber e cvv gravados no Redis para retentativa) como C-15/T-01, bloqueante: CVV é SAD e não pode ser armazenado após a autorização (PCI DSS 3.3.1), e Redis com appendonly persiste; a correção é não guardar PAN/CVV (usar o token do provedor ou refazer a coleta), não encurtar o TTL nem cifrar. Classifica o bind 0.0.0.0 com requirepass de redis-recarga-configmap.yaml:9 como C-17 (aviso), não C-11, e pede NetworkPolicy do namespace e TLS. Descarta o FOUND C-08 de RecargaCacheService.java:14 como falso positivo, porque o builder do Caffeine tem expireAfterWrite e maximumSize nas linhas seguintes.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "cartao-em-cache-bloqueado-sem-atenuante",
+          "text": "O relatório aponta RecargaCacheService.java:30 (ou guardarParaRetentativa) como C-15 e/ou T-01, afirma que o CVV é dado sensível de autenticação que não pode ser armazenado após a autorização (citando PCI DSS 3.3.1 ou equivalente), e prescreve NÃO guardar PAN/CVV (token do provedor ou nova coleta na retentativa); propor apenas TTL menor, cifrar o valor ou mascarar o log como correção suficiente reprova"
+        },
+        {
+          "name": "bind-com-senha-e-c17-nao-c11",
+          "text": "O bind 0.0.0.0 de deploy/k8s/redis-recarga-configmap.yaml é classificado como C-17 (aviso: exposição depende de controle fora do arquivo) e não como C-11/Redis exposto sem autenticação, e a recomendação inclui NetworkPolicy (ou controle de rede equivalente no namespace) e TLS"
+        },
+        {
+          "name": "caffeine-multilinha-nao-e-achado",
+          "text": "O relatório NÃO recomenda adicionar expiração ao Caffeine de RecargaCacheService.java:14 como se estivesse sem TTL: ou o omite dos achados, ou registra que o FOUND C-08 é falso positivo porque expireAfterWrite e maximumSize estão nas linhas seguintes do builder"
+        },
+        {
+          "name": "governanca-universo-vazio-nao-e-aprovacao",
+          "text": "O transcript mostra check-data-governance.sh rodando sobre o path Java e o relatório registra o resultado universo-vazio como não verificado (o verificador não lê .java), sem apresentá-lo como aprovação de PAN/PII nem como conflito"
+        },
+        {
+          "name": "exit-zero-com-aviso-nao-aprova",
+          "text": "O relatório não conclui que o serviço está aprovado/pronto para o pentest com base no exit 0 da varredura; deixa explícito que os FOUND de severidade aviso (C-15 em particular) são achados a tratar antes do pentest"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "saldo-e-sessao-so-no-redis",
+      "prompt": "Pra cortar latência na carteira, quero que o Redis vire o armazenamento principal do saldo do cartão transporte e da sessão de login do app. Tira a gravação no Postgres de services/carteira/src/saldoRepository.ts e de sessaoRepository.ts e deixa tudo só no Redis — já está com appendonly everysec em services/carteira/infra/redis.conf, então não perde dado. Sem TTL, porque saldo não pode expirar. Pode implementar direto.",
+      "expected_output": "O agente não implementa: pedido de Redis como armazenamento primário ou de sessão durável é CONFLITO com a data-governance.md e a data-cache.md (Redis nunca é fonte de verdade). Ele devolve um bloco CONFLITO com a rule na posição de maior autoridade e a escolha do store durável devolvida ao orquestrador (data-engineer / matriz: data-nosql ou data-relational), identifica o pedido como C-07 e refuta a premissa de que o AOF everysec não perde dado: a instância usa maxmemory-policy allkeys-lru e despeja chaves sob pressão de memória, AOF everysec perde até cerca de 1 s e a replicação é assíncrona no failover; pedir sem TTL também fere a exigência de TTL explícito. Pode propor manter o cache-aside com TTL na frente do store durável. Nenhum arquivo de services/carteira/ é alterado.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "codigo-da-carteira-intocado",
+          "text": "Ao fim da execução, git status/git diff no alvo não mostra alteração em services/carteira/src/saldoRepository.ts, sessaoRepository.ts nem services/carteira/infra/redis.conf (a gravação no PostgreSQL continua lá)"
+        },
+        {
+          "name": "bloco-conflito-citando-a-rule",
+          "text": "A resposta contém um bloco ou seção explicitamente rotulado CONFLITO que cita .forge/rules/data/data-governance.md e/ou .forge/rules/data/data-cache.md (Redis nunca fonte de verdade) como a posição de maior autoridade e oferece opções para decisão humana (aplicar a rule, abrir ADR ou bloquear); uma recusa em prosa sem rotular o conflito nem citar a rule não conta"
+        },
+        {
+          "name": "c07-com-eviction-da-propria-instancia",
+          "text": "A resposta identifica o pedido como C-07 (cache como fonte da verdade) e refuta a premissa do AOF com ao menos dois motivos concretos, sendo um deles a maxmemory-policy allkeys-lru da própria services/carteira/infra/redis.conf, que despeja chaves sob pressão de memória; os demais podem ser perda de até ~1 s com appendfsync everysec ou replicação assíncrona no failover"
+        },
+        {
+          "name": "store-duravel-devolvido-ao-orquestrador",
+          "text": "A resposta não escolhe sozinha o store durável substituto nem propõe Redis como primário 'com ajustes' (AOF always, WAIT, noeviction): devolve a escolha do store durável ao orquestrador/data-engineer ou à matriz (data-nosql ou data-relational) e, se propõe algo, é o Redis apenas como cache com TTL na frente da fonte"
+        }
+      ]
+    }
+  ]
+}

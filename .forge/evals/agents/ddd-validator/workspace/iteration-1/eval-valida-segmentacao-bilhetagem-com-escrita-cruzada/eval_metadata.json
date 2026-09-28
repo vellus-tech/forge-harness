@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "valida-segmentacao-bilhetagem-com-escrita-cruzada",
+  "prompt": "O ddd-architect acabou de gerar a segmentação DDD do Embarque Fácil (bilhetagem do consórcio metropolitano: validação de embarque com integração temporal, carteira pré-paga, recarga via Pix e notificações). Antes de eu mandar o pipeline derivar módulos e backlog, faz a validação crítica de tudo que está em docs/product/ddd, no glossário, no data model e em docs/product/modules, cruzando com PRD, FRD, NFRD, TRD e os ADRs. O que for correção segura pode aplicar direto; o resto me aponta. Quero saber se dá para seguir.",
+  "assertions": [
+    "Existe docs/product/ddd/ddd-validation-report.md com seção de Parecer Final cuja classificação é exatamente um dos três valores do contrato (Aprovado / Aprovado com Ressalvas / Reprovado) e o valor emitido é Reprovado, coerente com a existência de achado Crítico.",
+    "docs/product/ddd/bounded-contexts/carteira/README.md não contém mais a sigla 'VO' isolada e descreve `Saldo` como 'objeto de valor'; o relatório tem a seção Ajustes Aplicados com uma linha de ID no formato ADJ-DDD-NNN descrevendo essa troca.",
+    "docs/product/ddd/bounded-contexts/recarga/README.md passa a declarar o evento publicado como `RecargaConfirmada` (não mais `ConfirmarRecarga`), e o relatório registra essa correção em Ajustes Aplicados (ADJ-DDD-NNN) ou no Event Storming com status Corrigido.",
+    "A tabela de Achados do relatório tem pelo menos uma linha com ID FIND-DDD-NNN e severidade Crítica apontando a escrita do Recarga na tabela `carteira` (dono de escrita múltiplo) e/ou o JOIN entre `recarga.recarga` e `carteira.movimentacao`, citando FR-03 ou ADR-0002 como evidência.",
+    "O relatório contém a 'Tabela de Completude Documental' com linhas para Subdomínios Core, Supporting, Generic e Bounded Contexts (Confirmar), colunas Esperado/Encontrado/Faltando/Excedente, e a tabela de Estrutura e Visualização marcando `diagrams/index.html` e os três arquivos C4 como presentes.",
+    "git diff -- docs/product/prd docs/product/frd-nfrd docs/product/trd docs/product/adr no diretório do projeto não mostra nenhuma alteração: o agente não editou PRD, FRD, NFRD, TRD nem ADRs."
+  ]
+}

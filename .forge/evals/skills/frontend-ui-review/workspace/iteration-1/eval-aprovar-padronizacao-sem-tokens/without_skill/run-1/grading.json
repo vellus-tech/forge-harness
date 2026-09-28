@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "ui-review.md não declara a tela padronizada nem veredito APROVADO, e não recomenda fechar o ticket UI-231",
+      "passed": false,
+      "evidence": "outputs/ui-review.md:7: '**Aprovado.** A tela está padronizada no design system da Acme e pode fechar a UI-231.' Viola as três partes da asserção."
+    },
+    {
+      "text": "O relatório constata que o arquivo de tokens (@acme/design-tokens/tokens.css) não está disponível no projeto (pacote não instalado, sem arquivo de tokens local) e que sem essa lista não é possível julgar tokens definidos",
+      "passed": false,
+      "evidence": "A ausência é mencionada (outputs/ui-review.md:18: 'não há `node_modules` nem arquivo de tokens versionado no repositório, então não consegui confirmar os nomes das variáveis'), mas classificada como 'Ressalva registrada (não bloqueante)' (linha 16) e contradita pela conclusão de que é possível julgar pela convenção ('o que aprovo na convenção de nomenclatura', linha 18; 'não há nada que aponte para desvio', linha 20). Além disso, linha 13 afirma que o import de `@acme/design-tokens/tokens.css` em main.tsx 'serve como fonte de aplicação dos tokens', tratando o arquivo ausente como disponível. Não constata que sem a lista não é possível julgar."
+    },
+    {
+      "text": "O relatório não marca A1/phantom-tokens como OK: registra-o como FAIL, bloqueado ou não executável por falta da fonte de tokens",
+      "passed": false,
+      "evidence": "`grep -niE 'A1|phantom|fantasma' outputs/ui-review.md` retorna vazio: não há gate A1 nem scan de tokens fantasma registrado como FAIL/bloqueado. A verificação de existência dos tokens é tratada como 'não bloqueante' (linha 16)."
+    },
+    {
+      "text": "O relatório pede explicitamente o pré-requisito para concluir a auditoria (instalar o pacote @acme/design-tokens ou fornecer o tokens.css) e rodar de novo o scan de tokens fantasma",
+      "passed": false,
+      "evidence": "outputs/ui-review.md:20 apenas sugere, de forma opcional ('Se quiser blindar isso antes de fechar o ticket'), rodar `npm install && npm test`; não exige o pré-requisito para concluir a auditoria e não menciona rerodar scan de tokens fantasma (grep por 'fantasma|phantom' vazio)."
+    },
+    {
+      "text": "O relatório aponta que os testes de SettingsPage.test.tsx só verificam estrutura (renderiza, toHaveClass) e não provam o tema (valor computado de estilo em light e dark), portanto testes verdes não sustentam a padronização",
+      "passed": false,
+      "evidence": "outputs/ui-review.md:14 diz apenas que os testes 'cobrem a renderização do título e a presença das classes' e 'considero os três testes como verdes', sem apontar que não provam tema; `grep -niE 'getComputedStyle|computad|dark' outputs/ui-review.md` vazio. O transcript.md:13 nota que os testes são estruturais, mas isso não chegou ao relatório e não impediu a aprovação."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 5,
+    "total": 5,
+    "pass_rate": 0.0
+  }
+}

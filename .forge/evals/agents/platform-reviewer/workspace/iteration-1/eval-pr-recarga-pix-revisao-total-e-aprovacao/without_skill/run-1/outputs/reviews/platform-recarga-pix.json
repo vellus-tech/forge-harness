@@ -1,0 +1,58 @@
+{
+  "pr": "feat/recarga-pix",
+  "base": "main",
+  "reviewer": "manual (sem skill/agente especializado, revisão única por conhecimento próprio)",
+  "data": "2026-09-26",
+  "veredito": "aprovado_apos_correcoes",
+  "resumo": "Duas falhas de segurança graves encontradas e corrigidas diretamente no código (PAN em texto claro no log e validação de JWT incompleta). A regra de bônus foi conferida e está correta.",
+  "findings": [
+    {
+      "id": "F1",
+      "severidade": "critica",
+      "area": "seguranca-dados-sensiveis",
+      "arquivo": "services/recarga/src/Recarga.Api/RecargaService.cs",
+      "linha": 8,
+      "titulo": "Número de cartão (PAN) gravado em texto claro no log",
+      "descricao": "O método CreditarRecargaPix logava o parâmetro 'pan' completo via LogInformation. Isso é violação direta de PCI DSS Req. 3 (proteção de PAN armazenado, e logs contam como armazenamento) e do escopo de certificação PCI DSS 4.0.1 do grupo.",
+      "acao": "corrigido_neste_run",
+      "correcao": "Adicionado método MascararPan que mantém apenas os últimos 4 dígitos do PAN; a mensagem de log passou a usar {PanMascarado} em vez do PAN completo."
+    },
+    {
+      "id": "F2",
+      "severidade": "critica",
+      "area": "seguranca-autenticacao",
+      "arquivo": "services/recarga/src/Recarga.Api/JwtSetup.cs",
+      "linha": "14-18",
+      "titulo": "Validação de JWT desabilitada para audience e lifetime",
+      "descricao": "TokenValidationParameters definia ValidateAudience = false e ValidateLifetime = false. Isso permite que um token emitido para qualquer outro serviço/audience seja aceito pela API de recarga, e que tokens expirados continuem válidos indefinidamente — abertura crítica de bypass de autenticação/autorização.",
+      "acao": "corrigido_neste_run",
+      "correcao": "ValidateAudience e ValidateLifetime alterados para true, ValidAudience lido de cfg[\"Auth:Audience\"], ValidateIssuer=true e ClockSkew reduzido para 2 minutos (em vez do padrão de 5). Falta ainda: configurar 'Auth:Authority' e 'Auth:Audience' em appsettings/segredo por ambiente — não presente neste PR."
+    },
+    {
+      "id": "F3",
+      "severidade": "media",
+      "area": "gestao-de-segredos",
+      "arquivo": "services/recarga/src/Recarga.Api/appsettings.json",
+      "linha": "3-9",
+      "titulo": "Connection string com senha e client secret do Pix versionados em appsettings.json",
+      "descricao": "Mesmo sendo valores de fixture (\"changeme\" / \"FIXTURE-CLIENT-SECRET-FALSO\"), o padrão introduzido pelo PR é gravar segredos diretamente no appsettings.json versionado. Em um ambiente real isso vazaria credenciais de produção pelo Git.",
+      "acao": "nao_corrigido_apenas_sinalizado",
+      "correcao": "Recomendação: mover Recarga:ConnectionStrings e Pix:ClientSecret para um cofre de segredos (ex.: variável de ambiente / secret manager), nunca em appsettings.json comitado. Não alterado neste run por ser dado de fixture do próprio caso de teste, mas o padrão do PR real precisa ser corrigido antes do merge em produção."
+    },
+    {
+      "id": "F4",
+      "severidade": "informativa",
+      "area": "regra-de-negocio",
+      "arquivo": "services/recarga/src/Recarga.Api/BonusCalculator.cs",
+      "linha": "5-6",
+      "titulo": "Regra de bônus conferida — correta",
+      "descricao": "O comentário declara bônus de 10% para recargas a partir de R$ 30,00 (campanha Pix). A implementação (valorCentavos >= 3000 ? valorCentavos * 10 / 100 : 0) corresponde exatamente ao comentário, incluindo o limite inclusivo (>=) e o corte em centavos. Nenhuma divergência encontrada.",
+      "acao": "nenhuma_necessaria",
+      "correcao": null
+    }
+  ],
+  "nao_verificado": [
+    "Build/teste automatizado do serviço: dotnet build falhou por falta de acesso à feed NuGet privada da Axis (CodeArtifact, 401 Unauthorized) neste ambiente de review isolado — revisão foi feita por leitura estática do código, não por execução.",
+    "Program.cs / composição da aplicação (registro de AddRecargaAuth, middlewares de autenticação/autorização) não está presente neste recorte do repositório, então não foi possível confirmar se a política de autenticação é de fato aplicada aos endpoints."
+  ]
+}

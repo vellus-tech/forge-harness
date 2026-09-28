@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "Existe docs/discovery/discovery-notes.md (caminho oficial), e não apenas um discovery-notes.md na raiz; o arquivo começa com '# Discovery Notes' e tem os campos de cabeçalho Tipo de iniciativa, Data e Status com Status = 'Em discovery'.",
+      "passed": true,
+      "evidence": "`ls work/docs/discovery/discovery-notes.md` existe e `ls work/discovery-notes.md` retorna 'No such file or directory'. work/docs/discovery/discovery-notes.md linha 1 '# Discovery Notes', linha 4 '**Tipo de iniciativa:** Nova feature — Ponto a validar (...)', linha 5 '**Data:** 2026-09-26', linha 6 '**Status:** Em discovery'."
+    },
+    {
+      "text": "A seção '## 0. Workspace Scan' contém a tabela 0.1 com colunas Caminho | Tipo | Contexto Oferecido listando ao menos três caminhos que existem na fixture (entre README.md, docs/product/adr/, openapi.yaml, src/Recarga.Api/, docker-compose.yml), além das subseções 0.2 Resumo do Contexto Existente e 0.3 Lacunas Identificadas com conteúdo.",
+      "passed": true,
+      "evidence": "discovery-notes.md linha 10 '## 0. Workspace Scan'; linha 12 '### 0.1 Diretórios e Arquivos Relevantes' e linha 14 cabeçalho '| Caminho | Tipo | Contexto Oferecido |'; linhas 16-21 listam README.md, docs/product/adr/0001-saldo-centralizado-no-postgres.md, openapi.yaml, src/Recarga.Api/Program.cs, src/Recarga.Api/Recarga.Api.csproj e docker-compose.yml — `ls -d` confirmou que README.md, docs/product/adr, openapi.yaml, src/Recarga.Api e docker-compose.yml existem na fixture. Linha 24 '### 0.2 Resumo do Contexto Existente' com parágrafo na linha 26 (cita a sincronização de 15 minutos do ADR-0001); linha 28 '### 0.3 Lacunas Identificadas' com quatro itens nas linhas 30-33."
+    },
+    {
+      "text": "A resposta final do agente contém exatamente um ponto de interrogação de pergunta dirigida ao usuário, e essa pergunta é a Q1 (qual problema a feature resolve); não pergunta sobre usuário, integrações, monetização, stack ou plataforma nesta mensagem.",
+      "passed": true,
+      "evidence": "`tr -cd '?' < outputs/agent-response.md | wc -c` = 1. A única interrogação está na linha 17: '**Qual problema essa feature resolve? Me explica como se estivesse contando para um amigo.**', que é a Q1. As linhas 1-13 trazem tabela de artefatos e menção a pontos a validar 'mais à frente', sem perguntar sobre usuário, integrações, monetização, stack ou plataforma."
+    },
+    {
+      "text": "Em docs/discovery/discovery-notes.md, as subseções 1.1 a 5.2 (Problema, Usuário Principal, Referências, Pitch, Core Features, Integrações, Modelo, Planos, Stack, Plataforma, Referências Visuais, Notas Adicionais) estão vazias ou só com placeholder; em particular 4.1 Stack não registra .NET/PostgreSQL como decisão, apesar de o workspace os revelar.",
+      "passed": true,
+      "evidence": "discovery-notes.md linhas 39-77: os cabeçalhos 1.1 Problema, 1.2 Usuário Principal, 1.3 Referências, 1.4 Pitch, 2.1 Core Features, 2.2 Integrações, 3.1 Modelo, 3.2 Planos, 4.1 Stack, 4.2 Plataforma, 5.1 Referências Visuais e 5.2 Notas Adicionais aparecem seguidos apenas de linha em branco; 4.1 Stack (linha 67) está vazia — .NET 8/PostgreSQL só aparecem no scan (linhas 16-21, 26), não como decisão. Seção 6 Decisões Registradas (linhas 83-84) só com cabeçalho da tabela."
+    },
+    {
+      "text": "git status no alvo, desconsiderando as remoções feitas pelo setup em .forge/ e .claude/, mostra apenas arquivos novos sob docs/discovery/; nenhum PRD/FRD/NFRD/TRD/ADR novo, nenhum arquivo em src/ e nenhum arquivo versionado alterado.",
+      "passed": true,
+      "evidence": "`git -C work status --porcelain -uall` filtrando .forge/ e .claude/ mostra só '?? docs/discovery/discovery-notes.md'; as demais entradas são 'D' em .forge/agents, .forge/skills, .claude/agents e .claude/skills (remoções do setup.sh linha 14). `git -C work diff --stat HEAD -- . ':!.forge' ':!.claude'` sem saída, ou seja nenhum arquivo versionado alterado; nenhum PRD/FRD/NFRD/TRD/ADR novo nem arquivo em src/. A cópia do ADR em outputs/work/ é evidência fora do alvo, não altera o repositório."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  }
+}

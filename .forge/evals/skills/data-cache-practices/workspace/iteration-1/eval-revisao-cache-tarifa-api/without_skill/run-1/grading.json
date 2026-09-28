@@ -1,0 +1,71 @@
+{
+  "expectations": [
+    {
+      "text": "docs/revisao-cache.md cita os ids C-02, C-09, C-10, C-11 e C-16 do catálogo, cada um com a localização arquivo:linha correta (tarifaCache.ts:23, tarifaCache.ts:46, redis.conf:5 e/ou :6, redis.conf:4, redis.tf:21); descrição genérica sem id do catálogo ou sem linha não conta",
+      "passed": false,
+      "evidence": "Nenhum id do catálogo (C-02, C-09, C-10, C-11, C-16) aparece em docs/revisao-cache.md, nem localização arquivo:linha; os achados equivalentes são descritos genericamente (ex.: 'limparTarifasDoTenant usa KEYS', 'security group ... 0.0.0.0/0')."
+    },
+    {
+      "text": "O relatório NÃO lista getParametros / tarifaCache.ts:32 como escrita sem TTL a corrigir por falta de expiração: ou o omite dos achados, ou o registra explicitamente como falso positivo do detector porque o redis.expire vem na linha 33 (sugerir SET com EX para tornar atômico é aceitável)",
+      "passed": true,
+      "evidence": "getParametros não é tratado como escrita sem TTL: o título é 'getParametros seta valor e TTL em dois comandos separados' e o item 4 da lista consolidada prescreve 'trocar set + expire por um único SET ... EX atômico em getParametros', exatamente a sugestão aceita pela asserção."
+    },
+    {
+      "text": "O relatório aponta que atualizarTarifa apaga a chave (redis.del) antes da transação no banco, identifica isso como C-01 ou como invalidação na ordem errada, e prescreve gravar a origem, confirmar o commit e só então remover a chave",
+      "passed": false,
+      "evidence": "Não há menção ao redis.del antes de db.transaction em atualizarTarifa; atualizarTarifa só aparece citada como exemplo de função com prefixo de tenant e como modelo de invalidação existente. Nenhuma prescrição de invalidar após o commit."
+    },
+    {
+      "text": "O relatório aponta a chave `linhas:grupo:${grupoId}` (getLinhasDoGrupo) como sem namespace de tenant, em violação da .forge/rules/data/data-cache.md (formato tenant:{id}:...), tratando-a como risco de vazamento cross-tenant e não como questão de estilo",
+      "passed": false,
+      "evidence": "Aponta 'Chave de cache sem isolamento de tenant' em linhas:grupo:${grupoId} como risco de uma operadora ler linhas de outra e a classifica como bloqueante, mas não relaciona à .forge/rules/data/data-cache.md (o transcript confirma que nenhuma rule foi lida) e condiciona a correção ('Confirmar se grupoId é único entre tenants; se não for, prefixar'), tratando-a como dependente de domínio em vez de violação da regra de formato tenant:{id}:."
+    },
+    {
+      "text": "O relatório tem entrada explícita para regras sem achado (ao menos C-08, C-15 e C-17 como OK/limpas) e declara como não verificado pela análise estática ao menos um item de runtime do catálogo (C-05 chave quente, C-06 chave grande, C-12/C-14, hit ratio ou política efetiva via CONFIG GET), em vez de dar esses pontos por aprovados",
+      "passed": false,
+      "evidence": "Sem entradas para regras limpas (C-08, C-15, C-17 não aparecem) e sem declaração de itens de runtime não verificados (chave quente, chave grande, hit ratio, CONFIG GET)."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 4,
+    "total": 5,
+    "pass_rate": 0.2
+  },
+  "claims": [
+    {
+      "claim": "ElastiCache não lê redis.conf; sem parameter_group_name valem os defaults da AWS",
+      "type": "factual",
+      "verified": true,
+      "evidence": "redis.tf não define parameter_group_name nem aws_elasticache_parameter_group; afirmação correta sobre ElastiCache gerenciado e não coberta pelas asserções."
+    },
+    {
+      "claim": "redis.tf não define auth_token",
+      "type": "factual",
+      "verified": true,
+      "evidence": "Conferido no fixture redis.tf (linhas 1-10)."
+    },
+    {
+      "claim": "Frase truncada/corrompida no parágrafo de getParametros ('some do controle do noeviction/TTL o redis.get sempre retorna o para sempre')",
+      "type": "quality",
+      "verified": false,
+      "evidence": "Linha 21 do relatório tem texto sem sentido, apesar do transcript dizer que corrigiu um caractere estranho."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "O relatório aponta a chave `linhas:grupo:${grupoId}` (getLinhasDoGrupo) como sem namespace de tenant, em violação da .forge/rules/data/data-cache.md (formato tenant:{id}:...), tratando-a como risco de vazamento cross-tenant e não como questão de estilo",
+        "reason": "Exigir citação literal da data-cache.md penaliza o baseline por não conhecer a rule, não por errar o diagnóstico; o without_skill tratou o vazamento cross-tenant como bloqueante. Vale separar 'identifica o risco' de 'ancora na rule'."
+      },
+      {
+        "reason": "Nenhuma asserção cobre que o ElastiCache gerenciado não lê redis.conf (achado correto do without_skill: sem aws_elasticache_parameter_group os C-10/C-11 do redis.conf não têm efeito na instância real) nem a ausência de auth_token no redis.tf, que é o C-11 efetivo em produção."
+      },
+      {
+        "assertion": "O relatório aponta que atualizarTarifa apaga a chave (redis.del) antes da transação no banco, identifica isso como C-01 ou como invalidação na ordem errada, e prescreve gravar a origem, confirmar o commit e só então remover a chave",
+        "reason": "Não exige severidade: o with_skill passou mesmo rebaixando o C-01 a 'observação não bloqueante' dentro da seção 'Verificados e limpos'. Considerar exigir que não seja listado como limpo."
+      }
+    ],
+    "overall": "Asserções discriminam bem (with 3/5 vs without 1/5); a de runtime não verificado derrubou as duas configurações."
+  }
+}

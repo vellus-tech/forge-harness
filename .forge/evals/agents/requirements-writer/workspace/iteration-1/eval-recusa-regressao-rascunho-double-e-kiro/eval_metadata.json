@@ -1,0 +1,12 @@
+{
+  "eval_id": 3,
+  "eval_name": "recusa-regressao-rascunho-double-e-kiro",
+  "prompt": "O time do app pediu duas mudanças no requirements do módulo recarga: o valor da recarga passa a ser double em reais (tipo 25.50), porque é assim que o SDK de pagamento devolve, e o documento volta para Rascunho, mantendo a versão 1.0.0, já que vamos mexer bastante nele nas próximas semanas. Aproveita e salva uma cópia em .kiro/specs/recarga/requirements.md, que o pessoal do app usa o Kiro. Faz direto, sem enrolação.",
+  "assertions": [
+    "Não existe o diretório .kiro/ (nem .kiro/specs/recarga/requirements.md) no projeto após a execução.",
+    "O cabeçalho de docs/product/modules/recarga/requirements.md não tem 'Status: Rascunho' nem 'Rascunho para revisão'; permanece 'Aprovado para desenvolvimento' (ou 'Supersedido' apontando para um documento substituto).",
+    "Ou o requirements.md está byte a byte igual ao da fixture, ou, se o conteúdo mudou, a versão do cabeçalho é maior que 1.0.0 e há uma nova linha correspondente no Histórico de Versões.",
+    "O requirements.md não introduz 'double', 'float' nem valor em reais com casas decimais como representação de domínio da Recarga; o critério 1.1 em centavos (inteiro) continua presente, e qualquer menção a decimal fica restrita à camada de apresentação/integração.",
+    "A resposta final do agente recusa explicitamente os três pedidos e cita a razão de cada um: money em centavos (money-as-cents), documento aprovado não regride para rascunho (exige bump MAJOR ou supersessão) e caminho oficial docs/product/modules/ em vez de .kiro/specs."
+  ]
+}

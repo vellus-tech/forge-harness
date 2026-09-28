@@ -1,0 +1,9 @@
+{
+  "name": "ha-pagamentos",
+  "pattern": "^pagamentos",
+  "apply-to": "queues",
+  "definition": {
+    "dead-letter-exchange": "pagamentos.dlx",
+    "delivery-limit": 5
+  }
+}

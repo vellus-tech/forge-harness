@@ -1,0 +1,13 @@
+INFO data-cache-practices motor=rg raizes=1 universo=codigo iac
+OK C-02 [aviso] nenhuma ocorrência
+FOUND C-08 [aviso] 1 ocorrência(s) — cache local sem TTL na mesma linha: em frota, cada instância guarda uma versão diferente do dado e a carga na origem escala com o número de instâncias
+  <worktree-do-eval>/.forge/evals/skills/data-cache-practices/workspace/iteration-1/eval-revisao-cache-recarga-pci/with_skill/run-1/work/services/recarga-java/src/main/java/br/com/bilhetagem/recarga/RecargaCacheService.java:14: private final Cache<String, SaldoView> saldoLocal = Caffeine.newBuilder()
+OK C-09 [aviso] nenhuma ocorrência
+OK C-10 [alto] nenhuma ocorrência
+OK C-11 [alto] nenhuma ocorrência
+FOUND C-15 [aviso] 1 ocorrência(s) — escrita em cache com campo de cartão (PAN/SAD) como identificador: SAD não persiste após a autorização (PCI DSS 3.3.1) e Redis persiste; complemento do check-data-governance.sh
+  <worktree-do-eval>/.forge/evals/skills/data-cache-practices/workspace/iteration-1/eval-revisao-cache-recarga-pci/with_skill/run-1/work/services/recarga-java/src/main/java/br/com/bilhetagem/recarga/RecargaCacheService.java:30: redisTemplate.opsForValue().set(chaveRetentativa(tenantId, pedidoId), cardNumber + "|" + cvv, Duration.ofMinutes(5));
+OK C-16 [aviso] nenhuma ocorrência
+FOUND C-17 [aviso] 1 ocorrência(s) — Redis em todas as interfaces com senha ou ACL: a exposição passa a depender de NetworkPolicy, security group e TLS fora do arquivo; confira que só a rede interna alcança a porta
+  <worktree-do-eval>/.forge/evals/skills/data-cache-practices/workspace/iteration-1/eval-revisao-cache-recarga-pci/with_skill/run-1/work/deploy/k8s/redis-recarga-configmap.yaml:9: bind 0.0.0.0
+ARQUIVOS-VARRIDOS 6

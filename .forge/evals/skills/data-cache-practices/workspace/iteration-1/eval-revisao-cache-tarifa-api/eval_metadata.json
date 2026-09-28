@@ -1,0 +1,12 @@
+{
+  "eval_id": 1,
+  "eval_name": "revisao-cache-tarifa-api",
+  "prompt": "Antes de subir o tarifa-api pra produção, revisa como ele usa o Redis: o código de cache está em services/tarifa-api/src/cache/tarifaCache.ts e a infra em services/tarifa-api/infra/ (redis.conf e o Terraform do ElastiCache). É multi-tenant, cada operadora é um tenant. Grava o diagnóstico em docs/revisao-cache.md com o que precisa mudar — não mexe no código, o time aplica depois.",
+  "assertions": [
+    "docs/revisao-cache.md cita os ids C-02, C-09, C-10, C-11 e C-16 do catálogo, cada um com a localização arquivo:linha correta (tarifaCache.ts:23, tarifaCache.ts:46, redis.conf:5 e/ou :6, redis.conf:4, redis.tf:21); descrição genérica sem id do catálogo ou sem linha não conta",
+    "O relatório NÃO lista getParametros / tarifaCache.ts:32 como escrita sem TTL a corrigir por falta de expiração: ou o omite dos achados, ou o registra explicitamente como falso positivo do detector porque o redis.expire vem na linha 33 (sugerir SET com EX para tornar atômico é aceitável)",
+    "O relatório aponta que atualizarTarifa apaga a chave (redis.del) antes da transação no banco, identifica isso como C-01 ou como invalidação na ordem errada, e prescreve gravar a origem, confirmar o commit e só então remover a chave",
+    "O relatório aponta a chave `linhas:grupo:${grupoId}` (getLinhasDoGrupo) como sem namespace de tenant, em violação da .forge/rules/data/data-cache.md (formato tenant:{id}:...), tratando-a como risco de vazamento cross-tenant e não como questão de estilo",
+    "O relatório tem entrada explícita para regras sem achado (ao menos C-08, C-15 e C-17 como OK/limpas) e declara como não verificado pela análise estática ao menos um item de runtime do catálogo (C-05 chave quente, C-06 chave grande, C-12/C-14, hit ratio ou política efetiva via CONFIG GET), em vez de dar esses pontos por aprovados"
+  ]
+}

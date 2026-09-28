@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "nfrd-validador-embarque-do-prd",
+  "prompt": "O PRD do validador de embarque contactless foi aprovado ontem pelo comitê (docs/product/prd/prd.md). Preciso do NFRD dele para a reunião de arquitetura com SRE e AppSec na segunda: requisitos não funcionais verificáveis, com rastreabilidade para o PRD. Tem também as notas de discovery em docs/discovery/discovery-notes.md, que trazem a queda de 6 h do backend em 2025. Escreve no lugar padrão do repositório.",
+  "assertions": [
+    "Existe docs/product/frd-nfrd/nfrd.md e `git diff --exit-code -- docs/product/prd/prd.md docs/discovery/discovery-notes.md` sai com código 0 (nenhum arquivo de entrada foi alterado).",
+    "O nfrd.md contém uma seção 'Decisão por Categoria' com uma tabela em que aparecem as 14 categorias PERF, DISP, ESC, RES, SEG, PRIV, COMP, OBS, AUD, INT, USA, MAN, POR e OPS, cada uma com decisão explícita Sim/Não; toda linha 'Não' tem justificativa não vazia.",
+    "Todos os requisitos seguem o formato de ID NFR-<CAT>-NN (ex.: NFR-PERF-01) e cada um tem, na sua tabela, os campos Meta, Método de medição e Fonte de dados preenchidos (nenhum vazio ou só com '—').",
+    "Existe um NFR de latência de validação com meta em percentil explícito (p95 ≤ 500 ms, rastreado a KPI-01) e um NFR de disponibilidade de 99,5% com janela mensal explícita, rastreado a R-04.",
+    "A premissa do PRD 'portal e app rápidos e fáceis de usar' não vira texto vago: há ao menos um NFR com meta numérica para o portal ou app cuja Origem está marcada literalmente 'Proposto pelo NFRD — validar com produto' (ou 'Inferência Não Funcional'), e a seção 'Pontos a Validar' traz o item correspondente com quem decide.",
+    "O nfrd.md tem a seção 'Matriz de Rastreabilidade PRD → NFRD' com linhas para KPI-01, KPI-03, R-01, R-02, R-03 e R-04; o resumo final da resposta tem a seção 'ADRs Sugeridos' (tabela com ID sugerido, Título, Origem NFR, Severidade e Justificativa, ou a frase 'Nenhum ADR sugerido nesta geração.'), e nenhum arquivo foi criado em docs/product/adr/."
+  ]
+}

@@ -1,0 +1,5 @@
+fix(tarifa): arredonda meia-entrada ímpar para cima (fix-arredondamento-meia)
+
+calcular_tarifa(495, meia=True) devolvia 247 por divisão inteira; agora devolve 248.
+Adicionei teste de regressão test_regressao_meia_impar_arredonda_para_cima em services/tarifa/tests/test_calculo.py.
+Todos os testes passando.

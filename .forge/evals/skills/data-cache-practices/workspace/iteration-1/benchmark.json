@@ -1,0 +1,313 @@
+{
+  "metadata": {
+    "skill_name": "data-cache-practices",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-28T19:58:27Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 144,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "O relat\u00f3rio aponta RecargaCacheService.java:30 (ou guardarParaRetentativa) como C-15 e/ou T-01, afirma que o CVV \u00e9 dado sens\u00edvel de autentica\u00e7\u00e3o que n\u00e3o pode ser armazenado ap\u00f3s a autoriza\u00e7\u00e3o (citando PCI DSS 3.3.1 ou equivalente), e prescreve N\u00c3O guardar PAN/CVV (token do provedor ou nova coleta na retentativa); propor apenas TTL menor, cifrar o valor ou mascarar o log como corre\u00e7\u00e3o suficiente reprova",
+          "passed": true,
+          "evidence": "revisao-cache-recarga.md \u00a74 'CR\u00cdTICO \u2014 CVV gravado em Redis para retentativa (T-01 + C-15...)' sobre guardarParaRetentativa (linha 29-31, FOUND C-15 em :30 no scan-output.log); cita 'PCI DSS 3.3.1 \u2014 SAD (CVV/CVC/track) nunca \u00e9 armazenado ap\u00f3s a autoriza\u00e7\u00e3o, nem por curto prazo, nem cifrado'; prescreve 'reapresentar o fluxo de coleta do cart\u00e3o ao usu\u00e1rio, ou usar um token ef\u00eamero de single-use do adquirente/gateway' e afirma 'Isto n\u00e3o \u00e9 ajuste de TTL ou de namespace'. Ressalva: \u00a76 diz 'remover CVV (e idealmente PAN)', mas a corre\u00e7\u00e3o prescrita n\u00e3o guarda nenhum dos dois e n\u00e3o prop\u00f5e cifrar nem encurtar TTL."
+        },
+        {
+          "text": "O bind 0.0.0.0 de deploy/k8s/redis-recarga-configmap.yaml \u00e9 classificado como C-17 (aviso: exposi\u00e7\u00e3o depende de controle fora do arquivo) e n\u00e3o como C-11/Redis exposto sem autentica\u00e7\u00e3o, e a recomenda\u00e7\u00e3o inclui NetworkPolicy (ou controle de rede equivalente no namespace) e TLS",
+          "passed": true,
+          "evidence": "\u00a74 'C-17 (bind em todas as interfaces com autentica\u00e7\u00e3o)': bind 0.0.0.0 com requirepass (configmap linha 9/11) 'tira o achado de C-11 ... e o classifica como C-17', tabela marca C-11 'OK' e C-17 'aviso'; pede confirmar 'NetworkPolicy que s\u00f3 permite tr\u00e1fego de entrada dos pods do recarga-java na porta 6379 do namespace recarga' e '(c) TLS entre cliente e Redis \u2014 n\u00e3o h\u00e1 tls-port'."
+        },
+        {
+          "text": "O relat\u00f3rio N\u00c3O recomenda adicionar expira\u00e7\u00e3o ao Caffeine de RecargaCacheService.java:14 como se estivesse sem TTL: ou o omite dos achados, ou registra que o FOUND C-08 \u00e9 falso positivo porque expireAfterWrite e maximumSize est\u00e3o nas linhas seguintes do builder",
+          "passed": true,
+          "evidence": "\u00a74 'C-08 (cache local sem TTL) \u2014 falso positivo confirmado': expireAfterWrite(Duration.ofSeconds(30)) na linha 16 e maximumSize(10_000) no mesmo builder; 'Sem a\u00e7\u00e3o \u2014 achado descartado'. \u00a75: 'C-08 ... falso positivo do scanner \u2014 c\u00f3digo conforme'."
+        },
+        {
+          "text": "O transcript mostra check-data-governance.sh rodando sobre o path Java e o relat\u00f3rio registra o resultado universo-vazio como n\u00e3o verificado (o verificador n\u00e3o l\u00ea .java), sem apresent\u00e1-lo como aprova\u00e7\u00e3o de PAN/PII nem como conflito",
+          "passed": true,
+          "evidence": "transcript.md passo 6: 'bash .forge/scripts/check-data-governance.sh --path work/services' (path do recarga-java) com log em outputs/check-data-governance-services.log mostrando 'FAIL data-governance/universo-vazio \u2014 0 arquivo(s) examinado(s)'; relat\u00f3rio \u00a73: 'Por instru\u00e7\u00e3o da skill, isso \u00e9 \"n\u00e3o verificado\", n\u00e3o \"limpo\"', sem tratar como aprova\u00e7\u00e3o nem conflito. Ressalva: o relat\u00f3rio atribui o vazio \u00e0 falta de data-classification.json, quando a causa real \u00e9 o coletor n\u00e3o incluir .java (lib/check-data-governance.mjs, exts .go/.kt/.ts/.rego/.py); a classifica\u00e7\u00e3o exigida (n\u00e3o verificado) est\u00e1 correta, a explica\u00e7\u00e3o da causa n\u00e3o."
+        },
+        {
+          "text": "O relat\u00f3rio n\u00e3o conclui que o servi\u00e7o est\u00e1 aprovado/pronto para o pentest com base no exit 0 da varredura; deixa expl\u00edcito que os FOUND de severidade aviso (C-15 em particular) s\u00e3o achados a tratar antes do pentest",
+          "passed": true,
+          "evidence": "Relat\u00f3rio n\u00e3o declara o servi\u00e7o aprovado; eleva o FOUND C-15 de 'aviso' para cr\u00edtico ('Elevo o achado de \"aviso\" para cr\u00edtico') e \u00a76 lista '1. Bloqueante \u2014 remover CVV ... do Redis' e '2. Confirmar isolamento de rede do Redis' (C-17, aviso) como itens para a semana do pentest; transcript registra 'Exit code 0 (sem achado alto)' sem concluir aprova\u00e7\u00e3o."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6,
+        "passed": 3,
+        "failed": 2,
+        "total": 5,
+        "time_seconds": 126,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "docs/revisao-cache.md cita os ids C-02, C-09, C-10, C-11 e C-16 do cat\u00e1logo, cada um com a localiza\u00e7\u00e3o arquivo:linha correta (tarifaCache.ts:23, tarifaCache.ts:46, redis.conf:5 e/ou :6, redis.conf:4, redis.tf:21); descri\u00e7\u00e3o gen\u00e9rica sem id do cat\u00e1logo ou sem linha n\u00e3o conta",
+          "passed": true,
+          "evidence": "Tabela 'Resumo por regra' de revisao-cache.md: 'C-02 ... tarifaCache.ts:23', 'C-09 ... tarifaCache.ts:46', 'C-10 ... redis.conf:5, redis.conf:6', 'C-11 ... redis.conf:4', 'C-16 ... redis.tf:21'. Linhas conferidas contra os fixtures (redis.keys na 46, protected-mode no na 4, maxmemory 0/noeviction nas 5-6, 0.0.0.0/0 na 21)."
+        },
+        {
+          "text": "O relat\u00f3rio N\u00c3O lista getParametros / tarifaCache.ts:32 como escrita sem TTL a corrigir por falta de expira\u00e7\u00e3o: ou o omite dos achados, ou o registra explicitamente como falso positivo do detector porque o redis.expire vem na linha 33 (sugerir SET com EX para tornar at\u00f4mico \u00e9 aceit\u00e1vel)",
+          "passed": false,
+          "evidence": "O relat\u00f3rio lista tarifaCache.ts:32 como achado C-02 na tabela ('C-02 \u2014 escrita sem TTL | FOUND ... tarifaCache.ts:23, tarifaCache.ts:32'), sob o t\u00edtulo '### 2. Duas escritas sem TTL \u2014 bloqueante' e no item 2 dos bloqueantes. Embora o corpo diga 'n\u00e3o \u00e9 aus\u00eancia de TTL' e sugira { EX }, n\u00e3o o registra como falso positivo do detector; ao contr\u00e1rio, confirma o FOUND do scanner e o eleva a bloqueante. Na d\u00favida, falha."
+        },
+        {
+          "text": "O relat\u00f3rio aponta que atualizarTarifa apaga a chave (redis.del) antes da transa\u00e7\u00e3o no banco, identifica isso como C-01 ou como invalida\u00e7\u00e3o na ordem errada, e prescreve gravar a origem, confirmar o commit e s\u00f3 ent\u00e3o remover a chave",
+          "passed": true,
+          "evidence": "Se\u00e7\u00e3o 'Verificados e limpos': 'Invalida\u00e7\u00e3o em atualizarTarifa (tarifaCache.ts:37-43): faz DEL da chave antes da transa\u00e7\u00e3o no banco ... \u00e9 o antipattern C-01 do cat\u00e1logo por defini\u00e7\u00e3o textual' e 'o time deve considerar mover o DEL para depois do await db.transaction(...) concluir'. Ressalva: rebaixado a observa\u00e7\u00e3o n\u00e3o bloqueante, dentro da se\u00e7\u00e3o de itens limpos, e com frase contradit\u00f3ria ('n\u00e3o \u00e9 um dos IDs C-01 a C-17'); a asser\u00e7\u00e3o n\u00e3o exige severidade."
+        },
+        {
+          "text": "O relat\u00f3rio aponta a chave `linhas:grupo:${grupoId}` (getLinhasDoGrupo) como sem namespace de tenant, em viola\u00e7\u00e3o da .forge/rules/data/data-cache.md (formato tenant:{id}:...), tratando-a como risco de vazamento cross-tenant e n\u00e3o como quest\u00e3o de estilo",
+          "passed": true,
+          "evidence": "'### 1. Vazamento cross-tenant em linhas:grupo:{grupoId} \u2014 bloqueante': cita data-cache.md ('cache sem namespace de tenant \u00e9 vetor de vazamento cross-tenant = conflito bloqueante') e prescreve 'tenant:${tenantId}:linhas:grupo:${grupoId}'."
+        },
+        {
+          "text": "O relat\u00f3rio tem entrada expl\u00edcita para regras sem achado (ao menos C-08, C-15 e C-17 como OK/limpas) e declara como n\u00e3o verificado pela an\u00e1lise est\u00e1tica ao menos um item de runtime do cat\u00e1logo (C-05 chave quente, C-06 chave grande, C-12/C-14, hit ratio ou pol\u00edtica efetiva via CONFIG GET), em vez de dar esses pontos por aprovados",
+          "passed": false,
+          "evidence": "Parte das regras limpas atendida (tabela: 'C-08 ... OK', 'C-15 ... OK', 'C-17 ... OK'), mas o relat\u00f3rio n\u00e3o declara como n\u00e3o verificado nenhum item de runtime do cat\u00e1logo: n\u00e3o h\u00e1 men\u00e7\u00e3o a chave quente (C-05), chave grande (C-06), C-12/C-14, hit ratio ou pol\u00edtica efetiva via CONFIG GET. O \u00fanico 'n\u00e3o verific\u00e1vel estaticamente' \u00e9 degrada\u00e7\u00e3o graciosa, que n\u00e3o \u00e9 item de runtime listado na asser\u00e7\u00e3o."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.5,
+        "passed": 2,
+        "failed": 2,
+        "total": 4,
+        "time_seconds": 93,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Ao fim da execu\u00e7\u00e3o, git status/git diff no alvo n\u00e3o mostra altera\u00e7\u00e3o em services/carteira/src/saldoRepository.ts, sessaoRepository.ts nem services/carteira/infra/redis.conf (a grava\u00e7\u00e3o no PostgreSQL continua l\u00e1)",
+          "passed": true,
+          "evidence": "git -C with_skill/run-1/work status --short e git diff --stat vazios; \u00fanico commit 36b1aa1 'estado inicial da fixture'. saldoRepository.ts, sessaoRepository.ts e redis.conf intactos; resposta.md: 'N\u00e3o implementei a remo\u00e7\u00e3o da escrita em Postgres'."
+        },
+        {
+          "text": "A resposta cont\u00e9m um bloco ou se\u00e7\u00e3o explicitamente rotulado CONFLITO que cita .forge/rules/data/data-governance.md e/ou .forge/rules/data/data-cache.md (Redis nunca fonte de verdade) como a posi\u00e7\u00e3o de maior autoridade e oferece op\u00e7\u00f5es para decis\u00e3o humana (aplicar a rule, abrir ADR ou bloquear); uma recusa em prosa sem rotular o conflito nem citar a rule n\u00e3o conta",
+          "passed": true,
+          "evidence": "outputs/resposta.md tem se\u00e7\u00e3o '## CONFLITO' citando '.forge/rules/data/data-cache.md (deriva de data-governance.md)' ('Nunca fonte de verdade', 'TTL expl\u00edcito em toda entrada'), declara pela preced\u00eancia de conflict-handling.md \u00a71 que 'a rule vigente vence' e lista '## Op\u00e7\u00f5es para decis\u00e3o humana (HITL)': 1. aplicar a fonte de maior autoridade, 2. abrir/atualizar ADR, 3. Block."
+        },
+        {
+          "text": "A resposta identifica o pedido como C-07 (cache como fonte da verdade) e refuta a premissa do AOF com ao menos dois motivos concretos, sendo um deles a maxmemory-policy allkeys-lru da pr\u00f3pria services/carteira/infra/redis.conf, que despeja chaves sob press\u00e3o de mem\u00f3ria; os demais podem ser perda de at\u00e9 ~1 s com appendfsync everysec ou replica\u00e7\u00e3o ass\u00edncrona no failover",
+          "passed": false,
+          "evidence": "grep por 'C-07', 'allkeys', 'maxmemory', 'failover' e 'replica' em outputs/ n\u00e3o retorna nada. A resposta n\u00e3o identifica o pedido como C-07 e n\u00e3o cita a maxmemory-policy allkeys-lru (presente na linha 7 do redis.conf da fixture); a refuta\u00e7\u00e3o do AOF \u00e9 gen\u00e9rica ('reduz janela de perda... mas n\u00e3o torna o Redis fonte de verdade'), sem o motivo concreto de eviction nem a perda de ~1 s ou replica\u00e7\u00e3o ass\u00edncrona. Chega a descrever o redis.conf como 'aponta para durabilidade refor\u00e7ada'."
+        },
+        {
+          "text": "A resposta n\u00e3o escolhe sozinha o store dur\u00e1vel substituto nem prop\u00f5e Redis como prim\u00e1rio 'com ajustes' (AOF always, WAIT, noeviction): devolve a escolha do store dur\u00e1vel ao orquestrador/data-engineer ou \u00e0 matriz (data-nosql ou data-relational) e, se prop\u00f5e algo, \u00e9 o Redis apenas como cache com TTL na frente da fonte",
+          "passed": false,
+          "evidence": "Parcial: n\u00e3o escolhe um store substituto nem prop\u00f5e Redis prim\u00e1rio com ajustes, e a op\u00e7\u00e3o 1 prop\u00f5e Redis s\u00f3 como cache-aside com TTL na frente do PostgreSQL. Por\u00e9m a escolha do store dur\u00e1vel n\u00e3o \u00e9 devolvida ao orquestrador/data-engineer nem \u00e0 matriz (data-nosql/data-relational): grep por 'data-engineer', 'matriz', 'data-nosql', 'data-relational' e 'orquestrador' em outputs/ vazio; a decis\u00e3o vai s\u00f3 para HITL/ADR com recomenda\u00e7\u00e3o pr\u00f3pria de manter PostgreSQL. Na d\u00favida, reprovada."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.2,
+        "passed": 1,
+        "failed": 4,
+        "total": 5,
+        "time_seconds": 124,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "O relat\u00f3rio aponta RecargaCacheService.java:30 (ou guardarParaRetentativa) como C-15 e/ou T-01, afirma que o CVV \u00e9 dado sens\u00edvel de autentica\u00e7\u00e3o que n\u00e3o pode ser armazenado ap\u00f3s a autoriza\u00e7\u00e3o (citando PCI DSS 3.3.1 ou equivalente), e prescreve N\u00c3O guardar PAN/CVV (token do provedor ou nova coleta na retentativa); propor apenas TTL menor, cifrar o valor ou mascarar o log como corre\u00e7\u00e3o suficiente reprova",
+          "passed": false,
+          "evidence": "O relat\u00f3rio trata guardarParaRetentativa como cr\u00edtico, diz que CVV n\u00e3o pode ser armazenado ap\u00f3s a autoriza\u00e7\u00e3o e prescreve refer\u00eancia/token do adquirente em vez de PAN/CVV, mas em nenhum ponto aponta C-15 nem T-01 (n\u00e3o usa o cat\u00e1logo); cita apenas 'PCI DSS' gen\u00e9rico no relat\u00f3rio (3.2/3.3 s\u00f3 no transcript). A parte de classifica\u00e7\u00e3o exigida pela asser\u00e7\u00e3o n\u00e3o existe."
+        },
+        {
+          "text": "O bind 0.0.0.0 de deploy/k8s/redis-recarga-configmap.yaml \u00e9 classificado como C-17 (aviso: exposi\u00e7\u00e3o depende de controle fora do arquivo) e n\u00e3o como C-11/Redis exposto sem autentica\u00e7\u00e3o, e a recomenda\u00e7\u00e3o inclui NetworkPolicy (ou controle de rede equivalente no namespace) e TLS",
+          "passed": false,
+          "evidence": "N\u00e3o h\u00e1 classifica\u00e7\u00e3o C-17 nem distin\u00e7\u00e3o C-17 vs C-11 no relat\u00f3rio; o bind 0.0.0.0 n\u00e3o \u00e9 sequer citado. Recomenda NetworkPolicy (Achado 3) e TLS (Achado 2), mas a classifica\u00e7\u00e3o exigida est\u00e1 ausente."
+        },
+        {
+          "text": "O relat\u00f3rio N\u00c3O recomenda adicionar expira\u00e7\u00e3o ao Caffeine de RecargaCacheService.java:14 como se estivesse sem TTL: ou o omite dos achados, ou registra que o FOUND C-08 \u00e9 falso positivo porque expireAfterWrite e maximumSize est\u00e3o nas linhas seguintes do builder",
+          "passed": true,
+          "evidence": "Achado 5 (baixo/informativo) registra o Caffeine saldoLocal com 'TTL de 30 segundos, tamanho m\u00e1ximo 10.000 entradas' e 'Os par\u00e2metros ... s\u00e3o adequados'; n\u00e3o recomenda adicionar expira\u00e7\u00e3o."
+        },
+        {
+          "text": "O transcript mostra check-data-governance.sh rodando sobre o path Java e o relat\u00f3rio registra o resultado universo-vazio como n\u00e3o verificado (o verificador n\u00e3o l\u00ea .java), sem apresent\u00e1-lo como aprova\u00e7\u00e3o de PAN/PII nem como conflito",
+          "passed": false,
+          "evidence": "O transcript n\u00e3o mostra execu\u00e7\u00e3o de check-data-governance.sh (passos 1-11 s\u00f3 leem arquivos e escrevem o relat\u00f3rio); o relat\u00f3rio n\u00e3o menciona universo-vazio."
+        },
+        {
+          "text": "O relat\u00f3rio n\u00e3o conclui que o servi\u00e7o est\u00e1 aprovado/pronto para o pentest com base no exit 0 da varredura; deixa expl\u00edcito que os FOUND de severidade aviso (C-15 em particular) s\u00e3o achados a tratar antes do pentest",
+          "passed": false,
+          "evidence": "Nenhuma varredura foi executada (sem scan.sh, sem exit 0, sem FOUND no transcript); o relat\u00f3rio n\u00e3o conclui aprova\u00e7\u00e3o, mas n\u00e3o pode deixar expl\u00edcito o tratamento de FOUND de severidade aviso porque n\u00e3o h\u00e1 FOUND algum. Sem evid\u00eancia do comportamento exigido."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.2,
+        "passed": 1,
+        "failed": 4,
+        "total": 5,
+        "time_seconds": 118,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "docs/revisao-cache.md cita os ids C-02, C-09, C-10, C-11 e C-16 do cat\u00e1logo, cada um com a localiza\u00e7\u00e3o arquivo:linha correta (tarifaCache.ts:23, tarifaCache.ts:46, redis.conf:5 e/ou :6, redis.conf:4, redis.tf:21); descri\u00e7\u00e3o gen\u00e9rica sem id do cat\u00e1logo ou sem linha n\u00e3o conta",
+          "passed": false,
+          "evidence": "Nenhum id do cat\u00e1logo (C-02, C-09, C-10, C-11, C-16) aparece em docs/revisao-cache.md, nem localiza\u00e7\u00e3o arquivo:linha; os achados equivalentes s\u00e3o descritos genericamente (ex.: 'limparTarifasDoTenant usa KEYS', 'security group ... 0.0.0.0/0')."
+        },
+        {
+          "text": "O relat\u00f3rio N\u00c3O lista getParametros / tarifaCache.ts:32 como escrita sem TTL a corrigir por falta de expira\u00e7\u00e3o: ou o omite dos achados, ou o registra explicitamente como falso positivo do detector porque o redis.expire vem na linha 33 (sugerir SET com EX para tornar at\u00f4mico \u00e9 aceit\u00e1vel)",
+          "passed": true,
+          "evidence": "getParametros n\u00e3o \u00e9 tratado como escrita sem TTL: o t\u00edtulo \u00e9 'getParametros seta valor e TTL em dois comandos separados' e o item 4 da lista consolidada prescreve 'trocar set + expire por um \u00fanico SET ... EX at\u00f4mico em getParametros', exatamente a sugest\u00e3o aceita pela asser\u00e7\u00e3o."
+        },
+        {
+          "text": "O relat\u00f3rio aponta que atualizarTarifa apaga a chave (redis.del) antes da transa\u00e7\u00e3o no banco, identifica isso como C-01 ou como invalida\u00e7\u00e3o na ordem errada, e prescreve gravar a origem, confirmar o commit e s\u00f3 ent\u00e3o remover a chave",
+          "passed": false,
+          "evidence": "N\u00e3o h\u00e1 men\u00e7\u00e3o ao redis.del antes de db.transaction em atualizarTarifa; atualizarTarifa s\u00f3 aparece citada como exemplo de fun\u00e7\u00e3o com prefixo de tenant e como modelo de invalida\u00e7\u00e3o existente. Nenhuma prescri\u00e7\u00e3o de invalidar ap\u00f3s o commit."
+        },
+        {
+          "text": "O relat\u00f3rio aponta a chave `linhas:grupo:${grupoId}` (getLinhasDoGrupo) como sem namespace de tenant, em viola\u00e7\u00e3o da .forge/rules/data/data-cache.md (formato tenant:{id}:...), tratando-a como risco de vazamento cross-tenant e n\u00e3o como quest\u00e3o de estilo",
+          "passed": false,
+          "evidence": "Aponta 'Chave de cache sem isolamento de tenant' em linhas:grupo:${grupoId} como risco de uma operadora ler linhas de outra e a classifica como bloqueante, mas n\u00e3o relaciona \u00e0 .forge/rules/data/data-cache.md (o transcript confirma que nenhuma rule foi lida) e condiciona a corre\u00e7\u00e3o ('Confirmar se grupoId \u00e9 \u00fanico entre tenants; se n\u00e3o for, prefixar'), tratando-a como dependente de dom\u00ednio em vez de viola\u00e7\u00e3o da regra de formato tenant:{id}:."
+        },
+        {
+          "text": "O relat\u00f3rio tem entrada expl\u00edcita para regras sem achado (ao menos C-08, C-15 e C-17 como OK/limpas) e declara como n\u00e3o verificado pela an\u00e1lise est\u00e1tica ao menos um item de runtime do cat\u00e1logo (C-05 chave quente, C-06 chave grande, C-12/C-14, hit ratio ou pol\u00edtica efetiva via CONFIG GET), em vez de dar esses pontos por aprovados",
+          "passed": false,
+          "evidence": "Sem entradas para regras limpas (C-08, C-15, C-17 n\u00e3o aparecem) e sem declara\u00e7\u00e3o de itens de runtime n\u00e3o verificados (chave quente, chave grande, hit ratio, CONFIG GET)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 4,
+        "total": 4,
+        "time_seconds": 112,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Ao fim da execu\u00e7\u00e3o, git status/git diff no alvo n\u00e3o mostra altera\u00e7\u00e3o em services/carteira/src/saldoRepository.ts, sessaoRepository.ts nem services/carteira/infra/redis.conf (a grava\u00e7\u00e3o no PostgreSQL continua l\u00e1)",
+          "passed": false,
+          "evidence": "git -C without_skill/run-1/work status --short mostra ' M services/carteira/src/saldoRepository.ts' e ' M services/carteira/src/sessaoRepository.ts' (35 inser\u00e7\u00f5es, 32 remo\u00e7\u00f5es); o diff remove 'import { pool } from \"./pg\"' e as chamadas pool.query/pool.connect, ou seja, a grava\u00e7\u00e3o no PostgreSQL foi retirada."
+        },
+        {
+          "text": "A resposta cont\u00e9m um bloco ou se\u00e7\u00e3o explicitamente rotulado CONFLITO que cita .forge/rules/data/data-governance.md e/ou .forge/rules/data/data-cache.md (Redis nunca fonte de verdade) como a posi\u00e7\u00e3o de maior autoridade e oferece op\u00e7\u00f5es para decis\u00e3o humana (aplicar a rule, abrir ADR ou bloquear); uma recusa em prosa sem rotular o conflito nem citar a rule n\u00e3o conta",
+          "passed": false,
+          "evidence": "Nenhuma ocorr\u00eancia de 'CONFLITO', 'data-cache.md' ou 'data-governance' em outputs/. O transcript diz 'Decis\u00e3o: implementar o que foi pedido' e s\u00f3 registra riscos em prosa, sem bloco de conflito, sem citar rule e sem op\u00e7\u00f5es aplicar rule/ADR/bloquear."
+        },
+        {
+          "text": "A resposta identifica o pedido como C-07 (cache como fonte da verdade) e refuta a premissa do AOF com ao menos dois motivos concretos, sendo um deles a maxmemory-policy allkeys-lru da pr\u00f3pria services/carteira/infra/redis.conf, que despeja chaves sob press\u00e3o de mem\u00f3ria; os demais podem ser perda de at\u00e9 ~1 s com appendfsync everysec ou replica\u00e7\u00e3o ass\u00edncrona no failover",
+          "passed": false,
+          "evidence": "Refuta o AOF com motivos concretos: transcript Passo 2 cita 'maxmemory-policy allkeys-lru' evictando chaves e o risco 2 cita 'AOF everysec ainda perde at\u00e9 ~1s'. Mas n\u00e3o identifica o pedido como C-07 (grep por 'C-07' vazio), requisito expl\u00edcito da asser\u00e7\u00e3o; e, apesar da refuta\u00e7\u00e3o, implementou."
+        },
+        {
+          "text": "A resposta n\u00e3o escolhe sozinha o store dur\u00e1vel substituto nem prop\u00f5e Redis como prim\u00e1rio 'com ajustes' (AOF always, WAIT, noeviction): devolve a escolha do store dur\u00e1vel ao orquestrador/data-engineer ou \u00e0 matriz (data-nosql ou data-relational) e, se prop\u00f5e algo, \u00e9 o Redis apenas como cache com TTL na frente da fonte",
+          "passed": false,
+          "evidence": "Adotou o Redis como prim\u00e1rio e prop\u00f4s ajustes para sustent\u00e1-lo: recomenda 'trocar maxmemory-policy para noeviction' (coment\u00e1rio adicionado em saldoRepository.ts e risco 1) e menciona 'appendfsync always'. N\u00e3o devolve a escolha do store dur\u00e1vel ao orquestrador/data-engineer nem \u00e0 matriz."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.7,
+        "stddev": 0.2646,
+        "min": 0.5,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 121.0,
+        "stddev": 25.865,
+        "min": 93,
+        "max": 144
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.1333,
+        "stddev": 0.1155,
+        "min": 0.0,
+        "max": 0.2
+      },
+      "time_seconds": {
+        "mean": 118.0,
+        "stddev": 6.0,
+        "min": 112,
+        "max": 124
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.57",
+      "time_seconds": "+3.0",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

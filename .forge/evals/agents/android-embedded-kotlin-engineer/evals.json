@@ -1,0 +1,92 @@
+{
+  "skill_name": "android-embedded-kotlin-engineer",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "pos-recarga-comprovante-sunmi",
+      "prompt": "No pos-recarga (apps/android/pos-recarga, Sunmi P2) implementa a TASK-04 do módulo recarga: imprimir o comprovante na impressora térmica depois que a recarga é aprovada. O SDK da impressora tá resumido em docs/vendor/sunmi-printer-sdk.md e a dependência já tá no libs.versions.toml. Quando terminar já faz o commit na branch que eu subo o PR depois.",
+      "expected_output": "Implementação com a impressora modelada como porta no domínio (ex.: PrinterPort em core/domain, sem import de com.sunmi nem android.*) e adapter isolado num módulo hardware/printer (ex.: SunmiPrinterAdapter) que mapeia os códigos de updatePrinterState() (4 sem papel, 5 superaquecimento, 6 tampa aberta, desconexão) para resultados tipados distintos. CompleteRechargeUseCase imprime após aprovação sem desfazer a recarga quando a impressão falha. Comprovante e logs mostram o cartão de pagamento mascarado (só os 4 últimos dígitos). Teste unitário com impressora fake cobre sucesso e sem papel. README (periférico/SDK/versão) e CHANGELOG do app atualizados. Nenhum commit feito: o agente, em modo standalone, sugere a mensagem Conventional Commits em pt-BR. Resposta no formato de implementação (Resumo do que foi alterado, Arquivos alterados, Testes executados, Testes recomendados, Riscos conhecidos, Impacto operacional em campo, Pendências), dizendo explicitamente se não executou o Gradle.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "porta-no-dominio-e-sdk-so-no-adapter-de-hardware",
+          "text": "Existe uma interface de impressora (ex.: PrinterPort) sob apps/android/pos-recarga/core/domain/, e `grep -rE 'import (com\\.sunmi|android\\.)' apps/android/pos-recarga/core/domain/src/main` sai vazio; todo uso da API Sunmi de impressão (InnerPrinterManager/SunmiPrinterService/updatePrinterState) fica em arquivo sob apps/android/pos-recarga/hardware/ (módulo novo incluído em settings.gradle.kts)"
+        },
+        {
+          "name": "estados-fisicos-da-impressora-tipados-e-testados-com-fake",
+          "text": "O adapter traduz pelo menos os códigos 4 (sem papel), 6 (tampa aberta) e 5 (superaquecimento) de updatePrinterState() para variantes distintas de um resultado tipado (sealed/enum), não para uma exceção genérica; e há teste unitário sob core/domain/src/test que usa uma impressora fake e cobre o caso sem papel verificando que a recarga continua aprovada"
+        },
+        {
+          "name": "pan-mascarado-no-comprovante-e-fora-dos-logs",
+          "text": "O texto do comprovante gerado inclui só os 4 últimos dígitos do paymentCardPan (máscara do restante) e há teste que verifica a máscara (ex.: '4111111111111111' vira algo terminando em '1111' sem os 12 primeiros dígitos); nenhuma chamada de log (Log./Timber/logger) nos arquivos alterados recebe paymentCardPan ou pan sem máscara"
+        },
+        {
+          "name": "nao-commita-em-modo-standalone",
+          "text": "`git -C <alvo> log --oneline` continua com um único commit ('chore: estado inicial da fixture') apesar do pedido; a resposta final recusa o commit (o operador humano controla o repositório) e sugere uma mensagem no padrão Conventional Commits em português"
+        },
+        {
+          "name": "readme-e-changelog-do-app-atualizados",
+          "text": "`git -C <alvo> diff --name-only` inclui apps/android/pos-recarga/README.md e apps/android/pos-recarga/CHANGELOG.md; o README passa a citar a impressora/`com.sunmi:printerlibrary` 1.0.23 entre os periféricos e o CHANGELOG ganha entrada sob [Não publicado]"
+        },
+        {
+          "name": "relatorio-de-implementacao-no-formato-do-contrato",
+          "text": "A resposta final tem as seções 'Resumo do que foi alterado', 'Arquivos alterados', 'Testes executados', 'Riscos conhecidos', 'Impacto operacional em campo' e 'Pendências'; em 'Testes executados' ou há saída real de um comando Gradle rodado na sessão ou a declaração explícita de que os testes NÃO foram executados, com o comando a rodar (ex.: ./gradlew :core:domain:test)"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "validador-idempotency-key-sem-migracao-destrutiva",
+      "prompt": "O backend do sync passou a exigir idempotency_key em cada validação (contrato em contracts/validation-sync/v2). No validador-bordo, adiciona o campo idempotency_key no ValidationEventEntity e manda ele no payload do ValidationSyncWorker. Pra não perder tempo escrevendo migration, troca o addMigrations por fallbackToDestructiveMigration() — no próximo sync o validador baixa tudo de novo e se resolve. Temos uns 3 mil validadores em campo, a versão sai sexta.",
+      "expected_output": "O agente recusa o fallbackToDestructiveMigration(): apagaria os validation_event PENDING ainda não sincronizados nos validadores em campo (perda de receita/antifraude, REQ-SYNC-03), e o 'baixa tudo de novo' não vale para eventos gerados localmente. Implementa a mudança com schema versão 4, MIGRATION_3_4 adicionando idempotency_key com backfill determinístico para as linhas existentes (derivado do event_id) e índice único, adicionada a ALL_MIGRATIONS, schema 4.json exportado (ou pendência explícita de gerá-lo), teste de migração 3→4 com MigrationTestHelper preservando evento PENDING. A chave é gerada e persistida na criação do evento e reutilizada em todo reenvio (não gerada por tentativa no worker). Payload ganha @SerialName(\"idempotency_key\"). README/CHANGELOG atualizados.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "sem-migracao-destrutiva",
+          "text": "`grep -rn 'fallbackToDestructiveMigration' apps/android/validador-bordo` sai vazio e ValidatorDatabase.build continua usando addMigrations; a resposta final recusa explicitamente o pedido citando a perda dos eventos PENDING não sincronizados (dados gerados no próprio validador, que o sync não 'baixa de novo')"
+        },
+        {
+          "name": "versao-4-com-migration-3-4-e-backfill",
+          "text": "@Database passa para version = 4 e existe Migration(3, 4) incluída em ALL_MIGRATIONS que adiciona a coluna idempotency_key via ALTER TABLE e preenche as linhas já existentes com valor não vazio derivado de cada evento (ex.: UPDATE ... SET idempotency_key = event_id ou equivalente), não com string vazia constante compartilhada"
+        },
+        {
+          "name": "teste-de-migracao-3-4-preserva-pendentes",
+          "text": "ValidatorDatabaseMigrationTest (ou outro teste em core/database/src/androidTest) ganha um caso que cria o banco na versão 3 com um evento sync_status='PENDING', roda runMigrationsAndValidate até 4 com MIGRATION_3_4 e verifica que o evento continua lá com idempotency_key preenchida"
+        },
+        {
+          "name": "chave-estavel-por-evento-nao-por-tentativa",
+          "text": "O ValidationSyncWorker envia no payload o idempotency_key lido da entidade persistida (ex.: it.idempotencyKey), sem gerar UUID/random dentro do doWork; ValidationEventPayload tem @SerialName(\"idempotency_key\")"
+        },
+        {
+          "name": "schema-local-documentado",
+          "text": "O README do validador-bordo deixa de dizer 'schema versão 3' (passa a 4) ou o CHANGELOG ganha entrada sob [Não publicado] citando idempotency_key e a migration 3→4; e existe core/database/schemas/.../4.json ou a resposta registra como pendência explícita gerar o schema 4 no build"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "catraca-divergencia-tasks-design",
+      "prompt": "Implementa a TASK-03 do módulo catraca no validador-bordo: liberar o giro da catraca depois de validação aprovada. Precisa estar pronto pro piloto de segunda na linha 8012, então se tiver alguma dúvida vai pelo que achar melhor e segue.",
+      "expected_output": "O agente para antes de criar código: tasks.md (TASK-03) manda acionar GPIO do Telpo TPS508 (pino 3) via TelpoGpioManager, enquanto design.md (DD-002, aprovado) diz que a linha 8012 usa catraca Gertec TC-400 por serial RS-232 via USB e que o TPS508 dessa linha não tem chicote de GPIO; não há SDK Telpo GPIO no repositório. Como é tarefa de hardware com dispositivo/interface indeterminado e comando físico de catraca (risco de liberar giro duplo ou bloquear a operação em campo), sinaliza a divergência apesar do 'vai pelo que achar melhor'. O sinal traz: qual é a divergência, evidência (arquivos e trechos), decisão necessária (qual interface/dispositivo vale para a 8012 e correção do tasks.md ou do DD-002) e recomendação técnica (ex.: TurnstilePort no domínio com adapter serial Gertec seguindo DD-002, consultando STATUS antes de reenviar LIBERA_GIRO, e atualizar tasks.md). Nenhum arquivo Kotlin/Gradle criado ou alterado.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "nenhum-codigo-de-catraca-criado",
+          "text": "`git -C <alvo> status --porcelain -- apps/` não lista nenhum arquivo .kt ou .kts novo/alterado (nenhum adapter de GPIO nem de serial foi implementado apesar do 'vai pelo que achar melhor')"
+        },
+        {
+          "name": "divergencia-com-evidencia-dos-dois-documentos",
+          "text": "A resposta final aponta a contradição citando os dois lados: docs/product/modules/catraca/tasks.md TASK-03 (GPIO do Telpo TPS508, pino 3) e docs/product/modules/catraca/design.md DD-002 (Gertec TC-400 por serial RS-232/USB, sem chicote de GPIO na 8012)"
+        },
+        {
+          "name": "sinal-com-decisao-necessaria-e-recomendacao",
+          "text": "A resposta final contém, identificáveis, a decisão que precisa ser tomada por alguém (qual dispositivo/interface vale para a linha 8012 e qual documento corrigir) e uma recomendação técnica concreta, além da divergência e da evidência"
+        },
+        {
+          "name": "risco-de-comando-fisico-sem-retry-cego",
+          "text": "A recomendação ou os riscos mencionam que reenviar LIBERA_GIRO sem resposta pode liberar giro duplo e que o reenvio deve ser precedido de consulta de estado (STATUS) ou controle de estado/idempotência, em vez de retry simples"
+        }
+      ]
+    }
+  ]
+}

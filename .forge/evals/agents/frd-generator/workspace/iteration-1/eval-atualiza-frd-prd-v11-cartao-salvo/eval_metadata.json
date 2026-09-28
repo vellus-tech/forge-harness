@@ -1,0 +1,13 @@
+{
+  "eval_id": 2,
+  "eval_name": "atualiza-frd-prd-v11-cartao-salvo",
+  "prompt": "O comitê aprovou ontem o PRD v1.1 da Recarga Metropolitana (entrou a F-07, recarga recorrente com cartão de crédito salvo, e a RN-05 de PCI). Atualiza o FRD que já existe em docs/product/frd-nfrd/frd.md para cobrir a v1.1. O FRD v1.0 já foi aprovado e o QA já escreveu casos de teste referenciando os códigos FRD-acc-* e FRD-rec-*, então não pode quebrar nada do que existe.",
+  "assertions": [
+    "Os códigos FRD-acc-01, FRD-acc-02, FRD-rec-01, FRD-rec-02, FRD-rec-03 e FRD-rec-04 continuam presentes na tabela de Requisitos Funcionais com o mesmo nome de requisito da v1.0, e os requisitos da F-07 usam códigos que não existiam antes (nenhum código antigo foi reaproveitado para a funcionalidade nova).",
+    "A tabela Controle de Versão mantém a linha v1.0 de 2026-09-12 e ganha uma linha nova v1.1 (ou versão superior) citando a inclusão da F-07/PRD v1.1; o campo Versão do cabeçalho deixa de ser v1.0.",
+    "Os requisitos novos da F-07 têm prioridade expressa em MoSCoW ('Must Have', 'Should Have', 'Could Have' ou 'Won't Have'), o padrão já usado no FRD, e não em 'Alta', 'Média' ou 'Baixa'.",
+    "A Matriz de Rastreabilidade ganha uma linha para F-07 apontando para códigos FRD-* novos, e a tabela de Regras de Negócio ganha uma BR-NN nova (a partir de BR-04) com Fonte 'PRD RN-05' proibindo armazenar número completo e CVV do cartão salvo.",
+    "O frd.md contém a marcação 'Dependência arquitetural: ADR-0004' (próximo número livre após 0001–0003) associada à RN-05/F-07 e indicando que será criado via adr-writer, e o diretório docs/product/adr/ continua com exatamente os quatro arquivos originais (README.md e 0001–0003), sem ADR novo criado pelo agente.",
+    "git diff HEAD -- docs/product/prd/prd.md no diretório de saída é vazio."
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "adquirente": "sandbox-homologacao",
+  "baseUrl": "https://sandbox.adquirente.invalid/v1",
+  "tokenEnv": "ADQUIRENTE_SANDBOX_TOKEN",
+  "timeoutMs": 5000
+}

@@ -1,0 +1,37 @@
+{
+  "skill": "conciliacao-csv",
+  "test_cases": [
+    {
+      "id": "TC-01",
+      "prompt": "[caso-junho-simples] Concilia o data/extrato-junho.csv com o razao de junho e me diz o que ficou sem par.",
+      "baseline_result": {
+        "output": "Conciliação concluída (with_skill=false).",
+        "duration_ms": 112,
+        "tokens": 350,
+        "exit_code": 0
+      },
+      "variant_result": {
+        "output": "Conciliação concluída (with_skill=true).",
+        "duration_ms": 34,
+        "tokens": 1275,
+        "exit_code": 0
+      }
+    },
+    {
+      "id": "TC-02",
+      "prompt": "[caso-extrato-iso] Concilia o extrato do banco novo, que vem com separador virgula e datas no formato 2026-06-03.",
+      "baseline_result": {
+        "output": "Conciliação concluída (with_skill=false).",
+        "duration_ms": 35,
+        "tokens": 350,
+        "exit_code": 0
+      },
+      "variant_result": {
+        "output": "Conciliação concluída (with_skill=true).",
+        "duration_ms": 39,
+        "tokens": 1275,
+        "exit_code": 0
+      }
+    }
+  ]
+}

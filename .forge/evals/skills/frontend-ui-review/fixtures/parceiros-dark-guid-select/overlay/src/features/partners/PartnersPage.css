@@ -1,0 +1,5 @@
+.partners-table { background: var(--surface-2); color: var(--text-primary); }
+.partners-table td { border-bottom: 1px solid var(--border-subtle); padding: var(--space-2); }
+.bu-cell { font-family: monospace; color: var(--text-muted); }
+.onboarding-bar { height: 4px; background: linear-gradient(to right, var(--color-primary-500) var(--progress), var(--border-subtle) var(--progress)); }
+.bu-filter { border: 1px solid var(--border-subtle); border-radius: 4px; padding: 6px; background: var(--surface); }

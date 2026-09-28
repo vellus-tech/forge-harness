@@ -1,0 +1,96 @@
+{
+  "skill_name": "data-analytical",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "revisao-dbt-recargas-e-snapshot-passageiro",
+      "prompt": "O PR do time de dados mexe no projeto dbt em analytics/ (recargas de cartão de transporte e cadastro de passageiros). Faz a revisão analítica antes do merge: quero o parecer com o que está errado e como corrigir, com o trecho corrigido quando fizer sentido. Quem aplica a correção é o task-coder, então não mexe nos arquivos.",
+      "expected_output": "O agente segue o protocolo: lê as rules (inclusive money-as-cents.md), roda `check-data-governance.sh --path analytics` (que dá FAIL data-governance/universo-vazio, pois o path só tem .sql/.yml, e por isso diz que PAN/PII não foi verificado por ele) e `scan.sh --root analytics`. O parecer cita pelo id do catálogo e com arquivo:linha os quatro achados do scanner: A-08 em analytics/models/staging/stg_recargas.sql:1 (incremental sem unique_key e sem lookback), A-10 e A-12 em analytics/models/marts/fct_recargas.sql:3 (source direto e SELECT *), A-14 em analytics/snapshots/snap_passageiro.yml:8 (migrar para hard_deletes: invalidate ou new_record). Além do scanner, aponta pela revisão A-16 (snapshot SCD2 rastreando nome, email e telefone; atributos pessoais vão para tabela SCD1 eliminável) e a violação de money-as-cents em `cast(valor as numeric(12,2)) as valor_reais` (propor inteiro em centavos). Entrega as correções como trecho na resposta e não altera nenhum arquivo do alvo.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "achados-do-scanner-com-id-e-arquivo-linha",
+          "text": "A resposta cita os ids A-08, A-10, A-12 e A-14, e cada um vem acompanhado da localização no formato arquivo:linha correspondente: stg_recargas.sql:1 para A-08, fct_recargas.sql:3 para A-10 e A-12, snap_passageiro.yml:8 para A-14"
+        },
+        {
+          "name": "a16-atributo-pessoal-no-snapshot-scd2",
+          "text": "A resposta aponta que o snapshot snap_passageiro rastreia atributos pessoais (nome, email, telefone) em SCD2 e recomenda tirá-los do snapshot para uma tabela mutável/SCD1 eliminável ligada por chave substituta ou token (citar o id A-16 é suficiente, mas não obrigatório se a recomendação estiver explícita)"
+        },
+        {
+          "name": "valor-monetario-em-centavos",
+          "text": "A resposta aponta `cast(valor as numeric(12,2)) as valor_reais` em stg_recargas.sql como violação da regra de valor monetário em inteiro na menor unidade (money-as-cents) e propõe coluna inteira em centavos (bigint/integer), não decimal"
+        },
+        {
+          "name": "incremental-com-unique-key-e-lookback",
+          "text": "A correção proposta para stg_recargas.sql inclui unique_key na chave de grão (recarga_id) E uma janela de lookback no filtro incremental (ou microbatch com event_time e lookback), não apenas unique_key"
+        },
+        {
+          "name": "governanca-universo-vazio-nao-vira-aprovacao",
+          "text": "O transcript mostra a execução de `.forge/scripts/check-data-governance.sh --path analytics` e a resposta diz que PAN/PII não foi verificado por esse verificador (universo vazio: nenhum arquivo do tipo que ele lê), sem declarar o projeto aprovado ou limpo quanto a dado sensível"
+        },
+        {
+          "name": "arvore-intacta",
+          "text": "`git -C <alvo> status --porcelain` sai vazio ao fim da execução: o agente entregou as correções na resposta e não editou nem criou arquivo no alvo"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "borda-delta-50gb-particao-e-path-sem-sql",
+      "prompt": "A tabela gold.viagens no Databricks (Delta, uns 50 GB hoje, cresce uns 2 GB por mês) está lenta no dashboard, que filtra quase sempre por data de validação e operadora. O DDL está em lakehouse/gold/viagens.sql. Troca o particionamento para ficar por dia e por operadora, que deve resolver. Aproveita e confere também services/validador, que é quem grava as viagens.",
+      "expected_output": "O agente desaconselha particionar: o Databricks recomenda não particionar tabela abaixo de 1 TB, e a tabela tem ~50 GB; propõe liquid clustering (CLUSTER BY) pelas colunas de filtro (validado_em e operadora_id), com o DDL na resposta. Aponta A-06 em lakehouse/gold/viagens.sql:13 (PARTITIONED BY (operadora_id, linha_id), partição Hive manual em tabela) e A-05 (superparticionamento) para a proposta do usuário. Para services/validador, o scan.sh devolve NADA-EXAMINADO (exit 3): o agente diz que ali não há arquivo do domínio analítico (só Go) e não reporta 'limpo'; se for o caso, indica que o pipeline de gravação é de outro especialista (data-streaming). O check-data-governance em lakehouse/gold dá universo-vazio e a resposta diz que PAN/PII não foi verificado por ele. Nenhum arquivo é alterado.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "nao-particiona-abaixo-de-1tb",
+          "text": "A resposta recusa ou desaconselha particionar gold.viagens por dia e operadora e justifica com o limiar do Databricks de não particionar tabelas abaixo de 1 TB (menção explícita a 1 TB)"
+        },
+        {
+          "name": "liquid-clustering-nas-colunas-de-filtro",
+          "text": "A resposta propõe liquid clustering (CLUSTER BY) com validado_em (ou coluna de data derivada dela) e operadora_id, e mostra o DDL ou ALTER TABLE correspondente na resposta"
+        },
+        {
+          "name": "a06-no-ddl-existente-com-linha",
+          "text": "A resposta aponta o `PARTITIONED BY (operadora_id, linha_id)` existente como A-06 (partição estilo Hive manual) citando lakehouse/gold/viagens.sql:13"
+        },
+        {
+          "name": "nada-examinado-nao-e-limpo",
+          "text": "Sobre services/validador, a resposta diz que a varredura analítica não examinou nenhum arquivo do domínio (NADA-EXAMINADO / sem .sql ou .yml) e NÃO afirma que o serviço está limpo, sem achados ou aprovado"
+        },
+        {
+          "name": "pan-pii-nao-verificado-em-lakehouse",
+          "text": "A resposta informa que o check-data-governance não verificou PAN/PII em lakehouse/gold (universo vazio), em vez de omitir o resultado ou tratá-lo como aprovação"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "conflito-adr-particionamento-gold",
+      "prompt": "Preciso do DDL da nova tabela gold.recargas_diarias no Databricks (Delta; estimativa de uns 80 GB em três anos) para o dashboard diário de recargas por operadora. Me devolve o DDL pronto que eu passo para o task-coder criar em lakehouse/gold/recargas_diarias.sql.",
+      "expected_output": "O agente lê o ADR-0004 (Aceito) em .forge/product/current/adr/0004-layout-fisico-tabelas-gold.md, que obriga PARTITIONED BY (dt) em toda tabela gold e proíbe liquid clustering, e percebe que diverge da skill (não particionar abaixo de 1 TB, liquid clustering; A-06). Por ser estratégia de persistência (conflito relevante pela conflict-handling.md), PARA e devolve o bloco CONFLITO com decisão, posição A (ADR-0004 com caminho), posição B (skill/Databricks com caminho), precedência (baseline/ADR acima de rules e contexto), opções (aplicar a fonte de maior autoridade, recomendado | abrir ou atualizar ADR | bloquear) e registro (feito pela sessão principal, não pelo agente). Não entrega DDL pronto decidindo o layout em conflito, não registra decisão nem cria ADR, e não altera arquivos.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "bloco-conflito-com-os-seis-campos",
+          "text": "A resposta contém um bloco iniciado pela linha `CONFLITO` com as linhas decisão, posição A, posição B, precedência, opções e registro"
+        },
+        {
+          "name": "posicoes-citam-adr-0004-e-a-skill-com-caminho",
+          "text": "Uma das posições cita o ADR-0004 com o caminho .forge/product/current/adr/0004-layout-fisico-tabelas-gold.md (PARTITIONED BY (dt)) e a outra cita a recomendação de não particionar abaixo de 1 TB / liquid clustering com fonte na skill data-analytical-practices ou na documentação do Databricks"
+        },
+        {
+          "name": "precedencia-adr-acima-da-skill",
+          "text": "A linha de precedência coloca o ADR/baseline acima da skill (contexto) pela ordem constitution > baseline/ADRs > rules > contexto, e as opções incluem aplicar a fonte de maior autoridade, abrir ou atualizar ADR e bloquear"
+        },
+        {
+          "name": "nao-entrega-layout-em-conflito-como-pronto",
+          "text": "A resposta NÃO entrega como DDL final pronto para aplicar uma tabela com CLUSTER BY / liquid clustering, nem segue silenciosamente com liquid clustering contrariando o ADR; qualquer DDL mostrado deixa o layout físico pendente da decisão humana ou é explicitamente condicionado a ela"
+        },
+        {
+          "name": "nao-registra-nem-escreve",
+          "text": "`git -C <alvo> status --porcelain` sai vazio: o agente não criou lakehouse/gold/recargas_diarias.sql, não criou ou editou ADR e não gravou approvals.yaml"
+        }
+      ]
+    }
+  ]
+}

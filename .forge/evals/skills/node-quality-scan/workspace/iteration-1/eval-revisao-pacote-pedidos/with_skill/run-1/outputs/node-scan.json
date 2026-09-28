@@ -1,0 +1,7 @@
+{"skill":"node-quality-scan","root":"<worktree-do-eval>/.forge/evals/skills/node-quality-scan/workspace/iteration-1/eval-revisao-pacote-pedidos/with_skill/run-1/work/packages/pedidos","engine":"rg","findings":[
+{"rule":"empty-catch","severity":"HIGH","count":1,"why":"erro engolido some do log e reaparece como corrupção de dado ou bug fantasma em produção"},
+{"rule":"sync-fs-blocking","severity":"BLOCKER","count":1,"why":"chamada síncrona de fs bloqueia o event loop inteiro — todo request concorrente espera"},
+{"rule":"sql-interpolation","severity":"BLOCKER","count":1,"why":"template literal interpolado em query é injeção de SQL; use placeholder parametrizado ($1, ?) do driver"},
+{"rule":"process-env-direct","severity":"MEDIUM","count":1,"why":"leitura direta de process.env espalhada pelo código foge da validação central de config no boot"},
+{"rule":"generic-name","severity":"MEDIUM","count":1,"why":"Manager/Helper/Utils/Utility não nomeiam responsabilidade — viram ímã para o que ninguém decidiu onde pôr"}
+],"total":5}

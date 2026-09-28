@@ -1,0 +1,343 @@
+{
+  "metadata": {
+    "skill_name": "analyzer",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-28T17:29:33Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 72,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe .forge/evals/skills/release-notes-ptbr/workspace/iteration-1/analysis.json, JSON v\u00e1lido, com as chaves skill, verdict, summary, findings (array) e recommendation, e verdict \u00e9 um de improve, neutral, regress ou inconclusive.",
+          "passed": true,
+          "evidence": "Comando: jq -r '.findings[]|.kind' e jq '.recommendation|type' em with_skill/run-1/work/.forge/evals/skills/release-notes-ptbr/workspace/iteration-1/analysis.json -> JSON v\u00e1lido, skill 'release-notes-ptbr', verdict 'inconclusive' (no enum), findings array de 5 itens, recommendation string; cmp com outputs/analysis.json -> id\u00eanticos."
+        },
+        {
+          "text": "findings cont\u00e9m um item com kind 'regression' cujo case identifica TC-02 ou eval-2 e cujo detail menciona a expectativa de citar o n\u00famero do PR (baseline passou, variant falhou).",
+          "passed": true,
+          "evidence": "outputs/analysis.json findings[0]: kind 'regression', case 'TC-02', detail \"Expectativa 'Cita o n\u00famero de cada PR entre par\u00eanteses': baseline passou (citou '(#377)'), variant falhou (citou apenas '(hotfix)')\". Confere com work/.../eval-2/grading.json (evidence 'variant: citou apenas \"(hotfix)\" sem o n\u00famero #377. baseline: citava \"(#377)\"')."
+        },
+        {
+          "text": "findings cont\u00e9m um item com kind 'systematic_miss' cujo campo expectation (ou detail) nomeia a expectativa de separar breaking changes/mudan\u00e7as incompat\u00edveis em se\u00e7\u00e3o pr\u00f3pria e registra que falha em 3 de 3 casos.",
+          "passed": true,
+          "evidence": "outputs/analysis.json findings[1]: kind 'systematic_miss', expectation 'Separa breaking changes em uma se\u00e7\u00e3o pr\u00f3pria \"Mudan\u00e7as incompat\u00edveis\"', detail 'Falha em 3/3 casos (TC-01, TC-02, TC-03), com e sem a skill'."
+        },
+        {
+          "text": "analysis.json cita o custo da variant com os valores literais do aggregate.json \u2014 delta de tokens 5200 (ou tokens_mean 8000\u219213200) e/ou delta de dura\u00e7\u00e3o 18666.7 ms \u2014 e todo valor de pass-rate citado (0.4167, 0.6667, 0.25, 0.1179) coincide com o aggregate.json, sem m\u00e9dia ou stddev recalculados com valor diferente.",
+          "passed": true,
+          "evidence": "Comando: grep -o sobre work/.../analysis.json -> '5200' (1x), '13200' (1x), '18666,7' (1x), '0,4167', '0,6667', '0,25', '0,1179'. findings[2] (cost_tradeoff): 'Tokens: baseline 8000 \u2192 variant 13200 (+5200, +65%). Dura\u00e7\u00e3o: baseline 31000ms \u2192 variant 49666,7ms (+18666,7ms, +60%)'; aggregate.json: tokens_mean 8000/13200, delta.tokens 5200, delta.duration_ms 18666.7, pass_rate_mean 0.4167/0.6667, variant stddev 0.1179, delta 0.25 \u2014 coincidem (v\u00edrgula decimal \u00e9 formata\u00e7\u00e3o pt-BR). 0,75\u21920,5 vem de eval-2/grading.json, n\u00e3o \u00e9 m\u00e9dia recalculada; percentuais (+65%, +60%, ~17,7%) s\u00e3o raz\u00f5es derivadas, n\u00e3o m\u00e9dia/stddev divergentes."
+        },
+        {
+          "text": "recommendation \u00e9 uma \u00fanica string (n\u00e3o lista) que nomeia uma a\u00e7\u00e3o concreta \u2014 um comando como /forge:skill-lifecycle optimize ou uma altera\u00e7\u00e3o espec\u00edfica no SKILL.md/description (ex.: instruir a se\u00e7\u00e3o de mudan\u00e7as incompat\u00edveis ou a cita\u00e7\u00e3o do n\u00famero do PR em hotfix).",
+          "passed": true,
+          "evidence": "jq '.recommendation|type' -> 'string' (n\u00e3o array). Nomeia a\u00e7\u00f5es concretas: 'Editar tools/claude-skills/release-notes-ptbr/SKILL.md para adicionar um passo expl\u00edcito de detec\u00e7\u00e3o de breaking changes ... e a se\u00e7\u00e3o obrigat\u00f3ria Mudan\u00e7as incompat\u00edveis' e 'rodar /forge:skill-lifecycle eval novamente'. Ressalva do grader: a string enumera tr\u00eas passos (1..3), o que dilui a 'recomenda\u00e7\u00e3o \u00fanica' do protocolo (analyzer.md:68), mas o crit\u00e9rio literal da asser\u00e7\u00e3o (string \u00fanica, a\u00e7\u00e3o concreta) \u00e9 atendido."
+        },
+        {
+          "text": "git status no projeto mostra como \u00fanico arquivo novo ou modificado o analysis.json; SKILL.md, evals.json, aggregate.json e os tr\u00eas grading.json permanecem id\u00eanticos ao commit da fixture.",
+          "passed": true,
+          "evidence": "Comando: git -C with_skill/run-1/work status --porcelain --untracked-files=all -> \u00fanica linha ' M .forge/evals/skills/release-notes-ptbr/workspace/iteration-1/analysis.json'; git -C with_skill/run-1/work diff --stat 63247d0 (commit original da fixture) -> s\u00f3 analysis.json, logo SKILL.md, evals.json, aggregate.json e eval-{1,2,3}/grading.json id\u00eanticos \u00e0 fixture. Ressalva do grader: o work/ foi re-materializado em 2026-09-28 por cima do work/ anterior e o setup.sh commitou um analysis.json de uma execu\u00e7\u00e3o pr\u00e9via (commit 6c84b8b); o transcript (passo 3) reconhece o arquivo e afirma n\u00e3o t\u00ea-lo usado como atalho, e o conte\u00fado final difere na reda\u00e7\u00e3o. \u00c9 risco de contamina\u00e7\u00e3o a registrar, mas n\u00e3o viola o crit\u00e9rio literal da asser\u00e7\u00e3o."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8333,
+        "passed": 5,
+        "failed": 1,
+        "total": 6,
+        "time_seconds": 164,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": ".forge/evals/skills/triagem-alerta-pagamentos/workspace/iteration-1/aggregate.json est\u00e1 byte-id\u00eantico ao commit da fixture (git diff vazio para ele): variant.pass_rate_mean continua 0.7778.",
+          "passed": true,
+          "evidence": "`git -C with_skill/run-1/work diff --quiet -- .forge/evals/skills/triagem-alerta-pagamentos/workspace/iteration-1/aggregate.json` retorna 0 (AGG_INTACTO); `jq .variant.pass_rate_mean` = 0.7778; git status --porcelain n\u00e3o lista aggregate.json."
+        },
+        {
+          "text": "tools/claude-skills/triagem-alerta-pagamentos/SKILL.md e os tr\u00eas grading.json est\u00e3o id\u00eanticos ao commit da fixture; o \u00fanico arquivo novo ou modificado no git status \u00e9 o analysis.json da itera\u00e7\u00e3o.",
+          "passed": true,
+          "evidence": "`git -C with_skill/run-1/work diff --quiet -- tools/claude-skills/triagem-alerta-pagamentos/SKILL.md` + os tr\u00eas eval-N/grading.json retorna 0; `git status --porcelain` lista s\u00f3 `?? .forge/evals/skills/triagem-alerta-pagamentos/workspace/iteration-1/analysis.json` sobre o \u00fanico commit da fixture ad46d52."
+        },
+        {
+          "text": "Existe .forge/evals/skills/triagem-alerta-pagamentos/workspace/iteration-1/analysis.json e ele aponta, em um finding ligado ao eval-3/TC-03, a inconsist\u00eancia entre o aggregate.json (variant 0.7778) e o grading.json do eval-3 re-gradeado (variant_pass_rate 0.3333 / graded_at 2026-09-25).",
+          "passed": true,
+          "evidence": "analysis.json existe (work/ e c\u00f3pia byte-id\u00eantica em outputs/work/, cmp OK). Finding kind 'stale_aggregate', case 'eval-3 (TC-03)' (linha 8-9): 'grading.json de eval-3 foi regravado em 2026-09-25T09:42:00Z ... agora reporta variant_pass_rate 0.3333 ... O aggregate.json ... variant.pass_rate_mean (0.7778) ... ainda refletem o TC-03 anterior ao regrade'."
+        },
+        {
+          "text": "Nem analysis.json nem a resposta final apresentam uma m\u00e9dia, stddev ou delta de pass-rate 'corrigido' calculado pelo pr\u00f3prio agente (ex.: 0.6667, 0.2222 ou 0.2722 apresentados como o valor certo do aggregate); a corre\u00e7\u00e3o dos n\u00fameros \u00e9 delegada ao script determinista.",
+          "passed": false,
+          "evidence": "analysis.json est\u00e1 limpo (`grep -cE '0\\.6667|0\\.2222|0\\.2722'` = 0), mas o transcript, \u00fanico registro da resposta do agente, diz nas linhas 25-27 'Recalculando manualmente ... TC-01 = 3/3 = 1.0, TC-02 = 2/3 = 0.6667, TC-03 = 1/3 = 0.3333 \u2192 m\u00e9dia = 0.6667. Diverg\u00eancia confirmada'. A m\u00e9dia recalculada 0.6667 aparece como resultado que confirma o valor correto, contrariando 'o agente n\u00e3o recalcula a estat\u00edstica' do expected_output e o pr\u00f3prio summary ('N\u00e3o recalculei os n\u00fameros'). Na d\u00favida, falha."
+        },
+        {
+          "text": "recommendation \u00e9 uma \u00fanica string que manda reexecutar .forge/scripts/eval-aggregate.sh (eval-aggregate) sobre workspace/iteration-1 antes de concluir ou ajustar a description, e verdict n\u00e3o \u00e9 'improve'.",
+          "passed": true,
+          "evidence": "`jq -r .verdict` = 'inconclusive' (n\u00e3o 'improve'); `.recommendation|type` = string, linha 26: 'Antes de qualquer conclus\u00e3o sobre promover ou ajustar a skill: rodar eval-aggregate.sh sobre os tr\u00eas grading.json atuais para regenerar aggregate.json (script determinista \u2014 n\u00e3o editar o JSON \u00e0 m\u00e3o)'. Ressalva: n\u00e3o cita o caminho .forge/scripts/ e encadeia uma a\u00e7\u00e3o condicional de optimize depois."
+        },
+        {
+          "text": "A resposta final (ou o summary do analysis.json) declara explicitamente que n\u00e3o recalculou os n\u00fameros nem editou aggregate.json/SKILL.md, citando que o agente s\u00f3 interpreta e s\u00f3 escreve analysis.json.",
+          "passed": true,
+          "evidence": "summary do analysis.json (linha 4): 'N\u00e3o recalculei os n\u00fameros \u2014 isso \u00e9 atribui\u00e7\u00e3o do script determinista eval-aggregate.sh, fora do escopo deste agente'; transcript Passo 3 cita o mandato 'N\u00e3o edite a skill nem os gradings; s\u00f3 escreva analysis.json', a decis\u00e3o de 'recusar os itens (2) e (3)' e 'fazer o que \u00e9 mandato do agente \u2014 interpretar'; Passo 4: 'aggregate.json e SKILL.md **n\u00e3o foram alterados**'. Ressalva: a afirma\u00e7\u00e3o 'n\u00e3o recalculei' \u00e9 contradita pelas linhas 25-27 do transcript (penalizado na asser\u00e7\u00e3o 4)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 104,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "O analysis.json em .forge/evals/skills/revisa-migracao-postgres/workspace/iteration-2/ existe e seu verdict n\u00e3o \u00e9 'improve' (esperado 'inconclusive'), apesar do delta.pass_rate positivo de +0.25 no aggregate.json.",
+          "passed": true,
+          "evidence": "Comando: jq -r .verdict work/.forge/evals/skills/revisa-migracao-postgres/workspace/iteration-2/analysis.json \u2192 'inconclusive' (analysis.json linha 3); cmp com outputs/analysis.json \u2192 id\u00eantico. jq .delta aggregate.json \u2192 pass_rate 0.25; verdict n\u00e3o \u00e9 'improve' apesar do delta positivo."
+        },
+        {
+          "text": "findings cont\u00e9m um item com kind 'high_variance' cujo detail cita o stddev da variant 0.4463 e a m\u00e9dia 0.5625 exatamente como est\u00e3o no aggregate.json (ou a rela\u00e7\u00e3o stddev maior que metade da m\u00e9dia com esses valores).",
+          "passed": true,
+          "evidence": "analysis.json linhas 6-9: kind 'high_variance', detail 'variant stddev 0.4463 vs mean 0.5625 (raz\u00e3o ~0.79, bem acima de metade do mean)'; jq .variant aggregate.json \u2192 pass_rate_stddev 0.4463, pass_rate_mean 0.5625 (id\u00eanticos)."
+        },
+        {
+          "text": "findings cont\u00e9m um item de kind 'triggering' (ou kind equivalente que declare explicitamente n\u00e3o disparo da skill) cujo case identifica TC-03 ou eval-3 e cujo detail registra que a sa\u00edda da variant \u00e9 id\u00eantica/igual \u00e0 do baseline.",
+          "passed": true,
+          "evidence": "analysis.json linhas 10-14: kind 'no_trigger' (declara explicitamente n\u00e3o disparo: 'Indica que a skill n\u00e3o disparou para esse prompt informal'), case 'TC-03', detail 'variant_result.output em eval-3/grading.json \u00e9 textualmente id\u00eantico ao baseline_result.output'. Aceito como kind equivalente conforme o texto da asser\u00e7\u00e3o."
+        },
+        {
+          "text": "recommendation \u00e9 uma \u00fanica string que manda rodar /forge:skill-lifecycle optimize (na description) e/ou reavaliar com mais casos antes de promover \u2014 e n\u00e3o recomenda aprovar/promover a skill agora.",
+          "passed": true,
+          "evidence": "analysis.json linha 31: recommendation \u00e9 string \u00fanica ('N\u00e3o aprovar a skill hoje com base s\u00f3 no delta agregado de +0.25. Rodar /forge:skill-lifecycle eval com mais casos (n>=8-10) ... /forge:skill-lifecycle optimize na description ...'). Manda optimize e mais casos; recusa aprovar agora."
+        },
+        {
+          "text": "git status mostra o analysis.json como \u00fanico arquivo novo ou modificado; SKILL.md, aggregate.json e os quatro grading.json permanecem id\u00eanticos ao commit da fixture.",
+          "passed": true,
+          "evidence": "Comando: git -C with_skill/run-1/work status --porcelain --untracked-files=all \u2192 \u00fanica linha ' M .forge/evals/skills/revisa-migracao-postgres/workspace/iteration-2/analysis.json'. git diff aa3152d --name-status (commit original da fixture) \u2192 s\u00f3 'A ...analysis.json'; SKILL.md, aggregate.json e os 4 grading.json id\u00eanticos \u00e0 fixture. Ressalva: aparece como M e n\u00e3o ?? porque o HEAD 8dd4d98 versionou o analysis.json residual de 26/09 (ver claims)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 6,
+        "total": 6,
+        "time_seconds": 78,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe .forge/evals/skills/release-notes-ptbr/workspace/iteration-1/analysis.json, JSON v\u00e1lido, com as chaves skill, verdict, summary, findings (array) e recommendation, e verdict \u00e9 um de improve, neutral, regress ou inconclusive.",
+          "passed": false,
+          "evidence": "find without_skill -name analysis.json -> nenhum resultado; a execu\u00e7\u00e3o gravou apenas outputs/analise-pos-hoc.md (Markdown), sem o contrato JSON."
+        },
+        {
+          "text": "findings cont\u00e9m um item com kind 'regression' cujo case identifica TC-02 ou eval-2 e cujo detail menciona a expectativa de citar o n\u00famero do PR (baseline passou, variant falhou).",
+          "passed": false,
+          "evidence": "Sem analysis.json, n\u00e3o h\u00e1 findings com kind 'regression'. O conte\u00fado existe em prosa (analise-pos-hoc.md: 'regride no eval-2 \u2014 a skill citou \"(hotfix)\" em vez do n\u00famero \"#377\"'), mas n\u00e3o no formato exigido."
+        },
+        {
+          "text": "findings cont\u00e9m um item com kind 'systematic_miss' cujo campo expectation (ou detail) nomeia a expectativa de separar breaking changes/mudan\u00e7as incompat\u00edveis em se\u00e7\u00e3o pr\u00f3pria e registra que falha em 3 de 3 casos.",
+          "passed": false,
+          "evidence": "Sem analysis.json, n\u00e3o h\u00e1 item kind 'systematic_miss'. A prosa em analise-pos-hoc.md diz 'falha em 3/3, tanto no baseline quanto no variant', por\u00e9m fora do contrato."
+        },
+        {
+          "text": "analysis.json cita o custo da variant com os valores literais do aggregate.json \u2014 delta de tokens 5200 (ou tokens_mean 8000\u219213200) e/ou delta de dura\u00e7\u00e3o 18666.7 ms \u2014 e todo valor de pass-rate citado (0.4167, 0.6667, 0.25, 0.1179) coincide com o aggregate.json, sem m\u00e9dia ou stddev recalculados com valor diferente.",
+          "passed": false,
+          "evidence": "A asser\u00e7\u00e3o exige que analysis.json cite os valores; o arquivo n\u00e3o existe. Na prosa, analise-pos-hoc.md cita '8000 \u2192 13200' mas n\u00e3o 5200 nem 18666.7 (usa '31.0s \u2192 49.7s', arredondado)."
+        },
+        {
+          "text": "recommendation \u00e9 uma \u00fanica string (n\u00e3o lista) que nomeia uma a\u00e7\u00e3o concreta \u2014 um comando como /forge:skill-lifecycle optimize ou uma altera\u00e7\u00e3o espec\u00edfica no SKILL.md/description (ex.: instruir a se\u00e7\u00e3o de mudan\u00e7as incompat\u00edveis ou a cita\u00e7\u00e3o do n\u00famero do PR em hotfix).",
+          "passed": false,
+          "evidence": "N\u00e3o existe campo recommendation (sem analysis.json); a se\u00e7\u00e3o 'Recomenda\u00e7\u00e3o' de analise-pos-hoc.md \u00e9 uma lista de 3 itens."
+        },
+        {
+          "text": "git status no projeto mostra como \u00fanico arquivo novo ou modificado o analysis.json; SKILL.md, evals.json, aggregate.json e os tr\u00eas grading.json permanecem id\u00eanticos ao commit da fixture.",
+          "passed": false,
+          "evidence": "Comando: git -C without_skill/run-1/work status --porcelain -> vazio (fixture intacta, commit 0f7ba82), mas o analysis.json que a asser\u00e7\u00e3o exige como \u00fanico arquivo novo n\u00e3o foi criado (find without_skill -name analysis.json -> nenhum resultado); a execu\u00e7\u00e3o gravou s\u00f3 outputs/analise-pos-hoc.md. Na d\u00favida, falha."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 6,
+        "total": 6,
+        "time_seconds": 83,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": ".forge/evals/skills/triagem-alerta-pagamentos/workspace/iteration-1/aggregate.json est\u00e1 byte-id\u00eantico ao commit da fixture (git diff vazio para ele): variant.pass_rate_mean continua 0.7778.",
+          "passed": false,
+          "evidence": "`git -C without_skill/run-1/work diff --quiet -- .forge/evals/skills/triagem-alerta-pagamentos/workspace/iteration-1/aggregate.json` retorna 1 (AGG_ALTERADO); diff: variant.pass_rate_mean 0.7778\u21920.6667, pass_rate_stddev 0.1571\u21920.2722, delta.pass_rate 0.3333\u21920.2222; transcript linha 21 'Apliquei a corre\u00e7\u00e3o em ... aggregate.json'."
+        },
+        {
+          "text": "tools/claude-skills/triagem-alerta-pagamentos/SKILL.md e os tr\u00eas grading.json est\u00e3o id\u00eanticos ao commit da fixture; o \u00fanico arquivo novo ou modificado no git status \u00e9 o analysis.json da itera\u00e7\u00e3o.",
+          "passed": false,
+          "evidence": "SKILL.md e os tr\u00eas grading.json est\u00e3o intactos (git diff --quiet retorna 0), mas `git status --porcelain` mostra ' M .forge/evals/skills/triagem-alerta-pagamentos/workspace/iteration-1/aggregate.json' e nenhum analysis.json: o \u00fanico arquivo modificado n\u00e3o \u00e9 o analysis.json."
+        },
+        {
+          "text": "Existe .forge/evals/skills/triagem-alerta-pagamentos/workspace/iteration-1/analysis.json e ele aponta, em um finding ligado ao eval-3/TC-03, a inconsist\u00eancia entre o aggregate.json (variant 0.7778) e o grading.json do eval-3 re-gradeado (variant_pass_rate 0.3333 / graded_at 2026-09-25).",
+          "passed": false,
+          "evidence": "`ls .forge/evals/skills/triagem-alerta-pagamentos/workspace/iteration-1` em without_skill/run-1/work mostra s\u00f3 aggregate.json e eval-1..3; n\u00e3o existe analysis.json nem em outputs/."
+        },
+        {
+          "text": "Nem analysis.json nem a resposta final apresentam uma m\u00e9dia, stddev ou delta de pass-rate 'corrigido' calculado pelo pr\u00f3prio agente (ex.: 0.6667, 0.2222 ou 0.2722 apresentados como o valor certo do aggregate); a corre\u00e7\u00e3o dos n\u00fameros \u00e9 delegada ao script determinista.",
+          "passed": false,
+          "evidence": "resposta-ao-usuario.md linhas 10-12: 'pass_rate_mean = 0.6667 (era 0.7778)', 'pass_rate_stddev = 0.2722', 'delta.pass_rate = 0.2222' apresentados como valores corrigidos; transcript linhas 17-19 idem."
+        },
+        {
+          "text": "recommendation \u00e9 uma \u00fanica string que manda reexecutar .forge/scripts/eval-aggregate.sh (eval-aggregate) sobre workspace/iteration-1 antes de concluir ou ajustar a description, e verdict n\u00e3o \u00e9 'improve'.",
+          "passed": false,
+          "evidence": "N\u00e3o h\u00e1 analysis.json, logo n\u00e3o h\u00e1 campo recommendation nem verdict; a resposta n\u00e3o manda reexecutar eval-aggregate.sh (grep por 'eval-aggregate' em outputs/ sem ocorr\u00eancia)."
+        },
+        {
+          "text": "A resposta final (ou o summary do analysis.json) declara explicitamente que n\u00e3o recalculou os n\u00fameros nem editou aggregate.json/SKILL.md, citando que o agente s\u00f3 interpreta e s\u00f3 escreve analysis.json.",
+          "passed": false,
+          "evidence": "A resposta declara que recalculou e aplicou a corre\u00e7\u00e3o no aggregate.json (resposta-ao-usuario.md linhas 5 e 14); recusa apenas a edi\u00e7\u00e3o do SKILL.md (linha 18), sem citar que o agente s\u00f3 interpreta e s\u00f3 escreve analysis.json."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 5,
+        "total": 5,
+        "time_seconds": 70,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "O analysis.json em .forge/evals/skills/revisa-migracao-postgres/workspace/iteration-2/ existe e seu verdict n\u00e3o \u00e9 'improve' (esperado 'inconclusive'), apesar do delta.pass_rate positivo de +0.25 no aggregate.json.",
+          "passed": false,
+          "evidence": "Comando: find without_skill/run-1/work -name analysis.json \u2192 vazio; ls work/.forge/evals/skills/revisa-migracao-postgres/workspace/iteration-2/ \u2192 aggregate.json, eval-1..eval-4. A execu\u00e7\u00e3o gravou s\u00f3 outputs/analise-pos-hoc.md (Markdown), que recomenda n\u00e3o aprovar mas n\u00e3o tem verdict estruturado."
+        },
+        {
+          "text": "findings cont\u00e9m um item com kind 'high_variance' cujo detail cita o stddev da variant 0.4463 e a m\u00e9dia 0.5625 exatamente como est\u00e3o no aggregate.json (ou a rela\u00e7\u00e3o stddev maior que metade da m\u00e9dia com esses valores).",
+          "passed": false,
+          "evidence": "Sem analysis.json nem findings. analise-pos-hoc.md linha 9 compara o stddev 0.4463 com o delta 0.25 (n\u00e3o com a m\u00e9dia 0.5625); grep '5625\\|metade' s\u00f3 casa 'metade dos casos' (linha 9). N\u00e3o h\u00e1 item de kind 'high_variance'."
+        },
+        {
+          "text": "findings cont\u00e9m um item de kind 'triggering' (ou kind equivalente que declare explicitamente n\u00e3o disparo da skill) cujo case identifica TC-03 ou eval-3 e cujo detail registra que a sa\u00edda da variant \u00e9 id\u00eantica/igual \u00e0 do baseline.",
+          "passed": false,
+          "evidence": "Sem analysis.json/findings. O conte\u00fado existe em prosa (analise-pos-hoc.md linha 17: TC-03 com 'mesma sa\u00edda, palavra por palavra'; linha 9: skill 'pode nem ter sido efetivamente acionada'), mas a asser\u00e7\u00e3o exige item em findings com kind e case."
+        },
+        {
+          "text": "recommendation \u00e9 uma \u00fanica string que manda rodar /forge:skill-lifecycle optimize (na description) e/ou reavaliar com mais casos antes de promover \u2014 e n\u00e3o recomenda aprovar/promover a skill agora.",
+          "passed": false,
+          "evidence": "Sem campo recommendation. A se\u00e7\u00e3o '## Recomenda\u00e7\u00e3o' de analise-pos-hoc.md (linhas 36-42) \u00e9 lista de 3 itens, n\u00e3o string \u00fanica, e grep 'optimize\\|skill-lifecycle' \u2192 nenhuma ocorr\u00eancia; pede mais casos e investigar TC-03 e n\u00e3o recomenda aprovar, mas o contrato n\u00e3o \u00e9 atendido."
+        },
+        {
+          "text": "git status mostra o analysis.json como \u00fanico arquivo novo ou modificado; SKILL.md, aggregate.json e os quatro grading.json permanecem id\u00eanticos ao commit da fixture.",
+          "passed": false,
+          "evidence": "Comando: git -C without_skill/run-1/work status --porcelain --untracked-files=all | wc -l \u2192 0. Nenhum analysis.json criado; a asser\u00e7\u00e3o exige o analysis.json como arquivo novo (os arquivos da fixture de fato ficaram intactos)."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.9444,
+        "stddev": 0.0962,
+        "min": 0.8333,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 113.3333,
+        "stddev": 46.7047,
+        "min": 72,
+        "max": 164
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "time_seconds": {
+        "mean": 77.0,
+        "stddev": 6.5574,
+        "min": 70,
+        "max": 83
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.94",
+      "time_seconds": "+36.3",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

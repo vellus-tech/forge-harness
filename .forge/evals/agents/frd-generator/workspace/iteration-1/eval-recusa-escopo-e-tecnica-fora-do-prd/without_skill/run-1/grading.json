@@ -1,0 +1,75 @@
+{
+  "expectations": [
+    {
+      "text": "git diff HEAD -- docs/product/prd/prd.md no diretório de saída é vazio: o pedido de incluir o cashback no PRD não foi executado.",
+      "passed": true,
+      "evidence": "Comando: git -C without_skill/run-1/work diff HEAD -- docs/product/prd/prd.md | wc -l → 0. Transcript passo 6 registra a decisão de não alterar o PRD e frd.md:13 comunica ao solicitante que 'o prd.md não foi alterado' e que a mudança cabe ao comitê de produto."
+    },
+    {
+      "text": "Nenhum código FRD-* nem BR-* tem como objeto o cashback de 2%; o cashback aparece em Pontos a Validar como VAL-NN que registra o conflito com o item 'Programa de fidelidade ou cashback' do Fora de Escopo do PRD.",
+      "passed": false,
+      "evidence": "Não há FRD-*/BR-* sobre cashback apenas porque o documento não usa esses códigos (usa RF-/RN-). O cashback está como PA-01 em 'Pontos em aberto e decisões pendentes' (outputs/docs/product/frd/frd.md:58); grep -n 'VAL-' no arquivo → nenhuma ocorrência. Falta o VAL-NN em Pontos a Validar exigido pela asserção."
+    },
+    {
+      "text": "Nas seções de Requisitos Funcionais, Detalhamento e Regras de Negócio do frd.md não aparecem 'Kafka', 'recarga.confirmada', 'saldo_cartao' nem 'PostgreSQL' como parte de requisito, regra ou critério de aceite; se mencionados, é apenas em Pontos a Validar, Dependências/Observações ou como dependência arquitetural/ADR sugerido.",
+      "passed": false,
+      "evidence": "'Kafka' aparece dentro da seção 2 'Requisitos funcionais', na própria linha do requisito RF-07 (outputs/docs/product/frd/frd.md:31, coluna Notas: 'comercial expressou preferência por evento assíncrono via Kafka'). A asserção veda o termo nas seções de Requisitos Funcionais; a menção em PA-02 (frd.md:59) seria aceitável, mas a da linha 31 não."
+    },
+    {
+      "text": "O frd.md não contém requisito FRD-* nem critério de aceite com '300 ms', 'p99' ou '99,95%', e o agente não criou docs/product/frd-nfrd/nfrd.md.",
+      "passed": false,
+      "evidence": "outputs/docs/product/frd/frd.md:44-45 contém RNF-01 'A confirmação de recarga deve responder com p99 abaixo de 300 ms' e RNF-02 'disponibilidade de 99,95%' como requisitos normativos; frd.md:15 e transcript passo 4 confirmam a decisão de 'incorporar diretamente'. Embora os códigos não sejam FRD-* e nfrd.md não exista, o comportamento vedado (requisito não funcional de latência/disponibilidade dentro do FRD) ocorreu; aprovar pela diferença de prefixo seria conformidade superficial."
+    },
+    {
+      "text": "docs/product/frd-nfrd/frd.md foi criado (o agente não abortou a tarefa inteira) e sua Matriz de Rastreabilidade cobre as funcionalidades F-01 a F-06 do PRD.",
+      "passed": false,
+      "evidence": "O arquivo foi gravado em docs/product/frd/frd.md, não em docs/product/frd-nfrd/frd.md: ls without_skill/run-1/work/docs/product/frd-nfrd → 'No such file or directory'. grep -n 'Rastreab' → nenhuma ocorrência: não há Matriz de Rastreabilidade; só a coluna Origem da tabela de RF (frd.md:25-30) cita F-01..F-06."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 4,
+    "total": 5,
+    "pass_rate": 0.2
+  },
+  "timing": {
+    "executor_duration_seconds": 128.0,
+    "total_duration_seconds": 128.0
+  },
+  "claims": [
+    {
+      "claim": "FRD deriva requisitos 1:1 das funcionalidades F-01..F-06",
+      "type": "factual",
+      "verified": true,
+      "evidence": "RF-01..RF-06 com Origem F-01..F-06 (frd.md:25-30)"
+    },
+    {
+      "claim": "Não fixou nomes de tópico/tabela neste nível",
+      "type": "quality",
+      "verified": false,
+      "evidence": "Kafka citado na linha do RF-07 (frd.md:31) e Kafka/recarga.confirmada/saldo_cartao/PostgreSQL em PA-02 (frd.md:59)"
+    },
+    {
+      "claim": "Metas p99/99,95% são compatíveis com um FRD",
+      "type": "quality",
+      "verified": false,
+      "evidence": "Contradiz a separação FRD/NFRD esperada pelo caso; incorporou RNF-01/02 no próprio frd.md"
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "O frd.md não contém requisito FRD-* nem critério de aceite com '300 ms', 'p99' ou '99,95%', e o agente não criou docs/product/frd-nfrd/nfrd.md.",
+        "reason": "A letra da asserção só veda códigos FRD-* e critérios de aceite; o baseline criou RNF-01 'p99 abaixo de 300 ms' e RNF-02 '99,95%' dentro do frd.md com prefixo RNF-, o que passaria numa leitura literal. Reescrever como 'nenhum requisito de qualquer prefixo (FRD-, RF-, RNF-, NFR-) nem critério de aceite no frd.md contém 300 ms, p99 ou 99,95%'."
+      },
+      {
+        "assertion": "Nenhum código FRD-* nem BR-* tem como objeto o cashback de 2%; o cashback aparece em Pontos a Validar como VAL-NN que registra o conflito com o item 'Programa de fidelidade ou cashback' do Fora de Escopo do PRD.",
+        "reason": "A primeira metade ('nenhum FRD-*/BR-* sobre cashback') é satisfeita trivialmente por quem nem usa esses códigos; o discriminante real é o VAL-NN. Considere checar ausência de cashback em qualquer tabela de requisitos/regras, independente do prefixo."
+      },
+      {
+        "reason": "Nenhuma asserção cobre a recusa ser comunicada ao solicitante com o motivo (insumo preservado, mudança de escopo cabe ao dono do PRD); as duas configurações o fizeram, mas uma execução que simplesmente ignorasse o pedido em silêncio passaria na asserção 1."
+      }
+    ],
+    "overall": "Asserções discriminam bem (1/5 no baseline contra 5/5 com o artefato), mas a 2 e a 4 dependem da nomenclatura de códigos do template e podem ser satisfeitas por coincidência de prefixo."
+  }
+}

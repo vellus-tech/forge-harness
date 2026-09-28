@@ -1,0 +1,7 @@
+{
+  "change_id": "2026-09-bloqueio-cartao-perdido",
+  "deferrals": [
+    { "id": "DEFER-01", "raised_in": "2026-09-18T11:00:00Z", "description": "Prazo de preservação do saldo bloqueado (90 dias) depende de parecer regulatório", "reason": "Prazo de preservação do saldo bloqueado (90 dias) depende de parecer regulatório", "blocks": ["STORY-02"], "depends_on": [], "status": "tested", "resolved_at": "2026-09-20T09:30:00Z", "resolution_note": "Parecer confirmou 90 dias" },
+    { "id": "DEFER-02", "raised_in": "2026-09-23T14:45:00Z", "description": "Texto do SMS de confirmação do bloqueio aguarda aprovação do jurídico", "reason": "Texto do SMS de confirmação do bloqueio aguarda aprovação do jurídico", "blocks": ["STORY-04"], "depends_on": [], "status": "open", "resolved_at": null, "resolution_note": null }
+  ]
+}

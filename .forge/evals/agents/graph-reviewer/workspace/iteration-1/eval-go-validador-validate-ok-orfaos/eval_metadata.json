@@ -1,0 +1,13 @@
+{
+  "eval_id": 2,
+  "eval_name": "go-validador-validate-ok-orfaos",
+  "prompt": "No validador-embarque (serviço Go que roda na catraca e debita a tarifa do cartão) eu vou mudar a janela de integração de 120 para 90 minutos em internal/tarifa. Rodei o /forge:codegraph e o `graph.sh validate` deu OK, só com um aviso de órfão. Confere se esse grafo é confiável para eu rodar o /forge:impact em internal/tarifa/tarifa.go e me deixa o parecer em docs/qualidade/revisao-grafo-validador.md.",
+  "assertions": [
+    "docs/qualidade/revisao-grafo-validador.md contém a linha `## Status: NÃO CONFIÁVEL` e menciona que o `graph.sh validate` retornou OK mesmo assim",
+    "O documento separa os 9 edges não resolvidos em 6 internos (identificados pelo módulo github.com/axis-mobfintech/validador-embarque do go.mod, que deveriam resolver) e 3 externos esperados (github.com/rs/zerolog e github.com/google/uuid), e afirma que há 0 edges resolvidos",
+    "O documento afirma que internal/tarifa/tarifa.go (o órfão do validate) NÃO é código morto, citando pelo menos um importador real (internal/embarque/validar.go ou internal/cartao/cartao.go)",
+    "O documento diz explicitamente que o /forge:impact sobre internal/tarifa/tarifa.go retornaria nenhum dependente (ou resultado vazio/falso negativo) por causa dos edges não resolvidos, com evidência do grafo (graph.sh path NO PATH, graph.sh query ou contagem de resolved no graph.json)",
+    "O documento registra que nenhum dos 5 nós tem camada classificada (todos unknown / 0 de 5 / 0%)",
+    "`git -C <alvo> status --porcelain -- cmd/ internal/ go.mod` sai vazio"
+  ]
+}

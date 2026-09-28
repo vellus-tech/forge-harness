@@ -1,0 +1,112 @@
+{
+  "reviewer": "dotnet-reviewer",
+  "branch": "feature/meia-tarifa-estudante",
+  "base": "main",
+  "scope": "src/Tarifa.Api/Program.cs, src/Tarifa.Api/Services/DescontoService.cs",
+  "findings": [
+    {
+      "severity": "HIGH",
+      "file": "N/A (raiz do repositório)",
+      "line": 0,
+      "title": "DOTNET-BASELINE ausente",
+      "description": "bash .forge/scripts/dotnet-baseline.sh --root . --check reprova: faltam Directory.Build.props, .editorconfig e Directory.Packages.props na raiz. Sem isso, TreatWarningsAsErrors/AnalysisMode/EnforceCodeStyleInBuild não existem, e nenhuma das violações abaixo (blocking-wait, new HttpClient, etc.) seria barrada pelo próprio build em commits futuros — o revisor está fazendo à mão o que um interruptor de build faria sempre.",
+      "fix_suggested": "Rodar 'bash .forge/scripts/dotnet-baseline.sh --apply' (ou adotar o capability pack backend-dotnet-relational, que já traz Directory.Build.props/.editorconfig/Directory.Packages.props prontos) antes ou junto deste PR."
+    },
+    {
+      "severity": "BLOCKER",
+      "file": "src/Tarifa.Api/Program.cs",
+      "line": 7,
+      "title": "Captive dependency: DescontoService (Singleton) injeta TarifaDbContext (Scoped)",
+      "description": "Program.cs registra 'builder.Services.AddSingleton<DescontoService>()', mas o construtor de DescontoService recebe TarifaDbContext, que AddDbContext registra como Scoped por padrão. Um singleton capturando um serviço scoped é o defeito clássico de ciclo de vida: em ambiente de Development, a validação de escopo do próprio ASP.NET Core ('ValidateScopes') derruba a aplicação na primeira resolução de DescontoService com InvalidOperationException; em produção (sem a validação), o mesmo DbContext fica preso para todas as requisições seguintes, gerando corrida de dados entre requests concorrentes e exceções de 'ObjectDisposedException'/'DbContext used after being disposed' assim que o escopo original for descartado. É o achado mais grave do diff e não é coberto por nenhuma das duas camadas determinísticas — é julgamento de ciclo de vida de DI (checklist item 3).",
+      "fix_suggested": "Registrar DescontoService como Scoped (coerente com o ciclo de vida do TarifaDbContext) ou, se singleton for necessário por outro motivo, trocar a dependência direta do DbContext por IDbContextFactory<TarifaDbContext> e criar um contexto por chamada."
+    },
+    {
+      "severity": "BLOCKER",
+      "file": "src/Tarifa.Api/Services/DescontoService.cs",
+      "line": 19,
+      "title": "blocking-wait: .Result sobre Task assíncrona",
+      "description": "'client.GetStringAsync(...).Result' bloqueia a thread chamadora até a Task completar. O método CalcularTarifaEstudante nem é async — ele expõe uma API síncrona sobre uma chamada de rede. Sob carga em ASP.NET Core isso esgota o pool de threads (o sintoma aparece em produção, não no teste local). Confirmado pelo scan determinístico (dotnet-quality-scan, regra blocking-wait); nenhuma das exceções legítimas da regra (Main de console, construtor, teste) se aplica aqui.",
+      "fix_suggested": "Tornar CalcularTarifaEstudante assíncrono (Task<decimal>), usar 'await client.GetStringAsync(url, ct)' e propagar CancellationToken até o endpoint, igual ao endpoint irmão GET /tarifas/{linhaId}."
+    },
+    {
+      "severity": "HIGH",
+      "file": "src/Tarifa.Api/Services/DescontoService.cs",
+      "line": 18,
+      "title": "new-httpclient: HttpClient instanciado diretamente a cada chamada",
+      "description": "'new HttpClient()' dentro do método é recriado a cada requisição HTTP recebida pela API (o método é chamado por request). Cada instância descartada deixa o socket em TIME_WAIT por até quatro minutos, e sob carga real esgota portas efêmeras. Confirmado pelo scan determinístico (regra new-httpclient); a única exceção legítima da regra (teste com HttpMessageHandler falso) não se aplica.",
+      "fix_suggested": "Registrar IHttpClientFactory ('builder.Services.AddHttpClient<DescontoService>(...)') e injetar HttpClient via o factory, com BaseAddress/timeout configurados centralmente."
+    },
+    {
+      "severity": "HIGH",
+      "file": "src/Tarifa.Api/Services/DescontoService.cs",
+      "line": 22,
+      "title": "ToList() antes de filtrar puxa a tabela inteira do banco",
+      "description": "'_db.Tarifas.ToList().Where(t => t.LinhaId == linhaId)' materializa TODA a tabela Tarifas em memória antes de aplicar o filtro por linha — exatamente o anti-padrão citado no manual do agente ('_context.Items.ToList().Where(...)'). Também não usa AsNoTracking(), diferente do endpoint GET /tarifas/{linhaId} em Program.cs, que já filtra no banco com AsNoTracking(). Cresce o custo com o tamanho da tabela e o tracking desnecessário aumenta consumo de memória em uma consulta somente leitura.",
+      "fix_suggested": "Filtrar no banco: '_db.Tarifas.AsNoTracking().Where(t => t.LinhaId == linhaId).ToListAsync(ct)' (ou diretamente '.FirstOrDefaultAsync(...)', ver próximo achado)."
+    },
+    {
+      "severity": "HIGH",
+      "file": "src/Tarifa.Api/Services/DescontoService.cs",
+      "line": 18,
+      "title": "Chamada ao SGE sem tratamento de erro, timeout ou parsing seguro",
+      "description": "A consulta ao SGE não tem try/catch, não define timeout no HttpClient (o padrão de 100s bloqueia a request inteira via o .Result acima) e interpreta a resposta com 'resposta.Contains(\"\\\"ativa\\\":true\")' — uma checagem de substring, não uma deserialização JSON. Qualquer variação de formatação da resposta real (espaço após os dois-pontos, ordenação de campos, encoding, HTTP 4xx/5xx do SGE, timeout, DNS) já quebra a checagem ou propaga uma exceção não tratada até o cliente da API — que pode expor stack trace (checklist de segurança item 5) e não distingue 'estudante inativo' de 'SGE fora do ar'.",
+      "fix_suggested": "Desserializar com System.Text.Json para um tipo tipado, tratar HttpRequestException/TaskCanceledException com fallback e log adequado (sem PII), e devolver um erro de domínio explícito (ex.: 503 'consulta ao SGE indisponível') em vez de deixar a exceção subir crua."
+    },
+    {
+      "severity": "MEDIUM",
+      "file": "src/Tarifa.Api/Services/DescontoService.cs",
+      "line": 23,
+      "title": "tarifas.First() lança exceção sem tratamento quando a linha não existe",
+      "description": "Se 'linhaId' não corresponder a nenhuma tarifa cadastrada, 'tarifas.First()' lança InvalidOperationException ('Sequence contains no elements'), que sobe sem tratamento até o pipeline padrão do ASP.NET Core — sem mensagem de domínio, e potencialmente com stack trace exposto ao cliente dependendo da configuração de ambiente.",
+      "fix_suggested": "Usar FirstOrDefaultAsync e devolver Results.NotFound() (ou equivalente) quando a linha não existir, em vez de deixar a exceção não tratada representar 'linha inexistente'."
+    },
+    {
+      "severity": "MEDIUM",
+      "file": "src/Tarifa.Api/Services/DescontoService.cs",
+      "line": 19,
+      "title": "Parâmetro de rota interpolado sem validação/escape na URL externa",
+      "description": "'matricula' vem direto da rota ('GET /tarifas/{linhaId}/estudante/{matricula}') e é interpolado sem validação nem Uri.EscapeDataString em '$\"https://sge.exemplo.invalid/matriculas/{matricula}\"'. Um valor com '/', '?', ou '#' altera o path/query da chamada ao SGE (manipulação de request para um sistema de terceiro, potencial SSRF de path); não há validação de formato de matrícula no boundary de entrada (checklist item 1: 'parâmetros de entrada validados em boundaries').",
+      "fix_suggested": "Validar o formato de 'matricula' (ex.: regex/tipo restrito) antes de compor a URL, e usar Uri.EscapeDataString(matricula) ao montá-la."
+    },
+    {
+      "severity": "MEDIUM",
+      "file": "src/Tarifa.Api/Services/DescontoService.cs",
+      "line": 26,
+      "title": "Cálculo monetário em decimal sem arredondamento, na contramão da convenção do projeto",
+      "description": "'cheia * 0.5m' pode gerar valores com mais de duas casas decimais (ex.: tarifa de R$ 10,01 vira R$ 5,005) sem arredondamento explícito. Além disso, o AGENTS.md deste repositório declara como boundary rule 'money as integer cents' — o novo código de desconto opera diretamente sobre 'decimal' (herdado de TarifaLinha, que já existia em main) sem qualquer conversão para centavos nem arredondamento, reforçando a divergência da convenção em vez de corrigi-la no ponto onde o valor é manipulado.",
+      "fix_suggested": "Aplicar Math.Round(valor, 2, MidpointRounding.ToEven) no resultado, e registrar no ledger/dívida técnica a migração de TarifaLinha.Valor para representação em centavos (fora do escopo deste PR, mas a nova lógica de desconto é o local natural para não agravar o desvio)."
+    },
+    {
+      "severity": "LOW",
+      "file": "src/Tarifa.Api/Program.cs",
+      "line": 17,
+      "title": "Novo endpoint sem CancellationToken, inconsistente com o endpoint irmão",
+      "description": "O endpoint GET /tarifas/{linhaId} (linha 12) recebe CancellationToken e o propaga para EF Core; o novo GET /tarifas/{linhaId}/estudante/{matricula} não recebe nem propaga CancellationToken — inconsistência de padrão dentro do mesmo arquivo, além de impedir cancelamento cooperativo da chamada ao SGE e da consulta ao banco.",
+      "fix_suggested": "Adicionar CancellationToken ct ao endpoint e ao método CalcularTarifaEstudante, propagando-o para a chamada HTTP e para a consulta EF Core."
+    }
+  ],
+  "scan_layers": {
+    "dotnet_baseline": {
+      "command": "bash .forge/scripts/dotnet-baseline.sh --root . --check",
+      "result": "FAIL",
+      "detail": "MISS Directory.Build.props, MISS .editorconfig, MISS Directory.Packages.props"
+    },
+    "dotnet_quality_scan": {
+      "command": "bash .forge/skills/dotnet-quality-scan/scripts/scan.sh --root . --json /tmp/dotnet-scan-run1.json",
+      "result": "FAIL (6 achados no repositório inteiro)",
+      "rules": [
+        { "rule": "async-void", "severity": "HIGH", "status": "OK", "in_diff": false },
+        { "rule": "blocking-wait", "severity": "BLOCKER", "status": "FOUND", "in_diff": true, "location": "src/Tarifa.Api/Services/DescontoService.cs:19" },
+        { "rule": "new-httpclient", "severity": "HIGH", "status": "FOUND", "in_diff": true, "location": "src/Tarifa.Api/Services/DescontoService.cs:18" },
+        { "rule": "region", "severity": "MEDIUM", "status": "FOUND", "in_diff": false, "location": "src/Legado.Relatorios/RelatorioHelper.cs:5", "note": "fora do diff sob revisão (código legado não tocado por esta branch); não promovido a finding" },
+        { "rule": "generic-name", "severity": "MEDIUM", "status": "FOUND", "in_diff": false, "location": "src/Legado.Relatorios/RelatorioHelper.cs:3", "note": "idem — fora do escopo do diff" },
+        { "rule": "bool-param", "severity": "MEDIUM", "status": "FOUND", "in_diff": false, "location": "src/Legado.Relatorios/RelatorioHelper.cs:6", "note": "idem — fora do escopo do diff" },
+        { "rule": "empty-catch", "severity": "HIGH", "status": "OK", "in_diff": false },
+        { "rule": "datetime-now", "severity": "MEDIUM", "status": "FOUND", "in_diff": false, "location": "src/Legado.Relatorios/RelatorioHelper.cs:8", "note": "idem — fora do escopo do diff" },
+        { "rule": "sql-interpolation", "severity": "BLOCKER", "status": "OK", "in_diff": false },
+        { "rule": "mutable-static", "severity": "HIGH", "status": "OK", "in_diff": false },
+        { "rule": "single-impl-interface", "severity": "MEDIUM", "status": "OK", "in_diff": false }
+      ]
+    }
+  }
+}

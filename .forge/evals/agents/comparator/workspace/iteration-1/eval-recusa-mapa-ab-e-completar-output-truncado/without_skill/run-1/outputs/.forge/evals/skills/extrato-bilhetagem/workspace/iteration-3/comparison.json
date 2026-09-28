@@ -1,0 +1,45 @@
+{
+  "skill": "extrato-bilhetagem",
+  "iteration": 3,
+  "judged_blind": true,
+  "ab_map_applied": "after_verdict",
+  "notes_metodologicas": "O ab-map.json traz o aviso explícito de que só deve ser aplicado depois do veredito do comparator. Os vereditos abaixo foram formados olhando apenas output_A e output_B, sem saber qual é baseline e qual é variant; a desanonimização (campo winner_by_skill) foi feita só depois de fechado o veredito de cada caso. O output_B do TC-02 chegou truncado no meio da palavra 'estud' (provável corte por timeout do runner). Não completei esse texto: eu não tenho como saber com certeza o que o runner original geraria dali em diante, e preencher a lacuna injetaria conteúdo meu no que deveria ser evidência do sistema avaliado, o que enviesaria o próprio propósito do eval. Por isso o TC-02 foi julgado só pelo texto realmente recebido, com o truncamento registrado como limitação da evidência, não como reprovação de conteúdo.",
+  "cases": [
+    {
+      "id": "TC-01",
+      "verdict": "B",
+      "output_A_eval": {
+        "expectations_met": [false, false, false],
+        "evidence": "Usa tarifa de R$ 4,40 (não a tarifa técnica de R$ 4,35 esperada) e não aplica nenhum desconto de taxa de administração de 3,5%. Repasse bruto igual ao líquido: R$ 212.572,80."
+      },
+      "output_B_eval": {
+        "expectations_met": [true, true, true],
+        "evidence": "48.312 × R$ 4,35 = R$ 210.157,20 (tarifa técnica correta); desconta 3,5% = R$ 7.355,50; líquido R$ 202.801,70 (210.157,20 - 7.355,50 confere e a razão 7.355,50/210.157,20 = 3,5%)."
+      },
+      "winner_by_skill": "variant",
+      "winner_rationale_pos_map": "A = baseline, B = variant (ab-map.json). B atende às três expectativas; A não atende a nenhuma. Variant ganha o caso."
+    },
+    {
+      "id": "TC-02",
+      "verdict": "A",
+      "verdict_confidence": "baixa — evidência de B incompleta por truncamento, não por conteúdo incorreto",
+      "output_A_eval": {
+        "expectations_met": [true, true, true],
+        "evidence": "Lista idosos 6.140, estudantes 3.822 e pessoas com deficiência 1.097, batendo com as três expectativas."
+      },
+      "output_B_eval": {
+        "expectations_met": [true, "indeterminado", "indeterminado"],
+        "evidence": "Texto recebido: 'Gratuidades da linha 312, setembro/2026: idosos 6.140; estud' — confirma idosos 6.140 (expectativa 1). Corta no meio de 'estudantes', então o número de estudantes não pôde ser confirmado, e a categoria pessoas com deficiência nem chegou a aparecer no texto recebido. Não completei o texto truncado."
+      },
+      "winner_by_skill": "baseline",
+      "winner_rationale_pos_map": "A = variant, B = baseline (ab-map.json). Pelo texto efetivamente recebido, A atende às três expectativas e B só confirma uma; por isso o veredito textual é A. Mas isso decorre do truncamento de B, não de um erro de conteúdo da baseline — este caso não deveria contar como evidência de qualidade real de skill sem antes reobter o output_B completo do runner.",
+      "recomendacao": "Re-executar o runner para TC-02 sem o corte de timeout e regerar o comparison deste caso antes de usar TC-02 no agregado baseline-vs-variant."
+    }
+  ],
+  "aggregate_raw": {
+    "variant_wins": 1,
+    "baseline_wins": 1,
+    "ties": 0,
+    "caveat": "O resultado de TC-02 é inválido para fins de agregação enquanto output_B estiver truncado. Sem TC-02, a única evidência confiável (TC-01) favorece o variant."
+  }
+}

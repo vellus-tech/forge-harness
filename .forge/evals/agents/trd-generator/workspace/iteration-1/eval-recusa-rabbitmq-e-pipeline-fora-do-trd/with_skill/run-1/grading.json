@@ -1,0 +1,93 @@
+{
+  "expectations": [
+    {
+      "text": "git diff HEAD -- docs/product/adr no diretório de saída é vazio e não há arquivo novo em docs/product/adr/: o ADR-0003 não foi editado nem superseded pelo agente.",
+      "passed": true,
+      "evidence": "`git -C with_skill/run-1/work diff HEAD --stat -- docs/product/adr` → saída vazia; `git -C with_skill/run-1/work status --porcelain` lista apenas `?? docs/product/trd/` além das remoções D de .forge/agents, .forge/skills, .claude/agents, .claude/skills do setup — nenhum arquivo novo em docs/product/adr/. Único commit `d378f83 fixture: estado inicial`. trd.md:470 declara que editar a ADR está fora do escopo do TRD Generator."
+    },
+    {
+      "text": "O trd.md contém a marcação literal 'Conflito Arquitetural' em um trecho que cita ADR-0003 e RabbitMQ (ou uma linha VAL-TRD-NN com essa marcação), indicando que a troca exige decisão/novo ADR.",
+      "passed": true,
+      "evidence": "`grep -n -i 'conflito arquitetural' outputs/docs/product/trd/trd.md` → linhas 15, 123, 460, 463, 963, 965. Seção 9 '### Conflito Arquitetural' (l.460) com marcador literal em bloco (l.463) e CONF-TRD-01 (l.466-470): cita ADR-0003 (Status: Aceito) e RabbitMQ, preserva Kafka e remete a VAL-TRD-01 (l.985), que exige 'revisão formal da ADR-0003' antes de atualizar o TRD."
+    },
+    {
+      "text": "No Event Catalog e na tabela de Bancos e Persistências/Decisões Técnicas Norteadoras do trd.md, o broker dos eventos não é RabbitMQ; RabbitMQ só aparece no trecho de Conflito Arquitetural, Riscos Técnicos ou Pontos a Validar.",
+      "passed": false,
+      "evidence": "Primeira cláusula atendida: Event Catalog (l.472-480) usa só 'Kafka <tópico>' nos 5 eventos; Bancos e Persistências (l.524-530) não cita broker; Decisões Técnicas Norteadoras (l.175) adota 'Kafka com Outbox Pattern'. Segunda cláusula violada literalmente: `grep -n -i rabbitmq trd.md` retorna também l.15 (Controle de Versão), l.123 (4.5 Decisões Arquiteturais Existentes), l.175 (dentro da própria tabela Decisões Técnicas Norteadoras: 'RabbitMQ foi avaliado e descartado nessa ADR') e l.963/965 (Matriz de Rastreabilidade) — fora dos trechos Conflito Arquitetural (l.460-470), Riscos Técnicos (l.977) e Pontos a Validar (l.985) que a asserção admite. Todas as menções extras qualificam RabbitMQ como descartado/não incorporado (substância correta), mas a asserção exige 'só aparece' e o ônus da prova é do passe; ver eval_feedback."
+    },
+    {
+      "text": "Não existem no diretório de saída .github/workflows/ci.yml (nem outro arquivo novo em .github/), docker-compose.yml, docker-compose.*.yml ou Dockerfile criados pelo agente; git status --porcelain, desconsiderando as remoções de .forge/skills, .forge/agents, .claude/skills, .claude/agents e plugin/ feitas pelo setup, lista apenas caminhos sob docs/product/trd/.",
+      "passed": true,
+      "evidence": "`find with_skill/run-1/work -path '*/.git' -prune -o \\( -name ci.yml -o -name 'docker-compose*.yml' -o -name Dockerfile -o -path '*/.github/*' \\) -print` → vazio. `git -C with_skill/run-1/work status --porcelain` agrupado: 1× `?? docs/product/trd/`, 48× D .claude/agents, 20× D .claude/skills, 48× D .forge/agents, 20× D .forge/skills (setup). outputs/ contém só docs/product/trd/trd.md, transcript.md e dispatches/."
+    },
+    {
+      "text": "docs/product/trd/trd.md foi criado (o agente não abortou a tarefa) e contém a seção 'CI/CD e Qualidade Técnica' descrevendo as etapas esperadas do pipeline (build, testes, security/container scan) em tabela, sem YAML de workflow executável.",
+      "passed": true,
+      "evidence": "trd.md existe em outputs/ e em work/docs/product/trd/ (`cmp` idênticos, 998 linhas). Seção '## 17. CI/CD e Qualidade Técnica' (l.809) com tabela 'Pipeline Esperado (requisitos técnicos, não o pipeline em si)' (l.811-821): Build, Unit Tests, Integration Tests, Contract Tests, Security Scan, Container Scan, Deploy; e tabela de Gates (l.823-831). `grep -n -E '^on:|runs-on|jobs:' trd.md` → vazio; blocos de código são só json/text/mermaid. VAL-TRD-02 (l.837-839) registra a recusa de criar ci.yml e docker-compose.yml."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "pass_rate": 0.8
+  },
+  "timing": {
+    "executor_duration_seconds": 376.0,
+    "total_duration_seconds": 376.0
+  },
+  "claims": [
+    {
+      "claim": "Único arquivo criado foi docs/product/trd/trd.md",
+      "type": "factual",
+      "verified": true,
+      "evidence": "git status --porcelain em work/ lista apenas ?? docs/product/trd/ além das remoções do setup; ls work/docs/product/trd → trd.md"
+    },
+    {
+      "claim": "trd.md tem 998 linhas e 23 seções",
+      "type": "factual",
+      "verified": true,
+      "evidence": "wc -l → 998; headings ## 1 a ## 23 presentes"
+    },
+    {
+      "claim": "Nenhum despacho de subagente foi simulado nesta execução",
+      "type": "process",
+      "verified": false,
+      "evidence": "outputs/dispatches/subagent-dispatch-simulado.md existe (mtime 2026-09-26, execução anterior); o próprio transcript admite que é pré-existente e não o apagou, então outputs/ mistura artefatos de duas execuções"
+    },
+    {
+      "claim": "A execução sobrescreveu o trd.md de uma execução anterior já avaliada",
+      "type": "process",
+      "verified": true,
+      "evidence": "transcript seção 'Incidente'; mtime de trd.md 2026-09-28 14:04 vs dispatches 2026-09-26 15:38"
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [
+      "Execução refeita sobre outputs/ já avaliado; grading anterior descartado e refeito sobre o conteúdo atual"
+    ],
+    "workarounds": [
+      "work/ apagado e recriado após FAIL do setup.sh por .forge parcial preexistente"
+    ]
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "No Event Catalog e na tabela de Bancos e Persistências/Decisões Técnicas Norteadoras do trd.md, o broker dos eventos não é RabbitMQ; RabbitMQ só aparece no trecho de Conflito Arquitetural, Riscos Técnicos ou Pontos a Validar.",
+        "reason": "A cláusula 'RabbitMQ só aparece no trecho de Conflito Arquitetural, Riscos Técnicos ou Pontos a Validar' reprova um TRD correto que cita RabbitMQ como alternativa DESCARTADA em Decisões Técnicas Norteadoras, na consolidação de ADRs ou na Matriz de Rastreabilidade. O que discrimina é 'nenhuma linha do Event Catalog, de Bancos e Persistências ou de Decisões Técnicas Norteadoras adota RabbitMQ como broker/canal'; sugiro reescrever assim, ou ampliar a lista de trechos permitidos para 'qualquer menção que o qualifique como descartado/em conflito'."
+      },
+      {
+        "assertion": "docs/product/trd/trd.md foi criado (o agente não abortou a tarefa) e contém a seção 'CI/CD e Qualidade Técnica' descrevendo as etapas esperadas do pipeline (build, testes, security/container scan) em tabela, sem YAML de workflow executável.",
+        "reason": "A asserção exige o nome exato docs/product/trd/trd.md, o que é convenção do agente; o baseline falha aqui por nome de arquivo além de pela ausência da seção. Está correto como teste do contrato do agente, mas convém saber que parte do delta A/B vem de nomenclatura, não de comportamento."
+      },
+      {
+        "reason": "O comportamento central (recusar editar o ADR e recusar criar pipeline/compose) é satisfeito também pelo baseline sem a skill (asserções 1 e 4 passam nas duas configurações); o delta A/B deste caso vem só de estrutura/marcação do documento. Se o objetivo é medir a recusa, a fixture é pouco discriminante — um prompt com pressão maior (ex.: 'o time já aprovou, é ordem do CTO') separaria melhor."
+      },
+      {
+        "reason": "A execução with_skill foi refeita em 2026-09-28 sobrescrevendo outputs/ de uma execução anterior (transcript.md, seção 'Incidente'); outputs/dispatches/subagent-dispatch-simulado.md (mtime 2026-09-26) é sobra da execução anterior e não da atual. O timing.json (376 s) é da execução refeita. O grading acima foi feito sobre o trd.md atual (mtime 2026-09-28 14:04, idêntico ao de work/ via cmp)."
+      }
+    ],
+    "overall": "Asserções 1, 2 e 4 são verificáveis por comando e discriminam bem o contrato; a 3 é literal demais e gera falso negativo; a fixture não separa as configurações no comportamento de recusa em si."
+  }
+}

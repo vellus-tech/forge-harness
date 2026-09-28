@@ -1,0 +1,42 @@
+{
+  "expectations": [
+    {
+      "text": "Todos os findings de .forge/reviews/java-reviewer.json têm arquivo sob services/tarifa-api/ (ou build/settings Gradle); nenhum finding aponta web/src/api/tarifa.ts, apesar do console.log do token no diff",
+      "passed": true,
+      "evidence": "`jq -r '.findings[]|\"\\(.file):\\(.line)\"' with_skill/run-1/outputs/java-reviewer.json` lista 4 findings, todos sob services/tarifa-api/ (TarifaRepository.java:19 e :18; 002-valor-integracao.yaml:9 e :1); `jq -r '.findings[].file' ... | grep -v '^services/tarifa-api/'` retorna vazio (rc=1). web/src/api/tarifa.ts aparece apenas em `out_of_scope_note`, fora de findings[]. `cmp` confirma outputs/java-reviewer.json idêntico a work/.forge/reviews/java-reviewer.json."
+    },
+    {
+      "text": "Nenhum finding recomenda migrar para Spring/Spring Boot, JPA/Hibernate, Flyway ou Maven (pom.xml); se o relatório menciona a stack, é para reconhecer Micronaut/jOOQ/Liquibase/Gradle ou a ADR-0004",
+      "passed": true,
+      "evidence": "`grep -inE 'spring|jpa|hibernate|flyway|maven|pom\\.xml|jdbctemplate' with_skill/run-1/outputs/java-reviewer.json` sem ocorrências (rc=1); `stack_suggestion: null`. As menções de stack reconhecem jOOQ (\"bind parameters do jOOQ\", \"classes geradas pelo jOOQ (codegen)\") e Liquibase (changeSet)."
+    },
+    {
+      "text": "Há finding em services/tarifa-api/src/main/java/br/com/axis/tarifa/TarifaRepository.java, linha 23, apontando a concatenação de linha/modal em condition(...) como SQL interpolado e sugerindo a DSL tipada ou bind de parâmetros do jOOQ (não JPA/JdbcTemplate)",
+      "passed": false,
+      "evidence": "O finding de SQL interpolado existe em TarifaRepository.java e cita \"bind parameters do jOOQ\", mas aponta `\"line\": 19`; `cat -n work/services/tarifa-api/src/main/java/br/com/axis/tarifa/TarifaRepository.java` mostra a linha 19 vazia e o `.where(condition(\"linha = '\" + linha ...))` na linha 23. A asserção exige a linha 23."
+    },
+    {
+      "text": "Há finding em services/tarifa-api/src/main/resources/db/changelog/002-valor-integracao.yaml (linha entre 6 e 13) apontando o addColumn NOT NULL sem default/backfill em tabela populada e referenciando rules/data/schema-evolution.md ou a sequência expand → backfill → contract",
+      "passed": true,
+      "evidence": "Finding em services/tarifa-api/src/main/resources/db/changelog/002-valor-integracao.yaml com `\"line\": 9` (dentro de 6–13; `cat -n` mostra `- column:` na linha 9): \"addColumn valor_integracao_centavos é criada NOT NULL sem defaultValue/defaultValueComputed e sem changeSet de backfill. Em `rules/data/schema-evolution.md` (Fluxo padrão: expand → migrate/backfill → contract)\" — `grep -inE 'schema-evolution|expand|contract'` casa a linha 16 do JSON."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 1,
+    "total": 4,
+    "pass_rate": 0.75
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Há finding em services/tarifa-api/src/main/java/br/com/axis/tarifa/TarifaRepository.java, linha 23, apontando a concatenação de linha/modal em condition(...) como SQL interpolado e sugerindo a DSL tipada ou bind de parâmetros do jOOQ (não JPA/JdbcTemplate)",
+        "reason": "Exigir linha exata 23 é frágil: com_skill apontou a linha 19 (vazia) para o mesmo defeito; a asserção discrimina precisão de linha, não detecção. Considere intervalo 20–24 se a intenção for detecção, ou mantenha 23 se a precisão de linha for requisito do contrato de findings."
+      },
+      {
+        "reason": "Nenhuma asserção cobre a sanidade das linhas dos demais findings (com_skill aponta 002-valor-integracao.yaml:1 para ausência de testes) nem o caminho real de gravação do relatório (a transcrição sem_skill declara services/tarifa-api/.forge/reviews/, que não existe)."
+      }
+    ],
+    "overall": "A asserção 4 é a mais discriminante (exige a regra do harness); as asserções 1 e 2 passam em ambas as configurações e não separam com/sem skill neste caso."
+  }
+}

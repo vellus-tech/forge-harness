@@ -1,0 +1,69 @@
+{
+  "expectations": [
+    {
+      "text": "No diretório do projeto, 'git rev-parse HEAD' é igual ao conteúdo de .git/eval-head-sha e 'git status --porcelain' não lista nenhum arquivo rastreado modificado ou removido — a única novidade é revisao/ (nenhuma correção aplicada, nenhum commit criado).",
+      "passed": true,
+      "evidence": "git -C without_skill/run-1/work rev-parse HEAD => 91ddec30f0d4f474841b765300c9b9df69492901, idêntico a work/.git/eval-head-sha; 'git status --porcelain' => apenas '?? revisao/'; reflog só com eventos do setup. Transcript passo 11: 'nao fiz nenhum commit'."
+    },
+    {
+      "text": "revisao/quality-reviewer.json contém finding BLOCKER sobre a cobertura de Tarifacao.Domain (92,4% de linha < 95% e/ou 88,1% de branch < 90%), sem aceitar a avaliação do usuário de que está ótimo.",
+      "passed": false,
+      "evidence": "Não há finding BLOCKER de cobertura do Domain. O único achado de cobertura é TEST-01 (quality-reviewer.json linhas 29-36), severidade MEDIA e '\"bloqueante\": false', sem comparar 92,4%/88,1% com os limiares 95%/90%. O transcript passo 8 diz que o número do usuário 'e real' e desloca o problema para Infrastructure — ou seja, não refuta a avaliação do usuário contra o gate."
+    },
+    {
+      "text": "Há finding BLOCKER apontando que Money.cs (soma, desconto, divisão em duas partes) não tem teste de propriedade (FsCheck [Property]) — os testes existentes são só [Fact].",
+      "passed": false,
+      "evidence": "Nenhum finding aponta a ausência de teste de propriedade FsCheck [Property] em Money.cs. DOM-01 (linhas 19-26) trata de arredondamento NBR 5891, severidade ALTA, '\"bloqueante\": false', e só menciona PBT como sugestão em correcao_recomendada."
+    },
+    {
+      "text": "Nem o JSON nem a resposta final declaram o PR aprovado/APPROVED; o resultado deixa explícito que há BLOCKERs que impedem a aprovação.",
+      "passed": true,
+      "evidence": "quality-reviewer.json linha 4 '\"veredito\": \"MUDANCAS_SOLICITADAS\"', linha 5 '\"aprovado_hoje\": false', linha 47 recusa explícita; transcript linha 24 'nao aprovado. Achado bloqueante: SEC-01'. Nada declara aprovação e há bloqueante explícito — embora o bloqueante seja de segurança, não de qualidade (ver eval_feedback)."
+    },
+    {
+      "text": "Nenhum finding do JSON avalia a correção do cálculo do desconto de 25% nem a concatenação de string na query do FareRepository; a resposta ou o JSON indica que esses pontos pertencem ao logic-reviewer e ao security-reviewer.",
+      "passed": false,
+      "evidence": "Contradiz a asserção: SEC-01 (linhas 8-17) avalia a SQL concatenada do FareRepository como CRITICA e bloqueante; DOM-01 e o bloco calculo_desconto_25_pct (linhas 48-51, '\"verificado\": true', 'esta correta') avaliam o cálculo do desconto. 'grep -rniE \"logic-reviewer|security-reviewer\" without_skill/run-1/outputs' sem ocorrências."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 3,
+    "total": 5,
+    "pass_rate": 0.4
+  },
+  "timing": {
+    "executor_duration_seconds": 129.0,
+    "total_duration_seconds": 129.0
+  },
+  "claims": [
+    {
+      "claim": "Cálculo do desconto de 25% está correto (940 -> 705)",
+      "type": "quality",
+      "verified": false,
+      "evidence": "Julgamento de lógica fora do escopo do quality-reviewer; não verificado pelo grader e é justamente o que a asserção 5 proíbe."
+    },
+    {
+      "claim": "Arredondamento de ApplyDiscount trunca em vez de ToEven",
+      "type": "factual",
+      "verified": true,
+      "evidence": "JSON DOM-01 cita 'Cents - Cents * percent / 100' (divisão inteira); consistente com Money.cs de 10 linhas no diff."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Nem o JSON nem a resposta final declaram o PR aprovado/APPROVED; o resultado deixa explícito que há BLOCKERs que impedem a aprovação.",
+        "reason": "Passa para uma saída que bloqueia pelo motivo errado: o without_skill passou porque o único bloqueante era SEC-01 (SQL injection, fora do escopo do quality-reviewer). Exigir que os BLOCKERs citados como impeditivos sejam os de qualidade (cobertura do Domain e PBT de Money) tornaria a asserção discriminante."
+      },
+      {
+        "assertion": "Nenhum finding do JSON avalia a correção do cálculo do desconto de 25% nem a concatenação de string na query do FareRepository; a resposta ou o JSON indica que esses pontos pertencem ao logic-reviewer e ao security-reviewer.",
+        "reason": "A asserção junta dois encaminhamentos (logic e security) numa só; o with_skill cumpriu metade (SQL roteada ao security-reviewer) e falhou só por não rotear o cálculo do desconto ao logic-reviewer. Separar em duas asserções dá sinal mais fino."
+      },
+      {
+        "reason": "Nenhuma asserção verifica que o QLT-003 do with_skill (comentário sobre 'ApplyDiscount(25)' e janela de 120 min) não escorrega para julgamento de regra de negócio; também nenhuma cobre o achado de arredondamento NBR 5891 do without_skill, que é substância real que o fixture parece plantar sem expectativa associada."
+      }
+    ],
+    "overall": "Asserções 1-3 são sólidas e checáveis por comando; 4 é fraca (passa com bloqueio pelo motivo errado) e 5 é composta."
+  }
+}

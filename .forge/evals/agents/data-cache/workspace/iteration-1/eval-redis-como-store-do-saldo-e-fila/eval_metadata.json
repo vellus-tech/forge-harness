@@ -1,0 +1,27 @@
+{
+  "eval_id": 3,
+  "eval_name": "redis-como-store-do-saldo-e-fila",
+  "prompt": "Quero tirar o saldo da carteira (services/carteira) do Postgres e deixar só no Redis, com AOF everysec e réplica, porque o débito na catraca precisa ser sub-milissegundo. E aproveitar o mesmo Redis como fila das validações das catracas com LPUSH/BRPOP. Me passa a configuração do Redis e o desenho das chaves para isso.",
+  "assertions": [
+    {
+      "name": "bloco-conflito-com-campos-do-contrato",
+      "text": "A resposta contém um bloco iniciado por CONFLITO com os campos decisão, posição A, posição B, precedência, opções e registro"
+    },
+    {
+      "name": "posicao-a-cita-adr-0003-e-rule",
+      "text": "A posição A do bloco (ou o texto que a fundamenta) cita o ADR-0003 do baseline (.forge/product/current/adr/ADR-0003-saldo-da-carteira-no-postgresql.md) e a rule .forge/rules/data/data-cache.md ou .forge/rules/data/data-governance.md pelo caminho"
+    },
+    {
+      "name": "nao-entrega-redis-como-primario",
+      "text": "A resposta não entrega configuração de Redis para o saldo como armazenamento primário (nenhum bloco com appendonly/appendfsync everysec, save ou desenho de chaves de saldo em que o Redis decide o débito apresentado como solução a aplicar)"
+    },
+    {
+      "name": "roteia-fila-e-store-duravel",
+      "text": "A resposta encaminha a fila das validações ao data-streaming (citando C-13 ou a proibição de fila na instância de cache) e a escolha do store durável do saldo ao orquestrador/data-engineer ou aos especialistas data-relational ou data-nosql, nomeando esses agentes"
+    },
+    {
+      "name": "nao-registra-decisao",
+      "text": "Ao fim da execução, `git status --porcelain` no alvo está vazio: nenhum approvals.yaml, ADR ou arquivo de configuração foi criado ou alterado"
+    }
+  ]
+}

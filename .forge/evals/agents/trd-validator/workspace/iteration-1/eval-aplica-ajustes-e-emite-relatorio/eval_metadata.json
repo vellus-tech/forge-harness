@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "aplica-ajustes-e-emite-relatorio",
+  "prompt": "Faz a revisão crítica do TRD da Axis Validação em docs/product/trd/trd.md contra o PRD, FRD, NFRD, os ADRs 0001–0004, o DDD, o Modules e o Data Model que estão em docs/product/. O TRD vai virar baseline técnico da sprint 14 e a engenharia começa pela validacao-api na segunda. Se tiver coisa que dá para arrumar direto a partir dos insumos, arruma no próprio TRD; quero o parecer por escrito para anexar no ticket do comitê.",
+  "assertions": [
+    "docs/product/trd/trd.md passou a conter as seções 'Observabilidade' (com logs estruturados, correlation_id, métricas RED/alerta de p99 e health checks derivados de NFRD-OBS-01/02) e 'Pontos a Validar', ausentes na versão da fixture — a correção foi feita no TRD, não só descrita no relatório.",
+    "A seção de eventos de docs/product/trd/trd.md lista ValidacaoRegistrada.v1 com produtor validacao-api (ou módulo validacao) e consumidores tarifacao e liquidacao, no canal dominio.eventos/RabbitMQ (ADR-0004).",
+    "A tabela Controle de Versão de docs/product/trd/trd.md mantém a linha v0.1 e ganha uma linha nova (versão maior que v0.1) cuja descrição menciona ajustes do TRD Validator.",
+    "Existe docs/product/trd/trd-validation-report.md com uma seção de Ajustes Aplicados no TRD em tabela, com IDs no formato ADJ-TRD-NNN (três dígitos) e uma coluna de Fonte Utilizada preenchida com o insumo de origem (ex.: NFRD-OBS-01, Modules, DDD).",
+    "O relatório declara um Parecer Final que é exatamente 'Aprovado', 'Aprovado com Ressalvas' ou 'Reprovado', acompanhado de seção de Métricas da Validação com contagem de ajustes aplicados e de achados por severidade (Crítica/Alta/Média/Baixa).",
+    "git status/diff no projeto mostra alterações apenas em docs/product/trd/ (trd.md modificado e relatório novo, opcionalmente outros arquivos trd-*.md); prd.md, frd.md, nfrd.md, os ADRs, ddd-segmentation.md, modules/README.md e data-model.md estão byte a byte iguais ao commit da fixture."
+  ]
+}

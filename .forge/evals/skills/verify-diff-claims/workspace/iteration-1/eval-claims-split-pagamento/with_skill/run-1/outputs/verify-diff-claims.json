@@ -1,0 +1,58 @@
+{
+  "skill": "verify-diff-claims",
+  "branch": "feat/split-pagamento",
+  "base": "main",
+  "passed": false,
+  "exit_code": 0,
+  "blocks_merge": false,
+  "claims_extracted": 4,
+  "claims_verified": 2,
+  "claims_unverified": 2,
+  "findings_to_emit": [
+    {
+      "id": "CLAIM-001",
+      "severity": "HIGH",
+      "category": "anti-hallucination",
+      "file": null,
+      "line": null,
+      "title": "Claim sem evidência: 'testes cobrindo Split'",
+      "description": "Commit f6f76f4 (feat(payments): adicionar PaymentSplitService para divisão de recebíveis) afirma 'Adicionei testes cobrindo Split', mas o diff main..feat/split-pagamento não toca nenhum arquivo de teste (*.test.ts, *.spec.ts, *Tests.cs). O único arquivo de teste do repositório, test/paymentService.test.ts, é anterior ao branch (pertence ao commit inicial 6cd744e), não foi alterado pelo branch e não referencia PaymentSplitService nem 'Split' em nenhum ponto.",
+      "fix_suggested": "Verificar se o coder agent esqueceu de commitar o arquivo de teste, ou se a claim está incorreta (alucinação textual). Pedir ao coder para adicionar cobertura real de PaymentSplitService.split() antes de mandar para review."
+    },
+    {
+      "id": "CLAIM-002",
+      "severity": "HIGH",
+      "category": "anti-hallucination",
+      "file": null,
+      "line": null,
+      "title": "Claim sem evidência: 'migration AddSplitRulesTable'",
+      "description": "Commit 2b5494f (feat(payments): criar endpoint de split de pagamento) afirma 'Incluí a migration AddSplitRulesTable para persistir as regras de split por lojista', mas o diff não contém nenhum arquivo de migration (busca por 'Migrations.*AddSplitRulesTable' e por qualquer arquivo com 'migration' ou 'SplitRules' no nome retornou vazio em todo o repositório).",
+      "fix_suggested": "Verificar se a migration foi criada em outro branch/PR, se ficou fora do commit por engano, ou se a claim é alucinação. Sem a migration, SplitRule (definida apenas em memória em paymentSplitService.ts) não tem persistência real."
+    }
+  ],
+  "matched_claims": [
+    {
+      "claim": "adicionei PaymentSplitService",
+      "commit": "f6f76f4",
+      "evidence_file": "src/payments/paymentSplitService.ts:4 (export class PaymentSplitService)"
+    },
+    {
+      "claim": "endpoint POST /api/v1/payments/split",
+      "commit": "2b5494f",
+      "evidence_file": "src/payments/paymentsController.ts (paymentsRouter.post(\"/api/v1/payments/split\", ...))"
+    }
+  ],
+  "stub_check": {
+    "notimplemented_stubs_found": 0,
+    "todo_fixme_in_diff": 0
+  },
+  "scope_consistency": {
+    "checked_commits": 2,
+    "inconsistent": 0,
+    "notes": "Ambos os commits têm scope 'payments' e tocam exclusivamente src/payments/** — consistente."
+  },
+  "authorship_check": {
+    "co_authored_by_ai_found": false
+  },
+  "recommendation": "NAO_BLOQUEIA_MAS_SINALIZA: as duas claims não verificadas (testes e migration) não são BLOCKER (nenhum Co-Authored-By de IA, nenhum stub sem TODO), mas representam lacuna real de escopo — o PR promete persistência (migration) e cobertura de teste que não existem no diff. Segue para review, porém o reviewer deve tratar CLAIM-001 e CLAIM-002 como HIGH antes de aprovar: sem migration, o endpoint não persiste regras; sem teste, a lógica de arredondamento de PaymentSplitService não está coberta."
+}

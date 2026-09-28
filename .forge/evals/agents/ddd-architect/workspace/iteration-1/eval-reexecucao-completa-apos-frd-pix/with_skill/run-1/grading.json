@@ -1,0 +1,79 @@
+{
+  "expectations": [
+    {
+      "text": "Existem os seis READMEs de subdomínio de §1.2, inclusive os não relacionados ao Pix: subdomains/core/fare-validation, subdomains/core/fare-integration, subdomains/supporting/card-wallet, subdomains/supporting/operator-clearing, subdomains/generic/notification e subdomains/generic/identity-access (cada um com README.md; slug em kebab-case, variação só de separador é aceitável)",
+      "passed": true,
+      "evidence": "find with_skill/run-1/work/docs/product/ddd -type f lista subdomains/core/{fare-validation,fare-integration}, supporting/{card-wallet,operator-clearing}, generic/{notification,identity-access}/README.md; diff -r work/docs/product outputs/docs-product → idênticos. git status mostra fare-integration, supporting/ e generic/ como untracked (criados nesta execução, não herdados). Transcript linha 21 confirma criação dos não relacionados ao Pix."
+    },
+    {
+      "text": "Existem docs/product/ddd/bounded-contexts/fare-validation, card-wallet, operator-clearing e identity-access, cada um com README.md contendo as seções do Bounded Context Canvas (stub com TBD é aceitável)",
+      "passed": true,
+      "evidence": "bounded-contexts/{fare-validation,card-wallet,operator-clearing,identity-access}/README.md existem; grep -c '^## ' retorna 15 em cada um (## 1. Objetivo, ## 2. Classificação DDD, ## 3. Responsabilidades ... seções do canvas)."
+    },
+    {
+      "text": "Não existe docs/product/ddd/bounded-contexts/trip-reporting (BC-03 riscado como removido) nem docs/product/ddd/bounded-contexts/notification (BC-05 com decisão 'Consolidar com outro contexto'), e a resposta final menciona explicitamente que BC-03 foi pulado por estar removido",
+      "passed": true,
+      "evidence": "find não lista bounded-contexts/trip-reporting nem bounded-contexts/notification (só card-wallet, fare-validation, identity-access, legacy-ticketing, operator-clearing). Transcript linha 21: 'BC-03 (removido) e BC-05 (Notification, decisão \"Consolidar\", não \"Confirmar\") foram pulados conforme regra'; ddd-segmentation.md linha 69: 'BC-03 (Trip Reporting) — marcado removido na v1.0, pulado conforme regra de varredura'."
+    },
+    {
+      "text": "docs/product/ddd/bounded-contexts/legacy-ticketing/README.md continua existindo com o conteúdo original (não foi apagado nem reescrito) e a resposta final o aponta como excedente sem correspondência na matriz, a higienizar",
+      "passed": true,
+      "evidence": "git -C with_skill/run-1/work status --short -- docs não lista legacy-ticketing (só M em fare-validation/README.md e ddd-segmentation.md), logo o arquivo está idêntico ao commit da fixture. ddd-segmentation.md linha 42: 'Excedente ... Não removido ... registrado como ponto a higienizar'; transcript linhas 51 e 58: 'apenas reportado como ponto de higiene' / 'decisão humana pendente sobre arquivar/remover legacy-ticketing'."
+    },
+    {
+      "text": "Existem os quatro artefatos do context map (README.md, relations.md, patterns.md, diagram.md) e os quatro de diagramas (c4-level-1-system-context.md, c4-level-2-containers.md, c4-level-3-components.md, index.html) em docs/product/ddd, embora nenhum existisse na fixture e o pedido tenha sido 'só o que mudou'",
+      "passed": true,
+      "evidence": "Existem context-map/{README.md,relations.md,patterns.md,diagram.md} e diagrams/{c4-level-1-system-context.md,c4-level-2-containers.md,c4-level-3-components.md,index.html}; git ls-tree HEAD docs/product/ddd na fixture não contém nenhum deles e git status os marca '?? docs/product/ddd/context-map/' e '?? docs/product/ddd/diagrams/'. Transcript linhas 22 e 25."
+    },
+    {
+      "text": "A resposta final (ou um arquivo de saída) traz a tabela de inventário com as colunas Esperado, Encontrado e Faltando para Subdomínios Core, Supporting, Generic e Bounded Contexts com decisão Confirmar, com Faltando vazio/zero em todas as linhas, e a tabela de artefatos estruturais obrigatórios com Presente? = Sim",
+      "passed": true,
+      "evidence": "ddd-segmentation.md §13 linhas 46-51: 'Tipo | Esperado (segmentation) | Encontrado (filesystem) | Faltando (slugs)' com Core 2/2/—, Supporting 2/2/—, Generic 2/2/—, Bounded Contexts (decisão Confirmar) 4/4/—; linhas 53-66: 'Artefato | Esperado | Presente?' com os 12 itens estruturais todos 'Sim'."
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "executor_duration_seconds": 676,
+    "total_duration_seconds": 676
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Existem docs/product/ddd/bounded-contexts/fare-validation, card-wallet, operator-clearing e identity-access, cada um com README.md contendo as seções do Bounded Context Canvas (stub com TBD é aceitável)",
+        "reason": "A checagem de seções do canvas é satisfeita por um stub com 15 cabeçalhos e TBD; não discrimina conteúdo derivado dos insumos (por exemplo, o ACL do webhook Pix no canvas de card-wallet)."
+      },
+      {
+        "reason": "Nenhuma asserção verifica que a divergência entre o pedido literal ('só o que mudou') e a varredura integral foi comunicada ao usuário; o with_skill comunicou (transcript linha 50), mas uma execução que regenerasse tudo em silêncio passaria igual."
+      },
+      {
+        "reason": "Nenhuma asserção cobre a substância do delta do Pix (FR-10 na evidência de Card Wallet, ponto a validar sobre idempotência do webhook); as duas configurações acertaram isso, então o caso mede só o protocolo de varredura, não a qualidade da modelagem."
+      }
+    ],
+    "overall": "Asserções discriminam bem o protocolo de varredura idempotente (6/6 contra 1/6); a fraqueza é serem majoritariamente de presença de arquivo."
+  },
+  "claims": [
+    {
+      "claim": "Os 12 artefatos estruturais obrigatórios estão presentes",
+      "type": "factual",
+      "verified": true,
+      "evidence": "find confirma os 4 diretórios, 4 de context-map e 4 de diagrams"
+    },
+    {
+      "claim": "legacy-ticketing não foi removido nem alterado",
+      "type": "process",
+      "verified": true,
+      "evidence": "git status não lista o arquivo"
+    },
+    {
+      "claim": "Stubs de fare-validation foram completados (estavam truncados)",
+      "type": "process",
+      "verified": true,
+      "evidence": "git status: M docs/product/ddd/bounded-contexts/fare-validation/README.md"
+    }
+  ]
+}

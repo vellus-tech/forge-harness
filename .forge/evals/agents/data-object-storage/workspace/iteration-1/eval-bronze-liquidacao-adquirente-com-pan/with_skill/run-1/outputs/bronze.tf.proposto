@@ -1,0 +1,97 @@
+# RASCUNHO — não aplicado na árvore (agente consultivo, não tem Write/Edit).
+# Quem aplica é o agente de engenharia ou o task-coder, após decisão humana sobre o prazo de
+# retenção de CHD (ver outputs/resposta.md, "Pendências para decisão humana").
+
+resource "aws_s3_bucket" "lake" {
+  bucket              = "lake-pagamentos"
+  object_lock_enabled = true
+}
+
+resource "aws_s3_bucket_public_access_block" "lake" {
+  bucket                  = aws_s3_bucket.lake.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "lake" {
+  bucket = aws_s3_bucket.lake.id
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm     = "aws:kms"
+      kms_master_key_id = aws_kms_key.lake.arn
+    }
+    bucket_key_enabled = true
+  }
+}
+
+resource "aws_kms_key" "lake" {
+  description = "Chave do lake de pagamentos (SSE-KMS do bucket — não substitui criptografia de campo do CHD)"
+}
+
+# Object Lock não estava de fato configurado: object_lock_enabled = true só habilita o mecanismo.
+# Este recurso é quem aplica COMPLIANCE + prazo. Retenção geral do bronze (fontes sem PAN/PII) —
+# mesma política já usada nas outras fontes.
+resource "aws_s3_bucket_object_lock_configuration" "bronze_geral" {
+  bucket = aws_s3_bucket.lake.id
+
+  rule {
+    default_retention {
+      mode  = "COMPLIANCE"
+      years = 10
+    }
+  }
+}
+
+# Bucket policy: nega DeleteObject em todo bronze/, EXCETO no prefixo que carrega CHD
+# (bronze/liquidacao/), que usa expiração por ciclo de vida + crypto-shredding para descarte
+# seguro (PCI DSS 3.2.1) em vez de imutabilidade indefinida — ver bronze-liquidacao-policy.json.
+# Nota técnica: um statement IAM não combina "Resource" e "NotResource" ao mesmo tempo — só um
+# dos dois. Como este bucket só guarda bronze/ (não há outro prefixo no lake), NotResource sozinho
+# nega em todo o bucket exceto bronze/liquidacao/. Se o bucket vier a guardar prefixo fora de
+# bronze/, revisitar (dois statements, ou condição por prefixo).
+data "aws_iam_policy_document" "deny_delete_bronze" {
+  statement {
+    sid       = "DenyDeleteObjectBronzeExcetoCHD"
+    effect    = "Deny"
+    actions   = ["s3:DeleteObject", "s3:DeleteObjectVersion"]
+    not_resources = [
+      "${aws_s3_bucket.lake.arn}/bronze/liquidacao/*",
+    ]
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "bronze_deny_delete" {
+  bucket = aws_s3_bucket.lake.id
+  policy = data.aws_iam_policy_document.deny_delete_bronze.json
+}
+
+# --- Prefixo com CHD: bronze/liquidacao/ ---
+# NEEDS CLARIFICATION: prazo de retenção real de CHD para este fluxo (não necessariamente 10 anos
+# — PCI DSS 3.2.1 exige que o dado não viva além do que a política de retenção documentada
+# definir). Placeholder abaixo assume a mesma janela só até a decisão ser registrada em ADR.
+resource "aws_s3_bucket_object_lock_configuration" "bronze_liquidacao_chd" {
+  bucket = aws_s3_bucket.lake.id
+
+  rule {
+    default_retention {
+      mode  = "COMPLIANCE" # ou GOVERNANCE, se o time decidir permitir exceção auditada
+      years = 10           # NEEDS CLARIFICATION — trocar pelo prazo documentado para CHD
+    }
+  }
+}
+
+# Chave de criptografia de campo/arquivo do CHD, fora do KMS do bucket (aws_kms_key.lake é só a
+# transparência de disco do SSE-KMS — insuficiente sozinha para PAN pelo PCI DSS 3.5.1.2).
+# Uma chave por período (aqui, mensal) permite crypto-shredding no fim da retenção: destruir a
+# chave torna o PAN permanentemente ilegível sem precisar apagar o objeto (que o Object Lock
+# proíbe de qualquer forma dentro da janela).
+resource "aws_kms_key" "chd_liquidacao" {
+  description             = "Chave de criptografia de campo/arquivo do CHD (liquidação adquirente) — CDE, fora do KMS do bucket. Rotação por período para crypto-shredding."
+  deletion_window_in_days = 7
+}

@@ -1,0 +1,70 @@
+{
+  "expectations": [
+    {
+      "text": "Existe docs/product/modules/modules-validation-report.md com cabeçalho contendo Versão 1.0.0, Data, Status e Validador module-validator, e seções de Matriz de Cobertura BC ↔ Módulo, Matriz de Ownership, Grafo de Dependências em bloco mermaid, Matriz Módulo ↔ Deployable e Parecer Final.",
+      "passed": true,
+      "evidence": "outputs/docs/product/modules/modules-validation-report.md:3-6 traz '**Versão:** 1.0.0', '**Data:** 2026-09-26', '**Status:** Reprovado', '**Validador:** module-validator'; seções '## 1. Matriz de Cobertura BC ↔ Módulo' (l.13), '## 2. Matriz de Ownership de Dados' (l.24), '## 3. Grafo de Dependências' com bloco ```mermaid (l.34-42), '## 4. Matriz Módulo ↔ Deployable' (l.47) e '## 10. Parecer Final' (l.105). `ls work/docs/product/modules` lista modules-validation-report.md e `diff outputs/... work/...` não acusa diferença."
+    },
+    {
+      "text": "O Status/Parecer Final do relatório é 'Reprovado' e há um achado com prefixo MOD-OWN classificado como Crítica apontando que cartoes_transporte tem dois donos (cadastro-passageiro e recarga).",
+      "passed": true,
+      "evidence": "Relatório l.5 'Status: Reprovado' e l.107 '**Reprovado.**'; l.64 'MOD-OWN-001 | Tabela cartoes_transporte ... cadastro-passageiro/README.md declara \"cartoes_transporte (dono)\" e recarga/README.md declara \"cartoes_transporte (dono do saldo; ...)\" — dois donos simultâneos ... | Crítica | Conflito Arquitetural — não corrigido'."
+    },
+    {
+      "text": "O achado de ownership de cartoes_transporte está marcado como 'Conflito Arquitetural' ou 'Ponto a Validar' (não [CORRIGIDO]) e as linhas de ownership de cartoes_transporte em docs/product/modules/recarga/README.md e docs/product/modules/cadastro-passageiro/README.md permanecem idênticas às do commit inicial (git diff não altera essas linhas), assim como docs/product/data-model/data-model.md.",
+      "passed": true,
+      "evidence": "Relatório l.64 Ação 'Conflito Arquitetural — não corrigido', repetido em '## 7. Conflitos Arquiteturais' (l.91-93) e '## 8. Pontos a Validar' (l.95-97), sem [CORRIGIDO]. `git -C work diff -- docs/product | grep -c '^[-+].*cartoes_transporte'` = 0; `git -C work diff --stat -- docs/product` altera só notificacoes/README.md e recarga/README.md (10 inserções, 0 remoções), logo cadastro-passageiro/README.md e data-model/data-model.md intactos."
+    },
+    {
+      "text": "docs/product/modules/recarga/README.md passou a declarar o deployable recarga-service (seção Deployable ou equivalente), e o relatório lista essa correção com marcação [CORRIGIDO] na seção Correções Aplicadas indicando arquivo e antes/depois.",
+      "passed": true,
+      "evidence": "`grep -n '^## Deployable' work/docs/product/modules/recarga/README.md` → l.36; o diff adiciona '- recarga-service (TRD §Deployables) — Kotlin/Spring Boot + PostgreSQL ...'. Relatório §6 Correções Aplicadas l.88: 'MOD-DOC-001 | docs/product/modules/recarga/README.md | §Deployable | (seção ausente) | ## Deployable adicionada com recarga-service ...', e l.74 marca MOD-DOC-001 como [CORRIGIDO]. A marcação [CORRIGIDO] está na tabela de achados (§5.3), e a tabela de §6 traz arquivo e antes/depois; aceito como satisfazendo a asserção."
+    },
+    {
+      "text": "docs/product/modules/notificacoes/README.md ganhou um bloco mermaid de dependências com arestas de notificacoes para recarga e para cadastro-passageiro, e o relatório registra a correção como [CORRIGIDO] com ID MOD-DOC-NNN ou equivalente.",
+      "passed": true,
+      "evidence": "`git -C work diff` em notificacoes/README.md adiciona bloco ```mermaid graph LR com 'notificacoes -->|PL evento RecargaConfirmada| recarga' e 'notificacoes -->|Conformist gRPC ObterContato| cadastro-passageiro'. Relatório l.75 'MOD-DOC-002 | Módulo notificacoes sem diagrama Mermaid de dependências ... | [CORRIGIDO]' e l.89 na §6 com antes '(sem diagrama)'/depois."
+    },
+    {
+      "text": "A Matriz de Ownership do relatório tem uma linha para cada uma das 5 tabelas do data-model (passageiros, cartoes_transporte, recargas, tabelas_tarifarias, notificacoes_enviadas) e a Matriz de Cobertura lista os 4 bounded contexts com percentual de cobertura.",
+      "passed": true,
+      "evidence": "Relatório §2 (l.26-32) tem uma linha para passageiros, cartoes_transporte, recargas, tabelas_tarifarias e notificacoes_enviadas; §1 (l.15-22) lista tarifacao, recarga, cadastro-passageiro e notificacoes, com '**Cobertura:** 4/4 módulos (100%)' (l.22). O percentual é agregado, não por BC; aceito como 'com percentual de cobertura'."
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "executor_duration_seconds": 306.0,
+    "total_duration_seconds": 306.0
+  },
+  "claims": [
+    {
+      "claim": "Os 4 deployables do TRD mapeiam 1:1 com os módulos",
+      "type": "factual",
+      "verified": true,
+      "evidence": "Matriz §4 do relatório e transcript l.44; consistente com o Cross-refs de recarga ('deployable recarga-service')."
+    },
+    {
+      "claim": "Correções só em 2 READMEs, sem tocar ownership",
+      "type": "process",
+      "verified": true,
+      "evidence": "git diff --stat: 2 arquivos, 10 inserções, 0 remoções."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "docs/product/modules/recarga/README.md passou a declarar o deployable recarga-service (seção Deployable ou equivalente), e o relatório lista essa correção com marcação [CORRIGIDO] na seção Correções Aplicadas indicando arquivo e antes/depois.",
+        "reason": "A asserção pede [CORRIGIDO] 'na seção Correções Aplicadas', mas o formato do agente põe [CORRIGIDO] na tabela de achados e antes/depois em Correções Aplicadas; convém alinhar o texto ao formato real para não depender de leitura caridosa do grader."
+      },
+      {
+        "reason": "A asserção 6 aceita cobertura agregada (4/4, 100%); se o objetivo é percentual por BC, dizer explicitamente."
+      }
+    ],
+    "overall": "Asserções discriminantes: exigem relatório no caminho canônico, não-correção comprovada por git diff e correções específicas derivadas dos insumos."
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "expectations": [
+    {
+      "text": "Há finding BLOCKER em deploy/k8s/deployment-prd.yaml pela imagem `validacao:1.8.0` sem digest pinned no namespace prd-validacao; NÃO há finding BLOCKER para a mesma imagem em deploy/k8s/deployment-stg.yaml (stg pode ter finding de severidade menor ou nenhum)",
+      "passed": true,
+      "evidence": "outputs/deliverables/.forge/reviews/platform-deploy-validacao.json (idêntico a work/.forge/reviews/platform-deploy-validacao.json, cmp sem diferença): jq '[.findings[]|select(.severity==\"BLOCKER\")|{id,file}]' → [{\"id\":\"PLAT-001\",\"file\":\"deploy/k8s/deployment-prd.yaml\"}]; descrição cita '...validacao:1.8.0' por tag e 'qualquer namespace prd-*'. deployment-stg.yaml só recebe PLAT-007 severity MEDIUM ('não é BLOCKER em stg pela regra'). Ressalva: PLAT-001 aponta line 15, mas a imagem está na linha 21 de work/deploy/k8s/deployment-prd.yaml (grep -n image); a asserção não exige linha."
+    },
+    {
+      "text": "Há finding HIGH apontando a ausência de NetworkPolicy para o namespace prd-validacao (o diff só traz networkpolicy-stg.yaml)",
+      "passed": true,
+      "evidence": "outputs/deliverables/.forge/reviews/platform-deploy-validacao.json: PLAT-002 severity HIGH, file deploy/k8s/deployment-prd.yaml, title 'Namespace prd-validacao sem NetworkPolicy', descrição 'Existe networkpolicy-stg.yaml para stg-validacao, mas nenhum NetworkPolicy equivalente foi criado para prd-validacao'. ls work/deploy/k8s confirma só networkpolicy-stg.yaml."
+    },
+    {
+      "text": "Há findings HIGH em arquivos de services/validacao/src/Validacao.Infrastructure/ (AdquirenteClient.cs ou DependencyInjection.cs) cobrindo ao menos três destes quatro itens: timeout explícito ausente, retry Polly ausente, circuit breaker ausente, idempotency key ausente no POST de captura",
+      "passed": true,
+      "evidence": "outputs/deliverables/.forge/reviews/platform-deploy-validacao.json: PLAT-005 HIGH em services/validacao/src/Validacao.Infrastructure/DependencyInjection.cs ('AddHttpClient<AdquirenteClient>() não anexa nenhuma policy de resiliência... sem retry, sem circuit breaker e sem timeout explícito') e PLAT-006 HIGH em .../Adquirente/AdquirenteClient.cs ('sem um header de idempotência (ex.: Idempotency-Key)'). Cobre os quatro itens, ambos HIGH; timeout/retry/CB consolidados num único finding, o que a asserção admite."
+    },
+    {
+      "text": "Nenhum finding com `file` services/validacao/Dockerfile tem severidade BLOCKER, HIGH ou MEDIUM",
+      "passed": true,
+      "evidence": "jq '[.findings[]|select(.file==\"services/validacao/Dockerfile\")]' outputs/deliverables/.forge/reviews/platform-deploy-validacao.json → []. Nenhum finding no Dockerfile; transcript §3.1 'Sem finding — hardening e multi-arch corretos'."
+    },
+    {
+      "text": "Nenhum finding tem `file` tools/legacy-report/Dockerfile (arquivo com `FROM node:latest` que existe na main mas não foi modificado no diff)",
+      "passed": true,
+      "evidence": "jq '[.findings[]|select(.file==\"tools/legacy-report/Dockerfile\")]' outputs/deliverables/.forge/reviews/platform-deploy-validacao.json → []; grep -c legacy-report → 0."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "executor_duration_seconds": 154,
+    "total_duration_seconds": 154
+  },
+  "claims": [
+    {
+      "claim": "PLAT-001 aponta a imagem na linha 15 de deployment-prd.yaml",
+      "type": "factual",
+      "verified": false,
+      "evidence": "grep -n image work/deploy/k8s/deployment-prd.yaml → linha 21."
+    },
+    {
+      "claim": "PLAT-003: NetworkPolicy de stg nega todo egress",
+      "type": "factual",
+      "verified": true,
+      "evidence": "work/deploy/k8s/networkpolicy-stg.yaml linha 10 'policyTypes: [Ingress, Egress]' sem bloco egress."
+    },
+    {
+      "claim": "Subagente não foi spawnado; despacho registrado",
+      "type": "process",
+      "verified": true,
+      "evidence": "outputs/subagent-dispatch.md descreve despacho hipotético (platform-reviewer, sonnet)."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Nenhum finding tem `file` tools/legacy-report/Dockerfile (arquivo com `FROM node:latest` que existe na main mas não foi modificado no diff)",
+        "reason": "Passa trivialmente nas duas configurações: nenhum executor sequer olhou arquivos fora do diff. Não discrimina; só teria valor se o fixture tornasse tools/legacy-report mais saliente."
+      },
+      {
+        "reason": "Nenhuma asserção cobre o defeito real de fiação que o without_skill achou e verifiquei (Validacao.Api.csproj sem ProjectReference para Validacao.Infrastructure; grep -rn AddInfrastructure só acha a definição). O with_skill não o reportou. Se o fixture é intencional, vale asserção; se é acidental, corrigir o fixture."
+      },
+      {
+        "assertion": "Há finding BLOCKER em deploy/k8s/deployment-prd.yaml pela imagem `validacao:1.8.0` sem digest pinned no namespace prd-validacao; NÃO há finding BLOCKER para a mesma imagem em deploy/k8s/deployment-stg.yaml (stg pode ter finding de severidade menor ou nenhum)",
+        "reason": "O expected_output fixa a linha 21, mas a asserção não checa linha; o with_skill apontou linha 15 (errada) e passou. Considerar exigir line==21."
+      },
+      {
+        "reason": "A NetworkPolicy de stg com Egress sem regras (deny-all que quebra a chamada ao adquirente) foi achada pelas duas configurações como HIGH e não é coberta por asserção."
+      }
+    ],
+    "overall": "Asserções 1 e 3 discriminam bem (severidade calibrada por namespace e resiliência da integração externa); 4 e 5 são quase triviais."
+  }
+}

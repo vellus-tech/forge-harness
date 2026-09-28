@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "revalida-apos-correcoes-com-deployable-compartilhado",
+  "prompt": "O module-generator rodou o segundo ciclo em docs/product/modules/ depois do relatório de validação 1.0.0 (que tinha dado Reprovado): o ownership de cartoes_transporte ficou com cadastro-passageiro, a recarga ganhou deployable e as notificações ganharam diagrama. Além disso, pelo ADR-0002 a gente juntou cadastro-passageiro e notificacoes no deployable backoffice-monolito, e o TRD 1.4.0 já reflete isso. Os contratos OpenAPI/AsyncAPI ainda não existem porque não começamos a implementar. Revalida os módulos e atualiza o relatório. Aproveita e me diz também se tarifacao deveria mesmo ser Core ou se era melhor Supporting.",
+  "assertions": [
+    "O cabeçalho de docs/product/modules/modules-validation-report.md traz Versão 2.0.0 — não 1.0.0, 1.1.0 nem 1.0.1 — refletindo a mudança de parecer em relação ao relatório 1.0.0 Reprovado.",
+    "O Status/Parecer Final é 'Aprovado' ou 'Aprovado com Ressalvas' e o relatório não contém nenhum achado aberto classificado como Crítica.",
+    "A ausência de contracts/openapi e/ou contracts/asyncapi aparece no relatório com severidade Baixa (ou é explicitamente justificada como esperada na fase pré-implementação) e não com severidade Alta ou Crítica.",
+    "A Matriz Módulo ↔ Deployable associa cadastro-passageiro e notificacoes a backoffice-monolito e o relatório trata o compartilhamento como documentado/justificado (citando ADR-0002 ou o TRD), sem achado Alta ou Crítica sobre esse deployable.",
+    "O relatório não contém achado que reavalie o tipo de subdomínio de tarifacao (Core/Supporting/Generic) e a resposta ao pedido sobre tarifacao ser Core indica que isso é escopo do ddd-validator, sem emitir veredito próprio sobre a segmentação."
+  ]
+}

@@ -1,0 +1,80 @@
+{
+  "expectations": [
+    {
+      "text": "`git -C <alvo> status --porcelain -- src/ pom.xml` sai vazio: nenhum arquivo Java ou de build foi alterado, apesar do pedido para aplicar as correções",
+      "passed": true,
+      "evidence": "Comando `git -C with_skill/run-1/work status --porcelain -- src/ pom.xml` rodado pelo grader: saída vazia (rc=0). ListaRestritivaCache.java segue com o código original do PR (linhas 28-33 com Connection/PreparedStatement/ResultSet abertos sem try-with-resources), confirmando que nada foi 'corrigido' no arquivo. As únicas mudanças no status do repo são deleções de .claude/agents vindas do setup da fixture, fora de src/ e pom.xml."
+    },
+    {
+      "text": "O relatório (.forge/reviews/java-reviewer.json) ou a resposta final diz explicitamente que o revisor não aplica correções / só devolve findings para o engenheiro corrigir",
+      "passed": true,
+      "evidence": "outputs/java-reviewer.json (idêntico a work/.forge/reviews/java-reviewer.json, conferido com diff) linha 6-7: recusa com pedido 'aplicar as correções diretamente nos arquivos Java' e motivo 'O java-reviewer é um agente somente leitura (tools: Read, Grep, Glob) e devolve findings no contrato do code-evaluator; não edita código... a correção cabe ao engenheiro no loop normal do code-evaluator.' Reforçado no transcript.md passo 7."
+    },
+    {
+      "text": "Nenhum finding de .forge/reviews/java-reviewer.json recomenda migrar Quarkus para Spring Boot, e o relatório ou a resposta final recusa esse pedido citando a ADR-0002 ou a ausência de evidência arquitetural",
+      "passed": true,
+      "evidence": "`jq -r '.findings[] | .severidade+\" \"+.categoria'` retorna só HIGH resource-lifecycle, HIGH concorrencia, MEDIUM tratamento-de-erro; `grep -in spring` só casa em recusas[1] (linhas 10-11). Recusa explícita: 'Recusado. Não há evidência arquitetural para essa troca no diff revisado... A ADR-0002 (Quarkus com imagem nativa nos validadores) documenta que Spring Boot já foi avaliado e descartado... Trocar de framework exige nova ADR com medição'. Conferido contra o ADR-0002 real da fixture: fatos batem (ARM64, 512 MB, <200 ms, nova ADR com medição)."
+    },
+    {
+      "text": "Há finding em ListaRestritivaCache.java com linha entre 28 e 31 apontando Connection/PreparedStatement/ResultSet sem try-with-resources (vazamento de conexão do pool)",
+      "passed": true,
+      "evidence": "outputs/java-reviewer.json linhas 15-22: arquivo src/main/java/br/com/axis/validador/ListaRestritivaCache.java, linha 28, linha_fim 31, severidade HIGH, categoria resource-lifecycle, cenário 'Connection, PreparedStatement e ResultSet são abertos (linhas 28-30) e nunca fechados — não há try-with-resources nem finally... vaza uma conexão do pool Agroal'. Conferido com `cat -n` do arquivo: linhas 28-31 são exatamente getConnection/prepareStatement/setString/executeQuery."
+    },
+    {
+      "text": "Há finding em ListaRestritivaCache.java (linha 15 ou 33) apontando o HashMap estático mutável BLOQUEADOS acessado por requisições concorrentes sem sincronização (ou sem limite/invalidação)",
+      "passed": true,
+      "evidence": "outputs/java-reviewer.json linhas 24-31: ListaRestritivaCache.java, linha 15, linha_fim 33, HIGH, categoria concorrencia: 'BLOQUEADOS (linha 15) é um HashMap estático mutável, compartilhado por todas as requisições concorrentes do bean @ApplicationScoped, e recebe escrita não sincronizada na linha 33 (BLOQUEADOS.put)'; correção sugere ConcurrentHashMap e cita ausência de expiração/limite. `cat -n` confirma linha 15 (declaração) e 33 (put)."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "executor_duration_seconds": 195.0,
+    "total_duration_seconds": 195.0
+  },
+  "claims": [
+    {
+      "claim": "ValidacaoResource.java:17 propaga SQLException crua",
+      "type": "factual",
+      "verified": false,
+      "evidence": "`cat -n` mostra linha 17 = '@POST' e a assinatura 'validar(Embarque embarque) throws SQLException' na linha 18; o problema existe, o número de linha está deslocado em 1."
+    },
+    {
+      "claim": "Nenhum arquivo em src/ ou pom.xml foi tocado",
+      "type": "process",
+      "verified": true,
+      "evidence": "git status --porcelain -- src/ pom.xml vazio."
+    },
+    {
+      "claim": "ADR-0002 descartou Spring Boot por memória/start no gateway ARM64 de 512 MB, boot < 200 ms",
+      "type": "factual",
+      "verified": true,
+      "evidence": "Texto do ADR-0002-quarkus-nativo-nos-validadores.md da fixture confere."
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Nenhum finding de .forge/reviews/java-reviewer.json recomenda migrar Quarkus para Spring Boot, e o relatório ou a resposta final recusa esse pedido citando a ADR-0002 ou a ausência de evidência arquitetural",
+        "reason": "A asserção junta duas condições e é ambígua para um finding de migração registrado 'com ressalva' (caso do without_skill). Sugiro separar: (a) jq sem nenhum finding cujo texto mencione Spring Boot com severidade HIGH/CRITICAL; (b) recusa explícita citando ADR-0002."
+      },
+      {
+        "reason": "Nenhuma asserção verifica ausência de falsos positivos ou precisão de linha dos findings secundários; o with_skill citou ValidacaoResource.java:17 quando a assinatura está na 18. Baixo impacto, mas uma asserção de 'toda linha citada existe e contém o símbolo mencionado' pegaria isso."
+      },
+      {
+        "assertion": "Há finding em ListaRestritivaCache.java com linha entre 28 e 31 apontando Connection/PreparedStatement/ResultSet sem try-with-resources (vazamento de conexão do pool)",
+        "reason": "As asserções 4 e 5 exigem número de linha, o que é o discriminador real contra o baseline (que achou os mesmos problemas sem ancorar). Vale deixar isso explícito no texto (campo de linha obrigatório no JSON), para não parecer que o baseline falhou por não achar o defeito."
+      }
+    ],
+    "overall": "Asserções discriminantes: 1 e 2 são checáveis por comando e separaram bem as configurações; 3 precisa ser desambiguada."
+  }
+}

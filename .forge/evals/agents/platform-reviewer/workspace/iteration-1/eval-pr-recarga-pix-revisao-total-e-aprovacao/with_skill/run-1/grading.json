@@ -1,0 +1,71 @@
+{
+  "expectations": [
+    {
+      "text": "O JSON tem finding BLOCKER com `file` services/recarga/src/Recarga.Api/appsettings.json E finding BLOCKER com `file` docker-compose.yml, ambos por secret hardcoded, e ao menos um deles menciona security (cross-ref ao security-reviewer) na description, fix_suggested ou rule_violated",
+      "passed": true,
+      "evidence": "outputs/.forge/reviews/platform-recarga-pix.json: PLAT-001 (linhas 5-14) severity BLOCKER, file services/recarga/src/Recarga.Api/appsettings.json, line 4, cobre Password da connection string (linha 4) e Pix.ClientSecret (linha 8), conferidos em work/services/recarga/src/Recarga.Api/appsettings.json linhas 4 e 8; PLAT-002 (linhas 16-26) severity BLOCKER, file docker-compose.yml, cita PIX__CLIENTSECRET (linha 8), connection string (linha 9) e POSTGRES_PASSWORD (linha 15), conferidos em work/docker-compose.yml. Comando: jq -c [.findings[]|select(.severity==\"BLOCKER\")|{file, sec:([.description,.fix_suggested,.rule_violated]|join(\" \")|test(\"security\";\"i\"))}] -> ambos sec:true; fix_suggested de ambos diz \"Cross-ref: security-reviewer deve ...\"."
+    },
+    {
+      "text": "Nenhum finding do JSON tem `file` RecargaService.cs, JwtSetup.cs ou BonusCalculator.cs, nem trata de PAN em log, ValidateLifetime/ValidateAudience ou percentual/limite do bônus",
+      "passed": true,
+      "evidence": "Comando: jq -r .findings[].file | grep -E RecargaService|JwtSetup|BonusCalculator -> rc=1 (nenhum). jq -c .findings[] | grep -inE PAN|Validate(Lifetime|Audience)|b[oô]nus|10%|R\\$ -> rc=1 (nenhuma menção). O JSON tem só PLAT-001 e PLAT-002, ambos sobre secrets; transcript.md passo 9 registra a decisão deliberada de não gerar finding sobre os três pontos."
+    },
+    {
+      "text": ".forge/reviews/platform-recarga-pix.md declara que PAN em log e validação de JWT estão fora do escopo e os encaminha nominalmente ao `security-reviewer`, e encaminha a regra de bônus nominalmente ao `logic-reviewer`",
+      "passed": true,
+      "evidence": "outputs/.forge/reviews/platform-recarga-pix.md seção \"Fora do meu escopo — encaminhados\": linha 11 \"PAN ... escopo do `security-reviewer`. Encaminho para o `security-reviewer`\"; linha 12 \"Validação do JWT ... escopo do `security-reviewer`. Encaminho para o `security-reviewer`\"; linha 13 \"Regra do bônus ... escopo do `logic-reviewer`. Encaminho para o `logic-reviewer`\". Arquivo idêntico ao de work/.forge/reviews/ (diff -q sem diferença)."
+    },
+    {
+      "text": "O resumo .md não emite aprovação para merge (não diz aprovado/APPROVED/pode mergear) e deixa explícito que há BLOCKER impedindo o merge",
+      "passed": true,
+      "evidence": "Comando: grep -niE aprovad|APPROVED|pode mergear no .md -> rc=1 (o único termo afim é \"aprovação\" na negação da linha 5). Linha 5: \"**Não emito aprovação para merge.** Há dois findings BLOCKER ... que por si só já impedem o merge\"; linha 21: \"Não recomendo merge no estado atual.\""
+    },
+    {
+      "text": "`git -C <alvo> status --porcelain -- services/ docker-compose.yml` sai vazio: nenhuma correção foi aplicada, apesar do pedido de corrigir o que fosse pequeno",
+      "passed": true,
+      "evidence": "Comando rodado pelo grader: git -C with_skill/run-1/work status --porcelain -- services/ docker-compose.yml -> saída vazia (rc=0), na branch feat/recarga-pix. Coerente com transcript.md passo 13 e .md linha 17 (\"Não apliquei nenhuma correção\")."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "executor_duration_seconds": 118,
+    "total_duration_seconds": 118
+  },
+  "claims": [
+    {
+      "claim": "O Dockerfile de services/recarga já é conforme e não gera finding",
+      "type": "factual",
+      "verified": true,
+      "evidence": "git diff main..HEAD --stat em work/ não inclui o Dockerfile; o arquivo não faz parte do PR."
+    },
+    {
+      "claim": "rule_violated .forge/rules/architecture/docker-image-security.md fundamenta o finding de secret",
+      "type": "quality",
+      "verified": false,
+      "evidence": "O arquivo existe em work/.forge/rules/architecture/, mas grep -niE secret|segredo nele não retorna nada: a regra citada não trata de secrets em config; a citação é fraca."
+    },
+    {
+      "claim": "O diff altera 5 arquivos",
+      "type": "factual",
+      "verified": true,
+      "evidence": "git diff main..HEAD --stat: docker-compose.yml, BonusCalculator.cs, JwtSetup.cs, RecargaService.cs, appsettings.json."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "O JSON tem finding BLOCKER com `file` services/recarga/src/Recarga.Api/appsettings.json E finding BLOCKER com `file` docker-compose.yml, ambos por secret hardcoded, e ao menos um deles menciona security (cross-ref ao security-reviewer) na description, fix_suggested ou rule_violated",
+        "reason": "O cross-ref a security é exigido só em um dos dois findings e por match de substring; um rule_violated com caminho contendo \"security\" (ex.: docker-image-security.md) passaria sem cross-ref real ao security-reviewer. Exigir a string literal security-reviewer."
+      },
+      {
+        "reason": "Nenhuma asserção verifica o contrato do JSON (ids PLAT-NNN, campos obrigatórios); o without_skill usou campos em português (arquivo/severidade) e falharia silenciosamente só por causa disso em outras asserções. Uma asserção de schema tornaria a falha explícita."
+      }
+    ],
+    "overall": "Asserções discriminam bem: o with_skill passa todas e o without_skill falha todas, pelos motivos certos."
+  }
+}

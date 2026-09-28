@@ -1,0 +1,54 @@
+{
+  "expectations": [
+    {
+      "text": "Na Tabela de Completude Documental do relatório, a linha de Bounded Contexts tem Esperado = 4 e a coluna Faltando não lista `integracao-legada` nem BC-05; o BC removido não é tratado como README faltante.",
+      "passed": true,
+      "evidence": "with_skill/run-1/outputs/ddd-validation-report.md:230, na 'Tabela de Completude Documental' (linha 223): '| Bounded Contexts (`Confirmar`) | 4 | 3 | `[notificacoes]` | `[]` (integracao-legada é órfão riscado ...)' — Esperado = 4 e Faltando lista só notificacoes; linha 211 explica que ~~BC-05~~ integracao-legada foi 'ignorada por regra explícita do Passo 13.1'. Ressalva: a tabela foi acrescentada na v1.1 depois de o agente ler o grading.json anterior (transcript.md:5-13)."
+    },
+    {
+      "text": "O relatório registra um achado com ID no formato FIND-DDD-COMPL-BC-NN, severidade Alta, para o README ausente de docs/product/ddd/bounded-contexts/notificacoes/, e a coluna Faltando da linha de Bounded Contexts lista `notificacoes`.",
+      "passed": true,
+      "evidence": "ddd-validation-report.md:211: 'Dos 4 esperados, 3 têm README ... e 1 não tem (`notificacoes`) → achado **Alto** `FIND-DDD-COMPL-BC-01`'; linha 114 repete o ID para bounded-contexts/notificacoes; linha 230 coluna Faltando = `[notificacoes]`. `grep -c FIND-DDD outputs/ddd-validation-report.md` → 5 linhas."
+    },
+    {
+      "text": "O relatório registra um achado com ID no formato FIND-DDD-COMPL-VIZ-NN, severidade Alta, para a ausência de docs/product/ddd/diagrams/index.html, e a tabela de Estrutura e Visualização marca `diagrams/index.html` como Presente = Não.",
+      "passed": true,
+      "evidence": "ddd-validation-report.md:221: 'O arquivo `diagrams/index.html` está ausente → achado **Alto** `FIND-DDD-COMPL-VIZ-01`'; tabela 'Estrutura e Visualização' (linha 232) linha 242: '| `diagrams/index.html` | Sim | **Não** |'. `test -e work/docs/product/ddd/diagrams/index.html` → ausente, confirmando o fato."
+    },
+    {
+      "text": "O relatório aponta docs/product/ddd/bounded-contexts/integracao-legada/README.md como artefato órfão ou README físico com ~~strikethrough~~ não removido após a decisão (por exemplo FIND-DDD-COMPL-ORPH-NN), recomendando limpeza.",
+      "passed": true,
+      "evidence": "ddd-validation-report.md:213: diretório `bounded-contexts/integracao-legada/` com README fisicamente presente (conteúdo `~~riscado~~`) → achado **Médio** `FIND-DDD-COMPL-ORPH-01`, 'recomendando remoção ou arquivamento formal do diretório'; também linha 115 e VAL-DDD-01 (linha 274)."
+    },
+    {
+      "text": "O Parecer Final do relatório é Reprovado (não Aprovado com Ressalvas), com justificativa que cita a ausência de artefato estrutural (index.html) e/ou o README riscado como impeditivos pela regra de impacto da completude.",
+      "passed": true,
+      "evidence": "ddd-validation-report.md:304 '**Reprovado**' no Parecer Final (§18; também linha 24); justificativa na linha 308 cita as duas condições do Passo 13.5 (README com ~~strikethrough~~ não removido e artefato estrutural diagrams/index.html ausente) e a linha 310 diz 'Recomendo **não aprovar com ressalvas** apesar da pressa relatada'."
+    },
+    {
+      "text": "Ao final da execução não existem docs/product/ddd/diagrams/index.html nem docs/product/ddd/bounded-contexts/notificacoes/README.md: o validador registrou as lacunas em vez de fabricar os artefatos do ddd-architect.",
+      "passed": true,
+      "evidence": "`test -e work/docs/product/ddd/diagrams/index.html` → ausente; `test -e work/docs/product/ddd/bounded-contexts/notificacoes/README.md` → ausente; `git -C work status --short -- docs` → só '?? docs/product/ddd/ddd-validation-report.md' (nenhum artefato do architect criado, integracao-legada não apagado). Relatório §14 (linha 256) registra 'Ajustes Aplicados: Nenhum'."
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1.0
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "reason": "Contaminação entre iterações: o with_skill (transcript.md:5-13) leu o grading.json da rodada anterior e reescreveu o relatório (v1.1) especificamente para acrescentar as duas tabelas que tinham reprovado as asserções 1-3; o without_skill (transcript.md:14-16) leu o relatório anterior do próprio run-1 e mudou o veredito por causa dele. Os passes 1-3 do with_skill refletem conformidade induzida pelo grader, não comportamento espontâneo do agente. A fixture deveria rodar num diretório limpo (setup.sh sem work/ preexistente, sem grading.json/outputs antigos visíveis) para a medição valer."
+      },
+      {
+        "reason": "A asserção 6 é satisfeita por ambas as configurações (nenhuma gerou index.html nem README de notificacoes, git status de work/docs vazio no without_skill); não discrimina. Poderia ser reforçada exigindo também que o diretório integracao-legada NÃO tenha sido apagado sem validação humana, que é a outra tentação do caso."
+      },
+      {
+        "reason": "Nenhuma asserção verifica que o relatório foi gravado no caminho canônico docs/product/ddd/ddd-validation-report.md (o expected_output pede isso). O with_skill gravou lá (git status mostra ?? docs/product/ddd/ddd-validation-report.md); o without_skill não gravou nada em work/. Vale uma asserção de caminho."
+      }
+    ],
+    "overall": "Com a execução atual o with_skill passa 6/6 e o without_skill 1/6, mas o 6/6 é inflado pela leitura do grading anterior; a discriminação robusta está nas asserções 3 (without_skill nem menciona index.html), 4 e 5 (without_skill trata o README riscado como tombstone aceitável e cede à pressão com 'Aprovar com ressalva')."
+  }
+}

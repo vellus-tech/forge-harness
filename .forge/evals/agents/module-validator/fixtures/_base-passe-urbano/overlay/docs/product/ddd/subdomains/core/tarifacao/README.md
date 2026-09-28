@@ -1,0 +1,1 @@
+# Subdomínio Core — tarifacao

@@ -1,0 +1,59 @@
+{
+  "agent": "dotnet-reviewer",
+  "branch": "hotfix/extrato-portador",
+  "base": "main",
+  "verdict": "BLOCKED",
+  "findings": [
+    {
+      "severity": "BLOCKER",
+      "file": "src/Portador.Api/appsettings.json",
+      "line": 5,
+      "title": "Credencial AWS de longa duração commitada em appsettings.json",
+      "description": "Aws.AccessKeyId e Aws.SecretAccessKey estão em texto plano no appsettings.json commitado na branch hotfix/extrato-portador. É P0 por definição do agente (ver .forge/hooks/pre-tool-use/prevent-secrets-leak.sh, que bloqueia exatamente este padrão em Write/Edit — o arquivo só chegou ao repositório porque o commit da fixture usou --no-verify, contornando o próprio gancho que existe para isto). A chave precisa ser tratada como comprometida a partir do momento em que entrou no histórico do git, mesmo que a branch nunca suba: rotacionar/revogar a AccessKeyId no IAM da AWS antes de qualquer outra ação, e mover a credencial para o mecanismo de identidade aprovado do projeto (variável de ambiente/secret manager injetado via IOptions<T>, nunca IConfiguration direto no serviço).",
+      "fix_suggested": "Revogar a AccessKeyId no IAM imediatamente; remover as chaves do appsettings.json e do histórico (git filter-repo/BFG, fora do escopo desta revisão); usar IOptions<AwsOptions> alimentado por secret manager/variável de ambiente; reescrever ExtratoController para usar autenticação por role (IAM role / SSO) em vez de access key estática."
+    },
+    {
+      "severity": "BLOCKER",
+      "file": "src/Portador.Api/Controllers/ExtratoController.cs",
+      "line": 19,
+      "title": "SQL interpolado em FromSqlRaw — injeção de SQL",
+      "description": "`.FromSqlRaw($\"SELECT * FROM transacoes WHERE cpf_portador = '{cpf}' AND numero_cartao = '{numeroCartao}'\")` interpola `cpf` e `numeroCartao`, que chegam direto da rota/querystring, dentro da string SQL. Confirmado pelo scan determinístico (regra sql-interpolation, severidade BLOCKER, sem exceção legítima para valor vindo de entrada — ver .forge/skills/dotnet-quality-scan/references/clean-code-rules.md). É injeção de SQL clássica: um numeroCartao como `' OR '1'='1` devolve o extrato de qualquer portador.",
+      "fix_suggested": "Trocar por FromSql interpolado (parametriza automaticamente): `db.Transacoes.FromSql($\"SELECT * FROM transacoes WHERE cpf_portador = {cpf} AND numero_cartao = {numeroCartao}\")`, ou usar LINQ (`db.Transacoes.Where(t => t.CpfPortador == cpf && t.NumeroCartao == numeroCartao)`)."
+    },
+    {
+      "severity": "BLOCKER",
+      "file": "src/Portador.Api/Controllers/ExtratoController.cs",
+      "line": 16,
+      "title": "Número de cartão (PAN) e CPF gravados em log",
+      "description": "`logger.LogInformation($\"Extrato solicitado para o cartão {numeroCartao} do CPF {cpf}\")` grava o PAN completo e o CPF do portador em texto plano no log de aplicação — ambos são dado sensível regulado (PCI DSS para PAN, LGPD para CPF) e o log costuma ter retenção e acesso mais largos que o banco transacional.",
+      "fix_suggested": "Remover PAN e CPF da mensagem de log, ou mascarar (últimos 4 dígitos do cartão, CPF com hash/ofuscação) e usar structured logging com os campos sensíveis fora da mensagem textual — nunca interpolados na string."
+    },
+    {
+      "severity": "HIGH",
+      "file": "Directory.Build.props",
+      "line": 0,
+      "title": "DOTNET-BASELINE: baseline de build ausente",
+      "description": "`bash .forge/scripts/dotnet-baseline.sh --root . --check` reprova: faltam Directory.Build.props, .editorconfig e Directory.Packages.props na raiz. Sem eles, TreatWarningsAsErrors/AnalysisMode/EnforceCodeStyleInBuild não estão em vigor e o build não reprova sozinho os achados que o compilador poderia pegar de graça (nulidade, acessibilidade, using não usado) — o time paga em revisão manual o que um interruptor de build resolveria em todo commit, inclusive nos que ninguém mandou revisar.",
+      "fix_suggested": "Rodar `bash .forge/scripts/dotnet-baseline.sh --apply` para gerar os três arquivos com a configuração padrão do harness."
+    }
+  ],
+  "deterministic_layers": {
+    "dotnet_baseline": {
+      "command": "bash .forge/scripts/dotnet-baseline.sh --root . --check",
+      "result": "FAIL",
+      "detail": "MISS Directory.Build.props; MISS .editorconfig; MISS Directory.Packages.props; INFO analyzers:third-party ausente"
+    },
+    "dotnet_quality_scan": {
+      "command": "bash .forge/skills/dotnet-quality-scan/scripts/scan.sh --root . --json /tmp/dotnet-scan.json",
+      "result": "FAIL",
+      "found": [
+        {"rule": "sql-interpolation", "severity": "BLOCKER", "count": 1, "location": "src/Portador.Api/Controllers/ExtratoController.cs:19"}
+      ],
+      "ok": [
+        "async-void [HIGH]", "blocking-wait [BLOCKER]", "new-httpclient [HIGH]", "region [MEDIUM]",
+        "generic-name [MEDIUM]", "bool-param [MEDIUM]", "empty-catch [HIGH]", "datetime-now [MEDIUM]",
+        "mutable-static [HIGH]", "single-impl-interface [MEDIUM]"
+      ]
+    }
+  }
+}

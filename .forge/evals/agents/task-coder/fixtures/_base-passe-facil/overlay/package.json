@@ -1,0 +1,9 @@
+{
+  "name": "passe-facil",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "node scripts/typecheck.mjs",
+    "test": "node --test"
+  }
+}

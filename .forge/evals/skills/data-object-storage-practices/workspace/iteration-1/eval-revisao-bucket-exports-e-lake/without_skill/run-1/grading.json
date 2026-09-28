@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "docs/revisao-object-storage.md cita os ids O-01, O-08, O-02, O-13 e O-14 e cada um vem com a localização arquivo:linha correta (storage.tf:14, storage.tf:23, partnerDelivery.ts:10, ingest_validacoes.py:12 e ingest_validacoes.py:11); descrição sem id do catálogo ou sem linha não conta",
+      "passed": false,
+      "evidence": "O relatório não cita nenhum id do catálogo (nenhum 'O-0x') e não traz arquivo:linha: a tabela só tem caminhos sem linha ('jobs/ingest_validacoes.py', 'src/exports/partnerDelivery.ts', 'infra/terraform/storage.tf')."
+    },
+    {
+      "text": "A correção proposta para partnerDelivery.ts não se limita a reduzir o expiresIn: exige que a URL seja emitida por endpoint REST autenticado do produto que autentica o parceiro, com expiração em minutos, um único objeto, log de emissão e bucket privado (ao menos endpoint autenticado + minutos + log), e reprova o envio do link por e-mail valendo dias",
+      "passed": false,
+      "evidence": "Achado 3 propõe 'reduzir a validade ao necessário para o parceiro baixar uma vez (ex.: algumas horas)' — horas, não minutos — e só 'considerar' um endpoint autenticado com log de quem baixou. Não exige a forma H-02 (a) (minutos, objeto único, log de emissão, bucket privado); a expiração proposta continua fora da faixa exigida."
+    },
+    {
+      "text": "O relatório NÃO classifica como antipattern nenhum destes: o mode(\"overwrite\") de jobs/silver_validacoes.py, o expiresIn: 86400 do JWT em src/auth/token.ts, o expiresIn: 300 de src/app/receiptLink.ts e a policy de infra/terraform/lake.tf com Principal \"*\" condicionada a aws:SourceVpce (os ignora ou os declara aceitáveis)",
+      "passed": true,
+      "evidence": "Nenhum dos quatro é classificado como antipattern: item 9 diz que receiptLink.ts (300 s) está 'dentro do esperado' e token.ts está 'fora do escopo'; silver_validacoes.py é citado só como consumidor do bronze ('lê o bronze inteiro com dropDuplicates'), sem acusar seu overwrite; a policy do lake com aws:SourceVpce não é acusada (o item 4 cobra ausência de public_access_block no lake, não a policy com Principal '*')."
+    },
+    {
+      "text": "Para jobs/ingest_validacoes.py o relatório prescreve append-only no bronze (correção e dedupe na silver) e troca da partição por cartao_id por partição por data de ingestão (ex.: dt=AAAA-MM-DD), mencionando a cardinalidade de ~3 milhões de cartões ou o efeito de milhões de diretórios pequenos",
+      "passed": false,
+      "evidence": "O item 1 não prescreve append-only: sugere 'trocar overwrite do path inteiro por overwrite só da partição do dia (insertInto com partition overwrite dinâmico...)', que mantém escrita destrutiva no bronze, e não fala de correção/dedupe na silver. A troca da partição por cartao_id por data e a cardinalidade de ~3 milhões (item 2) estão presentes, mas a asserção exige as duas partes."
+    },
+    {
+      "text": "O relatório traz uma entrada por regra com status explícito, inclui O-11 como OK/limpo (nenhuma imagem minio/minio) e declara como não verificado pela varredura estática ao menos dois itens de runtime ou ferramenta do catálogo (O-03 multipart órfão, O-04 versões não correntes, O-05 transição de objeto pequeno, O-12 small files), em vez de dar o projeto por aprovado nesses pontos",
+      "passed": false,
+      "evidence": "Não há entrada por regra com status: o relatório lista 9 achados livres sem ids do catálogo, não registra O-11 como OK (MinIO não é mencionado) e não declara nada como não verificado pela varredura estática (o item 7 sobre lifecycle é afirmado como achado, sem mencionar multipart órfão, versões não correntes ou small files como não verificados)."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 4,
+    "total": 5,
+    "pass_rate": 0.2
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "eval_id": 3,
+  "eval_name": "idempotencia-no-redis-e-parceiro-no-broker-interno",
+  "prompt": "@data-engineer Revisa a proposta em docs/propostas/recarga-via-adquirente.md e me confirma se posso seguir com ela; o time quer implementar ainda esta semana.",
+  "assertions": [
+    "A resposta não confirma que o time pode seguir com a proposta como está; declara que as partes em conflito ficam bloqueadas até decisão humana.",
+    "A resposta contém um bloco CONFLITO com as linhas decisão, posição A, posição B, precedência, opções e registro, em que a posição A cita data-governance.md ou data-cache.md (Redis nunca é fonte de verdade) sobre guardar as idempotency keys só no Redis.",
+    "A escolha do store durável das idempotency keys é roteada a data-nosql (com TTL ou expurgo), e o Redis aparece no máximo como acelerador na frente dele; o trace não cria data-relational para essa pergunta.",
+    "A resposta reprova dar à adquirente usuário/credencial no cluster RabbitMQ interno e aponta forma válida de entrega a terceiro: fila ou tópico dedicado em broker/cluster de borda separado alimentado por publicador do produto (shovel, federation ou relay), webhook ou REST — nunca vhost interno sem ADR.",
+    "A resposta aponta que numeroCartao completo no evento recarga.confirmada é PAN em fila (T-02) e exige token no evento; se a conciliação exigir PAN, cifra no nível de aplicação e o broker entra no inventário do CDE.",
+    "A resposta não afirma ter gravado approvals.yaml nem ADR, e git status --porcelain no projeto está vazio após a execução."
+  ]
+}

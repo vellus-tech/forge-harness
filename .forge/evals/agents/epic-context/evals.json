@@ -1,0 +1,97 @@
+{
+  "skill_name": "epic-context",
+  "artifact_kind": "agent",
+  "artifact_path": "template/.forge/agents/specifications/epic-context.md",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "compila-contexto-recarga-pix",
+      "prompt": "Vou rodar o /forge:shard no change recarga-pix-cartao-transporte (recarga do cartão de transporte via Pix com QR dinâmico, scale 3, já em tasks-ready). Antes, compila o contexto épico dele — o resumo compacto que cada story vai embutir — para o time não precisar reler proposal, requirements, design e tasks a cada story. Tem outro change ativo no repo (migra-eventos-para-kafka) e umas notas soltas em src/recarga/, mas o que vale é o que está no change da recarga.",
+      "expected_output": "Um único arquivo novo .forge/specs/active/recarga-pix-cartao-transporte/epic_context.md, com o cabeçalho '# Epic context — recarga-pix-cartao-transporte', a nota de 'Gerado por epic-context agent' e as seis seções do contrato (Objetivo, Decisões de design, Contratos externos, ADRs, Rules, Invariantes críticas) nessa ordem; ADR-0012 e ADR-0015 com resumo de uma linha, as duas rules citadas no design como paths .forge/rules/..., contratos REST/webhook/gRPC/evento e invariantes de crédito só na liquidação, idempotência por txid e CPF só em HMAC; nada do change de Kafka, do ADR-0020 da baseline nem do TODO de Redlock em src/; sem blocos de código (o DDL do design não é copiado), no máximo 150 linhas; spec-manifest.yaml intocado; resposta final de uma linha no formato 'epic_context.md gerado — N decisões, M contratos, K invariantes.'",
+      "files": [],
+      "fixture": "fixtures/compila-contexto-recarga-pix/setup.sh",
+      "assertions": [
+        {
+          "name": "cabecalho-e-seis-secoes-do-contrato-na-ordem",
+          "text": "Existe .forge/specs/active/recarga-pix-cartao-transporte/epic_context.md cuja primeira linha é '# Epic context — recarga-pix-cartao-transporte' e que contém, nesta ordem, os cabeçalhos '## Objetivo', '## Decisões de design', '## Contratos externos', '## ADRs', '## Rules' e '## Invariantes críticas'."
+        },
+        {
+          "name": "escopo-estrito-sem-vazamento-de-fora-do-change",
+          "text": "O epic_context.md não menciona Kafka, Debezium, migra-eventos-para-kafka, ADR-0021 (do outro change ativo), ADR-0020 ou cache Redis de saldo (da baseline em .forge/product/current/adr/), nem Redlock/lock distribuído (do TODO em src/recarga/NOTAS.md)."
+        },
+        {
+          "name": "adrs-do-design-com-id-e-rules-como-path",
+          "text": "A seção ADRs lista ADR-0012 e ADR-0015, cada um com resumo de uma linha, e nenhum outro ID de ADR; a seção Rules cita .forge/rules/architecture/internal-grpc-communication.md e .forge/rules/architecture/pii-pci-classification.md como paths."
+        },
+        {
+          "name": "sem-bloco-de-codigo-e-ate-150-linhas",
+          "text": "O epic_context.md tem no máximo 150 linhas, não contém cerca de código (```) e não transcreve o DDL do design (nenhuma linha com 'CREATE TABLE' ou 'PRIMARY KEY')."
+        },
+        {
+          "name": "so-epic-context-escrito-manifest-intocado",
+          "text": "Fora das remoções de .forge/skills, .forge/agents, .claude/skills, .claude/agents e plugin/ feitas pelo setup, git status do projeto mostra como único arquivo novo ou alterado o epic_context.md do change; spec-manifest.yaml (sem bloco dev_loop), os demais artefatos do change, o outro change e src/ ficam idênticos ao commit da fixture."
+        },
+        {
+          "name": "resposta-final-uma-linha-no-formato-do-contrato",
+          "text": "A resposta final ao chamador é uma única linha no formato 'epic_context.md gerado — <N> decisões, <M> contratos, <K> invariantes.' com N, M e K inteiros, sem despejar o conteúdo do resumo no chat."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "change-sem-design-scale-1",
+      "prompt": "O change aviso-saldo-baixo-push é scale 1 e não tem design.md, mas quero shardar mesmo assim porque vão ser três devs em paralelo. Gera o epic_context.md dele. O projeto já tem ADR de push na baseline e o módulo src/notificacoes pronto, se ajudar.",
+      "expected_output": "Um único arquivo novo .forge/specs/active/aviso-saldo-baixo-push/epic_context.md com as seis seções do contrato, extraído apenas de proposal, requirements, tasks e manifest do change: as seções sem insumo (decisões de design, ADRs, rules) aparecem explicitamente vazias ou marcadas como inexistentes no change, sem inventar decisões; nada do ADR-0018 da baseline (FCM, fila notificacoes.push) nem de símbolos de src/notificacoes/push.ts; a assinatura TypeScript de tasks.md não é copiada; design.md e requirements.md não são criados; manifest intocado.",
+      "files": [],
+      "fixture": "fixtures/change-sem-design-scale-1/setup.sh",
+      "assertions": [
+        {
+          "name": "seis-secoes-presentes-mesmo-sem-design",
+          "text": "Existe .forge/specs/active/aviso-saldo-baixo-push/epic_context.md com primeira linha '# Epic context — aviso-saldo-baixo-push' e os seis cabeçalhos do contrato (Objetivo, Decisões de design, Contratos externos, ADRs, Rules, Invariantes críticas); as seções ADRs e Rules estão vazias ou declaram explicitamente que o change não referencia nenhum."
+        },
+        {
+          "name": "nao-importa-adr-da-baseline",
+          "text": "O epic_context.md não menciona ADR-0018, Firebase, FCM nem a fila notificacoes.push — conteúdo que só existe na baseline (.forge/product/current/adr/) e em src/, fora dos artefatos do change."
+        },
+        {
+          "name": "nao-le-codigo-fonte",
+          "text": "O epic_context.md não cita os símbolos enviarPushFcm nem LIMIAR_SALDO_PADRAO_CENTAVOS, que só existem em src/notificacoes/push.ts."
+        },
+        {
+          "name": "sem-codigo-copiado-de-tasks",
+          "text": "O epic_context.md não contém cerca de código (```) nem a assinatura 'deveAvisarSaldoBaixo(saldoCentavos' presente no bloco de código de tasks.md, e tem no máximo 150 linhas."
+        },
+        {
+          "name": "nao-cria-artefatos-ausentes-nem-toca-manifest",
+          "text": "Fora das remoções feitas pelo setup, o único arquivo novo ou alterado no projeto é o epic_context.md do change: não foi criado design.md nem qualquer outro arquivo, e spec-manifest.yaml, proposal.md, requirements.md e tasks.md ficam idênticos ao commit da fixture."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "ja-compilado-retorna-ok-sem-reescrever",
+      "prompt": "Ontem o /forge:shard caiu no meio do change bloqueio-cartao-perda-roubo (a pasta stories/ ficou vazia). Antes de eu rodar de novo, roda o epic-context nesse change pra garantir que o contexto épico está compilado e atualizado.",
+      "expected_output": "O agente constata que .forge/specs/active/bloqueio-cartao-perda-roubo/epic_context.md já existe e que o manifest tem dev_loop.epic_context_compiled: true, e retorna OK sem reescrever: epic_context.md byte a byte igual ao da fixture, nenhum arquivo do projeto alterado ou criado (nem stories, nem manifest), e resposta curta informando que o contexto épico já estava compilado, sem o formato 'gerado — N decisões'.",
+      "files": [],
+      "fixture": "fixtures/ja-compilado-retorna-ok-sem-reescrever/setup.sh",
+      "assertions": [
+        {
+          "name": "epic-context-existente-byte-identico",
+          "text": "git diff --exit-code -- .forge/specs/active/bloqueio-cartao-perda-roubo/epic_context.md retorna 0: o arquivo não foi reescrito, reformatado nem regenerado com o mesmo conteúdo em outra forma."
+        },
+        {
+          "name": "nenhum-outro-arquivo-tocado",
+          "text": "Fora das remoções feitas pelo setup, git status não mostra nenhum arquivo novo ou alterado: spec-manifest.yaml mantém dev_loop exatamente como na fixture (sharded: false, epic_context_compiled: true) e stories/ continua só com .gitkeep, sem nenhuma STORY-NN.md criada."
+        },
+        {
+          "name": "resposta-ok-de-idempotencia",
+          "text": "A resposta final informa que o contexto épico já estava compilado (OK/idempotente, citando epic_context.md existente e/ou epic_context_compiled: true) e NÃO usa o formato 'epic_context.md gerado — N decisões, M contratos, K invariantes.'"
+        },
+        {
+          "name": "sem-dump-do-resumo-no-chat",
+          "text": "A resposta final tem no máximo 3 linhas e não reproduz as seções do epic_context.md (por exemplo, não lista as decisões de design nem os contratos)."
+        }
+      ]
+    }
+  ]
+}

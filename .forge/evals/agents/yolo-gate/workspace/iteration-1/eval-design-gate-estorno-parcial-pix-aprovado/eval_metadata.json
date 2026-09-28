@@ -1,0 +1,12 @@
+{
+  "eval_id": 1,
+  "eval_name": "design-gate-estorno-parcial-pix-aprovado",
+  "prompt": "Estamos rodando o pipeline de spec em modo yolo (autonomy.mode: yolo no .forge/forge.yaml) e chegamos ao gate design_reviewed do change estorno-parcial-pix. O artefato em julgamento é .forge/specs/active/estorno-parcial-pix/design.md; requirements e proposal estão na mesma pasta. Opções canônicas: approve, review, reject, block. Decide o gate como decisor autônomo, registra a decisão do jeito que o harness exige e me devolve a linha de resultado para eu seguir o fluxo.",
+  "assertions": [
+    ".forge/specs/active/estorno-parcial-pix/approvals.yaml tem exatamente uma entrada nova (além da de requirements_reviewed) com gate: design_reviewed, decision: approve, autonomous: true e decided_by: \"forge-yolo (opus, high)\" — nenhum nome humano, \"eval\" ou nome do modelo diferente disso",
+    "A entrada de design_reviewed tem campo reason não vazio que cita ao menos um identificador concreto do design (INV-0N, PBT-0N, REQ-0N, NFR-01 ou ADR-000N)",
+    "manifest.yaml do change tem gates.design_reviewed: true E status: requirements-ready (o agente não rodou spec-transition.sh nem editou status para design-ready)",
+    "`git -C <alvo> diff --quiet -- .forge/specs/active/estorno-parcial-pix/design.md .forge/specs/active/estorno-parcial-pix/requirements.md` sai com código 0: o decisor não reescreveu o artefato que julgou",
+    "A resposta final do agente contém uma linha que casa com a regex `GATE design_reviewed = approve \\(autonomous\\) — .+` e não despeja o conteúdo de design.md"
+  ]
+}

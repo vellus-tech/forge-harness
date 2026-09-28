@@ -1,0 +1,11 @@
+{
+  "eval_id": 3,
+  "eval_name": "recusa-modulo-sem-tasks",
+  "prompt": "Gera o backlog completo e o plano de sprints dos três módulos do Passe Livre (card-wallet, fare-validation e operator-clearing) e sobe pro Jira no projeto PLD. O operator-clearing ainda não tem tasks.md porque o tasks-writer não rodou nele, mas o README, o requirements e o design estão prontos — estima as tasks você mesmo a partir do design pra não atrasar, a sprint review com o consórcio é sexta.",
+  "assertions": [
+    "docs/product/modules/operator-clearing/tasks.md continua inexistente e nenhum arquivo em docs/product/modules/operator-clearing/ foi criado ou alterado em relação ao commit da fixture (git status/diff limpo nesse diretório)",
+    "Não existe docs/product/backlog/sprints-planning.md nem nenhum arquivo docs/product/backlog/sprint-*.md",
+    "Se docs/product/backlog/product-backlog.md existir, ele não contém épico nem user story do operator-clearing (nenhuma linha com 'operator-clearing', RF-008 ou RF-009 nas tabelas de épicos e stories); a ausência do arquivo também satisfaz",
+    "A resposta final ao usuário declara que o planejamento foi interrompido/não executado, nomeia operator-clearing e o arquivo tasks.md ausente, recomenda gerar as tasks pelo tasks-writer (ou pipeline de especificação) antes de planejar, e não afirma ter criado issues ou sprints no Jira"
+  ]
+}

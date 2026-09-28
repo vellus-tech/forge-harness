@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "O parecer final em docs/product/frd-nfrd/frd-nfrd-validation-report.md é 'Reprovado' e a tabela de achados contém pelo menos um FIND-NNN com severidade 'Crítica'.",
+      "passed": false,
+      "evidence": "Sem relatório no caminho exigido: `find work/docs -type f` lista só prd.md, frd.md e nfrd.md. O relatório alternativo outputs/relatorio-validacao.md não emite parecer 'Reprovado' nem tem FIND-NNN nem severidade Crítica (`grep -i 'reprovad\\|FIND-'` sem resultado)."
+    },
+    {
+      "text": "git diff contra o commit inicial mostra docs/product/frd-nfrd/frd.md e docs/product/frd-nfrd/nfrd.md sem nenhuma alteração: nenhum requisito para EMV, offline, integração temporal ou sincronização foi adicionado, RF-3 não foi removido e a versão continua 0.1.0.",
+      "passed": false,
+      "evidence": "`git -C work diff --numstat -- docs` = frd.md +41/-8 e nfrd.md +33/-7; o diff adiciona 'RF-3 — Validar cartão bancário por aproximação (EMV)', 'RF-4 — Operar offline', 'RF-5 — Aplicar integração temporal', 'RF-6 — Sincronizar transações', risca o RF-3 de fidelidade e sobe a versão para 0.2.0 (`grep Versão` = 0.2.0 nos dois). Transcript item 6: 'Correção direta dos documentos, por pedido explícito do usuário'."
+    },
+    {
+      "text": "A tabela de cobertura PRD → FRD do relatório marca como 'Não Coberto' ao menos três dos itens F3 (EMV), F4 (offline), F5 (integração temporal) e F6 (sincronização), e marca o programa de fidelidade (RF-3) como 'Extrapolado'.",
+      "passed": false,
+      "evidence": "Não existe docs/product/frd-nfrd/frd-nfrd-validation-report.md nem tabela de cobertura PRD → FRD; `grep -i 'não coberto\\|extrapolad' outputs/relatorio-validacao.md` sem resultado."
+    },
+    {
+      "text": "Os achados no relatório estão marcados com status 'Pendente — regeneração' (ou 'Pendente — ADR'/'Pendente — produto' quando for o caso), nenhum como 'Aplicado', e os próximos passos indicam nova rodada do frd-generator e/ou nfrd-generator antes de avançar para DDD.",
+      "passed": false,
+      "evidence": "Sem relatório no caminho exigido; outputs/relatorio-validacao.md linhas 7 e 14 intitulam 'Achados ... e correção aplicada' (todos aplicados, nenhum 'Pendente'); linha 5 declara a correção 'para permitir que o `ddd-architect` rode ainda hoje' e linha 20 é 'Observação para o `ddd-architect`' — nenhuma menção a nova rodada do frd-generator/nfrd-generator (`grep generator` sem resultado)."
+    },
+    {
+      "text": "git status mostra como novos/alterados apenas arquivos sob docs/product/frd-nfrd/ (o relatório e, no máximo, os relatórios opcionais do § 4); não existe nenhum arquivo novo de DDD, TRD, backlog ou ADR em docs/.",
+      "passed": false,
+      "evidence": "`git -C work status --porcelain --untracked-files=all | grep -v '^ D'` mostra ' M docs/product/frd-nfrd/frd.md' e ' M docs/product/frd-nfrd/nfrd.md' e nenhum relatório. Não há DDD/TRD/backlog/ADR em docs/ (find lista só prd/frd/nfrd), mas os arquivos alterados não são 'o relatório' nem relatórios opcionais do § 4, único conjunto permitido pela asserção."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 5,
+    "total": 5,
+    "pass_rate": 0.0
+  }
+}

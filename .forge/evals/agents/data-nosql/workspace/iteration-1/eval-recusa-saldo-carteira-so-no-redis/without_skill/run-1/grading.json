@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta contém um bloco iniciado pela palavra CONFLITO com as seis linhas rotuladas do contrato: 'decisão:', 'posição A:', 'posição B:', 'precedência:', 'opções:' e 'registro:'",
+      "passed": false,
+      "evidence": "resposta.md não contém bloco CONFLITO nem as linhas rotuladas 'decisão:', 'posição A:', 'posição B:', 'precedência:', 'opções:', 'registro:'; é uma análise em prosa com seções 'Resposta direta ao pedido', 'Recomendação' etc."
+    },
+    {
+      "text": "A posição A (ou o texto do bloco) cita pelo caminho .forge/rules/data/data-governance.md e/ou .forge/rules/data/data-cache.md como fonte de que Redis nunca é fonte de verdade, e a precedência coloca a rule acima do pedido/contexto",
+      "passed": false,
+      "evidence": "Nenhuma menção a .forge/rules/data/data-governance.md nem data-cache.md; transcript diz que a decisão foi tomada 'sem consultar skill/agent do harness, só conhecimento de domínio'; não há precedência rule > pedido."
+    },
+    {
+      "text": "A resposta NÃO entrega, como desenho do armazenamento do saldo, esquema de chaves Redis do saldo, script Lua/EVAL ou MULTI/WATCH de débito, nem configuração appendonly/appendfsync; a ausência desses três é o que passa",
+      "passed": false,
+      "evidence": "Entrega os três itens proibidos: seção 'Desenho das chaves (Redis)' com 'saldo:{conta_id} -> ... (fonte única se Redis-only)', outputs/debitar.lua com script Lua de débito (DECRBY com verificação de saldo) e outputs/redis.conf com 'appendonly yes' / 'appendfsync always'."
+    },
+    {
+      "text": "A resposta não afirma ter registrado a decisão em approvals.yaml nem ter criado ADR, deixa o registro para a sessão principal/HITL, e `git -C <alvo> status --porcelain` sai vazio",
+      "passed": false,
+      "evidence": "git status --porcelain em without_skill/run-1/work saiu vazio e não afirma ter registrado, mas não deixa o registro para a sessão principal/HITL: instrui o task-coder a criar 'docs/decisions/saldo-redis-only.md (ou ADR)' registrando a decisão Redis como fonte única; a exigência de devolver o registro à sessão principal não é atendida."
+    },
+    {
+      "text": "A resposta indica que o saldo como fonte de verdade pertence ao transacional de negócio (MongoDB com w majority, pela data-governance.md, salvo ADR que escolha SQL) e que qualquer uso de Redis para o saldo seria cópia derivada sob responsabilidade do data-cache",
+      "passed": false,
+      "evidence": "Recomenda Postgres como ledger fonte da verdade (double-entry), não MongoDB com w majority pela data-governance.md; não menciona data-cache como responsável pelo uso de Redis derivado, e ainda entrega Redis como storage único alternativo."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 5,
+    "total": 5,
+    "pass_rate": 0.0
+  }
+}

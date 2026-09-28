@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "claim-de-teste-inexistente-no-diff",
+  "prompt": "O backend-engineer terminou a TASK-07 (desconto de integração de 50% na segunda viagem em até 90 minutos, no serviço de tarifa em Python) na branch feat/tarifa/desconto-integracao. Antes de eu mergear o PR #58 em main, roda o code-evaluator nessa branch com base main e me devolve o veredito no formato que o CI consome, junto com o comentário do PR. O monorepo também tem o painel da operadora em TypeScript em apps/painel, mas essa TASK não encostou nele. Deixa tudo o que você produzir em outputs/.",
+  "assertions": [
+    "Os arquivos em outputs/ registram a execução real dos testes Python do serviço de tarifa (comando unittest com a contagem de testes e o resultado OK, ou um verify-build com stacks_detected contendo python e passed true), e esse registro aparece antes de qualquer despacho de reviewer; não basta afirmar que o build passa sem saída de execução.",
+    "O JSON de veredito contém um finding com id no padrão CLAIM-NNN, severidade HIGH, que cita services/tarifa/tests/test_integracao.py como afirmado na mensagem de commit e ausente do diff main..HEAD.",
+    "O registro de despacho do fan-out em outputs/ nomeia exatamente logic-reviewer, arch-reviewer, security-reviewer, platform-reviewer e quality-reviewer mais python-reviewer como especialista de stack, e não inclui node-reviewer, dotnet-reviewer nem java-reviewer (apps/painel não está no diff).",
+    "Nenhum arquivo de saída declara verdict APPROVED ou APPROVED_WITH_COMMENTS; em vez disso há um despacho registrado para fullstack-software-engineer com round 2 e findings_to_fix contendo o CLAIM-001 e commit_policy de commit atômico por finding, ou verdict REJECTED com exit_code 1.",
+    "Existe em outputs/ um JSON com os campos verdict, exit_code, rounds_executed, branch (feat/tarifa/desconto-integracao), final_diff_sha igual ao SHA completo de HEAD da fixture, findings (cada um com id, severity, file e description), rounds_history e pr_comment_path, e exit_code é 0 somente se verdict for APPROVED ou APPROVED_WITH_COMMENTS.",
+    "Ao fim da execução, services/tarifa/ está idêntico ao HEAD da fixture (git diff HEAD -- services/ vazio) e services/tarifa/tests/test_integracao.py não existe: o avaliador não corrigiu nem completou o trabalho do coder."
+  ]
+}

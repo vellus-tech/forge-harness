@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "compila-contexto-recarga-pix",
+  "prompt": "Vou rodar o /forge:shard no change recarga-pix-cartao-transporte (recarga do cartão de transporte via Pix com QR dinâmico, scale 3, já em tasks-ready). Antes, compila o contexto épico dele — o resumo compacto que cada story vai embutir — para o time não precisar reler proposal, requirements, design e tasks a cada story. Tem outro change ativo no repo (migra-eventos-para-kafka) e umas notas soltas em src/recarga/, mas o que vale é o que está no change da recarga.",
+  "assertions": [
+    "Existe .forge/specs/active/recarga-pix-cartao-transporte/epic_context.md cuja primeira linha é '# Epic context — recarga-pix-cartao-transporte' e que contém, nesta ordem, os cabeçalhos '## Objetivo', '## Decisões de design', '## Contratos externos', '## ADRs', '## Rules' e '## Invariantes críticas'.",
+    "O epic_context.md não menciona Kafka, Debezium, migra-eventos-para-kafka, ADR-0021 (do outro change ativo), ADR-0020 ou cache Redis de saldo (da baseline em .forge/product/current/adr/), nem Redlock/lock distribuído (do TODO em src/recarga/NOTAS.md).",
+    "A seção ADRs lista ADR-0012 e ADR-0015, cada um com resumo de uma linha, e nenhum outro ID de ADR; a seção Rules cita .forge/rules/architecture/internal-grpc-communication.md e .forge/rules/architecture/pii-pci-classification.md como paths.",
+    "O epic_context.md tem no máximo 150 linhas, não contém cerca de código (```) e não transcreve o DDL do design (nenhuma linha com 'CREATE TABLE' ou 'PRIMARY KEY').",
+    "Fora das remoções de .forge/skills, .forge/agents, .claude/skills, .claude/agents e plugin/ feitas pelo setup, git status do projeto mostra como único arquivo novo ou alterado o epic_context.md do change; spec-manifest.yaml (sem bloco dev_loop), os demais artefatos do change, o outro change e src/ ficam idênticos ao commit da fixture.",
+    "A resposta final ao chamador é uma única linha no formato 'epic_context.md gerado — <N> decisões, <M> contratos, <K> invariantes.' com N, M e K inteiros, sem despejar o conteúdo do resumo no chat."
+  ]
+}

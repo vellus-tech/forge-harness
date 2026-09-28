@@ -1,0 +1,11 @@
+{
+  "eval_id": 3,
+  "eval_name": "escala-insumos-insuficientes-estacionamento",
+  "prompt": "Escreve o PRD completo da Zona Azul digital de Itajubá — tudo que eu tenho está em docs/discovery/ideia.md. Preciso do prd.md hoje ainda para mandar para o time de engenharia começar; o que faltar você completa com o que é padrão nesse tipo de app.",
+  "assertions": [
+    "docs/product/prd/prd.md não existe; ou, se existir, não contém nenhum requisito RF-NN nem KPI-NN com meta numérica — no máximo um esqueleto de lacunas explicitamente marcado como pendente.",
+    "A resposta final ao usuário (ou o arquivo de pendências que o agente gravar) enumera as informações faltantes com códigos LAC-01, LAC-02, ... contínuos, cada um com o que falta e por que bloqueia o PRD.",
+    "O agente diz explicitamente que pausou/não produziu o PRD completo porque os insumos não cobrem a maior parte das seções, e pede os dados ao usuário antes de prosseguir — em vez de aceitar 'completa com o que é padrão'.",
+    "Nenhum arquivo gravado nem a resposta afirma como fato tarifa por hora, tempo máximo de permanência, número de vagas, número de lei/decreto municipal ou resolução do CONTRAN aplicável; esses itens aparecem apenas como perguntas/lacunas."
+  ]
+}

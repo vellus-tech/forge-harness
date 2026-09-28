@@ -1,0 +1,79 @@
+{
+  "expectations": [
+    {
+      "text": "Em parecer-validador.md, a reprovação da camada de build (TreatWarningsAsErrors=false / baseline de build incompleto) aparece antes de qualquer achado do scanner de código (async-void, datetime-now, single-impl-interface).",
+      "passed": true,
+      "evidence": "with_skill/run-1/outputs/parecer-validador.md: a seção '## 1. Por que o CI passa verde e a IDE ainda assim não protege' (linhas 9-17, com 'TreatWarningsAsErrors = false' na linha 11) vem antes de '## 2. Achados do scanner' (linha 19); o resumo executivo (linha 5) já diz que a lacuna de enforcement 'vem antes de qualquer achado pontual de código'. Comando: grep -n 'TreatWarningsAsErrors\\|async-void\\|datetime-now' → primeira ocorrência de TreatWarningsAsErrors na linha 11, primeiros achados do scanner na tabela das linhas 33-35."
+    },
+    {
+      "text": "parecer-validador.md explica que a severidade declarada em dotnet_naming_rule.*.severity vale só na IDE e é ignorada no build, e que falta dotnet_diagnostic.IDE1006.severity (com EnforceCodeStyleInBuild) — ligando isso ao 'sublinhado vermelho na IDE com CI verde' citado pelo usuário.",
+      "passed": true,
+      "evidence": "Linha 13: 'a severidade dentro de dotnet_naming_rule é lida **apenas por IDEs**', 'não tem o par que liga essa regra ao build: dotnet_diagnostic.IDE1006.severity', e liga ao sintoma do usuário: 'O squiggle vermelho ... não passa para o build, então o CI segue verde'. Linha 11 cobre EnforceCodeStyleInBuild ('sem essa flag, toda regra IDExxxx ... vale só dentro da IDE'). Confere com o fixture: work/.editorconfig:9 'dotnet_naming_rule.interfaces_com_i.severity = error' sem dotnet_diagnostic.IDE1006."
+    },
+    {
+      "text": "parecer-validador.md não afirma que rodar dotnet-baseline.sh --apply resolve tudo: deixa claro que Directory.Build.props e .editorconfig existentes precisam de correção manual (o --apply não sobrescreve sem --force) e que o --apply cobre apenas o Directory.Packages.props ausente.",
+      "passed": false,
+      "evidence": "Contradiz a asserção. Linha 71: '`bash .forge/scripts/dotnet-baseline.sh --apply` — fecha a lacuna de enforcement (TreatWarningsAsErrors, AnalysisMode, EnforceCodeStyleInBuild, dotnet_diagnostic.IDE1006.severity) para que a IDE e o CI concordem'; linha 17 idem. grep -n -- '--force\\|manual\\|à mão' no parecer só acha 'revisão manual de estilo' (linha 17), nunca que os arquivos existentes exigem correção manual. O próprio script (work/.forge/scripts/dotnet-baseline.sh:49 'arquivo que existe e está incompleto → --apply NÃO resolve (não sobrescreve)' e :183) diz o oposto do que o parecer promete."
+    },
+    {
+      "text": "parecer-validador.md classifica o async void btnSincronizar_Click em UI/MainForm.cs:15 como exceção legítima (event handler de WinForms com o corpo inteiro em try/catch), não como defeito a corrigir.",
+      "passed": true,
+      "evidence": "Linhas 37-43: '### async-void — UI/MainForm.cs:15 — FALSO ALARME, não corrigir', 'event handler de framework WinForms ... o corpo inteiro está dentro de try/catch'; linha 74: 'Não mexer no async-void ... está correto como está'. Confere com work/src/Validador.Desktop/UI/MainForm.cs:15-27 (try nas linhas 17-26)."
+    },
+    {
+      "text": "parecer-validador.md não exige remover ITabelaTarifariaRepository: trata o achado single-impl-interface como porta de arquitetura hexagonal deliberada (ou decisão de julgamento), não como abstração especulativa a eliminar.",
+      "passed": false,
+      "evidence": "Linha 35 e 53 classificam single-impl-interface como '**defeito real**' / 'DEFEITO REAL'; linha 63 oferece como saída '(b) ... tratar a interface como especulativa até que um segundo consumidor real apareça' e chama o comentário de 'dívida disfarçada de decisão arquitetural'. Não exige a remoção explicitamente, mas rejeita a leitura de porta hexagonal deliberada e abre a porta para tratá-la como abstração especulativa, o oposto do que a asserção pede. O fato em que se apoia é verdadeiro (grep -rl ITabelaTarifariaRepository --include='*.cs' acha só Ports/, Infra/SqliteTabelaTarifariaRepository.cs e UI/MainForm.cs; não há dublê de teste), mas o veredito diverge do esperado."
+    },
+    {
+      "text": "parecer-validador.md aponta DateTime.Now em Domain/TabelaTarifaria.cs:16 (EstaVigente) como defeito real, recomendando UtcNow ou abstração de tempo (TimeProvider).",
+      "passed": true,
+      "evidence": "Linhas 45-51: '### datetime-now — Domain/TabelaTarifaria.cs:16 — DEFEITO REAL, corrigir', cita 'EstaVigente()' e recomenda 'DateTime.UtcNow ... ou, melhor, injetar TimeProvider'. Fixture confirma: work/src/Validador.Desktop/Domain/TabelaTarifaria.cs:16 'public bool EstaVigente() => DateTime.Now <= VigenteAte;'."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 2,
+    "total": 6,
+    "pass_rate": 0.67
+  },
+  "timing": {
+    "executor_duration_seconds": 158
+  },
+  "claims": [
+    {
+      "claim": "Rodou dotnet-baseline.sh --check na raiz correta e obteve FAIL",
+      "type": "process",
+      "verified": true,
+      "evidence": "outputs/transcript.md:25-26 descreve o --check (primeiro com root errado, depois corrigido); não há stdout do --check salvo em outputs/, só o relato."
+    },
+    {
+      "claim": "--apply fecha a lacuna de enforcement",
+      "type": "factual",
+      "verified": false,
+      "evidence": "dotnet-baseline.sh:49 e :183 dizem que --apply não sobrescreve arquivo existente; Directory.Build.props e .editorconfig existem no fixture."
+    },
+    {
+      "claim": "Não há segunda implementação de ITabelaTarifariaRepository",
+      "type": "factual",
+      "verified": true,
+      "evidence": "grep -rl ITabelaTarifariaRepository --include='*.cs' em work/ retorna 3 arquivos, nenhum de teste."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "parecer-validador.md não exige remover ITabelaTarifariaRepository: trata o achado single-impl-interface como porta de arquitetura hexagonal deliberada (ou decisão de julgamento), não como abstração especulativa a eliminar.",
+        "reason": "O fixture é inconsistente com o veredito esperado: o comentário de ITabelaTarifariaRepository promete um dublê em memória nos testes que não existe na árvore. A with_skill notou isso (verificado por grep) e reprovou a porta; a asserção a pune por ler o fixture corretamente. Ou adicione o dublê de teste ao fixture, ou aceite 'decisão de julgamento' que não exija remoção."
+      },
+      {
+        "assertion": "parecer-validador.md não afirma que rodar dotnet-baseline.sh --apply resolve tudo: deixa claro que Directory.Build.props e .editorconfig existentes precisam de correção manual (o --apply não sobrescreve sem --force) e que o --apply cobre apenas o Directory.Packages.props ausente.",
+        "reason": "Asserção bem discriminante: pegou a with_skill prometendo o --apply apesar de o script dizer o contrário. Mas a without_skill falha só por omissão; considere separar 'não promete --apply' de 'explica a correção manual'."
+      },
+      {
+        "reason": "Nenhuma asserção cobre o stub SqliteTabelaTarifariaRepository (sem SQLite, Task.FromResult fixo), achado real que só a without_skill trouxe."
+      }
+    ],
+    "overall": "Asserções 1-3 discriminam bem a camada de build; a 5 depende de um fixture que contradiz o próprio comentário."
+  }
+}

@@ -1,0 +1,13 @@
+C4Container
+title Pagamentos Core — Diagrama de Containers
+
+Person(operador, "Operador financeiro")
+System_Boundary(pagamentosCore, "Pagamentos Core") {
+  Container(api, "Servico Pagamentos Core", "Node.js / TypeScript", "Modulos billing, ledger, notifications e shared, empacotados em um unico processo")
+}
+System_Ext(adquirente, "Adquirente de pagamentos")
+System_Ext(smtp, "Provedor de e-mail (SMTP)")
+
+Rel(operador, api, "Usa", "HTTPS")
+Rel(api, adquirente, "Envia cobrancas", "REST/Webhook")
+Rel(api, smtp, "Envia notificacoes", "SMTP/API")

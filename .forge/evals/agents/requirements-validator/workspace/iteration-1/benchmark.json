@@ -1,0 +1,333 @@
+{
+  "metadata": {
+    "skill_name": "requirements-validator",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-26T19:43:24Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6,
+        "passed": 3,
+        "failed": 2,
+        "total": 5,
+        "time_seconds": 144,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "outputs/validacao-validacao.md afirma que docs/product/modules/validacao/requirements.md n\u00e3o existe e que por isso a valida\u00e7\u00e3o foi interrompida (n\u00e3o executada).",
+          "passed": false,
+          "evidence": "outputs/validacao-validacao.md n\u00e3o afirma que docs/product/modules/validacao/requirements.md n\u00e3o existe (linha 22 diz apenas que o README marca 'N\u00e3o iniciado' e que 'para o pipeline este requirements simplesmente n\u00e3o existe') e a valida\u00e7\u00e3o N\u00c3O foi interrompida: validou o conte\u00fado do arquivo legado (Achados BLOCKER-02/03, HIGH-02, tabela Checks Executados linhas 61-74). `grep -nE 'n\u00e3o existe|inexist|interromp'` s\u00f3 casa a linha 22, sem declara\u00e7\u00e3o de interrup\u00e7\u00e3o. A exist\u00eancia do alvo oficial de fato \u00e9 falsa (`test -e work/docs/product/modules/validacao/requirements.md` -> ausente), mas o parecer n\u00e3o o constata como motivo de parada."
+        },
+        {
+          "text": "O parecer identifica docs/specs/ como estrutura legada/n\u00e3o oficial e indica docs/product/modules/validacao/requirements.md (ou docs/product/modules/<modulo>/) como o \u00fanico caminho oficial, sem recomendar manter as specs em docs/specs/ nem em .kiro/specs/.",
+          "passed": true,
+          "evidence": "Linha 15: 'docs/specs/validacao/requirements.md, um caminho legado que este projeto n\u00e3o usa. A estrutura oficial ... \u00e9 docs/product/modules/<modulo>/requirements.md, operada pelo requirements-writer, pelo /forge:specs-loop'. Linha 22: 'docs/specs/ \u00e9 um layout intermedi\u00e1rio/legado (mesma fam\u00edlia do .kiro/specs/) que n\u00e3o \u00e9 reconhecido'. Recomenda mover para o caminho oficial e apagar docs/specs/validacao/ (linhas 24, 78); n\u00e3o recomenda manter as specs em docs/specs/ nem .kiro/specs/."
+        },
+        {
+          "text": "O parecer n\u00e3o cont\u00e9m tabela Checks Executados com resultados OK nem achados sobre o conte\u00fado de docs/specs/validacao/requirements.md (por exemplo, sobre o Req 1, crit\u00e9rios 1.1/1.2 ou as se\u00e7\u00f5es ausentes desse arquivo) apresentados como valida\u00e7\u00e3o do m\u00f3dulo.",
+          "passed": false,
+          "evidence": "O parecer cont\u00e9m tabela 'Checks Executados' (linhas 61-74) com resultados OK ('Metadados e versionamento | OK', 'Crit\u00e9rios de aceite | OK para os dois crit\u00e9rios existentes', 'Separa\u00e7\u00e3o requirements/design | OK') e achados sobre o conte\u00fado do arquivo legado apresentados como valida\u00e7\u00e3o do m\u00f3dulo: BLOCKER-02 (se\u00e7\u00f5es ausentes), BLOCKER-03 ('Req 1 \u2014 Liberar embarque com saldo suficiente' sem Prioridade/Origem/M\u00f3dulo), HIGH-02 (cobertura funcional)."
+        },
+        {
+          "text": "Nenhum trecho do parecer declara 'Status: Aprovado' ou 'Aprovado com ressalvas' nem 'Pode seguir para design.md: Sim'; a sa\u00edda diz que o design-writer n\u00e3o pode ser liberado e encaminha a gera\u00e7\u00e3o do requirements pelo requirements-writer (ou /forge:specs-loop) em docs/product/modules/validacao/.",
+          "passed": true,
+          "evidence": "`grep -nE 'Aprovado|Pode seguir para .design'` casa s\u00f3 a linha 84 '- Pode seguir para `design.md`: N\u00e3o'; 'Status: Reprovado' (linha 5). Linha 15: 'N\u00e3o recomendo liberar o design-writer para o m\u00f3dulo Valida\u00e7\u00e3o hoje.' Encaminha pelo requirements-writer no caminho oficial: linha 24 'mover o conte\u00fado para docs/product/modules/validacao/requirements.md, reexecutar o fluxo padr\u00e3o (requirements-writer ...)' e linha 86 'Requer nova execu\u00e7\u00e3o do requirements-writer: Sim'."
+        },
+        {
+          "text": "git status --porcelain -- docs/ est\u00e1 vazio ao fim da execu\u00e7\u00e3o: docs/product/modules/validacao/requirements.md n\u00e3o foi criado e docs/specs/validacao/ n\u00e3o foi movido, copiado nem alterado.",
+          "passed": true,
+          "evidence": "`git -C with_skill/run-1/work status --porcelain -- docs/ | wc -l` -> 0; `test -e work/docs/product/modules/validacao/requirements.md` -> ausente; `ls work/docs/specs/validacao` -> NOTA.md, requirements.md (intactos). As c\u00f3pias em outputs/evidencia/ s\u00e3o evid\u00eancia fora de docs/ (transcript passo 10: 'Nenhum arquivo em work/ foi alterado')."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 94,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "outputs/validacao-tarifacao.md cita a contagem de linhas do requirements.md (2.448, ou um n\u00famero acima de 2.000 com a medi\u00e7\u00e3o declarada) e o limite de 2.000 linhas, e a tabela Checks Executados marca 'Tamanho at\u00e9 2.000 linhas' como Falhou.",
+          "passed": true,
+          "evidence": "with_skill/run-1/outputs/validacao-tarifacao.md:15 'tem 2.448 linhas, acima do limite de 2.000 linhas'; linha 30 da tabela Checks Executados: '| Tamanho at\u00e9 2.000 linhas | Falhou (2.448 linhas) |'. Medi\u00e7\u00e3o declarada no transcript passo 6 ('wc -l \u2192 2.448') e confirmada por mim: wc -l work/docs/product/modules/tarifacao/requirements.md = 2448."
+        },
+        {
+          "text": "O parecer declara 'Status: Reprovado' e cont\u00e9m um achado [BLOCKER-NN] cujo problema \u00e9 o tamanho do documento acima de 2.000 linhas.",
+          "passed": true,
+          "evidence": "grep -nE 'Status: Reprovado|\\[BLOCKER-' \u2192 linha 5 'Status: Reprovado' e linha 19 '### [BLOCKER-01] Arquivo excede 2.000 linhas', cujo Problema (linha 22) \u00e9 'O documento ultrapassa o limite de 2.000 linhas'. \u00c9 o \u00fanico achado (linhas 8-11: 1 BLOCKER, 0 HIGH/MEDIUM/LOW)."
+        },
+        {
+          "text": "O parecer n\u00e3o cont\u00e9m achados sobre o conte\u00fado de requisitos individuais (nenhum achado com Local apontando para Req 1 a Req 20 ou para crit\u00e9rios como '3.1', '12.2'), e explica que a revis\u00e3o detalhada foi bloqueada pelo tamanho, mesmo com o pedido expl\u00edcito do usu\u00e1rio.",
+          "passed": true,
+          "evidence": "\u00danico achado \u00e9 BLOCKER-01 com Local 'arquivo inteiro, 2.448 linhas' (linha 21); nenhum achado aponta Req 1-20 nem crit\u00e9rios como 1.2/12.2 (a men\u00e7\u00e3o 'Req 1 a Req 170, linhas 39\u20132418' na linha 22 descreve o cat\u00e1logo como causa do tamanho, n\u00e3o avalia conte\u00fado). Linha 15 explica o bloqueio apesar do pedido: 'a revis\u00e3o detalhada \u00e9 bloqueada neste ponto \u2014 n\u00e3o avancei para conferir os Req 1 a 20 [...] mesmo tendo sido isso o que foi pedido'; checks de conte\u00fado marcados 'N\u00e3o verificado' (linhas 31-39)."
+        },
+        {
+          "text": "As recomenda\u00e7\u00f5es para o requirements-writer pedem a quebra em documentos menores por feature, fun\u00e7\u00e3o de neg\u00f3cio ou capacidade funcional e reproduzem o formato recomendado pelo contrato, com '# [nome-da-feature]/requirements.md' (ou nome concreto equivalente), se\u00e7\u00e3o '## User Story' no molde 'As a ..., I want to ..., so that ...' e '## Acceptance Criteria' com checkboxes.",
+          "passed": false,
+          "evidence": "Pede quebra por operadora ou agrupamento funcional (linhas 24, 43-44), mas N\u00c3O reproduz o formato recomendado do contrato: grep -nE 'User Story|Acceptance Criteria|I want to|so that|- \\[ \\]|# \\[' s\u00f3 acha men\u00e7\u00f5es de passagem ('User Story + Acceptance Criteria por agrupamento', linha 24; 'User Story e Crit\u00e9rios de Aceite', linha 43). N\u00e3o h\u00e1 cabe\u00e7alho '# <feature>/requirements.md', se\u00e7\u00e3o '## User Story' no molde 'As a ..., I want to ..., so that ...' nem '## Acceptance Criteria' com checkboxes; a linha 24 inclusive declara 'Est\u00e1 fora do escopo deste validador propor a estrutura'."
+        },
+        {
+          "text": "A Decis\u00e3o para o Pipeline marca 'Pode seguir para design.md: N\u00e3o' e 'Requer nova execu\u00e7\u00e3o do requirements-writer: Sim', e git diff HEAD -- docs/ est\u00e1 vazio (o validador n\u00e3o fatiou nem editou o documento por conta pr\u00f3pria).",
+          "passed": true,
+          "evidence": "Linhas 49 e 51: 'Pode seguir para `design.md`: N\u00e3o' e 'Requer nova execu\u00e7\u00e3o do `requirements-writer`: Sim'. Comando git -C with_skill/run-1/work diff HEAD --stat -- docs/ retornou vazio (rc=0); requirements.md mant\u00e9m 2448 linhas. (git status mostra s\u00f3 dele\u00e7\u00f5es de .claude/ e .forge/ do isolamento do harness e '?? outputs/', nada em docs/.)"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 188,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "outputs/validacao-recarga.md cont\u00e9m as se\u00e7\u00f5es 'Resultado', 'Veredito', 'Achados', 'Checks Executados', 'Recomenda\u00e7\u00f5es para o requirements-writer' e 'Decis\u00e3o para o Pipeline', com 'Status: Reprovado' e a contagem de achados BLOCKER, HIGH, MEDIUM e LOW.",
+          "passed": true,
+          "evidence": "with_skill/run-1/outputs/validacao-recarga.md: grep -cE '^## (Resultado|Veredito|Achados|Checks Executados|Recomenda\u00e7\u00f5es para o requirements-writer|Decis\u00e3o para o Pipeline)$' \u2192 6 (linhas 3, 13, 17, 107, 122, 129); linha 5 'Status: Reprovado'; linhas 8-11 contam BLOCKER 8, HIGH 3, MEDIUM 1, LOW 0 (e h\u00e1 de fato 8 ids BLOCKER, 3 HIGH, 1 MEDIUM)."
+        },
+        {
+          "text": "Os achados usam ids no padr\u00e3o [BLOCKER-NN]/[HIGH-NN]/[MEDIUM-NN]/[LOW-NN] e cada um traz os campos Local, Problema, Impacto e Corre\u00e7\u00e3o recomendada; h\u00e1 pelo menos um BLOCKER.",
+          "passed": true,
+          "evidence": "with_skill/run-1/outputs/validacao-recarga.md: grep -cE '^### \\[(BLOCKER|HIGH|MEDIUM|LOW)-[0-9]{2}\\]' \u2192 12, e '**Local:**', '**Problema:**', '**Impacto:**' e '**Corre\u00e7\u00e3o recomendada:**' \u2192 12 cada, um por achado; 8 BLOCKERs (BLOCKER-01 a BLOCKER-08)."
+        },
+        {
+          "text": "O parecer classifica como BLOCKER ao menos tr\u00eas destes: a aus\u00eancia do Req 3 (furo de numera\u00e7\u00e3o entre Req 2 e Req 4), o Req 4 sem campo Origem, a se\u00e7\u00e3o 'Fora do escopo do MVP' ausente, e a vers\u00e3o 1.1.0 do cabe\u00e7alho sem entrada correspondente no Hist\u00f3rico de Vers\u00f5es de um documento Aprovado para desenvolvimento.",
+          "passed": true,
+          "evidence": "with_skill/run-1/outputs/validacao-recarga.md: os quatro como BLOCKER \u2014 [BLOCKER-01] 'Falta o Req 3. A numera\u00e7\u00e3o salta de 2 para 4' (l.19-22); [BLOCKER-02] se\u00e7\u00e3o 'Fora do escopo do MVP' ausente (l.26-29, confirmado: grep 'Fora do escopo' no requirements.md da fixture \u2192 0); [BLOCKER-03] vers\u00e3o 1.1.0 sem linha no Hist\u00f3rico em documento 'Aprovado para desenvolvimento' (l.33-36); [BLOCKER-04] Req 4 sem Origem (l.40-43)."
+        },
+        {
+          "text": "O parecer aponta o crit\u00e9rio 1.3 como invas\u00e3o do papel do design.md (tabela tb_recarga_pix, coluna NUMERIC(10,2), t\u00f3pico Kafka ou spring-kafka) e cita o conflito com ADR-0002 (centavos inteiros) ou ADR-0003 (RabbitMQ com outbox), recomendando reescrever em n\u00edvel de requisito sem propor implementa\u00e7\u00e3o alternativa.",
+          "passed": true,
+          "evidence": "with_skill/run-1/outputs/validacao-recarga.md [BLOCKER-05] (l.47-52): cita `tb_recarga_pix`, `vl_recarga NUMERIC(10,2)` e `spring-kafka` como 'decis\u00f5es de design/implementa\u00e7\u00e3o que n\u00e3o cabem em requirements.md' e diz que NUMERIC(10,2) 'contradiz a ADR-0002'; corre\u00e7\u00e3o reescreve em n\u00edvel de requisito ('persistida de forma audit\u00e1vel e um evento de dom\u00ednio deve ser publicado de forma ass\u00edncrona... respeitando ADR-0002 e ADR-0003') e deixa tabela/coluna/biblioteca para o design.md, sem propor stack alternativa. Ressalva: n\u00e3o menciona o t\u00f3pico Kafka `recarga.criada` nem explicita o conflito Kafka \u00d7 RabbitMQ do ADR-0003, mas a asser\u00e7\u00e3o aceita ADR-0002 OU ADR-0003."
+        },
+        {
+          "text": "O parecer registra o README do m\u00f3dulo como desatualizado em rela\u00e7\u00e3o ao requirements.md (README diz 0.1.0/Rascunho para revis\u00e3o, documento diz 1.1.0/Aprovado para desenvolvimento) com severidade HIGH ou BLOCKER, e aponta 'Fiscal de catraca' (crit\u00e9rio 4.2) como persona ausente da se\u00e7\u00e3o Personas / Atores.",
+          "passed": true,
+          "evidence": "with_skill/run-1/outputs/validacao-recarga.md: [HIGH-03] (l.91-96) README 'indica requirements.md em Rascunho para revis\u00e3o, vers\u00e3o 0.1.0' vs. requirements.md 'Aprovado para desenvolvimento, vers\u00e3o 1.1.0' \u2014 severidade HIGH (README da fixture l.5 confirma '| requirements.md | Rascunho para revis\u00e3o | 0.1.0 |'); [HIGH-01] (l.77-82) 'Fiscal de catraca' no crit\u00e9rio 4.2 n\u00e3o est\u00e1 em Personas/Atores."
+        },
+        {
+          "text": "git diff HEAD -- docs/ est\u00e1 vazio ao fim da execu\u00e7\u00e3o (requirements.md e README.md da Recarga intocados, apesar de o prompt pedir corre\u00e7\u00e3o direta), e a se\u00e7\u00e3o Decis\u00e3o para o Pipeline marca 'Pode seguir para design.md: N\u00e3o' e 'Requer nova execu\u00e7\u00e3o do requirements-writer: Sim'.",
+          "passed": true,
+          "evidence": "git -C <config>/run-1/work diff HEAD -- docs/ | wc -l \u2192 0 (with_skill); git log mostra s\u00f3 o commit 'fixture: estado inicial' e git status n\u00e3o lista nada em docs/ (s\u00f3 dele\u00e7\u00f5es de .claude/.forge agents/skills feitas pelo setup.sh da fixture e outputs/ n\u00e3o rastreado). with_skill/run-1/outputs/validacao-recarga.md l.131 'Pode seguir para `design.md`: N\u00e3o' e l.133 'Requer nova execu\u00e7\u00e3o do `requirements-writer`: Sim'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.4,
+        "passed": 2,
+        "failed": 3,
+        "total": 5,
+        "time_seconds": 127,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "outputs/validacao-validacao.md afirma que docs/product/modules/validacao/requirements.md n\u00e3o existe e que por isso a valida\u00e7\u00e3o foi interrompida (n\u00e3o executada).",
+          "passed": false,
+          "evidence": "Linha 13 afirma 'o artefato oficial do m\u00f3dulo Valida\u00e7\u00e3o n\u00e3o existe', mas o parecer n\u00e3o interrompe a valida\u00e7\u00e3o: a se\u00e7\u00e3o 2 (linhas 21-31) valida o conte\u00fado 'mesmo desconsiderando o local'. `grep -nE 'interromp'` sem ocorr\u00eancia; n\u00e3o h\u00e1 declara\u00e7\u00e3o de que a valida\u00e7\u00e3o n\u00e3o foi executada por aus\u00eancia do alvo."
+        },
+        {
+          "text": "O parecer identifica docs/specs/ como estrutura legada/n\u00e3o oficial e indica docs/product/modules/validacao/requirements.md (ou docs/product/modules/<modulo>/) como o \u00fanico caminho oficial, sem recomendar manter as specs em docs/specs/ nem em .kiro/specs/.",
+          "passed": true,
+          "evidence": "Linha 11: 'o arquivo est\u00e1 no lugar errado e fora do fluxo oficial'; linha 13: 'o que existe \u00e9 um documento paralelo em docs/specs/validacao/requirements.md'; linha 19: 'migrar/reescrever este conte\u00fado dentro do fluxo oficial (docs/product/modules/validacao/requirements.md ...)'. N\u00e3o recomenda manter em docs/specs/ nem .kiro/specs/ (`grep -n kiro` sem ocorr\u00eancia). N\u00e3o usa a palavra 'legado', mas o classifica como n\u00e3o oficial."
+        },
+        {
+          "text": "O parecer n\u00e3o cont\u00e9m tabela Checks Executados com resultados OK nem achados sobre o conte\u00fado de docs/specs/validacao/requirements.md (por exemplo, sobre o Req 1, crit\u00e9rios 1.1/1.2 ou as se\u00e7\u00f5es ausentes desse arquivo) apresentados como valida\u00e7\u00e3o do m\u00f3dulo.",
+          "passed": false,
+          "evidence": "Se\u00e7\u00e3o '2. Problemas de conte\u00fado (mesmo desconsiderando o local)' (linhas 21-31) traz achados sobre o conte\u00fado do arquivo legado, incluindo o Req 1 (linha 25: 'O \u00fanico requisito funcional (Req 1) cobre saldo suficiente e cart\u00e3o bloqueado'), apresentados como parte da avalia\u00e7\u00e3o para liberar o design."
+        },
+        {
+          "text": "Nenhum trecho do parecer declara 'Status: Aprovado' ou 'Aprovado com ressalvas' nem 'Pode seguir para design.md: Sim'; a sa\u00edda diz que o design-writer n\u00e3o pode ser liberado e encaminha a gera\u00e7\u00e3o do requirements pelo requirements-writer (ou /forge:specs-loop) em docs/product/modules/validacao/.",
+          "passed": false,
+          "evidence": "N\u00e3o declara aprova\u00e7\u00e3o (a ocorr\u00eancia de 'Aprovado' na linha 15 descreve outros artefatos) e diz que o design-writer n\u00e3o pode ser liberado (linhas 9 e 35). Por\u00e9m n\u00e3o encaminha a gera\u00e7\u00e3o pelo requirements-writer nem pelo /forge:specs-loop: linha 19 fala em 'processo padr\u00e3o do projeto' e linha 35 em 'reencaminhar pelo fluxo padr\u00e3o do projeto'; o /forge:specs-loop aparece na linha 17 s\u00f3 como cen\u00e1rio de risco. A asser\u00e7\u00e3o exige o encaminhamento expl\u00edcito, ent\u00e3o falha."
+        },
+        {
+          "text": "git status --porcelain -- docs/ est\u00e1 vazio ao fim da execu\u00e7\u00e3o: docs/product/modules/validacao/requirements.md n\u00e3o foi criado e docs/specs/validacao/ n\u00e3o foi movido, copiado nem alterado.",
+          "passed": true,
+          "evidence": "`git -C without_skill/run-1/work status --porcelain -- docs/ | wc -l` -> 0; `test -e work/docs/product/modules/validacao/requirements.md` -> ausente; docs/specs/validacao/ mant\u00e9m NOTA.md e requirements.md. outputs/requirements.md \u00e9 uma c\u00f3pia fora de docs/, n\u00e3o altera a \u00e1rvore."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 5,
+        "total": 5,
+        "time_seconds": 140,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "outputs/validacao-tarifacao.md cita a contagem de linhas do requirements.md (2.448, ou um n\u00famero acima de 2.000 com a medi\u00e7\u00e3o declarada) e o limite de 2.000 linhas, e a tabela Checks Executados marca 'Tamanho at\u00e9 2.000 linhas' como Falhou.",
+          "passed": false,
+          "evidence": "without_skill/run-1/outputs/validacao-tarifacao.md:3 cita '2448 linhas', mas n\u00e3o menciona o limite de 2.000 linhas e n\u00e3o tem tabela 'Checks Executados' nem check 'Tamanho at\u00e9 2.000 linhas' marcado Falhou; linha 5 afirma o oposto: 'N\u00e3o \u00e9 o tamanho do documento o problema'."
+        },
+        {
+          "text": "O parecer declara 'Status: Reprovado' e cont\u00e9m um achado [BLOCKER-NN] cujo problema \u00e9 o tamanho do documento acima de 2.000 linhas.",
+          "passed": false,
+          "evidence": "grep -nE 'Status: Reprovado|\\[BLOCKER-' no parecer sem resultado. N\u00e3o h\u00e1 'Status: Reprovado' nem achado [BLOCKER-NN]; os achados cr\u00edticos (linhas 9 e 11) tratam de isolamento cross-tenant e persona sem requisito, n\u00e3o de tamanho."
+        },
+        {
+          "text": "O parecer n\u00e3o cont\u00e9m achados sobre o conte\u00fado de requisitos individuais (nenhum achado com Local apontando para Req 1 a Req 20 ou para crit\u00e9rios como '3.1', '12.2'), e explica que a revis\u00e3o detalhada foi bloqueada pelo tamanho, mesmo com o pedido expl\u00edcito do usu\u00e1rio.",
+          "passed": false,
+          "evidence": "O parecer faz revis\u00e3o detalhada dos Req 1-20 (escopo declarado na linha 4 e transcript passo 6 'Li integralmente os Req 1 a 20'), com achados sobre crit\u00e9rios individuais: linha 9 'Req 1.2 a 20.2', linha 17 'crit\u00e9rios 1.1 a 20.1 [...] 1.2 a 20.2', linha 21 sobre valores 440/490 dos 20 requisitos. N\u00e3o explica bloqueio por tamanho."
+        },
+        {
+          "text": "As recomenda\u00e7\u00f5es para o requirements-writer pedem a quebra em documentos menores por feature, fun\u00e7\u00e3o de neg\u00f3cio ou capacidade funcional e reproduzem o formato recomendado pelo contrato, com '# [nome-da-feature]/requirements.md' (ou nome concreto equivalente), se\u00e7\u00e3o '## User Story' no molde 'As a ..., I want to ..., so that ...' e '## Acceptance Criteria' com checkboxes.",
+          "passed": false,
+          "evidence": "Linha 25 descarta a divis\u00e3o ('Isso n\u00e3o \u00e9 motivo para dividir o m\u00f3dulo') e sugere s\u00f3 mover o cat\u00e1logo para tabela/tarifas.csv; grep -nE 'User Story|Acceptance Criteria|I want to|so that|- \\[ \\]|# \\[' sem resultado: formato recomendado ausente."
+        },
+        {
+          "text": "A Decis\u00e3o para o Pipeline marca 'Pode seguir para design.md: N\u00e3o' e 'Requer nova execu\u00e7\u00e3o do requirements-writer: Sim', e git diff HEAD -- docs/ est\u00e1 vazio (o validador n\u00e3o fatiou nem editou o documento por conta pr\u00f3pria).",
+          "passed": false,
+          "evidence": "N\u00e3o existe se\u00e7\u00e3o 'Decis\u00e3o para o Pipeline' nem as marca\u00e7\u00f5es 'Pode seguir para design.md: N\u00e3o' / 'Requer nova execu\u00e7\u00e3o do requirements-writer: Sim' (grep sem resultado); h\u00e1 apenas prosa 'N\u00e3o aprovar para design nesta vers\u00e3o' (linha 29). A parte do diff est\u00e1 ok (git -C without_skill/run-1/work diff HEAD --stat -- docs/ vazio), mas a asser\u00e7\u00e3o \u00e9 conjuntiva e falha."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 6,
+        "total": 6,
+        "time_seconds": 149,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "outputs/validacao-recarga.md cont\u00e9m as se\u00e7\u00f5es 'Resultado', 'Veredito', 'Achados', 'Checks Executados', 'Recomenda\u00e7\u00f5es para o requirements-writer' e 'Decis\u00e3o para o Pipeline', com 'Status: Reprovado' e a contagem de achados BLOCKER, HIGH, MEDIUM e LOW.",
+          "passed": false,
+          "evidence": "without_skill/run-1/outputs/validacao-recarga.md: grep -cE das seis se\u00e7\u00f5es \u2192 1 (s\u00f3 '## Veredito', l.8); n\u00e3o h\u00e1 'Resultado', 'Achados' como se\u00e7\u00e3o, 'Checks Executados', 'Recomenda\u00e7\u00f5es para o requirements-writer' nem 'Decis\u00e3o para o Pipeline'; grep 'Status: Reprovado' \u2192 0; sem contagem por severidade."
+        },
+        {
+          "text": "Os achados usam ids no padr\u00e3o [BLOCKER-NN]/[HIGH-NN]/[MEDIUM-NN]/[LOW-NN] e cada um traz os campos Local, Problema, Impacto e Corre\u00e7\u00e3o recomendada; h\u00e1 pelo menos um BLOCKER.",
+          "passed": false,
+          "evidence": "without_skill/run-1/outputs/validacao-recarga.md: grep de ids '[BLOCKER-NN]' etc. \u2192 0; grep '**Local:**'/'**Problema:**'/'**Impacto:**'/'**Corre\u00e7\u00e3o recomendada:**' \u2192 0 cada; achados s\u00e3o uma lista numerada 1-10 em prosa; grep 'BLOCKER' \u2192 0."
+        },
+        {
+          "text": "O parecer classifica como BLOCKER ao menos tr\u00eas destes: a aus\u00eancia do Req 3 (furo de numera\u00e7\u00e3o entre Req 2 e Req 4), o Req 4 sem campo Origem, a se\u00e7\u00e3o 'Fora do escopo do MVP' ausente, e a vers\u00e3o 1.1.0 do cabe\u00e7alho sem entrada correspondente no Hist\u00f3rico de Vers\u00f5es de um documento Aprovado para desenvolvimento.",
+          "passed": false,
+          "evidence": "without_skill/run-1/outputs/validacao-recarga.md: nenhum achado classificado como BLOCKER (grep 'BLOCKER' \u2192 0). Os 'Achados bloqueantes' (l.12-15) s\u00e3o s\u00f3 os dois de ADR no Req 1.3. Furo do Req 3 (item 10, l.29) e Hist\u00f3rico sem 1.1.0 (item 8, l.27) aparecem em 'Inconsist\u00eancias documentais', n\u00e3o bloqueantes; Req 4 sem Origem e se\u00e7\u00e3o 'Fora do escopo do MVP' ausente n\u00e3o s\u00e3o mencionados."
+        },
+        {
+          "text": "O parecer aponta o crit\u00e9rio 1.3 como invas\u00e3o do papel do design.md (tabela tb_recarga_pix, coluna NUMERIC(10,2), t\u00f3pico Kafka ou spring-kafka) e cita o conflito com ADR-0002 (centavos inteiros) ou ADR-0003 (RabbitMQ com outbox), recomendando reescrever em n\u00edvel de requisito sem propor implementa\u00e7\u00e3o alternativa.",
+          "passed": false,
+          "evidence": "without_skill/run-1/outputs/validacao-recarga.md: aponta o conflito com ADR-0003 (l.14, Kafka/spring-kafka \u00d7 RabbitMQ) e ADR-0002 (l.15, NUMERIC(10,2) \u00d7 centavos) e menciona 'n\u00e3o vazar detalhe de implementa\u00e7\u00e3o (biblioteca, nome de t\u00f3pico)', mas n\u00e3o trata `tb_recarga_pix`/coluna como invas\u00e3o de design e a recomenda\u00e7\u00e3o (l.41) prop\u00f5e implementa\u00e7\u00e3o alternativa: 'corrige Req 1.3 (mensageria RabbitMQ conforme ADR-0003, tipo de dado BIGINT/centavos conforme ADR-0002...)' \u2014 contraria 'sem propor implementa\u00e7\u00e3o alternativa'."
+        },
+        {
+          "text": "O parecer registra o README do m\u00f3dulo como desatualizado em rela\u00e7\u00e3o ao requirements.md (README diz 0.1.0/Rascunho para revis\u00e3o, documento diz 1.1.0/Aprovado para desenvolvimento) com severidade HIGH ou BLOCKER, e aponta 'Fiscal de catraca' (crit\u00e9rio 4.2) como persona ausente da se\u00e7\u00e3o Personas / Atores.",
+          "passed": false,
+          "evidence": "without_skill/run-1/outputs/validacao-recarga.md: 'Fiscal de catraca' ausente de Personas/Atores est\u00e1 no item 6 (l.22) \u2014 ok; README desatualizado (0.1.0/Rascunho vs. 1.1.0/Aprovado) est\u00e1 no item 9 (l.28), mas sem severidade HIGH ou BLOCKER: fica na se\u00e7\u00e3o 'Inconsist\u00eancias documentais' e o pr\u00f3prio texto diz 'sincroniz\u00e1vel sem risco'. Falta o requisito de severidade."
+        },
+        {
+          "text": "git diff HEAD -- docs/ est\u00e1 vazio ao fim da execu\u00e7\u00e3o (requirements.md e README.md da Recarga intocados, apesar de o prompt pedir corre\u00e7\u00e3o direta), e a se\u00e7\u00e3o Decis\u00e3o para o Pipeline marca 'Pode seguir para design.md: N\u00e3o' e 'Requer nova execu\u00e7\u00e3o do requirements-writer: Sim'.",
+          "passed": false,
+          "evidence": "git -C <config>/run-1/work diff HEAD -- docs/ | wc -l \u2192 0 (without_skill) \u2014 parte do documento intocado cumprida (l.10 e l.37 confirmam que n\u00e3o editou). Por\u00e9m n\u00e3o h\u00e1 se\u00e7\u00e3o 'Decis\u00e3o para o Pipeline' nem as linhas 'Pode seguir para design.md: N\u00e3o' / 'Requer nova execu\u00e7\u00e3o do requirements-writer: Sim' (grep \u2192 0); s\u00f3 a prosa 'devolver ao requirements-writer' (l.37, l.45)."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.8,
+        "stddev": 0.2,
+        "min": 0.6,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 142.0,
+        "stddev": 47.0319,
+        "min": 94,
+        "max": 188
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.1333,
+        "stddev": 0.2309,
+        "min": 0.0,
+        "max": 0.4
+      },
+      "time_seconds": {
+        "mean": 138.6667,
+        "stddev": 11.0604,
+        "min": 127,
+        "max": 149
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.67",
+      "time_seconds": "+3.3",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

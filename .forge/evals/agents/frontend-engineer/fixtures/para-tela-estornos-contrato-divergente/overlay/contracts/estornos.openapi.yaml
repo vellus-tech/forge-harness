@@ -1,0 +1,52 @@
+openapi: 3.0.3
+info:
+  title: API de Estornos
+  version: 1.4.0
+  description: Dono do contrato é o time de Pagamentos (services/estornos-api). Mudanças passam por ADR.
+paths:
+  /v1/estornos:
+    get:
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string, enum: [PENDENTE, APROVADO, RECUSADO] }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [id, amount, reason, requestedAt]
+                  properties:
+                    id: { type: string }
+                    amount: { type: string, pattern: '^\d+\.\d{2}$', description: Valor decimal em reais, ex. "12.50". }
+                    reason: { type: string }
+                    requestedAt: { type: string, format: date-time }
+  /v1/estornos/{id}/approval:
+    post:
+      summary: Registra uma aprovação. O estorno só é efetivado com duas aprovações de operadores distintos.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [approverId]
+              properties:
+                approverId: { type: string }
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  approvals: { type: integer }
+                  status: { type: string, enum: [AGUARDANDO_SEGUNDA_APROVACAO, APROVADO] }

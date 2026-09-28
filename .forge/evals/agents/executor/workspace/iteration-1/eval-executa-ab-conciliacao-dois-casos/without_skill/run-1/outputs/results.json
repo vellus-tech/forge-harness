@@ -1,0 +1,36 @@
+{
+  "skill": "conciliacao-csv",
+  "arm": "without_skill",
+  "runner": "claude-code",
+  "runner_command": "./tools/claude-stub.sh",
+  "cases": [
+    {
+      "id": "TC-01",
+      "case_tag": "caso-junho-simples",
+      "prompt": "[caso-junho-simples] Concilia o data/extrato-junho.csv com o razão de junho e me diz o que ficou sem par.",
+      "exit_code": 0,
+      "duration_ms": 74,
+      "with_skill_detected": false,
+      "usage": {"input_tokens": 240, "output_tokens": 110},
+      "stdout_file": "tc01-stdout.jsonl",
+      "notes": "O fixture só fornece data/extrato-junho.csv; não há arquivo de razão contábil de junho no diretório data/. A resposta do stub é canônica (não depende do conteúdo real dos dados), então a ausência do razão não altera o resultado simulado, mas seria um bloqueio real numa execução com o Claude de verdade."
+    },
+    {
+      "id": "TC-02",
+      "case_tag": "caso-extrato-longo",
+      "prompt": "[caso-extrato-longo] Concilia o extrato consolidado do semestre e lista linha a linha o que foi pareado.",
+      "exit_code": 0,
+      "duration_ms": 66,
+      "with_skill_detected": false,
+      "usage": {"input_tokens": 240, "output_tokens": 110},
+      "stdout_file": "tc02-stdout.jsonl",
+      "notes": "Nenhum arquivo de extrato consolidado do semestre existe em data/ (só extrato-junho.csv). O stub simula 700 linhas de streaming independente do dado real."
+    }
+  ],
+  "aggregate": {
+    "total_input_tokens": 480,
+    "total_output_tokens": 220,
+    "total_duration_ms": 140,
+    "all_exit_zero": true
+  }
+}

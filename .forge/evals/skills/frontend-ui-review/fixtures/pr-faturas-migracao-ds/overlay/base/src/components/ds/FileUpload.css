@@ -1,0 +1,1 @@
+.ds-file-upload input::file-selector-button { background: var(--surface-raised); color: var(--text-primary); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); }

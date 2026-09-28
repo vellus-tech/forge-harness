@@ -1,0 +1,18 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  align-items: flex-start;
+}
+
+.balance {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-28);
+  color: var(--fg);
+}
+
+.passName {
+  color: var(--fg-muted);
+  font-size: var(--fs-14);
+}

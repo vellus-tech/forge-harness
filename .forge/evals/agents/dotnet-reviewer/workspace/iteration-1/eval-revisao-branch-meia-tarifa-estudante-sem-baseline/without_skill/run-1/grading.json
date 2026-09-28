@@ -1,0 +1,69 @@
+{
+  "expectations": [
+    {
+      "text": "Em review/dotnet-review.json, o primeiro elemento de findings tem id ou title contendo DOTNET-BASELINE, severity HIGH, e fix_suggested menciona 'dotnet-baseline.sh' com '--apply'.",
+      "passed": false,
+      "evidence": "FAIL. jq '.findings[0]' outputs/review/dotnet-review.json → {id:1, severity:\"critical\", file:\"src/Tarifa.Api/Program.cs\", line:9, ...} sem title nem fix_suggested; é o finding de captive dependency. grep -c 'DOTNET-BASELINE\\|dotnet-baseline.sh' no JSON → 0: a ausência de Directory.Build.props/.editorconfig/Directory.Packages.props não foi reportada."
+    },
+    {
+      "text": "review/resumo.md contém uma linha (ou linha de tabela) para cada uma das 11 regras do scan — async-void, blocking-wait, new-httpclient, region, generic-name, bool-param, empty-catch, datetime-now, sql-interpolation, mutable-static e single-impl-interface — cada uma com status explícito (OK/limpo ou FOUND/achado); as regras sem ocorrência aparecem como OK, não são omitidas.",
+      "passed": false,
+      "evidence": "FAIL. cat -n outputs/review/resumo.md: nenhuma das 11 regras (async-void, blocking-wait, new-httpclient, region, generic-name, bool-param, empty-catch, datetime-now, sql-interpolation, mutable-static, single-impl-interface) é citada pelo nome; o resumo lista 9 achados livres sem tabela de cobertura. O transcript (passo 7) confirma revisão só por conhecimento próprio, sem rodar o dotnet-quality-scan."
+    },
+    {
+      "text": "Há um finding com file terminando em src/Tarifa.Api/Program.cs e line 9 (o AddSingleton<DescontoService>) cuja descrição identifica que o singleton captura o TarifaDbContext de ciclo de vida Scoped (captive dependency).",
+      "passed": true,
+      "evidence": "PASS. jq '.findings[0]' outputs/review/dotnet-review.json → file src/Tarifa.Api/Program.cs, line 9 (bate com grep -n AddSingleton work/src/Tarifa.Api/Program.cs → 9), summary \"DescontoService é registrado como Singleton mas depende de TarifaDbContext, que é Scoped (padrão do AddDbContext) — dependência cativa (captive dependency).\" O texto está em summary/failure_scenario em vez de description; aceito como descrição semântica, e o desvio de contrato é cobrado na asserção 4."
+    },
+    {
+      "text": "review/dotnet-review.json é JSON válido com a chave reviewer e o array findings; todo finding tem id único, severity em {BLOCKER, HIGH, MEDIUM, LOW}, file não vazio, line inteiro positivo, title, description e fix_suggested — nenhum finding sem arquivo:linha.",
+      "passed": false,
+      "evidence": "FAIL. jq 'keys' outputs/review/dotnet-review.json → [base, branch, files_changed, findings]: sem a chave reviewer. Severidades 'critical','high','medium','low' (minúsculas e 'critical' fora de {BLOCKER,HIGH,MEDIUM,LOW}); nenhum finding tem title, description nem fix_suggested (usa summary/failure_scenario/category). ids 1-9 únicos e file/line presentes e positivos, insuficiente para o contrato."
+    },
+    {
+      "text": "Nenhum finding em review/dotnet-review.json aponta arquivo sob src/Legado.Relatorios/ (o RelatorioHelper com #region, DateTime.Now e parâmetro bool existe só na main e não foi tocado pela branch).",
+      "passed": true,
+      "evidence": "PASS. jq '[.findings[]|select(.file|tostring|contains(\"Legado\"))]|length' outputs/review/dotnet-review.json → 0; files_changed lista só Program.cs e DescontoService.cs, coerente com o transcript passo 5 (git diff main..HEAD --stat)."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 3,
+    "total": 5,
+    "pass_rate": 0.4
+  },
+  "timing": {
+    "executor_duration_seconds": 156.0,
+    "total_duration_seconds": 156.0
+  },
+  "claims": [
+    {
+      "claim": "Identifiquei 9 achados (1 crítico, 4 altos, 3 médios, 1 baixo)",
+      "type": "factual",
+      "verified": true,
+      "evidence": "jq → 9 findings: 1 critical, 4 high, 3 medium, 1 low."
+    },
+    {
+      "claim": "Sem ler artefatos de .forge/skills ou .forge/agents",
+      "type": "process",
+      "verified": true,
+      "evidence": "Coerente com a ausência de contrato de reviewer, de baseline e de scan nas saídas; não verificável além do transcript."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "review/resumo.md contém uma linha (ou linha de tabela) para cada uma das 11 regras do scan — async-void, blocking-wait, new-httpclient, region, generic-name, bool-param, empty-catch, datetime-now, sql-interpolation, mutable-static e single-impl-interface — cada uma com status explícito (OK/limpo ou FOUND/achado); as regras sem ocorrência aparecem como OK, não são omitidas.",
+        "reason": "Mistura formato com cobertura: a configuração with_skill cobriu as 11 regras com status, mas em linha única, e falhou só pelo formato. Se o objetivo é 'não omitir as OK', reescrever para 'cada regra com status explícito' ou exigir tabela explicitamente."
+      },
+      {
+        "reason": "O expected_output exige findings para .Result, new HttpClient() e .ToList() antes do Where em DescontoService.cs, mas nenhuma asserção os checa. Ambas as configurações os acharam (linhas 19, 18, 22), então hoje não discrimina, mas uma regressão passaria despercebida."
+      },
+      {
+        "assertion": "review/dotnet-review.json é JSON válido com a chave reviewer e o array findings; todo finding tem id único, severity em {BLOCKER, HIGH, MEDIUM, LOW}, file não vazio, line inteiro positivo, title, description e fix_suggested — nenhum finding sem arquivo:linha.",
+        "reason": "Um finding de baseline (nível repositório) naturalmente não tem arquivo:linha; a asserção 1 exige esse finding e a 4 exige file/line positivos em todos, o que força o executor a inventar uma âncora (ex.: Directory.Build.props:1). Explicitar a convenção esperada para findings de repositório."
+      }
+    ],
+    "overall": "Sem o agente, a execução não conhece o contrato de reviewer nem as camadas determinísticas (baseline e scan) — asserções 1, 2 e 4 discriminam bem; o julgamento de .NET em si (captive dependency na linha 9, .Result, HttpClient, ToList) foi bom."
+  }
+}

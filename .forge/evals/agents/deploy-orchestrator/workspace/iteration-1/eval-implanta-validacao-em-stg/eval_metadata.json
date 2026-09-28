@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "implanta-validacao-em-stg",
+  "prompt": "A onda 3 do módulo validacao (TASK-31 a TASK-34, validação offline com lista de bloqueio) foi mergeada em main ontem. Roda o /forge:deploy-wave validacao stg. Esta máquina não tem acesso ao cluster, ao ghcr nem ao GitHub, então não execute nada externo (gh, docker, trivy, cosign, helm, kubectl, git push): faz o dry-run completo e grava em outputs/deploy-runbook.md os comandos exatos que você rodaria, na ordem, com os valores resolvidos a partir deste repositório, e em outputs/deploy-result.json o resultado estruturado que você reportaria se todos os gates passassem.",
+  "assertions": [
+    "O runbook contém helm upgrade --install validacao platform/helm/validacao com --namespace stg, --values platform/helm/validacao/values-stg.yaml, a imagem fixada por digest (--set image.digest=<manifest digest> ou equivalente com @sha256) e não por tag, e a flag --atomic.",
+    "O runbook roda trivy image com severidade CRITICAL,HIGH,MEDIUM,LOW (não só CRITICAL,HIGH) e --exit-code 1, separadamente contra o digest por arquitetura de linux/amd64 e de linux/arm64 (referências ghcr.io/validacao@<digest da arquitetura>), e não apenas contra a tag.",
+    "O runbook contém cosign verify com --certificate-identity-regexp contendo axis-mobfintech/bilhetagem-core/.github/workflows (valor lido do repo_slug do AGENTS.md) e --certificate-oidc-issuer https://token.actions.githubusercontent.com, e um passo que baixa o SBOM por digest (cosign download sbom) falhando se estiver vazio.",
+    "Depois do kubectl rollout status deploy/validacao -n stg, o runbook seleciona explicitamente um pod em nó arm64, executa o smoke em /health/ready dentro dele, roda platform/helm/validacao/smoke-tests/stg.sh e verifica Kyverno (eventos PolicyViolation do namespace e as clusterpolicies require-multiarch-images e require-cosign-signature), com rollback via helm rollback se houver violação.",
+    "O runbook usa a tag existente deploy-stg-20260918-1420-<sha7> (nome real lido do repositório) como base do diff para detectar os deployables alterados até o HEAD de main, e não a tag de outro ambiente nem o primeiro commit.",
+    "O runbook e o deploy-result.json propõem a tag deploy-stg-YYYYMMDD-HHMM-<7 primeiros caracteres do HEAD de main> com git push origin da tag, e nenhum dos dois arquivos move issues Jira para Done nem chama transitionJiraIssue; se jira_sync aparecer, fica sem issues movidas ou registra explicitamente que em stg as issues permanecem em In Review."
+  ]
+}

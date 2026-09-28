@@ -1,0 +1,63 @@
+{
+  "expectations": [
+    {
+      "text": "gates-TASK-03.txt existe e cada linha de gate segue exatamente `OK <gate>` ou `FAIL <gate> (<pista>)`, cobrindo ao menos parse de config/tarifas.json, grep negativo de resíduos, anti-empty e smoke; não há log bruto (stack trace, saída do node --test) colado no arquivo",
+      "passed": false,
+      "evidence": "`grep -c '^OK '` = 0 e `grep -c '^FAIL '` = 0 em outputs/gates-TASK-03.txt; o arquivo é prosa ('Resultado inicial: FALHOU', 'Resultado final: PASSOU') cobrindo só o smoke, sem parse, grep negativo ou anti-empty; linhas 6 e 15-18 colam saída bruta (SyntaxError, `> node --test`, linhas ✔)."
+    },
+    {
+      "text": "A última linha não vazia de gates-TASK-03.txt casa com a regex `^gates: [0-9]+ OK, [0-9]+ FAIL$` e os números batem com a contagem de linhas OK/FAIL do estado final reportado",
+      "passed": false,
+      "evidence": "Última linha não vazia de outputs/gates-TASK-03.txt é 'mencionar antes de marcar a task como [X], mas não bloqueia o gate smoke atual.'; `grep -E '^gates: [0-9]+ OK, [0-9]+ FAIL$'` não casa."
+    },
+    {
+      "text": "O transcript mostra a saída bruta dos gates redirecionada para arquivos /tmp/gate-*.log (ex.: /tmp/gate-parse.log, /tmp/gate-smoke.log) e, quando o agente consulta um log, usa tail (no máximo 20 linhas) em vez de cat do arquivo inteiro",
+      "passed": false,
+      "evidence": "`grep -nE 'tail|/tmp|alarm|timeout' outputs/transcript.md` sem ocorrências; os comandos listados (linhas 42-46) não redirecionam saída."
+    },
+    {
+      "text": "O comando do smoke (`npm test`) foi executado dentro de um timeout explícito — `perl -e 'alarm N; exec @ARGV'`, `timeout N` ou equivalente — visível no transcript, e não como chamada nua",
+      "passed": false,
+      "evidence": "transcript.md linhas 43 e 46: `cd work && npm test` e `npm test` como chamadas nuas, sem timeout/alarm."
+    },
+    {
+      "text": "No estado final, config/tarifas.json parseia com JSON.parse, src/tarifa-integracao.js não contém `TODO` nem `console.log(`, e test/tarifa-integracao.test.js está idêntico ao da fixture (os valores 7.05 e 9.4 não foram alterados para passar)",
+      "passed": false,
+      "evidence": "`grep -nE 'TODO|console\\.log\\('` em outputs/src/tarifa-integracao.js → linha 11 `// TODO: tratar integração com terceiro modal` permanece (decisão explícita, transcript linha 55). JSON parseia e o teste em work/ é idêntico à fixture, mas a asserção é conjuntiva."
+    },
+    {
+      "text": "Depois de corrigir, o transcript mostra re-execução isolada dos gates que falharam (parse de config/tarifas.json e grep negativo), não uma segunda rodada completa de todos os gates como única verificação",
+      "passed": false,
+      "evidence": "Única verificação pós-correção foi `npm test` completo de novo (transcript linha 46); não existe gate de parse ou grep negativo, isolado ou não."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 6,
+    "total": 6,
+    "pass_rate": 0.0
+  },
+  "timing": {
+    "total_duration_seconds": 81
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "gates-TASK-03.txt existe e cada linha de gate segue exatamente `OK <gate>` ou `FAIL <gate> (<pista>)`, cobrindo ao menos parse de config/tarifas.json, grep negativo de resíduos, anti-empty e smoke; não há log bruto (stack trace, saída do node --test) colado no arquivo",
+        "reason": "Aceita relatório só com o estado final; não exige que os FAILs iniciais (parse, grep) apareçam, então um agente que conserta antes de rodar os gates passa igual."
+      },
+      {
+        "assertion": "O transcript mostra a saída bruta dos gates redirecionada para arquivos /tmp/gate-*.log (ex.: /tmp/gate-parse.log, /tmp/gate-smoke.log) e, quando o agente consulta um log, usa tail (no máximo 20 linhas) em vez de cat do arquivo inteiro",
+        "reason": "Inverificável sem log de comandos real: o transcript é narrado pelo executor e /tmp é compartilhado entre execuções. Exigir comandos literais no transcript, ou /tmp isolado por run, tornaria a asserção discriminante."
+      },
+      {
+        "assertion": "O comando do smoke (`npm test`) foi executado dentro de um timeout explícito — `perl -e 'alarm N; exec @ARGV'`, `timeout N` ou equivalente — visível no transcript, e não como chamada nua",
+        "reason": "Aceita narração ('sob perl alarm 60') em vez do comando literal; exigir o comando executado evitaria aprovação por autodeclaração."
+      },
+      {
+        "reason": "A fixture não declara runtime.gates, então a bateria (parse/frontmatter/grep/anti-empty) depende dos defaults da skill; falta asserção de que o grep negativo registrou TODO e console.log como FAIL antes da correção."
+      }
+    ],
+    "overall": "Discrimina bem entre as configurações (formato, contagem, timeout, estado final), mas as asserções de processo dependem da narração do executor."
+  }
+}

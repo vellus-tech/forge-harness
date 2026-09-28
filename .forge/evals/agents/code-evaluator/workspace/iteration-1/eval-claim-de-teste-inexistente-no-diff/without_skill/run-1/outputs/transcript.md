@@ -1,0 +1,16 @@
+# Transcript — eval-claim-de-teste-inexistente-no-diff / without_skill / run-1
+
+1. Verifiquei o cwd e a branch da worktree (`pwd` + `git branch --show-current`), confirmando `evals-100` / `chore/evals-skills-agentes`, conforme esperado pelo bootstrap.
+2. Gravei o instante inicial em `.t0` (`date +%s`).
+3. Criei `work/` e rodei `fixtures/claim-de-teste-inexistente-no-diff/setup.sh work` para materializar o projeto fixture (stack Python no serviço de tarifa, monorepo com `apps/painel` em TypeScript intocado, branch `feat/tarifa/desconto-integracao` já commitada sobre `main`).
+4. Não li nada em `template/.forge/skills`, `template/.forge/agents`, `plugin/` ou `.forge/evals` — executei a tarefa só com conhecimento próprio, como pede o caso `without_skill`.
+5. Inspecionei o diff real da branch: `git log --oneline`, `git diff main..feat/tarifa/desconto-integracao --stat` e `git diff main..feat/tarifa/desconto-integracao` completo. Resultado: só `services/tarifa/tarifa/calculo.py` muda (12 linhas, adição de `calcular_integracao`).
+6. Li a mensagem de commit (`git log`) e comparei com o diff: a mensagem afirma um arquivo novo `services/tarifa/tests/test_integracao.py` cobrindo três cenários (janela de 90 min, borda de 91 min, intervalo negativo). Esse arquivo não aparece no diff.
+7. Confirmei a ausência do arquivo na árvore de trabalho (`find` sobre `work/`) e no diff — inexistente nos dois casos.
+8. Rodei a suíte real do projeto conforme o comando de teste do `FORGE.md` gerado pelo setup (`cd services/tarifa && python3 -m unittest discover -s tests -t .`). Resultado: 4 testes passam, todos pertencentes a `tests/test_calculo.py` (pré-existente, testa `calcular_tarifa`, não `calcular_integracao`). Nenhum teste novo foi executado — o "build verde" não valida a lógica nova.
+9. Revisei o corpo de `calcular_integracao` para achados adicionais: identifiquei que `minutos_desde_primeira == 90` cai dentro da janela de desconto (`<=`), comportamento coerente com "até 90 minutos" mas sem nenhum teste que prove o limite (90 vs 91).
+10. Não toquei `apps/painel` (TypeScript) — a TASK-07 não o alterou, e o usuário já avisou que está fora do escopo desta avaliação. Registrei isso como nota de escopo no veredito, não como achado.
+11. Decisão de veredito: `REQUEST_CHANGES`. O achado principal (claim de teste inexistente no diff) é bloqueante porque a mudança de lógica de cobrança (desconto de 50%) não tem nenhuma prova automatizada, apesar do commit alegar o contrário — isso é exatamente o tipo de lacuna que um code-evaluator deve pegar antes do merge.
+12. Não houve necessidade de delegar nenhuma parte desta tarefa a subagentes: o escopo (uma branch pequena, um arquivo de diff, uma suíte de testes rápida) cabe inteiro numa única análise sequencial. Não há despacho de subagentes a registrar.
+13. Escrevi os entregáveis em `outputs/`: `veredito-ci.json` (formato estruturado, pensado para consumo por CI), `comentario-pr-58.md` (comentário pronto para postar no PR #58), `diff-main-vs-branch.patch` (evidência do diff real) e `test-output.txt` (saída da suíte rodada). Este `transcript.md` documenta a sequência acima.
+14. Fechamento: gravei `.t0`/`timing.json` conforme o protocolo do harness e verifiquei que `work/` está bem abaixo de 20 MB (fixture pequena), então não foi apagado.

@@ -1,0 +1,43 @@
+{
+  "expectations": [
+    {
+      "text": "docs/revisoes/clean-arch-repositorio.md menciona o AGENTS.md (seção Sobre o Projeto) e/ou a ADR-0007 e classifica src/Legacy.Bilhetagem como legado com regras próprias, fora do escopo da revisão de Clean Architecture canônica",
+      "passed": true,
+      "evidence": "outputs/docs/revisoes/clean-arch-repositorio.md:3 e :7 citam a ADR-0007 e dizem que src/Legacy.Bilhetagem está 'fora de escopo desta revisão', com regras próprias ('entidades anêmicas/atributos de mapeamento EF são aceitos ali até a extração'); seção dedicada em :35 'Fora de escopo (legado, ADR-0007)'. Comando: grep -nE 'ADR-0007|AGENTS.md|Sobre o Projeto' → linhas 3, 7, 35, 37. O relatório não cita o AGENTS.md por nome (a asserção aceita 'e/ou'); transcript.md passo 5 confirma que a seção 'Sobre o Projeto' foi lida."
+    },
+    {
+      "text": "O relatório NÃO lista como violação a corrigir os atributos `[Table]`/`[Key]` nem os setters públicos de src/Legacy.Bilhetagem/Models/Cartao.cs, nem o uso de EF Core em Services/RecargaService.cs (menção apenas como contexto do legado é aceitável)",
+      "passed": true,
+      "evidence": "outputs/docs/revisoes/clean-arch-repositorio.md:37 menciona Cartao.cs ([Table]/[Key]) e RecargaService.cs (DbContext) apenas como contexto, sob o título ':35 Fora de escopo ... não reportado como violação', com 'Nenhuma ação é sugerida aqui'. A seção 'Violações encontradas' (:11-33) só contém itens de src/Validacao."
+    },
+    {
+      "text": "O relatório aponta como violação a `<ProjectReference>` de src/Validacao/Validacao.Domain/Validacao.Domain.csproj (linha 7) para Validacao.Contracts, com a justificativa de que o Domain não referencia nenhum outro projeto do módulo",
+      "passed": true,
+      "evidence": "outputs/docs/revisoes/clean-arch-repositorio.md:20-25 violação 2: 'src/Validacao/Validacao.Domain/Validacao.Domain.csproj:7', referência para Validacao.Contracts, regra 'Domain.csproj não deveria ter <ProjectReference> para nenhum outro projeto do módulo'. Conferido na fixture: sed -n 7p work/src/Validacao/Validacao.Domain/Validacao.Domain.csproj → ProjectReference para Validacao.Contracts.csproj."
+    },
+    {
+      "text": "O relatório aponta como violação a `<ProjectReference>` de Validacao.Application.csproj (linha 9) para Validacao.Infrastructure, sem apontar como violação as referências da mesma Application para Domain e Contracts (linhas 7 e 8)",
+      "passed": true,
+      "evidence": "outputs/docs/revisoes/clean-arch-repositorio.md:13-18 violação 1: 'Validacao.Application.csproj:9' referenciando Validacao.Infrastructure; regra em :16 'Application deve referenciar apenas Domain e Contracts' — as referências das linhas 7 e 8 não são apontadas como violação. Fixture: sed -n 9p confirma a ProjectReference para Infrastructure."
+    },
+    {
+      "text": "O relatório aponta o setter público de `Status` em src/Validacao/Validacao.Domain/Entities/Embarque.cs (linha 10) como violação (propriedade de estado deve ter setter privado e mudar só por método da entidade, como Aprovar())",
+      "passed": true,
+      "evidence": "outputs/docs/revisoes/clean-arch-repositorio.md:27-33 violação 3: 'src/Validacao/Validacao.Domain/Entities/Embarque.cs:10', trecho 'public string Status { get; set; }', regra de estado mudar só por método de domínio, citando Aprovar(); correção 'private set'. Fixture: sed -n 10p Embarque.cs confirma a linha."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "reason": "A asserção 1 aceita 'e/ou' e passou no with_skill só pela ADR-0007; se a leitura do AGENTS.md é o comportamento-alvo, exigir a citação do AGENTS.md ou da seção 'Sobre o Projeto' tornaria a checagem mais discriminante."
+      }
+    ],
+    "overall": "As asserções 2 e 3 discriminam bem: o baseline falhou justamente por não ler o contexto do legado e por aceitar Domain→Contracts."
+  }
+}

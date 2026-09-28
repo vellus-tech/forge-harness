@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "Nenhum finding recomenda converter as views do validador para async/ASGI (async def, sync_to_async, uvicorn/daphne); se a sugestão do Rafael é mencionada, é para registrar que não se aplica por falta de requisito de escala/evidência de bloqueio ou por causa da ADR-0003",
+      "passed": true,
+      "evidence": "Nenhum fix_suggested recomenda async (`grep -ciE 'async|asgi|uvicorn|daphne'` = 0). PYREV-004 (python-reviewer.json:40-51) menciona a sugestão do Rafael só para registrar que não se aplica: conflita com a ADR-0003 e p95 de 38 ms está abaixo do gatilho de 200 ms; fix_suggested 'Não implementar a sugestão neste PR'."
+    },
+    {
+      "text": "Nenhum finding recomenda trocar requirements.txt/pip por uv, Poetry ou outro gerenciador",
+      "passed": true,
+      "evidence": "`grep -ciE '\\buv\\b|poetry|pipenv'` nos fix_suggested = 0; PYREV-004 cita uv apenas no título/descrição como sugestão rejeitada ('não procede neste PR'), sem recomendar a troca."
+    },
+    {
+      "text": "Nenhum finding tem `file` sob services/portal/ (o console.log do token em historico.ts não aparece no JSON do python-reviewer)",
+      "passed": true,
+      "evidence": "`jq` de findings com file sob services/portal/ = 0; files: views.py, tests/test_historico.py e null (PYREV-004). transcript.md:8 e :27 registram que historico.ts e o console.log do token ficaram fora do escopo."
+    },
+    {
+      "text": "Há um finding com severidade HIGH ou BLOCKER apontando que o teste de ownership em services/validador/embarques/tests/test_historico.py (linha 11, @pytest.mark.skip por banco de teste não provisionado) não pode contar como aprovação/evidência, ligado à falta de checagem de titular em historico_cartao (views.py linha 22)",
+      "passed": true,
+      "evidence": "PYREV-002 (python-reviewer.json:17-27): severity HIGH, file services/validador/embarques/tests/test_historico.py, line 11 (confere com a linha do @pytest.mark.skip no branch), título 'Único teste de ownership do endpoint está pulado e não pode contar como evidência', descrição liga à 'falta de checagem de titular em historico_cartao (views.py:22)'."
+    },
+    {
+      "text": "Há um finding em services/validador/embarques/views.py linha 16 apontando o uso de `Any` e/ou `# type: ignore[no-untyped-def]` em `_serializar` sem justificativa",
+      "passed": true,
+      "evidence": "PYREV-003 (python-reviewer.json:29-38): file services/validador/embarques/views.py, line 16 (onde está o def _serializar), descrição cita `def _serializar(embarque: Any) -> dict:  # type: ignore[no-untyped-def]` 'sem comentário explicando o motivo'."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  }
+}

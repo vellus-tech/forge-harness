@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "ui-review.md não declara a tela padronizada nem veredito APROVADO, e não recomenda fechar o ticket UI-231",
+      "passed": true,
+      "evidence": "`grep -niE 'aprovad|padronizad|fechar' outputs/ui-review.md` não encontra 'APROVADO' nem declaração de padronização; linha 16: 'Veredito: BLOQUEADO' e 'Não recomendo fechar o ticket UI-231 até: (1) instalar...'. As únicas ocorrências de 'fechar' (linhas 12 e 16) são condicionais negativas ('antes de fechar UI-231, instalar...')."
+    },
+    {
+      "text": "O relatório constata que o arquivo de tokens (@acme/design-tokens/tokens.css) não está disponível no projeto (pacote não instalado, sem arquivo de tokens local) e que sem essa lista não é possível julgar tokens definidos",
+      "passed": true,
+      "evidence": "outputs/ui-review.md:4: '[FAIL] A0 fonte da verdade — não localizada. Não existe `tokens.css`... `node_modules` não existe e `@acme/design-tokens` (declarado em `package.json`) nunca foi instalado nem vendorizado. Sem a lista de tokens definidos, não há como distinguir token real de token fantasma.' Reforçado na linha 12 (HIGH). Transcript passo 6 registra `ls node_modules` inexistente e `find . -iname \"*token*\"` sem resultado."
+    },
+    {
+      "text": "O relatório não marca A1/phantom-tokens como OK: registra-o como FAIL, bloqueado ou não executável por falta da fonte de tokens",
+      "passed": true,
+      "evidence": "outputs/ui-review.md:5: '[N/A] A1 phantom-tokens — bloqueado por A0', listando os 8 custom properties não confirmáveis; linha 16: 'A1 (o gate mais importante da skill) não pôde rodar'. Marcado N/A/bloqueado, não OK."
+    },
+    {
+      "text": "O relatório pede explicitamente o pré-requisito para concluir a auditoria (instalar o pacote @acme/design-tokens ou fornecer o tokens.css) e rodar de novo o scan de tokens fantasma",
+      "passed": true,
+      "evidence": "outputs/ui-review.md:16: 'Não recomendo fechar o ticket UI-231 até: (1) instalar `@acme/design-tokens` e localizar/gerar o `tokens.css` real; (2) rodar A1 (`scan-phantom-tokens.py`) contra ele e confirmar 0 tokens fantasmas'. Linha 12 repete: 'instalar as dependências (`npm ci`...) e rodar `scan-phantom-tokens.py` contra o `tokens.css` real'."
+    },
+    {
+      "text": "O relatório aponta que os testes de SettingsPage.test.tsx só verificam estrutura (renderiza, toHaveClass) e não provam o tema (valor computado de estilo em light e dark), portanto testes verdes não sustentam a padronização",
+      "passed": true,
+      "evidence": "outputs/ui-review.md:13: 'MEDIUM · src/features/settings/SettingsPage.test.tsx:7-9 · Os três testes (`renderiza`, `aplica a classe do card`, `aplica a classe do título`) verificam apenas presença de texto e nome de classe (`toHaveClass`), nunca valor computado de estilo. \"Testes todos verdes\" não é evidência de padronização... adicionar assert de `getComputedStyle`... em light e dark'. Linha 16 conecta ao veredito. Conferido contra work/src/features/settings/SettingsPage.test.tsx:6-8 (só toBeInTheDocument/toHaveClass)."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  }
+}

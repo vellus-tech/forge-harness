@@ -1,0 +1,57 @@
+{
+  "expectations": [
+    {
+      "text": "`node .forge/scripts/lib/impact-freshness.mjs .forge/specs/active/2026-09-estorno-parcial .` imprime exatamente 'fresh' ao fim da execução (no setup imprime 'stale').",
+      "passed": true,
+      "evidence": "Rodado agora em without_skill/run-1/work: `node .forge/scripts/lib/impact-freshness.mjs .forge/specs/active/2026-09-estorno-parcial .` imprimiu exatamente `fresh` (rc=0). Estado stale de partida comprovado por `git show HEAD:.forge/specs/active/2026-09-estorno-parcial/impact.json`: graph_fingerprint 511fd603... e seeds [invoice.ts, tax.ts]; hoje o fingerprint é 7c38d7d8..."
+    },
+    {
+      "text": "O campo impacted do impact.json contém src/billing/refund.ts e src/api/routes/refunds.ts (arquivos que só existem no grafo novo), o que prova re-execução do scan e não edição manual do graph_fingerprint.",
+      "passed": true,
+      "evidence": "`jq .impacted .forge/specs/active/2026-09-estorno-parcial/impact.json` = [src/api/routes/payments.ts, src/api/routes/refunds.ts, src/billing/invoice.ts, src/billing/refund.ts, src/billing/tax.ts, src/reports/daily.ts]. Re-execução do scan, não remendo de fingerprint: transcript.md linhas 44-51 (`bash .forge/scripts/impact.sh --change 2026-09-estorno-parcial` -> `OK impact: 3 seed(s) -> 6 impacted`); outputs/impact.json é idêntico (jq -S + diff) ao do work."
+    },
+    {
+      "text": "O campo seeds do impact.json é exatamente [src/billing/invoice.ts, src/billing/refund.ts, src/billing/tax.ts] e impacted NÃO contém src/auth/session.ts (dependência de refunds.ts, não dependente de billing).",
+      "passed": true,
+      "evidence": "`jq .seeds` = [\"src/billing/invoice.ts\",\"src/billing/refund.ts\",\"src/billing/tax.ts\"] (exato) e impacted não contém src/auth/session.ts, embora graph.json tenha a aresta {from: src/api/routes/refunds.ts, to: src/auth/session.ts, kind: import} — travessia só por dependentes."
+    },
+    {
+      "text": "O sha256 de .forge/graph/graph.json ao fim da execução é igual ao valor gravado pelo setup em .git/eval-graph.sha256.",
+      "passed": true,
+      "evidence": "`shasum -a 256 .forge/graph/graph.json` = 71a0ade64cc9b743f221643e668606a775dcf4f069ea97182feb05b98553fd31, idêntico a `cat .git/eval-graph.sha256` (71a0ade64cc9b743f221643e668606a775dcf4f069ea97182feb05b98553fd31). `git status --short` (filtrando os ' D' de .claude/.forge agents/skills removidos pelo setup) mostra só ` M .forge/specs/active/2026-09-estorno-parcial/impact.json`."
+    },
+    {
+      "text": "O diretório .forge/specs/active/2026-09-estorno-parcial/ ainda existe, não há .forge/specs/archived/2026-09-estorno-parcial/, e o manifest.yaml continua com status: implemented.",
+      "passed": true,
+      "evidence": "`ls .forge/specs/active` -> 2026-09-estorno-parcial; `ls .forge/specs/archived` vazio; `grep -n ^status .forge/specs/active/2026-09-estorno-parcial/manifest.yaml` -> `6:status: implemented`."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "executor_duration_seconds": 159
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "reason": "Sem discriminação: as duas configurações chegaram a impact.json byte-idêntico e 5/5. O wrapper `.forge/scripts/impact.sh` fica no fixture mesmo sem skill e o nome do problema (impact stale) aponta direto para ele; o caso mede a maquinaria, não a skill. Um caso mais discriminante exigiria algo que só a skill ensina (ex.: explicar ao usuário por que não se edita o fingerprint, ou recusar reconstruir o grafo quando o hash já confere e o usuário pede o contrário)."
+      },
+      {
+        "assertion": "O campo impacted do impact.json contém src/billing/refund.ts e src/api/routes/refunds.ts (arquivos que só existem no grafo novo), o que prova re-execução do scan e não edição manual do graph_fingerprint.",
+        "reason": "O trecho 'prova re-execução do scan e não edição manual do graph_fingerprint' é inferência: um agente que editasse seeds/impacted/fingerprint à mão com valores certos também passaria. Checar que impact.json coincide com a saída de uma re-execução determinística em cópia descartável fecharia a brecha."
+      }
+    ]
+  },
+  "claims": [
+    {
+      "claim": "o grafo não foi tocado pelo run",
+      "type": "process",
+      "verified": true,
+      "evidence": "sha256 confere com .git/eval-graph.sha256 gravado pelo setup."
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "expectations": [
+    {
+      "text": "docs/revisao-banco-tarifas.md classifica como R-03 (id do catálogo, não só descrição) os quatro pontos bloqueantes da V002 com localização arquivo:linha: CREATE INDEX sem CONCURRENTLY (V002…:3), RENAME COLUMN (:4), ALTER COLUMN ... TYPE (:5) e SET NOT NULL (:7); e a correção do SET NOT NULL passa por CHECK (... IS NOT NULL) NOT VALID + VALIDATE CONSTRAINT, a do rename/tipo por coluna nova + backfill (expand → migrate → contract)",
+      "passed": false,
+      "evidence": "outputs/revisao-banco-tarifas.md (idêntico a work/docs/) não usa nenhum id de catálogo (nenhum 'R-03'); os pontos são numerados 2, 3, 5, 6 sem arquivo:linha. A correção CHECK NOT VALID + VALIDATE existe (linhas 106-111) e há backfill em lotes, mas a asserção exige classificação R-03 com localização."
+    },
+    {
+      "text": "O parecer aponta valor_integracao numeric(10,2) (V002:2) como R-19, recomenda BIGINT NOT NULL na menor unidade (centavos) e diz explicitamente que a rule money-as-cents.md tem applies_to restrito (.NET/React/Kotlin) e que aplicá-la a este serviço Node/TypeScript e ao *.sql é extensão da própria skill/decisão do dono, não da rule; recomendar só 'usar numeric com mais casas' ou omitir a observação do applies_to não conta",
+      "passed": false,
+      "evidence": "Nenhum achado de dinheiro: o SQL corrigido mantém ADD COLUMN valor_integracao numeric(10,2) (linha 68); não há R-19, BIGINT em centavos nem menção a money-as-cents.md/applies_to."
+    },
+    {
+      "text": "O parecer aponta parametros_operador (V002, tenant_id na linha 11) como R-20, trata RLS como obrigatório pela data-governance.md (não como sugestão) e a correção inclui ENABLE ROW LEVEL SECURITY e FORCE ROW LEVEL SECURITY, CREATE POLICY por tenant_id e papel da aplicação que não é dono da tabela / sem BYPASSRLS; oferecer índice com tenant_id como alternativa ao RLS reprova",
+      "passed": false,
+      "evidence": "Item 9 (linha 31) aponta 'Tabela nova sem RLS' sem id R-20 e como lacuna, sem invocar data-governance.md como obrigatório; o SQL (linhas 139-142) tem ENABLE + FORCE + POLICY, mas nada sobre papel da aplicação não-dono/sem BYPASSRLS."
+    },
+    {
+      "text": "O parecer aponta tarifas_repo.ts:9 como R-12, explicando que set_config('app.tenant_id', $1, false) grava o tenant na sessão e o pool do node-postgres devolve a conexão com o tenant ainda setado (a RLS da próxima requisição lê o tenant errado), e prescreve set_config(..., true) ou SET LOCAL dentro de uma transação explícita",
+      "passed": false,
+      "evidence": "Item 12 (linha 39) explica bem o vazamento pelo pool e prescreve set_config(..., true) dentro de BEGIN/COMMIT, mas não classifica como R-12 nem cita tarifas_repo.ts:9 (sem id do catálogo nem linha)."
+    },
+    {
+      "text": "O parecer NÃO recomenda converter fator_tarifa numeric(6,4) (V001:9) nem taxa_desconto_percentual para BIGINT em centavos: ou os trata explicitamente como decimal exato não monetário / falso positivo da varredura, ou não os menciona como problema de dinheiro",
+      "passed": true,
+      "evidence": "fator_tarifa aparece só na lista de colunas do SELECT corrigido (linha 169); taxa_desconto_percentual só no contexto da troca de tipo (itens 3/V002c), nunca como dinheiro a converter para BIGINT."
+    },
+    {
+      "text": "O parecer tem uma entrada por regra examinada com status explícito (achado, OK/limpo ou não verificado pela varredura estática), inclui R-01 para a FK operador_id sem índice, e não traz achado de services/recargas-api (outro serviço, fora do escopo pedido)",
+      "passed": false,
+      "evidence": "Relatório em lista numerada 1-15 sem ids de regra nem status por regra (nenhuma entrada OK/limpo/não verificado). O índice em operador_id aparece como item 10 genérico ('sem índice de suporte'), não como R-01 de FK sem índice. Não há achado de recargas-api (ok), mas a estrutura exigida falta."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 5,
+    "total": 6,
+    "pass_rate": 0.1667
+  }
+}

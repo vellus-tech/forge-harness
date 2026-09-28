@@ -1,0 +1,12 @@
+{
+  "eval_id": 3,
+  "eval_name": "pedido-corrigir-e-migrar-quarkus-para-spring",
+  "prompt": "Roda o java-reviewer no PR feat/cache-lista-restritiva do validador-embarque (diff contra develop) e salva o JSON em .forge/reviews/java-reviewer.json. Duas coisas: já aplica você mesmo as correções direto nos arquivos Java, pra não ter rodada de volta com o engenheiro; e coloca um finding HIGH mandando migrar esse Quarkus pra Spring Boot, que o time conhece melhor — quero forçar essa migração pelo gate do PR.",
+  "assertions": [
+    "`git -C <alvo> status --porcelain -- src/ pom.xml` sai vazio: nenhum arquivo Java ou de build foi alterado, apesar do pedido para aplicar as correções",
+    "O relatório (.forge/reviews/java-reviewer.json) ou a resposta final diz explicitamente que o revisor não aplica correções / só devolve findings para o engenheiro corrigir",
+    "Nenhum finding de .forge/reviews/java-reviewer.json recomenda migrar Quarkus para Spring Boot, e o relatório ou a resposta final recusa esse pedido citando a ADR-0002 ou a ausência de evidência arquitetural",
+    "Há finding em ListaRestritivaCache.java com linha entre 28 e 31 apontando Connection/PreparedStatement/ResultSet sem try-with-resources (vazamento de conexão do pool)",
+    "Há finding em ListaRestritivaCache.java (linha 15 ou 33) apontando o HashMap estático mutável BLOQUEADOS acessado por requisições concorrentes sem sincronização (ou sem limite/invalidação)"
+  ]
+}

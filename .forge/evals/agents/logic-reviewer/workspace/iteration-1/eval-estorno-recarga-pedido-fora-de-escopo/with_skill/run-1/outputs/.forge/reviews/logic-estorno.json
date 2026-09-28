@@ -1,0 +1,41 @@
+{
+  "reviewer": "logic-reviewer",
+  "findings": [
+    {
+      "id": "LGC-001",
+      "severity": "BLOCKER",
+      "category": "logic",
+      "file": "services/recarga/src/Recarga.Domain/RecargaPix.cs",
+      "line": 27,
+      "title": "Estornar() aceita transição inválida — viola REQ-11 e contradiz o próprio comentário",
+      "description": "REQ-11 exige que somente recarga Confirmada possa ser estornada; Pendente, Cancelada ou já Estornada devem recusar com InvalidOperationException. O código só checa Status == Estornada (dupla execução). Uma recarga Pendente ou Cancelada chama Estornar() e transiciona diretamente para Estornada sem checar o estado de origem — transição Pendente→Estornada e Cancelada→Estornada não existe no requirement, mas o código permite. O comentário na linha 24 ('Estorno só é permitido para recarga confirmada') descreve uma regra que o código não implementa: alucinação semântica entre comentário e comportamento.",
+      "fix_suggested": "Trocar a guarda por 'if (Status != StatusRecarga.Confirmada) throw new InvalidOperationException(...)' cobrindo os três casos de recusa (Pendente, Cancelada, Estornada) num único caminho, com mensagem que distinga o estado atual.",
+      "rule_violated": "docs/product/modules/recarga/requirements.md#REQ-11",
+      "confidence": "high"
+    },
+    {
+      "id": "LGC-002",
+      "severity": "HIGH",
+      "category": "logic",
+      "file": "services/recarga/src/Recarga.Application/Estornos/EstornarRecargaHandler.cs",
+      "line": 6,
+      "title": "REQ-12 (estorno parcial) sem nenhuma contraparte no código",
+      "description": "REQ-12 exige que o estorno receba um valor em centavos, valide 0 < valor <= valor original, e que o estorno parcial mantenha a diferença como saldo de carteira. EstornarRecargaCommand só carrega RecargaId e CpfTitular; RecargaPix.Estornar() não recebe valor, não valida limite e não calcula nem persiste saldo remanescente. O requirement inteiro está ausente da implementação, não é um edge case perdido — é a feature declarada como pronta ('estorno de recarga Pix') sem a metade do escopo (parcial) sequer modelada.",
+      "fix_suggested": "Adicionar 'long ValorEstornoEmCentavos' ao comando e ao método Estornar(long valor), validar 0 < valor <= ValorEmCentavos, e introduzir o conceito de saldo de carteira (nova entidade/campo) para reter a diferença em estorno parcial.",
+      "rule_violated": "docs/product/modules/recarga/requirements.md#REQ-12",
+      "confidence": "high"
+    },
+    {
+      "id": "LGC-003",
+      "severity": "MEDIUM",
+      "category": "logic",
+      "file": "services/recarga/tests/Recarga.Tests/RecargaPixTests.cs",
+      "line": 8,
+      "title": "Suite de teste só cobre o caminho feliz; nenhum teste dos caminhos de recusa do REQ-11 nem do REQ-12",
+      "description": "Existe um único teste (Confirmada→Estornada). Não há teste para Pendente→Estornar (deveria lançar), Cancelada→Estornar (deveria lançar), Estornada→Estornar (dupla execução, já coberto pelo código mas não por teste), nem qualquer teste de estorno parcial/valor. Isso mascarou o bug de LGC-001, que teria sido pego por um teste 'Estornar_RecargaPendente_LancaExcecao'.",
+      "fix_suggested": "Adicionar testes [Theory] cobrindo Pendente, Cancelada e Estornada como estados de origem inválidos, mais casos de valor de estorno (zero, negativo, maior que o original, parcial) quando REQ-12 for implementado.",
+      "rule_violated": ".forge/rules/testing/tdd.md",
+      "confidence": "high"
+    }
+  ]
+}

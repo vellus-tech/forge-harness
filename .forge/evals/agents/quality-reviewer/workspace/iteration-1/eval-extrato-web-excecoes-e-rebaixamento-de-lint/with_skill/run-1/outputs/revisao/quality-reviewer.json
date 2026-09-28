@@ -1,0 +1,54 @@
+{
+  "reviewer": "quality-reviewer",
+  "branch": "feature/extrato-filtro-periodo",
+  "base": "develop",
+  "findings": [
+    {
+      "id": "QLT-001",
+      "severity": "HIGH",
+      "category": "quality",
+      "file": "apps/web/.eslintrc.json",
+      "line": 6,
+      "title": "Regra de lint existente rebaixada de error para warn sem o portão de decisão A/B/C — viola quality-gates.md",
+      "description": "@typescript-eslint/no-explicit-any passa de \"error\" para \"warn\" no mesmo diff que introduz o único uso novo de 'any' do PR (parseLegacyPayload em utils.ts). O 'Portão de decisão para burndown de lint' de quality-gates.md exige, antes de rebaixar uma regra existente: medir a contagem de violações, apresentar as três opções ao dono do repositório (corrigir tudo / suprimir pontualmente com issue / reescopar a regra) e marcar a opção C explicitamente como MUDANÇA DE CONFIG. Nada disso está registrado — a descrição de PR prevista (\"Adiciona filtro por período no extrato e ajusta o lint da tela\") também não menciona a mudança de config, o que é exatamente o padrão que a rule proíbe (\"nunca apresentado como se o código tivesse ficado mais limpo\").",
+      "fix_suggested": "Reverter a regra para \"error\" e tratar o 'any' de parseLegacyPayload com uma opção documentada do portão: tipar o payload legado (Unknown + type guard) para manter a regra em error (A), ou suprimir pontualmente a linha com `// eslint-disable-next-line @typescript-eslint/no-explicit-any -- ver ISSUE-<n>` (B). Se a opção for mesmo reescopar a regra (C), registrar a contagem de violações medida e marcar explicitamente MUDANÇA DE CONFIG na descrição do PR, não embutir em \"ajusta o lint da tela\".",
+      "rule_violated": ".forge/rules/testing/quality-gates.md#portão-de-decisão-para-burndown-de-lint",
+      "confidence": "high"
+    },
+    {
+      "id": "QLT-002",
+      "severity": "HIGH",
+      "category": "quality",
+      "file": "apps/web/src/features/statement/utils.ts",
+      "line": 1,
+      "title": "Teste correspondente ausente para 3 das 4 funções novas exportadas em utils.ts",
+      "description": "utils.ts exporta formatCurrency, buildPeriodQuery, filterByPeriod e parseLegacyPayload; o único teste novo do diff (statement-period-filter.test.ts) cobre apenas filterByPeriod. formatCurrency (formatação monetária exibida ao usuário), buildPeriodQuery (monta querystring enviada ao backend) e parseLegacyPayload (fronteira de payload legado, justamente onde o 'any' foi introduzido) não têm teste. O componente StatementPage também foi reescrito (estado de período, aria-labelledby, chamada a logFilterUsage) sem nenhum teste de componente novo/atualizado no diff.",
+      "fix_suggested": "Adicionar casos para formatCurrency (formatação BRL a partir de centavos), buildPeriodQuery (querystring com/sem datas) e parseLegacyPayload (payload válido e payload malformado, já que a assinatura aceita 'any'). Para StatementPage, cobrir ao menos a interação dos dois inputs de data com @testing-library/react.",
+      "rule_violated": ".forge/rules/testing/quality-gates.md#níveis-obrigatórios",
+      "confidence": "high"
+    },
+    {
+      "id": "QLT-003",
+      "severity": "MEDIUM",
+      "category": "quality",
+      "file": "apps/web/src/features/statement/utils.ts",
+      "line": 1,
+      "title": "utils.ts novo como depósito genérico — não segue nenhuma das quatro costuras de code-style.md §11",
+      "description": "O arquivo mistura formatação de apresentação (formatCurrency), lógica de negócio de filtro (filterByPeriod, que deveria migrar para um serviço de domínio — costura 1), montagem de query de acesso a dado (buildPeriodQuery, costura 3) e um parser de payload legado (parseLegacyPayload, também costura 3), tudo sob o nome genérico 'utils.ts' — exatamente o antipadrão descrito em code-style.md §11 ('mesmo defeito do §4 generic-name, um nível de arquivo acima'). Nenhuma nota no PR ('sem costura natural, pare e siga para o próximo') justifica o depósito.",
+      "fix_suggested": "Separar por domínio: filterByPeriod (e a decisão de filtro) para um serviço/hook de domínio do extrato; buildPeriodQuery + parseLegacyPayload para um adaptador de acesso a dado (ex.: statement-api.ts); formatCurrency para um módulo de apresentação nomeado pelo domínio (ex.: currency-formatting.ts), reexportado por um barril fino se necessário para não quebrar import sites na mesma tacada.",
+      "rule_violated": ".forge/rules/conventions/code-style.md#11-corte-de-arquivo-grande-as-quatro-costuras",
+      "confidence": "medium"
+    }
+  ],
+  "compliant_checks": [
+    "Conventional commits (feat(web), docs(specs)) — type/scope/subject conformes a .commitlintrc.json, sem co-autoria de IA",
+    "Nomenclatura de diretórios/arquivos kebab-case consistente",
+    "Identifiers em inglês (filterByPeriod, buildPeriodQuery, formatCurrency, logFilterUsage, parseLegacyPayload)",
+    "eslint-disable-next-line de @typescript-eslint/no-non-null-assertion em statement-page.tsx traz referência de issue (ISSUE-412) — padrão correto de supressão pontual (opção B do portão de lint)",
+    "docs/product/modules/extrato/requirements-validation-report.md casa com a exceção documentada de *-validation-report.md em docs/product/ — não é arquivo de resumo proibido"
+  ],
+  "out_of_scope_observed": [
+    "logFilterUsage expõe userCpf em console.info (PII em log) — fora do escopo do quality-reviewer, ver security-reviewer",
+    "document.getElementById('period') não corresponde a nenhum id realmente atribuído aos <input> — possível bug funcional, fora do escopo do quality-reviewer, ver logic-reviewer"
+  ]
+}

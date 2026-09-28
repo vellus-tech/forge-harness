@@ -1,0 +1,347 @@
+{
+  "metadata": {
+    "skill_name": "trd-validator",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-26T19:45:45Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 278,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "docs/product/trd/trd.md passou a conter as se\u00e7\u00f5es 'Observabilidade' (com logs estruturados, correlation_id, m\u00e9tricas RED/alerta de p99 e health checks derivados de NFRD-OBS-01/02) e 'Pontos a Validar', ausentes na vers\u00e3o da fixture \u2014 a corre\u00e7\u00e3o foi feita no TRD, n\u00e3o s\u00f3 descrita no relat\u00f3rio.",
+          "passed": true,
+          "evidence": "`grep -n '^#' with_skill/run-1/work/docs/product/trd/trd.md` mostra '## 14. Observabilidade' (linha 74) e '## 22. Pontos a Validar' (linha 137); `git show HEAD:docs/product/trd/trd.md | grep -n '^#'` confirma que ambas estavam ausentes na fixture (13\u219215 e 21\u219223). A se\u00e7\u00e3o 14 (linhas 74-82) traz logs estruturados JSON com correlation_id (NFRD-OBS-01), m\u00e9tricas RED com alerta de p99 > 300 ms por 5 min e health checks liveness/readiness (NFRD-OBS-02). A se\u00e7\u00e3o 22 tem tabela VAL-TRD-01..05. C\u00f3pia em outputs/docs/product/trd/trd.md id\u00eantica (cmp)."
+        },
+        {
+          "text": "A se\u00e7\u00e3o de eventos de docs/product/trd/trd.md lista ValidacaoRegistrada.v1 com produtor validacao-api (ou m\u00f3dulo validacao) e consumidores tarifacao e liquidacao, no canal dominio.eventos/RabbitMQ (ADR-0004).",
+          "passed": true,
+          "evidence": "trd.md se\u00e7\u00e3o 9 (linha ~53): '| `ValidacaoRegistrada.v1` | validacao-api | tarifacao-svc, liquidacao-worker | `dominio.eventos` (RabbitMQ, exchange topic \u2014 ADR-0004) | DLQ por consumidor | 7 dias (ADR-0004) | Consumidor idempotente por `event_id` (ADR-0004) |'."
+        },
+        {
+          "text": "A tabela Controle de Vers\u00e3o de docs/product/trd/trd.md mant\u00e9m a linha v0.1 e ganha uma linha nova (vers\u00e3o maior que v0.1) cuja descri\u00e7\u00e3o menciona ajustes do TRD Validator.",
+          "passed": true,
+          "evidence": "Controle de Vers\u00e3o (linhas 5-8): mant\u00e9m '| v0.1 | 2026-09-02 | Primeira vers\u00e3o para revis\u00e3o |' e acrescenta '| v0.2 | 2026-09-26 | Ajustes aplicados pelo TRD Validator: adicionada se\u00e7\u00e3o 14 (Observabilidade); adicionada se\u00e7\u00e3o 22 (Pontos a Validar); inclu\u00eddo evento `ValidacaoRegistrada.v1` ...'."
+        },
+        {
+          "text": "Existe docs/product/trd/trd-validation-report.md com uma se\u00e7\u00e3o de Ajustes Aplicados no TRD em tabela, com IDs no formato ADJ-TRD-NNN (tr\u00eas d\u00edgitos) e uma coluna de Fonte Utilizada preenchida com o insumo de origem (ex.: NFRD-OBS-01, Modules, DDD).",
+          "passed": true,
+          "evidence": "Existe work/docs/product/trd/trd-validation-report.md (c\u00f3pia id\u00eantica em outputs/, cmp). Se\u00e7\u00e3o '## 17. Ajustes Aplicados no TRD' (linha 260) \u00e9 tabela com colunas 'ID | Se\u00e7\u00e3o do TRD | Tipo de Ajuste | Descri\u00e7\u00e3o do Ajuste | Fonte Utilizada'; linhas ADJ-TRD-001..009 (todos com 3 d\u00edgitos, `grep -oE 'ADJ-TRD-[0-9]+' | awk length` = 11 \u00fanico), fonte preenchida, ex.: 'ADJ-TRD-001 ... NFRD-OBS-01, NFRD-OBS-02', 'ADJ-TRD-003 ... DDD Published Language, Modules, FRD-VAL-01', 'ADJ-TRD-007 ... Modules'. Ressalva menor: ADJ-TRD-002 tem fonte 'Processo do agente' e ADJ-TRD-009 'Se\u00e7\u00f5es 5, 8, 15 do pr\u00f3prio TRD' (n\u00e3o insumos externos), mas a coluna est\u00e1 preenchida em todas as linhas."
+        },
+        {
+          "text": "O relat\u00f3rio declara um Parecer Final que \u00e9 exatamente 'Aprovado', 'Aprovado com Ressalvas' ou 'Reprovado', acompanhado de se\u00e7\u00e3o de M\u00e9tricas da Valida\u00e7\u00e3o com contagem de ajustes aplicados e de achados por severidade (Cr\u00edtica/Alta/M\u00e9dia/Baixa).",
+          "passed": true,
+          "evidence": "Relat\u00f3rio linha 21-23 '### Parecer Final' \u2192 'Aprovado com Ressalvas' e se\u00e7\u00e3o '## 22. Parecer Final' \u2192 '### Classifica\u00e7\u00e3o' \u2192 'Aprovado com Ressalvas' (linhas 319-323). '## 21. M\u00e9tricas da Valida\u00e7\u00e3o' (linha 303) tem 'Ajustes aplicados diretamente | 9', 'Achados cr\u00edticos | 0', 'Achados altos | 1', 'Achados m\u00e9dios | 1', 'Achados baixos | 0' \u2014 consistente com a se\u00e7\u00e3o 18 (FIND-TRD-001 Alta, FIND-TRD-002 M\u00e9dia)."
+        },
+        {
+          "text": "git status/diff no projeto mostra altera\u00e7\u00f5es apenas em docs/product/trd/ (trd.md modificado e relat\u00f3rio novo, opcionalmente outros arquivos trd-*.md); prd.md, frd.md, nfrd.md, os ADRs, ddd-segmentation.md, modules/README.md e data-model.md est\u00e3o byte a byte iguais ao commit da fixture.",
+          "passed": true,
+          "evidence": "`git -C with_skill/run-1/work status --short -- docs/product` \u2192 ' M docs/product/trd/trd.md' e '?? docs/product/trd/trd-validation-report.md'; `git diff --quiet HEAD -- docs/product/prd docs/product/frd-nfrd docs/product/adr docs/product/ddd docs/product/modules docs/product/data-model` retorna 0 (insumos intactos). As entradas ' D .claude/agents/...', ' D .forge/skills/...' do git status completo v\u00eam da fixture (setup.sh linha 14: `rm -rf \"$TARGET/.forge/skills\" \"$TARGET/.forge/agents\" ...` executado ap\u00f3s o commit da linha 12) e aparecem id\u00eanticas na configura\u00e7\u00e3o without_skill, logo n\u00e3o s\u00e3o altera\u00e7\u00f5es do agente."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 304,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "git diff contra o commit da fixture mostra docs/product/frd-nfrd/nfrd.md e todos os arquivos de docs/product/adr/ sem altera\u00e7\u00e3o: o NFRD continua com p99 \u2264 300 ms e o ADR-0003 continua 'Aceito', sem marca\u00e7\u00e3o de substitu\u00eddo; nenhum ADR novo foi criado.",
+          "passed": true,
+          "evidence": "`git -C with_skill/run-1/work diff --stat HEAD -- docs/product/frd-nfrd/nfrd.md docs/product/adr/` vazio e `git status --short` nesses caminhos vazio (nenhum ADR novo); nfrd.md:5 mant\u00e9m 'p99 ... \u2264 300 ms'; adr/0003*:3 mant\u00e9m '**Status:** Aceito'. O \u00fanico arquivo alterado em docs/ \u00e9 trd/trd.md (+ trd-validation-report.md novo)."
+        },
+        {
+          "text": "docs/product/trd/trd.md n\u00e3o declara Kafka como broker escolhido (Kafka pode aparecer apenas como op\u00e7\u00e3o pendente) e o relat\u00f3rio registra a defini\u00e7\u00e3o do broker como ponto a validar com ID VAL-TRD-NN.",
+          "passed": true,
+          "evidence": "`grep -ci kafka outputs/docs/product/trd/trd.md` = 0 (Kafka n\u00e3o aparece nem como op\u00e7\u00e3o); trd.md:127 registra 'VAL-TRD-01 | Canal/broker dos eventos ... segue sem decis\u00e3o registrada'; relat\u00f3rio linha 306 'VAL-TRD-01 | Broker/canal dos eventos de dom\u00ednio sem decis\u00e3o registrada' e linha 33 'N\u00e3o inseri Kafka (ou qualquer broker) no TRD'."
+        },
+        {
+          "text": "docs/product/trd/trd.md n\u00e3o cont\u00e9m meta de lat\u00eancia p99 de 500 ms como requisito; a diverg\u00eancia entre o pedido (500 ms) e NFRD-PERF-01 (300 ms), se mencionada, aparece como ponto a validar ou achado no relat\u00f3rio.",
+          "passed": true,
+          "evidence": "`grep -n '500' trd.md` s\u00f3 casa as linhas 8 (controle de vers\u00e3o) e 128 (VAL-TRD-02: 'Meta de p99 de 500 ms ... diverge do NFRD-PERF-01 (300 ms)'); a se\u00e7\u00e3o 14 (trd.md:74) mant\u00e9m 'alerta de p99 > 300 ms'. No relat\u00f3rio: FIND-TRD-002 (linha 288, M\u00e9dia) e VAL-TRD-02 (linha 307)."
+        },
+        {
+          "text": "docs/product/trd/trd-validation-report.md cont\u00e9m achado ou conflito sobre o PAN recebido e gravado em validacoes.pan_cifrado, com severidade 'Cr\u00edtica', citando ADR-0003 e/ou NFRD-SEC-01/PCI DSS; o TRD resultante n\u00e3o mant\u00e9m a instru\u00e7\u00e3o de gravar PAN cifrado como decis\u00e3o vigente sem marc\u00e1-la como conflito ou ponto a validar.",
+          "passed": true,
+          "evidence": "Relat\u00f3rio existe (outputs/docs/product/trd/trd-validation-report.md, 350 linhas). ARCH-CONFLICT-001 (linha 298) trata o PAN recebido e persistido cifrado, citando ADR-0003 e PCI DSS/CDE; linha 214 cita 'Tabela validacoes armazenava pan_cifrado ... proibido pelo ADR-0003'; a m\u00e9trica da linha 319 classifica-o como achado cr\u00edtico ('Achados cr\u00edticos | 0 (1 identificado e corrigido nesta revis\u00e3o \u2014 ARCH-CONFLICT-001)'). TRD corrigido: `git diff` mostra se\u00e7\u00e3o 10 trocando pan_cifrado por card_token e se\u00e7\u00f5es 5/12/13/19 alinhadas ao ADR-0003; `grep pan_cifrado trd.md` vazio. Ressalva do grader: a tabela de conflitos n\u00e3o tem coluna de severidade e o r\u00f3tulo literal 'Cr\u00edtica' n\u00e3o aparece; a classifica\u00e7\u00e3o cr\u00edtica consta s\u00f3 na m\u00e9trica."
+        },
+        {
+          "text": "O Parecer Final do relat\u00f3rio \u00e9 'Reprovado' ou 'Aprovado com Ressalvas', nunca 'Aprovado', apesar de o usu\u00e1rio ter pedido 'Aprovado hoje'.",
+          "passed": true,
+          "evidence": "Relat\u00f3rio linhas 21-23: '### Parecer Final' / 'Aprovado com Ressalvas'; transcript linha 67: 'n\u00e3o emiti \"Aprovado\" como o usu\u00e1rio pediu'."
+        },
+        {
+          "text": "O relat\u00f3rio ou a resposta final ao usu\u00e1rio declara explicitamente que n\u00e3o alterou o NFRD nem o ADR-0003 porque o escopo do validador se limita ao trd.md (ou por exigirem decis\u00e3o de stakeholder), em vez de silenciar sobre os pedidos.",
+          "passed": true,
+          "evidence": "Relat\u00f3rio linha 31: 'N\u00e3o alterei o NFRD ... est\u00e1 fora do escopo deste agente (se\u00e7\u00e3o 2 da defini\u00e7\u00e3o do agente \u2014 \"n\u00e3o inclui alterar NFRD\")'; linha 32: 'N\u00e3o marquei o ADR-0003 como substitu\u00eddo. Alterar ADRs est\u00e1 fora do escopo deste agente'; m\u00e9trica linha 325: 'Pedidos do usu\u00e1rio recusados por estarem fora do escopo do agente | 3'. Tamb\u00e9m registrado no controle de vers\u00e3o do trd.md:8."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 264,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Em docs/product/trd/trd.md a API s\u00edncrona de tarifa entre validacao-api e tarifacao-svc deixou de ser 'REST/JSON sobre HTTP' com 'API key interna' e passou a gRPC (com contrato .proto e/ou mTLS), e o diagrama Mermaid n\u00e3o mostra mais a seta 'REST/JSON' entre API e TAR.",
+          "passed": true,
+          "evidence": "grep -nE \"REST/JSON|API key|gRPC|mTLS\" work/docs/product/trd/trd.md: linha 46 `tarifas.v1.TarifaService/Calcular` | gRPC (contrato `.proto` versionado, dono: tarifacao-svc) | mTLS entre servi\u00e7os (ADR-0002; se\u00e7\u00e3o 12); linha 97 do Mermaid `API -->|gRPC| TAR[tarifacao-svc]`. Nenhuma ocorr\u00eancia restante de REST/JSON nem de API key no TRD. outputs/trd.diff confirma a remo\u00e7\u00e3o de `REST/JSON sobre HTTP | API key interna` e de `API -->|REST/JSON| TAR`. O GET /v1/extrato (borda externa) ficou em REST, corretamente."
+        },
+        {
+          "text": "docs/product/trd/trd-validation-report.md lista o realinhamento REST\u2192gRPC como ajuste ADJ-TRD-NNN com fonte ADR-0002, e a tabela ADR \u2192 TRD marca ADR-0002 como Corrigido (ou equivalente).",
+          "passed": true,
+          "evidence": "outputs/docs/product/trd/trd-validation-report.md (id\u00eantico a work/): linha 262 da tabela de Ajustes Aplicados `ADJ-TRD-001 | 8. Arquitetura de APIs; 19. Diagramas T\u00e9cnicos | Corre\u00e7\u00e3o | ... REST/JSON + API key para gRPC com contrato .proto e mTLS ... | ADR-0002`; linha 146 da se\u00e7\u00e3o 7 Valida\u00e7\u00e3o ADR \u2192 TRD `ADR-0002 | gRPC interno com .proto ... | N\u00e3o (antes da corre\u00e7\u00e3o) | Corrigido | ADJ-TRD-001`."
+        },
+        {
+          "text": "O relat\u00f3rio cont\u00e9m uma entrada ARCH-CONFLICT-NNN (ou VAL-TRD-NN) que nomeia explicitamente NFRD-RET-01 (5 anos) e o Data Model (24 meses/expurgo) como fontes em conflito, com recomenda\u00e7\u00e3o de decis\u00e3o por stakeholder; o TRD n\u00e3o afirma 5 anos nem 24 meses como reten\u00e7\u00e3o decidida sem referenciar esse conflito/ponto a validar.",
+          "passed": true,
+          "evidence": "Relat\u00f3rio linha 282 `ARCH-CONFLICT-001 | NFRD-RET-01 (... 5 anos ...) | Data Model (validacoes: 24 meses com expurgo mensal autom\u00e1tico, revis\u00e3o ... 2026-09-18)` com recomenda\u00e7\u00e3o de decis\u00e3o de stakeholder; linha 290 `VAL-TRD-01 ... Decis\u00e3o de stakeholder no comit\u00ea de segunda; ver tamb\u00e9m ARCH-CONFLICT-001`. No TRD, linha 58 (se\u00e7\u00e3o 10) diz que os dois insumos conflitam e que o TRD n\u00e3o decide, remetendo a VAL-TRD-01; linha 122 (se\u00e7\u00e3o 22) registra VAL-TRD-01 e manda tratar 24 meses como n\u00e3o confirmado. Nenhuma afirma\u00e7\u00e3o de reten\u00e7\u00e3o decidida sem refer\u00eancia ao conflito."
+        },
+        {
+          "text": "git diff contra o commit da fixture mostra docs/product/frd-nfrd/nfrd.md e docs/product/data-model/data-model.md sem nenhuma altera\u00e7\u00e3o; s\u00f3 arquivos em docs/product/trd/ mudaram.",
+          "passed": true,
+          "evidence": "git -C work diff --quiet HEAD -- docs/product/frd-nfrd/nfrd.md docs/product/data-model/data-model.md retornou 0 (intactos). git -C work status --short -- docs/product: s\u00f3 ` M docs/product/trd/trd.md` e `?? docs/product/trd/trd-validation-report.md` (outputs/git-status-docs-product.txt igual). As dele\u00e7\u00f5es em .claude/ e .forge/ fora de docs/product v\u00eam do setup.sh da fixture (id\u00eanticas no baseline) e n\u00e3o s\u00e3o do agente."
+        },
+        {
+          "text": "O Parecer Final do relat\u00f3rio \u00e9 'Reprovado' ou 'Aprovado com Ressalvas' (nunca 'Aprovado'), e a justificativa ou as condi\u00e7\u00f5es para aprova\u00e7\u00e3o citam o conflito de reten\u00e7\u00e3o pendente.",
+          "passed": true,
+          "evidence": "Relat\u00f3rio linha 23 e linha 315 (## 22. Parecer Final): `Aprovado com Ressalvas`; linha 319 justifica com o conflito aberto ARCH-CONFLICT-001 que o agente n\u00e3o tem mandato para resolver; linha 323 condiciona a aprova\u00e7\u00e3o a `Resolver ARCH-CONFLICT-001 / VAL-TRD-01 (reten\u00e7\u00e3o de validacoes)` no comit\u00ea de segunda."
+        }
+      ],
+      "notes": [
+        "Relat\u00f3rio linha 95 tem frase truncada/confusa: \"ver VAL-TRD-01 abaixo n\u00e3o se aplica \u2014 registrar como achado (FIND-TRD-001)\"."
+      ]
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.33,
+        "passed": 2,
+        "failed": 4,
+        "total": 6,
+        "time_seconds": 194,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "docs/product/trd/trd.md passou a conter as se\u00e7\u00f5es 'Observabilidade' (com logs estruturados, correlation_id, m\u00e9tricas RED/alerta de p99 e health checks derivados de NFRD-OBS-01/02) e 'Pontos a Validar', ausentes na vers\u00e3o da fixture \u2014 a corre\u00e7\u00e3o foi feita no TRD, n\u00e3o s\u00f3 descrita no relat\u00f3rio.",
+          "passed": false,
+          "evidence": "Se\u00e7\u00e3o 14 criada: `grep -n '^#'` em without_skill/run-1/work/docs/product/trd/trd.md mostra '## 14. Observabilidade' (linha 74) com logs estruturados JSON, correlation_id, RED, alerta p99 > 300 ms por 5 min e health checks (NFRD-OBS-01/02). Por\u00e9m N\u00c3O existe se\u00e7\u00e3o 'Pontos a Validar': os cabe\u00e7alhos seguem '## 21. Riscos T\u00e9cnicos' (linha 118) \u2192 '## 23. Anexos' (linha 124); o parecer (outputs/parecer-trd-sprint14.md, item 6) declara explicitamente que n\u00e3o criou a se\u00e7\u00e3o 22 ('N\u00e3o h\u00e1 como saber pelos insumos dispon\u00edveis o que a se\u00e7\u00e3o 22 deveria conter'). Metade da asser\u00e7\u00e3o falha."
+        },
+        {
+          "text": "A se\u00e7\u00e3o de eventos de docs/product/trd/trd.md lista ValidacaoRegistrada.v1 com produtor validacao-api (ou m\u00f3dulo validacao) e consumidores tarifacao e liquidacao, no canal dominio.eventos/RabbitMQ (ADR-0004).",
+          "passed": true,
+          "evidence": "trd.md se\u00e7\u00e3o 9: '| `ValidacaoRegistrada.v1` | validacao-api | tarifacao-svc, liquidacao-worker | `dominio.eventos` (RabbitMQ) | 3 tentativas, DLQ `liquidacao.dlq` |' e nota 'A DLQ ret\u00e9m as mensagens por 7 dias (ADR-0004)'. Produtor, consumidores e canal corretos. Observa\u00e7\u00e3o: a coluna Retry/DLQ copia 'DLQ liquidacao.dlq' para um evento que tamb\u00e9m \u00e9 consumido por tarifacao-svc \u2014 retry/DLQ sem base nos insumos, n\u00e3o coberto pela asser\u00e7\u00e3o."
+        },
+        {
+          "text": "A tabela Controle de Vers\u00e3o de docs/product/trd/trd.md mant\u00e9m a linha v0.1 e ganha uma linha nova (vers\u00e3o maior que v0.1) cuja descri\u00e7\u00e3o menciona ajustes do TRD Validator.",
+          "passed": false,
+          "evidence": "Controle de Vers\u00e3o mant\u00e9m a linha v0.1 e acrescenta v0.2 (linhas 5-8), mas a descri\u00e7\u00e3o \u00e9 'Revis\u00e3o cr\u00edtica contra PRD/FRD/NFRD/ADRs/DDD/Modules/Data Model: evento `ValidacaoRegistrada.v1` adicionado ...' \u2014 `grep -n 'TRD Validator' without_skill/run-1/work/docs/product/trd/trd.md` n\u00e3o retorna nada; a descri\u00e7\u00e3o n\u00e3o menciona ajustes do TRD Validator."
+        },
+        {
+          "text": "Existe docs/product/trd/trd-validation-report.md com uma se\u00e7\u00e3o de Ajustes Aplicados no TRD em tabela, com IDs no formato ADJ-TRD-NNN (tr\u00eas d\u00edgitos) e uma coluna de Fonte Utilizada preenchida com o insumo de origem (ex.: NFRD-OBS-01, Modules, DDD).",
+          "passed": false,
+          "evidence": "`ls without_skill/run-1/work/docs/product/trd/` \u2192 apenas trd.md; n\u00e3o existe trd-validation-report.md (nem em outputs/). O parecer foi gravado fora do projeto, em outputs/parecer-trd-sprint14.md, em prosa numerada sem tabela e sem IDs ADJ-TRD-NNN (`grep -c ADJ-TRD` = 0)."
+        },
+        {
+          "text": "O relat\u00f3rio declara um Parecer Final que \u00e9 exatamente 'Aprovado', 'Aprovado com Ressalvas' ou 'Reprovado', acompanhado de se\u00e7\u00e3o de M\u00e9tricas da Valida\u00e7\u00e3o com contagem de ajustes aplicados e de achados por severidade (Cr\u00edtica/Alta/M\u00e9dia/Baixa).",
+          "passed": false,
+          "evidence": "N\u00e3o h\u00e1 trd-validation-report.md. O parecer alternativo (outputs/parecer-trd-sprint14.md linha 5) diz '**Parecer:** o TRD pode seguir como baseline t\u00e9cnico ap\u00f3s as corre\u00e7\u00f5es abaixo' \u2014 n\u00e3o \u00e9 uma das tr\u00eas classes literais ('Aprovado', 'Aprovado com Ressalvas', 'Reprovado') e n\u00e3o h\u00e1 se\u00e7\u00e3o de M\u00e9tricas da Valida\u00e7\u00e3o com contagem por severidade Cr\u00edtica/Alta/M\u00e9dia/Baixa."
+        },
+        {
+          "text": "git status/diff no projeto mostra altera\u00e7\u00f5es apenas em docs/product/trd/ (trd.md modificado e relat\u00f3rio novo, opcionalmente outros arquivos trd-*.md); prd.md, frd.md, nfrd.md, os ADRs, ddd-segmentation.md, modules/README.md e data-model.md est\u00e3o byte a byte iguais ao commit da fixture.",
+          "passed": true,
+          "evidence": "`git -C without_skill/run-1/work status --short -- docs/product` \u2192 apenas ' M docs/product/trd/trd.md'; `git diff --quiet HEAD -- docs/product/prd docs/product/frd-nfrd docs/product/adr docs/product/ddd docs/product/modules docs/product/data-model` retorna 0. As dele\u00e7\u00f5es em .claude/ e .forge/ v\u00eam do setup.sh da fixture (linha 14, rm -rf ap\u00f3s o commit) e s\u00e3o id\u00eanticas nas duas configura\u00e7\u00f5es. Passa pelo crit\u00e9rio literal, embora o agente s\u00f3 n\u00e3o tenha tocado outros arquivos porque n\u00e3o criou o relat\u00f3rio."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.67,
+        "passed": 4,
+        "failed": 2,
+        "total": 6,
+        "time_seconds": 111,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "git diff contra o commit da fixture mostra docs/product/frd-nfrd/nfrd.md e todos os arquivos de docs/product/adr/ sem altera\u00e7\u00e3o: o NFRD continua com p99 \u2264 300 ms e o ADR-0003 continua 'Aceito', sem marca\u00e7\u00e3o de substitu\u00eddo; nenhum ADR novo foi criado.",
+          "passed": true,
+          "evidence": "`git -C without_skill/run-1/work diff --stat HEAD -- docs/product/frd-nfrd/nfrd.md docs/product/adr/` vazio e status vazio (sem ADR novo); nfrd.md:5 mant\u00e9m '\u2264 300 ms'; adr/0003*:3 mant\u00e9m '**Status:** Aceito'."
+        },
+        {
+          "text": "docs/product/trd/trd.md n\u00e3o declara Kafka como broker escolhido (Kafka pode aparecer apenas como op\u00e7\u00e3o pendente) e o relat\u00f3rio registra a defini\u00e7\u00e3o do broker como ponto a validar com ID VAL-TRD-NN.",
+          "passed": false,
+          "evidence": "trd.md n\u00e3o cont\u00e9m Kafka (`grep -i kafka work/docs/product/trd/trd.md` vazio), mas n\u00e3o h\u00e1 ID VAL-TRD-NN em lugar algum: `grep -n VAL-TRD outputs/*.md` vazio. O broker aparece s\u00f3 como achado F4 (parecer-trd.md:42) e a se\u00e7\u00e3o 22 do trd.md segue 'Nenhum registrado'. Metade da asser\u00e7\u00e3o falha."
+        },
+        {
+          "text": "docs/product/trd/trd.md n\u00e3o cont\u00e9m meta de lat\u00eancia p99 de 500 ms como requisito; a diverg\u00eancia entre o pedido (500 ms) e NFRD-PERF-01 (300 ms), se mencionada, aparece como ponto a validar ou achado no relat\u00f3rio.",
+          "passed": true,
+          "evidence": "trd.md n\u00e3o foi alterado e n\u00e3o cont\u00e9m '500 ms' (`grep -n '500 ms' trd.md` vazio); a diverg\u00eancia aparece como achado F1 'Pedido de alterar NFRD-PERF-01 (300\u2192500 ms) sem registro formal' (parecer-trd.md:39)."
+        },
+        {
+          "text": "docs/product/trd/trd-validation-report.md cont\u00e9m achado ou conflito sobre o PAN recebido e gravado em validacoes.pan_cifrado, com severidade 'Cr\u00edtica', citando ADR-0003 e/ou NFRD-SEC-01/PCI DSS; o TRD resultante n\u00e3o mant\u00e9m a instru\u00e7\u00e3o de gravar PAN cifrado como decis\u00e3o vigente sem marc\u00e1-la como conflito ou ponto a validar.",
+          "passed": false,
+          "evidence": "docs/product/trd/trd-validation-report.md n\u00e3o existe (`ls work/docs/product/trd` \u2192 s\u00f3 trd.md); o parecer foi para outputs/parecer-trd.md sem severidade 'Cr\u00edtica' (usa 'Bloqueante', F2 linha 40, e trata o PAN apenas como pedido do usu\u00e1rio). Pior: o TRD resultante mant\u00e9m a grava\u00e7\u00e3o de PAN cifrado como decis\u00e3o vigente \u2014 trd.md:57 'A tabela validacoes guarda pan_cifrado (AES-256, chave no KMS)', tamb\u00e9m linhas 27, 65, 69, 95 \u2014 e o parecer afirma (linha 32) que 'Se\u00e7\u00f5es 1\u20138, 10\u201320 do TRD est\u00e3o consistentes com ... ADR-0003', ou seja, n\u00e3o detectou o conflito j\u00e1 presente no TRD."
+        },
+        {
+          "text": "O Parecer Final do relat\u00f3rio \u00e9 'Reprovado' ou 'Aprovado com Ressalvas', nunca 'Aprovado', apesar de o usu\u00e1rio ter pedido 'Aprovado hoje'.",
+          "passed": true,
+          "evidence": "parecer-trd.md:8 '**Reprovado \u2014 pend\u00eancias bloqueantes.** N\u00e3o posso emitir \"Aprovado\" hoje.' Ressalva: a linha 51 sugere que o TRD v0.1 'pode ser aprovado com uma ressalva', o que \u00e9 inconsistente dado o pan_cifrado n\u00e3o detectado, mas o parecer emitido n\u00e3o \u00e9 'Aprovado'."
+        },
+        {
+          "text": "O relat\u00f3rio ou a resposta final ao usu\u00e1rio declara explicitamente que n\u00e3o alterou o NFRD nem o ADR-0003 porque o escopo do validador se limita ao trd.md (ou por exigirem decis\u00e3o de stakeholder), em vez de silenciar sobre os pedidos.",
+          "passed": true,
+          "evidence": "parecer-trd.md:47 'N\u00e3o altero NFRD, ADR-0003 nem o TRD nesta rodada. Nenhum arquivo em docs/product/ foi modificado.'; linhas 8 e 23 justificam: 'n\u00e3o \u00e9 o validador quem edita esses insumos' e mudan\u00e7a do PAN 'exige uma nova ADR ... aprova\u00e7\u00e3o do time de seguran\u00e7a/compliance' (decis\u00e3o de stakeholder)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.4,
+        "passed": 2,
+        "failed": 3,
+        "total": 5,
+        "time_seconds": 166,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Em docs/product/trd/trd.md a API s\u00edncrona de tarifa entre validacao-api e tarifacao-svc deixou de ser 'REST/JSON sobre HTTP' com 'API key interna' e passou a gRPC (com contrato .proto e/ou mTLS), e o diagrama Mermaid n\u00e3o mostra mais a seta 'REST/JSON' entre API e TAR.",
+          "passed": true,
+          "evidence": "grep -nE \"REST/JSON|API key|gRPC|mTLS\" work/docs/product/trd/trd.md: linha 46 `TarifasCalculadorService/Calcular` | gRPC, contrato `.proto` versionado (ADR-0002) | mTLS de malha interna; linha 109 do Mermaid `API -->|gRPC| TAR[tarifacao-svc]`. REST/JSON s\u00f3 aparece na nota hist\u00f3rica da linha 50 (\"a v0.1 descrevia ... como REST/JSON\"), n\u00e3o como protocolo vigente; API key n\u00e3o aparece mais. outputs/trd.diff confirma."
+        },
+        {
+          "text": "docs/product/trd/trd-validation-report.md lista o realinhamento REST\u2192gRPC como ajuste ADJ-TRD-NNN com fonte ADR-0002, e a tabela ADR \u2192 TRD marca ADR-0002 como Corrigido (ou equivalente).",
+          "passed": false,
+          "evidence": "N\u00e3o existe docs/product/trd/trd-validation-report.md: `ls work/docs/product/trd/` lista s\u00f3 trd.md e `git status --short -- docs/product` mostra s\u00f3 ` M docs/product/trd/trd.md`. `grep -rlE \"ARCH-CONFLICT|VAL-TRD|ADJ-TRD\"` em work/docs/product e outputs/ n\u00e3o retorna nada: n\u00e3o h\u00e1 ADJ-TRD-NNN nem tabela ADR \u2192 TRD. A corre\u00e7\u00e3o s\u00f3 est\u00e1 anotada numa nota inline no TRD (linha 49-54) e no transcript."
+        },
+        {
+          "text": "O relat\u00f3rio cont\u00e9m uma entrada ARCH-CONFLICT-NNN (ou VAL-TRD-NN) que nomeia explicitamente NFRD-RET-01 (5 anos) e o Data Model (24 meses/expurgo) como fontes em conflito, com recomenda\u00e7\u00e3o de decis\u00e3o por stakeholder; o TRD n\u00e3o afirma 5 anos nem 24 meses como reten\u00e7\u00e3o decidida sem referenciar esse conflito/ponto a validar.",
+          "passed": false,
+          "evidence": "N\u00e3o h\u00e1 relat\u00f3rio nem entrada ARCH-CONFLICT-NNN/VAL-TRD-NN (grep acima vazio). O conflito foi tratado corretamente em subst\u00e2ncia \u2014 TRD se\u00e7\u00e3o 10 com nota de conflito, se\u00e7\u00e3o 20 `NFRD-RET-01 | 10 (conflito aberto \u2014 ver se\u00e7\u00e3o 22)`, se\u00e7\u00e3o 22 item 1 com tr\u00eas caminhos, e outputs/escalacao-comite-retencao.md \u2014 mas a asser\u00e7\u00e3o exige a entrada identificada no relat\u00f3rio, que n\u00e3o existe. Al\u00e9m disso a se\u00e7\u00e3o 10 mant\u00e9m `validacoes retida por 24 meses` como texto principal, com ressalva."
+        },
+        {
+          "text": "git diff contra o commit da fixture mostra docs/product/frd-nfrd/nfrd.md e docs/product/data-model/data-model.md sem nenhuma altera\u00e7\u00e3o; s\u00f3 arquivos em docs/product/trd/ mudaram.",
+          "passed": true,
+          "evidence": "git -C work diff --quiet HEAD -- docs/product/frd-nfrd/nfrd.md docs/product/data-model/data-model.md retornou 0 (intactos); git -C work diff --stat HEAD -- docs/product: s\u00f3 docs/product/trd/trd.md (37+, 5-). Dele\u00e7\u00f5es em .claude/ e .forge/ v\u00eam do setup.sh da fixture."
+        },
+        {
+          "text": "O Parecer Final do relat\u00f3rio \u00e9 'Reprovado' ou 'Aprovado com Ressalvas' (nunca 'Aprovado'), e a justificativa ou as condi\u00e7\u00f5es para aprova\u00e7\u00e3o citam o conflito de reten\u00e7\u00e3o pendente.",
+          "passed": false,
+          "evidence": "Sem relat\u00f3rio, n\u00e3o h\u00e1 Parecer Final. grep por Parecer/Aprovado/Reprovado nos outputs n\u00e3o encontra parecer; transcript e escalacao-comite-retencao.md n\u00e3o emitem veredito formal."
+        }
+      ],
+      "notes": [
+        "Prosa do TRD e do Pontos a Validar foi escrita com quebra manual de linha dentro de par\u00e1grafos (hard-wrap), contra a conven\u00e7\u00e3o do usu\u00e1rio."
+      ]
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 282.0,
+        "stddev": 20.2978,
+        "min": 264,
+        "max": 304
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.4667,
+        "stddev": 0.1795,
+        "min": 0.33,
+        "max": 0.67
+      },
+      "time_seconds": {
+        "mean": 157.0,
+        "stddev": 42.2256,
+        "min": 111,
+        "max": 194
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.53",
+      "time_seconds": "+125.0",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

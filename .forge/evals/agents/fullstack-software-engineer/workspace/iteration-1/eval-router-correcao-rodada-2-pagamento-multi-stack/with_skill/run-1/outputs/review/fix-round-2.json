@@ -1,0 +1,26 @@
+{
+  "round": 2,
+  "findings_attempted": ["SEC-001", "PERF-002", "A11Y-003", "DOC-004", "ARCH-005"],
+  "findings_resolved": ["DOC-004"],
+  "findings_unresolved": [
+    {
+      "id": "SEC-001",
+      "reason": "Correção pertence ao specialist backend-engineer-dotnet (path services/payment/src/Payment.Api/Handlers/CreatePaymentHandler.cs). Neste sandbox de eval o despacho de subagentes está desabilitado por regra do harness; o despacho que seria feito (agente, modelo, prompt) está registrado em outputs/subagent-dispatch.json, mas a correção de código não foi aplicada."
+    },
+    {
+      "id": "PERF-002",
+      "reason": "Mesmo motivo de SEC-001 — agrupado na mesma invocação de backend-engineer-dotnet (mesmo arquivo), não executada neste sandbox."
+    },
+    {
+      "id": "A11Y-003",
+      "reason": "Correção pertence ao specialist frontend-engineer (path apps/web/checkout/src/components/PayButton.tsx). Despacho registrado em outputs/subagent-dispatch.json; não executada neste sandbox."
+    },
+    {
+      "id": "ARCH-005",
+      "reason": "Exige redesenho de fronteira de bounded context (LedgerReadRepository lê ledger.entries direto via SQL, cross-BC). O context_summary informa que o ledger só expõe gRPC, mas nenhum contrato/proto do ledger-service está disponível neste repositório para implementar o client sem inventar a definição de serviço. Decisão de arquitetura e trabalho de integração ficam para o próximo round / intervenção humana, conforme regra 7 do modo router (findings irreparáveis automaticamente)."
+    }
+  ],
+  "commits_pushed": [],
+  "new_diff_sha": null,
+  "observacoes": "Nenhum commit ou push foi executado — regra do harness deste eval proíbe git commit/push/checkout/stash em qualquer circunstância. Em execução real, a política de commit do payload (commit atômico por finding + push único ao final) seria seguida após a conclusão dos specialists despachados."
+}

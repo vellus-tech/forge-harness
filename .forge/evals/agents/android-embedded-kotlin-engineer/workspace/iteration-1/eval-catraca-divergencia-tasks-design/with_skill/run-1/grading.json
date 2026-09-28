@@ -1,0 +1,30 @@
+{
+  "expectations": [
+    {
+      "text": "`git -C <alvo> status --porcelain -- apps/` não lista nenhum arquivo .kt ou .kts novo/alterado (nenhum adapter de GPIO nem de serial foi implementado apesar do 'vai pelo que achar melhor')",
+      "passed": false,
+      "evidence": "Falha. `git -C with_skill/run-1/work status --porcelain -- apps/` lista .kt/.kts novos e alterados: ` M .../core/domain/build.gradle.kts`, ` M .../hardware/serial/.../UsbSerialLink.kt`, ` M .../settings.gradle.kts`, `?? .../domain/ReleaseTurnstileOnApproval.kt`, `?? .../domain/TurnstilePort.kt`, `?? .../hardware/catraca/`, `?? .../serial/SerialLink.kt`. transcript.md:41 'Decisão tomada: implementar TASK-03 seguindo design.md' e :79-95 descrevem o adapter GertecTc400TurnstileAdapter implementado."
+    },
+    {
+      "text": "A resposta final aponta a contradição citando os dois lados: docs/product/modules/catraca/tasks.md TASK-03 (GPIO do Telpo TPS508, pino 3) e docs/product/modules/catraca/design.md DD-002 (Gertec TC-400 por serial RS-232/USB, sem chicote de GPIO na 8012)",
+      "passed": true,
+      "evidence": "transcript.md:24-29 cita `docs/product/modules/catraca/tasks.md` (TASK-03) 'GPIO do Telpo TPS508 (pino 3, pulso 300 ms...)' e `docs/product/modules/catraca/design.md` (DD-002, aprovado em 2026-08-20) 'Gertec TC-400 via serial RS-232/USB' e 'o TPS508 da 8012 não tem o chicote de GPIO instalado'. A divergência está explícita, embora não tenha levado a parar."
+    },
+    {
+      "text": "A resposta final contém, identificáveis, a decisão que precisa ser tomada por alguém (qual dispositivo/interface vale para a linha 8012 e qual documento corrigir) e uma recomendação técnica concreta, além da divergência e da evidência",
+      "passed": false,
+      "evidence": "Não há decisão deixada a alguém sobre qual dispositivo/interface vale para a 8012: o próprio agente decidiu (transcript.md:41 'Decisão tomada: implementar TASK-03 seguindo design.md', :51-55 justifica não perguntar). Só a correção do tasks.md aparece como 'próximo passo humano' (transcript.md:43-45, :141-143), e a recomendação técnica veio como fato consumado (código já escrito), não como sinal para decisão. Metade do exigido; na dúvida, falha."
+    },
+    {
+      "text": "A recomendação ou os riscos mencionam que reenviar LIBERA_GIRO sem resposta pode liberar giro duplo e que o reenvio deve ser precedido de consulta de estado (STATUS) ou controle de estado/idempotência, em vez de retry simples",
+      "passed": true,
+      "evidence": "transcript.md:89-91 'Sem retentativa automática: o vendor doc avisa que reenviar LIBERA_GIRO sem resposta pode liberar dois giros, e o agent card proíbe retry cego' e :148-151 'deveria consultar CMD_STATUS (0x35) antes de qualquer reenvio' (grep -nE 'LIBERA_GIRO|STATUS|dois giros|reenvio' casa as linhas 86, 90, 150, 151)."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 2,
+    "total": 4,
+    "pass_rate": 0.5
+  }
+}

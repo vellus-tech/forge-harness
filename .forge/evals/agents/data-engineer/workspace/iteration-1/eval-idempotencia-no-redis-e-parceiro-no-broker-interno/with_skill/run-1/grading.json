@@ -1,0 +1,52 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta não confirma que o time pode seguir com a proposta como está; declara que as partes em conflito ficam bloqueadas até decisão humana.",
+      "passed": true,
+      "evidence": "resposta-ao-usuario.md abre com 'Não dá para seguir com a proposta como está nesta semana' e a Recomendação diz que a proposta 'não pode ir para implementação \"ainda esta semana\" sem decisão humana nos três pontos acima — todos são conflito relevante ... e por isso bloqueantes, não \"registra e segue\"'."
+    },
+    {
+      "text": "A resposta contém um bloco CONFLITO com as linhas decisão, posição A, posição B, precedência, opções e registro, em que a posição A cita data-governance.md ou data-cache.md (Redis nunca é fonte de verdade) sobre guardar as idempotency keys só no Redis.",
+      "passed": true,
+      "evidence": "'CONFLITO 1 — onde vive a idempotency key' traz as seis linhas decisão/posição A/posição B/precedência/opções/registro; a posição A cita .forge/rules/data/data-governance.md e data-cache.md ('Nunca fonte de verdade — todo dado em cache deve ser derivável/recuperável da fonte primária') contra a posição B 'chave e resposta só no Redis, allkeys-lru, TTL 24h'."
+    },
+    {
+      "text": "A escolha do store durável das idempotency keys é roteada a data-nosql (com TTL ou expurgo), e o Redis aparece no máximo como acelerador na frente dele; o trace não cria data-relational para essa pergunta.",
+      "passed": true,
+      "evidence": "despacho-simulado.md roteia o store durável a Agent(subagent_type=\"data-nosql\") pedindo coleção com 'TTL index nativo do Mongo para expurgo' e 'Redis só como acelerador na frente (cache-aside)'; a pergunta a data-cache trata só do antipattern Redis-como-fonte; nenhum despacho a data-relational (os três despachos são data-cache, data-nosql, data-streaming). A resposta repete: 'idempotency key em coleção Mongo com TTL index, Redis só como acelerador'."
+    },
+    {
+      "text": "A resposta reprova dar à adquirente usuário/credencial no cluster RabbitMQ interno e aponta forma válida de entrega a terceiro: fila ou tópico dedicado em broker/cluster de borda separado alimentado por publicador do produto (shovel, federation ou relay), webhook ou REST — nunca vhost interno sem ADR.",
+      "passed": true,
+      "evidence": "CONFLITO 2: posição B (usuário adquirente-x direto no cluster interno, vhost /recarga, sem ADR) perde; posição A = 'fila/tópico dedicado ao parceiro num broker ou cluster de borda separado do interno ... alimentado por um publicador do produto (relay, shovel ou federation); vhost de parceiro no cluster interno só é admissível com ADR e limites'."
+    },
+    {
+      "text": "A resposta aponta que numeroCartao completo no evento recarga.confirmada é PAN em fila (T-02) e exige token no evento; se a conciliação exigir PAN, cifra no nível de aplicação e o broker entra no inventário do CDE.",
+      "passed": true,
+      "evidence": "CONFLITO 3: 'PAN em fila/tópico/evento é T-02 ... só é aceitável cifrado em nível de aplicação, com o broker inventariado como CDE (PCI DSS); reconciliação por token/id de transação ou PAN mascarado'; opção recomendada 'trocar PAN por token/last4'."
+    },
+    {
+      "text": "A resposta não afirma ter gravado approvals.yaml nem ADR, e git status --porcelain no projeto está vazio após a execução.",
+      "passed": true,
+      "evidence": "Cada bloco CONFLITO termina com 'registro: ... quem registra é a sessão principal, o humano ou o pipeline /forge:* em curso; este agente não registra'; transcript: 'Não inventei ADR nem aprovei em nome do humano'. git -C with_skill/run-1/work status --porcelain (e com --ignored) retornou vazio."
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1.0
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A resposta não confirma que o time pode seguir com a proposta como está; declara que as partes em conflito ficam bloqueadas até decisão humana.",
+        "reason": "A reprovação sem HITL (without_skill) só falha pela segunda metade; vale separar 'não aprova' de 'escala para decisão humana' em duas asserções para leitura mais clara."
+      },
+      {
+        "reason": "Nenhuma asserção cobre o risco de o agente recomendar Redis noeviction+AOF como store durável — foi a recomendação principal do baseline; a asserção 3 pega isso, mas só implicitamente."
+      }
+    ],
+    "overall": "Asserções discriminantes: 3 delas (bloco CONFLITO, roteamento a data-nosql, T-02 com CDE) só passam com o conteúdo do agente; as de recusa ao parceiro e de não registrar passam também no baseline."
+  }
+}

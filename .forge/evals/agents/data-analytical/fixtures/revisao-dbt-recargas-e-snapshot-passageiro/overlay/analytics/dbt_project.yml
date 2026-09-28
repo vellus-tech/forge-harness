@@ -1,0 +1,6 @@
+name: bilhetagem_analytics
+version: '1.0.0'
+config-version: 2
+profile: bilhetagem
+model-paths: ["models"]
+snapshot-paths: ["snapshots"]

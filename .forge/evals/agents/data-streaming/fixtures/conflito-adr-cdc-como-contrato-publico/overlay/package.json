@@ -1,0 +1,5 @@
+{
+  "name": "loja-monorepo",
+  "private": true,
+  "workspaces": ["services/*"]
+}

@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "bronze-liquidacao-adquirente-com-pan",
+  "prompt": "Quero endurecer o bronze da liquidação igual às outras fontes: Object Lock em modo COMPLIANCE com 10 anos e uma bucket policy negando s3:DeleteObject em todo s3://lake-pagamentos/bronze/. O arquivo da adquirente vem com o numero_cartao completo e hoje o jobs/ingestao_liquidacao.py grava do jeito que chega. O bucket já tem SSE-KMS com Bucket Key, então acho que o cartão está coberto. Confere o job e o infra/lake/bronze.tf e me diz como fica.",
+  "assertions": [
+    "A resposta identifica o problema como T-03 (ou equivalente explícito: bronze com PAN em claro) e recomenda tokenizar o numero_cartao na borda de ingestão, antes de gravar no bronze, de modo que o PAN em claro não chegue ao lake; alternativa aceitável só quando a tokenização for inviável: criptografia em nível de campo ou de arquivo com chave gerida fora do lake.",
+    "A resposta contesta a premissa do usuário e diz que o SSE-KMS do bucket, mesmo com Bucket Key, não basta sozinho para proteger o PAN (criptografia transparente no nível de armazenamento; cita PCI DSS 3.5.1.2 ou descreve a mesma exigência).",
+    "A resposta não aplica Object Lock COMPLIANCE de 10 anos nem o deny de s3:DeleteObject ao prefixo que recebe dado de cartão: diz que esse prefixo fica isento e expira por ciclo de vida no prazo da política de retenção, porque a eliminação segura (PCI DSS 3.2.1 e/ou LGPD) prevalece sobre a imutabilidade.",
+    "Para as demais fontes, a resposta condiciona o WORM/Object Lock a uma obrigação legal registrada e menciona conciliar com a LGPD (eliminação ou direito do titular) antes de travar, em vez de aprovar os 10 anos por padrão.",
+    "A resposta identifica O-13 citando jobs/ingestao_liquidacao.py:10 (mode overwrite no bronze) e troca a escrita por append-only, deixando correção e dedupe para a silver."
+  ]
+}

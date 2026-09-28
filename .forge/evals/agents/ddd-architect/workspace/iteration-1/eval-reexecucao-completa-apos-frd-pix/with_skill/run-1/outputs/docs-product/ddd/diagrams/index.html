@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Diagramas C4 — Tarifa Viva</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 24px; background: #fafafa; color: #222; }
+    header { border-bottom: 1px solid #ddd; padding-bottom: 12px; margin-bottom: 16px; }
+    nav button { padding: 8px 16px; border: 1px solid #ccc; background: #fff; cursor: pointer; margin-right: 4px; }
+    nav button.active { background: #0b67d6; color: #fff; border-color: #0b67d6; }
+    .panel { display: none; background: #fff; border: 1px solid #ddd; padding: 16px; }
+    .panel.active { display: block; }
+    .meta { color: #666; font-size: 0.9em; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Diagramas C4 — Tarifa Viva</h1>
+    <p class="meta">Gerado em 2026-09-26 · Segmentação v1.1 (reexecução idempotente após FRD v1.3 — recarga via Pix)</p>
+    <p class="meta">Bounded contexts confirmados: Fare Validation, Card Wallet, Operator Clearing, Identity Access. Notification consolidado como adapter do Card Wallet.</p>
+  </header>
+  <nav>
+    <button data-tab="l1" class="active">Level 1 — System Context</button>
+    <button data-tab="l2">Level 2 — Containers</button>
+    <button data-tab="l3">Level 3 — Components (Card Wallet)</button>
+  </nav>
+  <section id="l1" class="panel active">
+    <div class="mermaid">
+flowchart LR
+    Passenger[Passageiro] --> TarifaViva[Tarifa Viva]
+    POS[Ponto de Venda Credenciado] --> TarifaViva
+    Manager[Gestor do Consorcio] --> TarifaViva
+    TarifaViva --> Acquirer[Adquirente Cartao Credito]
+    TarifaViva --> PixPSP[PSP Pix]
+    TarifaViva --> Operators[Sistemas das Operadoras]
+    TarifaViva --> AuditBody[Orgao Gestor Auditoria]
+    </div>
+  </section>
+  <section id="l2" class="panel">
+    <div class="mermaid">
+flowchart LR
+    App[App do Passageiro] --> FareValidationMS[fare-validation-ms]
+    Validator[Validador Offline] --> FareValidationMS
+    App --> CardWalletMS[card-wallet-ms]
+    POSTerminal[Terminal do Ponto de Venda] --> CardWalletMS
+    App --> IdentityAccessMS[identity-access-ms]
+    FareValidationMS --> CardWalletMS
+    FareValidationMS --> ClearingBus[(Event Bus)]
+    ClearingBus --> OperatorClearingMS[operator-clearing-ms]
+    CardWalletMS --> Acquirer[Adquirente Cartao Credito]
+    CardWalletMS --> PixPSP[PSP Pix]
+    CardWalletMS --> WalletDb[(card-wallet DB)]
+    FareValidationMS --> BoardingDb[(fare-validation DB)]
+    OperatorClearingMS --> ClearingDb[(operator-clearing DB)]
+    IdentityAccessMS --> IdentityDb[(identity-access DB)]
+    OperatorClearingMS --> Operators[Sistemas das Operadoras]
+    </div>
+  </section>
+  <section id="l3" class="panel">
+    <div class="mermaid">
+flowchart TB
+    subgraph CardWalletMS[card-wallet-ms]
+        CreditUC[CreditBalanceUseCase]
+        AppRechargeUC[RequestAppRechargeUseCase]
+        POSRechargeUC[RegisterPOSRechargeUseCase]
+        PixGenerateUC[GeneratePixChargeUseCase]
+        PixConfirmUC[ConfirmPixSettlementUseCase]
+        BlockUC[BlockCardUseCase]
+        BalanceRepo[CardBalanceRepository]
+        AcquirerAdapter[AcquirerAdapter ACL]
+        PixAdapter[PixPSPAdapter ACL]
+    end
+    AppRechargeUC --> AcquirerAdapter
+    AcquirerAdapter --> CreditUC
+    POSRechargeUC --> CreditUC
+    PixGenerateUC --> BalanceRepo
+    PixAdapter --> PixConfirmUC
+    PixConfirmUC --> CreditUC
+    CreditUC --> BalanceRepo
+    BlockUC --> BalanceRepo
+    AcquirerExternal[Adquirente Cartao Credito] --> AcquirerAdapter
+    PixPSPExternal[PSP Pix Webhook] --> PixAdapter
+    </div>
+  </section>
+  <script>
+    mermaid.initialize({ startOnLoad: true, theme: 'default' });
+    document.querySelectorAll('nav button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.tab).classList.add('active');
+      });
+    });
+  </script>
+</body>
+</html>

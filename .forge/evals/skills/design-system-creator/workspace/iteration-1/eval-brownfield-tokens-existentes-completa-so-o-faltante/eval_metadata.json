@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "brownfield-tokens-existentes-completa-so-o-faltante",
+  "prompt": "Fetch this design file, read its readme, and implement the relevant aspects of the design. https://api.anthropic.com/v1/design/h/rV7kQ2mXa9Lp — Implement: the designs in this project. Network to api.anthropic.com is blocked in this sandbox, so I already downloaded that link and extracted the bundle as-is into ./design-handoff/rotaviva-design-system/ — use that copy. This repo already has some of our stuff under packages/ and docs/, so take a look before you start.",
+  "assertions": [
+    "packages/design-tokens/src/css/tokens.css é byte a byte idêntico ao da fixture (fixtures/brownfield-tokens-existentes-completa-so-o-faltante/overlay/packages/design-tokens/src/css/tokens.css), inclusive o comentário 'rotaviva-tokens: ... fonte canônica v1.2.0', e packages/design-tokens/package.json continua com \"version\": \"1.2.0\" (git diff vazio para esses dois arquivos).",
+    "docs/product/design-system/tokens.md mantém a linha de Histórico de Versões '1.2.0 | 2026-09-10' e a frase 'O pacote `@rotaviva/design-tokens` vence em caso de divergência'; qualquer mudança é apenas acréscimo (git diff do arquivo sem linhas removidas).",
+    "packages/ui-components/src/blocks/ contém AppHeader, BalanceCard, TripRow, ShortcutGrid e BottomNav, cada um com <Nome>.tsx, <Nome>.module.css, <Nome>.stories.tsx cujo title começa com 'Blocos/' e <Nome>.test.tsx que chama runA11y.",
+    "HomeScreen e RechargeScreen existem como stories sob packages/ui-components/src/patterns/ com title começando por 'Padrões/', há um componente PhoneFrame em patterns/, e packages/ui-components/src/index.ts não importa nem reexporta nada de patterns/.",
+    "docs/product/design-system/design-system.md, components.md e accessibility.md foram criados com Versão, Data, Status e Histórico de Versões, components.md cita os cinco blocos; o branch atual é feat/design-system/rotaviva-ui-kit e main continua com 1 commit só."
+  ]
+}

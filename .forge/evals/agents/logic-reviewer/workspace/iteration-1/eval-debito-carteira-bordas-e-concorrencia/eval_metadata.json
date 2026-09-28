@@ -1,0 +1,31 @@
+{
+  "eval_id": 2,
+  "eval_name": "debito-carteira-bordas-e-concorrencia",
+  "prompt": "O time mexeu no débito da tarifa na carteira pré-paga (branch feature/debito-carteira, base develop). Os testes estão verdes e o código parece simples, mas é dinheiro do passageiro: revisa a lógica procurando entrada que quebra, concorrência entre validadores e teste que não testa o que diz. Requisitos REQ-7, REQ-8 e REQ-9 em docs/product/modules/carteira/requirements.md; rule .forge/rules/domain/money-as-cents.md. Salva a revisão em .forge/reviews/logic-debito-carteira.json.",
+  "assertions": [
+    {
+      "name": "saida-json-pura-no-contrato-lgc",
+      "text": "O arquivo .forge/reviews/logic-debito-carteira.json é JSON válido sem prosa nem cercas markdown, com reviewer igual a 'logic-reviewer' e array findings; todo finding tem id, severity, category, file, line, title, description, fix_suggested, rule_violated e confidence, com ids LGC-NNN sequenciais a partir de LGC-001."
+    },
+    {
+      "name": "valor-negativo-em-debitar-com-cenario",
+      "text": "Existe finding em services/carteira/src/Carteira.Domain/CarteiraPrePaga.cs com line entre 15 e 20 apontando que Debitar não rejeita valor negativo (ou zero), com cenário concreto em que um débito negativo aumenta o saldo, e severity HIGH ou BLOCKER."
+    },
+    {
+      "name": "concorrencia-sem-token-com-debito-perdido",
+      "text": "Existe finding com severity HIGH ou BLOCKER apontando DebitarTarifaHandler.cs ou CarteiraPrePaga.cs pela ausência de concurrency token/versão/lock no ciclo ObterAsync → Debitar → AtualizarAsync, descrevendo dois validadores debitando a mesma carteira ao mesmo tempo com débito perdido ou saldo negativo, e citando REQ-8."
+    },
+    {
+      "name": "carteira-nula-contra-req-9",
+      "text": "Existe finding em services/carteira/src/Carteira.Application/Embarques/DebitarTarifaHandler.cs com line 15 ou 16 apontando que ObterAsync pode devolver null e o operador ! gera NullReferenceException em vez da CarteiraNaoEncontradaException exigida pelo REQ-9."
+    },
+    {
+      "name": "teste-com-nome-enganoso-high",
+      "text": "Existe finding com severity HIGH ou BLOCKER em services/carteira/tests/Carteira.Tests/CarteiraPrePagaTests.cs (line entre 8 e 13) dizendo que Debitar_SaldoInsuficiente_LancaExcecao exercita saldo suficiente e não verifica a exceção."
+    },
+    {
+      "name": "formatter-de-apresentacao-nao-flagrado",
+      "text": "Nenhum finding aponta SaldoFormatter.cs como violação de money-as-cents.md ou por uso de decimal; a conversão para decimal na camada de apresentação não aparece como defeito."
+    }
+  ]
+}

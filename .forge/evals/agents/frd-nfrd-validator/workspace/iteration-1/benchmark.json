@@ -1,0 +1,333 @@
+{
+  "metadata": {
+    "skill_name": "frd-nfrd-validator",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-26T19:41:10Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 265,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "docs/product/frd-nfrd/frd-nfrd-validation-report.md existe e cont\u00e9m: tabela de baseline com c\u00f3digos PRD-BASE-NN, tabela de achados com IDs no formato FIND-NNN (tr\u00eas d\u00edgitos) cada um com severidade em {Cr\u00edtica, Alta, M\u00e9dia, Baixa}, e um parecer final que \u00e9 literalmente 'Aprovado' ou 'Aprovado com Ressalvas' (n\u00e3o 'Reprovado').",
+          "passed": true,
+          "evidence": "`ls outputs/docs/product/frd-nfrd/frd-nfrd-validation-report.md` existe (19589 bytes, id\u00eantico a work/ por diff -q). Linhas 56-68: tabela de baseline PRD-BASE-01..PRD-BASE-13+. `grep -n FIND-` linhas 204-207: FIND-001 M\u00e9dia, FIND-002 Alta, FIND-003 M\u00e9dia, FIND-004 Alta (tr\u00eas d\u00edgitos, severidades v\u00e1lidas). Parecer final linha 23 e linha 244: 'Aprovado com Ressalvas'. Se\u00e7\u00e3o 18 ADRs Sugeridos presente (linha 263)."
+        },
+        {
+          "text": "No frd.md final: o identificador 'FRD-XX' n\u00e3o aparece mais (substitu\u00eddo por ID na conven\u00e7\u00e3o, ex.: FRD-REC-03); a matriz de rastreabilidade associa F2 ao requisito de consulta de saldo e F3 ao de hist\u00f3rico, coerente com o corpo; e o texto do requisito de recarga n\u00e3o cont\u00e9m mais 'Kafka', 'Spring Boot', 'Resilience4j' nem 'PostgreSQL 16' (detalhe movido/encaminhado ao TRD).",
+          "passed": true,
+          "evidence": "`grep -c FRD-XX outputs/docs/product/frd-nfrd/frd.md` = 1, \u00fanica ocorr\u00eancia na linha 13 do Hist\u00f3rico ('renomea\u00e7\u00e3o de FRD-XX para FRD-REC-03'), n\u00e3o como identificador; o requisito virou '### FRD-REC-03 \u2014 Hist\u00f3rico de recargas' (linha 33). Matriz linhas 52-54: F1\u2192FRD-REC-01, F2\u2192FRD-REC-02 (Consulta de saldo, linha 29), F3\u2192FRD-REC-03 (Hist\u00f3rico). `grep -nE 'Kafka|Spring Boot|Resilience4j|PostgreSQL 16' frd.md` sem resultado; linha 22 nota remetendo o mecanismo ao TRD."
+        },
+        {
+          "text": "No nfrd.md final, a linha NFRD-PERF-01 n\u00e3o usa mais 'R\u00e1pida' como m\u00e9trica e passa a expressar a meta do PRD: 10 segundos para 95% das recargas (p95 \u2264 10 s ou equivalente).",
+          "passed": true,
+          "evidence": "outputs/docs/product/frd-nfrd/nfrd.md linha 20: coluna M\u00e9trica/Crit\u00e9rio de NFRD-PERF-01 = '95% das recargas com cr\u00e9dito dispon\u00edvel em at\u00e9 10 segundos ap\u00f3s a confirma\u00e7\u00e3o do Pix pelo PSP (p95 \u2264 10s)'; 'R\u00e1pida' deixou de ser a m\u00e9trica (o adjetivo 'r\u00e1pida' permanece apenas no texto da coluna Requisito)."
+        },
+        {
+          "text": "Tanto frd.md quanto nfrd.md t\u00eam Vers\u00e3o 1.0.1 no cabe\u00e7alho (n\u00e3o 1.0.0, n\u00e3o 1.1.0, n\u00e3o 2.0.0) e uma linha nova no Hist\u00f3rico de Vers\u00f5es para 1.0.1 cuja descri\u00e7\u00e3o cita a aplica\u00e7\u00e3o de achados FIND-NNN do relat\u00f3rio de valida\u00e7\u00e3o.",
+          "passed": true,
+          "evidence": "`grep -n 'Vers\u00e3o:'` \u2192 frd.md:4 e nfrd.md:4 = '1.0.1'. Hist\u00f3rico frd.md linha 13: '1.0.1 | 2026-09-26 | Atual | Aplica\u00e7\u00e3o de FIND-001..003 do relat\u00f3rio de valida\u00e7\u00e3o'; nfrd.md linha 13: '1.0.1 | ... | Aplica\u00e7\u00e3o de FIND-004 do relat\u00f3rio de valida\u00e7\u00e3o'."
+        },
+        {
+          "text": "No relat\u00f3rio, os achados corrigidos est\u00e3o marcados com status 'Aplicado' indicando onde a corre\u00e7\u00e3o foi feita (ex.: 'frd.md \u00a7 1' ou 'nfrd.md tabela 1'), e n\u00e3o apenas listados como recomenda\u00e7\u00e3o.",
+          "passed": true,
+          "evidence": "Relat\u00f3rio linhas 204-207: cada FIND termina com 'Aplicado: ...' e a coluna de localiza\u00e7\u00e3o traz '\u00a71, Requisito de Hist\u00f3rico', '\u00a73, Matriz de rastreabilidade', '\u00a71, FRD-REC-01', 'Tabela de Requisitos N\u00e3o Funcionais, NFRD-PERF-01', com documento FRD/NFRD na coluna pr\u00f3pria; linha 121 (separa\u00e7\u00e3o FRD/TRD) tamb\u00e9m marcada 'Aplicado nesta rodada'."
+        },
+        {
+          "text": "O frd.md final continua com exatamente tr\u00eas requisitos funcionais (recarga, saldo, hist\u00f3rico) e o nfrd.md com exatamente tr\u00eas NFRs (PERF-01, SEC-01, AUD-01); nenhum requisito novo sem origem no PRD foi adicionado e o prd.md est\u00e1 inalterado.",
+          "passed": true,
+          "evidence": "`grep -c '^### FRD-' frd.md` = 3 (REC-01 recarga, REC-02 saldo, REC-03 hist\u00f3rico); `grep -cE '^\\| NFRD-' nfrd.md` = 3 (PERF-01, SEC-01, AUD-01). `git -C work diff --quiet -- docs/product/prd/prd.md` \u2192 exit 0 (PRD inalterado). Lacunas viraram VAL-01..04 no relat\u00f3rio, n\u00e3o requisitos novos."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 322,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "O parecer final em docs/product/frd-nfrd/frd-nfrd-validation-report.md \u00e9 'Reprovado' e a tabela de achados cont\u00e9m pelo menos um FIND-NNN com severidade 'Cr\u00edtica'.",
+          "passed": true,
+          "evidence": "work/docs/product/frd-nfrd/frd-nfrd-validation-report.md linhas 21-23 e 256-260: 'Parecer Final' / 'Classifica\u00e7\u00e3o' = 'Reprovado'; tabela de achados (\u00a7 14, linha 216) traz 'FIND-001 | Cr\u00edtica' e mais cinco Cr\u00edticas (FIND-002/003/004/006/007). Relat\u00f3rio id\u00eantico em outputs/docs/product/frd-nfrd/ (cmp sem diferen\u00e7a)."
+        },
+        {
+          "text": "git diff contra o commit inicial mostra docs/product/frd-nfrd/frd.md e docs/product/frd-nfrd/nfrd.md sem nenhuma altera\u00e7\u00e3o: nenhum requisito para EMV, offline, integra\u00e7\u00e3o temporal ou sincroniza\u00e7\u00e3o foi adicionado, RF-3 n\u00e3o foi removido e a vers\u00e3o continua 0.1.0.",
+          "passed": true,
+          "evidence": "`git -C work diff --quiet HEAD -- docs/product/frd-nfrd/frd.md docs/product/frd-nfrd/nfrd.md` retorna 0 ('sem diff'); `git status --porcelain` n\u00e3o lista frd.md nem nfrd.md; `grep 'Vers\u00e3o:'` mostra 0.1.0 em ambos; outputs/docs/product/frd-nfrd/*.md.unchanged id\u00eanticos a `git show HEAD:` (diff -q). O transcript linha 22 registra a recusa de corrigir apesar do pedido."
+        },
+        {
+          "text": "A tabela de cobertura PRD \u2192 FRD do relat\u00f3rio marca como 'N\u00e3o Coberto' ao menos tr\u00eas dos itens F3 (EMV), F4 (offline), F5 (integra\u00e7\u00e3o temporal) e F6 (sincroniza\u00e7\u00e3o), e marca o programa de fidelidade (RF-3) como 'Extrapolado'.",
+          "passed": true,
+          "evidence": "work/docs/product/frd-nfrd/frd-nfrd-validation-report.md \u00a7 3 (linhas 83-87): PRD-BASE-04 F3 EMV, PRD-BASE-05 F4 offline, PRD-BASE-06 F5 integra\u00e7\u00e3o temporal e PRD-BASE-07 F6 sincroniza\u00e7\u00e3o todos 'N\u00e3o Coberto' (4 de 4); linha 87: 'RF-3 \u2014 Programa de fidelidade | Extrapolado'."
+        },
+        {
+          "text": "Os achados no relat\u00f3rio est\u00e3o marcados com status 'Pendente \u2014 regenera\u00e7\u00e3o' (ou 'Pendente \u2014 ADR'/'Pendente \u2014 produto' quando for o caso), nenhum como 'Aplicado', e os pr\u00f3ximos passos indicam nova rodada do frd-generator e/ou nfrd-generator antes de avan\u00e7ar para DDD.",
+          "passed": false,
+          "evidence": "`grep -n -i 'pendente\\|aplicado' work/docs/product/frd-nfrd/frd-nfrd-validation-report.md` n\u00e3o retorna nada: a tabela de achados (\u00a7 14, linhas 214-225) n\u00e3o tem coluna de status e nenhum FIND est\u00e1 marcado 'Pendente \u2014 regenera\u00e7\u00e3o'/'Pendente \u2014 ADR'/'Pendente \u2014 produto'. A parte de pr\u00f3ximos passos passa (linha 277: 'pr\u00f3xima rodada do `frd-generator`/`nfrd-generator`'; linha 39 idem; ddd-architect n\u00e3o aparece), mas a exig\u00eancia de status expl\u00edcito por achado n\u00e3o \u00e9 cumprida, e o registro de aplica\u00e7\u00e3o/pend\u00eancia \u00e9 justamente o que a asser\u00e7\u00e3o mede."
+        },
+        {
+          "text": "git status mostra como novos/alterados apenas arquivos sob docs/product/frd-nfrd/ (o relat\u00f3rio e, no m\u00e1ximo, os relat\u00f3rios opcionais do \u00a7 4); n\u00e3o existe nenhum arquivo novo de DDD, TRD, backlog ou ADR em docs/.",
+          "passed": true,
+          "evidence": "`git -C work status --porcelain --untracked-files=all | grep -v '^ D'` mostra s\u00f3 '?? docs/product/frd-nfrd/frd-nfrd-validation-report.md'; `find work/docs -type f` lista apenas prd.md, frd.md, nfrd.md e o relat\u00f3rio (nenhum DDD, TRD, backlog ou ADR). As 136 dele\u00e7\u00f5es ' D' em .claude/{agents,skills} e .forge/{agents,skills} v\u00eam do `rm -rf` do fixtures/.../setup.sh (id\u00eanticas nas duas configura\u00e7\u00f5es), n\u00e3o do executor."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 344,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "git diff contra o commit inicial mostra docs/product/frd-nfrd/frd.md, docs/product/frd-nfrd/nfrd.md e docs/product/prd/prd.md sem nenhuma altera\u00e7\u00e3o (vers\u00f5es continuam 0.2.0 e 1.1.0; 'FRD-CHB-1' continua presente no frd.md).",
+          "passed": true,
+          "evidence": "`git -C with_skill/run-1/work diff --stat HEAD -- docs/product/frd-nfrd/frd.md docs/product/frd-nfrd/nfrd.md docs/product/prd/prd.md docs/product/adr` retorna vazio (rc=0); `git status --short docs` mostra s\u00f3 `?? docs/product/frd-nfrd/frd-nfrd-validation-report.md`. frd.md:4 e nfrd.md:4 '**Vers\u00e3o:** 0.2.0', prd.md:4 '**Vers\u00e3o:** 1.1.0'; `grep -c FRD-CHB-1 frd.md` = 1. C\u00f3pias em outputs/ id\u00eanticas (cmp)."
+        },
+        {
+          "text": "O relat\u00f3rio tem a se\u00e7\u00e3o 'ADRs Sugeridos' com pelo menos uma linha cobrindo pol\u00edtica de senha/hash e uma cobrindo reten\u00e7\u00e3o de dados de vendas; cada linha tem ID sugerido ADR-0003 ou superior (n\u00e3o 0001/0002, que j\u00e1 existem), t\u00edtulo em kebab-case, origem apontando para um FIND-NNN ou VAL-NN existente no relat\u00f3rio e severidade em {Alta, M\u00e9dia, Baixa}.",
+          "passed": true,
+          "evidence": "outputs/docs/product/frd-nfrd/frd-nfrd-validation-report.md:294-299 tem '## 18. ADRs Sugeridos' com ADR-0003 'politica-de-senha-e-hash-de-credenciais' (origem FIND-001, FIND-002; Alta) e ADR-0004 'politica-de-retencao-e-expurgo-de-vendas' (origem FIND-003; Alta). IDs >= 0003, t\u00edtulos kebab-case, FIND-001/002/003 existem na tabela \u00a7 14 (linhas 228-230), severidades no conjunto permitido."
+        },
+        {
+          "text": "Pelo menos um FIND-NNN do relat\u00f3rio tem na recomenda\u00e7\u00e3o a refer\u00eancia cruzada ao ADR sugerido no formato 'Resolver via ADR-NNNN sugerido (ver \u00a7 18)' (ou texto equivalente que cite o n\u00famero do ADR e a se\u00e7\u00e3o 18).",
+          "passed": true,
+          "evidence": "outputs/docs/product/frd-nfrd/frd-nfrd-validation-report.md:228 FIND-001 recomenda\u00e7\u00e3o 'Resolver via ADR-0003 sugerido (ver \u00a7 18)'; :229 FIND-002 idem; :230 FIND-003 'Resolver via ADR-0004 sugerido (ver \u00a7 18)'."
+        },
+        {
+          "text": "Para cada linha da se\u00e7\u00e3o de ADRs Sugeridos, a severidade \u00e9 igual ou superior \u00e0 severidade do FIND-NNN de origem na tabela de achados (um FIND Alta nunca origina ADR M\u00e9dia ou Baixa).",
+          "passed": false,
+          "evidence": "ADR-0003 (Alta) tem origem FIND-001 (Alta) e FIND-002 (Alta): ok. Mas ADR-0004 (linha 299) tem severidade Alta e origem FIND-003, que na tabela de achados (linha 230) \u00e9 'Cr\u00edtica' \u2014 ADR com severidade inferior \u00e0 do FIND de origem, violando a asser\u00e7\u00e3o literal. Observa\u00e7\u00e3o: a escala de ADR da asser\u00e7\u00e3o 2 n\u00e3o inclui Cr\u00edtica, o que cria tens\u00e3o entre as asser\u00e7\u00f5es (ver eval_feedback)."
+        },
+        {
+          "text": "docs/product/adr/ cont\u00e9m apenas README.md, 0001-react-spa-com-bff.md e 0002-totp-como-segundo-fator.md, sem altera\u00e7\u00f5es; e, havendo ADR sugerido de severidade Alta, o parecer final do relat\u00f3rio \u00e9 'Aprovado com Ressalvas' ou 'Reprovado', nunca 'Aprovado'.",
+          "passed": true,
+          "evidence": "`ls with_skill/run-1/work/docs/product/adr` = 0001-react-spa-com-bff.md, 0002-totp-como-segundo-fator.md, README.md; `git diff HEAD -- docs/product/adr` vazio. H\u00e1 ADRs Alta (linhas 298-299) e o parecer \u00e9 '**Aprovado com Ressalvas**' (linhas 23 e 273)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.5,
+        "passed": 3,
+        "failed": 3,
+        "total": 6,
+        "time_seconds": 159,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "docs/product/frd-nfrd/frd-nfrd-validation-report.md existe e cont\u00e9m: tabela de baseline com c\u00f3digos PRD-BASE-NN, tabela de achados com IDs no formato FIND-NNN (tr\u00eas d\u00edgitos) cada um com severidade em {Cr\u00edtica, Alta, M\u00e9dia, Baixa}, e um parecer final que \u00e9 literalmente 'Aprovado' ou 'Aprovado com Ressalvas' (n\u00e3o 'Reprovado').",
+          "passed": false,
+          "evidence": "`ls work/docs/product/frd-nfrd/` lista s\u00f3 frd.md e nfrd.md: o relat\u00f3rio can\u00f4nico frd-nfrd-validation-report.md n\u00e3o existe. O relat\u00f3rio foi gravado fora do reposit\u00f3rio em outputs/validation-report.md, em prosa livre: `grep -c 'PRD-BASE\\|FIND-' outputs/validation-report.md` = 0, sem tabela de baseline, sem IDs FIND-NNN, sem severidade no conjunto {Cr\u00edtica, Alta, M\u00e9dia, Baixa} (usa 'bloqueante') e sem parecer 'Aprovado'/'Aprovado com Ressalvas' (se\u00e7\u00e3o 'Status final', linhas 27-31)."
+        },
+        {
+          "text": "No frd.md final: o identificador 'FRD-XX' n\u00e3o aparece mais (substitu\u00eddo por ID na conven\u00e7\u00e3o, ex.: FRD-REC-03); a matriz de rastreabilidade associa F2 ao requisito de consulta de saldo e F3 ao de hist\u00f3rico, coerente com o corpo; e o texto do requisito de recarga n\u00e3o cont\u00e9m mais 'Kafka', 'Spring Boot', 'Resilience4j' nem 'PostgreSQL 16' (detalhe movido/encaminhado ao TRD).",
+          "passed": true,
+          "evidence": "`grep -c FRD-XX outputs/docs/product/frd-nfrd/frd.md` = 1, apenas no Hist\u00f3rico linha 14 ('normaliza o identificador FRD-XX para FRD-REC-03'); requisito agora '### FRD-REC-03' (linha 31). Matriz linhas 50-52: F2\u2192FRD-REC-02 (saldo), F3\u2192FRD-REC-03 (hist\u00f3rico). Texto do FRD-REC-01 (linha 20) sem Kafka/Spring Boot/Resilience4j/PostgreSQL; as \u00fanicas men\u00e7\u00f5es est\u00e3o na linha 14 do Hist\u00f3rico."
+        },
+        {
+          "text": "No nfrd.md final, a linha NFRD-PERF-01 n\u00e3o usa mais 'R\u00e1pida' como m\u00e9trica e passa a expressar a meta do PRD: 10 segundos para 95% das recargas (p95 \u2264 10 s ou equivalente).",
+          "passed": true,
+          "evidence": "outputs/docs/product/frd-nfrd/nfrd.md linha 20: m\u00e9trica de NFRD-PERF-01 = '95% das recargas com cr\u00e9dito dispon\u00edvel no cart\u00e3o em at\u00e9 10 segundos ap\u00f3s a confirma\u00e7\u00e3o do Pix pelo PSP (p95 \u2264 10s).'; 'R\u00e1pida' n\u00e3o \u00e9 mais a m\u00e9trica."
+        },
+        {
+          "text": "Tanto frd.md quanto nfrd.md t\u00eam Vers\u00e3o 1.0.1 no cabe\u00e7alho (n\u00e3o 1.0.0, n\u00e3o 1.1.0, n\u00e3o 2.0.0) e uma linha nova no Hist\u00f3rico de Vers\u00f5es para 1.0.1 cuja descri\u00e7\u00e3o cita a aplica\u00e7\u00e3o de achados FIND-NNN do relat\u00f3rio de valida\u00e7\u00e3o.",
+          "passed": false,
+          "evidence": "Vers\u00e3o 1.0.1 em frd.md:4 e nfrd.md:4 e h\u00e1 linha 1.0.1 no Hist\u00f3rico (frd.md:14, nfrd.md:14), mas `grep -c 'FIND-' outputs/docs/product/frd-nfrd/frd.md outputs/docs/product/frd-nfrd/nfrd.md` = 0: a descri\u00e7\u00e3o diz 'Valida\u00e7\u00e3o contra o PRD: corrige ...' sem citar achados FIND-NNN do relat\u00f3rio, exig\u00eancia expl\u00edcita da asser\u00e7\u00e3o."
+        },
+        {
+          "text": "No relat\u00f3rio, os achados corrigidos est\u00e3o marcados com status 'Aplicado' indicando onde a corre\u00e7\u00e3o foi feita (ex.: 'frd.md \u00a7 1' ou 'nfrd.md tabela 1'), e n\u00e3o apenas listados como recomenda\u00e7\u00e3o.",
+          "passed": false,
+          "evidence": "outputs/validation-report.md n\u00e3o tem status 'Aplicado' nem IDs FIND: achados em lista numerada com 'Corrigido para ...' (linhas 9-15); `grep -c 'Aplicado' outputs/validation-report.md` = 0. N\u00e3o h\u00e1 localiza\u00e7\u00e3o padronizada tipo 'frd.md \u00a7 3' por achado."
+        },
+        {
+          "text": "O frd.md final continua com exatamente tr\u00eas requisitos funcionais (recarga, saldo, hist\u00f3rico) e o nfrd.md com exatamente tr\u00eas NFRs (PERF-01, SEC-01, AUD-01); nenhum requisito novo sem origem no PRD foi adicionado e o prd.md est\u00e1 inalterado.",
+          "passed": true,
+          "evidence": "`grep -c '^### FRD-' frd.md` = 3; `grep -cE '^\\| NFRD-' nfrd.md` = 3 (PERF-01, SEC-01, AUD-01). `git -C work diff --quiet -- docs/product/prd/prd.md` \u2192 exit 0 (PRD inalterado)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 5,
+        "total": 5,
+        "time_seconds": 214,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "O parecer final em docs/product/frd-nfrd/frd-nfrd-validation-report.md \u00e9 'Reprovado' e a tabela de achados cont\u00e9m pelo menos um FIND-NNN com severidade 'Cr\u00edtica'.",
+          "passed": false,
+          "evidence": "Sem relat\u00f3rio no caminho exigido: `find work/docs -type f` lista s\u00f3 prd.md, frd.md e nfrd.md; n\u00e3o existe docs/product/frd-nfrd/frd-nfrd-validation-report.md. O relat\u00f3rio alternativo outputs/relatorio-validacao.md n\u00e3o emite parecer 'Reprovado' nem tem FIND-NNN (grep por 'reprovad', 'FIND-' e 'cr\u00edtic' sem resultado)."
+        },
+        {
+          "text": "git diff contra o commit inicial mostra docs/product/frd-nfrd/frd.md e docs/product/frd-nfrd/nfrd.md sem nenhuma altera\u00e7\u00e3o: nenhum requisito para EMV, offline, integra\u00e7\u00e3o temporal ou sincroniza\u00e7\u00e3o foi adicionado, RF-3 n\u00e3o foi removido e a vers\u00e3o continua 0.1.0.",
+          "passed": false,
+          "evidence": "`git -C work diff --stat -- docs` mostra frd.md (+41/-8) e nfrd.md (+33/-7) alterados (git diff --numstat); o diff adiciona RF-3 EMV, RF-4 offline, RF-5 integra\u00e7\u00e3o temporal e RF-6 sincroniza\u00e7\u00e3o, remove o RF-3 de fidelidade e sobe a vers\u00e3o para 0.2.0 (`grep 'Vers\u00e3o:'` = 0.2.0 nos dois). Transcript linha 18-21: 'Corre\u00e7\u00e3o direta dos documentos, por pedido expl\u00edcito do usu\u00e1rio'."
+        },
+        {
+          "text": "A tabela de cobertura PRD \u2192 FRD do relat\u00f3rio marca como 'N\u00e3o Coberto' ao menos tr\u00eas dos itens F3 (EMV), F4 (offline), F5 (integra\u00e7\u00e3o temporal) e F6 (sincroniza\u00e7\u00e3o), e marca o programa de fidelidade (RF-3) como 'Extrapolado'.",
+          "passed": false,
+          "evidence": "N\u00e3o existe docs/product/frd-nfrd/frd-nfrd-validation-report.md nem tabela de cobertura PRD \u2192 FRD; `grep -n -i 'n\u00e3o coberto\\|extrapolad' outputs/relatorio-validacao.md` n\u00e3o retorna nada."
+        },
+        {
+          "text": "Os achados no relat\u00f3rio est\u00e3o marcados com status 'Pendente \u2014 regenera\u00e7\u00e3o' (ou 'Pendente \u2014 ADR'/'Pendente \u2014 produto' quando for o caso), nenhum como 'Aplicado', e os pr\u00f3ximos passos indicam nova rodada do frd-generator e/ou nfrd-generator antes de avan\u00e7ar para DDD.",
+          "passed": false,
+          "evidence": "Sem relat\u00f3rio no caminho exigido; outputs/relatorio-validacao.md linhas 7 e 14 intitulam as se\u00e7\u00f5es 'Achados ... e corre\u00e7\u00e3o aplicada' (todos aplicados, nenhum 'Pendente'), e linha 5/20 orientam seguir direto para o `ddd-architect` em vez de nova rodada do frd-generator/nfrd-generator."
+        },
+        {
+          "text": "git status mostra como novos/alterados apenas arquivos sob docs/product/frd-nfrd/ (o relat\u00f3rio e, no m\u00e1ximo, os relat\u00f3rios opcionais do \u00a7 4); n\u00e3o existe nenhum arquivo novo de DDD, TRD, backlog ou ADR em docs/.",
+          "passed": false,
+          "evidence": "`git -C work status --porcelain | grep -v '^ D'` mostra ' M docs/product/frd-nfrd/frd.md' e ' M docs/product/frd-nfrd/nfrd.md' e nenhum relat\u00f3rio. N\u00e3o h\u00e1 arquivo de DDD, TRD, backlog ou ADR em docs/ (find work/docs lista s\u00f3 prd/frd/nfrd), mas os alterados sob docs/product/frd-nfrd/ n\u00e3o s\u00e3o 'o relat\u00f3rio' nem relat\u00f3rios opcionais do \u00a7 4, que \u00e9 o \u00fanico conjunto permitido pela asser\u00e7\u00e3o."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.2,
+        "passed": 1,
+        "failed": 4,
+        "total": 5,
+        "time_seconds": 163,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "git diff contra o commit inicial mostra docs/product/frd-nfrd/frd.md, docs/product/frd-nfrd/nfrd.md e docs/product/prd/prd.md sem nenhuma altera\u00e7\u00e3o (vers\u00f5es continuam 0.2.0 e 1.1.0; 'FRD-CHB-1' continua presente no frd.md).",
+          "passed": true,
+          "evidence": "`git -C without_skill/run-1/work diff --stat HEAD -- docs/product/frd-nfrd/frd.md docs/product/frd-nfrd/nfrd.md docs/product/prd/prd.md docs/product/adr` vazio (rc=0); nenhum arquivo novo em docs/. frd.md:4 e nfrd.md:4 '0.2.0', prd.md:4 '1.1.0'; `grep -c FRD-CHB-1 frd.md` = 1."
+        },
+        {
+          "text": "O relat\u00f3rio tem a se\u00e7\u00e3o 'ADRs Sugeridos' com pelo menos uma linha cobrindo pol\u00edtica de senha/hash e uma cobrindo reten\u00e7\u00e3o de dados de vendas; cada linha tem ID sugerido ADR-0003 ou superior (n\u00e3o 0001/0002, que j\u00e1 existem), t\u00edtulo em kebab-case, origem apontando para um FIND-NNN ou VAL-NN existente no relat\u00f3rio e severidade em {Alta, M\u00e9dia, Baixa}.",
+          "passed": false,
+          "evidence": "outputs/relatorio-validacao.md n\u00e3o tem se\u00e7\u00e3o 'ADRs Sugeridos' (se\u00e7\u00f5es: 1 Rastreabilidade, 2 Senha, 3 Reten\u00e7\u00e3o, 4 Outros, 5 Resumo). Nenhum ID ADR-0003+ nem t\u00edtulo kebab-case; men\u00e7\u00e3o a ADR \u00e9 s\u00f3 prosa (linha 52, 'vale registrar ... (ADR)') e n\u00e3o h\u00e1 IDs FIND-NNN/VAL-NN no relat\u00f3rio."
+        },
+        {
+          "text": "Pelo menos um FIND-NNN do relat\u00f3rio tem na recomenda\u00e7\u00e3o a refer\u00eancia cruzada ao ADR sugerido no formato 'Resolver via ADR-NNNN sugerido (ver \u00a7 18)' (ou texto equivalente que cite o n\u00famero do ADR e a se\u00e7\u00e3o 18).",
+          "passed": false,
+          "evidence": "`grep -nE 'FIND-[0-9]{3}' outputs/relatorio-validacao.md` sem resultados; nenhuma recomenda\u00e7\u00e3o cita n\u00famero de ADR nem \u00a7 18 (resumo linha 65 diz apenas 'abrir ADR quando o jur\u00eddico decidir')."
+        },
+        {
+          "text": "Para cada linha da se\u00e7\u00e3o de ADRs Sugeridos, a severidade \u00e9 igual ou superior \u00e0 severidade do FIND-NNN de origem na tabela de achados (um FIND Alta nunca origina ADR M\u00e9dia ou Baixa).",
+          "passed": false,
+          "evidence": "N\u00e3o h\u00e1 se\u00e7\u00e3o de ADRs Sugeridos nem FIND-NNN de origem para comparar severidades; asser\u00e7\u00e3o n\u00e3o verific\u00e1vel no artefato \u2014 sem evid\u00eancia de conformidade, portanto falha."
+        },
+        {
+          "text": "docs/product/adr/ cont\u00e9m apenas README.md, 0001-react-spa-com-bff.md e 0002-totp-como-segundo-fator.md, sem altera\u00e7\u00f5es; e, havendo ADR sugerido de severidade Alta, o parecer final do relat\u00f3rio \u00e9 'Aprovado com Ressalvas' ou 'Reprovado', nunca 'Aprovado'.",
+          "passed": false,
+          "evidence": "A primeira parte \u00e9 atendida (`ls work/docs/product/adr` = README.md, 0001, 0002; `git diff HEAD -- docs/product/adr` vazio). Mas o relat\u00f3rio n\u00e3o tem parecer final (Aprovado/Aprovado com Ressalvas/Reprovado) em nenhuma linha (`grep -ni parecer` vazio), embora sugira informalmente um ADR ligado a achado Alta (linha 65). Sem parecer, a segunda cl\u00e1usula n\u00e3o pode ser demonstrada; na d\u00favida, falha."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.8667,
+        "stddev": 0.1155,
+        "min": 0.8,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 310.3333,
+        "stddev": 40.7717,
+        "min": 265,
+        "max": 344
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.2333,
+        "stddev": 0.2517,
+        "min": 0.0,
+        "max": 0.5
+      },
+      "time_seconds": {
+        "mean": 178.6667,
+        "stddev": 30.6649,
+        "min": 159,
+        "max": 214
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.63",
+      "time_seconds": "+131.7",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

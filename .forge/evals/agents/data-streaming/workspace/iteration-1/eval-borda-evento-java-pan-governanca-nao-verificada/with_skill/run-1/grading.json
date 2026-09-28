@@ -1,0 +1,64 @@
+{
+  "expectations": [
+    {
+      "text": "O transcript mostra `check-data-governance.sh --path` sobre src/main (ou subpaths) com saída `universo-vazio`, e a resposta diz explicitamente que PAN/PII não foi verificado por esse verificador (projeto Java), sem apresentar esse resultado como aprovação, como 'limpo' nem como conflito",
+      "passed": true,
+      "evidence": "transcript.md §3 registra `bash work/.forge/scripts/check-data-governance.sh --path work/src` com saída `FAIL data-governance/universo-vazio — 0 arquivo(s) examinado(s)`; o path é src (superconjunto que contém src/main), o que cumpre a intenção de rodar sobre o código-fonte. resposta.md, 'Verificação executada': 'em projeto Java isso é esperado e **não** é aprovação nem conflito — PAN/PII não foi verificado por esse gate especificamente'. Transcript §2 também declara que não emitiu bloco CONFLITO. Ressalva: a evidência do comando é o relato do próprio executor, sem log bruto da ferramenta."
+    },
+    {
+      "text": "A resposta cita o id T-02 para o campo `pan` com a localização src/main/resources/avro/PagamentoAprovado.avsc:7 e recomenda substituí-lo por token, dizendo que fila, DLQ ou tópico são armazenamento persistente (escopo PCI)",
+      "passed": true,
+      "evidence": "resposta.md achado 1: 'T-02 — PAN em claro' com 'src/main/resources/avro/PagamentoAprovado.avsc:7' (conferi: a linha 7 da fixture é `{ \"name\": \"pan\", \"type\": \"string\" }`); correção: 'o evento carrega um token opaco (`panToken`)'; e 'fila quorum, stream, tópico, DLQ e parking lot são armazenamento persistente […] estende o escopo de CHD […] da PCI DSS 4.0.1 para o broker inteiro'."
+    },
+    {
+      "text": "A resposta trata `nomeTitular` e `cpfTitular` como dado pessoal (LGPD) e recomenda removê-los ou pseudonimizá-los com chave substituta ou HMAC com chave em KMS, e não com hash sem chave",
+      "passed": true,
+      "evidence": "resposta.md achado 2: nomeTitular e cpfTitular 'é dado LGPD sujeito a retenção e minimização' e 'a recomendação é remover os dois do evento e resolver via lookup no serviço dono'; recomendação 2: 'Remover ou substituir […] por um identificador que não exponha PII'. A alternativa de remoção satisfaz a disjunção da asserção e não há recomendação de hash sem chave. Ressalva: não menciona explicitamente HMAC nem KMS; a pseudonimização aparece só como 'masking/pseudonimização' genérico."
+    },
+    {
+      "text": "A resposta aponta `valor` como double no schema e no publicador (`doubleValue()`) e recomenda inteiro (long/int64) em centavos, citando a rule money-as-cents do projeto",
+      "passed": false,
+      "evidence": "resposta.md achado 7 aponta `valor` double no .avsc e `pagamento.getValor().doubleValue()` no builder e cita `domain/money-as-cents.md`, mas afasta a rule ('não lista backend-java em applies_to […] tecnicamente não bloqueia') e não recomenda a troca: diz 'vale trazer para decisão humana' e 'sinalizo e devolvo' a data-relational; o item não entra na 'Recomendação objetiva' e não há menção a long/int64. A leitura do applies_to é factualmente correta (a rule lista backend-dotnet, frontend-react, android-kotlin), mas a asserção exige a recomendação de inteiro em centavos pela rule, que não foi feita."
+    },
+    {
+      "text": "A resposta cita o id RMQ-AP-28 para o application.yml sem `default-requeue-rejected: false` e explica que, no Spring AMQP, a exceção no listener volta a mensagem à fila em laço por padrão",
+      "passed": true,
+      "evidence": "resposta.md achado 3: 'RMQ-AP-28 — sem `default-requeue-rejected: false`' em application.yml (conferi: não há 'requeue' no arquivo); 'O default do Spring AMQP é `true`: uma exceção não tratada em `ConciliacaoListener.onPagamentoAprovado` faz a mensagem voltar para a fila e ser reentregue indefinidamente'."
+    },
+    {
+      "text": "A resposta conclui que o schema não deve ser registrado como está, e `git status --porcelain` na fixture está vazio ao fim",
+      "passed": true,
+      "evidence": "resposta.md 'Veredito': 'Não registre o schema como está.' `git -C with_skill/run-1/work status --porcelain` rodado pelo grader retorna vazio, e o toplevel do git é o próprio work/ (repo da fixture, commit 'fixture: estado inicial')."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 1,
+    "total": 6,
+    "pass_rate": 0.83
+  },
+  "execution_metrics": {
+    "output_chars": 8087,
+    "transcript_chars": 6780
+  },
+  "timing": {
+    "executor_duration_seconds": 148
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A resposta aponta `valor` como double no schema e no publicador (`doubleValue()`) e recomenda inteiro (long/int64) em centavos, citando a rule money-as-cents do projeto",
+        "reason": "A rule money-as-cents.md tem applies_to [backend-dotnet, frontend-react, android-kotlin], sem backend-java; um agente que lê a rule corretamente pode afastá-la, como o with_skill fez. Convém a asserção aceitar a recomendação pelo princípio da rule, ou a fixture incluir backend-java no applies_to, para não punir leitura correta."
+      },
+      {
+        "assertion": "O transcript mostra `check-data-governance.sh --path` sobre src/main (ou subpaths) com saída `universo-vazio`, e a resposta diz explicitamente que PAN/PII não foi verificado por esse verificador (projeto Java), sem apresentar esse resultado como aprovação, como 'limpo' nem como conflito",
+        "reason": "A asserção não distingue --path src de --path src/main; ambos dão universo-vazio. Se o path importa, dizer explicitamente."
+      },
+      {
+        "assertion": "A resposta trata `nomeTitular` e `cpfTitular` como dado pessoal (LGPD) e recomenda removê-los ou pseudonimizá-los com chave substituta ou HMAC com chave em KMS, e não com hash sem chave",
+        "reason": "A disjunção 'remover ou pseudonimizar com chave' deixa passar qualquer resposta que só diga 'remover'; se o objetivo é discriminar o conhecimento de HMAC/KMS, exigir a menção explícita."
+      }
+    ],
+    "overall": "Asserções 1, 2 e 5 discriminam bem entre as configurações; a 3 e a 6 passam nas duas."
+  }
+}

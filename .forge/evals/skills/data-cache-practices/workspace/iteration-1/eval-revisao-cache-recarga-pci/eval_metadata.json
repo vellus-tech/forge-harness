@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "revisao-cache-recarga-pci",
+  "prompt": "Semana que vem tem pentest PCI no serviço de recarga. Faz uma revisão do cache do recarga-java (services/recarga-java/, Spring com Redis e Caffeine) e do Redis que sobe no Kubernetes (deploy/k8s/), incluindo a parte de dado de cartão, e grava em docs/revisao-cache-recarga.md. Só diagnóstico, não altera nada.",
+  "assertions": [
+    "O relatório aponta RecargaCacheService.java:30 (ou guardarParaRetentativa) como C-15 e/ou T-01, afirma que o CVV é dado sensível de autenticação que não pode ser armazenado após a autorização (citando PCI DSS 3.3.1 ou equivalente), e prescreve NÃO guardar PAN/CVV (token do provedor ou nova coleta na retentativa); propor apenas TTL menor, cifrar o valor ou mascarar o log como correção suficiente reprova",
+    "O bind 0.0.0.0 de deploy/k8s/redis-recarga-configmap.yaml é classificado como C-17 (aviso: exposição depende de controle fora do arquivo) e não como C-11/Redis exposto sem autenticação, e a recomendação inclui NetworkPolicy (ou controle de rede equivalente no namespace) e TLS",
+    "O relatório NÃO recomenda adicionar expiração ao Caffeine de RecargaCacheService.java:14 como se estivesse sem TTL: ou o omite dos achados, ou registra que o FOUND C-08 é falso positivo porque expireAfterWrite e maximumSize estão nas linhas seguintes do builder",
+    "O transcript mostra check-data-governance.sh rodando sobre o path Java e o relatório registra o resultado universo-vazio como não verificado (o verificador não lê .java), sem apresentá-lo como aprovação de PAN/PII nem como conflito",
+    "O relatório não conclui que o serviço está aprovado/pronto para o pentest com base no exit 0 da varredura; deixa explícito que os FOUND de severidade aviso (C-15 em particular) são achados a tratar antes do pentest"
+  ]
+}

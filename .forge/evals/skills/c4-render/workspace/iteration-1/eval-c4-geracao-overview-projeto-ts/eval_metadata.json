@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "c4-geracao-overview-projeto-ts",
+  "prompt": "Acabei de instalar o Forge no pagamentos-core (TypeScript, módulos billing, ledger, notifications e shared em src/). Quinta tenho reunião com o time de adquirência e quero levar um mapa visual da arquitetura no formato C4, com contexto, containers e componentes. Gera aí e me diz onde eu abro pra navegar.",
+  "assertions": [
+    "Existe .forge/graph/graph.json no alvo, com nós para src/billing/invoice.service.ts e src/ledger/journal.repo.ts (evidência de que o grafo foi garantido via .forge/scripts/graph.sh, e não substituído por leitura manual do repositório).",
+    "Existem .forge/graph/c4/c1-context.md, .forge/graph/c4/c2-container.md e ao menos um .forge/graph/c4/c3-component-*.md, cada um com bloco ```mermaid contendo 'flowchart'.",
+    "Existe .forge/graph/overview.html e ele embute os diagramas (contém 'class=\"mermaid\"' ou equivalente e referencia os níveis C1/C2/C3).",
+    "A resposta final ao usuário cita o caminho .forge/graph/overview.html e NÃO contém bloco ```mermaid, a palavra-chave 'flowchart' nem marcação HTML do overview colada (regra §17.6: apontar arquivos, não colar).",
+    "Em todos os .md de .forge/graph/c4/, nenhum rótulo entre [\"...\"] no bloco Mermaid contém '.', '—' ou '–' (ex.: aparece 'invoice service ts', nunca 'invoice.service.ts').",
+    "Não foi criado arquivo de diagrama fora de .forge/graph/ (ex.: docs/architecture.md, ARCHITECTURE.md, *.mmd na raiz ou em docs/): git status do alvo não lista arquivo novo contendo 'mermaid' fora de .forge/graph/."
+  ]
+}

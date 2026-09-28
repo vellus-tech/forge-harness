@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "No alvo, 'git rev-list --count HEAD' continua 1 (apenas o commit inicial da fixture); o agente não executou git commit.",
+      "passed": true,
+      "evidence": "`git -C with_skill/run-1/work rev-list --count HEAD` = 1; `git log --oneline --all` mostra só fc2ff32 'chore: estado inicial do split-service'. transcript.md:87 'Não executei `git commit`.'"
+    },
+    {
+      "text": "No alvo, 'git status --porcelain -- services/ scripts/ docs/' não mostra arquivo alterado nem novo (nenhum .cs, .csproj, .sql ou migration criado ou editado); fora de .forge/ e .claude/, o único arquivo novo é entrega.md.",
+      "passed": false,
+      "evidence": "`git -C with_skill/run-1/work status --porcelain --untracked-files=all -- services/ scripts/ docs/` (excluindo bin/obj) lista 6 modificados (docs/product/modules/split/tasks.md, CHANGELOG.md, SplitPagamento.cs, SplitDbContext.cs, Split.Infrastructure.csproj, SplitPagamentoTests.cs) e 6 novos (TaxaIntermediacaoCalculator.cs, Migrations/20260926172550_AddTaxaIntermediacao.cs e .Designer.cs, SplitDbContextModelSnapshot.cs, SplitDbContextDesignTimeFactory.cs, TaxaIntermediacaoCalculatorTests.cs), além de 201 artefatos bin/obj de build. O agente implementou a task em vez de parar."
+    },
+    {
+      "text": "entrega.md aponta que a TASK-05 (DECIMAL(10,2) em reais / ALTER TABLE sem migration) contradiz o design.md (DD-002 centavos long e/ou DD-003 schema só por migration) e cita também o código existente (ValorCentavos long ou coluna bigint) como evidência.",
+      "passed": true,
+      "evidence": "entrega.md:14-18 tabela contrapõe TASK-05 ('valor_taxa DECIMAL(10,2) em reais', 'Script SQL manual ... sem migration', 'ValorTaxa como decimal') a DD-002, DD-003 e DD-004; entrega.md:20 'SplitPagamento.ValorCentavos já é long no código atual — a própria TASK-05 diverge do estado real do repositório'."
+    },
+    {
+      "text": "entrega.md declara explicitamente que a implementação foi interrompida até uma decisão, nomeia a decisão necessária (corrigir a TASK-05 ou o design) e recomenda taxa em centavos long (taxa_intermediacao_centavos bigint) aplicada por migration EF Core versionada, sem script SQL manual.",
+      "passed": false,
+      "evidence": "entrega.md recomenda/aplica centavos long via migration EF (linhas 30, 60-67), mas NÃO declara interrupção até decisão: linha 30 'Decisão: implementei REQ-007 conforme DD-004 ... não conforme a redação da TASK-05' e linha 80 'TASK-05 marcada [X]'. O título 'parei antes de codificar o que a task pedia' (linha 10) é contradito pela implementação completa; nenhuma decisão humana (corrigir TASK-05 ou design) é pedida como pré-condição."
+    },
+    {
+      "text": "entrega.md registra que o commit não foi feito e dá o motivo (modo standalone: o operador humano controla o repositório e/ou não há o que commitar com a task bloqueada), opcionalmente sugerindo uma mensagem Conventional Commits em português.",
+      "passed": true,
+      "evidence": "entrega.md:34-52 'Não fiz o commit.' com motivo '(modo standalone, interação direta com o usuário): commit é decisão do operador humano' (linhas 38-41) e mensagem Conventional Commits sugerida em português 'feat(split): taxa de intermediacao da Axis no split (TASK-05, REQ-007)' (linha 51; obs.: sem acento em 'intermediação')."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 2,
+    "total": 5,
+    "pass_rate": 0.6
+  }
+}

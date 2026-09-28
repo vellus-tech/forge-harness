@@ -1,0 +1,69 @@
+{
+  "expectations": [
+    {
+      "text": "review/arch-reviewer.json tem finding BLOCKER sobre Newtonsoft.Json em Pagamentos.Infrastructure (csproj ou CachedPagamentoRepository.cs) cujo title contém \"Conflito com ADR-0005\"",
+      "passed": false,
+      "evidence": "outputs/review/arch-reviewer.json:6-12: F1 severity 'blocker' cobre csproj e CachedPagamentoRepository.cs, mas o title é \"Newtonsoft.Json introduzido em Pagamentos.Infrastructure, violando ADR-0005 (Aceito)\". Comando jq com contains(\"Conflito com ADR-0005\") no title → 0."
+    },
+    {
+      "text": "Nenhum finding BLOCKER ou HIGH cita ADR-0008 ou o uso de Microsoft.EntityFrameworkCore / PagamentosDbContext em Infrastructure como conflito (ADR-0008 tem Status: Proposto; menção em LOW ou ausência são aceitáveis)",
+      "passed": true,
+      "evidence": "ADR-0008/EF Core aparece só em F5 (outputs/review/arch-reviewer.json:41-48), severity 'info', title 'Uso de EF Core não viola nenhum ADR aceito — ADR-0008 ainda está Proposto'; F4 (moderate, outputs/review/arch-reviewer.json:33-40) trata PagamentosDbContext por falta de IEntityTypeConfiguration, não como conflito de ADR e não é BLOCKER/HIGH. Comando jq filtrando BLOCKER/HIGH com ADR-0008|EntityFrameworkCore|PagamentosDbContext → 0."
+    },
+    {
+      "text": "Há finding BLOCKER em Pagamentos.Contracts/Events/PagamentoAprovadoV1.cs apontando a mudança de Valor (decimal) para ValorEmCentavos (long) como breaking change no contrato v1 sem nova versão v2",
+      "passed": true,
+      "evidence": "outputs/review/arch-reviewer.json:14-22: F2 severity 'blocker' (minúscula, semanticamente BLOCKER), location services/pagamentos/src/Pagamentos.Contracts/Events/PagamentoAprovadoV1.cs, description 'Valor (decimal) foi renomeado e retipado para ValorEmCentavos (long) dentro do mesmo record PagamentoAprovadoV1' e 'Correção: introduzir PagamentoAprovadoV2'. Sem número de linha, o que não é exigido pela asserção."
+    },
+    {
+      "text": "Nenhum finding aponta CachedPagamentoRepository como prefixo de tecnologia ou violação de nomenclatura",
+      "passed": true,
+      "evidence": "F6 (outputs/review/arch-reviewer.json:50-58) menciona a coexistência PagamentoRepository/CachedPagamentoRepository apenas quanto a registro de DI, severity info; nenhum finding fala de prefixo de tecnologia ou nomenclatura (jq test(\"prefixo|nomenclatura|naming\";\"i\") → 0)."
+    },
+    {
+      "text": "Nenhum finding alega ausência de Architecture.Tests (services/pagamentos/tests/Pagamentos.Architecture.Tests existe) nem aponta a ProjectReference Api → Infrastructure como violação",
+      "passed": true,
+      "evidence": "jq test(\"Architecture.Tests|NetArchTest|ProjectReference\";\"i\") → 0 findings. Transcript passo 5 registra leitura de CamadasTests.cs ('teste de arquitetura existente com NetArchTest')."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "pass_rate": 0.8
+  },
+  "timing": {
+    "executor_duration_seconds": 114.0,
+    "total_duration_seconds": 114.0
+  },
+  "claims": [
+    {
+      "claim": "Execução sem ler .forge/agents do template",
+      "type": "process",
+      "verified": true,
+      "evidence": "Transcript passo 2: setup remove .forge/agents e .claude/agents do alvo; findings não seguem schema ARCH-NNN"
+    },
+    {
+      "claim": "2 blockers, 2 moderate, 2 info",
+      "type": "factual",
+      "verified": true,
+      "evidence": "jq -r '.findings[].severity' confirma"
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "review/arch-reviewer.json tem finding BLOCKER sobre Newtonsoft.Json em Pagamentos.Infrastructure (csproj ou CachedPagamentoRepository.cs) cujo title contém \"Conflito com ADR-0005\"",
+        "reason": "As duas configurações acertaram a substância (BLOCKER por Newtonsoft.Json contra ADR-0005 Aceito) e falharam só no literal do título; a asserção mede aderência ao formato `ARCH-NNN — Conflito com ADR-NNNN` (arch-reviewer.md:114), o que é legítimo como diferencial do artefato, mas neste caso o artefato também não discriminou. Considere separar em duas asserções (substância vs. formato) para o benchmark não esconder o acerto de fundo."
+      },
+      {
+        "assertion": "Nenhum finding alega ausência de Architecture.Tests (services/pagamentos/tests/Pagamentos.Architecture.Tests existe) nem aponta a ProjectReference Api → Infrastructure como violação",
+        "reason": "Passa trivialmente para quem simplesmente não fala de testes de arquitetura: with_skill afirmou no transcript (§5 item 8) que Pagamentos.Architecture.Tests não existe, o que é falso (work/services/pagamentos/tests/Pagamentos.Architecture.Tests/CamadasTests.cs existe), e ainda assim passa porque não virou finding. Considere uma asserção de que o revisor confirma a existência dos testes de arquitetura."
+      },
+      {
+        "reason": "Nenhuma asserção cobre schema do JSON: without_skill usou severidade minúscula ('blocker', 'moderate', 'info'), campo 'location' em vez de 'file'/'line' e sem 'rule_violated'/'confidence', fora do contrato do arch-reviewer; esse é o diferencial mais claro do artefato e não é medido."
+      }
+    ],
+    "overall": "Asserções 2-5 são negativas e passam para ambas as configurações; a única discriminante potencial (título) falhou nas duas. O caso hoje não separa with_skill de without_skill."
+  }
+}

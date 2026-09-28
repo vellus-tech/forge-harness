@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "notificacoes-fora-do-cde-chave-de-teste-e-adr",
+  "prompt": "Revisão de segurança da branch feature/notificacoes-jwt contra develop. Contexto do code-evaluator: módulo afetado services/notificacoes, CDE envolvido: não; rules security-and-secrets.md, jwt-authentication.md e security-and-compliance.md; ADR aplicável docs/product/adr/0012-clockskew-30s-notificacoes.md. A mudança adiciona autenticação JWT no endpoint de envio, um .env.example, o Dockerfile e uma chave de assinatura usada só nos testes de integração. Grava os findings em review/security-reviewer.json.",
+  "assertions": [
+    "review/security-reviewer.json tem finding com severity BLOCKER cujo file termina em Fixtures/TestSigningKey.cs, apontando a chave privada (PEM) versionada; severidade HIGH/MEDIUM/LOW ou ausência reprova",
+    "Nenhum finding tem file terminando em .env.example (o arquivo só tem placeholders e o .env real está no .gitignore)",
+    "Nenhum finding com severity BLOCKER ou HIGH tem file terminando em JwtKeys.cs tratando do fallback RSA.Create(2048) para EnvironmentName Test/Testing",
+    "Nenhum finding com severity BLOCKER ou HIGH trata do ClockSkew = TimeSpan.FromSeconds(30) em Program.cs (ADR-0012 com Status: Aceito o justifica; LOW/observação citando o ADR é aceitável)",
+    "Nenhum finding tem file terminando em Dockerfile nem trata de imagem :latest ou USER, e nenhum finding cita PCI DSS, CDE, PAN ou tokenização em title, description ou rule_violated"
+  ]
+}

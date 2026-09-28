@@ -1,0 +1,92 @@
+{
+  "skill_name": "node-reviewer",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "revisao-recarga-pix-sem-baseline-de-lint",
+      "prompt": "Terminei a recarga via Pix na branch feat/recarga-pix do api-recarga (rota POST /recargas/pix, repositório e service novos, e mexi no pool em src/db/pool.ts para pôr max e o CA do Postgres). Antes de abrir o PR para develop, faz o code review Node/TypeScript do que mudou em relação à main. Grava os findings em review/node-review.json no formato que o code-evaluator consome e um resumo legível em review/node-review.md.",
+      "expected_output": "O revisor roda `bash .forge/scripts/node-baseline.sh --root . --check`, que reprova com MISS eslint.config.mjs, e registra isso como o PRIMEIRO finding (NODE-BASELINE, HIGH), com `--apply` como correção. Tenta o scan determinístico (`.forge/skills/node-quality-scan/scripts/scan.sh`) e, se ele não estiver disponível no alvo, diz isso e cobre as 11 regras manualmente. Findings em review/node-review.json, cada um com severity, file, line, title, description e fix_suggested: interpolação de SQL em src/recargas/repository.ts:8 (BLOCKER); `new Pool()` por chamada em src/recargas/repository.ts:7 (HIGH); `Promise<any>` em src/recargas/repository.ts:6 sobre o tipo Recarga já declarado (o scan não pega — julgamento do revisor); `.then()` sem `.catch()` em src/recargas/service.ts:5; ausência de validação runtime de req.body em src/recargas/routes.ts:7. NÃO reporta como defeito o `new Pool()` de src/db/pool.ts:4 (bootstrap de conexão) nem o readFileSync de src/config/load.ts:13 (carga de config no boot). O resumo review/node-review.md traz uma linha por regra do scan, inclusive as limpas, e o resultado do baseline. Nenhum arquivo de src/ é alterado.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "baseline-reprovado-e-o-primeiro-finding-high",
+          "text": "O primeiro elemento da lista de findings em review/node-review.json refere-se ao baseline de lint (id ou title contendo NODE-BASELINE ou node-baseline), com severity HIGH, e seu fix_suggested cita `node-baseline.sh --apply`"
+        },
+        {
+          "name": "sql-interpolado-blocker-com-linha",
+          "text": "review/node-review.json tem um finding com severity BLOCKER, file terminando em src/recargas/repository.ts e line 8, descrevendo a interpolação de valores no template literal do INSERT (injeção de SQL) e sugerindo placeholder parametrizado ($1, $2)"
+        },
+        {
+          "name": "promise-any-sobre-tipo-ja-declarado",
+          "text": "review/node-review.json tem um finding em src/recargas/repository.ts linha 6 apontando o retorno `Promise<any>` e sugerindo o tipo já declarado no arquivo (ex.: Promise<Recarga>)"
+        },
+        {
+          "name": "excecoes-legitimas-nao-viram-defeito",
+          "text": "Existe um finding de Pool/Client instanciado em src/recargas/repository.ts linha 7, e NÃO existe finding apontando src/db/pool.ts (o bootstrap de conexão) nem src/config/load.ts linha 13 (readFileSync na carga de config do boot)"
+        },
+        {
+          "name": "uma-linha-por-regra-do-scan",
+          "text": "review/node-review.md menciona cada um dos 11 ids de regra do scan — empty-catch, floating-promise, sync-fs-blocking, sql-interpolation, new-pg-client, process-env-direct, date-now, explicit-any, generic-name, mutable-module-state e single-impl-interface — com um status para cada (limpo/OK ou achado), inclusive as que não acharam nada"
+        },
+        {
+          "name": "contrato-json-completo-e-codigo-intacto",
+          "text": "Todo finding em review/node-review.json tem os campos severity, file, line, title, description e fix_suggested, e `git -C <alvo> status --porcelain -- src/` sai vazio (o revisor não alterou código)"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "revisao-tarifa-integracao-max-lines-error",
+      "prompt": "No tarifador, a branch feat/tarifa-integracao adiciona a cotação de integração ônibus+metrô (25% de desconto no segundo embarque dentro de 120 min) em src/tarifas/. O lint do projeto já tem as regras forge-quality cabeadas no eslint.config.mjs — na retro a gente endureceu o max-lines para error. Revisa o Node/TS do que a branch mudou em relação à main e grava os findings em review/node-review.json (formato do code-evaluator) e o resumo em review/node-review.md.",
+      "expected_output": "O revisor roda o node-baseline, que reprova apenas por `forge-quality/max-lines` declarado \"error\" em eslint.config.mjs:12; registra isso como finding MEDIUM (configuração que contraria a decisão do harness de que tamanho de arquivo é sinal, não portão), sugerindo \"warn\" — não HIGH e não como baseline ausente. Revisa só src/tarifas/ (o diff): não reporta nada de src/legacy/relatorio-helper.ts (any, console.log, catch vazio, Helper, export let), embora o scan sobre src/ os encontre. Julga os FOUND do diff: o `.then()` de src/tarifas/infra/pg-tarifa-repository.ts:11 é promise retornada ao chamador (exceção legítima) e a interface TarifaRepository é porta hexagonal com fake em teste (exceção legítima) — nenhum dos dois vira finding. Aponta o teste src/tarifas/aplicacao/cotar-integracao.test.ts:14 (`expect(true).toBe(true)`) como teste que passa sem verificar nada.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "max-lines-error-e-medium-nao-high",
+          "text": "review/node-review.json tem um finding sobre `forge-quality/max-lines` com severidade \"error\" em eslint.config.mjs (linha 12), com severity MEDIUM (não HIGH nem BLOCKER) e fix_suggested indicando \"warn\""
+        },
+        {
+          "name": "escopo-restrito-ao-diff",
+          "text": "Nenhum finding em review/node-review.json tem file dentro de src/legacy/ (RelatorioHelper, any, catch vazio, export let e console.log do legado ficam fora, pois a branch não tocou esse arquivo)"
+        },
+        {
+          "name": "then-retornado-ao-chamador-nao-e-defeito",
+          "text": "Não há finding de promise flutuante/floating-promise em src/tarifas/infra/pg-tarifa-repository.ts linha 11, e review/node-review.md registra que esse FOUND foi julgado exceção legítima (promise retornada ao chamador)"
+        },
+        {
+          "name": "porta-hexagonal-nao-e-abstracao-especulativa",
+          "text": "Não há finding de interface com implementação única para TarifaRepository em review/node-review.json, e review/node-review.md registra o julgamento de que é porta do domínio (implementada na infra, com fake no teste)"
+        },
+        {
+          "name": "teste-sem-verificacao-apontado",
+          "text": "review/node-review.json tem um finding em src/tarifas/aplicacao/cotar-integracao.test.ts linha 14 apontando que o teste afirma `expect(true).toBe(true)` e não verifica o valor calculado da integração"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "recusa-autorrevisao-estorno-pix",
+      "prompt": "Você escreveu agora há pouco, nesta mesma conversa, o src/estornos/handler.ts do api-estornos (commit \"feat(estornos): endpoint de estorno Pix\" na branch feat/estorno-pix). É um endpoint pequeno e não quero abrir outra sessão nem rodar o code-evaluator: faz você mesmo o code review Node dele agora e grava em review/estorno.md se posso mergear em develop hoje.",
+      "expected_output": "O revisor recusa emitir a revisão/aprovação na mesma sessão que escreveu o código, conforme a seção Sessão Limpa: explica que quem revisa o próprio trabalho lê a intenção e defende o código, e exige sessão separada — o code-evaluator invocando o node-reviewer como agente distinto, ou uma sessão nova. review/estorno.md (se criado) registra a recusa e o caminho, sem veredito de merge. Pode, no máximo, registrar o resultado das camadas determinísticas (node-baseline reprovado) como insumo para a revisão limpa. Não altera src/.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "recusa-revisar-na-mesma-sessao",
+          "text": "review/estorno.md (ou a resposta final, se o arquivo não for criado) declara que a revisão não será feita/emitida na mesma sessão que escreveu o código, com o motivo de que o autor revisando o próprio trabalho lê a intenção em vez do que está escrito (ou defende o código em vez de lê-lo)"
+        },
+        {
+          "name": "exige-sessao-limpa-ou-code-evaluator",
+          "text": "A saída indica como caminho uma sessão separada: o code-evaluator invocando o node-reviewer como agente distinto do autor, ou uma nova sessão/agente que não escreveu o código"
+        },
+        {
+          "name": "sem-veredito-de-merge",
+          "text": "review/estorno.md não contém aprovação de merge (nenhum APPROVED, APPROVED_WITH_COMMENTS, \"pode mergear\" ou equivalente liberando o merge em develop)"
+        },
+        {
+          "name": "codigo-intacto",
+          "text": "`git -C <alvo> status --porcelain -- src/` sai vazio: src/estornos/handler.ts e src/db/pool.ts não foram alterados"
+        }
+      ]
+    }
+  ]
+}

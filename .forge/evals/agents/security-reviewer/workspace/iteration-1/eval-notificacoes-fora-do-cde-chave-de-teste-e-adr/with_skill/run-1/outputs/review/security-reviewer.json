@@ -1,0 +1,56 @@
+{
+  "reviewer": "security-reviewer",
+  "findings": [
+    {
+      "id": "SEC-001",
+      "severity": "BLOCKER",
+      "category": "security",
+      "file": "services/notificacoes/tests/Notificacoes.Tests/Fixtures/TestSigningKey.cs",
+      "line": 6,
+      "title": "Chave privada RSA commitada em fixture de teste, copiada do auth-service",
+      "description": "TestSigningKey.PrivateKeyPem embute um bloco '-----BEGIN RSA PRIVATE-KEY-----(redigido p/ secret-scan)' diretamente no código-fonte, e o comentário da linha 3 afirma que a chave foi 'copiada do ambiente de dev do auth-service'. Isso viola duas regras absolutas simultaneamente: (1) security-and-secrets.md — nenhum segredo em código-fonte ou em repositório, zero tolerance mesmo em dev/test; (2) jwt-authentication.md — chave privada RSA é propriedade exclusiva do auth-service e nunca deve existir em outro serviço, muito menos versionada em git (histórico já contaminado mesmo se removida depois). O fato de o valor ser fictício nesta fixture de avaliação não muda o veredito: o padrão de código commitado e o comentário descrevem exatamente o anti-padrão proibido — copiar uma chave privada real de um serviço para outro e persisti-la no repositório. O correto é gerar um par de chaves efêmero em runtime do teste (ex.: RSA.Create(2048), como já faz o próprio fallback de JwtKeys.LoadPublicKey para EnvironmentName=='Test') e nunca versionar material de chave, nem mesmo de teste.",
+      "fix_suggested": "Remover TestSigningKey.cs do repositório (e do histórico, via rewrite se necessário). Gerar a chave de teste em runtime dentro do setup do teste de integração (RSA.Create(2048) ou equivalente), sem persistir PEM em arquivo versionado. Se uma chave fixa for realmente necessária para reprodutibilidade, gerá-la localmente fora do controle de versão (ex.: variável de ambiente de CI) e nunca copiar material de outro serviço.",
+      "rule_violated": ".forge/rules/architecture/security-and-secrets.md § Regras Absolutas de Segredos; .forge/rules/architecture/jwt-authentication.md § Proibições Explícitas (chave privada fora do auth-service; arquivos com chave commitados)",
+      "confidence": "high"
+    },
+    {
+      "id": "SEC-002",
+      "severity": "HIGH",
+      "category": "security",
+      "file": "services/notificacoes/src/Notificacoes.Api/Program.cs",
+      "line": 26,
+      "title": "Endpoint POST /api/v1/notificacoes sem validação explícita de input",
+      "description": "EnviarNotificacaoRequest(UserId, Canal, TemplateId) é aceito e processado (log + enfileiramento implícito via Results.Accepted()) sem nenhuma validação visível de Canal ou TemplateId antes do efeito colateral de log/enfileiramento. Não há FluentValidation nem checagem manual de formato/allow-list para 'Canal' (ex.: sms/push/email) nem para TemplateId. Entrada externa não validada antes de efeito colateral é HIGH pelo checklist de input validation do agente.",
+      "fix_suggested": "Adicionar validação (FluentValidation ou checagem manual) de Canal contra uma allow-list fixa e de TemplateId contra o catálogo de templates válido, retornando 400 com error_code/message/correlationId antes de logar ou enfileirar.",
+      "rule_violated": ".forge/agents/review/security-reviewer.md § 6. Input validation",
+      "confidence": "medium"
+    }
+  ],
+  "not_findings_reviewed_and_cleared": [
+    {
+      "topic": "ClockSkew = TimeSpan.FromSeconds(30)",
+      "location": "services/notificacoes/src/Notificacoes.Api/Program.cs:18",
+      "reasoning": "jwt-authentication.md proíbe ClockSkew > TimeSpan.Zero apenas 'sem justificativa documentada em ADR'. O ADR-0012 (docs/product/adr/0012-clockskew-30s-notificacoes.md) documenta a decisão, o motivo (3,8% de rejeição de callbacks de push com relógio dessincronizado), o decisor (time de segurança) e a mitigação aceita (janela de replay de 30s, endpoint apenas enfileira e exige permissão notificacoes:enviar). Está dentro da exceção explícita da regra — não é finding."
+    },
+    {
+      "topic": "Escopo PCI DSS / CDE",
+      "location": "services/notificacoes (todo o diff)",
+      "reasoning": "context_summary do code-evaluator declara 'CDE envolvido: não', e o diff não toca PAN/CVV/track data nem serviços do escopo PCI (services/payment*, services/token-vault*, services/cde-*). Seção 8 do pipeline do agente é explicitamente pulada quando o produto/serviço não processa dados de cartão."
+    },
+    {
+      "topic": "Fallback RSA.Create(2048) para EnvironmentName == 'Test'",
+      "location": "services/notificacoes/src/Notificacoes.Api/JwtKeys.cs:20-21",
+      "reasoning": "Reproduz exatamente a ordem de precedência e o fallback descritos como corretos em jwt-authentication.md (env var → path → fallback apenas em Test/Testing → throw). Não é o anti-padrão proibido, que seria esse fallback ativo em ambiente de produção."
+    },
+    {
+      "topic": "PII em log de Program.cs (UserId, Canal, correlationId)",
+      "location": "services/notificacoes/src/Notificacoes.Api/Program.cs:24-25",
+      "reasoning": "Apenas Guid (UserId, não PII direta como CPF/e-mail/nome), Canal (categoria, não dado pessoal) e correlationId são logados. Sem senha, e-mail, CPF ou PAN. correlationId presente, atendendo à recomendação do pipeline."
+    },
+    {
+      "topic": "Dockerfile services/notificacoes/Dockerfile",
+      "location": "services/notificacoes/Dockerfile",
+      "reasoning": "Hardening de imagem base Docker é escopo do platform-reviewer, não do security-reviewer (anti-pattern explícito: 'Sinalizar Docker base image'). Nenhum segredo embutido na imagem."
+    }
+  ]
+}

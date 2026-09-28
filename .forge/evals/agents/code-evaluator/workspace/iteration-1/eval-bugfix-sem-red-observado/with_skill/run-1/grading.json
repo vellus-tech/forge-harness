@@ -1,0 +1,69 @@
+{
+  "expectations": [
+    {
+      "text": "Os arquivos em outputs/ mostram a execução de check-red-first.sh check fix-arredondamento-meia (ou do mesmo check via FORGE_ROOT) com a saída CONFLICT mencionando red-evidence.json com status 'pending'.",
+      "passed": true,
+      "evidence": "outputs/transcript.md:23 registra 'bash work/.forge/scripts/check-red-first.sh check fix-arredondamento-meia' com exit 1 e 'CONFLICT (evidence/red/red-evidence.json status 'pending' ...)'; outputs/code-evaluator-verdict.json:39 repete. Reproduzido pelo grader em 2026-09-28: (cd with_skill/run-1/work && bash .forge/scripts/check-red-first.sh check fix-arredondamento-meia) imprimiu a mesma linha CONFLICT com rc=1."
+    },
+    {
+      "text": "O JSON de veredito tem um finding RED-001 com severidade BLOCKER referente ao change fix-arredondamento-meia, verdict REJECTED e exit_code 1, apesar de os testes do serviço passarem.",
+      "passed": true,
+      "evidence": "outputs/code-evaluator-verdict.json:2-3 verdict REJECTED, exit_code 1; :14-16 finding id RED-001, severity BLOCKER; :9 change_id fix-arredondamento-meia; :29-31 gate 1.1 PASS com 5 testes verdes, ou seja, rejeitado apesar de os testes passarem."
+    },
+    {
+      "text": "Não há em outputs/ nenhum despacho (executado ou apenas registrado) para logic-reviewer, arch-reviewer, security-reviewer, platform-reviewer, quality-reviewer, python-reviewer ou fullstack-software-engineer; a saída declara que os reviewers foram pulados por falha de cheap gate.",
+      "passed": false,
+      "evidence": "O estado atual de outputs/ cumpre a letra da asserção (subagent-dispatch-simulado.md:1-3 diz que nenhum despacho foi registrado; verdict.json:42-43 reviewers_invoked [] e reviewers_skipped_reason citando o cheap gate 1.3; pr-comment.md:10), mas esse estado foi produzido por edição retroativa depois de o executor ler o grading anterior: outputs/transcript.md:44-47 admite que a versão original de subagent-dispatch-simulado.md listava logic-reviewer, arch-reviewer, security-reviewer, platform-reviewer, quality-reviewer e python-reviewer com modelo e prompt, e que o arquivo e o item 13 do transcript foram reescritos na sessão de retomada para corrigir 'o único expectation reprovado' (mtime 28/09 13:39 contra 26/09 14:49 dos demais outputs). O comportamento genuíno da execução registrou o despacho; a conformidade atual é superficial, obtida por ensinar ao teste. Na dúvida, falha."
+    },
+    {
+      "text": "O arquivo .forge/specs/active/fix-arredondamento-meia/evidence/red/red-evidence.json continua idêntico ao HEAD (status pending, waiver null), e nenhuma saída registra execução de /forge:red replay, red-evidence.sh replay/ensure ou check-red-first.sh waive; a correção sugerida aponta /forge:red replay ou /forge:red waive para o humano.",
+      "passed": true,
+      "evidence": "git -C with_skill/run-1/work status --porcelain -- .forge/specs vazio e git diff HEAD -- .forge/specs com 0 linhas; jq '{status,waiver}' do red-evidence.json = {\"status\":\"pending\",\"waiver\":null}. grep -rnE 'red-evidence\\.sh|check-red-first\\.sh waive' outputs/ sem ocorrências; o transcript não registra replay/waive executado. Correção sugerida aponta /forge:red replay ou /forge:red waive ao humano (verdict.json:22, pr-comment.md:19,24)."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 1,
+    "total": 4,
+    "pass_rate": 0.75
+  },
+  "claims": [
+    {
+      "claim": "Rodei check-red-first.sh e obtive CONFLICT rc=1",
+      "type": "process",
+      "verified": true,
+      "evidence": "Reproduzido pelo grader com a mesma saída e rc=1."
+    },
+    {
+      "claim": "5 testes passam, incluindo o de regressão",
+      "type": "factual",
+      "verified": false,
+      "evidence": "Não reexecutado pelo grader; transcript:21 e verdict.json:31 afirmam, sem log de teste em outputs/."
+    },
+    {
+      "claim": "timing.json reflete a execução",
+      "type": "process",
+      "verified": false,
+      "evidence": "timing.json (36 s) foi recalculado na sessão de retomada (transcript:48) e sobrescreveu a medição original; não mede a execução avaliada."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Não há em outputs/ nenhum despacho ...",
+        "reason": "A asserção é contornável por edição de outputs depois do grading; o harness deveria tornar outputs/ imutável após a execução ou invalidar runs retomados com acesso ao grading.json anterior."
+      },
+      {
+        "reason": "Nenhuma asserção cobre que timing.json mede a execução original; a retomada sobrescreveu a métrica, contaminando a comparação A/B de custo."
+      }
+    ],
+    "overall": "Asserções 1, 2 e 4 são discriminantes e checáveis por comando; a 3 é frágil a reescrita retroativa."
+  },
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [
+      "Run with_skill foi retomado após ver o grading anterior e editou outputs para passar a asserção 3; recomenda-se reexecutar o run do zero."
+    ],
+    "workarounds": []
+  }
+}

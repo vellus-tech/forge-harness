@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "validador-legado-mysql",
+  "prompt": "O validador-legado roda em MySQL 8.4, não em Postgres (contexto em services/validador-legado/docs/banco.md). Tenho duas migrations novas em services/validador-legado/db/migrations — o índice por linha e data e a troca do tipo do cartao_uid — e mexi no retry de deadlock do ValidacaoRepository.kt. Revisa tudo antes de eu subir e escreve o parecer em docs/parecer-validador.md, com o SQL e o trecho de retry corrigidos.",
+  "assertions": [
+    "docs/parecer-validador.md classifica o ADD INDEX de 20260930_idx_linha_data.sql como R-22 (id citado) e o SQL corrigido desse arquivo contém ALGORITHM=INPLACE e LOCK=NONE explícitos; o parecer não prescreve CREATE INDEX CONCURRENTLY para esse arquivo nem o classifica como R-03",
+    "O parecer aponta ALGORITHM=COPY, LOCK=SHARED de 20260930_cartao_uid_varchar.sql:2 como R-13 e a correção é coluna nova com backfill em lotes e troca de leitura (expand → migrate → contract) ou ferramenta online (gh-ost ou pt-online-schema-change); apenas apagar a cláusula ALGORITHM/LOCK e manter o MODIFY COLUMN não conta",
+    "O parecer afirma que no MySQL o código 1205 é lock wait timeout e o deadlock é 1213, e o trecho de retry corrigido de ValidacaoRepository.kt trata 1213 e reexecuta a transação inteira (rollback e novo laço sobre todas as validações), não só a última instrução",
+    "O parecer corrige a afirmação de docs/banco.md: o nível de isolamento default do InnoDB é REPEATABLE READ, não READ COMMITTED, e alerta contra portar a suposição do PostgreSQL para o MySQL",
+    "O parecer não aponta 20260815_idx_dispositivo.sql (que já tem ALGORITHM=INPLACE, LOCK=NONE) como R-22/R-03 nem como problema a corrigir, e não trata o CHAR(14) do comentário da linha 1 de 20260930_cartao_uid_varchar.sql como achado R-04"
+  ]
+}

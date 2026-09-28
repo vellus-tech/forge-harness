@@ -1,0 +1,65 @@
+{
+  "expectations": [
+    {
+      "text": "docs/product/trd/trd.md passou a conter as seções 'Observabilidade' (com logs estruturados, correlation_id, métricas RED/alerta de p99 e health checks derivados de NFRD-OBS-01/02) e 'Pontos a Validar', ausentes na versão da fixture — a correção foi feita no TRD, não só descrita no relatório.",
+      "passed": true,
+      "evidence": "`grep -n '^#' with_skill/run-1/work/docs/product/trd/trd.md` mostra '## 14. Observabilidade' (linha 74) e '## 22. Pontos a Validar' (linha 137); `git show HEAD:docs/product/trd/trd.md | grep -n '^#'` confirma que ambas estavam ausentes na fixture (13→15 e 21→23). A seção 14 (linhas 74-82) traz logs estruturados JSON com correlation_id (NFRD-OBS-01), métricas RED com alerta de p99 > 300 ms por 5 min e health checks liveness/readiness (NFRD-OBS-02). A seção 22 tem tabela VAL-TRD-01..05. Cópia em outputs/docs/product/trd/trd.md idêntica (cmp)."
+    },
+    {
+      "text": "A seção de eventos de docs/product/trd/trd.md lista ValidacaoRegistrada.v1 com produtor validacao-api (ou módulo validacao) e consumidores tarifacao e liquidacao, no canal dominio.eventos/RabbitMQ (ADR-0004).",
+      "passed": true,
+      "evidence": "trd.md seção 9 (linha ~53): '| `ValidacaoRegistrada.v1` | validacao-api | tarifacao-svc, liquidacao-worker | `dominio.eventos` (RabbitMQ, exchange topic — ADR-0004) | DLQ por consumidor | 7 dias (ADR-0004) | Consumidor idempotente por `event_id` (ADR-0004) |'."
+    },
+    {
+      "text": "A tabela Controle de Versão de docs/product/trd/trd.md mantém a linha v0.1 e ganha uma linha nova (versão maior que v0.1) cuja descrição menciona ajustes do TRD Validator.",
+      "passed": true,
+      "evidence": "Controle de Versão (linhas 5-8): mantém '| v0.1 | 2026-09-02 | Primeira versão para revisão |' e acrescenta '| v0.2 | 2026-09-26 | Ajustes aplicados pelo TRD Validator: adicionada seção 14 (Observabilidade); adicionada seção 22 (Pontos a Validar); incluído evento `ValidacaoRegistrada.v1` ...'."
+    },
+    {
+      "text": "Existe docs/product/trd/trd-validation-report.md com uma seção de Ajustes Aplicados no TRD em tabela, com IDs no formato ADJ-TRD-NNN (três dígitos) e uma coluna de Fonte Utilizada preenchida com o insumo de origem (ex.: NFRD-OBS-01, Modules, DDD).",
+      "passed": true,
+      "evidence": "Existe work/docs/product/trd/trd-validation-report.md (cópia idêntica em outputs/, cmp). Seção '## 17. Ajustes Aplicados no TRD' (linha 260) é tabela com colunas 'ID | Seção do TRD | Tipo de Ajuste | Descrição do Ajuste | Fonte Utilizada'; linhas ADJ-TRD-001..009 (todos com 3 dígitos, `grep -oE 'ADJ-TRD-[0-9]+' | awk length` = 11 único), fonte preenchida, ex.: 'ADJ-TRD-001 ... NFRD-OBS-01, NFRD-OBS-02', 'ADJ-TRD-003 ... DDD Published Language, Modules, FRD-VAL-01', 'ADJ-TRD-007 ... Modules'. Ressalva menor: ADJ-TRD-002 tem fonte 'Processo do agente' e ADJ-TRD-009 'Seções 5, 8, 15 do próprio TRD' (não insumos externos), mas a coluna está preenchida em todas as linhas."
+    },
+    {
+      "text": "O relatório declara um Parecer Final que é exatamente 'Aprovado', 'Aprovado com Ressalvas' ou 'Reprovado', acompanhado de seção de Métricas da Validação com contagem de ajustes aplicados e de achados por severidade (Crítica/Alta/Média/Baixa).",
+      "passed": true,
+      "evidence": "Relatório linha 21-23 '### Parecer Final' → 'Aprovado com Ressalvas' e seção '## 22. Parecer Final' → '### Classificação' → 'Aprovado com Ressalvas' (linhas 319-323). '## 21. Métricas da Validação' (linha 303) tem 'Ajustes aplicados diretamente | 9', 'Achados críticos | 0', 'Achados altos | 1', 'Achados médios | 1', 'Achados baixos | 0' — consistente com a seção 18 (FIND-TRD-001 Alta, FIND-TRD-002 Média)."
+    },
+    {
+      "text": "git status/diff no projeto mostra alterações apenas em docs/product/trd/ (trd.md modificado e relatório novo, opcionalmente outros arquivos trd-*.md); prd.md, frd.md, nfrd.md, os ADRs, ddd-segmentation.md, modules/README.md e data-model.md estão byte a byte iguais ao commit da fixture.",
+      "passed": true,
+      "evidence": "`git -C with_skill/run-1/work status --short -- docs/product` → ' M docs/product/trd/trd.md' e '?? docs/product/trd/trd-validation-report.md'; `git diff --quiet HEAD -- docs/product/prd docs/product/frd-nfrd docs/product/adr docs/product/ddd docs/product/modules docs/product/data-model` retorna 0 (insumos intactos). As entradas ' D .claude/agents/...', ' D .forge/skills/...' do git status completo vêm da fixture (setup.sh linha 14: `rm -rf \"$TARGET/.forge/skills\" \"$TARGET/.forge/agents\" ...` executado após o commit da linha 12) e aparecem idênticas na configuração without_skill, logo não são alterações do agente."
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 278000,
+    "total_duration_seconds": 278
+  },
+  "claims": [
+    {
+      "claim": "Diagrama Mermaid da seção 19 não foi atualizado por risco de representação incorreta",
+      "type": "process",
+      "verified": true,
+      "evidence": "Relatório seção 18, FIND-TRD-001 (Alta); decisão questionável: a mudança era derivável dos insumos e o baseline sai com diagrama inconsistente com a seção 9."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A seção de eventos de docs/product/trd/trd.md lista ValidacaoRegistrada.v1 com produtor validacao-api (ou módulo validacao) e consumidores tarifacao e liquidacao, no canal dominio.eventos/RabbitMQ (ADR-0004).",
+        "reason": "Não verifica o diagrama Mermaid da seção 19: with_skill deixou o diagrama sem ValidacaoRegistrada.v1 (FIND-TRD-001, não corrigido) enquanto without_skill o atualizou; também não checa se retry/DLQ do evento novo tem base nos insumos (without_skill inventou 'DLQ liquidacao.dlq')."
+      },
+      {
+        "reason": "Nenhuma asserção cobre a coerência interna do relatório (ex.: toda linha ADJ-TRD corresponde a uma alteração real no git diff do trd.md); um relatório com ajustes fictícios passaria na asserção 4."
+      }
+    ],
+    "overall": "Asserções 1, 3, 4 e 5 são discriminantes (dependem do protocolo do agente); 2 e 6 passam nas duas configurações."
+  }
+}

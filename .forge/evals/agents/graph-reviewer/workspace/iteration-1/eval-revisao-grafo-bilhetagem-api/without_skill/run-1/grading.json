@@ -1,0 +1,52 @@
+{
+  "expectations": [
+    {
+      "text": "docs/qualidade/revisao-grafo-bilhetagem.md contém uma linha que começa exatamente com `## Status: ` seguida de `CURADORIA RECOMENDADA` ou `NÃO CONFIÁVEL` (não `CONFIÁVEL` sozinho), e há uma ação recomendada explícita logo após essa linha",
+      "passed": false,
+      "evidence": "`grep -n '^## Status: ' outputs/docs/qualidade/revisao-grafo-bilhetagem.md` → nenhuma ocorrência. O documento usa `## Veredito` (linha 5) seguido de prosa em negrito '**Não confiável como pré-flight isolado...**' (linha 7): o conteúdo é compatível com NÃO CONFIÁVEL, mas o formato de contrato exigido (linha começando exatamente com `## Status: `) não existe."
+    },
+    {
+      "text": "O documento registra scripts/conciliacao/ (ou os arquivos .rb dele) como código fora do grafo por linguagem não suportada pelo extractor nativo e o qualifica como candidato a tree-sitter opt-in ou cita a ADR 0001",
+      "passed": false,
+      "evidence": "`grep -n -i 'ruby|.rb|conciliacao|tree-sitter|ADR 0001' outputs/docs/qualidade/revisao-grafo-bilhetagem.md` → nenhuma ocorrência. Pior: a linha 3 afirma 'único idioma `ts`', repetindo o campo languages sem notar census ruby: 3 no graph.json; a lacuna de linguagem passou despercebida."
+    },
+    {
+      "text": "O documento classifica ../application/calcular-tarifa.js e ../domain/desconto.js como edges internos que deveriam resolver (arquivo .ts existe; causa: sufixo .js do NodeNext) e ../../config/tarifas.json como alvo não-código/esperado — os três nomeados individualmente, não só a contagem 3",
+      "passed": true,
+      "evidence": "outputs/docs/qualidade/revisao-grafo-bilhetagem.md linhas 31-33 nomeiam individualmente `../application/calcular-tarifa.js`, `../domain/desconto.js` e `../../config/tarifas.json` ('import de dado, não de código — esperado'); linha 35 atribui a causa ao 'padrão NodeNext de import com sufixo .js apontando para um arquivo-fonte .ts' e linha 25 afirma que os dois .ts são consumidos por tarifa-controller.ts (internos que deveriam resolver)."
+    },
+    {
+      "text": "O documento afirma que src/domain/desconto.ts é órfão por perda do extractor (importado por src/api/tarifa-controller.ts) e trata src/jobs/expurgo-legado.ts de forma distinta, como isolado de fato/candidato a código morto",
+      "passed": true,
+      "evidence": "outputs/docs/qualidade/revisao-grafo-bilhetagem.md linha 25: 'Órfãos falsos ... src/domain/desconto.ts ... consumidos por src/api/tarifa-controller.ts, só que por imports que o resolvedor do grafo marcou como não resolvidos ... falso órfão introduzido pelo bug de resolução'; linha 21: expurgo-legado.ts 'Órfão real, confirmado ... Candidato a remoção'. Distinção feita. (Ressalva: estende o rótulo de falso órfão a calcular-tarifa.ts, que o validate não lista como órfão, mas isso não invalida a asserção.)"
+    },
+    {
+      "text": "O documento nomeia src/domain/tarifa.ts e src/shared/money.ts como nós críticos (alto fan-in) com summary stale e recomenda curadoria deles via file-analyzer (o nome do agente aparece)",
+      "passed": false,
+      "evidence": "`grep -n 'file-analyzer' outputs/docs/qualidade/revisao-grafo-bilhetagem.md` → nenhuma ocorrência. As linhas 15-17 registram 0/10 summaries, mas não nomeiam tarifa.ts/money.ts como nós críticos por fan-in; a linha 41 só pede 'uma passada de geração de summaries', sem priorização nem o agente."
+    },
+    {
+      "text": "`git -C <alvo> status --porcelain -- src/ scripts/ config/ tsconfig.json` sai vazio (o revisor não corrige imports nem código)",
+      "passed": true,
+      "evidence": "`git -C run-1/work status --porcelain -- src/ scripts/ config/ tsconfig.json` → saída vazia (0 linhas, rc=0). Deleções em .claude/agents/ aparecem no status geral, fora do escopo verificado e idênticas às da configuração with_skill (setup da fixture)."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 3,
+    "total": 6,
+    "pass_rate": 0.5
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "`git -C <alvo> status --porcelain -- src/ scripts/ config/ tsconfig.json` sai vazio (o revisor não corrige imports nem código)",
+        "reason": "Não discrimina: ambas as configurações passam trivialmente, e o pathspec não pegaria escrita indevida em .forge/graph/cache/summaries.json (o agente poderia curar summaries sozinho). Sugiro incluir .forge/graph/ no pathspec."
+      },
+      {
+        "reason": "Nenhuma asserção cobra explicitamente que o validate NÃO reporta a lacuna Ruby (ênfase do expected_output); o baseline afirmou 'único idioma ts', erro que merece asserção negativa."
+      }
+    ],
+    "overall": "Asserções 1, 2 e 5 discriminam; 3, 4 e 6 passam nas duas configurações."
+  }
+}

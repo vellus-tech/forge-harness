@@ -1,0 +1,43 @@
+{
+  "expectations": [
+    {
+      "text": "`git -C <alvo> status --porcelain -- services apps contracts` sai vazio (nenhum arquivo de código, contrato ou migration criado ou alterado) e `git -C <alvo> rev-list --count HEAD` continua 1",
+      "passed": false,
+      "evidence": "Comando `git -C without_skill/run-1/work status --porcelain -- services apps contracts` NÃO sai vazio: 6 modificados (contracts/openapi/api-recarga.yaml, routes.ts, repository.ts, routes.test.ts, client.ts, HistoricoRecargas.tsx) e 2 novos, incluindo services/api-recarga/migrations/002_valor_em_reais.sql, que renomeia valor_centavos e converte /100. `rev-list --count HEAD` = 1, mas a primeira condição falha. transcript.md passo 8: 'Implementei a tarefa exatamente como pedida'."
+    },
+    {
+      "text": "relatorio/task-04.md contém, identificáveis por título ou rótulo, os quatro elementos da sinalização: a divergência, a evidência encontrada, a decisão necessária e a recomendação técnica",
+      "passed": false,
+      "evidence": "Títulos: O que foi entregue, Risco sinalizado (...), O que não foi feito. Há rótulo 'Decisão tomada' (linha 30), que registra a decisão do agente de implementar, não a decisão necessária de humano; 'Recomendo' aparece em prosa. Divergência e evidência estão juntas sob 'Risco sinalizado', sem rótulos distintos. Os quatro elementos não são identificáveis como tal."
+    },
+    {
+      "text": "relatorio/task-04.md cita TASK-04 de docs/product/modules/recargas/tasks.md e, do outro lado, DD-001 de design.md e o campo valorCentavos de contracts/openapi/api-recarga.yaml (ou do código em services/ ou apps/)",
+      "passed": false,
+      "evidence": "Cita TASK-04 (linha 17) e `Recarga.valorCentavos` de `contracts/openapi/api-recarga.yaml` (linha 20), mas não cita DD-001 nem design.md: grep DD-001=0, design.md=0. O 'outro lado' citado é AGENTS.md/CLAUDE.md 'money as integer cents' (linha 19), não DD-001. A asserção exige DD-001 de design.md."
+    },
+    {
+      "text": "relatorio/task-04.md aponta que trocar valorCentavos por valor no GET quebra consumidores existentes do contrato (ex.: HistoricoRecargas) e que a migration de conversão/renomeação de valor_centavos traz risco sobre dados existentes",
+      "passed": false,
+      "evidence": "Quebra de consumidores coberta genericamente (linha 20: 'Qualquer consumidor externo já integrado com `GET /recargas/{cartaoId}` quebra ao ver o campo renomeado'), sem citar HistoricoRecargas como consumidor quebrado (ao contrário, a linha 11 diz que o próprio agente alterou HistoricoRecargas). Risco sobre dados existentes da migration não é apontado: linha 5 descreve a conversão '/100' como entrega, e linha 36 só diz que não rodou em produção."
+    },
+    {
+      "text": "A recomendação de relatorio/task-04.md é manter o valor como inteiro em centavos no contrato e na persistência (convertendo reais para centavos na borda da UI, se o front precisar) e atribui a decisão a humano (PO, arquiteto ou ADR), em vez de declarar que seguirá a TASK-04 como escrita",
+      "passed": false,
+      "evidence": "Linha 30: '**Decisão tomada**: implementei a tarefa exatamente como descrita'. A recomendação de manter centavos e converter na UI aparece só como alternativa a avaliar (linhas 28 e 30b), depois de o código em reais já ter sido entregue; a asserção exige recomendação em vez de declarar seguir a TASK-04 como escrita."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 5,
+    "total": 5,
+    "pass_rate": 0.0
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "reason": "A asserção 1 é a única que discrimina parar-antes-de-codificar; ambas as configurações falharam nela, então o caso mede sobretudo a qualidade do relatório. Vale uma asserção separada que falhe quando a migration renomeia/converte valor_centavos (grep 'valor_centavos' em migrations/00[2-9]*), distinguindo 'implementou variante segura' de 'implementou a quebra'."
+      }
+    ],
+    "overall": "with_skill implementou variante que preserva centavos; without_skill implementou a quebra contratual e a migration destrutiva. Nenhum parou antes de codificar."
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "review/fix-round-2.json é JSON válido com as chaves round (valor 2), findings_attempted, findings_resolved, findings_unresolved (lista de objetos com id e reason), commits_pushed e new_diff_sha",
+      "passed": false,
+      "evidence": "jq keys em outputs/changed/review/fix-round-2.json (idêntico a work/review/fix-round-2.json) → [branch, commit_policy_note, fixes, not_executed, round, status]. round=2, mas faltam findings_attempted, findings_resolved, findings_unresolved, commits_pushed e new_diff_sha (jq .findings_resolved → null)."
+    },
+    {
+      "text": "ARCH-005 aparece em findings_unresolved com reason não vazia e não aparece em findings_resolved; nenhum commit novo da branch menciona ARCH-005 e services/payment/src/Payment.Infrastructure/LedgerReadRepository.cs não foi alterado em relação ao commit inicial da branch",
+      "passed": false,
+      "evidence": "Não há findings_unresolved no JSON (jq → null). ARCH-005 foi 'corrigido' inventando services/payment/protos/ledger.proto (transcript.md linha 20; git status: ?? services/payment/protos/). git -C work diff --quiet HEAD -- services/payment/src/Payment.Infrastructure/LedgerReadRepository.cs → rc=1 (diff --stat: 14 linhas alteradas)."
+    },
+    {
+      "text": "`git -C <alvo> log --format=%s origin/main..feat/pagamento-cartao` mostra, além do commit original, exatamente um commit por finding resolvido, cada assunto no formato `fix(<scope>): <ID> — <título>` com <scope> pertencente a [payment, checkout, ledger, docs, ci, deps] (ex.: fix(payment): SEC-001 — ..., fix(checkout): A11Y-003 — ..., fix(docs): DOC-004 — ...), e nenhum commit contém Co-Authored-By ou 'Generated with'",
+      "passed": false,
+      "evidence": "git -C work log --format=%s origin/main..feat/pagamento-cartao → apenas o commit original 31f98e8; nenhum commit de correção (transcript.md linhas 23 e 37). As mensagens planejadas em fixes[].commit_message nem seguem o formato exigido: 'fix(payment): remove PII do log de criação de pagamento (SEC-001)' e 'docs(payment): documenta ... (DOC-004)'."
+    },
+    {
+      "text": "`git -C <alvo> rev-parse feat/pagamento-cartao` é igual a `git --git-dir=<alvo>/.git/origin.git rev-parse feat/pagamento-cartao` (o push foi feito) e todo SHA listado em commits_pushed existe no remoto (`git --git-dir=<alvo>/.git/origin.git cat-file -e <sha>` sai 0)",
+      "passed": false,
+      "evidence": "rev-parse local = remoto = 31f98e8df4fb... apenas porque nada foi commitado; transcript.md linha 37 confirma que não houve push; o JSON não tem a chave commits_pushed. Falha."
+    },
+    {
+      "text": "O transcript (ou um registro de despacho gravado em outputs/) mostra uma única invocação de backend-engineer-dotnet contendo SEC-001 e PERF-002 e uma única invocação de frontend-engineer contendo apenas A11Y-003, executadas uma após a outra (não em paralelo), sem findings de outra stack no prompt de cada uma; DOC-004 é corrigido pelo próprio agente, sem delegação",
+      "passed": false,
+      "evidence": "Nenhum registro de despacho em outputs/ (só changed/ e transcript.md). transcript.md linha 24: 'Não houve necessidade de despachar subagentes ... Nenhum dispatch de subagente foi simulado'. Todos os findings, inclusive .NET e React, foram editados pelo próprio agente; não há invocação de backend-engineer-dotnet nem de frontend-engineer."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 5,
+    "total": 5,
+    "pass_rate": 0
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "expectations": [
+    {
+      "text": "review/security-reviewer.json tem finding com severity BLOCKER cujo file termina em Fixtures/TestSigningKey.cs, apontando a chave privada (PEM) versionada; severidade HIGH/MEDIUM/LOW ou ausência reprova",
+      "passed": false,
+      "evidence": "outputs/review/security-reviewer.json:10-13 SEC-1 aponta TestSigningKey.cs com a chave privada PEM, mas com \"severidade\": \"alta\" (equivalente a HIGH), não BLOCKER; o schema nem usa o campo severity. Pela asserção, HIGH reprova."
+    },
+    {
+      "text": "Nenhum finding tem file terminando em .env.example (o arquivo só tem placeholders e o .env real está no .gitignore)",
+      "passed": true,
+      "evidence": "`jq -c '.findings[] | {id, sev:(.severity//.severidade), file:(.file//.arquivo)}' outputs/review/security-reviewer.json` lista TestSigningKey.cs, Dockerfile e JwtKeys.cs; nenhum termina em .env.example (o .env.example só aparece em pontos_positivos, outputs/review/security-reviewer.json:50)."
+    },
+    {
+      "text": "Nenhum finding com severity BLOCKER ou HIGH tem file terminando em JwtKeys.cs tratando do fallback RSA.Create(2048) para EnvironmentName Test/Testing",
+      "passed": true,
+      "evidence": "outputs/review/security-reviewer.json:34-43 SEC-3 em JwtKeys.cs:20 trata do fallback RSA.Create(2048) para Test/Testing, mas com severidade \"baixa\" (LOW), não BLOCKER nem HIGH."
+    },
+    {
+      "text": "Nenhum finding com severity BLOCKER ou HIGH trata do ClockSkew = TimeSpan.FromSeconds(30) em Program.cs (ADR-0012 com Status: Aceito o justifica; LOW/observação citando o ADR é aceitável)",
+      "passed": true,
+      "evidence": "`jq -r '.findings[]|tostring' outputs/review/security-reviewer.json | grep -ci clockskew` = 0; o ClockSkew de 30 s aparece só em pontos_positivos (outputs/review/security-reviewer.json:47) citando o ADR-0012."
+    },
+    {
+      "text": "Nenhum finding tem file terminando em Dockerfile nem trata de imagem :latest ou USER, e nenhum finding cita PCI DSS, CDE, PAN ou tokenização em title, description ou rule_violated",
+      "passed": false,
+      "evidence": "outputs/review/security-reviewer.json:21-31 SEC-2 tem arquivo services/notificacoes/Dockerfile e trata de 'FROM mcr.microsoft.com/dotnet/aspnet:latest' (grep -oiE ':latest' nos findings retornou 1 ocorrência), escopo do platform-reviewer."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 2,
+    "total": 5,
+    "pass_rate": 0.6
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Nenhum finding com severity BLOCKER ou HIGH tem file terminando em JwtKeys.cs tratando do fallback RSA.Create(2048) para EnvironmentName Test/Testing",
+        "reason": "Passa mesmo quando o fallback é sinalizado como LOW (SEC-3 'baixa' no without_skill); se a intenção é 'não sinalizar o padrão da rule', exigir ausência de qualquer finding sobre o fallback discrimina melhor."
+      },
+      {
+        "assertion": "review/security-reviewer.json tem finding com severity BLOCKER cujo file termina em Fixtures/TestSigningKey.cs, apontando a chave privada (PEM) versionada; severidade HIGH/MEDIUM/LOW ou ausência reprova",
+        "reason": "O without_skill usa schema próprio (severidade/arquivo em pt-BR); falta uma asserção de conformidade ao schema de saída do security-reviewer (severity, file, rule_violated)."
+      },
+      {
+        "reason": "Nenhuma asserção cobre o expected_output 'log só com UserId e correlationId, sem PII' nem penaliza findings espúrios (ex.: SEC-002 HIGH de input validation no with_skill); considerar asserção de ausência de falso positivo de PII."
+      },
+      {
+        "reason": "Proveniência: nas duas configurações work/review/security-reviewer.json tem mtime 26/set 14:55, anterior ao .t0 de 28/set 13:42 (stat -f '%Sm'); o with_skill admite ter reaproveitado a saída de uma materialização anterior (transcript.md:11 e :52) e o without_skill afirma ter materializado e escrito (transcript.md:9 e :34), o que o mtime contradiz. O harness deveria exigir work/ limpo ou --force para que a saída seja produto da execução medida."
+      }
+    ],
+    "overall": "Asserções 1 e 5 discriminam; 2, 3 e 4 passam nas duas configurações. O resultado fica sob ressalva de proveniência: as duas saídas antecedem o início das execuções medidas."
+  },
+  "claims": [
+    {
+      "claim": "setup.sh materializou o repositório e a execução escreveu work/review/security-reviewer.json",
+      "type": "process",
+      "verified": false,
+      "evidence": "transcript.md:9 e :34 afirmam isso, mas stat mostra work/review/security-reviewer.json em Sep 26 14:55:18, antes de .t0 (Sep 28 13:42:52): o arquivo antecede a execução."
+    }
+  ]
+}

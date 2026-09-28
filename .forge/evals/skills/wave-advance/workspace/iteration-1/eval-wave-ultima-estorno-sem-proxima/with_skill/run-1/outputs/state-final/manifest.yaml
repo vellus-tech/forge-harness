@@ -1,0 +1,5 @@
+change_id: 2026-09-estorno-tarifa-duplicada
+type: bugfix
+scale: 3
+status: implementing
+title: Estorno automático de tarifa cobrada em duplicidade no validador

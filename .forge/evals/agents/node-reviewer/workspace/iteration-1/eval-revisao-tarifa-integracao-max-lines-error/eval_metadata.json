@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "revisao-tarifa-integracao-max-lines-error",
+  "prompt": "No tarifador, a branch feat/tarifa-integracao adiciona a cotação de integração ônibus+metrô (25% de desconto no segundo embarque dentro de 120 min) em src/tarifas/. O lint do projeto já tem as regras forge-quality cabeadas no eslint.config.mjs — na retro a gente endureceu o max-lines para error. Revisa o Node/TS do que a branch mudou em relação à main e grava os findings em review/node-review.json (formato do code-evaluator) e o resumo em review/node-review.md.",
+  "assertions": [
+    "review/node-review.json tem um finding sobre `forge-quality/max-lines` com severidade \"error\" em eslint.config.mjs (linha 12), com severity MEDIUM (não HIGH nem BLOCKER) e fix_suggested indicando \"warn\"",
+    "Nenhum finding em review/node-review.json tem file dentro de src/legacy/ (RelatorioHelper, any, catch vazio, export let e console.log do legado ficam fora, pois a branch não tocou esse arquivo)",
+    "Não há finding de promise flutuante/floating-promise em src/tarifas/infra/pg-tarifa-repository.ts linha 11, e review/node-review.md registra que esse FOUND foi julgado exceção legítima (promise retornada ao chamador)",
+    "Não há finding de interface com implementação única para TarifaRepository em review/node-review.json, e review/node-review.md registra o julgamento de que é porta do domínio (implementada na infra, com fake no teste)",
+    "review/node-review.json tem um finding em src/tarifas/aplicacao/cotar-integracao.test.ts linha 14 apontando que o teste afirma `expect(true).toBe(true)` e não verifica o valor calculado da integração"
+  ]
+}

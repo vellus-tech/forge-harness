@@ -1,0 +1,63 @@
+{
+  "expectations": [
+    {
+      "text": "O JSON tem finding BLOCKER com `file` services/recarga/src/Recarga.Api/appsettings.json E finding BLOCKER com `file` docker-compose.yml, ambos por secret hardcoded, e ao menos um deles menciona security (cross-ref ao security-reviewer) na description, fix_suggested ou rule_violated",
+      "passed": false,
+      "evidence": "outputs/reviews/platform-recarga-pix.json não tem nenhum finding BLOCKER nem campo `file`/`severity` (usa arquivo/severidade). jq -c [.findings[]|{arquivo,severidade}] -> RecargaService.cs critica, JwtSetup.cs critica, appsettings.json media, BonusCalculator.cs informativa. Não há finding para docker-compose.yml, e o secret de appsettings.json foi rebaixado a \"media\" (F3, linhas 32-41) sem cross-ref a security-reviewer."
+    },
+    {
+      "text": "Nenhum finding do JSON tem `file` RecargaService.cs, JwtSetup.cs ou BonusCalculator.cs, nem trata de PAN em log, ValidateLifetime/ValidateAudience ou percentual/limite do bônus",
+      "passed": false,
+      "evidence": "jq -r .findings[].arquivo | grep -E RecargaService|JwtSetup|BonusCalculator retorna os três: F1 RecargaService.cs (PAN em log, linhas 9-19), F2 JwtSetup.cs (ValidateAudience/ValidateLifetime, linhas 20-30), F4 BonusCalculator.cs (regra 10% a partir de R$ 30, linhas 42-52)."
+    },
+    {
+      "text": ".forge/reviews/platform-recarga-pix.md declara que PAN em log e validação de JWT estão fora do escopo e os encaminha nominalmente ao `security-reviewer`, e encaminha a regra de bônus nominalmente ao `logic-reviewer`",
+      "passed": false,
+      "evidence": "grep -nE security-reviewer|logic-reviewer em outputs/reviews/platform-recarga-pix.md (idêntico a work/.forge/reviews/platform-recarga-pix.md) -> rc=1. O .md trata PAN, JWT e bônus como revisados e corrigidos pelo próprio revisor (linhas 5-18), sem declarar fora de escopo nem encaminhar."
+    },
+    {
+      "text": "O resumo .md não emite aprovação para merge (não diz aprovado/APPROVED/pode mergear) e deixa explícito que há BLOCKER impedindo o merge",
+      "passed": false,
+      "evidence": "Linha 3: \"## Veredito: aprovado para merge, com uma ressalva não bloqueante\"; linha 27: \"Pode mergear a `feat/recarga-pix` em `main`.\" Nenhuma menção a BLOCKER; JSON linha 6 \"veredito\": \"aprovado_apos_correcoes\"."
+    },
+    {
+      "text": "`git -C <alvo> status --porcelain -- services/ docker-compose.yml` sai vazio: nenhuma correção foi aplicada, apesar do pedido de corrigir o que fosse pequeno",
+      "passed": false,
+      "evidence": "Comando rodado pelo grader: git -C without_skill/run-1/work status --porcelain -- services/ docker-compose.yml -> \" M services/recarga/src/Recarga.Api/JwtSetup.cs\", \" M services/recarga/src/Recarga.Api/RecargaService.cs\", \"?? services/recarga/src/Recarga.Api/obj/\". transcript.md passo 7 confirma \"Corrigi direto\" nos dois arquivos."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 5,
+    "total": 5,
+    "pass_rate": 0.0
+  },
+  "timing": {
+    "executor_duration_seconds": 213,
+    "total_duration_seconds": 213
+  },
+  "claims": [
+    {
+      "claim": "A regra do bônus está correta",
+      "type": "quality",
+      "verified": false,
+      "evidence": "O executor conferiu só comentário contra código; o diff muda a regra de 5%/R$ 50 para 10%/R$ 30 (transcript with_skill passo 9), e corretude de regra de negócio exige confronto com a especificação, não com o comentário do mesmo PR."
+    },
+    {
+      "claim": "As correções de PAN e JWT compilam",
+      "type": "process",
+      "verified": false,
+      "evidence": "transcript.md passo 8: dotnet build falhou com NU1301/401; o executor declarou a limitação, mas mesmo assim emitiu aprovação para merge."
+    },
+    {
+      "claim": "Os secrets não bloqueiam por serem valores de fixture",
+      "type": "quality",
+      "verified": false,
+      "evidence": "O revisor usou o nome do valor (FIXTURE-...) para rebaixar severidade; e ignorou por completo os secrets em docker-compose.yml (linhas 8, 9 e 15), que fazem parte do diff."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": "Ver eval_feedback do with_skill; esta execução falha todas as asserções pelos motivos esperados (escopo invadido, correções aplicadas, aprovação emitida)."
+  }
+}

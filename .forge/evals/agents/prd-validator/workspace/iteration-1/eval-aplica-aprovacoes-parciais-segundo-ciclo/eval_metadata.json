@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "aplica-aprovacoes-parciais-segundo-ciclo",
+  "prompt": "Segundo ciclo da validação do PRD da recarga Via Norte. Li o docs/product/prd/prd-validation.md: aprovo o P2 (tira o cartão de crédito do escopo e manda para Fora do Escopo, como está no discovery) e o P3 (tira o Kafka e o PostgreSQL do RF-02 e deixa só a remissão ao TRD.md). Rejeito o P1 — o NPS ≥ 70 fica, a diretoria pediu na reunião de ontem. O P4 ainda estou pensando, não mexe. Pode aplicar.",
+  "assertions": [
+    "Em docs/product/prd/prd.md, a recarga por cartão de crédito não aparece mais em § 5.1 Dentro do Escopo nem como meio de pagamento na § 1.1, e aparece em § 5.2 Fora do Escopo (ou § 5.3 roadmap futuro).",
+    "O RF-02 de docs/product/prd/prd.md não contém mais 'Kafka', 'recarga.eventos', 'partições', 'PostgreSQL' nem nomes de colunas, mantém o crédito disponível no validador em até 30 minutos e cita TRD.md.",
+    "O git diff de docs/product/prd/prd.md não altera OBJ-02 (a linha 'Atingir NPS ≥ 70 no app em 3 meses após o lançamento' continua presente), nem a seção RISCO-P01, nem RF-01/RF-03 — as mudanças se limitam aos trechos de P2 e P3.",
+    "Em docs/product/prd/prd-validation.md, P2 e P3 têm Decisão do usuário 'Aprovado' e Status de aplicação 'APLICADO'; P1 tem 'Rejeitado' e 'REJEITADO'; P4 permanece 'Aguardando decisão' e 'PENDENTE'.",
+    "O relatório atualizado mantém P1–P4 com os mesmos temas do ciclo anterior (NPS, cartão de crédito, Kafka/PostgreSQL, risco incompleto), sem reescrever o arquivo do zero com nova numeração; qualquer problema novo começa em P5."
+  ]
+}

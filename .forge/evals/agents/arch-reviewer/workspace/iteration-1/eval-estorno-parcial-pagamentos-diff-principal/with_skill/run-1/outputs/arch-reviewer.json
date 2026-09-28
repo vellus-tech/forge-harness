@@ -1,0 +1,89 @@
+{
+  "reviewer": "arch-reviewer",
+  "findings": [
+    {
+      "id": "ARCH-001",
+      "severity": "BLOCKER",
+      "category": "arch",
+      "file": "services/pagamentos/src/Pagamentos.Domain/Pagamentos.Domain.csproj",
+      "line": 6,
+      "title": "Domain referencia Infrastructure, invertendo a regra de dependência",
+      "description": "O diff adiciona <ProjectReference Include=\"..\\Pagamentos.Infrastructure\\Pagamentos.Infrastructure.csproj\" /> ao Pagamentos.Domain.csproj. A matriz de referências permitidas é Domain → ∅; Infrastructure → Application, Domain. Essa referência inverte a seta e fecha um ciclo Infrastructure → Application → Domain → Infrastructure, que o MSBuild aceita silenciosamente por não detectar ciclos entre assemblies distintos apenas quando não há referência circular direta — aqui há: Domain.csproj agora referencia Infrastructure.csproj, e Infrastructure.csproj referencia Application.csproj e Domain.csproj, então o grafo de projetos passa a ser cíclico. Isso quebra a possibilidade de compilar Domain isoladamente, impede testar o domínio sem a infraestrutura e é a causa provável de ARCH-002 (MassTransit vazando para o domínio via referência transitiva de pacote).",
+      "fix_suggested": "Remover o <ItemGroup> com a ProjectReference para Infrastructure do Pagamentos.Domain.csproj. Domain não deve referenciar nenhum projeto interno.",
+      "rule_violated": ".forge/rules/architecture/clean-architecture.md#estrutura-de-projetos",
+      "confidence": "high"
+    },
+    {
+      "id": "ARCH-002",
+      "severity": "BLOCKER",
+      "category": "arch",
+      "file": "services/pagamentos/src/Pagamentos.Domain/Aggregates/Estorno.cs",
+      "line": 1,
+      "title": "Domain referencia MassTransit",
+      "description": "Estorno.cs importa `using MassTransit;` e usa `NewId.NextGuid()` para gerar o Id do agregado. MassTransit é uma dependência de mensageria (infraestrutura) e não deve ser conhecida pelo Domain — clean-architecture.md é explícito: 'Domain nunca referencia: Entity Framework, MassTransit, HttpClient, ASP.NET Core, qualquer pacote de infraestrutura.' O fato de o Domain.csproj ter passado a referenciar Infrastructure.csproj (ARCH-001) é o que torna esse `using` sequer compilável, o que reforça que as duas violações têm a mesma causa raiz.",
+      "fix_suggested": "Gerar o Id com Guid.NewGuid() (ou um gerador de identidade definido no próprio Domain) e remover o using MassTransit do agregado.",
+      "rule_violated": ".forge/rules/architecture/clean-architecture.md#estrutura-de-projetos",
+      "confidence": "high"
+    },
+    {
+      "id": "ARCH-003",
+      "severity": "BLOCKER",
+      "category": "arch",
+      "file": "services/pagamentos/src/Pagamentos.Domain/ValueObjects/ValorMonetario.cs",
+      "line": 4,
+      "title": "Objeto de valor com setters públicos",
+      "description": "ValorMonetario expõe `public decimal Valor { get; set; }` e `public string Moeda { get; set; } = \"BRL\";`. Objetos de valor devem ser imutáveis, com campos private readonly e sem setters (ddd.md #5, clean-architecture regra equivalente). Mutabilidade aqui permite alterar o valor monetário de um estorno após a criação do agregado, sem passar por nenhuma validação de invariante, e quebra igualdade por valor consistente.",
+      "fix_suggested": "Tornar ValorMonetario um sealed class ou record imutável, com construtor/factory que valida (ex.: valor >= 0) e implementa IEquatable<T> + GetHashCode, nos moldes do exemplo Money em ddd.md.",
+      "rule_violated": ".forge/rules/architecture/ddd.md#objetos-de-valor",
+      "confidence": "high"
+    },
+    {
+      "id": "ARCH-004",
+      "severity": "HIGH",
+      "category": "arch",
+      "file": "services/pagamentos/src/Pagamentos.Application/Abstractions/IEstornoRepository.cs",
+      "line": 1,
+      "title": "Interface de repositório definida na Application, não no Domain",
+      "description": "IEstornoRepository foi criada em Pagamentos.Application/Abstractions/. clean-architecture.md #7 e ddd.md #13 exigem que interfaces de repositório sejam definidas no Domain, com implementação no Infrastructure. Colocá-la na Application funciona para compilar (Application já referencia Domain), mas quebra a convenção do serviço e obriga o Domain a não ter como expressar seu próprio contrato de persistência.",
+      "fix_suggested": "Mover IEstornoRepository para Pagamentos.Domain (ex.: Pagamentos.Domain/Repositories/IEstornoRepository.cs), mantendo a implementação concreta em Pagamentos.Infrastructure.",
+      "rule_violated": ".forge/rules/architecture/clean-architecture.md#camada-de-domínio",
+      "confidence": "high"
+    },
+    {
+      "id": "ARCH-005",
+      "severity": "HIGH",
+      "category": "arch",
+      "file": "services/pagamentos/src/Pagamentos.Domain/Aggregates/Estorno.cs",
+      "line": 12,
+      "title": "Agregado sem construtor privado e factories Create/Reconstitute",
+      "description": "Estorno expõe um construtor público `public Estorno(Guid pagamentoId, ValorMonetario valor)` chamado diretamente pelo handler da Application. ddd.md #2-3 e clean-architecture.md #5 exigem construtor privado/internal com criação via factory estática `Create` (validando invariantes, como valor > 0 ou limite do estorno em relação ao pagamento original) e `Reconstitute` para reidratação a partir de persistência. Sem isso, nada impede a criação de um Estorno inválido a partir de qualquer camada que tenha uma referência ao tipo.",
+      "fix_suggested": "Tornar o construtor privado e expor Estorno.Create(pagamentoId, valor) com validação de invariantes, e Estorno.Reconstitute(...) para carga a partir do repositório.",
+      "rule_violated": ".forge/rules/architecture/ddd.md#entidades",
+      "confidence": "high"
+    },
+    {
+      "id": "ARCH-006",
+      "severity": "HIGH",
+      "category": "arch",
+      "file": "services/pagamentos/src/Pagamentos.Api/Controllers/EstornosController.cs",
+      "line": 6,
+      "title": "Endpoint público sem versionamento",
+      "description": "A rota `[Route(\"api/Estornos\")]` não inclui prefixo de versão. api-and-contracts.md exige que toda API seja versionada (`/api/v1/...`). Além disso, o handler recebe/retorna tipos primitivos (Guid, decimal) direto do Application, sem um DTO definido em Pagamentos.Contracts — o diff não toca em Pagamentos.Contracts.csproj apesar de introduzir um novo endpoint público, então não há contrato publicado/versionado para este caso de uso.",
+      "fix_suggested": "Mover a rota para /api/v1/estornos e introduzir um request/response DTO em Pagamentos.Contracts (ex.: SolicitarEstornoParcialRequest/Response) consumido pelo controller, em vez de tipos primitivos soltos.",
+      "rule_violated": ".forge/rules/architecture/api-and-contracts.md#versionamento",
+      "confidence": "high"
+    },
+    {
+      "id": "ARCH-007",
+      "severity": "MEDIUM",
+      "category": "arch",
+      "file": "services/pagamentos/src/Pagamentos.Api/Controllers/EstornosController.cs",
+      "line": 6,
+      "title": "Segmento de rota em PascalCase, deveria ser kebab-case",
+      "description": "O segmento \"Estornos\" está em PascalCase. api-and-contracts.md exige kebab-case para resources (ex.: /voyage-slots). Para um resource de uma palavra o efeito prático é usar minúsculas (\"estornos\"), não PascalCase.",
+      "fix_suggested": "Usar [Route(\"api/v1/estornos\")] em minúsculas.",
+      "rule_violated": ".forge/rules/architecture/api-and-contracts.md#nomenclatura-de-endpoints",
+      "confidence": "medium"
+    }
+  ]
+}

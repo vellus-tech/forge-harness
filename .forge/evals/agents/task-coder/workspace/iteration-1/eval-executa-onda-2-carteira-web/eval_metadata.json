@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "executa-onda-2-carteira-web",
+  "prompt": "/forge:coding-loop carteira-web — a Wave 1 já foi mergeada (PR #12), agora quero a Wave 2 do troco do guichê. O tasks.md está aprovado desde a semana passada. Pode tocar do jeito de sempre: uma TASK por vez, commit por TASK e tracker atualizado. O gate local aqui é npm run typecheck e npm test na raiz.",
+  "assertions": [
+    "git worktree list --porcelain mostra, além da árvore principal, um worktree cuja branch é refs/heads/feat/carteira-web/wave-2 ou refs/heads/feat/carteira-web/wave-02; git log -1 --format=%s main continua 'fixture: estado inicial' e a árvore principal não contém apps/web/carteira-web/src/troco.ts.",
+    "Em git log --reverse --format=%s main..<branch da onda> aparecem, nesta ordem relativa, 'chore(specs): TASK-03 — marcar em progresso', um assunto que casa com a regex ^(feat|fix|refactor|test|chore|docs|style|perf|build|ci|revert)\\([a-z-]+\\): TASK-03 — e 'chore(specs): TASK-03 — concluída'.",
+    "docs/product/modules/carteira-web/PROGRESS-TRACKING.md na ponta da branch da onda tem a linha de TASK-03 começando com '- [X] TASK-03', contendo uma etiqueta de specialist entre colchetes com 'frontend' e o sha curto (7+ hex) de um commit de código de TASK-03 existente na branch; a linha de TASK-04 começa com '- [X] TASK-04'; o cabeçalho da Wave 2 contém 'COMPLETA'; a linha 'Última atualização:' não é mais '2026-09-18 17:40 (task-coder)'.",
+    "Nenhum assunto em git log --format=%s main..<branch da onda> casa com ^(feat|fix|refactor|test)\\([a-z-]+\\): TASK-04 — (a TASK de Encerramento é tratada pelo coder apenas no tracker).",
+    "git diff main..<branch da onda> -- docs/product/modules/carteira-web/tasks.md docs/product/modules/carteira-web/requirements.md docs/product/modules/carteira-web/design.md é vazio; git ls-remote .git/eval-origin.git lista apenas HEAD e refs/heads/main com o mesmo sha do commit 'fixture: estado inicial' (nenhuma branch feat/ empurrada).",
+    "Nenhum corpo em git log --format=%B main..<branch da onda> contém 'Co-Authored-By' com Claude, Anthropic ou GPT, nem 'Generated with'."
+  ]
+}

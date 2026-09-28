@@ -1,0 +1,40 @@
+{
+  "expectations": [
+    {
+      "text": "Existe docs/product/prd/prd.md e nenhum outro arquivo de PRD foi criado fora desse caminho (ex.: docs/prd.md, PRD.md na raiz, docs/product/prd/portal-vt.md).",
+      "passed": true,
+      "evidence": "`find with_skill/run-1 -iname '*prd*' -not -path '*/.git/*' -not -path '*/.forge/*'` retorna apenas work/docs/product/prd/prd.md e sua cópia outputs/docs/product/prd/prd.md (`diff` entre as duas: idênticas); transcript.md passo 7 confirma a escrita em work/docs/product/prd/prd.md; nenhum outro arquivo de PRD."
+    },
+    {
+      "text": "O prd.md contém os 13 headings de nível 2 do template, na ordem: 1. Resumo Executivo, 2. Contexto e Problema, 3. Personas, 4. Visão do Produto e Objetivos, 5. Escopo do Produto, 6. Jornadas de Usuário, 7. Requisitos Funcionais, 8. Requisitos Não Funcionais, 9. Restrições, Premissas e Lacunas, 10. Riscos e Mitigações, 11. Métricas de Sucesso, 12. Documentos Relacionados, 13. Anexos — nenhuma suprimida ou fundida.",
+      "passed": true,
+      "evidence": "`grep -n '^## ' outputs/docs/product/prd/prd.md`: l.43 '1. Resumo Executivo', l.72 '2. Contexto e Problema', l.118 '3. Personas', l.154 '4. Visão do Produto e Objetivos', l.204 '5. Escopo do Produto', l.244 '6. Jornadas de Usuário', l.298 '7. Requisitos Funcionais', l.448 '8. Requisitos Não Funcionais', l.500 '9. Restrições, Premissas e Lacunas', l.551 '10. Riscos e Mitigações', l.610 '11. Métricas de Sucesso', l.678 '12. Documentos Relacionados', l.690 '13. Anexos' — todas na ordem (há um '## Sumário' extra na l.17, que não suprime nem funde seção)."
+    },
+    {
+      "text": "A § 9.3 tem tabela com códigos LAC-01, LAC-02... contínuos cobrindo pelo menos: meta de disponibilidade/volume de pico, prazo contratual de crédito com o CMT e base legal/retenção de dados dos colaboradores; e em nenhum lugar do documento aparece meta numérica de disponibilidade (ex.: 99,5%, 99,9%) ou de latência/RPS apresentada como requisito.",
+      "passed": true,
+      "evidence": "Tabela da § 9.3 (l.542-547) com LAC-01..LAC-06 contínuos (`grep -oE 'LAC-[0-9]+' | sort -u`): LAC-01 'Meta de disponibilidade do portal e prazo contratual de crédito junto ao CMT não informados', LAC-02 'Volume de pico ... não informado', LAC-03 'Base legal e prazo de retenção para dados pessoais de colaboradores'; LAC-06 cobre Pix. `grep -nE '99[,.][0-9]|%|RPS|p9[59]|uptime'` só casa a l.464, que diz que nenhum objetivo p95/p99 foi informado; § 8.1 tabela com 'Não definido'."
+    },
+    {
+      "text": "O prd.md não contém 'POST /v1/pedidos-recarga' nem 'pedido_recarga_item' como requisito ou capacidade; se RabbitMQ/Postgres forem citados, é apenas como item encaminhado ao TRD.md/ADR, nunca em RF-NN.",
+      "passed": true,
+      "evidence": "`grep -nE 'POST /v1|pedido_recarga_item|RabbitMQ|Postgres' outputs/docs/product/prd/prd.md` retorna vazio; o esboço técnico aparece só como 'API de pedidos, persistência relacional, fila assíncrona' em REST-02 (l.512-518), explicitamente encaminhado ao TRD.md, e não em nenhum RF-NN."
+    },
+    {
+      "text": "Os requisitos funcionais são numerados RF-01, RF-02, ... sem saltos nem duplicatas, e cada RF-NN traz 'Personas impactadas' com códigos P-NN existentes e 'Documentos filhos relacionados' apontando frd.md (ou FRD-XX.md); a matriz 7.1 lista os mesmos códigos.",
+      "passed": true,
+      "evidence": "`grep -n '^### RF-'`: RF-01 (l.304), RF-02 (l.323), RF-03 (l.341), RF-04 (l.360), RF-05 (l.377), sem saltos nem duplicatas; cada um tem '**Personas impactadas:**' com P-01/P-02/P-03 (definidas nas l.122, 133, 144) e '**Documentos filhos relacionados:** `frd.md`'; a matriz 7.1 (l.399-403) lista exatamente RF-01..RF-05."
+    },
+    {
+      "text": "Nenhum requisito, critério ou meta do prd.md usa 'rápido', 'intuitivo', 'amigável' ou 'simples' como critério; a fala da entrevistada, se citada, aparece convertida em critério mensurável ou registrada como lacuna.",
+      "passed": false,
+      "evidence": "`grep -niE 'rápid|intuitiv|amigáv|simples' outputs/docs/product/prd/prd.md` casa só a l.481 (§ 8.5): cita a fala 'o sistema novo tem que ser rápido e intuitivo' e declara que não é critério mensurável, o que evita usá-la como critério; porém não a converte em critério mensurável nem a registra como lacuna — a tabela LAC-01..06 da § 9.3 não contém item de usabilidade, só um encaminhamento em prosa ao nfrd.md/UXD.md. Além disso a mesma seção abre com 'O produto deve oferecer experiência adequada', requisito subjetivo. Na dúvida, reprovado."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 1,
+    "total": 6,
+    "pass_rate": 0.83
+  }
+}

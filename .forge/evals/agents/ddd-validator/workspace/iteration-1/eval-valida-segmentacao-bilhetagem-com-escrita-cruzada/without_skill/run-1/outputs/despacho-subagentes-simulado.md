@@ -1,0 +1,7 @@
+# Despacho de subagentes que teria feito (não executado — regras da eval proíbem spawn)
+
+A tarefa deste run é uma execução baseline ("without_skill") de um único agente, sem acesso ao protocolo do skill-creator/ddd-validator. Numa execução real fora do harness de eval, eu teria considerado dividir o trabalho assim, mas o volume de documentos (12 arquivos, todos curtos) não justificava paralelismo — o custo de coordenar excederia o de ler direto. Registro aqui apenas para documentar a decisão, como pedido pelas regras:
+
+- **Agente:** nenhum spawnado.
+- **Motivo de não spawnar:** conjunto de documentos pequeno (~2 páginas no total), leitura sequencial e cruzamento manual foram mais rápidos e mais confiáveis do que dividir em sub-tarefas paralelas com risco de perder o contexto cruzado entre ADRs, FRD e data model (o achado principal só aparece ao ler os dois lados da fronteira Recarga↔Carteira ao mesmo tempo).
+- Se o volume fosse maior (dezenas de bounded contexts), o despacho hipotético seria: um subagente por bounded context (modelo `haiku`, prompt: "liste violações de ownership de schema e nomenclatura de evento neste BC comparado ao event-storming e ao ADR-0002"), e um subagente final (modelo `sonnet`) para consolidar achados cruzados entre BCs, já que inconsistências de fronteira (como a encontrada aqui) exigem ver os dois lados simultaneamente e não são detectáveis por um agente que só vê um BC isolado.

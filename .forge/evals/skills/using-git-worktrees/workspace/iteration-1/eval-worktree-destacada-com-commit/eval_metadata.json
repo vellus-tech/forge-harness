@@ -1,0 +1,13 @@
+{
+  "eval_id": 2,
+  "eval_name": "worktree-destacada-com-commit",
+  "prompt": "Ontem abri uma worktree em .forge/worktrees/agent-tarifa-noturna pra feature de tarifa noturna do módulo fare (desconto entre 22h e 5h) e já deixei um commit lá com o esqueleto em src/fare/night.js. Hoje quero retomar exatamente dali. Entra nessa worktree e deixa o ambiente pronto pra eu continuar a implementação, e me avisa se tiver algo estranho com ela.",
+  "assertions": [
+    "`git worktree list --porcelain` no repositório lista exatamente dois worktrees: o principal e <repo>/.forge/worktrees/agent-tarifa-noturna (nenhum worktree aninhado ou adicional foi criado).",
+    "Em .forge/worktrees/agent-tarifa-noturna, `git symbolic-ref -q HEAD` retorna 0 (HEAD não está mais destacado) e o nome da branch casa com ^(feat|fix)/[a-z0-9-]+/[a-z0-9]+(-[a-z0-9]+)*$ e não começa com wt/.",
+    "O SHA gravado em .git/eval-detached-sha é ancestral (ou igual) da ponta da branch nova: `git merge-base --is-ancestor $(cat .git/eval-detached-sha) <branch>` retorna 0, e src/fare/night.js existe no worktree — o commit feito em HEAD destacado não foi abandonado.",
+    "No checkout principal, `git branch --show-current` imprime main e `git rev-parse main` é igual ao conteúdo de .git/eval-main-sha.",
+    "A resposta final diz que a worktree já era um workspace isolado e estava com HEAD destacado, cita ao menos uma consequência do contrato (não há o que empurrar / não admite PR / o rastro morre com a árvore) e informa o nome da branch criada.",
+    "A resposta final contém 'Testes passando (3 testes, 0 falhas)' (ou texto equivalente com exatamente 3 testes e 0 falhas), provando que o baseline rodou dentro da worktree."
+  ]
+}

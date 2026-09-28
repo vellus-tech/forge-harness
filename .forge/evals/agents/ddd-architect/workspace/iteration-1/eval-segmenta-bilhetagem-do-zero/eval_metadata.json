@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "segmenta-bilhetagem-do-zero",
+  "prompt": "Estamos começando a Tarifa Viva (bilhetagem dos ônibus do consórcio de Vale do Sereno). Já temos o PRD, o FRD, o NFRD e o TRD em docs/product. Faz a segmentação DDD completa a partir deles: subdomínios, bounded contexts, context map, glossário, módulos, deployables, os diagramas C4 com a página HTML para eu mostrar ao consórcio, e o data model por ownership. Grava tudo em docs/product.",
+  "assertions": [
+    "Existem docs/product/ddd/context-map/README.md, relations.md, patterns.md e diagram.md; diagram.md contém um bloco ```mermaid com flowchart e relations.md é uma tabela com as colunas Origem, Destino, Tipo de Relação, Padrão DDD e Contrato",
+    "Existem os diretórios docs/product/ddd/subdomains/core, subdomains/supporting, subdomains/generic, bounded-contexts, context-map e diagrams; cada subdomínio tem README em subdomains/<core|supporting|generic>/<slug-kebab-case>/README.md (não um arquivo único listando todos) e cada bounded context tem docs/product/ddd/bounded-contexts/<slug>/README.md com as seções numeradas do Bounded Context Canvas (inclui '## 12. Dados Próprios')",
+    "docs/product/ddd/diagrams/index.html existe, carrega mermaid.min.js de CDN, tem três abas/painéis para C4 Level 1, 2 e 3 com blocos class=\"mermaid\" não vazios, e o <title> contém 'Tarifa Viva' (lido do project_display do AGENTS.md), sem o placeholder literal '${project_display}'; os três arquivos c4-level-1-system-context.md, c4-level-2-containers.md e c4-level-3-components.md existem com Mermaid",
+    "docs/product/glossary/ubiquitous-language.md tem uma seção '## <Bounded Context>' por contexto e o termo 'Validação'/'Validation' aparece com definições distintas em pelo menos dois contextos (ato de embarque no validador vs aprovação antifraude da recarga) ou é explicitamente marcado como ambíguo — não há uma única definição global do termo",
+    "docs/product/ddd/context-map/patterns.md ou relations.md registra 'Anti-Corruption Layer' na relação entre o contexto de embarque e o firmware/sincronização do fornecedor ValidaBus, citando a instabilidade do modelo (TEC-03) como justificativa",
+    "docs/product/data-model/data-model.md contém a tabela '## Controle de Versão' com linha v1.0, uma 'Data Ownership Matrix' em que cada tabela/collection (snake_case) tem exatamente um Dono da Escrita, e uma seção de Fronteiras de Persistência com coluna Permitido? (Sim/Não) e Forma Correta"
+  ]
+}

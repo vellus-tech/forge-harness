@@ -1,0 +1,75 @@
+{
+  "expectations": [
+    {
+      "text": "O projeto de saída não tem diretório packages/, nem docs/product/design-system/, nem tailwind.config.* ou postcss.config.*, e o package.json raiz é idêntico ao da fixture (git status --porcelain vazio, desconsiderando arquivos do próprio runner).",
+      "passed": true,
+      "evidence": "Rodado em without_skill/run-1: find work -not -path '*/.git/*' \\( -name packages -o -path '*/docs/product/design-system' -o -name 'tailwind.config.*' -o -name 'postcss.config.*' \\) | wc -l → 0; git -C work status --porcelain → vazio; git -C work diff HEAD -- package.json | wc -l → 0. Transcript linha 46: 'Não alterei nada em `work/`'; package.json idêntico ao de with_skill/run-1/work (diff vazio)."
+    },
+    {
+      "text": "main segue com exatamente 1 commit, não foi criado nenhum branch novo (git branch lista só main) e não houve push.",
+      "passed": true,
+      "evidence": "Rodado em without_skill/run-1: git -C work rev-list --count main → 1; git -C work branch -a → '* main' apenas; git -C work remote -v → vazio (sem remote, push impossível); ls work/.git/refs → heads, tags (sem refs/remotes)."
+    },
+    {
+      "text": "A resposta final pede o link de handoff do Claude Design no formato https://api.anthropic.com/v1/design/h/<id> (ou o bundle exportado de claude.ai/design) como pré-requisito para começar, em vez de derivar cores de memória ou chutar um hex para 'verde-petróleo'.",
+      "passed": true,
+      "evidence": "response.md linha 5: 'Preciso do link do handoff do Claude Design (ou de um export/arquivo com os tokens) para prosseguir', citando `https://api.anthropic.com/v1/design/h/<id>` e afirmando que 'Verde-petróleo não é suficiente para derivar uma paleta'. grep -E '#[0-9a-fA-F]{6}' response.md → 0 ocorrências."
+    },
+    {
+      "text": "A resposta final diz explicitamente que o design system é feito em CSS Modules + tokens (CSS custom properties), sem Tailwind e sem Radix, ou pede decisão explícita sobre esse conflito — não aceita Tailwind/Radix em silêncio.",
+      "passed": false,
+      "evidence": "response.md linha 9: 'Tailwind + Radix é uma escolha razoável e comum ... não vejo nada neste repo ... que contradiga isso'; linha 11 planeja 'packages/ui-components (Tailwind + Radix)'. grep -c 'CSS Modules' response.md → 0. A 'confirmação rápida' é sobre o time conhecer a stack, não sobre um conflito com CSS Modules + tokens; na prática aceita Tailwind/Radix."
+    },
+    {
+      "text": "A resposta final recusa trabalhar/commitar na main e indica o branch de feature feat/design-system/rotaviva-ui-kit (ou equivalente feat/design-system/<slug>-ui-kit) como destino.",
+      "passed": false,
+      "evidence": "response.md linha 7 recusa commitar na main (metade satisfeita), mas o destino indicado é 'branch `feature/<change-id>`, PR para `develop`', não feat/design-system/rotaviva-ui-kit nem feat/design-system/<slug>-ui-kit. grep -c 'feat/design-system' response.md → 0. Sem crédito parcial."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 2,
+    "total": 5,
+    "pass_rate": 0.6
+  },
+  "timing": {
+    "executor_duration_seconds": 93,
+    "total_duration_seconds": 93
+  },
+  "claims": [
+    {
+      "claim": "AGENTS.md/FORGE.md do repo documentam branch feature/<change-id> e PR para develop",
+      "type": "factual",
+      "verified": true,
+      "evidence": "Transcript linhas 21-23; justificativa legítima para recusar a main, mas não atende ao nome de branch exigido"
+    },
+    {
+      "claim": "Nada no repo contradiz Tailwind + Radix",
+      "type": "quality",
+      "verified": false,
+      "evidence": "Afirmação feita sem conhecer a skill; o próprio pedido sob teste tem stack fixa CSS Modules + tokens, e a resposta planeja Tailwind + Radix na linha 11"
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "O projeto de saída não tem diretório packages/, nem docs/product/design-system/, nem tailwind.config.* ou postcss.config.*, e o package.json raiz é idêntico ao da fixture (git status --porcelain vazio, desconsiderando arquivos do próprio runner).",
+        "reason": "Não discrimina: with_skill e without_skill passam igualmente, porque qualquer agente prudente sem link para antes de escrever; e o runner não copia o estado de work/ para outputs/ de forma padronizada (with_skill não tem work-snapshot), então o grader depende de work/ ainda existir."
+      },
+      {
+        "assertion": "main segue com exatamente 1 commit, não foi criado nenhum branch novo (git branch lista só main) e não houve push.",
+        "reason": "A fixture não tem remote, então 'não houve push' é trivialmente verdadeiro; para testar recusa de push de verdade, adicionar um remote bare local e checar que ele segue sem refs."
+      },
+      {
+        "assertion": "A resposta final pede o link de handoff do Claude Design no formato https://api.anthropic.com/v1/design/h/<id> (ou o bundle exportado de claude.ai/design) como pré-requisito para começar, em vez de derivar cores de memória ou chutar um hex para 'verde-petróleo'.",
+        "reason": "Não discrimina entre configurações (ambas pedem o link); o sinal diferencial deste caso está só nas asserções de stack e de branch."
+      }
+    ],
+    "overall": "As duas asserções que discriminam (stack CSS Modules sem Tailwind/Radix e branch feat/design-system/<slug>-ui-kit) medem conhecimento da skill; as três restantes medem prudência genérica e passam no baseline."
+  }
+}

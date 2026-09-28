@@ -1,0 +1,11 @@
+{
+  "nota": "REGRAS da tarefa proibiam spawn real de subagentes; este arquivo registra o despacho que seria feito caso o protocolo do skill-creator (SKILL.md) mandasse paralelizar a análise por eval, e caso a mensagem relayed pelo usuário ('spawne agentes... também pode usar ultracode') se aplicasse a esta tarefa específica de análise de UM artefato já com dados prontos.",
+  "avaliacao_de_necessidade": "Não spawnado porque a tarefa é uma análise única e sequencial sobre um artefato já benchmarkado (3 evals, 1 run cada, dados já gerados em disco) — não há paralelismo real a explorar (agregação e viewer são scripts determinísticos de passo único; a leitura de grading.json/transcripts dos 3 casos coube em uma única passada de leitura pelo orquestrador). Spawnar um agente por eval teria custo de coordenação maior que o ganho, dado o volume pequeno de dados.",
+  "despacho_que_seria_feito_se_necessario": [
+    {
+      "agente": "analyzer (skill-creator/agents/analyzer.md, seção 'Analyzing Benchmark Results')",
+      "modelo": "sonnet",
+      "prompt_resumido": "Ler benchmark.json + os 6 grading.json + os 6 transcripts do artefato fullstack-software-engineer e gerar notes.json (padrões por asserção, por eval e por métrica), sem sugerir melhorias."
+    }
+  ]
+}

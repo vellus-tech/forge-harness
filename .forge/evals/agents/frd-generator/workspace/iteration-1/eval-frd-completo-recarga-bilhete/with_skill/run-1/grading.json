@@ -1,0 +1,59 @@
+{
+  "expectations": [
+    {
+      "text": "docs/product/frd-nfrd/frd.md existe e contém, na ordem, cabeçalhos para as seções obrigatórias do contrato, incluindo no mínimo 'Controle de Versão', 'Módulos Funcionais', 'Detalhamento dos Requisitos Funcionais', 'Regras de Negócio', 'Mensagens de Erro e Validação', 'Matriz de Permissões Funcionais', 'Matriz de Rastreabilidade', 'Dependências Funcionais', 'Premissas' e 'Pontos a Validar', além do campo '**Fonte Principal:** docs/product/prd/prd.md' no cabeçalho.",
+      "passed": true,
+      "evidence": "outputs/docs/product/frd-nfrd/frd.md existe (cmp idêntico a work/docs/product/frd-nfrd/frd.md). `grep -n '^## '` mostra, em ordem: Controle de Versão (l.11), 9. Módulos Funcionais (l.115), 11. Detalhamento dos Requisitos Funcionais (l.150), 13. Regras de Negócio (l.1615), 14. Mensagens de Erro e Validação (l.1629), 15. Matriz de Permissões Funcionais (l.1656), 16. Matriz de Rastreabilidade (l.1672), 17. Dependências Funcionais (l.1693), 18. Premissas (l.1703), 19. Pontos a Validar (l.1713), 20. Anexos (l.1728); l.7: '**Fonte Principal:** docs/product/prd/prd.md'."
+    },
+    {
+      "text": "Todo requisito funcional listado usa o padrão FRD-<módulo>-NN (ex.: FRD-rec-01), sem códigos duplicados, e cada requisito detalhado na seção de detalhamento tem uma subseção 'Critérios de Aceite' com pelo menos um item em checklist Markdown '- [ ]'.",
+      "passed": true,
+      "evidence": "Tabela da seção 10 (l.129-148) lista 16 códigos FRD-auth-01..02, FRD-card-01..02, FRD-recharge-01..06, FRD-balance-01..02, FRD-dispute-01..04; `uniq -d` sobre a tabela e sobre os 16 cabeçalhos '## FRD-' não retorna duplicatas; `grep -oE 'FRD-[A-Za-z0-9_-]+' | grep -vE '^FRD-[a-z]+-[0-9]{2}$'` vazio. Script awk contando '- [ ]' dentro de '### Critérios de Aceite' de cada '## FRD-' retorna 2 a 4 itens para todos os 16 requisitos (ex.: FRD-card-01 com 4). Ressalva: módulo em inglês (recharge/dispute), o que o padrão FRD-<módulo>-NN admite."
+    },
+    {
+      "text": "A Matriz de Rastreabilidade tem uma linha para cada funcionalidade F-01, F-02, F-03, F-04, F-05 e F-06 do PRD, cada uma apontando para pelo menos um código FRD-*, e a coluna Status usa apenas os valores 'Coberto', 'Parcialmente Coberto', 'Não Coberto' ou 'Ponto a Validar'.",
+      "passed": false,
+      "evidence": "Seção 16 (l.1672-1689) tem linhas F-01..F-06, todas apontando para FRD-* (F-01→FRD-auth-01/02 ... F-06→FRD-card-02). Porém a coluna Status da linha F-06 (l.1681) contém 'Parcialmente Coberto — bloqueio em nome do passageiro pelo SAC é Ponto a Validar (VAL-02)', valor fora do conjunto fechado exigido ('usa apenas os valores ...'); uma verificação por enum rejeitaria a célula. As demais linhas usam 'Coberto' ou 'Ponto a Validar'. Falha estreita de formato, não de substância."
+    },
+    {
+      "text": "A seção Pontos a Validar contém entradas VAL-NN para (a) o valor máximo por recarga da RN-04, (b) o prazo para abrir contestação e (c) se o atendente SAC pode bloquear cartão; e em nenhum ponto do FRD aparece um valor máximo de recarga em reais nem um prazo de contestação em dias apresentado como regra definida.",
+      "passed": true,
+      "evidence": "Seção 19 (l.1713-1726): VAL-03 'Valor máximo por recarga ainda não definido pelo jurídico' (PRD RN-04), VAL-01 'Prazo para o passageiro abrir contestação não definido' (PRD §8), VAL-02 'Não está claro se o atendente SAC pode bloquear cartão em nome do passageiro'. `grep -n 'R\\$' | grep -v '5,00'` vazio (nenhum valor em reais além do mínimo R$ 5,00 do PRD); `grep -in 'dias' | grep -v '90 dias'` vazio (nenhum prazo em dias além dos 90 dias de extrato do PRD); FE-03 de FRD-dispute-01 (l.1228) diz 'prazo não definido no PRD'."
+    },
+    {
+      "text": "Cashback/fidelidade, recarga por boleto e transferência de saldo entre cartões aparecem apenas na seção Fora de Escopo (ou em Pontos a Validar), e nenhum código FRD-* tem como objeto essas funcionalidades.",
+      "passed": true,
+      "evidence": "`grep -niE 'cashback|fidelidade|boleto|transfer'`: cashback/fidelidade e boleto aparecem só em l.88-89 (seção 6. Fora de Escopo, OOS-01/OOS-02). Transferência aparece em OOS-03 (l.90) e, fora dela, só como a ressalva herdada do próprio texto de F-06 do PRD ('preservando o saldo para transferência futura', l.134/418) com remissão explícita a OOS-03/v2 (l.422, l.494). Nenhum FRD-* tem transferência, boleto ou cashback como objeto: FRD-card-02 é 'Bloquear cartão por perda'. Aprovado pelo espírito; leitura literal de 'apenas na seção Fora de Escopo' seria violada pelas menções derivadas de F-06."
+    },
+    {
+      "text": "git diff HEAD -- docs/product/prd/prd.md docs/discovery/discovery-notes.md no diretório de saída é vazio: o agente não alterou os arquivos de entrada.",
+      "passed": true,
+      "evidence": "`git -C with_skill/run-1/work diff HEAD -- docs/product/prd/prd.md docs/discovery/discovery-notes.md | wc -l` = 0; `git ls-files` confirma os dois arquivos rastreados no commit da fixture; `git status --short -- docs/` só mostra '?? docs/product/frd-nfrd/'."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 1,
+    "total": 6,
+    "pass_rate": 0.83
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A Matriz de Rastreabilidade tem uma linha para cada funcionalidade F-01, F-02, F-03, F-04, F-05 e F-06 do PRD, cada uma apontando para pelo menos um código FRD-*, e a coluna Status usa apenas os valores 'Coberto', 'Parcialmente Coberto', 'Não Coberto' ou 'Ponto a Validar'.",
+        "reason": "A falha do with_skill vem de anotação na célula Status; decidir se o enum é estrito (então manter) ou se prefixo válido basta, e escrever isso na asserção para o grader não arbitrar."
+      },
+      {
+        "assertion": "Cashback/fidelidade, recarga por boleto e transferência de saldo entre cartões aparecem apenas na seção Fora de Escopo (ou em Pontos a Validar), e nenhum código FRD-* tem como objeto essas funcionalidades.",
+        "reason": "'Aparecem apenas na seção Fora de Escopo' é impossível de cumprir literalmente para transferência, porque o próprio texto de F-06 do PRD diz 'transferência futura'; reescrever como 'nenhum requisito tem como objeto ...' e 'os três constam na seção Fora de Escopo'."
+      },
+      {
+        "reason": "Nenhuma asserção checa a matriz de permissões com os três perfis nem as mensagens MSG-NNN com tipos permitidos, ambos pedidos no expected_output; o with_skill as tem (l.1629-1668) mas o eval não discrimina isso."
+      },
+      {
+        "reason": "Os dois transcripts afirmam que a fixture criou o diretório de destino vazio (frd-nfrd/ num, frd/ no outro); setup.sh e overlay/ não criam nenhum dos dois, e git status mostra ambos como não rastreados. Afirmação não verificada nos transcripts."
+      }
+    ],
+    "overall": "Asserções 1, 2 e 4 discriminam bem (path canônico, IDs, não inventar valores). A 6 é não discriminante (as duas passam)."
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "revisao-migracoes-tarifas-config",
+  "prompt": "A V002 do serviço tarifas-config (services/tarifas-config/migrations/V002__integracao_e_parametros.sql) sobe no deploy de quinta com o serviço no ar, e junto vai a mudança no repositório src/repositorios/tarifas_repo.ts. Faz uma revisão de banco do serviço antes do deploy — migrações e acesso a dados — e grava o parecer em docs/revisao-banco-tarifas.md. Não mexe nos arquivos, só quero o diagnóstico com o que mudar e o SQL corrigido.",
+  "assertions": [
+    "docs/revisao-banco-tarifas.md classifica como R-03 (id do catálogo, não só descrição) os quatro pontos bloqueantes da V002 com localização arquivo:linha: CREATE INDEX sem CONCURRENTLY (V002…:3), RENAME COLUMN (:4), ALTER COLUMN ... TYPE (:5) e SET NOT NULL (:7); e a correção do SET NOT NULL passa por CHECK (... IS NOT NULL) NOT VALID + VALIDATE CONSTRAINT, a do rename/tipo por coluna nova + backfill (expand → migrate → contract)",
+    "O parecer aponta valor_integracao numeric(10,2) (V002:2) como R-19, recomenda BIGINT NOT NULL na menor unidade (centavos) e diz explicitamente que a rule money-as-cents.md tem applies_to restrito (.NET/React/Kotlin) e que aplicá-la a este serviço Node/TypeScript e ao *.sql é extensão da própria skill/decisão do dono, não da rule; recomendar só 'usar numeric com mais casas' ou omitir a observação do applies_to não conta",
+    "O parecer aponta parametros_operador (V002, tenant_id na linha 11) como R-20, trata RLS como obrigatório pela data-governance.md (não como sugestão) e a correção inclui ENABLE ROW LEVEL SECURITY e FORCE ROW LEVEL SECURITY, CREATE POLICY por tenant_id e papel da aplicação que não é dono da tabela / sem BYPASSRLS; oferecer índice com tenant_id como alternativa ao RLS reprova",
+    "O parecer aponta tarifas_repo.ts:9 como R-12, explicando que set_config('app.tenant_id', $1, false) grava o tenant na sessão e o pool do node-postgres devolve a conexão com o tenant ainda setado (a RLS da próxima requisição lê o tenant errado), e prescreve set_config(..., true) ou SET LOCAL dentro de uma transação explícita",
+    "O parecer NÃO recomenda converter fator_tarifa numeric(6,4) (V001:9) nem taxa_desconto_percentual para BIGINT em centavos: ou os trata explicitamente como decimal exato não monetário / falso positivo da varredura, ou não os menciona como problema de dinheiro",
+    "O parecer tem uma entrada por regra examinada com status explícito (achado, OK/limpo ou não verificado pela varredura estática), inclui R-01 para a FK operador_id sem índice, e não traz achado de services/recargas-api (outro serviço, fora do escopo pedido)"
+  ]
+}

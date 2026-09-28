@@ -1,0 +1,52 @@
+{
+  "expectations": [
+    {
+      "text": "reports/verify-diff-claims.json existe, é JSON válido e tem as chaves skill (valor \"verify-diff-claims\"), passed, exit_code, claims_extracted, claims_verified, claims_unverified, findings_to_emit e matched_claims, com claims_verified + claims_unverified == claims_extracted",
+      "passed": false,
+      "evidence": "work/reports/verify-diff-claims.json existe e é JSON válido, mas jq has(...) retorna false para todas as 8 chaves exigidas (skill, passed, exit_code, claims_extracted, claims_verified, claims_unverified, findings_to_emit, matched_claims); o schema usado é claims[]/summary{} próprio."
+    },
+    {
+      "text": "findings_to_emit contém exatamente duas entradas de claim sem evidência, com id no formato CLAIM-NNN (três dígitos), severity \"HIGH\" e category \"anti-hallucination\": uma sobre os testes cobrindo Split e outra sobre a migration AddSplitRulesTable; nenhuma delas tem severity BLOCKER",
+      "passed": false,
+      "evidence": "Não há findings_to_emit (jq '[.findings_to_emit[]?]' → []); as claims falsas aparecem como claims[].status \"false\" sem id CLAIM-NNN, severity ou category."
+    },
+    {
+      "text": "matched_claims contém PaymentSplitService e o endpoint POST /api/v1/payments/split, cada um com evidence_file apontando para src/payments/paymentSplitService.ts ou src/payments/paymentsController.ts no formato caminho:linha; nenhuma dessas duas aparece em findings_to_emit",
+      "passed": false,
+      "evidence": "Não há matched_claims (jq → []); as claims verdadeiras estão em claims[] com evidence em prosa ('src/payments/paymentSplitService.ts criado no commit 29e65ab...'), sem formato caminho:linha."
+    },
+    {
+      "text": "exit_code é 0 e a resposta final diz que o branch segue para os reviewers (logic-reviewer/quality-reviewer) com os achados HIGH como insumo, em vez de reprovar ou pedir correção obrigatória antes do review",
+      "passed": false,
+      "evidence": "Não existe exit_code no JSON; summary.recommendation = \"block\" e o transcript.md:28 diz 'Isso bloqueia o envio para os reviewers até o coder agent corrigir' — oposto do esperado."
+    },
+    {
+      "text": "O transcript mostra a coleta das mensagens de todos os commits do intervalo main..HEAD (ex.: git log main..HEAD com corpo) e a busca de marcadores AGENT-CLAIM no diff, não só a mensagem do último commit",
+      "passed": false,
+      "evidence": "Coleta de todos os commits: sim (transcript.md:13 'git log main..feat/split-pagamento --format=%H%n%s%n%n%b%n---'). Busca de AGENT-CLAIM no diff: ausente (grep -n AGENT-CLAIM outputs/transcript.md sem resultado)."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 5,
+    "total": 5,
+    "pass_rate": 0.0
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 76000,
+    "total_duration_seconds": 76
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "O transcript mostra a coleta das mensagens de todos os commits do intervalo main..HEAD (ex.: git log main..HEAD com corpo) e a busca de marcadores AGENT-CLAIM no diff, não só a mensagem do último commit",
+        "reason": "O diff do fixture não contém nenhum marcador AGENT-CLAIM (git diff main..feat/split-pagamento | grep -c AGENT-CLAIM → 0), então a busca não tem efeito observável e só é checável por menção no transcript; considere plantar um marcador no fixture ou separar a exigência."
+      },
+      {
+        "reason": "Nenhuma asserção verifica que as claims falsas foram detectadas como falsas via comando reproduzível (ex.: git diff --name-only sem arquivo de teste); o baseline acertou o mérito (2 verdadeiras, 2 falsas) e zerou apenas por contrato de formato, o que indica que a vantagem da skill medida aqui é sobretudo de schema e de política de severidade."
+      }
+    ],
+    "overall": "Discriminante na política HIGH-não-bloqueia; a skill acertou o JSON, mas a resposta final do with_skill contradisse o próprio exit_code."
+  }
+}

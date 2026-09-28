@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "node-estorno-migration-endpoint",
+  "prompt": "Preciso de estorno parcial no payments-api: uma coluna refunded_amount_cents na tabela payments e um endpoint POST /payments/:id/refunds que registra o estorno do merchant (header x-merchant-id). Não implementa ainda: monta o plano de implementação em outputs/plan.md, com as orientações de stack e as rules que você vai seguir e uma seção de verificação dizendo o que dá para provar aqui — nesta máquina não tem Postgres local nem Docker.",
+  "assertions": [
+    "outputs/plan.md cita o caminho .forge/capabilities/backend-node-postgres/PROFILE.md como orientação carregada e não declara ter carregado PROFILE.md de outro pack (dotnet, java ou python).",
+    "outputs/plan.md referencia explicitamente rules/data/schema-evolution.md e rules/testing/change-test-contract.md (por caminho ou nome de arquivo) e classifica a alteração de schema como compatível, expandida ou excepcional.",
+    "A seção de verificação de outputs/plan.md lista `node-baseline.sh --check` (e/ou o scan.sh de node-quality-scan) antes de lint, build ou vitest do projeto.",
+    "outputs/plan.md classifica critérios do pack/rules em três categorias explícitas equivalentes a aplicado, não aplicável e pendente por infraestrutura, e o teste de integração da migration contra Postgres real aparece como pendente (não como aprovado e não substituído por mock do banco).",
+    "outputs/plan.md prevê um teste negativo de autorização/ownership (estorno de pagamento de outro merchant deve falhar) para o POST /payments/:id/refunds.",
+    "Nenhum arquivo em src/, migrations/ ou package.json foi alterado (git diff vazio nesses caminhos) e outputs/plan.md não propõe comandos npm install/yarn nem troca de pnpm, ORM ou framework."
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "recarga-avulsa-task-04-ponta-a-ponta",
+  "prompt": "Implementa a TASK-04 do módulo recargas (docs/product/modules/recargas/tasks.md): a recarga avulsa do cartão de transporte, ponta a ponta — o POST no services/api-recarga e o formulário NovaRecargaForm no apps/web/portal-recarga. Deixa os testes junto. Quando terminar, grava o teu relatório final em relatorio/task-04.md.",
+  "assertions": [
+    "Existe um arquivo novo em services/api-recarga/migrations/ além do 001 (ex.: 002_*.sql) que adiciona idempotency_key com constraint UNIQUE (ou índice único), e `git -C <alvo> diff --quiet HEAD -- services/api-recarga/migrations/001_create_recargas.sql` sai 0 (a 001 não foi alterada)",
+    "contracts/openapi/api-recarga.yaml passou a ter a operação post em /recargas com um parâmetro de header Idempotency-Key obrigatório e o valor no corpo como integer (valorCentavos), com minimum 100 e maximum 50000",
+    "Nenhum arquivo alterado ou criado em services/ ou apps/ usa parseFloat, toFixed, NUMERIC/DECIMAL/REAL/DOUBLE em SQL ou campo de valor em reais (ex.: `valor:` number) no payload enviado à API; o corpo do POST e a coluna usam valorCentavos/valor_centavos inteiro",
+    "Existe teste em services/api-recarga (arquivo *.test.ts) que envia duas vezes o mesmo Idempotency-Key e verifica que a segunda resposta não cria nova recarga (status 200 ou mesmo id), e outro que verifica rejeição 400 para valor fora de 100..50000",
+    "O componente NovaRecargaForm em apps/web/portal-recarga/src/components/ não chama fetch diretamente (a chamada vem de uma função exportada em src/api/client.ts), desabilita o envio durante a requisição, exibe erro com role=\"alert\" e associa label ao input de valor (htmlFor/id ou label envolvendo o input)",
+    "relatorio/task-04.md contém, nesta ordem, os cabeçalhos '## Resumo do que foi alterado', '## Arquivos alterados', '## Testes executados', '## Testes recomendados', '## Riscos conhecidos' e '## Pendências'; a seção 'Testes executados' ou traz saída/contagem real de testes ou declara explicitamente que os testes não foram executados; e `git -C <alvo> rev-list --count HEAD` continua 1 (nenhum commit feito)"
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "repasse-tarifa-integrada-split-e-idempotencia",
+  "prompt": "Revisa a lógica de negócio do diff da branch feature/repasse-integracao contra develop antes de eu abrir o PR. É o repasse da tarifa integrada ônibus + metrô entre as operadoras. Contexto: REQ-3 (divisão da tarifa entre operadoras, centavo residual para a primeira), PBT-02 (soma das partes = total) e REQ-4 (idempotência por chave do validador), todos em docs/product/modules/tarifacao/requirements.md; rules .forge/rules/domain/money-as-cents.md e .forge/rules/domain/nbr-5891-rounding.md. Grava o resultado da revisão em .forge/reviews/logic-repasse.json.",
+  "assertions": [
+    "O arquivo .forge/reviews/logic-repasse.json é JSON válido sem prosa nem cercas markdown, com chave de topo reviewer igual a 'logic-reviewer' e array findings; todo finding tem os campos id, severity, category, file, line, title, description, fix_suggested, rule_violated e confidence, severity em {BLOCKER, HIGH, MEDIUM, LOW} e ids LGC-001, LGC-002... sequenciais sem lacuna.",
+    "Existe finding com severity BLOCKER apontando services/tarifacao/src/Tarifacao.Domain/Repasse/RepasseTarifa.cs com line entre 6 e 13 pelo uso de decimal para valor monetário, e seu rule_violated cita money-as-cents.md.",
+    "Existe finding BLOCKER sobre a invariante da soma do split (REQ-3/PBT-02) em RepasseTarifa.cs que (a) dá um contraexemplo numérico concreto em que a soma das partes difere do total (por exemplo 4,40 dividido por 3) e (b) aponta MidpointRounding.AwayFromZero ou o arredondamento por parte, citando nbr-5891-rounding.md em rule_violated ou description.",
+    "Existe finding com severity BLOCKER em services/tarifacao/src/Tarifacao.Application/Repasse/RegistrarRepasseHandler.cs com line entre 15 e 19 dizendo que o comentário 'Idempotency check' não corresponde ao código (ObterPorChaveAsync nunca é chamado, reenvio cria segundo repasse), com referência a REQ-4.",
+    "Existe finding (severity BLOCKER ou HIGH) afirmando que a PBT-02 obrigatória não tem teste de propriedade (FsCheck ou equivalente) e que RepasseTarifaTests.cs só cobre um exemplo que divide exato.",
+    "Nenhum finding aponta RepassesController.cs por instanciar SqlRepasseRepository/Infrastructure diretamente ou por qualquer questão de camada, injeção de dependência ou estrutura; o controller não aparece em nenhum finding cujo motivo seja arquitetura."
+  ]
+}

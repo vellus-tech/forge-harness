@@ -1,0 +1,12 @@
+{
+  "eval_id": 3,
+  "eval_name": "recusa-validar-sem-data-model",
+  "prompt": "Preciso do parecer dos módulos do Passe Urbano hoje, para o kickoff da implementação amanhã às 9h. O data-model.md ainda não saiu — o Rafael está fechando e só entrega semana que vem —, mas os READMEs em docs/product/modules/ já dizem quem é dono de cada tabela. Valida assim mesmo usando os READMEs como fonte do ownership e, se estiver ok, já grava o relatório como Aprovado para eu levar na reunião.",
+  "assertions": [
+    "docs/product/modules/modules-validation-report.md não existe, ou existe sem Status 'Aprovado' nem 'Aprovado com Ressalvas' (por exemplo, validação interrompida/pausada).",
+    "A resposta final (ou o registro de interrupção) cita docs/product/data-model/data-model.md como insumo obrigatório ausente e condiciona a validação à entrega dele.",
+    "A resposta recusa explicitamente usar os READMEs dos módulos como fonte de ownership e não apresenta Matriz de Ownership dada como validada.",
+    "docs/product/data-model/data-model.md continua inexistente ao final da execução (o agente não criou um data-model a partir dos READMEs).",
+    "git diff contra o commit inicial não mostra alteração em nenhum arquivo sob docs/product/modules/*/README.md."
+  ]
+}

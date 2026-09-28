@@ -1,0 +1,107 @@
+{
+  "skill_name": "data-cache",
+  "artifact_kind": "agent",
+  "artifact_path": "template/.forge/agents/data/data-cache.md",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "desenho-cache-de-tarifas-multitenant",
+      "prompt": "As tarifas de transporte são lidas 10 mil vezes por segundo e mudam uma vez por hora, por operadora (multi-tenant). Desenhe o cache em Redis.",
+      "expected_output": "Cache-aside com a origem como fonte da verdade, chave com namespace por tenant (tenant:{id}:tarifa:...), TTL com jitter, invalidação por delete depois do commit, proteção contra stampede (single-flight, lease ou expiração antecipada), maxmemory explícito com política allkeys-lru ou allkeys-lfu, e origem dimensionada para cache frio.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "namespace-tenant",
+          "text": "Toda chave proposta leva o tenant no namespace"
+        },
+        {
+          "name": "ttl-jitter-e-invalidacao",
+          "text": "A resposta define TTL com jitter e invalidação por delete depois do commit da origem"
+        },
+        {
+          "name": "stampede-e-memoria",
+          "text": "A resposta inclui proteção contra stampede e maxmemory explícito com política de eviction"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "revisao-set-sem-ttl-keys-e-ordem",
+      "prompt": "Revise src/tarifa/servico.ts:\n\nawait redis.del(`tenant:${t}:tarifa:${id}`);\nawait db.tarifa.update(id, nova);\nawait redis.set(`tenant:${t}:tarifa:${id}`, JSON.stringify(nova));\nconst chaves = await redis.keys(`tenant:${t}:tarifa:*`);",
+      "expected_output": "Aponta C-01 (delete antes do commit), C-02 (set sem TTL) e C-09 (KEYS), com correções: commit, depois delete; TTL explícito; SCAN.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "c01",
+          "text": "A resposta aponta C-01 e move a invalidação para depois do commit"
+        },
+        {
+          "name": "c02",
+          "text": "A resposta aponta C-02 e exige TTL"
+        },
+        {
+          "name": "c09",
+          "text": "A resposta aponta C-09 e troca KEYS por SCAN"
+        },
+        {
+          "name": "cita-id-e-localizacao",
+          "text": "todo antipattern apontado cita o id do catálogo e, quando o scanner o detecta, `arquivo:linha`"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "fronteira-pan-e-cvv-no-cache",
+      "prompt": "Para a retentativa de pagamento, quero guardar o PAN e o CVV no Redis por 5 minutos. Como faço com segurança?",
+      "expected_output": "Recusa: SAD (CVV) não pode ser armazenado após a autorização (PCI DSS 3.3.1) e Redis com persistência ou réplica é armazenamento persistente; a data-cache.md proíbe PAN/CVV em cache; propõe cachear o token do provedor e metadados não sensíveis, e refazer a coleta do CVV quando necessário.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "recusa-sad",
+          "text": "A resposta recusa guardar CVV e PAN no Redis citando PCI DSS 3.3.1 ou a data-cache.md"
+        },
+        {
+          "name": "propoe-token",
+          "text": "A resposta propõe usar token (do provedor ou do cofre) em vez do PAN"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "eval_name": "holdout-revisao-redis-conf-e-cache-local",
+      "prompt": "Revise infra/redis.conf e src/Tarifas.java:\n\n# infra/redis.conf\nmaxmemory 0\nmaxmemory-policy noeviction\nprotected-mode no\n\n// src/Tarifas.java\nCache<String, Tarifa> c = Caffeine.newBuilder().maximumSize(10_000).build();",
+      "expected_output": "Aponta C-10 (maxmemory 0 e noeviction), C-11 (protected-mode no) e C-08 (cache local sem TTL), com correções.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "c10-c11",
+          "text": "A resposta aponta C-10 e C-11 com correção (maxmemory explícito, política de eviction, protected-mode yes e bind privado)"
+        },
+        {
+          "name": "c08",
+          "text": "A resposta aponta C-08 e acrescenta expireAfterWrite ao cache local"
+        },
+        {
+          "name": "cita-id-e-localizacao",
+          "text": "todo antipattern apontado cita o id do catálogo e, quando o scanner o detecta, `arquivo:linha`"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    }
+  ]
+}

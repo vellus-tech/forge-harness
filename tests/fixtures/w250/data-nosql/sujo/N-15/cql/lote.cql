@@ -1,0 +1,3 @@
+BEGIN UNLOGGED BATCH
+INSERT INTO leituras (sensor_id, dia, valor) VALUES (1, '2026-09-26', 10);
+APPLY BATCH;

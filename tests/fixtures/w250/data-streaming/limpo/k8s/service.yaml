@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: pagamentos
+spec:
+  type: ClusterIP
+  ports:
+    - name: grpc
+      port: 50051

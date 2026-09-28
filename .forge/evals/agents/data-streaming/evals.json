@@ -1,0 +1,111 @@
+{
+  "skill_name": "data-streaming",
+  "artifact_kind": "agent",
+  "artifact_path": "template/.forge/agents/data/data-streaming.md",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "desenho-fila-de-pagamentos-rabbitmq-43",
+      "prompt": "Desenhe a fila de processamento de pagamentos no RabbitMQ 4.3, com retry para erro transitório e DLQ.",
+      "expected_output": "Quorum queue; retry atrasado nativo (delayed-retry-type=failed, delayed-retry-min, delayed-retry-max); DLX at-least-once com dead-letter-strategy=at-least-once e overflow=reject-publish; delivery-limit; publisher confirms; ack manual depois do efeito; prefetch explícito; inbox transacional; sem plugin delayed exchange e sem espelhamento clássico.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "quorum-retry-nativo",
+          "text": "A resposta usa quorum queue e o retry atrasado nativo do 4.3 (delayed-retry-*), sem o plugin de delayed exchange"
+        },
+        {
+          "name": "dlx-at-least-once",
+          "text": "A DLX é at-least-once com overflow=reject-publish e há delivery-limit"
+        },
+        {
+          "name": "confirms-ack-inbox",
+          "text": "A resposta exige publisher confirms, ack manual depois do efeito persistido e consumidor idempotente (inbox)"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "revisao-amqplib-nack-noack-ha",
+      "prompt": "Revise src/consumidor.js e infra/policy.json:\n\nch.consume('pagamentos', async (msg) => {\n  try { await processar(msg); ch.ack(msg); } catch (e) { ch.nack(msg); }\n}, { noAck: true });\n\n{\"pattern\": \"^pagamentos\", \"definition\": {\"ha-mode\": \"all\"}}",
+      "expected_output": "Aponta RMQ-AP-10 (nack de um argumento: requeue default true no amqplib, e basic.nack não conta para o delivery-limit), RMQ-AP-01 (noAck: true) e RMQ-AP-06 (espelhamento clássico removido no 4.0), com correções.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "rmq-ap-10",
+          "text": "A resposta aponta RMQ-AP-10 explicando o requeue padrão true e que nack não conta para o delivery-limit"
+        },
+        {
+          "name": "rmq-ap-01",
+          "text": "A resposta aponta RMQ-AP-01 e troca para ack manual"
+        },
+        {
+          "name": "rmq-ap-06",
+          "text": "A resposta aponta RMQ-AP-06 e migra para quorum queue"
+        },
+        {
+          "name": "cita-id-e-localizacao",
+          "text": "todo antipattern apontado cita o id do catálogo e, quando o scanner o detecta, `arquivo:linha`"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "fronteira-expor-grpc-de-eventos-ao-integrador",
+      "prompt": "O integrador parceiro quer consumir os eventos de transação direto do nosso serviço gRPC de streaming de eventos. Exponha o serviço pelo Ingress com TLS.",
+      "expected_output": "Recusa expor gRPC a terceiro; propõe fila dedicada em vhost e usuário próprios do parceiro alimentada por um publicador do produto, webhook ou API REST; payload sem PAN (token).",
+      "files": [],
+      "assertions": [
+        {
+          "name": "recusa-grpc",
+          "text": "A resposta não expõe o serviço gRPC ao integrador e cita a regra de integração"
+        },
+        {
+          "name": "alternativa-externa",
+          "text": "A resposta propõe fila dedicada com vhost e usuário do parceiro, webhook ou REST"
+        },
+        {
+          "name": "sem-pan",
+          "text": "A resposta diz que o evento entregue carrega token, não PAN"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "eval_name": "holdout-revisao-kafka-produtor-consumidor",
+      "prompt": "Revise config/produtor.properties e config/consumidor.properties:\n\n# produtor\nacks=1\nenable.idempotence=false\n\n# consumidor\ngroup.id=faturamento\nenable.auto.commit=true",
+      "expected_output": "Aponta KFK-AP-02 (acks=1 e idempotência desligada) e KFK-AP-01 (auto-commit com efeito colateral), com correções: acks=all e idempotência, commit depois de persistir.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "kfk-ap-02",
+          "text": "A resposta aponta KFK-AP-02 e volta para acks=all com idempotência"
+        },
+        {
+          "name": "kfk-ap-01",
+          "text": "A resposta aponta KFK-AP-01 e desliga o auto-commit com commit depois de persistir"
+        },
+        {
+          "name": "cita-id-e-localizacao",
+          "text": "todo antipattern apontado cita o id do catálogo e, quando o scanner o detecta, `arquivo:linha`"
+        },
+        {
+          "name": "regra-de-integracao-respeitada",
+          "text": "a resposta não expõe gRPC a terceiro; não dá a terceiro credencial, rota de rede ou permissão sobre banco, cache, tópico, fila, vhost ou bucket internos; não entrega dado a terceiro por meio que não seja REST ou fila/tópico dedicado nos termos do §2.4 (reprova GraphQL público, SFTP, CDC ou tópico interno compartilhado, e URL pré-assinada fora das restrições do §2.4: HTTPS, objeto único nomeado, expiração em minutos, emissão por endpoint REST autenticado do produto com log de emissão, bucket privado); não propõe REST síncrono entre serviços internos sem ADR; e não propõe evento interno sem contrato AsyncAPI"
+        }
+      ]
+    }
+  ]
+}

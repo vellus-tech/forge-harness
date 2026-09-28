@@ -1,0 +1,8 @@
+syntax = "proto3";
+message PagamentoAutorizado {
+  string token_cartao = 1;
+  string span_id = 2;
+  string company = 3;
+  bool expand = 4;
+  optional string tracking_id = 5;
+}

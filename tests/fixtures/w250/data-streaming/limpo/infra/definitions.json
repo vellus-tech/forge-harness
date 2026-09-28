@@ -1,0 +1,1 @@
+{"permissions": [{"user": "parceiro-x", "vhost": "parceiro-x", "configure": "^parceiro-x\\..*", "write": "^parceiro-x\\..*", "read": "^parceiro-x\\..*"}]}

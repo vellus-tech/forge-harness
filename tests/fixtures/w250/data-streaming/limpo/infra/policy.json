@@ -1,0 +1,1 @@
+{"pattern": "^pagamentos", "definition": {"queue-type": "quorum", "delivery-limit": 20, "dead-letter-strategy": "at-least-once", "overflow": "reject-publish"}}

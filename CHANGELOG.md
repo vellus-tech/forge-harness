@@ -13,6 +13,10 @@ e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 - **Fiação e distribuição.** `agents/README.md` com a categoria `data/` e a nota de projeção fora do Claude Code; `templates/AGENTS.md` com a porta de entrada para ferramentas sem subagentes; `PROFILE.md` dos quatro packs relacionais apontando a `data-relational-practices`; o `forge update` entrega tudo a consumidores existentes. A fiação do `capability-dispatcher` e dos cinco revisores fica pendente até o merge da frente `evals-100` (design §2.8), e o w250 confere, enquanto isso, que esses arquivos continuam intocados.
 - **Gate `tests/w250-data-engineer-agents-gate.sh` e casos de eval.** Vinte e um cenários: universo, frontmatter, roteamento, especialistas, catálogos fechados, bijeção catálogo × scanner × design, detecção sobre fixtures sujas e limpas com sósias, portabilidade rg × grep, contador de universo vazio, RabbitMQ 4.x, regra de integração, recomendações refutadas, fiação, projeção numa instalação real, hooks pelo alvo e pelo canal, `forge update`, PBT diferencial do guarda e da allowlist (semente registrada) e sete mutações sobre cópia com controle e recontrole por `cmp -s`. O CI passa a instalar `ripgrep`. Os casos de eval A/B ficam em `.forge/evals/agents/data-*/evals.json` (quatro por especialista, 22 do orquestrador), no formato observado na frente `evals-100`; a execução do A/B é etapa de verificação.
 
+### Fixed
+
+- **CI cancelava o job `gates` sem nenhum FAIL, só por estourar o teto de tempo.** Medido no PR #182 (2026-09-28): a suíte já variava entre 16 e 22min mesmo sem gate novo (`w151` e `w217`, os dois gates de `heavy-mutex`, somam ~7,4min sozinhos), e `w239` (revisão da DH-1, PBT de 75 casos, cada um chamando `node forge.mjs update`) levou 5,7min sozinho numa execução real; acrescentar `w250` (43s) bastou para cancelar duas execuções seguidas em ~24m50s, com `The operation was canceled` em vez de qualquer veredito. `timeout-minutes` do job `gates` sobe de 25 para 35, com a medição registrada no comentário ao lado.
+
 ## [0.16.0] — 2026-09-27
 
 ### Fixed

@@ -28,6 +28,10 @@ mk_repo() { # mk_repo <dir>
   mkdir -p "$dir/.forge"
   cp -R "$WS/template/.forge/scripts" "$dir/.forge/"
   cp -R "$WS/template/.forge/templates" "$dir/.forge/"
+  # LDG-0190 (#103): ledger-ops.sh add/harvest passaram a validar enum contra
+  # ../schemas/ledger.schema.json em runtime — a fixture precisa do schema para não quebrar.
+  mkdir -p "$dir/.forge/schemas"
+  cp "$WS/template/.forge/schemas/ledger.schema.json" "$dir/.forge/schemas/"
   git -C "$dir" init -q
   git -C "$dir" config user.email "$1@test"
   git -C "$dir" config user.name "$1"

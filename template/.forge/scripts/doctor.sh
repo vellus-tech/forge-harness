@@ -106,21 +106,50 @@ check_harness() {
   check_link qwen QWEN.md
   check_link gemini GEMINI.md
 
-  # the leak check guards MIGRATED CONTENT (agents/rules/skills + the 8 legacy commands);
-  # the machinery (adapters/, scripts/, hooks/) and the harness meta-commands legitimately name
-  # the generated .claude/ dir, so they are excluded. USER DATA dirs are also excluded: their
-  # content is authored by the user (spec text may quote the generated dir; deploy files under
-  # worktrees may carry the app's own PROJECT-style tokens) and is not the canonical harness source.
-  USER_DATA='/(specs|worktrees|product|evals|custom)/'
-  # `.forge/cache/template-pendente/` guarda a versão nova do template de arquivos preservados por deriva local (revisão da DH-1): é cache, não fonte canônica, e fica fora das duas varreduras.
-  PENDING_CACHE='/cache/template-pendente/'
-  leaks="$(grep -rl '\.claude/' "$ROOT/.forge" 2>/dev/null | grep -vE "/(adapters|scripts|hooks)/|/commands/harness/|$USER_DATA|$PENDING_CACHE" | wc -l | tr -d ' ')"
-  if [ "$leaks" -eq 0 ]; then ok "harness: fonte canônica sem refs .claude/"
-  else miss "harness: $leaks arquivo(s) da fonte canônica com refs .claude/"; MISSING_DIAG=1; fi
+  # As duas checagens abaixo varriam "$ROOT/.forge" inteiro com `grep -rl` e filtravam só a
+  # SAÍDA (denylist) — em repositório com worktrees cada worktree é uma cópia completa da árvore
+  # (issue #127: 458933 de 465115 arquivos, 98,7% do universo), então o CUSTO da varredura era
+  # pago mesmo com o resultado correto, a ponto de o `grep` nunca terminar. Consertar só o custo
+  # não bastava: o mesmo modelo de denylist deixava `.forge/liaison/` e `.forge/ledger/` (dado de
+  # runtime onde agentes CONVERSAM SOBRE o diretório `.claude/`, não configuração) contarem como
+  # vazamento, e cada diretório de dado novo repetiria a mesma classe de falso positivo.
+  #
+  # Desenho: universo por INCLUSÃO explícita da fonte canônica — as pastas `rules/`, `agents/`,
+  # `skills/`, `commands/`, `templates/` e os arquivos que ficam diretamente no topo de
+  # `.forge/` (FORGE.md, forge.yaml, constitution.md, context.md, ...). `worktrees/`, `liaison/`,
+  # `ledger/`, `specs/`, `product/`, `evals/`, `custom/`, `cache/` e qualquer outro diretório de
+  # dado nunca entram no universo, então o `grep` nunca desce lá — não é um filtro de saída mais
+  # amplo, é a ausência do caminho na lista de entrada. Alternativa descartada (ampliar a
+  # denylist com `liaison|ledger|worktrees`): continua pagando a descida quando o filtro é de
+  # saída, e deixa entrar o próximo diretório de dados que alguém criar.
+  CANON_SCAN_DIRS="rules agents skills commands templates"
+  canon_scan_scope() {
+    find "$ROOT/.forge" -maxdepth 1 -type f -print0 2>/dev/null
+    for d in $CANON_SCAN_DIRS; do
+      [ -d "$ROOT/.forge/$d" ] && find "$ROOT/.forge/$d" -type f -print0 2>/dev/null
+    done
+  }
+  scan_n="$(canon_scan_scope | tr -cd '\0' | wc -c | tr -d ' ')"
 
-  orphans="$(grep -rl '<PROJECT_[A-Z_]*>' "$ROOT/.forge" 2>/dev/null | grep -vE "/templates/|$USER_DATA|$PENDING_CACHE" | wc -l | tr -d ' ')"
-  if [ "$orphans" -eq 0 ]; then ok "harness: sem placeholders <PROJECT_*> órfãos"
-  else miss "harness: $orphans arquivo(s) com placeholders <PROJECT_*> não preenchidos"; MISSING_DIAG=1; fi
+  if [ "$scan_n" -eq 0 ]; then
+    # Terceiro estado: universo vazio não é "sem refs" nem "N refs" — é a checagem não tendo
+    # rodado (projeto sem rules/agents/skills/commands/templates nem arquivo de topo é anômalo).
+    miss "harness: universo de varredura da fonte canônica vazio (rules/agents/skills/commands/templates e topo de .forge/ ausentes) — refs .claude/ e placeholders <PROJECT_*> não verificados"
+    MISSING_DIAG=1
+  else
+    # /(adapters|scripts|hooks)/ em qualquer profundidade (inclusive scripts/ dentro de uma
+    # skill, ex. skills/*/scripts/scan.sh) e commands/harness/ são os meta-comandos e os scripts
+    # de tooling do próprio harness, que legitimamente nomeiam o diretório .claude/ gerado como
+    # exemplo de caminho/documentação de mecanismo — não é migração pendente.
+    leaks="$(canon_scan_scope | xargs -0 grep -l '\.claude/' 2>/dev/null | grep -vE '/(adapters|scripts|hooks)/|/commands/harness/' | grep -c . || true)"
+    if [ "$leaks" -eq 0 ]; then ok "harness: fonte canônica sem refs .claude/ ($scan_n arquivo(s) examinado(s))"
+    else miss "harness: $leaks arquivo(s) da fonte canônica com refs .claude/ ($scan_n arquivo(s) examinado(s))"; MISSING_DIAG=1; fi
+
+    # templates/ é o scaffold que /forge:init copia — <PROJECT_*> ali é por desenho, não órfão.
+    orphans="$(canon_scan_scope | xargs -0 grep -l '<PROJECT_[A-Z_]*>' 2>/dev/null | grep -vE '/templates/' | grep -c . || true)"
+    if [ "$orphans" -eq 0 ]; then ok "harness: sem placeholders <PROJECT_*> órfãos"
+    else miss "harness: $orphans arquivo(s) com placeholders <PROJECT_*> não preenchidos"; MISSING_DIAG=1; fi
+  fi
 
   # Versão nova do template pendente de reconciliação (revisão da DH-1): o `update` preserva a maquinaria em deriva local e grava a versão do template em .forge/cache/template-pendente/<rel>. A linha nomeia o que ainda difere do arquivo local (contagem + primeiros caminhos) até alguém reconciliar: declarar a exceção, incorporar a versão à mão ou aceitar com --overwrite-drift. É aviso, não diagnóstico faltante: não muda o rc do doctor.
   # Caminho já declarado em .forge/machinery-exceptions.txt (qualquer sha: viva ou expirada, o update preserva por exceção e não grava mais pendente) sai da lista na hora — a decisão humana está registrada, e cobrar até o próximo update seria ruído. Mesma leitura do parser do update: corte no primeiro `#`, exatamente dois tokens, sha hexadecimal minúsculo com pelo menos 32 dígitos, prefixos `./` e `.forge/` normalizados.

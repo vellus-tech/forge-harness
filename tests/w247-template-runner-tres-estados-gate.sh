@@ -193,7 +193,8 @@ PATH="$N/binmin" command -v node >/dev/null 2>&1 && { echo "FAIL [14]: node alca
 N_OUT="$N/saida.txt"
 ( cd "$N" && PATH="$N/binmin" bash "$N/.forge/scripts/tests/run-all.sh" ) > "$N_OUT" 2>&1; N_RC=$?
 cen 14 "interpretador ausente → sem veredito (dependencia-ausente), rc 3"
-if [ "$(marcador_de "$N_OUT" n01-node.test.mjs)" = "$MARK_UNV" ] && bloco "$N_OUT" 'SEM VEREDITO:' | grep -qx 'n01-node.test.mjs (dependencia-ausente)' && [ "$N_RC" -eq 3 ]; then ok 14
+_n14_blk="$(bloco "$N_OUT" 'SEM VEREDITO:')"
+if [ "$(marcador_de "$N_OUT" n01-node.test.mjs)" = "$MARK_UNV" ] && grep -qx 'n01-node.test.mjs (dependencia-ausente)' <<<"$_n14_blk" && [ "$N_RC" -eq 3 ]; then ok 14
 else _falha 14 "node ausente: marcador '$(marcador_de "$N_OUT" n01-node.test.mjs)', rc=$N_RC"; fi
 
 # ── RUN E — infraestrutura do runner falhando: mktemp quebrado ───────────────────────────────
@@ -279,7 +280,8 @@ printf '#!/usr/bin/env bash\necho x >> "%s/cont/p01"\nkill -KILL $$\n' "$P" > "$
 roda "$P" --path "$P/outra"; PO_OUT="$OUT"; PO_RC="$RC"
 roda "$P" --path "$P/vazia"; PV_OUT="$OUT"; PV_RC="$RC"
 cen 26 "--path classifica a árvore apontada"
-if [ "$PO_RC" -eq 3 ] && bloco "$PO_OUT" 'SEM VEREDITO:' | grep -qx 'p01-morto.test.sh (sinal-9)' && ! grep -q p00-pass-proprio "$PO_OUT"; then ok 26
+_p26_blk="$(bloco "$PO_OUT" 'SEM VEREDITO:')"
+if [ "$PO_RC" -eq 3 ] && grep -qx 'p01-morto.test.sh (sinal-9)' <<<"$_p26_blk" && ! grep -q p00-pass-proprio "$PO_OUT"; then ok 26
 else _falha 26 "--path: rc=$PO_RC; $(tail -3 "$PO_OUT" | tr '\n' '|')"; fi
 
 cen 27 "vacuidade reconciliada"

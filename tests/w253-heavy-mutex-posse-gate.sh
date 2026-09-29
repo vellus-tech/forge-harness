@@ -24,8 +24,17 @@ set -uo pipefail
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-LIB="$WS/template/.forge/scripts/lib/heavy-mutex.sh"
+LIB_REAL="$WS/template/.forge/scripts/lib/heavy-mutex.sh"
+HOOK_REAL="$WS/template/.forge/hooks/git/pre-push"
 T="$(mktemp -d /tmp/forge-w253.XXXXXX)"
+# w213: nenhum cenário escreve na árvore rastreada real, nem mutação com restauração imediata — um
+# kill -9 entre a mutação e a restauração deixaria o pre-push/heavy-mutex.sh REAIS corrompidos. LIB
+# e HOOK abaixo são cópias isoladas em $T; toda leitura e toda mutação deste gate mira SÓ nelas.
+mkdir -p "$T/sandbox"
+cp "$LIB_REAL" "$T/sandbox/heavy-mutex.sh"
+cp "$HOOK_REAL" "$T/sandbox/pre-push"
+LIB="$T/sandbox/heavy-mutex.sh"
+HOOK="$T/sandbox/pre-push"
 
 PIDFILE="$T/fixture-pids"
 : > "$PIDFILE"
@@ -235,7 +244,7 @@ mk_real_repo() {  # mk_real_repo <box> -> ecoa <repo-dir>
   local BOX="$1" R="$BOX/repo"
   mkdir -p "$R/.forge/scripts/lib" "$R/.forge/hooks/git"
   cp "$LIB" "$R/.forge/scripts/lib/"
-  cp "$WS/template/.forge/hooks/git/pre-push" "$R/.forge/hooks/git/"
+  cp "$HOOK" "$R/.forge/hooks/git/pre-push"
   for _stub in check-ai-attribution.sh check-liaison-acks.sh check-shell-pipeline.sh check-heredoc-hash.sh; do
     printf '#!/usr/bin/env bash\nexit 0\n' > "$R/.forge/scripts/$_stub"
     chmod +x "$R/.forge/scripts/$_stub"
@@ -413,7 +422,7 @@ grep -q "RC=75" <<<"$outm2r" || { echo "FAIL [recontrole M2]: depois de restaura
 echo "RECONTROLE M2 ok"
 
 # M4 — retirar a declaração de beneficiário do pre-push (canal): [12] deve passar a FALHAR.
-HOOK="$WS/template/.forge/hooks/git/pre-push"
+# HOOK já é a cópia isolada em $T/sandbox (definida no topo) — nunca o pre-push real.
 HOOK_ORIG="$T/pre-push.orig"; cp "$HOOK" "$HOOK_ORIG"
 echo "MUTAÇÃO: M4 remove FORGE_HEAVY_MUTEX_BENEFICIARY do pre-push"
 perl -0pi -e 's/FORGE_HEAVY_MUTEX_BENEFICIARY="\$PPID" //' "$HOOK"

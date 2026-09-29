@@ -1,0 +1,23 @@
+{
+  "skill": "release-notes-ptbr",
+  "n_evals": 3,
+  "baseline": {
+    "pass_rate_mean": 0.4167,
+    "pass_rate_stddev": 0.2357,
+    "duration_mean_ms": 31000,
+    "duration_stddev_ms": 2160.2,
+    "tokens_mean": 8000
+  },
+  "variant": {
+    "pass_rate_mean": 0.6667,
+    "pass_rate_stddev": 0.1179,
+    "duration_mean_ms": 49666.7,
+    "duration_stddev_ms": 2054.8,
+    "tokens_mean": 13200
+  },
+  "delta": {
+    "pass_rate": 0.25,
+    "duration_ms": 18666.7,
+    "tokens": 5200
+  }
+}

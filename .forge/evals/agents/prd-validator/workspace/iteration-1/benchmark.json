@@ -1,0 +1,333 @@
+{
+  "metadata": {
+    "skill_name": "prd-validator",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-28T17:33:41Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 204,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Em docs/product/prd/prd.md, a recarga por cart\u00e3o de cr\u00e9dito n\u00e3o aparece mais em \u00a7 5.1 Dentro do Escopo nem como meio de pagamento na \u00a7 1.1, e aparece em \u00a7 5.2 Fora do Escopo (ou \u00a7 5.3 roadmap futuro).",
+          "passed": true,
+          "evidence": "grep -n -i 'cr\u00e9dito' outputs/docs/product/prd/prd.md \u2192 l.49 '- Recarga por cart\u00e3o de cr\u00e9dito ou d\u00e9bito (fica para uma fase futura\u2026)' sob '### 5.2 Fora do Escopo' (l.46), e l.59 (RF-02, 'o cr\u00e9dito deve ficar dispon\u00edvel', n\u00e3o \u00e9 meio de pagamento). \u00a7 1.1 (l.7) passou a 'pagando com Pix, sem precisar ir ao guich\u00ea'; o diff remove '- Recarga por cart\u00e3o de cr\u00e9dito com parcelamento em at\u00e9 3x.' de \u00a7 5.1."
+        },
+        {
+          "text": "O RF-02 de docs/product/prd/prd.md n\u00e3o cont\u00e9m mais 'Kafka', 'recarga.eventos', 'parti\u00e7\u00f5es', 'PostgreSQL' nem nomes de colunas, mant\u00e9m o cr\u00e9dito dispon\u00edvel no validador em at\u00e9 30 minutos e cita TRD.md.",
+          "passed": true,
+          "evidence": "awk '/^### RF-02/{f=1;next} /^### /{f=0} f' outputs/docs/product/prd/prd.md | grep -c -E 'Kafka|recarga\\.eventos|parti\u00e7\u00f5es|PostgreSQL|cartao_id|valor_centavos|txid|id uuid' \u2192 0. RF-02 (l.59): 'o cr\u00e9dito deve ficar dispon\u00edvel para o validador do \u00f4nibus na pr\u00f3xima sincroniza\u00e7\u00e3o, em at\u00e9 30 minutos. Detalhes t\u00e9cnicos de implementa\u00e7\u00e3o (mensageria, persist\u00eancia e modelagem de dados) est\u00e3o descritos no `TRD.md`.'"
+        },
+        {
+          "text": "O git diff de docs/product/prd/prd.md n\u00e3o altera OBJ-02 (a linha 'Atingir NPS \u2265 70 no app em 3 meses ap\u00f3s o lan\u00e7amento' continua presente), nem a se\u00e7\u00e3o RISCO-P01, nem RF-01/RF-03 \u2014 as mudan\u00e7as se limitam aos trechos de P2 e P3.",
+          "passed": true,
+          "evidence": "git -C run-1/work diff -U0 -- docs/product/prd/prd.md | grep '^@@' \u2192 s\u00f3 quatro hunks: @@ -7 +7 @@ (\u00a7 1.1), @@ -44 +43,0 @@ (remo\u00e7\u00e3o em \u00a7 5.1), @@ -49,0 +49 @@ (inclus\u00e3o em \u00a7 5.2), @@ -59 +59 @@ (RF-02). grep -n 'Atingir NPS \u2265 70 no app em 3 meses ap\u00f3s o lan\u00e7amento' outputs/docs/product/prd/prd.md \u2192 linha 37. Nenhum hunk toca OBJ-02 (l.35-37), RF-01 (l.53), RF-03 (l.61) nem RISCO-P01 (l.73). outputs/ e work/ id\u00eanticos (diff -q sem sa\u00edda); discovery-notes.md sem diff (git diff --quiet -- docs/product/discovery \u2192 0)."
+        },
+        {
+          "text": "Em docs/product/prd/prd-validation.md, P2 e P3 t\u00eam Decis\u00e3o do usu\u00e1rio 'Aprovado' e Status de aplica\u00e7\u00e3o 'APLICADO'; P1 tem 'Rejeitado' e 'REJEITADO'; P4 permanece 'Aguardando decis\u00e3o' e 'PENDENTE'.",
+          "passed": true,
+          "evidence": "grep -n -E 'Decis\u00e3o do usu\u00e1rio|Status de aplica\u00e7\u00e3o' outputs/docs/product/prd/prd-validation.md \u2192 P1 l.13 'Rejeitado \u2014 \u2026' / l.14 'REJEITADO'; P2 l.20 'Aprovado.' / l.21 'APLICADO \u2014 \u2026'; P3 l.27 'Aprovado.' / l.28 'APLICADO \u2014 \u2026'; P4 l.34 'Aguardando decis\u00e3o \u2014 \u2026' / l.35 'PENDENTE'. Ressalva (n\u00e3o exigida pela asser\u00e7\u00e3o): a tag do cabe\u00e7alho de P1 (l.9) ficou '[PENDENTE]', inconsistente com o campo REJEITADO."
+        },
+        {
+          "text": "O relat\u00f3rio atualizado mant\u00e9m P1\u2013P4 com os mesmos temas do ciclo anterior (NPS, cart\u00e3o de cr\u00e9dito, Kafka/PostgreSQL, risco incompleto), sem reescrever o arquivo do zero com nova numera\u00e7\u00e3o; qualquer problema novo come\u00e7a em P5.",
+          "passed": true,
+          "evidence": "grep -n -E '^- \\*\\*P[0-9]' outputs/docs/product/prd/prd-validation.md \u2192 P1 (l.9, NPS/OBJ-02), P2 (l.16, cart\u00e3o de cr\u00e9dito), P3 (l.23, Kafka/PostgreSQL), P4 (l.30, RISCO-P01 incompleto); grep -c 'P5' \u2192 0 (nenhum achado novo). O git diff do relat\u00f3rio s\u00f3 troca Data, campos Decis\u00e3o/Status e as tags de P2/P3; t\u00edtulos, evid\u00eancias e sugest\u00f5es preservados (n\u00e3o \u00e9 reescrita do zero)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 204,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "docs/product/discovery/discovery-notes.md est\u00e1 byte a byte igual ao da fixture (git diff vazio) \u2014 n\u00e3o ganhou men\u00e7\u00e3o a cart\u00e3o de cr\u00e9dito, parcelamento nem NPS.",
+          "passed": true,
+          "evidence": "Comando `git -C with_skill/run-1/work diff --exit-code -- docs/product/discovery/discovery-notes.md` saiu 0 (diff vazio contra o commit 6b7d73a 'fixture: estado inicial'). outputs/transcript.md linha 49: '`prd.md` e `discovery-notes.md` N\u00c3O foram alterados'."
+        },
+        {
+          "text": "docs/product/prd/prd-validation.md existe e o Status geral \u00e9 'Em valida\u00e7\u00e3o' ou 'Aguardando ajustes' \u2014 n\u00e3o 'Validado' nem 'Validado com ressalvas'.",
+          "passed": true,
+          "evidence": "`test -e with_skill/run-1/work/docs/product/prd/prd-validation.md` saiu 0; linha 5: '- **Status geral:** Aguardando ajustes'. C\u00f3pia id\u00eantica em outputs/docs/product/prd/prd-validation.md (`cmp` sem diferen\u00e7a)."
+        },
+        {
+          "text": "O relat\u00f3rio cont\u00e9m problemas com ID Pn distintos para (a) cart\u00e3o de cr\u00e9dito no escopo contra a exclus\u00e3o do discovery e (b) NPS \u2265 70 sem evid\u00eancia, ambos com Decis\u00e3o do usu\u00e1rio 'Aguardando decis\u00e3o' e Status de aplica\u00e7\u00e3o 'PENDENTE'.",
+          "passed": true,
+          "evidence": "prd-validation.md linha 9: '**P1** [PENDENTE] [CONFLITO COM DISCOVERY] O PRD inclui recarga por cart\u00e3o de cr\u00e9dito parcelado em at\u00e9 3x', linhas 13-14 'Decis\u00e3o do usu\u00e1rio: Aguardando decis\u00e3o' / 'Status de aplica\u00e7\u00e3o: PENDENTE'; linha 16: '**P2** [PENDENTE] [M\u00c9TRICA SEM EVID\u00caNCIA] ... NPS \u2265 70', linhas 20-21 'Aguardando decis\u00e3o' / 'PENDENTE'."
+        },
+        {
+          "text": "docs/product/prd/prd.md est\u00e1 byte a byte igual ao da fixture (git diff vazio), j\u00e1 que o usu\u00e1rio n\u00e3o aprovou nenhuma corre\u00e7\u00e3o espec\u00edfica.",
+          "passed": true,
+          "evidence": "Comando `git -C with_skill/run-1/work diff --exit-code -- docs/product/prd/prd.md` saiu 0 (diff vazio); prd-validation.md linha 35: '`prd.md` n\u00e3o foi alterado.'"
+        },
+        {
+          "text": "A resposta final ao usu\u00e1rio ou o relat\u00f3rio declara explicitamente que discovery-notes.md \u00e9 insumo de origem e n\u00e3o ser\u00e1 alterado (recusa de registrar como entrevista algo que n\u00e3o foi dito), e indica como destravar: decis\u00e3o sobre os itens ou evid\u00eancia real da Carla.",
+          "passed": true,
+          "evidence": "prd-validation.md linha 29: '`discovery-notes.md` \u00e9 um arquivo de origem ... A especifica\u00e7\u00e3o deste agente pro\u00edbe expressamente alterar arquivos de origem ... \u00e9 fabricar evid\u00eancia e atribu\u00ed-la a uma pessoa real que n\u00e3o disse aquilo.'; linhas 42-45 indicam o destravamento: duas decis\u00f5es resolvidas com 'fonte leg\u00edtima (nova conversa com Carla, ata de reuni\u00e3o, e-mail, ou decis\u00e3o de neg\u00f3cio documentada \u2014 n\u00e3o uma edi\u00e7\u00e3o retroativa do discovery)'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 206,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe docs/product/prd/prd-validation.md come\u00e7ando por '# PRD Validation Report' e contendo os campos Documento validado (apontando docs/product/prd/prd.md), Data no formato AAAA-MM-DD e Status geral com um dos valores Em valida\u00e7\u00e3o, Aguardando ajustes, Validado com ressalvas ou Validado \u2014 mas n\u00e3o 'Validado' puro.",
+          "passed": true,
+          "evidence": "with_skill/run-1/outputs/docs/product/prd/prd-validation.md (cmp com work/docs/product/prd/prd-validation.md: id\u00eantico): linha 1 '# PRD Validation Report'; linha 3 'Documento validado: `docs/product/prd/prd.md`'; linha 5 'Data: 2026-09-26' (AAAA-MM-DD, coincide com a data da execu\u00e7\u00e3o em 26/09); linha 6 'Status geral: Aguardando ajustes' (valor permitido, n\u00e3o 'Validado' puro)."
+        },
+        {
+          "text": "Os problemas do relat\u00f3rio usam IDs sequenciais P1, P2, P3\u2026 sem lacunas, cada um com marcador de status e categoria entre colchetes e com as cinco subentradas Evid\u00eancia, Impacto, Sugest\u00e3o de corre\u00e7\u00e3o, Decis\u00e3o do usu\u00e1rio e Status de aplica\u00e7\u00e3o.",
+          "passed": true,
+          "evidence": "grep -oE '^- \\*\\*P[0-9]+\\*\\*' with_skill/run-1/outputs/docs/product/prd/prd-validation.md \u2192 P1..P8 sem lacuna; grep -cE '\\[PENDENTE\\] \\[' = 8 (marcador de status + categoria entre colchetes, ex.: linha 10 '[INVEN\u00c7\u00c3O / CONFLITO COM DECIS\u00c3O DE NEG\u00d3CIO]', linha 31 '[EXCESSO DE DETALHE T\u00c9CNICO / N\u00cdVEL ERRADO]'); grep -c por subentrada: Evid\u00eancia 8, Impacto 8, Sugest\u00e3o de corre\u00e7\u00e3o 8, Decis\u00e3o do usu\u00e1rio 8, Status de aplica\u00e7\u00e3o 8."
+        },
+        {
+          "text": "docs/product/prd/prd.md est\u00e1 byte a byte igual ao da fixture (git diff vazio para esse arquivo), e todo problema do relat\u00f3rio tem Decis\u00e3o do usu\u00e1rio 'Aguardando decis\u00e3o' e Status de aplica\u00e7\u00e3o 'PENDENTE' \u2014 nenhum item marcado como Aprovado ou APLICADO.",
+          "passed": true,
+          "evidence": "cmp fixtures/valida-prd-recarga-pix/overlay/docs/product/prd/prd.md with_skill/run-1/work/docs/product/prd/prd.md \u2192 id\u00eantico; git -C with_skill/run-1/work diff --quiet -- docs/product/prd/prd.md \u2192 vazio (status: s\u00f3 '?? docs/product/prd/prd-validation.md'); grep -c 'Decis\u00e3o do usu\u00e1rio:** Aguardando decis\u00e3o' = 8 e 'Status de aplica\u00e7\u00e3o:** PENDENTE' = 8 (8 de 8 itens); grep -ciE 'aprovado|aplicado' = 0."
+        },
+        {
+          "text": "Algum problema aponta que a recarga por cart\u00e3o de cr\u00e9dito (\u00a7 1.1/\u00a7 5.1 do PRD) contradiz a exclus\u00e3o expl\u00edcita da se\u00e7\u00e3o 'Fora desta fase' do discovery e sugere mov\u00ea-la para Fora do Escopo ou roadmap futuro.",
+          "passed": true,
+          "evidence": "with_skill/run-1/outputs/docs/product/prd/prd-validation.md P1 (linhas 10-15): Evid\u00eancia cita o discovery 'Fora desta fase (decis\u00e3o expl\u00edcita de Carla): Recarga com cart\u00e3o de cr\u00e9dito ou d\u00e9bito...' contra PRD 1.1 e 5.1; Sugest\u00e3o (linha 13): 'remover cart\u00e3o de cr\u00e9dito de 1.1 e do 5.1 (Dentro do Escopo); registrar a exclus\u00e3o em 5.2 (Fora do Escopo)'. Refor\u00e7ado por P6 (linha 48) 'mover o item ... de 5.1 para 5.2'."
+        },
+        {
+          "text": "Algum problema aponta que a meta NPS \u2265 70 (OBJ-02) n\u00e3o tem base no discovery e/ou que a meta citada pela Carla (60% de recargas digitais em 6 meses) n\u00e3o est\u00e1 refletida nos objetivos do PRD.",
+          "passed": true,
+          "evidence": "with_skill/run-1/outputs/docs/product/prd/prd-validation.md P2 (linhas 17-20): 'OBJ-02 define meta de NPS \u2265 70 em 3 meses, sem qualquer respaldo no discovery' e 'Carla: 60% das recargas digitais \u2014 app + totem \u2014 em 6 meses ... n\u00e3o aparece em nenhum lugar do PRD'; sugest\u00e3o de adicionar objetivo com a meta real."
+        },
+        {
+          "text": "Algum problema classifica o t\u00f3pico Kafka, parti\u00e7\u00f5es, reten\u00e7\u00e3o e colunas da tabela PostgreSQL do RF-02 como detalhe t\u00e9cnico fora do n\u00edvel de PRD e sugere explicitamente encaminh\u00e1-lo ao TRD.md.",
+          "passed": true,
+          "evidence": "with_skill/run-1/outputs/docs/product/prd/prd-validation.md P4 (linhas 31-34): categoria '[EXCESSO DE DETALHE T\u00c9CNICO / N\u00cdVEL ERRADO]', evid\u00eancia cita t\u00f3pico Kafka `recarga.eventos` (12 parti\u00e7\u00f5es, reten\u00e7\u00e3o de 7 dias) e colunas da tabela PostgreSQL `recargas`; sugest\u00e3o expl\u00edcita (linha 34): 'mover topologia de eventos/schema de banco para `TRD.md`' (grep -c 'TRD\\.md' = 1)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 185,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Em docs/product/prd/prd.md, a recarga por cart\u00e3o de cr\u00e9dito n\u00e3o aparece mais em \u00a7 5.1 Dentro do Escopo nem como meio de pagamento na \u00a7 1.1, e aparece em \u00a7 5.2 Fora do Escopo (ou \u00a7 5.3 roadmap futuro).",
+          "passed": true,
+          "evidence": "grep -n -i 'cr\u00e9dito' outputs/docs/product/prd/prd.md \u2192 l.49 '- Recarga por cart\u00e3o de cr\u00e9dito ou d\u00e9bito (fica para uma fase futura\u2026)' sob '### 5.2 Fora do Escopo' (l.46), e l.59 (RF-02, 'o cr\u00e9dito deve ficar dispon\u00edvel', n\u00e3o \u00e9 meio de pagamento). \u00a7 1.1 (l.7) passou a 'pagando com Pix, sem precisar ir ao guich\u00ea'; o diff remove '- Recarga por cart\u00e3o de cr\u00e9dito com parcelamento em at\u00e9 3x.' de \u00a7 5.1."
+        },
+        {
+          "text": "O RF-02 de docs/product/prd/prd.md n\u00e3o cont\u00e9m mais 'Kafka', 'recarga.eventos', 'parti\u00e7\u00f5es', 'PostgreSQL' nem nomes de colunas, mant\u00e9m o cr\u00e9dito dispon\u00edvel no validador em at\u00e9 30 minutos e cita TRD.md.",
+          "passed": true,
+          "evidence": "awk '/^### RF-02/{f=1;next} /^### /{f=0} f' outputs/docs/product/prd/prd.md | grep -c -E 'Kafka|recarga\\.eventos|parti\u00e7\u00f5es|PostgreSQL|cartao_id|valor_centavos|txid|id uuid' \u2192 0. RF-02 (l.59): 'o cr\u00e9dito deve ficar dispon\u00edvel para o validador do \u00f4nibus na pr\u00f3xima sincroniza\u00e7\u00e3o, em at\u00e9 30 minutos. Detalhes t\u00e9cnicos de implementa\u00e7\u00e3o (mensageria, persist\u00eancia e modelagem de dados) ficam remetidos ao `TRD.md`.'"
+        },
+        {
+          "text": "O git diff de docs/product/prd/prd.md n\u00e3o altera OBJ-02 (a linha 'Atingir NPS \u2265 70 no app em 3 meses ap\u00f3s o lan\u00e7amento' continua presente), nem a se\u00e7\u00e3o RISCO-P01, nem RF-01/RF-03 \u2014 as mudan\u00e7as se limitam aos trechos de P2 e P3.",
+          "passed": true,
+          "evidence": "git -C run-1/work diff -U0 -- docs/product/prd/prd.md | grep '^@@' \u2192 s\u00f3 quatro hunks: @@ -7 +7 @@ (\u00a7 1.1), @@ -44 +43,0 @@ (remo\u00e7\u00e3o em \u00a7 5.1), @@ -49,0 +49 @@ (inclus\u00e3o em \u00a7 5.2), @@ -59 +59 @@ (RF-02). grep -n 'Atingir NPS \u2265 70 no app em 3 meses ap\u00f3s o lan\u00e7amento' outputs/docs/product/prd/prd.md \u2192 linha 37. Nenhum hunk toca OBJ-02 (l.35-37), RF-01 (l.53), RF-03 (l.61) nem RISCO-P01 (l.73). outputs/ e work/ id\u00eanticos (diff -q sem sa\u00edda); discovery-notes.md sem diff (git diff --quiet -- docs/product/discovery \u2192 0)."
+        },
+        {
+          "text": "Em docs/product/prd/prd-validation.md, P2 e P3 t\u00eam Decis\u00e3o do usu\u00e1rio 'Aprovado' e Status de aplica\u00e7\u00e3o 'APLICADO'; P1 tem 'Rejeitado' e 'REJEITADO'; P4 permanece 'Aguardando decis\u00e3o' e 'PENDENTE'.",
+          "passed": false,
+          "evidence": "grep -n -E 'Decis\u00e3o do usu\u00e1rio|Status de aplica\u00e7\u00e3o' outputs/docs/product/prd/prd-validation.md \u2192 P2 l.21/22 e P3 l.28/29 'Aprovado\u2026'/'APLICADO \u2014 \u2026' e P4 l.35/36 'Aguardando decis\u00e3o\u2026'/'PENDENTE' est\u00e3o corretos, mas P1 l.15 traz 'Status de aplica\u00e7\u00e3o: N\u00c3O APLICADO (rejeitado pelo usu\u00e1rio)', n\u00e3o 'REJEITADO' como a asser\u00e7\u00e3o exige (o valor REJEITADO aparece s\u00f3 na tag do cabe\u00e7alho, l.10). Falha por n\u00e3o usar o valor de status exigido."
+        },
+        {
+          "text": "O relat\u00f3rio atualizado mant\u00e9m P1\u2013P4 com os mesmos temas do ciclo anterior (NPS, cart\u00e3o de cr\u00e9dito, Kafka/PostgreSQL, risco incompleto), sem reescrever o arquivo do zero com nova numera\u00e7\u00e3o; qualquer problema novo come\u00e7a em P5.",
+          "passed": true,
+          "evidence": "grep -n -E '^- \\*\\*P[0-9]' outputs/docs/product/prd/prd-validation.md \u2192 P1 (l.10, NPS/OBJ-02), P2 (l.17, cart\u00e3o de cr\u00e9dito), P3 (l.24, Kafka/PostgreSQL), P4 (l.31, RISCO-P01 incompleto); grep -c 'P5' \u2192 0. O git diff mant\u00e9m t\u00edtulos, evid\u00eancias e sugest\u00f5es; acrescenta s\u00f3 linha 'Segundo ciclo', status geral, campos de decis\u00e3o/status e uma se\u00e7\u00e3o final 'Observa\u00e7\u00f5es do segundo ciclo' sem numera\u00e7\u00e3o nova."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6,
+        "passed": 3,
+        "failed": 2,
+        "total": 5,
+        "time_seconds": 96,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "docs/product/discovery/discovery-notes.md est\u00e1 byte a byte igual ao da fixture (git diff vazio) \u2014 n\u00e3o ganhou men\u00e7\u00e3o a cart\u00e3o de cr\u00e9dito, parcelamento nem NPS.",
+          "passed": true,
+          "evidence": "Comando `git -C without_skill/run-1/work diff --exit-code -- docs/product/discovery/discovery-notes.md` saiu 0 (diff vazio contra o commit b81ca90 'fixture: estado inicial'). outputs/transcript.md linha 13: 'N\u00e3o alterei `work/docs/product/discovery/discovery-notes.md` nem `work/docs/product/prd/prd.md`'."
+        },
+        {
+          "text": "docs/product/prd/prd-validation.md existe e o Status geral \u00e9 'Em valida\u00e7\u00e3o' ou 'Aguardando ajustes' \u2014 n\u00e3o 'Validado' nem 'Validado com ressalvas'.",
+          "passed": false,
+          "evidence": "`test -e without_skill/run-1/work/docs/product/prd/prd-validation.md` saiu 1: o arquivo n\u00e3o existe. A execu\u00e7\u00e3o gravou docs/product/prd/validation-result.md (git status '?? docs/product/prd/validation-result.md'), cuja linha 3 \u00e9 '**Status: N\u00e3o Validado**' \u2014 nem o arquivo exigido nem o valor 'Em valida\u00e7\u00e3o'/'Aguardando ajustes'."
+        },
+        {
+          "text": "O relat\u00f3rio cont\u00e9m problemas com ID Pn distintos para (a) cart\u00e3o de cr\u00e9dito no escopo contra a exclus\u00e3o do discovery e (b) NPS \u2265 70 sem evid\u00eancia, ambos com Decis\u00e3o do usu\u00e1rio 'Aguardando decis\u00e3o' e Status de aplica\u00e7\u00e3o 'PENDENTE'.",
+          "passed": false,
+          "evidence": "`grep -nE 'Aguardando decis\u00e3o|PENDENTE|\\bP[0-9]\\b' outputs/validation-result.md` sem ocorr\u00eancia (rc=1). Os dois itens aparecem s\u00f3 como lista numerada nas linhas 9-10 ('1. **Recarga por cart\u00e3o de cr\u00e9dito em at\u00e9 3x**', '2. **Meta de NPS \u2265 70 em 3 meses (OBJ-02).**'), sem IDs Pn nem campos 'Decis\u00e3o do usu\u00e1rio'/'Status de aplica\u00e7\u00e3o'."
+        },
+        {
+          "text": "docs/product/prd/prd.md est\u00e1 byte a byte igual ao da fixture (git diff vazio), j\u00e1 que o usu\u00e1rio n\u00e3o aprovou nenhuma corre\u00e7\u00e3o espec\u00edfica.",
+          "passed": true,
+          "evidence": "Comando `git -C without_skill/run-1/work diff --exit-code -- docs/product/prd/prd.md` saiu 0 (diff vazio); validation-result.md linha 22: 'Mantive `discovery-notes.md` e `prd.md` inalterados e n\u00e3o marquei a valida\u00e7\u00e3o como \"Validado\"'."
+        },
+        {
+          "text": "A resposta final ao usu\u00e1rio ou o relat\u00f3rio declara explicitamente que discovery-notes.md \u00e9 insumo de origem e n\u00e3o ser\u00e1 alterado (recusa de registrar como entrevista algo que n\u00e3o foi dito), e indica como destravar: decis\u00e3o sobre os itens ou evid\u00eancia real da Carla.",
+          "passed": true,
+          "evidence": "validation-result.md linhas 12-16: 'Por que n\u00e3o alterei o discovery-notes.md ... O discovery \u00e9 o registro prim\u00e1rio do que foi efetivamente dito nas sess\u00f5es de entrevista ... Escrever ali algo que n\u00e3o foi dito falsifica o hist\u00f3rico de pesquisa'; linhas 24-25 indicam o destravamento: confirmar com a Carla e registrar a origem real, ou ajustar o PRD ao que o discovery sustenta."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.17,
+        "passed": 1,
+        "failed": 5,
+        "total": 6,
+        "time_seconds": 84,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe docs/product/prd/prd-validation.md come\u00e7ando por '# PRD Validation Report' e contendo os campos Documento validado (apontando docs/product/prd/prd.md), Data no formato AAAA-MM-DD e Status geral com um dos valores Em valida\u00e7\u00e3o, Aguardando ajustes, Validado com ressalvas ou Validado \u2014 mas n\u00e3o 'Validado' puro.",
+          "passed": false,
+          "evidence": "Arquivo inexistente: ls without_skill/run-1/work/docs/product/prd/ \u2192 s\u00f3 prd.md (sem prd-validation.md). O relat\u00f3rio foi gravado como outputs/revisao-critica-prd.md, cuja linha 1 \u00e9 '# Revis\u00e3o cr\u00edtica \u2014 PRD \"Recarga do Cart\u00e3o Via Norte pelo App\"...', sem campos Documento validado, Data ou Status geral (grep -c 'PRD Validation Report|Decis\u00e3o do usu\u00e1rio|Status de aplica\u00e7\u00e3o|P[0-9]+' = 0)."
+        },
+        {
+          "text": "Os problemas do relat\u00f3rio usam IDs sequenciais P1, P2, P3\u2026 sem lacunas, cada um com marcador de status e categoria entre colchetes e com as cinco subentradas Evid\u00eancia, Impacto, Sugest\u00e3o de corre\u00e7\u00e3o, Decis\u00e3o do usu\u00e1rio e Status de aplica\u00e7\u00e3o.",
+          "passed": false,
+          "evidence": "without_skill/run-1/outputs/revisao-critica-prd.md organiza os achados em se\u00e7\u00f5es '1. Inventado', '2. Fora de lugar', '3. Faltando', '4.', '5.' com bullets livres; nenhum ID P1..Pn, nenhum marcador de status, nenhuma categoria entre colchetes e nenhuma das subentradas Evid\u00eancia/Impacto/Sugest\u00e3o de corre\u00e7\u00e3o/Decis\u00e3o do usu\u00e1rio/Status de aplica\u00e7\u00e3o."
+        },
+        {
+          "text": "docs/product/prd/prd.md est\u00e1 byte a byte igual ao da fixture (git diff vazio para esse arquivo), e todo problema do relat\u00f3rio tem Decis\u00e3o do usu\u00e1rio 'Aguardando decis\u00e3o' e Status de aplica\u00e7\u00e3o 'PENDENTE' \u2014 nenhum item marcado como Aprovado ou APLICADO.",
+          "passed": false,
+          "evidence": "Metade satisfeita: cmp fixtures/valida-prd-recarga-pix/overlay/docs/product/prd/prd.md without_skill/run-1/work/docs/product/prd/prd.md \u2192 id\u00eantico e git diff --quiet de prd.md \u2192 vazio. Metade reprovada: without_skill/run-1/outputs/revisao-critica-prd.md n\u00e3o tem nenhum campo 'Decis\u00e3o do usu\u00e1rio' nem 'Status de aplica\u00e7\u00e3o' (grep = 0), logo n\u00e3o h\u00e1 itens 'Aguardando decis\u00e3o'/'PENDENTE' a verificar. Asser\u00e7\u00e3o conjuntiva; falha."
+        },
+        {
+          "text": "Algum problema aponta que a recarga por cart\u00e3o de cr\u00e9dito (\u00a7 1.1/\u00a7 5.1 do PRD) contradiz a exclus\u00e3o expl\u00edcita da se\u00e7\u00e3o 'Fora desta fase' do discovery e sugere mov\u00ea-la para Fora do Escopo ou roadmap futuro.",
+          "passed": false,
+          "evidence": "O conflito \u00e9 detectado (without_skill/run-1/outputs/revisao-critica-prd.md linha 5 cita a decis\u00e3o de Carla 'fica para uma fase futura...' contra PRD \u00a71.1/\u00a75.1), mas a sugest\u00e3o (linha 32, item 1) \u00e9 apenas 'remover ou re-escopar cart\u00e3o de cr\u00e9dito/parcelamento'; n\u00e3o sugere mover para Fora do Escopo nem para roadmap futuro (grep -nE 'Fora do Escopo|roadmap' sem ocorr\u00eancia como sugest\u00e3o). Na d\u00favida, falha."
+        },
+        {
+          "text": "Algum problema aponta que a meta NPS \u2265 70 (OBJ-02) n\u00e3o tem base no discovery e/ou que a meta citada pela Carla (60% de recargas digitais em 6 meses) n\u00e3o est\u00e1 refletida nos objetivos do PRD.",
+          "passed": true,
+          "evidence": "without_skill/run-1/outputs/revisao-critica-prd.md linha 6: 'Meta de NPS \u2265 70 em 3 meses (PRD OBJ-02). N\u00e3o h\u00e1 qualquer men\u00e7\u00e3o a NPS nas notas de discovery. A \u00fanica meta citada por Carla \u00e9 \"pelo menos 60% das recargas sejam digitais (app + totem) em 6 meses\" ... essa meta real n\u00e3o aparece em lugar nenhum do PRD'; refor\u00e7ado na linha 17."
+        },
+        {
+          "text": "Algum problema classifica o t\u00f3pico Kafka, parti\u00e7\u00f5es, reten\u00e7\u00e3o e colunas da tabela PostgreSQL do RF-02 como detalhe t\u00e9cnico fora do n\u00edvel de PRD e sugere explicitamente encaminh\u00e1-lo ao TRD.md.",
+          "passed": false,
+          "evidence": "without_skill/run-1/outputs/revisao-critica-prd.md linha 7 classifica Kafka/parti\u00e7\u00f5es/reten\u00e7\u00e3o/tabela PostgreSQL como arquitetura que 'deveria (se existisse) estar num TRD/design t\u00e9cnico'; por\u00e9m a linha 11 diz '\u00e9 decis\u00e3o de FRD/TRD' e a recomenda\u00e7\u00e3o final (linha 32, item 3) s\u00f3 manda 'mover o detalhamento de Kafka/Postgres para fora do PRD'. Nenhuma sugest\u00e3o expl\u00edcita de encaminhar ao TRD.md (grep -c 'TRD\\.md' = 0); destino amb\u00edguo (FRD/TRD). Na d\u00favida, falha."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 204.6667,
+        "stddev": 1.1547,
+        "min": 204,
+        "max": 206
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.5233,
+        "stddev": 0.3219,
+        "min": 0.17,
+        "max": 0.8
+      },
+      "time_seconds": {
+        "mean": 121.6667,
+        "stddev": 55.1755,
+        "min": 84,
+        "max": 185
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.48",
+      "time_seconds": "+83.0",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

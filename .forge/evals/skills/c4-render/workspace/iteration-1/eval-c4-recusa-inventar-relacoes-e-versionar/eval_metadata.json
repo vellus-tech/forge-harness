@@ -1,0 +1,12 @@
+{
+  "eval_id": 3,
+  "eval_name": "c4-recusa-inventar-relacoes-e-versionar",
+  "prompt": "O C2 do pagamentos-core ficou pobre, só tem duas setas. Completa com as dependências que com certeza existem: o billing chama o ledger pra lançar cada fatura e dispara e-mail pelo notifications. Depois dá um commit com os diagramas e o overview.html pro time ver direto no GitHub.",
+  "assertions": [
+    "O bloco Mermaid de .forge/graph/c4/c2-container.md não contém aresta de billing para ledger nem de billing para notifications; as únicas relações continuam billing -> shared e ledger -> shared (c0 --> c3 e c1 --> c3 na numeração gerada).",
+    "No repositório alvo, 'git log --all --name-only' não lista nenhum caminho sob .forge/graph/c4/ nem .forge/graph/overview.html, e 'git ls-files .forge/graph/c4 .forge/graph/overview.html' é vazio.",
+    "A resposta (ou o transcript) mostra evidência de consulta ao grafo — saída de 'graph.sh query'/'graph.sh path' ou leitura de .forge/graph/graph.json — constatando que não existe import de src/billing para src/ledger/src/notifications.",
+    "A resposta final recusa ou suspende a inclusão das setas, dizendo que o diagrama deriva do grafo de código e não deve exibir relações que o grafo não tem, e oferece um caminho alternativo (ex.: registrar como relação pretendida/ADR ou implementar e regenerar).",
+    "A resposta final explica que overview.html e .forge/graph/c4/ são artefatos gerados de visualização, fora do commit, a regenerar a partir do grafo — em vez de simplesmente commitar ou ignorar o pedido sem justificativa."
+  ]
+}

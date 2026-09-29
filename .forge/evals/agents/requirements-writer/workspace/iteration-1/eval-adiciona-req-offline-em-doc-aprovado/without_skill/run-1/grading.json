@@ -1,0 +1,50 @@
+{
+  "expectations": [
+    {
+      "text": "O cabeçalho de docs/product/modules/validacao/requirements.md mostra 'Versão: 1.3.0' (nem 1.2.0, nem 1.2.1, nem 2.0.0) e 'Status: Aprovado para desenvolvimento' — o documento não regrediu para Rascunho.",
+      "passed": true,
+      "evidence": "Comando `grep -nE '^- (Versão|Status):|^\\| 1\\.[0-3]\\.0|^### Req|DENIED_|ata-2026-09-20|200 Validações|24 horas' outputs/docs/product/modules/validacao/requirements.md`: linha 4 '- Versão: 1.3.0' e linha 6 '- Status: Aprovado para desenvolvimento'; o diff contra a fixture só troca 1.2.0→1.3.0 e a data."
+    },
+    {
+      "text": "A tabela 'Histórico de Versões' mantém as linhas 1.0.0, 1.1.0 e 1.2.0 intactas e ganha uma linha 1.3.0 com data YYYY-MM-DD e descrição mencionando o modo offline.",
+      "passed": true,
+      "evidence": "outputs/docs/product/modules/validacao/requirements.md l.13–15: linhas 1.0.0, 1.1.0 e 1.2.0 inalteradas (o diff não remove nada na tabela); l.16 '| 1.3.0 | 2026-09-26 | Aprovado para desenvolvimento | Adição dos Req 5-7 (modo offline do Validador), ... |'."
+    },
+    {
+      "text": "Há um '### Req 5' (e, se houver mais, Req 6, 7… sem furos) sobre o modo offline, com Origem apontando para docs/product/ata-2026-09-20-operadora.md e critérios de aceite que incluem o limite de 200 Validações ou 24 horas; os blocos Req 1 a Req 4 e seus critérios permanecem com o mesmo texto.",
+      "passed": true,
+      "evidence": "outputs/docs/product/modules/validacao/requirements.md: '### Req 5' (l.119), '### Req 6' (l.136), '### Req 7' (l.154), sem furos. Origem 'docs/product/ata-2026-09-20-operadora.md, decisão N' nas l.126/143/161. Critério 6.1 (l.148) 'no máximo 200 Validações ou 24 horas ... o que ocorrer primeiro'. Req 1–4 conferidos por diff do trecho original (git show HEAD:) contra a saída: idênticos."
+    },
+    {
+      "text": "A seção '## 4. Lista canônica de resultados de Validação' passa a conter o código 'DENIED_OFFLINE_LIMIT', mantendo os quatro códigos existentes.",
+      "passed": true,
+      "evidence": "outputs/docs/product/modules/validacao/requirements.md l.46–50: AUTHORIZED, DENIED_BALANCE, DENIED_BLOCKED e DENIED_INVALID mantidos e '| `DENIED_OFFLINE_LIMIT` | Limite de Validações em modo offline atingido |' adicionado; o diff não remove nenhum código."
+    },
+    {
+      "text": "docs/product/modules/validacao/README.md mostra, na linha do requirements.md, a versão 1.3.0 com status 'Aprovado para desenvolvimento'; a linha do design.md não foi alterada.",
+      "passed": false,
+      "evidence": "sem saída: não existe outputs/docs/product/modules/validacao/README.md (grep retorna 'No such file or directory'), e git -C work status mostra só requirements.md modificado. O work/docs/product/modules/validacao/README.md l.9 continua '| requirements.md | Aprovado para desenvolvimento | 1.2.0 | 2026-08-28 |'. O transcript não menciona o README."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "pass_rate": 0.8
+  },
+  "timing": {
+    "executor_duration_seconds": 107
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A seção '## 4. Lista canônica de resultados de Validação' passa a conter o código 'DENIED_OFFLINE_LIMIT', mantendo os quatro códigos existentes.",
+        "reason": "Passa com descrição mínima do código; não verifica se o comportamento DENIED_OFFLINE_LIMIT fica amarrado a um critério de aceite (as duas configurações amarraram)."
+      },
+      {
+        "reason": "Nenhuma asserção verifica se a decisão 4 da ata (lista de restrição offline) foi coberta; with_skill criou Req 8 e without_skill a colocou em 6.3, e as duas passam. Nenhuma verifica também seções extras alteradas (with_skill mexeu no glossário e em PBTs, apesar do pedido para não mexer no resto)."
+      }
+    ],
+    "overall": "A asserção do README é a única que discrimina as configurações; as demais saturam."
+  }
+}

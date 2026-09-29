@@ -1,0 +1,50 @@
+{
+  "expectations": [
+    {
+      "text": "outputs/validacao-tarifacao.md cita a contagem de linhas do requirements.md (2.448, ou um número acima de 2.000 com a medição declarada) e o limite de 2.000 linhas, e a tabela Checks Executados marca 'Tamanho até 2.000 linhas' como Falhou.",
+      "passed": false,
+      "evidence": "without_skill/run-1/outputs/validacao-tarifacao.md:3 cita '2448 linhas', mas o parecer não menciona o limite de 2.000 linhas (grep -n '2.000' sem resultado) e não tem tabela 'Checks Executados' nem check 'Tamanho até 2.000 linhas'; without_skill/run-1/outputs/validacao-tarifacao.md:24 trata o tamanho como 'Observação ... (não bloqueante)' e diz que a revisão 'foi possível dentro do range pedido sem dificuldade'."
+    },
+    {
+      "text": "O parecer declara 'Status: Reprovado' e contém um achado [BLOCKER-NN] cujo problema é o tamanho do documento acima de 2.000 linhas.",
+      "passed": false,
+      "evidence": "grep -nE 'Status: Reprovado|\\[BLOCKER-' without_skill/run-1/outputs/validacao-tarifacao.md sem resultado. Não há status formal; a recomendação em without_skill/run-1/outputs/validacao-tarifacao.md:28 é 'Aprovação condicional'. O único item marcado 'bloqueante' (without_skill/run-1/outputs/validacao-tarifacao.md:12) trata de Req 1.2 × PBT-01, não do tamanho."
+    },
+    {
+      "text": "O parecer não contém achados sobre o conteúdo de requisitos individuais (nenhum achado com Local apontando para Req 1 a Req 20 ou para critérios como '3.1', '12.2'), e explica que a revisão detalhada foi bloqueada pelo tamanho, mesmo com o pedido explícito do usuário.",
+      "passed": false,
+      "evidence": "O parecer faz revisão detalhada dos Req 1-20 (escopo declarado em without_skill/run-1/outputs/validacao-tarifacao.md:4, seção '## Achados (Req 1–20)' em without_skill/run-1/outputs/validacao-tarifacao.md:10) com achados sobre critérios individuais: without_skill/run-1/outputs/validacao-tarifacao.md:12 'Inconsistência entre Req 1.2 e PBT-01', without_skill/run-1/outputs/validacao-tarifacao.md:16 borda dos 90 minutos, without_skill/run-1/outputs/validacao-tarifacao.md:18 faixa noturna, without_skill/run-1/outputs/validacao-tarifacao.md:20 valores 440/490 dos Req 1-20. Não há explicação de bloqueio por tamanho."
+    },
+    {
+      "text": "As recomendações para o requirements-writer pedem a quebra em documentos menores por feature, função de negócio ou capacidade funcional e reproduzem o formato recomendado pelo contrato, com '# [nome-da-feature]/requirements.md' (ou nome concreto equivalente), seção '## User Story' no molde 'As a ..., I want to ..., so that ...' e '## Acceptance Criteria' com checkboxes.",
+      "passed": false,
+      "evidence": "without_skill/run-1/outputs/validacao-tarifacao.md:24 recusa a quebra ('Não estou pedindo para quebrar o módulo') e sugere só separar o catálogo como tabela/anexo; grep -nE 'Acceptance Criteria|I want to|so that|- \\[ \\]' without_skill/run-1/outputs/validacao-tarifacao.md sem resultado; a única ocorrência de 'User Story' (without_skill/run-1/outputs/validacao-tarifacao.md:24) descreve o documento atual, não um formato recomendado."
+    },
+    {
+      "text": "A Decisão para o Pipeline marca 'Pode seguir para design.md: Não' e 'Requer nova execução do requirements-writer: Sim', e git diff HEAD -- docs/ está vazio (o validador não fatiou nem editou o documento por conta própria).",
+      "passed": false,
+      "evidence": "Não existe seção 'Decisão para o Pipeline' nem as marcações 'Pode seguir para design.md: Não' / 'Requer nova execução do requirements-writer: Sim' (grep -n 'Pode seguir\\|Decisão para o Pipeline' sem resultado); without_skill/run-1/outputs/validacao-tarifacao.md:28 dá 'Aprovação condicional'. A metade do diff está ok (git -C without_skill/run-1/work diff HEAD --stat -- docs/ vazio), mas a asserção é conjuntiva e falha."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 5,
+    "total": 5,
+    "pass_rate": 0.0
+  },
+  "timing": {
+    "executor_duration_seconds": 117
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "As recomendações para o requirements-writer pedem a quebra em documentos menores por feature, função de negócio ou capacidade funcional e reproduzem o formato recomendado pelo contrato, com '# [nome-da-feature]/requirements.md' (ou nome concreto equivalente), seção '## User Story' no molde 'As a ..., I want to ..., so that ...' e '## Acceptance Criteria' com checkboxes.",
+        "reason": "É a única asserção que separa um with_skill bom de um perfeito, mas exige reprodução literal do molde; se o contrato do agente só exige o formato no caso de decomposição, vale confirmar que o texto do agente realmente manda reproduzi-lo no parecer, senão a asserção mede algo que o artefato não ensina."
+      },
+      {
+        "reason": "Nenhuma asserção cobre a contaminação do eval: o grading.json antigo (26/09) ficou dentro de run-1/ durante as execuções de 28/09, e o executor without_skill declara em outputs/transcript.md:38-40 que o leu (após salvar o parecer). O workspace deveria ser limpo antes de cada rodada."
+      }
+    ],
+    "overall": "A asserção 5 é conjuntiva (texto do parecer + git diff); a metade do diff passou nas duas configurações e não discrimina."
+  }
+}

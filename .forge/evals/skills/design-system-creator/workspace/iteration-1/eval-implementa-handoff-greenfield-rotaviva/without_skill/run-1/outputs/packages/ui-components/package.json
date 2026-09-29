@@ -1,0 +1,14 @@
+{
+  "name": "@rotaviva/ui-components",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "dependencies": {
+    "@rotaviva/design-tokens": "workspace:*",
+    "react": "^18.3.0"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  }
+}

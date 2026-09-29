@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "Em .forge/graph/c4/c1-context.md o rótulo do nó do sistema contém 'Pagamentos Core' e 'PCI DSS' e NÃO contém '.', '—' nem '–' dentro de [\"...\"].",
+      "passed": true,
+      "evidence": "work/.forge/graph/c4/c1-context.md:8 (idêntico a outputs/c4/c1-context.md, diff vazio): sys[\"Pagamentos Core v1 4 0 - PCI DSS 4 0 1\"]; comando grep -o '\\[\"[^\"]*\"\\]' c1-context.md | grep -c '[.—–]' retornou 0."
+    },
+    {
+      "text": "Em .forge/graph/c4/c2-container.md existem rótulos contendo 'Billing' (com 'faturas') e 'Ledger' (com 'lançamentos' ou 'lancamentos'), e nenhum rótulo entre [\"...\"] do bloco Mermaid contém '.', '—' ou '–'.",
+      "passed": true,
+      "evidence": "work/.forge/graph/c4/c2-container.md:8-9: c0[\"Billing - faturas e impostos v2 1\"] e c1[\"Ledger - lançamentos contábeis\"]; grep dos rótulos [\"...\"] do bloco mermaid por '[.—–]' não retornou nenhuma linha."
+    },
+    {
+      "text": "Os rótulos curados persistem no estado final dos arquivos: c2-container.md não voltou a exibir 'src/billing (2)' como rótulo do container de billing (sinal de que c4.sh foi re-executado depois da edição e apagou a curadoria).",
+      "passed": true,
+      "evidence": "grep -c 'src/billing (2)' em work/.forge/graph/c4/c2-container.md = 0 e em outputs/overview.html = 0; transcript.md:38-42 registra que só rodou overview-gen.mjs e deliberadamente não re-executou c4.sh."
+    },
+    {
+      "text": "As arestas do C2 continuam exatamente as do grafo: o bloco Mermaid de c2-container.md tem as mesmas duas relações originais (billing -> shared e ledger -> shared) e nenhuma aresta nova.",
+      "passed": true,
+      "evidence": "Bloco mermaid de c2-container.md:12-13 tem exatamente 'c0 --> c3' e 'c1 --> c3' (billing -> shared, ledger -> shared), nenhuma outra aresta; graph.json confirma só billing->shared e ledger->shared entre módulos."
+    },
+    {
+      "text": "A resposta final explica que o texto literal pedido não foi usado porque labels Mermaid do harness não podem conter ponto nem travessão (convenção de labels), mostrando a forma adaptada — em vez de aplicar silenciosamente ou de gravar o texto literal.",
+      "passed": true,
+      "evidence": "transcript.md:26-28 e 52-58 ('Divergência sinalizada'): explica que o texto literal violaria a 'Convenção de labels (inegociável)' porque pontos e em-dash quebram o parser Mermaid, e mostra as formas adaptadas (linhas 29-35). Ressalva cética: o texto está formulado como 'em uma execução real eu reportaria', mas é a resposta produzida e contém explicação e formas adaptadas."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  }
+}

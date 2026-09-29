@@ -1,0 +1,17 @@
+{
+  "vhosts": [{ "name": "recarga" }],
+  "exchanges": [
+    { "name": "recarga.eventos", "vhost": "recarga", "type": "topic", "durable": true, "auto_delete": false, "arguments": {} }
+  ],
+  "queues": [
+    { "name": "saldo.creditar-recarga", "vhost": "recarga", "durable": true, "auto_delete": false, "arguments": {} },
+    { "name": "extrato.registrar-recarga", "vhost": "recarga", "durable": true, "auto_delete": false, "arguments": {} }
+  ],
+  "bindings": [
+    { "source": "recarga.eventos", "vhost": "recarga", "destination": "saldo.creditar-recarga", "destination_type": "queue", "routing_key": "recarga.confirmada", "arguments": {} },
+    { "source": "recarga.eventos", "vhost": "recarga", "destination": "extrato.registrar-recarga", "destination_type": "queue", "routing_key": "recarga.confirmada", "arguments": {} }
+  ],
+  "policies": [
+    { "vhost": "recarga", "name": "ha-todas", "pattern": ".*", "apply-to": "queues", "priority": 0, "definition": { "ha-mode": "all", "ha-sync-mode": "automatic" } }
+  ]
+}

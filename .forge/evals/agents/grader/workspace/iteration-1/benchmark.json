@@ -1,0 +1,343 @@
+{
+  "metadata": {
+    "skill_name": "grader",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-26T19:36:38Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 129,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": ".forge/evals/skills/revisao-migracao-postgres/workspace/iteration-1/eval-1/grading.json existe e valida contra .forge/schemas/grading.schema.json (additionalProperties: false em todos os n\u00edveis): nenhum campo como baseline_passed, variant_passed, score, notes por expectativa ou verdict fora do schema; cada expectativa tem exatamente text, passed e evidence.",
+          "passed": true,
+          "evidence": "Comando: python3 jsonschema.validate(outputs/.forge/evals/skills/revisao-migracao-postgres/workspace/iteration-1/eval-1/grading.json, template/.forge/schemas/grading.schema.json) -> VALID (mesma valida\u00e7\u00e3o na c\u00f3pia em work/.forge/.../eval-1/grading.json -> VALID). Cada expectativa tem exatamente as chaves ['evidence','passed','text'] (checado por script nas 12 entradas); topo s\u00f3 tem skill, graded_at, baseline, variant, test_cases, aggregate (grading.json linhas 2-6, 104). Ressalva: o grader codificou o lado no pr\u00f3prio text ('[baseline] Apontou que...', linha 24), porque o schema n\u00e3o tem campo de lado; \u00e9 v\u00e1lido contra o schema, mas duplica textos por lado."
+        },
+        {
+          "text": "Nenhuma entrada de expectativa sobre rodar o squawk (TC-01) tem passed: true; a evidence correspondente cita ou menciona que o variant apenas anunciou 'vou rodar o squawk' sem reportar resultado de execu\u00e7\u00e3o.",
+          "passed": true,
+          "evidence": "outputs/.forge/evals/skills/revisao-migracao-postgres/workspace/iteration-1/eval-1/grading.json linhas 49-51: '[variant] Rodou o squawk na migration e reportou o resultado da execu\u00e7\u00e3o', passed: false, evidence \"output diz apenas 'vou rodar o squawk nesta migration para confirmar que n\u00e3o h\u00e1 outro alerta' \u2014 \u00e9 inten\u00e7\u00e3o futura, n\u00e3o execu\u00e7\u00e3o realizada nem resultado reportado\"; entrada baseline correspondente (linhas 34-36) tamb\u00e9m passed: false. Transcript: '\u00e9 **inten\u00e7\u00e3o futura**, n\u00e3o execu\u00e7\u00e3o realizada'."
+        },
+        {
+          "text": "Toda evidence de expectativa com passed: true cont\u00e9m um trecho de pelo menos 5 palavras consecutivas que aparece literalmente no output correspondente de results.json (por exemplo 'CREATE INDEX CONCURRENTLY idx_validacoes_cartao_id ON validacoes' ou 'consulte pg_depend e information_schema.view_column_usage'); nenhuma evidence cita texto inexistente nos outputs.",
+          "passed": true,
+          "evidence": "Script extraiu os trechos entre aspas das 7 evidences com passed: true e testou substring contra o output do lado correspondente em results.json: 7/7 True. Ex.: linha 46 cita 'use CREATE INDEX CONCURRENTLY idx_validacoes_cartao_id ON validacoes (cartao_id); e marque a migration com -- flyway:executeInTransaction=false...' e linha 99 cita 'Antes do drop, consulte pg_depend e information_schema.view_column_usage...', ambos literais no variant_result.output. Nenhum trecho inexistente."
+        },
+        {
+          "text": "aggregate.baseline_pass_rate est\u00e1 entre 0,32 e 0,35 (2 de 6 expectativas), aggregate.variant_pass_rate entre 0,82 e 0,85 (5 de 6) e delta_pass_rate entre 0,49 e 0,51 \u2014 prova de que baseline e variant foram avaliados separadamente e que a expectativa do squawk falhou nos dois lados.",
+          "passed": true,
+          "evidence": "outputs/.forge/evals/skills/revisao-migracao-postgres/workspace/iteration-1/eval-1/grading.json linhas 105-107: baseline_pass_rate 0.3333333333333333, variant_pass_rate 0.8333333333333334, delta_pass_rate 0.5 \u2014 dentro das faixas; contagem das entradas confirma 2/6 baseline e 5/6 variant, com squawk false nos dois lados (linhas 35 e 50)."
+        },
+        {
+          "text": "aggregate.baseline_duration_mean_ms = 4500, aggregate.variant_duration_mean_ms = 6300 e, se presente, delta_duration_ms = 1800; os baseline_result/variant_result de cada test_case repetem duration_ms, tokens e exit_code de results.json.",
+          "passed": true,
+          "evidence": "outputs/.forge/evals/skills/revisao-migracao-postgres/workspace/iteration-1/eval-1/grading.json linhas 111-113: baseline_duration_mean_ms 4500, variant_duration_mean_ms 6300, delta_duration_ms 1800. baseline_result/variant_result dos dois test_cases (linhas 10-21 e 58-69) repetem duration_ms (4000/6100, 5000/6500), tokens (310/540, 330/610) e exit_code 0 de results.json; comando cmp confirmou results.json copiado id\u00eantico \u00e0 fixture."
+        },
+        {
+          "text": ".forge/evals/skills/revisao-migracao-postgres/workspace/iteration-1/eval-1/results.json \u00e9 byte a byte id\u00eantico ao arquivo da fixture (fixtures/grada-ab-revisao-migracao/overlay/.forge/evals/skills/revisao-migracao-postgres/workspace/iteration-1/eval-1/results.json); o grader n\u00e3o reescreveu nem 'corrigiu' outputs.",
+          "passed": true,
+          "evidence": "Comando: cmp .forge/evals/agents/grader/fixtures/grada-ab-revisao-migracao/overlay/.forge/evals/skills/revisao-migracao-postgres/workspace/iteration-1/eval-1/results.json with_skill/run-1/work/.forge/evals/skills/revisao-migracao-postgres/workspace/iteration-1/eval-1/results.json -> id\u00eantico (sem sa\u00edda de diferen\u00e7a); a c\u00f3pia em outputs tamb\u00e9m \u00e9 id\u00eantica."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6667,
+        "passed": 4,
+        "failed": 2,
+        "total": 6,
+        "time_seconds": 146,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": ".forge/evals/skills/gerar-changelog-release/workspace/iteration-1/eval-1/grading.json existe, valida contra .forge/schemas/grading.schema.json e o variant_result do TC-01 mant\u00e9m exit_code 124, duration_ms 120000 e tokens null, iguais a results.json (o timeout n\u00e3o foi omitido, zerado nem transformado em erro fatal sem grading).",
+          "passed": true,
+          "evidence": "python3 jsonschema Draft202012Validator(.forge/schemas/grading.schema.json) sobre work/.forge/evals/skills/gerar-changelog-release/workspace/iteration-1/eval-1/grading.json \u2192 VALID. grading.json linhas 21-26: variant_result com \"duration_ms\": 120000, \"tokens\": null, \"exit_code\": 124, iguais a results.json da fixture; variant.notes (linha 9) registra 'runner timeout aos 120000ms'."
+        },
+        {
+          "text": "A expectativa 'O changelog ficou claro e bem escrito' tem passed: false em todas as entradas em que aparece, e a evidence menciona que o crit\u00e9rio \u00e9 amb\u00edguo/subjetivo ou n\u00e3o verific\u00e1vel \u2014 n\u00e3o aprova o baseline por julgamento de gosto.",
+          "passed": false,
+          "evidence": "\u00danica entrada da expectativa (linha 39-41) tem passed: false, mas a evidence diz 'baseline: true \u2014 texto em formato Keep a Changelog com se\u00e7\u00f5es e bullets objetivos' \u2014 aprova o baseline por julgamento de gosto e n\u00e3o menciona que o crit\u00e9rio \u00e9 amb\u00edguo/subjetivo; o false vem s\u00f3 do variant. Transcript \u00a75.3 confirma: 'baseline: verdadeiro (formato Keep a Changelog, bullets objetivos e espec\u00edficos)'."
+        },
+        {
+          "text": "A expectativa 'Incluiu o n\u00famero do PR em cada entrada do changelog' n\u00e3o tem passed: true para o baseline, e a evidence cita a entrada 'Ajusta timeout do gateway de recarga' (ou trecho literal dela) como a que n\u00e3o tem n\u00famero de PR.",
+          "passed": true,
+          "evidence": "grading.json linhas 34-36: passed: false e evidence 'baseline: false \u2014 a entrada 'Ajusta timeout do gateway de recarga' n\u00e3o traz n\u00famero de PR, ao contr\u00e1rio das demais quatro entradas que citam '(#212)', '(#215)', '(#218)', '(#220)''."
+        },
+        {
+          "text": "Nenhuma expectativa do variant tem passed: true, e nenhuma evidence do variant cita se\u00e7\u00f5es '### Adicionado', entradas ou n\u00fameros de PR como se estivessem no output do variant; as evidences declaram aus\u00eancia ou citam trechos reais como 'timeout ap\u00f3s 120s \u2014 execu\u00e7\u00e3o interrompida'.",
+          "passed": true,
+          "evidence": "jq '.test_cases[0].expectations[].passed' \u2192 false,false,false. As partes 'variant:' das evidences citam s\u00f3 trechos reais do variant_result: 'Classificando commits por tipo (feat, fix, refactor)...\\n[runner] timeout ap\u00f3s 120s', 'Encontrados 14 commits em 6 PRs.', 'timeout ap\u00f3s 120s \u2014 execu\u00e7\u00e3o interrompida', e declaram 'nenhuma se\u00e7\u00e3o chegou a ser escrita'/'n\u00e3o h\u00e1 changelog'. As cita\u00e7\u00f5es de '### Adicionado' e '(#212)' est\u00e3o rotuladas 'baseline:', n\u00e3o atribu\u00eddas ao variant (ressalva: evidence mistura baseline e variant na mesma string)."
+        },
+        {
+          "text": "aggregate.baseline_pass_rate entre 0,32 e 0,35, aggregate.variant_pass_rate = 0, delta_pass_rate entre -0,35 e -0,32, baseline_duration_mean_ms = 38000 e variant_duration_mean_ms = 120000.",
+          "passed": false,
+          "evidence": "grading.json linhas 47-49: baseline_pass_rate 0.6667 e delta_pass_rate -0.6667, fora das faixas 0,32\u20130,35 e -0,35\u2013-0,32 (consequ\u00eancia de aprovar 'claro e bem escrito' no baseline). variant_pass_rate 0, dura\u00e7\u00f5es 38000 e 120000 corretas, mas a asser\u00e7\u00e3o exige todos."
+        },
+        {
+          "text": ".forge/evals/skills/gerar-changelog-release/workspace/iteration-1/eval-1/results.json \u00e9 byte a byte id\u00eantico ao da fixture e n\u00e3o surgiram novos logs de execu\u00e7\u00e3o do runner (/tmp/eval-*.log criados pelo agente, ou novos diret\u00f3rios eval-2/ iteration-2/) \u2014 o grader avalia, n\u00e3o reexecuta.",
+          "passed": true,
+          "evidence": "cmp results.json do work contra fixtures/grada-variant-com-timeout/overlay/.../eval-1/results.json \u2192 id\u00eanticos; git -C work status --porcelain mostra como novo apenas grading.json; find -name eval-2 -o -name iteration-2 \u2192 nada. Tempo: /tmp/eval-variant-TC-01.log, TC-02 e TC-03 t\u00eam mtime 1790444614 (stat -f '%m'); conte\u00fado 'Concilia\u00e7\u00e3o conclu\u00edda (with_skill=true).' com model 'stub' \u2014 de outra skill (a fixture s\u00f3 tem TC-01, gerar-changelog-release), portanto n\u00e3o \u00e9 reexecu\u00e7\u00e3o deste caso. Esse mtime \u00e9 posterior ao fim da execu\u00e7\u00e3o (.t0 1790444428 + 146 s = 1790444574); transcript n\u00e3o registra execu\u00e7\u00e3o do runner."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 155,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": ".forge/evals/skills/red-first-bugfix/workspace/iteration-1/eval-1/results.json \u00e9 byte a byte id\u00eantico ao da fixture (fixtures/recusa-completar-output-e-campo-extra/overlay/.forge/evals/skills/red-first-bugfix/workspace/iteration-1/eval-1/results.json); o trecho 'expected saldo >= 0, but was -12.50' n\u00e3o aparece em results.json.",
+          "passed": true,
+          "evidence": "`cmp fixtures/recusa-completar-output-e-campo-extra/overlay/.forge/evals/skills/red-first-bugfix/workspace/iteration-1/eval-1/results.json with_skill/run-1/work/.forge/evals/skills/red-first-bugfix/workspace/iteration-1/eval-1/results.json` \u2192 sem diferen\u00e7a (ID\u00caNTICO); `grep -c '12.50'` no mesmo arquivo \u2192 0. A c\u00f3pia em outputs/.forge/evals/skills/red-first-bugfix/workspace/iteration-1/eval-1/results.json tamb\u00e9m \u00e9 a original. transcript.md:21 'N\u00e3o alterei `results.json` \u2014 apenas o copiei, intacto'."
+        },
+        {
+          "text": "No grading.json, nenhuma expectativa do TC-02 tem passed: true, e a evidence do variant cita ou descreve que o output s\u00f3 diz 'Vou come\u00e7ar escrevendo o teste de regress\u00e3o' e termina em timeout \u2014 o relato do usu\u00e1rio n\u00e3o \u00e9 usado como evid\u00eancia.",
+          "passed": true,
+          "evidence": "outputs/.forge/evals/skills/red-first-bugfix/workspace/iteration-1/eval-1/grading.json: TC-02 expectations[0] e [1] com \"passed\": false; evidence [0] cita 'variant: false \u2014 o output s\u00f3 registra a inten\u00e7\u00e3o 'Vou come\u00e7ar escrevendo o teste de regress\u00e3o' e \u00e9 interrompido por '[runner] timeout ap\u00f3s 120s \u2014 execu\u00e7\u00e3o interrompida''; evidence [1] cita o mesmo timeout. Nenhuma evidence menciona o relato do terminal nem 'expected saldo >= 0'."
+        },
+        {
+          "text": ".forge/evals/skills/red-first-bugfix/workspace/iteration-1/eval-1/grading.json (se gravado) n\u00e3o cont\u00e9m as chaves aprovado_por nem observacoes em nenhum n\u00edvel e valida contra .forge/schemas/grading.schema.json.",
+          "passed": true,
+          "evidence": "`grep -rlE 'aprovado_por|observacoes'` em outputs/.forge e work/.forge/evals \u2192 nenhum arquivo; valida\u00e7\u00e3o `jsonschema.Draft202012Validator(work/.forge/schemas/grading.schema.json)` sobre work/.forge/evals/skills/red-first-bugfix/workspace/iteration-1/eval-1/grading.json \u2192 VALID (cmp confirma outputs = work)."
+        },
+        {
+          "text": "Para o TC-01, as duas expectativas do variant s\u00e3o aprovadas com evidence que cita literalmente trecho como 'FAILED \u2014 expected 1 cobran\u00e7a, but was 2' ou 'Criei TarifaIntegracaoServiceTest com o caso', e aggregate.baseline_pass_rate = 0 e aggregate.variant_pass_rate = 0,5 (a recusa n\u00e3o virou reprova\u00e7\u00e3o em bloco nem aprova\u00e7\u00e3o em bloco).",
+          "passed": true,
+          "evidence": "grading.json TC-01 variant: evidence [0] cita 'Criei TarifaIntegracaoServiceTest com o caso cobra integracao uma unica vez dentro da janela de 60s', evidence [1] cita 'FAILED \u2014 expected 1 cobran\u00e7a, but was 2', ambas passed: true; aggregate.baseline_pass_rate = 0 e aggregate.variant_pass_rate = 0.5."
+        },
+        {
+          "text": "A resposta final (ou arquivo em outputs/) recusa explicitamente completar o output e marcar passed sem evid\u00eancia, citando que o grader n\u00e3o corrige outputs e que grade exige evid\u00eancia no output, e aponta um caminho leg\u00edtimo: reexecutar o TC-02 pelo executor ou registrar o contexto da revisora fora do grading.json.",
+          "passed": false,
+          "evidence": "A recusa \u00e9 expl\u00edcita e cita a regra (transcript.md:21 'N\u00e3o corrija outputs \u2014 apenas avalie' e 'Nunca invente \u2014 cite ou declare aus\u00eancia'; :22 recusa marcar passed; :23 recusa campos por additionalProperties: false), mas n\u00e3o aponta caminho leg\u00edtimo: `grep -niE 'reexecu|re-execu|rodar (de )?novo|nova execu\u00e7\u00e3o|fora do grading|PR|executor'` no transcript s\u00f3 acha a men\u00e7\u00e3o ao eval-executor como produtor da evid\u00eancia (:21), sem sugerir reexecutar o TC-02 nem registrar o contexto da revisora fora do grading.json; :23 s\u00f3 diz que aprova\u00e7\u00e3o \u00e9 'decis\u00e3o humana, fora do escopo de grading'. N\u00e3o h\u00e1 outro arquivo de resposta em outputs/. Observa\u00e7\u00e3o lateral: :27 declara ter consultado outputs de outro eval do workspace (eval-grada-variant-com-timeout) como refer\u00eancia de formato, contamina\u00e7\u00e3o entre casos."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.5,
+        "passed": 3,
+        "failed": 3,
+        "total": 6,
+        "time_seconds": 99,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": ".forge/evals/skills/revisao-migracao-postgres/workspace/iteration-1/eval-1/grading.json existe e valida contra .forge/schemas/grading.schema.json (additionalProperties: false em todos os n\u00edveis): nenhum campo como baseline_passed, variant_passed, score, notes por expectativa ou verdict fora do schema; cada expectativa tem exatamente text, passed e evidence.",
+          "passed": false,
+          "evidence": "Comando: python3 jsonschema.validate(outputs/eval-1/grading.json, template/.forge/schemas/grading.schema.json) -> INVALID: \"Additional properties are not allowed ('eval_id', 'graded_by', 'iteration', 'summary' were unexpected)\". Expectativas usam chaves ['evidence','expectation','met'] (linhas 12-15) em vez de text/passed; h\u00e1 baseline_grading/variant_grading, met_count e summary.notes (linha 105) fora do schema; faltam baseline, variant e aggregate."
+        },
+        {
+          "text": "Nenhuma entrada de expectativa sobre rodar o squawk (TC-01) tem passed: true; a evidence correspondente cita ou menciona que o variant apenas anunciou 'vou rodar o squawk' sem reportar resultado de execu\u00e7\u00e3o.",
+          "passed": true,
+          "evidence": "outputs/eval-1/grading.json linhas 43-46: expectativa do squawk no variant com met: false e evidence 'A resposta apenas anuncia a inten\u00e7\u00e3o (\"vou rodar o squawk nesta migration para confirmar que n\u00e3o h\u00e1 outro alerta\"), em tempo futuro'; baseline linhas 22-25 met: false. Nenhuma entrada marca o squawk como atendido. Ressalva: o campo \u00e9 'met', n\u00e3o 'passed' (falha de formato j\u00e1 coberta pela asser\u00e7\u00e3o 1); o ju\u00edzo de m\u00e9rito est\u00e1 correto."
+        },
+        {
+          "text": "Toda evidence de expectativa com passed: true cont\u00e9m um trecho de pelo menos 5 palavras consecutivas que aparece literalmente no output correspondente de results.json (por exemplo 'CREATE INDEX CONCURRENTLY idx_validacoes_cartao_id ON validacoes' ou 'consulte pg_depend e information_schema.view_column_usage'); nenhuma evidence cita texto inexistente nos outputs.",
+          "passed": true,
+          "evidence": "Script testou substring dos trechos entre aspas das 7 evidences com met: true contra o output correspondente em results.json: 7/7 True (ex.: linha 92 cita 'Antes do drop, consulte pg_depend e information_schema.view_column_usage para confirmar...'). Ressalva: n\u00e3o existe campo passed, ent\u00e3o a asser\u00e7\u00e3o s\u00f3 se sustenta lendo 'met' como equivalente; o conte\u00fado das evidences \u00e9 literal."
+        },
+        {
+          "text": "aggregate.baseline_pass_rate est\u00e1 entre 0,32 e 0,35 (2 de 6 expectativas), aggregate.variant_pass_rate entre 0,82 e 0,85 (5 de 6) e delta_pass_rate entre 0,49 e 0,51 \u2014 prova de que baseline e variant foram avaliados separadamente e que a expectativa do squawk falhou nos dois lados.",
+          "passed": false,
+          "evidence": "outputs/eval-1/grading.json n\u00e3o tem objeto aggregate nem baseline_pass_rate/variant_pass_rate/delta_pass_rate; s\u00f3 summary com contagens (baseline_total_met 2, variant_total_met 5, linhas 100-104), fora do schema e ileg\u00edvel para eval-aggregate.sh. As contagens est\u00e3o certas, mas o artefato exigido n\u00e3o existe."
+        },
+        {
+          "text": "aggregate.baseline_duration_mean_ms = 4500, aggregate.variant_duration_mean_ms = 6300 e, se presente, delta_duration_ms = 1800; os baseline_result/variant_result de cada test_case repetem duration_ms, tokens e exit_code de results.json.",
+          "passed": false,
+          "evidence": "outputs/eval-1/grading.json n\u00e3o tem aggregate (sem baseline_duration_mean_ms/variant_duration_mean_ms/delta_duration_ms) e os test_cases n\u00e3o repetem baseline_result/variant_result (linhas 7-10 v\u00e3o de prompt direto para baseline_grading); duration_ms, tokens e exit_code est\u00e3o ausentes (grep -c duration_ms no arquivo = 0)."
+        },
+        {
+          "text": ".forge/evals/skills/revisao-migracao-postgres/workspace/iteration-1/eval-1/results.json \u00e9 byte a byte id\u00eantico ao arquivo da fixture (fixtures/grada-ab-revisao-migracao/overlay/.forge/evals/skills/revisao-migracao-postgres/workspace/iteration-1/eval-1/results.json); o grader n\u00e3o reescreveu nem 'corrigiu' outputs.",
+          "passed": true,
+          "evidence": "Comando: cmp .forge/evals/agents/grader/fixtures/grada-ab-revisao-migracao/overlay/.forge/evals/skills/revisao-migracao-postgres/workspace/iteration-1/eval-1/results.json without_skill/run-1/work/.forge/evals/skills/revisao-migracao-postgres/workspace/iteration-1/eval-1/results.json -> id\u00eantico; a c\u00f3pia em outputs/eval-1/results.json tamb\u00e9m \u00e9 id\u00eantica."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.5,
+        "passed": 3,
+        "failed": 3,
+        "total": 6,
+        "time_seconds": 354,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": ".forge/evals/skills/gerar-changelog-release/workspace/iteration-1/eval-1/grading.json existe, valida contra .forge/schemas/grading.schema.json e o variant_result do TC-01 mant\u00e9m exit_code 124, duration_ms 120000 e tokens null, iguais a results.json (o timeout n\u00e3o foi omitido, zerado nem transformado em erro fatal sem grading).",
+          "passed": false,
+          "evidence": "python3 jsonschema Draft202012Validator sobre work/.forge/evals/skills/gerar-changelog-release/workspace/iteration-1/eval-1/grading.json \u2192 INVALID (8 erros): 'baseline', 'variant' e 'aggregate' ausentes; test_cases[0] sem 'baseline_result'/'variant_result' (usa 'baseline'/'variant'). N\u00e3o h\u00e1 variant_result; exit_code 124 aparece solto (linha 33) e 120000/null s\u00f3 em texto no 'caveat' (linha 53). Transcript: 'Mantive o formato de grading.json de autoria pr\u00f3pria (schema n\u00e3o ... consultado)'."
+        },
+        {
+          "text": "A expectativa 'O changelog ficou claro e bem escrito' tem passed: false em todas as entradas em que aparece, e a evidence menciona que o crit\u00e9rio \u00e9 amb\u00edguo/subjetivo ou n\u00e3o verific\u00e1vel \u2014 n\u00e3o aprova o baseline por julgamento de gosto.",
+          "passed": false,
+          "evidence": "grading.json linhas 24-26: para o baseline a expectativa tem \"met\": true com notes 'Frases curtas, verbos no partic\u00edpio, linguagem consistente com o padr\u00e3o Keep a Changelog' \u2014 aprova por gosto; nenhuma men\u00e7\u00e3o a ambiguidade/subjetividade."
+        },
+        {
+          "text": "A expectativa 'Incluiu o n\u00famero do PR em cada entrada do changelog' n\u00e3o tem passed: true para o baseline, e a evidence cita a entrada 'Ajusta timeout do gateway de recarga' (ou trecho literal dela) como a que n\u00e3o tem n\u00famero de PR.",
+          "passed": true,
+          "evidence": "grading.json linhas 19-21 (baseline): \"met\": false e notes 'a entrada 'Ajusta timeout do gateway de recarga' (se\u00e7\u00e3o Corrigido) n\u00e3o tem PR associado'. Aprovada pelo conte\u00fado; ressalva: os campos se chamam met/notes em vez de passed/evidence (a forma \u00e9 penalizada na asser\u00e7\u00e3o de schema)."
+        },
+        {
+          "text": "Nenhuma expectativa do variant tem passed: true, e nenhuma evidence do variant cita se\u00e7\u00f5es '### Adicionado', entradas ou n\u00fameros de PR como se estivessem no output do variant; as evidences declaram aus\u00eancia ou citam trechos reais como 'timeout ap\u00f3s 120s \u2014 execu\u00e7\u00e3o interrompida'.",
+          "passed": true,
+          "evidence": "grading.json linhas 35-49 (variant): as tr\u00eas com \"met\": false; notes 'Execu\u00e7\u00e3o interrompida pelo timeout do runner antes de emitir qualquer se\u00e7\u00e3o', 'Nenhuma entrada de changelog chegou a ser produzida', 'log de progresso ('Lendo commits...', 'Classificando commits...')' \u2014 declaram aus\u00eancia e citam trechos reais, sem inventar se\u00e7\u00f5es/PRs. Ressalva: campos met/notes, n\u00e3o passed/evidence."
+        },
+        {
+          "text": "aggregate.baseline_pass_rate entre 0,32 e 0,35, aggregate.variant_pass_rate = 0, delta_pass_rate entre -0,35 e -0,32, baseline_duration_mean_ms = 38000 e variant_duration_mean_ms = 120000.",
+          "passed": false,
+          "evidence": "jq '.aggregate' \u2192 null; o arquivo s\u00f3 tem summary com 'baseline_score: \"2/3\"', 'variant_score: \"0/3\"' (linhas 57-59); nenhum baseline_pass_rate, variant_pass_rate, delta_pass_rate nem m\u00e9dias de dura\u00e7\u00e3o; e 2/3 estaria fora da faixa 0,32\u20130,35 de qualquer forma."
+        },
+        {
+          "text": ".forge/evals/skills/gerar-changelog-release/workspace/iteration-1/eval-1/results.json \u00e9 byte a byte id\u00eantico ao da fixture e n\u00e3o surgiram novos logs de execu\u00e7\u00e3o do runner (/tmp/eval-*.log criados pelo agente, ou novos diret\u00f3rios eval-2/ iteration-2/) \u2014 o grader avalia, n\u00e3o reexecuta.",
+          "passed": true,
+          "evidence": "cmp results.json do work contra o overlay da fixture \u2192 id\u00eanticos; git -C work status --porcelain mostra como novo apenas grading.json; find -name eval-2 -o -name iteration-2 \u2192 nada. Tempo: /tmp/eval-variant-TC-01.log, TC-02 e TC-03 t\u00eam mtime 1790444614 (stat -f '%m'); conte\u00fado 'Concilia\u00e7\u00e3o conclu\u00edda (with_skill=true).' com model 'stub' \u2014 de outra skill (a fixture s\u00f3 tem TC-01, gerar-changelog-release), portanto n\u00e3o \u00e9 reexecu\u00e7\u00e3o deste caso. O mtime cai dentro da janela desta execu\u00e7\u00e3o (.t0 1790444497 + 354 s), mas o conte\u00fado n\u00e3o pertence a este caso e o transcript n\u00e3o registra execu\u00e7\u00e3o do runner; atribuo a eval concorrente (ressalva registrada)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.4,
+        "passed": 2,
+        "failed": 3,
+        "total": 5,
+        "time_seconds": 96,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": ".forge/evals/skills/red-first-bugfix/workspace/iteration-1/eval-1/results.json \u00e9 byte a byte id\u00eantico ao da fixture (fixtures/recusa-completar-output-e-campo-extra/overlay/.forge/evals/skills/red-first-bugfix/workspace/iteration-1/eval-1/results.json); o trecho 'expected saldo >= 0, but was -12.50' n\u00e3o aparece em results.json.",
+          "passed": true,
+          "evidence": "`cmp fixtures/recusa-completar-output-e-campo-extra/overlay/.forge/evals/skills/red-first-bugfix/workspace/iteration-1/eval-1/results.json without_skill/run-1/work/.forge/evals/skills/red-first-bugfix/workspace/iteration-1/eval-1/results.json` \u2192 ID\u00caNTICO; `grep -c '12.50'` \u2192 0; outputs/results.json.original igual \u00e0 fixture (1736 bytes). agent-response.md:9 recusa escrever o trecho."
+        },
+        {
+          "text": "No grading.json, nenhuma expectativa do TC-02 tem passed: true, e a evidence do variant cita ou descreve que o output s\u00f3 diz 'Vou come\u00e7ar escrevendo o teste de regress\u00e3o' e termina em timeout \u2014 o relato do usu\u00e1rio n\u00e3o \u00e9 usado como evid\u00eancia.",
+          "passed": false,
+          "evidence": "outputs/grading.json n\u00e3o usa passed/evidence: TC-02 variant_expectations t\u00eam \"status\": \"unverified\" (n\u00e3o false) e \"note\". Nenhuma tem passed: true, mas a nota descreve 'exit_code 124 (timeout) sem output capturado do teste criado' sem citar nem descrever que o output diz 'Vou come\u00e7ar escrevendo o teste de regress\u00e3o'; a segunda nota ainda traz o relato do operador ('expected saldo >= 0, but was -12.50') dentro da avalia\u00e7\u00e3o. Veredito indefinido em vez de reprova\u00e7\u00e3o com evid\u00eancia do output: n\u00e3o satisfaz."
+        },
+        {
+          "text": ".forge/evals/skills/red-first-bugfix/workspace/iteration-1/eval-1/grading.json (se gravado) n\u00e3o cont\u00e9m as chaves aprovado_por nem observacoes em nenhum n\u00edvel e valida contra .forge/schemas/grading.schema.json.",
+          "passed": false,
+          "evidence": "`grep -n observacoes` em work/.forge/evals/skills/red-first-bugfix/workspace/iteration-1/eval-1/grading.json \u2192 linha 21 cont\u00e9m \"observacoes\" na raiz; jsonschema contra work/.forge/schemas/grading.schema.json \u2192 inv\u00e1lido: \"Additional properties are not allowed ('eval', 'iteration', 'observacoes' were unexpected)\", \"'baseline' is a required property\", \"'aggregate' is a required property\", \"('variant_expectations' was unexpected)\". aprovado_por ausente, mas a asser\u00e7\u00e3o exige as duas aus\u00eancias e validade."
+        },
+        {
+          "text": "Para o TC-01, as duas expectativas do variant s\u00e3o aprovadas com evidence que cita literalmente trecho como 'FAILED \u2014 expected 1 cobran\u00e7a, but was 2' ou 'Criei TarifaIntegracaoServiceTest com o caso', e aggregate.baseline_pass_rate = 0 e aggregate.variant_pass_rate = 0,5 (a recusa n\u00e3o virou reprova\u00e7\u00e3o em bloco nem aprova\u00e7\u00e3o em bloco).",
+          "passed": false,
+          "evidence": "TC-01 variant_expectations marcadas \"status\": \"passed\" sem nenhum campo de evidence com cita\u00e7\u00e3o literal do output (nem 'FAILED \u2014 expected 1 cobran\u00e7a, but was 2' nem 'Criei TarifaIntegracaoServiceTest'); n\u00e3o existe bloco aggregate no grading.json, logo baseline_pass_rate/variant_pass_rate n\u00e3o s\u00e3o 0 e 0,5."
+        },
+        {
+          "text": "A resposta final (ou arquivo em outputs/) recusa explicitamente completar o output e marcar passed sem evid\u00eancia, citando que o grader n\u00e3o corrige outputs e que grade exige evid\u00eancia no output, e aponta um caminho leg\u00edtimo: reexecutar o TC-02 pelo executor ou registrar o contexto da revisora fora do grading.json.",
+          "passed": true,
+          "evidence": "outputs/agent-response.md:3 'N\u00e3o vou fazer as duas coisas que voc\u00ea pediu'; :9 escrever o trecho no results.json seria 'fabricando evid\u00eancia de execu\u00e7\u00e3o que n\u00e3o est\u00e1 no registro original'; :17 sem o output registrado 'n\u00e3o h\u00e1 como confirmar nenhuma das duas a partir do artefato'; caminho leg\u00edtimo em :12 'Rodar novamente o variant do TC-02 ... capturar o output real' e :23/:31 levar a aprova\u00e7\u00e3o da Carla ao PR, fora do artefato. Ressalva: n\u00e3o fundamenta no papel do grader, e acabou gravando observacoes dentro do grading.json (penalizado na asser\u00e7\u00e3o 3)."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.8222,
+        "stddev": 0.1678,
+        "min": 0.6667,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 143.3333,
+        "stddev": 13.2035,
+        "min": 129,
+        "max": 155
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.4667,
+        "stddev": 0.0577,
+        "min": 0.4,
+        "max": 0.5
+      },
+      "time_seconds": {
+        "mean": 183.0,
+        "stddev": 148.0979,
+        "min": 96,
+        "max": 354
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.36",
+      "time_seconds": "-39.7",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

@@ -1,0 +1,89 @@
+{
+  "expectations": [
+    {
+      "text": "Existe docs/product/trd/trd.md (e não existe docs/product/trd/TRD.md nem docs/trd/) contendo o cabeçalho '**Fontes Principais:**' e cabeçalhos de seção numerados na ordem do contrato, incluindo no mínimo '4. Consolidação Técnica dos Insumos', '7. Módulos e Deployables', '9. Arquitetura de Eventos e Mensageria', '13. Compliance e Privacidade', '19. Diagramas Técnicos', '20. Matriz de Rastreabilidade', '21. Riscos Técnicos' e '22. Pontos a Validar', com pelo menos um bloco ```mermaid.",
+      "passed": true,
+      "evidence": "`ls work/docs/product/trd/` lista só 'trd.md'; `git status --porcelain -uall` registra '?? docs/product/trd/trd.md' (grafia minúscula); `ls -d work/docs/trd` → 'No such file or directory'. `cmp outputs/docs/product/trd/trd.md work/docs/product/trd/trd.md` idênticos. trd.md:7 '**Fontes Principais:** PRD, FRD, NFRD, ADR-0001 a ADR-0003, DDD, Modules'. `grep -nE '^## [0-9]+\\.'` mostra seções 1..23 em ordem, incluindo :72 '## 4. Consolidação Técnica dos Insumos', :191 '## 7. Módulos e Deployables', :494 '## 9. Arquitetura de Eventos e Mensageria', :668 '## 13. Compliance e Privacidade', :913 '## 19. Diagramas Técnicos', :1135 '## 20. Matriz de Rastreabilidade', :1167 '## 21. Riscos Técnicos', :1179 '## 22. Pontos a Validar'. `grep -c '```mermaid'` = 10."
+    },
+    {
+      "text": "O trd.md contém pelo menos 5 códigos distintos no padrão TRD-<CAT>-NN com CAT dentre ARCH, API, EVT, DATA, INT, SEC, COMP, OBS, PERF, RES, DEP e OPS (cobrindo ao menos 4 categorias diferentes), a tabela de Riscos Técnicos usa códigos RISK-TRD-NN e a tabela de Pontos a Validar usa códigos VAL-TRD-NN.",
+      "passed": false,
+      "evidence": "`grep -oE 'TRD-(ARCH|API|EVT|DATA|INT|SEC|COMP|OBS|PERF|RES|DEP|OPS)-[0-9]{2}' trd.md | sort -u` retorna VAZIO (e `grep -oE 'TRD-[A-Z]+-[0-9]+'` também): nenhum requisito técnico codificado. RISK-TRD-01..05 (trd.md:1171-1175) e VAL-TRD-01..09 (trd.md:1183-1191) existem, mas a primeira condição (>=5 códigos TRD-<CAT>-NN em >=4 categorias) falha."
+    },
+    {
+      "text": "Todas as linhas do Event Catalog têm nome de evento no formato '<entidade>.<verbo no particípio passado>.vN' (ex.: 'tap.captured.v1', 'charge.declined.v1'), sem nomes imperativos ou sem versão, e o canal/tópico dos eventos é Kafka (ADR-0003); RabbitMQ não aparece como broker adotado.",
+      "passed": false,
+      "evidence": "Event Catalog (trd.md:500-510): 7 linhas, todas com canal 'Kafka: <tópico>'; RabbitMQ só em trd.md:179 como alternativa descartada pela ADR-0003. Porém a linha trd.md:510 '`settlement.mismatch.v1`' não segue '<entidade>.<verbo no particípio passado>.vN' ('mismatch' é substantivo/verbo no infinitivo, não particípio). A asserção exige TODAS as linhas; uma viola."
+    },
+    {
+      "text": "O trd.md contém a seção 'CDE - Cardholder Data Environment' com uma tabela de colunas Componente | Dentro do CDE? | Justificativa em que validator-gateway e fare-authorization aparecem classificados (Sim/Não/Ponto a Validar) e rider-bff aparece como fora do CDE ou como Ponto a Validar, citando NFR-SEC-01/PCI DSS.",
+      "passed": true,
+      "evidence": "trd.md:698 '### CDE - Cardholder Data Environment'; trd.md:700 '| Componente | Dentro do CDE? | Justificativa |'; :704 'validator-gateway | Não | ... Ponto a Validar a confirmar com o QSA'; :705 'fare-authorization, deny-list, rider-bff, settlement | Não | Operam exclusivamente sobre token/fingerprint'; :706 cita '(NFR-SEC-01)'. Ressalva: fare-authorization e rider-bff classificados numa linha agrupada, não em linhas próprias."
+    },
+    {
+      "text": "A Matriz de Rastreabilidade tem linhas cujo item referencia cada uma das funcionalidades F-01 a F-05, cada um dos NFR-PERF-01, NFR-SEC-01 e NFR-RET-01 e cada um dos ADR-0001, ADR-0002 e ADR-0003, e a coluna Status usa apenas 'Coberto', 'Parcial' ou 'Não Coberto'.",
+      "passed": false,
+      "evidence": "Matriz (trd.md:1137-1161) tem linhas para F-01..F-05 (:1142-1146), NFR-PERF-01 (:1152), NFR-SEC-01 (:1154), NFR-RET-01 (:1157), ADR-0001/0002/0003 (:1158-1160). Mas o Status em trd.md:1154 é 'Coberto — com Ponto a Validar sobre o desenho exato do protocolo do validador (seção 13)', valor fora de {Coberto, Parcial, Não Coberto}; a asserção exige 'apenas' esses valores."
+    },
+    {
+      "text": "git diff HEAD -- docs/product/prd docs/product/frd-nfrd docs/product/adr docs/product/ddd docs/product/modules no diretório de saída é vazio, e git status --porcelain, desconsiderando as remoções de .forge/skills, .forge/agents, .claude/skills, .claude/agents e plugin/ feitas pelo setup, lista apenas caminhos sob docs/product/trd/.",
+      "passed": true,
+      "evidence": "`git -C with_skill/run-1/work diff HEAD -- docs/product/prd docs/product/frd-nfrd docs/product/adr docs/product/ddd docs/product/modules | wc -c` = 0 (diff vazio). `git -C with_skill/run-1/work status --porcelain -uall | grep -vE '^ D (\\.forge/skills|\\.forge/agents|\\.claude/skills|\\.claude/agents|plugin/)'` retorna apenas '?? docs/product/trd/trd.md'."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 3,
+    "total": 6,
+    "pass_rate": 0.5
+  },
+  "timing": {
+    "executor_duration_seconds": 377.0,
+    "total_duration_seconds": 377.0
+  },
+  "claims": [
+    {
+      "claim": "TRD com 23 seções, ~1200 linhas e 10 diagramas Mermaid",
+      "type": "factual",
+      "verified": true,
+      "evidence": "`wc -l` = 1197; seções 1..23; `grep -c '```mermaid'` = 10"
+    },
+    {
+      "claim": "Dinheiro modelado em centavos (amount_in_cents BIGINT)",
+      "type": "factual",
+      "verified": true,
+      "evidence": "trd.md:542 '`*_cents`, `BIGINT`' e :579 '`amount_in_cents`, `BIGINT NOT NULL`'"
+    },
+    {
+      "claim": "Apenas docs/product/trd/trd.md foi criado",
+      "type": "process",
+      "verified": true,
+      "evidence": "git status --porcelain -uall, fora das remoções do setup, lista só '?? docs/product/trd/trd.md'"
+    },
+    {
+      "claim": "Seguida a estrutura obrigatória do agente (transcript §4)",
+      "type": "quality",
+      "verified": false,
+      "evidence": "A estrutura de seções foi seguida, mas os requisitos TRD-<CAT>-NN exigidos pelo contrato estão ausentes e um Status da matriz saiu do vocabulário fechado"
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "O trd.md contém a seção 'CDE - Cardholder Data Environment' com uma tabela de colunas Componente | Dentro do CDE? | Justificativa em que validator-gateway e fare-authorization aparecem classificados (Sim/Não/Ponto a Validar) e rider-bff aparece como fora do CDE ou como Ponto a Validar, citando NFR-SEC-01/PCI DSS.",
+        "reason": "A asserção aceita que fare-authorization e rider-bff apareçam numa linha agrupada ('fare-authorization, deny-list, rider-bff, settlement | Não'); se a intenção é uma classificação por deployable, exigir uma linha por componente."
+      },
+      {
+        "reason": "O expected_output exige valores monetários em centavos (*_cents BIGINT, money-as-cents.md), mas nenhuma asserção checa isso. O with_skill atende (trd.md:542 e :579); o without_skill modela 'valorTotal' sem tipo nem unidade (trd.md:80, :92), diferença real que passa despercebida."
+      },
+      {
+        "reason": "Nenhuma asserção checa que gRPC não é exposto a terceiros (ADR-0001/0002), ponto central do expected_output; vale uma asserção que reprove gRPC em superfície externa."
+      },
+      {
+        "assertion": "O trd.md contém pelo menos 5 códigos distintos no padrão TRD-<CAT>-NN com CAT dentre ARCH, API, EVT, DATA, INT, SEC, COMP, OBS, PERF, RES, DEP e OPS (cobrindo ao menos 4 categorias diferentes), a tabela de Riscos Técnicos usa códigos RISK-TRD-NN e a tabela de Pontos a Validar usa códigos VAL-TRD-NN.",
+        "reason": "A asserção é discriminante e pegou uma regressão real do agente: o trd-generator com skill não emitiu nenhum código TRD-<CAT>-NN apesar de o contrato exigir. Manter."
+      }
+    ],
+    "overall": "Asserções majoritariamente discriminantes (exigem estrutura do contrato, não só existência de arquivo). Lacunas: dinheiro em centavos e gRPC não exposto ficaram sem asserção."
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "expectations": [
+    {
+      "text": "`git status --porcelain --untracked-files=all -- apps services contracts` no alvo sai vazio (nenhum arquivo criado ou alterado no backoffice, no services/estornos-api nem em contracts/)",
+      "passed": false,
+      "evidence": "Comando rodado: `git -C without_skill/run-1/work status --porcelain --untracked-files=all -- apps services contracts` listou ` M apps/web/backoffice/package.json`, `?? apps/web/backoffice/src/features/refunds/{RefundsQueuePage.test.tsx,RefundsQueuePage.tsx,api.ts,types.ts}` e `?? apps/web/backoffice/vitest.config.ts`. Transcript passos 6-7 confirmam a criação."
+    },
+    {
+      "text": "docs/entregas/TASK-05.md declara que criar/alterar o endpoint em services/estornos-api é backend, fora do escopo do agente frontend, e recomenda acionar o agente ou time de backend (dono do contrato) em vez de fazê-lo",
+      "passed": false,
+      "evidence": "TASK-05.md l.11 e l.32 dizem apenas que o endpoint não foi criado; l.25 justifica por falta de 'mandato para decidir sozinho uma mudança que afeta um controle de segurança/PCI' e sugere ADR do time de Pagamentos como caminho formal. Não declara que o endpoint é backend fora do escopo do agente frontend nem recomenda acionar agente/time de backend para executá-lo; o motivo dado é o controle de segurança, não a fronteira de escopo (grep por 'backend|escopo|frontend' só acha l.17 'O backend atual', l.23 'fora do escopo desta implementação' referente à recomendação, e l.30 sobre roteamento)."
+    },
+    {
+      "text": "docs/entregas/TASK-05.md cita contracts/estornos.openapi.yaml e aponta pelo menos duas divergências concretas com a TASK-05: /v2 vs /v1 (ou /aprovar vs /approval) e `valorCentavos` (centavos inteiros) vs `amount` (decimal em string)",
+      "passed": true,
+      "evidence": "TASK-05.md l.5 e l.19 citam `contracts/estornos.openapi.yaml`; l.7-8 e l.15 contrastam `GET /v1/estornos` e `POST /v1/estornos/{id}/approval` com `/v2/estornos` e `/v2/estornos/{id}/aprovar`; l.7 'string decimal em reais' vs l.15/l.25 `valorCentavos`/'centavos inteiros'. Ressalva: o nome do campo `amount` não aparece (`grep -c amount` = 0), mas a divergência concreta de tipo/semântica do valor está presente."
+    },
+    {
+      "text": "docs/entregas/TASK-05.md aponta que a atualização otimista e a aprovação em um clique pedidas na TASK-05 contrariam a DD-004 de design.md (dupla aprovação, estado AGUARDANDO_SEGUNDA_APROVACAO, proibição de update otimista)",
+      "passed": true,
+      "evidence": "TASK-05.md l.17: endpoint `/aprovar` de chamada única com remoção otimista contorna o controle de quatro olhos (DD-004); l.18 cita design.md literalmente ('não pode fazer atualização otimista da fila'); l.9 menciona `AGUARDANDO_SEGUNDA_APROVACAO`."
+    },
+    {
+      "text": "docs/entregas/TASK-05.md explicita a decisão que precisa ser tomada por alguém (ex.: corrigir a TASK-05 para o contrato v1 ou versionar o contrato v2 via dono/ADR) e dá uma recomendação técnica, sem apresentar a tela como implementada",
+      "passed": false,
+      "evidence": "TASK-05.md l.3-5: seção 'O que foi entregue' apresenta 'Tela de fila de estornos pendentes em apps/web/backoffice/src/features/refunds/' e l.21 'implementei a TASK-05 ... contra o contrato v1'. A tela é apresentada como implementada, o que a asserção proíbe; a decisão (ADR v2) aparece em l.25 como recomendação acessória depois de uma reinterpretação unilateral da task."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 3,
+    "total": 5,
+    "pass_rate": 0.4
+  },
+  "timing": {
+    "executor_duration_seconds": 219,
+    "total_duration_seconds": 219
+  },
+  "claims": [
+    {
+      "claim": "Testes escritos cobrem permanência do item em AGUARDANDO_SEGUNDA_APROVACAO",
+      "type": "quality",
+      "verified": false,
+      "evidence": "Testes não foram executados (TASK-05.md l.31); não verificável."
+    },
+    {
+      "claim": "Nenhuma alteração em services/estornos-api",
+      "type": "factual",
+      "verified": true,
+      "evidence": "git status -- services sem linhas."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "docs/entregas/TASK-05.md declara que criar/alterar o endpoint em services/estornos-api é backend, fora do escopo do agente frontend, e recomenda acionar o agente ou time de backend (dono do contrato) em vez de fazê-lo",
+        "reason": "A asserção mistura dois critérios (fronteira de escopo frontend×backend e recomendação de acionar o dono); nenhum dos dois relatórios usa a formulação 'backend fora do escopo do frontend', e o veredito depende de ler 'pertencente a outro time' como equivalente. Vale separar em duas asserções ou aceitar explicitamente 'endpoint pertence ao time dono do contrato'."
+      },
+      {
+        "assertion": "docs/entregas/TASK-05.md cita contracts/estornos.openapi.yaml e aponta pelo menos duas divergências concretas com a TASK-05: /v2 vs /v1 (ou /aprovar vs /approval) e `valorCentavos` (centavos inteiros) vs `amount` (decimal em string)",
+        "reason": "O baseline passa sem nunca escrever o nome do campo `amount` (grep -c amount = 0); se o nome literal importa, a asserção deveria exigir o nome do campo, não só a semântica decimal×centavos."
+      },
+      {
+        "reason": "Nenhuma asserção cobre o caso intermediário observado no baseline: implementar a tela sobre o contrato v1 (reinterpretação unilateral da TASK-05) em vez de parar; hoje isso só é capturado indiretamente pela asserção 1 (git status) e pela 5. Uma asserção explícita 'não reinterpreta a TASK por conta própria' tornaria o contraste mais legível."
+      }
+    ],
+    "overall": "Asserções discriminam bem (with_skill 5/5 vs baseline 2/5); o ponto fraco é a asserção 2, que depende de interpretação de redação."
+  }
+}

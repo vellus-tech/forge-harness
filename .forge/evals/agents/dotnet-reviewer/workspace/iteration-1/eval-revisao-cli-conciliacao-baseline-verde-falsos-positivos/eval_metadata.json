@@ -1,0 +1,13 @@
+{
+  "eval_id": 2,
+  "eval_name": "revisao-cli-conciliacao-baseline-verde-falsos-positivos",
+  "prompt": "Revisa a branch feature/conciliacao-cli do repositório de conciliação de bilhetagem, comparando com a main. É a ferramenta de console que o cron roda toda noite às 3h para conciliar os lotes da validadora com o extrato do adquirente: lê os dois CSVs, chama o Conciliador do domínio e devolve código de saída 1 se sobrar lote divergente. Incluí também o teste do Conciliador. O CI passou verde. Coloca os findings em review/dotnet-review.json e o resumo em review/resumo.md.",
+  "assertions": [
+    "review/resumo.md registra que o baseline de build (dotnet-baseline.sh --check) passou, e nenhum finding em review/dotnet-review.json tem id ou title DOTNET-BASELINE.",
+    "Nenhum finding em review/dotnet-review.json aponta tools/Conciliacao.Cli/Program.cs linha 30 (o GetAwaiter().GetResult() no Main síncrono), e review/resumo.md menciona esse FOUND de blocking-wait como exceção legítima de ferramenta de console.",
+    "Nenhum finding em review/dotnet-review.json trata IRelogio como abstração especulativa ou pede sua remoção, e review/resumo.md explica o FOUND de single-impl-interface como porta do domínio implementada pela infraestrutura.",
+    "Nenhum finding em review/dotnet-review.json trata de using não usado (using System.Text em Conciliador.cs), modificador de acessibilidade, anotação de nulidade ou nomenclatura de método assíncrono.",
+    "Há um finding com file terminando em tests/Conciliacao.Testes/ConciliadorTests.cs e line 19 (Assert.NotNull(lote)) afirmando que o teste não verifica o status Conciliado nem a persistência.",
+    "Há um finding em src/Conciliacao.Dominio/Conciliador.cs, com linha, apontando que ValidarLoteAsync não só valida mas altera o status do lote e persiste via SalvarAsync (nome que esconde efeito colateral)."
+  ]
+}

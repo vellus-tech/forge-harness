@@ -1,0 +1,60 @@
+# Análise do benchmark — skill `impact-scan`
+
+## Resultado (benchmark.json, `run_summary`)
+
+| | with_skill | without_skill |
+|---|---|---|
+| pass_rate (média) | 0,8056 (80,6%) | 0,5556 (55,6%) |
+| stddev | 0,1735 | 0,4194 |
+| min / max | 0,6667 / 1,0 | 0,1667 / 1,0 |
+| tempo médio | 210,3 s | 169,7 s |
+
+Delta = 0,8056 − 0,5556 = **+0,25** → veredito **agrega** (limiar ≥ 0,15).
+
+benchmark_ok = **true** (`aggregate_benchmark` rodou de primeira, sem erro de estrutura; `generate_review.py` também rodou de primeira e gerou `review.html`).
+
+## Por eval (1 run por configuração — sem repetição, então cada eval é um ponto único, não uma média)
+
+- **rotacao-jwt-scale3** (eval_id 1, scale 3, o caso mais rico): with_skill 0,667 (4/6) vs without_skill 0,167 (1/6) — maior discriminação do lote. Sem a skill, o agente nunca rodou o script determinístico (`transcript.md` "análise manual por cat"), não gravou `impact.json`, não usou `/tmp/impact-scan.log` e reproduziu a cadeia de dependência completa em bloco indentado. Com a skill, o script rodou e o `impact.json` foi gravado corretamente com freshness `fresh`.
+- **impact-stale-apos-codegraph** (eval_id 2): 1,0 em ambas as configurações. Não discrimina — o cenário (re-rodar o scan após `/forge:codegraph`) é resolvido igualmente bem com ou sem a skill; a tarefa é simples demais (achar e rodar o script) para separar as configurações.
+- **sem-grafo-construido** (eval_id 3): with_skill 0,75 (3/4) vs without_skill 0,5 (2/4). A skill ajuda a recusar corretamente sem o grafo e a nomear `/forge:codegraph` como pré-requisito (without_skill nunca cita `/forge:codegraph`), mas **ambas** as configurações furam a mesma asserção (não fabricar lista de dependentes por grep) — a skill não impede totalmente o vazamento de uma "prévia manual".
+
+## Asserções não discriminantes
+
+- As 3 primeiras asserções de `impact-stale-apos-codegraph` (freshness, campo `impacted`, campo `seeds`) e a 4ª/5ª (sha256 do grafo, specs intactos) passam 100% nas duas configurações — testam competência genérica de shell/jq, não o valor específico da skill. Essas 5 asserções do eval 2 não separam with/without.
+- Em `sem-grafo-construido`, a asserção 1 ("não existe `.forge/graph/graph.json`") passa trivialmente nas duas configurações porque nenhum agente tentou reconstruir o grafo — não é a skill que impede isso, é o bom senso do modelo. Mesma coisa com a asserção 2 (não existe `impact.json` em specs/): o `eval_feedback` do próprio grading.json já sinaliza isso ("Asserções 1 e 2 são satisfeitas trivialmente também pelo baseline").
+- A asserção de `/tmp/impact-scan.log` em `rotacao-jwt-scale3` puniu a configuração without_skill por não seguir uma convenção que só existe no texto da skill (§17.6) — é justo como "a skill não foi consultada, logo não seguiu a convenção", mas do lado with_skill ela também falhou (ver abaixo), então essa asserção mede adesão a um detalhe de formatação, não a qualidade da análise de impacto em si.
+
+## Onde a skill ajudou (evidência do transcript)
+
+- `rotacao-jwt-scale3` com_skill: o transcript relata que o agente seguiu o protocolo, tentou primeiro o comando exatamente como documentado no SKILL.md (`--change ... --files ...`), percebeu que `impact.json` não era gravado nesse modo, leu o código-fonte do script (`impact-scan.mjs`) e corrigiu para `--change <dir>` sem `--files`, obtendo o artefato persistido. Sem a skill, o agente nem tentou rodar o script — foi direto para leitura manual de imports.
+- `sem-grafo-construido` com_skill: a resposta final nomeia explicitamente `/forge:codegraph` como pré-requisito citando o path exato do artefato faltante (`.forge/graph/graph.json`); without_skill nunca menciona `/forge:codegraph`, apenas relata "sem grafo de código construído" e segue entregando uma análise manual mesmo assim (a diferença que mais pesa no delta desse eval).
+
+## Onde a skill atrapalhou ou não foi suficiente
+
+- **Bug real no exemplo de comando do SKILL.md** (achado mais importante): a seção "Execução" mostra `--change <change-id> --graph ... [--files "..."]` como se as duas flags pudessem coexistir. No código real (`impact-scan.mjs` linhas 30-45), `if (filesArg) { ... } else if (changeDir) { outFile = ... }` — quando `--files` está presente, o branch de `--change` (que seta `outFile`) nunca roda, então `impact.json` **nunca é gravado** se as duas flags forem passadas juntas, mesmo que o `--change` aponte para um diretório válido. Isso reproduziu em dois runs independentes: o transcript de `rotacao-jwt-scale3/with_skill` documenta que o agente teve que descobrir isso por tentativa e erro lendo o código-fonte do script; a resposta de `sem-grafo-construido/with_skill` cita o mesmo comando quebrado (`--change ... --files "src/webhooks/"`) como o passo "correto" a seguir depois do `/forge:codegraph` — ou seja, o exemplo errado do SKILL.md está sendo propagado para o usuário como instrução válida.
+- **Instrução de `/tmp/impact-scan.log` ignorada mesmo com a skill carregada**: a regra "Output bruto em `/tmp/impact-scan.log`; reporte apenas o summary no chat (§17.6)" está escrita, mas o run with_skill de `rotacao-jwt-scale3` salvou a saída bruta em `outputs/impact-scan-stdout.log` em vez de `/tmp/impact-scan.log` — falhou a asserção mesmo tendo lido a skill. A instrução não vem acompanhada do comando exato (ex.: `... | tee /tmp/impact-scan.log`), então cada execução decide sozinha onde persistir o log.
+- **Tensão entre o formato de saída fixo e uma pergunta do usuário que pede detalhe**: o prompt de `rotacao-jwt-scale3` pergunta explicitamente "quais partes da API ficam expostas" — isso exige nomear rotas/arquivos, o que colide com a regra de "reportar apenas o summary" e "não reproduzir a lista bruta". O with_skill acabou nomeando os 7 caminhos em prosa (fora da lista indentada) para responder à pergunta, e a asserção reprovou isso mesmo havendo alto risco citado corretamente. É ao mesmo tempo uma falha de execução (a skill deveria orientar como equilibrar "resumo conciso" com "responder à pergunta específica do usuário sem vazar a lista completa") e um desenho de eval que testa dois objetivos conflitantes na mesma resposta.
+- **`sem-grafo-construido` com_skill ainda entrega uma pseudo-análise via grep** ("O que dá para adiantar, sem o grafo"), com ressalva explícita de que não substitui o scan — mas a asserção da eval trata qualquer lista de dependentes como reprovação, então a skill não impede completamente esse comportamento (ela não tem uma regra explícita do tipo "não ofereça uma prévia manual mesmo com ressalva").
+
+## Trechos do artefato ignorados, ambíguos ou contraditórios
+
+- "Obrigatória: scale ≥ 3 + change toca código + grafo construído" não diz o que fazer quando falta o grafo além de "informe que `/forge:codegraph` precisa ser rodado" — não proíbe explicitamente uma "prévia manual" como fallback, e um run (with_skill em `sem-grafo-construido`) explorou essa lacuna.
+- O comando de exemplo com `--change` + `--files` juntos (ver bug acima) é o trecho mais caro do artefato: desperdiça tempo do executor (que precisa ler o código-fonte do script para descobrir por que `impact.json` não aparece) e, pior, o exemplo errado é repetido literalmente na resposta ao usuário em outro eval, propagando o erro para fora do sandbox.
+- "Output bruto em `/tmp/impact-scan.log`" é uma instrução órfã — não há verbo de ação (redirecionar? copiar? `tee`?) nem menção de quando isso é obrigatório vs. best-effort; nenhuma seção fala em quem lê esse arquivo depois.
+- O formato de saída do "Saída da skill" é apresentado como bloco literal de 3 linhas, mas nada impede (nem orienta) o agente a adicionar contexto (parênteses, listas) quando a pergunta do usuário pede mais detalhe — a ambiguidade citada acima.
+
+## Melhorias concretas priorizadas
+
+1. **Corrigir o script ou o exemplo (bug real, prioridade máxima)**: em `impact-scan.mjs`, inverter a prioridade para que `--change` sempre defina `outFile` quando presente, independente de `--files` também estar setado (ou documentar claramente que as duas flags são mutuamente exclusivas e o SKILL.md **não deve** mostrar exemplo combinando as duas). É um fix de poucas linhas no script (`outFile = changeDir ? join(...) : null;` calculado antes do `if/else` de seeds) que elimina a causa raiz de uma falha replicada em 2 dos 3 evals.
+2. **Substituir a instrução solta de `/tmp/impact-scan.log` por um comando embutido**: trocar "Output bruto em `/tmp/impact-scan.log`; reporte apenas..." por um snippet de execução completo, por exemplo `node .forge/scripts/lib/impact-scan.mjs --change <dir> --graph .forge/graph/graph.json > /tmp/impact-scan.log 2>&1 && tail -3 /tmp/impact-scan.log`. Isso remove a ambiguidade de "onde" e "como" redirecionar.
+3. **Adicionar uma regra explícita sobre perguntas do usuário que pedem detalhe** (ex.: "quais partes da API ficam expostas"): algo como "se o usuário pedir detalhe além do summary, cite só os módulos de alto risco por nome; não enumere a lista completa de `impacted` em prosa nem em lista — para a lista completa, aponte para o `impact.json` gravado". Isso resolve a tensão que fez o with_skill falhar a asserção 6 de `rotacao-jwt-scale3` apesar de ter seguido o resto do protocolo corretamente.
+4. **Fechar a lacuna do "sem grafo"**: adicionar uma frase proibindo explicitamente qualquer prévia manual por grep/leitura de imports como substituto do impact-scan, mesmo com ressalva — "Se o grafo não existir, oriente rodar `/forge:codegraph` e pare aí; não ofereça uma estimativa manual de impacto, nem com ressalva."
+5. **Fundir com o script**: já que o exemplo de comando é a fonte do bug, considere que a SKILL.md deveria referenciar/gerar o comando a partir de um teste real do script (ex.: `--help` do próprio `impact-scan.mjs`) em vez de mantê-lo hardcoded na documentação — reduz o risco de a doc e o script divergirem de novo no futuro.
+
+## Qualidade dos próprios casos (eval_quality)
+
+- **rotacao-jwt-scale3** é o caso mais bem desenhado do lote — discrimina fortemente (0,667 vs 0,167) e cobre múltiplas dimensões (persistência do artefato, freshness, conteúdo do `impacted`, convenção de log, formato da resposta). Mas a asserção 6 (não reproduzir lista bruta) conflita com o próprio prompt, que pede detalhe de superfície de API — vale reescrever a asserção para permitir nomear os módulos de alto risco por extenso, mas não os 7 caminhos completos, e deixar isso mais claro no texto da asserção (hoje ela só diz "no máximo os módulos de alto risco são nomeados", o que é o que o with_skill fez e mesmo assim foi reprovado por também nomear os outros na prosa).
+- **impact-stale-apos-codegraph** não discrimina (1,0 em ambas) — é um bom teste de regressão determinístico (sha256, freshness, specs intactos) mas não mede valor da skill; ou o cenário devia ser mais difícil (ex.: grafo parcialmente stale, ou affected_paths com glob ambíguo) ou o eval deveria ser reclassificado como smoke test em vez de eval de benchmark A/B.
+- **sem-grafo-construido**: o próprio `grading.json` já registra (`eval_feedback.suggestions`) que as asserções 1 e 2 são satisfeitas trivialmente pelas duas configurações e que o critério da asserção 4 é ambíguo quanto a "lista com ressalva vs. sem ressalva". Concordo com ambas as observações do grader; a asserção 4 devia declarar explicitamente que qualquer lista de arquivos dependentes reprova, com ou sem disclaimer, para não deixar isso a critério de interpretação do avaliador.
+- Amostra pequena (n=1 por configuração/eval, `runs_per_configuration: 3` no metadata mas só 1 run presente por combinação neste workspace) — o `stddev` de `without_skill` (0,4194) é alto porque há só 3 pontos distintos (1,0 / 0,167 / 0,5), não porque houve variância real entre repetições do mesmo caso. Para conclusões mais robustas seria preciso rodar múltiplas repetições por eval, especialmente em `rotacao-jwt-scale3` e `sem-grafo-construido`, que são os que mais dependem de escolha de estilo do modelo (quanto detalhar, se oferece prévia manual).

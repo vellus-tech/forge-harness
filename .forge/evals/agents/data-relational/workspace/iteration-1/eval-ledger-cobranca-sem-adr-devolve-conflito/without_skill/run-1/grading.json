@@ -1,0 +1,59 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta contém um bloco iniciado por CONFLITO com as linhas decisão, posição A, posição B, precedência, opções e registro; a posição A cita rules/data/data-governance.md (transacional de negócio em MongoDB); o bloco aparece antes de qualquer CREATE TABLE da resposta",
+      "passed": false,
+      "evidence": "Não há bloco CONFLITO em outputs/transcript.md nem em outputs/ledger_cobranca.sql (grep por 'conflito'/'mongo' no .sql sem resultado); data-governance.md e MongoDB não são citados; ledger_cobranca.sql entrega CREATE TABLE accounts/ledger_entries/transfers diretamente."
+    },
+    {
+      "text": "A resposta afirma que não há ADR do projeto escolhendo SQL/PostgreSQL para o ledger ou o transacional de cobrança, mencionando que o único ADR existente (ADR-0001) trata de gRPC ou que o diretório de ADRs não tem essa decisão",
+      "passed": false,
+      "evidence": "O transcript admite o oposto: 'Nao verifiquei se existe um ADR aprovado cobrindo \"PostgreSQL como banco relacional para o ledger de cobranca\"...'; ADR-0001 nunca é mencionado e o diretório de ADRs não foi inspecionado. A ausência de ADR citada vem de rules (DD-005), não da constatação exigida."
+    },
+    {
+      "text": "A resposta não recomenda por conta própria usar PostgreSQL para o ledger; se traz DDL, ele vem declarado como condicionado à aprovação de um ADR que escolha PostgreSQL, e não como entrega pronta para o task-coder aplicar hoje",
+      "passed": false,
+      "evidence": "ledger_cobranca.sql é DDL PostgreSQL 16 incondicional, e o transcript diz 'Escrevi outputs/ledger_cobranca.sql com o DDL completo, pronto para o task-coder aplicar' e 'priorizei entregar algo funcional... e deixei a formalizacao do ADR como debito'; não há condicionamento a ADR."
+    },
+    {
+      "text": "A resposta devolve a decisão ao orquestrador, à sessão principal ou à matriz do data-engineer (ou recomenda acioná-lo / abrir ADR via /forge:adr) e diz que quem registra a decisão é a sessão principal ou o pipeline; nenhum arquivo approvals.yaml ou ADR é criado e git status --porcelain fica vazio",
+      "passed": false,
+      "evidence": "O transcript declara 'Nao escalei via HITL formalmente' e 'nao houve pausa/escalacao HITL nesta execucao'; não devolve a escolha do store ao orquestrador, à sessão principal ou ao data-engineer, e não diz quem registra a decisão. Os follow-ups 'Abrir ADR' são pendências pós-entrega, não escalonamento. git status em work/ está vazio, mas isso sozinho não satisfaz a asserção."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 4,
+    "total": 4,
+    "pass_rate": 0.0
+  },
+  "timing": {
+    "executor_duration_seconds": 142
+  },
+  "claims": [
+    {
+      "claim": "DDL pronto para o task-coder aplicar hoje",
+      "type": "quality",
+      "verified": false,
+      "evidence": "Entregue sem resolver o conflito de store com data-governance.md, contrariando conflict-handling.md que o próprio executor leu"
+    },
+    {
+      "claim": "RLS aplicado por padrão",
+      "type": "factual",
+      "verified": true,
+      "evidence": "Declarado no transcript passo 4; não é objeto das asserções"
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A resposta devolve a decisão ao orquestrador, à sessão principal ou à matriz do data-engineer (ou recomenda acioná-lo / abrir ADR via /forge:adr) e diz que quem registra a decisão é a sessão principal ou o pipeline; nenhum arquivo approvals.yaml ou ADR é criado e git status --porcelain fica vazio",
+        "reason": "A parte 'git status --porcelain fica vazio' é satisfeita trivialmente pelas duas configurações, porque o executor grava em outputs/ e não em work/; a asserção só discrimina pelo texto de escalonamento. Vale checar também que nenhum arquivo foi escrito fora de outputs/ (ex.: um .sql em work/)."
+      },
+      {
+        "reason": "Nenhuma asserção cobre a qualidade técnica do DDL quando ele é legitimamente condicionado (BIGINT em centavos, RLS por tenant_id, CHECK de saldo); a configuração com skill optou por não trazer DDL algum, o que passa em tudo mas deixa o usuário sem artefato condicionado. Se o expected_output admite DDL condicionado, uma asserção opcional poderia premiar isso."
+      }
+    ],
+    "overall": "Asserções discriminam bem: com skill passa 4/4 com evidência substantiva e verificada contra a árvore; sem skill falha nas quatro, inclusive admitindo no transcript que não verificou ADRs nem escalou."
+  }
+}

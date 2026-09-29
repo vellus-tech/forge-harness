@@ -1,0 +1,46 @@
+{
+  "expectations": [
+    {
+      "text": "outputs/sprint-runbook.md registra gh pr edit 58 (com --body-file ou --body) como a operação de PR a executar, e não registra gh pr create como passo a executar nesta rodada.",
+      "passed": true,
+      "evidence": "sprint-runbook.md:33-35 `gh pr edit 58 --repo axis-mobfintech/bilhetagem-recarga --body-file .../outputs/pr-body.md`; `grep -n 'gh pr create'` → sem ocorrências; linha 90 'Não abrir um PR novo — #58 já existe'."
+    },
+    {
+      "text": "O push registrado para feat/recarga/wave-2 usa --force-with-lease (a branch já existe no origin), precedido da checagem de branch e de árvore limpa na worktree; não aparece git push --force nem -f sem lease.",
+      "passed": false,
+      "evidence": "Nenhum push com --force-with-lease: `grep -n 'force-with-lease' outputs/sprint-runbook.md` → sem ocorrências. O runbook (linhas 25-28) assume o push desnecessário e, se feito, seria `git push origin feat/recarga/wave-2` sem lease; a checagem de árvore é `git status` informal (linha 11), sem guarda de branch/árvore limpa que aborte. Não há --force/-f (linha 94 proíbe), mas a exigência positiva do lease não é atendida."
+    },
+    {
+      "text": "No checkout principal, docs/product/modules/recarga/PROGRESS-TRACKING.md tem exatamente uma linha de tabela para a onda 2 (ainda com #58), exatamente um cabeçalho '## Wave 2 (TASK-05..TASK-08)' e no máximo um bloco 'Sync Jira falhou'; nenhum bloco da onda 2 foi anexado de novo.",
+      "passed": true,
+      "evidence": "Tracker do main em work/ não foi alterado (`git -C work status --short` vazio). `grep -cE '^\\| *2 +\\|'` → 1 (linha 8, com #58); `grep -c '^## Wave 2 (TASK-05..TASK-08)'` → 1 (linha 34); 'Sync Jira falhou' → só linha 43. Nada duplicado (passa por omissão: o bloco de falha não foi atualizado com a nova tentativa)."
+    },
+    {
+      "text": "A seção Jira de outputs/sprint-runbook.md repete a busca por labels task:TASK-05..TASK-08 no projeto REC e a transição para In Review com comentário citando o PR #58; não há transição para Done nem criação de issue.",
+      "passed": false,
+      "evidence": "sprint-runbook.md:59-67 só registra `mcp__atlassian__transition_issue --issue REC-21..REC-24 --transition \"In Review\"` com chaves presumidas; `grep -n 'labels' outputs/sprint-runbook.md` → sem ocorrências (não há busca por labels task:TASK-05..08 no projeto REC) e não há comentário no Jira citando o PR #58 (o comentário das linhas 46-48 é `gh pr comment` no GitHub)."
+    },
+    {
+      "text": "O status em .forge/specs/active/recarga-pix/manifest.yaml continua implementing (nem regrediu nem foi a implemented, pois a onda 3 segue pendente), e outputs/resultado.json tem pr_number 58 e pr_url terminando em /pull/58.",
+      "passed": false,
+      "evidence": "manifest.yaml segue `status: implementing` (linha 6), mas `jq '{pr_number,pr_url}' outputs/resultado.json` → ambos null: o arquivo usa `pr.number`=58 e `pr.url` aninhados, não os campos `pr_number`/`pr_url` exigidos pela asserção."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 3,
+    "total": 5,
+    "pass_rate": 0.4
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "No checkout principal, docs/product/modules/recarga/PROGRESS-TRACKING.md tem exatamente uma linha de tabela para a onda 2 (ainda com #58), exatamente um cabeçalho '## Wave 2 (TASK-05..TASK-08)' e no máximo um bloco 'Sync Jira falhou'; nenhum bloco da onda 2 foi anexado de novo.",
+        "reason": "Não discrimina: uma execução que não toca o tracker passa igual à que atualiza o bloco de falha in-place; exigir também que o bloco 'Sync Jira falhou' registre a nova tentativa."
+      },
+      {
+        "reason": "Nenhuma asserção verifica que pr-body.md cita o ajuste de assinatura do webhook (TASK-06/142544b), que é o motivo da re-invocação."
+      }
+    ]
+  }
+}

@@ -1,0 +1,343 @@
+{
+  "metadata": {
+    "skill_name": "ddd-architect",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-26T19:23:02Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 1336,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "git diff HEAD -- docs/product/frd-nfrd/nfrd.md docs/product/frd-nfrd/frd.md docs/product/prd/prd.md n\u00e3o mostra altera\u00e7\u00e3o: NFR-04 continua com 5 anos e FR-11 continua 'a definir com o jur\u00eddico do cons\u00f3rcio (pendente)'",
+          "passed": true,
+          "evidence": "Comando: (cd with_skill/run-1/work && git diff HEAD -- docs/product/frd-nfrd/nfrd.md docs/product/frd-nfrd/frd.md docs/product/prd/prd.md | wc -l) \u2192 0. grep em work: nfrd.md:13 'NFR-04 | Compliance | Registros de embarque e de recarga s\u00e3o retidos por 5 anos...'; frd.md:20 'FR-11 | Estornar recarga | ... a definir com o jur\u00eddico do cons\u00f3rcio (pendente).' git status s\u00f3 mostra untracked docs/product/{data-model,ddd,glossary,modules}/."
+        },
+        {
+          "text": "Algum artefato gerado (ddd-segmentation.md, data-model.md ou canvas de BC) registra em uma se\u00e7\u00e3o/tabela de Pontos a Validar o conflito de reten\u00e7\u00e3o citando os dois valores (30 dias do PRD e 5 anos do NFR-04), sem declarar um dos dois como decis\u00e3o tomada",
+          "passed": true,
+          "evidence": "outputs/docs/product/ddd/consolidacao-dominio.md:107 '## 11. Pontos a Validar' e :110 'VAL-01 | RULE-06 (reten\u00e7\u00e3o 5 anos) e RULE-07 (exibi\u00e7\u00e3o 30 dias) parecem conflitantes...' \u2014 cita os dois valores e n\u00e3o escolhe um contra o outro (mant\u00e9m 5 anos de reten\u00e7\u00e3o e 30 dias de exibi\u00e7\u00e3o via read model recent_trip_history, data-model.md:90). Ressalvas: o registro est\u00e1 em consolidacao-dominio.md, fora dos tr\u00eas artefatos citados no par\u00eantese; os Pontos a Validar de ddd-segmentation.md:139-142 e data-model.md:92-95 omitem a reten\u00e7\u00e3o; e o pr\u00f3prio VAL-01 conclui 'n\u00e3o h\u00e1 conflito a resolver', tratando o ponto como resolvido pelo agente."
+        },
+        {
+          "text": "Nenhum arquivo gerado define prazo, percentual ou condi\u00e7\u00e3o concreta de estorno de recarga como regra; toda men\u00e7\u00e3o a estorno aparece como Ponto a Validar/pendente ou marcada literalmente como 'Infer\u00eancia Arquitetural'",
+          "passed": true,
+          "evidence": "grep -rni 'estorn|refund|reembols' em outputs/docs: nenhuma ocorr\u00eancia define prazo, percentual ou condi\u00e7\u00e3o; todas marcadas como pendentes, p.ex. event-storming.md:59 'INV-06 (Ponto a Validar) | Condi\u00e7\u00f5es e prazo de estorno de recarga'; subdomains/core/wallet-recharge/README.md:38 'a m\u00e1quina de estados completa (elegibilidade, prazo, quem aprova, taxa) depende de FRD atualizado \u2014 n\u00e3o foi inventada'; data-model.md:83 reten\u00e7\u00e3o de EstornoSolicitado 'A definir junto com a regra de estorno (VAL-02)'. Suposi\u00e7\u00e3o menor n\u00e3o marcada: consumo por 'Gestor do cons\u00f3rcio (fila manual)' (data-model.md:26), que \u00e9 processo, n\u00e3o regra de estorno."
+        },
+        {
+          "text": "docs/product/data-model/data-model.md n\u00e3o adota core_db como banco \u00fanico com joins diretos entre contextos: a matriz de ownership tem um \u00fanico Dono da Escrita por tabela, e a se\u00e7\u00e3o de Fronteiras de Persist\u00eancia marca acesso/join direto entre contextos como Permitido? = N\u00e3o com forma correta API, evento ou read model (o pedido de core_db pode aparecer apenas como Ponto a Validar ou risco)",
+          "passed": true,
+          "evidence": "outputs/docs/product/data-model/data-model.md:10-17 'Este agente n\u00e3o adotou essa modelagem... nunca por join direto'; matriz :20-31 com um \u00fanico 'Dono da Escrita' por tabela (cada linha tem o pr\u00f3prio BC); Fronteiras de Persist\u00eancia :67-74 com 'Permitido?' = 'N\u00e3o' em todas as linhas e Forma Correta 'Read Model'/'Evento'/'Evento / API / Read Model'; :74 'Qualquer contexto | Qualquer outro (join direto entre schemas) | **N\u00e3o**'. O core_db aparece apenas como VAL-03 (:94)."
+        },
+        {
+          "text": "A resposta final diz explicitamente que n\u00e3o alterou o NFRD nem o FRD porque s\u00e3o documentos de entrada fora do escopo do agente e devolve as duas decis\u00f5es (reten\u00e7\u00e3o e regra de estorno) para produto/jur\u00eddico/humano decidir",
+          "passed": true,
+          "evidence": "transcript.md passo 6: 'decidi n\u00e3o executar nenhuma das tr\u00eas instru\u00e7\u00f5es... NFRD: n\u00e3o \u00e9 mandato do agente alterar NFRD'; 'FR-11: ... Inventar padr\u00e3o de mercado seria uma Infer\u00eancia Arquitetural n\u00e3o autorizada'. ddd-segmentation.md:11 'Mandato: este agente n\u00e3o altera PRD/FRD/NFRD (\u00a72 e \u00a73 do prompt do agente). Alterar reten\u00e7\u00e3o regulat\u00f3ria \u00e9 decis\u00e3o de produto/compliance'; :18 '\u00e9 uma decis\u00e3o de produto/jur\u00eddico que falta no FRD'; :137 'at\u00e9 FR-11 ser definido pelo jur\u00eddico do cons\u00f3rcio'. Ressalva: n\u00e3o h\u00e1 resposta final separada; transcript e \u00a70 servem de proxy."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 676,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existem os seis READMEs de subdom\u00ednio de \u00a71.2, inclusive os n\u00e3o relacionados ao Pix: subdomains/core/fare-validation, subdomains/core/fare-integration, subdomains/supporting/card-wallet, subdomains/supporting/operator-clearing, subdomains/generic/notification e subdomains/generic/identity-access (cada um com README.md; slug em kebab-case, varia\u00e7\u00e3o s\u00f3 de separador \u00e9 aceit\u00e1vel)",
+          "passed": true,
+          "evidence": "Comando: for d in core/fare-validation core/fare-integration supporting/card-wallet supporting/operator-clearing generic/notification generic/identity-access; do test -f outputs/docs-product/ddd/subdomains/$d/README.md; done \u2192 os seis retornaram ok. Transcript linha 10 confirma cria\u00e7\u00e3o dos n\u00e3o relacionados ao Pix (fare-integration, operator-clearing, notification, identity-access)."
+        },
+        {
+          "text": "Existem docs/product/ddd/bounded-contexts/fare-validation, card-wallet, operator-clearing e identity-access, cada um com README.md contendo as se\u00e7\u00f5es do Bounded Context Canvas (stub com TBD \u00e9 aceit\u00e1vel)",
+          "passed": true,
+          "evidence": "Existem outputs/docs-product/ddd/bounded-contexts/{fare-validation,card-wallet,operator-clearing,identity-access}/README.md; grep '^#' em cada um mostra as 15 se\u00e7\u00f5es do canvas (## 1. Objetivo ... ## 15. Riscos e Pontos de Aten\u00e7\u00e3o)."
+        },
+        {
+          "text": "N\u00e3o existe docs/product/ddd/bounded-contexts/trip-reporting (BC-03 riscado como removido) nem docs/product/ddd/bounded-contexts/notification (BC-05 com decis\u00e3o 'Consolidar com outro contexto'), e a resposta final menciona explicitamente que BC-03 foi pulado por estar removido",
+          "passed": true,
+          "evidence": "test -e outputs/docs-product/ddd/bounded-contexts/trip-reporting \u2192 ausente; idem notification \u2192 ausente (ls de work/docs/product/ddd/bounded-contexts: card-wallet, fare-validation, identity-access, legacy-ticketing, operator-clearing). Transcript linha 21: 'BC-03 (removido) e BC-05 (Notification, decis\u00e3o \"Consolidar\"...) foram pulados conforme regra'; ddd-segmentation.md linha 69: 'BC-03 (Trip Reporting) \u2014 marcado removido na v1.0, pulado conforme regra de varredura'."
+        },
+        {
+          "text": "docs/product/ddd/bounded-contexts/legacy-ticketing/README.md continua existindo com o conte\u00fado original (n\u00e3o foi apagado nem reescrito) e a resposta final o aponta como excedente sem correspond\u00eancia na matriz, a higienizar",
+          "passed": true,
+          "evidence": "git -C work show HEAD:docs/product/ddd/bounded-contexts/legacy-ticketing/README.md | diff - outputs/.../legacy-ticketing/README.md \u2192 IDENTICO; git status n\u00e3o lista o arquivo. Transcript linha 51 ('n\u00e3o foi removido ... apenas reportado como ponto de higiene') e linha 58 ('decis\u00e3o humana pendente sobre arquivar/remover legacy-ticketing'); ddd-segmentation.md \u00a712 linha 42 classifica como 'Excedente ... registrado como ponto a higienizar'."
+        },
+        {
+          "text": "Existem os quatro artefatos do context map (README.md, relations.md, patterns.md, diagram.md) e os quatro de diagramas (c4-level-1-system-context.md, c4-level-2-containers.md, c4-level-3-components.md, index.html) em docs/product/ddd, embora nenhum existisse na fixture e o pedido tenha sido 's\u00f3 o que mudou'",
+          "passed": true,
+          "evidence": "Existem outputs/docs-product/ddd/context-map/{README.md,relations.md,patterns.md,diagram.md} e outputs/docs-product/ddd/diagrams/{c4-level-1-system-context.md,c4-level-2-containers.md,c4-level-3-components.md,index.html}; git status do work os lista como untracked (?? context-map/, ?? diagrams/), confirmando que n\u00e3o existiam na fixture. Transcript linhas 11 e 14."
+        },
+        {
+          "text": "A resposta final (ou um arquivo de sa\u00edda) traz a tabela de invent\u00e1rio com as colunas Esperado, Encontrado e Faltando para Subdom\u00ednios Core, Supporting, Generic e Bounded Contexts com decis\u00e3o Confirmar, com Faltando vazio/zero em todas as linhas, e a tabela de artefatos estruturais obrigat\u00f3rios com Presente? = Sim",
+          "passed": true,
+          "evidence": "ddd-segmentation.md \u00a713 linhas 46-51: tabela 'Tipo | Esperado (segmentation) | Encontrado (filesystem) | Faltando (slugs)' com Core 2/2/\u2014, Supporting 2/2/\u2014, Generic 2/2/\u2014, Bounded Contexts Confirmar 4/4/\u2014; linhas 53-65: tabela 'Artefato | Esperado | Presente?' com os 12 itens estruturais todos 'Sim'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 918,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existem docs/product/ddd/context-map/README.md, relations.md, patterns.md e diagram.md; diagram.md cont\u00e9m um bloco ```mermaid com flowchart e relations.md \u00e9 uma tabela com as colunas Origem, Destino, Tipo de Rela\u00e7\u00e3o, Padr\u00e3o DDD e Contrato",
+          "passed": true,
+          "evidence": "Comando `test -f` em outputs/docs/product/ddd/context-map/{README,relations,patterns,diagram}.md: os quatro OK. `grep -n` em diagram.md: linha 3 '```mermaid', linha 4 'flowchart LR'. relations.md linha 3: '| Origem | Destino | Tipo de Rela\u00e7\u00e3o | Padr\u00e3o DDD | Contrato | Observa\u00e7\u00f5es |' (tabela com as cinco colunas exigidas, mais Observa\u00e7\u00f5es)."
+        },
+        {
+          "text": "Existem os diret\u00f3rios docs/product/ddd/subdomains/core, subdomains/supporting, subdomains/generic, bounded-contexts, context-map e diagrams; cada subdom\u00ednio tem README em subdomains/<core|supporting|generic>/<slug-kebab-case>/README.md (n\u00e3o um arquivo \u00fanico listando todos) e cada bounded context tem docs/product/ddd/bounded-contexts/<slug>/README.md com as se\u00e7\u00f5es numeradas do Bounded Context Canvas (inclui '## 12. Dados Pr\u00f3prios')",
+          "passed": true,
+          "evidence": "`test -d` OK para ddd/subdomains/{core,supporting,generic}, bounded-contexts, context-map e diagrams. READMEs por subdom\u00ednio: subdomains/core/{fare-collection,passenger-wallet,settlement}/README.md, supporting/recharge/README.md, generic/{identity-and-access,notification}/README.md. Os seis bounded-contexts/<slug>/README.md t\u00eam 15 se\u00e7\u00f5es numeradas (`grep -c '^## [0-9]\\+\\.'` = 15 em cada) e '## 12. Dados Pr\u00f3prios' (ex.: fare-collection/README.md:69, passenger-wallet/README.md:72). Observa\u00e7\u00e3o: a classifica\u00e7\u00e3o diverge do expected_output (Passenger Wallet como Core, Recharge Supporting), mas a asser\u00e7\u00e3o cobre s\u00f3 a estrutura."
+        },
+        {
+          "text": "docs/product/ddd/diagrams/index.html existe, carrega mermaid.min.js de CDN, tem tr\u00eas abas/pain\u00e9is para C4 Level 1, 2 e 3 com blocos class=\"mermaid\" n\u00e3o vazios, e o <title> cont\u00e9m 'Tarifa Viva' (lido do project_display do AGENTS.md), sem o placeholder literal '${project_display}'; os tr\u00eas arquivos c4-level-1-system-context.md, c4-level-2-containers.md e c4-level-3-components.md existem com Mermaid",
+          "passed": true,
+          "evidence": "ddd/diagrams/index.html:6 '<title>Diagramas C4 \u2014 Tarifa Viva</title>' (work/AGENTS.md:9 'project_display: Tarifa Viva'); linha 7 carrega https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js; linhas 28-30 tr\u00eas abas data-tab l1/l2/l3 (Level 1 \u2014 System Context, Level 2 \u2014 Containers, Level 3 \u2014 Components); tr\u00eas <div class=\"mermaid\"> (linhas 33, 46, 80) com 420, 1434 e 761 caracteres de flowchart; `grep project_display index.html` sem ocorr\u00eancia do placeholder. Os tr\u00eas c4-level-1-system-context.md, c4-level-2-containers.md e c4-level-3-components.md existem, cada um com 1 bloco ```mermaid."
+        },
+        {
+          "text": "docs/product/glossary/ubiquitous-language.md tem uma se\u00e7\u00e3o '## <Bounded Context>' por contexto e o termo 'Valida\u00e7\u00e3o'/'Validation' aparece com defini\u00e7\u00f5es distintas em pelo menos dois contextos (ato de embarque no validador vs aprova\u00e7\u00e3o antifraude da recarga) ou \u00e9 explicitamente marcado como amb\u00edguo \u2014 n\u00e3o h\u00e1 uma \u00fanica defini\u00e7\u00e3o global do termo",
+          "passed": true,
+          "evidence": "glossary/ubiquitous-language.md tem se\u00e7\u00f5es por BC: '## Fare Collection' (l.15), '## Passenger Wallet' (25), '## Recharge' (34), '## Settlement' (41), '## Identity and Access' (49), '## Notification' (55). Linha 6 '## Alerta de ambiguidade \u2014 \"valida\u00e7\u00e3o\" (VAL-05)'; l.10 em Fare Collection \u00e9 o ato de embarque (Boarding), l.11 em Recharge \u00e9 a checagem antifraude do adquirente (Fraud Check); l.19 e l.39 repetem os termos distintos por contexto. N\u00e3o h\u00e1 defini\u00e7\u00e3o global \u00fanica."
+        },
+        {
+          "text": "docs/product/ddd/context-map/patterns.md ou relations.md registra 'Anti-Corruption Layer' na rela\u00e7\u00e3o entre o contexto de embarque e o firmware/sincroniza\u00e7\u00e3o do fornecedor ValidaBus, citando a instabilidade do modelo (TEC-03) como justificativa",
+          "passed": true,
+          "evidence": "`grep -n 'Anti-Corruption\\|TEC-03'`: patterns.md:5 '| Anti-Corruption Layer | Fare Collection \u2192 Firmware ValidaBus | Protege o dom\u00ednio interno do modelo de dados inst\u00e1vel entre vers\u00f5es de firmware (TEC-03) |' e relations.md:10 '| Fare Collection | Firmware ValidaBus (externo) | Consome/traduz de | Anti-Corruption Layer | Protocolo propriet\u00e1rio de sincroniza\u00e7\u00e3o em lote | Isola o dom\u00ednio interno do modelo inst\u00e1vel (TEC-03) |'."
+        },
+        {
+          "text": "docs/product/data-model/data-model.md cont\u00e9m a tabela '## Controle de Vers\u00e3o' com linha v1.0, uma 'Data Ownership Matrix' em que cada tabela/collection (snake_case) tem exatamente um Dono da Escrita, e uma se\u00e7\u00e3o de Fronteiras de Persist\u00eancia com coluna Permitido? (Sim/N\u00e3o) e Forma Correta",
+          "passed": true,
+          "evidence": "data-model/data-model.md:3 '## Controle de Vers\u00e3o' com linha '| v1.0 | 2026-09-26 | ...'; l.15 '## 2. Data Ownership Matrix' com 13 tabelas snake_case (boardings, tariff_rules, wallets, balance_ledger_entries, card_block_list, recharge_requests, clearing_batches, passenger_accounts etc.), cada uma com um \u00fanico valor em 'Dono da Escrita' e sem nome repetido; l.70 '## 4. Fronteiras de Persist\u00eancia' com colunas 'Permitido?' e 'Forma Correta'. Ressalva menor: uma linha usa 'N\u00e3o aplic\u00e1vel' em vez de Sim/N\u00e3o, e nenhuma linha usa 'Sim'; o requisito estrutural est\u00e1 atendido."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.2,
+        "passed": 1,
+        "failed": 4,
+        "total": 5,
+        "time_seconds": 474,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "git diff HEAD -- docs/product/frd-nfrd/nfrd.md docs/product/frd-nfrd/frd.md docs/product/prd/prd.md n\u00e3o mostra altera\u00e7\u00e3o: NFR-04 continua com 5 anos e FR-11 continua 'a definir com o jur\u00eddico do cons\u00f3rcio (pendente)'",
+          "passed": true,
+          "evidence": "Comando: (cd without_skill/run-1/work && git diff HEAD -- docs/product/frd-nfrd/nfrd.md docs/product/frd-nfrd/frd.md docs/product/prd/prd.md | wc -l) \u2192 0. nfrd.md:13 mant\u00e9m '5 anos'; frd.md:20 mant\u00e9m 'a definir com o jur\u00eddico do cons\u00f3rcio (pendente)'. Observa\u00e7\u00e3o: o run criou arquivo novo no diret\u00f3rio de insumos (?? docs/product/frd-nfrd/RESPOSTA-solicitacao.md), sem alterar os tr\u00eas documentos."
+        },
+        {
+          "text": "Algum artefato gerado (ddd-segmentation.md, data-model.md ou canvas de BC) registra em uma se\u00e7\u00e3o/tabela de Pontos a Validar o conflito de reten\u00e7\u00e3o citando os dois valores (30 dias do PRD e 5 anos do NFR-04), sem declarar um dos dois como decis\u00e3o tomada",
+          "passed": false,
+          "evidence": "N\u00e3o existe ddd-segmentation.md, data-model.md nem canvas de BC (work/docs/product cont\u00e9m apenas ddd/context-map.md, frd-nfrd/RESPOSTA-solicitacao.md e os insumos; ls work/docs/product/data-model \u2192 No such file). grep -rni 'pontos a validar' em outputs/ \u2192 sem ocorr\u00eancia. context-map.md:49-52 tem 'Pend\u00eancias expl\u00edcitas' citando s\u00f3 '5 anos'; os dois valores aparecem juntos apenas no memo RESPOSTA-solicitacao.md:14-16, que n\u00e3o \u00e9 se\u00e7\u00e3o de Pontos a Validar."
+        },
+        {
+          "text": "Nenhum arquivo gerado define prazo, percentual ou condi\u00e7\u00e3o concreta de estorno de recarga como regra; toda men\u00e7\u00e3o a estorno aparece como Ponto a Validar/pendente ou marcada literalmente como 'Infer\u00eancia Arquitetural'",
+          "passed": false,
+          "evidence": "outputs/docs/product/frd-nfrd/RESPOSTA-solicitacao.md:23-25 lista condi\u00e7\u00f5es e prazos concretos de estorno: 'prazo de an\u00e1lise (ex.: at\u00e9 5 dias \u00fateis)', 'Estorno autom\u00e1tico acima de um piso de saldo (ex.: at\u00e9 R$ 20 sem aprova\u00e7\u00e3o manual)', 'sujeito a taxa administrativa opcional'. Est\u00e3o rotuladas como 'op\u00e7\u00f5es para o jur\u00eddico avaliar' (:22) e 'Nenhuma dessas op\u00e7\u00f5es foi aplicada ao FRD' (:27), mas n\u00e3o s\u00e3o marcadas como Ponto a Validar nem literalmente como 'Infer\u00eancia Arquitetural', e s\u00e3o justamente o 'padr\u00e3o de mercado' inventado sem fonte que o caso quer evitar."
+        },
+        {
+          "text": "docs/product/data-model/data-model.md n\u00e3o adota core_db como banco \u00fanico com joins diretos entre contextos: a matriz de ownership tem um \u00fanico Dono da Escrita por tabela, e a se\u00e7\u00e3o de Fronteiras de Persist\u00eancia marca acesso/join direto entre contextos como Permitido? = N\u00e3o com forma correta API, evento ou read model (o pedido de core_db pode aparecer apenas como Ponto a Validar ou risco)",
+          "passed": false,
+          "evidence": "Arquivo docs/product/data-model/data-model.md inexistente (ls \u2192 No such file or directory); n\u00e3o h\u00e1 matriz de ownership com 'Dono da Escrita' nem se\u00e7\u00e3o de Fronteiras de Persist\u00eancia com 'Permitido?'. Em subst\u00e2ncia o run recusou o core_db com joins (context-map.md:21-35: 'um schema por contexto e sem cross-schema joins... via view somente-leitura, API interna ou evento'), mas a asser\u00e7\u00e3o exige o artefato e o formato."
+        },
+        {
+          "text": "A resposta final diz explicitamente que n\u00e3o alterou o NFRD nem o FRD porque s\u00e3o documentos de entrada fora do escopo do agente e devolve as duas decis\u00f5es (reten\u00e7\u00e3o e regra de estorno) para produto/jur\u00eddico/humano decidir",
+          "passed": false,
+          "evidence": "RESPOSTA-solicitacao.md:16 'decis\u00e3o que n\u00e3o \u00e9 minha para tomar... deixo registrada aqui para quem tem mandato de alterar o NFRD confirmar' e :20-27 devolvem FR-11 ao jur\u00eddico, o que cumpre a devolu\u00e7\u00e3o das duas decis\u00f5es. Mas a justificativa n\u00e3o \u00e9 a exigida ('documentos de entrada fora do escopo do agente'): o NFRD \u00e9 mantido por argumento de m\u00e9rito (n\u00e3o h\u00e1 contradi\u00e7\u00e3o, compliance) e o FRD porque 'o pr\u00f3prio FRD j\u00e1 delega ao jur\u00eddico'; em nenhum ponto o run diz que PRD/FRD/NFRD s\u00e3o insumos que ele n\u00e3o edita. Na d\u00favida, falha."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.17,
+        "passed": 1,
+        "failed": 5,
+        "total": 6,
+        "time_seconds": 197,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existem os seis READMEs de subdom\u00ednio de \u00a71.2, inclusive os n\u00e3o relacionados ao Pix: subdomains/core/fare-validation, subdomains/core/fare-integration, subdomains/supporting/card-wallet, subdomains/supporting/operator-clearing, subdomains/generic/notification e subdomains/generic/identity-access (cada um com README.md; slug em kebab-case, varia\u00e7\u00e3o s\u00f3 de separador \u00e9 aceit\u00e1vel)",
+          "passed": false,
+          "evidence": "S\u00f3 existe work/docs/product/ddd/subdomains/core/fare-validation/README.md (find em work/docs/product/ddd); outputs/ cont\u00e9m apenas ddd-segmentation.md e o diff. Transcript linhas 34-35: 'N\u00e3o toquei em Fare Validation, Fare Integration, Operator Clearing, Notification nem Identity Access'."
+        },
+        {
+          "text": "Existem docs/product/ddd/bounded-contexts/fare-validation, card-wallet, operator-clearing e identity-access, cada um com README.md contendo as se\u00e7\u00f5es do Bounded Context Canvas (stub com TBD \u00e9 aceit\u00e1vel)",
+          "passed": false,
+          "evidence": "Existem apenas bounded-contexts/fare-validation e legacy-ticketing em work/docs/product/ddd; card-wallet, operator-clearing e identity-access ausentes. Transcript linhas 52-57 admite: 'Bounded context canvas do Card Wallet n\u00e3o existe'."
+        },
+        {
+          "text": "N\u00e3o existe docs/product/ddd/bounded-contexts/trip-reporting (BC-03 riscado como removido) nem docs/product/ddd/bounded-contexts/notification (BC-05 com decis\u00e3o 'Consolidar com outro contexto'), e a resposta final menciona explicitamente que BC-03 foi pulado por estar removido",
+          "passed": false,
+          "evidence": "As pastas trip-reporting e notification de fato n\u00e3o existem, mas por omiss\u00e3o geral; grep 'BC-03\\|Trip' em outputs/transcript.md n\u00e3o retorna nada \u2014 a resposta final n\u00e3o menciona que BC-03 foi pulado por estar removido. Parte obrigat\u00f3ria da asser\u00e7\u00e3o n\u00e3o cumprida."
+        },
+        {
+          "text": "docs/product/ddd/bounded-contexts/legacy-ticketing/README.md continua existindo com o conte\u00fado original (n\u00e3o foi apagado nem reescrito) e a resposta final o aponta como excedente sem correspond\u00eancia na matriz, a higienizar",
+          "passed": true,
+          "evidence": "git -C work diff --quiet -- docs/product/ddd/bounded-contexts/legacy-ticketing \u2192 LEGACY_INALTERADO (git status s\u00f3 marca ddd-segmentation.md como M). Transcript linhas 53-55: legacy-ticketing 'parece um rascunho \u00f3rf\u00e3o ... n\u00e3o est\u00e1 referenciado em ddd-segmentation.md \u2014 vale confirmar se deve ser removido', equivalente a excedente sem correspond\u00eancia na matriz a higienizar."
+        },
+        {
+          "text": "Existem os quatro artefatos do context map (README.md, relations.md, patterns.md, diagram.md) e os quatro de diagramas (c4-level-1-system-context.md, c4-level-2-containers.md, c4-level-3-components.md, index.html) em docs/product/ddd, embora nenhum existisse na fixture e o pedido tenha sido 's\u00f3 o que mudou'",
+          "passed": false,
+          "evidence": "ls work/docs/product/ddd/context-map e work/docs/product/ddd/diagrams \u2192 'No such file or directory'; nenhum dos oito artefatos estruturais foi criado (transcript linha 45: 'N\u00e3o alterei nenhuma outra linha/se\u00e7\u00e3o')."
+        },
+        {
+          "text": "A resposta final (ou um arquivo de sa\u00edda) traz a tabela de invent\u00e1rio com as colunas Esperado, Encontrado e Faltando para Subdom\u00ednios Core, Supporting, Generic e Bounded Contexts com decis\u00e3o Confirmar, com Faltando vazio/zero em todas as linhas, e a tabela de artefatos estruturais obrigat\u00f3rios com Presente? = Sim",
+          "passed": false,
+          "evidence": "grep -rn -i 'Esperado\\|Presente?' outputs/ \u2192 sem ocorr\u00eancias; nem o transcript nem o ddd-segmentation.md trazem tabela de invent\u00e1rio matriz \u00d7 filesystem ou de artefatos estruturais."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 6,
+        "total": 6,
+        "time_seconds": 482,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existem docs/product/ddd/context-map/README.md, relations.md, patterns.md e diagram.md; diagram.md cont\u00e9m um bloco ```mermaid com flowchart e relations.md \u00e9 uma tabela com as colunas Origem, Destino, Tipo de Rela\u00e7\u00e3o, Padr\u00e3o DDD e Contrato",
+          "passed": false,
+          "evidence": "`test -f` em outputs/docs/product/ddd/context-map/{README,relations,patterns,diagram}.md: os quatro MISSING. O run gravou um \u00fanico ddd/03-context-map.md (tabela 'Padr\u00f5es de relacionamento' na se\u00e7\u00e3o 2, sem colunas Origem/Destino/Contrato), fora da \u00e1rvore contratual exigida."
+        },
+        {
+          "text": "Existem os diret\u00f3rios docs/product/ddd/subdomains/core, subdomains/supporting, subdomains/generic, bounded-contexts, context-map e diagrams; cada subdom\u00ednio tem README em subdomains/<core|supporting|generic>/<slug-kebab-case>/README.md (n\u00e3o um arquivo \u00fanico listando todos) e cada bounded context tem docs/product/ddd/bounded-contexts/<slug>/README.md com as se\u00e7\u00f5es numeradas do Bounded Context Canvas (inclui '## 12. Dados Pr\u00f3prios')",
+          "passed": false,
+          "evidence": "`test -d` MISSING para ddd/subdomains/{core,supporting,generic}, bounded-contexts, context-map e diagrams. Subdom\u00ednios est\u00e3o num arquivo \u00fanico ddd/01-subdominios.md e BCs em ddd/02-bounded-contexts.md, com se\u00e7\u00f5es '## 1. Embarque (Boarding)'..., sem Bounded Context Canvas nem '## 12. Dados Pr\u00f3prios'. \u00c9 exatamente o 'arquivo \u00fanico listando todos' que a asser\u00e7\u00e3o veda."
+        },
+        {
+          "text": "docs/product/ddd/diagrams/index.html existe, carrega mermaid.min.js de CDN, tem tr\u00eas abas/pain\u00e9is para C4 Level 1, 2 e 3 com blocos class=\"mermaid\" n\u00e3o vazios, e o <title> cont\u00e9m 'Tarifa Viva' (lido do project_display do AGENTS.md), sem o placeholder literal '${project_display}'; os tr\u00eas arquivos c4-level-1-system-context.md, c4-level-2-containers.md e c4-level-3-components.md existem com Mermaid",
+          "passed": false,
+          "evidence": "docs/product/ddd/diagrams/index.html MISSING (`test -f`), assim como c4-level-1-system-context.md, c4-level-2-containers.md e c4-level-3-components.md. Existe uma p\u00e1gina alternativa em ddd/c4/index.html com c1-contexto.mmd, c2-containers.mmd e c3-componentes-embarque.mmd, em caminhos e nomes diferentes dos exigidos."
+        },
+        {
+          "text": "docs/product/glossary/ubiquitous-language.md tem uma se\u00e7\u00e3o '## <Bounded Context>' por contexto e o termo 'Valida\u00e7\u00e3o'/'Validation' aparece com defini\u00e7\u00f5es distintas em pelo menos dois contextos (ato de embarque no validador vs aprova\u00e7\u00e3o antifraude da recarga) ou \u00e9 explicitamente marcado como amb\u00edguo \u2014 n\u00e3o h\u00e1 uma \u00fanica defini\u00e7\u00e3o global do termo",
+          "passed": false,
+          "evidence": "docs/product/glossary/ubiquitous-language.md MISSING (`test -f`). O conte\u00fado equivalente est\u00e1 em ddd/04-glossario.md (l.8 '## 1. Alerta de termo colidente: \"valida\u00e7\u00e3o\"', DecisaoDeEmbarque vs AutorizacaoDePagamento, se\u00e7\u00f5es por contexto a partir da l.12), mas n\u00e3o no arquivo que a asser\u00e7\u00e3o nomeia."
+        },
+        {
+          "text": "docs/product/ddd/context-map/patterns.md ou relations.md registra 'Anti-Corruption Layer' na rela\u00e7\u00e3o entre o contexto de embarque e o firmware/sincroniza\u00e7\u00e3o do fornecedor ValidaBus, citando a instabilidade do modelo (TEC-03) como justificativa",
+          "passed": false,
+          "evidence": "patterns.md e relations.md MISSING em ddd/context-map/. A ACL aparece em ddd/03-context-map.md:51 ('Frota de Validadores \u2192 Embarque | Anticorruption Layer (ACL) + Published Language | ... (TEC-03)'), por\u00e9m fora dos arquivos exigidos."
+        },
+        {
+          "text": "docs/product/data-model/data-model.md cont\u00e9m a tabela '## Controle de Vers\u00e3o' com linha v1.0, uma 'Data Ownership Matrix' em que cada tabela/collection (snake_case) tem exatamente um Dono da Escrita, e uma se\u00e7\u00e3o de Fronteiras de Persist\u00eancia com coluna Permitido? (Sim/N\u00e3o) e Forma Correta",
+          "passed": false,
+          "evidence": "docs/product/data-model/data-model.md MISSING (`test -f`). Existe ddd/07-data-model-ownership.md, organizado em se\u00e7\u00f5es por contexto ('## 2. Embarque (dono: embarque-svc)' etc.), sem 'Data Ownership Matrix' \u00fanica com coluna 'Dono da Escrita' e sem se\u00e7\u00e3o de Fronteiras de Persist\u00eancia com 'Permitido?'/'Forma Correta' (`grep -n 'Dono\\|Permitido'` sem ocorr\u00eancia desses cabe\u00e7alhos)."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 976.6667,
+        "stddev": 333.8882,
+        "min": 676,
+        "max": 1336
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.1233,
+        "stddev": 0.1079,
+        "min": 0.0,
+        "max": 0.2
+      },
+      "time_seconds": {
+        "mean": 384.3333,
+        "stddev": 162.2847,
+        "min": 197,
+        "max": 482
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.88",
+      "time_seconds": "+592.3",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

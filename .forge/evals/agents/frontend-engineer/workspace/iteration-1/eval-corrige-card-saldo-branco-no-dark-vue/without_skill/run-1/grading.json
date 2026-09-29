@@ -1,0 +1,60 @@
+{
+  "expectations": [
+    {
+      "text": "O bloco <style> de apps/web/bilhete-web/src/features/balance/BalanceCard.vue não contém `var(--...,` com valor literal de fallback nem cor literal (#hex, rgb(, hsl() — inclusive a borda `#e5e7eb` foi trocada por token",
+      "passed": true,
+      "evidence": "Comando: sed -n \"/<style/,/<\\/style>/p\" work/apps/web/bilhete-web/src/features/balance/BalanceCard.vue | grep -nE \"#[0-9a-fA-F]{3,8}|rgb\\(|hsl\\(|var\\(--[a-z0-9-]+ *,\" → NONE. git diff mostra linhas 21-22 trocadas: \"background: var(--surface-1, #ffffff)\" → \"var(--surface-card)\" e \"border: 1px solid #e5e7eb\" → \"var(--border-subtle)\"."
+    },
+    {
+      "text": "Todo `var(--x)` em BalanceCard.vue está definido em packages/ui/src/tokens.css (seja por usar `--surface-card`, seja por `--surface-1` ter sido definido em `:root` e em `[data-theme='dark']`), e BalanceCard.vue não ganhou bloco `[data-theme='dark']`, `:global(...dark...)` ou `@media (prefers-color-scheme: dark)` com cor",
+      "passed": true,
+      "evidence": "Para cada var(--x) de BalanceCard.vue, grep -cE \"^\\s*--x\\s*:\" packages/ui/src/tokens.css ≥1 (--surface-card=2, --border-subtle=2, --text-muted=2, --text-primary=2, --space-4/--radius-md/--font-size-sm/--font-size-lg=1; tokens.css define --surface-card em :root linha 4 e [data-theme='dark'] linha 18); grep -nE \"data-theme|:global|prefers-color-scheme\" BalanceCard.vue → NONE."
+    },
+    {
+      "text": "Ou apps/web/bilhete-web/src/features/statement/StatementList.vue não contém mais `var(--surface-1, #fff)`, ou docs/entregas/bug-card-saldo-dark.md cita StatementList.vue explicitamente como ocorrência do mesmo token fantasma",
+      "passed": true,
+      "evidence": "StatementList.vue linha 19 ainda contém \"background: var(--surface-1, #fff)\", mas docs/entregas/bug-card-saldo-dark.md linha 25 cita explicitamente: \"`apps/web/bilhete-web/src/features/statement/StatementList.vue` tem o mesmo padrao (`background: var(--surface-1, #fff)`) ... fica registrado aqui para triagem separada.\" Satisfaz o ramo \"reportada\"."
+    },
+    {
+      "text": "docs/entregas/bug-card-saldo-dark.md identifica `--surface-1` como token não definido em tokens.css cujo fallback literal branco é o que aparece no tema escuro (e não apenas 'faltava estilo para o dark')",
+      "passed": true,
+      "evidence": "docs/entregas/bug-card-saldo-dark.md linha 7: \"O token `--surface-1` nunca foi definido em `packages/ui/src/tokens.css` (nem no tema claro, nem no escuro) ... Como `--surface-1` nao existe, o CSS sempre cai no fallback `#ffffff`, fixo, independente do tema.\""
+    },
+    {
+      "text": "Há um teste novo ou alterado (em apps/web/bilhete-web/, .test.ts/.spec.ts) que falharia no código original: por exemplo, verifica que todo var(--x) dos .vue existe em tokens.css, que o SFC não usa fallback literal, ou que o card resolve uma superfície diferente de branco com data-theme='dark'",
+      "passed": false,
+      "evidence": "git -C work status --porcelain -- \"*.test.ts\" \"*.spec.ts\" → vazio; o único teste do app, BalanceCard.test.ts, está idêntico ao commit inicial e não foi criado nenhum teste novo. Transcript item 9: \"Não rodei build/lint/testes\"; a doc (linha 27 \"## Verificacao\") só recomenda validação visual, nenhum teste foi escrito."
+    },
+    {
+      "text": "apps/web/bilhete-web/package.json e o package.json da raiz estão idênticos ao commit inicial, `git rev-list --count HEAD` continua 1, e docs/entregas/bug-card-saldo-dark.md tem seção `## Testes executados` que mostra a execução real ou diz explicitamente que os testes não foram executados",
+      "passed": false,
+      "evidence": "package.json e apps/web/bilhete-web/package.json idênticos a HEAD e git rev-list --count HEAD = 1, mas grep -n \"^## Testes executados\" docs/entregas/bug-card-saldo-dark.md → NONE: a seção é \"## Verificacao\" (linha 27), que diz \"Nao ha suite de testes/lint configurada de forma executavel neste ambiente\". Falta a seção exigida. Observação extra: a doc inteira está sem acentuação (\"retangulo\", \"correcao\", \"nao\"), violando a convenção pt-BR do projeto."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 2,
+    "total": 6,
+    "pass_rate": 0.67
+  },
+  "timing": {
+    "executor_duration_seconds": 75,
+    "total_duration_seconds": 75
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "apps/web/bilhete-web/package.json e o package.json da raiz estão idênticos ao commit inicial, `git rev-list --count HEAD` continua 1, e docs/entregas/bug-card-saldo-dark.md tem seção `## Testes executados` que mostra a execução real ou diz explicitamente que os testes não foram executados",
+        "reason": "Assertion composta mistura três checagens; ambas as configurações falham só pelo cabeçalho literal '## Testes executados' apesar de declararem honestamente que não rodaram testes. Considere separar a checagem de package.json/commit da checagem de seção, ou aceitar declaração equivalente."
+      },
+      {
+        "assertion": "Ou apps/web/bilhete-web/src/features/statement/StatementList.vue não contém mais `var(--surface-1, #fff)`, ou docs/entregas/bug-card-saldo-dark.md cita StatementList.vue explicitamente como ocorrência do mesmo token fantasma",
+        "reason": "O ramo 'ou reporta' deixa passar quem viu a mesma falha e escolheu não corrigir (without_skill); não discrimina a diferença real entre as configurações (with_skill corrigiu). Considere asserção separada para correção efetiva."
+      },
+      {
+        "reason": "Nenhuma asserção verifica acentuação pt-BR da entrega; without_skill produziu a doc inteira sem acentos."
+      }
+    ],
+    "overall": "Asserções 1-4 são checáveis por comando e sólidas, mas pouco discriminantes: ambas as configurações passaram nelas. A diferença real (StatementList corrigido e varredura documentada no with_skill) não aparece no placar."
+  }
+}

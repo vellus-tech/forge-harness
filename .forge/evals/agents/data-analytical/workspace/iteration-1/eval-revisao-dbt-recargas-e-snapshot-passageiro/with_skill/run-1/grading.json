@@ -1,0 +1,40 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta cita os ids A-08, A-10, A-12 e A-14, e cada um vem acompanhado da localização no formato arquivo:linha correspondente: stg_recargas.sql:1 para A-08, fct_recargas.sql:3 para A-10 e A-12, snap_passageiro.yml:8 para A-14",
+      "passed": true,
+      "evidence": "parecer.md cita 'A-08 ... `stg_recargas.sql:1,12`' (achado 4), 'A-10 ... `fct_recargas.sql:3`' (achado 2), 'A-12 ... `fct_recargas.sql:3`' (achado 3) e 'A-14 ... `snap_passageiro.yml:8`' (achado 5); linhas conferidas contra work/analytics (config incremental na linha 1, select * from source na linha 3, invalidate_hard_deletes na linha 8). Ressalva: o scan.sh não rodou (exit 127, .forge/skills ausente na árvore), então os ids vieram de julgamento manual, não do scanner; a asserção cobre só a citação."
+    },
+    {
+      "text": "A resposta aponta que o snapshot snap_passageiro rastreia atributos pessoais (nome, email, telefone) em SCD2 e recomenda tirá-los do snapshot para uma tabela mutável/SCD1 eliminável ligada por chave substituta ou token (citar o id A-16 é suficiente, mas não obrigatório se a recomendação estiver explícita)",
+      "passed": true,
+      "evidence": "Achado 6 '[BLOQUEANTE] A-16 — SCD2 rastreando atributo pessoal — snap_passageiro.yml:7' aponta nome/email/telefone em check_cols e recomenda check_cols: [categoria_tarifaria], com 'nome, email, telefone continuam disponíveis ... num modelo SCD1 mutável e elimináveis por chave (passageiro_id), fora do histórico'."
+    },
+    {
+      "text": "A resposta aponta `cast(valor as numeric(12,2)) as valor_reais` em stg_recargas.sql como violação da regra de valor monetário em inteiro na menor unidade (money-as-cents) e propõe coluna inteira em centavos (bigint/integer), não decimal",
+      "passed": true,
+      "evidence": "Achado 1 '[BLOQUEANTE] Valor monetário fora do padrão — stg_recargas.sql:8' cita `cast(valor as numeric(12,2)) as valor_reais`, invoca `domain/money-as-cents.md` e propõe `cast(round(valor * 100) as bigint) as valor_centavos`."
+    },
+    {
+      "text": "A correção proposta para stg_recargas.sql inclui unique_key na chave de grão (recarga_id) E uma janela de lookback no filtro incremental (ou microbatch com event_time e lookback), não apenas unique_key",
+      "passed": true,
+      "evidence": "Correção do achado 4 para stg_recargas.sql traz `unique_key='recarga_id'`, `incremental_strategy='merge'` e filtro `where criado_em > (select max(criado_em) from {{ this }}) - interval '3 days'` (lookback)."
+    },
+    {
+      "text": "O transcript mostra a execução de `.forge/scripts/check-data-governance.sh --path analytics` e a resposta diz que PAN/PII não foi verificado por esse verificador (universo vazio: nenhum arquivo do tipo que ele lê), sem declarar o projeto aprovado ou limpo quanto a dado sensível",
+      "passed": true,
+      "evidence": "transcript.md passo 9: '`bash .forge/scripts/check-data-governance.sh --path analytics` → FAIL data-governance/universo-vazio (0 arquivos examinados, exit 1) ... \"não verificado\" ... não é achado nem aprovação'. parecer.md, seção Verificação executada: 'Não é aprovação nem achado: o verificador só lê .go .kt .ts .rego .py .md; um projeto dbt (.sql/.yml) fica fora do universo dele' e o inventário de dado pessoal foi manual; o veredito é 'Não recomendo o merge', sem declarar o projeto limpo."
+    },
+    {
+      "text": "`git -C <alvo> status --porcelain` sai vazio ao fim da execução: o agente entregou as correções na resposta e não editou nem criou arquivo no alvo",
+      "passed": true,
+      "evidence": "`git -C with_skill/run-1/work status --porcelain` executado pelo grader retornou vazio (rc=0); HEAD em d535d15 'estado inicial'. transcript: 'Não toquei nos arquivos de analytics/ — só li'; correções entregues como trecho no parecer."
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1.0
+  }
+}

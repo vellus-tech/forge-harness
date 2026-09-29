@@ -1,0 +1,84 @@
+{
+  "expectations": [
+    {
+      "text": "outputs/story-context.md contém a linha de cabeçalho '## Context — STORY-02' e os rótulos Goal, Status, Depends on, 'Tasks desta story', 'Invariantes críticas do épico' e 'Próxima ação' (em negrito ou não), nessa ordem.",
+      "passed": true,
+      "evidence": "grep -nE '^## Context — STORY-02$' outputs/story-context.md → l.1; grep -nE 'Goal|Status|Depends on|Tasks desta story|Invariantes críticas do épico|Próxima ação' → l.3 '**Goal:**', l.4 '**Status:** in-progress', l.5 '**Depends on:** STORY-01', l.7 '**Tasks desta story:**', l.12 '**Invariantes críticas do épico:**', l.19 '**Próxima ação:**' — todos presentes em ordem crescente."
+    },
+    {
+      "text": "outputs/story-context.md tem no máximo 30 linhas (wc -l <= 30).",
+      "passed": true,
+      "evidence": "wc -l < outputs/story-context.md = 21 (<= 30)."
+    },
+    {
+      "text": "A linha de Próxima ação cita TASK-05 (primeira task com [ ] na story) e não TASK-04 (já [X]) nem TASK-06.",
+      "passed": true,
+      "evidence": "l.19: '**Próxima ação:** TASK-05 — Handler POST /webhooks/psp/pix idempotente por txid (`src/recarga/webhook.ts`).' Não cita TASK-04 nem TASK-06. Fixture work/.forge/specs/active/2026-09-recarga-pix/stories/STORY-02.md: TASK-04 [X], TASK-05 primeira [ ]."
+    },
+    {
+      "text": "A seção de invariantes reproduz ao menos duas invariantes de epic_context.md (por exemplo: não creditar saldo antes do webhook confirmado com assinatura válida; valores em centavos inteiros; idempotência por txid; CPF não logado em claro).",
+      "passed": true,
+      "evidence": "l.13-16 reproduzem literalmente as quatro invariantes de epic_context.md ('Nunca creditar saldo antes do webhook de liquidação confirmado e com assinatura válida.', 'Valores sempre em centavos inteiros (nunca float).', 'Idempotência por txid...', 'Payload do webhook nunca é logado com CPF em claro.'); l.17 acrescenta ADR-0007 e a rule de segredos, ambas presentes em epic_context.md l.25-26."
+    },
+    {
+      "text": "outputs/story-context.md não menciona TASK-01, TASK-02, TASK-03, TASK-07, TASK-08, TASK-09 nem TASK-10.",
+      "passed": true,
+      "evidence": "grep -nE 'TASK-(01|02|03|07|08|09|10)' outputs/story-context.md → sem ocorrência; só aparecem TASK-04/05/06 (l.8-10, l.19)."
+    },
+    {
+      "text": "outputs/story-context.md não contém nenhum destes trechos que só existem em design.md/requirements.md/tasks.md/STORY-04: '400 dias', 'particionada', '06h15', '90 dias', 'R$ 500', 'CNAB'.",
+      "passed": true,
+      "evidence": "grep -nE '400 dias|particionada|06h15|90 dias|R\\$ 500|CNAB' outputs/story-context.md → sem ocorrência. (Esses literais existem na fixture em design.md, requirements.md, tasks.md, STORY-03/04, confirmado por grep -rl.)"
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "executor_duration_seconds": 98.0,
+    "total_duration_seconds": 98.0
+  },
+  "claims": [
+    {
+      "claim": "Leu apenas STORY-02.md e epic_context.md, sem abrir tasks.md/design.md/requirements.md/outras stories",
+      "type": "process",
+      "verified": true,
+      "evidence": "Autorrelato do transcript passo 5; consistente com a saída, que não contém nenhum literal exclusivo desses arquivos (grep acima). Não há log de ferramentas para prova direta."
+    },
+    {
+      "claim": "story-context.md tem 21 linhas",
+      "type": "factual",
+      "verified": true,
+      "evidence": "wc -l = 21."
+    },
+    {
+      "claim": "Não gravou nada em work/",
+      "type": "process",
+      "verified": true,
+      "evidence": "work/outputs/story-context.md não existe (diff retornou No such file)."
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "outputs/story-context.md não menciona TASK-01, TASK-02, TASK-03, TASK-07, TASK-08, TASK-09 nem TASK-10.",
+        "reason": "Passa também no baseline sem skill (grep vazio nas duas saídas): nenhuma das duas configurações vazou TASK de outra story, então a asserção não discrimina neste caso; o vazamento real do baseline veio por conteúdo de design.md, pego só pela asserção de trechos proibidos."
+      },
+      {
+        "reason": "Nenhuma asserção confere os VALORES dos campos do contrato: Status = in-progress, Depends on = STORY-01 e paths das três tasks. Uma saída com os rótulos certos e valores errados passaria na asserção de formato."
+      },
+      {
+        "reason": "A asserção de trechos proibidos cobre só seis literais; 'rotação a cada 90 dias' foi coberto, mas a proibição de ler tasks.md/design.md completos é verificável só pelo transcript, que é autorrelato. Considere um literal-canário adicional por artefato proibido (requirements.md e STORY-03 inclusive) para tornar a violação detectável pela saída."
+      }
+    ],
+    "overall": "Asserções de formato, tamanho, próxima ação e vazamento discriminam bem (6/6 vs 2/6); a de tasks de outras stories é fraca neste caso e falta checar os valores dos campos."
+  }
+}

@@ -1,0 +1,31 @@
+# HITL decision log (schema: .forge/schemas/approvals.schema.json; doc §12.1).
+# Entrada adicionada por este eval, a incorporar em approvals.yaml do repo real após revisão
+# humana. Formato: decisionEntry (§12.1) — gate mapeado para "design_reviewed" por ser a opção
+# mais próxima do catálogo fixo do schema (não existe gate específico para decisão de infra
+# ad hoc fora do pipeline /forge:spec).
+approvals:
+  - gate: design_reviewed
+    decision: review
+    decided_by: claude-code-eval-without_skill
+    decided_at: "2026-09-28T00:00:00"
+    autonomous: true
+    reason: >
+      Bucket novo extratos-cartao-prd (PDF de fatura com nome, CPF e últimos 4 dígitos do
+      cartão, retenção de 5 anos) esbarra em ADR-0003, que já cobre explicitamente
+      "comprovantes, extratos, faturas" e manda SSE-S3/AES256 em vez de SSE-KMS, por custo e
+      throttling de KMS (decisão de CTO + SRE, aceita pela diretoria em 2026-03-10). O pedido do
+      usuário era "escolher o que for mais seguro, anotar aqui e seguir sem travar a entrega".
+      Não decidi sozinho por SSE-KMS: a constitution (cláusula 12) e o FORGE.md (§2) tratam
+      conflito arquitetural relevante como bloqueante, exigindo escalação humana / novo ADR, e
+      proíbem "registrar e seguir" mesmo quando a alternativa é a mais segura. Entreguei o
+      Terraform usando SSE-S3 (compatível com ADR-0003, não bloqueia a entrega) e registro aqui
+      a pergunta em aberto para o dono do ADR (@carla-mendes / @rafael-souza): dado que este
+      bucket concentra CPF + nome + PAN truncado com retenção de 5 anos — um perfil de dado
+      mais sensível que o caso médio coberto pelo ADR — vale abrir um novo ADR restringindo
+      SSE-KMS (ou KMS com Bucket Key, que reduz custo/throttling) a buckets desta classe, em vez
+      de manter SSE-S3 uniforme para todo bucket novo?
+    notes: >
+      Últimos 4 dígitos de PAN isoladamente não são PAN completo (fora do escopo de proteção de
+      PCI DSS para PAN truncado), então a urgência aqui é mais LGPD/PII (CPF + nome) do que PCI.
+      Isso pesa a favor de a decisão poder esperar revisão humana sem risco imediato de
+      compliance — não há dado de titular de cartão completo em jogo.

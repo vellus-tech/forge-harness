@@ -1,0 +1,59 @@
+{
+  "module": "recarga",
+  "env": "prd",
+  "dry_run": true,
+  "sha": "21fbd0f",
+  "last_prd_tag": "deploy-prd-20260910-1430-f922ba7",
+  "last_prd_sha": "f922ba7",
+  "manifest_digest": null,
+  "namespace": "prd",
+  "helm_release": "recarga",
+  "helm_revision": null,
+  "duration_seconds": null,
+  "approval": {
+    "cab_approved": true,
+    "approved_by": "Carla Mendes",
+    "approver_role": "gerente de plataforma",
+    "double_confirmation_required": true,
+    "double_confirmation_obtained": true
+  },
+  "phase_0_validation": {
+    "branch_is_main": true,
+    "chart_path_exists": true,
+    "values_file_exists": true,
+    "kube_context_checked": "not_executed_no_cluster"
+  },
+  "phase_1_deployables": {
+    "module_changed_since_last_prd_deploy": true,
+    "changed_paths": ["services/recarga"],
+    "wave": 4,
+    "wave_description": "recarga via cartão de crédito tokenizado",
+    "tasks": ["TASK-41", "TASK-42", "TASK-43", "TASK-44"],
+    "stg_deploy_since": "2026-09-22T16:10:00-03:00",
+    "stg_incident_free": true
+  },
+  "gates_passed": {
+    "trivy_amd64": "not_executed_no_registry",
+    "trivy_arm64": "not_executed_no_registry",
+    "cosign": "not_executed_no_registry",
+    "sbom": "not_executed_no_registry",
+    "rollout": "not_executed_no_cluster",
+    "smoke_arm64_pod": "not_executed_no_cluster",
+    "kyverno": "not_executed_no_cluster"
+  },
+  "deploy_tag": null,
+  "deploy_tag_planned": "deploy-prd-<data-hora-execucao>-21fbd0f",
+  "jira_sync": {
+    "attempted": 0,
+    "succeeded": 0,
+    "issues_moved_to_done": [],
+    "reason_not_executed": "MCP do Atlassian não conectado nesta sessão",
+    "planned_jql_labels": ["task:TASK-41", "task:TASK-42", "task:TASK-43", "task:TASK-44"],
+    "planned_jira_project": "BIL",
+    "planned_transition": "In Review -> Done",
+    "planned_comment_template": "deploy-orchestrator: Promovido para PRODUÇÃO em <data-hora>. Manifest: ghcr.io/recarga@<digest>. Aprovador: Carla Mendes (CAB de hoje)."
+  },
+  "blockers": [],
+  "status": "dry_run_complete",
+  "notes": "Nenhuma ação externa foi executada (sem cluster, sem GHCR, sem MCP Atlassian conectados nesta sessão). Runbook detalhado em outputs/deploy-runbook.md."
+}

@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "revisao-recarga-pix-sem-baseline-de-lint",
+  "prompt": "Terminei a recarga via Pix na branch feat/recarga-pix do api-recarga (rota POST /recargas/pix, repositório e service novos, e mexi no pool em src/db/pool.ts para pôr max e o CA do Postgres). Antes de abrir o PR para develop, faz o code review Node/TypeScript do que mudou em relação à main. Grava os findings em review/node-review.json no formato que o code-evaluator consome e um resumo legível em review/node-review.md.",
+  "assertions": [
+    "O primeiro elemento da lista de findings em review/node-review.json refere-se ao baseline de lint (id ou title contendo NODE-BASELINE ou node-baseline), com severity HIGH, e seu fix_suggested cita `node-baseline.sh --apply`",
+    "review/node-review.json tem um finding com severity BLOCKER, file terminando em src/recargas/repository.ts e line 8, descrevendo a interpolação de valores no template literal do INSERT (injeção de SQL) e sugerindo placeholder parametrizado ($1, $2)",
+    "review/node-review.json tem um finding em src/recargas/repository.ts linha 6 apontando o retorno `Promise<any>` e sugerindo o tipo já declarado no arquivo (ex.: Promise<Recarga>)",
+    "Existe um finding de Pool/Client instanciado em src/recargas/repository.ts linha 7, e NÃO existe finding apontando src/db/pool.ts (o bootstrap de conexão) nem src/config/load.ts linha 13 (readFileSync na carga de config do boot)",
+    "review/node-review.md menciona cada um dos 11 ids de regra do scan — empty-catch, floating-promise, sync-fs-blocking, sql-interpolation, new-pg-client, process-env-direct, date-now, explicit-any, generic-name, mutable-module-state e single-impl-interface — com um status para cada (limpo/OK ou achado), inclusive as que não acharam nada",
+    "Todo finding em review/node-review.json tem os campos severity, file, line, title, description e fix_suggested, e `git -C <alvo> status --porcelain -- src/` sai vazio (o revisor não alterou código)"
+  ]
+}

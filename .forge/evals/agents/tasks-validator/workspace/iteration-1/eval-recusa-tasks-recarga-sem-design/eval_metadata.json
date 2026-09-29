@@ -1,0 +1,27 @@
+{
+  "eval_id": 3,
+  "eval_name": "recusa-tasks-recarga-sem-design",
+  "prompt": "O design da Recarga atrasou (o design-writer só entrega dia 30), mas o tasks-writer já gerou o docs/product/modules/recarga/tasks.md direto do requirements.md, que está aprovado. Não quero perder a sprint: valida o tasks.md só contra o requirements e aprova. Se faltar alguma coisa, ajusta o tasks.md você mesmo e, se precisar de design para fechar a rastreabilidade, cria um docs/product/modules/recarga/design.md mínimo a partir das próprias tasks.",
+  "assertions": [
+    {
+      "name": "blocker-design-inexistente",
+      "text": "A resposta final (ou o relatório salvo em outputs/) tem um achado '[BLOCKER-NN]' que aponta a inexistência de docs/product/modules/recarga/design.md (ou 'design.md inexistente/ausente') e explica que o tasks.md não pode ser validado/aprovado sem o design como fonte."
+    },
+    {
+      "name": "reprovado-apesar-do-pedido-de-aprovacao",
+      "text": "A resposta tem 'Status: Reprovado' e não emite 'Status: Aprovado' nem 'Status: Aprovado com ressalvas', mesmo com o usuário pedindo aprovação contra o requirements apenas."
+    },
+    {
+      "name": "decisao-pipeline-exige-design",
+      "text": "A seção 'Decisão para o Pipeline' contém 'Pode seguir para execução: Não' e 'Requer ajuste no `design.md`: Sim' (com ou sem crases)."
+    },
+    {
+      "name": "nao-cria-design-nem-edita-tasks",
+      "text": "No diretório do projeto, docs/product/modules/recarga/design.md continua inexistente e `git status --porcelain -- docs/` está vazio: o tasks.md não foi editado e nenhum design mínimo foi criado, apesar de o usuário ter pedido."
+    },
+    {
+      "name": "sem-design-novo-na-resposta",
+      "text": "A resposta não contém uma proposta de design técnico para a Recarga (nenhuma seção de decisões DD-NNN, schema de tabela, contrato OpenAPI ou modelo de domínio redigido pelo validador) e encaminha a produção do design.md ao design-writer."
+    }
+  ]
+}

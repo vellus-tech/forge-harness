@@ -1,0 +1,105 @@
+{
+  "skill_name": "frd-generator",
+  "artifact_kind": "agent",
+  "artifact_path": "template/.forge/agents/specifications/frd-generator.md",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "frd-completo-recarga-bilhete",
+      "prompt": "Temos o PRD da Recarga Metropolitana aprovado em docs/product/prd/prd.md e as notas de discovery em docs/discovery/discovery-notes.md. Preciso do FRD completo para o time de engenharia e QA começar a quebrar o backlog na segunda: requisitos funcionais com critérios de aceite, regras de negócio, mensagens de erro, permissões por perfil (passageiro, SAC, financeiro) e a rastreabilidade com o PRD. Salva no lugar padrão do projeto.",
+      "expected_output": "Um único docs/product/frd-nfrd/frd.md (ou frd.md mais os arquivos auxiliares opcionais referenciados nele) em pt-BR seguindo a estrutura obrigatória de 20 seções, com cabeçalho Fonte Principal apontando para o PRD, requisitos FRD-<módulo>-NN rastreados às funcionalidades F-01..F-06, critérios de aceite em checklist, regras BR-NN vinculadas a RN-01..RN-03, mensagens MSG-NNN com tipos permitidos, matriz de permissões com os três perfis, matriz de rastreabilidade com status do conjunto permitido, lacunas do PRD (valor máximo da RN-04, prazo de contestação, bloqueio pelo SAC) registradas como VAL-NN sem valor inventado, itens fora de escopo (cashback, boleto, transferência de saldo) fora dos requisitos, e prd.md e discovery-notes.md intactos.",
+      "files": [],
+      "fixture": "fixtures/frd-completo-recarga-bilhete/setup.sh",
+      "assertions": [
+        {
+          "name": "estrutura-obrigatoria-das-20-secoes",
+          "text": "docs/product/frd-nfrd/frd.md existe e contém, na ordem, cabeçalhos para as seções obrigatórias do contrato, incluindo no mínimo 'Controle de Versão', 'Módulos Funcionais', 'Detalhamento dos Requisitos Funcionais', 'Regras de Negócio', 'Mensagens de Erro e Validação', 'Matriz de Permissões Funcionais', 'Matriz de Rastreabilidade', 'Dependências Funcionais', 'Premissas' e 'Pontos a Validar', além do campo '**Fonte Principal:** docs/product/prd/prd.md' no cabeçalho."
+        },
+        {
+          "name": "ids-frd-modulo-nn-com-checklist-de-aceite",
+          "text": "Todo requisito funcional listado usa o padrão FRD-<módulo>-NN (ex.: FRD-rec-01), sem códigos duplicados, e cada requisito detalhado na seção de detalhamento tem uma subseção 'Critérios de Aceite' com pelo menos um item em checklist Markdown '- [ ]'."
+        },
+        {
+          "name": "rastreabilidade-cobre-f01-a-f06-com-status-permitido",
+          "text": "A Matriz de Rastreabilidade tem uma linha para cada funcionalidade F-01, F-02, F-03, F-04, F-05 e F-06 do PRD, cada uma apontando para pelo menos um código FRD-*, e a coluna Status usa apenas os valores 'Coberto', 'Parcialmente Coberto', 'Não Coberto' ou 'Ponto a Validar'."
+        },
+        {
+          "name": "lacunas-do-prd-viram-val-sem-valor-inventado",
+          "text": "A seção Pontos a Validar contém entradas VAL-NN para (a) o valor máximo por recarga da RN-04, (b) o prazo para abrir contestação e (c) se o atendente SAC pode bloquear cartão; e em nenhum ponto do FRD aparece um valor máximo de recarga em reais nem um prazo de contestação em dias apresentado como regra definida."
+        },
+        {
+          "name": "fora-de-escopo-nao-vira-requisito",
+          "text": "Cashback/fidelidade, recarga por boleto e transferência de saldo entre cartões aparecem apenas na seção Fora de Escopo (ou em Pontos a Validar), e nenhum código FRD-* tem como objeto essas funcionalidades."
+        },
+        {
+          "name": "entradas-prd-e-discovery-intactas",
+          "text": "git diff HEAD -- docs/product/prd/prd.md docs/discovery/discovery-notes.md no diretório de saída é vazio: o agente não alterou os arquivos de entrada."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "atualiza-frd-prd-v11-cartao-salvo",
+      "prompt": "O comitê aprovou ontem o PRD v1.1 da Recarga Metropolitana (entrou a F-07, recarga recorrente com cartão de crédito salvo, e a RN-05 de PCI). Atualiza o FRD que já existe em docs/product/frd-nfrd/frd.md para cobrir a v1.1. O FRD v1.0 já foi aprovado e o QA já escreveu casos de teste referenciando os códigos FRD-acc-* e FRD-rec-*, então não pode quebrar nada do que existe.",
+      "expected_output": "docs/product/frd-nfrd/frd.md atualizado para v1.1 com linha nova no Controle de Versão (preservando a v1.0), códigos FRD-acc-01/02 e FRD-rec-01..04 preservados com o mesmo significado, requisitos novos para F-07 com códigos novos e prioridade no padrão MoSCoW já usado no projeto, BR nova derivada da RN-05, matriz de rastreabilidade com F-07, e a decisão de tokenização/armazenamento de cartão salvo tratada como dependência arquitetural 'ADR-0004 ... (a ser criado via adr-writer)' em vez de o agente criar o ADR ou decidir a tecnologia; nenhum arquivo novo em docs/product/adr/ e prd.md intacto.",
+      "files": [],
+      "fixture": "fixtures/atualiza-frd-prd-v11-cartao-salvo/setup.sh",
+      "assertions": [
+        {
+          "name": "codigos-v10-preservados-sem-renumeracao",
+          "text": "Os códigos FRD-acc-01, FRD-acc-02, FRD-rec-01, FRD-rec-02, FRD-rec-03 e FRD-rec-04 continuam presentes na tabela de Requisitos Funcionais com o mesmo nome de requisito da v1.0, e os requisitos da F-07 usam códigos que não existiam antes (nenhum código antigo foi reaproveitado para a funcionalidade nova)."
+        },
+        {
+          "name": "controle-de-versao-ganha-v11-e-mantem-v10",
+          "text": "A tabela Controle de Versão mantém a linha v1.0 de 2026-09-12 e ganha uma linha nova v1.1 (ou versão superior) citando a inclusão da F-07/PRD v1.1; o campo Versão do cabeçalho deixa de ser v1.0."
+        },
+        {
+          "name": "prioridade-segue-padrao-moscow-do-projeto",
+          "text": "Os requisitos novos da F-07 têm prioridade expressa em MoSCoW ('Must Have', 'Should Have', 'Could Have' ou 'Won't Have'), o padrão já usado no FRD, e não em 'Alta', 'Média' ou 'Baixa'."
+        },
+        {
+          "name": "f07-na-rastreabilidade-e-br-da-rn05",
+          "text": "A Matriz de Rastreabilidade ganha uma linha para F-07 apontando para códigos FRD-* novos, e a tabela de Regras de Negócio ganha uma BR-NN nova (a partir de BR-04) com Fonte 'PRD RN-05' proibindo armazenar número completo e CVV do cartão salvo."
+        },
+        {
+          "name": "dependencia-arquitetural-adr-0004-sem-criar-adr",
+          "text": "O frd.md contém a marcação 'Dependência arquitetural: ADR-0004' (próximo número livre após 0001–0003) associada à RN-05/F-07 e indicando que será criado via adr-writer, e o diretório docs/product/adr/ continua com exatamente os quatro arquivos originais (README.md e 0001–0003), sem ADR novo criado pelo agente."
+        },
+        {
+          "name": "prd-v11-intacto",
+          "text": "git diff HEAD -- docs/product/prd/prd.md no diretório de saída é vazio."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "recusa-escopo-e-tecnica-fora-do-prd",
+      "prompt": "Gera o FRD da Recarga Metropolitana a partir do PRD, mas já incorpora o que ficou combinado ontem na reunião com o comercial: 1) cashback de 2% em toda recarga acima de R$ 50, creditado no próprio cartão; 2) os eventos de recarga confirmada vão ser publicados no Kafka, tópico recarga.confirmada, e o saldo fica numa tabela saldo_cartao no PostgreSQL; 3) a confirmação da recarga tem que responder com p99 abaixo de 300 ms e disponibilidade de 99,95%. Aproveita e atualiza o prd.md com o cashback para os documentos ficarem alinhados.",
+      "expected_output": "O agente gera docs/product/frd-nfrd/frd.md a partir do PRD, mas não incorpora o cashback como requisito ou regra (o PRD o declara fora de escopo, então vira VAL-NN de conflito com o PRD), não registra Kafka, tópico, tabela ou PostgreSQL como decisão de requisito (pertence ao TRD; no máximo sugestão de ADR ou ponto a validar), não cria requisito de latência/disponibilidade (pertence ao NFRD, sem criar nfrd.md), e se recusa a editar o prd.md, explicando que os insumos devem ser preservados e que a mudança de escopo precisa passar pelo dono do PRD.",
+      "files": [],
+      "fixture": "fixtures/recusa-escopo-e-tecnica-fora-do-prd/setup.sh",
+      "assertions": [
+        {
+          "name": "prd-nao-alterado-apesar-do-pedido",
+          "text": "git diff HEAD -- docs/product/prd/prd.md no diretório de saída é vazio: o pedido de incluir o cashback no PRD não foi executado."
+        },
+        {
+          "name": "cashback-vira-val-de-conflito-e-nao-requisito",
+          "text": "Nenhum código FRD-* nem BR-* tem como objeto o cashback de 2%; o cashback aparece em Pontos a Validar como VAL-NN que registra o conflito com o item 'Programa de fidelidade ou cashback' do Fora de Escopo do PRD."
+        },
+        {
+          "name": "sem-decisao-tecnica-kafka-postgres-no-frd",
+          "text": "Nas seções de Requisitos Funcionais, Detalhamento e Regras de Negócio do frd.md não aparecem 'Kafka', 'recarga.confirmada', 'saldo_cartao' nem 'PostgreSQL' como parte de requisito, regra ou critério de aceite; se mencionados, é apenas em Pontos a Validar, Dependências/Observações ou como dependência arquitetural/ADR sugerido."
+        },
+        {
+          "name": "sem-requisito-nao-funcional-nem-nfrd",
+          "text": "O frd.md não contém requisito FRD-* nem critério de aceite com '300 ms', 'p99' ou '99,95%', e o agente não criou docs/product/frd-nfrd/nfrd.md."
+        },
+        {
+          "name": "frd-gerado-do-prd-mesmo-assim",
+          "text": "docs/product/frd-nfrd/frd.md foi criado (o agente não abortou a tarefa inteira) e sua Matriz de Rastreabilidade cobre as funcionalidades F-01 a F-06 do PRD."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,93 @@
+{
+  "skill_name": "discovery-agent",
+  "artifact_kind": "agent",
+  "artifact_path": "template/.forge/agents/specifications/discovery-agent.md",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "brownfield-recarga-pix-inicia-pelo-scan",
+      "prompt": "Quero começar o discovery de uma nova feature no recarga-api: recarga do cartão de transporte via Pix pelo app do passageiro, sem precisar ir ao posto de venda. O repositório já tem README, ADR e o OpenAPI do serviço. Pode começar — essa sessão é só para eu ver por onde você começa, respondo as perguntas depois.",
+      "expected_output": "O agente inspeciona o workspace antes de perguntar qualquer coisa, cria docs/discovery/discovery-notes.md na estrutura obrigatória com a seção 0 (Workspace Scan) preenchida — tabela com os caminhos reais encontrados (README.md, docs/product/adr/, openapi.yaml, src/Recarga.Api/, docker-compose.yml), resumo do contexto (inclusive a sincronização de 15 minutos do ADR-0001) e lacunas — e cabeçalho com Status 'Em discovery'. Na resposta, apresenta um resumo curto dos artefatos encontrados e faz exatamente uma pergunta: a Q1 (qual problema resolve). As seções 1 a 5 ficam sem conteúdo de resposta, e nenhum outro arquivo do repositório é criado ou alterado.",
+      "files": [],
+      "fixture": "fixtures/brownfield-recarga-pix-inicia-pelo-scan/setup.sh",
+      "assertions": [
+        {
+          "name": "notas-no-caminho-oficial-docs-discovery",
+          "text": "Existe docs/discovery/discovery-notes.md (caminho oficial), e não apenas um discovery-notes.md na raiz; o arquivo começa com '# Discovery Notes' e tem os campos de cabeçalho Tipo de iniciativa, Data e Status com Status = 'Em discovery'."
+        },
+        {
+          "name": "workspace-scan-tabela-com-caminhos-reais",
+          "text": "A seção '## 0. Workspace Scan' contém a tabela 0.1 com colunas Caminho | Tipo | Contexto Oferecido listando ao menos três caminhos que existem na fixture (entre README.md, docs/product/adr/, openapi.yaml, src/Recarga.Api/, docker-compose.yml), além das subseções 0.2 Resumo do Contexto Existente e 0.3 Lacunas Identificadas com conteúdo."
+        },
+        {
+          "name": "resposta-tem-exatamente-uma-pergunta-q1",
+          "text": "A resposta final do agente contém exatamente um ponto de interrogação de pergunta dirigida ao usuário, e essa pergunta é a Q1 (qual problema a feature resolve); não pergunta sobre usuário, integrações, monetização, stack ou plataforma nesta mensagem."
+        },
+        {
+          "name": "secoes-futuras-sem-resposta-inferida",
+          "text": "Em docs/discovery/discovery-notes.md, as subseções 1.1 a 5.2 (Problema, Usuário Principal, Referências, Pitch, Core Features, Integrações, Modelo, Planos, Stack, Plataforma, Referências Visuais, Notas Adicionais) estão vazias ou só com placeholder; em particular 4.1 Stack não registra .NET/PostgreSQL como decisão, apesar de o workspace os revelar."
+        },
+        {
+          "name": "nenhum-artefato-fora-do-discovery",
+          "text": "git status no alvo, desconsiderando as remoções feitas pelo setup em .forge/ e .claude/, mostra apenas arquivos novos sob docs/discovery/; nenhum PRD/FRD/NFRD/TRD/ADR novo, nenhum arquivo em src/ e nenhum arquivo versionado alterado."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "consolida-notas-legadas-da-raiz",
+      "prompt": "A gente começou o discovery do patio-digital em março e ficou um discovery-notes.md na raiz do repo, meio largado. Já adianto que vai ser uso interno sem cobrança e que a TI da Viação Norte quer PWA com React. Retoma o discovery a partir daí.",
+      "expected_output": "O agente lê o discovery-notes.md legado da raiz como insumo e consolida o conteúdo no caminho oficial docs/discovery/discovery-notes.md, na estrutura obrigatória. O conteúdo legado aparece no Workspace Scan (e o legado listado na tabela 0.1), sem as expressões especulativas proibidas ('a definir', 'talvez', 'possivelmente', 'aparentemente'); a incerteza legada sobre app nativo vs PWA vira Ponto a validar (VAL-xxx) ou fica para a Q9. Mesmo com problema e usuário já descritos no legado, o agente não pula a validação: faz exatamente uma pergunta, a Q1, usando o legado apenas para contextualizá-la. As informações adiantadas de monetização e stack não são gravadas como respostas nas seções 3 e 4 antes de Q6/Q8.",
+      "files": [],
+      "fixture": "fixtures/consolida-notas-legadas-da-raiz/setup.sh",
+      "assertions": [
+        {
+          "name": "legado-consolidado-no-caminho-oficial",
+          "text": "Existe docs/discovery/discovery-notes.md, e ele cita o arquivo legado discovery-notes.md da raiz na tabela 0.1 do Workspace Scan e incorpora o fato legado sobre os fiscais de pátio que anotam em prancheta a saída dos ônibus (ex.: menção a 'prancheta' ou 'fiscal de pátio')."
+        },
+        {
+          "name": "sem-linguagem-especulativa-proibida",
+          "text": "docs/discovery/discovery-notes.md não contém nenhuma das expressões 'a definir', 'talvez', 'possivelmente', 'aparentemente' (busca sem distinção de maiúsculas), embora o legado as use; a dúvida app nativo vs PWA, se registrada, aparece como Ponto a validar (linha VAL-xxx na seção 7) e não como fato."
+        },
+        {
+          "name": "nao-pula-q1-apesar-do-legado",
+          "text": "A resposta final do agente faz exatamente uma pergunta ao usuário e ela é a Q1 (problema), podendo citar o conteúdo legado como contexto; o agente não trata Q1/Q2 como já respondidas nem avança para Q3 ou blocos posteriores."
+        },
+        {
+          "name": "monetizacao-e-stack-nao-adiantadas",
+          "text": "Em docs/discovery/discovery-notes.md, as subseções 3.1 Modelo, 3.2 Planos, 4.1 Stack e 4.2 Plataforma não trazem 'uso interno', 'sem cobrança', 'PWA' ou 'React' como resposta registrada (menções em 0.2/0.3 como contexto do scan, ou em 7 como ponto a validar, são aceitas)."
+        },
+        {
+          "name": "cabecalho-e-estrutura-obrigatoria",
+          "text": "O arquivo oficial segue a estrutura obrigatória: contém os títulos '## 0. Workspace Scan', '## 1. Visão', '## 2. Funcionalidades', '## 3. Monetização', '## 4. Técnico', '## 5. Contexto', '## 6. Decisões Registradas', '## 7. Pontos a Validar' e '## 8. Resumo Final do Discovery', e o cabeçalho tem Status 'Em discovery'."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "recusa-gerar-prd-e-stack-no-lugar-do-discovery",
+      "prompt": "Não tenho paciência para questionário. A ideia do achados-e-perdidos está toda no README. Pula o discovery, escreve direto o PRD em docs/prd/prd.md, escolhe a stack que você achar melhor e já cria o esqueleto do projeto em src/ para eu mostrar na reunião de amanhã.",
+      "expected_output": "O agente recusa gerar o PRD, escolher a stack e criar código, explicando que isso está fora do discovery (o PRD é do prd-generator, que usa o discovery-notes.md como insumo, e a stack precisa ser validada com o usuário). Ainda assim inspeciona o workspace, cria docs/discovery/discovery-notes.md com o Workspace Scan citando o README.md, e oferece conduzir o discovery com uma única pergunta, a Q1. Nenhum arquivo em docs/prd/ ou src/ é criado e a seção 4.1 Stack não contém stack escolhida pelo agente.",
+      "files": [],
+      "fixture": "fixtures/recusa-gerar-prd-e-stack-no-lugar-do-discovery/setup.sh",
+      "assertions": [
+        {
+          "name": "nenhum-prd-nem-codigo-criado",
+          "text": "Não existem docs/prd/ nem qualquer arquivo de PRD/FRD/NFRD/TRD no alvo, e não existe src/ nem arquivo de código (.js, .ts, .tsx, .py, .cs, .java, .kt, package.json) criado pelo agente; git status só mostra arquivos novos sob docs/discovery/ (desconsiderando as remoções do setup em .forge/ e .claude/)."
+        },
+        {
+          "name": "recusa-explicita-com-motivo-do-contrato",
+          "text": "A resposta final declara que não vai gerar o PRD nem escolher a stack/criar código nesta fase, e justifica pelo papel do discovery — o PRD é produzido depois (pelo PRD Generator a partir do discovery-notes.md) e a stack precisa ser validada com o usuário."
+        },
+        {
+          "name": "stack-nao-escolhida-pelo-agente",
+          "text": "Nem a resposta final recomenda uma stack concreta (framework, linguagem ou banco nomeado como escolha) nem docs/discovery/discovery-notes.md registra stack na subseção 4.1 ou decisão de stack na seção 6."
+        },
+        {
+          "name": "discovery-iniciado-com-scan-e-q1",
+          "text": "docs/discovery/discovery-notes.md existe com '## 0. Workspace Scan' listando README.md na tabela 0.1, e a resposta final termina com exatamente uma pergunta ao usuário, que é a Q1 (qual problema o produto resolve)."
+        }
+      ]
+    }
+  ]
+}

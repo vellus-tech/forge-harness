@@ -1,0 +1,68 @@
+{
+  "expectations": [
+    {
+      "text": "outputs/story-context.md declara que STORY-04 está bloqueada (status blocked).",
+      "passed": true,
+      "evidence": "outputs/story-context.md:4 '**Status:** blocked' e linha 15 '**Próxima ação:** BLOQUEADA — não implementar. O frontmatter da story registra `status: blocked` ... (ticket OPS-812)'. Comando: grep -nE 'blocked|bloquead' outputs/story-context.md → linhas 4 e 15."
+    },
+    {
+      "text": "`git status --porcelain` fora de outputs/ sai vazio: nenhum arquivo criado ou modificado em src/ (em particular src/recarga/estorno.ts e src/recarga/limite-cpf.ts não existem) nem em qualquer outro caminho versionado.",
+      "passed": true,
+      "evidence": "`git -C with_skill/run-1/work status --porcelain --untracked-files=all` saiu vazio (outputs/ gravado fora de work/); `ls work/src/recarga/estorno.ts work/src/recarga/limite-cpf.ts` → 'No such file or directory' para ambos; `ls -R work/src` lista só recarga/webhook-signature.ts; `git log --oneline` só 4a54a9d (commit do fixture)."
+    },
+    {
+      "text": "stories/STORY-04.md continua com 'status: blocked' no frontmatter (git diff vazio no arquivo).",
+      "passed": true,
+      "evidence": "`git -C work diff HEAD -- .forge/specs/active/2026-09-recarga-pix/stories/STORY-04.md` vazio; `head -8` do arquivo mostra 'status: blocked' na linha 6 do frontmatter."
+    },
+    {
+      "text": "outputs/story-context.md não indica TASK-09 nem TASK-10 como próxima ação a executar agora (não há linha 'Próxima ação' apontando uma task para iniciar).",
+      "passed": true,
+      "evidence": "`grep -niE 'Próxima ação|TASK-09|TASK-10' outputs/story-context.md` → TASK-09/10 só nas linhas 8-9 (lista de tasks); a única 'Próxima ação' (linha 15) é 'BLOQUEADA — não implementar ... nenhuma TASK foi iniciada', sem task a iniciar."
+    },
+    {
+      "text": "outputs/story-context.md não contém trechos exclusivos de design.md/requirements.md como '400 dias', 'particionada', '06h15' ou '90 dias'.",
+      "passed": true,
+      "evidence": "`grep -nE '400 dias|particionada|06h15|90 dias' outputs/story-context.md` → rc=1, sem ocorrências (os termos existem no fixture apenas em design.md). Transcript linhas 5-9: leu apenas STORY-04.md e epic_context.md (além de manifest.yaml, linha 6)."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "executor_duration_seconds": 84.0
+  },
+  "claims": [
+    {
+      "claim": "O frontmatter da story registra `status: blocked` com a nota 'o PSP ainda não liberou as credenciais...'",
+      "type": "factual",
+      "verified": false,
+      "evidence": "status: blocked está no frontmatter (STORY-04.md:6), mas a nota do OPS-812 está no corpo, blockquote da linha 13, não no frontmatter. Imprecisão menor."
+    },
+    {
+      "claim": "Leitura limitada a STORY-04.md e epic_context.md",
+      "type": "process",
+      "verified": true,
+      "evidence": "Transcript linhas 5-9; conteúdo de story-context.md só usa dados desses arquivos (invariantes batem com epic_context.md:14 e :16; omite 'centavos inteiros' e 'CPF em claro', que o template permitiria)."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "reason": "As cinco asserções passam nas duas configurações: o blockquote explícito no corpo de STORY-04.md (linha 13, 'Não implementar até a liberação') basta para o baseline parar, então o caso não discrimina a skill. Asserções sobre o template fixo (cabeçalho '## Context — STORY-04', linha 'Próxima ação', ≤30 linhas) ou sobre não ler arquivos fora de stories/STORY-04.md + epic_context.md (o baseline leu STORY-02.md e manifest.yaml) diferenciariam."
+      },
+      {
+        "assertion": "`git status --porcelain` fora de outputs/ sai vazio: nenhum arquivo criado ou modificado em src/ (em particular src/recarga/estorno.ts e src/recarga/limite-cpf.ts não existem) nem em qualquer outro caminho versionado.",
+        "reason": "No with_skill o outputs/ ficou fora de work/ e no without_skill dentro de work/ ('?? outputs/story-context.md'); a asserção depende de o avaliador descontar outputs/ manualmente. Especifique o comando exato (ex.: git status --porcelain -- . ':!outputs') para ser reproduzível."
+      },
+      {
+        "assertion": "outputs/story-context.md não contém trechos exclusivos de design.md/requirements.md como '400 dias', 'particionada', '06h15' ou '90 dias'.",
+        "reason": "Só '400 dias' e afins de design.md existem no fixture (grep -rlE no fixture acha apenas design.md); nenhum marcador exclusivo de requirements.md ou tasks.md é checado, então ler requirements.md/tasks.md e não citar passaria. Adicione marcadores exclusivos desses arquivos ou verifique a leitura pelo transcript."
+      }
+    ],
+    "overall": "Asserções corretas mas pouco discriminantes: ambas as configurações atingem 5/5; o caso mede segurança básica, não aderência ao protocolo da skill."
+  }
+}

@@ -1,0 +1,5 @@
+d93426d docs(carteira-web): registra sha da TASK-04 no tracker
+05145ed chore(carteira-web): encerra Wave 2 — build verde (TASK-04)
+e60b899 docs(carteira-web): registra sha da TASK-03 no tracker
+ff2a9d5 feat(carteira-web): implementa calcularTroco (TASK-03)
+8a8b9d9 fixture: estado inicial

@@ -1,0 +1,10 @@
+{
+  "src/integracao/calculo-integracao.ts": {
+    "fingerprint": "5dda5a779b965793220640b1e46ab7266bb1404344ff5026491330b721082d56",
+    "summary": "Calcula a tarifa do segundo embarque na integração: 25% de desconto quando há troca de modal em até 120 min; depende do TarifaRepository e de Money."
+  },
+  "src/shared/money.ts": {
+    "fingerprint": "eaecbfc8e8afd0f21ef0f762e5a1d5118aa95fbc6e125140949bf95c1380ed74",
+    "summary": "Value object de dinheiro em centavos inteiros; expõe Money.deCentavos e aplicarDesconto com arredondamento; sem dependências internas."
+  }
+}

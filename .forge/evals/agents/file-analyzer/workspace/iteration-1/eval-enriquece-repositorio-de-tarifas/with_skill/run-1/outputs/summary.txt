@@ -1,0 +1,1 @@
+TarifaRepository persiste tarifas em PostgreSQL via Pool (tabela tarifas); expõe buscarVigente (tarifa vigente por linha/data), listarPorModal e encerrarVigencia. Depende do pool de conexão e de Money para os valores monetários.

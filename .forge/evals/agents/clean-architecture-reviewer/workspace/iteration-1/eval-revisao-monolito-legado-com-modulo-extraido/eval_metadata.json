@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "revisao-monolito-legado-com-modulo-extraido",
+  "prompt": "Semana que vem começa a sprint de migração da bilhetagem. Roda uma revisão de Clean Architecture no repositório todo e me diz o que está violando as camadas — quero entrar no planning com a lista. Salva em docs/revisoes/clean-arch-repositorio.md, com arquivo e linha de cada violação.",
+  "assertions": [
+    "docs/revisoes/clean-arch-repositorio.md menciona o AGENTS.md (seção Sobre o Projeto) e/ou a ADR-0007 e classifica src/Legacy.Bilhetagem como legado com regras próprias, fora do escopo da revisão de Clean Architecture canônica",
+    "O relatório NÃO lista como violação a corrigir os atributos `[Table]`/`[Key]` nem os setters públicos de src/Legacy.Bilhetagem/Models/Cartao.cs, nem o uso de EF Core em Services/RecargaService.cs (menção apenas como contexto do legado é aceitável)",
+    "O relatório aponta como violação a `<ProjectReference>` de src/Validacao/Validacao.Domain/Validacao.Domain.csproj (linha 7) para Validacao.Contracts, com a justificativa de que o Domain não referencia nenhum outro projeto do módulo",
+    "O relatório aponta como violação a `<ProjectReference>` de Validacao.Application.csproj (linha 9) para Validacao.Infrastructure, sem apontar como violação as referências da mesma Application para Domain e Contracts (linhas 7 e 8)",
+    "O relatório aponta o setter público de `Status` em src/Validacao/Validacao.Domain/Entities/Embarque.cs (linha 10) como violação (propriedade de estado deve ter setter privado e mudar só por método da entidade, como Aprovar())"
+  ]
+}

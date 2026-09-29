@@ -1,0 +1,2 @@
+On branch feature/pix-qrcode-dinamico
+nothing to commit, working tree clean

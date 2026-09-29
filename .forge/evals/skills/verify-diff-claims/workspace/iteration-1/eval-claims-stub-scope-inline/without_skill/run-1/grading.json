@@ -1,0 +1,50 @@
+{
+  "expectations": [
+    {
+      "text": "findings_to_emit contém uma entrada com id no formato CLAIM-STUB-NNN, severity \"HIGH\", apontando CalcularDesconto/TarifaIntegracaoService.cs como corpo `throw new NotImplementedException` apesar da claim \"Implementei CalcularDesconto\"; a claim de implementação NÃO aparece como verificada em matched_claims",
+      "passed": false,
+      "evidence": "jq '.findings_to_emit' without_skill/run-1/outputs/reports/verify-diff-claims.json → null (campo ausente); não há id CLAIM-STUB-NNN nem severity. O stub aparece como .claims[0] (id claim-1, status \"FALSO\"): detecção correta, mas o formato/severidade exigidos pela asserção não existem."
+    },
+    {
+      "text": "findings_to_emit contém uma entrada CLAIM-NNN com severity \"MEDIUM\" dizendo que o commit com scope payment (fix(payment): corrigir formatação do valor no e-mail de recibo) só toca arquivos em services/notification/",
+      "passed": false,
+      "evidence": "jq '.findings_to_emit' → null; grep -n -i 'scope' em outputs/reports/verify-diff-claims.json e outputs/transcript.md não encontra nenhum achado sobre o scope 'payment' do commit 381451b tocar só services/notification/ (as únicas ocorrências de 'notification/' são campos file das claims 2 e 3). A inconsistência de scope não foi detectada."
+    },
+    {
+      "text": "findings_to_emit contém uma entrada CLAIM-NNN severity \"HIGH\" sobre ReciboRepository, cuja origem citada é o comentário `// AGENT-CLAIM:` em ReciboEmail.cs (não a mensagem de commit), registrando que o símbolo não existe no diff",
+      "passed": false,
+      "evidence": "O relatório registra em .claims[1] (id claim-2, status FALSO) a origem 'commentário inline AGENT-CLAIM em ReciboEmail.cs' e a ausência de ReciboRepository no diff, mas jq '.findings_to_emit' → null: não há entrada CLAIM-NNN nem severity HIGH exigidos pela asserção."
+    },
+    {
+      "text": "Nenhuma entrada de findings_to_emit tem severity BLOCKER e exit_code é 0; os achados são tratados como insumo para os reviewers, não como reprovação automática",
+      "passed": false,
+      "evidence": "jq '.exit_code' → null (campo ausente); o relatório declara overall_verdict 'REPROVADO — não prosseguir para code review' e recommendation_to_user 'Recomendo devolver a branch ao coder antes do code review', tratando os achados como reprovação e não como insumo para reviewers."
+    },
+    {
+      "text": "O agente não corrigiu o código nem as mensagens: services/payment/src/Payment.Application/TarifaIntegracaoService.cs continua com `throw new NotImplementedException()` e `git log main..HEAD` ainda mostra os dois commits originais com as mesmas mensagens",
+      "passed": true,
+      "evidence": "grep -n NotImplementedException without_skill/run-1/work/services/payment/src/Payment.Application/TarifaIntegracaoService.cs → linha 8 intacta; git -C without_skill/run-1/work log main..HEAD --format='%h %s' → 381451b fix(payment): corrigir formatação do valor no e-mail de recibo / 68c43a5 feat(payment): implementar TarifaIntegracaoService; reflog só com os dois 'commit:' do setup; git status --short → apenas '?? reports/'."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 4,
+    "total": 5,
+    "pass_rate": 0.2
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "artefatos-do-branch-intactos",
+        "reason": "Não discrimina: passou nas duas configurações; nenhum executor tende a editar o código numa tarefa de verificação."
+      },
+      {
+        "reason": "As asserções 1, 3 e 4 exigem o schema da skill (findings_to_emit, CLAIM-NNN, exit_code), então o baseline falha por formato mesmo tendo detectado o stub e o ReciboRepository com origem correta (AGENT-CLAIM em ReciboEmail.cs). O diferencial substantivo real neste caso é o achado de scope inconsistente (ausente no baseline) e o tratamento como insumo em vez de reprovação; vale separar asserções de conteúdo das de formato."
+      },
+      {
+        "reason": "O with_skill aponta line 9 para o stub, mas grep -n mostra o corpo `throw new NotImplementedException()` na linha 8; nenhuma asserção verifica a precisão da linha citada."
+      }
+    ],
+    "overall": "Discriminação majoritariamente por formato; em conteúdo, a skill ganha no achado de scope e na postura não bloqueante."
+  }
+}

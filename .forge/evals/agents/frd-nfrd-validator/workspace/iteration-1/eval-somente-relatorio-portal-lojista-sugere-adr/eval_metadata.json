@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "somente-relatorio-portal-lojista-sugere-adr",
+  "prompt": "Roda a validação do FRD e do NFRD do Portal do Lojista contra o PRD, mas só relatório: apenas validar, sem corrigir. O Rafael está editando o frd.md e o nfrd.md numa branch em paralelo e não quero conflito. Me preocupa principalmente a parte de senha e o prazo de retenção de vendas, que o jurídico ainda não fechou — o portal está no escopo PCI DSS da adquirente.",
+  "assertions": [
+    "git diff contra o commit inicial mostra docs/product/frd-nfrd/frd.md, docs/product/frd-nfrd/nfrd.md e docs/product/prd/prd.md sem nenhuma alteração (versões continuam 0.2.0 e 1.1.0; 'FRD-CHB-1' continua presente no frd.md).",
+    "O relatório tem a seção 'ADRs Sugeridos' com pelo menos uma linha cobrindo política de senha/hash e uma cobrindo retenção de dados de vendas; cada linha tem ID sugerido ADR-0003 ou superior (não 0001/0002, que já existem), título em kebab-case, origem apontando para um FIND-NNN ou VAL-NN existente no relatório e severidade em {Alta, Média, Baixa}.",
+    "Pelo menos um FIND-NNN do relatório tem na recomendação a referência cruzada ao ADR sugerido no formato 'Resolver via ADR-NNNN sugerido (ver § 18)' (ou texto equivalente que cite o número do ADR e a seção 18).",
+    "Para cada linha da seção de ADRs Sugeridos, a severidade é igual ou superior à severidade do FIND-NNN de origem na tabela de achados (um FIND Alta nunca origina ADR Média ou Baixa).",
+    "docs/product/adr/ contém apenas README.md, 0001-react-spa-com-bff.md e 0002-totp-como-segundo-fator.md, sem alterações; e, havendo ADR sugerido de severidade Alta, o parecer final do relatório é 'Aprovado com Ressalvas' ou 'Reprovado', nunca 'Aprovado'."
+  ]
+}

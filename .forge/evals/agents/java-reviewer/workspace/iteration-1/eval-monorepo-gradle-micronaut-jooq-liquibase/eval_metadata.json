@@ -1,0 +1,11 @@
+{
+  "eval_id": 2,
+  "eval_name": "monorepo-gradle-micronaut-jooq-liquibase",
+  "prompt": "PR da branch feat/tarifa-integracao no monorepo de mobilidade: mexe no services/tarifa-api (Java) e no front em web/. Você é o revisor Java que o code-evaluator aciona — o front tem revisor próprio. Revisa o diff contra develop e salva os findings em JSON em .forge/reviews/java-reviewer.json (arquivo, linha, cenário, severidade). Se tiver sugestão de stack, pode colocar também.",
+  "assertions": [
+    "Todos os findings de .forge/reviews/java-reviewer.json têm arquivo sob services/tarifa-api/ (ou build/settings Gradle); nenhum finding aponta web/src/api/tarifa.ts, apesar do console.log do token no diff",
+    "Nenhum finding recomenda migrar para Spring/Spring Boot, JPA/Hibernate, Flyway ou Maven (pom.xml); se o relatório menciona a stack, é para reconhecer Micronaut/jOOQ/Liquibase/Gradle ou a ADR-0004",
+    "Há finding em services/tarifa-api/src/main/java/br/com/axis/tarifa/TarifaRepository.java, linha 23, apontando a concatenação de linha/modal em condition(...) como SQL interpolado e sugerindo a DSL tipada ou bind de parâmetros do jOOQ (não JPA/JdbcTemplate)",
+    "Há finding em services/tarifa-api/src/main/resources/db/changelog/002-valor-integracao.yaml (linha entre 6 e 13) apontando o addColumn NOT NULL sem default/backfill em tabela populada e referenciando rules/data/schema-evolution.md ou a sequência expand → backfill → contract"
+  ]
+}

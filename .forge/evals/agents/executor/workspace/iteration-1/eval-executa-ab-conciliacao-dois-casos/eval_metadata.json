@@ -1,0 +1,31 @@
+{
+  "eval_id": 1,
+  "eval_name": "executa-ab-conciliacao-dois-casos",
+  "prompt": "Roda o executor do eval A/B da skill conciliacao-csv, iteração 1. A skill ainda está em desenvolvimento em skills-dev/conciliacao-csv/SKILL.md (não foi promovida para .forge/skills). Nesta máquina não tem login do Claude: o runner claude-code do .forge/runners.yaml aponta para o stub offline ./tools/claude-stub.sh, que aceita a mesma linha de comando do claude real. Entrada:\n\n{\n  \"skill\": \"conciliacao-csv\",\n  \"skill_path\": \"skills-dev/conciliacao-csv/SKILL.md\",\n  \"eval_dir\": \".forge/evals/skills/conciliacao-csv/workspace/iteration-1\",\n  \"test_cases\": [\n    {\n      \"id\": \"TC-01\",\n      \"prompt\": \"[caso-junho-simples] Concilia o data/extrato-junho.csv com o razão de junho e me diz o que ficou sem par.\"\n    },\n    {\n      \"id\": \"TC-02\",\n      \"prompt\": \"[caso-extrato-longo] Concilia o extrato consolidado do semestre e lista linha a linha o que foi pareado.\"\n    }\n  ],\n  \"runner\": \"claude-code\",\n  \"timeout_s\": 120\n}",
+  "assertions": [
+    {
+      "name": "results-json-no-eval-dir-no-formato-do-contrato",
+      "text": ".forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json existe, é JSON válido e contém skill = \"conciliacao-csv\" e um array test_cases em que cada item tem id, prompt, baseline_result e variant_result, e cada um desses dois tem exatamente as chaves output, duration_ms, tokens e exit_code (duration_ms inteiro positivo); os ids TC-01 e TC-02 estão presentes."
+    },
+    {
+      "name": "baseline-antes-sem-skill-variant-depois-com-skill",
+      "text": ".eval-runner/calls.jsonl tem exatamente 4 linhas; para cada caso (caso-junho-simples e caso-extrato-longo) há uma chamada com with_skill=false e outra com with_skill=true, a de with_skill=false com n menor que a de with_skill=true, e todas com stream_json=true."
+    },
+    {
+      "name": "output-reduzido-ao-tail-500",
+      "text": "Em .forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json, o output de baseline_result e de variant_result do TC-02 contém 'linha 700 de 700' e NÃO contém 'linha 001 de 700' nem 'linha 100 de 700' (o log bruto tem 703 linhas; só as 500 finais entram)."
+    },
+    {
+      "name": "tokens-lidos-do-evento-result-do-stream-json",
+      "text": "Em .forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json, o tokens do baseline_result do TC-01 corresponde ao usage do stub (350 = 240+110, ou decomposição explícita 240/110) e o do variant_result corresponde a 1275 (= 1180+95, ou 1180/95); valores estimados, nulos ou iguais nos dois lados reprovam."
+    },
+    {
+      "name": "sem-julgamento-de-qualidade",
+      "text": "Nenhum grading.json, comparison.json ou analysis.json foi criado sob .forge/evals/skills/conciliacao-csv/, e results.json não tem chaves como passed, score, nota, winner, vencedor ou verdict."
+    },
+    {
+      "name": "skill-e-dados-intocados",
+      "text": "git diff e git status do alvo não mostram alteração em skills-dev/ nem em data/ (o SKILL.md e o CSV continuam byte a byte iguais ao commit da fixture)."
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "frd-completo-recarga-bilhete",
+  "prompt": "Temos o PRD da Recarga Metropolitana aprovado em docs/product/prd/prd.md e as notas de discovery em docs/discovery/discovery-notes.md. Preciso do FRD completo para o time de engenharia e QA começar a quebrar o backlog na segunda: requisitos funcionais com critérios de aceite, regras de negócio, mensagens de erro, permissões por perfil (passageiro, SAC, financeiro) e a rastreabilidade com o PRD. Salva no lugar padrão do projeto.",
+  "assertions": [
+    "docs/product/frd-nfrd/frd.md existe e contém, na ordem, cabeçalhos para as seções obrigatórias do contrato, incluindo no mínimo 'Controle de Versão', 'Módulos Funcionais', 'Detalhamento dos Requisitos Funcionais', 'Regras de Negócio', 'Mensagens de Erro e Validação', 'Matriz de Permissões Funcionais', 'Matriz de Rastreabilidade', 'Dependências Funcionais', 'Premissas' e 'Pontos a Validar', além do campo '**Fonte Principal:** docs/product/prd/prd.md' no cabeçalho.",
+    "Todo requisito funcional listado usa o padrão FRD-<módulo>-NN (ex.: FRD-rec-01), sem códigos duplicados, e cada requisito detalhado na seção de detalhamento tem uma subseção 'Critérios de Aceite' com pelo menos um item em checklist Markdown '- [ ]'.",
+    "A Matriz de Rastreabilidade tem uma linha para cada funcionalidade F-01, F-02, F-03, F-04, F-05 e F-06 do PRD, cada uma apontando para pelo menos um código FRD-*, e a coluna Status usa apenas os valores 'Coberto', 'Parcialmente Coberto', 'Não Coberto' ou 'Ponto a Validar'.",
+    "A seção Pontos a Validar contém entradas VAL-NN para (a) o valor máximo por recarga da RN-04, (b) o prazo para abrir contestação e (c) se o atendente SAC pode bloquear cartão; e em nenhum ponto do FRD aparece um valor máximo de recarga em reais nem um prazo de contestação em dias apresentado como regra definida.",
+    "Cashback/fidelidade, recarga por boleto e transferência de saldo entre cartões aparecem apenas na seção Fora de Escopo (ou em Pontos a Validar), e nenhum código FRD-* tem como objeto essas funcionalidades.",
+    "git diff HEAD -- docs/product/prd/prd.md docs/discovery/discovery-notes.md no diretório de saída é vazio: o agente não alterou os arquivos de entrada."
+  ]
+}

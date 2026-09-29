@@ -1,0 +1,1 @@
+export const STATUS_EMBARQUE_NEGADO = 403;

@@ -1,0 +1,66 @@
+{
+  "expectations": [
+    {
+      "text": "A tabela '## 5. Mapeamento Local ↔ Jira' de product-backlog.md mantém EP-001→PLD-1, US-001→PLD-2, US-002→PLD-3 e US-003→PLD-4, cada ID local aparecendo uma única vez; a tabela de épicos continua com exatamente dois épicos (card-wallet e fare-validation), sem épico duplicado para card-wallet",
+      "passed": true,
+      "evidence": "Comando: sed -n '/## 5/,$p' product-backlog.md | grep '|' e grep -oE 'PLD-[0-9]+' | sort | uniq -c. outputs/docs/product/backlog/product-backlog.md:49-52 = EP-001|PLD-1, US-001|PLD-2, US-002|PLD-3, US-003|PLD-4, cada key contagem 1; linhas 53-57 acrescentam EP-002, US-004..US-007 com key '—' (pendente), sem repetir nenhum ID local; §1 tem 2 linhas '| EP-' (EP-001 card-wallet, EP-002 fare-validation). outputs/ idêntico a work/ (cmp)."
+    },
+    {
+      "text": "product-backlog.md tem uma story US-007 (e nenhuma outra story nova além dela) no épico card-wallet com RF-007 na coluna RF, as stories US-001..US-006 continuam com os mesmos IDs e RFs, e a TASK-08 do card-wallet aparece referenciada (como task técnica com 'TASK-08' ou nos critérios/tasks da US-007)",
+      "passed": true,
+      "evidence": "product-backlog.md:27 '| US-007 | card-wallet | ... | RF-007 | 5 | Backlog não alocado (...) | TO DO |' é a única story nova (git diff acrescenta só essa linha em §2); US-001..006 (linhas 21-26) com RF-001..RF-006 inalterados; 'grep -n TASK-08' → product-backlog.md:38 '| T-006 | US-007 | Bloqueio de cartão e transferência de saldo para cartão substituto | task:TASK-08 (card-wallet) | TO DO |'."
+    },
+    {
+      "text": "US-007 aparece em exatamente um arquivo docs/product/backlog/sprint-<N>-<slug>.md, o N desse arquivo coincide com a coluna Sprint da US-007 em product-backlog.md, e N é maior ou igual ao número da sprint da US-001 (a TASK-08 depende da TASK-03 do RF-001)",
+      "passed": false,
+      "evidence": "Comando: grep -l 'US-007' docs/product/backlog/sprint-*-*.md → nenhum arquivo (sprint-1/2/3 inalterados no git diff). Coluna Sprint da US-007 = 'Backlog não alocado (candidata a Sprint 4 — ver sprints-planning.md §6)' (product-backlog.md:27); a story foi registrada só em sprints-planning.md §6 novo, não em um sprint-<N>-<slug>.md. Transcript passo 4 e nota final confirmam decisão consciente de não alocar."
+    },
+    {
+      "text": "A tabela '## 3. Histórico de Ações' de progress-tracking.md ainda contém as quatro linhas originais com timestamps 2026-09-25T18:01:50Z, 2026-09-25T18:02:11Z, 2026-09-25T18:03:31Z e 2026-09-25T18:04:02Z, e tem ao menos uma linha nova com timestamp posterior a elas",
+      "passed": true,
+      "evidence": "Comando: grep -nE '2026-09-2[5-9]T' progress-tracking.md. Linhas 34-37 mantêm as quatro linhas originais (18:01:50Z, 18:02:11Z, 18:03:31Z, 18:04:02Z) intactas; linhas 38-40 novas com 2026-09-26T00:00:00Z e 2026-09-28T00:00:00Z (timestamps redondos, aparentemente não medidos, mas posteriores)."
+    },
+    {
+      "text": "Em progress-tracking.md §2 a operação do épico EP-002 continua listada como pendente (ou, se removida, §3 registra uma chamada createJiraIssue bem-sucedida para ela) e há registro pendente para a US-007; product-backlog.md §5 não contém nenhuma Issue Key PLD-<n> além de PLD-1..PLD-4 sem uma linha OK correspondente em §3",
+      "passed": true,
+      "evidence": "progress-tracking.md:26 mantém '| 2026-09-25T18:04:02Z | createJiraIssue (Epic) | EP-002 fare-validation | HTTP 429 ... | Retry simulado ...' e linha 28 acrescenta '| 2026-09-26T00:00:00Z | createJiraIssue (Story) | US-007 (RF-007, card-wallet) | Não executado ...'. grep -oE 'PLD-[0-9]+' product-backlog.md → só PLD-1..PLD-4; as linhas novas de §5 usam '—'. Nenhuma key nova em outputs/despacho-simulado.md além de referência ao PLD-1 existente."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "pass_rate": 0.8
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 170000,
+    "total_duration_seconds": 170
+  },
+  "user_notes_summary": {
+    "uncertainties": [
+      "Timestamps 2026-09-26T00:00:00Z/2026-09-28T00:00:00Z fabricados."
+    ],
+    "needs_review": [
+      "US-007 deixada fora de qualquer sprint-<N>.md (seção 'Backlog não alocado' em sprints-planning.md)."
+    ],
+    "workarounds": [
+      "Sync Jira simulada em outputs/despacho-simulado.md."
+    ]
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "product-backlog.md tem uma story US-007 (e nenhuma outra story nova além dela) no épico card-wallet com RF-007 na coluna RF, as stories US-001..US-006 continuam com os mesmos IDs e RFs, e a TASK-08 do card-wallet aparece referenciada (como task técnica com 'TASK-08' ou nos critérios/tasks da US-007)",
+        "reason": "Mistura três checagens independentes (ID novo, preservação de RFs, referência a TASK-08); a falha do with_skill vem só da última, que é uma escolha de modelagem defensável (feature com RF vira story). Separar em asserções distintas tornaria o sinal legível."
+      },
+      {
+        "reason": "Nenhuma asserção verifica a integridade de totais/formato: o with_skill manteve 'Total de tasks: 5' e reproduziu a concatenação '- [ ] PR mergeado### US-007' (heading não renderiza), e o without_skill deixou §5 com linhas '—' que o agente spec trata como fonte de idempotência. Vale uma asserção de totais consistentes e de headings '### US-' no início de linha."
+      },
+      {
+        "reason": "A asserção 3 penaliza 'backlog não alocado' mesmo com justificativa de capacidade; se o comportamento desejado é sempre alocar, o prompt deveria indicar isso ou o agente spec precisa exigir; hoje é o principal discriminador entre as configs."
+      }
+    ],
+    "overall": "As cinco asserções são checáveis por grep e discriminam razoavelmente; empate 4/5 x 4/5 com falhas em asserções diferentes."
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta contém um bloco iniciado por CONFLITO com as linhas decisão, posição A, posição B, precedência, opções e registro; a posição A cita rules/data/data-governance.md (transacional de negócio em MongoDB); o bloco aparece antes de qualquer CREATE TABLE da resposta",
+      "passed": true,
+      "evidence": "outputs/response.md abre com o bloco 'CONFLITO' seguido das linhas 'decisão:', 'posição A:', 'posição B:', 'precedência:', 'opções:' e 'registro:'; posição A: 'MongoDB — fonte: `.forge/rules/data/data-governance.md` (\"Transacional de negócio, eventos, schema flexível, alto volume → MongoDB\"...)'. Não há nenhum CREATE TABLE na resposta, logo o bloco precede qualquer DDL."
+    },
+    {
+      "text": "A resposta afirma que não há ADR do projeto escolhendo SQL/PostgreSQL para o ledger ou o transacional de cobrança, mencionando que o único ADR existente (ADR-0001) trata de gRPC ou que o diretório de ADRs não tem essa decisão",
+      "passed": true,
+      "evidence": "posição B: 'sem ADR do projeto que o respalde (`.forge/product/current/adr/` só tem `ADR-0001-grpc-interno.md`, que decide comunicação síncrona interna por gRPC e diz explicitamente \"nenhuma decisão de store de dados é tomada aqui\")'; e no corpo: 'Não há nenhum ADR aceito que escolha SQL para o transacional de negócio da cobrança'. Conferido em work/: o diretório de ADRs só contém ADR-0001 e a linha 20 diz 'Nenhuma decisão de store de dados é tomada aqui.'"
+    },
+    {
+      "text": "A resposta não recomenda por conta própria usar PostgreSQL para o ledger; se traz DDL, ele vem declarado como condicionado à aprovação de um ADR que escolha PostgreSQL, e não como entrega pronta para o task-coder aplicar hoje",
+      "passed": true,
+      "evidence": "Não recomenda PostgreSQL por conta própria: opção recomendada é 'aplicar a fonte de maior autoridade (recomendado — modelar o ledger em MongoDB...)'; a seção de DDL diz 'Não estou anexando DDL nesta resposta porque fazer isso antes da resolução do conflito seria \"registrar e seguir\"' e que o DDL viria 'já condicionado ao ADR e citando-o'; o caminho para o task-coder hoje passa por abrir ADR via /forge:adr, 'nunca como recomendação minha de trocar o store por conta própria'."
+    },
+    {
+      "text": "A resposta devolve a decisão ao orquestrador, à sessão principal ou à matriz do data-engineer (ou recomenda acioná-lo / abrir ADR via /forge:adr) e diz que quem registra a decisão é a sessão principal ou o pipeline; nenhum arquivo approvals.yaml ou ADR é criado e git status --porcelain fica vazio",
+      "passed": true,
+      "evidence": "Linha registro: 'a decisão humana vai para `approvals.yaml` do change em curso, ou vira ADR — quem registra é a sessão principal ou o pipeline `/forge:*` em curso; este agente (data-relational) não registra'; recomenda abrir ADR via '/forge:adr'. git -C work status --porcelain vazio; único commit é o da fixture (c44a8d2); o único approvals.yaml em work/ é o template .forge/templates/spec/approvals.yaml; nenhum ADR novo em .forge/product/current/adr/."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 0,
+    "total": 4,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "executor_duration_seconds": 82
+  },
+  "claims": [
+    {
+      "claim": "ADR-0001 diz 'nenhuma decisão de store de dados é tomada aqui'",
+      "type": "factual",
+      "verified": true,
+      "evidence": "work/.forge/product/current/adr/ADR-0001-grpc-interno.md:20"
+    },
+    {
+      "claim": "data-governance.md manda transacional de negócio para MongoDB",
+      "type": "factual",
+      "verified": true,
+      "evidence": "work/.forge/rules/data/data-governance.md:32"
+    },
+    {
+      "claim": "precedência pela ordem do FORGE.md §2.1",
+      "type": "factual",
+      "verified": true,
+      "evidence": "work/FORGE.md:84 '## 2.1 Source-of-truth precedence (authority order)'"
+    },
+    {
+      "claim": "Nada externo foi executado",
+      "type": "process",
+      "verified": true,
+      "evidence": "git status vazio em work/ e log só com o commit da fixture"
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A resposta devolve a decisão ao orquestrador, à sessão principal ou à matriz do data-engineer (ou recomenda acioná-lo / abrir ADR via /forge:adr) e diz que quem registra a decisão é a sessão principal ou o pipeline; nenhum arquivo approvals.yaml ou ADR é criado e git status --porcelain fica vazio",
+        "reason": "A parte 'git status --porcelain fica vazio' é satisfeita trivialmente pelas duas configurações, porque o executor grava em outputs/ e não em work/; a asserção só discrimina pelo texto de escalonamento. Vale checar também que nenhum arquivo foi escrito fora de outputs/ (ex.: um .sql em work/)."
+      },
+      {
+        "reason": "Nenhuma asserção cobre a qualidade técnica do DDL quando ele é legitimamente condicionado (BIGINT em centavos, RLS por tenant_id, CHECK de saldo); a configuração com skill optou por não trazer DDL algum, o que passa em tudo mas deixa o usuário sem artefato condicionado. Se o expected_output admite DDL condicionado, uma asserção opcional poderia premiar isso."
+      }
+    ],
+    "overall": "Asserções discriminam bem: com skill passa 4/4 com evidência substantiva e verificada contra a árvore; sem skill falha nas quatro, inclusive admitindo no transcript que não verificou ADRs nem escalou."
+  }
+}

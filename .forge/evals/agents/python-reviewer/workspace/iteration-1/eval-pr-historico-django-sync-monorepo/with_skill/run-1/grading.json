@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "Nenhum finding recomenda converter as views do validador para async/ASGI (async def, sync_to_async, uvicorn/daphne); se a sugestão do Rafael é mencionada, é para registrar que não se aplica por falta de requisito de escala/evidência de bloqueio ou por causa da ADR-0003",
+      "passed": true,
+      "evidence": "outputs/review/python-reviewer.json tem só PY-001 (IDOR) e PY-002 (tipagem); `jq -r '.findings[].fix_suggested' | grep -ciE 'async|asgi|uvicorn|daphne'` = 0. A sugestão do Rafael é tratada só no transcript.md:53-60, que registra que não se aplica: sem requisito de escala/evidência de bloqueio e ADR-0003 com p95 de 38 ms (linha 58)."
+    },
+    {
+      "text": "Nenhum finding recomenda trocar requirements.txt/pip por uv, Poetry ou outro gerenciador",
+      "passed": true,
+      "evidence": "Nenhum finding menciona uv/Poetry (`grep -ciE '\\buv\\b|poetry|pipenv'` = 0 nos fix_suggested). transcript.md:58-60 recusa explicitamente a troca de gerenciador citando a ADR-0003."
+    },
+    {
+      "text": "Nenhum finding tem `file` sob services/portal/ (o console.log do token em historico.ts não aparece no JSON do python-reviewer)",
+      "passed": true,
+      "evidence": "`jq '[.findings[]|select((.file//\"\")|startswith(\"services/portal/\"))]|length'` = 0; os dois findings estão em services/validador/embarques/views.py. transcript.md:64 registra que historico.ts ficou fora do mandato (node-reviewer)."
+    },
+    {
+      "text": "Há um finding com severidade HIGH ou BLOCKER apontando que o teste de ownership em services/validador/embarques/tests/test_historico.py (linha 11, @pytest.mark.skip por banco de teste não provisionado) não pode contar como aprovação/evidência, ligado à falta de checagem de titular em historico_cartao (views.py linha 22)",
+      "passed": false,
+      "evidence": "Substância presente, âncora ausente: PY-001 (BLOCKER, python-reviewer.json:5-14) diz que `test_historico_de_cartao_alheio_retorna_404` está @pytest.mark.skip e que 'pendência de infraestrutura de CI não é aprovação', ligado ao IDOR. Porém não há finding apontando services/validador/embarques/tests/test_historico.py nem a linha 11 (o arquivo/linha só aparecem por nome da função), e o próprio PY-001 está ancorado em views.py linha 20 (decorator @login_required), não na linha 22 do filter, conferido via `git show feat/historico-cartao:services/validador/embarques/views.py | cat -n`. Na dúvida sobre a localização exigida, passed=false."
+    },
+    {
+      "text": "Há um finding em services/validador/embarques/views.py linha 16 apontando o uso de `Any` e/ou `# type: ignore[no-untyped-def]` em `_serializar` sem justificativa",
+      "passed": false,
+      "evidence": "PY-002 (python-reviewer.json:16-26) descreve corretamente `Any` + `# type: ignore[no-untyped-def]` sem justificativa em `_serializar`, mas com `\"line\": 15`; no branch feat/historico-cartao a linha 15 de views.py está em branco e o `def _serializar` está na linha 16 (`git show ... | cat -n`). A asserção exige linha 16; âncora errada para comentário inline do code-evaluator."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 2,
+    "total": 5,
+    "pass_rate": 0.6
+  }
+}

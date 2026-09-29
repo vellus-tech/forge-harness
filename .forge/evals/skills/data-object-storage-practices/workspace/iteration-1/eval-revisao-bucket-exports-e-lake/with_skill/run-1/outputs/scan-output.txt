@@ -1,0 +1,13 @@
+INFO data-object-storage-practices motor=rg raizes=1 universo=codigo iac sql
+FOUND O-01 [alto] 1 ocorrência(s) — bucket ou objeto público: ACL public-read, Block Public Access desligado (qualquer das quatro chaves), policy com Principal * sem Condition, allUsers ou acesso anônimo no Azure (container blob/container)
+  <worktree-do-eval>/.forge/evals/skills/data-object-storage-practices/workspace/iteration-1/eval-revisao-bucket-exports-e-lake/with_skill/run-1/work/infra/terraform/storage.tf:14: block_public_policy     = false
+FOUND O-02 [aviso] 1 ocorrência(s) — URL pré-assinada ou SAS com expiração em horas ou dias (4+ dígitos em segundos, produto aritmético, Duration.ofDays/ofHours, AddDays/AddHours): é bearer token; para terceiro, só minutos, objeto único e emissão por endpoint REST autenticado (H-02 a)
+  <worktree-do-eval>/.forge/evals/skills/data-object-storage-practices/workspace/iteration-1/eval-revisao-bucket-exports-e-lake/with_skill/run-1/work/src/exports/partnerDelivery.ts:10: const url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: EXPORTS_BUCKET, Key: key }), { expiresIn: 604800 });
+FOUND O-08 [aviso] 1 ocorrência(s) — SSE-KMS sem Bucket Key no mesmo arquivo: cada objeto chama o KMS (custo e cota); Bucket Key reduz as chamadas
+  <worktree-do-eval>/.forge/evals/skills/data-object-storage-practices/workspace/iteration-1/eval-revisao-bucket-exports-e-lake/with_skill/run-1/work/infra/terraform/storage.tf:23: sse_algorithm     = "aws:kms"
+OK O-11 [alto] nenhuma ocorrência
+FOUND O-13 [aviso] 1 ocorrência(s) — escrita destrutiva (overwrite, MERGE, DELETE) na zona raw/bronze, que deve ser imutável no formato original
+  <worktree-do-eval>/.forge/evals/skills/data-object-storage-practices/workspace/iteration-1/eval-revisao-bucket-exports-e-lake/with_skill/run-1/work/jobs/ingest_validacoes.py:12: .mode("overwrite").parquet(BRONZE_PATH)
+FOUND O-14 [aviso] 1 ocorrência(s) — partição por coluna de alta cardinalidade (id, uuid, usuário, cliente) gera milhões de diretórios pequenos
+  <worktree-do-eval>/.forge/evals/skills/data-object-storage-practices/workspace/iteration-1/eval-revisao-bucket-exports-e-lake/with_skill/run-1/work/jobs/ingest_validacoes.py:11: .partitionBy("cartao_id")
+ARQUIVOS-VARRIDOS 9

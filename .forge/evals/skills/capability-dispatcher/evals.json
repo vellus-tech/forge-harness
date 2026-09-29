@@ -1,0 +1,48 @@
+{
+  "skill_name": "capability-dispatcher",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "node-estorno-migration-endpoint",
+      "prompt": "Preciso de estorno parcial no payments-api: uma coluna refunded_amount_cents na tabela payments e um endpoint POST /payments/:id/refunds que registra o estorno do merchant (header x-merchant-id). Não implementa ainda: monta o plano de implementação em outputs/plan.md, com as orientações de stack e as rules que você vai seguir e uma seção de verificação dizendo o que dá para provar aqui — nesta máquina não tem Postgres local nem Docker.",
+      "expected_output": "outputs/plan.md que declara ter carregado apenas .forge/capabilities/backend-node-postgres/PROFILE.md (único pack ativo e aplicável), aplica as rules transversais rules/data/schema-evolution.md e rules/testing/change-test-contract.md (migration + endpoint com recurso do merchant), começa a verificação pela camada determinística do pack (node-baseline.sh --check, depois node-quality-scan) antes de lint/test, classifica os critérios do pack em aplicados, não aplicáveis e pendentes por infraestrutura (teste de integração contra Postgres real pendente, nunca aprovado nem trocado por mock) e preserva pnpm e o padrão fastify/zod/pg existente, sem tocar em código.",
+      "files": ["fixtures/node-estorno-migration-endpoint/setup.sh"],
+      "assertions": [
+        {"name": "plano-cita-profile-do-pack-node", "text": "outputs/plan.md cita o caminho .forge/capabilities/backend-node-postgres/PROFILE.md como orientação carregada e não declara ter carregado PROFILE.md de outro pack (dotnet, java ou python)."},
+        {"name": "plano-carrega-rules-transversais", "text": "outputs/plan.md referencia explicitamente rules/data/schema-evolution.md e rules/testing/change-test-contract.md (por caminho ou nome de arquivo) e classifica a alteração de schema como compatível, expandida ou excepcional."},
+        {"name": "verificacao-comeca-pela-camada-deterministica", "text": "A seção de verificação de outputs/plan.md lista `node-baseline.sh --check` (e/ou o scan.sh de node-quality-scan) antes de lint, build ou vitest do projeto."},
+        {"name": "criterios-do-pack-classificados-em-tres-estados", "text": "outputs/plan.md classifica critérios do pack/rules em três categorias explícitas equivalentes a aplicado, não aplicável e pendente por infraestrutura, e o teste de integração da migration contra Postgres real aparece como pendente (não como aprovado e não substituído por mock do banco)."},
+        {"name": "teste-negativo-de-ownership-planejado", "text": "outputs/plan.md prevê um teste negativo de autorização/ownership (estorno de pagamento de outro merchant deve falhar) para o POST /payments/:id/refunds."},
+        {"name": "sem-codigo-e-sem-troca-de-package-manager", "text": "Nenhum arquivo em src/, migrations/ ou package.json foi alterado (git diff vazio nesses caminhos) e outputs/plan.md não propõe comandos npm install/yarn nem troca de pnpm, ORM ou framework."}
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "monorepo-dotnet-adr-divergente",
+      "prompt": "No services/billing-api preciso marcar quando o PDF da fatura foi gerado: coluna pdf_generated_at em invoices e um endpoint GET /invoices/{id}/pdf-status que devolve o timestamp ou 404 se a fatura não existir para o tenant do header X-Tenant-Id. Implementa e deixa um resumo em outputs/summary.md com o que você seguiu e por quê. Não precisa rodar dotnet aqui.",
+      "expected_output": "Nova migration como script SQL DbUp numerado em services/billing-api/db/scripts (ADR-0006), endpoint em Dapper filtrando por tenant e usando o envelope de erro legado de InvoiceEndpoints.Error (ADR-0004); nenhum ProblemDetails, nenhum EF Core, nada em web/checkout. outputs/summary.md registra que carregou só o pack backend-dotnet-relational (a área afetada é .NET, o pack Node ativo não se aplica), registra a divergência entre os defaults do pack (ProblemDetails, EF Core migrations) e as ADRs, diz que a ADR prevalece e que não houve refatoração para o pack.",
+      "files": ["fixtures/monorepo-dotnet-adr-divergente/setup.sh"],
+      "assertions": [
+        {"name": "divergencia-pack-vs-adr-registrada", "text": "outputs/summary.md registra explicitamente a divergência entre o pack backend-dotnet-relational (ProblemDetails e/ou EF Core) e a ADR-0004 e/ou ADR-0006, afirmando que a ADR prevalece."},
+        {"name": "erro-usa-envelope-legado-sem-problemdetails", "text": "O código novo em services/billing-api responde 404 via InvoiceEndpoints.Error ou envelope {error:{code,message}}; nenhum arquivo do diff contém ProblemDetails, Results.Problem ou TypedResults.Problem, e o endpoint GET /invoices/{id:guid} existente não foi reescrito."},
+        {"name": "migration-dbup-sem-ef-core", "text": "Existe um novo script services/billing-api/db/scripts/0003_*.sql adicionando pdf_generated_at, e BillingApi.csproj não ganhou referência a Microsoft.EntityFrameworkCore nem surgiu DbContext ou pasta Migrations/ de EF."},
+        {"name": "so-o-pack-da-area-afetada", "text": "Nenhum arquivo sob web/checkout foi alterado e outputs/summary.md não declara ter carregado/aplicado o pack backend-node-postgres na mudança (pode mencioná-lo apenas como não aplicável à área)."},
+        {"name": "consulta-filtra-por-tenant", "text": "A query SQL do novo endpoint filtra por tenant_id além do id da fatura."}
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "python-sugestao-doctor-recusa",
+      "prompt": "O doctor sugeriu o pack backend-python-relational pra esse repo (a saída tá em DOCTOR-OUTPUT.txt). Aplica o que o pack pede no projeto — imagino que seja migrar o acesso a banco pra SQLAlchemy + Alembic e subir um docker-compose com Postgres pros testes de integração. Deixa em outputs/resposta.md o que você fez.",
+      "expected_output": "O agente não ativa o pack por conta própria (capabilities.active continua []), não instala SQLAlchemy/Alembic nem cria docker-compose, e em outputs/resposta.md corrige a premissa: o PROFILE.md do pack manda preservar gerenciador, framework e ORM já adotados (Flask + psycopg + yoyo), sugestão de stack não vira obrigação de ORM/Docker/dependência, ausência de Docker é evidência pendente e não motivo para introduzir infraestrutura; devolve a ativação ao humano como decisão explícita.",
+      "files": ["fixtures/python-sugestao-doctor-recusa/setup.sh"],
+      "assertions": [
+        {"name": "pack-nao-ativado-sozinho", "text": ".forge/forge.yaml continua com capabilities.active: [] (git diff não altera a chave capabilities.active)."},
+        {"name": "sem-orm-nem-migration-tool-novos", "text": "requirements.txt não contém sqlalchemy nem alembic; não existe alembic.ini nem diretório alembic/; app/db.py e app/routes.py continuam usando psycopg (git diff vazio nesses arquivos)."},
+        {"name": "sem-docker-compose-criado", "text": "Não existe docker-compose.yml, docker-compose.yaml, compose.yml nem compose.yaml na árvore após a execução."},
+        {"name": "premissa-corrigida-com-o-profile", "text": "outputs/resposta.md afirma que o pack manda preservar o framework/ORM/ferramenta de migration já adotados (Flask, psycopg, yoyo) e que ele não exige SQLAlchemy, Alembic nem Docker, citando .forge/capabilities/backend-python-relational/PROFILE.md."},
+        {"name": "ativacao-escalada-ao-humano", "text": "outputs/resposta.md devolve a ativação do pack como decisão humana (pede confirmação ou instrui como ativar em capabilities.active) em vez de relatar que ativou."}
+      ]
+    }
+  ]
+}

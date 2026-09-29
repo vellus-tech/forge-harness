@@ -1,0 +1,61 @@
+{
+  "branch": "feature/cache-pagamentos",
+  "base": "develop",
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "blocker",
+      "category": "adr-violation",
+      "title": "Newtonsoft.Json introduzido em Pagamentos.Infrastructure, violando ADR-0005 (Aceito)",
+      "location": "services/pagamentos/src/Pagamentos.Infrastructure/Pagamentos.Infrastructure.csproj; services/pagamentos/src/Pagamentos.Infrastructure/Persistence/CachedPagamentoRepository.cs",
+      "description": "O diff adiciona PackageReference Newtonsoft.Json 13.0.3 e usa JsonConvert.DeserializeObject no CachedPagamentoRepository. ADR-0005 (status Aceito, 2026-03-10) proíbe explicitamente Newtonsoft.Json em qualquer projeto novo ou existente, inclusive em Infrastructure, citando divergência de tratamento de decimal e datas nos contratos de evento — risco concreto aqui, já que o próprio evento sendo cacheado mudou de decimal para long. Deve usar System.Text.Json.",
+      "reference": "docs/product/adr/ADR-0005-serializacao-system-text-json.md"
+    },
+    {
+      "id": "F2",
+      "severity": "blocker",
+      "category": "contract-breaking-change",
+      "title": "PagamentoAprovadoV1 sofreu breaking change no próprio tipo, sem nova versão",
+      "location": "services/pagamentos/src/Pagamentos.Contracts/Events/PagamentoAprovadoV1.cs",
+      "description": "O campo Valor (decimal) foi renomeado e retipado para ValorEmCentavos (long) dentro do mesmo record PagamentoAprovadoV1, publicado no tópico pagamentos.pagamento-aprovado.v1 e consumido por Bilhetagem e Conciliação. A regra api-and-contracts.md exige que breaking changes criem nova versão e nunca modifiquem a versão existente, e lista explicitamente 'breaking changes sem nova versão' nas proibições. Consumidores que desserializam o payload atual vão falhar silenciosamente ou quebrar em runtime ao tentar ler um campo Valor que não existe mais. Correção: introduzir PagamentoAprovadoV2 e publicar em paralelo até depreciação formal do V1.",
+      "reference": ".forge/rules/architecture/api-and-contracts.md"
+    },
+    {
+      "id": "F3",
+      "severity": "moderate",
+      "category": "ddd-value-object",
+      "title": "Representação monetária inconsistente entre Domain e Contracts",
+      "location": "services/pagamentos/src/Pagamentos.Domain/Pagamento.cs; services/pagamentos/src/Pagamentos.Contracts/Events/PagamentoAprovadoV1.cs",
+      "description": "Pagamento.Valor continua decimal no Domain, enquanto o contrato público passou a expor ValorEmCentavos (long). Não há objeto de valor Money nem conversão explícita entre as duas representações no diff. ddd.md recomenda objeto de valor imutável para dinheiro (exemplo Money com AmountInCents) exatamente para evitar esse tipo de divergência de precisão/unidade entre camadas.",
+      "reference": ".forge/rules/architecture/ddd.md"
+    },
+    {
+      "id": "F4",
+      "severity": "moderate",
+      "category": "clean-architecture",
+      "title": "PagamentosDbContext sem configuração explícita de mapeamento (IEntityTypeConfiguration<T>)",
+      "location": "services/pagamentos/src/Pagamentos.Infrastructure/Persistence/PagamentosDbContext.cs",
+      "description": "O DbContext expõe DbSet<Pagamento> diretamente sobre a entidade de domínio, sem nenhuma classe de configuração via IEntityTypeConfiguration<T>, exigida pela diretriz 12 de clean-architecture.md ('EF Core DbContext configurado via IEntityTypeConfiguration<T> — nunca por atributos no domínio'). Sem configuração explícita, o EF Core tentará mapear a entidade por convenção, o que tende a acoplar o schema do domínio à conveniência do ORM.",
+      "reference": ".forge/rules/architecture/clean-architecture.md"
+    },
+    {
+      "id": "F5",
+      "severity": "info",
+      "category": "adr-status",
+      "title": "Uso de EF Core não viola nenhum ADR aceito — ADR-0008 ainda está Proposto",
+      "location": "docs/product/adr/ADR-0008-dapper-no-lugar-de-ef-core.md",
+      "description": "ADR-0008 propõe substituir EF Core por Dapper, mas seu status é Proposto (sem votação, sem data de aceite), portanto não é uma regra vigente e não bloqueia a introdução de Microsoft.EntityFrameworkCore/PagamentosDbContext neste PR. Registrar apenas como risco: se o ADR-0008 for aceito depois, este DbContext terá que ser migrado para Dapper. Não tratar como violação de ADR nesta revisão.",
+      "reference": "docs/product/adr/ADR-0008-dapper-no-lugar-de-ef-core.md"
+    },
+    {
+      "id": "F6",
+      "severity": "info",
+      "category": "di-configuration",
+      "title": "Coexistência de PagamentoRepository e CachedPagamentoRepository sem registro de DI visível",
+      "location": "services/pagamentos/src/Pagamentos.Infrastructure/Persistence/CachedPagamentoRepository.cs",
+      "description": "O comentário no código indica que 'as duas implementações ficam ativas (leitura quente x fria)', mas o diff não toca em nenhuma configuração de DI no projeto Api. Não é possível confirmar, só a partir deste diff, qual implementação de IPagamentoRepository será resolvida em runtime; pedir ao autor o trecho de registro de DI para fechar a revisão.",
+      "reference": null
+    }
+  ],
+  "summary": "2 blockers (Newtonsoft.Json violando ADR-0005 Aceito; breaking change não versionado em PagamentoAprovadoV1) e 2 achados moderados (representação monetária inconsistente Domain/Contracts; DbContext sem IEntityTypeConfiguration). ADR-0008 (Dapper) está Proposto, não Aceito — uso de EF Core não é violação de ADR nesta revisão."
+}

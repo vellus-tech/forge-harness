@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "mapa-recarga-web-onboarding",
+  "prompt": "Entrei agora no recarga-web (backend Node/TypeScript da recarga de cartão de transporte) e vou mexer na recarga via Pix semana que vem. O grafo de código já está construído em .forge/graph/graph.json. Me dá o mapa de arquitetura: quais camadas existem e quanto código tem em cada uma, quem importa quem, o que está violando a direção das camadas e onde o acoplamento está concentrado. Salva em docs/arquitetura/mapa-recarga-web.md.",
+  "assertions": [
+    "docs/arquitetura/mapa-recarga-web.md traz a contagem de nós por camada igual à do .forge/graph/graph.json: api 2, application 2, domain 2, infrastructure 2, contracts 1 (e os 2 nós unknown — src/main.ts e src/shared/logger.ts — reportados à parte ou como unknown, não redistribuídos em outra camada)",
+    "O documento lista como violação de direção as duas arestas src/domain/cartao.ts → src/infrastructure/db/postgres-client.ts e src/application/solicitar-recarga.ts → src/api/http-errors.ts, cada uma com os dois paths completos, e usa a qualificação 'candidata' (ou equivalente explícito) para as violações",
+    "O documento cita .forge/rules/architecture/camadas-recarga-web.md (pelo nome do arquivo) como a regra contra a qual as violações foram conferidas",
+    "O documento NÃO lista como violação os imports de src/domain/cartao.ts ou src/domain/recarga.ts para src/contracts/eventos-recarga.ts (menção como permitido pela ADR-0003/regra do projeto é aceitável)",
+    "A seção de pontos de concentração aponta src/shared/logger.ts como o nó de maior fan-in (6 importadores) e inclui src/domain/cartao.ts (4 importadores)",
+    "O documento não contém o conteúdo bruto do grafo (nenhuma ocorrência de \"fingerprint\" nem de um bloco JSON com as chaves \"nodes\"/\"edges\") e `git -C <alvo> status --porcelain -- src/` sai vazio"
+  ]
+}

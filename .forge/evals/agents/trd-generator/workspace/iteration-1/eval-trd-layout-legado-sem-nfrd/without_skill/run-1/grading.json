@@ -1,0 +1,78 @@
+{
+  "expectations": [
+    {
+      "text": "Existe docs/product/trd/trd.md e não existe docs/trd/ nem qualquer TRD.md em maiúsculas; a seção de Referências do trd.md aponta para docs/prd/prd.md, docs/frd/frd.md e docs/adr/0001-monolito-modular.md (os paths que realmente existem).",
+      "passed": false,
+      "evidence": "TRD gravado no path legado: `find work -iname trd.md` → work/docs/trd/trd.md; `test -d work/docs/trd` → EXISTS; não existe docs/product/trd/trd.md. O transcript (seção 3) admite: 'Segui o padrão de arquivo do próprio repositório (docs/<sigla>/<sigla>.md) e criei docs/trd/trd.md'. As fontes são citadas corretamente na linha 3, mas a primeira cláusula já falha."
+    },
+    {
+      "text": "A tabela de Pontos a Validar contém ao menos um VAL-TRD-NN cujo texto menciona os paths legados (docs/prd, docs/frd ou docs/adr) e recomenda a migração para docs/product/.",
+      "passed": false,
+      "evidence": "Não há nenhum VAL-TRD-NN nem tabela de Pontos a Validar em without_skill/run-1/outputs/docs/trd/trd.md (`grep -n 'VAL-TRD'` vazio) e `grep -in migra` vazio: nenhuma recomendação de migração para docs/product/."
+    },
+    {
+      "text": "A tabela de Pontos a Validar contém um VAL-TRD-NN registrando a ausência do NFRD; e toda meta numérica de latência (ms), disponibilidade (%) ou retenção (anos) que apareça no trd.md está na mesma linha ou parágrafo que 'Inferência Técnica' ou 'Ponto a Validar' (nenhuma aparece como requisito definido sem marcação).",
+      "passed": false,
+      "evidence": "Não há VAL-TRD-NN registrando a ausência do NFRD (a lacuna aparece em prosa na seção 7, linha 74, sem código). Metas numéricas: linha 29 'P99 ≤ 300ms' e linha 30 '99,9%' marcadas 'NEEDS CLARIFICATION', não 'Inferência Técnica' nem 'Ponto a Validar'. As metas são honestamente sinalizadas como suposição, mas não com a marcação exigida."
+    },
+    {
+      "text": "As rotas de API do trd.md seguem '/api/v1/<resource>' em kebab-case e a seção de Arquitetura de APIs (ou a linha da rota) contém a marcação literal 'Inferência Técnica' justificando o padrão por falta de padrão definido no projeto.",
+      "passed": false,
+      "evidence": "`grep -oE '/api/v1/...'` → 0 ocorrências; rotas propostas (linhas 43-45) são `POST /viagens/tap`, `GET /deny-list/sync`, `GET /passageiro/viagens`, sem prefixo /api/v1/. `grep -c 'Inferência Técnica'` → 0; versionamento deixado como NEEDS CLARIFICATION (linha 47)."
+    },
+    {
+      "text": "A seção Módulos e Deployables/Estilo Arquitetural adota o monólito modular do ADR-0001 como estilo (um deployable de backend para os módulos de negócio, PostgreSQL com schema por módulo); se microsserviços forem mencionados, é como evolução futura, risco ou Ponto a Validar, nunca como decisão do TRD.",
+      "passed": true,
+      "evidence": "Linha 11: 'Conforme ADR-0001, o backend é um monólito modular com deployable único e PostgreSQL com um schema por módulo'; linha 70 'Um schema PostgreSQL por módulo (ADR-0001)'. `grep -iE 'microsservi|microservi'` vazio. Ressalva: a seção se chama '2. Arquitetura de Referência', não 'Módulos e Deployables/Estilo Arquitetural'; aprovado pela substância."
+    },
+    {
+      "text": "git diff HEAD -- docs/prd docs/frd docs/adr no diretório de saída é vazio: o agente não moveu, renomeou nem editou os documentos legados.",
+      "passed": true,
+      "evidence": "`git -C without_skill/run-1/work diff HEAD --name-status -- docs/prd docs/frd docs/adr | wc -l` → 0; `git status --porcelain -- docs/` mostra só '?? docs/trd/'."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 4,
+    "total": 6,
+    "pass_rate": 0.33
+  },
+  "execution_metrics": {
+    "output_chars": 6912,
+    "transcript_chars": 3610
+  },
+  "timing": {
+    "executor_duration_seconds": 88,
+    "total_duration_seconds": 88
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A tabela de Pontos a Validar contém ao menos um VAL-TRD-NN cujo texto menciona os paths legados (docs/prd, docs/frd ou docs/adr) e recomenda a migração para docs/product/.",
+        "reason": "Discriminou de fato: o with_skill fez a recomendação de migração, mas fora de um código VAL-TRD-NN. Se o contrato do agente exige VAL-TRD numerado para toda recomendação da seção 22, a asserção está certa e o agente deve ser corrigido; se não exige, o autor do eval deve decidir se o código é essencial."
+      },
+      {
+        "assertion": "As rotas de API do trd.md seguem '/api/v1/<resource>' em kebab-case e a seção de Arquitetura de APIs (ou a linha da rota) contém a marcação literal 'Inferência Técnica' justificando o padrão por falta de padrão definido no projeto.",
+        "reason": "A asserção não exige que a frase de justificativa (e não só a célula de autenticação) contenha o literal 'Inferência Técnica'; um TRD que marca só a coluna de autenticação passaria. Considere exigir o literal na mesma linha da rota ou do parágrafo que justifica o prefixo /api/v1."
+      },
+      {
+        "reason": "Nenhuma asserção verifica que o TRD evita decisões não suportadas pelo insumo (ex.: o with_skill importou regras do .forge/rules como cobertura ≥95%, Pact obrigatório, multi-arch e tenant_id, mesmo com stack indefinida, parcialmente mitigado por VAL-TRD-09/17). Vale uma asserção de que convenções herdadas de rules genéricas aparecem marcadas como inferência."
+      }
+    ],
+    "overall": "Asserções majoritariamente discriminantes e checáveis por comando; a de API aceita uma marcação fraca."
+  },
+  "claims": [
+    {
+      "claim": "Valores de NFR marcados como suposição",
+      "type": "quality",
+      "verified": true,
+      "evidence": "Linhas 29-34 com status NEEDS CLARIFICATION."
+    },
+    {
+      "claim": "Seguiu o padrão do repositório docs/<sigla>/<sigla>.md",
+      "type": "process",
+      "verified": true,
+      "evidence": "Gravou docs/trd/trd.md, fora do path canônico docs/product/trd/."
+    }
+  ]
+}

@@ -1,0 +1,84 @@
+{
+  "expectations": [
+    {
+      "text": "Existe .forge/specs/active/recarga-pix-cartao-transporte/epic_context.md cuja primeira linha é '# Epic context — recarga-pix-cartao-transporte' e que contém, nesta ordem, os cabeçalhos '## Objetivo', '## Decisões de design', '## Contratos externos', '## ADRs', '## Rules' e '## Invariantes críticas'.",
+      "passed": false,
+      "evidence": "`test -f without_skill/run-1/work/.forge/specs/active/recarga-pix-cartao-transporte/epic_context.md` → NAO. O baseline gravou outro nome, `epic-context.md` (hífen), com primeira linha '# Contexto épico — recarga-pix-cartao-transporte' e seções '## Problema e objetivo', '## Requisitos (REQ)', '## Decisões de design', '## Contratos', '## Modelo de dados', '## Concorrência', '## ADRs relevantes', '## Waves e tasks', '## Status do manifesto', '## Fora do escopo deste contexto' — nem o arquivo nem o cabeçalho nem as seções do contrato."
+    },
+    {
+      "text": "O epic_context.md não menciona Kafka, Debezium, migra-eventos-para-kafka, ADR-0021 (do outro change ativo), ADR-0020 ou cache Redis de saldo (da baseline em .forge/product/current/adr/), nem Redlock/lock distribuído (do TODO em src/recarga/NOTAS.md).",
+      "passed": false,
+      "evidence": "O arquivo exigido epic_context.md não existe. O arquivo que o baseline produziu (epic-context.md), linha 57, menciona explicitamente '`migra-eventos-para-kafka`' e 'TODO de lock distribuído Redlock' (`grep -niE 'kafka|...|redlock|lock distribu'` casa a linha 57); mesmo como exclusão declarada, viola a asserção."
+    },
+    {
+      "text": "A seção ADRs lista ADR-0012 e ADR-0015, cada um com resumo de uma linha, e nenhum outro ID de ADR; a seção Rules cita .forge/rules/architecture/internal-grpc-communication.md e .forge/rules/architecture/pii-pci-classification.md como paths.",
+      "passed": false,
+      "evidence": "epic_context.md não existe. No epic-context.md do baseline, ADRs listam só ADR-0012 e ADR-0015 com uma linha cada (linhas 42-43), mas `grep -nE '\\.forge/rules/architecture/(internal-grpc-communication|pii-pci-classification)\\.md'` → zero: as rules aparecem só como 'rule interna de comunicação gRPC' e 'classificação PII/PCI da rule de arquitetura', sem path, e não há seção Rules."
+    },
+    {
+      "text": "O epic_context.md tem no máximo 150 linhas, não contém cerca de código (```) e não transcreve o DDL do design (nenhuma linha com 'CREATE TABLE' ou 'PRIMARY KEY').",
+      "passed": false,
+      "evidence": "epic_context.md não existe (sem saída no nome exigido). Para registro: epic-context.md tem 57 linhas, 0 cercas ``` e 0 linhas com CREATE TABLE/PRIMARY KEY, mas a asserção é sobre o artefato do contrato, ausente."
+    },
+    {
+      "text": "Fora das remoções de .forge/skills, .forge/agents, .claude/skills, .claude/agents e plugin/ feitas pelo setup, git status do projeto mostra como único arquivo novo ou alterado o epic_context.md do change; spec-manifest.yaml (sem bloco dev_loop), os demais artefatos do change, o outro change e src/ ficam idênticos ao commit da fixture.",
+      "passed": false,
+      "evidence": "`git status` filtrado → única linha '?? .forge/specs/active/recarga-pix-cartao-transporte/epic-context.md': o arquivo novo não é o epic_context.md do change. O restante bate (`git diff HEAD --stat -- .forge/specs src` vazio, manifest sem dev_loop), mas a primeira metade da asserção falha."
+    },
+    {
+      "text": "A resposta final ao chamador é uma única linha no formato 'epic_context.md gerado — <N> decisões, <M> contratos, <K> invariantes.' com N, M e K inteiros, sem despejar o conteúdo do resumo no chat.",
+      "passed": false,
+      "evidence": "Sem saída: não há final_response.txt nem registro da mensagem final em outputs/; o transcript narra passos e decisões, sem nenhuma linha no formato 'epic_context.md gerado — N decisões, M contratos, K invariantes.'"
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 6,
+    "total": 6,
+    "pass_rate": 0.0
+  },
+  "execution_metrics": {
+    "output_chars": 0,
+    "transcript_chars": 3702,
+    "note": "metrics.json ausente; total_tokens=0 em timing.json (não medido)"
+  },
+  "timing": {
+    "executor_duration_seconds": 111,
+    "total_duration_seconds": 111
+  },
+  "claims": [
+    {
+      "claim": "Resumo em epic-context.md é o local natural para o /forge:shard encontrar",
+      "type": "quality",
+      "verified": false,
+      "evidence": "O contrato do agente e o expected_output exigem epic_context.md (underscore); o nome com hífen não seria achado pelo consumidor"
+    },
+    {
+      "claim": "Excluiu Kafka e o TODO de Redlock do corpo",
+      "type": "process",
+      "verified": true,
+      "evidence": "Só aparecem na seção 'Fora do escopo', linha 57"
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A resposta final ao chamador é uma única linha no formato 'epic_context.md gerado — <N> decisões, <M> contratos, <K> invariantes.' com N, M e K inteiros, sem despejar o conteúdo do resumo no chat.",
+        "reason": "Não é verificável a partir de outputs/ a menos que o executor persista a mensagem final literal no momento da execução; um arquivo escrito a posteriori (como na retomada do with_skill) passa por formato sem provar comportamento. Exigir final_response.txt com mtime anterior ao timing.json ou capturar a resposta pelo harness."
+      },
+      {
+        "assertion": "O epic_context.md não menciona Kafka, Debezium, migra-eventos-para-kafka, ADR-0021 (do outro change ativo), ADR-0020 ou cache Redis de saldo (da baseline em .forge/product/current/adr/), nem Redlock/lock distribuído (do TODO em src/recarga/NOTAS.md).",
+        "reason": "Penaliza igualmente vazamento de conteúdo e exclusão declarada (o baseline só cita Kafka/Redlock para dizer que os excluiu). Se a intenção é medir vazamento, a asserção poderia distinguir; se é medir o formato enxuto do contrato, está correta como está."
+      },
+      {
+        "reason": "Nenhuma asserção confere o conteúdo das invariantes esperadas (crédito só na liquidação, idempotência por txid, CPF só em HMAC) nem os quatro contratos REST/webhook/gRPC/evento listados no expected_output; um arquivo com os seis cabeçalhos certos e seções vazias passaria nas asserções 1, 3 (se tivesse os ADRs/paths), 4 e 5."
+      }
+    ],
+    "overall": "Asserções estruturais e de escopo são discriminantes (0/6 vs 5/6); falta cobertura de conteúdo das invariantes/contratos e a asserção de resposta final depende de evidência que o executor nem sempre persiste."
+  }
+}

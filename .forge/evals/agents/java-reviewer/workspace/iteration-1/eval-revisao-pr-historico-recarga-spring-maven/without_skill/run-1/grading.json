@@ -1,0 +1,51 @@
+{
+  "expectations": [
+    {
+      "text": ".forge/reviews/java-reviewer.json existe, é JSON válido e contém uma lista de findings em que TODO finding tem caminho de arquivo, número de linha inteiro, severidade e um texto de cenário/descrição não vazio",
+      "passed": true,
+      "evidence": "outputs/.forge/reviews/java-reviewer.json existe (cmp idêntico ao de work/, regravado em 2026-09-28 13:22). Chaves em português, como o prompt pediu. Comando: jq -e '.findings|type==\"array\" and length>0 and all(.[]; (.arquivo|type==\"string\" and length>0) and (.linha|type==\"number\" and floor==.) and ((.severidade//\"\")|length>0) and ((.cenario//\"\")|length>0))' → true; 9 findings. Ressalva: formato {reviewer,target,findings[{arquivo,linha,cenario,severidade,categoria}]} não é o contrato do code-evaluator (sem id/title/fix_suggested/rule_violated), mas a asserção não exige isso."
+    },
+    {
+      "text": "Há um finding em src/main/resources/db/migration/V7__renomeia_valor_recarga.sql (linha 2) apontando o RENAME COLUMN como mudança destrutiva/incompatível com o código em produção e referenciando rules/data/schema-evolution.md ou o fluxo expand → migrate/backfill → contract",
+      "passed": false,
+      "evidence": "Nenhum finding no arquivo da migration: jq '[.findings[]|select(.arquivo|test(\"V7|migration\"))]|length' outputs/.forge/reviews/java-reviewer.json → 0; grep -ciE 'schema-evolution|expand|RENAME' → 0. O resumo do transcript.md (itens 1 a 9) também não menciona V7; o RENAME destrutivo passou despercebido."
+    },
+    {
+      "text": "Há um finding em RecargaController.java (ou RecargaService.java) dizendo que o GET /cartoes/{cartaoId}/recargas devolve o histórico de qualquer cartão sem verificar autorização/ownership do titular autenticado",
+      "passed": true,
+      "evidence": "outputs/.forge/reviews/java-reviewer.json finding critical em src/main/java/.../RecargaService.java linha 22: 'recarregar(request) e historico(cartaoId, status) operam sobre qualquer cartaoId ... sem checar que o cartão pertence ao titular autenticado ... CartaoService.buscarDoTitular ... não o usa ... (POST /api/v1/recargas e GET /api/v1/cartoes/{cartaoId}/recargas)'. A asserção aceita RecargaService.java."
+    },
+    {
+      "text": "Há um finding de SQL interpolado/concatenado em RecargaHistoricoQuery.java com linha 17 ou 18 E um finding de N+1 (consulta de cartão por recarga dentro do laço) em RecargaService.java com linha entre 27 e 30",
+      "passed": false,
+      "evidence": "Metade SQL passa: finding critical em RecargaHistoricoQuery.java linha 17 (concatenação de status no WHERE). Metade N+1 falha na linha: o finding de N+1 (categoria performance-n-plus-1) está em RecargaService.java linha 26, fora da faixa 27-30 exigida; na fonte a linha 26 é a assinatura `public List<RecargaHistoricoItem> historico(...)`, e o laço/findById estão em 28/29. O único finding na linha 29 trata de orElseThrow() sem supplier, não de N+1. Conjunção não satisfeita."
+    },
+    {
+      "text": "Há finding sobre injeção por campo (@Autowired em RecargaService.java, linha 14 ou 17) recomendando injeção por construtor como já faz CartaoService, E finding sobre o @RequestBody de RecargaController.java:24 sem @Valid, fazendo o caso de uso rodar sem validar RecargaRequest",
+      "passed": true,
+      "evidence": "outputs/.forge/reviews/java-reviewer.json finding low em RecargaService.java linha 14: 'injeção por campo (@Autowired private ...) ... divergindo do padrão de injeção por construtor já estabelecido em CartaoService e CartaoRepository'. Finding high em RecargaController.java linha 24: 'recarregar(@RequestBody RecargaRequest request) não tem @Valid ... @NotNull e @Positive ... nunca são avaliadas ... valorCentavos negativo ou zero passa direto para a inserção'. Ambas as metades presentes."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 2,
+    "total": 5,
+    "pass_rate": 0.6
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Há um finding de SQL interpolado/concatenado em RecargaHistoricoQuery.java com linha 17 ou 18 E um finding de N+1 (consulta de cartão por recarga dentro do laço) em RecargaService.java com linha entre 27 e 30",
+        "reason": "A faixa de linha 27-30 reprovou um N+1 corretamente identificado ancorado na assinatura do método (linha 26); é defensável exigir a linha do laço, mas vale decidir se o critério mede ancoragem precisa (intenção) ou detecção do problema."
+      },
+      {
+        "assertion": ".forge/reviews/java-reviewer.json existe, é JSON válido e contém uma lista de findings em que TODO finding tem caminho de arquivo, número de linha inteiro, severidade e um texto de cenário/descrição não vazio",
+        "reason": "Aceita qualquer nome de chave; não verifica o formato que o code-evaluator consolida (id/severity/category/title/fix_suggested/rule_violated), que o prompt pede explicitamente. Uma asserção sobre o contrato do code-evaluator discriminaria melhor with/without."
+      },
+      {
+        "reason": "Nenhuma asserção checa 'Nenhum arquivo de src/ alterado' (expected_output). Ambas as runs cumpriram (git -C work status --porcelain -- src vazio), mas convém uma asserção explícita."
+      }
+    ],
+    "overall": "A asserção de V7/schema-evolution é a que mais discrimina o valor do agente; as demais são majoritariamente satisfeitas pelo baseline."
+  }
+}

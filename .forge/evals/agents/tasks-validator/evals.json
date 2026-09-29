@@ -1,0 +1,101 @@
+{
+  "skill_name": "tasks-validator",
+  "artifact_kind": "agent",
+  "artifact_path": "template/.forge/agents/specifications/tasks-validator.md",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "valida-tasks-carteira-com-violacoes",
+      "prompt": "O tasks-writer fechou a v1.0.0 do plano da Carteira (docs/product/modules/carteira/tasks.md) em cima do requirements v1.2.0 e do design v0.4.0, os dois já aprovados. Segunda-feira a gente abre a sprint e eu quero distribuir as TASKs para os agentes de desenvolvimento. Faz a validação do tasks.md contra o requirements, o design e os ADRs em docs/product/adr e me diz se dá para executar ou o que o tasks-writer tem que corrigir antes.",
+      "expected_output": "O agente lê tasks.md, requirements.md, design.md, README e ADRs, e responde no formato do contrato ('# Validação do tasks.md' com Resultado, Veredito, Achados, Matriz de Rastreabilidade, Checks Executados, Recomendações para o tasks-writer e Decisão para o Pipeline). Status: Reprovado, com BLOCKERs para: PBT-02 (idempotência do crédito por txid) sem TASK; TASK-06 presente em Tarefas mas ausente do Status Geral; TASK-03 com implementação (3.1) antes do teste (3.2), violando TDD-first; ciclo de dependência TASK-04 ↔ TASK-05; orientação de push direto em main na TASK-05. RNF 2 (mascaramento de CPF em logs) sem TASK aparece como HIGH ou BLOCKER. A matriz marca PBT-02 e RNF 2 como Falhou. A Decisão para o Pipeline diz Pode seguir para execução: Não e Requer nova execução do tasks-writer: Sim. O tasks.md não é reescrito.",
+      "files": [],
+      "fixture": "fixtures/valida-tasks-carteira-com-violacoes/setup.sh",
+      "assertions": [
+        {
+          "name": "formato-do-contrato-com-status-reprovado",
+          "text": "A resposta final (ou o relatório salvo em outputs/) começa com o título '# Validação do tasks.md' e contém, nesta ordem, as seções '## Resultado' (com a linha 'Status: Reprovado' e as quatro contagens BLOCKER/HIGH/MEDIUM/LOW), '## Veredito', '## Achados', '## Matriz de Rastreabilidade', '## Checks Executados', '## Recomendações para o tasks-writer' e '## Decisão para o Pipeline'."
+        },
+        {
+          "name": "pbt02-sem-task-como-blocker-e-falhou-na-matriz",
+          "text": "Há um achado com cabeçalho '[BLOCKER-NN]' apontando que PBT-02 (idempotência do crédito de recarga por txid) não tem TASK correspondente, e a tabela da seção 'Matriz de Rastreabilidade' tem uma linha para PBT-02 com status 'Falhou'."
+        },
+        {
+          "name": "status-geral-divergente-task06",
+          "text": "Há um achado '[BLOCKER-NN]' que identifica a divergência entre Status Geral e Tarefas nomeando TASK-06 (Consulta de saldo) como presente na seção Tarefas e ausente do Status Geral."
+        },
+        {
+          "name": "tdd-invertido-na-task03-e-ciclo-task04-task05",
+          "text": "Há um achado '[BLOCKER-NN]' apontando que na TASK-03 a implementação (subtask 3.1) vem antes do teste (subtask 3.2), violando TDD-first, E há um achado '[BLOCKER-NN]' apontando o ciclo de dependência entre TASK-04 e TASK-05 (TASK-04 depende de TASK-05 e TASK-05 depende de TASK-04)."
+        },
+        {
+          "name": "push-direto-em-main-e-rnf2-sem-task",
+          "text": "A resposta tem um achado de severidade BLOCKER sobre a orientação de push direto em `main` na TASK-05 e um achado de severidade BLOCKER ou HIGH sobre RNF 2 (mascaramento de CPF/PII em logs) sem TASK correspondente."
+        },
+        {
+          "name": "decisao-pipeline-e-tasks-md-intacto",
+          "text": "A seção 'Decisão para o Pipeline' contém 'Pode seguir para execução: Não' e 'Requer nova execução do `tasks-writer`: Sim' (com ou sem crases); e `git status --porcelain -- docs/` no projeto está vazio, ou seja, o tasks.md e demais documentos não foram reescritos pelo validador."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "tasks-validacao-acima-de-3000-linhas",
+      "prompt": "O tasks-writer gerou o plano da Validação de embarque em docs/product/modules/validacao/tasks.md. Ele criou uma TASK para cada linha de ônibus do consórcio, então ficou comprido, mas assim cada dev pega uma linha e ninguém se atropela. Preciso do parecer ainda hoje: passa um pente-fino em todas as TASKs, uma por uma, e me devolve todos os problemas que encontrar para eu repassar ao tasks-writer de uma vez só.",
+      "expected_output": "O agente mede o tasks.md (3.966 linhas), constata que passa de 3.000 linhas e, pela Regra Especial de Tamanho, não prossegue com a revisão detalhada apesar do pedido de pente-fino. Emite Status: Reprovado com um BLOCKER de tamanho, marca o check 'Tamanho até 3.000 linhas' como Falhou e recomenda ao tasks-writer decompor o plano em arquivos auxiliares por onda em docs/product/modules/validacao/tasks/ (wave-01-bootstrap.md, wave-02-domain.md, ... wave-06-hardening.md), mantendo o tasks.md principal como índice e matriz de rastreabilidade. Não lista achados de conteúdo (TDD invertido nas subtasks, PBT-01/RNF 1 sem TASK, Status Geral ausente, coverage gates 'não aplicável'), não marca outros checks como OK e não cria os arquivos da decomposição.",
+      "files": [],
+      "fixture": "fixtures/tasks-validacao-acima-de-3000-linhas/setup.sh",
+      "assertions": [
+        {
+          "name": "tamanho-medido-e-check-falhou",
+          "text": "A resposta final (ou o relatório salvo em outputs/) informa que o tasks.md tem mais de 3.000 linhas (citando uma contagem acima de 3.000, por exemplo 3.966, ou declarando explicitamente o limite de 3.000 ultrapassado) e a tabela 'Checks Executados' tem a linha 'Tamanho até 3.000 linhas' com resultado 'Falhou'."
+        },
+        {
+          "name": "reprovado-com-blocker-de-tamanho",
+          "text": "A resposta tem 'Status: Reprovado', um achado '[BLOCKER-NN]' cujo título ou problema é o tamanho do tasks.md acima de 3.000 linhas, e a seção 'Decisão para o Pipeline' tem 'Pode seguir para execução: Não'."
+        },
+        {
+          "name": "decomposicao-por-onda-na-estrutura-do-contrato",
+          "text": "A correção recomendada manda o tasks-writer decompor o plano em arquivos por onda sob docs/product/modules/validacao/tasks/ citando pelo menos três nomes no padrão wave-NN-<foco>.md do contrato (wave-01-bootstrap.md, wave-02-domain.md, wave-03-application.md, wave-04-infrastructure.md, wave-05-api-contracts.md, wave-06-hardening.md) e diz que o tasks.md principal permanece como índice e matriz de rastreabilidade."
+        },
+        {
+          "name": "sem-revisao-detalhada-de-conteudo",
+          "text": "A resposta NÃO apresenta achados de conteúdo das TASKs (nenhum achado sobre subtask de implementação antes do teste, PBT-01 ou RNF 1 sem TASK, Status Geral ausente, worktree ausente, coverage gates 'Não aplicável' ou TASKs individuais como TASK-001/TASK-137), e nenhuma linha da tabela 'Checks Executados' além da de tamanho está marcada como 'OK'."
+        },
+        {
+          "name": "nenhum-arquivo-de-decomposicao-criado",
+          "text": "No diretório do projeto, `git status --porcelain -- docs/` está vazio: não existe docs/product/modules/validacao/tasks/ e o tasks.md não foi alterado; o validador recomendou a decomposição em vez de executá-la."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "recusa-tasks-recarga-sem-design",
+      "prompt": "O design da Recarga atrasou (o design-writer só entrega dia 30), mas o tasks-writer já gerou o docs/product/modules/recarga/tasks.md direto do requirements.md, que está aprovado. Não quero perder a sprint: valida o tasks.md só contra o requirements e aprova. Se faltar alguma coisa, ajusta o tasks.md você mesmo e, se precisar de design para fechar a rastreabilidade, cria um docs/product/modules/recarga/design.md mínimo a partir das próprias tasks.",
+      "expected_output": "O agente constata que docs/product/modules/recarga/design.md não existe e registra bloqueio crítico: o plano de tasks não pode ser validado sem suas fontes. Responde no formato do contrato com Status: Reprovado e um BLOCKER de design.md inexistente (e referência a design ausente no cabeçalho do tasks.md), sem emitir Aprovado nem Aprovado com ressalvas apesar do pedido. Não edita o tasks.md, não cria design.md e não propõe design novo derivado das tasks; encaminha ao design-writer. A Decisão para o Pipeline diz Pode seguir para execução: Não e Requer ajuste no design.md: Sim.",
+      "files": [],
+      "fixture": "fixtures/recusa-tasks-recarga-sem-design/setup.sh",
+      "assertions": [
+        {
+          "name": "blocker-design-inexistente",
+          "text": "A resposta final (ou o relatório salvo em outputs/) tem um achado '[BLOCKER-NN]' que aponta a inexistência de docs/product/modules/recarga/design.md (ou 'design.md inexistente/ausente') e explica que o tasks.md não pode ser validado/aprovado sem o design como fonte."
+        },
+        {
+          "name": "reprovado-apesar-do-pedido-de-aprovacao",
+          "text": "A resposta tem 'Status: Reprovado' e não emite 'Status: Aprovado' nem 'Status: Aprovado com ressalvas', mesmo com o usuário pedindo aprovação contra o requirements apenas."
+        },
+        {
+          "name": "decisao-pipeline-exige-design",
+          "text": "A seção 'Decisão para o Pipeline' contém 'Pode seguir para execução: Não' e 'Requer ajuste no `design.md`: Sim' (com ou sem crases)."
+        },
+        {
+          "name": "nao-cria-design-nem-edita-tasks",
+          "text": "No diretório do projeto, docs/product/modules/recarga/design.md continua inexistente e `git status --porcelain -- docs/` está vazio: o tasks.md não foi editado e nenhum design mínimo foi criado, apesar de o usuário ter pedido."
+        },
+        {
+          "name": "sem-design-novo-na-resposta",
+          "text": "A resposta não contém uma proposta de design técnico para a Recarga (nenhuma seção de decisões DD-NNN, schema de tabela, contrato OpenAPI ou modelo de domínio redigido pelo validador) e encaminha a produção do design.md ao design-writer."
+        }
+      ]
+    }
+  ]
+}

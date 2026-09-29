@@ -1,0 +1,80 @@
+{
+  "expectations": [
+    {
+      "text": "Em docs/product/modules/rotativo/tasks.md toda tarefa tem cabeçalho no formato 'TASK-NN' (dois dígitos) e suas subtasks usam 'ST-MM' reiniciando em ST-01 a cada TASK; não existe nenhum heading 'Onda N' contendo checkboxes de ST-NN diretamente abaixo dele (onda aparece só como campo da TASK e na tabela da seção de Ondas).",
+      "passed": false,
+      "evidence": "outputs/docs/product/modules/rotativo/tasks.md tem headings TASK-01..TASK-10 no formato TASK-NN, porém `grep -c 'ST-'` = 0: não existe nenhuma subtask ST-MM. Além disso as TASKs ficam aninhadas sob headings de onda ('## Wave 1 — Esqueleto e domínio' l.13, '## Wave 2' l.41 ... '## Wave 5' l.100), ou seja, onda é seção hierárquica e não atributo."
+    },
+    {
+      "text": "Em toda TASK que implementa lógica (Domain, Application, Infrastructure ou Api), a primeira subtask é marcada como Red/teste que falha e a última é de Encerramento (checks, commit e push); nenhuma TASK dessas camadas tem subtask Green antes de uma Red.",
+      "passed": false,
+      "evidence": "Nenhuma TASK tem subtasks (`grep -c 'ST-'` = 0; `grep -n 'Red'` não acha marcação Red). As TASKs de Domain/Application/Infrastructure/Api (ex.: TASK-03 l.31, TASK-04 l.43, TASK-07 l.72, TASK-08 l.80) são bullets de descrição + 'Critério de aceite', sem Red primeiro nem Encerramento (checks, commit, push) por último."
+    },
+    {
+      "text": "A seção 'Matriz de Rastreabilidade' tem uma linha para cada uma das origens Req 1, Req 2, Req 3, RNF 1, RNF 2, PBT-01, PBT-02, PBT-03, DD-001 e DD-002, cada uma apontando para pelo menos uma TASK que existe na seção de Tarefas.",
+      "passed": false,
+      "evidence": "Não existe seção 'Matriz de Rastreabilidade' (`grep -c 'Matriz de Rastreabilidade'` = 0 junto com os demais títulos canônicos). Há '## Rastreabilidade rápida' (l.109) com as 10 origens apontando para TASKs existentes (ex.: '| PBT-03 (máquina de estados) | TASK-03 |'), mas a asserção exige a seção nomeada 'Matriz de Rastreabilidade'; na dúvida, falha."
+    },
+    {
+      "text": "O conjunto de IDs TASK-NN listados na tabela da seção 'Status Geral' é idêntico ao conjunto de headings TASK-NN da seção 'Tarefas' (nenhum a mais, nenhum a menos), e cada linha traz branch no padrão '<tipo>/rotativo/<NN>-<slug>' com o mesmo NN da TASK.",
+      "passed": false,
+      "evidence": "Não existe seção 'Status Geral' nem tabela de TASKs com branch: `grep -nE 'Status Geral|feat/'` sem resultado. Não há branches '<tipo>/rotativo/<NN>-<slug>' em nenhum ponto do arquivo."
+    },
+    {
+      "text": "O cabeçalho do tasks.md referencia 'requirements.md v1.1.0' e 'design.md v1.0.0' e tem Status 'Rascunho' ou 'Rascunho para revisão' (não 'Aprovado para desenvolvimento', já que o próprio tasks.md ainda não foi aprovado), além de uma tabela 'Histórico de Versões'.",
+      "passed": false,
+      "evidence": "Cabeçalho (l.3-7): 'Status: Pronto para sprint' (não Rascunho) e 'Referência base: requirements.md v1.1.0, design.md v1.0.0' (versões corretas), mas não há tabela 'Histórico de Versões' (`grep -c 'Histórico de Versões'` = 0). Falha em status e histórico."
+    },
+    {
+      "text": "docs/product/modules/rotativo/README.md deixou de mostrar tasks.md como 'Não iniciado' e passou a registrar a versão e o status do novo tasks.md (ou, se não foi editado, a resposta final do agente recomenda explicitamente a atualização do README com versão, status e quantidade de TASKs).",
+      "passed": true,
+      "evidence": "`git -C without_skill/run-1/work diff -- docs/product/modules/rotativo/README.md`: '| tasks.md | — | Não iniciado | — |' → '| tasks.md | 1.0.0 | Pronto para sprint | 2026-09-26 |'. outputs/docs/.../README.md idêntico ao do work (cmp). Registra versão e status do novo tasks.md."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 5,
+    "total": 6,
+    "pass_rate": 0.17
+  },
+  "timing": {
+    "executor_duration_seconds": 137
+  },
+  "claims": [
+    {
+      "claim": "10 TASKs em 5 waves com rastreabilidade requisito→TASK",
+      "type": "factual",
+      "verified": true,
+      "evidence": "headings TASK-01..TASK-10 e tabela 'Rastreabilidade rápida' l.109-124"
+    },
+    {
+      "claim": "TASK-10 trata o teste de arquitetura NetArchTest como gate contínuo a partir de TASK-01",
+      "type": "factual",
+      "verified": true,
+      "evidence": "tasks.md l.102-108: '### TASK-10 — Teste de arquitetura (NetArchTest)', 'Regra NetArchTest: Rotativo.Domain não referencia ...', 'Depende de: TASK-01 (roda continuamente a partir daí...)'."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "docs/product/modules/rotativo/README.md deixou de mostrar tasks.md como 'Não iniciado' e passou a registrar a versão e o status do novo tasks.md (ou, se não foi editado, a resposta final do agente recomenda explicitamente a atualização do README com versão, status e quantidade de TASKs).",
+        "reason": "Passa com qualquer status escrito no README, inclusive um status incorreto ('Aprovado para desenvolvimento' ou 'Pronto para sprint'); considere exigir que o status do README seja igual ao do cabeçalho do tasks.md e seja de rascunho."
+      },
+      {
+        "assertion": "A seção 'Matriz de Rastreabilidade' tem uma linha para cada uma das origens Req 1, Req 2, Req 3, RNF 1, RNF 2, PBT-01, PBT-02, PBT-03, DD-001 e DD-002, cada uma apontando para pelo menos uma TASK que existe na seção de Tarefas.",
+        "reason": "O baseline tinha as 10 origens corretamente mapeadas numa tabela com outro título; a falha é só de nome de seção. Se a intenção é medir cobertura, a asserção deveria separar nome canônico da cobertura; se é medir conformidade de formato, já está coberto pela checagem das nove seções."
+      },
+      {
+        "reason": "Nenhuma asserção verifica a presença das nove seções obrigatórias (Coverage Gates, Critérios de Encerramento, Riscos, Referências) citadas no expected_output, nem ADR-0001/0002 na matriz."
+      }
+    ],
+    "overall": "Asserções discriminam bem formato canônico (ST-MM, Status Geral, Red-first) e pegaram o erro de status do with_skill; a do README é fraca."
+  },
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [
+      "subagent-dispatch-simulado.md registra despacho hipotético (haiku/sonnet/opus), nada executado"
+    ],
+    "workarounds": []
+  }
+}

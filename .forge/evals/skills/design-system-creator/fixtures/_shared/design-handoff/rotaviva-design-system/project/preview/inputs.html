@@ -1,0 +1,9 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><link rel="stylesheet" href="../colors_and_type.css"><style>
+.field{display:flex;flex-direction:column;gap:var(--s-1);font-family:var(--font-ui)}
+.input{height:48px;padding:0 var(--s-4);border:1px solid var(--n-300);border-radius:var(--r-md)}
+.input:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.input[aria-invalid=true]{border-color:var(--danger)}
+.hint{font-size:var(--fs-12);color:var(--fg-muted)}
+</style></head><body>
+<label class="field">Valor da recarga<input class="input" placeholder="R$ 0,00"><span class="hint">Mínimo R$ 5,00</span></label>
+</body></html>

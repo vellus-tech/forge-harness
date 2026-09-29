@@ -1,0 +1,80 @@
+{
+  "expectations": [
+    {
+      "text": "review/python-reviewer.json é JSON válido com a chave `reviewer` igual a \"python-reviewer\" e uma lista `findings` em que todo item tem `id`, `severity` (BLOCKER|HIGH|MEDIUM|LOW), `category`, `file`, `line` numérico e `description` — não é um markdown livre nem um JSON com outro formato",
+      "passed": true,
+      "evidence": "Checagem por comando: jq -c '{r:.reviewer, ok:([.findings[] | (has(\"id\") and has(\"category\") and has(\"description\") and (.line|type==\"number\") and (.severity|IN(\"BLOCKER\",\"HIGH\",\"MEDIUM\",\"LOW\")))] | all)}' <review>. Resultado em outputs/review/python-reviewer.json: r=\"python-reviewer\", ok=true, 7 findings com severidades [BLOCKER,HIGH,HIGH,HIGH,MEDIUM,MEDIUM,LOW]; todos com id PY-00N, category, file, line numérico, description (linhas 1-89). cmp confirma que é idêntico a work/review/python-reviewer.json."
+    },
+    {
+      "text": "Há um finding com file app/recargas/router.py e line 24 (ou intervalo que inclua 24) apontando `requests.post` síncrono dentro da rota `async def criar_recarga` como chamada bloqueante no event loop, sugerindo cliente assíncrono (ex.: httpx.AsyncClient, já no pyproject) ou execução fora do loop",
+      "passed": false,
+      "evidence": "O conteúdo está certo, mas a linha não: PY-001 (review/python-reviewer.json linhas 5-14) aponta `requests.post` bloqueante em `async def criar_recarga` e sugere httpx.AsyncClient, porém com \"line\": 20. `git -C work show HEAD:app/recargas/router.py | grep -n requests.post` devolve 24; a linha 20 é `usuario_id: int = Depends(usuario_atual)`. PY-006 também usa line 20. A asserção exige line 24 ou um intervalo que inclua 24, então falha. O transcript (seção 4, item 1) repete o `router.py:20` errado."
+    },
+    {
+      "text": "Há um finding com severidade BLOCKER ou HIGH em app/recargas/router.py linha 23 apontando que `settings.gateway_api_key` é escrito no log",
+      "passed": false,
+      "evidence": "PY-002 (linhas 17-27) tem severidade HIGH e acusa corretamente `settings.gateway_api_key` no `logger.info`, mas com \"line\": 19. O grep -n no HEAD da fixture mostra gateway_api_key na linha 23; a linha 19 é `payload: dict[str, Any],`. A asserção fixa a linha 23, então falha pela âncora. É o mesmo deslocamento de -4 linhas visto em PY-001."
+    },
+    {
+      "text": "Há um finding sobre GET /recargas/{recarga_id} (router.py, linhas 33 a 40) apontando que a consulta não filtra por `usuario_id` (acesso a recarga de outro usuário) E que não existe teste de ownership para o endpoint em tests/",
+      "passed": true,
+      "evidence": "PY-004 (linhas 40-51): file app/recargas/router.py, line 36 (dentro de 33-40), descrição \"a query (`SELECT * FROM recargas WHERE id = :id`) não filtra por `usuario_id`... IDOR clássico. Não há teste cobrindo esse cenário.\", e fix_suggested pede \"cobrir com teste de ownership\". O mesmo finding cobre as duas metades da asserção. PY-007 reforça o ponto: tests/test_recargas.py só testa o POST."
+    },
+    {
+      "text": "Há um finding em alembic/versions/0002_valor_em_centavos.py (linhas 10-11) que cita `schema-evolution` (em `rule_violated` ou na descrição) e aponta a remoção de `valor` com criação de `valor_centavos` NOT NULL no mesmo passo como mudança destrutiva sem expand/backfill/contract ou com perda dos valores existentes",
+      "passed": true,
+      "evidence": "PY-003 (linhas 28-39): file alembic/versions/0002_valor_em_centavos.py, line 11 (dentro de 10-11), rule_violated \".forge/rules/data/schema-evolution.md § Fluxo padrão (Expand/Migrate-backfill/Contract)\". A descrição aponta `drop_column(\"valor\")` seguido de `add_column(\"valor_centavos\", ..., nullable=False)` no mesmo passo, sem backfill, com o valor histórico \"apagado de forma irreversível\". jq confirma 1 finding que cita schema-evolution."
+    },
+    {
+      "text": "Nenhum finding tem `file` apontando para app/legado/relatorio.py (o SQL por f-string pré-existente fora do diff não entra na revisão), e `git -C <alvo> status --porcelain -- app/ alembic/ tests/` sai vazio",
+      "passed": true,
+      "evidence": "jq '[.findings[]|select(.file|test(\"legado\"))]|length' devolve 0. `git -C with_skill/run-1/work status --porcelain -- app/ alembic/ tests/` sai vazio (rc=0). O status geral mostra só `?? review/` e deleções de .claude/.forge, que são ruído da fixture fora dos caminhos da asserção."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 2,
+    "total": 6,
+    "pass_rate": 0.67
+  },
+  "timing": {
+    "executor_duration_seconds": 188,
+    "total_duration_seconds": 188
+  },
+  "claims": [
+    {
+      "claim": "PY-001 e PY-006 em router.py:20; PY-002 em router.py:19",
+      "type": "factual",
+      "verified": false,
+      "evidence": "grep -n no HEAD: requests.post=24, gateway_api_key=23"
+    },
+    {
+      "claim": "Leu template/.forge/rules/data/schema-evolution.md e o contrato do code-evaluator",
+      "type": "process",
+      "verified": true,
+      "evidence": "rule_violated de PY-003 cita a seção do arquivo; o formato bate com o contrato (jq ok=true)"
+    },
+    {
+      "claim": "PY-005 payload dict[str, Any] em router.py:14",
+      "type": "factual",
+      "verified": false,
+      "evidence": "a linha 14 é `router = APIRouter(...)`; o payload está na 19"
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Há um finding com file app/recargas/router.py e line 24 (ou intervalo que inclua 24) apontando `requests.post` síncrono dentro da rota `async def criar_recarga` como chamada bloqueante no event loop, sugerindo cliente assíncrono (ex.: httpx.AsyncClient, já no pyproject) ou execução fora do loop",
+        "reason": "Na configuração com a skill, a asserção separou bem o finding certo com âncora errada (line 20 em vez de 24). Mas a asserção 2 e a 3 derrubam o mesmo defeito sistemático (deslocamento de -4 linhas) duas vezes. Vale uma asserção própria de precisão de âncora (todas as `line` batem com o grep no HEAD) para não contar o mesmo erro em dobro nas asserções de conteúdo."
+      },
+      {
+        "assertion": "Há um finding sobre GET /recargas/{recarga_id} (router.py, linhas 33 a 40) apontando que a consulta não filtra por `usuario_id` (acesso a recarga de outro usuário) E que não existe teste de ownership para o endpoint em tests/",
+        "reason": "O critério de um único finding com as duas metades (filtro + teste) penaliza quem reporta a falta de teste num finding próprio em tests/, que é uma organização legítima. Sugiro aceitar a ausência de teste de ownership em qualquer finding."
+      },
+      {
+        "reason": "Nenhuma asserção cobre o payload `dict[str, Any]` sem justificativa, que está no expected_output. As duas configurações reportaram esse ponto, então hoje ele não discrimina, mas continua descoberto."
+      }
+    ],
+    "overall": "As asserções de contrato (1) e de citação de regra (5) são as que realmente discriminam a skill. As de conteúdo com âncora de linha (2, 3) punem com rigor um erro de linha real, que é relevante para o code-evaluator."
+  }
+}

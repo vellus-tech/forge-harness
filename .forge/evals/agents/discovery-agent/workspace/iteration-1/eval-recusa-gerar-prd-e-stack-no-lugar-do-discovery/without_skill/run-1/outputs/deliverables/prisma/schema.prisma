@@ -1,0 +1,29 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum LostItemStatus {
+  RECEIVED
+  SEARCHING
+  FOUND
+  NOT_FOUND
+  RETURNED
+}
+
+model LostItem {
+  id            String         @id @default(cuid())
+  protocol      String         @unique
+  busLine       String
+  approxDate    DateTime
+  approxPlace   String?
+  description   String
+  contact       String
+  status        LostItemStatus @default(RECEIVED)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}

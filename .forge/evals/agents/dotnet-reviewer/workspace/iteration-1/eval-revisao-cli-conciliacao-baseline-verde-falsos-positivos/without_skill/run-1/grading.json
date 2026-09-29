@@ -1,0 +1,73 @@
+{
+  "expectations": [
+    {
+      "text": "review/resumo.md registra que o baseline de build (dotnet-baseline.sh --check) passou, e nenhum finding em review/dotnet-review.json tem id ou title DOTNET-BASELINE.",
+      "passed": false,
+      "evidence": "resumo.md não menciona dotnet-baseline.sh nem baseline de build (grep -i 'baseline' em outputs/review retorna vazio); só registra 'CI verde' (resumo.md:3) e dotnet-review.json:4 'ci_status: verde (informado pelo usuário...)'. transcript.md não contém execução de dotnet-baseline.sh. A parte 'sem finding DOTNET-BASELINE' é verdadeira, mas a primeira metade falha."
+    },
+    {
+      "text": "Nenhum finding em review/dotnet-review.json aponta tools/Conciliacao.Cli/Program.cs linha 30 (o GetAwaiter().GetResult() no Main síncrono), e review/resumo.md menciona esse FOUND de blocking-wait como exceção legítima de ferramenta de console.",
+      "passed": true,
+      "evidence": "Nenhum finding aponta Program.cs:30 (F2 em Program.cs:27 trata de falta de try/catch; F1 teste; F3 Conciliador.cs:12). resumo.md:7 descarta explicitamente 'o `GetAwaiter().GetResult()` em `Main` não tem risco de deadlock nesse contexto de console app'; dotnet-review.json:50-51 idem. Ressalva: não houve scan nem 'FOUND' formal, mas a exceção legítima de console é registrada no resumo."
+    },
+    {
+      "text": "Nenhum finding em review/dotnet-review.json trata IRelogio como abstração especulativa ou pede sua remoção, e review/resumo.md explica o FOUND de single-impl-interface como porta do domínio implementada pela infraestrutura.",
+      "passed": false,
+      "evidence": "Nenhum finding trata IRelogio (ok), mas resumo.md não menciona IRelogio nem single-impl-interface/porta do domínio (grep -i 'IRelogio\\|porta' em outputs/review vazio). A segunda metade da asserção não é satisfeita."
+    },
+    {
+      "text": "Nenhum finding em review/dotnet-review.json trata de using não usado (using System.Text em Conciliador.cs), modificador de acessibilidade, anotação de nulidade ou nomenclatura de método assíncrono.",
+      "passed": true,
+      "evidence": "Findings F1 (teste tautológico), F2 (tratamento de exceção no CLI), F3 (semântica de ConciliadoEm); nenhum sobre using System.Text, modificador de acesso, nulidade ou nomenclatura Async."
+    },
+    {
+      "text": "Há um finding com file terminando em tests/Conciliacao.Testes/ConciliadorTests.cs e line 19 (Assert.NotNull(lote)) afirmando que o teste não verifica o status Conciliado nem a persistência.",
+      "passed": true,
+      "evidence": "F1 (dotnet-review.json:10-11): arquivo 'tests/Conciliacao.Testes/ConciliadorTests.cs', linha 19, descrição: 'não verifica lote.Status (deveria virar StatusLote.Conciliado) e não verifica se o repositório em memória recebeu a chamada de SalvarAsync'. Ressalva: chaves em português (arquivo/linha) em vez de file/line; julgado pela semântica."
+    },
+    {
+      "text": "Há um finding em src/Conciliacao.Dominio/Conciliador.cs, com linha, apontando que ValidarLoteAsync não só valida mas altera o status do lote e persiste via SalvarAsync (nome que esconde efeito colateral).",
+      "passed": false,
+      "evidence": "Nenhum finding sobre ValidarLoteAsync esconder efeito colateral; F3 (Conciliador.cs:12) trata só da semântica do campo ConciliadoEm."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 3,
+    "total": 6,
+    "pass_rate": 0.5
+  },
+  "claims": [
+    {
+      "claim": "Assert.NotNull(lote) na linha 19",
+      "type": "factual",
+      "verified": true,
+      "evidence": "git show feature/conciliacao-cli:tests/Conciliacao.Testes/ConciliadorTests.cs | cat -n linha 19"
+    },
+    {
+      "claim": "ConciliadoEm em Conciliador.cs linha 12",
+      "type": "factual",
+      "verified": false,
+      "evidence": "linha 12 é lote.Status = ...; ConciliadoEm está na linha 13"
+    },
+    {
+      "claim": "CI verde",
+      "type": "process",
+      "verified": false,
+      "evidence": "transcript.md não roda dotnet-baseline.sh nem build; o status verde é só repetido do usuário (dotnet-review.json:4)"
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Nenhum finding em review/dotnet-review.json aponta tools/Conciliacao.Cli/Program.cs linha 30 ...",
+        "reason": "A config sem skill não roda scan, então não há FOUND; passou por descartar explicitamente o GetAwaiter em Main de console (resumo.md:7). Se a intenção é exigir o scan, a asserção deve pedir a menção ao scan/regra blocking-wait."
+      },
+      {
+        "assertion": "Há um finding com file terminando em tests/Conciliacao.Testes/ConciliadorTests.cs e line 19",
+        "reason": "Sem skill, o JSON usa chaves arquivo/linha; julgado pela semântica. Se o schema file/line for requisito, torne-o asserção própria."
+      }
+    ],
+    "overall": "Asserções 1 e 3 separam bem as configurações."
+  }
+}

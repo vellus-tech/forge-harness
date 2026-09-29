@@ -1,0 +1,77 @@
+{
+  "expectations": [
+    {
+      "text": "Existe docs/product/frd-nfrd/nfrd.md e `git diff --exit-code -- docs/product/prd/prd.md docs/discovery/discovery-notes.md` sai com código 0 (nenhum arquivo de entrada foi alterado).",
+      "passed": true,
+      "evidence": "`test -f with_skill/run-1/work/docs/product/frd-nfrd/nfrd.md` rc=0 (cópia idêntica em outputs, `diff` sem diferença); `git -C with_skill/run-1/work diff --exit-code -- docs/product/prd/prd.md docs/discovery/discovery-notes.md` rc=0; `git status --short` mostra só `?? docs/product/frd-nfrd/` como adição (os ' D' de .claude/.forge agents/skills são remoção do setup.sh da fixture, não do executor)."
+    },
+    {
+      "text": "O nfrd.md contém uma seção 'Decisão por Categoria' com uma tabela em que aparecem as 14 categorias PERF, DISP, ESC, RES, SEG, PRIV, COMP, OBS, AUD, INT, USA, MAN, POR e OPS, cada uma com decisão explícita Sim/Não; toda linha 'Não' tem justificativa não vazia.",
+      "passed": true,
+      "evidence": "with_skill/run-1/outputs/docs/product/frd-nfrd/nfrd.md:58-75 '## 7. Decisão por Categoria' com tabela das 14 categorias PERF, DISP, ESC, RES, SEG, PRIV, COMP, OBS, AUD, INT, USA, MAN, POR, OPS, coluna 'Aplicável?' Sim/Não; única linha 'Não' (POR, linha 74) tem justificativa: 'PRD não menciona requisito de multi-ambiente, multi-cloud ou multi-arch...'."
+    },
+    {
+      "text": "Todos os requisitos seguem o formato de ID NFR-<CAT>-NN (ex.: NFR-PERF-01) e cada um tem, na sua tabela, os campos Meta, Método de medição e Fonte de dados preenchidos (nenhum vazio ou só com '—').",
+      "passed": true,
+      "evidence": "`grep -c '^### NFR-' with_skill/run-1/outputs/docs/product/frd-nfrd/nfrd.md` = 30 e `grep -c '^### NFR-(PERF|DISP|...|OPS)-[0-9][0-9] '` = 30 (todos no formato NFR-<CAT>-NN com os 14 códigos); `grep -c '^| **Meta** | '`, '**Método de medição**' e '**Fonte de dados**' = 30 cada, e nenhuma dessas linhas é vazia ou só '—' (grep por '| — |$' sem resultado). Ressalva: várias Metas são placeholders sem número (ex.: linha 190 'RTO e RPO numéricos — Proposto pelo NFRD — validar com produto'), o que a letra da asserção não proíbe."
+    },
+    {
+      "text": "Existe um NFR de latência de validação com meta em percentil explícito (p95 ≤ 500 ms, rastreado a KPI-01) e um NFR de disponibilidade de 99,5% com janela mensal explícita, rastreado a R-04.",
+      "passed": true,
+      "evidence": "with_skill/run-1/outputs/docs/product/frd-nfrd/nfrd.md:79-92 NFR-PERF-01 'Meta | p95 ≤ 500 ms', 'Origem | KPI-01'; with_skill/run-1/outputs/docs/product/frd-nfrd/nfrd.md:124-137 NFR-DISP-01 'Meta | ≥ 99,5% de disponibilidade mensal', 'Origem | R-04'."
+    },
+    {
+      "text": "A premissa do PRD 'portal e app rápidos e fáceis de usar' não vira texto vago: há ao menos um NFR com meta numérica para o portal ou app cuja Origem está marcada literalmente 'Proposto pelo NFRD — validar com produto' (ou 'Inferência Não Funcional'), e a seção 'Pontos a Validar' traz o item correspondente com quem decide.",
+      "passed": false,
+      "evidence": "with_skill/run-1/outputs/docs/product/frd-nfrd/nfrd.md:454-467 NFR-USA-01 cobre portal/app, mas a Meta (linha 460) é 'Meta numérica de usabilidade (ex.: tempo de tarefa, taxa de sucesso de consulta) — Proposto pelo NFRD — validar com produto.' — não há valor numérico; e a Origem (linha 465) é 'PRD §8 (Premissas) — jargão não verificável na origem, meta concreta é inferência do NFRD', não o marcador literal 'Proposto pelo NFRD — validar com produto' nem 'Inferência Não Funcional'. A parte de Pontos a Validar passaria (linha ~600: 'Meta numérica de usabilidade do portal/app (NFR-USA-01) | Produto + UX'), mas a asserção exige meta numérica."
+    },
+    {
+      "text": "O nfrd.md tem a seção 'Matriz de Rastreabilidade PRD → NFRD' com linhas para KPI-01, KPI-03, R-01, R-02, R-03 e R-04; o resumo final da resposta tem a seção 'ADRs Sugeridos' (tabela com ID sugerido, Título, Origem NFR, Severidade e Justificativa, ou a frase 'Nenhum ADR sugerido nesta geração.'), e nenhum arquivo foi criado em docs/product/adr/.",
+      "passed": true,
+      "evidence": "with_skill/run-1/outputs/docs/product/frd-nfrd/nfrd.md:537-560 '## 10. Matriz de Rastreabilidade PRD → NFRD' com linhas KPI-01, KPI-03, R-01, R-02, R-03, R-04; with_skill/run-1/outputs/resultado-geracao-nfrd.md §6 'ADRs Sugeridos (delegação a adr-writer)' com tabela 'ID sugerido | Título proposto | Origem (NFR) | Severidade | Justificativa breve' (3 linhas); `ls with_skill/run-1/work/docs/product/adr` → 'No such file or directory' (nenhum ADR criado; despachos a adr-writer só registrados em outputs/dispatch-simulado.md)."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 1,
+    "total": 6,
+    "pass_rate": 0.8333
+  },
+  "timing": {
+    "executor_duration_seconds": 350,
+    "total_duration_seconds": 350
+  },
+  "claims": [
+    {
+      "claim": "30 NFRs; Alta 22, Média 7, Baixa 1",
+      "type": "factual",
+      "verified": true,
+      "evidence": "grep -c '^### NFR-' = 30; prioridades não recontadas"
+    },
+    {
+      "claim": "Nenhum arquivo de entrada foi alterado",
+      "type": "process",
+      "verified": true,
+      "evidence": "git diff --exit-code rc=0"
+    },
+    {
+      "claim": "premissa 'rápido e fácil' virou NFR-USA-01 com meta explicitamente marcada",
+      "type": "quality",
+      "verified": false,
+      "evidence": "a marca existe, mas a meta não tem número; a premissa continua sem meta verificável"
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Todos os requisitos seguem o formato de ID NFR-<CAT>-NN (ex.: NFR-PERF-01) e cada um tem, na sua tabela, os campos Meta, Método de medição e Fonte de dados preenchidos (nenhum vazio ou só com '—').",
+        "reason": "A asserção aceita qualquer texto não vazio em Meta; no with_skill, 6 NFRs (RES-02, AUD-03, USA-01, OPS-01, OPS-03, e DISP-02 parcialmente) têm Meta sem valor numérico ('RTO e RPO numéricos — Proposto pelo NFRD — validar com produto'), o que passa a asserção mas não é meta verificável. Considerar exigir valor numérico/limiar na Meta."
+      },
+      {
+        "assertion": "A premissa do PRD 'portal e app rápidos e fáceis de usar' não vira texto vago: há ao menos um NFR com meta numérica para o portal ou app cuja Origem está marcada literalmente 'Proposto pelo NFRD — validar com produto' (ou 'Inferência Não Funcional'), e a seção 'Pontos a Validar' traz o item correspondente com quem decide.",
+        "reason": "A asserção exige marcador na Origem e meta numérica; o with_skill pôs o marcador na Meta e deixou a meta sem número. Vale decidir se o marcador na Meta é aceitável, mas a ausência de número é falha substantiva."
+      }
+    ],
+    "overall": "Asserções discriminam bem (5/6 vs 1/6); a de metas preenchidas é branda demais."
+  }
+}

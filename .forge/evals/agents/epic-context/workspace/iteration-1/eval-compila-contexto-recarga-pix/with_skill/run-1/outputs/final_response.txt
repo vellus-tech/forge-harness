@@ -1,0 +1,1 @@
+epic_context.md gerado — 6 decisões, 4 contratos, 6 invariantes.

@@ -1,0 +1,13 @@
+{
+  "change_id": "2026-09-estorno-tarifa-duplicada",
+  "updated_at": "2026-09-28T00:00:00Z",
+  "current_wave": "W2",
+  "current_story": null,
+  "total_stories": 6,
+  "done_stories": 6,
+  "total_tasks": 6,
+  "done_tasks": 6,
+  "open_deferrals": 0,
+  "last_commit": "e07b2d1",
+  "notes": "W2 fechada em 2026-09-28. Não há W3 definida em waves.json nem stories adicionais em tasks.md após STORY-06 — não foi aberta próxima wave. DEFER-02 está com status resolved (UX aprovou o texto do push), mas ainda não foi movido para tested; revisar antes de considerar o change pronto para /forge:verify."
+}

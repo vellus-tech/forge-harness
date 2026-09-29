@@ -1,0 +1,57 @@
+{
+  "expectations": [
+    {
+      "text": "Existem docs/product/ddd/context-map/README.md, relations.md, patterns.md e diagram.md; diagram.md contém um bloco ```mermaid com flowchart e relations.md é uma tabela com as colunas Origem, Destino, Tipo de Relação, Padrão DDD e Contrato",
+      "passed": true,
+      "evidence": "`test -f` nos quatro arquivos de outputs/docs/product/ddd/context-map/{README,relations,patterns,diagram}.md: todos existem. `grep -n` em diagram.md: linha 3 '```mermaid', linha 4 'flowchart LR'. relations.md linha 3: '| Origem | Destino | Tipo de Relação | Padrão DDD | Contrato | Observações |' — as cinco colunas exigidas presentes."
+    },
+    {
+      "text": "Existem os diretórios docs/product/ddd/subdomains/core, subdomains/supporting, subdomains/generic, bounded-contexts, context-map e diagrams; cada subdomínio tem README em subdomains/<core|supporting|generic>/<slug-kebab-case>/README.md (não um arquivo único listando todos) e cada bounded context tem docs/product/ddd/bounded-contexts/<slug>/README.md com as seções numeradas do Bounded Context Canvas (inclui '## 12. Dados Próprios')",
+      "passed": true,
+      "evidence": "`test -d` OK para ddd/subdomains/{core,supporting,generic}, ddd/bounded-contexts, ddd/context-map e ddd/diagrams. Um README por subdomínio em slug kebab-case: subdomains/core/{fare-collection,passenger-wallet,settlement}/README.md, supporting/recharge/README.md, generic/{identity-and-access,notification}/README.md. Os seis bounded-contexts/<slug>/README.md têm 15 seções '## N.' (`grep -c '^## [0-9]'`) e '## 12. Dados Próprios' (ex.: fare-collection/README.md:69, recharge/README.md:65, settlement/README.md:64). Ressalva de qualidade não coberta pela asserção: passenger-wallet e settlement foram classificados como Core, enquanto o expected_output esperava Supporting."
+    },
+    {
+      "text": "docs/product/ddd/diagrams/index.html existe, carrega mermaid.min.js de CDN, tem três abas/painéis para C4 Level 1, 2 e 3 com blocos class=\"mermaid\" não vazios, e o <title> contém 'Tarifa Viva' (lido do project_display do AGENTS.md), sem o placeholder literal '${project_display}'; os três arquivos c4-level-1-system-context.md, c4-level-2-containers.md e c4-level-3-components.md existem com Mermaid",
+      "passed": true,
+      "evidence": "ddd/diagrams/index.html existe; linha 6 '<title>Diagramas C4 — Tarifa Viva</title>' (work/AGENTS.md:9 'project_display: Tarifa Viva'); linha 7 carrega 'https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js'; linhas 28-30 três botões de aba 'Level 1 — System Context', 'Level 2 — Containers', 'Level 3 — Components'; `grep -c 'class=\"mermaid\"'` = 3, com conteúdo de 420, 1434 e 761 caracteres (todos iniciando em 'flowchart TB'); `grep project_display index.html` sem ocorrência. c4-level-1-system-context.md, c4-level-2-containers.md e c4-level-3-components.md existem, cada um com um bloco ```mermaid."
+    },
+    {
+      "text": "docs/product/glossary/ubiquitous-language.md tem uma seção '## <Bounded Context>' por contexto e o termo 'Validação'/'Validation' aparece com definições distintas em pelo menos dois contextos (ato de embarque no validador vs aprovação antifraude da recarga) ou é explicitamente marcado como ambíguo — não há uma única definição global do termo",
+      "passed": true,
+      "evidence": "glossary/ubiquitous-language.md tem uma seção por contexto (linhas 15, 25, 34, 41, 49, 55: Fare Collection, Passenger Wallet, Recharge, Settlement, Identity and Access, Notification) e a seção '## Alerta de ambiguidade — \"validação\" (VAL-05)' (linha 6), que marca o termo como ambíguo e distingue explicitamente embarque em Fare Collection (linha 10, termo canônico Boarding) de checagem antifraude em Recharge (linha 11, Fraud Check); linhas 19 e 39 repetem a distinção nas tabelas dos contextos. Não há definição global única."
+    },
+    {
+      "text": "docs/product/ddd/context-map/patterns.md ou relations.md registra 'Anti-Corruption Layer' na relação entre o contexto de embarque e o firmware/sincronização do fornecedor ValidaBus, citando a instabilidade do modelo (TEC-03) como justificativa",
+      "passed": true,
+      "evidence": "relations.md linha 10: '| Fare Collection | Firmware ValidaBus (externo) | Consome/traduz de | Anti-Corruption Layer | Protocolo proprietário de sincronização em lote | Isola o domínio interno do modelo instável (TEC-03) |'; patterns.md linha 5: '| Anti-Corruption Layer | Fare Collection → Firmware ValidaBus | Protege o domínio interno do modelo de dados instável entre versões de firmware (TEC-03) |'."
+    },
+    {
+      "text": "docs/product/data-model/data-model.md contém a tabela '## Controle de Versão' com linha v1.0, uma 'Data Ownership Matrix' em que cada tabela/collection (snake_case) tem exatamente um Dono da Escrita, e uma seção de Fronteiras de Persistência com coluna Permitido? (Sim/Não) e Forma Correta",
+      "passed": true,
+      "evidence": "data-model/data-model.md: linha 3 '## Controle de Versão', linha 6 '| v1.0 | 2026-09-26 | ...'; linha 15 '## 2. Data Ownership Matrix' com coluna 'Dono da Escrita' (linha 16) e 12 linhas, cada tabela em snake_case (boardings, tariff_rules, boarding_batches, wallets, balance_ledger_entries, card_block_list, recharge_requests, clearing_batches, clearing_line_items, clearing_adjustments, passenger_accounts, notification_log) com um único dono; linha 70 '## 4. Fronteiras de Persistência' com cabeçalho '| Origem | Destino | Permitido? | Forma Correta | Observação |' (linha 71). Ressalva: a última linha usa 'Não aplicável' em Permitido?, não Sim/Não, e nenhuma linha é 'Sim' — aceitável, porque a asserção exige a coluna, não a presença dos dois valores."
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 918000,
+    "total_duration_seconds": 918
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "docs/product/glossary/ubiquitous-language.md tem uma seção '## <Bounded Context>' por contexto e o termo 'Validação'/'Validation' aparece com definições distintas em pelo menos dois contextos (ato de embarque no validador vs aprovação antifraude da recarga) ou é explicitamente marcado como ambíguo — não há uma única definição global do termo",
+        "reason": "Sem a skill, o glossário desambiguou 'validação' corretamente em ddd/04-glossario.md, e o context map citou ACL com TEC-03; falhou só pelo caminho. As asserções 4 e 5 medem o contrato de caminho, não a qualidade de domínio. Vale separar uma asserção de conteúdo, agnóstica de caminho, para o delta A/B não ser só de layout."
+      },
+      {
+        "reason": "Nenhuma asserção cobre a classificação de subdomínios que o expected_output descreve (wallet e clearing como Supporting). Com a skill, passenger-wallet e settlement saíram como Core e passaram em tudo."
+      }
+    ],
+    "overall": "As asserções discriminam bem a aderência à árvore contratual, mas quase não medem o conteúdo de domínio."
+  }
+}

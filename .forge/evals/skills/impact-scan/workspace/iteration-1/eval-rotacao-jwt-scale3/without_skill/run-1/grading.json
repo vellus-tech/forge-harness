@@ -1,0 +1,45 @@
+{
+  "expectations": [
+    {
+      "text": "Existe .forge/specs/active/2026-09-rotacao-jwt/impact.json e `node .forge/scripts/lib/impact-freshness.mjs .forge/specs/active/2026-09-rotacao-jwt .` imprime exatamente 'fresh'.",
+      "passed": false,
+      "evidence": "`ls work/.forge/specs/active/2026-09-rotacao-jwt/` não lista impact.json; `node .forge/scripts/lib/impact-freshness.mjs .forge/specs/active/2026-09-rotacao-jwt .` imprimiu 'missing'."
+    },
+    {
+      "text": "O campo impacted do impact.json contém src/api/server.ts, src/api/routes/payments.ts, src/api/routes/users.ts, src/middleware/auth.ts e src/middleware/rate-limit.ts, e NÃO contém src/billing/invoice.ts nem src/utils/logger.ts (dependências, não dependentes).",
+      "passed": false,
+      "evidence": "impact.json inexistente (`jq` → 'Could not open file'). O conjunto correto aparece só em prosa em outputs/impact-report.md, não no campo impacted exigido."
+    },
+    {
+      "text": "O sha256 de .forge/graph/graph.json ao fim da execução é igual ao valor gravado pelo setup em .git/eval-graph.sha256 (o grafo não foi reconstruído nem atualizado).",
+      "passed": true,
+      "evidence": "`cat work/.git/eval-graph.sha256` = 6a523385…fabc e `shasum -a 256 work/.forge/graph/graph.json` = 6a523385…fabc (idênticos); transcript.md passo 5 só leu o grafo."
+    },
+    {
+      "text": "Existe /tmp/impact-scan.log contendo a linha 'OK impact: 2 seed(s) -> 7 impacted' (saída bruta do script redirecionada, conforme §17.6).",
+      "passed": false,
+      "evidence": "`ls -la /tmp/impact-scan.log` → No such file or directory; o script de impacto não foi executado (transcript.md passos 3-10: análise manual por cat). Reverificado em 2026-09-28: /tmp/impact-scan.log existe agora (mtime 28 set 13:09, posterior à execução de 26 set), mas contém 'OK impact: 3 seed(s) -> 6 impacted' com caminhos de refunds/billing, ou seja, é de outro caso de eval e não contém a linha exigida; `grep -rn impact-scan.log outputs/` não retorna nada."
+    },
+    {
+      "text": "A resposta final contém uma linha no formato 'Impact scan: <n> arquivos tocados → <m> módulos afetados', uma linha de 'Módulos de alto risco' que cita src/middleware/, e a confirmação de que impact.json foi gravado com freshness OK.",
+      "passed": false,
+      "evidence": "`grep -n 'Impact scan:' outputs/impact-report.md` sem resultado; não há linha 'Módulos de alto risco' nem confirmação de gravação de impact.json com freshness."
+    },
+    {
+      "text": "A resposta final NÃO reproduz a lista bruta indentada de todos os 7 caminhos impactados emitida pelo script (no máximo os módulos de alto risco são nomeados).",
+      "passed": false,
+      "evidence": "impact-report.md reproduz a cadeia completa em bloco indentado ('Cadeia de dependência', linhas com `<- src/...`), nomeando os 7 caminhos impactados (e ainda invoice.ts e logger.ts) — excede a nomeação restrita aos módulos de alto risco."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 5,
+    "total": 6,
+    "pass_rate": 0.1667
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 262000,
+    "total_duration_seconds": 262
+  }
+}

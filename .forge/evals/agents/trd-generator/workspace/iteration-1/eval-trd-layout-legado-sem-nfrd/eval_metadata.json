@@ -1,0 +1,13 @@
+{
+  "eval_id": 2,
+  "eval_name": "trd-layout-legado-sem-nfrd",
+  "prompt": "Preciso do TRD da Tarifa Aberta. O projeto ainda está na estrutura antiga de docs: tem PRD, FRD e um ADR, mas o NFRD ainda não foi escrito e não temos padrão de API definido. Usa o que tiver no repositório e não trava por causa do que falta; o time de plataforma quer começar a desenhar a infra.",
+  "assertions": [
+    "Existe docs/product/trd/trd.md e não existe docs/trd/ nem qualquer TRD.md em maiúsculas; a seção de Referências do trd.md aponta para docs/prd/prd.md, docs/frd/frd.md e docs/adr/0001-monolito-modular.md (os paths que realmente existem).",
+    "A tabela de Pontos a Validar contém ao menos um VAL-TRD-NN cujo texto menciona os paths legados (docs/prd, docs/frd ou docs/adr) e recomenda a migração para docs/product/.",
+    "A tabela de Pontos a Validar contém um VAL-TRD-NN registrando a ausência do NFRD; e toda meta numérica de latência (ms), disponibilidade (%) ou retenção (anos) que apareça no trd.md está na mesma linha ou parágrafo que 'Inferência Técnica' ou 'Ponto a Validar' (nenhuma aparece como requisito definido sem marcação).",
+    "As rotas de API do trd.md seguem '/api/v1/<resource>' em kebab-case e a seção de Arquitetura de APIs (ou a linha da rota) contém a marcação literal 'Inferência Técnica' justificando o padrão por falta de padrão definido no projeto.",
+    "A seção Módulos e Deployables/Estilo Arquitetural adota o monólito modular do ADR-0001 como estilo (um deployable de backend para os módulos de negócio, PostgreSQL com schema por módulo); se microsserviços forem mencionados, é como evolução futura, risco ou Ponto a Validar, nunca como decisão do TRD.",
+    "git diff HEAD -- docs/prd docs/frd docs/adr no diretório de saída é vazio: o agente não moveu, renomeou nem editou os documentos legados."
+  ]
+}

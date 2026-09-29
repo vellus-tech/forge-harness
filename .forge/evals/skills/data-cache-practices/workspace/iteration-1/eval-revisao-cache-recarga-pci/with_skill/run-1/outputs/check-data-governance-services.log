@@ -1,0 +1,4 @@
+FAIL data-governance/universo-vazio — 0 arquivo(s) examinado(s) (<worktree-do-eval>/.forge/evals/skills/data-cache-practices/workspace/iteration-1/eval-revisao-cache-recarga-pci/with_skill/run-1/work/services): o gate não examinou nada.
+      Universo vazio não é ausência de violação, é ausência de verificação — os dois não
+      podem colapsar no mesmo verde. Confira o alvo, o glob e o range.
+      Se o vazio for legítimo, declare em <worktree-do-eval>/template/.forge/empty-universe-allowlist.txt: 'data-governance  # motivo: <justificativa>'.

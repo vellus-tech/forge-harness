@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "Existe docs/discovery/discovery-notes.md (caminho oficial), e não apenas um discovery-notes.md na raiz; o arquivo começa com '# Discovery Notes' e tem os campos de cabeçalho Tipo de iniciativa, Data e Status com Status = 'Em discovery'.",
+      "passed": false,
+      "evidence": "`ls work/docs/discovery` retorna 'No such file or directory' e `find work -name discovery-notes.md` (excluindo .git) não encontra nada. O único artefato é work/DISCOVERY-recarga-pix.md, cuja linha 1 é '# Discovery — Recarga de cartão via Pix no app do passageiro', sem campos Tipo de iniciativa, Data ou Status."
+    },
+    {
+      "text": "A seção '## 0. Workspace Scan' contém a tabela 0.1 com colunas Caminho | Tipo | Contexto Oferecido listando ao menos três caminhos que existem na fixture (entre README.md, docs/product/adr/, openapi.yaml, src/Recarga.Api/, docker-compose.yml), além das subseções 0.2 Resumo do Contexto Existente e 0.3 Lacunas Identificadas com conteúdo.",
+      "passed": false,
+      "evidence": "Não existe docs/discovery/discovery-notes.md nem seção '## 0. Workspace Scan'. outputs/DISCOVERY-recarga-pix.md linhas 3-9 ('## O que já li no repositório') listam os caminhos em bullets, não na tabela 0.1 com colunas Caminho | Tipo | Contexto Oferecido, e não há subseções 0.2/0.3."
+    },
+    {
+      "text": "A resposta final do agente contém exatamente um ponto de interrogação de pergunta dirigida ao usuário, e essa pergunta é a Q1 (qual problema a feature resolve); não pergunta sobre usuário, integrações, monetização, stack ou plataforma nesta mensagem.",
+      "passed": false,
+      "evidence": "Não há arquivo de resposta separado; a saída entregue (outputs/DISCOVERY-recarga-pix.md, linhas 20-29 '## Perguntas para o usuário') contém oito perguntas numeradas — `tr -cd '?' | wc -c` = 8 — sobre PSP, integração, webhook, latência, antifraude, app e estorno; nenhuma é a Q1 (qual problema a feature resolve). A pergunta 6 trata do app/plataforma e as 1-3 de integrações, justamente o que a asserção proíbe."
+    },
+    {
+      "text": "Em docs/discovery/discovery-notes.md, as subseções 1.1 a 5.2 (Problema, Usuário Principal, Referências, Pitch, Core Features, Integrações, Modelo, Planos, Stack, Plataforma, Referências Visuais, Notas Adicionais) estão vazias ou só com placeholder; em particular 4.1 Stack não registra .NET/PostgreSQL como decisão, apesar de o workspace os revelar.",
+      "passed": false,
+      "evidence": "docs/discovery/discovery-notes.md não existe (`ls work/docs/discovery` falha), então não há subseções 1.1 a 5.2 a verificar; além disso o documento produzido antecipa decisões de solução (linhas 31-37 '## Próximos passos propostos': fluxo em duas etapas, novo endpoint, ADR complementar)."
+    },
+    {
+      "text": "git status no alvo, desconsiderando as remoções feitas pelo setup em .forge/ e .claude/, mostra apenas arquivos novos sob docs/discovery/; nenhum PRD/FRD/NFRD/TRD/ADR novo, nenhum arquivo em src/ e nenhum arquivo versionado alterado.",
+      "passed": false,
+      "evidence": "`git -C work status --porcelain -uall` filtrando .forge/ e .claude/ mostra '?? DISCOVERY-recarga-pix.md' na raiz do repositório, fora de docs/discovery/. `git diff --stat HEAD` sem alterações em arquivos versionados, mas o arquivo novo fora do caminho permitido reprova a asserção. Registro adicional: o transcript (linhas 11-12) relata que esta execução refez o fixture com `forge.mjs init --force` e um novo commit dentro de work/, o que torna o estado-base desta configuração diferente do de with_skill."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 5,
+    "total": 5,
+    "pass_rate": 0.0
+  }
+}

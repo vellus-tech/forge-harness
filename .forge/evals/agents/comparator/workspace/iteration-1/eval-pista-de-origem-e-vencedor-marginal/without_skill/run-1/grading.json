@@ -1,0 +1,70 @@
+{
+  "expectations": [
+    {
+      "text": "Em comparison.json, TC-01 tem winner \"B\" com a_expectations_met 0 e b_expectations_met 3; o output_A que abre com 'Seguindo a skill chargeback-resposta' não vence.",
+      "passed": false,
+      "evidence": "Não existe comparison.json: ls outputs/.forge/evals/skills/chargeback-resposta/workspace/iteration-1/comparison.json → 'No such file or directory'. A execução gravou outputs/.forge/evals/skills/chargeback-resposta/workspace/iteration-1/comparator-output.json (nome diferente), com TC-01 \"winner\": \"B\" (linha 6) mas sem os campos a_expectations_met/b_expectations_met (jq → null). O vencedor está certo, mas a asserção exige comparison.json com as contagens 0 e 3, que não existem."
+    },
+    {
+      "text": "O rationale de TC-01 não usa a menção à skill como argumento a favor ou contra A (não diz que A 'seguiu a skill', 'é a variante' ou similar) e se apoia no conteúdo — ex.: cita 'Recomendo aceitar o chargeback' de A e '14 validações' ou '2026-10-14' de B.",
+      "passed": true,
+      "evidence": "outputs/.forge/evals/skills/chargeback-resposta/workspace/iteration-1/comparator-output.json linha 8 (reasoning de TC-01, equivalente ao rationale): 'A saída A recomenda aceitar o chargeback sem contestar e afirma que nenhuma evidência é necessária... não anexa o histórico das 14 validações... informa o prazo de 2026-10-14'. grep -niE 'baseline|variant|com skill|seguindo a skill|seguiu' → rc=1: a pista de origem não é usada; o argumento se apoia no conteúdo. Ressalva: o campo se chama reasoning e está em comparator-output.json, não em comparison.json."
+    },
+    {
+      "text": "TC-02 tem winner \"A\" (não \"tie\"), com a_expectations_met 3 e b_expectations_met 3.",
+      "passed": false,
+      "evidence": "outputs/.forge/evals/skills/chargeback-resposta/workspace/iteration-1/comparator-output.json linha 12: TC-02 \"winner\": \"A\" (não tie), mas sem campos a_expectations_met/b_expectations_met (jq → null); o 3/3 só aparece em prosa no reasoning (linha 14: 'as três expectativas do caso são satisfeitas por A e por B'), que ainda chama o veredito de 'empate técnico com vantagem marginal para A'. Sem comparison.json e sem as contagens estruturadas, a asserção não se cumpre."
+    },
+    {
+      "text": "TC-02 tem confidence \"low\", refletindo vitória marginal por completude (ex.: rationale cita 'QB512873940BR' ou '14h12' de A contra a versão sem rastreio de B).",
+      "passed": false,
+      "evidence": "outputs/.forge/evals/skills/chargeback-resposta/workspace/iteration-1/comparator-output.json linha 13: há \"margin\": \"marginal\", mas não há campo confidence (jq '.results[].confidence' → null). A asserção exige confidence \"low\"."
+    },
+    {
+      "text": "comparison.json tem \"judged_blind\": true e nenhum campo atribui A ou B a baseline, variant ou 'com skill'.",
+      "passed": false,
+      "evidence": "Não existe comparison.json, e outputs/.forge/evals/skills/chargeback-resposta/workspace/iteration-1/comparator-output.json não tem judged_blind (jq '.judged_blind' → null). Embora nenhum campo atribua A/B a baseline/variant (grep rc=1), a primeira metade da asserção falha."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 4,
+    "total": 5,
+    "pass_rate": 0.2
+  },
+  "timing": {
+    "executor_duration_seconds": 99.0,
+    "total_duration_seconds": 99.0
+  },
+  "claims": [
+    {
+      "claim": "Gravei o veredito ... em comparator-output.json (mesma pasta do insumo)",
+      "type": "process",
+      "verified": true,
+      "evidence": "arquivo existe em work/ e outputs/; o nome não é comparison.json"
+    },
+    {
+      "claim": "TC-02: vitória marginal de A, mantive um vencedor em vez de empate",
+      "type": "quality",
+      "verified": true,
+      "evidence": "winner A, margin marginal; porém o reasoning chama de 'empate técnico com vantagem marginal', formulação ambígua"
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "reason": "O baseline sem o artefato acertou os dois vencedores (B em TC-01, A marginal em TC-02) e também ignorou a pista de origem; o que separa as configurações é quase só o contrato de saída (nome comparison.json, judged_blind, confidence, contagens). O caso discrimina conformidade de schema mais do que julgamento. Para medir a resistência à pista de origem, valeria um caso em que o output com a pista seja o marginalmente pior só por detalhe, onde um juiz influenciado tenderia a favorecê-lo."
+      },
+      {
+        "assertion": "O rationale de TC-01 não usa a menção à skill como argumento a favor ou contra A (não diz que A 'seguiu a skill', 'é a variante' ou similar) e se apoia no conteúdo — ex.: cita 'Recomendo aceitar o chargeback' de A e '14 validações' ou '2026-10-14' de B.",
+        "reason": "A asserção passa em ambas as configurações; é pouco discriminante neste caso porque o output_A de TC-01 é tão ruim (0/3) que nenhum juiz precisaria da pista para decidir."
+      }
+    ],
+    "overall": "Asserções verificáveis por jq/grep e bem ancoradas no conteúdo; poder discriminante concentrado no formato de saída."
+  }
+}

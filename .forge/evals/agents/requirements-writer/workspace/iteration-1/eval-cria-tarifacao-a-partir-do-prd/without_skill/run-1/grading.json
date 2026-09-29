@@ -1,0 +1,52 @@
+{
+  "expectations": [
+    {
+      "text": "Existe docs/product/modules/tarifacao/requirements.md (e nenhum diretório .kiro/ foi criado), e o campo Status do cabeçalho é 'Rascunho' ou 'Rascunho para revisão' — não 'Aprovado para desenvolvimento', apesar de o prompt sugerir deixá-lo 'pronto para o time de desenvolvimento'.",
+      "passed": false,
+      "evidence": "Arquivo existe (`find without_skill/run-1/outputs -type f` lista docs/product/modules/tarifacao/requirements.md) e `find without_skill/run-1/work -name '.kiro*'` retorna vazio, mas requirements.md:6 '- Status: Pronto para o time de desenvolvimento' (e Versão 1.0.0 em :3). O agente caiu exatamente na armadilha do prompt; o transcript passo 9 confirma a decisão ('coerente com o pedido do usuário ... pronto para o time de desenvolvimento pegar'). Reexecução de 2026-09-28 substituiu a saída anterior; esta nota vale para o conteúdo atual de outputs/."
+    },
+    {
+      "text": "O documento contém o cabeçalho com linhas 'Versão:', 'Data:' (YYYY-MM-DD) e 'Status:', uma tabela 'Histórico de Versões' com colunas Versão/Data/Status/Descrição da alteração, as seções numeradas '## 1. Visão Geral' até '## 10. Referências cruzadas' incluindo '## 4. Lista canônica de ...' (ex.: perfis tarifários) e '## 9. Fora do escopo do MVP' listando tarifa por linha/distância e bilhete único mensal.",
+      "passed": false,
+      "evidence": "Cabeçalho tem '- Versão: 1.0.0' (:3), '- Data: 2026-09-28' (:4) e '- Status:' (:6), mas `grep -n 'Histórico' requirements.md` não retorna nada: não há tabela Histórico de Versões. `grep -nE '^## '` mostra '## 1. Objetivo' .. '## 11. Perguntas em aberto'; não existem '## 1. Visão Geral', '## 4. Lista canônica de ...' (a seção 4 é 'Requisitos funcionais'), '## 9. Fora do escopo do MVP' (a 9 é 'Critérios de aceite'; fora de escopo está em '## 8. Fora de escopo', :46-48) nem '## 10. Referências cruzadas' (a 10 é 'Riscos e prazo')."
+    },
+    {
+      "text": "Os requisitos funcionais usam o cabeçalho '### Req N — <título>' com numeração contínua sem furos e cada um tem tabela com Prioridade (Must/Should/Could), Origem apontando para docs/product/prd-tarifacao.md (ou uma RN-0x específica) e Módulo 'tarifacao', além de critérios de aceite numerados 'N.1'.",
+      "passed": false,
+      "evidence": "`grep -nE '^### Req' requirements.md` sem ocorrências e `grep -n 'Prioridade'` sem ocorrências: os requisitos são bullets 'FR-01'..'FR-06' (:22-27) sem tabela de Prioridade/Origem/Módulo e sem critérios numerados 'N.1'; os critérios de aceite (:52-58) estão em Dado/Quando/Então, sem numeração e sem vínculo a um requisito. A rastreabilidade a RN-0x alegada no transcript passo 8 ('cada um mapeado à RN correspondente do PRD') não aparece nos bullets; só :44 cita 'RN-02/RN-03'."
+    },
+    {
+      "text": "O requirements.md não contém 'tarifa_regra', 'NUMERIC', 'POST /v1/tarifas/calcular' nem 'decimal.js' como requisito — as notas técnicas do PRD ficaram fora (ou são mencionadas só como assunto do design.md).",
+      "passed": true,
+      "evidence": "`grep -nE 'tarifa_regra|NUMERIC|POST /v1|decimal\\.js' requirements.md` retorna só a :37, dentro de '## 6. Observação sobre a nota técnica do PRD', que cita `NUMERIC(10,2)` e `decimal.js` como 'rascunho, não como decisão' e afirma 'Este documento não fixa a representação de dados nem a stack técnica: cabe à fase de design decidir'. Ou seja, mencionados apenas como assunto do design, não como requisito; 'tarifa_regra' e 'POST /v1/tarifas/calcular' não aparecem. Caso limítrofe aceito pela cláusula explícita da asserção."
+    },
+    {
+      "text": "O documento expressa valores monetários em centavos (ex.: Tarifa Base de 485 centavos) e exige arredondamento pela NBR 5891 (meio-para-par / ToEven) para a meia tarifa e a integração, sem propor float, double ou decimal para o cálculo de domínio.",
+      "passed": false,
+      "evidence": "`grep -nE 'centavo|NBR|5891|ToEven'` acha só a :37 ('valor inteiro em menor unidade' como exemplo a ser decidido no design; 'caso a Tarifa Base vigente tiver centavo ímpar' como pergunta). Nenhum valor é expresso em centavos (:10 e :22 'R$ 4,85'), não há exigência de NBR 5891/ToEven e o arredondamento de 485/2 fica delegado a 'alguma convenção ... já adotada pela Operadora'. O documento não veda float/double como requisito; apenas sugere evitá-los no design."
+    },
+    {
+      "text": "A seção '## 7. Property-Based Testing' contém ao menos um '### PBT-NN' com linha 'Mapeia para:' citando Req específicos e um 'Tipo:' da lista do agente (ex.: não acúmulo de benefícios, valor nunca acima da Tarifa Base); e docs/product/modules/tarifacao/README.md foi atualizado na linha do requirements.md com o status e a versão do novo documento (não está mais 'Não iniciado').",
+      "passed": false,
+      "evidence": "`grep -nE 'PBT|Property|Mapeia' requirements.md` sem ocorrências: não há seção '## 7. Property-Based Testing' (a seção 7 é 'Regras de negócio derivadas', :39). O README foi alterado (README.md:9 '| requirements.md | Pronto para o time de desenvolvimento | 1.0.0 | 2026-09-28 |'), mas com o status indevido e, de todo modo, a asserção exige as duas partes."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 5,
+    "total": 6,
+    "pass_rate": 0.17
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "O requirements.md não contém 'tarifa_regra', 'NUMERIC', 'POST /v1/tarifas/calcular' nem 'decimal.js' como requisito — as notas técnicas do PRD ficaram fora (ou são mencionadas só como assunto do design.md).",
+        "reason": "A cláusula 'mencionadas só como assunto do design.md' deixa passar uma saída que transcreve NUMERIC(10,2)/decimal.js no requirements; o without_skill passa só por essa válvula. Considere exigir ausência literal ou mover a checagem para o README/design."
+      },
+      {
+        "reason": "Nenhuma asserção cobre o caso central 485 → 242 (meia de centavo ímpar, ToEven); o with_skill passa em money-em-centavos sem explicitar esse número. Vale uma asserção grep por '242'."
+      }
+    ],
+    "overall": "A1 e A6 discriminam bem a armadilha de status; A4 é fraca."
+  }
+}

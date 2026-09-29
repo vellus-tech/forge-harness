@@ -1,0 +1,29 @@
+{
+  "reviewer": "platform-reviewer",
+  "findings": [
+    {
+      "id": "PLAT-001",
+      "severity": "BLOCKER",
+      "category": "platform",
+      "file": "services/recarga/src/Recarga.Api/appsettings.json",
+      "line": 4,
+      "title": "Secret hardcoded em appsettings.json (connection string) e ClientSecret do Pix em texto plano",
+      "description": "A connection string 'Recarga' contém a senha do banco em texto plano na linha 4, e 'Pix.ClientSecret' (linha 8) também está hardcoded no arquivo versionado. Ambos os valores vazam para o controle de versão e para qualquer ambiente que use este appsettings.json como está.",
+      "fix_suggested": "Remover os valores literais e referenciá-los via variável de ambiente / External Secrets Operator (stg/prd) ou User Secrets em dev; ver .forge/rules/architecture/docker-image-security.md. Cross-ref: security-reviewer deve validar exposição e rotação dos segredos afetados.",
+      "rule_violated": ".forge/rules/architecture/docker-image-security.md",
+      "confidence": "high"
+    },
+    {
+      "id": "PLAT-002",
+      "severity": "BLOCKER",
+      "category": "platform",
+      "file": "docker-compose.yml",
+      "line": 9,
+      "title": "Secret hardcoded em docker-compose.yml (ClientSecret do Pix e senha de conexão)",
+      "description": "PIX__CLIENTSECRET (linha 8) e a Password embutida em ConnectionStrings__Recarga (linha 9) estão em texto plano no compose. POSTGRES_PASSWORD (linha 15) do serviço 'db' repete o mesmo valor de senha hardcoded.",
+      "fix_suggested": "Externalizar via arquivo .env não versionado ou Docker secrets; nunca hardcode em compose versionado. Cross-ref: security-reviewer deve avaliar se o segredo já vazado precisa ser rotacionado.",
+      "rule_violated": ".forge/rules/architecture/docker-image-security.md",
+      "confidence": "high"
+    }
+  ]
+}

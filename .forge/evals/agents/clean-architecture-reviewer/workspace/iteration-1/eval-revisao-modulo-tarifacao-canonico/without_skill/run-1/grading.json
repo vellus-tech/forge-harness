@@ -1,0 +1,62 @@
+{
+  "expectations": [
+    {
+      "text": "docs/revisoes/clean-arch-tarifacao.md aponta como violação o `using Amazon.DynamoDBv2.DataModel` e o atributo `[DynamoDBTable(\"tarifas\")]` em src/Tarifacao/Tarifacao.Domain/Entities/Tarifa.cs, citando as linhas 1 e 5 (formato arquivo:linha ou equivalente explícito)",
+      "passed": true,
+      "evidence": "outputs/docs/revisoes/clean-arch-tarifacao.md:9 cita `src/Tarifacao/Tarifacao.Domain/Entities/Tarifa.cs:1` importando `Amazon.DynamoDBv2.DataModel` e `src/Tarifacao/Tarifacao.Domain/Entities/Tarifa.cs:5` com `[DynamoDBTable(\"tarifas\")]`, sob o achado 1 'Domain depende de infraestrutura (AWS SDK) — violação de dependência'; cita também Tarifacao.Domain.csproj:7; tabela :30 severidade Alta. Linhas conferidas com sed na fixture de work/ (rerun de 2026-09-28)."
+    },
+    {
+      "text": "O relatório aponta CalcularTarifaIntegracaoHandler.cs (linhas 15 a 17, o if da janela de 120 min / desconto de 75/100) como lógica de negócio em handler de Application e recomenda movê-la para o Domain (entidade, value object ou serviço de domínio)",
+      "passed": true,
+      "evidence": "outputs/docs/revisoes/clean-arch-tarifacao.md:11-12 cita `CalcularTarifaIntegracaoHandler.cs:14-22` (contém o if 15-17 de 120 min / 75/100, conferido com sed -n '14,22p') como regra de negócio no handler de aplicação ('modelo anêmico') e recomenda 'mover o cálculo do desconto para um método da entidade `Tarifa` (ou de um serviço de domínio...)'. Intervalo mais largo que 15-17, porém explícito e correto."
+    },
+    {
+      "text": "O relatório NÃO lista a ProjectReference de Tarifacao.Api.csproj para Tarifacao.Infrastructure como violação (ou a menciona explicitamente como permitida para DI), e não lista Application → Contracts como violação",
+      "passed": true,
+      "evidence": "outputs/docs/revisoes/clean-arch-tarifacao.md:21 (achado 5) e tabela :34 declaram a direção das referências correta — `Tarifacao.Api.csproj` (7-8) → Application e Infrastructure; `Tarifacao.Application.csproj` (7-8) → Domain e Contracts — com severidade 'Informativo' e '(nenhuma ação)'. O achado 3 (:15) critica o projeto Contracts estar vazio, não a referência Application → Contracts como violação de camada."
+    },
+    {
+      "text": "O relatório aponta o prefixo de tecnologia em DynamoTarifaRepository (sugerindo TarifaRepository) E o nome imperativo do evento de domínio CalcularTarifaIntegracao, sugerindo um nome no passado",
+      "passed": false,
+      "evidence": "`grep -n -i 'TarifaRepository\\b\\|prefixo\\|passado\\|particípio\\|imperativ\\|infinitiv' outputs/docs/revisoes/clean-arch-tarifacao.md` só retorna :18, :23, :24, :35. DynamoTarifaRepository aparece 4 vezes, todas como contexto (evento não usado pelo repositório; chave de partição em :23-24/:35), sem apontar prefixo de tecnologia nem sugerir `TarifaRepository`. O evento `CalcularTarifaIntegracao` (:18) é tratado apenas como 'declarado mas nunca disparado', sem criticar o nome imperativo nem sugerir nome no passado. Nenhuma das duas metades é satisfeita."
+    },
+    {
+      "text": "`git -C <alvo> status --porcelain -- src/` sai vazio: nenhum .cs ou .csproj de src/Tarifacao foi alterado — o revisor reporta, não corrige",
+      "passed": true,
+      "evidence": "Comando: `git -C without_skill/run-1/work status --porcelain -- src/` → saída vazia (rc=0); `git -C without_skill/run-1/work ls-files src | wc -l` = 11 (src versionado no commit 7c5996f 'chore: estado inicial da fixture' da rerun)."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "pass_rate": 0.8
+  },
+  "claims": [
+    {
+      "claim": "Relatório gravado em docs/revisoes/clean-arch-tarifacao.md e copiado para outputs",
+      "type": "process",
+      "verified": true,
+      "evidence": "cmp entre work/docs/revisoes/clean-arch-tarifacao.md e outputs/docs/revisoes/clean-arch-tarifacao.md: idênticos (rerun de 2026-09-28; outputs/dispatch-simulado.md é resíduo de 2026-09-26)"
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "O relatório aponta CalcularTarifaIntegracaoHandler.cs (linhas 15 a 17, o if da janela de 120 min / desconto de 75/100) como lógica de negócio em handler de Application e recomenda movê-la para o Domain (entidade, value object ou serviço de domínio)",
+        "reason": "As duas configurações citaram o intervalo 14-22 (que contém o if 15-17); a asserção deveria aceitar explicitamente um intervalo que contenha 15-17, para não depender de julgamento."
+      },
+      {
+        "assertion": "O relatório NÃO lista a ProjectReference de Tarifacao.Api.csproj para Tarifacao.Infrastructure como violação (ou a menciona explicitamente como permitida para DI), e não lista Application → Contracts como violação",
+        "reason": "Discrimina pouco: a rerun without_skill de 2026-09-28 já trata todas as referências entre .csproj como corretas. Estender para cobrir Infrastructure → Application/Domain como não-violação, que a run anterior do baseline errou."
+      },
+      {
+        "reason": "Nenhuma asserção penaliza falsos positivos ou achados fora do escopo (o baseline reporta Contracts vazio e chave de partição do Dynamo); o único discriminador real é a asserção de nomenclatura."
+      },
+      {
+        "reason": "Contaminação de workspace: a rerun without_skill encontrou o grading.json anterior no próprio run-1 (transcript.md:30). O transcript afirma tê-lo aberto só depois de gravar o relatório (mtime do relatório 13:16:07 < transcript 13:17:09), e o relatório não contém o achado de nomenclatura, o que é coerente; ainda assim, reruns deveriam partir de run-N limpo."
+      }
+    ],
+    "overall": "As asserções 1, 2, 3 e 5 são satisfeitas por uma revisão genérica competente; só a 4 (nomenclatura com prefixo de tecnologia e evento no passado) separa as configurações."
+  }
+}

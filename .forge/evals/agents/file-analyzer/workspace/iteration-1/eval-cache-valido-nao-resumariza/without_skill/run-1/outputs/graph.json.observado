@@ -1,0 +1,180 @@
+{
+  "schema": "graph/v0",
+  "generated_at": "2026-09-28T16:32:48.116Z",
+  "engine": "native",
+  "root": "<worktree-do-eval>/.forge/evals/agents/file-analyzer/workspace/iteration-1/eval-cache-valido-nao-resumariza/without_skill/run-1/work",
+  "stats": {
+    "nodes": 10,
+    "edges": 12,
+    "languages": [
+      "ts"
+    ],
+    "summaries_stale": 8,
+    "census": {
+      "ts": 10
+    },
+    "layer_coverage": {
+      "classified": 2,
+      "unclassified": 8,
+      "out_of_taxonomy": 0,
+      "denominator": 10,
+      "ratio": 0.2
+    }
+  },
+  "nodes": [
+    {
+      "id": "src/api/tarifas-controller.ts",
+      "lang": "ts",
+      "loc": 7,
+      "fingerprint": "1cea5db5af3c6af314560cf3f24fae1c2f9eb17691a89c179e98c6b7bfc368fa",
+      "layer": "api",
+      "summary": null
+    },
+    {
+      "id": "src/config/db-config.ts",
+      "lang": "ts",
+      "loc": 3,
+      "fingerprint": "c855f98638b4aee0fc269c80d10530d0c7fc11280c082792a83cbd61571dfbc1",
+      "layer": "config",
+      "summary": null
+    },
+    {
+      "id": "src/integracao/calculo-integracao.ts",
+      "lang": "ts",
+      "loc": 21,
+      "fingerprint": "5dda5a779b965793220640b1e46ab7266bb1404344ff5026491330b721082d56",
+      "layer": "unknown",
+      "summary": "Calcula a tarifa do segundo embarque na integração: 25% de desconto quando há troca de modal em até 120 min; depende do TarifaRepository e de Money."
+    },
+    {
+      "id": "src/shared/clock.ts",
+      "lang": "ts",
+      "loc": 3,
+      "fingerprint": "7363716f4959be0dab3bcfc59ab06ec3c81caeae2f5d1bcc18057433d7d781dc",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "src/shared/logger.ts",
+      "lang": "ts",
+      "loc": 3,
+      "fingerprint": "d348c43449b46ea156cc20eeccfc3eb00727e43fcdd750532cc7c9cd77ee9c3c",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "src/shared/money.ts",
+      "lang": "ts",
+      "loc": 11,
+      "fingerprint": "eaecbfc8e8afd0f21ef0f762e5a1d5118aa95fbc6e125140949bf95c1380ed74",
+      "layer": "unknown",
+      "summary": "Value object de dinheiro em centavos inteiros; expõe Money.deCentavos e aplicarDesconto com arredondamento; sem dependências internas."
+    },
+    {
+      "id": "src/tarifacao/linha.ts",
+      "lang": "ts",
+      "loc": 3,
+      "fingerprint": "c1dd604bb9167c3792c7add6d754f52b6143492c38f7a8717a911d88d51aa0bf",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "src/tarifacao/tarifa-repository.ts",
+      "lang": "ts",
+      "loc": 37,
+      "fingerprint": "9bbd4e436ad8c1c13d319326a1ce4f36b359214753c2736b8ea0170625dd93ce",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "src/tarifacao/tarifa.ts",
+      "lang": "ts",
+      "loc": 4,
+      "fingerprint": "307ae7eebe762e8fb14ab6b3c9964cc8bc537b49dcdbdd333dc88e85e17dc0e6",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "src/validacao/validador-embarque.ts",
+      "lang": "ts",
+      "loc": 6,
+      "fingerprint": "7ca780b9543da8f1c3c692fb4a295cda2fdff3ca144e35ad07c443e658ce64d4",
+      "layer": "unknown",
+      "summary": null
+    }
+  ],
+  "edges": [
+    {
+      "from": "src/api/tarifas-controller.ts",
+      "to": "src/tarifacao/tarifa-repository.ts",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "src/integracao/calculo-integracao.ts",
+      "to": "src/shared/money.ts",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "src/integracao/calculo-integracao.ts",
+      "to": "src/tarifacao/tarifa-repository.ts",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "src/tarifacao/linha.ts",
+      "to": "src/tarifacao/tarifa.ts",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "src/tarifacao/tarifa-repository.ts",
+      "to": "src/config/db-config.ts",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "src/tarifacao/tarifa-repository.ts",
+      "to": "src/shared/clock.ts",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "src/tarifacao/tarifa-repository.ts",
+      "to": "src/shared/logger.ts",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "src/tarifacao/tarifa-repository.ts",
+      "to": "src/shared/money.ts",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "src/tarifacao/tarifa-repository.ts",
+      "to": "src/tarifacao/linha.ts",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "src/tarifacao/tarifa-repository.ts",
+      "to": "src/tarifacao/tarifa.ts",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "src/tarifacao/tarifa.ts",
+      "to": "src/shared/money.ts",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "src/validacao/validador-embarque.ts",
+      "to": "src/tarifacao/tarifa-repository.ts",
+      "kind": "import",
+      "resolved": true
+    }
+  ]
+}

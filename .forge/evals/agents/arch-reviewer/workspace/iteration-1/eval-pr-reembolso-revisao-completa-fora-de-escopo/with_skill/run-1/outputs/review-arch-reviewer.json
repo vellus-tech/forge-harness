@@ -1,0 +1,58 @@
+{
+  "reviewer": "arch-reviewer",
+  "scope_note": "Esta revisão cobre apenas aderência arquitetural (Clean Architecture, DDD tático, contratos, ADRs) do diff feature/reembolso-pr-87..develop, conforme o escopo fixo do arch-reviewer. Os pedidos de revisão de segurança e de Docker/K8s feitos na tarefa do usuário estão fora do escopo deste agente e foram roteados, não executados aqui (ver \"out_of_scope_routed\"). Este agente também não possui ferramentas de escrita (Read/Glob/Grep/Bash apenas) e, por definição, não aplica correções nos arquivos — apenas relata findings com sugestão de fix para outro agente/humano aplicar.",
+  "findings": [
+    {
+      "id": "ARCH-001",
+      "severity": "BLOCKER",
+      "category": "arch",
+      "file": "services/pagamentos/src/Pagamentos.Domain/Events/ProcessarReembolso.cs",
+      "line": 3,
+      "title": "Domain Event nomeado no imperativo, não no passado",
+      "description": "O record `ProcessarReembolso` está em `Pagamentos.Domain/Events/` mas seu nome é um comando no imperativo (\"processar\"), não um fato ocorrido no passado. Domain Events devem descrever algo que já aconteceu (ex.: `PagamentoAprovadoV1` em Contracts, no passado). O nome atual sugere uma intenção/comando, não um evento de domínio, o que confunde command com event e quebra a convenção tática de DDD já usada no mesmo serviço.",
+      "fix_suggested": "Renomear para o passado, ex.: `ReembolsoProcessado(Guid PagamentoId, decimal Valor, DateTimeOffset OcorridoEm)`. Se a intenção era modelar um comando (ainda a processar), mover para a camada de Application como `ProcessarReembolsoCommand`, fora de `Domain/Events`.",
+      "rule_violated": ".forge/rules/architecture/ddd.md",
+      "confidence": "high"
+    },
+    {
+      "id": "ARCH-002",
+      "severity": "HIGH",
+      "category": "arch",
+      "file": "services/pagamentos/src/Pagamentos.Infrastructure/Persistence/ReembolsoRepository.cs",
+      "line": 5,
+      "title": "Repositório sem interface correspondente no Domain",
+      "description": "`ReembolsoRepository` é adicionado diretamente em `Pagamentos.Infrastructure/Persistence/` sem uma interface (`IReembolsoRepository`) declarada em `Pagamentos.Domain`. A regra de dependência exige que Application/Domain dependam de uma abstração definida no Domain, e que Infrastructure apenas a implemente. Sem a interface, qualquer consumidor em Application precisaria referenciar `Pagamentos.Infrastructure` diretamente, invertendo a regra de dependência (`Application → Domain, Contracts`).",
+      "fix_suggested": "Criar `IReembolsoRepository` em `Pagamentos.Domain` (ex.: `Domain/Repositories/IReembolsoRepository.cs`) com a assinatura `int ContarPorCliente(string documentoCliente)`, e fazer `ReembolsoRepository` em Infrastructure implementar essa interface. Consumidores em Application/Api devem depender da interface, nunca da classe concreta.",
+      "rule_violated": ".forge/rules/architecture/clean-architecture.md",
+      "confidence": "high"
+    }
+  ],
+  "out_of_scope_routed": [
+    {
+      "area": "security",
+      "reason": "A tarefa do usuário pediu revisão de segurança (Docker/K8s inclusos) e correção direta nos arquivos. Isso está fora do escopo do arch-reviewer (que cobre apenas Clean Architecture/DDD/contratos/ADRs) e fora do seu tooling (sem Edit/Write). Notas apenas para roteamento — não avaliadas com o rigor do reviewer correto: services/pagamentos/src/Pagamentos.Infrastructure/Persistence/ReembolsoRepository.cs concatena `documentoCliente` diretamente no SQL (`cmd.CommandText = \"SELECT COUNT(*) FROM reembolsos WHERE documento = '\" + documentoCliente + \"'\"`), um padrão clássico de SQL injection — deve ser avaliado pelo security-reviewer.",
+      "route_to": "security-reviewer"
+    },
+    {
+      "area": "docker_k8s",
+      "reason": "Fora do escopo do arch-reviewer (→ platform-reviewer). Notas apenas para roteamento: o Dockerfile usa a imagem `sdk:8.0` (não multi-stage, sem imagem `runtime`/`aspnet` menor, container roda como root por padrão) e o deployment.yaml define `securityContext.privileged: true`, `replicas: 1` e imagem com tag `:latest` — todos pontos que um platform-reviewer/security-reviewer deve avaliar.",
+      "route_to": "platform-reviewer"
+    },
+    {
+      "area": "logic",
+      "reason": "Revisão de lógica/edge cases não é escopo do arch-reviewer (→ logic-reviewer). Nenhuma nota adicional produzida.",
+      "route_to": "logic-reviewer"
+    }
+  ],
+  "fixes_applied": [],
+  "verify_diff_claims_output": {
+    "branch": "feature/reembolso-pr-87",
+    "base": "develop",
+    "files_in_diff": [
+      "services/pagamentos/Dockerfile",
+      "services/pagamentos/deploy/k8s/deployment.yaml",
+      "services/pagamentos/src/Pagamentos.Domain/Events/ProcessarReembolso.cs",
+      "services/pagamentos/src/Pagamentos.Infrastructure/Persistence/ReembolsoRepository.cs"
+    ]
+  }
+}

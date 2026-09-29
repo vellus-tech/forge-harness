@@ -1,0 +1,40 @@
+{
+  "expectations": [
+    {
+      "text": "docs/revisao-nosql.md cita os ids N-01, N-07, N-21, N-20, N-23 e N-18 do catálogo, cada um com a localização arquivo:linha correta (faturaRepositorio.ts:28, faturaRepositorio.ts:18, faturaRepositorio.ts:7 ou :17, transferirCredito.ts:15, transferirCredito.ts:30, mongod.conf:5); descrição genérica sem id N-xx ou sem linha não conta",
+      "passed": false,
+      "evidence": "outputs/revisao-nosql.md não cita nenhum id N-xx do catálogo e os achados indicam só o arquivo (ex.: 'Arquivo: src/repositorios/faturaRepositorio.ts'), sem arquivo:linha."
+    },
+    {
+      "text": "O relatório NÃO classifica como defeito o writeConcern { w: 1 } de test/seed.ts (reconhece que é seed de teste descartável) nem o $lookup de src/relatorios/fechamentoNoturno.ts (job noturno fora do caminho quente), e ao mesmo tempo classifica como achado o $lookup de src/api/extratoHandler.ts:12 (caminho quente de ~1.800 req/s)",
+      "passed": false,
+      "evidence": "test/seed.ts e o $lookup de fechamentoNoturno.ts não são classificados como defeito (o item 3 critica o filtro de data, não o $lookup), mas o $lookup de extratoHandler.ts não é classificado como achado de join no caminho quente: o item 4 trata de mismatch de tipo de _id e o item 5 só pede índice em { carteira: 1 } para o foreignField. Falta a terceira condição."
+    },
+    {
+      "text": "O relatório aponta em transferirCredito.ts o write skew (N-22): a transação lê o saldo no documento de saldos e escreve só em lancamentos, então duas transferências concorrentes passam as duas; a correção proposta é update condicional no documento de contenção (filtro saldoCentavos >= valor com $inc, conferindo matchedCount) ou campo de versão no filtro — citar só 'condição de corrida' ou 'usar transação' não conta, porque o código já usa transação",
+      "passed": true,
+      "evidence": "Item 2: 'Duas transações concorrentes que debitam a mesma carteira de origem podem ambas ler o mesmo saldoOrigem ... ambas passarem no if ... sem que o MongoDB acuse write conflict', porque só escreve em lancamentos; correção 'findOneAndUpdate({ tenant, carteira: origem, saldoCentavos: { $gte: valorCentavos } }, { $inc: { saldoCentavos: -valorCentavos } }, { session }) — se não encontrar documento, é saldo insuficiente'. Mecanismo e correção corretos, sem o rótulo N-22."
+    },
+    {
+      "text": "O relatório aponta que buscarPorCliente em faturaRepositorio.ts consulta a coleção sem filtro de tenant e classifica isso como violação bloqueante/CONFLITO da rule data-transactional-nosql.md (filtro de tenant obrigatório no repositório ou interceptor), sugerindo também índice composto começando por tenant",
+      "passed": false,
+      "evidence": "Item 1 aponta buscarPorCliente sem tenant como 'bloqueador' e sugere índice { tenant: 1, clienteId: 1, status: 1 }, mas não cita a rule data-transactional-nosql.md nem classifica como violação/CONFLITO de rule do projeto; a asserção exige a vinculação à rule."
+    },
+    {
+      "text": "A correção proposta para a transferência inclui as três coisas: readConcern snapshot (ou majority) no lugar de local, writeConcern majority, e session.withTransaction (ou laço próprio de retry do commitTransaction em UnknownTransactionCommitResult separado do retry de TransientTransactionError)",
+      "passed": false,
+      "evidence": "Nenhuma proposta de readConcern snapshot/majority (o texto só menciona que a leitura é 'local') e nenhuma menção a withTransaction; há só a observação de que falta 'laço de retry para TransientTransactionError / UnknownTransactionCommitResult', sem separar os dois retries."
+    },
+    {
+      "text": "O relatório tem uma entrada por regra examinada com status explícito (achado, OK/limpo ou não verificado), inclusive regras sem ocorrência como N-08 ou N-13, e declara como não verificado pela varredura estática ao menos um item de runtime (N-02 $indexStats, N-05 analyzeShardKey, tamanho real de documento com $bsonSize ou topologia via rs.conf())",
+      "passed": false,
+      "evidence": "O relatório é organizado por achado livre (itens 1 a 8 e 'O que está correto'), sem entrada por regra do catálogo, sem N-08/N-13 e sem declarar como não verificado pela varredura estática $indexStats, analyzeShardKey, $bsonSize ou rs.conf()."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 5,
+    "total": 6,
+    "pass_rate": 0.17
+  }
+}

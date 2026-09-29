@@ -1,0 +1,15 @@
+services:
+  recarga:
+    build: ./services/recarga
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      PIX__CLIENTSECRET: FIXTURE-CLIENT-SECRET-FALSO
+      ConnectionStrings__Recarga: "Host=db;Database=recarga;Username=recarga_app;Password=changeme"
+    depends_on:
+      - db
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: changeme

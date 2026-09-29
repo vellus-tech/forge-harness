@@ -1,0 +1,1 @@
+export const VALOR_MINIMO_CENTAVOS = 500;

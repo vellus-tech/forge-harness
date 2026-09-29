@@ -1,0 +1,15 @@
+{
+  "skill": "gerar-changelog-release",
+  "description": "Gera a entrada do CHANGELOG.md de uma release a partir do histórico de commits, no formato Keep a Changelog em pt-BR.",
+  "test_cases": [
+    {
+      "id": "TC-01",
+      "prompt": "Gere a entrada do CHANGELOG.md da release 2.4.0 do app de recarga a partir dos commits desde a tag v2.3.0.",
+      "expectations": [
+        "Agrupou as entradas nas seções Adicionado, Corrigido e Alterado",
+        "Incluiu o número do PR em cada entrada do changelog",
+        "O changelog ficou claro e bem escrito"
+      ]
+    }
+  ]
+}

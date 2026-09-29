@@ -1,0 +1,70 @@
+{
+  "expectations": [
+    {
+      "text": "Existe docs/discovery/discovery-notes.md, e ele cita o arquivo legado discovery-notes.md da raiz na tabela 0.1 do Workspace Scan e incorpora o fato legado sobre os fiscais de pátio que anotam em prancheta a saída dos ônibus (ex.: menção a 'prancheta' ou 'fiscal de pátio').",
+      "passed": true,
+      "evidence": "test -f with_skill/run-1/outputs/work/docs/discovery/discovery-notes.md ok (cmp com with_skill/run-1/work/docs/discovery/discovery-notes.md: idênticos). Linha 16 da tabela 0.1: '| `discovery-notes.md` (raiz) | Documento legado | Rascunho de discovery iniciado em março...'. Linha 40 (1.1 Problema): 'Os fiscais de pátio da Viação Norte registram em prancheta a saída de cada ônibus'. grep -niE 'prancheta|fiscal' casa linhas 22, 40, 44, 118."
+    },
+    {
+      "text": "docs/discovery/discovery-notes.md não contém nenhuma das expressões 'a definir', 'talvez', 'possivelmente', 'aparentemente' (busca sem distinção de maiúsculas), embora o legado as use; a dúvida app nativo vs PWA, se registrada, aparece como Ponto a validar (linha VAL-xxx na seção 7) e não como fato.",
+      "passed": false,
+      "evidence": "grep -niE 'a definir|talvez|possivelmente|aparentemente' with_skill/run-1/outputs/work/docs/discovery/discovery-notes.md casa a linha 22 (0.2: 'possivelmente com luva e sol forte na tela' e 'como \"a definir\" / \"aparentemente\"') e a linha 44 (1.2: 'possivelmente com luva e sol forte na tela'). Expressões proibidas presentes, mesmo atribuídas ao legado. Além disso, a dúvida nativo vs PWA (legado, linha 13: 'Talvez app nativo, talvez PWA') virou fato em 4.2 (linha 88) e DEC-002 (linha 109), não VAL-xxx; a seção 7 (VAL-001..005) não trata plataforma."
+    },
+    {
+      "text": "A resposta final do agente faz exatamente uma pergunta ao usuário e ela é a Q1 (problema), podendo citar o conteúdo legado como contexto; o agente não trata Q1/Q2 como já respondidas nem avança para Q3 ou blocos posteriores.",
+      "passed": false,
+      "evidence": "grep -c '?' with_skill/run-1/outputs/transcript.md = 0: nenhuma pergunta ao usuário. O transcript (linha 85-86) declara 'pronto para a próxima pergunta obrigatória (Q2 — usuário principal)' e o arquivo oficial linha 130 diz 'a próxima pergunta obrigatória é a Q2', ou seja, Q1 foi tratada como respondida (1.1 Problema preenchido na linha 40 a partir do legado); também preencheu blocos posteriores (3.x, 4.x, DEC-001..003)."
+    },
+    {
+      "text": "Em docs/discovery/discovery-notes.md, as subseções 3.1 Modelo, 3.2 Planos, 4.1 Stack e 4.2 Plataforma não trazem 'uso interno', 'sem cobrança', 'PWA' ou 'React' como resposta registrada (menções em 0.2/0.3 como contexto do scan, ou em 7 como ponto a validar, são aceitas).",
+      "passed": false,
+      "evidence": "Em with_skill/run-1/outputs/work/docs/discovery/discovery-notes.md: linha 72 (3.1 Modelo) 'Uso interno, sem cobrança.'; linha 84 (4.1 Stack) 'React, no front-end, por solicitação da TI da Viação Norte.'; linha 88 (4.2 Plataforma) 'PWA (Progressive Web App)...'. Transcript linhas 42-44: 'as registrei diretamente nas seções correspondentes'."
+    },
+    {
+      "text": "O arquivo oficial segue a estrutura obrigatória: contém os títulos '## 0. Workspace Scan', '## 1. Visão', '## 2. Funcionalidades', '## 3. Monetização', '## 4. Técnico', '## 5. Contexto', '## 6. Decisões Registradas', '## 7. Pontos a Validar' e '## 8. Resumo Final do Discovery', e o cabeçalho tem Status 'Em discovery'.",
+      "passed": true,
+      "evidence": "grep -nE '^## ' with_skill/run-1/outputs/work/docs/discovery/discovery-notes.md retorna exatamente '## 0. Workspace Scan' (10), '## 1. Visão' (36), '## 2. Funcionalidades' (56), '## 3. Monetização' (68), '## 4. Técnico' (80), '## 5. Contexto' (92), '## 6. Decisões Registradas' (104), '## 7. Pontos a Validar' (114), '## 8. Resumo Final do Discovery' (126); linha 6 do cabeçalho: '**Status:** Em discovery'."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 3,
+    "total": 5,
+    "pass_rate": 0.4
+  },
+  "timing": {
+    "total_duration_seconds": 137
+  },
+  "claims": [
+    {
+      "claim": "Não avancei para preencher Usuário Principal, Referências... (transcript linhas 45-47)",
+      "type": "process",
+      "verified": true,
+      "evidence": "1.2-1.4, 2.x e 5.x estão como '(Pendente ...)' nas linhas 44-100."
+    },
+    {
+      "claim": "Legado editado com nota de cabeçalho, sem apagar conteúdo histórico",
+      "type": "process",
+      "verified": true,
+      "evidence": "outputs/work/discovery-notes.md existe como cópia do legado editado; não coberto por asserção."
+    },
+    {
+      "claim": "1.1 Problema migrado 'linguagem já era factual, sem hedges'",
+      "type": "quality",
+      "verified": true,
+      "evidence": "Legado linha 5 não tem hedge; mas 0.2 e 1.2 carregam 'possivelmente'."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "docs/discovery/discovery-notes.md não contém nenhuma das expressões 'a definir', 'talvez', 'possivelmente', 'aparentemente' (busca sem distinção de maiúsculas), embora o legado as use; a dúvida app nativo vs PWA, se registrada, aparece como Ponto a validar (linha VAL-xxx na seção 7) e não como fato.",
+        "reason": "A busca literal pune citar as expressões do legado entre aspas no Workspace Scan; vale explicitar no texto se menção atribuída ao legado é aceitável ou também proibida."
+      },
+      {
+        "reason": "Nenhuma asserção verifica que o legado da raiz foi preservado (não apagado/reescrito); o with_skill o editou com nota de cabeçalho e o without_skill o reescreveu por completo, e isso não é discriminado."
+      }
+    ],
+    "overall": "Asserções discriminam bem: baseline falha em todas; with_skill passa nas estruturais (caminho oficial, estrutura) e falha nas de disciplina de condução (Q1, não adiantar respostas, linguagem proibida)."
+  }
+}

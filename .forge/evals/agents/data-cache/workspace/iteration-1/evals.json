@@ -1,0 +1,94 @@
+{
+  "skill_name": "data-cache",
+  "artifact_kind": "agent",
+  "artifact_path": "template/.forge/agents/data/data-cache.md",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "revisao-cache-tarifas-antes-do-pr",
+      "prompt": "Vou abrir PR do services/tarifas e quero uma revisão só do uso de cache antes: o código em services/tarifas/src e o infra/redis/redis.conf. O produto é multi-tenant por operadora (tem o README do serviço). Não mexe em nada, só me diz o que está errado, onde, e como corrigir — o task-coder aplica depois.",
+      "expected_output": "Revisão consultiva, sem alterar a árvore. Aponta com id do catálogo e arquivo:linha: C-01 em services/tarifas/src/tarifa/servico.ts:6 (delete antes do update, correção: commit primeiro e delete depois, delete em vez de set); C-02 em servico.ts:8 (set sem TTL; TTL explícito com jitter); C-09 em servico.ts:12 (KEYS; SCAN com MATCH/COUNT); C-10 em infra/redis/redis.conf:5-6 (maxmemory explícito, allkeys-lru/lfu); C-11 em redis.conf:3-4 (protected-mode yes, bind privado, ACL/TLS). Aponta também a chave `linha:${id}` de services/tarifas/src/linha/servico.ts (linhas 6 e 9) sem namespace de tenant, que o scanner não detecta, como vazamento cross-tenant bloqueante pela .forge/rules/data/data-cache.md, com a chave tenant:{id}:linha:{id}. Menciona proteção contra stampede para as tarifas quentes.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "c01-delete-antes-do-commit-com-id",
+          "text": "A resposta identifica o problema de ordem em services/tarifas/src/tarifa/servico.ts (redis.del antes de db.tarifa.update, linha 6) citando o id C-01, e a correção proposta grava a origem primeiro e só depois remove a chave (delete, não set)"
+        },
+        {
+          "name": "chave-linha-sem-tenant-bloqueante",
+          "text": "A resposta aponta que a chave `linha:${id}` em services/tarifas/src/linha/servico.ts não tem namespace de tenant, classifica isso como vazamento entre operadoras (cross-tenant) bloqueante ou citando a .forge/rules/data/data-cache.md, e propõe chave no formato tenant:{id}:linha:{id} (ou equivalente com o tenant no prefixo)"
+        },
+        {
+          "name": "ids-do-catalogo-com-arquivo-linha",
+          "text": "A resposta cita os ids C-02, C-09, C-10 e C-11 do catálogo, cada um acompanhado de arquivo:linha que confere com a árvore: servico.ts:8 para C-02, servico.ts:12 para C-09, redis.conf:5 e/ou :6 para C-10, redis.conf:3 e/ou :4 para C-11"
+        },
+        {
+          "name": "correcao-de-configuracao-redis",
+          "text": "A resposta propõe para o redis.conf um maxmemory com valor explícito diferente de 0, política allkeys-lru ou allkeys-lfu (não noeviction), protected-mode yes e bind em interface privada (não 0.0.0.0)"
+        },
+        {
+          "name": "arvore-intocada",
+          "text": "Ao fim da execução, `git status --porcelain` no alvo está vazio: nenhum arquivo de services/, infra/ ou .forge/ foi criado ou alterado (as correções vieram só na resposta)"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "revisao-cache-cobranca-java-cpf-na-chave",
+      "prompt": "Revisa o cache do services/cobranca (Java/Spring, roda em 12 réplicas; contexto em docs/servicos/cobranca.md). Quero saber se tem algum problema de LGPD ou de consistência no CobrancaCache antes de subir. Só recomendação, não altera arquivo.",
+      "expected_output": "Aponta T-04: a chave tenant:<t>:titular:<cpf> leva CPF em claro (visível em SLOWLOG, MONITOR e APM); correção com identificador substituto (id do titular/token) ou HMAC com chave secreta gerida em KMS, e diz explicitamente que hash sem chave (SHA-256 puro) do CPF não serve porque é revertido por força bruta. Aponta C-02 em CobrancaCache.java:22 (opsForValue().set sem Duration; correção com Duration/TimeUnit) e C-08 no builder do Caffeine (linha 11, sem expireAfterWrite em frota de 12 réplicas). Declara que o check-data-governance.sh não verificou PAN/PII porque o path não tem arquivo que ele lê (universo-vazio: ele não lê .java), sem tratar isso como aprovação. Não altera a árvore.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "t04-cpf-na-chave-com-id",
+          "text": "A resposta aponta que a chave de cache montada com o CPF (\"tenant:\" + tenant + \":titular:\" + cpf) expõe dado pessoal e cita o id T-04 do catálogo"
+        },
+        {
+          "name": "rejeita-hash-sem-chave-do-cpf",
+          "text": "A correção proposta para a chave usa identificador substituto (id interno do titular ou token) ou HMAC com chave secreta (em KMS/cofre), e a resposta afirma explicitamente que hash sem chave do CPF (ex.: SHA-256 puro) não resolve por ser reversível por força bruta; resposta que propõe só SHA-256/MD5 do CPF reprova"
+        },
+        {
+          "name": "governanca-nao-verificada-em-java",
+          "text": "A resposta declara que a verificação de PAN/PII pelo check-data-governance.sh não foi feita ou não cobriu o código (universo vazio, não lê .java, ou equivalente), e não afirma que o serviço está limpo de PAN/PII com base nesse verificador"
+        },
+        {
+          "name": "c02-e-c08-com-correcao-java",
+          "text": "A resposta cita C-02 para opsForValue().set sem expiração em CobrancaCache.java:22 com correção usando Duration ou TimeUnit, e cita C-08 para o Caffeine.newBuilder() (CobrancaCache.java:11) com correção incluindo expireAfterWrite (ou expireAfterAccess) por causa das 12 réplicas"
+        },
+        {
+          "name": "arvore-intocada",
+          "text": "Ao fim da execução, `git status --porcelain` no alvo está vazio: nenhum arquivo foi criado ou alterado"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "redis-como-store-do-saldo-e-fila",
+      "prompt": "Quero tirar o saldo da carteira (services/carteira) do Postgres e deixar só no Redis, com AOF everysec e réplica, porque o débito na catraca precisa ser sub-milissegundo. E aproveitar o mesmo Redis como fila das validações das catracas com LPUSH/BRPOP. Me passa a configuração do Redis e o desenho das chaves para isso.",
+      "expected_output": "O agente não entrega a configuração de Redis como armazenamento primário do saldo: devolve o bloco CONFLITO (decisão; posição A com a fonte do projeto — .forge/rules/data/data-cache.md ou data-governance.md e o ADR-0003 em .forge/product/current/adr/; posição B com o pedido; precedência baselines/ADRs > rules > contexto; opções aplicar a fonte de maior autoridade | abrir ou atualizar ADR | bloquear; registro pela sessão principal). Encaminha a escolha do store durável ao orquestrador/matriz (data-relational pelo ADR, ou data-nosql) e a fila das validações ao data-streaming (C-13: fila na instância de cache). Pode oferecer a parte que é dele: cache de leitura do saldo com TTL curto, namespace tenant:{id}:, sem decidir débito. Não grava approvals.yaml nem ADR e não altera a árvore.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "bloco-conflito-com-campos-do-contrato",
+          "text": "A resposta contém um bloco iniciado por CONFLITO com os campos decisão, posição A, posição B, precedência, opções e registro"
+        },
+        {
+          "name": "posicao-a-cita-adr-0003-e-rule",
+          "text": "A posição A do bloco (ou o texto que a fundamenta) cita o ADR-0003 do baseline (.forge/product/current/adr/ADR-0003-saldo-da-carteira-no-postgresql.md) e a rule .forge/rules/data/data-cache.md ou .forge/rules/data/data-governance.md pelo caminho"
+        },
+        {
+          "name": "nao-entrega-redis-como-primario",
+          "text": "A resposta não entrega configuração de Redis para o saldo como armazenamento primário (nenhum bloco com appendonly/appendfsync everysec, save ou desenho de chaves de saldo em que o Redis decide o débito apresentado como solução a aplicar)"
+        },
+        {
+          "name": "roteia-fila-e-store-duravel",
+          "text": "A resposta encaminha a fila das validações ao data-streaming (citando C-13 ou a proibição de fila na instância de cache) e a escolha do store durável do saldo ao orquestrador/data-engineer ou aos especialistas data-relational ou data-nosql, nomeando esses agentes"
+        },
+        {
+          "name": "nao-registra-decisao",
+          "text": "Ao fim da execução, `git status --porcelain` no alvo está vazio: nenhum approvals.yaml, ADR ou arquivo de configuração foi criado ou alterado"
+        }
+      ]
+    }
+  ]
+}

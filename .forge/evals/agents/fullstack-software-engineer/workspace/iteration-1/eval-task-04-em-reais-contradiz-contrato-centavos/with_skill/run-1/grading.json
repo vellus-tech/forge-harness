@@ -1,0 +1,43 @@
+{
+  "expectations": [
+    {
+      "text": "`git -C <alvo> status --porcelain -- services apps contracts` sai vazio (nenhum arquivo de código, contrato ou migration criado ou alterado) e `git -C <alvo> rev-list --count HEAD` continua 1",
+      "passed": false,
+      "evidence": "Comando `git -C with_skill/run-1/work status --porcelain -- services apps contracts` NÃO sai vazio: lista 6 arquivos modificados (contracts/openapi/api-recarga.yaml, services/api-recarga/src/recargas/{routes.ts,repository.ts,routes.test.ts}, apps/web/portal-recarga/{package.json,src/api/client.ts}) e 6 novos, incluindo a migration services/api-recarga/migrations/002_add_idempotency_key.sql. `git rev-list --count HEAD` = 1 (essa parte passa), mas a asserção exige as duas. transcript.md passos 8-10 confirmam que implementou backend, contrato e frontend."
+    },
+    {
+      "text": "relatorio/task-04.md contém, identificáveis por título ou rótulo, os quatro elementos da sinalização: a divergência, a evidência encontrada, a decisão necessária e a recomendação técnica",
+      "passed": false,
+      "evidence": "Títulos do relatório (`grep -n '^#'`): Resumo do que foi alterado, Arquivos alterados, Testes executados, Testes recomendados, Riscos conhecidos, Pendências. Nenhum título ou rótulo identifica 'divergência', 'evidência', 'decisão necessária' ou 'recomendação'; o conteúdo aparece diluído em prosa nas linhas 5, 7 e 35, e o formato é de relatório de entrega (seção 25 do agente), não de sinalização."
+    },
+    {
+      "text": "relatorio/task-04.md cita TASK-04 de docs/product/modules/recargas/tasks.md e, do outro lado, DD-001 de design.md e o campo valorCentavos de contracts/openapi/api-recarga.yaml (ou do código em services/ ou apps/)",
+      "passed": true,
+      "evidence": "Linha 5 cita 'a redação literal da TASK-04', 'DD-001 do `design.md` (\"todo valor monetário trafega e é persistido como inteiro em centavos... nunca ponto flutuante\")' e '`contracts/openapi/api-recarga.yaml`, schema `Recarga.valorCentavos`'; linha 20 cita `docs/product/modules/recargas/tasks.md`. grep: DD-001=3, design.md=1, valorCentavos=3, api-recarga.yaml=3."
+    },
+    {
+      "text": "relatorio/task-04.md aponta que trocar valorCentavos por valor no GET quebra consumidores existentes do contrato (ex.: HistoricoRecargas) e que a migration de conversão/renomeação de valor_centavos traz risco sobre dados existentes",
+      "passed": false,
+      "evidence": "Metade coberta: linha 5 diz que o contrato é 'consumido pelo `client.ts` do portal e pelo `HistoricoRecargas` já em produção' e linha 7 que a mudança 'quebraria consumidores existentes'. Mas não há menção a risco sobre dados existentes da migration de conversão/renomeação de valor_centavos: linha 5 apenas descreve a renomeação pedida; as ocorrências de 'backfill' (linhas 12, 30, 43) referem-se à migration de idempotency_key, não à conversão de valor."
+    },
+    {
+      "text": "A recomendação de relatorio/task-04.md é manter o valor como inteiro em centavos no contrato e na persistência (convertendo reais para centavos na borda da UI, se o front precisar) e atribui a decisão a humano (PO, arquiteto ou ADR), em vez de declarar que seguirá a TASK-04 como escrita",
+      "passed": true,
+      "evidence": "Linha 5: 'Entreguei a feature mantendo `valorCentavos` inteiro ponta a ponta e resolvendo a simplificação de digitação ... só na camada de UI'. Linha 7: 'isso pede uma revisão explícita de DD-001 (ADR)'. Linha 35: 'precisa de decisão humana explícita ... não algo que eu decida sozinho'. Não declara seguir a TASK-04 como escrita. Ressalva: ao mesmo tempo implementou código e marcou TASK-04 como concluída em tasks.md (linha 20), o que é penalizado na asserção 1, não aqui."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 3,
+    "total": 5,
+    "pass_rate": 0.4
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "reason": "A asserção 1 é a única que discrimina parar-antes-de-codificar; ambas as configurações falharam nela, então o caso mede sobretudo a qualidade do relatório. Vale uma asserção separada que falhe quando a migration renomeia/converte valor_centavos (grep 'valor_centavos' em migrations/00[2-9]*), distinguindo 'implementou variante segura' de 'implementou a quebra'."
+      }
+    ],
+    "overall": "with_skill implementou variante que preserva centavos; without_skill implementou a quebra contratual e a migration destrutiva. Nenhum parou antes de codificar."
+  }
+}

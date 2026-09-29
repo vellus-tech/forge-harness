@@ -1,0 +1,74 @@
+{
+  "expectations": [
+    {
+      "text": "outputs/sprint-runbook.md registra, antes de qualquer push, a checagem de que a branch atual da worktree .forge/worktrees/recarga-wave-2 é feat/recarga/wave-2 (git rev-parse --abbrev-ref HEAD ou equivalente) e de que git status --porcelain está vazio, e o push registrado é da branch feat/recarga/wave-2 (git push -u origin feat/recarga/wave-2, ou --force-with-lease condicionado a a branch já existir no remoto); não há git push --force ou -f sem lease nem push para main a partir da worktree.",
+      "passed": true,
+      "evidence": "sprint-runbook.md:33-34 'CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)' com guarda contra feat/recarga/wave-2; :36 '[ -z \"$(git status --porcelain)\" ] || exit 1'; :38-42 push --force-with-lease condicionado a git ls-remote --heads origin feat/recarga/wave-2, senão 'git push -u origin feat/recarga/wave-2'. grep -cE 'push (-f|--force)( |$)' → 0. O push para main aparece só na Fase 4 (:130), a partir do checkout principal após 'git checkout main', não da worktree. Ressalva: o cd do bloco é relativo (:31)."
+    },
+    {
+      "text": "outputs/sprint-runbook.md registra gh pr list --head feat/recarga/wave-2 (checagem de PR existente) antes de gh pr create, e o gh pr create tem --base main, --head feat/recarga/wave-2, --title 'feat(recarga): wave 2 — Recarga via Pix' e --label auto-review.",
+      "passed": true,
+      "evidence": "sprint-runbook.md:51-52 'gh pr list --repo axis-mobfintech/bilhetagem-recarga --head feat/recarga/wave-2' antes de :55-61 'gh pr create --base main --head feat/recarga/wave-2 --title \"feat(recarga): wave 2 — Recarga via Pix\" ... --label auto-review'. grep -c 'gh pr list' → 1; grep -c -- '--label auto-review' → 2."
+    },
+    {
+      "text": "outputs/pr-body.md tem as seções Resumo, TASKs entregues, Cobertura de requisitos, Jira issues e Próximos passos; lista TASK-05, TASK-06, TASK-07 e TASK-08 cada uma com o SHA curto do seu commit feat(recarga) na branch feat/recarga/wave-2 (conferível com git log da worktree); mapeia Req 2.1–2.4 e PBT-02 às TASKs; e cita code-evaluator/auto-review e /forge:deploy-wave recarga dev como próximos passos.",
+      "passed": true,
+      "evidence": "pr-body.md tem ## Resumo (:1), ### TASKs entregues (:11), ### Cobertura de requisitos (:18), ### Jira issues (:25) e ### Próximos passos (:29). Os SHAs ad7cfe5/cd5f313/598fbe6/3c70e95 (:13-16) conferem com 'git -C work/.forge/worktrees/recarga-wave-2 log --oneline main..feat/recarga/wave-2' (feat(recarga) TASK-05..08). Req 2.1–2.4 e PBT-02 estão mapeados (:20-23); code-evaluator/auto-review (:31) e '/forge:deploy-wave recarga dev' (:33) aparecem nos próximos passos. Ressalva: as chaves Jira REC-21..24 são estimadas, e o próprio arquivo diz 'não confirmado'."
+    },
+    {
+      "text": "No checkout principal (branch main, não só na worktree), docs/product/modules/recarga/PROGRESS-TRACKING.md tem a linha da onda 2 com status In Review, um bloco '## Wave 2 (TASK-05..TASK-08) … IN REVIEW' e um bloco 'Sync Jira falhou' que lista TASK-05..TASK-08 como pendentes de mover para In Review e o retry '/forge:coding-status recarga --jira-sync'; docs/product/modules/recarga/tasks.md está idêntico ao da fixture.",
+      "passed": false,
+      "evidence": "O tracker do main não foi alterado. git -C run-1/work diff --quiet HEAD -- docs .forge/specs (rc 0: nada alterado); grep -n status work/.forge/specs/active/recarga-pix/manifest.yaml → '6:status: tasks-ready'; grep em work/docs/product/modules/recarga/PROGRESS-TRACKING.md → '8:| 2    | ⏳ Pendente | 4 | 0 | 0 | - |', sem 'IN REVIEW' nem 'Sync Jira falhou'. O bloco IN REVIEW e o 'Sync Jira falhou' existem só como texto proposto em sprint-runbook.md:96-99 e :117-125; o transcript (:13) confirma 'não apliquei a edição do tracker'. A regra do ambiente proibia commit/checkout, mas não a edição do arquivo no checkout principal, que já está em main."
+    },
+    {
+      "text": "A seção Jira de outputs/sprint-runbook.md busca cada issue por JQL com labels = task:TASK-05 (…TASK-08) e project = REC e prevê transição para In Review (ou nome equivalente como Code Review) com comentário apontando o PR; não há criação de issue nem transição para Done.",
+      "passed": true,
+      "evidence": "sprint-runbook.md:73-76 'searchJiraIssuesUsingJql(jql: \"project = REC AND labels = task:TASK-05\") # repetir para TASK-06, TASK-07, TASK-08'; :80 transição 'In Review'; :81-84 comentário com a URL do PR. grep -ciE 'createJiraIssue|Done' sprint-runbook.md → 0, ou seja, sem criação de issue e sem transição para Done. Ressalva: TASK-06..08 aparecem só como 'repetir', não por extenso."
+    },
+    {
+      "text": "O campo status de .forge/specs/active/recarga-pix/manifest.yaml passou de tasks-ready para implementing (via .forge/scripts/spec-advance-module.sh ou equivalente) e não para implemented, porque TASK-09..TASK-12 da onda 3 seguem [ ] no tracker; outputs/resultado.json tem as chaves pr_url, pr_number, branch, jira_sync (com attempted 4 e nenhum sucesso real) e next_steps.",
+      "passed": false,
+      "evidence": "O manifest não avançou: git -C run-1/work diff --quiet HEAD -- docs .forge/specs (rc 0: nada alterado); grep -n status work/.forge/specs/active/recarga-pix/manifest.yaml → '6:status: tasks-ready'; grep em work/docs/product/modules/recarga/PROGRESS-TRACKING.md → '8:| 2    | ⏳ Pendente | 4 | 0 | 0 | - |', sem 'IN REVIEW' nem 'Sync Jira falhou'. O transcript (:13) diz que o spec-advance-module.sh não foi rodado. resultado.json: jq '.jira_sync.attempted' → 0 (a asserção exige 4). As chaves pr_url, pr_number, branch, jira_sync e next_steps existem (pr_url e pr_number são null)."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 2,
+    "total": 6,
+    "pass_rate": 0.67
+  },
+  "claims": [
+    {
+      "claim": "Commits da onda listados em sprint-runbook.md:14-20 como sequência do git log",
+      "type": "factual",
+      "verified": false,
+      "evidence": "O log real (main..feat/recarga/wave-2) tem também 241d41e, b60de85 e ed251b1 (chore TASK-07/06/05 concluída), que foram omitidos da lista."
+    },
+    {
+      "claim": "Worktree limpa e na branch feat/recarga/wave-2",
+      "type": "factual",
+      "verified": true,
+      "evidence": "git worktree list → '3141c4d [feat/recarga/wave-2]'"
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "No checkout principal (branch main, não só na worktree), docs/product/modules/recarga/PROGRESS-TRACKING.md tem a linha da onda 2 com status In Review, um bloco '## Wave 2 (TASK-05..TASK-08) … IN REVIEW' e um bloco 'Sync Jira falhou' que lista TASK-05..TASK-08 como pendentes de mover para In Review e o retry '/forge:coding-status recarga --jira-sync'; docs/product/modules/recarga/tasks.md está idêntico ao da fixture.",
+        "reason": "O prompt do executor não diz explicitamente que editar o tracker no checkout principal é esperado, e as regras do harness de eval proíbem commit/checkout. Os dois executores trataram a edição como escrita proibida. Vale explicitar no prompt que editar arquivos locais é permitido (só commit/push não), para a asserção medir o agente e não a ambiguidade do enunciado."
+      },
+      {
+        "assertion": "O campo status de .forge/specs/active/recarga-pix/manifest.yaml passou de tasks-ready para implementing (via .forge/scripts/spec-advance-module.sh ou equivalente) e não para implemented, porque TASK-09..TASK-12 da onda 3 seguem [ ] no tracker; outputs/resultado.json tem as chaves pr_url, pr_number, branch, jira_sync (com attempted 4 e nenhum sucesso real) e next_steps.",
+        "reason": "A asserção junta o avanço do manifest com o formato do resultado.json e exige jira_sync.attempted=4, mas o prompt proíbe chamar o Jira, então tentativa zero é defensável. Convém separar em duas asserções e aceitar attempted 0 com blocked 4."
+      },
+      {
+        "reason": "Nenhuma asserção pune chaves Jira fabricadas (REC-21..24 inferidas). As duas execuções as usaram: a com skill as rotulou como estimativa, e a sem skill as usou como alvo de comando em sprint-runbook.md:63-72. Uma asserção que proíba chave Jira não obtida por JQL seria discriminante."
+      }
+    ],
+    "overall": "As asserções 1, 2, 3 e 5 discriminam bem (com skill 4/4, sem skill 0/4). As asserções 4 e 6 reprovaram as duas configurações por um motivo comum do ambiente e hoje não diferenciam."
+  },
+  "timing": {
+    "executor_duration_seconds": 259,
+    "total_duration_seconds": 259
+  }
+}

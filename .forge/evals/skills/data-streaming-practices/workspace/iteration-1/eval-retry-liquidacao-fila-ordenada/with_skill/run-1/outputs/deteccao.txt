@@ -1,0 +1,45 @@
+== check-data-governance.sh ==
+OK data-governance/universo — 3 arquivo(s) examinado(s) (<worktree-do-eval>/.forge/evals/skills/data-streaming-practices/workspace/iteration-1/eval-retry-liquidacao-fila-ordenada/with_skill/run-1/work)
+OK data-governance (3 .md, 0 código, no divergence)
+
+== scan.sh ==
+INFO data-streaming-practices motor=rg raizes=1 universo=codigo iac proto avsc
+OK RMQ-AP-01 [alto] nenhuma ocorrência
+OK RMQ-AP-03 [aviso] nenhuma ocorrência
+OK RMQ-AP-04 [aviso] nenhuma ocorrência
+OK RMQ-AP-06 [alto] nenhuma ocorrência
+OK RMQ-AP-07 [aviso] nenhuma ocorrência
+OK RMQ-AP-08 [aviso] nenhuma ocorrência
+OK RMQ-AP-09 [aviso] nenhuma ocorrência
+OK RMQ-AP-10 [alto] nenhuma ocorrência
+OK RMQ-AP-12 [aviso] nenhuma ocorrência
+OK RMQ-AP-14 [aviso] nenhuma ocorrência
+OK RMQ-AP-15 [aviso] nenhuma ocorrência
+OK RMQ-AP-17 [alto] nenhuma ocorrência
+OK RMQ-AP-18 [alto] nenhuma ocorrência
+OK RMQ-AP-19 [aviso] nenhuma ocorrência
+OK RMQ-AP-20 [aviso] nenhuma ocorrência
+OK RMQ-AP-22 [aviso] nenhuma ocorrência
+OK RMQ-AP-28 [aviso] nenhuma ocorrência
+OK KFK-AP-01 [alto] nenhuma ocorrência
+OK KFK-AP-02 [alto] nenhuma ocorrência
+OK KFK-AP-03 [aviso] nenhuma ocorrência
+OK KFK-AP-06 [alto] nenhuma ocorrência
+OK KFK-AP-09 [aviso] nenhuma ocorrência
+OK KFK-AP-10 [aviso] nenhuma ocorrência
+OK KFK-AP-14 [aviso] nenhuma ocorrência
+OK INB-AP-01 [aviso] nenhuma ocorrência
+OK INB-AP-02 [aviso] nenhuma ocorrência
+OK D-AP-01 [aviso] nenhuma ocorrência
+OK D-AP-02 [aviso] nenhuma ocorrência
+OK D-AP-04 [aviso] nenhuma ocorrência
+OK D-AP-05 [aviso] nenhuma ocorrência
+OK SCH-AP-01 [alto] nenhuma ocorrência
+OK T-02 [aviso] nenhuma ocorrência
+ARQUIVOS-VARRIDOS 4
+== scan.sh pós-patch ==
+OK D-AP-04 [aviso] nenhuma ocorrência
+OK D-AP-05 [aviso] nenhuma ocorrência
+OK SCH-AP-01 [alto] nenhuma ocorrência
+OK T-02 [aviso] nenhuma ocorrência
+ARQUIVOS-VARRIDOS 4

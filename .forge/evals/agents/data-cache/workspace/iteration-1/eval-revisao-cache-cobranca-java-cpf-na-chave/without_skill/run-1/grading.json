@@ -1,0 +1,63 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta aponta que a chave de cache montada com o CPF (\"tenant:\" + tenant + \":titular:\" + cpf) expõe dado pessoal e cita o id T-04 do catálogo",
+      "passed": false,
+      "evidence": "revisao-cobranca-cache.md achado 1 aponta o CPF em claro na chave `\"tenant:\" + tenant + \":titular:\" + cpf`, mas nunca cita o id T-04 do catálogo (nenhuma ocorrência de 'T-04' nas saídas)."
+    },
+    {
+      "text": "A correção proposta para a chave usa identificador substituto (id interno do titular ou token) ou HMAC com chave secreta (em KMS/cofre), e a resposta afirma explicitamente que hash sem chave do CPF (ex.: SHA-256 puro) não resolve por ser reversível por força bruta; resposta que propõe só SHA-256/MD5 do CPF reprova",
+      "passed": false,
+      "evidence": "revisao-cobranca-cache.md achado 1 recomenda exatamente o que a asserção reprova: 'derivar a chave de um hash (SHA-256, por exemplo) do CPF' — SHA-256 sem chave, sem HMAC/KMS nem id substituto, e sem alertar sobre reversão por força bruta."
+    },
+    {
+      "text": "A resposta declara que a verificação de PAN/PII pelo check-data-governance.sh não foi feita ou não cobriu o código (universo vazio, não lê .java, ou equivalente), e não afirma que o serviço está limpo de PAN/PII com base nesse verificador",
+      "passed": false,
+      "evidence": "Nenhuma menção a check-data-governance.sh, universo vazio ou limitação do verificador a .java em revisao-cobranca-cache.md nem no transcript; o verificador sequer foi executado."
+    },
+    {
+      "text": "A resposta cita C-02 para opsForValue().set sem expiração em CobrancaCache.java:22 com correção usando Duration ou TimeUnit, e cita C-08 para o Caffeine.newBuilder() (CobrancaCache.java:11) com correção incluindo expireAfterWrite (ou expireAfterAccess) por causa das 12 réplicas",
+      "passed": false,
+      "evidence": "Achado 2 descreve set sem expiração e Caffeine sem expireAfterWrite e o achado 4 recomenda TTL curto no Caffeine pelas 12 réplicas, mas não cita os ids C-02 nem C-08, não aponta CobrancaCache.java:22/:11 e não propõe correção com Duration/TimeUnit."
+    },
+    {
+      "text": "Ao fim da execução, `git status --porcelain` no alvo está vazio: nenhum arquivo foi criado ou alterado",
+      "passed": true,
+      "evidence": "`git -C without_skill/run-1/work status --porcelain --ignored` executado pelo grader retornou vazio; log com apenas o commit inicial e732262."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 4,
+    "total": 5,
+    "pass_rate": 0.2
+  },
+  "timing": {
+    "executor_duration_seconds": 68,
+    "total_duration_seconds": 68
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Ao fim da execução, `git status --porcelain` no alvo está vazio: nenhum arquivo foi criado ou alterado",
+        "reason": "Não discrimina: as duas configurações passam trivialmente, pois nenhuma tinha motivo para escrever na árvore; vale mantê-la como guarda, mas não conta como sinal de qualidade do artefato."
+      },
+      {
+        "assertion": "A resposta aponta que a chave de cache montada com o CPF (\"tenant:\" + tenant + \":titular:\" + cpf) expõe dado pessoal e cita o id T-04 do catálogo",
+        "reason": "Exigir o id T-04 (e C-02/C-08 na asserção 4) mede aderência à nomenclatura do catálogo, que o baseline sem skill não pode conhecer; o baseline achou os mesmos três defeitos em substância. Considere separar 'identifica o defeito' de 'usa o id do catálogo' para que o delta não seja inflado por vocabulário."
+      },
+      {
+        "reason": "O ponto mais discriminante do caso é a correção da chave: o baseline propôs SHA-256 puro do CPF (erro real de LGPD), e a asserção 2 captura isso bem. Nenhuma asserção cobre a observação do with_skill sobre C-07/C-01 (ordem da escrita frente ao PostgreSQL), que é valor adicional não medido."
+      }
+    ],
+    "overall": "Asserções 2 e 3 são discriminantes e substantivas; 1 e 4 misturam substância com nomenclatura do catálogo; 5 é guarda sem poder discriminante."
+  },
+  "claims": [
+    {
+      "claim": "Hash SHA-256 do CPF mantém unicidade sem propagar o dado sensível",
+      "type": "quality",
+      "verified": false,
+      "evidence": "CPF tem ~10^9 valores possíveis; SHA-256 sem chave é revertido por força bruta, logo o dado continua exposto."
+    }
+  ]
+}

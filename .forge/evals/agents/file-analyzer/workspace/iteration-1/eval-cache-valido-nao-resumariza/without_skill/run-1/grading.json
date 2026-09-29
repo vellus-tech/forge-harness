@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "Em .forge/graph/cache/summaries.json, a entrada 'src/integracao/calculo-integracao.ts' mantém exatamente o summary semeado ('Calcula a tarifa do segundo embarque na integração: 25% de desconto quando há troca de modal em até 120 min; depende do TarifaRepository e de Money.') e o mesmo fingerprint do commit da fixture.",
+      "passed": true,
+      "evidence": "Comando: jq --arg k src/integracao/calculo-integracao.ts '.[$k]' work/.forge/graph/cache/summaries.json vs git -C work show HEAD:.forge/graph/cache/summaries.json | jq '.[$k]' (commit da fixture 7806901, run refeito em 28/09 13:32): fingerprint 5dda5a779b965793220640b1e46ab7266bb1404344ff5026491330b721082d56 e summary semeado exato nos dois lados; outputs/summaries-observado.json linhas 2-5 idem. Obs.: o grading anterior deste arquivo (que reprovava citando d933553e... e HEAD 0d3aca7) descrevia um work/ contaminado que o próprio run descartou (transcript.md linhas 5-6) e não corresponde mais ao disco."
+    },
+    {
+      "text": "Em .forge/graph/graph.json, o nó 'src/integracao/calculo-integracao.ts' tem o mesmo summary semeado e o mesmo fingerprint do commit da fixture; nenhum nó passou a ter summary mencionando a portaria SMT 14/2025.",
+      "passed": true,
+      "evidence": "Comando: jq --arg k src/integracao/calculo-integracao.ts '.nodes[]|select(.id==$k)|{fingerprint,summary}' work/.forge/graph/graph.json (atual e HEAD); jq '[.nodes[]|select((.summary//\"\")|test(\"SMT\"))|.id]' work/.forge/graph/graph.json: nó com fingerprint 5dda5a779b965793220640b1e46ab7266bb1404344ff5026491330b721082d56 e summary semeado, idênticos ao HEAD 7806901; lista de nós com summary citando SMT = []. git -C work diff -- .forge/graph/ só altera generated_at e loc 10->21 (efeito do graph.sh build)."
+    },
+    {
+      "text": "A resposta final declara que não regerou o summary porque a mudança foi só cosmética e o fingerprint estrutural não mudou (cita o 'up to date'/'zero tokens' do graph.sh update ou compara os fingerprints), em vez de apenas dizer que atualizou.",
+      "passed": true,
+      "evidence": "outputs/decisao.md linha 18: 'o fingerprint estrutural não mudou e o cache continua válido. Não regenerei o summary.'; linha 14 e resposta ao usuário na linha 24: 'O fingerprint estrutural do nó no grafo não mudou ... Rodei graph.sh build para confirmar (fingerprint idêntico antes/depois)'. Compara fingerprints (5dda5a77... antes/depois), satisfazendo a alternativa da asserção, embora não cite o 'up to date/zero tokens' do graph.sh update. transcript.md linhas 10-11 confirmam."
+    },
+    {
+      "text": "A resposta final não apresenta um summary novo ou reescrito para o nó como substituto do cacheado (em particular, nenhum summary que incorpore a portaria SMT 14/2025).",
+      "passed": true,
+      "evidence": "outputs/decisao.md linhas 16-24 e transcript.md linha 11 não apresentam summary novo; decisao.md linha 18 recusa explicitamente introduzir no cache referência à portaria SMT 14/2025. Nenhum texto de summary substituto em outputs/ (grep -rn 'SMT' outputs/summaries-observado.json outputs/graph.json.observado -> sem ocorrência)."
+    },
+    {
+      "text": "src/integracao/calculo-integracao.ts no diretório-alvo continua com a versão cosmética do usuário (contém 'portaria SMT 14/2025' e indentação de 4 espaços), sem reversão nem nova edição.",
+      "passed": true,
+      "evidence": "cmp fixtures/cache-valido-nao-resumariza/cosmetic/src/integracao/calculo-integracao.ts work/src/integracao/calculo-integracao.ts -> idênticos; grep -n 'SMT 14/2025' -> linha 2 ('// Regra da portaria SMT 14/2025: ...'); grep -c '^    [^ ]' = 5, grep -c '^  [^ ]' = 0 (sem_skill). outputs/calculo-integracao.ts é só cópia de referência."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  }
+}

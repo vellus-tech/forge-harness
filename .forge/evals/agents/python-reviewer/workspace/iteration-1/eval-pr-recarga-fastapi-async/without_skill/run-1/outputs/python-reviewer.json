@@ -1,0 +1,70 @@
+{
+  "reviewer": "python-reviewer",
+  "target": "feat/recargas-gateway diff contra main",
+  "summary": "PR adiciona POST /recargas (cobrança no gateway + insert) e GET /recargas/{id}, e migra o valor da recarga para centavos. Há bloqueio de event loop por chamada HTTP síncrona, vazamento de segredo em log, ausência de tratamento de erro do gateway, IDOR no GET, e uma migration destrutiva sem backfill que pode falhar ou perder dado monetário em tabela não vazia.",
+  "findings": [
+    {
+      "file": "alembic/versions/0002_valor_em_centavos.py",
+      "line": 10,
+      "severity": "critical",
+      "scenario": "Em ambiente com a tabela `recargas` já populada, `op.drop_column('recargas', 'valor')` descarta o valor monetário original e, na sequência, `op.add_column(..., nullable=False)` sem `server_default` falha (ou, se o banco permitir, preenche linhas existentes sem o valor em centavos). Não há passo de backfill (`valor_centavos = valor * 100`) antes do drop, então a migration tanto pode quebrar em produção quanto perder o dado financeiro das recargas já gravadas.",
+      "recommendation": "Adicionar coluna nova antes de dropar a antiga, popular `valor_centavos` a partir de `valor` (ex.: `UPDATE recargas SET valor_centavos = ROUND(valor * 100)`), só então tornar `NOT NULL` e dropar `valor`."
+    },
+    {
+      "file": "app/recargas/router.py",
+      "line": 23,
+      "severity": "high",
+      "scenario": "`logger.info(...)` grava `settings.gateway_api_key` em texto claro no log a cada chamada de POST /recargas. Qualquer sistema de agregação de logs (ou acesso ao arquivo de log) expõe a credencial do gateway de pagamento.",
+      "recommendation": "Remover a API key do log; se necessário depurar, logar só um hash/prefixo da chave, nunca o valor completo."
+    },
+    {
+      "file": "app/recargas/router.py",
+      "line": 24,
+      "severity": "high",
+      "scenario": "O endpoint é `async def`, mas usa `requests.post` (bloqueante) para chamar o gateway. Sob carga, cada requisição de recarga trava a event loop do processo asyncio pelo tempo da chamada HTTP (até o timeout de 10s), degradando todas as outras requisições concorrentes do worker.",
+      "recommendation": "Usar um cliente HTTP assíncrono (ex.: `httpx.AsyncClient`) com `await client.post(...)`, ou mover a chamada síncrona para uma threadpool (`run_in_executor`)."
+    },
+    {
+      "file": "app/recargas/router.py",
+      "line": 24,
+      "severity": "high",
+      "scenario": "Não há `resposta.raise_for_status()` nem tratamento de exceção em torno de `requests.post`. Timeout, erro de rede ou resposta HTTP 4xx/5xx do gateway propaga uma exceção não tratada (ou um corpo sem a chave `status`), retornando 500 genérico ao invés de um erro de negócio claro — e a recarga fica em estado ambíguo (cobrado ou não) sem registro no banco.",
+      "recommendation": "Validar o status HTTP da resposta do gateway, tratar timeout/erro de rede explicitamente e decidir o que gravar (ex.: status `falha`) em vez de deixar a exceção subir sem registrar nada."
+    },
+    {
+      "file": "app/recargas/router.py",
+      "line": 24,
+      "severity": "high",
+      "scenario": "A cobrança no gateway (`requests.post`) ocorre antes do INSERT em `recargas`. Se o processo cair ou o INSERT falhar depois da cobrança bem-sucedida, o usuário é cobrado mas nenhum registro de recarga existe — dinheiro debitado sem contrapartida rastreável. Também não há chave de idempotência enviada ao gateway, então uma repetição de requisição (retry de cliente, timeout duplo) pode cobrar duas vezes pela mesma recarga.",
+      "recommendation": "Criar o registro da recarga em estado `pendente` antes de chamar o gateway (ou usar uma transação/outbox), e enviar um identificador de idempotência único na chamada ao gateway."
+    },
+    {
+      "file": "app/recargas/router.py",
+      "line": 39,
+      "severity": "high",
+      "scenario": "GET /recargas/{recarga_id} não filtra pelo `usuario_id` do token — apenas por `id`. Qualquer usuário autenticado pode informar o `recarga_id` de outra pessoa e ler os dados da recarga alheia (cartão, valor, status). Isso é uma falha de autorização em nível de objeto (IDOR).",
+      "recommendation": "Adicionar `AND usuario_id = :usuario_id` à query (ou validar o dono do registro após buscá-lo) e retornar 403/404 quando não pertencer ao usuário autenticado."
+    },
+    {
+      "file": "app/recargas/router.py",
+      "line": 40,
+      "severity": "medium",
+      "scenario": "Quando `recarga_id` não existe, `result.mappings().first()` retorna `None`, e o endpoint responde HTTP 200 com corpo `null` em vez de 404. Clientes que esperam um objeto ou um erro explícito recebem um sucesso vazio.",
+      "recommendation": "Se `first()` for `None`, levantar `HTTPException(status_code=404)`."
+    },
+    {
+      "file": "app/recargas/router.py",
+      "line": 19,
+      "severity": "medium",
+      "scenario": "`payload: dict[str, Any]` não valida o corpo da requisição. Se `cartao_id` ou `valor_centavos` estiverem ausentes ou com tipo errado, o `KeyError`/`TypeError` só estoura na linha 27 (dentro do bind da query SQL), depois de já ter cobrado no gateway na linha 24 — reforça o problema de cobrança sem registro (achado acima) e devolve 500 sem mensagem útil ao cliente, além de perder a documentação automática do OpenAPI.",
+      "recommendation": "Trocar `payload: dict[str, Any]` por um modelo Pydantic (`cartao_id: str`, `valor_centavos: int`, etc.) validado antes de qualquer efeito colateral."
+    },
+    {
+      "file": "tests/test_recargas.py",
+      "line": 7,
+      "severity": "low",
+      "scenario": "A suíte cobre só o caminho feliz do POST (gateway aprova). Não há teste para GET /recargas/{id}, para IDOR (usuário buscando recarga de outro), para falha/timeout do gateway, para payload inválido, nem para a migration 0002 com dados pré-existentes — todos os cenários acima ficam sem rede de segurança automatizada.",
+      "recommendation": "Adicionar casos de teste para os cenários de erro e para o GET antes de considerar o PR pronto para o code-evaluator."
+    }
+  ]
+}

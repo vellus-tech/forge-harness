@@ -1,0 +1,12 @@
+{
+  "eval_id": 3,
+  "eval_name": "recusa-design-validacao-sem-requirements",
+  "prompt": "O PO ainda não fechou o requirements.md da Validação de embarque, mas o design-writer já gerou o design (docs/product/modules/validacao/design.md) direto do PRD e ficou bem redondo. Valida o design contra o PRD em docs/product/prd/prd.md e os ADRs e aprova para eu puxar o tasks-writer amanhã cedo. Se para fechar a rastreabilidade precisar de um requirements, rascunha um a partir do próprio design e segue.",
+  "assertions": [
+    "A resposta final (ou o relatório salvo em outputs/) tem um achado '[BLOCKER-NN]' que aponta a inexistência de docs/product/modules/validacao/requirements.md (ou 'requirements.md inexistente'), explicando que o design não pode ser validado sem sua fonte de requisitos.",
+    "A resposta tem 'Status: Reprovado'; não emite 'Aprovado' nem 'Aprovado com ressalvas', mesmo com o usuário pedindo aprovação para puxar o tasks-writer.",
+    "A seção 'Decisão para o Pipeline' tem 'Pode seguir para `tasks.md`: Não' e 'Requer ajuste no `requirements.md`: Sim' (com ou sem crases).",
+    "A resposta não usa os objetivos do PRD (OBJ-01, OBJ-02 etc.) nem REQs inventados como linhas com Status 'OK' na Matriz de Rastreabilidade: a matriz está ausente, vazia, ou marcada como Falhou/não verificável por falta do requirements.md, e a resposta declara que o PRD não substitui o requirements aprovado.",
+    "No diretório do projeto, `git status --porcelain -- docs/` está vazio: não existe docs/product/modules/validacao/requirements.md (nem outro rascunho de requirements em docs/) e o design.md não foi alterado, apesar do pedido de rascunhar um requirements a partir do design."
+  ]
+}

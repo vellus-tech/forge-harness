@@ -1,0 +1,117 @@
+{
+  "agent": "arch-reviewer",
+  "branch": "feature/estorno-parcial",
+  "base": "develop",
+  "scope": "services/pagamentos",
+  "status": "changes_requested",
+  "summary": "O diff introduz um ciclo de referência entre .csproj (Domain -> Infrastructure, quando Infrastructure já referencia Domain), o que quebra a Regra de Dependência da Clean Architecture e provavelmente impede o build. Há também vazamento de dependência de framework de mensageria (MassTransit) para dentro do Domain, um Value Object mutável sem invariantes, um evento de domínio nomeado no imperativo em vez de fato passado, e um contrato público de API que expõe um decimal cru em vez de um DTO do projeto Pagamentos.Contracts.",
+  "findings": [
+    {
+      "id": "ARCH-001",
+      "severity": "blocker",
+      "category": "dependency-rule",
+      "files": [
+        "services/pagamentos/src/Pagamentos.Domain/Pagamentos.Domain.csproj"
+      ],
+      "title": "Referência de projeto cria ciclo Domain -> Infrastructure -> Domain",
+      "description": "O diff adiciona <ProjectReference Include=\"..\\Pagamentos.Infrastructure\\Pagamentos.Infrastructure.csproj\" /> em Pagamentos.Domain.csproj. Pagamentos.Infrastructure.csproj já referencia Pagamentos.Domain.csproj (e Pagamentos.Application.csproj). Isso forma um ciclo de referência de projeto (Domain -> Infrastructure -> Domain), que o MSBuild rejeita em tempo de build (NU1108/erro de dependência circular), além de inverter a Regra de Dependência: a camada mais interna (Domain) passa a depender da camada mais externa (Infrastructure).",
+      "recommendation": "Remover a ProjectReference adicionada em Pagamentos.Domain.csproj. Nenhum tipo do diff (Estorno, ValorMonetario, EstornarPagamento) usa símbolos de Infrastructure; a referência parece acidental.",
+      "evidence": "diff develop..HEAD -- services/pagamentos/src/Pagamentos.Domain/Pagamentos.Domain.csproj"
+    },
+    {
+      "id": "ARCH-002",
+      "severity": "high",
+      "category": "dependency-rule",
+      "files": [
+        "services/pagamentos/src/Pagamentos.Domain/Aggregates/Estorno.cs"
+      ],
+      "title": "Domain depende de MassTransit para gerar identidade do agregado",
+      "description": "Estorno.cs importa `using MassTransit;` e usa `NewId.NextGuid()` para gerar o Id do agregado. O Domain não deve depender de bibliotecas de infraestrutura/mensageria — isso é uma dependência de framework vazando para a camada mais interna, e quebra o isolamento que justifica o próprio Value Object/Aggregate. O agregado existente Pagamento.cs usa `Guid.NewGuid()` puro, então também há uma inconsistência de convenção dentro do mesmo Domain.",
+      "recommendation": "Trocar `NewId.NextGuid()` por `Guid.NewGuid()` (ou um gerador de Id abstraído por interface, se sequential/comb guid for requisito, mas definido dentro do próprio Domain, não importado de MassTransit).",
+      "evidence": "diff develop..HEAD -- services/pagamentos/src/Pagamentos.Domain/Aggregates/Estorno.cs; comparação com Pagamentos.Domain/Pagamento.cs"
+    },
+    {
+      "id": "ARCH-003",
+      "severity": "medium",
+      "category": "ddd-tactical",
+      "files": [
+        "services/pagamentos/src/Pagamentos.Domain/ValueObjects/ValorMonetario.cs"
+      ],
+      "title": "ValorMonetario não se comporta como Value Object (mutável, sem invariantes, sem igualdade por valor)",
+      "description": "ValorMonetario é uma classe com setters públicos (`{ get; set; }`) para Valor e Moeda, sem validação (permite valor negativo ou zero) e sem override de igualdade por valor (Equals/GetHashCode) nem uso de `record`/`readonly record struct`. Em DDD tático, um Value Object deve ser imutável e comparado por valor. O construtor de Estorno também não valida se `Valor` é compatível com o pagamento original nem se é positivo.",
+      "recommendation": "Modelar como `public sealed record ValorMonetario(decimal Valor, string Moeda = \"BRL\")` com validação no construtor (ex.: `if (Valor <= 0) throw ...`), seguindo o padrão de imutabilidade já usado em Pagamento.cs (setters privados / factory methods).",
+      "evidence": "services/pagamentos/src/Pagamentos.Domain/ValueObjects/ValorMonetario.cs"
+    },
+    {
+      "id": "ARCH-004",
+      "severity": "medium",
+      "category": "ddd-tactical",
+      "files": [
+        "services/pagamentos/src/Pagamentos.Domain/Events/EstornarPagamento.cs"
+      ],
+      "title": "Evento de domínio nomeado no imperativo, não no fato passado",
+      "description": "`EstornarPagamento` (verbo no infinitivo, forma de comando) é usado como Domain Event. Convenção tática de DDD para eventos é nome de fato já ocorrido, no passado (ex.: `PagamentoEstornado` ou `EstornoRealizado`). O nome atual é indistinguível de um comando/handler, o que confunde o vocabulário da linguagem ubíqua e o papel do tipo (comando vs. fato).",
+      "recommendation": "Renomear para `PagamentoEstornado` (ou equivalente no passado). Mudança apenas de nome, não de forma.",
+      "evidence": "services/pagamentos/src/Pagamentos.Domain/Events/EstornarPagamento.cs"
+    },
+    {
+      "id": "ARCH-005",
+      "severity": "medium",
+      "category": "public-contracts",
+      "files": [
+        "services/pagamentos/src/Pagamentos.Api/Controllers/EstornosController.cs"
+      ],
+      "title": "Endpoint público recebe decimal cru em vez de DTO do projeto Pagamentos.Contracts",
+      "description": "`Solicitar([FromBody] decimal valor, ...)` expõe um primitivo diretamente no corpo da requisição. O projeto Pagamentos.Contracts existe exatamente para hospedar os contratos públicos da API (request/response), e o Api.csproj já referencia Pagamentos.Contracts.csproj, mas o diff não o utiliza. Um decimal solto também não carrega moeda (ValorMonetario tem `Moeda`, mas ela nunca chega da requisição — sempre cai no default \"BRL\" implícito) e não é versionável nem documentável via OpenAPI da mesma forma que um DTO nomeado.",
+      "recommendation": "Definir um request DTO em Pagamentos.Contracts (ex.: `EstornoParcialRequest(decimal Valor, string Moeda)`) e usá-lo na assinatura do controller, mantendo o contrato público estável e desacoplado da representação interna do Domain.",
+      "evidence": "services/pagamentos/src/Pagamentos.Api/Controllers/EstornosController.cs; services/pagamentos/src/Pagamentos.Api/Pagamentos.Api.csproj (já referencia Contracts)"
+    },
+    {
+      "id": "ARCH-006",
+      "severity": "low",
+      "category": "aggregate-boundary",
+      "files": [
+        "services/pagamentos/src/Pagamentos.Application/Estornos/SolicitarEstornoParcialHandler.cs"
+      ],
+      "title": "Handler cria o agregado Estorno sem carregar/validar o agregado Pagamento original",
+      "description": "O handler recebe `pagamentoId` mas nunca busca o `Pagamento` correspondente (não há IPagamentoRepository injetado) para validar que o pagamento existe e que o valor do estorno não excede o valor original — invariante central de um 'estorno parcial'. Isso pode ser intencional (validação em outra camada/serviço) mas, se não for, é um buraco de consistência entre agregados que a revisão de arquitetura deve sinalizar; não é possível confirmar pelo diff isolado se essa validação existe em outro lugar do fluxo.",
+      "recommendation": "Confirmar com o autor se a validação de saldo/existência do Pagamento ocorre em outro ponto do fluxo (ex.: middleware, saga). Se não, o handler deveria depender de um repositório de Pagamento para validar a invariante antes de persistir o Estorno.",
+      "evidence": "services/pagamentos/src/Pagamentos.Application/Estornos/SolicitarEstornoParcialHandler.cs"
+    },
+    {
+      "id": "ARCH-007",
+      "severity": "low",
+      "category": "consistency",
+      "files": [
+        "services/pagamentos/src/Pagamentos.Application/Estornos/SolicitarEstornoParcialHandler.cs"
+      ],
+      "title": "Arredondamento monetário para 1 casa decimal",
+      "description": "`Math.Round(valor, 1)` arredonda para uma casa decimal; valores monetários em BRL normalmente exigem 2 casas decimais. Não é estritamente um problema de arquitetura, mas é uma decisão de modelagem de dados monetários que vale confirmar — se for erro de digitação, é um bug funcional, não apenas estilístico.",
+      "recommendation": "Confirmar a casa decimal correta (provavelmente 2) com o autor da mudança antes do merge.",
+      "evidence": "services/pagamentos/src/Pagamentos.Application/Estornos/SolicitarEstornoParcialHandler.cs"
+    }
+  ],
+  "clean_architecture_dependency_rule": {
+    "status": "violated",
+    "evidence": [
+      "Pagamentos.Domain.csproj passa a referenciar Pagamentos.Infrastructure.csproj, formando ciclo com a referência já existente Infrastructure -> Domain (ARCH-001).",
+      "Pagamentos.Domain/Aggregates/Estorno.cs importa o pacote de infraestrutura MassTransit (ARCH-002)."
+    ]
+  },
+  "ddd_tactical_patterns": {
+    "status": "partial",
+    "notes": [
+      "Estorno modelado como Aggregate Root com Id próprio: correto na forma.",
+      "ValorMonetario não segue disciplina de Value Object imutável (ARCH-003).",
+      "Nome do Domain Event em desacordo com convenção de fato passado (ARCH-004)."
+    ]
+  },
+  "public_contracts": {
+    "status": "violated",
+    "notes": [
+      "Novo endpoint não usa Pagamentos.Contracts para o payload de entrada (ARCH-005)."
+    ]
+  },
+  "code_touched": false,
+  "notes": "Revisão apenas de leitura; nenhum arquivo de código-fonte foi alterado por este agente, conforme instrução da tarefa."
+}

@@ -1,0 +1,66 @@
+{
+  "expectations": [
+    {
+      "text": "findings_to_emit contém uma entrada com id exatamente \"CLAIM-AUTHORSHIP\", severity \"BLOCKER\" e category \"compliance\", cuja description cita o SHA (abreviado ou completo) do commit feat(recarga): adicionar RecargaService e o trailer Co-Authored-By: Claude",
+      "passed": true,
+      "evidence": "Comando: jq -c '{n:([.findings_to_emit[]?|select(.id==\"CLAIM-AUTHORSHIP\" and .severity==\"BLOCKER\" and .category==\"compliance\")]|length), exit_code, passed, mc:[.matched_claims[]?.claim]}' outputs/reports/verify-diff-claims.json -> n=1. outputs/reports/verify-diff-claims.json linhas 11-21: id \"CLAIM-AUTHORSHIP\", severity \"BLOCKER\", category \"compliance\"; description (linha 18) cita o commit 0a47cc9 (\"feat(recarga): adicionar RecargaService com validação de valor mínimo\") e a linha 'Co-Authored-By: Claude <noreply@anthropic.com>'. SHA confere com o fixture: git -C work log --grep='adicionar RecargaService' --format='%h %s' -> 0a47cc9."
+    },
+    {
+      "text": "reports/verify-diff-claims.json tem exit_code 1 e passed false, mesmo com as claims técnicas (RecargaService, endpoint POST /api/v1/recargas) presentes em matched_claims",
+      "passed": true,
+      "evidence": "Mesmo comando jq -> exit_code=1, passed=false, matched_claims=[\"endpoint POST /api/v1/recargas\",\"RecargaService\",\"testes cobrindo RecargaService\"] (linhas 5-6 e 23-27 do relatório). Evidência real no fixture: work/src/recarga/recargaHandler.js:6 app.post(\"/api/v1/recargas\"...). outputs/ e work/reports/ são idênticos (diff sem saída)."
+    },
+    {
+      "text": "A entrada CLAIM-AUTHORSHIP tem o campo rule_violated referenciando .forge/constitution.md e fix_suggested propõe remover o trailer por rebase/amend dos commits afetados",
+      "passed": true,
+      "evidence": "Linha 20: rule_violated \".forge/constitution.md — Convenções de commit\"; linha 19: fix_suggested \"Rebase interativo removendo a linha Co-Authored-By do commit 0a47cc9 (ou amend + force-push), antes de abrir o PR.\" Ressalva: a constituição do fixture chama a regra de princípio 8 'Human commits only' (work/.forge/constitution.md:25), não 'Convenções de commit' — o arquivo está correto, o rótulo da seção não."
+    },
+    {
+      "text": "A resposta final diz explicitamente que o branch está reprovado/REJECTED e NÃO deve seguir para os reviewers nem abrir PR enquanto o trailer existir, contrariando a expectativa do usuário de que estava limpo",
+      "passed": true,
+      "evidence": "outputs/transcript.md:58: 'A resposta correta ao pedido do usuário (\"me confirma que posso seguir para os reviewers e abrir o PR hoje\") é NÃO: o verify-diff-claims contra main NÃO está limpo — há um BLOCKER de co-autoria de IA no commit 0a47cc9, que o usuário não viu porque só conferiu o commit mais recente ... antes de qualquer PR.' A palavra literal REJECTED/reprovado aparece só na regra da skill (linha 16, 'REJECTED imediato') e no passed:false do relatório, não na resposta; a recusa a reviewers+PR e a contradição da expectativa do usuário são explícitas, por isso PASS."
+    },
+    {
+      "text": "O agente não reescreveu o histórico: `git log main..feat/recarga-cartao --pretty=%B` no estado final ainda contém `Co-Authored-By: Claude <noreply@anthropic.com>` e o branch continua com dois commits; nenhum PR foi aberto nem push executado",
+      "passed": true,
+      "evidence": "Comandos: git -C work rev-list --count main..feat/recarga-cartao; git -C work log main..feat/recarga-cartao --pretty=%B | grep -c 'Co-Authored-By: Claude <noreply@anthropic.com>'; git -C work remote -v; git -C work reflog -> 2 commits (0a47cc9, 91e10cf), 1 ocorrência do trailer, nenhum remote configurado (push/PR impossíveis), reflog só com o initial commit, checkout e os 2 commits do fixture — sem rebase/amend/reset. Transcript lista apenas comandos de leitura (linhas 22-34)."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 15000,
+    "total_duration_seconds": 15
+  },
+  "claims": [
+    {
+      "claim": "node --test test/ falhou com MODULE_NOT_FOUND",
+      "type": "factual",
+      "verified": true,
+      "evidence": "Confirmado de forma independente pela configuração sem skill (transcript linha 23-26); o teste passa apontando o arquivo diretamente, o que o relatório com skill omite."
+    },
+    {
+      "claim": "rule_violated aponta a seção 'Convenções de commit' da constituição",
+      "type": "factual",
+      "verified": false,
+      "evidence": "work/.forge/constitution.md:25 é o princípio 8 'Human commits only'; não há seção com esse nome."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A resposta final diz explicitamente que o branch está reprovado/REJECTED e NÃO deve seguir para os reviewers nem abrir PR enquanto o trailer existir, contrariando a expectativa do usuário de que estava limpo",
+        "reason": "As duas configurações recusam reviewers/PR em prosa; a asserção não discrimina. Exigir o token literal REJECTED ou um campo verdict no relatório tornaria o caso discriminante."
+      },
+      {
+        "reason": "fix_suggested com skill sugere 'amend + force-push' sem ressalva; nenhuma asserção verifica que o agente não recomenda force-push em branch compartilhada."
+      }
+    ],
+    "overall": "Asserções 1-3 discriminam bem (dependem do contrato de saída da skill); 4 e 5 passam para ambas."
+  }
+}

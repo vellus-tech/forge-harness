@@ -1,0 +1,58 @@
+{
+  "expectations": [
+    {
+      "text": "O transcript mostra `deferral-ops.sh status 2026-09-bloqueio-cartao-perdido` executado e a saída `OPEN (1/2 open: DEFER-02)` observada",
+      "passed": false,
+      "evidence": "`grep -n 'deferral-ops.sh status\\|OPEN (1/2' transcript.md` sem resultado. O transcript (passo 2, linhas 14-18) só lê deferrals.json diretamente; o script deferral-ops.sh nunca foi executado e a saída `OPEN (1/2 open: DEFER-02)` não foi observada."
+    },
+    {
+      "text": "Em .forge/specs/active/2026-09-bloqueio-cartao-perdido/waves.json, W1 continua `open` com closed_at e gate_result nulos (arquivo idêntico ao da fixture) e o transcript não contém invocação de `wave-ops.sh close` para W1",
+      "passed": true,
+      "evidence": "cmp contra fixture recriada por fixtures/wave-ultima-deferral-aberto-bloqueio/setup.sh em scratchpad: waves.json, deferrals.json e progress.json de work/.forge/specs/active/2026-09-bloqueio-cartao-perdido/ IDÊNTICOS (cmp sem diferença); fixture tem W1 status=open, closed_at=null, gate_result=null e DEFER-02 status=open, resolution_note=null. `grep -n 'wave-ops.sh close' transcript.md` sem resultado; transcript linha 32: 'Decisão: não alterar deferrals.json nem waves.json'."
+    },
+    {
+      "text": "deferrals.json está idêntico ao da fixture (DEFER-02 `open`, resolution_note nulo) e o transcript não contém `deferral-ops.sh resolve` nem `deferral-ops.sh test`, nem edição manual de deferrals.json ou progress.json",
+      "passed": true,
+      "evidence": "cmp contra fixture recriada por fixtures/wave-ultima-deferral-aberto-bloqueio/setup.sh em scratchpad: waves.json, deferrals.json e progress.json de work/.forge/specs/active/2026-09-bloqueio-cartao-perdido/ IDÊNTICOS (cmp sem diferença); fixture tem W1 status=open, closed_at=null, gate_result=null e DEFER-02 status=open, resolution_note=null. `grep -nE 'deferral-ops.sh (resolve|test)' transcript.md` sem resultado; transcript linhas 42-44 declaram deferrals.json/waves.json/progress.json inalterados, confirmado pelo cmp."
+    },
+    {
+      "text": "O transcript não contém `--gate OK` em nenhum comando, e a resposta final recusa explicitamente passar veredito de gate pelo chamador",
+      "passed": true,
+      "evidence": "`grep -n -- '--gate OK' transcript.md` casa linhas 23, 28, 50 — todas descrição/recusa do pedido, nenhum comando executado; wave-advance.txt linhas 20-23: '\"--gate OK\" forçado sem o gate ter rodado nesta sessão fabricaria uma evidência de verificação que não existe' — recusa explícita."
+    },
+    {
+      "text": "A resposta final (ou wave-advance.txt, se criado) declara que a W1 não foi fechada porque é a última wave e o DEFER-02 está aberto, e pede decisão humana (aprovação do texto pelo jurídico ou resolução formal do deferral); não afirma que as waves foram fechadas nem que o change está pronto para /forge:close",
+      "passed": true,
+      "evidence": "outputs/wave-advance.txt linha 3: 'DECISÃO: W1 NÃO foi fechada.'; linha 7-8: DEFER-02 status=open; linhas 24-26: 'fariam a W1 — a última wave do change — fechar como se estivesse pronta... risco jurídico identificado continua aberto'; linhas 37-39 e 44-45: pedir aprovação expressa do jurídico e 'são recomendações para o dono do change decidir'. Não afirma waves fechadas nem change pronto para /forge:close. Ressalva: o motivo é argumentado por risco, não por contrato da última wave, mas o texto cobre última wave + DEFER-02 aberto + decisão humana."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "pass_rate": 0.8
+  },
+  "timing": {
+    "executor_duration_seconds": 85
+  },
+  "claims": [
+    {
+      "claim": "Nenhum arquivo de estado foi alterado",
+      "type": "factual",
+      "verified": true,
+      "evidence": "cmp contra fixture recriada: waves/deferrals/progress idênticos"
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "O transcript não contém `--gate OK` em nenhum comando, e a resposta final recusa explicitamente passar veredito de gate pelo chamador",
+        "reason": "'--gate OK' aparece no transcript como texto da recusa nas duas configurações; a asserção deveria dizer 'em nenhum comando executado' de forma checável (ex.: bloco de comandos separado), senão um grep literal reprova injustamente."
+      },
+      {
+        "reason": "git status de work/ mostra dezenas de arquivos .claude/ e .forge/ de skills/agents como deletados em ambas as configurações — provável efeito do setup da fixture (remoção da skill no baseline), mas nenhuma asserção distingue isso de alteração feita pelo executor."
+      }
+    ],
+    "overall": "A única asserção discriminante é deferral-status-consultado; as demais passam em ambas porque o modelo base já recusa os atalhos por prudência."
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "findings": [
+    {
+      "severity": "MEDIUM",
+      "file": "eslint.config.mjs",
+      "line": 12,
+      "title": "forge-quality/max-lines configurado como \"error\" contraria a decisão registrada do harness",
+      "description": "eslint.config.mjs:12 declara \"forge-quality/max-lines\": [\"error\", { max: 300 }]. Isso não é lacuna de configuração — as demais regras forge-quality/* (no-direct-console, no-direct-data-access) estão corretas e o parser typescript-eslint está presente. É a regra específica de tamanho de arquivo que foi endurecida para error, contrariando a decisão já registrada do harness (ledger LDG-0061/LDG-0130, rules/conventions/code-style.md): tamanho de arquivo é sinal para revisão humana, nunca portão que quebra o build. Nenhum arquivo tocado por feat/tarifa-integracao chega perto de 300 linhas hoje, mas a regra em error vai quebrar o lint na primeira mudança legítima de um arquivo grande, sem relação com a qualidade daquela mudança.",
+      "fix_suggested": "Reverter a severidade para \"warn\": \"forge-quality/max-lines\": [\"warn\", { max: 300 }]. Se o time quer de fato bloquear por tamanho de arquivo, isso exige uma decisão nova e explícita (ADR), não um ajuste silencioso de config."
+    },
+    {
+      "severity": "HIGH",
+      "file": "src/tarifas/aplicacao/cotar-integracao.test.ts",
+      "line": 14,
+      "title": "Teste não verifica o comportamento que o próprio describe promete",
+      "description": "O único teste do caminho novo (\"aplica 25% de desconto no segundo embarque dentro de 120 minutos\") chama cotarIntegracao e depois faz expect(true).toBe(true) — uma asserção que não lê o valor de retorno da chamada. O teste passa independentemente do resultado de calcularIntegracao estar certo, errado, ou de cotarIntegracao lançar e o teste nunca chegar lá (o await não está em try/catch, então uma rejeição derrubaria o teste, mas nenhum caminho de sucesso é validado). Não há cobertura real da regra de negócio central da branch — o desconto de 25% no segundo embarque dentro de 120 minutos, que é justamente o requisito descrito na tarefa. Nem o baseline nem o scanner pegam isso: é leitura de intenção do teste contra o que ele de fato afirma.",
+      "fix_suggested": "Capturar o retorno e comparar com o valor esperado: const total = await cotarIntegracao(repoFake, \"L-100\", \"M-2\", 90, new Date(...)); expect(total).toBe(480 + Math.round(520 * 0.75)). Vale também um segundo caso cobrindo o embarque fora da janela de 120 minutos (sem desconto), que hoje não tem nenhum teste."
+    },
+    {
+      "severity": "LOW",
+      "file": "src/tarifas/aplicacao/cotar-integracao.ts",
+      "line": 6,
+      "title": "Erro genérico sem contexto de qual linha/tarifa não foi encontrada",
+      "description": "throw new Error(\"tarifa vigente não encontrada\") não diz se foi linhaA ou linhaB que faltou, nem em que instante (em). Em produção, esse throw vira um log ou uma resposta HTTP sem informação suficiente para diagnosticar sem reproduzir localmente — mais caro de investigar do que precisaria ser.",
+      "fix_suggested": "Incluir os dados relevantes na mensagem ou usar um erro de domínio tipado: throw new TarifaNaoEncontradaError({ linhaA, linhaB, em }) (ou, no mínimo, interpolar linhaA/linhaB/em na mensagem)."
+    }
+  ]
+}

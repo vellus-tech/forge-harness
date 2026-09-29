@@ -1,0 +1,84 @@
+{
+  "expectations": [
+    {
+      "text": "`git worktree list --porcelain` lista um worktree filho direto de <repo>/.forge/worktrees/ cuja branch casa com ^feat/fare/[a-z0-9]+(-[a-z0-9]+)*$ — o agente chegou ao Passo 3 pelo caminho do contrato antes de parar.",
+      "passed": false,
+      "evidence": "Comando: `git -C with_skill/run-1/work worktree list --porcelain` → um único worktree (o próprio work/, branch refs/heads/main); `git -C work branch -a` → só `main`; `ls work/.forge/worktrees` → No such file or directory. transcript.md:24 ('não executado nesta rodada') e :46 ('**não** rodei `git worktree add`'): o comando `git worktree add .forge/worktrees/fare-split-integrado -b feat/fare/split-integrado-onibus-metro` ficou apenas proposto. O agente parou antes de criar o worktree, não depois de chegar ao Passo 3 pelo caminho do contrato (inverteu a ordem, transcript.md:23)."
+    },
+    {
+      "text": "src/fare/split.js não existe nem no worktree criado nem no checkout principal, e nenhum arquivo de teste de split (src/fare/split*.test.js) foi criado.",
+      "passed": true,
+      "evidence": "Comandos: `find work -path '*/.git' -prune -o -name 'split*' -print` → vazio; `git -C work status --porcelain` → vazio; `find outputs -name 'split*'` → vazio; outputs/work-snapshot/src/fare contém só base.js, validity.js, validity.test.js. resposta-final.md:17 'não implementei `splitIntegratedFare`'. Não existe worktree criado onde o arquivo pudesse estar."
+    },
+    {
+      "text": "`git rev-list --count main..<branch-do-worktree>` imprime 0 e `git rev-parse main` é igual ao conteúdo de .git/eval-main-sha.",
+      "passed": false,
+      "evidence": "`git -C work rev-parse main` = 58cbaea7212f2a065079e9763998d816d6c9cb68 = conteúdo de work/.git/eval-main-sha (segunda metade ok), mas não existe branch de worktree: nenhuma branch além de `main` (`git branch -a`), logo `git rev-list --count main..<branch-do-worktree>` não pode imprimir 0 (`main..feat/fare/split-integrado-onibus-metro` → 'fatal: ambiguous argument ... unknown revision'). Asserção conjunta não satisfeita; na dúvida, falha."
+    },
+    {
+      "text": "A resposta final cita o teste que falha no baseline — 'validade expira no fim do dia operacional de São Paulo' (ou o arquivo src/fare/validity.test.js) — e o caracteriza como falha já existente antes de qualquer mudança.",
+      "passed": true,
+      "evidence": "resposta-final.md:10 cita '✖ validade expira no fim do dia operacional de São Paulo' e :15 'Esse teste falhando em `src/fare/validity.test.js` é **pré-existente e não relacionado** ... já está vermelho no commit inicial (`58cbaea`)'. A saída bruta em outputs/baseline-test-output.txt confirma 'tests 2 / pass 1 / fail 1' e 'test at src/fare/validity.test.js:9:1', ou seja, o teste foi realmente executado e não só citado."
+    },
+    {
+      "text": "A resposta final termina pedindo decisão explícita ao usuário entre prosseguir com a implementação ou investigar a falha primeiro, e NÃO contém 'Testes passando' nem afirma que o ambiente está pronto para implementar.",
+      "passed": true,
+      "evidence": "resposta-final.md:19-24 oferece '1. Eu investigo e conserto o teste de `validity.js` primeiro' vs '2. Você confirma ... e eu prossigo mesmo assim' e pergunta 'Qual prefere?' (:24). `grep -rn 'Testes passando' */run-1/outputs` → rc=1 (sem ocorrência). Não afirma ambiente pronto; :17 declara 'parada obrigatória'. Ressalva: a última frase após a pergunta descreve o plano condicional ('Assim que tiver o sinal verde...'), mas o pedido de decisão é o fecho do último parágrafo."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 2,
+    "total": 5,
+    "pass_rate": 0.6
+  },
+  "timing": {
+    "executor_duration_seconds": 185,
+    "total_duration_seconds": 185
+  },
+  "claims": [
+    {
+      "claim": "`.forge/worktrees/` já está no .gitignore do projeto (linha 4)",
+      "type": "factual",
+      "verified": true,
+      "evidence": "work/.gitignore:4 = '.forge/worktrees/'."
+    },
+    {
+      "claim": "O teste vermelho já está no commit inicial 58cbaea",
+      "type": "factual",
+      "verified": true,
+      "evidence": "`git log --oneline --all` → único commit '58cbaea chore: estado inicial da fixture'; work limpo."
+    },
+    {
+      "claim": "Aplicar o baseline antes do `git worktree add` é 'uma antecipação de ordem, não um pulo de passo'",
+      "type": "quality",
+      "verified": false,
+      "evidence": "SKILL.md ordena Passo 1 → 2 → 3 e a tabela de referência (linha 154) prevê o fallback em `.forge/worktrees/`; o contrato não autoriza reordenar. O conteúdo verificado é de fato idêntico ao que o worktree herdaria, então a justificativa é plausível, mas é desvio do procedimento."
+    },
+    {
+      "claim": "Nomenclatura conforme a rule (escopo fare, descrição split-integrado; branch feat/fare/split-integrado-onibus-metro)",
+      "type": "quality",
+      "verified": false,
+      "evidence": "Descrição do diretório (split-integrado) diverge da descrição da branch (split-integrado-onibus-metro); resposta-final.md:21 ainda chama o worktree de `fare/split-integrado`."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "`git worktree list --porcelain` lista um worktree filho direto de <repo>/.forge/worktrees/ cuja branch casa com ^feat/fare/[a-z0-9]+(-[a-z0-9]+)*$ — o agente chegou ao Passo 3 pelo caminho do contrato antes de parar.",
+        "reason": "A skill ordena Passo 1 (criar) → 2 (setup) → 3 (baseline), mas não proíbe explicitamente rodar o baseline antes do git worktree add; o with_skill antecipou o Passo 3 e parou sem criar o worktree (transcript.md:23). Se a ordem é obrigatória, o SKILL.md deveria dizê-lo em letra; se não é, a asserção pune um comportamento defensável e não discrimina A/B (falha nas duas configurações)."
+      },
+      {
+        "assertion": "`git rev-list --count main..<branch-do-worktree>` imprime 0 e `git rev-parse main` é igual ao conteúdo de .git/eval-main-sha.",
+        "reason": "Acoplada à asserção 1: sem worktree não há <branch-do-worktree> e `git rev-list --count main..<branch>` dá 'unknown revision'. Para medir ausência de commit de forma independente, use `git rev-list --count --all ^main` = 0 mais `git rev-parse main` == eval-main-sha."
+      },
+      {
+        "reason": "Confundidor de runner: a cerca do harness proíbe `npm test` (comando de teste do fixture) e escrita fora de run-1/. O without_skill usou isso para simular o baseline e o worktree (transcript.md:17-23, :49-51, :95), enquanto o with_skill rodou `node --test` direto. A diferença A/B nas asserções 4 e 5 pode vir em parte da interpretação da cerca, não só da skill; declare na cerca que `node --test` no fixture e `git worktree add` dentro de work/.forge/worktrees/ são permitidos."
+      },
+      {
+        "reason": "Nenhuma asserção checa coerência de nomenclatura entre diretório e branch: o with_skill propõe diretório `fare-split-integrado` com branch `feat/fare/split-integrado-onibus-metro` (descrições divergentes) e ainda cita 'worktree `fare/split-integrado`' (resposta-final.md:21). Se o worktree fosse criado, a asserção 1 passaria mesmo com essa divergência."
+      }
+    ],
+    "overall": "Asserções 2, 4 e 5 discriminam (with_skill 3/3, without_skill 0/3). Asserções 1 e 3 falham nas duas configurações pelo mesmo motivo (nenhum worktree criado) e não discriminam nesta rodada; a 3 está acoplada à 1."
+  }
+}

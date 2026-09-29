@@ -1,0 +1,83 @@
+{
+  "expectations": [
+    {
+      "text": "Existe docs/product/trd/trd.md (e não existe docs/product/trd/TRD.md nem docs/trd/) contendo o cabeçalho '**Fontes Principais:**' e cabeçalhos de seção numerados na ordem do contrato, incluindo no mínimo '4. Consolidação Técnica dos Insumos', '7. Módulos e Deployables', '9. Arquitetura de Eventos e Mensageria', '13. Compliance e Privacidade', '19. Diagramas Técnicos', '20. Matriz de Rastreabilidade', '21. Riscos Técnicos' e '22. Pontos a Validar', com pelo menos um bloco ```mermaid.",
+      "passed": false,
+      "evidence": "O arquivo existe no path certo (`git status --porcelain -uall` → '?? docs/product/trd/trd.md'; `ls -d work/docs/trd` inexistente), mas `grep -n 'Fontes Principais' trd.md` é vazio (trd.md:4 usa '**Fontes:**'); as seções são 1..11 com títulos próprios (`grep -nE '^## '`: :6 '1. Visão geral e escopo técnico' ... :141 '11. Lacunas e pontos abertos'), sem '4. Consolidação Técnica dos Insumos', '19. Diagramas Técnicos', '21. Riscos Técnicos', '22. Pontos a Validar'; `grep -c '```mermaid'` = 0 (diagrama ASCII em trd.md:14-37)."
+    },
+    {
+      "text": "O trd.md contém pelo menos 5 códigos distintos no padrão TRD-<CAT>-NN com CAT dentre ARCH, API, EVT, DATA, INT, SEC, COMP, OBS, PERF, RES, DEP e OPS (cobrindo ao menos 4 categorias diferentes), a tabela de Riscos Técnicos usa códigos RISK-TRD-NN e a tabela de Pontos a Validar usa códigos VAL-TRD-NN.",
+      "passed": false,
+      "evidence": "`grep -oE 'TRD-[A-Z]+-[0-9]+' trd.md` vazio; `grep -oE 'RISK-TRD-[0-9]+|VAL-TRD-[0-9]+'` vazio. Não há tabelas de Riscos Técnicos nem de Pontos a Validar; a seção 11 (trd.md:141-145) é uma lista de bullets sem códigos."
+    },
+    {
+      "text": "Todas as linhas do Event Catalog têm nome de evento no formato '<entidade>.<verbo no particípio passado>.vN' (ex.: 'tap.captured.v1', 'charge.declined.v1'), sem nomes imperativos ou sem versão, e o canal/tópico dos eventos é Kafka (ADR-0003); RabbitMQ não aparece como broker adotado.",
+      "passed": false,
+      "evidence": "Tabela de eventos (trd.md:77-83) usa Kafka (título da seção 5 em trd.md:75) e não menciona RabbitMQ (`grep -i rabbit` vazio), mas nenhum nome é versionado: ':79 `tarifa-aberta.tap.registrado`', ':80 `tarifa-aberta.cobranca.enviada`', ':83 `deny-list.atualizada`' etc. — sem '.vN' e em português, fora do formato exigido. Também não é intitulada Event Catalog."
+    },
+    {
+      "text": "O trd.md contém a seção 'CDE - Cardholder Data Environment' com uma tabela de colunas Componente | Dentro do CDE? | Justificativa em que validator-gateway e fare-authorization aparecem classificados (Sim/Não/Ponto a Validar) e rider-bff aparece como fora do CDE ou como Ponto a Validar, citando NFR-SEC-01/PCI DSS.",
+      "passed": false,
+      "evidence": "Não há seção 'CDE - Cardholder Data Environment' nem tabela 'Componente | Dentro do CDE? | Justificativa'. CDE só aparece em prosa na tabela de controles (trd.md:103 e :105: 'validator-gateway e fare-authorization operam fora do CDE') e rider-bff não é classificado quanto ao CDE."
+    },
+    {
+      "text": "A Matriz de Rastreabilidade tem linhas cujo item referencia cada uma das funcionalidades F-01 a F-05, cada um dos NFR-PERF-01, NFR-SEC-01 e NFR-RET-01 e cada um dos ADR-0001, ADR-0002 e ADR-0003, e a coluna Status usa apenas 'Coberto', 'Parcial' ou 'Não Coberto'.",
+      "passed": false,
+      "evidence": "A 'Rastreabilidade consolidada' (trd.md:128-139) tem só colunas 'Artefato de origem | Itens cobertos neste TRD', sem coluna Status; F-01..F-05 aparecem agrupados numa célula ('F-01 a F-05 (§3)', :132), NFRs e ADRs também agrupados. Nenhum 'Coberto/Parcial/Não Coberto' (`grep -n Coberto` vazio)."
+    },
+    {
+      "text": "git diff HEAD -- docs/product/prd docs/product/frd-nfrd docs/product/adr docs/product/ddd docs/product/modules no diretório de saída é vazio, e git status --porcelain, desconsiderando as remoções de .forge/skills, .forge/agents, .claude/skills, .claude/agents e plugin/ feitas pelo setup, lista apenas caminhos sob docs/product/trd/.",
+      "passed": true,
+      "evidence": "`git -C without_skill/run-1/work diff HEAD -- docs/product/prd docs/product/frd-nfrd docs/product/adr docs/product/ddd docs/product/modules | wc -c` = 0 (diff vazio). `git -C without_skill/run-1/work status --porcelain -uall | grep -vE '^ D (\\.forge/skills|\\.forge/agents|\\.claude/skills|\\.claude/agents|plugin/)'` retorna apenas '?? docs/product/trd/trd.md'."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 5,
+    "total": 6,
+    "pass_rate": 0.17
+  },
+  "timing": {
+    "executor_duration_seconds": 135.0,
+    "total_duration_seconds": 135.0
+  },
+  "claims": [
+    {
+      "claim": "TRD salvo em docs/product/trd/trd.md por analogia com pastas irmãs",
+      "type": "process",
+      "verified": true,
+      "evidence": "git status -uall → '?? docs/product/trd/trd.md'"
+    },
+    {
+      "claim": "Decisão de deny list em cache local documentada na seção 4.3",
+      "type": "factual",
+      "verified": true,
+      "evidence": "trd.md:71-73 '### 4.3 Consulta offline no validador' descreve cache local atualizado por Kafka"
+    },
+    {
+      "claim": "Documento pronto para revisão do QSA",
+      "type": "quality",
+      "verified": false,
+      "evidence": "Sem classificação de CDE por componente, sem riscos/pontos codificados e sem modelagem monetária definida (valorTotal sem tipo, trd.md:80/92)"
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "O trd.md contém a seção 'CDE - Cardholder Data Environment' com uma tabela de colunas Componente | Dentro do CDE? | Justificativa em que validator-gateway e fare-authorization aparecem classificados (Sim/Não/Ponto a Validar) e rider-bff aparece como fora do CDE ou como Ponto a Validar, citando NFR-SEC-01/PCI DSS.",
+        "reason": "A asserção aceita que fare-authorization e rider-bff apareçam numa linha agrupada ('fare-authorization, deny-list, rider-bff, settlement | Não'); se a intenção é uma classificação por deployable, exigir uma linha por componente."
+      },
+      {
+        "reason": "O expected_output exige valores monetários em centavos (*_cents BIGINT, money-as-cents.md), mas nenhuma asserção checa isso. O with_skill atende (trd.md:542 e :579); o without_skill modela 'valorTotal' sem tipo nem unidade (trd.md:80, :92), diferença real que passa despercebida."
+      },
+      {
+        "reason": "Nenhuma asserção checa que gRPC não é exposto a terceiros (ADR-0001/0002), ponto central do expected_output; vale uma asserção que reprove gRPC em superfície externa."
+      },
+      {
+        "assertion": "O trd.md contém pelo menos 5 códigos distintos no padrão TRD-<CAT>-NN com CAT dentre ARCH, API, EVT, DATA, INT, SEC, COMP, OBS, PERF, RES, DEP e OPS (cobrindo ao menos 4 categorias diferentes), a tabela de Riscos Técnicos usa códigos RISK-TRD-NN e a tabela de Pontos a Validar usa códigos VAL-TRD-NN.",
+        "reason": "A asserção é discriminante e pegou uma regressão real do agente: o trd-generator com skill não emitiu nenhum código TRD-<CAT>-NN apesar de o contrato exigir. Manter."
+      }
+    ],
+    "overall": "Asserções majoritariamente discriminantes (exigem estrutura do contrato, não só existência de arquivo). Lacunas: dinheiro em centavos e gRPC não exposto ficaram sem asserção."
+  }
+}

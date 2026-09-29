@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Validacao.Domain\Validacao.Domain.csproj" />
+    <ProjectReference Include="..\Validacao.Contracts\Validacao.Contracts.csproj" />
+    <ProjectReference Include="..\Validacao.Infrastructure\Validacao.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

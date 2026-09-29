@@ -1,0 +1,51 @@
+{
+  "expectations": [
+    {
+      "text": "O transcript mostra `deferral-ops.sh status 2026-09-estorno-tarifa-duplicada` executado ANTES da invocação de `wave-ops.sh close 2026-09-estorno-tarifa-duplicada W2`",
+      "passed": false,
+      "evidence": "`grep -n 'deferral-ops.sh' outputs/transcript.md` não retorna nada. Os deferrals foram lidos direto do JSON (transcript.md:18) e não houve `wave-ops.sh close` (transcript.md:24: 'não existe script `wave-ops.sh` no meu conhecimento de baseline')."
+    },
+    {
+      "text": "Em waves.json do change, W2 tem status `closed` e gate_result começando com `executed:`; o transcript mostra o close sem argumento `--gate`",
+      "passed": false,
+      "evidence": "`jq -c '.waves|map({id,status,gate_result})' work/.forge/specs/active/2026-09-estorno-tarifa-duplicada/waves.json` → W2 `closed`, mas gate_result `not_run:baseline_sem_skill (nenhum gate automatizado executado nesta simulação)`, que não começa com `executed:`. transcript.md:24 mostra edição manual do waves.json, sem nenhum close por script."
+    },
+    {
+      "text": "waves.json continua com exatamente três waves (W0, W1, W2), todas `closed`; o transcript não contém `wave-ops.sh open` bem-sucedido nem `wave-ops.sh plan`",
+      "passed": true,
+      "evidence": "`jq` em work/.forge/specs/active/2026-09-estorno-tarifa-duplicada/waves.json → exatamente W0, W1, W2, todas `closed`. `grep -n 'wave-ops.sh open\\|wave-ops.sh plan' outputs/transcript.md` não retorna nada; `/forge:wave plan` aparece só como sugestão (linha 23), sem execução."
+    },
+    {
+      "text": "wave-advance.txt contém uma única linha não vazia, exatamente `Todas as waves fechadas — pronto para /forge:close (verifique deferrals).`",
+      "passed": false,
+      "evidence": "`cat -e work/wave-advance.txt` → uma linha, mas o conteúdo é `change=2026-09-estorno-tarifa-duplicada wave_fechada=W2 wave_aberta=nenhuma (...) deferral_pendente=DEFER-02 status=resolved (...)`, diferente da linha exata exigida `Todas as waves fechadas — pronto para /forge:close (verifique deferrals).`"
+    },
+    {
+      "text": "O diretório .forge/specs/active/2026-09-estorno-tarifa-duplicada/ ainda existe (nada movido para specs/archived/) e deferrals.json está idêntico ao da fixture (DEFER-02 continua `resolved`, não foi promovido a `tested` pelo agente)",
+      "passed": true,
+      "evidence": "`ls -d work/.forge/specs/active/2026-09-estorno-tarifa-duplicada` existe; `ls -A work/.forge/specs/archived` → só `.gitkeep`. `cmp` do deferrals.json contra o da fixture materializada agora por `setup.sh` → idênticos; DEFER-02 continua `resolved` (transcript.md:27 confirma cópia 'inalterado')."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 3,
+    "total": 5,
+    "pass_rate": 0.4
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "O transcript mostra `deferral-ops.sh status 2026-09-estorno-tarifa-duplicada` executado ANTES da invocação de `wave-ops.sh close 2026-09-estorno-tarifa-duplicada W2`",
+        "reason": "A ordem só é verificável no transcript narrativo, que o próprio executor escreve. Um log bruto de comandos (ou carimbo de tempo gravado pelo deferral-ops.sh) tornaria a asserção à prova de relato inventado."
+      },
+      {
+        "assertion": "waves.json continua com exatamente três waves (W0, W1, W2), todas `closed`; o transcript não contém `wave-ops.sh open` bem-sucedido nem `wave-ops.sh plan`",
+        "reason": "'wave-ops.sh open bem-sucedido' exige julgamento: o with_skill rodou `wave-ops.sh open … W3` na retomada e recebeu `wave W3 não encontrada`. Vale explicitar que tentativa recusada pelo script é aceitável, ou proibir a tentativa."
+      },
+      {
+        "reason": "Nenhuma asserção exige que o fechamento venha do script (gate realmente executado). Uma asserção explícita (gate_result sem `not_run`/`[simulado]` e close via wave-ops.sh) separaria melhor edição manual de JSON."
+      }
+    ],
+    "overall": "As asserções discriminam bem (5/5 contra 2/5). As de número 1 e 2 dependem do transcript autodeclarado."
+  }
+}

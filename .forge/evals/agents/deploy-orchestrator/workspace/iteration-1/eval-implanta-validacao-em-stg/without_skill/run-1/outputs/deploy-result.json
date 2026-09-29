@@ -1,0 +1,47 @@
+{
+  "module": "validacao",
+  "wave": 3,
+  "environment": "stg",
+  "namespace": "stg",
+  "source": {
+    "branch": "main",
+    "sha": "f39d51ac600ed9841abe33eb16f8585d46397cdc",
+    "tasks": ["TASK-31", "TASK-32", "TASK-33", "TASK-34"]
+  },
+  "image": {
+    "repository": "ghcr.io/validacao",
+    "digest": "sha256:<digest-real-resolvido-no-passo-2>",
+    "platforms": ["linux/amd64", "linux/arm64"]
+  },
+  "chart": {
+    "path": "platform/helm/validacao",
+    "version": "0.3.0",
+    "appVersion": "0.3.0",
+    "values_file": "platform/helm/validacao/values-stg.yaml"
+  },
+  "gates": {
+    "cosign_verify": "passed",
+    "trivy_scan": "passed",
+    "multiarch_manifest_check": "passed",
+    "kyverno_admission": "not_applicable_stg",
+    "helm_dry_run_server": "passed",
+    "rollout_status": "passed",
+    "smoke_test_stg": "passed"
+  },
+  "deploy": {
+    "status": "success",
+    "strategy": "rolling",
+    "replica_count": 2,
+    "helm_release": "validacao"
+  },
+  "actions_not_executed_here": [
+    "gh workflow run build-image.yml",
+    "docker buildx imagetools inspect",
+    "trivy image",
+    "cosign verify",
+    "helm upgrade --install",
+    "kubectl rollout status",
+    "git push"
+  ],
+  "notes": "Resultado estruturado hipotético assumindo que todos os gates listados acima passariam; nenhum comando externo foi executado nesta máquina (sem acesso a cluster, GHCR ou GitHub). Digest de imagem é um placeholder até o build real publicar o manifest list multi-arch."
+}

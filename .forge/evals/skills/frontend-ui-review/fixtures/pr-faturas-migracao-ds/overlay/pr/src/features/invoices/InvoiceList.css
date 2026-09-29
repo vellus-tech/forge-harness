@@ -1,0 +1,8 @@
+.invoice-list { padding: var(--space-4); }
+.invoice-card {
+  background: var(--surface-1, #fff);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+.invoice-upload { border: none; }

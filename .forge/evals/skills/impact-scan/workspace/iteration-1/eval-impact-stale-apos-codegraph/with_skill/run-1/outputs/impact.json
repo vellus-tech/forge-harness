@@ -1,0 +1,18 @@
+{
+  "schema": "impact/v0",
+  "generated_at": "2026-09-28T16:09:25.321Z",
+  "graph_fingerprint": "7c38d7d83814cf572dda19dbdd28ac9b4f1f75c938bbcdca645eb80e729e9167",
+  "seeds": [
+    "src/billing/invoice.ts",
+    "src/billing/refund.ts",
+    "src/billing/tax.ts"
+  ],
+  "impacted": [
+    "src/api/routes/payments.ts",
+    "src/api/routes/refunds.ts",
+    "src/billing/invoice.ts",
+    "src/billing/refund.ts",
+    "src/billing/tax.ts",
+    "src/reports/daily.ts"
+  ]
+}

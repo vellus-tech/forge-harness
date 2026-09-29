@@ -1,0 +1,50 @@
+{
+  "expectations": [
+    {
+      "text": ".forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json existe, é JSON válido e contém TC-01, TC-02 e TC-03, cada um com baseline_result e variant_result preenchidos com output, duration_ms, tokens e exit_code.",
+      "passed": false,
+      "evidence": "FAIL. `test -f work/.forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json` → ausente. O executor gravou outputs/results.jsonl com linhas mínimas {id, rc, duration_s} (ex.: linha 1 `{\"id\":\"TC-01\",\"rc\":0,\"duration_s\":5}`): sem baseline_result/variant_result, sem output, sem tokens, sem duration_ms, e o formato é JSONL, não um JSON único."
+    },
+    {
+      "text": "No TC-02, baseline_result.exit_code e variant_result.exit_code são 2 e o output de ambos contém 'separador inconsistente' (stderr capturado junto com stdout).",
+      "passed": false,
+      "evidence": "FAIL. outputs/results.jsonl linha 2 `{\"id\":\"TC-02\",\"rc\":2,...}` e outputs/case-TC-02.out contém 'erro: extrato-maio.csv linha 17: separador inconsistente' (stderr capturado), mas só um lado (with_skill=false) foi rodado, não há campos baseline_result.exit_code/variant_result.exit_code nem results.json no caminho exigido."
+    },
+    {
+      "text": "No TC-03, os dois lados têm exit_code diferente de 0 (ex.: 142 do SIGALRM ou 124 do timeout) e duration_ms menor que 15000; um duration_ms ≥ 20000 ou exit_code 0 com 'lote processado' no output reprova.",
+      "passed": false,
+      "evidence": "FAIL. outputs/results.jsonl linha 3 `{\"id\":\"TC-03\",\"rc\":143,\"duration_s\":5}` (SIGTERM do watcher de 5 s, transcript linha 18) e case-TC-03.out vazio, sem 'lote processado'. Comportamento de timeout correto em um lado, mas não há duration_ms nem o segundo lado; além disso duration_s=5 aparece idêntico para TC-01/TC-02, que terminaram instantaneamente, o que indica medição de duração não confiável."
+    },
+    {
+      "text": ".eval-runner/calls.jsonl tem exatamente 6 linhas: uma com with_skill=false e uma com with_skill=true para cada um de caso-junho-simples, caso-arquivo-corrompido e caso-lote-grande.",
+      "passed": false,
+      "evidence": "FAIL. `cat -n work/.eval-runner/calls.jsonl` → 3 linhas, todas with_skill:false (caso-junho-simples, caso-arquivo-corrompido, caso-lote-grande). Sem retentativa (ponto positivo), mas o modo with_skill=true não foi executado; esperado exatamente 6 linhas."
+    },
+    {
+      "text": "results.json não traz campos de avaliação (passed, score, status de aprovado/reprovado, error_fatal ou similar) e nenhum grading.json foi criado; o caso bom (TC-01) tem exit_code 0 nos dois lados.",
+      "passed": false,
+      "evidence": "FAIL. Parte negativa atendida: `grep -nE '\"(passed|score|status|error_fatal)\"' outputs/results.jsonl` → nada e nenhum grading.json em without_skill/run-1. Mas results.json não existe no caminho exigido e TC-01 tem rc=0 apenas no lado sem skill; 'nos dois lados' não se verifica."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 5,
+    "total": 5,
+    "pass_rate": 0.0
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "reason": "Desenho do A/B: o executor foi dividido em with_skill/without_skill, e cada configuração interpretou isso como rodar só UM dos modos do eval interno (variant ou baseline). As asserções pressupõem que o executor, em qualquer configuração, rode os dois modos. Resultado: 0/5 nos dois lados por motivo estrutural, o que não discrimina a skill. Deixar explícito no prompt do caso que o executor deve rodar baseline E variant, ou separar asserções por lado."
+      },
+      {
+        "assertion": "tres-casos-registrados-apesar-das-falhas",
+        "reason": "O caminho exigido (.forge/evals/skills/.../results.json) está relativo à árvore de trabalho; nenhum executor gravou ali. Vale manter, mas o prompt do caso deveria citar o caminho de saída para que a falha meça protocolo e não descoberta de caminho."
+      },
+      {
+        "reason": "Sinal real e discriminante que as asserções não isolam: with_skill aplicou alarm(5) com duration_ms preciso (5015) e registrou tokens/output estruturados; without_skill mediu duration_s=5 para casos instantâneos (medição quebrada). Já a retentativa acidental do with_skill (4ª chamada) é pega corretamente pela asserção 4."
+      }
+    ],
+    "overall": "Nenhuma configuração atende o contrato; a comparação A/B deste caso é inconclusiva por falha de desenho do caso, não por diferença da skill."
+  }
+}

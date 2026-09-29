@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "checkout-cartao-cde-diff-principal",
+  "prompt": "Estou na branch feature/checkout-cartao (base: develop), que mexe no services/payment, o serviço que está no escopo PCI (CDE envolvido: sim). O code-evaluator vai consolidar as revisões antes do PR e preciso da parte de segurança: revisa o diff develop..HEAD quanto a secrets, PII em log, JWT, injeção e PCI DSS, usando as rules de .forge/rules/architecture. Não mexe no código. Grava o resultado em review/security-reviewer.json, no formato que o code-evaluator consome.",
+  "assertions": [
+    "review/security-reviewer.json é JSON válido com \"reviewer\": \"security-reviewer\" e array \"findings\"; todo finding tem id no padrão ^SEC-\\d{3}$, severity em {BLOCKER, HIGH, MEDIUM, LOW}, \"category\": \"security\" e os campos file, fix_suggested, rule_violated e confidence preenchidos",
+    "Há finding com severity BLOCKER cujo file termina em Checkout/CreateCheckoutHandler.cs e que aponta o LogInformation registrando CPF e/ou número do cartão (CardNumber/PAN) sem mascaramento",
+    "Há finding com severity BLOCKER em Payment.Infrastructure/PaymentRepository.cs apontando que o PAN (card_number/cardNumber) é gravado em coluna sem tokenização, citando PCI DSS ou tokenização no title, description, fix_suggested ou rule_violated",
+    "Há finding BLOCKER em PaymentRepository.cs pela concatenação de merchantId na query SQL (SQL injection) E finding BLOCKER em Payment.Api/appsettings.json pela ApiKey do adquirente versionada",
+    "Em Payment.Api/Program.cs há finding BLOCKER para ValidateAudience = false e o finding sobre ClockSkew = TimeSpan.FromMinutes(5) tem severity HIGH (não BLOCKER, não MEDIUM/LOW)",
+    "Nenhum finding trata do cálculo de desconto (DiscountPercent / 10) em CreateCheckoutHandler.cs, e `git -C <alvo> status --porcelain -- services/` sai vazio"
+  ]
+}

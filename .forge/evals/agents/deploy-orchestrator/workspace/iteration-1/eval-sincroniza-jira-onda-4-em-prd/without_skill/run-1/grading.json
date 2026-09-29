@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "O runbook tem um passo de dupla confirmação de produção que define APPROVED_BY com o nome Carla Mendes e aborta o deploy se APPROVED_BY estiver vazio, antes de qualquer build ou helm.",
+      "passed": false,
+      "evidence": "grep -nE APPROVED_BY em outputs/deploy-runbook.md retorna vazio. O passo 1 (linhas 22-37) registra a aprovação de Carla Mendes via approval-log.sh record --approver \"Carla Mendes\", mas não define APPROVED_BY nem tem guarda que aborte se estiver vazio."
+    },
+    {
+      "text": "A base do diff de deployables é a tag deploy-prd-20260910-1430-<sha7> (último deploy de prd), e não deploy-stg-20260922-1610-<sha7> nem deploy-stg-20260909-1005-<sha7>.",
+      "passed": false,
+      "evidence": "Não há diff de deployables no runbook (grep -n \"git diff\" vazio). A tag deploy-prd-20260910-1430-f922ba7 aparece só como contexto (linha 8); a resolução de SHA usa a tag de stg (linha 42: git rev-parse ... deploy-stg-20260922-1610-21fbd0f^{commit})."
+    },
+    {
+      "text": "As operações de Jira listadas cobrem exatamente TASK-41, TASK-42, TASK-43 e TASK-44, cada uma com busca no formato labels = task:TASK-4N AND status = 'In Review' (ou JQL equivalente por label task:TASK-4N filtrando In Review); nenhuma operação é listada para TASK-31 a TASK-34 da onda 3, já em produção.",
+      "passed": false,
+      "evidence": "outputs/deploy-runbook.md:106 usa JQL \"project = BIL AND text ~ \\\"TASK-41..44\\\" AND status = \\\"In Review\\\"\", busca textual única e não por label task:TASK-4N por task; grep \"labels = task:TASK-4\" vazio."
+    },
+    {
+      "text": "Para cada issue da onda 4 o runbook prevê consultar as transições disponíveis (getTransitionsForJiraIssue) antes de transitionJiraIssue para Done, e um comentário (addCommentToJiraIssue) que contém a referência ghcr.io/recarga@<manifest digest> e o nome da aprovadora Carla Mendes.",
+      "passed": false,
+      "evidence": "outputs/deploy-runbook.md:110-115: jira.transition direto (\"In Review\" -> \"Done\") sem consulta prévia a getTransitionsForJiraIssue (grep vazio); o comentário cita \"digest sha256:<digest-resolvido>\" e Carla Mendes, mas não a referência ghcr.io/recarga@<digest>."
+    },
+    {
+      "text": "docs/product/modules/recarga/PROGRESS-TRACKING.md ganhou um registro de warning dizendo que a sincronização do Jira não foi feita por indisponibilidade do MCP do Atlassian, e o runbook não trata essa indisponibilidade como motivo para abortar (helm, rollout, smoke e tag de deploy continuam no plano).",
+      "passed": false,
+      "evidence": "git -C without_skill/run-1/work diff --stat -- docs/product/modules/recarga/PROGRESS-TRACKING.md vazio e grep -ciE \"warning|MCP\" = 0: nenhum warning no tracker. O runbook (linha 103) só diz que o Jira seria feito \"assim que o MCP do Atlassian estivesse disponível\"."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 5,
+    "total": 5,
+    "pass_rate": 0
+  }
+}

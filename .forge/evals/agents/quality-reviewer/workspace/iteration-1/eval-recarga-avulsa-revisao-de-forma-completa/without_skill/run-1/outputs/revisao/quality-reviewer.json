@@ -1,0 +1,85 @@
+{
+  "review": "recarga-avulsa-revisao-de-forma",
+  "branch": "feature/recarga-avulsa",
+  "base": "develop",
+  "commits_reviewed": [
+    "3e76971 feat(recarga): adicionar recarga avulsa no domínio",
+    "610b8ce feat(data): adicionar tabela de recargas avulsas",
+    "91634cb docs(docs): registrar resumo da implementação da recarga avulsa"
+  ],
+  "verdict": "CHANGES_REQUESTED",
+  "findings": [
+    {
+      "id": 1,
+      "severity": "blocker",
+      "category": "commit-message",
+      "commit": "3e76971",
+      "summary": "Trailer 'Co-Authored-By: Claude <noreply@anthropic.com>' na mensagem de commit atribui autoria a uma ferramenta de IA, o que é proibido por .forge/rules/conventions/no-ai-attribution.md. É preciso reescrever o commit removendo o trailer antes do PR.",
+      "rule": ".forge/rules/conventions/no-ai-attribution.md"
+    },
+    {
+      "id": 2,
+      "severity": "blocker",
+      "category": "arquivo-indevido",
+      "commit": "91634cb",
+      "file": "docs/recarga-avulsa-implementation-summary.md",
+      "summary": "O nome do arquivo casa exatamente com o padrão proibido '*-implementation-summary.md' de .forge/rules/conventions/no-summary-files.md; conteúdo é um resumo de progresso ('Todos os itens da task foram concluídos'), que deve ser relatado apenas via chat, nunca commitado. Remover o arquivo e o commit.",
+      "rule": ".forge/rules/conventions/no-summary-files.md"
+    },
+    {
+      "id": 3,
+      "severity": "blocker",
+      "category": "idioma-identificadores",
+      "commit": "3e76971",
+      "file": "services/recarga/src/Recarga.Domain/SingleTopUp.cs",
+      "summary": "Identificadores em português no código ('ValorEmReais', 'ProcessarRecarga') violam .forge/rules/conventions/language-policy.md e .forge/rules/conventions/naming.md, que exigem inglês para classes/propriedades/métodos ('Nunca criar identificadores em português: ... var valorEmReais' é o exemplo negativo citado literalmente na regra). Além disso a mensagem de exceção está em inglês ('top-up must be positive'), invertendo a convenção (mensagens ao usuário devem ser pt-BR, identificadores em inglês) — o arquivo mistura os dois eixos ao contrário do esperado.",
+      "rule": ".forge/rules/conventions/language-policy.md; .forge/rules/conventions/naming.md"
+    },
+    {
+      "id": 4,
+      "severity": "blocker",
+      "category": "regra-de-dominio",
+      "commit": "3e76971",
+      "file": "services/recarga/src/Recarga.Domain/SingleTopUp.cs",
+      "summary": "Propriedade monetária 'ValorEmReais' é 'decimal', violando .forge/rules/domain/money-as-cents.md ('decimal e float nunca aparecem em lógica financeira'; sufixo 'InCents' obrigatório). O próprio 'Card.cs' no mesmo módulo já segue a convenção correta ('BalanceCents' como long), então o novo código é inconsistente com o padrão já estabelecido ao lado dele.",
+      "rule": ".forge/rules/domain/money-as-cents.md"
+    },
+    {
+      "id": 5,
+      "severity": "blocker",
+      "category": "migration-postgresql",
+      "commit": "610b8ce",
+      "file": "services/recarga/src/Recarga.Infrastructure/Migrations/20260920120000_AddSingleTopUps.cs",
+      "summary": "Colunas da migration usam PascalCase ('CardNumber', 'Amount', 'Confirmed', 'Id') em vez de snake_case, proibido por .forge/rules/conventions/database-naming.md ('PascalCase e camelCase são PROIBIDOS'). A coluna monetária 'Amount' também é 'decimal' em vez de 'BIGINT' com sufixo '_cents', repetindo a violação de money-as-cents.md agora na camada de persistência.",
+      "rule": ".forge/rules/conventions/database-naming.md; .forge/rules/domain/money-as-cents.md"
+    },
+    {
+      "id": 6,
+      "severity": "blocker",
+      "category": "consistencia-dominio-persistencia",
+      "commit": "610b8ce",
+      "summary": "A tabela 'SingleTopUps' (colunas Id, CardNumber, Amount, Confirmed) não corresponde à entidade de domínio 'SingleTopUp' adicionada no commit anterior (que só tem Card e ValorEmReais, sem Id nem Confirmed). Não há nenhum mapeamento EF Core (configuration/fluent mapping) ligando os dois. Ou a migration foi gerada sem relação real com o domínio just-adicionado, ou falta a camada de mapeamento — em qualquer um dos dois casos, o par de commits não é consistente entre si.",
+      "rule": "consistência estrutural (sem mapeamento de persistência localizado no diff)"
+    },
+    {
+      "id": 7,
+      "severity": "major",
+      "category": "cobertura-de-teste",
+      "commits": ["3e76971", "610b8ce"],
+      "summary": "Nenhum teste foi adicionado para a nova lógica de domínio ('SingleTopUp.ProcessarRecarga') nem para a migration nova. O único teste existente no projeto ('CardTests.cs') cobre apenas 'Card', que já existia antes desta branch. Isso viola o contrato mínimo de .forge/rules/testing/change-test-contract.md, que exige teste de comportamento/invariante para lógica de domínio e teste de integração para migration/persistência (ou registro explícito de evidência pendente, que também não existe aqui).",
+      "rule": ".forge/rules/testing/change-test-contract.md"
+    },
+    {
+      "id": 8,
+      "severity": "minor",
+      "category": "commit-message",
+      "commit": "610b8ce",
+      "summary": "Mensagem de commit tem escopo 'feat(data)'; o repositório reserva 'feat' para mudanças de comportamento (gera changelog). Uma migration isolada de uma tabela sem nenhuma lógica de aplicação associada normalmente seria melhor descrita com um escopo mais específico de infraestrutura de dados; verificar contra a tabela de scopes de .forge/rules/conventions/conventional-commits.md antes do PR (não foi possível confirmar 'data' como scope válido listado a partir do trecho lido).",
+      "rule": ".forge/rules/conventions/conventional-commits.md"
+    }
+  ],
+  "arquivos_fora_do_escopo": [
+    "docs/recarga-avulsa-implementation-summary.md (ver finding 2 — deve ser removido, não é código do serviço de recarga)"
+  ],
+  "resumo": "Três commits revisados na branch feature/recarga-avulsa (base develop). Bloqueadores: trailer de coautoria de IA no commit de domínio, arquivo de resumo de implementação proibido, identificadores em português misturados com mensagem de exceção em inglês, valor monetário como decimal (deveria ser inteiro em centavos) tanto no domínio quanto na migration, colunas da migration em PascalCase em vez de snake_case, e desalinhamento entre o schema da migration e a entidade de domínio recém-criada. Falta também teste para a lógica de domínio e para a migration. Recomendação: não abrir o PR antes de corrigir os itens 'blocker'; reescrever o commit 3e76971 para remover o trailer de IA e remover o commit do arquivo de resumo (91634cb) do histórico."
+}

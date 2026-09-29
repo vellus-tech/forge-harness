@@ -1,0 +1,21 @@
+{
+  "skill": "gerar-changelog-release",
+  "test_cases": [
+    {
+      "id": "TC-01",
+      "prompt": "Gere a entrada do CHANGELOG.md da release 2.4.0 do app de recarga a partir dos commits desde a tag v2.3.0.",
+      "baseline_result": {
+        "output": "## [2.4.0] - 2026-09-22\n\n### Adicionado\n- Recarga via Pix com QR Code dinâmico (#212)\n- Extrato de viagens dos últimos 90 dias (#215)\n\n### Corrigido\n- Saldo exibido em duplicidade após recarga offline (#218)\n- Ajusta timeout do gateway de recarga\n\n### Alterado\n- Tela de login passa a aceitar CPF com máscara (#220)",
+        "duration_ms": 38000,
+        "tokens": 820,
+        "exit_code": 0
+      },
+      "variant_result": {
+        "output": "Lendo commits desde v2.3.0...\nEncontrados 14 commits em 6 PRs.\nClassificando commits por tipo (feat, fix, refactor)...\n[runner] timeout após 120s — execução interrompida",
+        "duration_ms": 120000,
+        "tokens": null,
+        "exit_code": 124
+      }
+    }
+  ]
+}

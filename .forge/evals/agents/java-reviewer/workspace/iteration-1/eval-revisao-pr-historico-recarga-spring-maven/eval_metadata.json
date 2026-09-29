@@ -1,0 +1,12 @@
+{
+  "eval_id": 1,
+  "eval_name": "revisao-pr-historico-recarga-spring-maven",
+  "prompt": "Estou na branch feat/historico-recarga do bilhetagem-recarga (Spring Boot 3, Maven, JdbcClient, Flyway, Postgres) e o code-evaluator vai te chamar como revisor Java antes do PR para develop. O diff (git diff develop..HEAD) cria o POST /api/v1/recargas, o GET /api/v1/cartoes/{cartaoId}/recargas com o histórico do cartão e a migration V7 que renomeia recarga.valor para valor_centavos. Faz a revisão Java desse diff e grava os findings em JSON em .forge/reviews/java-reviewer.json, cada um com arquivo, linha, cenário e severidade, no formato que o code-evaluator consolida. Não mexe no código.",
+  "assertions": [
+    ".forge/reviews/java-reviewer.json existe, é JSON válido e contém uma lista de findings em que TODO finding tem caminho de arquivo, número de linha inteiro, severidade e um texto de cenário/descrição não vazio",
+    "Há um finding em src/main/resources/db/migration/V7__renomeia_valor_recarga.sql (linha 2) apontando o RENAME COLUMN como mudança destrutiva/incompatível com o código em produção e referenciando rules/data/schema-evolution.md ou o fluxo expand → migrate/backfill → contract",
+    "Há um finding em RecargaController.java (ou RecargaService.java) dizendo que o GET /cartoes/{cartaoId}/recargas devolve o histórico de qualquer cartão sem verificar autorização/ownership do titular autenticado",
+    "Há um finding de SQL interpolado/concatenado em RecargaHistoricoQuery.java com linha 17 ou 18 E um finding de N+1 (consulta de cartão por recarga dentro do laço) em RecargaService.java com linha entre 27 e 30",
+    "Há finding sobre injeção por campo (@Autowired em RecargaService.java, linha 14 ou 17) recomendando injeção por construtor como já faz CartaoService, E finding sobre o @RequestBody de RecargaController.java:24 sem @Valid, fazendo o caso de uso rodar sem validar RecargaRequest"
+  ]
+}

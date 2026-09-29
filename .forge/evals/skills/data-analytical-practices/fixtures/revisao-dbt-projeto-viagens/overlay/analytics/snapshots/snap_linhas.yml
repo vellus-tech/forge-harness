@@ -1,0 +1,9 @@
+snapshots:
+  - name: snap_linhas
+    relation: ref('stg_linhas')
+    config:
+      schema: snapshots
+      unique_key: cod_linha
+      strategy: check
+      check_cols: [nome_linha, operadora, modal]
+      invalidate_hard_deletes: true

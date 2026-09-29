@@ -1,0 +1,82 @@
+{
+  "mode": "dry_run",
+  "module": "recarga",
+  "wave": 4,
+  "target_environment": "prd",
+  "source_environment": "stg",
+  "commit_sha_short": "21fbd0f",
+  "commit_sha_full": "21fbd0faa634539b19ed59931f07b40255a3500c",
+  "previous_prd_tag": "deploy-prd-20260910-1430-f922ba7",
+  "previous_prd_commit_short": "f922ba7",
+  "stg_tag_promoted": "deploy-stg-20260922-1610-21fbd0f",
+  "stg_deployed_at": "2026-09-22T16:10:00-03:00",
+  "image": {
+    "repository": "ghcr.io/recarga",
+    "digest_truncated_from_log": "sha256:7f03…",
+    "digest_resolved": null,
+    "resolution_needed": true,
+    "resolution_command": "crane digest ghcr.io/recarga:21fbd0f"
+  },
+  "helm": {
+    "chart": "platform/helm/recarga",
+    "chart_version": "0.4.0",
+    "values_file": "platform/helm/recarga/values-prd.yaml",
+    "namespace": "recarga-prd",
+    "release": "recarga",
+    "command": "helm upgrade --install recarga platform/helm/recarga -f platform/helm/recarga/values-prd.yaml --set image.digest=sha256:<digest-resolvido> --namespace recarga-prd --atomic --timeout 5m",
+    "executed": false
+  },
+  "gates": {
+    "trivy_scan": {"executed": false, "reason": "sem cluster/GHCR conectados nesta sessão"},
+    "cosign_verify": {"executed": false, "reason": "sem cluster/GHCR conectados nesta sessão"},
+    "cosign_verify_attestation": {"executed": false, "reason": "sem cluster/GHCR conectados nesta sessão"},
+    "kubectl_rollout_status": {"executed": false, "reason": "sem cluster conectado nesta sessão"},
+    "kyverno_admission_check": {"executed": false, "reason": "sem cluster conectado nesta sessão"},
+    "smoke_test": {"executed": false, "reason": "sem cluster conectado nesta sessão"}
+  },
+  "approval": {
+    "gate": "prod_deploy",
+    "type": "irreversible_hard_stop",
+    "cab_approved": true,
+    "approver_name": "Carla Mendes",
+    "approver_role": "Gerente de Plataforma",
+    "approval_forum": "CAB",
+    "approval_date": "2026-09-26",
+    "recorded_in_approvals_yaml": false,
+    "note": "Aprovação de CAB relatada pelo usuário; ainda não persistida em approvals.yaml nesta sessão dry-run. Segunda confirmação humana explícita no momento da execução real continua obrigatória."
+  },
+  "git_tag_planned": {
+    "name_pattern": "deploy-prd-<YYYYMMDD-HHMM>-21fbd0f",
+    "created": false,
+    "pushed": false
+  },
+  "jira": {
+    "connected": false,
+    "project_key": "BIL",
+    "planned_operations": [
+      {
+        "op": "search",
+        "jql": "project = BIL AND text ~ \"TASK-41..44\" AND status = \"In Review\"",
+        "purpose": "localizar as chaves reais das issues da onda 4"
+      },
+      {
+        "op": "transition",
+        "from_status": "In Review",
+        "to_status": "Done",
+        "issues": ["TASK-41", "TASK-42", "TASK-43", "TASK-44"],
+        "note": "chaves internas do PROGRESS-TRACKING.md; chave Jira real (BIL-NN) a resolver via busca"
+      },
+      {
+        "op": "comment",
+        "issues": ["TASK-41", "TASK-42", "TASK-43", "TASK-44"],
+        "text": "Promovido para prd, wave 4 do módulo recarga, SHA 21fbd0f. Aprovado em CAB por Carla Mendes (Gerente de Plataforma)."
+      }
+    ],
+    "executed": false
+  },
+  "external_actions_taken": false,
+  "cluster_connected": false,
+  "ghcr_connected": false,
+  "jira_mcp_connected": false,
+  "summary_pt_br": "Dry-run completo do /forge:deploy-wave recarga prd para a onda 4 (cartão tokenizado). Nenhuma ação externa foi executada: sem cluster, GHCR ou MCP do Atlassian conectados nesta sessão. O runbook detalha a sequência exata de comandos, incluindo a resolução do digest, os gates de segurança, o helm upgrade, a validação de rollout, a tag de deploy e a sincronização planejada das issues Jira da onda 4 de \"In Review\" para \"Done\"."
+}

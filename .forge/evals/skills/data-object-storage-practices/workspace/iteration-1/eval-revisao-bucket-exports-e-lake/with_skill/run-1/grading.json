@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "docs/revisao-object-storage.md cita os ids O-01, O-08, O-02, O-13 e O-14 e cada um vem com a localização arquivo:linha correta (storage.tf:14, storage.tf:23, partnerDelivery.ts:10, ingest_validacoes.py:12 e ingest_validacoes.py:11); descrição sem id do catálogo ou sem linha não conta",
+      "passed": true,
+      "evidence": "outputs/revisao-object-storage.md (idêntico a work/docs/revisao-object-storage.md) traz os cinco ids com linha correta, conferida contra os fixtures: 'O-01' em 'infra/terraform/storage.tf:14' (block_public_policy = false, linha 14 real), 'O-08' em 'infra/terraform/storage.tf:23' (sse_algorithm aws:kms, linha 23), 'O-02' em 'src/exports/partnerDelivery.ts:10' (expiresIn: 604800, linha 10), 'O-13' em 'jobs/ingest_validacoes.py:12' e 'O-14' em 'jobs/ingest_validacoes.py:11'; aparecem tanto nos títulos dos achados 1-5 quanto na tabela-resumo."
+    },
+    {
+      "text": "A correção proposta para partnerDelivery.ts não se limita a reduzir o expiresIn: exige que a URL seja emitida por endpoint REST autenticado do produto que autentica o parceiro, com expiração em minutos, um único objeto, log de emissão e bucket privado (ao menos endpoint autenticado + minutos + log), e reprova o envio do link por e-mail valendo dias",
+      "passed": true,
+      "evidence": "Achado 1: 'Corrigir para: endpoint REST autenticado (GET /v1/parceiros/:id/conciliacao/:data) que verifica a identidade do parceiro, gera a URL com expiresIn de poucos minutos e grava um log de emissão (quem, quando, qual chave); o e-mail passa a notificar que o arquivo está disponível, sem carregar o link'. Reprova o e-mail com 7 dias ('qualquer pessoa que intercepte o e-mail ... tem acesso ... por uma semana') e cita H-02 (a) com HTTPS, objeto único e bucket privado. Cobre endpoint autenticado + minutos + log."
+    },
+    {
+      "text": "O relatório NÃO classifica como antipattern nenhum destes: o mode(\"overwrite\") de jobs/silver_validacoes.py, o expiresIn: 86400 do JWT em src/auth/token.ts, o expiresIn: 300 de src/app/receiptLink.ts e a policy de infra/terraform/lake.tf com Principal \"*\" condicionada a aws:SourceVpce (os ignora ou os declara aceitáveis)",
+      "passed": true,
+      "evidence": "Nenhum dos quatro é classificado como antipattern; todos estão na seção 'Limpo': silver_validacoes.py overwrite 'não é antipattern'; token.ts 'fora de escopo ... não é URL pré-assinada'; receiptLink.ts expiresIn: 300 'é aceitável porque é cliente próprio'; lake.tf Principal '*' 'vem acompanhado de Condition.StringEquals.\"aws:SourceVpce\", então não é leitura anônima'. A sugestão de declarar Block Public Access explícito no lake é defesa em profundidade, não acusa a policy."
+    },
+    {
+      "text": "Para jobs/ingest_validacoes.py o relatório prescreve append-only no bronze (correção e dedupe na silver) e troca da partição por cartao_id por partição por data de ingestão (ex.: dt=AAAA-MM-DD), mencionando a cardinalidade de ~3 milhões de cartões ou o efeito de milhões de diretórios pequenos",
+      "passed": true,
+      "evidence": "Achado 3: 'Corrigir para escrita append-only, particionada por data de ingestão (dt=AAAA-MM-DD/)'; dedupe na silver aparece em 'reconstruir a silver inteira por dedupe é prática legítima nessa camada'. Achado 4: 'Com ~3 milhões de cartões distintos ... isso gera milhões de diretórios com poucos arquivos pequenos cada'; troca para 'partição por data de ingestão (dt=AAAA-MM-DD/)'. Ressalva: a correção/dedupe na silver não é prescrita explicitamente no item 3, só afirmada como legítima na seção de limpos."
+    },
+    {
+      "text": "O relatório traz uma entrada por regra com status explícito, inclui O-11 como OK/limpo (nenhuma imagem minio/minio) e declara como não verificado pela varredura estática ao menos dois itens de runtime ou ferramenta do catálogo (O-03 multipart órfão, O-04 versões não correntes, O-05 transição de objeto pequeno, O-12 small files), em vez de dar o projeto por aprovado nesses pontos",
+      "passed": false,
+      "evidence": "O catálogo da skill tem O-01 a O-14 e T-03 (15 regras), mas a tabela-resumo tem só 9 linhas (O-01, O-02, O-03, O-04, O-08, O-11, O-13, O-14, T-03); O-05, O-06, O-07, O-09, O-10 e O-12 não têm entrada com status (O-12 só é citado como 'consequência colateral' no item 4). O-11 está como OK ('nenhuma imagem minio/minio'), e O-03/O-04 aparecem como '(sem detector estático) ... revisão', o que atende a parte de não-verificados, mas a exigência de uma entrada por regra com status explícito não é cumprida."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "pass_rate": 0.8
+  }
+}

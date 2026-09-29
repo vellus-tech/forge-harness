@@ -1,0 +1,47 @@
+{
+  "expectations": [
+    {
+      "text": "Existe .forge/graph/graph.json no alvo, com nós para src/billing/invoice.service.ts e src/ledger/journal.repo.ts (evidência de que o grafo foi garantido via .forge/scripts/graph.sh, e não substituído por leitura manual do repositório).",
+      "passed": false,
+      "evidence": "`ls without_skill/run-1/work/.forge/graph` → 'No such file or directory'. O transcript (passos 3-4) mostra leitura manual via find/cat dos .ts, sem graph.sh; não há graph.json em outputs/."
+    },
+    {
+      "text": "Existem .forge/graph/c4/c1-context.md, .forge/graph/c4/c2-container.md e ao menos um .forge/graph/c4/c3-component-*.md, cada um com bloco ```mermaid contendo 'flowchart'.",
+      "passed": false,
+      "evidence": "`ls without_skill/run-1/work/.forge/graph/c4` → 'No such file or directory'. Os diagramas foram escritos em docs/architecture/c4-*.mmd em sintaxe C4Context/C4Container/C4Component (head de c4-context.mmd: 'C4Context'), não em .forge/graph/c4/*.md com flowchart."
+    },
+    {
+      "text": "Existe .forge/graph/overview.html e ele embute os diagramas (contém 'class=\"mermaid\"' ou equivalente e referencia os níveis C1/C2/C3).",
+      "passed": false,
+      "evidence": "Não existe .forge/graph/overview.html; o HTML foi gerado em without_skill/run-1/work/docs/architecture/overview.html (grep -c mermaid = 7), caminho diferente do exigido."
+    },
+    {
+      "text": "A resposta final ao usuário cita o caminho .forge/graph/overview.html e NÃO contém bloco ```mermaid, a palavra-chave 'flowchart' nem marcação HTML do overview colada (regra §17.6: apontar arquivos, não colar).",
+      "passed": false,
+      "evidence": "A resposta no transcript.md ('Resposta que eu daria ao usuário') aponta `docs/architecture/overview.html`, não `.forge/graph/overview.html`. Não cola Mermaid/HTML, mas falha na parte do caminho exigido."
+    },
+    {
+      "text": "Em todos os .md de .forge/graph/c4/, nenhum rótulo entre [\"...\"] no bloco Mermaid contém '.', '—' ou '–' (ex.: aparece 'invoice service ts', nunca 'invoice.service.ts').",
+      "passed": false,
+      "evidence": "Não há nenhum .md em .forge/graph/c4/ (diretório inexistente), logo não há evidência positiva; além disso c4-context.mmd linha 2 contém 'Pagamentos Core — Diagrama de Contexto' com travessão. Na dúvida, passed=false."
+    },
+    {
+      "text": "Não foi criado arquivo de diagrama fora de .forge/graph/ (ex.: docs/architecture.md, ARCHITECTURE.md, *.mmd na raiz ou em docs/): git status do alvo não lista arquivo novo contendo 'mermaid' fora de .forge/graph/.",
+      "passed": false,
+      "evidence": "`git -C without_skill/run-1/work status --porcelain` lista '?? docs/'; docs/architecture/ contém c4-context.mmd, c4-container.mmd, c4-component.mmd e overview.html (`grep -rl mermaid docs` → overview.html). Diagramas avulsos fora de .forge/graph/, exatamente o que a asserção proíbe."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 6,
+    "total": 6,
+    "pass_rate": 0.0
+  },
+  "eval_feedback": {
+    "overall": "Baseline entregou um C4 plausível e navegável, mas em docs/architecture/ e com atores externos inferidos (adquirente, SMTP) sinalizados como inferência. As asserções são específicas do harness, então o baseline falha por construção em 5 das 6; a asserção 4 poderia ser dividida (apontar caminho vs. não colar), já que o baseline cumpre a metade 'não colar'."
+  },
+  "timing": {
+    "executor_duration_seconds": 485,
+    "total_duration_seconds": 485
+  }
+}

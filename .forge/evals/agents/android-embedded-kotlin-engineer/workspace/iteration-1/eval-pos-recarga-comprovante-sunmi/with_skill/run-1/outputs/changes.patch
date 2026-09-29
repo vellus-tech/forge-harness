@@ -1,0 +1,175 @@
+diff --git a/apps/android/pos-recarga/CHANGELOG.md b/apps/android/pos-recarga/CHANGELOG.md
+index 46e80b0..8cd8415 100644
+--- a/apps/android/pos-recarga/CHANGELOG.md
++++ b/apps/android/pos-recarga/CHANGELOG.md
+@@ -2,6 +2,11 @@
+ 
+ ## [Não publicado]
+ 
++### Adicionado
++
++- Impressão do comprovante de recarga na impressora térmica do Sunmi P2 após recarga aprovada
++  (`hardware/printer`, `SunmiPrinterAdapter`). Falha de impressão não desfaz a aprovação.
++
+ ## [1.6.0] - 2026-08-30
+ 
+ ### Adicionado
+diff --git a/apps/android/pos-recarga/README.md b/apps/android/pos-recarga/README.md
+index e0a64ae..a80bf9a 100644
+--- a/apps/android/pos-recarga/README.md
++++ b/apps/android/pos-recarga/README.md
+@@ -9,6 +9,11 @@ App Android embarcado de recarga de cartão de transporte no POS Sunmi P2 (Andro
+ ## Periféricos
+ 
+ - NFC: `hardware/nfc` (`SunmiNfcReaderAdapter`).
++- Impressora térmica: `hardware/printer` (`SunmiPrinterAdapter`, SDK `com.sunmi:printerlibrary:1.0.23`,
++  ver `docs/vendor/sunmi-printer-sdk.md`). Imprime o comprovante após `PaymentApproval.Approved`;
++  falha de impressão (sem papel, tampa aberta, superaquecimento, erro de comunicação) nunca desfaz
++  a recarga aprovada — o comprovante fica disponível para reimpressão e o estado do periférico é
++  exposto via `RechargeOutcome.Approved.printResult`.
+ 
+ ## Como testar
+ 
+diff --git a/apps/android/pos-recarga/app/build.gradle.kts b/apps/android/pos-recarga/app/build.gradle.kts
+index d617e53..bcbfe38 100644
+--- a/apps/android/pos-recarga/app/build.gradle.kts
++++ b/apps/android/pos-recarga/app/build.gradle.kts
+@@ -18,5 +18,6 @@ android {
+ dependencies {
+     implementation(project(":core:domain"))
+     implementation(project(":hardware:nfc"))
++    implementation(project(":hardware:printer"))
+     implementation(libs.coroutines.core)
+ }
+diff --git a/apps/android/pos-recarga/core/domain/src/main/kotlin/br/com/axis/posrecarga/domain/CompleteRechargeUseCase.kt b/apps/android/pos-recarga/core/domain/src/main/kotlin/br/com/axis/posrecarga/domain/CompleteRechargeUseCase.kt
+index 549fdf8..64edd7a 100644
+--- a/apps/android/pos-recarga/core/domain/src/main/kotlin/br/com/axis/posrecarga/domain/CompleteRechargeUseCase.kt
++++ b/apps/android/pos-recarga/core/domain/src/main/kotlin/br/com/axis/posrecarga/domain/CompleteRechargeUseCase.kt
+@@ -2,6 +2,7 @@ package br.com.axis.posrecarga.domain
+ 
+ class CompleteRechargeUseCase(
+     private val paymentGateway: PaymentGatewayPort,
++    private val printerPort: PrinterPort,
+ ) {
+     suspend operator fun invoke(request: RechargeRequest): RechargeOutcome {
+         val approval = paymentGateway.authorize(request)
+@@ -18,8 +19,19 @@ class CompleteRechargeUseCase(
+             authorizationCode = approval.authorizationCode,
+             approvedAtEpochMillis = approval.approvedAtEpochMillis,
+         )
+-        // TODO(TASK-04): imprimir comprovante após aprovação
+-        return RechargeOutcome.Approved(receipt)
++        // A recarga já está aprovada neste ponto: falha de impressão (sem papel, tampa aberta,
++        // superaquecimento, desconexão) nunca desfaz a aprovação — o comprovante fica disponível
++        // para reimpressão e o operador vê o estado explícito do periférico.
++        val printResult = printReceiptSafely(receipt)
++        return RechargeOutcome.Approved(receipt, printResult)
++    }
++
++    private suspend fun printReceiptSafely(receipt: RechargeReceipt): PrintResult {
++        val currentStatus = printerPort.status()
++        if (currentStatus !is PrinterStatus.Ready) {
++            return PrintResult.Unavailable(currentStatus)
++        }
++        return printerPort.print(ReceiptFormatter.format(receipt))
+     }
+ }
+ 
+@@ -45,6 +57,6 @@ sealed interface PaymentApproval {
+ }
+ 
+ sealed interface RechargeOutcome {
+-    data class Approved(val receipt: RechargeReceipt) : RechargeOutcome
++    data class Approved(val receipt: RechargeReceipt, val printResult: PrintResult) : RechargeOutcome
+     data class Declined(val approval: PaymentApproval) : RechargeOutcome
+ }
+diff --git a/apps/android/pos-recarga/core/domain/src/test/kotlin/br/com/axis/posrecarga/domain/CompleteRechargeUseCaseTest.kt b/apps/android/pos-recarga/core/domain/src/test/kotlin/br/com/axis/posrecarga/domain/CompleteRechargeUseCaseTest.kt
+index f913a1d..fe39ded 100644
+--- a/apps/android/pos-recarga/core/domain/src/test/kotlin/br/com/axis/posrecarga/domain/CompleteRechargeUseCaseTest.kt
++++ b/apps/android/pos-recarga/core/domain/src/test/kotlin/br/com/axis/posrecarga/domain/CompleteRechargeUseCaseTest.kt
+@@ -1,6 +1,7 @@
+ package br.com.axis.posrecarga.domain
+ 
+ import kotlinx.coroutines.test.runTest
++import org.junit.Assert.assertEquals
+ import org.junit.Assert.assertTrue
+ import org.junit.Test
+ 
+@@ -10,11 +11,68 @@ class CompleteRechargeUseCaseTest {
+             PaymentApproval.Approved("4111111111111111", "000123", "A1B2C3", 1_700_000_000_000)
+     }
+ 
++    private class FakePrinterPort(
++        private val status: PrinterStatus,
++    ) : PrinterPort {
++        var printedLines: List<String>? = null
++            private set
++
++        override suspend fun status(): PrinterStatus = status
++
++        override suspend fun print(lines: List<String>): PrintResult {
++            if (status !is PrinterStatus.Ready) return PrintResult.Unavailable(status)
++            printedLines = lines
++            return PrintResult.Printed
++        }
++    }
++
+     @Test
+     fun `approved payment yields receipt`() = runTest {
+-        val outcome = CompleteRechargeUseCase(approvedGateway)(
++        val outcome = CompleteRechargeUseCase(approvedGateway, FakePrinterPort(PrinterStatus.Ready))(
+             RechargeRequest("corr-1", "T-01", "04A1B2C3", 1_000),
+         )
+         assertTrue(outcome is RechargeOutcome.Approved)
+     }
++
++    @Test
++    fun `approved payment prints receipt when printer is ready`() = runTest {
++        val printer = FakePrinterPort(PrinterStatus.Ready)
++
++        val outcome = CompleteRechargeUseCase(approvedGateway, printer)(
++            RechargeRequest("corr-1", "T-01", "04A1B2C3", 1_000),
++        )
++
++        val approved = outcome as RechargeOutcome.Approved
++        assertEquals(PrintResult.Printed, approved.printResult)
++        assertEquals(ReceiptFormatter.format(approved.receipt), printer.printedLines)
++    }
++
++    @Test
++    fun `approved payment stays approved when printer is out of paper`() = runTest {
++        val printer = FakePrinterPort(PrinterStatus.OutOfPaper)
++
++        val outcome = CompleteRechargeUseCase(approvedGateway, printer)(
++            RechargeRequest("corr-1", "T-01", "04A1B2C3", 1_000),
++        )
++
++        val approved = outcome as RechargeOutcome.Approved
++        assertEquals(PrintResult.Unavailable(PrinterStatus.OutOfPaper), approved.printResult)
++        assertTrue(printer.printedLines == null)
++    }
++
++    @Test
++    fun `declined payment never reaches the printer`() = runTest {
++        val declinedGateway = object : PaymentGatewayPort {
++            override suspend fun authorize(request: RechargeRequest) =
++                PaymentApproval.Denied("insufficient_funds")
++        }
++        val printer = FakePrinterPort(PrinterStatus.Ready)
++
++        val outcome = CompleteRechargeUseCase(declinedGateway, printer)(
++            RechargeRequest("corr-1", "T-01", "04A1B2C3", 1_000),
++        )
++
++        assertTrue(outcome is RechargeOutcome.Declined)
++        assertTrue(printer.printedLines == null)
++    }
+ }
+diff --git a/apps/android/pos-recarga/settings.gradle.kts b/apps/android/pos-recarga/settings.gradle.kts
+index f6b4d4a..a752f58 100644
+--- a/apps/android/pos-recarga/settings.gradle.kts
++++ b/apps/android/pos-recarga/settings.gradle.kts
+@@ -1,2 +1,2 @@
+ rootProject.name = "pos-recarga"
+-include(":app", ":core:domain", ":hardware:nfc")
++include(":app", ":core:domain", ":hardware:nfc", ":hardware:printer")

@@ -1,0 +1,15 @@
+  Determinando os projetos a serem restaurados...
+<worktree-do-eval>/.forge/evals/agents/backend-engineer-dotnet/workspace/iteration-1/eval-task-split-diverge-design-pede-commit/without_skill/run-1/work/services/split-service/src/Split.Infrastructure/Split.Infrastructure.csproj : warning NU1900: Ocorreu um erro ao obter os dados de vulnerabilidade do pacote: Não é possível carregar o índice de serviço para a origem https://axis-mobfintech-833342657354.d.codeartifact.us-west-2.amazonaws.com/nuget/Axis/v3/index.json.
+  Todos os projetos estão atualizados para restauração.
+<worktree-do-eval>/.forge/evals/agents/backend-engineer-dotnet/workspace/iteration-1/eval-task-split-diverge-design-pede-commit/without_skill/run-1/work/services/split-service/src/Split.Infrastructure/Split.Infrastructure.csproj : warning NU1900: Ocorreu um erro ao obter os dados de vulnerabilidade do pacote: Não é possível carregar o índice de serviço para a origem https://axis-mobfintech-833342657354.d.codeartifact.us-west-2.amazonaws.com/nuget/Axis/v3/index.json.
+  Split.Domain -> <worktree-do-eval>/.forge/evals/agents/backend-engineer-dotnet/workspace/iteration-1/eval-task-split-diverge-design-pede-commit/without_skill/run-1/work/services/split-service/src/Split.Domain/bin/Debug/net10.0/Split.Domain.dll
+  Split.Infrastructure -> <worktree-do-eval>/.forge/evals/agents/backend-engineer-dotnet/workspace/iteration-1/eval-task-split-diverge-design-pede-commit/without_skill/run-1/work/services/split-service/src/Split.Infrastructure/bin/Debug/net10.0/Split.Infrastructure.dll
+
+Compilação com êxito.
+
+<worktree-do-eval>/.forge/evals/agents/backend-engineer-dotnet/workspace/iteration-1/eval-task-split-diverge-design-pede-commit/without_skill/run-1/work/services/split-service/src/Split.Infrastructure/Split.Infrastructure.csproj : warning NU1900: Ocorreu um erro ao obter os dados de vulnerabilidade do pacote: Não é possível carregar o índice de serviço para a origem https://axis-mobfintech-833342657354.d.codeartifact.us-west-2.amazonaws.com/nuget/Axis/v3/index.json.
+<worktree-do-eval>/.forge/evals/agents/backend-engineer-dotnet/workspace/iteration-1/eval-task-split-diverge-design-pede-commit/without_skill/run-1/work/services/split-service/src/Split.Infrastructure/Split.Infrastructure.csproj : warning NU1900: Ocorreu um erro ao obter os dados de vulnerabilidade do pacote: Não é possível carregar o índice de serviço para a origem https://axis-mobfintech-833342657354.d.codeartifact.us-west-2.amazonaws.com/nuget/Axis/v3/index.json.
+    2 Aviso(s)
+    0 Erro(s)
+
+Tempo Decorrido 00:00:00.99

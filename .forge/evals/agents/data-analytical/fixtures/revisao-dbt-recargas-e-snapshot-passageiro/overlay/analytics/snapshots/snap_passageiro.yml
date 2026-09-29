@@ -1,0 +1,8 @@
+snapshots:
+  - name: snap_passageiro
+    relation: source('app', 'passageiros')
+    config:
+      unique_key: passageiro_id
+      strategy: check
+      check_cols: [nome, email, telefone, categoria_tarifaria]
+      invalidate_hard_deletes: true

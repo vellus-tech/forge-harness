@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Diagramas C4 — Tarifa Viva</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 24px; background: #fafafa; color: #222; }
+    header { border-bottom: 1px solid #ddd; padding-bottom: 12px; margin-bottom: 16px; }
+    nav button { padding: 8px 16px; border: 1px solid #ccc; background: #fff; cursor: pointer; margin-right: 4px; }
+    nav button.active { background: #0b67d6; color: #fff; border-color: #0b67d6; }
+    .panel { display: none; background: #fff; border: 1px solid #ddd; padding: 16px; }
+    .panel.active { display: block; }
+    .meta { color: #666; font-size: 0.9em; }
+    .note { background: #fff8e1; border: 1px solid #f0d47a; padding: 8px 12px; margin-top: 12px; font-size: 0.9em; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Diagramas C4 — Tarifa Viva</h1>
+    <p class="meta">Gerado em 2026-09-26 · Segmentação v1.0 · Bounded Contexts: Fare &amp; Boarding, Wallet &amp; Recharge, Settlement &amp; Clearing, Card &amp; Identity, Notification</p>
+  </header>
+  <nav>
+    <button data-tab="l1" class="active">Level 1 — System Context</button>
+    <button data-tab="l2">Level 2 — Containers</button>
+    <button data-tab="l3">Level 3 — Components</button>
+  </nav>
+  <section id="l1" class="panel active">
+    <div class="mermaid">
+flowchart LR
+    Passageiro[Passageiro] --> TarifaViva[Tarifa Viva]
+    Gestor[Gestor do Consorcio] --> TarifaViva
+    TarifaViva --> Adquirente[Adquirente de Cartao de Credito]
+    TarifaViva --> PSPPix[PSP de Pix]
+    TarifaViva --> PDV[Ponto de Venda Credenciado]
+    TarifaViva --> Operadoras[Operadoras de Onibus]
+    TarifaViva --> PushProvider[Provider de Push Externo]
+    </div>
+  </section>
+  <section id="l2" class="panel">
+    <div class="mermaid">
+flowchart LR
+    Validador[Validador Embarcado] --> FareSvc[fare-boarding-svc]
+    App[App do Passageiro] --> WalletSvc[wallet-recharge-svc]
+    App --> CardSvc[card-identity-svc]
+    PDV[Ponto de Venda] --> WalletSvc
+    FareSvc --> EventBus[Event Bus]
+    WalletSvc --> EventBus
+    CardSvc --> EventBus
+    EventBus --> SettlementSvc[settlement-clearing-svc]
+    EventBus --> NotificationSvc[notification-svc]
+    FareSvc --> FareDb[(fare_boarding schema)]
+    WalletSvc --> WalletDb[(wallet_recharge schema)]
+    SettlementSvc --> SettlementDb[(settlement_clearing schema)]
+    CardSvc --> CardDb[(card_identity schema)]
+    NotificationSvc --> NotificationDb[(notification schema)]
+    WalletSvc --> Adquirente[Adquirente Externo]
+    NotificationSvc --> PushProvider[Provider de Push]
+    </div>
+    <p class="note">Cada serviço tem seu próprio schema. Não existe um <code>core_db</code> único compartilhado entre os serviços — pedido nesse sentido foi avaliado e recusado por quebrar ownership de dados (ver <code>docs/product/ddd/ddd-segmentation.md §0.3</code>).</p>
+  </section>
+  <section id="l3" class="panel">
+    <h3>Fare &amp; Boarding Service</h3>
+    <div class="mermaid">
+flowchart LR
+    API[Boarding Sync API] --> UseCase[ApproveBoardingUseCase]
+    UseCase --> Policy[FarePolicy]
+    UseCase --> Repo[BoardingRepository]
+    UseCase --> BalanceAdapter[BalanceProjectionAdapter]
+    UseCase --> BlockAdapter[BlockListProjectionAdapter]
+    Repo --> FareDb[(fare_boarding schema)]
+    </div>
+    <h3>Wallet &amp; Recharge Service</h3>
+    <div class="mermaid">
+flowchart LR
+    RechargeApi[Recharge API] --> RechargeUseCase[RechargeUseCase]
+    RefundApi[Refund Request API] --> RefundUseCase[RefundRequestUseCase]
+    RechargeUseCase --> AcquirerAcl[AcquirerAntiCorruptionAdapter]
+    RechargeUseCase --> WalletRepo[WalletRepository]
+    RefundUseCase --> RefundRepo[RefundRequestRepository]
+    WalletRepo --> WalletDb[(wallet_recharge schema)]
+    RefundRepo --> WalletDb
+    </div>
+  </section>
+  <script>
+    mermaid.initialize({ startOnLoad: true, theme: 'default' });
+    document.querySelectorAll('nav button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.tab).classList.add('active');
+      });
+    });
+  </script>
+</body>
+</html>

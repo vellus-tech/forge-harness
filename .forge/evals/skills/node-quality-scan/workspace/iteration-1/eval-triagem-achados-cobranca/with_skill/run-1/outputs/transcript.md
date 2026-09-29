@@ -1,0 +1,21 @@
+# Transcript — eval-triagem-achados-cobranca / with_skill / run-1
+
+1. Verifiquei o diretório de trabalho e a branch do worktree (`cd .../evals-100 && pwd && git branch --show-current`) — confirmou `evals-100` / `chore/evals-skills-agentes`, como esperado pelo bootstrap.
+2. Gravei `.t0` com `date +%s`.
+3. Criei `work/` e `outputs/`, e rodei `fixtures/triagem-achados-cobranca/setup.sh` apontando para `work/` — materializou o projeto fixture (serviço `servico-cobranca`: Fastify + `pg`, com `src/boot.ts`, `src/config.ts`, `src/rotas.ts`, `src/infra/PgCobrancaRepository.ts`, `src/db/bootstrap.ts`, `src/jobs/lembrete.ts`, `src/domain/CobrancaRepository.ts`, `test/fakes.ts`, mais scaffolding `.forge/` interno ao fixture).
+4. Li a skill carregada, `template/.forge/skills/node-quality-scan/SKILL.md`, e sua referência `references/clean-code-rules.md` (cada regra, por que existe, e a exceção legítima documentada).
+5. Li os sete arquivos-fonte do serviço (não o scaffolding `.forge/` interno do fixture) para ter o contexto de cada achado antes de julgar.
+6. Segui o protocolo fixo da skill:
+   - Passo 2 (baseline de lint): `bash template/.forge/scripts/node-baseline.sh --root work --check` → **FAIL** — não há `eslint.config.mjs` na raiz do fixture, então as regras `forge-quality/*` (AST) não estão cableadas neste serviço. Registrei isso primeiro no relatório, como a skill manda ("diga isso primeiro"), mas não rodei `--apply` porque a tarefa pediu explicitamente para não alterar código nesta rodada.
+   - Passo 3 (detecção): `bash template/.forge/skills/node-quality-scan/scripts/scan.sh --root work --json <scratchpad>/node-scan.json` → 5 `FOUND` (floating-promise em `src/jobs/lembrete.ts:4`, sync-fs-blocking em `src/boot.ts:9`, sql-interpolation em `src/infra/PgCobrancaRepository.ts:13`, new-pg-client em `src/db/bootstrap.ts:5`, single-impl-interface em `CobrancaRepository`) e 4 `OK` (empty-catch, process-env-direct, date-now, explicit-any, mutable-module-state — cinco regras `OK`, na verdade, conferi a saída bruta).
+   - Passo 4 (julgamento): li cada arquivo:linha achado e apliquei as exceções documentadas em `clean-code-rules.md`:
+     - `sql-interpolation` (`PgCobrancaRepository.ts:13`, método `marcarPaga`): `id` vem de `req.params.id` (entrada externa) interpolado direto na query — sem exceção legítima possível para entrada externa. **Defeito real**, corrigir antes do release (parametrizar como o método `buscar()` vizinho já faz).
+     - `sync-fs-blocking` (`boot.ts:9`): leitura síncrona de certificado TLS antes de `app.listen(...)`, comentário já documenta "carregado uma única vez, antes de o servidor aceitar conexões" — bate com a exceção de bootstrap. **Falso positivo**, deixar como está.
+     - `new-pg-client` (`db/bootstrap.ts:5`): o próprio arquivo é o módulo de bootstrap de conexão (comentário confirma, único import em `boot.ts`) — bate com a exceção da regra. **Falso positivo**, deixar como está.
+     - `floating-promise` (`jobs/lembrete.ts:4`): o `.catch()` existe, só está em linha separada do encadeamento — limitação documentada do scanner (regex de uma linha só) em `detection-commands.md`. **Falso positivo**, deixar como está.
+     - `single-impl-interface` (`CobrancaRepository`): porta hexagonal deliberada — domínio declara, `PgCobrancaRepository` implementa em produção, `test/fakes.ts` (`repoEmMemoria`) é a segunda implementação de teste, comentário no arquivo já registra a intenção. **Falso positivo**, deixar como está.
+   - Passo 5 (relatório): escrevi `work/outputs/triagem-cobranca.md` com veredito achado a achado (arquivo:linha, trecho, por que é ou não defeito) e um resumo final para o tech lead.
+7. Não alterei nenhum arquivo dentro de `work/` — só li e produzi o relatório em `work/outputs/`. Nenhuma tarefa pediu spawn de subagente nesta rodada (a fase de triagem coube inteira a uma leitura + julgamento direto contra a referência da skill); não houve despacho a registrar.
+8. Copiei `work/outputs/triagem-cobranca.md` e o JSON bruto do scan (`node-scan.json`) para `outputs/` deste run.
+9. Medi o tamanho de `work/` (bem abaixo de 20 MB — projeto fixture pequeno) e mantive a pasta.
+10. Escrevi `timing.json` a partir de `.t0` e do timestamp final.

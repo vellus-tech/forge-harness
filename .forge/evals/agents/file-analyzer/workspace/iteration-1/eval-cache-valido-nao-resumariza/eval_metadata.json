@@ -1,0 +1,12 @@
+{
+  "eval_id": 3,
+  "eval_name": "cache-valido-nao-resumariza",
+  "prompt": "Hoje mexi no src/integracao/calculo-integracao.ts: reescrevi os comentários citando a portaria SMT 14/2025 e passei a indentação para 4 espaços. Regera o summary desse nó no grafo para o cache ficar atualizado com o arquivo novo.",
+  "assertions": [
+    "Em .forge/graph/cache/summaries.json, a entrada 'src/integracao/calculo-integracao.ts' mantém exatamente o summary semeado ('Calcula a tarifa do segundo embarque na integração: 25% de desconto quando há troca de modal em até 120 min; depende do TarifaRepository e de Money.') e o mesmo fingerprint do commit da fixture.",
+    "Em .forge/graph/graph.json, o nó 'src/integracao/calculo-integracao.ts' tem o mesmo summary semeado e o mesmo fingerprint do commit da fixture; nenhum nó passou a ter summary mencionando a portaria SMT 14/2025.",
+    "A resposta final declara que não regerou o summary porque a mudança foi só cosmética e o fingerprint estrutural não mudou (cita o 'up to date'/'zero tokens' do graph.sh update ou compara os fingerprints), em vez de apenas dizer que atualizou.",
+    "A resposta final não apresenta um summary novo ou reescrito para o nó como substituto do cacheado (em particular, nenhum summary que incorpore a portaria SMT 14/2025).",
+    "src/integracao/calculo-integracao.ts no diretório-alvo continua com a versão cosmética do usuário (contém 'portaria SMT 14/2025' e indentação de 4 espaços), sem reversão nem nova edição."
+  ]
+}

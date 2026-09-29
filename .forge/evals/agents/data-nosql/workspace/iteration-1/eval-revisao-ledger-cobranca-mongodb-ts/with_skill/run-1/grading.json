@@ -1,0 +1,97 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta aponta o id N-07 citando conta-repository.ts com as linhas 19 e 25 (formato arquivo:linha ou equivalente inequívoco) e recomenda write concern majority explícito E substituir o árbitro por um segundo secundário (topologia P-S-S), relacionando o árbitro do README ao risco de perda de escrita",
+      "passed": true,
+      "evidence": "revisao-ledger-cobranca.md §1: \"N-07 [alto] — write concern `w:1` em dado crítico (`conta-repository.ts:19` e `:25`)\"; recomenda \"Troque `writeConcern: { w: 1 }` por `writeConcern: { w: 'majority' }` ... nas duas chamadas\"; relaciona o README (\"primário, secundário e árbitro — topologia P-S-A. Com árbitro, o `w:1` confirma escrita num único membro; num failover essa escrita pode desaparecer\") e recomenda \"Trocar para P-S-S (segundo secundário com dado) é o que a rule pede\". Linhas 19 e 25 conferem com o fixture (w:1 em ambas)."
+    },
+    {
+      "text": "A resposta aponta o uso de Decimal128 (id N-21 ou citação da money-as-cents.md) e recomenda armazenar valor como inteiro de 64 bits na menor unidade (Int64/NumberLong/long em centavos); a resposta NÃO recomenda Decimal128 nem double/number de ponto flutuante como correção",
+      "passed": false,
+      "evidence": "Aponta N-21 com :1/:9/:34 e cita money-as-cents.md, mas a correção principal é \"Troque `Decimal128` por `number` (ou `bigint`/`long` se o volume justificar)\" e \"`interface Lancamento { valor: number /* valorEmCentavos */ }`\". `number` em JS é IEEE-754 (double) e o driver serializa inteiro fora de int32 como double; Int64/Long aparece só como alternativa condicional. A asserção exige recomendar inteiro de 64 bits e NÃO recomendar number de ponto flutuante como correção — reprova."
+    },
+    {
+      "text": "A resposta aponta a coleção interpolada contas_${tenant} como antipattern (N-03 ou equivalente) e recomenda as três coisas juntas: coleção única com campo tenant obrigatório, filtro de tenant injetado no repositório/interceptor e índice composto começando por tenant; e aponta que movimentos/extrato são lidos ou gravados sem tenant",
+      "passed": true,
+      "evidence": "§3: \"N-03 ... `db.collection(`contas_${tenant}`)` — nome de coleção interpolado por tenant\"; correção: \"coleção `contas` única, com campo `tenant` obrigatório em todo documento, índice composto `{ tenant: 1, _id: 1 }` ... e um filtro de `tenant` injetado no repositório (nunca confiar no chamador) em toda query\". Achado adicional: \"`movimentos` e `extrato` sem tenant algum\" com filtro `{ tenant, origem: contaId }`. Ressalva: as linhas citadas para N-03 (:14, :24) estão deslocadas em uma/duas linhas (real: :15 e :26), e movimentos/extrato citados em :33/:40 (real :33 e :41-42); a asserção não exige linha."
+    },
+    {
+      "text": "A resposta aponta o $push de lancamentos sem teto (N-01 ou limite de 16 MiB do documento) e propõe tirar os lançamentos do array ilimitado (documento por lançamento em coleção própria ou bucket com teto), não apenas acrescentar $slice que descartaria lançamentos contábeis",
+      "passed": true,
+      "evidence": "§4: \"N-01 [aviso] — array sem teto (`conta-repository.ts:18`) ... até o limite de 16 MiB do BSON\"; \"Corrija movendo `lancamentos` para uma coleção separada ... dado que este é um ledger de cobrança (histórico financeiro que não pode ser descartado), a coleção separada é a escolha correta, não o `$slice` isolado\"."
+    },
+    {
+      "text": "A resposta recomenda readConcern snapshot (ou majority) em lugar de local na transação de transferir E withTransaction ou retry próprio de UnknownTransactionCommitResult/TransientTransactionError no commit",
+      "passed": true,
+      "evidence": "§1: \"`readConcern: { level: 'local' }` por `'majority'` (ou `'snapshot'` na transação...)\" e N-23: \"Troque `startSession/startTransaction/commitTransaction/abortTransaction` manual por `session.withTransaction(async () => { ... }, { readConcern: 'majority', writeConcern: { w: 'majority' } })` ... já resolve retry de `TransientTransactionError` e de `UnknownTransactionCommitResult`\". Ressalva factual: a frase \"'snapshot' ... que já é o default de startTransaction sem session options\" é incorreta (sem opção, a transação herda o readConcern do client/db, não snapshot), mas não afeta a recomendação."
+    },
+    {
+      "text": "Após a execução, `git -C <alvo> status --porcelain` sai vazio: nenhum arquivo do alvo foi criado ou alterado, e o código corrigido aparece só na resposta",
+      "passed": true,
+      "evidence": "`git -C with_skill/run-1/work status --porcelain` saiu vazio (medido pelo grader); `git log` mostra só o commit do fixture (c075747), sem commit do executor; revisão e fragmentos de código corrigido (`w: 'majority'`, `withTransaction(...)`, `interface Lancamento { valor: number }`, filtro `{ tenant, origem: contaId }`) estão só em outputs/revisao-ledger-cobranca.md. Observação: são fragmentos, não o arquivo corrigido inteiro."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 1,
+    "total": 6,
+    "pass_rate": 0.83
+  },
+  "timing": {
+    "executor_duration_seconds": 146,
+    "total_duration_seconds": 146
+  },
+  "execution_metrics": {
+    "output_chars": 15063
+  },
+  "claims": [
+    {
+      "claim": "scan.sh achou N-01 :18, N-07 :19/:25, N-20 :25, N-21 :1/:9/:34, N-23 :38",
+      "type": "process",
+      "verified": true,
+      "evidence": "Grader rodou o scan.sh da skill numa cópia do fixture no scratchpad: mesmos ids e linhas, rc=1."
+    },
+    {
+      "claim": "N-03 em conta-repository.ts:14, 24",
+      "type": "factual",
+      "verified": false,
+      "evidence": "A interpolação `contas_${tenant}` está nas linhas 15 e 26; 14 e 24 são as assinaturas das funções."
+    },
+    {
+      "claim": "'snapshot' é o default de startTransaction sem session options",
+      "type": "factual",
+      "verified": false,
+      "evidence": "Sem readConcern explícito a transação herda o do client/db (padrão local/majority conforme versão), não snapshot."
+    },
+    {
+      "claim": "Correção de dinheiro: `number` com sufixo InCents",
+      "type": "quality",
+      "verified": false,
+      "evidence": "Contraria a própria regra da skill (N-21 diz 'nunca ponto flutuante'); number de JS é double."
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Após a execução, `git -C <alvo> status --porcelain` sai vazio: nenhum arquivo do alvo foi criado ou alterado, e o código corrigido aparece só na resposta",
+        "reason": "A cláusula 'o código corrigido aparece só na resposta' é ambígua: as duas configurações entregaram só fragmentos, e o expected_output diz 'O código corrigido vai na resposta'. Se a intenção é exigir o arquivo corrigido completo, torne isso uma asserção separada; do contrário, a asserção mede só status vazio e passa trivialmente para qualquer resposta que não use Write."
+      },
+      {
+        "assertion": "A resposta aponta o uso de Decimal128 (id N-21 ou citação da money-as-cents.md) e recomenda armazenar valor como inteiro de 64 bits na menor unidade (Int64/NumberLong/long em centavos); a resposta NÃO recomenda Decimal128 nem double/number de ponto flutuante como correção",
+        "reason": "A asserção decidiu o caso (with_skill recomendou `number` com long opcional). Vale explicitar no agente/skill que em TypeScript o tipo correto é Long/bigint serializado como Int64, porque `number` é a saída natural do modelo e é double no BSON acima de int32."
+      },
+      {
+        "reason": "Nenhuma asserção cobre achados que o baseline trouxe e a skill não: `transferir` não confere matchedCount do destino (crédito some), ausência de idempotência e de dupla entrada, saldo dissociado de lancamentos. São achados reais de um ledger; se o catálogo os cobre, acrescente asserção; se não, é lacuna do artefato."
+      },
+      {
+        "reason": "O expected_output pede rodar check-data-governance e scan.sh, mas nenhuma asserção verifica isso; with_skill rodou os dois (o grader reproduziu o scan.sh numa cópia e os achados N-01/N-07/N-20/N-21/N-23 conferem)."
+      }
+    ],
+    "overall": "Asserções discriminam bem nos ids de catálogo e na topologia P-S-S; a asserção de árvore intacta é fraca e a de dinheiro pegou uma correção imprecisa do with_skill."
+  }
+}

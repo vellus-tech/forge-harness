@@ -1,0 +1,4 @@
+{"skill":"dotnet-quality-scan","root":"<worktree-do-eval>/.forge/evals/agents/dotnet-reviewer/workspace/iteration-1/eval-revisao-cli-conciliacao-baseline-verde-falsos-positivos/with_skill/run-1/work","engine":"rg","findings":[
+{"rule":"blocking-wait","severity":"BLOCKER","count":1,"why":"bloquear em código async é deadlock em contexto com SynchronizationContext e esgota o pool no resto"},
+{"rule":"single-impl-interface","severity":"MEDIUM","count":1,"why":"interface com implementação única"}
+],"total":2}

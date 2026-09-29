@@ -1,0 +1,72 @@
+{
+  "expectations": [
+    {
+      "text": "Há finding BLOCKER em deploy/k8s/deployment-prd.yaml pela imagem `validacao:1.8.0` sem digest pinned no namespace prd-validacao; NÃO há finding BLOCKER para a mesma imagem em deploy/k8s/deployment-stg.yaml (stg pode ter finding de severidade menor ou nenhum)",
+      "passed": false,
+      "evidence": "outputs/platform-deploy-validacao.json: jq '[.findings[]|select((.severity|ascii_upcase)==\"BLOCKER\")]' → []. A tag sem digest aparece só em PF-3 severity 'high' com file deploy/k8s/deployment-stg.yaml ('Os manifests de stg e prd apontam para a mesma tag mutável (validacao:1.8.0)'), sem distinção de severidade entre prd e stg e sem BLOCKER em deployment-prd.yaml."
+    },
+    {
+      "text": "Há finding HIGH apontando a ausência de NetworkPolicy para o namespace prd-validacao (o diff só traz networkpolicy-stg.yaml)",
+      "passed": true,
+      "evidence": "outputs/platform-deploy-validacao.json: PF-2 severity 'high', file deploy/k8s/deployment-prd.yaml, summary 'Não existe networkpolicy-prd.yaml — produção fica sem isolamento de rede...'. Severidade em minúscula, mas equivale a HIGH."
+    },
+    {
+      "text": "Há findings HIGH em arquivos de services/validacao/src/Validacao.Infrastructure/ (AdquirenteClient.cs ou DependencyInjection.cs) cobrindo ao menos três destes quatro itens: timeout explícito ausente, retry Polly ausente, circuit breaker ausente, idempotency key ausente no POST de captura",
+      "passed": false,
+      "evidence": "outputs/platform-deploy-validacao.json: resiliência só em PF-6 severity 'medium' (DependencyInjection.cs: 'sem timeout, retry ou circuit breaker (ex.: Polly)'); nenhum finding HIGH em services/validacao/src/Validacao.Infrastructure/ (findings nesse prefixo: PF-5 medium, PF-6 medium, PF-7 low). Idempotency key não é mencionada (grep -ci idempot → 0)."
+    },
+    {
+      "text": "Nenhum finding com `file` services/validacao/Dockerfile tem severidade BLOCKER, HIGH ou MEDIUM",
+      "passed": true,
+      "evidence": "jq '[.findings[]|select(.file==\"services/validacao/Dockerfile\")|{id,severity}]' outputs/platform-deploy-validacao.json → [{\"id\":\"PF-8\",\"severity\":\"low\"}] ('Bump do runtime base... sem referência a CVE'). LOW não viola a asserção."
+    },
+    {
+      "text": "Nenhum finding tem `file` tools/legacy-report/Dockerfile (arquivo com `FROM node:latest` que existe na main mas não foi modificado no diff)",
+      "passed": true,
+      "evidence": "jq '[.findings[]|select(.file==\"tools/legacy-report/Dockerfile\")]' outputs/platform-deploy-validacao.json → []; grep -c legacy-report → 0."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 2,
+    "total": 5,
+    "pass_rate": 0.6
+  },
+  "timing": {
+    "executor_duration_seconds": 137,
+    "total_duration_seconds": 137
+  },
+  "claims": [
+    {
+      "claim": "PF-4: Validacao.Api.csproj não referencia Validacao.Infrastructure e AddInfrastructure() nunca é chamado",
+      "type": "factual",
+      "verified": true,
+      "evidence": "grep ProjectReference/Infrastructure no csproj → nada; grep -rn AddInfrastructure services/validacao/src → só DependencyInjection.cs:8."
+    },
+    {
+      "claim": "Diff tem 6 arquivos",
+      "type": "factual",
+      "verified": true,
+      "evidence": "git -C work diff --name-only main feat/deploy-validacao-adquirente → 6 arquivos."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Nenhum finding tem `file` tools/legacy-report/Dockerfile (arquivo com `FROM node:latest` que existe na main mas não foi modificado no diff)",
+        "reason": "Passa trivialmente nas duas configurações: nenhum executor sequer olhou arquivos fora do diff. Não discrimina; só teria valor se o fixture tornasse tools/legacy-report mais saliente."
+      },
+      {
+        "reason": "Nenhuma asserção cobre o defeito real de fiação que o without_skill achou e verifiquei (Validacao.Api.csproj sem ProjectReference para Validacao.Infrastructure; grep -rn AddInfrastructure só acha a definição). O with_skill não o reportou. Se o fixture é intencional, vale asserção; se é acidental, corrigir o fixture."
+      },
+      {
+        "assertion": "Há finding BLOCKER em deploy/k8s/deployment-prd.yaml pela imagem `validacao:1.8.0` sem digest pinned no namespace prd-validacao; NÃO há finding BLOCKER para a mesma imagem em deploy/k8s/deployment-stg.yaml (stg pode ter finding de severidade menor ou nenhum)",
+        "reason": "O expected_output fixa a linha 21, mas a asserção não checa linha; o with_skill apontou linha 15 (errada) e passou. Considerar exigir line==21."
+      },
+      {
+        "reason": "A NetworkPolicy de stg com Egress sem regras (deny-all que quebra a chamada ao adquirente) foi achada pelas duas configurações como HIGH e não é coberta por asserção."
+      }
+    ],
+    "overall": "Asserções 1 e 3 discriminam bem (severidade calibrada por namespace e resiliência da integração externa); 4 e 5 são quase triviais."
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "reviewer": "java-reviewer",
+  "scope": "services/tarifa-api (Java) — web/ fora de escopo, revisor próprio",
+  "diff_base": "develop",
+  "diff_head": "feat/tarifa-integracao",
+  "findings": [
+    {
+      "file": "services/tarifa-api/src/main/java/br/com/axis/tarifa/TarifaRepository.java",
+      "line": 19,
+      "scenario": "porLinhaEModal monta a cláusula WHERE por concatenação de string (condition(\"linha = '\" + linha + \"' AND modal = '\" + modal + \"'\")) em vez de bind parameters do jOOQ. Qualquer caractere de aspas simples em `linha` ou `modal` — vindos de path/query param HTTP — quebra a query ou permite injeção SQL (ex.: linha = \"' OR '1'='1\").",
+      "severity": "high"
+    },
+    {
+      "file": "services/tarifa-api/src/main/resources/db/changelog/002-valor-integracao.yaml",
+      "line": 9,
+      "scenario": "addColumn valor_integracao_centavos é criada NOT NULL sem defaultValue/defaultValueComputed e sem changeSet de backfill. Em `rules/data/schema-evolution.md` (Fluxo padrão: expand → migrate/backfill → contract), NOT NULL em tabela populada exige avaliação de lock/downtime e estratégia específica do engine; aqui a migration falha assim que a tabela `tarifa` tiver qualquer linha existente e não há changeSet 003 de backfill nem estratégia registrada.",
+      "severity": "high"
+    },
+    {
+      "file": "services/tarifa-api/src/main/java/br/com/axis/tarifa/TarifaRepository.java",
+      "line": 18,
+      "scenario": "Uso de DSL.field/DSL.table (SQL dinâmico sem tipos) em vez das classes geradas pelo jOOQ (codegen), perdendo checagem de tipo em tempo de compilação para nomes de coluna/tabela — inconsistente com o padrão esperado do capability pack backend-java-relational para uso de jOOQ.",
+      "severity": "medium"
+    },
+    {
+      "file": "services/tarifa-api/src/main/resources/db/changelog/002-valor-integracao.yaml",
+      "line": 1,
+      "scenario": "Nenhum teste de integração novo acompanha a migration/consulta (TarifaRepository/TarifaService), contrariando `backend-java-relational/PROFILE.md` (\"Testes de integração exercitam a migration e o banco real quando houver infraestrutura autorizada\").",
+      "severity": "medium"
+    }
+  ],
+  "out_of_scope_note": "web/src/api/tarifa.ts foi alterado no mesmo diff (console.log expõe token de auth em log; remoção de encodeURIComponent(linha) reabre injeção na URL), mas está fora do escopo deste revisor Java — o front tem revisor próprio, conforme a tarefa do usuário.",
+  "stack_suggestion": null
+}

@@ -1,0 +1,30 @@
+asyncapi: 2.6.0
+info:
+  title: cashback-worker
+  version: 0.4.0
+channels:
+  cashback.creditado:
+    publish:
+      message:
+        name: CashbackCreditado
+        payload:
+          type: object
+          required: [passageiroId, valorCentavos, correlationId]
+          properties:
+            passageiroId: { type: string, format: uuid }
+            valorCentavos: { type: integer, format: int64 }
+            correlationId: { type: string }
+  bilhetagem.viagens:
+    description: Exchange de outro serviço (a validadora). Documentado aqui apenas como referência do que o cashback-worker consome.
+    subscribe:
+      message:
+        name: ViagemValidada
+        payload:
+          type: object
+          required: [eventoId, passageiroId, tarifaCentavos, validadaEm, correlationId]
+          properties:
+            eventoId: { type: string, format: uuid, description: "Único por viagem; usado como Idempotency-Key no crédito da carteira." }
+            passageiroId: { type: string, format: uuid }
+            tarifaCentavos: { type: integer, format: int64 }
+            validadaEm: { type: string, format: date-time }
+            correlationId: { type: string }

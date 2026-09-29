@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "O trace mostra subagent_type data-relational e data-nosql abaixo do data-engineer, e nenhum outro tipo (ou, sem Agent, o PLANO DE ROTEAMENTO lista exatamente esses dois); a pergunta do ledger vai ao data-relational e a da telemetria ao data-nosql.",
+      "passed": false,
+      "evidence": "Não há trace de Agent nem PLANO DE ROTEAMENTO; o transcript diz 'Não spawnei subagentes' e nenhum output menciona data-relational ou data-nosql (grep vazio). A resposta modela ela mesma os dois módulos em ADR-proposta e DDLs."
+    },
+    {
+      "text": "A resposta cita o ADR-0004 (ou o arquivo 0004-ledger-de-creditos-em-postgresql.md) como a razão de o ledger ir para PostgreSQL, e não emite bloco CONFLITO para o ledger.",
+      "passed": false,
+      "evidence": "Nenhum output cita ADR-0004 nem o arquivo 0004-ledger-de-creditos-em-postgresql.md (grep por '0004' vazio); o ledger vai para PostgreSQL por argumento técnico próprio ('dado transacional de negócio com integridade referencial forte') e por data-config-sql.md, e o item 5 das questões em aberto afirma que a escolha de Postgres ainda é 'ADR a criar'."
+    },
+    {
+      "text": "A resposta justifica a telemetria em data-nosql pela falta de ADR que escolha SQL para ela (o ADR-0004 cobre só o ledger), e não por volume ou por throughput.",
+      "passed": false,
+      "evidence": "A telemetria não vai para data-nosql nem MongoDB (grep por 'mongo' vazio): a resposta a coloca em hypertable TimescaleDB justificando pelo 'padrão de escrita em alta frequência e leitura por janela de tempo' e pelo perfil 'Altíssimo volume', ou seja, pelo volume, sem considerar a ausência de ADR."
+    },
+    {
+      "text": "A sugestão do usuário de pôr a telemetria no PostgreSQL com TimescaleDB não é aceita em silêncio: a resposta traz bloco CONFLITO (decisão, posição A com data-governance.md, posição B, precedência, opções incluindo abrir ADR, registro) ou declara que essa parte exige novo ADR antes de seguir.",
+      "passed": false,
+      "evidence": "A sugestão TimescaleDB é aceita ('TimescaleDB ... também é uma escolha defensável para a telemetria'; schema-telemetria.sql com hypertable). A discordância é só sobre 'tudo no mesmo lugar' (instâncias separadas); não há bloco CONFLITO nem declaração de que a telemetria exige novo ADR antes de seguir, e o DDL já foi produzido. data-governance.md é lido como 'caso de time-series que a matriz atual não cobre', não como conflito."
+    },
+    {
+      "text": "O checklist transversal exige RLS por tenant_id nas tabelas do ledger no PostgreSQL e filtro de tenant obrigatório no repositório/interceptor MongoDB da telemetria.",
+      "passed": false,
+      "evidence": "schema-ledger.sql cria 'CREATE POLICY tenant_isolation_ledger_entries' (RLS no ledger atende a primeira metade), mas a telemetria está em Postgres com RLS, sem MongoDB e sem filtro de tenant obrigatório em repositório/interceptor MongoDB; a segunda metade da asserção não é atendida."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 5,
+    "total": 5,
+    "pass_rate": 0.0
+  }
+}

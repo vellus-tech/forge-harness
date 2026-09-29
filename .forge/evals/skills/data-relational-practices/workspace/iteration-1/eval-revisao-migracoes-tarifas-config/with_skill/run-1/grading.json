@@ -1,0 +1,40 @@
+{
+  "expectations": [
+    {
+      "text": "docs/revisao-banco-tarifas.md classifica como R-03 (id do catálogo, não só descrição) os quatro pontos bloqueantes da V002 com localização arquivo:linha: CREATE INDEX sem CONCURRENTLY (V002…:3), RENAME COLUMN (:4), ALTER COLUMN ... TYPE (:5) e SET NOT NULL (:7); e a correção do SET NOT NULL passa por CHECK (... IS NOT NULL) NOT VALID + VALIDATE CONSTRAINT, a do rename/tipo por coluna nova + backfill (expand → migrate → contract)",
+      "passed": false,
+      "evidence": "outputs/docs/revisao-banco-tarifas.md tem R-03 com id em V002:3 (linha 13), V002:4 (linha 14), V002:5 (linha 15) e V002:2,6,7 cobrindo o SET NOT NULL (linha 16). Mas a correção do SET NOT NULL não passa por CHECK (... IS NOT NULL) NOT VALID + VALIDATE CONSTRAINT: grep por 'NOT VALID' não acha nada; o SQL corrigido troca por ADD COLUMN valor_integracao_em_centavos bigint NOT NULL DEFAULT 0 (tecnicamente válido no PG11+, mas não é o que a asserção exige). E o rename não é corrigido por coluna nova + backfill: a linha 77 recomenda simplesmente não fazer o rename (só a troca de tipo segue expand → migrate → contract, linha 78). Critério literal não atendido."
+    },
+    {
+      "text": "O parecer aponta valor_integracao numeric(10,2) (V002:2) como R-19, recomenda BIGINT NOT NULL na menor unidade (centavos) e diz explicitamente que a rule money-as-cents.md tem applies_to restrito (.NET/React/Kotlin) e que aplicá-la a este serviço Node/TypeScript e ao *.sql é extensão da própria skill/decisão do dono, não da rule; recomendar só 'usar numeric com mais casas' ou omitir a observação do applies_to não conta",
+      "passed": true,
+      "evidence": "Linha 19: 'R-19 ... V002:2 ... valor_integracao numeric(10,2). rules/domain/money-as-cents.md §4 exige BIGINT NOT NULL na menor unidade ...; a skill estende essa regra a qualquer *.sql, em qualquer stack (decisão H-03(a) do dono, sem mudar o applies_to da rule)'. SQL corrigido usa valor_integracao_em_centavos bigint NOT NULL. Ressalva: não enumera o applies_to (.NET/React/Kotlin) e rotula como 'é a rule da casa', mas declara explicitamente que a aplicação é extensão da skill por decisão do dono e cita o applies_to — atende ao núcleo da asserção, de forma fraca."
+    },
+    {
+      "text": "O parecer aponta parametros_operador (V002, tenant_id na linha 11) como R-20, trata RLS como obrigatório pela data-governance.md (não como sugestão) e a correção inclui ENABLE ROW LEVEL SECURITY e FORCE ROW LEVEL SECURITY, CREATE POLICY por tenant_id e papel da aplicação que não é dono da tabela / sem BYPASSRLS; oferecer índice com tenant_id como alternativa ao RLS reprova",
+      "passed": false,
+      "evidence": "Linha 18: R-20 em V002:9-16, 'bloqueante (data-governance.md)', RLS obrigatório; SQL corrigido (linhas 67-70) tem ENABLE + FORCE ROW LEVEL SECURITY e CREATE POLICY por tenant_id. Porém nada sobre o papel da aplicação não ser dono da tabela nem sem BYPASSRLS: grep por 'BYPASSRLS', 'owner', 'dono' no relatório só acha 'dono' na linha 19 (decisão H-03), não no contexto de RLS. Requisito explícito da asserção ausente."
+    },
+    {
+      "text": "O parecer aponta tarifas_repo.ts:9 como R-12, explicando que set_config('app.tenant_id', $1, false) grava o tenant na sessão e o pool do node-postgres devolve a conexão com o tenant ainda setado (a RLS da próxima requisição lê o tenant errado), e prescreve set_config(..., true) ou SET LOCAL dentro de uma transação explícita",
+      "passed": true,
+      "evidence": "Linha 23: 'R-12 ... tarifas_repo.ts:9 ... set_config(..., false) grava o GUC no nível de sessão ... client.release() sem resetar ... pg.Pool reutiliza conexões físicas ... a RLS filtra pelo tenant errado'. Correção nas linhas 89-103: BEGIN + set_config('app.tenant_id', $1, true) + COMMIT."
+    },
+    {
+      "text": "O parecer NÃO recomenda converter fator_tarifa numeric(6,4) (V001:9) nem taxa_desconto_percentual para BIGINT em centavos: ou os trata explicitamente como decimal exato não monetário / falso positivo da varredura, ou não os menciona como problema de dinheiro",
+      "passed": true,
+      "evidence": "Linha 19: fator_tarifa/taxa_desconto_percentual 'são fator e percentual, não dinheiro, e ficam de fora com razão'; transcript 3.4 confirma o descarte. Nenhuma recomendação de convertê-los para BIGINT."
+    },
+    {
+      "text": "O parecer tem uma entrada por regra examinada com status explícito (achado, OK/limpo ou não verificado pela varredura estática), inclui R-01 para a FK operador_id sem índice, e não traz achado de services/recargas-api (outro serviço, fora do escopo pedido)",
+      "passed": false,
+      "evidence": "A tabela 'Achados, um por regra do catálogo' (linhas 11-26) lista só regras com achado (R-03, R-21, R-20, R-19, R-04, R-01, R-12, R-06, R-14) mais naming e gate; não há nenhuma entrada com status OK/limpo ou não verificado para as demais regras (grep por 'limp' só acha um comentário de código na linha 93; R-02, R-05, R-22 etc. ausentes). R-01 para operador_id presente (linha 22) e nada de recargas-api (grep vazio), mas o requisito de status explícito por regra examinada não é atendido."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 3,
+    "total": 6,
+    "pass_rate": 0.5
+  }
+}

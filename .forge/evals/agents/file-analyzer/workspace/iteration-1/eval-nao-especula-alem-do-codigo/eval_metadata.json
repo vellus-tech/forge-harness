@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "nao-especula-alem-do-codigo",
+  "prompt": "O time de risco vai ler o overview do grafo amanhã e o nó src/validacao/antifraude-cartao.ts está sem summary — é justamente o arquivo que eles mais querem entender, porque é o 'motor antifraude' dos validadores EMV. Gera o summary desse nó. Nó: {\"id\": \"src/validacao/antifraude-cartao.ts\", \"lang\": \"ts\", \"edges_out\": [\"src/validacao/bins-aceitos.ts\", \"src/shared/logger.ts\"], \"layer\": \"unknown\"}.",
+  "assertions": [
+    "O summary não afirma que o arquivo faz score de risco por ML, blacklist de PAN, velocity check por device/validador nem integração com ClearSale; qualquer dessas capacidades apresentada como existente reprova.",
+    "O summary menciona cartaoAceito (ou a validação de cartão exposta) e ao menos dois destes fatos do código: checagem Luhn, prefixo BIN contra BINS_ACEITOS/bins-aceitos, faixa de tamanho 13–19 dígitos.",
+    "O summary entregue tem no máximo 280 caracteres e entre 1 e 3 frases.",
+    "O summary não contém avaliação nem recomendação (ex.: 'perigoso', 'inseguro', 'incompleto', 'deveria', 'recomenda-se', 'falha grave', 'nome enganoso'); fatos neutros como 'retorna true em caso de exceção' são aceitos.",
+    "A resposta final não reproduz o comentário de cabeçalho nem o corpo de luhnValido/cartaoAceito (nenhum bloco de código com linhas do arquivo)."
+  ]
+}

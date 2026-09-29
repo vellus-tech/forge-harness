@@ -1,0 +1,7 @@
+{
+  "name": "bilhetagem-api",
+  "version": "3.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "build": "tsc -p .", "test": "node --test" }
+}

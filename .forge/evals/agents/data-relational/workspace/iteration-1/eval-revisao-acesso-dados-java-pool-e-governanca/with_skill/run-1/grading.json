@@ -1,0 +1,85 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta aponta R-12 em TenantConnectionInterceptor.java (linha 20), explica que o SET de sessão fica na conexão devolvida ao pool do HikariCP e vaza o tenant para outra requisição, e propõe SET LOCAL ou set_config('app.tenant_id', ..., true) dentro da transação",
+      "passed": false,
+      "evidence": "Parcial, reprovado pelo trecho 'dentro da transação'. revisao-acesso-dados.md item 1 aponta 'catálogo R-12' em 'TenantConnectionInterceptor.java:20' e explica que SET é estado de sessão que o HikariCP não reseta ao devolver a conexão (checado via context7), com vazamento para a RLS 'pelo tenant errado'. Porém a correção proposta executa 'SELECT set_config('app.tenant_id', ?, true)' dentro de getConnection() do DelegatingDataSource, ou seja, no borrow, fora de qualquer transação: o application.yml não desliga auto-commit (Hikari usa auto-commit=true por padrão e o Spring só o desliga depois de obter a conexão), então o set_config local morre no fim da própria instrução e as queries seguintes veem o GUC vazio ('')::uuid e falham. A resposta afirma 'vale só até o fim da transação corrente' sem notar que não há transação aberta ali; a correção não está dentro da transação e, aplicada como escrita, quebra o serviço. O cinto 'RESET ALL/DISCARD ALL' é mencionado mas não resolve o posicionamento."
+    },
+    {
+      "text": "A resposta aponta R-06 no OFFSET de OperadorRepository.java:10 e propõe paginação por keyset (WHERE (tenant_id, id) > ... ou id > :ultimo_id, ORDER BY id LIMIT n) apoiada no índice existente, e aponta R-14 no SELECT * com projeção explícita de colunas",
+      "passed": true,
+      "evidence": "revisao-acesso-dados.md item 3: 'OFFSET profundo em paginação (catálogo R-06, achado pelo scan.sh)', 'OperadorRepository.java:10', propõe 'WHERE tenant_id = :tenant AND id > :ultimoId ORDER BY id LIMIT 50' apoiado em 'idx_operador_tenant_id_id ... sobre (tenant_id, id)' (conferido em V001__operador.sql). Item 4: 'SELECT * na mesma query (catálogo R-14)' com 'Listar as colunas explicitamente'. scan-output.txt confirma FOUND R-06 e R-14 na linha 10."
+    },
+    {
+      "text": "A resposta aponta R-11 em OperadorService.transferirFrota: SERIALIZABLE sem retry, e exige reexecução da transação inteira com backoff nos SQLSTATE 40001 e 40P01",
+      "passed": true,
+      "evidence": "revisao-acesso-dados.md item 5: 'isolamento SERIALIZABLE sem retry (catálogo R-11 ...)' em OperadorService.transferirFrota, 'Faltando: captura de SQLState 40001/40P01 com retry com backoff da transação inteira (@Retryable do Spring Retry, ou um wrapper manual)'. Classificado como não bloqueante, mas a exigência de reexecução com backoff nos dois SQLSTATE está explícita."
+    },
+    {
+      "text": "A resposta diz explicitamente que a verificação de governança de dados (check-data-governance.sh) não examinou o serviço (universo vazio, porque não lê .java) e que PAN/PII ficou não verificado por ela; não afirma que o CPF está conforme a governança com base nesse verificador",
+      "passed": true,
+      "evidence": "revisao-acesso-dados.md item 6: 'Rodei check-data-governance.sh --path services/cadastro-operador: retornou FAIL data-governance/universo-vazio — o verificador automático só lê .go/.kt/.ts/.rego/.py/.md, então em projeto Java isso é esperado e não conta como aprovação; PAN/PII aqui não foi verificado por ele'. Causa conferida em template/.forge/scripts/lib/check-data-governance.mjs:111 (CODE_EXTS sem .java). check-data-governance-output.txt mostra '0 arquivo(s) examinado(s)'. Não declara o CPF conforme; ao contrário, marca a falta de classificação como bloqueante."
+    },
+    {
+      "text": "A resposta não diz que o PR pode seguir sem ressalvas: condiciona o avanço à correção de R-12 (ou dos achados) e à verificação de PII fora do verificador",
+      "passed": true,
+      "evidence": "Veredito: 'Ainda não pode seguir para o PR'. Próximo passo: 'Corrigir os itens 1/2 (mesmo fix) e 6 antes do PR', sendo 1 o R-12 e 6 a classificação do cpf, com recomendação de confirmar mascaramento em log/trace quando o controller/DTO for revisado, isto é, verificação de PII fora do verificador."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "pass_rate": 0.8
+  },
+  "timing": {
+    "executor_duration_seconds": 297,
+    "total_duration_seconds": 297
+  },
+  "claims": [
+    {
+      "claim": "HikariCP não reseta GUCs de aplicação ao devolver a conexão ao pool",
+      "type": "factual",
+      "verified": true,
+      "evidence": "Coerente com o comportamento documentado do HikariCP (reset de autoCommit, isolation, catalog, readOnly, rollback); transcript passo 10 registra consulta ao context7."
+    },
+    {
+      "claim": "set_config(..., true) em getConnection() protege a transação atual",
+      "type": "quality",
+      "verified": false,
+      "evidence": "Com auto-commit ligado no borrow (padrão, application.yml não altera), a instrução roda em transação implícita própria e o valor some antes das queries do @Transactional."
+    },
+    {
+      "claim": "O verificador de governança só lê .go/.kt/.ts/.rego/.py/.md",
+      "type": "factual",
+      "verified": true,
+      "evidence": "check-data-governance.mjs:111 CODE_EXTS e coletor .md default."
+    },
+    {
+      "claim": "Existe índice (tenant_id, id) para keyset",
+      "type": "factual",
+      "verified": true,
+      "evidence": "V001__operador.sql: CREATE INDEX idx_operador_tenant_id_id ON operador (tenant_id, id)."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A resposta aponta R-12 em TenantConnectionInterceptor.java (linha 20), explica que o SET de sessão fica na conexão devolvida ao pool do HikariCP e vaza o tenant para outra requisição, e propõe SET LOCAL ou set_config('app.tenant_id', ..., true) dentro da transação",
+        "reason": "O trecho 'dentro da transação' é o que discrimina e precisa ficar explícito: uma resposta que põe set_config(..., true) no getConnection() de um DelegatingDataSource (antes de o Spring desligar o auto-commit) cita a correção certa no lugar errado e quebra toda query. Sugiro exigir que a resposta ancore o SET LOCAL no início da transação (TransactionSynchronization, aspecto após @Transactional, ou auto-commit=false no Hikari) ou reconheça o problema do auto-commit."
+      },
+      {
+        "assertion": "A resposta aponta R-12 em TenantConnectionInterceptor.java (linha 20), explica que o SET de sessão fica na conexão devolvida ao pool do HikariCP e vaza o tenant para outra requisição, e propõe SET LOCAL ou set_config('app.tenant_id', ..., true) dentro da transação",
+        "reason": "O fixture sobrescreve o SET a cada borrow pelo wrapper, então o vazamento só ocorre por caminho que contorne o wrapper ou por tenant nulo/ausente; o expected_output afirma vazamento 'para a próxima requisição' sem essa nuance. A resposta with_skill foi mais precisa que o gabarito aqui; vale reescrever o fixture (ex.: SET só quando o tenant muda, ou RESET ausente em caminho de exceção) ou afinar o texto da asserção."
+      },
+      {
+        "reason": "Nenhuma asserção cobre o ThreadLocal de TenantContext sem remove(), achado legítimo levantado pela configuração without_skill e ignorado pela with_skill; é o vetor de vazamento cross-tenant mais provável no fixture e merecia asserção própria ou menção no expected_output."
+      },
+      {
+        "assertion": "A resposta diz explicitamente que a verificação de governança de dados (check-data-governance.sh) não examinou o serviço (universo vazio, porque não lê .java) e que PAN/PII ficou não verificado por ela; não afirma que o CPF está conforme a governança com base nesse verificador",
+        "reason": "A asserção mistura três condições (universo vazio, causa .java, PII não verificado); a without_skill acertou duas e errou a causa. Separar a causa em asserção própria daria sinal mais fino."
+      }
+    ],
+    "overall": "Asserções bem ancoradas em ids e arquivo:linha, discriminam bem entre configurações; o ponto fraco é que r12 aceita a correção nominal sem checar o posicionamento transacional."
+  }
+}

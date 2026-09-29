@@ -1,0 +1,34 @@
+--- a/jobs/ingestao_liquidacao.py
++++ b/jobs/ingestao_liquidacao.py
+@@ -1,15 +1,24 @@
+ from pyspark.sql import SparkSession
++from pyspark.sql import functions as F
+
+ spark = SparkSession.builder.appName("ingestao-liquidacao").getOrCreate()
+
+
+ def ingerir(data_arquivo: str) -> None:
+     origem = f"s3://sftp-adquirente/entrada/liquidacao_{data_arquivo}.csv"
+     df = spark.read.option("header", "true").csv(origem)
+-    # grava o arquivo da adquirente como chegou, com numero_cartao em claro
++    # PAN não pode ir para o bronze em claro: o prefixo passará a ter Object Lock
++    # COMPLIANCE de 10 anos (imutável) e SSE-KMS não restringe quem lê o dado, só
++    # quem acessa o storage bruto. Mascara para BIN (6 primeiros) + últimos 4 --
++    # padrão de PAN mascarado aceito para uso operacional. Se o valor completo for
++    # necessário para reconciliação com a adquirente, ele deve viver em um
++    # componente separado, com escopo PCI e controle de acesso próprios -- não
++    # decisão para este job resolver sozinho.
++    df = df.withColumn(
++        "numero_cartao_mascarado",
++        F.concat(
++            F.substring(F.col("numero_cartao"), 1, 6),
++            F.lit("******"),
++            F.substring(F.col("numero_cartao"), -4, 4),
++        ),
++    ).drop("numero_cartao")
+     df.write.mode("overwrite").parquet("s3://lake-pagamentos/bronze/liquidacao/")
+
+
+ if __name__ == "__main__":
+     import sys
+     ingerir(sys.argv[1])

@@ -1,0 +1,40 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta identifica o achado como O-01, cita infra/storage/comprovantes.tf com número de linha (7, 8, 9 ou 10) e corrige colocando as quatro chaves do Block Public Access em true.",
+      "passed": true,
+      "evidence": "review.md: '### O-01 — Bucket público (alto) — `infra/storage/comprovantes.tf:7-10`' (linhas conferidas na fixture: 7-10 são as quatro chaves em false); o trecho HCL de correção põe block_public_acls, block_public_policy, ignore_public_acls e restrict_public_buckets = true, e ainda recomenda reforço no nível de conta."
+    },
+    {
+      "text": "A resposta identifica o achado como O-08 (SSE-KMS sem Bucket Key), cita infra/storage/comprovantes.tf:24 ou a linha do sse_algorithm aws:kms, e a correção inclui bucket_key_enabled = true.",
+      "passed": true,
+      "evidence": "review.md: '### O-08 — SSE-KMS sem Bucket Key (aviso) — `infra/storage/comprovantes.tf:24`' (linha 24 da fixture é sse_algorithm = \"aws:kms\"); o trecho de correção contém 'bucket_key_enabled = true' dentro do rule."
+    },
+    {
+      "text": "A resposta identifica O-02 em src/comprovantes/emitir-link.ts:9, reduz a expiração para minutos (no máximo 3600 s) e reprova o envio do link por e-mail ao parceiro, propondo que o parceiro obtenha a URL por endpoint REST autenticado do produto, com log de emissão (ou por API REST do produto).",
+      "passed": true,
+      "evidence": "review.md: '### O-02 — ... — `src/comprovantes/emitir-link.ts:9`'; app com expiresIn: 900 (15 min) e parceiro com expiresIn: 300 (5 min); 'Para o parceiro de conciliação, não mande o link por e-mail. Ele deve obter a URL do comprovante chamando um endpoint REST autenticado do produto ... com log de emissão', com função emitirLinkComprovantePorEndpointAutenticado chamando logEmissaoUrlParceiro."
+    },
+    {
+      "text": "A resposta identifica O-11 em deploy/k8s/minio.yaml (linha 18) e diz que o repositório/edição comunitária do MinIO foi arquivado ou está sem correção de segurança, recomendando migração para alternativa mantida ou suporte comercial — não basta só fixar a tag no lugar de latest.",
+      "passed": true,
+      "evidence": "review.md: '### O-11 — MinIO comunitário arquivado (alto) — `deploy/k8s/minio.yaml:18`' (linha 18 da fixture é image: quay.io/minio/minio:latest); 'o repositório foi arquivado ... não recebe mais correção de segurança ... fixar a tag no lugar de latest não resolve o problema de fundo'; recomenda 'plano de migração para uma alternativa mantida ... ou suporte comercial do MinIO'."
+    },
+    {
+      "text": "A resposta aponta a falta de regra de ciclo de vida no bucket e propõe AbortIncompleteMultipartUpload e NoncurrentVersionExpiration (expiração de versões não correntes), citando O-03 e/ou O-04.",
+      "passed": true,
+      "evidence": "review.md: seção 'Ciclo de vida ausente (O-03 / O-04)' com aws_s3_bucket_lifecycle_configuration contendo abort_incomplete_multipart_upload (days_after_initiation = 7) e noncurrent_version_expiration (noncurrent_days = 90), ligando ao versionamento ativo."
+    },
+    {
+      "text": "Após a execução, git status --porcelain no diretório do projeto está vazio: as correções vêm como trechos na resposta, e nenhum arquivo do repositório foi criado ou alterado.",
+      "passed": true,
+      "evidence": "git -C with_skill/run-1/work status --porcelain executado pelo grader: saída vazia; log só com o commit 'fixture: estado inicial'. As correções vêm como trechos em outputs/review.md."
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1.0
+  }
+}

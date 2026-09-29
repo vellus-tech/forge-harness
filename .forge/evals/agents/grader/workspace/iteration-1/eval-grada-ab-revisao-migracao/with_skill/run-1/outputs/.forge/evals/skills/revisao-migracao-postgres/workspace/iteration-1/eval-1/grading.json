@@ -1,0 +1,115 @@
+{
+  "skill": "revisao-migracao-postgres",
+  "graded_at": "2026-09-26T00:00:00Z",
+  "baseline": { "description": "Execução baseline (sem a skill revisao-migracao-postgres)." },
+  "variant": { "description": "Execução variant (com a skill revisao-migracao-postgres)." },
+  "test_cases": [
+    {
+      "id": "TC-01",
+      "prompt": "Revise a migration db/migration/V42__add_idx_validacoes_cartao.sql, que cria um índice em validacoes(cartao_id) na tabela de 180 milhões de linhas do validador.",
+      "baseline_result": {
+        "output": "A migration parece correta. O índice em cartao_id vai acelerar as consultas de extrato do passageiro. Sugiro apenas nomear o índice como idx_validacoes_cartao_id para seguir o padrão do repositório.",
+        "duration_ms": 4000,
+        "tokens": 310,
+        "exit_code": 0
+      },
+      "variant_result": {
+        "output": "Problema: CREATE INDEX sem CONCURRENTLY adquire lock SHARE na tabela validacoes e bloqueia todo INSERT e UPDATE enquanto o índice é construído — com 180 milhões de linhas, isso para o validador por minutos.\nCorreção: use CREATE INDEX CONCURRENTLY idx_validacoes_cartao_id ON validacoes (cartao_id); e marque a migration com -- flyway:executeInTransaction=false, porque CONCURRENTLY não pode rodar dentro de transação.\nPróximo passo: vou rodar o squawk nesta migration para confirmar que não há outro alerta.",
+        "duration_ms": 6100,
+        "tokens": 540,
+        "exit_code": 0
+      },
+      "expectations": [
+        {
+          "text": "[baseline] Apontou que CREATE INDEX sem CONCURRENTLY bloqueia escrita na tabela validacoes durante a construção do índice",
+          "passed": false,
+          "evidence": "sem menção a lock, bloqueio ou CONCURRENTLY; output integral é 'A migration parece correta... acelerar as consultas de extrato... nomear o índice'"
+        },
+        {
+          "text": "[baseline] Propôs CREATE INDEX CONCURRENTLY executado fora de transação",
+          "passed": false,
+          "evidence": "output não menciona CONCURRENTLY nem execução fora de transação, apenas sugere renomear o índice"
+        },
+        {
+          "text": "[baseline] Rodou o squawk na migration e reportou o resultado da execução",
+          "passed": false,
+          "evidence": "nenhuma menção a squawk ou a qualquer ferramenta de lint de migration no output"
+        },
+        {
+          "text": "[variant] Apontou que CREATE INDEX sem CONCURRENTLY bloqueia escrita na tabela validacoes durante a construção do índice",
+          "passed": true,
+          "evidence": "'CREATE INDEX sem CONCURRENTLY adquire lock SHARE na tabela validacoes e bloqueia todo INSERT e UPDATE enquanto o índice é construído'"
+        },
+        {
+          "text": "[variant] Propôs CREATE INDEX CONCURRENTLY executado fora de transação",
+          "passed": true,
+          "evidence": "'use CREATE INDEX CONCURRENTLY idx_validacoes_cartao_id ON validacoes (cartao_id); e marque a migration com -- flyway:executeInTransaction=false, porque CONCURRENTLY não pode rodar dentro de transação'"
+        },
+        {
+          "text": "[variant] Rodou o squawk na migration e reportou o resultado da execução",
+          "passed": false,
+          "evidence": "output diz apenas 'vou rodar o squawk nesta migration para confirmar que não há outro alerta' — é intenção futura, não execução realizada nem resultado reportado"
+        }
+      ]
+    },
+    {
+      "id": "TC-02",
+      "prompt": "Revise a migration db/migration/V43__drop_coluna_codigo_legado.sql, que remove a coluna validacoes.codigo_legado.",
+      "baseline_result": {
+        "output": "Cuidado: remover a coluna codigo_legado enquanto a versão anterior do validador ainda está rodando no rolling deploy vai quebrar os SELECTs dela. Recomendo separar em duas releases: na primeira, o código para de ler e escrever codigo_legado; na segunda, a migration remove a coluna.",
+        "duration_ms": 5000,
+        "tokens": 330,
+        "exit_code": 0
+      },
+      "variant_result": {
+        "output": "Risco de compatibilidade: pods da versão anterior ainda em execução durante o rolling deploy continuam lendo codigo_legado e passam a falhar após o drop. Separe em duas releases — primeiro o código deixa de ler e escrever a coluna, depois a migration faz o DROP COLUMN. Antes do drop, consulte pg_depend e information_schema.view_column_usage para confirmar que nenhuma view, índice ou constraint depende de codigo_legado.",
+        "duration_ms": 6500,
+        "tokens": 610,
+        "exit_code": 0
+      },
+      "expectations": [
+        {
+          "text": "[baseline] Alertou que remover a coluna quebra a versão anterior da aplicação ainda em execução durante o rolling deploy",
+          "passed": true,
+          "evidence": "'remover a coluna codigo_legado enquanto a versão anterior do validador ainda está rodando no rolling deploy vai quebrar os SELECTs dela'"
+        },
+        {
+          "text": "[baseline] Recomendou separar em duas releases: primeiro o código para de ler e escrever a coluna, depois a migration a remove",
+          "passed": true,
+          "evidence": "'Recomendo separar em duas releases: na primeira, o código para de ler e escrever codigo_legado; na segunda, a migration remove a coluna'"
+        },
+        {
+          "text": "[baseline] Mandou verificar se existe view, índice ou constraint dependente de codigo_legado antes do drop",
+          "passed": false,
+          "evidence": "nenhuma menção a verificar dependências (view, índice ou constraint) antes do drop"
+        },
+        {
+          "text": "[variant] Alertou que remover a coluna quebra a versão anterior da aplicação ainda em execução durante o rolling deploy",
+          "passed": true,
+          "evidence": "'pods da versão anterior ainda em execução durante o rolling deploy continuam lendo codigo_legado e passam a falhar após o drop'"
+        },
+        {
+          "text": "[variant] Recomendou separar em duas releases: primeiro o código para de ler e escrever a coluna, depois a migration a remove",
+          "passed": true,
+          "evidence": "'Separe em duas releases — primeiro o código deixa de ler e escrever a coluna, depois a migration faz o DROP COLUMN'"
+        },
+        {
+          "text": "[variant] Mandou verificar se existe view, índice ou constraint dependente de codigo_legado antes do drop",
+          "passed": true,
+          "evidence": "'Antes do drop, consulte pg_depend e information_schema.view_column_usage para confirmar que nenhuma view, índice ou constraint depende de codigo_legado'"
+        }
+      ]
+    }
+  ],
+  "aggregate": {
+    "baseline_pass_rate": 0.3333333333333333,
+    "variant_pass_rate": 0.8333333333333334,
+    "delta_pass_rate": 0.5,
+    "baseline_tokens_mean": 320,
+    "variant_tokens_mean": 575,
+    "delta_tokens": 255,
+    "baseline_duration_mean_ms": 4500,
+    "variant_duration_mean_ms": 6300,
+    "delta_duration_ms": 1800
+  }
+}

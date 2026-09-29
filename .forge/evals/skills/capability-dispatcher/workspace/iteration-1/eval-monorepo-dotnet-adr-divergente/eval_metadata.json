@@ -1,0 +1,27 @@
+{
+  "eval_id": 2,
+  "eval_name": "monorepo-dotnet-adr-divergente",
+  "prompt": "No services/billing-api preciso marcar quando o PDF da fatura foi gerado: coluna pdf_generated_at em invoices e um endpoint GET /invoices/{id}/pdf-status que devolve o timestamp ou 404 se a fatura não existir para o tenant do header X-Tenant-Id. Implementa e deixa um resumo em outputs/summary.md com o que você seguiu e por quê. Não precisa rodar dotnet aqui.",
+  "assertions": [
+    {
+      "name": "divergencia-pack-vs-adr-registrada",
+      "text": "outputs/summary.md registra explicitamente a divergência entre o pack backend-dotnet-relational (ProblemDetails e/ou EF Core) e a ADR-0004 e/ou ADR-0006, afirmando que a ADR prevalece."
+    },
+    {
+      "name": "erro-usa-envelope-legado-sem-problemdetails",
+      "text": "O código novo em services/billing-api responde 404 via InvoiceEndpoints.Error ou envelope {error:{code,message}}; nenhum arquivo do diff contém ProblemDetails, Results.Problem ou TypedResults.Problem, e o endpoint GET /invoices/{id:guid} existente não foi reescrito."
+    },
+    {
+      "name": "migration-dbup-sem-ef-core",
+      "text": "Existe um novo script services/billing-api/db/scripts/0003_*.sql adicionando pdf_generated_at, e BillingApi.csproj não ganhou referência a Microsoft.EntityFrameworkCore nem surgiu DbContext ou pasta Migrations/ de EF."
+    },
+    {
+      "name": "so-o-pack-da-area-afetada",
+      "text": "Nenhum arquivo sob web/checkout foi alterado e outputs/summary.md não declara ter carregado/aplicado o pack backend-node-postgres na mudança (pode mencioná-lo apenas como não aplicável à área)."
+    },
+    {
+      "name": "consulta-filtra-por-tenant",
+      "text": "A query SQL do novo endpoint filtra por tenant_id além do id da fatura."
+    }
+  ]
+}

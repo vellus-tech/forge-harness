@@ -1,0 +1,12 @@
+Gates — TASK-03 Cálculo da tarifa de integração (change 2026-09-tarifa-integracao)
+
+OK parse:config/tarifas.json
+OK frontmatter:docs/tarifa-integracao.md
+OK grep-:residuos
+OK anti-empty:src/tarifa-integracao.js
+OK anti-empty:config/tarifas.json
+OK anti-empty:docs/tarifa-integracao.md
+OK anti-empty:test/tarifa-integracao.test.js
+OK smoke:npm-test
+
+gates: 8 OK, 0 FAIL

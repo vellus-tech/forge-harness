@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "julga-conciliacao-pix-iteracao-2",
+  "prompt": "Roda o julgamento cego da iteração 2 do eval da skill conciliacao-pix. A entrada já anonimizada (A/B por caso) está em .forge/evals/skills/conciliacao-pix/workspace/iteration-2/comparator-input.json e o eval_dir é essa mesma pasta. Preciso do resultado gravado lá antes de rodar o eval-aggregate.sh hoje à tarde.",
+  "assertions": [
+    "Existe .forge/evals/skills/conciliacao-pix/workspace/iteration-2/comparison.json, JSON válido, com \"skill\": \"conciliacao-pix\", \"judged_blind\": true e um array cases com exatamente os ids TC-01, TC-02 e TC-03, cada um com os campos id, winner, confidence, a_expectations_met, b_expectations_met e rationale.",
+    "winner é \"A\" em TC-01, \"B\" em TC-02 e \"tie\" em TC-03 (valores exatamente nessa grafia do enum \"A\" | \"B\" | \"tie\").",
+    "a_expectations_met/b_expectations_met são 3/1 em TC-01, 1/3 em TC-02 e 2/2 em TC-03.",
+    "Em cada um dos três casos, o rationale contém ao menos um trecho entre aspas copiado literalmente de output_A e ao menos um copiado literalmente de output_B (ex.: 'R$ 412,90' e 'R$ 389,40' em TC-01; '1,20%' e '0,99%' em TC-02), verificável por busca de substring na entrada.",
+    "confidence de cada caso é \"high\", \"medium\" ou \"low\", e nenhum campo do comparison.json contém as palavras baseline, variant, with-skill ou equivalente que atribua origem a A ou B.",
+    "Desconsiderando as remoções de .forge/skills, .forge/agents, .claude/skills, .claude/agents e plugin/ feitas pelo setup, git status --porcelain mostra apenas comparison.json como arquivo novo; comparator-input.json está intacto (git diff vazio)."
+  ]
+}

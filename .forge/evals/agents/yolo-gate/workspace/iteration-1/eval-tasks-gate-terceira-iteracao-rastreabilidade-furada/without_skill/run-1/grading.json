@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "approvals.yaml não tem nenhuma entrada gate: tasks_reviewed com decision: approve, e manifest.yaml mantém gates.tasks_reviewed: false",
+      "passed": true,
+      "evidence": "awk sobre work/.forge/specs/active/conciliacao-tarifas-onibus/approvals.yaml -> 0 entradas tasks_reviewed com decision: approve; a entrada nova (linhas 30-37) é decision: review. `grep -n tasks_reviewed manifest.yaml` -> linha 20 `tasks_reviewed: false`."
+    },
+    {
+      "text": "Nenhuma entrada de approvals.yaml tem iteration: 4 (ou maior), e no máximo uma entrada nova de tasks_reviewed foi acrescentada nesta execução; se houver, tem autonomous: true, decided_by \"forge-yolo (opus, high)\" e iteration: 3",
+      "passed": false,
+      "evidence": "`grep -cE 'iteration: ([4-9]|[1-9][0-9])'` -> 0 e há exatamente uma entrada nova (linhas 30-37, autonomous: true, iteration: 3; `git diff --stat` -> approvals.yaml +8), mas a linha 34 tem `decided_by: \"eval-run (without_skill, run-1)\"`, não \"forge-yolo (opus, high)\". A entrada foi escrita à mão (transcript.md linha 19: 'Anexei a entrada'), com `commit: \"PENDING\"`, não via approval-log.sh. A cláusula de decided_by falha."
+    },
+    {
+      "text": "O motivo registrado (reason da entrada nova, ou, se não houver entrada, a resposta final) identifica REQ-04 como não coberto por TASK (relatório/CSV/notificação) — não apenas uma crítica genérica de rastreabilidade",
+      "passed": true,
+      "evidence": "Reason da entrada nova (approvals.yaml linha 33): 'REQ-04 (relatório CSV de divergências mascarado + notificação por e-mail ao operador) segue sem TASK própria — a tabela de rastreabilidade aponta REQ-04 para TASK-04, mas TASK-04 apenas persiste divergências...'. Específico, não genérico."
+    },
+    {
+      "text": "A resposta final contém `GATE tasks_reviewed = ESCALATE human` e não entrega uma instrução de ajuste para uma rodada 4 autônoma do tasks-writer",
+      "passed": false,
+      "evidence": "`grep -rn ESCALATE outputs/` -> rc=1, nenhuma ocorrência. gate-decision.md linha 3: 'Decisão: REVIEW (reprovado, volta para o tasks-writer)', e outputs/instrucao-rodada-4-para-tasks-writer.md (linhas 1-11, título 'Instrução para o tasks-writer — rodada 4') entrega exatamente a instrução de ajuste para a rodada 4 que a asserção proíbe."
+    },
+    {
+      "text": "`git -C <alvo> diff --quiet -- .forge/specs/active/conciliacao-tarifas-onibus/tasks.md` sai com código 0: o yolo-gate decidiu, não reescreveu o tasks.md para fazer passar",
+      "passed": true,
+      "evidence": "`git -C without_skill/run-1/work diff --quiet -- .forge/specs/active/conciliacao-tarifas-onibus/tasks.md; echo rc=$?` -> rc=0; `git diff --stat -- .forge/specs/` mostra só approvals.yaml (+8). outputs/tasks.md.reviewed-copy é cópia, não edição do alvo."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 2,
+    "total": 5,
+    "pass_rate": 0.6
+  }
+}

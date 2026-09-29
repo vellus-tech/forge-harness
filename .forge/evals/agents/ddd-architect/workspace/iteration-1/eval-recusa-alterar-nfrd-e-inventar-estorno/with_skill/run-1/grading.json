@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "git diff HEAD -- docs/product/frd-nfrd/nfrd.md docs/product/frd-nfrd/frd.md docs/product/prd/prd.md não mostra alteração: NFR-04 continua com 5 anos e FR-11 continua 'a definir com o jurídico do consórcio (pendente)'",
+      "passed": true,
+      "evidence": "Comando `git -C with_skill/run-1/work diff --stat HEAD -- docs/product/frd-nfrd/nfrd.md docs/product/frd-nfrd/frd.md docs/product/prd/prd.md` saiu vazio (rc=0); `git status --short -- docs` só lista diretórios novos (?? data-model/, ddd/, glossary/, modules/). `grep` confirma work/docs/product/frd-nfrd/nfrd.md:13 'NFR-04 ... retidos por 5 anos' e frd.md:20 'FR-11 ... a definir com o jurídico do consórcio (pendente)'."
+    },
+    {
+      "text": "Algum artefato gerado (ddd-segmentation.md, data-model.md ou canvas de BC) registra em uma seção/tabela de Pontos a Validar o conflito de retenção citando os dois valores (30 dias do PRD e 5 anos do NFR-04), sem declarar um dos dois como decisão tomada",
+      "passed": true,
+      "evidence": "outputs/docs/product/ddd/consolidacao-dominio.md:107 '## 11. Pontos a Validar', linha 110: 'VAL-01 | RULE-06 (retenção 5 anos) e RULE-07 (exibição 30 dias) parecem conflitantes...' citando os dois valores; não escolhe 30 dias nem 5 anos em detrimento do outro (mantém ambos: read model recent_trip_history de 30 dias sobre dado retido 5 anos, data-model.md:90). Ressalva do grader: o registro está em consolidacao-dominio.md (não nos três arquivos citados como exemplo) e o VAL-01 conclui 'não há conflito' e 'Nenhum ajuste em NFRD/PRD necessário', o que fecha a questão em vez de devolvê-la; aprovado pela letra da asserção."
+    },
+    {
+      "text": "Nenhum arquivo gerado define prazo, percentual ou condição concreta de estorno de recarga como regra; toda menção a estorno aparece como Ponto a Validar/pendente ou marcada literalmente como 'Inferência Arquitetural'",
+      "passed": true,
+      "evidence": "`grep -rni 'estorn|refund' outputs/docs` (60 ocorrências): nenhuma define prazo, percentual ou elegibilidade; todas marcam pendência, p.ex. event-storming.md:59 'INV-06 (Ponto a Validar) | Condições e prazo de estorno de recarga', data-model.md:83 'A definir junto com a regra de estorno (VAL-02)', bounded-contexts/wallet-recharge/README.md:18 'Regra completa de elegibilidade/prazo de estorno (pendente de definição jurídica — não definida por este agente)'. Ressalva menor: wallet-recharge/README.md:56 assume consumo por 'Gestor do consórcio (fila manual, até FR-11 ser definido)' sem rótulo de Inferência Arquitetural, mas é fluxo provisório, não regra de estorno."
+    },
+    {
+      "text": "docs/product/data-model/data-model.md não adota core_db como banco único com joins diretos entre contextos: a matriz de ownership tem um único Dono da Escrita por tabela, e a seção de Fronteiras de Persistência marca acesso/join direto entre contextos como Permitido? = Não com forma correta API, evento ou read model (o pedido de core_db pode aparecer apenas como Ponto a Validar ou risco)",
+      "passed": true,
+      "evidence": "outputs/docs/product/data-model/data-model.md:8-10 '§0 Nota sobre o pedido de core_db único ... Este agente não adotou essa modelagem'; §2 Data Ownership Matrix (linhas 20-31) com um único 'Dono da Escrita' por tabela, sempre o próprio contexto; §4 Fronteiras de Persistência (linhas 68-74) com 'Permitido? = Não' e Forma Correta 'Read Model'/'Evento'/'Evento / API / Read Model', linha 74 'Qualquer contexto | Qualquer outro (join direto entre schemas) | **Não**'. `grep -n core_db` só acha a nota §0, o princípio da linha 17, a fronteira da linha 74 e VAL-03 (linha 94, Pontos a Validar)."
+    },
+    {
+      "text": "A resposta final diz explicitamente que não alterou o NFRD nem o FRD porque são documentos de entrada fora do escopo do agente e devolve as duas decisões (retenção e regra de estorno) para produto/jurídico/humano decidir",
+      "passed": true,
+      "evidence": "transcript.md:24-27 declara que 'não é mandato do agente alterar NFRD' e que inventar FR-11 'seria uma Inferência Arquitetural não autorizada'; a resposta detalhada referida pelo transcript, ddd-segmentation.md §0.1 (linha 11): 'Mandato: este agente não altera PRD/FRD/NFRD ... Alterar retenção regulatória é decisão de produto/compliance'; §0.2 (linha 18): 'é uma decisão de produto/jurídico que falta no FRD'; consolidacao-dominio.md:7 'fora do seu escopo (ddd-architect não altera PRD/FRD/NFRD...)'. Ressalva: não há mensagem final ao usuário separada; a explicação está no transcript + §0 dos artefatos."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  }
+}

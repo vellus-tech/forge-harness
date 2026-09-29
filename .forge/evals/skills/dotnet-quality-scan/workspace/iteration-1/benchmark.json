@@ -1,0 +1,343 @@
+{
+  "metadata": {
+    "skill_name": "dotnet-quality-scan",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-28T17:24:30Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.83,
+        "passed": 5,
+        "failed": 1,
+        "total": 6,
+        "time_seconds": 170,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "revisao-qualidade.md cita pelo ID todas as 11 regras do scanner (async-void, blocking-wait, new-httpclient, region, generic-name, bool-param, empty-catch, datetime-now, sql-interpolation, mutable-static, single-impl-interface), e as que n\u00e3o acharam nada no escopo (ao menos async-void, region, generic-name, bool-param e mutable-static) aparecem marcadas como OK/limpas, n\u00e3o omitidas.",
+          "passed": true,
+          "evidence": "Comando: for id in <11 IDs>; grep -c -- $id outputs/revisao-qualidade.md \u2192 todos \u22651 (async-void:1, blocking-wait:2, new-httpclient:2, region:1, generic-name:2, bool-param:1, empty-catch:2, datetime-now:2, sql-interpolation:2, mutable-static:1, single-impl-interface:2). Linhas 17-27 trazem uma linha por regra: 'OK async-void [HIGH] \u2014 nenhuma ocorr\u00eancia' (l.17), 'OK region' (l.20), 'OK generic-name' (l.21), 'OK bool-param' (l.22), 'OK mutable-static' (l.26)."
+        },
+        {
+          "text": "revisao-qualidade.md n\u00e3o reporta nenhum achado de src/Legacy.Relatorios (nem RelatorioManager, PedidoHelper, #region, UltimoLote ou o par\u00e2metro bool detalhado), que est\u00e1 fora do diff main...feature/recarga-pix; region, generic-name, bool-param e mutable-static n\u00e3o aparecem como FOUND.",
+          "passed": true,
+          "evidence": "Comando: grep -nE 'Legacy|RelatorioManager|PedidoHelper|#region|UltimoLote|detalhado' outputs/revisao-qualidade.md \u2192 nenhuma linha; grep -nE 'FOUND (region|generic-name|bool-param|mutable-static)' \u2192 nenhuma linha. A \u00fanica alus\u00e3o ao legado \u00e9 a l.85 ('os relat\u00f3rios/legado ... n\u00e3o foi tocado'), que declara exclus\u00e3o de escopo, n\u00e3o achado. O scan foi rodado com --root src/Recarga (outputs/scan-output.txt, l.1)."
+        },
+        {
+          "text": "Cada achado listado em revisao-qualidade.md traz caminho e n\u00famero de linha, incluindo pelo menos RecargaController.cs:23 (.Result), RecargaController.cs:29 (catch vazio), PixGatewayClient.cs:14 (new HttpClient), PixGatewayClient.cs:15 (.Wait()), PixGatewayClient.cs:20 (FromSqlRaw interpolado) e RecargaPix.cs:10 (DateTime.Now).",
+          "passed": false,
+          "evidence": "Os seis pares exigidos est\u00e3o presentes (grep -noE: PixGatewayClient.cs:20 l.31, RecargaController.cs:29 l.39, RecargaController.cs:23 l.51, PixGatewayClient.cs:15 l.52, PixGatewayClient.cs:14 l.55, RecargaPix.cs:10 l.63), mas a asser\u00e7\u00e3o exige que CADA achado listado traga caminho e linha, e o achado single-impl-interface (l.71, '`ISaldoService` / `SaldoService`') n\u00e3o traz arquivo nem linha; os tr\u00eas achados da se\u00e7\u00e3o 4 (l.79-81: valida\u00e7\u00e3o de valor, idempot\u00eancia, responsabilidade dupla) tamb\u00e9m n\u00e3o trazem arquivo:linha. Na d\u00favida, falha."
+        },
+        {
+          "text": "revisao-qualidade.md registra que a auditoria da camada de build (dotnet-baseline.sh --check, ou TreatWarningsAsErrors/AnalysisMode/EnforceCodeStyleInBuild verificados) foi executada e passou, antes ou separado da lista de achados do scanner.",
+          "passed": true,
+          "evidence": "l.11: '`bash .forge/scripts/dotnet-baseline.sh --root . --check` \u2014 `PASS`', na se\u00e7\u00e3o 1 'Baseline de build', antes da se\u00e7\u00e3o 2 do scanner. Reexecutei o mesmo comando em with_skill/run-1/work (modo check, somente leitura): \u00faltima linha 'PASS dotnet-baseline (brownfield (7 arquivos .cs))', e git status continuou s\u00f3 com '?? revisao-qualidade.md'."
+        },
+        {
+          "text": "revisao-qualidade.md trata o GetAwaiter().GetResult() em Recarga.Seed/Program.cs:8 (Main s\u00edncrono de ferramenta de linha de comando) como exce\u00e7\u00e3o aceit\u00e1vel ou n\u00e3o-defeito, enquanto classifica o .Result em RecargaController.cs:23 como defeito \u2014 ou seja, os tr\u00eas achados de blocking-wait n\u00e3o recebem o mesmo veredito.",
+          "passed": true,
+          "evidence": "l.53: 'Recarga.Seed/Program.cs:8 \u2014 ...GetAwaiter().GetResult() dentro de Main de uma ferramenta de linha de comando ... Essa \u00e9 a exce\u00e7\u00e3o leg\u00edtima ... Eu n\u00e3o pediria mudan\u00e7a aqui ... n\u00e3o \u00e9 bloqueador'; l.51: 'RecargaController.cs:23 \u2014 ...Result ... Isso \u00e9 exatamente o cen\u00e1rio que a regra existe para pegar ... A corre\u00e7\u00e3o \u00e9 trivial'. Vereditos distintos entre as tr\u00eas ocorr\u00eancias."
+        },
+        {
+          "text": "git -C <alvo> status --porcelain n\u00e3o mostra nenhum arquivo .cs modificado; o \u00fanico arquivo novo ou alterado \u00e9 revisao-qualidade.md (a revis\u00e3o n\u00e3o reescreveu o c\u00f3digo).",
+          "passed": true,
+          "evidence": "Comando: git -C with_skill/run-1/work status --porcelain \u2192 apenas '?? revisao-qualidade.md'; filtrado por '\\.cs$' \u2192 0 linhas. HEAD permanece em 72ea9f2 (feat(recarga)), branch feature/recarga-pix. diff outputs/revisao-qualidade.md work/revisao-qualidade.md \u2192 id\u00eanticos."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 92,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "qualidade-tokenizacao.md (ou a resposta final, se o arquivo n\u00e3o for criado) declara explicitamente que o dotnet-quality-scan n\u00e3o se aplica porque o servi\u00e7o \u00e9 Go / n\u00e3o h\u00e1 c\u00f3digo .NET (.cs/.csproj/.sln) no escopo.",
+          "passed": true,
+          "evidence": "outputs/qualidade-tokenizacao.md:5 declara 'N\u00e3o aplic\u00e1vel \u2014 skill fora de stack ... a skill `dotnet-quality-scan` audita c\u00f3digo C#/.NET, e `services/tokenizacao` \u00e9 inteiramente Go'; linha 9 registra busca por .cs/.csproj/.sln com zero ocorr\u00eancias; linha 10 cita `dotnet-baseline.sh --check` \u2192 'INFO dotnet:none'. Recontado: find work -not -path '*/.git/*' (*.cs|*.csproj|*.sln) fora de .forge/ \u2192 vazio."
+        },
+        {
+          "text": "Nenhum artefato de sa\u00edda afirma que o servi\u00e7o est\u00e1 'aprovado', 'limpo' ou 'PASS' em qualidade com base no scanner; se o PASS/0 achados do scan.sh for mencionado, \u00e9 explicado como verde por aus\u00eancia de arquivos .cs, n\u00e3o como evid\u00eancia de qualidade.",
+          "passed": true,
+          "evidence": "grep -niE 'aprovad|limpo|PASS' outputs/qualidade-tokenizacao.md \u2192 linhas 5, 11, 15: linha 5 recusa o 'aprovado'; linha 11 menciona 'PASS dotnet-quality-scan (0 achados)' e explica 'o PASS n\u00e3o significa \"c\u00f3digo limpo\", significa \"nenhum alvo .NET no diret\u00f3rio\"'; linha 15 refor\u00e7a que OK/PASS sem alvo \u00e9 aus\u00eancia de verifica\u00e7\u00e3o. Nenhuma afirma\u00e7\u00e3o de aprova\u00e7\u00e3o; a c\u00f3pia em work/qualidade-tokenizacao.md \u00e9 o mesmo entreg\u00e1vel."
+        },
+        {
+          "text": "qualidade-tokenizacao.md n\u00e3o apresenta as regras .NET (async-void, blocking-wait, new-httpclient etc.) marcadas como OK/verificadas para services/tokenizacao, como se o c\u00f3digo Go tivesse sido auditado por elas.",
+          "passed": true,
+          "evidence": "grep -niE 'async-void|blocking-wait|new-httpclient|\\| *OK' outputs/qualidade-tokenizacao.md \u2192 sem ocorr\u00eancia; n\u00e3o h\u00e1 tabela de regras. A linha 11 cita 'as 11 regras em OK ... nenhuma ocorr\u00eancia' como sa\u00edda bruta do scan.sh, mas no mesmo par\u00e1grafo qualifica como PASS trivial por aus\u00eancia de sintaxe C# em .go, n\u00e3o como auditoria do c\u00f3digo Go. Passa, por\u00e9m \u00e9 o ponto mais pr\u00f3ximo do limite da asser\u00e7\u00e3o."
+        },
+        {
+          "text": "No reposit\u00f3rio alvo n\u00e3o foram criados Directory.Build.props, Directory.Packages.props nem .editorconfig (n\u00e3o houve dotnet-baseline.sh --apply num reposit\u00f3rio sem .NET).",
+          "passed": true,
+          "evidence": "find work -not -path '*/.git/*' \\( -name Directory.Build.props -o -name Directory.Packages.props -o -name .editorconfig \\) \u2192 s\u00f3 .forge/capabilities/backend-dotnet-relational/assets/Directory.{Build,Packages}.props, que `git -C work ls-files` mostra versionados no commit do setup; nenhum .editorconfig. `git -C work status --porcelain` \u2192 apenas '?? qualidade-tokenizacao.md'. Baseline rodou s\u00f3 com --check (outputs/transcript.md passo 6)."
+        },
+        {
+          "text": "A sa\u00edda recomenda uma revis\u00e3o pr\u00f3pria da stack Go (por exemplo go vet, staticcheck, golangci-lint ou o reviewer de Go do harness) como caminho para a evid\u00eancia do PR, em vez de for\u00e7ar regras .NET.",
+          "passed": true,
+          "evidence": "outputs/qualidade-tokenizacao.md:19: 'use uma ferramenta adequada \u00e0 stack \u2014 por exemplo `go vet`, `staticcheck` ou `golangci-lint` \u2014 e n\u00e3o o `dotnet-quality-scan`' (grep -niE 'go vet|staticcheck|golangci' \u2192 linha 19)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.67,
+        "passed": 4,
+        "failed": 2,
+        "total": 6,
+        "time_seconds": 158,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Em parecer-validador.md, a reprova\u00e7\u00e3o da camada de build (TreatWarningsAsErrors=false / baseline de build incompleto) aparece antes de qualquer achado do scanner de c\u00f3digo (async-void, datetime-now, single-impl-interface).",
+          "passed": true,
+          "evidence": "with_skill/run-1/outputs/parecer-validador.md: a se\u00e7\u00e3o '## 1. Por que o CI passa verde e a IDE ainda assim n\u00e3o protege' (linhas 9-17, com 'TreatWarningsAsErrors = false' na linha 11) vem antes de '## 2. Achados do scanner' (linha 19); o resumo executivo (linha 5) j\u00e1 diz que a lacuna de enforcement 'vem antes de qualquer achado pontual de c\u00f3digo'. Comando: grep -n 'TreatWarningsAsErrors\\|async-void\\|datetime-now' \u2192 primeira ocorr\u00eancia de TreatWarningsAsErrors na linha 11, primeiros achados do scanner na tabela das linhas 33-35."
+        },
+        {
+          "text": "parecer-validador.md explica que a severidade declarada em dotnet_naming_rule.*.severity vale s\u00f3 na IDE e \u00e9 ignorada no build, e que falta dotnet_diagnostic.IDE1006.severity (com EnforceCodeStyleInBuild) \u2014 ligando isso ao 'sublinhado vermelho na IDE com CI verde' citado pelo usu\u00e1rio.",
+          "passed": true,
+          "evidence": "Linha 13: 'a severidade dentro de dotnet_naming_rule \u00e9 lida **apenas por IDEs**', 'n\u00e3o tem o par que liga essa regra ao build: dotnet_diagnostic.IDE1006.severity', e liga ao sintoma do usu\u00e1rio: 'O squiggle vermelho ... n\u00e3o passa para o build, ent\u00e3o o CI segue verde'. Linha 11 cobre EnforceCodeStyleInBuild ('sem essa flag, toda regra IDExxxx ... vale s\u00f3 dentro da IDE'). Confere com o fixture: work/.editorconfig:9 'dotnet_naming_rule.interfaces_com_i.severity = error' sem dotnet_diagnostic.IDE1006."
+        },
+        {
+          "text": "parecer-validador.md n\u00e3o afirma que rodar dotnet-baseline.sh --apply resolve tudo: deixa claro que Directory.Build.props e .editorconfig existentes precisam de corre\u00e7\u00e3o manual (o --apply n\u00e3o sobrescreve sem --force) e que o --apply cobre apenas o Directory.Packages.props ausente.",
+          "passed": false,
+          "evidence": "Contradiz a asser\u00e7\u00e3o. Linha 71: '`bash .forge/scripts/dotnet-baseline.sh --apply` \u2014 fecha a lacuna de enforcement (TreatWarningsAsErrors, AnalysisMode, EnforceCodeStyleInBuild, dotnet_diagnostic.IDE1006.severity) para que a IDE e o CI concordem'; linha 17 idem. grep -n -- '--force\\|manual\\|\u00e0 m\u00e3o' no parecer s\u00f3 acha 'revis\u00e3o manual de estilo' (linha 17), nunca que os arquivos existentes exigem corre\u00e7\u00e3o manual. O pr\u00f3prio script (work/.forge/scripts/dotnet-baseline.sh:49 'arquivo que existe e est\u00e1 incompleto \u2192 --apply N\u00c3O resolve (n\u00e3o sobrescreve)' e :183) diz o oposto do que o parecer promete."
+        },
+        {
+          "text": "parecer-validador.md classifica o async void btnSincronizar_Click em UI/MainForm.cs:15 como exce\u00e7\u00e3o leg\u00edtima (event handler de WinForms com o corpo inteiro em try/catch), n\u00e3o como defeito a corrigir.",
+          "passed": true,
+          "evidence": "Linhas 37-43: '### async-void \u2014 UI/MainForm.cs:15 \u2014 FALSO ALARME, n\u00e3o corrigir', 'event handler de framework WinForms ... o corpo inteiro est\u00e1 dentro de try/catch'; linha 74: 'N\u00e3o mexer no async-void ... est\u00e1 correto como est\u00e1'. Confere com work/src/Validador.Desktop/UI/MainForm.cs:15-27 (try nas linhas 17-26)."
+        },
+        {
+          "text": "parecer-validador.md n\u00e3o exige remover ITabelaTarifariaRepository: trata o achado single-impl-interface como porta de arquitetura hexagonal deliberada (ou decis\u00e3o de julgamento), n\u00e3o como abstra\u00e7\u00e3o especulativa a eliminar.",
+          "passed": false,
+          "evidence": "Linha 35 e 53 classificam single-impl-interface como '**defeito real**' / 'DEFEITO REAL'; linha 63 oferece como sa\u00edda '(b) ... tratar a interface como especulativa at\u00e9 que um segundo consumidor real apare\u00e7a' e chama o coment\u00e1rio de 'd\u00edvida disfar\u00e7ada de decis\u00e3o arquitetural'. N\u00e3o exige a remo\u00e7\u00e3o explicitamente, mas rejeita a leitura de porta hexagonal deliberada e abre a porta para trat\u00e1-la como abstra\u00e7\u00e3o especulativa, o oposto do que a asser\u00e7\u00e3o pede. O fato em que se apoia \u00e9 verdadeiro (grep -rl ITabelaTarifariaRepository --include='*.cs' acha s\u00f3 Ports/, Infra/SqliteTabelaTarifariaRepository.cs e UI/MainForm.cs; n\u00e3o h\u00e1 dubl\u00ea de teste), mas o veredito diverge do esperado."
+        },
+        {
+          "text": "parecer-validador.md aponta DateTime.Now em Domain/TabelaTarifaria.cs:16 (EstaVigente) como defeito real, recomendando UtcNow ou abstra\u00e7\u00e3o de tempo (TimeProvider).",
+          "passed": true,
+          "evidence": "Linhas 45-51: '### datetime-now \u2014 Domain/TabelaTarifaria.cs:16 \u2014 DEFEITO REAL, corrigir', cita 'EstaVigente()' e recomenda 'DateTime.UtcNow ... ou, melhor, injetar TimeProvider'. Fixture confirma: work/src/Validador.Desktop/Domain/TabelaTarifaria.cs:16 'public bool EstaVigente() => DateTime.Now <= VigenteAte;'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.33,
+        "passed": 2,
+        "failed": 4,
+        "total": 6,
+        "time_seconds": 137,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "revisao-qualidade.md cita pelo ID todas as 11 regras do scanner (async-void, blocking-wait, new-httpclient, region, generic-name, bool-param, empty-catch, datetime-now, sql-interpolation, mutable-static, single-impl-interface), e as que n\u00e3o acharam nada no escopo (ao menos async-void, region, generic-name, bool-param e mutable-static) aparecem marcadas como OK/limpas, n\u00e3o omitidas.",
+          "passed": false,
+          "evidence": "Comando: grep -c -- <id> outputs/revisao-qualidade.md \u2192 0 para todos os 11 IDs. O relat\u00f3rio n\u00e3o segue a taxonomia do scanner e n\u00e3o lista regras limpas; organiza-se em Bloqueadores/Riscos/Observa\u00e7\u00f5es (l.5, 13, 23)."
+        },
+        {
+          "text": "revisao-qualidade.md n\u00e3o reporta nenhum achado de src/Legacy.Relatorios (nem RelatorioManager, PedidoHelper, #region, UltimoLote ou o par\u00e2metro bool detalhado), que est\u00e1 fora do diff main...feature/recarga-pix; region, generic-name, bool-param e mutable-static n\u00e3o aparecem como FOUND.",
+          "passed": true,
+          "evidence": "Comando: grep -nE 'Legacy|RelatorioManager|PedidoHelper|#region|UltimoLote|detalhado' outputs/revisao-qualidade.md \u2192 nenhuma linha; grep -nE 'FOUND (region|generic-name|bool-param|mutable-static)' \u2192 nenhuma. l.3 declara o escopo 'todos em src/Recarga/'. Passa por conte\u00fado, embora trivialmente (n\u00e3o h\u00e1 nomenclatura de regras no relat\u00f3rio)."
+        },
+        {
+          "text": "Cada achado listado em revisao-qualidade.md traz caminho e n\u00famero de linha, incluindo pelo menos RecargaController.cs:23 (.Result), RecargaController.cs:29 (catch vazio), PixGatewayClient.cs:14 (new HttpClient), PixGatewayClient.cs:15 (.Wait()), PixGatewayClient.cs:20 (FromSqlRaw interpolado) e RecargaPix.cs:10 (DateTime.Now).",
+          "passed": false,
+          "evidence": "Comando: grep -noE '<arquivo>\\.cs:<linha>' outputs/revisao-qualidade.md \u2192 nenhuma ocorr\u00eancia. Os achados citam arquivo ou m\u00e9todo sem linha (ex.: l.10 'PixGatewayClient.Historico', l.17 '.Result no controller e .Wait() em PixGatewayClient', l.25 'DateTime.Now ... para ExpiraEm' sem arquivo)."
+        },
+        {
+          "text": "revisao-qualidade.md registra que a auditoria da camada de build (dotnet-baseline.sh --check, ou TreatWarningsAsErrors/AnalysisMode/EnforceCodeStyleInBuild verificados) foi executada e passou, antes ou separado da lista de achados do scanner.",
+          "passed": false,
+          "evidence": "Nenhuma men\u00e7\u00e3o a dotnet-baseline, TreatWarningsAsErrors, AnalysisMode ou EnforceCodeStyleInBuild (grep -nE 'dotnet-baseline|TreatWarningsAsErrors|AnalysisMode|EnforceCodeStyleInBuild' \u2192 nada). A \u00fanica alus\u00e3o (l.8) \u00e9 'quem rodar o baseline de build n\u00e3o vai nem chegar a ver os erros', sem execu\u00e7\u00e3o nem resultado; o transcript (Decis\u00f5es de escopo) confirma que nada de build foi executado."
+        },
+        {
+          "text": "revisao-qualidade.md trata o GetAwaiter().GetResult() em Recarga.Seed/Program.cs:8 (Main s\u00edncrono de ferramenta de linha de comando) como exce\u00e7\u00e3o aceit\u00e1vel ou n\u00e3o-defeito, enquanto classifica o .Result em RecargaController.cs:23 como defeito \u2014 ou seja, os tr\u00eas achados de blocking-wait n\u00e3o recebem o mesmo veredito.",
+          "passed": false,
+          "evidence": "grep -nE 'GetAwaiter|Seed/Program|Program.cs:8' outputs/revisao-qualidade.md \u2192 nada. Recarga.Seed/Program.cs:8 n\u00e3o \u00e9 analisado; o item 8 (l.17) trata s\u00f3 .Result e .Wait() como bloqueantes, sem diferenciar a exce\u00e7\u00e3o do Main de CLI."
+        },
+        {
+          "text": "git -C <alvo> status --porcelain n\u00e3o mostra nenhum arquivo .cs modificado; o \u00fanico arquivo novo ou alterado \u00e9 revisao-qualidade.md (a revis\u00e3o n\u00e3o reescreveu o c\u00f3digo).",
+          "passed": true,
+          "evidence": "Comando: git -C without_skill/run-1/work status --porcelain \u2192 apenas '?? revisao-qualidade.md'; filtrado por '\\.cs$' \u2192 0 linhas. HEAD em b2c455e (feat(recarga)). diff outputs/ vs work/ \u2192 id\u00eanticos."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 92,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "qualidade-tokenizacao.md (ou a resposta final, se o arquivo n\u00e3o for criado) declara explicitamente que o dotnet-quality-scan n\u00e3o se aplica porque o servi\u00e7o \u00e9 Go / n\u00e3o h\u00e1 c\u00f3digo .NET (.cs/.csproj/.sln) no escopo.",
+          "passed": true,
+          "evidence": "outputs/qualidade-tokenizacao.md:7-10: 'Resultado: N\u00c3O EXECUTADO \u2014 stack incompat\u00edvel com a ferramenta solicitada ... `services/tokenizacao` n\u00e3o \u00e9 um projeto .NET. \u00c9 um servi\u00e7o em Go 1.22'; linha 16: 'N\u00e3o existe nenhum arquivo .csproj, .sln ou .cs em todo o reposit\u00f3rio'; linha 3 amarra ao 'Escopo solicitado: dotnet-quality-scan'. Ressalva: o baseline n\u00e3o conhece o scanner do harness e o trata como 'dotnet format/Roslyn' (linha 20), mas a declara\u00e7\u00e3o de n\u00e3o aplicabilidade por ser Go/sem .NET \u00e9 expl\u00edcita."
+        },
+        {
+          "text": "Nenhum artefato de sa\u00edda afirma que o servi\u00e7o est\u00e1 'aprovado', 'limpo' ou 'PASS' em qualidade com base no scanner; se o PASS/0 achados do scan.sh for mencionado, \u00e9 explicado como verde por aus\u00eancia de arquivos .cs, n\u00e3o como evid\u00eancia de qualidade.",
+          "passed": true,
+          "evidence": "grep -niE 'aprovad|limpo|PASS' outputs/qualidade-tokenizacao.md \u2192 linhas 21-23 ('rodaria \"limpo\" apenas porque n\u00e3o encontra nada ... Reportar \"aprovado\" nessa condi\u00e7\u00e3o seria falso'), 25 ('este relat\u00f3rio n\u00e3o pode declarar \"aprovado\"') e 62 ('N\u00e3o anexar este documento ao PR como \"aprovado\"'). Nenhuma aprova\u00e7\u00e3o emitida; o scan.sh n\u00e3o foi rodado, logo n\u00e3o h\u00e1 PASS a explicar."
+        },
+        {
+          "text": "qualidade-tokenizacao.md n\u00e3o apresenta as regras .NET (async-void, blocking-wait, new-httpclient etc.) marcadas como OK/verificadas para services/tokenizacao, como se o c\u00f3digo Go tivesse sido auditado por elas.",
+          "passed": true,
+          "evidence": "grep -niE 'async-void|blocking-wait|new-httpclient|\\| *OK' outputs/qualidade-tokenizacao.md \u2192 sem ocorr\u00eancia; o relat\u00f3rio n\u00e3o lista regras .NET, s\u00f3 achados manuais Go (linhas 34-50) rotulados como leitura manual."
+        },
+        {
+          "text": "No reposit\u00f3rio alvo n\u00e3o foram criados Directory.Build.props, Directory.Packages.props nem .editorconfig (n\u00e3o houve dotnet-baseline.sh --apply num reposit\u00f3rio sem .NET).",
+          "passed": true,
+          "evidence": "find work -not -path '*/.git/*' \\( Directory.Build.props | Directory.Packages.props | .editorconfig \\) \u2192 s\u00f3 .forge/capabilities/backend-dotnet-relational/assets/*.props, versionados no commit do setup (git -C work ls-files); `git -C work status --porcelain` vazio, logo nada foi criado. outputs/transcript.md: 'N\u00e3o rodei nenhum comando `dotnet` contra o diret\u00f3rio'."
+        },
+        {
+          "text": "A sa\u00edda recomenda uma revis\u00e3o pr\u00f3pria da stack Go (por exemplo go vet, staticcheck, golangci-lint ou o reviewer de Go do harness) como caminho para a evid\u00eancia do PR, em vez de for\u00e7ar regras .NET.",
+          "passed": true,
+          "evidence": "grep -niE 'go vet|staticcheck|golangci' outputs/qualidade-tokenizacao.md \u2192 linha 34 ('equivalente Go: `go vet`, `golangci-lint`, ou ... `gosec`') e linhas 58-59 ('o scanner correto para este servi\u00e7o \u00e9 uma ferramenta Go (ex.: `golangci-lint`, `go vet`, `gosec`), n\u00e3o um scanner `.NET`')."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.33,
+        "passed": 2,
+        "failed": 4,
+        "total": 6,
+        "time_seconds": 119,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Em parecer-validador.md, a reprova\u00e7\u00e3o da camada de build (TreatWarningsAsErrors=false / baseline de build incompleto) aparece antes de qualquer achado do scanner de c\u00f3digo (async-void, datetime-now, single-impl-interface).",
+          "passed": false,
+          "evidence": "without_skill/run-1/outputs/parecer-validador.md: TreatWarningsAsErrors s\u00f3 aparece no item '### 5.' (linha 25, 'severidade: baixa'), depois de DateTime.Now (item 2, linha 13, que \u00e9 achado de c\u00f3digo). O resumo executivo (linha 5) n\u00e3o menciona a camada de build como reprovada; ao contr\u00e1rio, diz que a regra de nomenclatura '\u00e9 real e est\u00e1 funcionando'."
+        },
+        {
+          "text": "parecer-validador.md explica que a severidade declarada em dotnet_naming_rule.*.severity vale s\u00f3 na IDE e \u00e9 ignorada no build, e que falta dotnet_diagnostic.IDE1006.severity (com EnforceCodeStyleInBuild) \u2014 ligando isso ao 'sublinhado vermelho na IDE com CI verde' citado pelo usu\u00e1rio.",
+          "passed": false,
+          "evidence": "Contradiz a asser\u00e7\u00e3o. Linha 5: 'refor\u00e7ada pelo .editorconfig com severidade error \u2014 por isso a IDE sublinha em vermelho ... Isso \u00e9 real e est\u00e1 funcionando'. grep -n 'IDE1006\\|EnforceCodeStyleInBuild' no parecer: zero ocorr\u00eancias."
+        },
+        {
+          "text": "parecer-validador.md n\u00e3o afirma que rodar dotnet-baseline.sh --apply resolve tudo: deixa claro que Directory.Build.props e .editorconfig existentes precisam de corre\u00e7\u00e3o manual (o --apply n\u00e3o sobrescreve sem --force) e que o --apply cobre apenas o Directory.Packages.props ausente.",
+          "passed": false,
+          "evidence": "grep -n -- '--apply\\|dotnet-baseline\\|Directory.Packages.props' no parecer: zero ocorr\u00eancias. N\u00e3o promete o --apply, mas a asser\u00e7\u00e3o exige tamb\u00e9m deixar claro que os arquivos existentes pedem corre\u00e7\u00e3o manual e que o --apply s\u00f3 cobre o Directory.Packages.props ausente; nada disso est\u00e1 no parecer."
+        },
+        {
+          "text": "parecer-validador.md classifica o async void btnSincronizar_Click em UI/MainForm.cs:15 como exce\u00e7\u00e3o leg\u00edtima (event handler de WinForms com o corpo inteiro em try/catch), n\u00e3o como defeito a corrigir.",
+          "passed": true,
+          "evidence": "Linha 32, em '## Falsos alarmes': '**async void no handler do bot\u00e3o** ... para manipuladores de evento do WinForms \u00e9 a \u00fanica assinatura v\u00e1lida ... N\u00e3o \u00e9 d\u00edvida t\u00e9cnica'; linha 31 trata o catch(Exception) do mesmo handler como fronteira correta. O item 4 (linha 23, reentr\u00e2ncia/clique duplo) n\u00e3o pede para trocar o async void, ent\u00e3o n\u00e3o conflita."
+        },
+        {
+          "text": "parecer-validador.md n\u00e3o exige remover ITabelaTarifariaRepository: trata o achado single-impl-interface como porta de arquitetura hexagonal deliberada (ou decis\u00e3o de julgamento), n\u00e3o como abstra\u00e7\u00e3o especulativa a eliminar.",
+          "passed": false,
+          "evidence": "grep -n 'hexagonal\\|single-impl\\|porta' no parecer: zero ocorr\u00eancias. ITabelaTarifariaRepository s\u00f3 aparece na linha 11, dentro do achado sobre o stub SQLite; o parecer nunca avalia a interface como porta deliberada. N\u00e3o exige remo\u00e7\u00e3o, mas tamb\u00e9m n\u00e3o faz o julgamento que a asser\u00e7\u00e3o pede; na d\u00favida, falha."
+        },
+        {
+          "text": "parecer-validador.md aponta DateTime.Now em Domain/TabelaTarifaria.cs:16 (EstaVigente) como defeito real, recomendando UtcNow ou abstra\u00e7\u00e3o de tempo (TimeProvider).",
+          "passed": true,
+          "evidence": "Linha 15: 'src/Validador.Desktop/Domain/TabelaTarifaria.cs:16 chama DateTime.Now dentro da entidade de dom\u00ednio', t\u00edtulo na linha 13 cita 'TabelaTarifaria.EstaVigente()', aponta 'hora local da m\u00e1quina em vez de DateTime.UtcNow' e 'rel\u00f3gio global n\u00e3o injet\u00e1vel'. N\u00e3o cita TimeProvider pelo nome, mas a asser\u00e7\u00e3o aceita UtcNow OU abstra\u00e7\u00e3o de tempo."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.8333,
+        "stddev": 0.165,
+        "min": 0.67,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 140.0,
+        "stddev": 42.0,
+        "min": 92,
+        "max": 170
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.5533,
+        "stddev": 0.3868,
+        "min": 0.33,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 116.0,
+        "stddev": 22.6495,
+        "min": 92,
+        "max": 137
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.28",
+      "time_seconds": "+24.0",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

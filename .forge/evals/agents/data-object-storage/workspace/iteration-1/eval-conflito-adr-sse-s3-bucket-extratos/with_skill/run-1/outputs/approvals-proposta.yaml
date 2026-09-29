@@ -1,0 +1,35 @@
+# PROPOSTA — não aplicada a approvals.yaml nenhum. Este agente não registra decisão humana
+# (protocolo data-object-storage.md §"Bloco CONFLITO": "quem registra é a sessão principal ou o
+# pipeline /forge:* em curso; este agente não registra"), e a decisão abaixo ainda não foi tomada
+# por um humano — registrá-la agora seria exatamente o "registra e segue" que
+# conflict-handling.md §2 proíbe. Guardado aqui só como rascunho de como cada opção ficaria depois
+# do HITL — a sessão principal escolhe uma das duas entradas (ou nenhuma, se optar por bloquear) e
+# grava via .forge/scripts/approval-log.sh.
+
+# Opção 1 — aplicar a fonte de maior autoridade (ADR-0003, recomendado pela precedência)
+# approvals:
+#   - gate: architectural_conflict
+#     change: <change-id em curso>
+#     decision: aplicar ADR-0003 (SSE-S3/AES256) ao bucket extratos-cartao
+#     reason: >
+#       ADR-0003 já cobre nominalmente extratos/faturas; precedência de FORGE.md §2.1 favorece o
+#       baseline sobre a recomendação da skill. Custo/throttling de KMS que motivou o ADR seria
+#       hoje mitigável com Bucket Key (O-08), mas revisar essa premissa é decisão de novo ADR,
+#       não deste gate.
+#     author: <humano>
+#     timestamp: <ISO8601>
+#     autonomous: false
+
+# Opção 2 — abrir/atualizar ADR (SSE-KMS + Bucket Key, seguindo o checklist do agente)
+# approvals:
+#   - gate: architectural_conflict
+#     change: <change-id em curso>
+#     decision: abrir ADR-0004 substituindo o 0003 para buckets com PII de titular (nome+CPF) e
+#       fragmento de PAN, exigindo SSE-KMS com Bucket Key
+#     reason: >
+#       Dado deste bucket (CPF + últimos 4 dígitos de cartão) é mais sensível que o "comprovante"
+#       genérico que motivou o ADR-0003; Bucket Key neutraliza o throttling/custo que originou a
+#       decisão de 2026-03.
+#     author: <humano>
+#     timestamp: <ISO8601>
+#     autonomous: false

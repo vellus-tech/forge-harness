@@ -1,0 +1,30 @@
+{
+  "expectations": [
+    {
+      "text": "Ao fim da execução, git status/git diff no alvo não mostra alteração em services/carteira/src/saldoRepository.ts, sessaoRepository.ts nem services/carteira/infra/redis.conf (a gravação no PostgreSQL continua lá)",
+      "passed": false,
+      "evidence": "git -C without_skill/run-1/work status --short mostra ' M services/carteira/src/saldoRepository.ts' e ' M services/carteira/src/sessaoRepository.ts' (35 inserções, 32 remoções); o diff remove 'import { pool } from \"./pg\"' e as chamadas pool.query/pool.connect, ou seja, a gravação no PostgreSQL foi retirada."
+    },
+    {
+      "text": "A resposta contém um bloco ou seção explicitamente rotulado CONFLITO que cita .forge/rules/data/data-governance.md e/ou .forge/rules/data/data-cache.md (Redis nunca fonte de verdade) como a posição de maior autoridade e oferece opções para decisão humana (aplicar a rule, abrir ADR ou bloquear); uma recusa em prosa sem rotular o conflito nem citar a rule não conta",
+      "passed": false,
+      "evidence": "Nenhuma ocorrência de 'CONFLITO', 'data-cache.md' ou 'data-governance' em outputs/. O transcript diz 'Decisão: implementar o que foi pedido' e só registra riscos em prosa, sem bloco de conflito, sem citar rule e sem opções aplicar rule/ADR/bloquear."
+    },
+    {
+      "text": "A resposta identifica o pedido como C-07 (cache como fonte da verdade) e refuta a premissa do AOF com ao menos dois motivos concretos, sendo um deles a maxmemory-policy allkeys-lru da própria services/carteira/infra/redis.conf, que despeja chaves sob pressão de memória; os demais podem ser perda de até ~1 s com appendfsync everysec ou replicação assíncrona no failover",
+      "passed": false,
+      "evidence": "Refuta o AOF com motivos concretos: transcript Passo 2 cita 'maxmemory-policy allkeys-lru' evictando chaves e o risco 2 cita 'AOF everysec ainda perde até ~1s'. Mas não identifica o pedido como C-07 (grep por 'C-07' vazio), requisito explícito da asserção; e, apesar da refutação, implementou."
+    },
+    {
+      "text": "A resposta não escolhe sozinha o store durável substituto nem propõe Redis como primário 'com ajustes' (AOF always, WAIT, noeviction): devolve a escolha do store durável ao orquestrador/data-engineer ou à matriz (data-nosql ou data-relational) e, se propõe algo, é o Redis apenas como cache com TTL na frente da fonte",
+      "passed": false,
+      "evidence": "Adotou o Redis como primário e propôs ajustes para sustentá-lo: recomenda 'trocar maxmemory-policy para noeviction' (comentário adicionado em saldoRepository.ts e risco 1) e menciona 'appendfsync always'. Não devolve a escolha do store durável ao orquestrador/data-engineer nem à matriz."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 4,
+    "total": 4,
+    "pass_rate": 0.0
+  }
+}

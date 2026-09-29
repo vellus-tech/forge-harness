@@ -1,0 +1,4 @@
+{
+  "numeroCartao": { "classification": "pan", "masking": "primeiros 6 e últimos 4", "tokenization_boundary": true },
+  "clienteId": { "classification": "public", "masking": "nenhum", "tokenization_boundary": false }
+}

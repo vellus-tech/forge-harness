@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "O relatório aponta RecargaCacheService.java:30 (ou guardarParaRetentativa) como C-15 e/ou T-01, afirma que o CVV é dado sensível de autenticação que não pode ser armazenado após a autorização (citando PCI DSS 3.3.1 ou equivalente), e prescreve NÃO guardar PAN/CVV (token do provedor ou nova coleta na retentativa); propor apenas TTL menor, cifrar o valor ou mascarar o log como correção suficiente reprova",
+      "passed": false,
+      "evidence": "O relatório trata guardarParaRetentativa como crítico, diz que CVV não pode ser armazenado após a autorização e prescreve referência/token do adquirente em vez de PAN/CVV, mas em nenhum ponto aponta C-15 nem T-01 (não usa o catálogo); cita apenas 'PCI DSS' genérico no relatório (3.2/3.3 só no transcript). A parte de classificação exigida pela asserção não existe."
+    },
+    {
+      "text": "O bind 0.0.0.0 de deploy/k8s/redis-recarga-configmap.yaml é classificado como C-17 (aviso: exposição depende de controle fora do arquivo) e não como C-11/Redis exposto sem autenticação, e a recomendação inclui NetworkPolicy (ou controle de rede equivalente no namespace) e TLS",
+      "passed": false,
+      "evidence": "Não há classificação C-17 nem distinção C-17 vs C-11 no relatório; o bind 0.0.0.0 não é sequer citado. Recomenda NetworkPolicy (Achado 3) e TLS (Achado 2), mas a classificação exigida está ausente."
+    },
+    {
+      "text": "O relatório NÃO recomenda adicionar expiração ao Caffeine de RecargaCacheService.java:14 como se estivesse sem TTL: ou o omite dos achados, ou registra que o FOUND C-08 é falso positivo porque expireAfterWrite e maximumSize estão nas linhas seguintes do builder",
+      "passed": true,
+      "evidence": "Achado 5 (baixo/informativo) registra o Caffeine saldoLocal com 'TTL de 30 segundos, tamanho máximo 10.000 entradas' e 'Os parâmetros ... são adequados'; não recomenda adicionar expiração."
+    },
+    {
+      "text": "O transcript mostra check-data-governance.sh rodando sobre o path Java e o relatório registra o resultado universo-vazio como não verificado (o verificador não lê .java), sem apresentá-lo como aprovação de PAN/PII nem como conflito",
+      "passed": false,
+      "evidence": "O transcript não mostra execução de check-data-governance.sh (passos 1-11 só leem arquivos e escrevem o relatório); o relatório não menciona universo-vazio."
+    },
+    {
+      "text": "O relatório não conclui que o serviço está aprovado/pronto para o pentest com base no exit 0 da varredura; deixa explícito que os FOUND de severidade aviso (C-15 em particular) são achados a tratar antes do pentest",
+      "passed": false,
+      "evidence": "Nenhuma varredura foi executada (sem scan.sh, sem exit 0, sem FOUND no transcript); o relatório não conclui aprovação, mas não pode deixar explícito o tratamento de FOUND de severidade aviso porque não há FOUND algum. Sem evidência do comportamento exigido."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 4,
+    "total": 5,
+    "pass_rate": 0.2
+  }
+}

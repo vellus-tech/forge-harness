@@ -1,0 +1,107 @@
+{
+  "skill": "revisao-migracao-postgres",
+  "eval_id": "eval-1",
+  "iteration": 1,
+  "graded_by": "grader-agent (without_skill baseline, run-1)",
+  "test_cases": [
+    {
+      "id": "TC-01",
+      "prompt": "Revise a migration db/migration/V42__add_idx_validacoes_cartao.sql, que cria um índice em validacoes(cartao_id) na tabela de 180 milhões de linhas do validador.",
+      "baseline_grading": {
+        "expectations": [
+          {
+            "expectation": "Apontou que CREATE INDEX sem CONCURRENTLY bloqueia escrita na tabela validacoes durante a construção do índice",
+            "met": false,
+            "evidence": "A resposta afirma que a migration \"parece correta\" e só sugere renomear o índice; não menciona lock nem bloqueio de escrita."
+          },
+          {
+            "expectation": "Propôs CREATE INDEX CONCURRENTLY executado fora de transação",
+            "met": false,
+            "evidence": "Nenhuma menção a CONCURRENTLY ou a execução fora de transação; a sugestão é apenas de nomenclatura."
+          },
+          {
+            "expectation": "Rodou o squawk na migration e reportou o resultado da execução",
+            "met": false,
+            "evidence": "Não há menção a squawk nem a qualquer execução de linter na migration."
+          }
+        ],
+        "met_count": 0,
+        "total": 3
+      },
+      "variant_grading": {
+        "expectations": [
+          {
+            "expectation": "Apontou que CREATE INDEX sem CONCURRENTLY bloqueia escrita na tabela validacoes durante a construção do índice",
+            "met": true,
+            "evidence": "\"CREATE INDEX sem CONCURRENTLY adquire lock SHARE na tabela validacoes e bloqueia todo INSERT e UPDATE enquanto o índice é construído — com 180 milhões de linhas, isso para o validador por minutos.\""
+          },
+          {
+            "expectation": "Propôs CREATE INDEX CONCURRENTLY executado fora de transação",
+            "met": true,
+            "evidence": "\"use CREATE INDEX CONCURRENTLY idx_validacoes_cartao_id ON validacoes (cartao_id); e marque a migration com -- flyway:executeInTransaction=false, porque CONCURRENTLY não pode rodar dentro de transação.\""
+          },
+          {
+            "expectation": "Rodou o squawk na migration e reportou o resultado da execução",
+            "met": false,
+            "evidence": "A resposta apenas anuncia a intenção (\"vou rodar o squawk nesta migration para confirmar que não há outro alerta\"), em tempo futuro, sem executar a ferramenta nem reportar um resultado real. Não satisfaz a expectativa, que exige a execução e o relato do resultado."
+          }
+        ],
+        "met_count": 2,
+        "total": 3
+      }
+    },
+    {
+      "id": "TC-02",
+      "prompt": "Revise a migration db/migration/V43__drop_coluna_codigo_legado.sql, que remove a coluna validacoes.codigo_legado.",
+      "baseline_grading": {
+        "expectations": [
+          {
+            "expectation": "Alertou que remover a coluna quebra a versão anterior da aplicação ainda em execução durante o rolling deploy",
+            "met": true,
+            "evidence": "\"remover a coluna codigo_legado enquanto a versão anterior do validador ainda está rodando no rolling deploy vai quebrar os SELECTs dela.\""
+          },
+          {
+            "expectation": "Recomendou separar em duas releases: primeiro o código para de ler e escrever a coluna, depois a migration a remove",
+            "met": true,
+            "evidence": "\"Recomendo separar em duas releases: na primeira, o código para de ler e escrever codigo_legado; na segunda, a migration remove a coluna.\""
+          },
+          {
+            "expectation": "Mandou verificar se existe view, índice ou constraint dependente de codigo_legado antes do drop",
+            "met": false,
+            "evidence": "Não há nenhuma menção a verificar dependências (views, índices, constraints) antes do drop."
+          }
+        ],
+        "met_count": 2,
+        "total": 3
+      },
+      "variant_grading": {
+        "expectations": [
+          {
+            "expectation": "Alertou que remover a coluna quebra a versão anterior da aplicação ainda em execução durante o rolling deploy",
+            "met": true,
+            "evidence": "\"pods da versão anterior ainda em execução durante o rolling deploy continuam lendo codigo_legado e passam a falhar após o drop.\""
+          },
+          {
+            "expectation": "Recomendou separar em duas releases: primeiro o código para de ler e escrever a coluna, depois a migration a remove",
+            "met": true,
+            "evidence": "\"Separe em duas releases — primeiro o código deixa de ler e escrever a coluna, depois a migration faz o DROP COLUMN.\""
+          },
+          {
+            "expectation": "Mandou verificar se existe view, índice ou constraint dependente de codigo_legado antes do drop",
+            "met": true,
+            "evidence": "\"Antes do drop, consulte pg_depend e information_schema.view_column_usage para confirmar que nenhuma view, índice ou constraint depende de codigo_legado.\""
+          }
+        ],
+        "met_count": 3,
+        "total": 3
+      }
+    }
+  ],
+  "summary": {
+    "baseline_total_met": 2,
+    "baseline_total_expectations": 6,
+    "variant_total_met": 5,
+    "variant_total_expectations": 6,
+    "notes": "A variant supera o baseline nas duas TCs. Único gap remanescente na variant: TC-01/expectativa 3 exige execução real do squawk com relato do resultado; a variant apenas anuncia a intenção de rodar, sem evidência de execução nem de resultado, então foi marcada como não atendida em ambas as versões."
+  }
+}

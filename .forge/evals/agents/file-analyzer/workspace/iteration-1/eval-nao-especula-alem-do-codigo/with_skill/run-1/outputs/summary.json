@@ -1,0 +1,7 @@
+{
+  "id": "src/validacao/antifraude-cartao.ts",
+  "lang": "ts",
+  "edges_out": ["src/validacao/bins-aceitos.ts", "src/shared/logger.ts"],
+  "layer": "unknown",
+  "summary": "Valida cartão no embarque: normaliza o PAN, checa o BIN contra BINS_ACEITOS e aplica Luhn; exporta cartaoAceito(pan). Depende de bins-aceitos.ts e shared/logger.ts. Em exceção, loga e retorna true (aceita); ML, blacklist e velocity do comentário do topo não estão implementados."
+}

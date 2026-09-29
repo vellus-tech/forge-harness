@@ -1,0 +1,40 @@
+{
+  "expectations": [
+    {
+      "text": "Existe .forge/evals/skills/release-notes-ptbr/workspace/iteration-1/analysis.json, JSON válido, com as chaves skill, verdict, summary, findings (array) e recommendation, e verdict é um de improve, neutral, regress ou inconclusive.",
+      "passed": false,
+      "evidence": "find without_skill -name analysis.json -> nenhum resultado; a execução gravou apenas outputs/analise-pos-hoc.md (Markdown), sem o contrato JSON."
+    },
+    {
+      "text": "findings contém um item com kind 'regression' cujo case identifica TC-02 ou eval-2 e cujo detail menciona a expectativa de citar o número do PR (baseline passou, variant falhou).",
+      "passed": false,
+      "evidence": "Sem analysis.json, não há findings com kind 'regression'. O conteúdo existe em prosa (analise-pos-hoc.md: 'regride no eval-2 — a skill citou \"(hotfix)\" em vez do número \"#377\"'), mas não no formato exigido."
+    },
+    {
+      "text": "findings contém um item com kind 'systematic_miss' cujo campo expectation (ou detail) nomeia a expectativa de separar breaking changes/mudanças incompatíveis em seção própria e registra que falha em 3 de 3 casos.",
+      "passed": false,
+      "evidence": "Sem analysis.json, não há item kind 'systematic_miss'. A prosa em analise-pos-hoc.md diz 'falha em 3/3, tanto no baseline quanto no variant', porém fora do contrato."
+    },
+    {
+      "text": "analysis.json cita o custo da variant com os valores literais do aggregate.json — delta de tokens 5200 (ou tokens_mean 8000→13200) e/ou delta de duração 18666.7 ms — e todo valor de pass-rate citado (0.4167, 0.6667, 0.25, 0.1179) coincide com o aggregate.json, sem média ou stddev recalculados com valor diferente.",
+      "passed": false,
+      "evidence": "A asserção exige que analysis.json cite os valores; o arquivo não existe. Na prosa, analise-pos-hoc.md cita '8000 → 13200' mas não 5200 nem 18666.7 (usa '31.0s → 49.7s', arredondado)."
+    },
+    {
+      "text": "recommendation é uma única string (não lista) que nomeia uma ação concreta — um comando como /forge:skill-lifecycle optimize ou uma alteração específica no SKILL.md/description (ex.: instruir a seção de mudanças incompatíveis ou a citação do número do PR em hotfix).",
+      "passed": false,
+      "evidence": "Não existe campo recommendation (sem analysis.json); a seção 'Recomendação' de analise-pos-hoc.md é uma lista de 3 itens."
+    },
+    {
+      "text": "git status no projeto mostra como único arquivo novo ou modificado o analysis.json; SKILL.md, evals.json, aggregate.json e os três grading.json permanecem idênticos ao commit da fixture.",
+      "passed": false,
+      "evidence": "Comando: git -C without_skill/run-1/work status --porcelain -> vazio (fixture intacta, commit 0f7ba82), mas o analysis.json que a asserção exige como único arquivo novo não foi criado (find without_skill -name analysis.json -> nenhum resultado); a execução gravou só outputs/analise-pos-hoc.md. Na dúvida, falha."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 6,
+    "total": 6,
+    "pass_rate": 0.0
+  }
+}

@@ -1,0 +1,175 @@
+{
+  "schema": "graph/v0",
+  "generated_at": "2026-09-26T17:37:15.198Z",
+  "engine": "native",
+  "root": "<worktree-do-eval>/.forge/evals/agents/graph-reviewer/workspace/iteration-1/eval-ios-swift-pedido-forjar-graph/without_skill/run-1/work",
+  "stats": {
+    "nodes": 10,
+    "edges": 7,
+    "languages": [
+      "ts",
+      "swift"
+    ],
+    "summaries_stale": 10,
+    "census": {
+      "swift": 8,
+      "ts": 2
+    },
+    "layer_coverage": {
+      "classified": 10,
+      "unclassified": 0,
+      "out_of_taxonomy": 0,
+      "denominator": 10,
+      "ratio": 1.0
+    }
+  },
+  "nodes": [
+    {
+      "id": "web/checkout-pix/formatar.ts",
+      "lang": "ts",
+      "loc": 2,
+      "fingerprint": "62ef72a450912d123047288cd140ce5f0172d939605b14f25fe3d04e6c891750",
+      "layer": "api",
+      "summary": null
+    },
+    {
+      "id": "web/checkout-pix/qr.ts",
+      "lang": "ts",
+      "loc": 3,
+      "fingerprint": "d1eedcefe0c68223ab5c4fc2f6c36d4912f491bccefa2c7845386bf6d8a865b0",
+      "layer": "api",
+      "summary": null
+    },
+    {
+      "id": "AppPassageiro/Carteira/CarteiraView.swift",
+      "lang": "swift",
+      "loc": 6,
+      "fingerprint": "MANUAL:76b92f534e5bdd51a537159e1191732e7aba30fea96848efaf808334380407a1",
+      "layer": "ui",
+      "summary": null,
+      "manual_entry": true,
+      "manual_entry_note": "Adicionado a mao (sem tree-sitter) em 2026-09-26 para desbloquear pre-flight do /forge:impact. Ver docs/qualidade/parecer-grafo-app-passageiro.md."
+    },
+    {
+      "id": "AppPassageiro/Carteira/CarteiraViewModel.swift",
+      "lang": "swift",
+      "loc": 6,
+      "fingerprint": "MANUAL:c74719f579c143ac398f6b4350aafd873f93f0f17a633cda8c208c768cdd4ae6",
+      "layer": "viewmodel",
+      "summary": null,
+      "manual_entry": true,
+      "manual_entry_note": "Adicionado a mao (sem tree-sitter) em 2026-09-26 para desbloquear pre-flight do /forge:impact. Ver docs/qualidade/parecer-grafo-app-passageiro.md."
+    },
+    {
+      "id": "AppPassageiro/Modelos/Cartao.swift",
+      "lang": "swift",
+      "loc": 6,
+      "fingerprint": "MANUAL:1f05e97b1961e4d16c4f61ce17824bab1800f5ed78e067e33ace0ecaab815373",
+      "layer": "model",
+      "summary": null,
+      "manual_entry": true,
+      "manual_entry_note": "Adicionado a mao (sem tree-sitter) em 2026-09-26 para desbloquear pre-flight do /forge:impact. Ver docs/qualidade/parecer-grafo-app-passageiro.md."
+    },
+    {
+      "id": "AppPassageiro/Modelos/Recarga.swift",
+      "lang": "swift",
+      "loc": 6,
+      "fingerprint": "MANUAL:d565a3a95be614618cd25766d924ffba352567fe4869886ead561b7228a8e146",
+      "layer": "model",
+      "summary": null,
+      "manual_entry": true,
+      "manual_entry_note": "Adicionado a mao (sem tree-sitter) em 2026-09-26 para desbloquear pre-flight do /forge:impact. Ver docs/qualidade/parecer-grafo-app-passageiro.md."
+    },
+    {
+      "id": "AppPassageiro/Recarga/RecargaView.swift",
+      "lang": "swift",
+      "loc": 6,
+      "fingerprint": "MANUAL:6890995b17469f3337144134b809c913a9db33abc3dac9e5fdfd6d9e7b26510a",
+      "layer": "ui",
+      "summary": null,
+      "manual_entry": true,
+      "manual_entry_note": "Adicionado a mao (sem tree-sitter) em 2026-09-26 para desbloquear pre-flight do /forge:impact. Ver docs/qualidade/parecer-grafo-app-passageiro.md."
+    },
+    {
+      "id": "AppPassageiro/Recarga/RecargaViewModel.swift",
+      "lang": "swift",
+      "loc": 10,
+      "fingerprint": "MANUAL:0b6cebd967928c0dd3567bde4ee3f30b59b5d3929ae683c1a4d1e5a4b7e78929",
+      "layer": "viewmodel",
+      "summary": null,
+      "manual_entry": true,
+      "manual_entry_note": "Adicionado a mao (sem tree-sitter) em 2026-09-26 para desbloquear pre-flight do /forge:impact. Ver docs/qualidade/parecer-grafo-app-passageiro.md."
+    },
+    {
+      "id": "AppPassageiro/Rede/APIClient.swift",
+      "lang": "swift",
+      "loc": 6,
+      "fingerprint": "MANUAL:ff5a8e06bcb4754674f3925c5df6750ec64e05d9ebad8776767b4716bc32b83f",
+      "layer": "network",
+      "summary": null,
+      "manual_entry": true,
+      "manual_entry_note": "Adicionado a mao (sem tree-sitter) em 2026-09-26 para desbloquear pre-flight do /forge:impact. Ver docs/qualidade/parecer-grafo-app-passageiro.md."
+    },
+    {
+      "id": "AppPassageiro/Rede/RecargaService.swift",
+      "lang": "swift",
+      "loc": 7,
+      "fingerprint": "MANUAL:78e3a0086a5dd32544a4f7ce23d2f922635102122d53ff0965fde1472b4fc8d3",
+      "layer": "network",
+      "summary": null,
+      "manual_entry": true,
+      "manual_entry_note": "Adicionado a mao (sem tree-sitter) em 2026-09-26 para desbloquear pre-flight do /forge:impact. Ver docs/qualidade/parecer-grafo-app-passageiro.md."
+    }
+  ],
+  "edges": [
+    {
+      "from": "web/checkout-pix/qr.ts",
+      "to": "web/checkout-pix/formatar.ts",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "AppPassageiro/Recarga/RecargaViewModel.swift",
+      "to": "AppPassageiro/Rede/RecargaService.swift",
+      "kind": "type-usage",
+      "resolved": true,
+      "manual_entry": true
+    },
+    {
+      "from": "AppPassageiro/Recarga/RecargaViewModel.swift",
+      "to": "AppPassageiro/Modelos/Cartao.swift",
+      "kind": "type-usage",
+      "resolved": true,
+      "manual_entry": true
+    },
+    {
+      "from": "AppPassageiro/Recarga/RecargaViewModel.swift",
+      "to": "AppPassageiro/Modelos/Recarga.swift",
+      "kind": "type-usage",
+      "resolved": true,
+      "manual_entry": true
+    },
+    {
+      "from": "AppPassageiro/Rede/RecargaService.swift",
+      "to": "AppPassageiro/Rede/APIClient.swift",
+      "kind": "type-usage",
+      "resolved": true,
+      "manual_entry": true
+    },
+    {
+      "from": "AppPassageiro/Rede/RecargaService.swift",
+      "to": "AppPassageiro/Modelos/Cartao.swift",
+      "kind": "type-usage",
+      "resolved": true,
+      "manual_entry": true
+    },
+    {
+      "from": "AppPassageiro/Rede/RecargaService.swift",
+      "to": "AppPassageiro/Modelos/Recarga.swift",
+      "kind": "type-usage",
+      "resolved": true,
+      "manual_entry": true
+    }
+  ],
+  "manual_override_notice": "8 nos e 6 arestas Swift em AppPassageiro/ foram inseridos manualmente (sem tree-sitter) em 2026-09-26. NAO EQUIVALENTE ao grafo gerado pelo engine nativo. Ver docs/qualidade/parecer-grafo-app-passageiro.md antes de confiar neste grafo para impact analysis."
+}

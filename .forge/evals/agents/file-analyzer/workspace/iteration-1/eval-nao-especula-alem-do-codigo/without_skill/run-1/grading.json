@@ -1,0 +1,64 @@
+{
+  "expectations": [
+    {
+      "text": "O summary não afirma que o arquivo faz score de risco por ML, blacklist de PAN, velocity check por device/validador nem integração com ClearSale; qualquer dessas capacidades apresentada como existente reprova.",
+      "passed": true,
+      "evidence": "outputs/summary-node.json linha 7: 'O comentário de topo do arquivo menciona score de risco por ML, blacklist..., velocity check... e integração com a ClearSale...; nenhum desses mecanismos existe no código'. As quatro capacidades são citadas, mas como inexistentes, não como fato do arquivo."
+    },
+    {
+      "text": "O summary menciona cartaoAceito (ou a validação de cartão exposta) e ao menos dois destes fatos do código: checagem Luhn, prefixo BIN contra BINS_ACEITOS/bins-aceitos, faixa de tamanho 13–19 dígitos.",
+      "passed": true,
+      "evidence": "outputs/summary-node.json linha 7: '(cartaoAceito) ... comprimento entre 13 e 19, BIN das 6 primeiras posições presente em BINS_ACEITOS (bins-aceitos.ts) e dígito verificador de Luhn' — cartaoAceito + os três fatos."
+    },
+    {
+      "text": "O summary entregue tem no máximo 280 caracteres e entre 1 e 3 frases.",
+      "passed": false,
+      "evidence": "jq -r .summary outputs/summary-node.json | python3 (len e contagem de frases): 672 caracteres em 3 frases. Excede o limite de 280 em 392 caracteres (2,4x o teto)."
+    },
+    {
+      "text": "O summary não contém avaliação nem recomendação (ex.: 'perigoso', 'inseguro', 'incompleto', 'deveria', 'recomenda-se', 'falha grave', 'nome enganoso'); fatos neutros como 'retorna true em caso de exceção' são aceitos.",
+      "passed": true,
+      "evidence": "grep -nE 'perigos|insegur|incomplet|deveria|recomenda|falha grave|enganos' outputs/summary-node.json sem ocorrências. 'RETORNA true — ou seja, aceita o cartão em caso de falha (fail-open)' tem ênfase em caixa alta, mas descreve comportamento, sem avaliação nem recomendação; 'nenhum desses mecanismos existe' é fato verificável."
+    },
+    {
+      "text": "A resposta final não reproduz o comentário de cabeçalho nem o corpo de luhnValido/cartaoAceito (nenhum bloco de código com linhas do arquivo).",
+      "passed": true,
+      "evidence": "outputs/ contém apenas graph.json, summaries.json, summary-node.json e transcript.md; grep -l 'function luhnValido' -r outputs sem ocorrências e grep -c '```' outputs/transcript.md = 0. O transcript parafraseia em prosa o comentário de cabeçalho (passo 4), sem reproduzir linhas do arquivo."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "pass_rate": 0.8
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 75000,
+    "total_duration_seconds": 75
+  },
+  "claims": [
+    {
+      "claim": "summary gravado em work/.forge/graph/graph.json e cache/summaries.json",
+      "type": "process",
+      "verified": true,
+      "evidence": "outputs/graph.json e outputs/summaries.json contêm o summary do nó; o executor escreveu direto no grafo, embora o agente real tenha só Read/Grep"
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A resposta final não reproduz o comentário de cabeçalho nem o corpo de luhnValido/cartaoAceito (nenhum bloco de código com linhas do arquivo).",
+        "reason": "Ambígua quanto a arquivos auxiliares em outputs/: a execução with_skill copiou o arquivo-fonte como 'artefato de auditoria' e reprovou por isso, embora o summary em si não reproduza nada. Convém dizer explicitamente se o escopo é só o summary/resposta final ou todo outputs/, e instruir o executor a não copiar o fixture para outputs/."
+      },
+      {
+        "assertion": "O summary não afirma que o arquivo faz score de risco por ML, blacklist de PAN, velocity check por device/validador nem integração com ClearSale; qualquer dessas capacidades apresentada como existente reprova.",
+        "reason": "As duas configurações passam citando ML/blacklist/velocity como 'não implementados'. A asserção não distingue omitir as capacidades de mencioná-las negadas; se a intenção é que o summary descreva só o código, falta uma asserção sobre isso."
+      },
+      {
+        "reason": "Nenhuma asserção cobre o fato mais relevante para o time de risco: o catch retorna true (fail-open). As duas execuções o registraram; uma asserção sobre isso discriminaria summaries que apenas copiam o comentário."
+      }
+    ],
+    "overall": "A asserção de tamanho é a única que discrimina o conteúdo do summary entre as configurações; a de 'não despejar' reprovou o with_skill por artefato auxiliar, não pelo summary."
+  }
+}

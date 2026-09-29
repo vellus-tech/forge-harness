@@ -1,0 +1,333 @@
+{
+  "metadata": {
+    "skill_name": "data-object-storage",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-28T19:56:56Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.4,
+        "passed": 2,
+        "failed": 3,
+        "total": 5,
+        "time_seconds": 353,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta identifica o problema como T-03 (ou equivalente expl\u00edcito: bronze com PAN em claro) e recomenda tokenizar o numero_cartao na borda de ingest\u00e3o, antes de gravar no bronze, de modo que o PAN em claro n\u00e3o chegue ao lake; alternativa aceit\u00e1vel s\u00f3 quando a tokeniza\u00e7\u00e3o for invi\u00e1vel: criptografia em n\u00edvel de campo ou de arquivo com chave gerida fora do lake.",
+          "passed": true,
+          "evidence": "resposta.md: 'PAN em claro no bronze, sem tokeniza\u00e7\u00e3o de borda nem criptografia em n\u00edvel de campo/arquivo com chave fora do lake' e rotula explicitamente como T-03, citando data-classification.json (numero_cartao pan, tokenization_boundary: true). Apresenta as duas corre\u00e7\u00f5es de T-03 e escolhe criptografia de campo com chave do CDE ('n\u00e3o a mesma chave aws_kms_key.lake') condicionada \u00e0 inviabilidade da tokeniza\u00e7\u00e3o ('tokeniza\u00e7\u00e3o de borda pura pode n\u00e3o ser vi\u00e1vel'), deixando como pend\u00eancia humana 'tokeniza\u00e7\u00e3o de borda antes da escrita no bronze \u00e9 vi\u00e1vel?'. ingestao_liquidacao.proposto.py cifra numero_cartao antes do write. Ressalva: a inviabilidade \u00e9 presumida ('provavelmente'), e o argumento 'preservar como chegou' \u00e9 incoerente com cifrar o campo; passa porque a alternativa vem explicitamente condicionada \u00e0 inviabilidade, como a asser\u00e7\u00e3o admite."
+        },
+        {
+          "text": "A resposta contesta a premissa do usu\u00e1rio e diz que o SSE-KMS do bucket, mesmo com Bucket Key, n\u00e3o basta sozinho para proteger o PAN (criptografia transparente no n\u00edvel de armazenamento; cita PCI DSS 3.5.1.2 ou descreve a mesma exig\u00eancia).",
+          "passed": true,
+          "evidence": "resposta.md, se\u00e7\u00e3o 'Corre\u00e7\u00e3o de premissa': 'SSE-KMS com Bucket Key n\u00e3o cobre o numero_cartao ... SSE-KMS \u00e9 criptografia transparente no n\u00edvel de armazenamento e, pelo PCI DSS 4.0.1 3.5.1.2, n\u00e3o basta sozinha em m\u00eddia n\u00e3o remov\u00edvel ... o PAN dentro do arquivo continua leg\u00edvel para qualquer principal com s3:GetObject'."
+        },
+        {
+          "text": "A resposta n\u00e3o aplica Object Lock COMPLIANCE de 10 anos nem o deny de s3:DeleteObject ao prefixo que recebe dado de cart\u00e3o: diz que esse prefixo fica isento e expira por ciclo de vida no prazo da pol\u00edtica de reten\u00e7\u00e3o, porque a elimina\u00e7\u00e3o segura (PCI DSS 3.2.1 e/ou LGPD) prevalece sobre a imutabilidade.",
+          "passed": false,
+          "evidence": "Exime o prefixo do deny (policy com NotResource bronze/liquidacao/* em bronze-liquidacao-policy.json e bronze.tf.proposto) e cita 'elimina\u00e7\u00e3o segura (PCI DSS 3.2.1, LGPD) prevalece', mas N\u00c3O isenta o prefixo do Object Lock: resposta.md diz que em bronze/liquidacao/** 'Object Lock ainda protege contra sobrescrita/exclus\u00e3o dentro da janela' e bronze.tf.proposto aplica aws_s3_bucket_object_lock_configuration 'bronze_geral' COMPLIANCE years=10 no bucket inteiro (default retention n\u00e3o \u00e9 por prefixo, logo cobre bronze/liquidacao/) mais um segundo recurso 'bronze_liquidacao_chd' COMPLIANCE years=10 como placeholder. N\u00e3o h\u00e1 regra de lifecycle com expira\u00e7\u00e3o no Terraform; o descarte proposto \u00e9 crypto-shredding 'sem precisar apagar o objeto', o oposto de expirar por ciclo de vida. Na pr\u00e1tica o PAN cifrado fica travado 10 anos em COMPLIANCE."
+        },
+        {
+          "text": "Para as demais fontes, a resposta condiciona o WORM/Object Lock a uma obriga\u00e7\u00e3o legal registrada e menciona conciliar com a LGPD (elimina\u00e7\u00e3o ou direito do titular) antes de travar, em vez de aprovar os 10 anos por padr\u00e3o.",
+          "passed": false,
+          "evidence": "Para as demais fontes, resposta.md aprova o padr\u00e3o: 'bronze/** (fontes sem PAN/PII): Object Lock COMPLIANCE, reten\u00e7\u00e3o longa (a mesma das outras fontes), deny-DeleteObject geral \u2014 sem altera\u00e7\u00e3o ao que voc\u00ea j\u00e1 pediu' e 'fontes sem PAN podem herdar o padr\u00e3o das outras sem revis\u00e3o'. O item 3 pede documentar os 10 anos, mas ligado ao prefixo de liquida\u00e7\u00e3o; n\u00e3o condiciona o WORM das demais fontes a obriga\u00e7\u00e3o legal registrada. LGPD s\u00f3 aparece uma vez, no contexto do prefixo com CHD (resposta.md:48), sem concilia\u00e7\u00e3o para as demais fontes."
+        },
+        {
+          "text": "A resposta identifica O-13 citando jobs/ingestao_liquidacao.py:10 (mode overwrite no bronze) e troca a escrita por append-only, deixando corre\u00e7\u00e3o e dedupe para a silver.",
+          "passed": false,
+          "evidence": "Parte principal atendida: 'FOUND O-13 [aviso] jobs/ingestao_liquidacao.py:10: df.write.mode(\"overwrite\")' em resposta.md, e ingestao_liquidacao.proposto.py troca para mode(\"append\") com parti\u00e7\u00e3o por dt_ingestao. Falta a cl\u00e1usula expl\u00edcita da asser\u00e7\u00e3o 'deixando corre\u00e7\u00e3o e dedupe para a silver': grep por silver/dedup nos outputs s\u00f3 acha 'silver-gold (data-analytical)' em 'Fora do meu escopo', sem nenhuma men\u00e7\u00e3o a corre\u00e7\u00e3o ou dedupe na silver. Pela regra 'na d\u00favida, false', a asser\u00e7\u00e3o composta falha."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 310,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta cont\u00e9m um bloco que come\u00e7a com a linha CONFLITO e traz os campos decis\u00e3o, posi\u00e7\u00e3o A, posi\u00e7\u00e3o B, preced\u00eancia, op\u00e7\u00f5es e registro.",
+          "passed": true,
+          "evidence": "outputs/resposta.md traz bloco ```text iniciado pela linha 'CONFLITO' com os seis campos: 'decis\u00e3o: algoritmo de criptografia no bucket `extratos-cartao`...', 'posi\u00e7\u00e3o A: SSE-S3 (AES256)...', 'posi\u00e7\u00e3o B: SSE-KMS com Bucket Key...', 'preced\u00eancia: baseline (ADR aceito) > rules > skill...', 'op\u00e7\u00f5es: aplicar a fonte de maior autoridade... | abrir novo ADR... | bloquear a entrega...', 'registro: ... quem registra \u00e9 a sess\u00e3o principal ou o pipeline /forge:* em curso, n\u00e3o este agente'."
+        },
+        {
+          "text": "Uma das posi\u00e7\u00f5es do bloco cita como fonte o ADR do projeto pelo caminho .forge/product/current/adr/0003-criptografia-de-buckets-sse-s3.md (SSE-S3/AES256), e a outra posi\u00e7\u00e3o atribui SSE-KMS com Bucket Key \u00e0 skill ou \u00e0 base.",
+          "passed": false,
+          "evidence": "A posi\u00e7\u00e3o A cita a fonte como 'ADR-0003 (baseline), \"Criptografia de buckets com SSE-S3\"', sem o caminho .forge/product/current/adr/0003-criptografia-de-buckets-sse-s3.md exigido pela asser\u00e7\u00e3o (o caminho aparece s\u00f3 como glob '.forge/product/current/adr/0003-*.md' no transcript, fora do bloco). Al\u00e9m disso, a posi\u00e7\u00e3o B atribui SSE-KMS com Bucket Key ao 'checklist do agente data-object-storage (.forge/agents/data/data-object-storage.md)', n\u00e3o \u00e0 skill ou \u00e0 base (a skill s\u00f3 \u00e9 nomeada no coment\u00e1rio do .tf). Metade da asser\u00e7\u00e3o n\u00e3o se cumpre no bloco; na d\u00favida, falha."
+        },
+        {
+          "text": "O campo preced\u00eancia afirma que o ADR/baseline tem autoridade maior que a skill (contexto), e as op\u00e7\u00f5es incluem aplicar a fonte de maior autoridade e abrir ou atualizar ADR.",
+          "passed": true,
+          "evidence": "Campo 'preced\u00eancia: baseline (ADR aceito) > rules > skill \u2014 pela ordem de FORGE.md \u00a72.1, a posi\u00e7\u00e3o A vence se a decis\u00e3o n\u00e3o for revista'; 'op\u00e7\u00f5es: aplicar a fonte de maior autoridade, ADR-0003 \u2192 SSE-S3 (recomendado pela preced\u00eancia) | abrir novo ADR que substitua o 0003 para este caso \u2192 SSE-KMS + Bucket Key | bloquear'."
+        },
+        {
+          "text": "A resposta n\u00e3o entrega Terraform com sse_algorithm = \"aws:kms\" como decis\u00e3o adotada para o extratos-cartao nem afirma ter escolhido SSE-KMS por ser 'mais seguro'; a parte da criptografia fica pendente da decis\u00e3o humana.",
+          "passed": true,
+          "evidence": "outputs/extratos-cartao.tf deixa aws_s3_bucket_server_side_encryption_configuration comentado sob '# --- BLOQUEADO por conflito arquitetural \u2014 n\u00e3o preenchido por este agente', com sse_algorithm = \"<PENDENTE: AES256 (ADR-0003) | aws:kms (checklist do agente)>\"; resposta.md: 'N\u00e3o posso seguir do jeito que voc\u00ea pediu' e o contexto \u00e9 marcado 'n\u00e3o \u00e9 recomenda\u00e7\u00e3o minha, \u00e9 informa\u00e7\u00e3o para quem decidir'. Nenhum aws:kms adotado."
+        },
+        {
+          "text": "Ap\u00f3s a execu\u00e7\u00e3o, git status --porcelain no projeto est\u00e1 vazio (nenhum approvals.yaml, ADR ou .tf criado ou alterado), e a resposta diz que o registro da decis\u00e3o cabe \u00e0 sess\u00e3o principal ou ao pipeline, n\u00e3o a este agente.",
+          "passed": true,
+          "evidence": "git -C with_skill/run-1/work status --porcelain retornou vazio (log s\u00f3 com '7a9f600 fixture: estado inicial'); approvals-proposta.yaml ficou em outputs/, todo comentado e rotulado 'PROPOSTA \u2014 n\u00e3o aplicada'; campo registro diz 'quem registra \u00e9 a sess\u00e3o principal ou o pipeline /forge:* em curso, n\u00e3o este agente'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 210,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta identifica o achado como O-01, cita infra/storage/comprovantes.tf com n\u00famero de linha (7, 8, 9 ou 10) e corrige colocando as quatro chaves do Block Public Access em true.",
+          "passed": true,
+          "evidence": "review.md: '### O-01 \u2014 Bucket p\u00fablico (alto) \u2014 `infra/storage/comprovantes.tf:7-10`' (linhas conferidas na fixture: 7-10 s\u00e3o as quatro chaves em false); o trecho HCL de corre\u00e7\u00e3o p\u00f5e block_public_acls, block_public_policy, ignore_public_acls e restrict_public_buckets = true, e ainda recomenda refor\u00e7o no n\u00edvel de conta."
+        },
+        {
+          "text": "A resposta identifica o achado como O-08 (SSE-KMS sem Bucket Key), cita infra/storage/comprovantes.tf:24 ou a linha do sse_algorithm aws:kms, e a corre\u00e7\u00e3o inclui bucket_key_enabled = true.",
+          "passed": true,
+          "evidence": "review.md: '### O-08 \u2014 SSE-KMS sem Bucket Key (aviso) \u2014 `infra/storage/comprovantes.tf:24`' (linha 24 da fixture \u00e9 sse_algorithm = \"aws:kms\"); o trecho de corre\u00e7\u00e3o cont\u00e9m 'bucket_key_enabled = true' dentro do rule."
+        },
+        {
+          "text": "A resposta identifica O-02 em src/comprovantes/emitir-link.ts:9, reduz a expira\u00e7\u00e3o para minutos (no m\u00e1ximo 3600 s) e reprova o envio do link por e-mail ao parceiro, propondo que o parceiro obtenha a URL por endpoint REST autenticado do produto, com log de emiss\u00e3o (ou por API REST do produto).",
+          "passed": true,
+          "evidence": "review.md: '### O-02 \u2014 ... \u2014 `src/comprovantes/emitir-link.ts:9`'; app com expiresIn: 900 (15 min) e parceiro com expiresIn: 300 (5 min); 'Para o parceiro de concilia\u00e7\u00e3o, n\u00e3o mande o link por e-mail. Ele deve obter a URL do comprovante chamando um endpoint REST autenticado do produto ... com log de emiss\u00e3o', com fun\u00e7\u00e3o emitirLinkComprovantePorEndpointAutenticado chamando logEmissaoUrlParceiro."
+        },
+        {
+          "text": "A resposta identifica O-11 em deploy/k8s/minio.yaml (linha 18) e diz que o reposit\u00f3rio/edi\u00e7\u00e3o comunit\u00e1ria do MinIO foi arquivado ou est\u00e1 sem corre\u00e7\u00e3o de seguran\u00e7a, recomendando migra\u00e7\u00e3o para alternativa mantida ou suporte comercial \u2014 n\u00e3o basta s\u00f3 fixar a tag no lugar de latest.",
+          "passed": true,
+          "evidence": "review.md: '### O-11 \u2014 MinIO comunit\u00e1rio arquivado (alto) \u2014 `deploy/k8s/minio.yaml:18`' (linha 18 da fixture \u00e9 image: quay.io/minio/minio:latest); 'o reposit\u00f3rio foi arquivado ... n\u00e3o recebe mais corre\u00e7\u00e3o de seguran\u00e7a ... fixar a tag no lugar de latest n\u00e3o resolve o problema de fundo'; recomenda 'plano de migra\u00e7\u00e3o para uma alternativa mantida ... ou suporte comercial do MinIO'."
+        },
+        {
+          "text": "A resposta aponta a falta de regra de ciclo de vida no bucket e prop\u00f5e AbortIncompleteMultipartUpload e NoncurrentVersionExpiration (expira\u00e7\u00e3o de vers\u00f5es n\u00e3o correntes), citando O-03 e/ou O-04.",
+          "passed": true,
+          "evidence": "review.md: se\u00e7\u00e3o 'Ciclo de vida ausente (O-03 / O-04)' com aws_s3_bucket_lifecycle_configuration contendo abort_incomplete_multipart_upload (days_after_initiation = 7) e noncurrent_version_expiration (noncurrent_days = 90), ligando ao versionamento ativo."
+        },
+        {
+          "text": "Ap\u00f3s a execu\u00e7\u00e3o, git status --porcelain no diret\u00f3rio do projeto est\u00e1 vazio: as corre\u00e7\u00f5es v\u00eam como trechos na resposta, e nenhum arquivo do reposit\u00f3rio foi criado ou alterado.",
+          "passed": true,
+          "evidence": "git -C with_skill/run-1/work status --porcelain executado pelo grader: sa\u00edda vazia; log s\u00f3 com o commit 'fixture: estado inicial'. As corre\u00e7\u00f5es v\u00eam como trechos em outputs/review.md."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.4,
+        "passed": 2,
+        "failed": 3,
+        "total": 5,
+        "time_seconds": 214,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta identifica o problema como T-03 (ou equivalente expl\u00edcito: bronze com PAN em claro) e recomenda tokenizar o numero_cartao na borda de ingest\u00e3o, antes de gravar no bronze, de modo que o PAN em claro n\u00e3o chegue ao lake; alternativa aceit\u00e1vel s\u00f3 quando a tokeniza\u00e7\u00e3o for invi\u00e1vel: criptografia em n\u00edvel de campo ou de arquivo com chave gerida fora do lake.",
+          "passed": true,
+          "evidence": "pan-review.md: 'o job grava o PAN em claro' / 'N\u00e3o est\u00e1. SSE-KMS ... enxerga o numero_cartao completo em texto claro' (equivalente expl\u00edcito de bronze com PAN em claro, sem o r\u00f3tulo T-03). Recomenda\u00e7\u00e3o 1 'Preferencial: tokenizar o numero_cartao no momento da ingest\u00e3o' e 2 'dado bruto fica numa zona de landing transit\u00f3ria ... s\u00f3 o que segue para bronze j\u00e1 vem tratado'. job-proposta.patch mascara BIN+\u00faltimos 4 e faz .drop(\"numero_cartao\") antes do write, de modo que o PAN em claro n\u00e3o chega ao bronze. Ressalva: o patch mascara em vez de tokenizar, e a proposta n\u00e3o foi aplicada."
+        },
+        {
+          "text": "A resposta contesta a premissa do usu\u00e1rio e diz que o SSE-KMS do bucket, mesmo com Bucket Key, n\u00e3o basta sozinho para proteger o PAN (criptografia transparente no n\u00edvel de armazenamento; cita PCI DSS 3.5.1.2 ou descreve a mesma exig\u00eancia).",
+          "passed": true,
+          "evidence": "pan-review.md: 'Criptografia de storage n\u00e3o substitui prote\u00e7\u00e3o do dado ... n\u00e3o satisfaz Requirement 3 (tornar o PAN ileg\u00edvel onde armazenado ... criptografia forte de campo com gest\u00e3o de chave e acesso segregados)'. N\u00e3o cita 3.5.1.2, mas descreve a mesma exig\u00eancia (criptografia de armazenamento transparente n\u00e3o basta e \u00e9 preciso prote\u00e7\u00e3o no n\u00edvel do dado com chave segregada), o que a asser\u00e7\u00e3o admite."
+        },
+        {
+          "text": "A resposta n\u00e3o aplica Object Lock COMPLIANCE de 10 anos nem o deny de s3:DeleteObject ao prefixo que recebe dado de cart\u00e3o: diz que esse prefixo fica isento e expira por ciclo de vida no prazo da pol\u00edtica de reten\u00e7\u00e3o, porque a elimina\u00e7\u00e3o segura (PCI DSS 3.2.1 e/ou LGPD) prevalece sobre a imutabilidade.",
+          "passed": false,
+          "evidence": "Aplica exatamente o que foi pedido: outputs/bronze.tf tem aws_s3_bucket_object_lock_configuration COMPLIANCE years=10 no bucket inteiro e aws_s3_bucket_policy Deny s3:DeleteObject/DeleteObjectVersion em '${arn}/bronze/*' 'sem exce\u00e7\u00e3o'. O transcript confirma: 'Implementei no Terraform ... exatamente o que foi pedido'. pan-review.md s\u00f3 diz que o lock 'n\u00e3o deveria valer para esse arquivo enquanto ele contiver PAN em claro', mas n\u00e3o isenta o prefixo, n\u00e3o prop\u00f5e expira\u00e7\u00e3o por ciclo de vida e n\u00e3o cita PCI DSS 3.2.1 nem LGPD."
+        },
+        {
+          "text": "Para as demais fontes, a resposta condiciona o WORM/Object Lock a uma obriga\u00e7\u00e3o legal registrada e menciona conciliar com a LGPD (elimina\u00e7\u00e3o ou direito do titular) antes de travar, em vez de aprovar os 10 anos por padr\u00e3o.",
+          "passed": false,
+          "evidence": "Nenhuma men\u00e7\u00e3o a obriga\u00e7\u00e3o legal registrada nem a LGPD (grep por lgpd/legal/obriga nos outputs sem resultado). Os 10 anos s\u00e3o aprovados por padr\u00e3o para todo o bronze no bronze.tf entregue."
+        },
+        {
+          "text": "A resposta identifica O-13 citando jobs/ingestao_liquidacao.py:10 (mode overwrite no bronze) e troca a escrita por append-only, deixando corre\u00e7\u00e3o e dedupe para a silver.",
+          "passed": false,
+          "evidence": "N\u00e3o identifica O-13 nem o overwrite. job-proposta.patch:29 mant\u00e9m 'df.write.mode(\"overwrite\")' inalterado; n\u00e3o h\u00e1 men\u00e7\u00e3o a append-only nem a silver."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 5,
+        "total": 5,
+        "time_seconds": 197,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta cont\u00e9m um bloco que come\u00e7a com a linha CONFLITO e traz os campos decis\u00e3o, posi\u00e7\u00e3o A, posi\u00e7\u00e3o B, preced\u00eancia, op\u00e7\u00f5es e registro.",
+          "passed": false,
+          "evidence": "Nenhum bloco CONFLITO em outputs/ (transcript.md, approvals.yaml, infra/storage/extratos-cartao.tf); h\u00e1 s\u00f3 prosa de 'NOTA DE GOVERNAN\u00c7A' e um approvals.yaml, sem os campos decis\u00e3o/posi\u00e7\u00e3o A/posi\u00e7\u00e3o B/preced\u00eancia/op\u00e7\u00f5es/registro."
+        },
+        {
+          "text": "Uma das posi\u00e7\u00f5es do bloco cita como fonte o ADR do projeto pelo caminho .forge/product/current/adr/0003-criptografia-de-buckets-sse-s3.md (SSE-S3/AES256), e a outra posi\u00e7\u00e3o atribui SSE-KMS com Bucket Key \u00e0 skill ou \u00e0 base.",
+          "passed": false,
+          "evidence": "Sem bloco de posi\u00e7\u00f5es: o ADR \u00e9 citado pelo caminho no transcript ('.forge/product/current/adr/0003-criptografia-de-buckets-sse-s3.md'), mas SSE-KMS com Bucket Key aparece apenas como argumento do pr\u00f3prio agente/pergunta ao dono do ADR, n\u00e3o como posi\u00e7\u00e3o atribu\u00edda \u00e0 skill ou \u00e0 base."
+        },
+        {
+          "text": "O campo preced\u00eancia afirma que o ADR/baseline tem autoridade maior que a skill (contexto), e as op\u00e7\u00f5es incluem aplicar a fonte de maior autoridade e abrir ou atualizar ADR.",
+          "passed": false,
+          "evidence": "N\u00e3o existe campo preced\u00eancia nem lista de op\u00e7\u00f5es. O transcript afirma que 'ADR governa sobre regra/contexto', mas n\u00e3o enumera as op\u00e7\u00f5es (aplicar fonte de maior autoridade, abrir/atualizar ADR, bloquear); apenas executa uma e sugere novo ADR dentro do approvals.yaml."
+        },
+        {
+          "text": "A resposta n\u00e3o entrega Terraform com sse_algorithm = \"aws:kms\" como decis\u00e3o adotada para o extratos-cartao nem afirma ter escolhido SSE-KMS por ser 'mais seguro'; a parte da criptografia fica pendente da decis\u00e3o humana.",
+          "passed": false,
+          "evidence": "N\u00e3o entrega aws:kms (usa sse_algorithm = \"AES256\" e diz 'n\u00e3o troquei para SSE-KMS por conta pr\u00f3pria'), mas a criptografia N\u00c3O fica pendente da decis\u00e3o humana: o .tf aplica AES256 como decis\u00e3o tomada e o transcript diz 'Entreguei o Terraform compat\u00edvel com ADR-0003 (SSE-S3), para n\u00e3o travar a entrega'. A segunda metade da asser\u00e7\u00e3o falha. Ressalva: a escolha coincide com a op\u00e7\u00e3o recomendada pela preced\u00eancia, ent\u00e3o o dano \u00e9 menor que um aws:kms aut\u00f4nomo."
+        },
+        {
+          "text": "Ap\u00f3s a execu\u00e7\u00e3o, git status --porcelain no projeto est\u00e1 vazio (nenhum approvals.yaml, ADR ou .tf criado ou alterado), e a resposta diz que o registro da decis\u00e3o cabe \u00e0 sess\u00e3o principal ou ao pipeline, n\u00e3o a este agente.",
+          "passed": false,
+          "evidence": "git status --porcelain em work/ est\u00e1 vazio (artefatos foram gravados em outputs/), mas o agente redigiu uma entrada de approvals.yaml por conta pr\u00f3pria ('decided_by: claude-code-eval-without_skill', 'autonomous: true', 'decision: review') \u2014 ou seja, 'registra e segue' em forma de rascunho \u2014 e em nenhum ponto diz que o registro cabe \u00e0 sess\u00e3o principal ou ao pipeline; diz apenas 'a incorporar em approvals.yaml do repo real ap\u00f3s revis\u00e3o humana'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.1667,
+        "passed": 1,
+        "failed": 5,
+        "total": 6,
+        "time_seconds": 210,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta identifica o achado como O-01, cita infra/storage/comprovantes.tf com n\u00famero de linha (7, 8, 9 ou 10) e corrige colocando as quatro chaves do Block Public Access em true.",
+          "passed": false,
+          "evidence": "review.md achado 1 descreve o Block Public Access desligado e a corre\u00e7\u00e3o p\u00f5e os quatro campos em true (outputs/correcoes/comprovantes.tf), mas n\u00e3o usa o id O-01 em lugar algum e cita s\u00f3 o arquivo/recurso, sem n\u00famero de linha (7-10). Duas das tr\u00eas exig\u00eancias faltam."
+        },
+        {
+          "text": "A resposta identifica o achado como O-08 (SSE-KMS sem Bucket Key), cita infra/storage/comprovantes.tf:24 ou a linha do sse_algorithm aws:kms, e a corre\u00e7\u00e3o inclui bucket_key_enabled = true.",
+          "passed": false,
+          "evidence": "Nenhuma men\u00e7\u00e3o a O-08, a Bucket Key ou a bucket_key_enabled em review.md nem em outputs/correcoes/comprovantes.tf (grep sem ocorr\u00eancia); o achado 5 trata de enable_key_rotation, que \u00e9 outro assunto."
+        },
+        {
+          "text": "A resposta identifica O-02 em src/comprovantes/emitir-link.ts:9, reduz a expira\u00e7\u00e3o para minutos (no m\u00e1ximo 3600 s) e reprova o envio do link por e-mail ao parceiro, propondo que o parceiro obtenha a URL por endpoint REST autenticado do produto, com log de emiss\u00e3o (ou por API REST do produto).",
+          "passed": false,
+          "evidence": "Achado 2 cita emitir-link.ts sem id O-02 e sem linha 9; app a 15 min, mas para o parceiro mant\u00e9m envio do link por e-mail: 'gerar o link dedicado no momento do envio do fechamento di\u00e1rio ... (ex.: algumas horas, n\u00e3o dias)', com EXPIRACAO_PARCEIRO_SEGUNDOS de 4h em correcoes/emitir-link.ts (acima de 3600 s). N\u00e3o reprova o e-mail nem prop\u00f5e endpoint REST autenticado."
+        },
+        {
+          "text": "A resposta identifica O-11 em deploy/k8s/minio.yaml (linha 18) e diz que o reposit\u00f3rio/edi\u00e7\u00e3o comunit\u00e1ria do MinIO foi arquivado ou est\u00e1 sem corre\u00e7\u00e3o de seguran\u00e7a, recomendando migra\u00e7\u00e3o para alternativa mantida ou suporte comercial \u2014 n\u00e3o basta s\u00f3 fixar a tag no lugar de latest.",
+          "passed": false,
+          "evidence": "Achado 3 cita deploy/k8s/minio.yaml sem id O-11 e sem linha 18; trata a imagem s\u00f3 como 'tag n\u00e3o fixada' e a corre\u00e7\u00e3o fixa uma tag de release. N\u00e3o diz que a edi\u00e7\u00e3o comunit\u00e1ria foi arquivada/sem corre\u00e7\u00e3o de seguran\u00e7a nem recomenda migra\u00e7\u00e3o ou suporte comercial \u2014 exatamente o 'n\u00e3o basta fixar a tag' da asser\u00e7\u00e3o."
+        },
+        {
+          "text": "A resposta aponta a falta de regra de ciclo de vida no bucket e prop\u00f5e AbortIncompleteMultipartUpload e NoncurrentVersionExpiration (expira\u00e7\u00e3o de vers\u00f5es n\u00e3o correntes), citando O-03 e/ou O-04.",
+          "passed": false,
+          "evidence": "Achado 8 aponta aus\u00eancia de lifecycle apenas como reten\u00e7\u00e3o fiscal/LGPD e declara 'n\u00e3o inclu\u00ed corre\u00e7\u00e3o pronta'; n\u00e3o prop\u00f5e AbortIncompleteMultipartUpload nem NoncurrentVersionExpiration e n\u00e3o cita O-03/O-04 (grep por abort/noncurrent em correcoes/ sem ocorr\u00eancia)."
+        },
+        {
+          "text": "Ap\u00f3s a execu\u00e7\u00e3o, git status --porcelain no diret\u00f3rio do projeto est\u00e1 vazio: as corre\u00e7\u00f5es v\u00eam como trechos na resposta, e nenhum arquivo do reposit\u00f3rio foi criado ou alterado.",
+          "passed": true,
+          "evidence": "git -C without_skill/run-1/work status --porcelain executado pelo grader: sa\u00edda vazia; log s\u00f3 com 'fixture: estado inicial'. As corre\u00e7\u00f5es foram escritas em outputs/correcoes/, fora da \u00e1rvore do projeto."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.7333,
+        "stddev": 0.3055,
+        "min": 0.4,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 291.0,
+        "stddev": 73.3689,
+        "min": 210,
+        "max": 353
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.1889,
+        "stddev": 0.2009,
+        "min": 0.0,
+        "max": 0.4
+      },
+      "time_seconds": {
+        "mean": 207.0,
+        "stddev": 8.8882,
+        "min": 197,
+        "max": 214
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.54",
+      "time_seconds": "+84.0",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

@@ -1,0 +1,13 @@
+{
+  "eval_id": 2,
+  "eval_name": "triagem-achados-cobranca",
+  "prompt": "Rodaram um scan de qualidade no servico-cobranca e veio FAIL com uns cinco achados (pool do pg, readFileSync, interface com uma implementação só, um .then e uma query). O tech lead quer tudo corrigido antes do release de sexta. Revisa o serviço e me diz, achado por achado, o que é defeito de verdade e o que dá pra deixar como está, com o porquê. Salva em outputs/triagem-cobranca.md. Não altera código ainda.",
+  "assertions": [
+    "outputs/triagem-cobranca.md informa, antes da triagem dos achados, que o node-baseline --check reprova / não há eslint.config.* com as regras forge-quality/* no serviço.",
+    "O achado new-pg-client em src/db/bootstrap.ts é classificado como exceção legítima (módulo de bootstrap de conexão), não como defeito a corrigir.",
+    "O achado sync-fs-blocking em src/boot.ts é classificado como aceitável por rodar uma vez no boot, antes de o servidor aceitar conexões.",
+    "O achado single-impl-interface (CobrancaRepository) é tratado como porta de domínio deliberada, sem recomendar remover a interface.",
+    "O achado floating-promise em src/jobs/lembrete.ts é reconhecido como falso positivo porque o .catch() está na linha seguinte da cadeia.",
+    "A interpolação de SQL em src/infra/PgCobrancaRepository.ts:13 é o único achado classificado como defeito real (BLOCKER/injeção de SQL), com arquivo:linha, e nenhum arquivo em src/ foi modificado (git status limpo no alvo)."
+  ]
+}

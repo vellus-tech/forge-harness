@@ -1,0 +1,13 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Legacy.Bilhetagem", "src\Legacy.Bilhetagem\Legacy.Bilhetagem.csproj", "{11111111-1111-1111-1111-111111111111}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Validacao.Domain", "src\Validacao\Validacao.Domain\Validacao.Domain.csproj", "{22222222-2222-2222-2222-222222222222}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Validacao.Application", "src\Validacao\Validacao.Application\Validacao.Application.csproj", "{33333333-3333-3333-3333-333333333333}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Validacao.Infrastructure", "src\Validacao\Validacao.Infrastructure\Validacao.Infrastructure.csproj", "{44444444-4444-4444-4444-444444444444}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Validacao.Api", "src\Validacao\Validacao.Api\Validacao.Api.csproj", "{55555555-5555-5555-5555-555555555555}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Validacao.Contracts", "src\Validacao\Validacao.Contracts\Validacao.Contracts.csproj", "{66666666-6666-6666-6666-666666666666}"
+EndProject

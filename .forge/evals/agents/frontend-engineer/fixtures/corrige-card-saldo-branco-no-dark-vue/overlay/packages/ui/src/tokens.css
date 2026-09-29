@@ -1,0 +1,23 @@
+:root {
+  --bg-brand: #0051e6;
+  --surface-page: #f5f7fa;
+  --surface-card: #ffffff;
+  --surface-raised: #ffffff;
+  --text-primary: #111827;
+  --text-muted: #4b5563;
+  --border-subtle: #e5e7eb;
+  --space-2: 8px;
+  --space-4: 16px;
+  --radius-md: 8px;
+  --font-size-sm: 0.875rem;
+  --font-size-lg: 1.25rem;
+}
+
+[data-theme='dark'] {
+  --surface-page: #0b1220;
+  --surface-card: #111a2e;
+  --surface-raised: #17223a;
+  --text-primary: #f3f4f6;
+  --text-muted: #9ca3af;
+  --border-subtle: #1f2a44;
+}

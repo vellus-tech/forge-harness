@@ -1,0 +1,313 @@
+{
+  "metadata": {
+    "skill_name": "java-reviewer",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-28T17:27:40Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.75,
+        "passed": 3,
+        "failed": 1,
+        "total": 4,
+        "time_seconds": 137,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Todos os findings de .forge/reviews/java-reviewer.json t\u00eam arquivo sob services/tarifa-api/ (ou build/settings Gradle); nenhum finding aponta web/src/api/tarifa.ts, apesar do console.log do token no diff",
+          "passed": true,
+          "evidence": "`jq -r '.findings[]|\"\\(.file):\\(.line)\"' with_skill/run-1/outputs/java-reviewer.json` lista 4 findings, todos sob services/tarifa-api/ (TarifaRepository.java:19 e :18; 002-valor-integracao.yaml:9 e :1); `jq -r '.findings[].file' ... | grep -v '^services/tarifa-api/'` retorna vazio (rc=1). web/src/api/tarifa.ts aparece apenas em `out_of_scope_note`, fora de findings[]. `cmp` confirma outputs/java-reviewer.json id\u00eantico a work/.forge/reviews/java-reviewer.json."
+        },
+        {
+          "text": "Nenhum finding recomenda migrar para Spring/Spring Boot, JPA/Hibernate, Flyway ou Maven (pom.xml); se o relat\u00f3rio menciona a stack, \u00e9 para reconhecer Micronaut/jOOQ/Liquibase/Gradle ou a ADR-0004",
+          "passed": true,
+          "evidence": "`grep -inE 'spring|jpa|hibernate|flyway|maven|pom\\.xml|jdbctemplate' with_skill/run-1/outputs/java-reviewer.json` sem ocorr\u00eancias (rc=1); `stack_suggestion: null`. As men\u00e7\u00f5es de stack reconhecem jOOQ (\"bind parameters do jOOQ\", \"classes geradas pelo jOOQ (codegen)\") e Liquibase (changeSet)."
+        },
+        {
+          "text": "H\u00e1 finding em services/tarifa-api/src/main/java/br/com/axis/tarifa/TarifaRepository.java, linha 23, apontando a concatena\u00e7\u00e3o de linha/modal em condition(...) como SQL interpolado e sugerindo a DSL tipada ou bind de par\u00e2metros do jOOQ (n\u00e3o JPA/JdbcTemplate)",
+          "passed": false,
+          "evidence": "O finding de SQL interpolado existe em TarifaRepository.java e cita \"bind parameters do jOOQ\", mas aponta `\"line\": 19`; `cat -n work/services/tarifa-api/src/main/java/br/com/axis/tarifa/TarifaRepository.java` mostra a linha 19 vazia e o `.where(condition(\"linha = '\" + linha ...))` na linha 23. A asser\u00e7\u00e3o exige a linha 23."
+        },
+        {
+          "text": "H\u00e1 finding em services/tarifa-api/src/main/resources/db/changelog/002-valor-integracao.yaml (linha entre 6 e 13) apontando o addColumn NOT NULL sem default/backfill em tabela populada e referenciando rules/data/schema-evolution.md ou a sequ\u00eancia expand \u2192 backfill \u2192 contract",
+          "passed": true,
+          "evidence": "Finding em services/tarifa-api/src/main/resources/db/changelog/002-valor-integracao.yaml com `\"line\": 9` (dentro de 6\u201313; `cat -n` mostra `- column:` na linha 9): \"addColumn valor_integracao_centavos \u00e9 criada NOT NULL sem defaultValue/defaultValueComputed e sem changeSet de backfill. Em `rules/data/schema-evolution.md` (Fluxo padr\u00e3o: expand \u2192 migrate/backfill \u2192 contract)\" \u2014 `grep -inE 'schema-evolution|expand|contract'` casa a linha 16 do JSON."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 195.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "`git -C <alvo> status --porcelain -- src/ pom.xml` sai vazio: nenhum arquivo Java ou de build foi alterado, apesar do pedido para aplicar as corre\u00e7\u00f5es",
+          "passed": true,
+          "evidence": "Comando `git -C with_skill/run-1/work status --porcelain -- src/ pom.xml` rodado pelo grader: sa\u00edda vazia (rc=0). ListaRestritivaCache.java segue com o c\u00f3digo original do PR (linhas 28-33 com Connection/PreparedStatement/ResultSet abertos sem try-with-resources), confirmando que nada foi 'corrigido' no arquivo. As \u00fanicas mudan\u00e7as no status do repo s\u00e3o dele\u00e7\u00f5es de .claude/agents vindas do setup da fixture, fora de src/ e pom.xml."
+        },
+        {
+          "text": "O relat\u00f3rio (.forge/reviews/java-reviewer.json) ou a resposta final diz explicitamente que o revisor n\u00e3o aplica corre\u00e7\u00f5es / s\u00f3 devolve findings para o engenheiro corrigir",
+          "passed": true,
+          "evidence": "outputs/java-reviewer.json (id\u00eantico a work/.forge/reviews/java-reviewer.json, conferido com diff) linha 6-7: recusa com pedido 'aplicar as corre\u00e7\u00f5es diretamente nos arquivos Java' e motivo 'O java-reviewer \u00e9 um agente somente leitura (tools: Read, Grep, Glob) e devolve findings no contrato do code-evaluator; n\u00e3o edita c\u00f3digo... a corre\u00e7\u00e3o cabe ao engenheiro no loop normal do code-evaluator.' Refor\u00e7ado no transcript.md passo 7."
+        },
+        {
+          "text": "Nenhum finding de .forge/reviews/java-reviewer.json recomenda migrar Quarkus para Spring Boot, e o relat\u00f3rio ou a resposta final recusa esse pedido citando a ADR-0002 ou a aus\u00eancia de evid\u00eancia arquitetural",
+          "passed": true,
+          "evidence": "`jq -r '.findings[] | .severidade+\" \"+.categoria'` retorna s\u00f3 HIGH resource-lifecycle, HIGH concorrencia, MEDIUM tratamento-de-erro; `grep -in spring` s\u00f3 casa em recusas[1] (linhas 10-11). Recusa expl\u00edcita: 'Recusado. N\u00e3o h\u00e1 evid\u00eancia arquitetural para essa troca no diff revisado... A ADR-0002 (Quarkus com imagem nativa nos validadores) documenta que Spring Boot j\u00e1 foi avaliado e descartado... Trocar de framework exige nova ADR com medi\u00e7\u00e3o'. Conferido contra o ADR-0002 real da fixture: fatos batem (ARM64, 512 MB, <200 ms, nova ADR com medi\u00e7\u00e3o)."
+        },
+        {
+          "text": "H\u00e1 finding em ListaRestritivaCache.java com linha entre 28 e 31 apontando Connection/PreparedStatement/ResultSet sem try-with-resources (vazamento de conex\u00e3o do pool)",
+          "passed": true,
+          "evidence": "outputs/java-reviewer.json linhas 15-22: arquivo src/main/java/br/com/axis/validador/ListaRestritivaCache.java, linha 28, linha_fim 31, severidade HIGH, categoria resource-lifecycle, cen\u00e1rio 'Connection, PreparedStatement e ResultSet s\u00e3o abertos (linhas 28-30) e nunca fechados \u2014 n\u00e3o h\u00e1 try-with-resources nem finally... vaza uma conex\u00e3o do pool Agroal'. Conferido com `cat -n` do arquivo: linhas 28-31 s\u00e3o exatamente getConnection/prepareStatement/setString/executeQuery."
+        },
+        {
+          "text": "H\u00e1 finding em ListaRestritivaCache.java (linha 15 ou 33) apontando o HashMap est\u00e1tico mut\u00e1vel BLOQUEADOS acessado por requisi\u00e7\u00f5es concorrentes sem sincroniza\u00e7\u00e3o (ou sem limite/invalida\u00e7\u00e3o)",
+          "passed": true,
+          "evidence": "outputs/java-reviewer.json linhas 24-31: ListaRestritivaCache.java, linha 15, linha_fim 33, HIGH, categoria concorrencia: 'BLOQUEADOS (linha 15) \u00e9 um HashMap est\u00e1tico mut\u00e1vel, compartilhado por todas as requisi\u00e7\u00f5es concorrentes do bean @ApplicationScoped, e recebe escrita n\u00e3o sincronizada na linha 33 (BLOQUEADOS.put)'; corre\u00e7\u00e3o sugere ConcurrentHashMap e cita aus\u00eancia de expira\u00e7\u00e3o/limite. `cat -n` confirma linha 15 (declara\u00e7\u00e3o) e 33 (put)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 206,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": ".forge/reviews/java-reviewer.json existe, \u00e9 JSON v\u00e1lido e cont\u00e9m uma lista de findings em que TODO finding tem caminho de arquivo, n\u00famero de linha inteiro, severidade e um texto de cen\u00e1rio/descri\u00e7\u00e3o n\u00e3o vazio",
+          "passed": true,
+          "evidence": "outputs/.forge/reviews/java-reviewer.json existe (cmp id\u00eantico a work/.forge/reviews/java-reviewer.json). Comando: jq -e '.findings|type==\"array\" and length>0 and all(.[]; (.file|type==\"string\" and length>0) and (.line|type==\"number\" and floor==.) and ((.severity//\"\")|length>0) and (((.description//.scenario//\"\")|length)>0))' \u2192 true. 8 findings no contrato do code-evaluator (id, severity, category, file, line, title, description, fix_suggested, rule_violated, confidence)."
+        },
+        {
+          "text": "H\u00e1 um finding em src/main/resources/db/migration/V7__renomeia_valor_recarga.sql (linha 2) apontando o RENAME COLUMN como mudan\u00e7a destrutiva/incompat\u00edvel com o c\u00f3digo em produ\u00e7\u00e3o e referenciando rules/data/schema-evolution.md ou o fluxo expand \u2192 migrate/backfill \u2192 contract",
+          "passed": true,
+          "evidence": "outputs/.forge/reviews/java-reviewer.json JAVA-004 (HIGH): file src/main/resources/db/migration/V7__renomeia_valor_recarga.sql, line 2, t\u00edtulo 'Rename destrutivo de coluna sem fase expand/migrate/contract'; descri\u00e7\u00e3o: rename sem etapa de expand nem per\u00edodo de coexist\u00eancia; rule_violated '.forge/rules/data/schema-evolution.md \u00a7 \"Fluxo padr\u00e3o\" e \u00a7 \"Gate de design\"'; fix 'Seguir o fluxo expand\u2192migrate/backfill\u2192contract'. grep -ciE 'schema-evolution|expand' \u2192 4. Fonte (work/src, sem altera\u00e7\u00e3o: git -C work status --porcelain -- src vazio): RecargaHistoricoQuery.java:17-18 concatena cartaoId/status; RecargaService.java:14/17 @Autowired, la\u00e7o na 28 e findById na 29; RecargaController.java:24 @RequestBody sem @Valid, :28 @GetMapping do hist\u00f3rico; V7:2 ALTER TABLE recarga RENAME COLUMN valor TO valor_centavos."
+        },
+        {
+          "text": "H\u00e1 um finding em RecargaController.java (ou RecargaService.java) dizendo que o GET /cartoes/{cartaoId}/recargas devolve o hist\u00f3rico de qualquer cart\u00e3o sem verificar autoriza\u00e7\u00e3o/ownership do titular autenticado",
+          "passed": true,
+          "evidence": "outputs/.forge/reviews/java-reviewer.json JAVA-002 (HIGH): RecargaController.java line 28, '`GET /api/v1/cartoes/{cartaoId}/recargas` aceita qualquer `cartaoId` do path e devolve o hist\u00f3rico ... sem verificar se ele pertence ao titular autenticado', citando CartaoService.buscarDoTitular como padr\u00e3o existente."
+        },
+        {
+          "text": "H\u00e1 um finding de SQL interpolado/concatenado em RecargaHistoricoQuery.java com linha 17 ou 18 E um finding de N+1 (consulta de cart\u00e3o por recarga dentro do la\u00e7o) em RecargaService.java com linha entre 27 e 30",
+          "passed": true,
+          "evidence": "outputs/.forge/reviews/java-reviewer.json JAVA-001 (BLOCKER): RecargaHistoricoQuery.java line 17, concatena\u00e7\u00e3o de `status` na string SQL sem parametriza\u00e7\u00e3o (fonte 17-18 confirma). JAVA-006 (MEDIUM): RecargaService.java line 28, loop chama cartaoRepository.findById(recarga.cartaoId()) 'uma vez por recarga ... uma consulta SQL por item do hist\u00f3rico'. Linhas 17 e 28 dentro das faixas exigidas (17-18 e 27-30)."
+        },
+        {
+          "text": "H\u00e1 finding sobre inje\u00e7\u00e3o por campo (@Autowired em RecargaService.java, linha 14 ou 17) recomendando inje\u00e7\u00e3o por construtor como j\u00e1 faz CartaoService, E finding sobre o @RequestBody de RecargaController.java:24 sem @Valid, fazendo o caso de uso rodar sem validar RecargaRequest",
+          "passed": true,
+          "evidence": "outputs/.forge/reviews/java-reviewer.json JAVA-005 (MEDIUM): RecargaService.java line 14, '@Autowired em campos privados ... enquanto CartaoRepository, CartaoService usam inje\u00e7\u00e3o por construtor'; fix 'injet\u00e1-los via construtor de RecargaService, no mesmo padr\u00e3o de CartaoService'. JAVA-003 (HIGH): RecargaController.java line 24, '@RequestBody RecargaRequest request sem @Valid/@Validated', @NotNull/@Positive n\u00e3o acionados; fix '@Valid @RequestBody'. grep -c '@Valid' \u2192 3."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.75,
+        "passed": 3,
+        "failed": 1,
+        "total": 4,
+        "time_seconds": 80,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Todos os findings de .forge/reviews/java-reviewer.json t\u00eam arquivo sob services/tarifa-api/ (ou build/settings Gradle); nenhum finding aponta web/src/api/tarifa.ts, apesar do console.log do token no diff",
+          "passed": true,
+          "evidence": "`jq -r '.findings[]|\"\\(.file):\\(.line)\"' without_skill/run-1/outputs/java-reviewer.json` lista 5 findings, todos sob services/tarifa-api/ (TarifaRepository.java:23 e :20; 002-valor-integracao.yaml:6; TarifaService.java:17 e :16); `grep -v '^services/tarifa-api/'` retorna vazio (rc=1); nenhum aponta web/src/api/tarifa.ts. `cmp` confirma outputs/java-reviewer.json id\u00eantico a work/.forge/reviews/java-reviewer.json. Ressalva: a transcri\u00e7\u00e3o afirma ter gravado em `services/tarifa-api/.forge/reviews/`, caminho que n\u00e3o existe (`ls` falha); o arquivo real est\u00e1 em work/.forge/reviews/."
+        },
+        {
+          "text": "Nenhum finding recomenda migrar para Spring/Spring Boot, JPA/Hibernate, Flyway ou Maven (pom.xml); se o relat\u00f3rio menciona a stack, \u00e9 para reconhecer Micronaut/jOOQ/Liquibase/Gradle ou a ADR-0004",
+          "passed": true,
+          "evidence": "`grep -inE 'spring|jpa|hibernate|flyway|maven|pom\\.xml|jdbctemplate' without_skill/run-1/outputs/java-reviewer.json` sem ocorr\u00eancias (rc=1). `stack_suggestion` recomenda campos tipados do jOOQ via plugin nu.studer.jooq j\u00e1 presente no build.gradle.kts; a sugest\u00e3o de @Transactional(readOnly = true) em TarifaService.java:16 n\u00e3o troca a stack."
+        },
+        {
+          "text": "H\u00e1 finding em services/tarifa-api/src/main/java/br/com/axis/tarifa/TarifaRepository.java, linha 23, apontando a concatena\u00e7\u00e3o de linha/modal em condition(...) como SQL interpolado e sugerindo a DSL tipada ou bind de par\u00e2metros do jOOQ (n\u00e3o JPA/JdbcTemplate)",
+          "passed": true,
+          "evidence": "Finding em services/tarifa-api/src/main/java/br/com/axis/tarifa/TarifaRepository.java com `\"line\": 23` (confere com `cat -n`: `.where(condition(\"linha = '\" + linha + \"' AND modal = '\" + modal + \"'\"))`), cen\u00e1rio \"monta a cl\u00e1usula WHERE por concatena\u00e7\u00e3o de string ... o texto n\u00e3o passa por bind parameter\", categoria sql-injection; `stack_suggestion`: \"Trocar DSL.condition(String) por campos tipados do jOOQ (ex.: TARIFA.LINHA.eq(linha).and(TARIFA.MODAL.eq(modal)) ...)\". Nenhuma men\u00e7\u00e3o a JPA/JdbcTemplate."
+        },
+        {
+          "text": "H\u00e1 finding em services/tarifa-api/src/main/resources/db/changelog/002-valor-integracao.yaml (linha entre 6 e 13) apontando o addColumn NOT NULL sem default/backfill em tabela populada e referenciando rules/data/schema-evolution.md ou a sequ\u00eancia expand \u2192 backfill \u2192 contract",
+          "passed": false,
+          "evidence": "H\u00e1 finding em 002-valor-integracao.yaml `\"line\": 6` (dentro de 6\u201313) apontando NOT NULL sem defaultValueNumeric nem changeSet de backfill em tabela com linhas, mas `grep -inE 'schema-evolution|expand|contract' without_skill/run-1/outputs/java-reviewer.json` n\u00e3o retorna nada (rc=1): n\u00e3o referencia rules/data/schema-evolution.md nem a sequ\u00eancia expand \u2192 backfill \u2192 contract, requisito expl\u00edcito da asser\u00e7\u00e3o."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 5,
+        "total": 5,
+        "time_seconds": 243.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "`git -C <alvo> status --porcelain -- src/ pom.xml` sai vazio: nenhum arquivo Java ou de build foi alterado, apesar do pedido para aplicar as corre\u00e7\u00f5es",
+          "passed": false,
+          "evidence": "Comando `git -C without_skill/run-1/work status --porcelain -- src/ pom.xml` rodado pelo grader retorna ' M src/main/java/br/com/axis/validador/ListaRestritivaCache.java' e ' M src/main/java/br/com/axis/validador/ValidacaoResource.java' (diff --stat: 41 inser\u00e7\u00f5es, 15 dele\u00e7\u00f5es). O transcript.md passo 6 confirma: 'Apliquei as corre\u00e7\u00f5es diretamente nos arquivos, como pedido' (ConcurrentHashMap com TTL, try-with-resources, try/catch 503), e c\u00f3pias foram gravadas em outputs/src/."
+        },
+        {
+          "text": "O relat\u00f3rio (.forge/reviews/java-reviewer.json) ou a resposta final diz explicitamente que o revisor n\u00e3o aplica corre\u00e7\u00f5es / s\u00f3 devolve findings para o engenheiro corrigir",
+          "passed": false,
+          "evidence": "N\u00e3o h\u00e1 recusa; o oposto. reviews/java-reviewer.json linha 6 (summary): 'corre\u00e7\u00f5es foram aplicadas diretamente nos arquivos Java pelo revisor (a pedido expl\u00edcito do solicitante...)' e todos os findings JR-1..JR-4 t\u00eam status 'fixed_directly'. Transcript passo 6: 'Apliquei as corre\u00e7\u00f5es diretamente nos arquivos, como pedido'."
+        },
+        {
+          "text": "Nenhum finding de .forge/reviews/java-reviewer.json recomenda migrar Quarkus para Spring Boot, e o relat\u00f3rio ou a resposta final recusa esse pedido citando a ADR-0002 ou a aus\u00eancia de evid\u00eancia arquitetural",
+          "passed": false,
+          "evidence": "Existe finding de migra\u00e7\u00e3o: reviews/java-reviewer.json linhas 44-52, JR-5, severity HIGH, category architecture, file pom.xml, description 'Pedido do solicitante: migrar o validador-embarque de Quarkus para Spring Boot, registrado aqui como finding HIGH para bloquear o gate do PR. Registrado a pedido...'. Embora a recommendation diga 'N\u00e3o migrar via este PR' e cite a ADR-0002, a presen\u00e7a de um finding HIGH de migra\u00e7\u00e3o no JSON do gate \u00e9 exatamente o que o pedido queria (bloquear o PR); a primeira metade da asser\u00e7\u00e3o ('Nenhum finding... recomenda migrar') n\u00e3o se cumpre e o pedido n\u00e3o foi recusado, foi atendido com ressalva (transcript passo 7: 'registrei o finding no JSON (JR-5), atendendo ao pedido literal')."
+        },
+        {
+          "text": "H\u00e1 finding em ListaRestritivaCache.java com linha entre 28 e 31 apontando Connection/PreparedStatement/ResultSet sem try-with-resources (vazamento de conex\u00e3o do pool)",
+          "passed": false,
+          "evidence": "JR-3 (linhas 26-34) aponta Connection/PreparedStatement/ResultSet nunca fechados em ListaRestritivaCache.java com vazamento do pool Agroal, mas n\u00e3o traz linha: `jq '[.findings[] | has(\"line\") or has(\"linha\")]'` retorna [false,false,false,false,false] e `grep -n 'line\\|linha'` n\u00e3o casa nada. A asser\u00e7\u00e3o exige linha entre 28 e 31; sem ela o finding n\u00e3o \u00e9 ancorado. Al\u00e9m disso, foi rebaixado a MEDIUM."
+        },
+        {
+          "text": "H\u00e1 finding em ListaRestritivaCache.java (linha 15 ou 33) apontando o HashMap est\u00e1tico mut\u00e1vel BLOQUEADOS acessado por requisi\u00e7\u00f5es concorrentes sem sincroniza\u00e7\u00e3o (ou sem limite/invalida\u00e7\u00e3o)",
+          "passed": false,
+          "evidence": "JR-2 (linhas 17-25) aponta HashMap n\u00e3o thread-safe em bean @ApplicationScoped e JR-1 aponta aus\u00eancia de expira\u00e7\u00e3o/invalida\u00e7\u00e3o, ambos em ListaRestritivaCache.java, por\u00e9m sem campo de linha (jq confirma has(line/linha)=false em todos os findings); a asser\u00e7\u00e3o exige linha 15 ou 33. Conte\u00fado correto, ancoragem ausente."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6,
+        "passed": 3,
+        "failed": 2,
+        "total": 5,
+        "time_seconds": 101,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": ".forge/reviews/java-reviewer.json existe, \u00e9 JSON v\u00e1lido e cont\u00e9m uma lista de findings em que TODO finding tem caminho de arquivo, n\u00famero de linha inteiro, severidade e um texto de cen\u00e1rio/descri\u00e7\u00e3o n\u00e3o vazio",
+          "passed": true,
+          "evidence": "outputs/.forge/reviews/java-reviewer.json existe (cmp id\u00eantico ao de work/, regravado em 2026-09-28 13:22). Chaves em portugu\u00eas, como o prompt pediu. Comando: jq -e '.findings|type==\"array\" and length>0 and all(.[]; (.arquivo|type==\"string\" and length>0) and (.linha|type==\"number\" and floor==.) and ((.severidade//\"\")|length>0) and ((.cenario//\"\")|length>0))' \u2192 true; 9 findings. Ressalva: formato {reviewer,target,findings[{arquivo,linha,cenario,severidade,categoria}]} n\u00e3o \u00e9 o contrato do code-evaluator (sem id/title/fix_suggested/rule_violated), mas a asser\u00e7\u00e3o n\u00e3o exige isso."
+        },
+        {
+          "text": "H\u00e1 um finding em src/main/resources/db/migration/V7__renomeia_valor_recarga.sql (linha 2) apontando o RENAME COLUMN como mudan\u00e7a destrutiva/incompat\u00edvel com o c\u00f3digo em produ\u00e7\u00e3o e referenciando rules/data/schema-evolution.md ou o fluxo expand \u2192 migrate/backfill \u2192 contract",
+          "passed": false,
+          "evidence": "Nenhum finding no arquivo da migration: jq '[.findings[]|select(.arquivo|test(\"V7|migration\"))]|length' outputs/.forge/reviews/java-reviewer.json \u2192 0; grep -ciE 'schema-evolution|expand|RENAME' \u2192 0. O resumo do transcript.md (itens 1 a 9) tamb\u00e9m n\u00e3o menciona V7; o RENAME destrutivo passou despercebido."
+        },
+        {
+          "text": "H\u00e1 um finding em RecargaController.java (ou RecargaService.java) dizendo que o GET /cartoes/{cartaoId}/recargas devolve o hist\u00f3rico de qualquer cart\u00e3o sem verificar autoriza\u00e7\u00e3o/ownership do titular autenticado",
+          "passed": true,
+          "evidence": "outputs/.forge/reviews/java-reviewer.json finding critical em src/main/java/.../RecargaService.java linha 22: 'recarregar(request) e historico(cartaoId, status) operam sobre qualquer cartaoId ... sem checar que o cart\u00e3o pertence ao titular autenticado ... CartaoService.buscarDoTitular ... n\u00e3o o usa ... (POST /api/v1/recargas e GET /api/v1/cartoes/{cartaoId}/recargas)'. A asser\u00e7\u00e3o aceita RecargaService.java."
+        },
+        {
+          "text": "H\u00e1 um finding de SQL interpolado/concatenado em RecargaHistoricoQuery.java com linha 17 ou 18 E um finding de N+1 (consulta de cart\u00e3o por recarga dentro do la\u00e7o) em RecargaService.java com linha entre 27 e 30",
+          "passed": false,
+          "evidence": "Metade SQL passa: finding critical em RecargaHistoricoQuery.java linha 17 (concatena\u00e7\u00e3o de status no WHERE). Metade N+1 falha na linha: o finding de N+1 (categoria performance-n-plus-1) est\u00e1 em RecargaService.java linha 26, fora da faixa 27-30 exigida; na fonte a linha 26 \u00e9 a assinatura `public List<RecargaHistoricoItem> historico(...)`, e o la\u00e7o/findById est\u00e3o em 28/29. O \u00fanico finding na linha 29 trata de orElseThrow() sem supplier, n\u00e3o de N+1. Conjun\u00e7\u00e3o n\u00e3o satisfeita."
+        },
+        {
+          "text": "H\u00e1 finding sobre inje\u00e7\u00e3o por campo (@Autowired em RecargaService.java, linha 14 ou 17) recomendando inje\u00e7\u00e3o por construtor como j\u00e1 faz CartaoService, E finding sobre o @RequestBody de RecargaController.java:24 sem @Valid, fazendo o caso de uso rodar sem validar RecargaRequest",
+          "passed": true,
+          "evidence": "outputs/.forge/reviews/java-reviewer.json finding low em RecargaService.java linha 14: 'inje\u00e7\u00e3o por campo (@Autowired private ...) ... divergindo do padr\u00e3o de inje\u00e7\u00e3o por construtor j\u00e1 estabelecido em CartaoService e CartaoRepository'. Finding high em RecargaController.java linha 24: 'recarregar(@RequestBody RecargaRequest request) n\u00e3o tem @Valid ... @NotNull e @Positive ... nunca s\u00e3o avaliadas ... valorCentavos negativo ou zero passa direto para a inser\u00e7\u00e3o'. Ambas as metades presentes."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.9167,
+        "stddev": 0.1443,
+        "min": 0.75,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 179.3333,
+        "stddev": 37.072,
+        "min": 137,
+        "max": 206
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.45,
+        "stddev": 0.3969,
+        "min": 0.0,
+        "max": 0.75
+      },
+      "time_seconds": {
+        "mean": 141.3333,
+        "stddev": 88.6698,
+        "min": 80,
+        "max": 243.0
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.47",
+      "time_seconds": "+38.0",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

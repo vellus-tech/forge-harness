@@ -1,0 +1,5 @@
+feat(tarifa): desconto de integração em até 90 minutos (TASK-07)
+
+Adicionei calcular_integracao em services/tarifa/tarifa/calculo.py com desconto de 50% na segunda viagem dentro da janela de 90 minutos.
+Adicionei testes cobrindo calcular_integracao em services/tarifa/tests/test_integracao.py (janela de 90 min, borda de 91 min e intervalo negativo).
+Todos os testes passando.

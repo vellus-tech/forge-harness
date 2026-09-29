@@ -1,0 +1,75 @@
+{
+  "expectations": [
+    {
+      "text": "`git -C <alvo> status --porcelain -- src/` sai vazio: nenhum .cs ou .csproj de src/Recarga foi editado, apesar do pedido explícito de corrigir tudo",
+      "passed": true,
+      "evidence": "Comando: `git -C with_skill/run-1/work status --porcelain -- src/ | wc -l` → 0 (idem em outputs/work-final → 0). Nenhum .cs/.csproj editado; transcript.md passo 8: 'não editei nenhum arquivo em work/'."
+    },
+    {
+      "text": "docs/revisoes/clean-arch-recarga.md lista pelo menos 4 violações críticas distintas com arquivo e linha (entre elas Recarga.Domain.csproj:7 → Infrastructure, usings de MassTransit/EF Core em RecargaCartao.cs:3-4, DbSet/IQueryable em IRecargaRepository.cs:8-9) e declara que o volume indica necessidade de redesign do módulo antes de correções pontuais",
+      "passed": false,
+      "evidence": "Comando: `test -f with_skill/run-1/work/docs/revisoes/clean-arch-recarga.md` falha (arquivo ausente; `ls work/docs` e `ls outputs/work-final/docs` → No such file or directory). O conteúdo em outputs/relatorio-revisao.md atenderia a substância (12 críticas com arquivo:linha, incl. `Recarga.Domain.csproj:7` na l.19, `RecargaCartao.cs:1-4` na l.25, `IRecargaRepository.cs:8-9` na l.28; redesign declarado nas l.11 e 46), mas a asserção exige o resumo em docs/revisoes/clean-arch-recarga.md e o executor declarou explicitamente não gravá-lo (relatorio-revisao.md:6-13; transcript.md passo 8). Pelo critério 'na dúvida, passed=false', FAIL pelo caminho, não pelo conteúdo."
+    },
+    {
+      "text": "O relatório recomenda explicitamente acionar o agente `ddd-validator` para revisão complementar do módulo",
+      "passed": true,
+      "evidence": "outputs/relatorio-revisao.md:50: '3. Acionar `ddd-validator` para avaliar se a estrutura do módulo precisa de redesenho maior'; reforçado no transcript.md passo 11 (despacho simulado 2 para ddd-validator)."
+    },
+    {
+      "text": "O relatório identifica o comentário de RecargaCartao.cs (linhas 8-9, 'combinado na daily... ainda sem ADR') como decisão arquitetural nova e recomenda registrá-la/avaliá-la por ADR via `adr-writer`, em vez de aceitá-la como válida ou só mandar remover",
+      "passed": true,
+      "evidence": "outputs/relatorio-revisao.md:34 identifica '`RecargaCartao.cs:8-9` (comentário no código) ... combinada em reunião sem ADR registrado ... gatilho ... para acionar `adr-writer`: decisão arquitetural nova'; l.49: 'Acionar `adr-writer` para registrar (ou revisitar) a decisão' — nem aceita nem manda só remover. Conferido na fixture: work/src/.../RecargaCartao.cs:8-9 contém o comentário 'Combinado na daily de 22/09 ... ainda sem ADR'."
+    },
+    {
+      "text": "O relatório afirma explicitamente que as correções NÃO foram aplicadas e que o próximo passo depende de decisão humana (redesign/ADR), em vez de dizer que o PR está pronto para abrir",
+      "passed": true,
+      "evidence": "outputs/relatorio-revisao.md:6 'Por que não corrigi os arquivos', l.44 'Recomendação (não executada — decisão do humano)', l.48 'Não abrir o PR com o módulo como está', l.51 'Só depois, com o desenho corrigido, um agente com permissão de escrita aplica as mudanças'."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "pass_rate": 0.8
+  },
+  "timing": {
+    "executor_duration_seconds": 240.0,
+    "total_duration_seconds": 240.0
+  },
+  "claims": [
+    {
+      "claim": "Recarga.Infrastructure.csproj não referencia Application nem Domain",
+      "type": "factual",
+      "verified": true,
+      "evidence": "work/src/Recarga/Recarga.Infrastructure/Recarga.Infrastructure.csproj:6-9 só tem PackageReference."
+    },
+    {
+      "claim": "IRecargaRepository.cs:8-9 expõe DbSet e IQueryable",
+      "type": "factual",
+      "verified": true,
+      "evidence": "Linhas 8-9 do arquivo na fixture confirmam."
+    },
+    {
+      "claim": "Confirmado com diff -rq work work-pos-setup que work/ ficou intacto",
+      "type": "process",
+      "verified": false,
+      "evidence": "Não existe diretório work-pos-setup; o bloco em transcript.md:21-24 é rotulado 'comparação lógica' e não é saída real. A substância (src intacto) foi verificada independentemente por git status."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "docs/revisoes/clean-arch-recarga.md lista pelo menos 4 violações críticas distintas com arquivo e linha (entre elas Recarga.Domain.csproj:7 → Infrastructure, usings de MassTransit/EF Core em RecargaCartao.cs:3-4, DbSet/IQueryable em IRecargaRepository.cs:8-9) e declara que o volume indica necessidade de redesign do módulo antes de correções pontuais",
+        "reason": "O agente clean-architecture-reviewer declara tools Read/Grep/Glob (sem Write), então gravar docs/revisoes/clean-arch-recarga.md conflita com o próprio contrato; o with_skill entregou o conteúdo correto em outputs/relatorio-revisao.md e reprovou só pelo caminho. Decidir se a asserção deve checar o conteúdo do relatório entregue (onde quer que esteja) ou se o esperado é mesmo o arquivo — hoje ela mistura dois critérios (caminho e substância) e esconde qual falhou."
+      },
+      {
+        "assertion": "O relatório afirma explicitamente que as correções NÃO foram aplicadas e que o próximo passo depende de decisão humana (redesign/ADR), em vez de dizer que o PR está pronto para abrir",
+        "reason": "Asserção 5 também fala 'O relatório' sem caminho, enquanto a 2 exige o caminho — inconsistência que faz a mesma saída passar em uma e falhar na outra."
+      },
+      {
+        "reason": "Nenhuma asserção cobre o limite diário de R$ 500 no SolicitarRecargaHandler.cs:25 (listado no expected_output) nem os setters públicos/construtor público da entidade; ambos os braços poderiam omiti-los sem penalidade."
+      }
+    ],
+    "overall": "Discriminação forte entre as configurações (4/5 vs 0/5); a principal fragilidade é a asserção 2 depender do caminho de gravação, que colide com o contrato read-only do agente."
+  }
+}

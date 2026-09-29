@@ -1,0 +1,40 @@
+.nav {
+  display: flex;
+  justify-content: space-around;
+  padding: var(--s-2) 0;
+  border-top: 1px solid var(--n-100);
+  background: var(--surface);
+}
+
+.tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-1);
+  border: 0;
+  background: transparent;
+  color: var(--fg-muted);
+  font-family: var(--font-ui);
+  font-size: var(--fs-12);
+  cursor: pointer;
+  padding: var(--s-1) var(--s-3);
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/*
+ * Estado ativo: cor de marca só no ícone (ícone-ação), nunca no rótulo em
+ * texto corrido pequeno (fs-12) — regra explícita do project/SKILL.md do
+ * handoff (contraste ~3.4:1). O rótulo ativo se distingue por peso, não cor.
+ */
+.tab[aria-current='page'] {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.activeIcon {
+  color: var(--brand);
+}

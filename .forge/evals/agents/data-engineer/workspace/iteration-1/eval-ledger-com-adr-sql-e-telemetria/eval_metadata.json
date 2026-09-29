@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "ledger-com-adr-sql-e-telemetria",
+  "prompt": "@data-engineer Vou começar dois módulos novos: o ledger de créditos do cartão transporte (lançamento de crédito por recarga, débito por embarque, estorno e saldo) e a ingestão das leituras de telemetria dos validadores, que chegam a cada 5 segundos por equipamento e são consultadas por equipamento nas últimas 24 h. Cada operadora é um tenant. Onde fica cada um e como modelo? Pensei em pôr tudo no PostgreSQL com TimescaleDB para simplificar.",
+  "assertions": [
+    "O trace mostra subagent_type data-relational e data-nosql abaixo do data-engineer, e nenhum outro tipo (ou, sem Agent, o PLANO DE ROTEAMENTO lista exatamente esses dois); a pergunta do ledger vai ao data-relational e a da telemetria ao data-nosql.",
+    "A resposta cita o ADR-0004 (ou o arquivo 0004-ledger-de-creditos-em-postgresql.md) como a razão de o ledger ir para PostgreSQL, e não emite bloco CONFLITO para o ledger.",
+    "A resposta justifica a telemetria em data-nosql pela falta de ADR que escolha SQL para ela (o ADR-0004 cobre só o ledger), e não por volume ou por throughput.",
+    "A sugestão do usuário de pôr a telemetria no PostgreSQL com TimescaleDB não é aceita em silêncio: a resposta traz bloco CONFLITO (decisão, posição A com data-governance.md, posição B, precedência, opções incluindo abrir ADR, registro) ou declara que essa parte exige novo ADR antes de seguir.",
+    "O checklist transversal exige RLS por tenant_id nas tabelas do ledger no PostgreSQL e filtro de tenant obrigatório no repositório/interceptor MongoDB da telemetria."
+  ]
+}

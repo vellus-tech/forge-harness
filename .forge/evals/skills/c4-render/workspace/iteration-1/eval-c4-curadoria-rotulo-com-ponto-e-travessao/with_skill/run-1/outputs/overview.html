@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>Forge overview</title>
+<style>
+ body{font:14px/1.5 system-ui,sans-serif;max-width:1100px;margin:2rem auto;padding:0 1rem;color:#1a1a2e}
+ h1{border-bottom:2px solid #444}h2{margin-top:2.5rem;color:#16213e}
+ table{border-collapse:collapse;width:100%}td,th{border:1px solid #ddd;padding:.4rem .6rem;text-align:left}
+ th{background:#f4f4f8}.pre{background:#f7f7fb;padding:1rem;border-radius:6px;overflow:auto}
+ pre.mermaid{background:#f7f7fb;padding:1rem;border-radius:6px}
+ .muted{color:#888}
+ .lg{display:inline-block;padding:.1rem .5rem;border-radius:4px;border:1px solid #ccc;margin:.1rem;font-size:12px}
+ #q{padding:.4rem .6rem;width:280px;border:1px solid #ccc;border-radius:6px;margin:.5rem 0}
+ section.c3.hidden{display:none}
+</style></head><body>
+<h1>Forge — overview</h1>
+<p class="muted">Mapa navegável gerado por <code>/forge:c4</code> (determinista, engine nativo). Artefato de visualização — não editar à mão.</p>
+<p><b>Camadas:</b> <span class="lg" style="background:#e3f2fd">api</span> <span class="lg" style="background:#fff3e0">application</span> <span class="lg" style="background:#e8f5e9">domain</span> <span class="lg" style="background:#f3e5f5">infrastructure</span> <span class="lg" style="background:#e0f7fa">contracts</span> <span class="lg" style="background:#eceff1">test</span> <span class="lg" style="background:#fffde7">config</span> <span class="lg" style="background:#fafafa">unknown</span></p>
+
+<h2>C4 — Arquitetura <span class="muted">(cor = camada)</span></h2>
+<h3>C1 · System Context</h3>
+<pre class="mermaid">
+flowchart TD
+  sys["Pagamentos Core v1 4 0 - PCI DSS 4 0 1"]</pre>
+<h3>C2 · Container</h3>
+<pre class="mermaid">
+flowchart TD
+  c0["Billing - faturas e impostos v2 1"]:::unknown
+  c1["Ledger - lançamentos contábeis"]:::unknown
+  c2["src/notifications (1)"]:::unknown
+  c3["src/shared (1)"]:::unknown
+  c0 --&gt; c3
+  c1 --&gt; c3
+  classDef api fill:#e3f2fd,stroke:#1565c0,color:#0d47a1;
+  classDef application fill:#fff3e0,stroke:#ef6c00,color:#e65100;
+  classDef domain fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20;
+  classDef infrastructure fill:#f3e5f5,stroke:#7b1fa2,color:#4a148c;
+  classDef contracts fill:#e0f7fa,stroke:#00838f,color:#006064;
+  classDef test fill:#eceff1,stroke:#546e7a,color:#263238;
+  classDef config fill:#fffde7,stroke:#f9a825,color:#f57f17;
+  classDef unknown fill:#fafafa,stroke:#bdbdbd,color:#616161;</pre>
+<p><input id="q" type="search" placeholder="filtrar visões C3 por módulo…"></p>
+<section class="c3" data-name="src-billing"><h3>C3 · src-billing</h3>
+<pre class="mermaid">
+flowchart TD
+  %% component view: src/billing
+  f0["invoice service ts"]:::unknown
+  f1["tax rules ts"]:::unknown
+  f0 --&gt; f1
+  x0["src/shared: money ts"]:::external
+  f0 --&gt; x0
+  classDef api fill:#e3f2fd,stroke:#1565c0,color:#0d47a1;
+  classDef application fill:#fff3e0,stroke:#ef6c00,color:#e65100;
+  classDef domain fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20;
+  classDef infrastructure fill:#f3e5f5,stroke:#7b1fa2,color:#4a148c;
+  classDef contracts fill:#e0f7fa,stroke:#00838f,color:#006064;
+  classDef test fill:#eceff1,stroke:#546e7a,color:#263238;
+  classDef config fill:#fffde7,stroke:#f9a825,color:#f57f17;
+  classDef unknown fill:#fafafa,stroke:#bdbdbd,color:#616161;
+  classDef external fill:#ffffff,stroke:#9e9e9e,stroke-width:1px,stroke-dasharray: 3 3,color:#616161;</pre></section>
+<section class="c3" data-name="src-ledger"><h3>C3 · src-ledger</h3>
+<pre class="mermaid">
+flowchart TD
+  %% component view: src/ledger
+  f0["journal repo ts"]:::unknown
+  x0["src/shared: money ts"]:::external
+  f0 --&gt; x0
+  classDef api fill:#e3f2fd,stroke:#1565c0,color:#0d47a1;
+  classDef application fill:#fff3e0,stroke:#ef6c00,color:#e65100;
+  classDef domain fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20;
+  classDef infrastructure fill:#f3e5f5,stroke:#7b1fa2,color:#4a148c;
+  classDef contracts fill:#e0f7fa,stroke:#00838f,color:#006064;
+  classDef test fill:#eceff1,stroke:#546e7a,color:#263238;
+  classDef config fill:#fffde7,stroke:#f9a825,color:#f57f17;
+  classDef unknown fill:#fafafa,stroke:#bdbdbd,color:#616161;
+  classDef external fill:#ffffff,stroke:#9e9e9e,stroke-width:1px,stroke-dasharray: 3 3,color:#616161;</pre></section>
+<section class="c3" data-name="src-notifications"><h3>C3 · src-notifications</h3>
+<pre class="mermaid">
+flowchart TD
+  %% component view: src/notifications
+  f0["email sender ts"]:::unknown
+  classDef api fill:#e3f2fd,stroke:#1565c0,color:#0d47a1;
+  classDef application fill:#fff3e0,stroke:#ef6c00,color:#e65100;
+  classDef domain fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20;
+  classDef infrastructure fill:#f3e5f5,stroke:#7b1fa2,color:#4a148c;
+  classDef contracts fill:#e0f7fa,stroke:#00838f,color:#006064;
+  classDef test fill:#eceff1,stroke:#546e7a,color:#263238;
+  classDef config fill:#fffde7,stroke:#f9a825,color:#f57f17;
+  classDef unknown fill:#fafafa,stroke:#bdbdbd,color:#616161;</pre></section>
+<section class="c3" data-name="src-shared"><h3>C3 · src-shared</h3>
+<pre class="mermaid">
+flowchart TD
+  %% component view: src/shared
+  f0["money ts"]:::unknown
+  x0["src/billing: invoice service ts"]:::external
+  x1["src/ledger: journal repo ts"]:::external
+  x0 --&gt; f0
+  x1 --&gt; f0
+  classDef api fill:#e3f2fd,stroke:#1565c0,color:#0d47a1;
+  classDef application fill:#fff3e0,stroke:#ef6c00,color:#e65100;
+  classDef domain fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20;
+  classDef infrastructure fill:#f3e5f5,stroke:#7b1fa2,color:#4a148c;
+  classDef contracts fill:#e0f7fa,stroke:#00838f,color:#006064;
+  classDef test fill:#eceff1,stroke:#546e7a,color:#263238;
+  classDef config fill:#fffde7,stroke:#f9a825,color:#f57f17;
+  classDef unknown fill:#fafafa,stroke:#bdbdbd,color:#616161;
+  classDef external fill:#ffffff,stroke:#9e9e9e,stroke-width:1px,stroke-dasharray: 3 3,color:#616161;</pre></section>
+
+
+<h2>Dependências entre módulos <span class="muted">(project)</span></h2>
+<p>4 módulos · 2 dependências · <b>0</b> ciclo(s) · <b>0</b> violação(ões) de camada</p>
+<p class="muted">Sem ciclos entre módulos ✓</p>
+<p class="muted">Sem violações de camada ✓</p>
+<h3>Top dependências (fan-out)</h3>
+<table><tr><th>de</th><th>para</th><th>arestas</th></tr><tr><td>src/billing</td><td>src/shared</td><td>1</td></tr><tr><td>src/ledger</td><td>src/shared</td><td>1</td></tr></table>
+
+
+<h2>Domínio ↔ Código <span class="muted">(capability → módulos)</span></h2>
+<p class="muted">Baseline sem capabilities para mapear.</p>
+
+<h2>Baseline — Capabilities (0)</h2>
+<p class="muted">Baseline vazio (nenhuma capability — /forge:baseline extract ou archive de changes).</p>
+
+<h2>Changes ativos (0)</h2>
+<p class="muted">Nenhum change ativo.</p>
+
+<script type="module">
+ import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+ // limites elevados: diagramas C3 podem ter muitos nós/arestas (default maxEdges=500).
+ mermaid.initialize({ startOnLoad: true, theme: 'neutral', maxEdges: 5000, maxTextSize: 2000000, securityLevel: 'loose' });
+</script>
+<script>
+ // busca/filtro client-side das visões C3 por nome de módulo
+ const q = document.getElementById('q');
+ if (q) q.addEventListener('input', () => {
+   const t = q.value.trim().toLowerCase();
+   document.querySelectorAll('section.c3').forEach((s) => {
+     s.classList.toggle('hidden', t && !s.dataset.name.toLowerCase().includes(t));
+   });
+ });
+</script>
+</body></html>

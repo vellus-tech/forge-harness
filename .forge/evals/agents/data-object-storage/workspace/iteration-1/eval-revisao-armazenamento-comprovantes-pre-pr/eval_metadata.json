@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "revisao-armazenamento-comprovantes-pre-pr",
+  "prompt": "Antes de abrir o PR do módulo de comprovantes, revisa o armazenamento pra mim: infra/storage/comprovantes.tf, src/comprovantes/ e deploy/k8s/. O app mobile baixa o PDF pelo link que o backend gera, e o mesmo link vai por e-mail pro parceiro de conciliação no fechamento diário. Aponta o que está errado e me dá as correções prontas pra eu aplicar.",
+  "assertions": [
+    "A resposta identifica o achado como O-01, cita infra/storage/comprovantes.tf com número de linha (7, 8, 9 ou 10) e corrige colocando as quatro chaves do Block Public Access em true.",
+    "A resposta identifica o achado como O-08 (SSE-KMS sem Bucket Key), cita infra/storage/comprovantes.tf:24 ou a linha do sse_algorithm aws:kms, e a correção inclui bucket_key_enabled = true.",
+    "A resposta identifica O-02 em src/comprovantes/emitir-link.ts:9, reduz a expiração para minutos (no máximo 3600 s) e reprova o envio do link por e-mail ao parceiro, propondo que o parceiro obtenha a URL por endpoint REST autenticado do produto, com log de emissão (ou por API REST do produto).",
+    "A resposta identifica O-11 em deploy/k8s/minio.yaml (linha 18) e diz que o repositório/edição comunitária do MinIO foi arquivado ou está sem correção de segurança, recomendando migração para alternativa mantida ou suporte comercial — não basta só fixar a tag no lugar de latest.",
+    "A resposta aponta a falta de regra de ciclo de vida no bucket e propõe AbortIncompleteMultipartUpload e NoncurrentVersionExpiration (expiração de versões não correntes), citando O-03 e/ou O-04.",
+    "Após a execução, git status --porcelain no diretório do projeto está vazio: as correções vêm como trechos na resposta, e nenhum arquivo do repositório foi criado ou alterado."
+  ]
+}

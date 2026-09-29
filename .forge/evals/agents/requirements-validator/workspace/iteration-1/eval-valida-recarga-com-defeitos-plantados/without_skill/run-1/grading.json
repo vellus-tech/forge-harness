@@ -1,0 +1,45 @@
+{
+  "expectations": [
+    {
+      "text": "outputs/validacao-recarga.md contém as seções 'Resultado', 'Veredito', 'Achados', 'Checks Executados', 'Recomendações para o requirements-writer' e 'Decisão para o Pipeline', com 'Status: Reprovado' e a contagem de achados BLOCKER, HIGH, MEDIUM e LOW.",
+      "passed": false,
+      "evidence": "Comando: grep -cE '^## (Resultado|...|Decisão para o Pipeline)$' without_skill/run-1/outputs/validacao-recarga.md → 1 (só '## Veredito', linha 8); grep -c 'Status: Reprovado' → 0; não há seções Resultado, Achados, Checks Executados, Recomendações para o requirements-writer nem Decisão para o Pipeline, nem contagem por severidade."
+    },
+    {
+      "text": "Os achados usam ids no padrão [BLOCKER-NN]/[HIGH-NN]/[MEDIUM-NN]/[LOW-NN] e cada um traz os campos Local, Problema, Impacto e Correção recomendada; há pelo menos um BLOCKER.",
+      "passed": false,
+      "evidence": "Comando: grep -cE '^### \\[(BLOCKER|HIGH|MEDIUM|LOW)-[0-9]{2}\\]' → 0; achados numerados 1-10 em prosa (linhas 14-29), sem os campos Local/Problema/Impacto/Correção recomendada (grep → 0 para cada) e sem o rótulo BLOCKER."
+    },
+    {
+      "text": "O parecer classifica como BLOCKER ao menos três destes: a ausência do Req 3 (furo de numeração entre Req 2 e Req 4), o Req 4 sem campo Origem, a seção 'Fora do escopo do MVP' ausente, e a versão 1.1.0 do cabeçalho sem entrada correspondente no Histórico de Versões de um documento Aprovado para desenvolvimento.",
+      "passed": false,
+      "evidence": "Só os itens 1 e 2 (Req 1.3 contra ADR-0003/ADR-0002) estão em 'Achados bloqueantes' (linha 12). O Histórico sem 1.1.0 (item 8, linha 27) e o furo do Req 3 (item 10, linha 29) aparecem em 'Inconsistências documentais', não como bloqueantes; Req 4 sem Origem e a seção 'Fora do escopo do MVP' ausente não são mencionados (grep 'Origem\\|Fora do escopo' → nada). Zero dos quatro classificados como BLOCKER."
+    },
+    {
+      "text": "O parecer aponta o critério 1.3 como invasão do papel do design.md (tabela tb_recarga_pix, coluna NUMERIC(10,2), tópico Kafka ou spring-kafka) e cita o conflito com ADR-0002 (centavos inteiros) ou ADR-0003 (RabbitMQ com outbox), recomendando reescrever em nível de requisito sem propor implementação alternativa.",
+      "passed": false,
+      "evidence": "Item 1 (linha 14) aponta o vazamento de 'biblioteca, nome de tópico' e o conflito com ADR-0003, e o item 2 (linha 15) cita ADR-0002; porém a recomendação (linha 41) é 'corrige Req 1.3 (mensageria RabbitMQ conforme ADR-0003, tipo de dado BIGINT/centavos conforme ADR-0002...)', ou seja, propõe implementação alternativa em vez de reescrever em nível de requisito, o que a asserção exclui."
+    },
+    {
+      "text": "O parecer registra o README do módulo como desatualizado em relação ao requirements.md (README diz 0.1.0/Rascunho para revisão, documento diz 1.1.0/Aprovado para desenvolvimento) com severidade HIGH ou BLOCKER, e aponta 'Fiscal de catraca' (critério 4.2) como persona ausente da seção Personas / Atores.",
+      "passed": false,
+      "evidence": "A persona está coberta (item 6, linha 22: 'Fiscal de catraca' não consta em Personas/Atores), mas o README desatualizado (item 9, linha 28) está na seção 'Inconsistências documentais', explicitamente fora dos bloqueantes e descrito como 'sincronizável sem risco', sem severidade HIGH ou BLOCKER atribuída."
+    },
+    {
+      "text": "git diff HEAD -- docs/ está vazio ao fim da execução (requirements.md e README.md da Recarga intocados, apesar de o prompt pedir correção direta), e a seção Decisão para o Pipeline marca 'Pode seguir para design.md: Não' e 'Requer nova execução do requirements-writer: Sim'.",
+      "passed": false,
+      "evidence": "Metade satisfeita: git -C without_skill/run-1/work diff HEAD -- docs/ | wc -c → 0 (documentos intocados, linha 37 do parecer). Mas não existe a seção 'Decisão para o Pipeline' nem as linhas 'Pode seguir para design.md: Não' e 'Requer nova execução do requirements-writer: Sim' (grep → nada); só uma recomendação em prosa (linha 45 'Só então acionar o design-writer')."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 6,
+    "total": 6,
+    "pass_rate": 0.0
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 149000,
+    "total_duration_seconds": 149
+  }
+}

@@ -1,0 +1,9 @@
+# Revisão: feature/conciliacao-cli vs main
+
+CI verde, mas o achado principal é justamente que o CI verde não prova nada sobre a lógica de conciliação: o único teste (`ConciliadorTests.ValidarLote_ComExtratoIgualAoLote_Concilia`) termina em `Assert.NotNull(lote)`, uma asserção sempre verdadeira que não checa o retorno de `ValidarLoteAsync`, o `Status` resultante nem se `SalvarAsync` foi chamado — o teste passaria mesmo com a lógica de conciliação quebrada (severidade alta, `review/dotnet-review.json#F1`).
+
+Achado secundário: `Program.cs` não trata exceção de parsing de CSV nem de falha do Postgres, então uma falha operacional vira stack trace cru e um código de saída genérico do runtime em vez de um código dedicado — distinto do 1 (divergência) e do 2 (uso incorreto) já definidos (severidade média, `F2`). Um terceiro ponto, baixa prioridade, é semântico: `ConciliadoEm` é preenchido mesmo quando o lote fica `Divergente`, o que pode confundir consumidores futuros do campo (`F3`).
+
+Verifiquei e descartei explicitamente quatro suspeitas comuns que teriam sido falsos positivos neste código: a query SQL é parametrizada corretamente (sem injeção), a comparação `==` entre `decimal` é segura (não é o caso de ponto flutuante binário), o `GetAwaiter().GetResult()` em `Main` não tem risco de deadlock nesse contexto de console app, e a complexidade O(lotes × extrato) do laço de conciliação não é um problema real no volume esperado de um fechamento noturno.
+
+Recomendação: antes de mergear, reforçar o teste do `Conciliador` para realmente exercitar os dois caminhos (confere e divergente) com asserções sobre retorno, `Status` e persistência; o tratamento de exceção do CLI pode ficar para um follow-up, já que hoje o comportamento de falha (saída não-zero) já é seguro para o cron, só não é informativo.

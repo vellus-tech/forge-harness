@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Pagamentos.Application\Pagamentos.Application.csproj" />
+    <ProjectReference Include="..\Pagamentos.Infrastructure\Pagamentos.Infrastructure.csproj" />
+    <ProjectReference Include="..\Pagamentos.Contracts\Pagamentos.Contracts.csproj" />
+  </ItemGroup>
+</Project>

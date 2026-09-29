@@ -1,0 +1,74 @@
+{
+  "expectations": [
+    {
+      "text": "review/arch-reviewer.json é JSON válido com \"reviewer\": \"arch-reviewer\" e array \"findings\"; todo finding tem id no padrão ^ARCH-\\d{3}$, severity em {BLOCKER, HIGH, MEDIUM, LOW}, \"category\": \"arch\" e os campos file, rule_violated e confidence preenchidos",
+      "passed": false,
+      "evidence": "outputs/review/arch-reviewer.json é JSON válido, mas `jq -c '{reviewer}'` → {\"reviewer\":null} (chaves: agent, base, branch, clean_architecture_dependency_rule, code_touched, ddd_tactical_patterns, findings, notes, public_contracts, scope, status, summary). `jq -c '.findings[0]|keys'` → [category, description, evidence, files, id, recommendation, severity, title]: sem file (usa array files), sem rule_violated, sem confidence; severities em minúsculas ('blocker','high','medium','low') e category 'dependency-rule'/'ddd-tactical'/'public-contracts'/etc., nunca 'arch'. Só os IDs ARCH-NNN conformam."
+    },
+    {
+      "text": "Há finding BLOCKER com file terminando em Pagamentos.Domain/Pagamentos.Domain.csproj (ProjectReference para Pagamentos.Infrastructure) E finding BLOCKER em Pagamentos.Domain/Aggregates/Estorno.cs pelo `using MassTransit`",
+      "passed": false,
+      "evidence": "ARCH-001 severity 'blocker' em Pagamentos.Domain/Pagamentos.Domain.csproj cobre a primeira metade (ainda que em minúsculas, fora do enum exigido). O `using MassTransit` em Aggregates/Estorno.cs é ARCH-002 com severity 'high', não BLOCKER."
+    },
+    {
+      "text": "Há finding com severity BLOCKER (não HIGH/MEDIUM) em ValueObjects/ValorMonetario.cs pelo setter público do objeto de valor E finding BLOCKER em Events/EstornarPagamento.cs pelo nome imperativo do Domain Event",
+      "passed": false,
+      "evidence": "ValorMonetario.cs é ARCH-003 severity 'medium'; EstornarPagamento.cs é ARCH-004 severity 'medium'. Nenhum dos dois é BLOCKER."
+    },
+    {
+      "text": "Há findings HIGH para pelo menos três de: agregado Estorno sem construtor privado/factory Create+Reconstitute; interface IEstornoRepository fora do Domain; rota `api/Estornos` sem versão /api/v1; ausência de projeto Pagamentos.Architecture.Tests (NetArchTest)",
+      "passed": false,
+      "evidence": "Nenhum finding 'high' além de ARCH-002 (MassTransit). `grep -n -iE 'Repository|v1|Architecture.Tests|NetArchTest' outputs/review/arch-reviewer.json` só casa IPagamentoRepository na descrição de ARCH-006 (low); não há finding sobre IEstornoRepository fora do Domain, factory Create/Reconstitute, rota sem /api/v1 nem ausência de Architecture.Tests. Zero dos quatro."
+    },
+    {
+      "text": "Nenhum finding trata do `Math.Round(valor, 1)` / arredondamento de centavos em SolicitarEstornoParcialHandler.cs (lógica é escopo do logic-reviewer)",
+      "passed": false,
+      "evidence": "ARCH-007 (severity 'low', category 'consistency', file .../Estornos/SolicitarEstornoParcialHandler.cs), title 'Arredondamento monetário para 1 casa decimal', description '`Math.Round(valor, 1)` arredonda para uma casa decimal...' (linhas 88-89 do JSON). Reportou exatamente o bug de lógica fora do escopo."
+    },
+    {
+      "text": "`git -C <alvo> status --porcelain -- services/` sai vazio: o revisor não editou nenhum arquivo do serviço",
+      "passed": true,
+      "evidence": "`git -C without_skill/run-1/work status --porcelain -- services/` → saída vazia (rc=0). O status geral mostra apenas deleções em .claude/ e .forge/ feitas pelo setup.sh da fixture e `?? review/`; nada em services/."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 5,
+    "total": 6,
+    "pass_rate": 0.17
+  },
+  "timing": {
+    "executor_duration_seconds": 130
+  },
+  "claims": [
+    {
+      "claim": "Formato 'presumivelmente consumível pelo code-evaluator'",
+      "type": "quality",
+      "verified": false,
+      "evidence": "O próprio transcript (linha 30) admite que não há garantia; de fato faltam reviewer, file, rule_violated e confidence, e severity/category divergem do contrato."
+    },
+    {
+      "claim": "Ciclo Domain→Infrastructure→Domain é blocker",
+      "type": "factual",
+      "verified": true,
+      "evidence": "Pagamentos.Domain.csproj linha 7 referencia Pagamentos.Infrastructure.csproj no HEAD do fixture."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "review/arch-reviewer.json é JSON válido com \"reviewer\": \"arch-reviewer\" e array \"findings\"; todo finding tem id no padrão ^ARCH-\\d{3}$, severity em {BLOCKER, HIGH, MEDIUM, LOW}, \"category\": \"arch\" e os campos file, rule_violated e confidence preenchidos",
+        "reason": "A asserção não confere a exatidão de `line`: no with_skill todos os números de linha estão deslocados em -1 em relação ao fixture (ARCH-001 line 6, mas o ProjectReference está na linha 7 do .csproj; ARCH-003 line 4, setter na linha 5; ARCH-005 line 12, construtor na linha 13; ARCH-006 line 6, [Route] na linha 7). O code-evaluator consolida por file:line, então vale exigir line exata ao menos para os BLOCKERs."
+      },
+      {
+        "assertion": "Há findings HIGH para pelo menos três de: agregado Estorno sem construtor privado/factory Create+Reconstitute; interface IEstornoRepository fora do Domain; rota `api/Estornos` sem versão /api/v1; ausência de projeto Pagamentos.Architecture.Tests (NetArchTest)",
+        "reason": "'Pelo menos três de quatro' deixou passar o with_skill, que decidiu conscientemente não reportar a ausência de Pagamentos.Architecture.Tests (transcript §5, 'Passo 7'), justamente um item que o expected_output lista como HIGH. Se o teste de arquitetura é requisito do agente, considere torná-lo obrigatório numa asserção própria."
+      },
+      {
+        "assertion": "`git -C <alvo> status --porcelain -- services/` sai vazio: o revisor não editou nenhum arquivo do serviço",
+        "reason": "Asserção fracamente discriminante: passou nas duas configurações (inclusive no baseline que errou quase tudo). Continua útil como guarda-corpo, mas não separa qualidade."
+      }
+    ],
+    "overall": "As asserções 1 a 5 discriminam bem (with_skill 5/6 contra without_skill 1/6). As lacunas são exatidão de linha e a tolerância de 3/4 nos HIGH, que mascarou uma omissão deliberada."
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "skill": "gerar-changelog-release",
+  "iteration": 1,
+  "eval": "eval-1",
+  "graded_at": "2026-09-28",
+  "test_cases": [
+    {
+      "id": "TC-01",
+      "prompt": "Gere a entrada do CHANGELOG.md da release 2.4.0 do app de recarga a partir dos commits desde a tag v2.3.0.",
+      "baseline": {
+        "exit_code": 0,
+        "expectations": [
+          {
+            "expectation": "Agrupou as entradas nas seções Adicionado, Corrigido e Alterado",
+            "met": true,
+            "notes": "As três seções (Adicionado, Corrigido, Alterado) estão presentes, cada uma com pelo menos uma entrada, no formato Keep a Changelog."
+          },
+          {
+            "expectation": "Incluiu o número do PR em cada entrada do changelog",
+            "met": false,
+            "notes": "4 das 5 entradas trazem o PR entre parênteses; a entrada 'Ajusta timeout do gateway de recarga' (seção Corrigido) não tem número de PR."
+          },
+          {
+            "expectation": "O changelog ficou claro e bem escrito",
+            "met": true,
+            "notes": "Entradas curtas, verbos no particípio, linguagem consistente e legível."
+          }
+        ],
+        "score": "2/3",
+        "verdict": "PARTIAL"
+      },
+      "variant": {
+        "exit_code": 124,
+        "expectations": [
+          {
+            "expectation": "Agrupou as entradas nas seções Adicionado, Corrigido e Alterado",
+            "met": false,
+            "notes": "A execução foi interrompida pelo timeout do runner (120s) antes de qualquer seção do changelog ser emitida."
+          },
+          {
+            "expectation": "Incluiu o número do PR em cada entrada do changelog",
+            "met": false,
+            "notes": "Nenhuma entrada de changelog chegou a ser produzida na saída disponível."
+          },
+          {
+            "expectation": "O changelog ficou claro e bem escrito",
+            "met": false,
+            "notes": "A saída disponível é só log de progresso ('Lendo commits...', 'Classificando commits...'), não um changelog entregável."
+          }
+        ],
+        "score": "0/3",
+        "verdict": "FAIL",
+        "caveat": "variant_result terminou com exit_code 124 (timeout do runner em 120s, duration_ms=120000, tokens=null) — a execução foi cortada antes de produzir o artefato final. Por decisão explícita do usuário, este caso NÃO foi reexecutado nesta rodada (custo por execução); a nota reflete apenas a saída parcial disponível em results.json. O score 0/3 mede o que foi entregue até o timeout, não a qualidade do artefato sob avaliação — não deve ser lido como prova de regressão de comportamento sem reexecução."
+      }
+    }
+  ],
+  "summary": {
+    "baseline_score": "2/3",
+    "variant_score": "0/3",
+    "delta": "variant pior que baseline neste TC, mas o resultado é inconclusivo por timeout do runner, não por qualidade de saída — reexecução recomendada antes de qualquer decisão de merge/publish baseada neste eval",
+    "not_rerun_reason": "decisão explícita do usuário de não reexecutar nesta rodada (custo por execução)"
+  }
+}

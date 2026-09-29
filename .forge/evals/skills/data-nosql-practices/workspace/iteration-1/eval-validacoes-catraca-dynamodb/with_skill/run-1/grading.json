@@ -1,0 +1,84 @@
+{
+  "expectations": [
+    {
+      "text": "Em services/validacoes/infra/dynamodb.tf final, a tabela validacoes-catraca não tem mais hash_key = \"data_validacao\" (nem outra chave só de data ou status), e a nova partition key inclui o cartão (e o tenant) de forma alinhada ao histórico por cartão; o design justifica pela concentração de toda a escrita do dia numa partição",
+      "passed": false,
+      "evidence": "dynamodb.tf final: hash_key = \"cartao_id\", range_key = \"validacao_sk\". Não é mais data_validacao, e o design justifica: 'toda a escrita do rush caía numa partição física só, muito acima do teto de 1.000 WCU/s'. Mas a partition key não inclui o tenant, que a asserção exige com '(e o tenant)' e que o expected_output exemplifica como TENANT#t#CARTAO#id. O tenant aparece só na chave do GSI (tenant_status_shard). Por isso a asserção falha."
+    },
+    {
+      "text": "No dynamodb.tf final nenhum GSI tem projection_type = \"ALL\" (usa KEYS_ONLY ou INCLUDE), e em historicoCartao.ts final nenhuma chamada com IndexName de GSI tem ConsistentRead: true; o design afirma que GSI só oferece leitura eventual",
+      "passed": true,
+      "evidence": "dynamodb.tf: GSI 'por-tenant-status' com projection_type = \"INCLUDE\" e non_key_attributes, sem nenhum \"ALL\". historicoCartao.ts: a única QueryCommand com IndexName (pendentes) não tem ConsistentRead; ConsistentRead: true aparece só em historicoCartao(), que consulta a tabela base sem IndexName. O design diz: \"GSI só oferece leitura eventual\" (seção Consistência, N-11)."
+    },
+    {
+      "text": "historicoCartao.ts final não usa ScanCommand (usa QueryCommand pela chave do cartão), e services/validacoes/scripts/backfill/reprocessarTarifas.ts continua com o ScanCommand paralelo (o agente não o trata como antipattern, reconhecendo que Scan em migração offline é o uso certo)",
+      "passed": true,
+      "evidence": "historicoCartao.ts importa só QueryCommand, e historicoCartao() faz QueryCommand com KeyConditionExpression 'cartao_id = :c AND validacao_sk >= :corte'. reprocessarTarifas.ts ficou idêntico ao commit inicial (git status: não modificado) e mantém ScanCommand com Segment/TotalSegments. O design diz: 'Scan numa migração offline é o uso certo ... julgamento manual confirma que não é antipattern aqui'."
+    },
+    {
+      "text": "registrarValidacao.ts final não contém list_append; as passagens do cartão viram um item por validação sob a mesma partition key com sort key ordenada (ou bucket por período), e o design menciona o limite de 400 KB do item",
+      "passed": true,
+      "evidence": "registrarValidacao.ts final: só PutCommand (import sem UpdateCommand). A string list_append aparece apenas no comentário que explica a remoção ('era list_append sem teto, N-09'), não em nenhuma operação. Cada validação vira um item com PK cartao_id e SK validacao_sk = `${em}#${validacaoId}`, ordenada por instante. O design cita 'N-09: item até 400 KB'. Observação: pela leitura literal, a asserção falharia por causa do comentário; o grader aplicou a intenção."
+    },
+    {
+      "text": "docs/design-validacoes.md registra que a troca da partition key não pode ser feita in place e exige criar tabela nova e copiar/migrar os itens já existentes em homologação",
+      "passed": false,
+      "evidence": "O design diz apenas, num 'ponto de atenção fora do escopo' do backfill: 'o backfill ... precisa ser adaptado para a nova chave ... ou os 40M itens de homologação precisam ser migrados para o novo esquema de chave — chave de partição é decisão de migração no DynamoDB (não muda in-place)'. Ele não registra que é preciso criar uma tabela nova, e a migração aparece como alternativa ('ou') a adaptar o script. O dynamodb.tf mantém name = \"validacoes-catraca\" com hash_key trocado, sem mencionar que o apply destrói e recria a tabela. A evidência é parcial e implícita, por isso falha."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 2,
+    "total": 5,
+    "pass_rate": 0.6
+  },
+  "timing": {
+    "executor_duration_seconds": 209,
+    "total_duration_seconds": 209
+  },
+  "claims": [
+    {
+      "claim": "Scanner pós-correção: N-09 e N-11 só em comentários",
+      "type": "factual",
+      "verified": true,
+      "evidence": "Nos .ts finais, list_append e 'ConsistentRead: true' em GSI aparecem apenas em comentários."
+    },
+    {
+      "claim": "ConditionExpression attribute_not_exists para idempotência",
+      "type": "factual",
+      "verified": true,
+      "evidence": "Presente em registrarValidacao.ts. Declarado no transcript como decisão extra."
+    },
+    {
+      "claim": "Backfill mantido como está",
+      "type": "factual",
+      "verified": true,
+      "evidence": "git status do work/ não lista reprocessarTarifas.ts."
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Em services/validacoes/infra/dynamodb.tf final, a tabela validacoes-catraca não tem mais hash_key = \"data_validacao\" (nem outra chave só de data ou status), e a nova partition key inclui o cartão (e o tenant) de forma alinhada ao histórico por cartão; o design justifica pela concentração de toda a escrita do dia numa partição",
+        "reason": "O parêntese '(e o tenant)' decide o veredito e nenhuma das duas configurações pôs o tenant na partition key da tabela base (ambas usaram só o cartão). Se o tenant é obrigatório, a asserção deveria dizer isso sem parêntese; se não é (cartão já tem cardinalidade alta e o isolamento por tenant pode estar só no GSI), o parêntese deveria sair. Do jeito que está, a asserção não discrimina."
+      },
+      {
+        "assertion": "registrarValidacao.ts final não contém list_append; as passagens do cartão viram um item por validação sob a mesma partition key com sort key ordenada (ou bucket por período), e o design menciona o limite de 400 KB do item",
+        "reason": "Lida ao pé da letra ('não contém list_append'), a asserção reprova as duas configurações, porque ambas citam list_append num comentário que explica a remoção. O grader aplicou a intenção (nenhuma operação list_append no código). Convém reescrever como 'nenhuma UpdateExpression usa list_append'."
+      },
+      {
+        "assertion": "docs/design-validacoes.md registra que a troca da partition key não pode ser feita in place e exige criar tabela nova e copiar/migrar os itens já existentes em homologação",
+        "reason": "Nenhuma asserção verifica o risco operacional mais concreto do caso: trocar hash_key mantendo name = \"validacoes-catraca\" faz o terraform apply destruir e recriar a tabela com os ~40 milhões de itens. A configuração without_skill registrou esse risco explicitamente; a with_skill manteve o mesmo nome sem mencionar a destruição. Vale uma asserção sobre isso (tabela com nome novo/versão, ou lifecycle/prevent_destroy, ou o risco documentado)."
+      },
+      {
+        "reason": "Nenhuma asserção cobre o write sharding do GSI por tenant/status, que o expected_output pede. A with_skill fez (TENANT#t#STATUS#s#SHARD#n); a without_skill usou GSI esparso com PK = tenant e sem shard. Hoje essa diferença real não pesa na nota."
+      }
+    ],
+    "overall": "As asserções são específicas e verificáveis nos arquivos, mas duas dependem de detalhes (parêntese do tenant, menção literal em comentário) que as tornam frágeis ou pouco discriminantes, e o risco de destruição da tabela pelo Terraform não é coberto."
+  }
+}

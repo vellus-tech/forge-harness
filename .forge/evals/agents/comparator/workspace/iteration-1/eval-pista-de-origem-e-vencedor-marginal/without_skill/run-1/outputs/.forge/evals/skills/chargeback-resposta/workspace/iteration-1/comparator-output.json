@@ -1,0 +1,18 @@
+{
+  "skill": "chargeback-resposta",
+  "results": [
+    {
+      "id": "TC-01",
+      "winner": "B",
+      "margin": "clara",
+      "reasoning": "A saída A recomenda aceitar o chargeback sem contestar e afirma que nenhuma evidência é necessária, o que não atende a nenhuma das três expectativas: não identifica o reason code 4837 como fraude sem autorização, não anexa o histórico das 14 validações e não informa o prazo de resposta. A saída B identifica corretamente o reason code 4837 como fraude sem autorização do portador, anexa como evidência o histórico das 14 validações do bilhete mensal (demonstrando uso contínuo pelo portador) e informa o prazo de 2026-10-14. B atende às três expectativas; A não atende a nenhuma."
+    },
+    {
+      "id": "TC-02",
+      "winner": "A",
+      "margin": "marginal",
+      "reasoning": "Ambas as saídas identificam corretamente o reason code 13.1 (mercadoria não recebida), incluem o comprovante de entrega dos Correios como evidência e informam o mesmo prazo de resposta (2026-10-08) — as três expectativas do caso são satisfeitas por A e por B. A diferença é de robustez probatória: A acrescenta código de rastreio, horário exato da entrega e menção à assinatura do destinatário, elementos que fortalecem a evidência em uma contestação real perante a bandeira, enquanto B se limita a citar o comprovante de forma genérica. Como as expectativas formais são cumpridas igualmente por ambas, o veredito é um empate técnico com vantagem marginal para A pela evidência mais completa; não há sinal de erro em B."
+    }
+  ],
+  "summary": "TC-01: vitória clara de B (A abandona a contestação e ignora todas as expectativas). TC-02: vitória marginal de A por maior detalhamento probatório, ambas cumprindo as expectativas formais do caso."
+}

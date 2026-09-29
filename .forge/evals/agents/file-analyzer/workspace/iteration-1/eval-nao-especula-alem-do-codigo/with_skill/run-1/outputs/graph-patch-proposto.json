@@ -1,0 +1,7 @@
+{
+  "nota": "Patch proposto para .forge/graph/graph.json (nao aplicado — o agente file-analyzer so tem Read/Grep, quem grava e o graph build/update).",
+  "path_no_graph": "nodes[].id == 'src/validacao/antifraude-cartao.ts'",
+  "campo_alterado": "summary",
+  "valor_anterior": null,
+  "valor_novo": "Valida cartão no embarque: normaliza o PAN, checa o BIN contra BINS_ACEITOS e aplica Luhn; exporta cartaoAceito(pan). Depende de bins-aceitos.ts e shared/logger.ts. Em exceção, loga e retorna true (aceita); ML, blacklist e velocity do comentário do topo não estão implementados."
+}

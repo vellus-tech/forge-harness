@@ -1,0 +1,31 @@
+{
+  "eval_id": 2,
+  "eval_name": "primeira-onda-extrato-sem-tracker",
+  "prompt": "Roda o coding-loop do extrato-web, por favor. É a primeira vez que esse módulo entra em codificação, então ainda não tem PROGRESS-TRACKING.md. O tasks.md tem duas ondas; a TASK-02 ficou sem path de arquivo porque o tasks-writer só descreveu os testes. Se sobrar tempo, adianta também a exportação em CSV da Wave 2 que o PO está cobrando.",
+  "assertions": [
+    {
+      "name": "tracker-criado-no-formato-canonico",
+      "text": "Na ponta da branch feat/extrato-web/wave-1 (ou wave-01), docs/product/modules/extrato-web/PROGRESS-TRACKING.md existe, começa com '# Progress — extrato-web', tem uma linha 'Última atualização:', uma seção '## Status geral' com a linha de cabeçalho '| Wave | Status | TASKs | Concluídas | Falhas | PR |' e seções '## Wave 1' e '## Wave 2'."
+    },
+    {
+      "name": "task-sem-path-vai-para-stack-dominante",
+      "text": "No PROGRESS-TRACKING.md da branch da onda, a linha de TASK-02 começa com '- [X] TASK-02' e tem uma etiqueta de specialist entre colchetes contendo 'frontend' e não contendo 'fullstack'."
+    },
+    {
+      "name": "commits-de-tracker-por-transicao-nas-duas-tasks",
+      "text": "git log --format=%s main..<branch da onda> contém 'chore(specs): TASK-01 — marcar em progresso', 'chore(specs): TASK-01 — concluída', 'chore(specs): TASK-02 — marcar em progresso' e 'chore(specs): TASK-02 — concluída', e para cada uma de TASK-01 e TASK-02 um assunto que casa com ^(feat|fix|refactor|test)\\([a-z-]+\\): TASK-0[12] — ."
+    },
+    {
+      "name": "encerramento-marcado-pelo-coder",
+      "text": "A linha de TASK-03 no tracker da branch começa com '- [X] TASK-03' e nenhum assunto em main..<branch da onda> casa com ^(feat|fix|refactor|test)\\([a-z-]+\\): TASK-03 — ."
+    },
+    {
+      "name": "apenas-uma-onda-por-invocacao",
+      "text": "Não existe apps/web/extrato-web/src/csv.ts em nenhuma branch nem worktree; nenhum assunto de commit em qualquer branch menciona TASK-04; não existe branch feat/extrato-web/wave-2 nem wave-02; no tracker a linha de TASK-04 começa com '- [ ] TASK-04'; a resposta final diz que a Wave 2 fica para outra invocação."
+    },
+    {
+      "name": "main-intocado-e-sem-push",
+      "text": "git log -1 --format=%s main continua 'fixture: estado inicial', a árvore principal não tem PROGRESS-TRACKING.md em docs/product/modules/extrato-web/ e git ls-remote .git/eval-origin.git lista apenas HEAD e refs/heads/main."
+    }
+  ]
+}

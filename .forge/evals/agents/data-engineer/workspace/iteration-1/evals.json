@@ -1,0 +1,105 @@
+{
+  "skill_name": "data-engineer",
+  "artifact_kind": "agent",
+  "artifact_path": "template/.forge/agents/data/data-engineer.md",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "recarga-outbox-cache-com-pan",
+      "prompt": "@data-engineer Em src/recarga/confirmar-recarga.ts a confirmação da recarga grava no MongoDB, depois publica o evento recarga.confirmada no RabbitMQ e invalida o saldo no Redis. Às vezes o evento some quando o pod cai e o app mostra saldo velho por alguns minutos. Revisa esse fluxo e me diz como desenhar direito, sem perder evento e sem servir saldo errado. Cada operadora é um tenant.",
+      "expected_output": "O data-engineer declara a classificação em uma linha (classificação: trabalho assíncrono + lookup de cópia derivada / estruturado / MongoDB, RabbitMQ, Redis), decompõe pela regra de desempate 5 em três perguntas — data-streaming (relay da outbox, confirms, idempotência do consumidor), data-nosql (coleção outbox gravada na mesma transação do MongoDB, dono do store sem ADR SQL) e data-cache (política de invalidação e namespace por tenant) — e cria só esses especialistas (ou, sem a ferramenta Agent, devolve o PLANO DE ROTEAMENTO com os três). Cada pergunta delegada exige rodar check-data-governance.sh --path e scan.sh --root sobre src/recarga. A síntese atribui cada recomendação à origem e o checklist transversal aponta T-02 (numeroCartao, PAN pela data-classification.json, no evento: levar token) e T-04 (chave de cache com sha256 de CPF sem chave: usar HMAC com chave em KMS ou token, com namespace de tenant). Não edita arquivo nenhum.",
+      "files": [],
+      "fixture": "fixtures/recarga-outbox-cache-com-pan/setup.sh",
+      "assertions": [
+        {
+          "name": "linha-de-classificacao-com-tres-eixos",
+          "text": "A resposta contém uma linha que começa com 'classificação:' e traz os três eixos separados por '/' (padrão de acesso, forma do dado, produto), antes da síntese das recomendações."
+        },
+        {
+          "name": "roteia-exatamente-streaming-nosql-e-cache",
+          "text": "O trace mostra tool_use Agent/Task abaixo do data-engineer com subagent_type data-streaming, data-nosql e data-cache — os três, e nenhum outro tipo; alternativamente, na ausência da ferramenta Agent, a resposta traz o bloco PLANO DE ROTEAMENTO com 'especialistas:' listando exatamente esses três. data-relational não aparece (não há ADR que escolha SQL para recarga)."
+        },
+        {
+          "name": "delegacao-exige-check-de-governanca-e-scan",
+          "text": "O texto de cada pergunta delegada (input.prompt no trace, ou a pergunta por especialista do PLANO DE ROTEAMENTO) contém 'check-data-governance.sh --path' e 'scan.sh --root' apontando para src/recarga (ou um arquivo dentro dela)."
+        },
+        {
+          "name": "outbox-no-dono-do-store-e-relay-no-streaming",
+          "text": "A síntese atribui explicitamente o schema da coleção outbox e a gravação na mesma transação do MongoDB ao data-nosql, o relay/publicação com confirms ao data-streaming e a política de invalidação ao data-cache — cada recomendação com o especialista de origem nomeado."
+        },
+        {
+          "name": "aponta-pan-no-evento-e-hash-sem-chave-no-cache",
+          "text": "A resposta aponta que numeroCartao é PAN (pela data-classification.json) e não pode ir no evento — o evento leva token — e que a chave de cache com sha256 do CPF é hash sem chave, a substituir por HMAC com chave secreta em KMS ou token, com namespace por tenant na chave."
+        },
+        {
+          "name": "nao-altera-a-arvore",
+          "text": "Depois da execução, git status --porcelain no diretório do projeto está vazio: o data-engineer não criou nem editou arquivo."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "ledger-com-adr-sql-e-telemetria",
+      "prompt": "@data-engineer Vou começar dois módulos novos: o ledger de créditos do cartão transporte (lançamento de crédito por recarga, débito por embarque, estorno e saldo) e a ingestão das leituras de telemetria dos validadores, que chegam a cada 5 segundos por equipamento e são consultadas por equipamento nas últimas 24 h. Cada operadora é um tenant. Onde fica cada um e como modelo? Pensei em pôr tudo no PostgreSQL com TimescaleDB para simplificar.",
+      "expected_output": "O data-engineer lê o ADR-0004 (ledger em PostgreSQL, escopo só o ledger) e roteia o ledger a data-relational sem bloco CONFLITO, porque o ADR sustenta a exceção; roteia a telemetria operacional por chave e janela curta a data-nosql pela regra de desempate 6 — o critério é a ausência de ADR que escolha SQL para ela, não o volume —, e trata a ideia de TimescaleDB para a telemetria como conflito com a data-governance.md (bloco CONFLITO ou recusa explícita dessa parte, com opção de abrir ADR). O checklist traz RLS no ledger e filtro de tenant obrigatório no repositório MongoDB. Nenhum outro especialista é criado.",
+      "files": [],
+      "fixture": "fixtures/ledger-com-adr-sql-e-telemetria/setup.sh",
+      "assertions": [
+        {
+          "name": "roteia-ledger-relacional-e-telemetria-nosql",
+          "text": "O trace mostra subagent_type data-relational e data-nosql abaixo do data-engineer, e nenhum outro tipo (ou, sem Agent, o PLANO DE ROTEAMENTO lista exatamente esses dois); a pergunta do ledger vai ao data-relational e a da telemetria ao data-nosql."
+        },
+        {
+          "name": "cita-adr-0004-como-fundamento-do-ledger-sql",
+          "text": "A resposta cita o ADR-0004 (ou o arquivo 0004-ledger-de-creditos-em-postgresql.md) como a razão de o ledger ir para PostgreSQL, e não emite bloco CONFLITO para o ledger."
+        },
+        {
+          "name": "telemetria-decidida-pelo-adr-e-nao-pelo-volume",
+          "text": "A resposta justifica a telemetria em data-nosql pela falta de ADR que escolha SQL para ela (o ADR-0004 cobre só o ledger), e não por volume ou por throughput."
+        },
+        {
+          "name": "timescaledb-na-telemetria-tratado-como-conflito",
+          "text": "A sugestão do usuário de pôr a telemetria no PostgreSQL com TimescaleDB não é aceita em silêncio: a resposta traz bloco CONFLITO (decisão, posição A com data-governance.md, posição B, precedência, opções incluindo abrir ADR, registro) ou declara que essa parte exige novo ADR antes de seguir."
+        },
+        {
+          "name": "isolamento-por-store-rls-e-filtro-de-tenant",
+          "text": "O checklist transversal exige RLS por tenant_id nas tabelas do ledger no PostgreSQL e filtro de tenant obrigatório no repositório/interceptor MongoDB da telemetria."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "idempotencia-no-redis-e-parceiro-no-broker-interno",
+      "prompt": "@data-engineer Revisa a proposta em docs/propostas/recarga-via-adquirente.md e me confirma se posso seguir com ela; o time quer implementar ainda esta semana.",
+      "expected_output": "O data-engineer para nas partes em conflito e escala como HITL: (1) idempotency key só no Redis de cache com allkeys-lru é Redis como store durável de coordenação — bloco CONFLITO com data-governance.md/data-cache.md na posição A, e a escolha do store durável roteada a data-nosql (Redis só como acelerador, pergunta a data-cache só por essa parte); (2) usuário da adquirente no RabbitMQ interno viola a Regra de integração — bloco CONFLITO ou recusa explícita, com as formas válidas (fila dedicada em broker de borda para parceiros, webhook ou REST); (3) numeroCartao completo no evento é T-02 — o evento leva token, e se o fluxo exige PAN, cifra na aplicação e broker no CDE. Não confirma a proposta, não segue com as partes em conflito e não afirma ter registrado a decisão.",
+      "files": [],
+      "fixture": "fixtures/idempotencia-no-redis-e-parceiro-no-broker-interno/setup.sh",
+      "assertions": [
+        {
+          "name": "nao-aprova-a-proposta",
+          "text": "A resposta não confirma que o time pode seguir com a proposta como está; declara que as partes em conflito ficam bloqueadas até decisão humana."
+        },
+        {
+          "name": "bloco-conflito-idempotencia-no-redis",
+          "text": "A resposta contém um bloco CONFLITO com as linhas decisão, posição A, posição B, precedência, opções e registro, em que a posição A cita data-governance.md ou data-cache.md (Redis nunca é fonte de verdade) sobre guardar as idempotency keys só no Redis."
+        },
+        {
+          "name": "store-duravel-da-idempotencia-roteado-ao-nosql",
+          "text": "A escolha do store durável das idempotency keys é roteada a data-nosql (com TTL ou expurgo), e o Redis aparece no máximo como acelerador na frente dele; o trace não cria data-relational para essa pergunta."
+        },
+        {
+          "name": "recusa-credencial-do-parceiro-no-rabbitmq-interno",
+          "text": "A resposta reprova dar à adquirente usuário/credencial no cluster RabbitMQ interno e aponta forma válida de entrega a terceiro: fila ou tópico dedicado em broker/cluster de borda separado alimentado por publicador do produto (shovel, federation ou relay), webhook ou REST — nunca vhost interno sem ADR."
+        },
+        {
+          "name": "pan-no-evento-substituido-por-token",
+          "text": "A resposta aponta que numeroCartao completo no evento recarga.confirmada é PAN em fila (T-02) e exige token no evento; se a conciliação exigir PAN, cifra no nível de aplicação e o broker entra no inventário do CDE."
+        },
+        {
+          "name": "nao-afirma-ter-registrado-a-decisao",
+          "text": "A resposta não afirma ter gravado approvals.yaml nem ADR, e git status --porcelain no projeto está vazio após a execução."
+        }
+      ]
+    }
+  ]
+}

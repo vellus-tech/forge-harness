@@ -1,0 +1,95 @@
+{
+  "reviewer": "node-reviewer",
+  "findings": [
+    {
+      "id": "NODE-BASELINE",
+      "severity": "HIGH",
+      "category": "quality",
+      "file": "eslint.config.mjs",
+      "line": 0,
+      "title": "Baseline de lint forge-quality ausente no repositório",
+      "description": "bash .forge/scripts/node-baseline.sh --root . --check reprova: não existe eslint.config.{mjs,js,cjs,ts} na raiz, logo nenhuma das regras forge-quality/* (no-direct-console, no-direct-data-access, max-lines) está ativa. O repositório já declara 'lint': 'eslint .' no package.json, mas sem config nada roda de fato — inclusive em commits futuros que ninguém pedir para revisar manualmente.",
+      "fix_suggested": "Rodar 'bash .forge/scripts/node-baseline.sh --root . --apply' para materializar o eslint.config.mjs vendorizado antes de abrir o PR."
+    },
+    {
+      "id": "SEC-001",
+      "severity": "BLOCKER",
+      "category": "security",
+      "file": "src/recargas/repository.ts",
+      "line": 8,
+      "title": "Injeção de SQL em INSERT de recarga",
+      "description": "cartaoId e valorCentavos são interpolados diretamente no template literal da query ('...VALUES (\\'${cartaoId}\\', ${valorCentavos}, ...)'), sem parametrização do driver pg. cartaoId vem do body da requisição sem validação; qualquer valor contendo aspas ou ';' quebra a query ou executa comando arbitrário. valorCentavos, por não estar entre aspas, também é vetor (ex.: '0); DROP TABLE recargas;--').",
+      "fix_suggested": "Usar placeholder posicional do driver pg: db.query('INSERT INTO recargas (cartao_id, valor_centavos, status) VALUES ($1, $2, \\'PENDENTE\\') RETURNING *', [cartaoId, valorCentavos])."
+    },
+    {
+      "id": "PERF-001",
+      "severity": "BLOCKER",
+      "category": "platform",
+      "file": "src/recargas/repository.ts",
+      "line": 7,
+      "title": "new Pool() instanciado fora do módulo de bootstrap a cada chamada",
+      "description": "inserirRecarga cria um 'new Pool({ connectionString: config.databaseUrl })' próprio a cada invocação, em vez de reutilizar o pool já exportado por src/db/pool.ts (que inclusive acabou de ganhar 'max' e 'ssl.ca' neste mesmo diff). Cada recarga abre um pool novo com seu próprio conjunto de sockets — nenhum é fechado — e nenhum herda o max/ssl configurado no bootstrap; sob carga isso esgota conexões do Postgres e ignora a TLS/CA que acabou de ser adicionada.",
+      "fix_suggested": "Importar e usar o 'pool' de src/db/pool.ts em vez de instanciar um Pool novo em repository.ts."
+    },
+    {
+      "id": "QUAL-001",
+      "severity": "HIGH",
+      "category": "quality",
+      "file": "src/recargas/routes.ts",
+      "line": 7,
+      "title": "Payload da rota POST /recargas/pix sem validação runtime",
+      "description": "cartaoId e valorCentavos são desestruturados de req.body sem qualquer checagem de forma, tipo ou faixa (o projeto já usa zod em src/config/load.ts, mas não aqui). Tipos TypeScript não protegem contra payload externo: um body sem os campos, com valorCentavos negativo/NaN/string, ou com campos extras passa direto para o service e para a query.",
+      "fix_suggested": "Validar o body com um schema zod (cartaoId: string não vazia, valorCentavos: inteiro positivo) antes de chamar criarRecargaPix, retornando 400 em caso de falha."
+    },
+    {
+      "id": "QUAL-002",
+      "severity": "HIGH",
+      "category": "quality",
+      "file": "src/recargas/service.ts",
+      "line": 5,
+      "title": "Notificação ao antifraude é fire-and-forget sem tratamento de rejeição",
+      "description": "notificarAntifraude(recarga.id).then(() => undefined) não tem .catch() correspondente nem é aguardada/retornada. Se o fetch falhar (rede, DNS, timeout), a rejeição fica sem handler — dispara unhandledRejection, que em versões recentes do Node derruba o processo por padrão — e a recarga já foi persistida como 'PENDENTE' sem que o antifraude tenha sido notificado, sem log e sem retry.",
+      "fix_suggested": "Aguardar a notificação com try/catch e logar+enfileirar retry em caso de falha ('try { await notificarAntifraude(recarga.id); } catch (err) { log.error(...); }'), ou mover para fila assíncrona se a notificação não deve bloquear a resposta."
+    },
+    {
+      "id": "QUAL-003",
+      "severity": "MEDIUM",
+      "category": "quality",
+      "file": "src/recargas/repository.ts",
+      "line": 6,
+      "title": "inserirRecarga retorna Promise<any> apesar do tipo Recarga já existir",
+      "description": "O arquivo declara 'export type Recarga = { id, cartaoId, valorCentavos, status }' mas a função retorna Promise<any> e devolve rows[0] sem tipar — o tipo já modelado não protege nenhum consumidor.",
+      "fix_suggested": "Tipar o retorno como Promise<Recarga> e mapear as colunas snake_case do banco (cartao_id, valor_centavos) para o formato do tipo, em vez de repassar a linha crua do driver."
+    },
+    {
+      "id": "QUAL-004",
+      "severity": "MEDIUM",
+      "category": "quality",
+      "file": "src/recargas/service.ts",
+      "line": 10,
+      "title": "process.env.ANTIFRAUDE_URL lido fora do módulo de configuração",
+      "description": "ANTIFRAUDE_URL é lido diretamente via process.env dentro de service.ts, fora de src/config/load.ts (que já centraliza e valida DATABASE_URL e PG_CA_PATH com zod). Se a variável faltar, o erro só aparece em runtime, no meio de uma requisição de recarga, como '${undefined}/eventos' — não no boot.",
+      "fix_suggested": "Adicionar ANTIFRAUDE_URL ao schema zod de src/config/load.ts e consumir config.antifraudeUrl em service.ts."
+    },
+    {
+      "id": "QUAL-005",
+      "severity": "MEDIUM",
+      "category": "quality",
+      "file": "src/recargas/routes.ts",
+      "line": 6,
+      "title": "Handler assíncrono sem tratamento de erro deixa a requisição pendurada",
+      "description": "O handler 'async (req, res) => { ... await criarRecargaPix(...) ... }' não tem try/catch. Em Express 4, uma rejeição dentro de um handler async não é capturada automaticamente pelo framework: a requisição fica sem resposta (nem 500, nem log) até o timeout do cliente, em vez de um erro controlado.",
+      "fix_suggested": "Envolver em try/catch e chamar next(err), ou usar um wrapper de captura de erro assíncrono (ex.: express-async-errors) com o middleware de erro central do projeto."
+    },
+    {
+      "id": "TEST-001",
+      "severity": "MEDIUM",
+      "category": "quality",
+      "file": "src/recargas/routes.ts",
+      "line": 6,
+      "title": "Nenhum teste cobre a rota POST /recargas/pix",
+      "description": "Não há arquivo .test./.spec. para routes.ts, service.ts ou repository.ts em todo o diff. Endpoint novo de recurso financeiro sem nenhum teste — nem de payload inválido, nem de persistência, nem do fluxo de antifraude.",
+      "fix_suggested": "Adicionar ao menos: teste de contrato do endpoint (payload válido/inválido), teste do repository com query parametrizada, e teste do service cobrindo a falha do antifraude."
+    }
+  ]
+}

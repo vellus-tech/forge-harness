@@ -1,0 +1,343 @@
+{
+  "metadata": {
+    "skill_name": "trd-generator",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-26T19:45:24Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 315,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "git diff HEAD -- docs/product/adr no diret\u00f3rio de sa\u00edda \u00e9 vazio e n\u00e3o h\u00e1 arquivo novo em docs/product/adr/: o ADR-0003 n\u00e3o foi editado nem superseded pelo agente.",
+          "passed": true,
+          "evidence": "Comando `git -C with_skill/run-1/work diff HEAD --stat -- docs/product/adr` retornou vazio e `git -C with_skill/run-1/work status --porcelain -- docs/product/adr .github` tamb\u00e9m vazio (nenhum arquivo novo em docs/product/adr/). O reposit\u00f3rio de trabalho tem um \u00fanico commit (`e2c9668 fixture: estado inicial`), ent\u00e3o o agente n\u00e3o comitou altera\u00e7\u00e3o. O trd.md:130 declara 'Este TRD n\u00e3o altera o ADR-0003'."
+        },
+        {
+          "text": "O trd.md cont\u00e9m a marca\u00e7\u00e3o literal 'Conflito Arquitetural' em um trecho que cita ADR-0003 e RabbitMQ (ou uma linha VAL-TRD-NN com essa marca\u00e7\u00e3o), indicando que a troca exige decis\u00e3o/novo ADR.",
+          "passed": true,
+          "evidence": "`grep -n -i 'conflito arquitetural' outputs/docs/product/trd/trd.md` \u2192 linha 130: '> **Conflito Arquitetural CONF-TRD-01:** o pedido do usu\u00e1rio para \"usar RabbitMQ em vez de Kafka\" e atualizar o ADR-0003 conflita diretamente com uma decis\u00e3o aprovada...' e recomenda 'uma ADR nova e formal (ex.: ADR-0004, superseding ADR-0003)'; tamb\u00e9m linhas 128, 188, 921. VAL-TRD-01 na linha 163 e 942."
+        },
+        {
+          "text": "No Event Catalog e na tabela de Bancos e Persist\u00eancias/Decis\u00f5es T\u00e9cnicas Norteadoras do trd.md, o broker dos eventos n\u00e3o \u00e9 RabbitMQ; RabbitMQ s\u00f3 aparece no trecho de Conflito Arquitetural, Riscos T\u00e9cnicos ou Pontos a Validar.",
+          "passed": true,
+          "evidence": "Event Catalog (trd.md:441-449): canais trip.recorded, charge.authorized etc., se\u00e7\u00e3o 9 abre com 'Mantida sobre **Kafka**, conforme ADR-0003 aceito' (linha 435). Decis\u00f5es T\u00e9cnicas Norteadoras (linha 188): 'Kafka para eventos de dom\u00ednio, mantido | ADR-0003'. Bancos e Persist\u00eancias (494-500) n\u00e3o cita RabbitMQ. Ressalva: pela letra, RabbitMQ aparece tamb\u00e9m fora dos tr\u00eas trechos permitidos (linhas 128 na tabela de ADRs, 188 em Decis\u00f5es Norteadoras, 435 e 474 na se\u00e7\u00e3o 9), mas em todas como refer\u00eancia cruzada ao conflito ou \u00e0 rejei\u00e7\u00e3o original, nunca como broker adotado; julgado PASS pelo m\u00e9rito, ver eval_feedback."
+        },
+        {
+          "text": "N\u00e3o existem no diret\u00f3rio de sa\u00edda .github/workflows/ci.yml (nem outro arquivo novo em .github/), docker-compose.yml, docker-compose.*.yml ou Dockerfile criados pelo agente; git status --porcelain, desconsiderando as remo\u00e7\u00f5es de .forge/skills, .forge/agents, .claude/skills, .claude/agents e plugin/ feitas pelo setup, lista apenas caminhos sob docs/product/trd/.",
+          "passed": true,
+          "evidence": "`git -C with_skill/run-1/work status --porcelain` sem as remo\u00e7\u00f5es do setup lista s\u00f3 `?? docs/product/trd/`. `find work outputs \\( -name 'docker-compose*' -o -name Dockerfile -o -path '*/.github/*' \\) -not -path '*/.git/*'` retornou vazio. Transcript: 'Decis\u00e3o: **n\u00e3o criei nenhum dos dois arquivos**'."
+        },
+        {
+          "text": "docs/product/trd/trd.md foi criado (o agente n\u00e3o abortou a tarefa) e cont\u00e9m a se\u00e7\u00e3o 'CI/CD e Qualidade T\u00e9cnica' descrevendo as etapas esperadas do pipeline (build, testes, security/container scan) em tabela, sem YAML de workflow execut\u00e1vel.",
+          "passed": true,
+          "evidence": "outputs/docs/product/trd/trd.md existe (id\u00eantico a work/docs/product/trd/trd.md via cmp) e tem '## 17. CI/CD e Qualidade T\u00e9cnica' (linha 773) com tabela 'Pipeline Esperado' incluindo Build, Unit Tests, Integration Tests, Security Scan e Container Scan (linhas 779-787). `grep -n '```' trd.md` s\u00f3 encontra blocos json (415, 453) e mermaid (834+); nenhum YAML de workflow."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.5,
+        "passed": 3,
+        "failed": 3,
+        "total": 6,
+        "time_seconds": 377,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe docs/product/trd/trd.md (e n\u00e3o existe docs/product/trd/TRD.md nem docs/trd/) contendo o cabe\u00e7alho '**Fontes Principais:**' e cabe\u00e7alhos de se\u00e7\u00e3o numerados na ordem do contrato, incluindo no m\u00ednimo '4. Consolida\u00e7\u00e3o T\u00e9cnica dos Insumos', '7. M\u00f3dulos e Deployables', '9. Arquitetura de Eventos e Mensageria', '13. Compliance e Privacidade', '19. Diagramas T\u00e9cnicos', '20. Matriz de Rastreabilidade', '21. Riscos T\u00e9cnicos' e '22. Pontos a Validar', com pelo menos um bloco ```mermaid.",
+          "passed": true,
+          "evidence": "`ls work/docs/product/trd/` lista s\u00f3 `trd.md` (FS case-insensitive; n\u00e3o h\u00e1 TRD.md distinto) e `ls -d work/docs/trd` falha (n\u00e3o existe). `cmp` confirma que outputs/docs/product/trd/trd.md \u00e9 id\u00eantico. trd.md:7 '**Fontes Principais:** PRD, FRD, NFRD, ADR-0001 a ADR-0003, DDD, Modules'. `grep -nE '^## '` mostra se\u00e7\u00f5es 1 a 23 em ordem, incluindo :72 '## 4. Consolida\u00e7\u00e3o T\u00e9cnica dos Insumos', :191 '## 7. M\u00f3dulos e Deployables', :494 '## 9. Arquitetura de Eventos e Mensageria', :668 '## 13. Compliance e Privacidade', :913 '## 19. Diagramas T\u00e9cnicos', :1135 '## 20. Matriz de Rastreabilidade', :1167 '## 21. Riscos T\u00e9cnicos', :1179 '## 22. Pontos a Validar'. `grep -c '```mermaid'` = 10."
+        },
+        {
+          "text": "O trd.md cont\u00e9m pelo menos 5 c\u00f3digos distintos no padr\u00e3o TRD-<CAT>-NN com CAT dentre ARCH, API, EVT, DATA, INT, SEC, COMP, OBS, PERF, RES, DEP e OPS (cobrindo ao menos 4 categorias diferentes), a tabela de Riscos T\u00e9cnicos usa c\u00f3digos RISK-TRD-NN e a tabela de Pontos a Validar usa c\u00f3digos VAL-TRD-NN.",
+          "passed": false,
+          "evidence": "`grep -oE 'TRD-(ARCH|API|EVT|DATA|INT|SEC|COMP|OBS|PERF|RES|DEP|OPS)-[0-9]{2}' trd.md | sort -u` retorna VAZIO: nenhum requisito t\u00e9cnico codificado TRD-<CAT>-NN, apesar de a especifica\u00e7\u00e3o do agente (template/.forge/agents/specifications/trd-generator.md:1237-1241) exigir TRD-ARCH-01, TRD-API-01 etc. RISK-TRD-01..05 (trd.md:1171-1175) e VAL-TRD-01..09 (trd.md:1183-1191) existem, mas a primeira parte da asser\u00e7\u00e3o (>=5 c\u00f3digos TRD-<CAT>-NN em >=4 categorias) falha."
+        },
+        {
+          "text": "Todas as linhas do Event Catalog t\u00eam nome de evento no formato '<entidade>.<verbo no partic\u00edpio passado>.vN' (ex.: 'tap.captured.v1', 'charge.declined.v1'), sem nomes imperativos ou sem vers\u00e3o, e o canal/t\u00f3pico dos eventos \u00e9 Kafka (ADR-0003); RabbitMQ n\u00e3o aparece como broker adotado.",
+          "passed": false,
+          "evidence": "Event Catalog (trd.md:500-510) tem 7 linhas, todas em Kafka ('Kafka: <t\u00f3pico>'), e RabbitMQ s\u00f3 aparece em trd.md:179 como alternativa descartada pela ADR-0003. Por\u00e9m a linha `settlement.mismatch.v1` (trd.md:510) n\u00e3o segue '<entidade>.<verbo no partic\u00edpio passado>.vN': 'mismatch' \u00e9 substantivo, n\u00e3o partic\u00edpio (seria 'mismatched'/'mismatch-detected'). A asser\u00e7\u00e3o exige TODAS as linhas no formato; uma viola."
+        },
+        {
+          "text": "O trd.md cont\u00e9m a se\u00e7\u00e3o 'CDE - Cardholder Data Environment' com uma tabela de colunas Componente | Dentro do CDE? | Justificativa em que validator-gateway e fare-authorization aparecem classificados (Sim/N\u00e3o/Ponto a Validar) e rider-bff aparece como fora do CDE ou como Ponto a Validar, citando NFR-SEC-01/PCI DSS.",
+          "passed": true,
+          "evidence": "trd.md:698 '### CDE - Cardholder Data Environment'; trd.md:700 cabe\u00e7alho '| Componente | Dentro do CDE? | Justificativa |'; :704 validator-gateway = 'N\u00e3o' com ressalva de Ponto a Validar com o QSA; :705 'fare-authorization, deny-list, rider-bff, settlement | N\u00e3o'; :706 cita '(NFR-SEC-01)'; :708 Ponto a Validar cr\u00edtico para o QSA. Ressalva: fare-authorization e rider-bff aparecem numa linha agrupada, n\u00e3o em linhas pr\u00f3prias, mas est\u00e3o classificados."
+        },
+        {
+          "text": "A Matriz de Rastreabilidade tem linhas cujo item referencia cada uma das funcionalidades F-01 a F-05, cada um dos NFR-PERF-01, NFR-SEC-01 e NFR-RET-01 e cada um dos ADR-0001, ADR-0002 e ADR-0003, e a coluna Status usa apenas 'Coberto', 'Parcial' ou 'N\u00e3o Coberto'.",
+          "passed": false,
+          "evidence": "Matriz (trd.md:1137-1161) tem linhas para F-01..F-05 (:1142-1146), NFR-PERF-01 (:1152), NFR-SEC-01 (:1154), NFR-RET-01 (:1157) e ADR-0001/0002/0003 (:1158-1160). Mas a coluna Status em trd.md:1154 vale 'Coberto \u2014 com Ponto a Validar sobre o desenho exato do protocolo do validador (se\u00e7\u00e3o 13)', valor fora do conjunto {Coberto, Parcial, N\u00e3o Coberto}; a asser\u00e7\u00e3o exige 'apenas' esses valores (o caso deveria ser 'Parcial')."
+        },
+        {
+          "text": "git diff HEAD -- docs/product/prd docs/product/frd-nfrd docs/product/adr docs/product/ddd docs/product/modules no diret\u00f3rio de sa\u00edda \u00e9 vazio, e git status --porcelain, desconsiderando as remo\u00e7\u00f5es de .forge/skills, .forge/agents, .claude/skills, .claude/agents e plugin/ feitas pelo setup, lista apenas caminhos sob docs/product/trd/.",
+          "passed": true,
+          "evidence": "`git -C with_skill/run-1/work diff HEAD --stat -- docs/product/prd docs/product/frd-nfrd docs/product/adr docs/product/ddd docs/product/modules` = vazio. `git -C .../work status --porcelain | grep -vE '^ ?D +(\\.forge/skills|\\.forge/agents|\\.claude/skills|\\.claude/agents|plugin/)'` = s\u00f3 '?? docs/product/trd/' (136 remo\u00e7\u00f5es do setup filtradas)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.83,
+        "passed": 5,
+        "failed": 1,
+        "total": 6,
+        "time_seconds": 342,
+        "tokens": 49860,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe docs/product/trd/trd.md e n\u00e3o existe docs/trd/ nem qualquer TRD.md em mai\u00fasculas; a se\u00e7\u00e3o de Refer\u00eancias do trd.md aponta para docs/prd/prd.md, docs/frd/frd.md e docs/adr/0001-monolito-modular.md (os paths que realmente existem).",
+          "passed": true,
+          "evidence": "`find work -iname trd.md` retorna s\u00f3 work/docs/product/trd/trd.md; `test -d work/docs/trd` \u2192 ausente; nenhum TRD.md mai\u00fasculo. with_skill/run-1/outputs/docs/product/trd/trd.md linhas 65-68 (se\u00e7\u00e3o 3 Refer\u00eancias) apontam `docs/prd/prd.md`, `docs/frd/frd.md` e `docs/adr/0001-monolito-modular.md`, que existem na fixture. outputs/ e work/ id\u00eanticos (cmp)."
+        },
+        {
+          "text": "A tabela de Pontos a Validar cont\u00e9m ao menos um VAL-TRD-NN cujo texto menciona os paths legados (docs/prd, docs/frd ou docs/adr) e recomenda a migra\u00e7\u00e3o para docs/product/.",
+          "passed": false,
+          "evidence": "Nenhum VAL-TRD-NN menciona docs/prd, docs/frd ou docs/adr: `grep -n 'VAL-TRD-[0-9][0-9] ' trd.md | grep -iE 'docs/(prd|frd|adr)'` retorna vazio. A recomenda\u00e7\u00e3o de migra\u00e7\u00e3o existe (with_skill/run-1/outputs/docs/product/trd/trd.md linha 74 e linha 820), mas a linha 820 da tabela de Pontos a Validar tem c\u00f3digo '**Recomenda\u00e7\u00e3o de migra\u00e7\u00e3o de layout**', n\u00e3o VAL-TRD-NN; VAL-TRD-01 (linha 802) cita s\u00f3 `docs/product/frd-nfrd/nfrd.md` / `docs/nfrd/`. O transcript (passo 9) afirma a recomenda\u00e7\u00e3o 'na se\u00e7\u00e3o 22', o que \u00e9 verdade, mas sem c\u00f3digo VAL-TRD rastre\u00e1vel."
+        },
+        {
+          "text": "A tabela de Pontos a Validar cont\u00e9m um VAL-TRD-NN registrando a aus\u00eancia do NFRD; e toda meta num\u00e9rica de lat\u00eancia (ms), disponibilidade (%) ou reten\u00e7\u00e3o (anos) que apare\u00e7a no trd.md est\u00e1 na mesma linha ou par\u00e1grafo que 'Infer\u00eancia T\u00e9cnica' ou 'Ponto a Validar' (nenhuma aparece como requisito definido sem marca\u00e7\u00e3o).",
+          "passed": true,
+          "evidence": "VAL-TRD-01 (with_skill/run-1/outputs/docs/product/trd/trd.md linha 802): 'NFRD n\u00e3o existe no reposit\u00f3rio \u2014 nenhum requisito n\u00e3o funcional formal'. `grep -nE '[0-9]+ ?ms|[0-9]+([.,][0-9]+)? ?%|[0-9]+ anos'` acha s\u00f3 a linha 575 ('**Infer\u00eancia T\u00e9cnica: alvo sugerido < 500ms**', mesma linha cita VAL-TRD-01) e a linha 665 (cobertura de testes 95%/85%/70%, que n\u00e3o \u00e9 disponibilidade). Nenhuma meta de disponibilidade ou reten\u00e7\u00e3o em anos; reten\u00e7\u00f5es remetem a VAL-TRD-12."
+        },
+        {
+          "text": "As rotas de API do trd.md seguem '/api/v1/<resource>' em kebab-case e a se\u00e7\u00e3o de Arquitetura de APIs (ou a linha da rota) cont\u00e9m a marca\u00e7\u00e3o literal 'Infer\u00eancia T\u00e9cnica' justificando o padr\u00e3o por falta de padr\u00e3o definido no projeto.",
+          "passed": true,
+          "evidence": "`grep -oE '/api/v1/[A-Za-z0-9{}/_-]+'` \u2192 /api/v1/trips, /api/v1/deny-list, /api/v1/passengers/{cardToken}/trips (segmentos de recurso em kebab-case; o par\u00e2metro de path \u00e9 camelCase). Se\u00e7\u00e3o 8 (linhas 261-302) cont\u00e9m o literal 'Infer\u00eancia T\u00e9cnica' nas linhas das rotas (280-282) e a linha 274 justifica: 'o projeto n\u00e3o tem padr\u00e3o de API definido ... As APIs abaixo seguem `/api/v1/[resource]` em kebab-case por infer\u00eancia t\u00e9cnica'; se\u00e7\u00e3o 7 linhas 223-225 marcam cada rota '(Infer\u00eancia T\u00e9cnica)'. Ressalva: a frase de justificativa usa min\u00fasculas; o literal capitalizado est\u00e1 nas linhas das rotas, o que a asser\u00e7\u00e3o aceita ('ou a linha da rota')."
+        },
+        {
+          "text": "A se\u00e7\u00e3o M\u00f3dulos e Deployables/Estilo Arquitetural adota o mon\u00f3lito modular do ADR-0001 como estilo (um deployable de backend para os m\u00f3dulos de neg\u00f3cio, PostgreSQL com schema por m\u00f3dulo); se microsservi\u00e7os forem mencionados, \u00e9 como evolu\u00e7\u00e3o futura, risco ou Ponto a Validar, nunca como decis\u00e3o do TRD.",
+          "passed": true,
+          "evidence": "Se\u00e7\u00e3o 6 (linha 186) 'Mon\u00f3lito modular, conforme ADR-0001. Um \u00fanico deployable de backend ... cada um com seu schema PostgreSQL dedicado'; se\u00e7\u00e3o 7 (linha 194) um \u00fanico deployable `tarifa-aberta-backend` com os 4 m\u00f3dulos; se\u00e7\u00e3o 10 linha 366 'PostgreSQL (\u00fanico, schema-per-module)'. `grep -iE 'microsservi|microservi'` vazio; extra\u00e7\u00e3o de servi\u00e7os aparece s\u00f3 como futuro condicionado ao ADR (linhas 124, 307)."
+        },
+        {
+          "text": "git diff HEAD -- docs/prd docs/frd docs/adr no diret\u00f3rio de sa\u00edda \u00e9 vazio: o agente n\u00e3o moveu, renomeou nem editou os documentos legados.",
+          "passed": true,
+          "evidence": "`git -C with_skill/run-1/work diff HEAD --name-status -- docs/prd docs/frd docs/adr | wc -l` \u2192 0; `git status --porcelain -- docs/` mostra s\u00f3 '?? docs/product/'. (O status do reposit\u00f3rio tamb\u00e9m lista .claude/ e .forge/ agents/skills como deletados, id\u00eantico na configura\u00e7\u00e3o baseline \u2014 artefato do isolamento do eval, fora de docs/.)"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.4,
+        "passed": 2,
+        "failed": 3,
+        "total": 5,
+        "time_seconds": 154,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "git diff HEAD -- docs/product/adr no diret\u00f3rio de sa\u00edda \u00e9 vazio e n\u00e3o h\u00e1 arquivo novo em docs/product/adr/: o ADR-0003 n\u00e3o foi editado nem superseded pelo agente.",
+          "passed": true,
+          "evidence": "`git -C without_skill/run-1/work diff HEAD --stat -- docs/product/adr` vazio e `status --porcelain -- docs/product/adr .github` vazio; um \u00fanico commit `3780613 fixture: estado inicial`. Transcript passo 8 afirma diff byte a byte do ADR-0003 sem altera\u00e7\u00e3o."
+        },
+        {
+          "text": "O trd.md cont\u00e9m a marca\u00e7\u00e3o literal 'Conflito Arquitetural' em um trecho que cita ADR-0003 e RabbitMQ (ou uma linha VAL-TRD-NN com essa marca\u00e7\u00e3o), indicando que a troca exige decis\u00e3o/novo ADR.",
+          "passed": false,
+          "evidence": "`grep -n -i 'conflito arquitetural' outputs/docs/product/trd/trd-tarifa-aberta.md` retornou vazio. O conflito \u00e9 tratado em '## 4. Broker de Eventos \u2014 decis\u00e3o em aberto (n\u00e3o aplicada)' (linha 25), mas sem a marca\u00e7\u00e3o literal exigida nem linha VAL-TRD-NN."
+        },
+        {
+          "text": "No Event Catalog e na tabela de Bancos e Persist\u00eancias/Decis\u00f5es T\u00e9cnicas Norteadoras do trd.md, o broker dos eventos n\u00e3o \u00e9 RabbitMQ; RabbitMQ s\u00f3 aparece no trecho de Conflito Arquitetural, Riscos T\u00e9cnicos ou Pontos a Validar.",
+          "passed": false,
+          "evidence": "O documento (trd-tarifa-aberta.md) n\u00e3o tem Event Catalog, tabela de Bancos e Persist\u00eancias nem Decis\u00f5es T\u00e9cnicas Norteadoras (headings: 1..8, ver `grep -n '^#'`), ent\u00e3o a asser\u00e7\u00e3o n\u00e3o \u00e9 verific\u00e1vel positivamente. Kafka n\u00e3o \u00e9 substitu\u00eddo (linha 60: 'ADR-0003 (mantido; troca para RabbitMQ pendente de decis\u00e3o)'), mas RabbitMQ aparece tamb\u00e9m na \u00a78 Rastreabilidade (linha 60), fora dos trechos permitidos. Na d\u00favida, FAIL."
+        },
+        {
+          "text": "N\u00e3o existem no diret\u00f3rio de sa\u00edda .github/workflows/ci.yml (nem outro arquivo novo em .github/), docker-compose.yml, docker-compose.*.yml ou Dockerfile criados pelo agente; git status --porcelain, desconsiderando as remo\u00e7\u00f5es de .forge/skills, .forge/agents, .claude/skills, .claude/agents e plugin/ feitas pelo setup, lista apenas caminhos sob docs/product/trd/.",
+          "passed": true,
+          "evidence": "`git -C without_skill/run-1/work status --porcelain` sem remo\u00e7\u00f5es lista s\u00f3 `?? docs/product/trd/`; find por docker-compose*/Dockerfile/.github vazio. outputs/decisoes-pendentes.md est\u00e1 fora de work/ e \u00e9 registro de pend\u00eancia, n\u00e3o pipeline. trd-tarifa-aberta.md:53 declara que n\u00e3o gerou ci.yml nem docker-compose.yml."
+        },
+        {
+          "text": "docs/product/trd/trd.md foi criado (o agente n\u00e3o abortou a tarefa) e cont\u00e9m a se\u00e7\u00e3o 'CI/CD e Qualidade T\u00e9cnica' descrevendo as etapas esperadas do pipeline (build, testes, security/container scan) em tabela, sem YAML de workflow execut\u00e1vel.",
+          "passed": false,
+          "evidence": "docs/product/trd/trd.md n\u00e3o existe: o arquivo criado \u00e9 docs/product/trd/trd-tarifa-aberta.md. N\u00e3o h\u00e1 se\u00e7\u00e3o 'CI/CD e Qualidade T\u00e9cnica' nem tabela de etapas do pipeline; a \u00a77 'Fora de Escopo deste TRD' (linha 51-53) apenas recusa em prosa, sem descrever etapas em tabela."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.17,
+        "passed": 1,
+        "failed": 5,
+        "total": 6,
+        "time_seconds": 135,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe docs/product/trd/trd.md (e n\u00e3o existe docs/product/trd/TRD.md nem docs/trd/) contendo o cabe\u00e7alho '**Fontes Principais:**' e cabe\u00e7alhos de se\u00e7\u00e3o numerados na ordem do contrato, incluindo no m\u00ednimo '4. Consolida\u00e7\u00e3o T\u00e9cnica dos Insumos', '7. M\u00f3dulos e Deployables', '9. Arquitetura de Eventos e Mensageria', '13. Compliance e Privacidade', '19. Diagramas T\u00e9cnicos', '20. Matriz de Rastreabilidade', '21. Riscos T\u00e9cnicos' e '22. Pontos a Validar', com pelo menos um bloco ```mermaid.",
+          "passed": false,
+          "evidence": "docs/product/trd/trd.md existe (`ls` lista s\u00f3 trd.md; docs/trd n\u00e3o existe), mas `grep -n 'Fontes Principais'` n\u00e3o encontra nada, as se\u00e7\u00f5es s\u00e3o 11 pr\u00f3prias ('## 1. Vis\u00e3o geral e escopo t\u00e9cnico' ... '## 11. Lacunas e pontos abertos'), sem '4. Consolida\u00e7\u00e3o T\u00e9cnica dos Insumos', '13. Compliance e Privacidade', '19. Diagramas T\u00e9cnicos', '20. Matriz de Rastreabilidade', '21. Riscos T\u00e9cnicos' ou '22. Pontos a Validar', e `grep -c '```mermaid'` = 0."
+        },
+        {
+          "text": "O trd.md cont\u00e9m pelo menos 5 c\u00f3digos distintos no padr\u00e3o TRD-<CAT>-NN com CAT dentre ARCH, API, EVT, DATA, INT, SEC, COMP, OBS, PERF, RES, DEP e OPS (cobrindo ao menos 4 categorias diferentes), a tabela de Riscos T\u00e9cnicos usa c\u00f3digos RISK-TRD-NN e a tabela de Pontos a Validar usa c\u00f3digos VAL-TRD-NN.",
+          "passed": false,
+          "evidence": "`grep -oE 'TRD-(ARCH|...|OPS)-[0-9]{2}'`, `grep -oE 'RISK-TRD-[0-9]{2}'` e `grep -oE 'VAL-TRD-[0-9]{2}'` retornam vazio; n\u00e3o h\u00e1 tabela de Riscos T\u00e9cnicos nem de Pontos a Validar (s\u00f3 lista de lacunas em trd.md:141-145)."
+        },
+        {
+          "text": "Todas as linhas do Event Catalog t\u00eam nome de evento no formato '<entidade>.<verbo no partic\u00edpio passado>.vN' (ex.: 'tap.captured.v1', 'charge.declined.v1'), sem nomes imperativos ou sem vers\u00e3o, e o canal/t\u00f3pico dos eventos \u00e9 Kafka (ADR-0003); RabbitMQ n\u00e3o aparece como broker adotado.",
+          "passed": false,
+          "evidence": "Tabela de eventos (trd.md:77-83) usa 'tarifa-aberta.tap.registrado', 'tarifa-aberta.cobranca.enviada', 'deny-list.atualizada' etc.: nenhum tem sufixo de vers\u00e3o .vN. Kafka \u00e9 o broker (trd.md:75) e RabbitMQ n\u00e3o aparece, mas o formato versionado falha em todas as linhas."
+        },
+        {
+          "text": "O trd.md cont\u00e9m a se\u00e7\u00e3o 'CDE - Cardholder Data Environment' com uma tabela de colunas Componente | Dentro do CDE? | Justificativa em que validator-gateway e fare-authorization aparecem classificados (Sim/N\u00e3o/Ponto a Validar) e rider-bff aparece como fora do CDE ou como Ponto a Validar, citando NFR-SEC-01/PCI DSS.",
+          "passed": false,
+          "evidence": "`grep -n 'CDE - Cardholder'` n\u00e3o encontra se\u00e7\u00e3o; o escopo do CDE aparece em prosa dentro da tabela de controles (trd.md:101-107, colunas Controle | Requisito de origem | Implementa\u00e7\u00e3o), sem tabela Componente | Dentro do CDE? | Justificativa nem classifica\u00e7\u00e3o de rider-bff."
+        },
+        {
+          "text": "A Matriz de Rastreabilidade tem linhas cujo item referencia cada uma das funcionalidades F-01 a F-05, cada um dos NFR-PERF-01, NFR-SEC-01 e NFR-RET-01 e cada um dos ADR-0001, ADR-0002 e ADR-0003, e a coluna Status usa apenas 'Coberto', 'Parcial' ou 'N\u00e3o Coberto'.",
+          "passed": false,
+          "evidence": "'## 10. Rastreabilidade consolidada' (trd.md:128-139) tem colunas 'Artefato de origem | Itens cobertos neste TRD', sem coluna Status; F-01 a F-05 aparecem agrupados numa c\u00e9lula ('F-01 a F-05 (\u00a73)'), n\u00e3o como linhas por item."
+        },
+        {
+          "text": "git diff HEAD -- docs/product/prd docs/product/frd-nfrd docs/product/adr docs/product/ddd docs/product/modules no diret\u00f3rio de sa\u00edda \u00e9 vazio, e git status --porcelain, desconsiderando as remo\u00e7\u00f5es de .forge/skills, .forge/agents, .claude/skills, .claude/agents e plugin/ feitas pelo setup, lista apenas caminhos sob docs/product/trd/.",
+          "passed": true,
+          "evidence": "`git -C without_skill/run-1/work diff HEAD --stat -- docs/product/prd docs/product/frd-nfrd docs/product/adr docs/product/ddd docs/product/modules` = vazio; `git status --porcelain` filtrado das remo\u00e7\u00f5es do setup = s\u00f3 '?? docs/product/trd/'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.33,
+        "passed": 2,
+        "failed": 4,
+        "total": 6,
+        "time_seconds": 88,
+        "tokens": 6912,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe docs/product/trd/trd.md e n\u00e3o existe docs/trd/ nem qualquer TRD.md em mai\u00fasculas; a se\u00e7\u00e3o de Refer\u00eancias do trd.md aponta para docs/prd/prd.md, docs/frd/frd.md e docs/adr/0001-monolito-modular.md (os paths que realmente existem).",
+          "passed": false,
+          "evidence": "TRD gravado no path legado: `find work -iname trd.md` \u2192 work/docs/trd/trd.md; `test -d work/docs/trd` \u2192 EXISTS; n\u00e3o existe docs/product/trd/trd.md. O transcript (se\u00e7\u00e3o 3) admite: 'Segui o padr\u00e3o de arquivo do pr\u00f3prio reposit\u00f3rio (docs/<sigla>/<sigla>.md) e criei docs/trd/trd.md'. As fontes s\u00e3o citadas corretamente na linha 3, mas a primeira cl\u00e1usula j\u00e1 falha."
+        },
+        {
+          "text": "A tabela de Pontos a Validar cont\u00e9m ao menos um VAL-TRD-NN cujo texto menciona os paths legados (docs/prd, docs/frd ou docs/adr) e recomenda a migra\u00e7\u00e3o para docs/product/.",
+          "passed": false,
+          "evidence": "N\u00e3o h\u00e1 nenhum VAL-TRD-NN nem tabela de Pontos a Validar em without_skill/run-1/outputs/docs/trd/trd.md (`grep -n 'VAL-TRD'` vazio) e `grep -in migra` vazio: nenhuma recomenda\u00e7\u00e3o de migra\u00e7\u00e3o para docs/product/."
+        },
+        {
+          "text": "A tabela de Pontos a Validar cont\u00e9m um VAL-TRD-NN registrando a aus\u00eancia do NFRD; e toda meta num\u00e9rica de lat\u00eancia (ms), disponibilidade (%) ou reten\u00e7\u00e3o (anos) que apare\u00e7a no trd.md est\u00e1 na mesma linha ou par\u00e1grafo que 'Infer\u00eancia T\u00e9cnica' ou 'Ponto a Validar' (nenhuma aparece como requisito definido sem marca\u00e7\u00e3o).",
+          "passed": false,
+          "evidence": "N\u00e3o h\u00e1 VAL-TRD-NN registrando a aus\u00eancia do NFRD (a lacuna aparece em prosa na se\u00e7\u00e3o 7, linha 74, sem c\u00f3digo). Metas num\u00e9ricas: linha 29 'P99 \u2264 300ms' e linha 30 '99,9%' marcadas 'NEEDS CLARIFICATION', n\u00e3o 'Infer\u00eancia T\u00e9cnica' nem 'Ponto a Validar'. As metas s\u00e3o honestamente sinalizadas como suposi\u00e7\u00e3o, mas n\u00e3o com a marca\u00e7\u00e3o exigida."
+        },
+        {
+          "text": "As rotas de API do trd.md seguem '/api/v1/<resource>' em kebab-case e a se\u00e7\u00e3o de Arquitetura de APIs (ou a linha da rota) cont\u00e9m a marca\u00e7\u00e3o literal 'Infer\u00eancia T\u00e9cnica' justificando o padr\u00e3o por falta de padr\u00e3o definido no projeto.",
+          "passed": false,
+          "evidence": "`grep -oE '/api/v1/...'` \u2192 0 ocorr\u00eancias; rotas propostas (linhas 43-45) s\u00e3o `POST /viagens/tap`, `GET /deny-list/sync`, `GET /passageiro/viagens`, sem prefixo /api/v1/. `grep -c 'Infer\u00eancia T\u00e9cnica'` \u2192 0; versionamento deixado como NEEDS CLARIFICATION (linha 47)."
+        },
+        {
+          "text": "A se\u00e7\u00e3o M\u00f3dulos e Deployables/Estilo Arquitetural adota o mon\u00f3lito modular do ADR-0001 como estilo (um deployable de backend para os m\u00f3dulos de neg\u00f3cio, PostgreSQL com schema por m\u00f3dulo); se microsservi\u00e7os forem mencionados, \u00e9 como evolu\u00e7\u00e3o futura, risco ou Ponto a Validar, nunca como decis\u00e3o do TRD.",
+          "passed": true,
+          "evidence": "Linha 11: 'Conforme ADR-0001, o backend \u00e9 um mon\u00f3lito modular com deployable \u00fanico e PostgreSQL com um schema por m\u00f3dulo'; linha 70 'Um schema PostgreSQL por m\u00f3dulo (ADR-0001)'. `grep -iE 'microsservi|microservi'` vazio. Ressalva: a se\u00e7\u00e3o se chama '2. Arquitetura de Refer\u00eancia', n\u00e3o 'M\u00f3dulos e Deployables/Estilo Arquitetural'; aprovado pela subst\u00e2ncia."
+        },
+        {
+          "text": "git diff HEAD -- docs/prd docs/frd docs/adr no diret\u00f3rio de sa\u00edda \u00e9 vazio: o agente n\u00e3o moveu, renomeou nem editou os documentos legados.",
+          "passed": true,
+          "evidence": "`git -C without_skill/run-1/work diff HEAD --name-status -- docs/prd docs/frd docs/adr | wc -l` \u2192 0; `git status --porcelain -- docs/` mostra s\u00f3 '?? docs/trd/'."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.7767,
+        "stddev": 0.2542,
+        "min": 0.5,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 344.6667,
+        "stddev": 31.0859,
+        "min": 315,
+        "max": 377
+      },
+      "tokens": {
+        "mean": 16620.0,
+        "stddev": 28786.6844,
+        "min": 0,
+        "max": 49860
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.3,
+        "stddev": 0.1179,
+        "min": 0.17,
+        "max": 0.4
+      },
+      "time_seconds": {
+        "mean": 125.6667,
+        "stddev": 33.9755,
+        "min": 88,
+        "max": 154
+      },
+      "tokens": {
+        "mean": 2304.0,
+        "stddev": 3990.6451,
+        "min": 0,
+        "max": 6912
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.48",
+      "time_seconds": "+219.0",
+      "tokens": "+14316"
+    }
+  },
+  "notes": []
+}

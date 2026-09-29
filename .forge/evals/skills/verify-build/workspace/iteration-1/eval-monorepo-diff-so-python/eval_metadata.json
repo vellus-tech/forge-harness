@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "monorepo-diff-so-python",
+  "prompt": "Terminei a feat/integracao-60min na plataforma-tarifas (integração gratuita em até 60 minutos no services/tarifa). Faz o check de build/teste da branch contra a main antes de eu pedir o code review e salva o JSON do resultado em outputs/verify-build-output.json, com uma linha em outputs/resumo.md dizendo se passou. Obs.: o web/painel tá com o typecheck quebrado faz tempo, é outro épico.",
+  "assertions": [
+    "outputs/verify-build-output.json tem stacks_detected == [\"python\"] e results não contém chave node (nem infra).",
+    "outputs/verify-build-output.json tem skill == \"verify-build\", passed == true, exit_code == 0 e results.python.test registra total == 7 e failed == 0 (número que só sai de executar de fato a suíte unittest do services/tarifa).",
+    "results.python registra typecheck como não configurado/não executado (status, reason ou equivalente explícito) e NÃO como {\"passed\": true}; nenhum trecho dos outputs afirma que mypy/pyright passou.",
+    "findings_to_emit é vazio e nenhum arquivo em outputs/ cita src/linhas.ts ou TS2322 como falha da branch.",
+    "`git status --porcelain` no projeto não mostra arquivos rastreados alterados nem novos fora de itens ignorados (sem requirements.txt, sem .venv criado na raiz do repositório para instalar pytest, pyproject.toml intacto)."
+  ]
+}

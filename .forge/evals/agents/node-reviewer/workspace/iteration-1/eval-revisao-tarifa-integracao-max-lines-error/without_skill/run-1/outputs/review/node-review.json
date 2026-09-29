@@ -1,0 +1,99 @@
+{
+  "reviewer": "node-reviewer (baseline sem skill)",
+  "target": {
+    "repo": "tarifador",
+    "base": "main",
+    "branch": "feat/tarifa-integracao",
+    "base_sha": "bc640c6",
+    "head_sha": "b436d73"
+  },
+  "files_changed": [
+    "src/tarifas/aplicacao/cotar-integracao.test.ts",
+    "src/tarifas/aplicacao/cotar-integracao.ts",
+    "src/tarifas/dominio/tarifa-repository.ts",
+    "src/tarifas/dominio/tarifa.ts",
+    "src/tarifas/infra/pg-tarifa-repository.ts"
+  ],
+  "verdict": "CHANGES_REQUESTED",
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "high",
+      "category": "correctness",
+      "file": "src/tarifas/aplicacao/cotar-integracao.test.ts",
+      "line": 15,
+      "title": "Teste não verifica o comportamento que descreve",
+      "description": "O teste 'aplica 25% de desconto no segundo embarque dentro de 120 minutos' chama cotarIntegracao mas descarta o retorno e faz expect(true).toBe(true). Não há asserção sobre o valor calculado, então o teste passa mesmo que calcularIntegracao esteja errado (ex.: desconto trocado de lado, arredondamento incorreto, ou limite de 120 min invertido). Cobertura aparente sem verificação real.",
+      "recommendation": "Capturar o retorno (const total = await cotarIntegracao(...)) e comparar com o valor esperado (480 + round(520*0.75) = 870). Adicionar também um caso fora da janela de 120 min (sem desconto) e um caso de fronteira (exatamente 120 min, já que a implementação usa <=)."
+    },
+    {
+      "id": "F2",
+      "severity": "medium",
+      "category": "test-coverage",
+      "file": "src/tarifas/aplicacao/cotar-integracao.ts",
+      "line": 6,
+      "title": "Caminho de erro (tarifa não encontrada) sem teste",
+      "description": "cotarIntegracao lança Error('tarifa vigente não encontrada') quando buscarVigente retorna null para qualquer uma das linhas, mas não há teste cobrindo esse caminho.",
+      "recommendation": "Adicionar teste com o fake retornando null para uma das linhas e afirmar que a chamada rejeita com a mensagem esperada."
+    },
+    {
+      "id": "F3",
+      "severity": "low",
+      "category": "type-safety",
+      "file": "src/tarifas/aplicacao/cotar-integracao.test.ts",
+      "line": 8,
+      "title": "Type assertion 'as keyof typeof tarifas' mascara linhaId inválido",
+      "description": "repoFake usa tarifas[linhaId as keyof typeof tarifas] para satisfazer o TypeScript. Isso é aceitável em um fake de teste, mas some com o erro de tipo que o compilador daria se o parâmetro linhaId (tipado como string na interface TarifaRepository) não corresponder às chaves do objeto de fixture.",
+      "recommendation": "Não bloqueante. Se o padrão se repetir em outros fakes do domínio, considerar um helper de teste tipado (Record<string, Tarifa | undefined>) para evitar o 'as' em cada novo teste."
+    },
+    {
+      "id": "F4",
+      "severity": "low",
+      "category": "clarity",
+      "file": "src/tarifas/dominio/tarifa.ts",
+      "line": 4,
+      "title": "Regra de negócio 'dentro de 120 min' implementada como <= 120, não documentada no código",
+      "description": "O enunciado da tarefa diz 'desconto no segundo embarque dentro de 120 min'. A implementação usa minutosEntreEmbarques <= 120 (inclusive). Isso é uma leitura razoável, mas o limite exato (120 min conta como dentro ou fora da janela) é uma decisão de negócio que fica implícita no operador <= sem comentário nem teste de fronteira.",
+      "recommendation": "Comentar a decisão de inclusividade do limite (ex.: '// 120 min inclusive: embarque no minuto exato ainda integra') e cobrir com teste de fronteira (120 min e 121 min)."
+    },
+    {
+      "id": "F5",
+      "severity": "info",
+      "category": "lint-gate",
+      "file": "eslint.config.mjs",
+      "line": 12,
+      "title": "Regra forge-quality/max-lines (error, max 300) não é violada por este diff",
+      "description": "O eslint.config.mjs deste projeto já eleva forge-quality/max-lines para 'error' com max: 300 (retro da sprint 14, conforme comentário no próprio arquivo). Nenhum arquivo novo ou modificado pela branch feat/tarifa-integracao chega perto de 300 linhas (o maior tem 16 linhas, cotar-integracao.test.ts). Contagem de linhas por arquivo novo: tarifa.ts=8, tarifa-repository.ts=6, cotar-integracao.ts=8, cotar-integracao.test.ts=16, pg-tarifa-repository.ts=13.",
+      "recommendation": "Nenhuma ação necessária para este diff. Não foi possível executar 'npm run lint' de fato neste ambiente (node_modules ausente, sem acesso de rede para instalar typescript-eslint) — a conclusão acima é por contagem manual de linhas, não pela execução real do ESLint. Recomendo rodar 'npm ci && npm run lint' no CI antes do merge para confirmar."
+    },
+    {
+      "id": "F6",
+      "severity": "info",
+      "category": "architecture",
+      "file": "src/tarifas/infra/pg-tarifa-repository.ts",
+      "line": 1,
+      "title": "Import direto de 'pg' na camada infra é permitido pela config atual do no-direct-data-access",
+      "description": "A regra forge-quality/no-direct-data-access está configurada com layers: ['src/http'], então importar 'pg' em src/tarifas/infra não é bloqueado. Isso é consistente com a arquitetura hexagonal do módulo (a porta TarifaRepository é implementada pelo adapter de infra), mas vale registrar que a regra não cobriria um import de 'pg' feito por engano em outra camada fora de src/http (ex.: dentro de src/tarifas/aplicacao).",
+      "recommendation": "Nenhuma ação neste PR. Fora de escopo: considerar ampliar 'layers' da regra para cobrir camadas de aplicação/domínio em uma mudança futura, se o time quiser blindar a fronteira também ali."
+    },
+    {
+      "id": "F7",
+      "severity": "info",
+      "category": "out-of-scope",
+      "file": "src/legacy/relatorio-helper.ts",
+      "line": 3,
+      "title": "console.log e 'any' em arquivo legado não tocado por esta branch",
+      "description": "src/legacy/relatorio-helper.ts usa console.log e tipos any, o que violaria forge-quality/no-direct-console se fosse tocado, mas o arquivo não faz parte do diff main..feat/tarifa-integracao.",
+      "recommendation": "Não bloqueia este PR. Mencionado apenas como nota; não incluir na revisão da branch."
+    }
+  ],
+  "lint_execution": {
+    "attempted": true,
+    "executed": false,
+    "reason": "npx eslint falhou com ERR_MODULE_NOT_FOUND (typescript-eslint) porque node_modules não está instalado e o ambiente de execução deste eval não tem acesso de rede para 'npm install'."
+  },
+  "tests_execution": {
+    "attempted": false,
+    "reason": "Execução de testes (npm test/vitest) está fora do escopo permitido para esta tarefa de revisão nesta corrida de eval."
+  }
+}

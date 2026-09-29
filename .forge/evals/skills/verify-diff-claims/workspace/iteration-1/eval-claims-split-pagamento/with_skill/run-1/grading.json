@@ -1,0 +1,52 @@
+{
+  "expectations": [
+    {
+      "text": "reports/verify-diff-claims.json existe, é JSON válido e tem as chaves skill (valor \"verify-diff-claims\"), passed, exit_code, claims_extracted, claims_verified, claims_unverified, findings_to_emit e matched_claims, com claims_verified + claims_unverified == claims_extracted",
+      "passed": true,
+      "evidence": "Comando: jq '[has(\"skill\"),has(\"passed\"),has(\"exit_code\"),has(\"claims_extracted\"),has(\"claims_verified\"),has(\"claims_unverified\"),has(\"findings_to_emit\"),has(\"matched_claims\")], .skill, (.claims_verified+.claims_unverified==.claims_extracted)' work/reports/verify-diff-claims.json → [true×8], \"verify-diff-claims\", true (2+2==4). Mesmo conteúdo em outputs/verify-diff-claims.json; transcript.md:51 registra validação com python3 -m json.tool."
+    },
+    {
+      "text": "findings_to_emit contém exatamente duas entradas de claim sem evidência, com id no formato CLAIM-NNN (três dígitos), severity \"HIGH\" e category \"anti-hallucination\": uma sobre os testes cobrindo Split e outra sobre a migration AddSplitRulesTable; nenhuma delas tem severity BLOCKER",
+      "passed": true,
+      "evidence": "jq '[.findings_to_emit[]|{id,severity,category}]' → exatamente 2 entradas: CLAIM-001 HIGH anti-hallucination (title \"Claim sem evidência: 'testes cobrindo Split'\") e CLAIM-002 HIGH anti-hallucination (title \"Claim sem evidência: 'migration AddSplitRulesTable'\"); nenhuma BLOCKER. Transcript.md:34 e :37."
+    },
+    {
+      "text": "matched_claims contém PaymentSplitService e o endpoint POST /api/v1/payments/split, cada um com evidence_file apontando para src/payments/paymentSplitService.ts ou src/payments/paymentsController.ts no formato caminho:linha; nenhuma dessas duas aparece em findings_to_emit",
+      "passed": false,
+      "evidence": "matched_claims tem as duas claims e nenhuma está em findings_to_emit, mas o formato caminho:linha só vale para uma: PaymentSplitService → \"src/payments/paymentSplitService.ts:4 (...)\" (confirmado por grep: paymentSplitService.ts:4:export class PaymentSplitService); o endpoint → \"src/payments/paymentsController.ts (paymentsRouter.post(...))\" SEM número de linha, embora grep mostre paymentsController.ts:16. A asserção exige caminho:linha para cada um."
+    },
+    {
+      "text": "exit_code é 0 e a resposta final diz que o branch segue para os reviewers (logic-reviewer/quality-reviewer) com os achados HIGH como insumo, em vez de reprovar ou pedir correção obrigatória antes do review",
+      "passed": false,
+      "evidence": "exit_code é 0 (jq) e o JSON diz 'Segue para review', mas a resposta final ao usuário (transcript.md:66-69) contradiz: 'eu não mandaria para review sem antes o coder confirmar ... Recomendação: reabrir com o coder antes de acionar os reviewers.' Isso é pedir correção antes do review, e logic-reviewer/quality-reviewer não são citados como destino dos HIGH."
+    },
+    {
+      "text": "O transcript mostra a coleta das mensagens de todos os commits do intervalo main..HEAD (ex.: git log main..HEAD com corpo) e a busca de marcadores AGENT-CLAIM no diff, não só a mensagem do último commit",
+      "passed": false,
+      "evidence": "Coleta de todos os commits: sim (transcript.md:19 'git log main..feat/split-pagamento --pretty=format:\"%h%n%B%n---\"', dois commits). Busca de marcadores AGENT-CLAIM no diff: ausente — grep -n AGENT-CLAIM outputs/transcript.md sem resultado. A asserção exige as duas coisas."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 3,
+    "total": 5,
+    "pass_rate": 0.4
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 88000,
+    "total_duration_seconds": 88
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "O transcript mostra a coleta das mensagens de todos os commits do intervalo main..HEAD (ex.: git log main..HEAD com corpo) e a busca de marcadores AGENT-CLAIM no diff, não só a mensagem do último commit",
+        "reason": "O diff do fixture não contém nenhum marcador AGENT-CLAIM (git diff main..feat/split-pagamento | grep -c AGENT-CLAIM → 0), então a busca não tem efeito observável e só é checável por menção no transcript; considere plantar um marcador no fixture ou separar a exigência."
+      },
+      {
+        "reason": "Nenhuma asserção verifica que as claims falsas foram detectadas como falsas via comando reproduzível (ex.: git diff --name-only sem arquivo de teste); o baseline acertou o mérito (2 verdadeiras, 2 falsas) e zerou apenas por contrato de formato, o que indica que a vantagem da skill medida aqui é sobretudo de schema e de política de severidade."
+      }
+    ],
+    "overall": "Discriminante na política HIGH-não-bloqueia; a skill acertou o JSON, mas a resposta final do with_skill contradisse o próprio exit_code."
+  }
+}

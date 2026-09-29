@@ -1,0 +1,63 @@
+%% C4 Nível 2 — Diagrama de Containers — Tarifa Viva
+flowchart TB
+    PASSAGEIRO(["Passageiro"])
+    GESTOR(["Gestor do Consórcio"])
+    PDV(["Ponto de Venda"])
+    ONIBUS(["Validador embarcado no ônibus"])
+
+    APP["App do Passageiro<br/>(mobile)"]
+    BACKOFFICE["Backoffice do Gestor<br/>(web)"]
+
+    subgraph tarifaviva["Tarifa Viva — serviços containerizados (gRPC interno, REST externo)"]
+        EMBARQUE["embarque-svc"]
+        CLEARING["clearing-svc"]
+        CARTEIRA["carteira-svc"]
+        RECARGA["recarga-svc"]
+        FROTA["frota-validadores-svc"]
+        CADASTRO["cadastro-linhas-svc"]
+        IDENTIDADE["identidade-svc"]
+        NOTIF["notificacoes-svc"]
+        PAGAMENTOS["pagamentos-svc"]
+        FILA[("RabbitMQ")]
+        PG[("PostgreSQL<br/>1 schema por serviço")]
+    end
+
+    VALIDABUS[("Firmware ValidaBus")]
+    ADQUIRENTE[("Adquirente / PSP Pix")]
+    FCM[("FCM")]
+
+    PASSAGEIRO --> APP
+    GESTOR --> BACKOFFICE
+    ONIBUS -- "protocolo proprietário" --> VALIDABUS
+    VALIDABUS --> FROTA
+    ONIBUS -. "réplica offline de saldo/bloqueio/tarifa" .-> EMBARQUE
+
+    APP -- REST --> RECARGA
+    APP -- REST --> CARTEIRA
+    APP -- REST --> IDENTIDADE
+    PDV -- REST --> RECARGA
+    BACKOFFICE -- REST --> CLEARING
+    BACKOFFICE -- REST --> CADASTRO
+
+    EMBARQUE -- gRPC --> CARTEIRA
+    EMBARQUE -- gRPC --> CADASTRO
+    FROTA -- gRPC/evento --> EMBARQUE
+    FROTA -- evento --> FILA
+    EMBARQUE -- evento EmbarqueOcorrido --> FILA
+    FILA --> CLEARING
+    FILA --> CARTEIRA
+    RECARGA -- gRPC --> PAGAMENTOS
+    RECARGA -- gRPC --> IDENTIDADE
+    RECARGA -- evento comando crédito --> FILA
+    CARTEIRA -- evento SaldoBaixo --> FILA
+    FILA --> NOTIF
+    PAGAMENTOS -- REST externo --> ADQUIRENTE
+    NOTIF -- REST externo --> FCM
+
+    EMBARQUE --- PG
+    CLEARING --- PG
+    CARTEIRA --- PG
+    RECARGA --- PG
+    FROTA --- PG
+    CADASTRO --- PG
+    IDENTIDADE --- PG

@@ -1,0 +1,47 @@
+{
+  "expectations": [
+    {
+      "text": "Existe .forge/graph/graph.json no alvo, com nós para src/billing/invoice.service.ts e src/ledger/journal.repo.ts (evidência de que o grafo foi garantido via .forge/scripts/graph.sh, e não substituído por leitura manual do repositório).",
+      "passed": true,
+      "evidence": "`jq -r '.nodes[]|(.id // .path)' with_skill/run-1/work/.forge/graph/graph.json` lista src/billing/invoice.service.ts e src/ledger/journal.repo.ts (5 nós); `.forge/graph/report.md` registra 'Engine: native (zero-dep) · Nodes: 5 · Edges: 3', e o transcript.md (passo 4) cita `bash .forge/scripts/graph.sh build` com saída 'OK .forge/graph/graph.json (5 nodes, 3 edges; 5 summaries stale)'. Cópia também em outputs/graph.json."
+    },
+    {
+      "text": "Existem .forge/graph/c4/c1-context.md, .forge/graph/c4/c2-container.md e ao menos um .forge/graph/c4/c3-component-*.md, cada um com bloco ```mermaid contendo 'flowchart'.",
+      "passed": true,
+      "evidence": "`ls with_skill/run-1/work/.forge/graph/c4` mostra c1-context.md, c2-container.md e quatro c3-component-src-{billing,ledger,notifications,shared}.md; `grep -c '```mermaid'` e `grep -c flowchart` retornam 1 e 1 em cada um dos seis arquivos (ex.: c3-component-src-billing.md linha 6 '```mermaid', linha 7 'flowchart TD'). Cópias em outputs/graph/c4/."
+    },
+    {
+      "text": "Existe .forge/graph/overview.html e ele embute os diagramas (contém 'class=\"mermaid\"' ou equivalente e referencia os níveis C1/C2/C3).",
+      "passed": true,
+      "evidence": "Existe with_skill/run-1/work/.forge/graph/overview.html (7418 bytes, cópia em outputs/overview.html); `grep -c 'class=\"mermaid\"'` = 6; `grep -oE 'C1|C2|C3'` encontra C1 (1), C2 (1) e C3 (7). Transcript passo 5: 'OK overview.html (C4 + 0 capabilities + 0 active change(s))'."
+    },
+    {
+      "text": "A resposta final ao usuário cita o caminho .forge/graph/overview.html e NÃO contém bloco ```mermaid, a palavra-chave 'flowchart' nem marcação HTML do overview colada (regra §17.6: apontar arquivos, não colar).",
+      "passed": true,
+      "evidence": "outputs/resposta-final-simulada.md linha 6 cita '`.forge/graph/overview.html` — abra este arquivo no navegador'; `grep -nE '```mermaid|flowchart|<html|<div' outputs/resposta-final-simulada.md` não retorna nada (rc=1). Ressalva: a resposta é simulada em arquivo, não a mensagem real de chat."
+    },
+    {
+      "text": "Em todos os .md de .forge/graph/c4/, nenhum rótulo entre [\"...\"] no bloco Mermaid contém '.', '—' ou '–' (ex.: aparece 'invoice service ts', nunca 'invoice.service.ts').",
+      "passed": true,
+      "evidence": "`grep -ohE '\\[\"[^\"]*\"\\]' with_skill/run-1/work/.forge/graph/c4/*.md | grep -E '[.—–]'` retorna vazio (rc=1); rótulos únicos incluem 'invoice service ts', 'journal repo ts', 'money ts', 'src/shared: money ts', 'Pagamentos Core' — nenhum com ponto ou travessão."
+    },
+    {
+      "text": "Não foi criado arquivo de diagrama fora de .forge/graph/ (ex.: docs/architecture.md, ARCHITECTURE.md, *.mmd na raiz ou em docs/): git status do alvo não lista arquivo novo contendo 'mermaid' fora de .forge/graph/.",
+      "passed": true,
+      "evidence": "`git -C with_skill/run-1/work status --porcelain` lista apenas '?? .forge/graph/'; nenhum docs/, ARCHITECTURE.md ou *.mmd novo. Transcript (Decisões): não alterou nem criou diagramas à mão."
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1.0
+  },
+  "eval_feedback": {
+    "overall": "Asserções 1 e 4 são parcialmente fracas: a existência de graph.json com os dois nós não prova sozinha o uso de graph.sh (um grafo escrito à mão passaria); a evidência forte está em report.md 'Engine: native' e no transcript. A resposta final é um arquivo simulado, não a mensagem de chat. Nenhuma asserção verifica a fidelidade das arestas (billing→shared, ledger→shared) nem que o C1 é quase vazio (nó único), o que limita o valor do mapa para a reunião — a própria resposta sinaliza a ausência de atores externos."
+  },
+  "timing": {
+    "executor_duration_seconds": 355,
+    "total_duration_seconds": 355
+  }
+}

@@ -1,0 +1,3 @@
+docs/tarifas.md
+services/tarifa/tarifa/calculo.py
+services/tarifa/tests/test_integracao.py

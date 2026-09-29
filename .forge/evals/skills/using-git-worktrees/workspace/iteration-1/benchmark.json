@@ -1,0 +1,333 @@
+{
+  "metadata": {
+    "skill_name": "using-git-worktrees",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-26T19:19:35Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6,
+        "passed": 3,
+        "failed": 2,
+        "total": 5,
+        "time_seconds": 185,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "`git worktree list --porcelain` lista um worktree filho direto de <repo>/.forge/worktrees/ cuja branch casa com ^feat/fare/[a-z0-9]+(-[a-z0-9]+)*$ \u2014 o agente chegou ao Passo 3 pelo caminho do contrato antes de parar.",
+          "passed": false,
+          "evidence": "`git -C with_skill/run-1/work worktree list --porcelain` lista um \u00fanico worktree (o pr\u00f3prio work/ em refs/heads/main); `git branch --list 'feat/*'` vazio; `ls work/.forge/worktrees` \u2192 No such file or directory. transcript.md:24 e :46 confirmam: 'n\u00e3o rodei `git worktree add`' \u2014 o comando `git worktree add .forge/worktrees/fare-split-integrado -b feat/fare/split-integrado-onibus-metro` ficou s\u00f3 proposto. O agente parou antes de criar o worktree, n\u00e3o depois."
+        },
+        {
+          "text": "src/fare/split.js n\u00e3o existe nem no worktree criado nem no checkout principal, e nenhum arquivo de teste de split (src/fare/split*.test.js) foi criado.",
+          "passed": true,
+          "evidence": "`find work -name 'split*'` sem resultado; `git -C work status --porcelain` vazio; outputs/work-snapshot/src sem arquivo split; resposta-final.md:17 'n\u00e3o implementei `splitIntegratedFare`'. N\u00e3o h\u00e1 worktree criado onde o arquivo pudesse estar."
+        },
+        {
+          "text": "`git rev-list --count main..<branch-do-worktree>` imprime 0 e `git rev-parse main` \u00e9 igual ao conte\u00fado de .git/eval-main-sha.",
+          "passed": false,
+          "evidence": "`git rev-parse main` = 58cbaea7212f2a065079e9763998d816d6c9cb68 = conte\u00fado de work/.git/eval-main-sha (ok), mas n\u00e3o existe branch de worktree: `git rev-list --count main..feat/fare/split-integrado-onibus-metro` \u2192 'fatal: ambiguous argument ... unknown revision'. A primeira metade da asser\u00e7\u00e3o n\u00e3o pode imprimir 0; na d\u00favida, falha."
+        },
+        {
+          "text": "A resposta final cita o teste que falha no baseline \u2014 'validade expira no fim do dia operacional de S\u00e3o Paulo' (ou o arquivo src/fare/validity.test.js) \u2014 e o caracteriza como falha j\u00e1 existente antes de qualquer mudan\u00e7a.",
+          "passed": true,
+          "evidence": "resposta-final.md:10 cita '\u2716 validade expira no fim do dia operacional de S\u00e3o Paulo' e :15 'Esse teste falhando em `src/fare/validity.test.js` \u00e9 **pr\u00e9-existente e n\u00e3o relacionado** ... j\u00e1 est\u00e1 vermelho no commit inicial (`58cbaea`)'. baseline-test-output.txt cont\u00e9m a sa\u00edda bruta do node --test."
+        },
+        {
+          "text": "A resposta final termina pedindo decis\u00e3o expl\u00edcita ao usu\u00e1rio entre prosseguir com a implementa\u00e7\u00e3o ou investigar a falha primeiro, e N\u00c3O cont\u00e9m 'Testes passando' nem afirma que o ambiente est\u00e1 pronto para implementar.",
+          "passed": true,
+          "evidence": "resposta-final.md:19-24 oferece '1. Eu investigo e conserto o teste ... primeiro' vs '2. Voc\u00ea confirma ... e eu prossigo' e pergunta 'Qual prefere?' (:24); `grep -rn 'Testes passando' outputs` sem resultado; n\u00e3o afirma ambiente pronto (:17 'parada obrigat\u00f3ria'). Ressalva: a frase final ap\u00f3s a pergunta descreve o plano condicional ('Assim que tiver o sinal verde...'), mas o pedido de decis\u00e3o \u00e9 o fecho da resposta."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 153,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "`git worktree list --porcelain` no reposit\u00f3rio lista exatamente um worktree al\u00e9m do principal, e o caminho dele \u00e9 filho direto de <repo>/.forge/worktrees/ com nome em kebab-case contendo ao menos um h\u00edfen (padr\u00e3o <escopo>-<descricao>); nenhum worktree fica fora do reposit\u00f3rio (diret\u00f3rio irm\u00e3o) nem em .worktrees/, .claude/worktrees/ ou similar.",
+          "passed": true,
+          "evidence": "`git -C with_skill/run-1/work worktree list --porcelain` lista o principal e exatamente um adicional em .../with_skill/run-1/work/.forge/worktrees/payments-pix-qrcode-dinamico (filho direto de .forge/worktrees/, kebab-case com h\u00edfens); confere com outputs/git-worktree-list.txt linha 2."
+        },
+        {
+          "text": "A branch do worktree criado casa com a regex ^feat/payments/[a-z0-9]+(-[a-z0-9]+)*$ (tipo Conventional Commits, escopo payments, descri\u00e7\u00e3o kebab-case); n\u00e3o \u00e9 detached, n\u00e3o \u00e9 feature/<x> nem wt/<x>.",
+          "passed": true,
+          "evidence": "Porcelain mostra `branch refs/heads/feat/payments/pix-qrcode-dinamico`; `echo feat/payments/pix-qrcode-dinamico | grep -Eq '^feat/payments/[a-z0-9]+(-[a-z0-9]+)*$'` retorna 0; n\u00e3o \u00e9 detached."
+        },
+        {
+          "text": "O .gitignore do checkout principal passou a conter uma entrada que cobre .forge/worktrees/ (ou .forge/ inteiro): `git check-ignore -q .forge/worktrees/<dir-do-worktree>` retorna 0 e `git status --porcelain` no checkout principal n\u00e3o lista nenhum caminho sob .forge/worktrees/.",
+          "passed": true,
+          "evidence": "outputs/gitignore.depois cont\u00e9m `.forge/worktrees/` (ausente em gitignore.antes); `git -C work check-ignore -q .forge/worktrees/payments-pix-qrcode-dinamico` retorna 0; `git -C work status --porcelain` lista s\u00f3 ` M .gitignore` (outputs/git-status-main-apos.txt), nada sob .forge/worktrees/."
+        },
+        {
+          "text": "No checkout principal, `git branch --show-current` imprime main e `git rev-parse main` \u00e9 igual ao conte\u00fado de .git/eval-main-sha (nenhum commit foi feito no main).",
+          "passed": true,
+          "evidence": "`git -C work branch --show-current` = main; `git -C work rev-parse main` = db1c78b882b500e85011c9da5b25502d567f7b90 = conte\u00fado de work/.git/eval-main-sha."
+        },
+        {
+          "text": "A resposta final cont\u00e9m as tr\u00eas linhas do contrato: 'Worktree pronto em <caminho absoluto que termina em .forge/worktrees/<dir>>', 'Testes passando (4 testes, 0 falhas)' e 'Pronto para implementar <nome da feature>' \u2014 a contagem 4 prova que o baseline foi de fato executado dentro do worktree.",
+          "passed": false,
+          "evidence": "transcript.md linhas 103-116: a primeira linha \u00e9 'Worktree pronto em .forge/worktrees/payments-pix-qrcode-dinamico' (caminho relativo, n\u00e3o absoluto); n\u00e3o h\u00e1 a linha 'Testes passando (4 testes, 0 falhas)' \u2014 linha 112 diz 'npm test N\u00c3O foi executado' e linha 92 s\u00f3 projeta que '4 testes passariam'; a linha 'Pronto para implementar a gera\u00e7\u00e3o de QR Code Pix din\u00e2mico' existe. Honesto quanto \u00e0 n\u00e3o execu\u00e7\u00e3o, mas a asser\u00e7\u00e3o n\u00e3o \u00e9 satisfeita. Cr\u00edtica do eval: a asser\u00e7\u00e3o 5 exige 'Testes passando (4 testes, 0 falhas)', mas as regras da rodada pro\u00edbem executar npm test, ent\u00e3o nenhuma configura\u00e7\u00e3o consegue satisfaz\u00ea-la honestamente; ela mede o ambiente e n\u00e3o a skill. Sugest\u00e3o: permitir npm test apenas dentro do worktree da fixture, ou trocar a asser\u00e7\u00e3o por 'o relat\u00f3rio n\u00e3o afirma baseline verde sem execu\u00e7\u00e3o'. A asser\u00e7\u00e3o 3 tamb\u00e9m deveria aceitar a variante em que o worktree fica fora do repo apenas se o eval quiser medir isso; hoje ela \u00e9 corretamente discriminante."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.83,
+        "passed": 5,
+        "failed": 1,
+        "total": 6,
+        "time_seconds": 97.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "`git worktree list --porcelain` no reposit\u00f3rio lista exatamente dois worktrees: o principal e <repo>/.forge/worktrees/agent-tarifa-noturna (nenhum worktree aninhado ou adicional foi criado).",
+          "passed": true,
+          "evidence": "`git -C with_skill/run-1/work worktree list --porcelain` lista exatamente 2 entradas: work (branch refs/heads/main, 611ed85) e work/.forge/worktrees/agent-tarifa-noturna (branch refs/heads/feat/fare/tarifa-noturna, ab223a4). transcript.md:14 'Conclus\u00e3o: n\u00e3o criar outra worktree (pular Passo 1 inteiro)'."
+        },
+        {
+          "text": "Em .forge/worktrees/agent-tarifa-noturna, `git symbolic-ref -q HEAD` retorna 0 (HEAD n\u00e3o est\u00e1 mais destacado) e o nome da branch casa com ^(feat|fix)/[a-z0-9-]+/[a-z0-9]+(-[a-z0-9]+)*$ e n\u00e3o come\u00e7a com wt/.",
+          "passed": true,
+          "evidence": "`git -C with_skill/run-1/work/.forge/worktrees/agent-tarifa-noturna symbolic-ref -q HEAD` \u2192 refs/heads/feat/fare/tarifa-noturna, rc=0; 'feat/fare/tarifa-noturna' casa com ^(feat|fix)/[a-z0-9-]+/[a-z0-9]+(-[a-z0-9]+)*$ (grep -E ok) e n\u00e3o come\u00e7a com wt/."
+        },
+        {
+          "text": "O SHA gravado em .git/eval-detached-sha \u00e9 ancestral (ou igual) da ponta da branch nova: `git merge-base --is-ancestor $(cat .git/eval-detached-sha) <branch>` retorna 0, e src/fare/night.js existe no worktree \u2014 o commit feito em HEAD destacado n\u00e3o foi abandonado.",
+          "passed": true,
+          "evidence": "`git -C with_skill/run-1/work merge-base --is-ancestor $(cat with_skill/run-1/work/.git/eval-detached-sha) feat/fare/tarifa-noturna` \u2192 rc=0 (eval-detached-sha = ab223a4\u2026 = ponta da branch); `ls .../agent-tarifa-noturna/src/fare/night.js` existe; log: ab223a4 feat(fare): esqueleto da tarifa noturna."
+        },
+        {
+          "text": "No checkout principal, `git branch --show-current` imprime main e `git rev-parse main` \u00e9 igual ao conte\u00fado de .git/eval-main-sha.",
+          "passed": true,
+          "evidence": "`git -C with_skill/run-1/work branch --show-current` \u2192 main; `git rev-parse main` = 611ed8513bb2\u2026 = conte\u00fado de .git/eval-main-sha."
+        },
+        {
+          "text": "A resposta final diz que a worktree j\u00e1 era um workspace isolado e estava com HEAD destacado, cita ao menos uma consequ\u00eancia do contrato (n\u00e3o h\u00e1 o que empurrar / n\u00e3o admite PR / o rastro morre com a \u00e1rvore) e informa o nome da branch criada.",
+          "passed": true,
+          "evidence": "Relat\u00f3rio final (transcript.md:32) 'Estava com HEAD destacado \u2014 nomeei a branch agora: feat/fare/tarifa-noturna (\u2026 para n\u00e3o perder o rastro do trabalho)' e :36 'a worktree estava sem branch (HEAD destacado)': cita consequ\u00eancia do contrato (rastro) e o nome da branch. Ressalva: 'j\u00e1 era um workspace isolado' est\u00e1 expl\u00edcito s\u00f3 no passo 0 (transcript.md:13 'j\u00e1 estou em um workspace isolado'), n\u00e3o no relat\u00f3rio final, onde fica impl\u00edcito em 'Worktree pronto em .forge/worktrees/agent-tarifa-noturna'; as consequ\u00eancias 'n\u00e3o h\u00e1 o que empurrar/n\u00e3o admite PR' aparecem s\u00f3 na cita\u00e7\u00e3o da skill em transcript.md:16."
+        },
+        {
+          "text": "A resposta final cont\u00e9m 'Testes passando (3 testes, 0 falhas)' (ou texto equivalente com exatamente 3 testes e 0 falhas), provando que o baseline rodou dentro da worktree.",
+          "passed": false,
+          "evidence": "Baseline n\u00e3o rodou: transcript.md:20 'N\u00e3o executei npm install/npm test de fato' e :35 'Testes N\u00c3O executados nesta simula\u00e7\u00e3o \u2026 (esperado: 3/3 passando\u2026)'. O n\u00famero 3 est\u00e1 correto (base.test.js tem 3 test()), mas \u00e9 previs\u00e3o, n\u00e3o execu\u00e7\u00e3o; a asser\u00e7\u00e3o exige prova de que o baseline rodou."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 5,
+        "total": 5,
+        "time_seconds": 190,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "`git worktree list --porcelain` lista um worktree filho direto de <repo>/.forge/worktrees/ cuja branch casa com ^feat/fare/[a-z0-9]+(-[a-z0-9]+)*$ \u2014 o agente chegou ao Passo 3 pelo caminho do contrato antes de parar.",
+          "passed": false,
+          "evidence": "`git -C without_skill/run-1/work worktree list --porcelain` lista s\u00f3 work/ em main; nenhuma branch feat/*. transcript.md:42-51 mostra apenas o comando simulado `git worktree add -b feature/split-tarifa-integrada ../axis-fare-engine-split-tarifa-integrada` \u2014 fora de .forge/worktrees/ e com branch que n\u00e3o casa com ^feat/fare/..."
+        },
+        {
+          "text": "src/fare/split.js n\u00e3o existe nem no worktree criado nem no checkout principal, e nenhum arquivo de teste de split (src/fare/split*.test.js) foi criado.",
+          "passed": false,
+          "evidence": "src/fare/split.js e src/fare/split.test.js existem no checkout principal: `git -C work status --porcelain` \u2192 '?? src/fare/split.js' e '?? src/fare/split.test.js'; c\u00f3pias tamb\u00e9m em outputs/src/fare/. transcript.md:57-88 descreve a implementa\u00e7\u00e3o."
+        },
+        {
+          "text": "`git rev-list --count main..<branch-do-worktree>` imprime 0 e `git rev-parse main` \u00e9 igual ao conte\u00fado de .git/eval-main-sha.",
+          "passed": false,
+          "evidence": "`git rev-parse main` = ceb7f46f... = work/.git/eval-main-sha, mas n\u00e3o h\u00e1 branch de worktree para `git rev-list --count main..<branch>` (fatal: unknown revision). Primeira metade n\u00e3o verific\u00e1vel; na d\u00favida, falha."
+        },
+        {
+          "text": "A resposta final cita o teste que falha no baseline \u2014 'validade expira no fim do dia operacional de S\u00e3o Paulo' (ou o arquivo src/fare/validity.test.js) \u2014 e o caracteriza como falha j\u00e1 existente antes de qualquer mudan\u00e7a.",
+          "passed": false,
+          "evidence": "O agente nunca rodou o baseline (transcript.md:90-101, npm test 'Simulado, n\u00e3o executado'). transcript.md:32 menciona validity.test.js apenas como 'um deles com coment\u00e1rio indicando regra nova ainda n\u00e3o implementada', sem citar o nome do teste nem caracteriz\u00e1-lo como falha existente. N\u00e3o h\u00e1 resposta final ao usu\u00e1rio em outputs/."
+        },
+        {
+          "text": "A resposta final termina pedindo decis\u00e3o expl\u00edcita ao usu\u00e1rio entre prosseguir com a implementa\u00e7\u00e3o ou investigar a falha primeiro, e N\u00c3O cont\u00e9m 'Testes passando' nem afirma que o ambiente est\u00e1 pronto para implementar.",
+          "passed": false,
+          "evidence": "Nenhum pedido de decis\u00e3o ao usu\u00e1rio; o transcript segue direto para implementa\u00e7\u00e3o e PR simulado (transcript.md:57-112). N\u00e3o existe resposta final perguntando prosseguir vs investigar."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.2,
+        "passed": 1,
+        "failed": 4,
+        "total": 5,
+        "time_seconds": 82,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "`git worktree list --porcelain` no reposit\u00f3rio lista exatamente um worktree al\u00e9m do principal, e o caminho dele \u00e9 filho direto de <repo>/.forge/worktrees/ com nome em kebab-case contendo ao menos um h\u00edfen (padr\u00e3o <escopo>-<descricao>); nenhum worktree fica fora do reposit\u00f3rio (diret\u00f3rio irm\u00e3o) nem em .worktrees/, .claude/worktrees/ ou similar.",
+          "passed": false,
+          "evidence": "`git -C without_skill/run-1/work worktree list --porcelain` mostra o adicional em .../without_skill/run-1/axis-payments-api-pix-qrcode-dinamico, diret\u00f3rio irm\u00e3o do repo (fora de .forge/worktrees/); transcript.md passo 2-3 declara a escolha de 'diret\u00f3rio irm\u00e3o'."
+        },
+        {
+          "text": "A branch do worktree criado casa com a regex ^feat/payments/[a-z0-9]+(-[a-z0-9]+)*$ (tipo Conventional Commits, escopo payments, descri\u00e7\u00e3o kebab-case); n\u00e3o \u00e9 detached, n\u00e3o \u00e9 feature/<x> nem wt/<x>.",
+          "passed": false,
+          "evidence": "Branch `feature/pix-qrcode-dinamico` (outputs/new-worktree-branch.txt); `grep -Eq '^feat/payments/...'` retorna 1; usa prefixo feature/ explicitamente vedado."
+        },
+        {
+          "text": "O .gitignore do checkout principal passou a conter uma entrada que cobre .forge/worktrees/ (ou .forge/ inteiro): `git check-ignore -q .forge/worktrees/<dir-do-worktree>` retorna 0 e `git status --porcelain` no checkout principal n\u00e3o lista nenhum caminho sob .forge/worktrees/.",
+          "passed": false,
+          "evidence": "transcript.md passo 5: 'N\u00e3o toquei no .gitignore legado'; `git -C work check-ignore -q .forge/worktrees/x` retorna 1. O status do main est\u00e1 limpo s\u00f3 porque o worktree ficou fora do repo, n\u00e3o por cobertura do .gitignore."
+        },
+        {
+          "text": "No checkout principal, `git branch --show-current` imprime main e `git rev-parse main` \u00e9 igual ao conte\u00fado de .git/eval-main-sha (nenhum commit foi feito no main).",
+          "passed": true,
+          "evidence": "`git -C work branch --show-current` = main; `git -C work rev-parse main` = 926ac9b2a66a5b8d75e861165203182961d3b977 = work/.git/eval-main-sha; outputs/main-checkout-log.txt mostra s\u00f3 o commit inicial."
+        },
+        {
+          "text": "A resposta final cont\u00e9m as tr\u00eas linhas do contrato: 'Worktree pronto em <caminho absoluto que termina em .forge/worktrees/<dir>>', 'Testes passando (4 testes, 0 falhas)' e 'Pronto para implementar <nome da feature>' \u2014 a contagem 4 prova que o baseline foi de fato executado dentro do worktree.",
+          "passed": false,
+          "evidence": "Resposta final (transcript.md, se\u00e7\u00e3o 'Onde ficou') n\u00e3o cont\u00e9m 'Worktree pronto em', n\u00e3o menciona contagem de testes (npm install/npm test n\u00e3o foram rodados) nem 'Pronto para implementar'; o caminho informado \u00e9 ../axis-payments-api-pix-qrcode-dinamico. Cr\u00edtica do eval: a asser\u00e7\u00e3o 5 exige 'Testes passando (4 testes, 0 falhas)', mas as regras da rodada pro\u00edbem executar npm test, ent\u00e3o nenhuma configura\u00e7\u00e3o consegue satisfaz\u00ea-la honestamente; ela mede o ambiente e n\u00e3o a skill. Sugest\u00e3o: permitir npm test apenas dentro do worktree da fixture, ou trocar a asser\u00e7\u00e3o por 'o relat\u00f3rio n\u00e3o afirma baseline verde sem execu\u00e7\u00e3o'. A asser\u00e7\u00e3o 3 tamb\u00e9m deveria aceitar a variante em que o worktree fica fora do repo apenas se o eval quiser medir isso; hoje ela \u00e9 corretamente discriminante."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.5,
+        "passed": 3,
+        "failed": 3,
+        "total": 6,
+        "time_seconds": 93.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "`git worktree list --porcelain` no reposit\u00f3rio lista exatamente dois worktrees: o principal e <repo>/.forge/worktrees/agent-tarifa-noturna (nenhum worktree aninhado ou adicional foi criado).",
+          "passed": true,
+          "evidence": "`git -C without_skill/run-1/work worktree list --porcelain` lista exatamente 2 entradas: work (refs/heads/main, 3efbf57) e work/.forge/worktrees/agent-tarifa-noturna (refs/heads/agent-tarifa-noturna, 9b1c102). Tamb\u00e9m outputs/git-worktree-list-final.txt."
+        },
+        {
+          "text": "Em .forge/worktrees/agent-tarifa-noturna, `git symbolic-ref -q HEAD` retorna 0 (HEAD n\u00e3o est\u00e1 mais destacado) e o nome da branch casa com ^(feat|fix)/[a-z0-9-]+/[a-z0-9]+(-[a-z0-9]+)*$ e n\u00e3o come\u00e7a com wt/.",
+          "passed": false,
+          "evidence": "`git -C without_skill/run-1/work/.forge/worktrees/agent-tarifa-noturna symbolic-ref -q HEAD` \u2192 refs/heads/agent-tarifa-noturna, rc=0 (HEAD n\u00e3o mais destacado), mas o nome 'agent-tarifa-noturna' N\u00c3O casa com ^(feat|fix)/[a-z0-9-]+/[a-z0-9]+(-[a-z0-9]+)*$ (grep -E falhou). transcript.md:21 'git switch -c agent-tarifa-noturna'."
+        },
+        {
+          "text": "O SHA gravado em .git/eval-detached-sha \u00e9 ancestral (ou igual) da ponta da branch nova: `git merge-base --is-ancestor $(cat .git/eval-detached-sha) <branch>` retorna 0, e src/fare/night.js existe no worktree \u2014 o commit feito em HEAD destacado n\u00e3o foi abandonado.",
+          "passed": true,
+          "evidence": "`git -C without_skill/run-1/work merge-base --is-ancestor $(cat without_skill/run-1/work/.git/eval-detached-sha) agent-tarifa-noturna` \u2192 rc=0 (9b1c102 = ponta); src/fare/night.js existe na worktree; outputs/git-log-final.txt '9b1c102 feat(fare): esqueleto da tarifa noturna'."
+        },
+        {
+          "text": "No checkout principal, `git branch --show-current` imprime main e `git rev-parse main` \u00e9 igual ao conte\u00fado de .git/eval-main-sha.",
+          "passed": true,
+          "evidence": "`git -C without_skill/run-1/work branch --show-current` \u2192 main; `git rev-parse main` = 3efbf571fb2f\u2026 = conte\u00fado de .git/eval-main-sha."
+        },
+        {
+          "text": "A resposta final diz que a worktree j\u00e1 era um workspace isolado e estava com HEAD destacado, cita ao menos uma consequ\u00eancia do contrato (n\u00e3o h\u00e1 o que empurrar / n\u00e3o admite PR / o rastro morre com a \u00e1rvore) e informa o nome da branch criada.",
+          "passed": false,
+          "evidence": "Resposta final (transcript.md:29-33) avisa 'a worktree estava em HEAD destacado' e informa a branch 'agent-tarifa-noturna', mas a consequ\u00eancia citada \u00e9 outra: commit 'ficaria \u00f3rf\u00e3o e correria risco de ser coletado pelo garbage collector' ap\u00f3s um checkout \u2014 nenhuma das consequ\u00eancias do contrato (n\u00e3o h\u00e1 o que empurrar / n\u00e3o admite PR / rastro morre com a \u00e1rvore). Push s\u00f3 aparece no passo 7 do transcript, como benef\u00edcio, n\u00e3o no aviso. Tamb\u00e9m n\u00e3o diz que a worktree j\u00e1 era um workspace isolado."
+        },
+        {
+          "text": "A resposta final cont\u00e9m 'Testes passando (3 testes, 0 falhas)' (ou texto equivalente com exatamente 3 testes e 0 falhas), provando que o baseline rodou dentro da worktree.",
+          "passed": false,
+          "evidence": "Baseline n\u00e3o rodou: transcript.md:25 'N\u00e3o rodei npm test/npm install nem qualquer build'. A resposta final n\u00e3o cont\u00e9m contagem de testes."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.7433,
+        "stddev": 0.125,
+        "min": 0.6,
+        "max": 0.83
+      },
+      "time_seconds": {
+        "mean": 145.0,
+        "stddev": 44.5421,
+        "min": 97.0,
+        "max": 185
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.2333,
+        "stddev": 0.2517,
+        "min": 0.0,
+        "max": 0.5
+      },
+      "time_seconds": {
+        "mean": 121.6667,
+        "stddev": 59.4334,
+        "min": 82,
+        "max": 190
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.51",
+      "time_seconds": "+23.3",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

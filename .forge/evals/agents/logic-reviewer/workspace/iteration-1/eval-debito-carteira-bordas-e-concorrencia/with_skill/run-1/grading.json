@@ -1,0 +1,45 @@
+{
+  "expectations": [
+    {
+      "text": "O arquivo .forge/reviews/logic-debito-carteira.json é JSON válido sem prosa nem cercas markdown, com reviewer igual a 'logic-reviewer' e array findings; todo finding tem id, severity, category, file, line, title, description, fix_suggested, rule_violated e confidence, com ids LGC-NNN sequenciais a partir de LGC-001.",
+      "passed": true,
+      "evidence": "Comando: jq -e . work/.forge/reviews/logic-debito-carteira.json → VALID; grep -c '```' → 0; primeiro byte '{' (head -c1). Chaves de topo: [findings, reviewer], reviewer='logic-reviewer'. jq de chaves obrigatórias faltantes (id, severity, category, file, line, title, description, fix_suggested, rule_violated, confidence) → nenhum finding listado. Ids LGC-001..LGC-005 sequenciais. Arquivo idêntico em outputs/.forge/reviews/ (cmp OK)."
+    },
+    {
+      "text": "Existe finding em services/carteira/src/Carteira.Domain/CarteiraPrePaga.cs com line entre 15 e 20 apontando que Debitar não rejeita valor negativo (ou zero), com cenário concreto em que um débito negativo aumenta o saldo, e severity HIGH ou BLOCKER.",
+      "passed": true,
+      "evidence": "LGC-002: file=services/carteira/src/Carteira.Domain/CarteiraPrePaga.cs, line=15, severity=BLOCKER; description: 'Se valorEmCentavos for negativo (bug upstream, tarifa mal calculada, payload malicioso), a expressão SaldoEmCentavos - valorEmCentavos vira uma soma — o saldo AUMENTA [...] e a guarda < 0 nunca dispara'; fix inclui 'valorEmCentavos <= 0'. Transcript passo 12 dá o cenário numérico (saldo 500, -100 → 600). Ressalva: o número concreto está no transcript, não no finding."
+    },
+    {
+      "text": "Existe finding com severity HIGH ou BLOCKER apontando DebitarTarifaHandler.cs ou CarteiraPrePaga.cs pela ausência de concurrency token/versão/lock no ciclo ObterAsync → Debitar → AtualizarAsync, descrevendo dois validadores debitando a mesma carteira ao mesmo tempo com débito perdido ou saldo negativo, e citando REQ-8.",
+      "passed": true,
+      "evidence": "LGC-003: severity=HIGH, file=DebitarTarifaHandler.cs line 15; description: 'O ciclo ObterAsync → Debitar (em memória) → AtualizarAsync não tem nenhum mecanismo de concorrência (sem rowversion/ETag [...] sem lock)'; 'catraca e ônibus alimentador debitam a mesma carteira quase simultaneamente [...] o segundo AtualizarAsync sobrescreve o primeiro (lost update)'; rule_violated=requirements.md#REQ-8. Ressalva menor: a aritmética '500 debitado duas vezes = -300' mistura tarifa 400 e 500, não invalida o cenário."
+    },
+    {
+      "text": "Existe finding em services/carteira/src/Carteira.Application/Embarques/DebitarTarifaHandler.cs com line 15 ou 16 apontando que ObterAsync pode devolver null e o operador ! gera NullReferenceException em vez da CarteiraNaoEncontradaException exigida pelo REQ-9.",
+      "passed": true,
+      "evidence": "LGC-001: file=services/carteira/src/Carteira.Application/Embarques/DebitarTarifaHandler.cs, line=16 (fonte: linha 16 é 'carteira!.Debitar(...)'); description: 'ObterAsync retorna CarteiraPrePaga? [...] carteira!.Debitar(...) com null-forgiving [...] NullReferenceException não tratada em vez de CarteiraNaoEncontradaException'; rule_violated=requirements.md#REQ-9."
+    },
+    {
+      "text": "Existe finding com severity HIGH ou BLOCKER em services/carteira/tests/Carteira.Tests/CarteiraPrePagaTests.cs (line entre 8 e 13) dizendo que Debitar_SaldoInsuficiente_LancaExcecao exercita saldo suficiente e não verifica a exceção.",
+      "passed": true,
+      "evidence": "LGC-004: severity=HIGH, file=services/carteira/tests/Carteira.Tests/CarteiraPrePagaTests.cs, line=9; title 'Teste Debitar_SaldoInsuficiente_LancaExcecao não testa saldo insuficiente nem lança exceção'; description: 'debita 440 de um saldo de 1000 (saldo suficiente) [...] Nenhum Assert.Throws é executado'."
+    },
+    {
+      "text": "Nenhum finding aponta SaldoFormatter.cs como violação de money-as-cents.md ou por uso de decimal; a conversão para decimal na camada de apresentação não aparece como defeito.",
+      "passed": true,
+      "evidence": "grep -n -i 'SaldoFormatter\\|decimal' work/.forge/reviews/logic-debito-carteira.json → sem ocorrências; nenhum dos 5 findings aponta SaldoFormatter.cs. Transcript passo 16 registra a decisão explícita: 'o decimal em SaldoFormatter.cs é só a divisão / 100m na camada de apresentação [...] Não gerei finding aqui: é uso correto'."
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 131000,
+    "total_duration_seconds": 131
+  }
+}

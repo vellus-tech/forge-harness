@@ -1,0 +1,3 @@
+.partners { color: var(--text-primary); }
+.row-unread { background: var(--color-surface-unread); font-weight: 600; }
+.partners td { border-bottom: 1px solid #dddddd; }

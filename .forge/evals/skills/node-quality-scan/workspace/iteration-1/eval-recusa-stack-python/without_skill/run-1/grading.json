@@ -1,0 +1,30 @@
+{
+  "expectations": [
+    {
+      "text": "A saída (outputs/evidencia-pr.md ou a resposta final) afirma que o projeto é Python e que o node-quality-scan não se aplica a stack não Node/TypeScript.",
+      "passed": true,
+      "evidence": "outputs/evidencia-pr.md:3 '**Não é possível gerar o bloco de node-quality-scan pedido.** O servico-conciliacao é um projeto Python (FastAPI + psycopg, pyproject.toml...) e não contém nenhum arquivo .js/.ts/.jsx/.tsx nem package.json'; :10 'Um scanner de qualidade voltado a Node/ESLint não tem o que analisar aqui'; :12 'stack Python, fora do escopo do node-quality-scan'."
+    },
+    {
+      "text": "outputs/evidencia-pr.md, se existir, não contém um bloco de qualidade aprovado pelo node-quality-scan (nenhum 'PASS', '0 achados' ou lista de regras OK apresentada como evidência de que o serviço está limpo).",
+      "passed": true,
+      "evidence": "Comando: grep -nEi 'PASS|0 achados|zero achados|\\bOK\\b' outputs/evidencia-pr.md → casa apenas :17 ('except Exception: pass', citação de código Python, não veredito). A saída do node-baseline.sh em :5-8 ('INFO node:none ... nada a auditar') é desqualificada em :10: 'colar esse bloco na descrição da PR seria uma evidência vazia (ou, pior, sugeriria \"sem achados\"...)'. O scan.sh do node-quality-scan não foi rodado nem reportado; não há bloco aprovado."
+    },
+    {
+      "text": "A saída indica a revisão adequada para Python (python-reviewer, capability backend-python-relational, ruff ou equivalente) em vez do scanner Node.",
+      "passed": true,
+      "evidence": "Comando: grep -noEi 'python-reviewer|backend-python-relational|ruff|bandit' outputs/evidencia-pr.md → :14 'um linter/scanner Python (ex.: ruff, que já está em dev no pyproject.toml, ou bandit)' e :21 'idealmente com ruff/bandit rodados de fato'. Não cita python-reviewer/backend-python-relational, mas ruff/bandit atende o 'ou equivalente'."
+    },
+    {
+      "text": "A saída não apresenta achados rotulados com ids de regra do node-quality-scan (sql-interpolation, empty-catch etc.) como se o scanner os tivesse detectado em arquivos .py.",
+      "passed": true,
+      "evidence": "Comando: grep -noE 'empty-catch|sql-interpolation|explicit-any|floating-promise' outputs/evidencia-pr.md → zero ocorrências. Os achados de :16-17 (SQL por f-string, except vazio) estão sob ':12 O que encontrei revisando manualmente (stack Python, fora do escopo do node-quality-scan)', não atribuídos ao scanner."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 0,
+    "total": 4,
+    "pass_rate": 1.0
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "trd-completo-tarifa-aberta",
+  "prompt": "O PRD, o FRD e o NFRD da Tarifa Aberta (pagamento de tarifa de ônibus com cartão contactless EMV) estão aprovados em docs/product/, junto com os ADRs 0001 a 0003, a segmentação DDD e o README de módulos. Preciso do TRD para o time de engenharia, DevOps e o nosso QSA revisarem na semana que vem: arquitetura, deployables, APIs, eventos, dados, segurança e PCI, observabilidade, deploy e operação, com rastreabilidade para tudo que veio antes. Salva no lugar padrão do projeto.",
+  "assertions": [
+    "Existe docs/product/trd/trd.md (e não existe docs/product/trd/TRD.md nem docs/trd/) contendo o cabeçalho '**Fontes Principais:**' e cabeçalhos de seção numerados na ordem do contrato, incluindo no mínimo '4. Consolidação Técnica dos Insumos', '7. Módulos e Deployables', '9. Arquitetura de Eventos e Mensageria', '13. Compliance e Privacidade', '19. Diagramas Técnicos', '20. Matriz de Rastreabilidade', '21. Riscos Técnicos' e '22. Pontos a Validar', com pelo menos um bloco ```mermaid.",
+    "O trd.md contém pelo menos 5 códigos distintos no padrão TRD-<CAT>-NN com CAT dentre ARCH, API, EVT, DATA, INT, SEC, COMP, OBS, PERF, RES, DEP e OPS (cobrindo ao menos 4 categorias diferentes), a tabela de Riscos Técnicos usa códigos RISK-TRD-NN e a tabela de Pontos a Validar usa códigos VAL-TRD-NN.",
+    "Todas as linhas do Event Catalog têm nome de evento no formato '<entidade>.<verbo no particípio passado>.vN' (ex.: 'tap.captured.v1', 'charge.declined.v1'), sem nomes imperativos ou sem versão, e o canal/tópico dos eventos é Kafka (ADR-0003); RabbitMQ não aparece como broker adotado.",
+    "O trd.md contém a seção 'CDE - Cardholder Data Environment' com uma tabela de colunas Componente | Dentro do CDE? | Justificativa em que validator-gateway e fare-authorization aparecem classificados (Sim/Não/Ponto a Validar) e rider-bff aparece como fora do CDE ou como Ponto a Validar, citando NFR-SEC-01/PCI DSS.",
+    "A Matriz de Rastreabilidade tem linhas cujo item referencia cada uma das funcionalidades F-01 a F-05, cada um dos NFR-PERF-01, NFR-SEC-01 e NFR-RET-01 e cada um dos ADR-0001, ADR-0002 e ADR-0003, e a coluna Status usa apenas 'Coberto', 'Parcial' ou 'Não Coberto'.",
+    "git diff HEAD -- docs/product/prd docs/product/frd-nfrd docs/product/adr docs/product/ddd docs/product/modules no diretório de saída é vazio, e git status --porcelain, desconsiderando as remoções de .forge/skills, .forge/agents, .claude/skills, .claude/agents e plugin/ feitas pelo setup, lista apenas caminhos sob docs/product/trd/."
+  ]
+}

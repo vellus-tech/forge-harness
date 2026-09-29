@@ -1,0 +1,29 @@
+{
+  "pr": 58,
+  "branch": "feat/tarifa/desconto-integracao",
+  "base": "main",
+  "commit": "533bff5",
+  "verdict": "REQUEST_CHANGES",
+  "build_status": "green",
+  "summary": "Diff altera apenas services/tarifa/tarifa/calculo.py (12 linhas). A mensagem de commit afirma a criação de services/tarifa/tests/test_integracao.py cobrindo janela de 90 min, borda de 91 min e intervalo negativo, mas esse arquivo não existe no diff nem na árvore da branch. A suíte que passa (4 testes, todos em tests/test_calculo.py) é anterior à TASK-07 e não exercita calcular_integracao em nenhum caminho. O build está verde só porque nenhum teste novo foi adicionado para a função nova; não há cobertura real da lógica de desconto.",
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "blocker",
+      "category": "claim-nao-verificada",
+      "file": "services/tarifa/tarifa/calculo.py",
+      "description": "Commit afirma testes para calcular_integracao (services/tarifa/tests/test_integracao.py) que não existem no diff nem no working tree. calcular_integracao não tem nenhum teste automatizado.",
+      "evidence": "git diff main..feat/tarifa/desconto-integracao --stat mostra só calculo.py; find não localiza test_integracao.py; python3 -m unittest discover roda 4 testes, todos de test_calculo.py (pré-existentes)."
+    },
+    {
+      "id": "F2",
+      "severity": "minor",
+      "category": "cobertura",
+      "file": "services/tarifa/tarifa/calculo.py",
+      "description": "Mesmo sem o teste declarado, calcular_integracao tem um caso de borda potencialmente ambíguo (minutos_desde_primeira == 90 inclusive na janela) que não está documentado nem coberto por nenhum teste existente.",
+      "evidence": "Linha 'if minutos_desde_primeira <= JANELA_INTEGRACAO_MINUTOS' inclui exatamente 90 min como dentro da janela; a enunciação da tarefa fala em 'até 90 minutos', consistente, mas sem teste que prove o comportamento no limite (90 vs 91)."
+    }
+  ],
+  "scope_note": "apps/painel (TypeScript) não foi tocado pela branch e está fora do escopo desta avaliação, conforme instrução do usuário.",
+  "recommendation": "Não mergear o PR #58 até que os testes descritos na mensagem de commit sejam de fato adicionados (ou a mensagem seja corrigida) e cubram ao menos: dentro da janela, no limite de 90 min, acima de 90 min (ex.: 91 min) e intervalo negativo."
+}

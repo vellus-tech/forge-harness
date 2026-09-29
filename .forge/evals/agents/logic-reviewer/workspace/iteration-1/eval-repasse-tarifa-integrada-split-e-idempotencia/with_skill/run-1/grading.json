@@ -1,0 +1,90 @@
+{
+  "expectations": [
+    {
+      "text": "O arquivo .forge/reviews/logic-repasse.json é JSON válido sem prosa nem cercas markdown, com chave de topo reviewer igual a 'logic-reviewer' e array findings; todo finding tem os campos id, severity, category, file, line, title, description, fix_suggested, rule_violated e confidence, severity em {BLOCKER, HIGH, MEDIUM, LOW} e ids LGC-001, LGC-002... sequenciais sem lacuna.",
+      "passed": true,
+      "evidence": "outputs/.forge/reviews/logic-repasse.json: `jq -e '(keys==[\"findings\",\"reviewer\"]) and .reviewer==\"logic-reviewer\" and (.findings|type==\"array\")'` → true; `jq -e '[.findings[]|keys==([...10 campos...]|sort)]|all'` → true; `jq -e '[.findings[].severity]|all(IN(\"BLOCKER\",\"HIGH\",\"MEDIUM\",\"LOW\"))'` → true; checagem de ids LGC-NNN por índice → true; `head -c1`/`tail -c2 | od -c` → '{' e '}\\n', sem prosa nem cercas (7 findings, LGC-001..LGC-007). Observação: confidence é string ('high'/'medium'), não número; a asserção só exige presença do campo."
+    },
+    {
+      "text": "Existe finding com severity BLOCKER apontando services/tarifacao/src/Tarifacao.Domain/Repasse/RepasseTarifa.cs com line entre 6 e 13 pelo uso de decimal para valor monetário, e seu rule_violated cita money-as-cents.md.",
+      "passed": true,
+      "evidence": "LGC-003 (linhas 29-38 do JSON): severity BLOCKER, file services/tarifacao/src/Tarifacao.Domain/Repasse/RepasseTarifa.cs, line 6 — confere com o fixture (`git show feature/repasse-integracao:.../RepasseTarifa.cs` linha 6: `public static decimal[] Dividir(decimal tarifaTotal, int operadoras)`), title 'Valores monetários em decimal no domínio', rule_violated '.forge/rules/domain/money-as-cents.md'."
+    },
+    {
+      "text": "Existe finding BLOCKER sobre a invariante da soma do split (REQ-3/PBT-02) em RepasseTarifa.cs que (a) dá um contraexemplo numérico concreto em que a soma das partes difere do total (por exemplo 4,40 dividido por 3) e (b) aponta MidpointRounding.AwayFromZero ou o arredondamento por parte, citando nbr-5891-rounding.md em rule_violated ou description.",
+      "passed": true,
+      "evidence": "LGC-002 (linhas 16-27): BLOCKER, RepasseTarifa.cs line 11, description 'Para tarifaTotal=10.00 e operadoras=3: cada parte = Math.Round(3.333..., 2) = 3.33, soma = 9.99 != 10.00' (contraexemplo correto contra a linha 11 do fixture, que arredonda por parte), cita REQ-3 e PBT-02; rule_violated inclui '.forge/rules/domain/nbr-5891-rounding.md'. AwayFromZero é tratado em LGC-004 (BLOCKER, linha 11, nbr-5891); LGC-002 aponta o arredondamento por parte, que satisfaz (b)."
+    },
+    {
+      "text": "Existe finding com severity BLOCKER em services/tarifacao/src/Tarifacao.Application/Repasse/RegistrarRepasseHandler.cs com line entre 15 e 19 dizendo que o comentário 'Idempotency check' não corresponde ao código (ObterPorChaveAsync nunca é chamado, reenvio cria segundo repasse), com referência a REQ-4.",
+      "passed": true,
+      "evidence": "LGC-001 (linhas 4-15): BLOCKER, file services/tarifacao/src/Tarifacao.Application/Repasse/RegistrarRepasseHandler.cs, line 16 (fixture linha 16: '// Idempotency check: ... (REQ-4).'), description 'o método nunca chama IRepasseRepository.ObterPorChaveAsync ... Dois POSTs com a mesma chave criam dois repasses distintos, violando REQ-4'."
+    },
+    {
+      "text": "Existe finding (severity BLOCKER ou HIGH) afirmando que a PBT-02 obrigatória não tem teste de propriedade (FsCheck ou equivalente) e que RepasseTarifaTests.cs só cobre um exemplo que divide exato.",
+      "passed": true,
+      "evidence": "LGC-005 (linhas 52-63): severity HIGH, file services/tarifacao/tests/Tarifacao.Tests/RepasseTarifaTests.cs, description 'PBT-02 como \"Obrigatória, com FsCheck\". O diff só adiciona um [Fact] com tarifaTotal=3.00 e 3 operadoras — divisão exata, sem resto ... Não há nenhum teste de propriedade'. Confere com o fixture (único [Fact], Dividir(3.00m, 3), linhas 8-13)."
+    },
+    {
+      "text": "Nenhum finding aponta RepassesController.cs por instanciar SqlRepasseRepository/Infrastructure diretamente ou por qualquer questão de camada, injeção de dependência ou estrutura; o controller não aparece em nenhum finding cujo motivo seja arquitetura.",
+      "passed": true,
+      "evidence": "`grep -c RepassesController outputs/.forge/reviews/logic-repasse.json` → 0. Única ocorrência de 'SqlRepasseRepository' (linha 83) está em LGC-007, file IRepasseRepository.cs, motivo ObterPorChaveAsync nunca chamado (REQ-4), não arquitetura. Transcript passo 8 registra a exclusão deliberada por mandato do agente, antes de qualquer contato com o grading (outputs de 26/09 14:49, grading de 26/09 16:04)."
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 113000,
+    "total_duration_seconds": 113
+  },
+  "claims": [
+    {
+      "claim": "10.00/3 produz 3.33×3 = 9.99",
+      "type": "factual",
+      "verified": true,
+      "evidence": "Fixture RepasseTarifa.cs:11 arredonda cada parte a 2 casas; 3.333→3.33, soma 9.99."
+    },
+    {
+      "claim": "ObterPorChaveAsync declarado mas nunca chamado (LGC-007)",
+      "type": "factual",
+      "verified": true,
+      "evidence": "RegistrarRepasseHandler.cs linhas 14-21 do fixture não o chamam."
+    },
+    {
+      "claim": "JSON validado com python3 -m json.tool",
+      "type": "process",
+      "verified": true,
+      "evidence": "Reconferido: jq parseia o arquivo sem erro."
+    },
+    {
+      "claim": "Despacho de subagente simulado, sem spawn real",
+      "type": "process",
+      "verified": true,
+      "evidence": "outputs/agent-dispatch-simulated.md: 'SIMULADO — não executado', agente logic-reviewer/opus."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "reason": "Contaminação do baseline: o executor without_skill foi retomado ('retome') no mesmo diretório run-1 e leu run-1/grading.json da rodada anterior, que contém o texto literal de todas as asserções e as razões de falha; reescreveu a saída para encaixar nelas (transcript, seção 'Retomada'). O harness deve apagar/mover grading.json antes de relançar um executor, ou nunca gravá-lo dentro da árvore que o executor enxerga. Esta rodada without_skill deve ser refeita em diretório limpo antes de entrar no benchmark."
+      },
+      {
+        "assertion": "O arquivo .forge/reviews/logic-repasse.json é JSON válido sem prosa nem cercas markdown, com chave de topo reviewer igual a 'logic-reviewer' e array findings; todo finding tem os campos id, severity, category, file, line, title, description, fix_suggested, rule_violated e confidence, severity em {BLOCKER, HIGH, MEDIUM, LOW} e ids LGC-001, LGC-002... sequenciais sem lacuna.",
+        "reason": "A asserção de contrato é a que mais discrimina (a saída original sem skill acertou a substância e perdeu por formato). Vale separar asserções de substância que não dependam dos nomes de campo, para medir se a skill agrega julgamento além do formato."
+      },
+      {
+        "assertion": "Existe finding BLOCKER sobre a invariante da soma do split (REQ-3/PBT-02) em RepasseTarifa.cs que (a) dá um contraexemplo numérico concreto em que a soma das partes difere do total (por exemplo 4,40 dividido por 3) e (b) aponta MidpointRounding.AwayFromZero ou o arredondamento por parte, citando nbr-5891-rounding.md em rule_violated ou description.",
+        "reason": "O contraexemplo aceito é qualquer par numérico; ambas usaram 10,00/3 → 9,99 (correto contra RepasseTarifa.cs:11). Poderia exigir que a soma citada seja verificável contra o código; hoje um número errado também passaria."
+      },
+      {
+        "reason": "Nenhuma asserção penaliza findings espúrios ou severidade inflada fora do controller; e a asserção 6 só é discriminante enquanto o executor não conhece o gabarito."
+      }
+    ],
+    "overall": "Asserções checáveis por jq/grep e bem alinhadas ao fixture; o problema desta iteração é de isolamento do harness (vazamento do grading para o executor), não das asserções."
+  }
+}

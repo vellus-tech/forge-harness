@@ -1,0 +1,52 @@
+{
+  "expectations": [
+    {
+      "text": "review/node-review.json tem um finding sobre `forge-quality/max-lines` com severidade \"error\" em eslint.config.mjs (linha 12), com severity MEDIUM (não HIGH nem BLOCKER) e fix_suggested indicando \"warn\"",
+      "passed": true,
+      "evidence": "outputs/review/node-review.json:4-9 — severity \"MEDIUM\", file \"eslint.config.mjs\", line 12, título cita forge-quality/max-lines configurado como \"error\"; fix_suggested: 'Reverter a severidade para \"warn\": \"forge-quality/max-lines\": [\"warn\", { max: 300 }]'. Conferido com jq '.findings[]|select(.file|test(\"eslint\"))' e com grep -n max-lines work/eslint.config.mjs → linha 12: [\"error\", { max: 300 }]."
+    },
+    {
+      "text": "Nenhum finding em review/node-review.json tem file dentro de src/legacy/ (RelatorioHelper, any, catch vazio, export let e console.log do legado ficam fora, pois a branch não tocou esse arquivo)",
+      "passed": true,
+      "evidence": "jq '[.findings[]|select(.file|startswith(\"src/legacy/\"))]' outputs/review/node-review.json → [] (3 findings: eslint.config.mjs, cotar-integracao.test.ts, cotar-integracao.ts). node-review.md:3 declara src/legacy/relatorio-helper.ts fora do diff; tabela md:15,22-24 registra os achados do scanner no legado como 'Fora de escopo'."
+    },
+    {
+      "text": "Não há finding de promise flutuante/floating-promise em src/tarifas/infra/pg-tarifa-repository.ts linha 11, e review/node-review.md registra que esse FOUND foi julgado exceção legítima (promise retornada ao chamador)",
+      "passed": true,
+      "evidence": "jq '[.findings[]|select(.file|test(\"pg-tarifa\"))]|length' → 0. node-review.md:16: 'floating-promise | HIGH | 1 (src/tarifas/infra/pg-tarifa-repository.ts:11) | Sim | Não é defeito — a promise é returnada para quem chama (buscarVigente retorna a cadeia, cotarIntegracao dá await); é exatamente a exceção legítima documentada'. Linha 11 do fixture confirmada via git show (.then(...) após return this.pool na linha 9)."
+    },
+    {
+      "text": "Não há finding de interface com implementação única para TarifaRepository em review/node-review.json, e review/node-review.md registra o julgamento de que é porta do domínio (implementada na infra, com fake no teste)",
+      "passed": true,
+      "evidence": "jq busca por 'TarifaRepository|implementação única|single-impl' nos findings → []. node-review.md:25: 'single-impl-interface | MEDIUM | 1 (TarifaRepository) | Sim | Não é defeito — é a exceção documentada: porta de arquitetura hexagonal deliberada (domínio declara, PgTarifaRepository implementa em produção, repoFake no teste é a segunda implementação)'; reforçado em md:32."
+    },
+    {
+      "text": "review/node-review.json tem um finding em src/tarifas/aplicacao/cotar-integracao.test.ts linha 14 apontando que o teste afirma `expect(true).toBe(true)` e não verifica o valor calculado da integração",
+      "passed": true,
+      "evidence": "outputs/review/node-review.json:12-17 — severity HIGH, file src/tarifas/aplicacao/cotar-integracao.test.ts, line 14, descrição: 'faz expect(true).toBe(true) — uma asserção que não lê o valor de retorno da chamada ... Não há cobertura real da regra de negócio central (desconto de 25%...)'. git show feat/tarifa-integracao:...cotar-integracao.test.ts confirma expect(true).toBe(true) na linha 14."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 594000,
+    "total_duration_seconds": 594
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "review/node-review.json tem um finding em src/tarifas/aplicacao/cotar-integracao.test.ts linha 14 ...",
+        "reason": "A falha do without_skill nesta asserção vem só do número da linha (15 em vez de 14, sendo 15 o fechamento do bloco); o conteúdo do finding está correto. A asserção é discriminante para precisão de localização, mas o relatório agregado deve registrar que o baseline acertou o defeito."
+      },
+      {
+        "reason": "Nenhuma asserção cobre a execução real do node-baseline/scan (evidência de comando rodado); o with_skill cita LDG-0061/LDG-0130 e node-scan.json, o without_skill não conseguiu rodar o lint. Uma asserção sobre outputs/node-scan.json ou citação do baseline em node-review.md tornaria o eval mais difícil de passar por leitura estática."
+      }
+    ],
+    "overall": "Asserções discriminantes: 5/5 com skill contra 0/5 sem skill, com o critério mais estreito (linha 14) sendo o único ponto sensível a formatação."
+  }
+}

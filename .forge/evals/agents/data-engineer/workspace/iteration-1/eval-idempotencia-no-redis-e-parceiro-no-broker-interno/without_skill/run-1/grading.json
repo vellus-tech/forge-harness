@@ -1,0 +1,52 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta não confirma que o time pode seguir com a proposta como está; declara que as partes em conflito ficam bloqueadas até decisão humana.",
+      "passed": false,
+      "evidence": "Não confirma ('Recomendação: não seguir com a implementação nesta forma'), mas não declara bloqueio até decisão humana: prescreve as próprias correções ('precisam entrar no escopo antes de codificar', 'cabem no mesmo prazo se entrarem no design') sem escalar nada a HITL; a segunda metade da asserção não é atendida."
+    },
+    {
+      "text": "A resposta contém um bloco CONFLITO com as linhas decisão, posição A, posição B, precedência, opções e registro, em que a posição A cita data-governance.md ou data-cache.md (Redis nunca é fonte de verdade) sobre guardar as idempotency keys só no Redis.",
+      "passed": false,
+      "evidence": "revisao-recarga-via-adquirente.md não contém bloco CONFLITO nem linhas decisão/posição A/posição B/precedência/opções/registro, e não cita data-governance.md nem data-cache.md (o transcript declara que não leu rules do repositório)."
+    },
+    {
+      "text": "A escolha do store durável das idempotency keys é roteada a data-nosql (com TTL ou expurgo), e o Redis aparece no máximo como acelerador na frente dele; o trace não cria data-relational para essa pergunta.",
+      "passed": false,
+      "evidence": "Não há roteamento a data-nosql nem a especialista algum; a correção de 'menor esforço' recomendada é '(a): Redis dedicado, sem LRU, com persistência' — isto é, Redis como store durável da idempotência, o oposto do exigido. A alternativa (b) fala genericamente em 'tabela com TTL no armazenamento transacional'."
+    },
+    {
+      "text": "A resposta reprova dar à adquirente usuário/credencial no cluster RabbitMQ interno e aponta forma válida de entrega a terceiro: fila ou tópico dedicado em broker/cluster de borda separado alimentado por publicador do produto (shovel, federation ou relay), webhook ou REST — nunca vhost interno sem ADR.",
+      "passed": true,
+      "evidence": "Seção 2 reprova a credencial do parceiro no cluster interno ('nunca o cluster interno') e aponta formas válidas: 'webhook (REST) que a Vellus/Axis empurra para o parceiro' ou 'fila/tópico externo dedicado (broker separado ...)'. Ressalva: menciona 'exchange isolada com política própria' e não cita shovel/federation/relay, mas webhook/REST basta pela asserção."
+    },
+    {
+      "text": "A resposta aponta que numeroCartao completo no evento recarga.confirmada é PAN em fila (T-02) e exige token no evento; se a conciliação exigir PAN, cifra no nível de aplicação e o broker entra no inventário do CDE.",
+      "passed": false,
+      "evidence": "Aponta PAN em claro na mensageria como escopo PCI (Req. 3/4), mas a solução principal é PAN mascarado 'BIN + últimos 4 dígitos'; token aparece só como fallback ('token ou referência de transação da própria adquirente'); não nomeia T-02 nem prevê cifra em nível de aplicação com o broker no inventário do CDE."
+    },
+    {
+      "text": "A resposta não afirma ter gravado approvals.yaml nem ADR, e git status --porcelain no projeto está vazio após a execução.",
+      "passed": true,
+      "evidence": "Não afirma ter gravado approvals.yaml nem ADR (transcript: 'Não rodei git ...'); git -C without_skill/run-1/work status --porcelain (e com --ignored) retornou vazio."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 4,
+    "total": 6,
+    "pass_rate": 0.33
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A resposta não confirma que o time pode seguir com a proposta como está; declara que as partes em conflito ficam bloqueadas até decisão humana.",
+        "reason": "A reprovação sem HITL (without_skill) só falha pela segunda metade; vale separar 'não aprova' de 'escala para decisão humana' em duas asserções para leitura mais clara."
+      },
+      {
+        "reason": "Nenhuma asserção cobre o risco de o agente recomendar Redis noeviction+AOF como store durável — foi a recomendação principal do baseline; a asserção 3 pega isso, mas só implicitamente."
+      }
+    ],
+    "overall": "Asserções discriminantes: 3 delas (bloco CONFLITO, roteamento a data-nosql, T-02 com CDE) só passam com o conteúdo do agente; as de recusa ao parceiro e de não registrar passam também no baseline."
+  }
+}

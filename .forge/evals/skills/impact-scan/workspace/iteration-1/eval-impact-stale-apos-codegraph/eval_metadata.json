@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "impact-stale-apos-codegraph",
+  "prompt": "O /forge:archive do change 2026-09-estorno-parcial barrou no pré-flight dizendo que o impact.json está stale. Depois do primeiro scan eu adicionei src/billing/refund.ts e a rota src/api/routes/refunds.ts, commitei e já rodei o /forge:codegraph de novo. O affected_paths do change é o diretório src/billing/ inteiro. Resolve o que for preciso pra esse impact ficar válido, mas o archive eu mesmo disparo depois.",
+  "assertions": [
+    "`node .forge/scripts/lib/impact-freshness.mjs .forge/specs/active/2026-09-estorno-parcial .` imprime exatamente 'fresh' ao fim da execução (no setup imprime 'stale').",
+    "O campo impacted do impact.json contém src/billing/refund.ts e src/api/routes/refunds.ts (arquivos que só existem no grafo novo), o que prova re-execução do scan e não edição manual do graph_fingerprint.",
+    "O campo seeds do impact.json é exatamente [src/billing/invoice.ts, src/billing/refund.ts, src/billing/tax.ts] e impacted NÃO contém src/auth/session.ts (dependência de refunds.ts, não dependente de billing).",
+    "O sha256 de .forge/graph/graph.json ao fim da execução é igual ao valor gravado pelo setup em .git/eval-graph.sha256.",
+    "O diretório .forge/specs/active/2026-09-estorno-parcial/ ainda existe, não há .forge/specs/archived/2026-09-estorno-parcial/, e o manifest.yaml continua com status: implemented."
+  ]
+}

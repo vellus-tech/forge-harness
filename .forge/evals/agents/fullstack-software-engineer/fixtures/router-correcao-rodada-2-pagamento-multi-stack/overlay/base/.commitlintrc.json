@@ -1,0 +1,7 @@
+{
+  "extends": ["@commitlint/config-conventional"],
+  "rules": {
+    "scope-enum": [2, "always", ["payment", "checkout", "ledger", "docs", "ci", "deps"]],
+    "subject-case": [0]
+  }
+}

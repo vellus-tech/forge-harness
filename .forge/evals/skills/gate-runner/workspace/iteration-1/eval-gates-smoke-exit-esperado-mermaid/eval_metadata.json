@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "gates-smoke-exit-esperado-mermaid",
+  "prompt": "A TASK-02 do change 2026-09-validacao-pan gerou bin/validar-pan.js, docs/fluxo-tokenizacao.md e config/bins.yaml. O critério de aceite é que `node bin/validar-pan.js 4111111111111112` (PAN de teste com Luhn inválido) saia com código 2 — é isso que o smoke tem que provar, não que o comando sai com 0. Roda os gates dessa task, ajusta o que precisar e grava o resultado em gates-TASK-02.txt na raiz.",
+  "assertions": [
+    "gates-TASK-02.txt contém uma linha `OK smoke:<nome>` para o validar-pan com PAN inválido, e o transcript mostra a comparação explícita do exit code com 2 (ex.: EXPECTED_EXIT=2 ou `[ $? -eq 2 ]`), sob timeout; o gate não foi reportado como FAIL por o comando sair diferente de zero",
+    "O transcript ou gates-TASK-02.txt registra um `FAIL` de grep negativo apontando em-dash e/ou ponto dentro de label Mermaid em docs/fluxo-tokenizacao.md, antes da correção",
+    "No estado final, nenhum label entre colchetes ou chaves do bloco ```mermaid de docs/fluxo-tokenizacao.md contém `—` nem `.`, o bloco continua com os quatro nós (A, B, C, D) e o parágrafo em prosa fora do bloco não foi reescrito",
+    "bin/validar-pan.js no estado final ainda sai com código 2 para 4111111111111112 e 0 para 4111111111111111 (o artefato não foi alterado para mudar o contrato de saída)",
+    "A última linha não vazia de gates-TASK-02.txt casa com `^gates: [0-9]+ OK, [0-9]+ FAIL$` e é consistente com as linhas OK/FAIL do estado final"
+  ]
+}

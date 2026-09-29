@@ -1,0 +1,5 @@
+{
+  "ArtifactName": "ghcr.io/validacao@sha256:2b7f90e4c1a6d38f5e02b9c7a4d61f8e3c05a9b27d4e6f1c8a3b90d25e7f4c16",
+  "Metadata": { "ImageConfig": { "architecture": "amd64" } },
+  "Results": [ { "Target": "ghcr.io/validacao (alpine 3.20.2)", "Class": "os-pkgs", "Type": "alpine", "Vulnerabilities": [] } ]
+}

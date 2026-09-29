@@ -1,0 +1,51 @@
+{
+  "pr_url": "https://github.com/axis-mobfintech/bilhetagem-recarga/pull/58",
+  "pr_number": 58,
+  "branch": "feat/recarga/wave-2",
+  "action": "update_existing_pr",
+  "simulated": true,
+  "simulation_reason": "Sem remoto configurado, gh não autenticado e MCP do Atlassian indisponível nesta máquina; todas as chamadas externas foram apenas planejadas e registradas em outputs/sprint-runbook.md, nenhuma foi executada.",
+  "push": {
+    "commit": "142544b",
+    "message": "fix(recarga): TASK-06 — rejeitar webhook do PSP sem assinatura válida",
+    "would_run": "git push --force-with-lease origin feat/recarga/wave-2",
+    "executed": false
+  },
+  "pr_update": {
+    "existing_pr_detected": true,
+    "would_run": "gh pr edit 58 --body-file outputs/pr-body.md",
+    "body_file": "outputs/pr-body.md",
+    "executed": false
+  },
+  "jira_sync": {
+    "attempted": 4,
+    "succeeded": 0,
+    "failed": 4,
+    "issues_target": ["REC-21", "REC-22", "REC-23", "REC-24"],
+    "reason": "Atlassian MCP not available in this environment (mesma falha da rodada anterior)",
+    "executed": false
+  },
+  "tracker_update": {
+    "file": "docs/product/modules/recarga/PROGRESS-TRACKING.md",
+    "applied_in_work_copy": true,
+    "would_commit_push_to_main": true,
+    "executed_git_ops": false
+  },
+  "spec_lifecycle": {
+    "change_id": "recarga-pix",
+    "current_status": "implementing",
+    "would_run": "bash .forge/scripts/spec-advance-module.sh recarga implementing",
+    "expected_effect": "no-op idempotente — manifest.yaml já está em implementing",
+    "executed": false
+  },
+  "observations": [
+    "Divergência pré-existente no fixture: o tracker registra as 4 TASKs da onda 2 como concluídas (coluna 'Concluídas' = 4) e o PR #58 já aberto, mas as linhas individuais TASK-05..TASK-08 seguem marcadas '[ ]' em vez de '[X]'. Não corrigido nesta rodada por estar fora do escopo do pedido (reabrir/atualizar PR e retomar sync Jira), apenas sinalizado aqui para reconciliação por quem mantiver o fixture ou o tracker real.",
+    "Nenhum subagente foi necessário para esta invocação — o agente sprint-orchestrator não manda spawnar subagentes no seu pipeline; a execução foi direta, um único agente."
+  ],
+  "next_steps": [
+    "Aguardar code-evaluator re-rodar sobre o commit 142544b (CI, label auto-review já aplicada)",
+    "Após APPROVED, merge para main",
+    "/forge:deploy-wave recarga dev",
+    "Retentar sync Jira quando o MCP do Atlassian estiver disponível: /forge:coding-status recarga --jira-sync"
+  ]
+}

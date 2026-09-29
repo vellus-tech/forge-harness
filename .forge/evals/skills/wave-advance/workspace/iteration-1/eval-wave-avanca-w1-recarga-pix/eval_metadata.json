@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "wave-avanca-w1-recarga-pix",
+  "prompt": "O time terminou a STORY-05 (recarga via QR Code Pix) e com ela todas as stories da W1 do change 2026-09-recarga-cartao-pix. Fecha a W1 e abre a próxima wave para a gente começar o extrato e o limite diário amanhã. O DEFER-01 (valor do limite diário) continua em aberto com o produto, mas ele só trava a STORY-07. Grava a linha de confirmação do avanço em wave-advance.txt na raiz do projeto.",
+  "assertions": [
+    "Em .forge/specs/active/2026-09-recarga-cartao-pix/waves.json, W1 tem status `closed`, closed_at não nulo e gate_result começando com `executed:` (não o literal `OK`); W2 tem status `open` e opened_at não nulo; W0 está idêntica à da fixture",
+    "O transcript mostra a invocação `bash .forge/scripts/wave-ops.sh close 2026-09-recarga-cartao-pix W1` sem nenhum argumento `--gate` (nem `--gate OK`, nem `--gate \"$gate_result\"`), e nenhuma edição manual (Write/Edit/sed/node) de waves.json fora dos scripts wave-ops.sh",
+    "wave-advance.txt contém uma única linha não vazia, exatamente `W1 fechada → W2 aberta (stories: STORY-06, STORY-07)`",
+    "deferrals.json está idêntico ao da fixture (DEFER-01 continua `open`, sem resolved_at) e o transcript não contém `deferral-ops.sh resolve`, `deferral-ops.sh test` nem `deferral-ops.sh raise`",
+    ".forge/specs/active/2026-09-recarga-cartao-pix/progress.json tem current_wave igual a `W2`",
+    "O transcript não mostra leitura (Read, cat, head, grep, sed) de tasks.md, design.md nem de arquivos em stories/ do change; só waves.json, progress.json e deferrals.json (diretamente ou via scripts) são consultados"
+  ]
+}

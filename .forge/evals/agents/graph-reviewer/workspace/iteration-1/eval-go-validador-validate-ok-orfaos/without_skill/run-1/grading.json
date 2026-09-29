@@ -1,0 +1,40 @@
+{
+  "expectations": [
+    {
+      "text": "docs/qualidade/revisao-grafo-validador.md contém a linha `## Status: NÃO CONFIÁVEL` e menciona que o `graph.sh validate` retornou OK mesmo assim",
+      "passed": false,
+      "evidence": "outputs/docs/qualidade/revisao-grafo-validador.md: grep -c '^## Status: NÃO CONFIÁVEL$' → 0. O documento usa `## Veredito` com \"**Não.**\" (linhas 7-9); menciona o validate OK (linhas 13-19), mas falta a linha de status exigida."
+    },
+    {
+      "text": "O documento separa os 9 edges não resolvidos em 6 internos (identificados pelo módulo github.com/axis-mobfintech/validador-embarque do go.mod, que deveriam resolver) e 3 externos esperados (github.com/rs/zerolog e github.com/google/uuid), e afirma que há 0 edges resolvidos",
+      "passed": false,
+      "evidence": "outputs/docs/qualidade/revisao-grafo-validador.md:21 afirma 9/9 `resolved: false` e linha 52 \"0 de 9 arestas resolvidas\"; distingue qualitativamente internos (`github.com/axis-mobfintech/validador-embarque/internal/tarifa`) de externos (\"como `zerolog` ou `uuid`, que legitimamente não têm nó\"), mas não quantifica 6 internos e 3 externos (nenhuma contagem 6/3 no documento). Separação exigida incompleta; na dúvida, falha."
+    },
+    {
+      "text": "O documento afirma que internal/tarifa/tarifa.go (o órfão do validate) NÃO é código morto, citando pelo menos um importador real (internal/embarque/validar.go ou internal/cartao/cartao.go)",
+      "passed": true,
+      "evidence": "outputs/docs/qualidade/revisao-grafo-validador.md:9: \"O aviso de órfão não é cosmético ... existem dois chamadores diretos no código\"; linhas 45-46 citam `internal/embarque/validar.go` (chama `tarifa.Calcular`) e `internal/cartao/cartao.go` (importa `tarifa`); linha 48: \"`tarifa.Calcular` tem no mínimo um consumidor de produção certo\". Não usa a expressão literal \"não é código morto\" para tarifa.go, mas afirma o conteúdo com importadores reais."
+    },
+    {
+      "text": "O documento diz explicitamente que o /forge:impact sobre internal/tarifa/tarifa.go retornaria nenhum dependente (ou resultado vazio/falso negativo) por causa dos edges não resolvidos, com evidência do grafo (graph.sh path NO PATH, graph.sh query ou contagem de resolved no graph.json)",
+      "passed": true,
+      "evidence": "outputs/docs/qualidade/revisao-grafo-validador.md:52: \"o comando tende a reportar 'sem dependentes' ou uma lista vazia\", com \"0 de 9 arestas resolvidas\"; evidência do grafo nas linhas 36-40 (`graph.sh path ... → NO PATH` para cartao.go e validar.go) e 25-31 (`graph.sh query tarifa`, edges `import unresolved`). Comandos registrados em outputs/transcript.md:13-14."
+    },
+    {
+      "text": "O documento registra que nenhum dos 5 nós tem camada classificada (todos unknown / 0 de 5 / 0%)",
+      "passed": false,
+      "evidence": "outputs/docs/qualidade/revisao-grafo-validador.md: nenhuma afirmação sobre cobertura de camadas (grep -n -i 'camada\\|layer' → nenhuma ocorrência). Só aparece `[go/unknown]` para um nó dentro da saída colada de `graph.sh query` (linha 27), sem registro de 0 de 5."
+    },
+    {
+      "text": "`git -C <alvo> status --porcelain -- cmd/ internal/ go.mod` sai vazio",
+      "passed": true,
+      "evidence": "`git -C without_skill/run-1/work status --porcelain -- cmd/ internal/ go.mod` → saída vazia, rc=0."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 3,
+    "total": 6,
+    "pass_rate": 0.5
+  }
+}

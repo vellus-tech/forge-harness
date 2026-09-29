@@ -1,0 +1,95 @@
+{
+  "review": "platform-review",
+  "branch": "feat/validacao-imagem-container",
+  "diff_range": "main..HEAD",
+  "files_reviewed": [
+    ".github/workflows/validacao-image.yml",
+    "services/validacao/Dockerfile",
+    "services/validacao/src/Validacao.Api/Program.cs"
+  ],
+  "context": {
+    "target_fleet": "EKS em Graviton (arm64), produção",
+    "target_registry": "ECR"
+  },
+  "verdict": "changes_requested",
+  "summary": "Duas mudanças de empacotamento (Dockerfile, workflow) trazem um problema de conteúdo introduzido na mesma diff (PAN/CPF em log de aplicação) que bloqueia por si só, além de gaps de reprodutibilidade de build, ausência de scan/SBOM/assinatura antes do push para o ECR, e cobertura multi-arch declarada mas não verificada para a frota Graviton (arm64).",
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "blocker",
+      "file": "services/validacao/src/Validacao.Api/Program.cs",
+      "line": 29,
+      "title": "PAN e CPF em texto claro no log estruturado",
+      "detail": "A linha alterada loga `req.Pan` e `req.Cpf` sem mascaramento junto com o restante do evento de embarque. PAN em log viola PCI DSS 4.0.1 Req. 3.4/3.5 (dado de titular de cartão deve ficar ilegível onde for armazenado, inclusive em log); CPF é dado pessoal sob LGPD. Como o log usa Serilog com JsonFormatter para console, esse conteúdo normalmente é coletado por um agregador (ex. CloudWatch/OpenSearch) e passa a residir fora do escopo de controle do serviço.",
+      "recommendation": "Remover Pan e Cpf do template de log, ou mascarar (ex. exibir apenas os 6 primeiros/4 últimos dígitos do PAN, hash do CPF) antes de logar. Bloqueia merge até corrigido."
+    },
+    {
+      "id": "F2",
+      "severity": "high",
+      "file": "services/validacao/Dockerfile",
+      "line": 1,
+      "title": "Imagem base do estágio de build sem versão fixada",
+      "detail": "`FROM mcr.microsoft.com/dotnet/sdk:latest` usa tag flutuante, enquanto o estágio de runtime fixa `aspnet:8.0-alpine`. `latest` pode migrar para uma versão de SDK diferente de .NET 8 a qualquer momento (o csproj declara `TargetFramework net8.0`), quebrando build de forma não determinística e sem relação com a mudança de código, além de expor a build a builds não reprodutíveis (drift de cadeia de suprimento).",
+      "recommendation": "Fixar `sdk:8.0` (idealmente por digest) para casar com o `TargetFramework` e com o runtime `aspnet:8.0-alpine`."
+    },
+    {
+      "id": "F3",
+      "severity": "high",
+      "file": ".github/workflows/validacao-image.yml",
+      "line": 1,
+      "title": "Nenhum scan de vulnerabilidade, SBOM ou assinatura antes do push ao ECR",
+      "detail": "O workflow builda com `docker/build-push-action@v6` e empurra direto para o ECR (`push: true`) sem nenhuma etapa de scan de imagem (ex. Trivy), geração de SBOM ou assinatura (ex. Cosign) antes da publicação. Trata-se de um serviço que processa PAN/CPF de embarque, publicado em registry usado pela frota de produção — a ausência desse gate deixa a cadeia de build→registry sem verificação de proveniência ou de CVEs conhecidas antes de a imagem ficar disponível para deploy.",
+      "recommendation": "Inserir scan (Trivy ou equivalente) com política de falha por severidade, gerar SBOM e assinar a imagem (Cosign) antes de `push: true`, seguindo o mesmo padrão usado pelo pipeline de deploy (validação por digest antes do rollout)."
+    },
+    {
+      "id": "F4",
+      "severity": "high",
+      "file": ".github/workflows/validacao-image.yml",
+      "line": 3,
+      "title": "Build não é validado em pull request",
+      "detail": "O gatilho é somente `push: branches: [develop]`. Isso significa que o Dockerfile e o workflow não são exercitados em nenhum momento durante a revisão do PR — um build quebrado (ex. Dockerfile inválido, dependência ausente) só seria descoberto depois do merge em develop.",
+      "recommendation": "Adicionar um job de build (sem `push`, ou com push condicional) disparado por `pull_request` tocando `services/validacao/**`, para validar a imagem antes do merge."
+    },
+    {
+      "id": "F5",
+      "severity": "medium",
+      "file": ".github/workflows/validacao-image.yml",
+      "line": 24,
+      "title": "Cobertura multi-arch declarada mas não verificada para a frota Graviton",
+      "detail": "`platforms: linux/amd64,linux/arm64` é construído via QEMU (`docker/setup-qemu-action`) a partir de um runner `ubuntu-latest` (amd64). Isso tende a funcionar, mas nenhuma etapa confirma que a imagem publicada de fato contém os dois manifests nem que o binário roda corretamente em arm64 — build cruzado por emulação é uma fonte conhecida de imagem efetivamente single-arch (ex. falha silenciosa de registro do binfmt, driver do buildx sem suporte a multi-plataforma) sem que o job falhe. Como a frota de produção é EKS em Graviton (arm64), esse é o caminho crítico da mudança.",
+      "recommendation": "Após o push, rodar `docker buildx imagetools inspect <tag>` no workflow e falhar o job se `linux/arm64` não aparecer na lista de manifests; idealmente também rodar um smoke test (subir o container e bater no /health/ready) num runner arm64 nativo antes de considerar a imagem pronta para promoção."
+    },
+    {
+      "id": "F6",
+      "severity": "medium",
+      "file": "services/validacao/Dockerfile",
+      "line": 7,
+      "title": "Container roda como root",
+      "detail": "Não há diretiva `USER` no estágio de runtime; por padrão o processo roda como root dentro do container. Em EKS com admission policy (Kyverno ou PSA) isso costuma ser barrado ou, se permitido, aumenta a superfície de um serviço que lida com dados de titular de cartão.",
+      "recommendation": "Criar um usuário não-root no estágio runtime e trocar com `USER`, mantendo a porta 8080 (não privilegiada, compatível com usuário não-root)."
+    },
+    {
+      "id": "F7",
+      "severity": "low",
+      "file": "services/validacao/Dockerfile",
+      "line": 4,
+      "title": "Cache mount do NuGet sem id explícito para build multi-plataforma",
+      "detail": "`RUN --mount=type=cache,target=/root/.nuget/packages` sem `id=` pode compartilhar o mesmo cache entre os builds amd64 e arm64 do mesmo job, o que não corrompe o build (pacotes NuGet são independentes de arquitetura na maioria dos casos), mas é um padrão frágil caso pacotes nativos entrem na árvore de dependências no futuro.",
+      "recommendation": "Considerar `--mount=type=cache,id=nuget-${TARGETARCH},target=/root/.nuget/packages` como hardening preventivo; não bloqueia esta mudança."
+    },
+    {
+      "id": "F8",
+      "severity": "low",
+      "file": ".github/workflows/validacao-image.yml",
+      "line": 15,
+      "title": "Actions de terceiros fixadas por tag, não por SHA",
+      "detail": "`docker/build-push-action@v6`, `aws-actions/configure-aws-credentials@v4` etc. estão fixadas por tag major, que pode ser movida pelo mantenedor da action. Prática comum de hardening de supply chain é fixar por commit SHA.",
+      "recommendation": "Avaliar pin por SHA nas actions de terceiros, alinhado ao apetite de risco do time; não bloqueia esta mudança."
+    }
+  ],
+  "positive_notes": [
+    "csproj não fixa RuntimeIdentifier, então o publish permanece portátil entre amd64/arm64 — consistente com a intenção multi-arch do workflow (ver F5 para a lacuna de verificação).",
+    "Tag de imagem usa ${{ github.sha }} (imutável por commit), evitando o anti-padrão de sobrescrever `latest` em produção.",
+    "Workflow já roda com OIDC (`id-token: write` + `configure-aws-credentials`) em vez de chave de longa duração para autenticar no ECR."
+  ]
+}

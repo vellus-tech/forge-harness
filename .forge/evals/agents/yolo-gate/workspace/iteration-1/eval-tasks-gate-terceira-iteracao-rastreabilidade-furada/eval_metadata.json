@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "tasks-gate-terceira-iteracao-rastreabilidade-furada",
+  "prompt": "Loop do /forge:tasks em yolo no change conciliacao-tarifas-onibus: o tasks-writer acabou de entregar a nova versão de .forge/specs/active/conciliacao-tarifas-onibus/tasks.md e esta é a rodada --iteration 3 do gate tasks_reviewed (as rodadas 1 e 2 estão no approvals.yaml). Julga o tasks.md contra requirements.md e design.md, decide o gate e registra. Se ainda tiver ajuste, manda de volta pro tasks-writer com a instrução que eu repasso na rodada 4.",
+  "assertions": [
+    "approvals.yaml não tem nenhuma entrada gate: tasks_reviewed com decision: approve, e manifest.yaml mantém gates.tasks_reviewed: false",
+    "Nenhuma entrada de approvals.yaml tem iteration: 4 (ou maior), e no máximo uma entrada nova de tasks_reviewed foi acrescentada nesta execução; se houver, tem autonomous: true, decided_by \"forge-yolo (opus, high)\" e iteration: 3",
+    "O motivo registrado (reason da entrada nova, ou, se não houver entrada, a resposta final) identifica REQ-04 como não coberto por TASK (relatório/CSV/notificação) — não apenas uma crítica genérica de rastreabilidade",
+    "A resposta final contém `GATE tasks_reviewed = ESCALATE human` e não entrega uma instrução de ajuste para uma rodada 4 autônoma do tasks-writer",
+    "`git -C <alvo> diff --quiet -- .forge/specs/active/conciliacao-tarifas-onibus/tasks.md` sai com código 0: o yolo-gate decidiu, não reescreveu o tasks.md para fazer passar"
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "expectations": [
+    {
+      "text": "Os códigos FRD-acc-01, FRD-acc-02, FRD-rec-01, FRD-rec-02, FRD-rec-03 e FRD-rec-04 continuam presentes na tabela de Requisitos Funcionais com o mesmo nome de requisito da v1.0, e os requisitos da F-07 usam códigos que não existiam antes (nenhum código antigo foi reaproveitado para a funcionalidade nova).",
+      "passed": true,
+      "evidence": "diff <(git -C with_skill/run-1/work show HEAD:docs/product/frd-nfrd/frd.md | grep -E '^\\| FRD-(acc|rec)-0[1-4] ') <(grep -E '^\\| FRD-(acc|rec)-0[1-4] ' work/docs/product/frd-nfrd/frd.md) → sem diferença: as seis linhas v1.0 (Cadastrar conta, Vincular cartão de transporte, Recarregar cartão, Consultar saldo e extrato, Contestar recarga, Bloquear cartão por perda) são byte-idênticas. Códigos na v1.0 (git show HEAD) = só FRD-acc-01/02 e FRD-rec-01..04; F-07 usa códigos novos FRD-rec-05 (linha 39, 'Configurar recarga recorrente com cartão salvo') e FRD-rec-06 (linha 40, 'Pausar ou cancelar recarga recorrente')."
+    },
+    {
+      "text": "A tabela Controle de Versão mantém a linha v1.0 de 2026-09-12 e ganha uma linha nova v1.1 (ou versão superior) citando a inclusão da F-07/PRD v1.1; o campo Versão do cabeçalho deixa de ser v1.0.",
+      "passed": true,
+      "evidence": "work/docs/product/frd-nfrd/frd.md linha 4 '**Versão:** v1.1'; linha 15 '| v1.0 | 2026-09-12 | Criação inicial do FRD a partir do PRD v1.0 |' preservada; linha 16 '| v1.1 | 2026-09-26 | Inclui FRD-rec-05 e FRD-rec-06 (F-07 — recarga recorrente com cartão salvo) e BR-04 (RN-05 ...) |'."
+    },
+    {
+      "text": "Os requisitos novos da F-07 têm prioridade expressa em MoSCoW ('Must Have', 'Should Have', 'Could Have' ou 'Won't Have'), o padrão já usado no FRD, e não em 'Alta', 'Média' ou 'Baixa'.",
+      "passed": true,
+      "evidence": "frd.md linhas 39-40: FRD-rec-05 e FRD-rec-06 com prioridade 'Must Have'; grep -nE 'Alta|Média|Baixa' no frd.md → nenhuma ocorrência."
+    },
+    {
+      "text": "A Matriz de Rastreabilidade ganha uma linha para F-07 apontando para códigos FRD-* novos, e a tabela de Regras de Negócio ganha uma BR-NN nova (a partir de BR-04) com Fonte 'PRD RN-05' proibindo armazenar número completo e CVV do cartão salvo.",
+      "passed": true,
+      "evidence": "grep -nE '^\\| (F-07|BR-04) ' frd.md: linha 272 '| F-07 | Recarga recorrente com cartão salvo | FRD-rec-05, FRD-rec-06 | Coberto |' (códigos inexistentes na v1.0); linha 247 '| BR-04 | Tokenização do cartão salvo | O app nunca armazena o número completo nem o CVV do cartão de crédito salvo; a recarga recorrente usa apenas o token devolvido pelo adquirente ... | FRD-rec-05, FRD-rec-06 | PRD RN-05 |'."
+    },
+    {
+      "text": "O frd.md contém a marcação 'Dependência arquitetural: ADR-0004' (próximo número livre após 0001–0003) associada à RN-05/F-07 e indicando que será criado via adr-writer, e o diretório docs/product/adr/ continua com exatamente os quatro arquivos originais (README.md e 0001–0003), sem ADR novo criado pelo agente.",
+      "passed": false,
+      "evidence": "grep -nE 'ADR-0004|Dependência arquitetural|adr-writer' work/docs/product/frd-nfrd/frd.md → nenhuma ocorrência; a única ligação no frd.md é a Observação de FRD-rec-05 'ver sugestão de ADR em § 6 do resumo final'. ADR-0004 aparece só fora do FRD, em outputs/resultado-geracao-frd.md §6 e outputs/despacho-subagentes-simulado.md. A segunda metade passa (ls work/docs/product/adr | wc -l → 4: README.md, 0001–0003; git status --short docs/product/adr vazio), mas a asserção é conjuntiva, logo falha. Nota: despacho-subagentes-simulado.md diz que o frd.md traz 'ADR-0004 sugerido' na linha da BR-04 — alegação falsa."
+    },
+    {
+      "text": "git diff HEAD -- docs/product/prd/prd.md no diretório de saída é vazio.",
+      "passed": true,
+      "evidence": "git -C with_skill/run-1/work diff HEAD -- docs/product/prd/prd.md | wc -c → 0 (diff vazio)."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 1,
+    "total": 6,
+    "pass_rate": 0.83
+  },
+  "claims": [
+    {
+      "claim": "despacho-subagentes-simulado.md: frd.md traz 'ADR-0004 sugerido' na linha da BR-04",
+      "type": "factual",
+      "verified": false,
+      "evidence": "grep ADR-0004 no frd.md vazio"
+    },
+    {
+      "claim": "resultado-geracao-frd.md §5: nenhuma regra/mensagem preexistente teve descrição alterada",
+      "type": "factual",
+      "verified": true,
+      "evidence": "git diff HEAD do frd.md só tem linhas '+' nas tabelas BR/MSG/FRD"
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "O frd.md contém a marcação 'Dependência arquitetural: ADR-0004' (próximo número livre após 0001–0003) associada à RN-05/F-07 e indicando que será criado via adr-writer, e o diretório docs/product/adr/ continua com exatamente os quatro arquivos originais (README.md e 0001–0003), sem ADR novo criado pelo agente.",
+        "reason": "Única asserção que discrimina o comportamento ensinado pela §11.4 da spec; ambas as configurações falharam nela, o que indica que a skill não levou o executor a gravar a marcação no frd.md (só no resumo)."
+      },
+      {
+        "reason": "Nenhuma asserção cobre regressões relevantes para 'não quebrar nada': without_skill mudou o Status do cabeçalho de 'Aprovado' para 'Em Elaboração' e alterou a coluna Requisitos Relacionados de BR-01/BR-03 (linhas existentes). As asserções 1-4 e 6 passam para o baseline e não discriminam skill vs. baseline."
+      }
+    ],
+    "overall": "Asserções 1-4 e 6 são não-discriminantes neste caso; considerar asserção sobre linhas BR/MSG preexistentes byte-idênticas e Status preservado."
+  }
+}

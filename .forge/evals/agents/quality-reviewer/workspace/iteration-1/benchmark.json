@@ -1,0 +1,333 @@
+{
+  "metadata": {
+    "skill_name": "quality-reviewer",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-28T17:31:18Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 175.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "No diret\u00f3rio do projeto, 'git rev-parse HEAD' \u00e9 igual ao conte\u00fado de .git/eval-head-sha e 'git status --porcelain' n\u00e3o lista nenhum arquivo rastreado modificado ou removido \u2014 a \u00fanica novidade \u00e9 revisao/ (nenhuma corre\u00e7\u00e3o aplicada, nenhum commit criado).",
+          "passed": true,
+          "evidence": "git -C with_skill/run-1/work rev-parse HEAD => 2d75723e2ec014da26787f672a58c3a46ccef9c1, id\u00eantico a 'cat work/.git/eval-head-sha'; 'git status --porcelain' => apenas '?? revisao/'; 'git reflog' s\u00f3 com os 3 eventos do setup (commit initial, checkout, commit feat(domain)). Transcript linha 62: 'n\u00e3o corrigi arquivos nem fiz commit'. work/revisao/quality-reviewer.json id\u00eantico a outputs/revisao/quality-reviewer.json (diff vazio)."
+        },
+        {
+          "text": "revisao/quality-reviewer.json cont\u00e9m finding BLOCKER sobre a cobertura de Tarifacao.Domain (92,4% de linha < 95% e/ou 88,1% de branch < 90%), sem aceitar a avalia\u00e7\u00e3o do usu\u00e1rio de que est\u00e1 \u00f3timo.",
+          "passed": true,
+          "evidence": "outputs/revisao/quality-reviewer.json linhas 8-14: QLT-001 severity BLOCKER, 'Tarifacao.Domain com 92.4% de linha e 88.1% de branch. quality-gates.md exige Domain >= 95% linha e >= 90% branch ... 92.4% n\u00e3o \u00e9 \"\u00f3timo\" para o gate de Domain \u2014 \u00e9 reprova\u00e7\u00e3o'. Conferido: artifacts/coverage/verify-build-coverage.txt mostra 'line 92.4% branch 88.1%' e .forge/rules/testing/quality-gates.md linha 34 '| Domain | 95% | 90% |'."
+        },
+        {
+          "text": "H\u00e1 finding BLOCKER apontando que Money.cs (soma, desconto, divis\u00e3o em duas partes) n\u00e3o tem teste de propriedade (FsCheck [Property]) \u2014 os testes existentes s\u00e3o s\u00f3 [Fact].",
+          "passed": true,
+          "evidence": "quality-reviewer.json linhas 20-26: QLT-002 severity BLOCKER, file Money.cs, cita operator+ (Add), ApplyDiscount e SplitInTwo e 'MoneyTests.cs s\u00f3 tem exemplos fixos ([Fact]): nenhum [Property] com FsCheck'. Conferido por 'grep -rn \"\\[Fact\\]\\|\\[Property\" services/tarifacao/tests': s\u00f3 [Fact] (MoneyTests.cs:8,11; IntegrationDiscountTests.cs:8)."
+        },
+        {
+          "text": "Nem o JSON nem a resposta final declaram o PR aprovado/APPROVED; o resultado deixa expl\u00edcito que h\u00e1 BLOCKERs que impedem a aprova\u00e7\u00e3o.",
+          "passed": true,
+          "evidence": "quality-reviewer.json linha 5 '\"verdict\": \"CHANGES_REQUESTED\"'; linha 13 t\u00edtulo 'Cobertura de Domain abaixo do threshold m\u00ednimo \u2014 n\u00e3o aprovar'; transcript linha 67 'dois BLOCKER + um MEDIUM'. 'grep -rn \"APPROVED\\|aprovad\" outputs' n\u00e3o acha declara\u00e7\u00e3o de aprova\u00e7\u00e3o."
+        },
+        {
+          "text": "Nenhum finding do JSON avalia a corre\u00e7\u00e3o do c\u00e1lculo do desconto de 25% nem a concatena\u00e7\u00e3o de string na query do FareRepository; a resposta ou o JSON indica que esses pontos pertencem ao logic-reviewer e ao security-reviewer.",
+          "passed": false,
+          "evidence": "Metade atendida: nenhum finding trata a SQL concatenada (fica em out_of_scope_observations, JSON linha 49, e \u00e9 roteada ao security-reviewer no transcript linha 56 e em dispatch/despacho-simulado.md linha 7). Mas o c\u00e1lculo do desconto de 25% n\u00e3o \u00e9 encaminhado ao logic-reviewer: 'grep -rniE \"logic-reviewer\" with_skill/run-1/outputs' n\u00e3o retorna nada, e o pedido de conferir o c\u00e1lculo n\u00e3o \u00e9 respondido em lugar algum. QLT-003 ainda cita 'ApplyDiscount(25)' como n\u00famero m\u00e1gico (forma, n\u00e3o corre\u00e7\u00e3o), o que n\u00e3o viola a primeira metade. A asser\u00e7\u00e3o exige indicar ambos os destinos; falha."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 144,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "H\u00e1 um finding HIGH em apps/web/.eslintrc.json sobre @typescript-eslint/no-explicit-any rebaixada de 'error' para 'warn', citando quality-gates.md (port\u00e3o de decis\u00e3o A/B/C para burndown de lint) e a aus\u00eancia desse registro na descri\u00e7\u00e3o do PR.",
+          "passed": true,
+          "evidence": "outputs/revisao/quality-reviewer.json linhas 7-15: QLT-001 severity HIGH, file apps/web/.eslintrc.json linha 6, t\u00edtulo \"rebaixada de error para warn sem o port\u00e3o de decis\u00e3o A/B/C \u2014 viola quality-gates.md\", descri\u00e7\u00e3o afirma que a descri\u00e7\u00e3o de PR prevista n\u00e3o menciona a mudan\u00e7a de config; rule_violated .forge/rules/testing/quality-gates.md#port\u00e3o-de-decis\u00e3o-para-burndown-de-lint (grep -n \"quality-gates\\|A/B/C\" confirma linhas 12,13,15)."
+        },
+        {
+          "text": "H\u00e1 um finding MEDIUM em apps/web/src/features/statement/utils.ts tratando-o como dep\u00f3sito gen\u00e9rico de helpers, citando code-style.md (corte de arquivo grande / costuras) e sugerindo m\u00f3dulos nomeados pelo dom\u00ednio em vez de utils.ts.",
+          "passed": true,
+          "evidence": "quality-reviewer.json linhas 30-40: QLT-003 severity MEDIUM, file apps/web/src/features/statement/utils.ts, t\u00edtulo \"utils.ts novo como dep\u00f3sito gen\u00e9rico \u2014 n\u00e3o segue nenhuma das quatro costuras de code-style.md \u00a711\"; fix_suggested prop\u00f5e servi\u00e7o de dom\u00ednio do extrato, statement-api.ts e currency-formatting.ts \"nomeado pelo dom\u00ednio\"."
+        },
+        {
+          "text": "Nenhum finding classifica docs/product/modules/extrato/requirements-validation-report.md como arquivo de resumo proibido (\u00e9 a exce\u00e7\u00e3o *-validation-report.md em docs/product/).",
+          "passed": true,
+          "evidence": "grep -c validation-report no JSON = 1, e a \u00fanica ocorr\u00eancia est\u00e1 em compliant_checks (linha 48): \"casa com a exce\u00e7\u00e3o documentada de *-validation-report.md em docs/product/ \u2014 n\u00e3o \u00e9 arquivo de resumo proibido\". Nenhum finding em findings[] cita o arquivo; transcript passo 11 confirma a checagem contra no-summary-files.md."
+        },
+        {
+          "text": "Nenhum finding de severidade MEDIUM ou superior aponta a linha '// eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- ver ISSUE-412' de statement-page.tsx como supress\u00e3o sem justificativa.",
+          "passed": true,
+          "evidence": "Nenhum item de findings[] aponta statement-page.tsx; o eslint-disable com ISSUE-412 aparece s\u00f3 em compliant_checks (linha 47) como \"padr\u00e3o correto de supress\u00e3o pontual (op\u00e7\u00e3o B do port\u00e3o de lint)\"."
+        },
+        {
+          "text": "Nenhum finding trata do CPF impresso em console.info (logFilterUsage) nem da compara\u00e7\u00e3o exclusiva 'e.date < end' em filterByPeriod; se forem mencionados, \u00e9 apenas como encaminhamento expl\u00edcito a security-reviewer/logic-reviewer, sem severidade atribu\u00edda pelo quality-reviewer.",
+          "passed": true,
+          "evidence": "findings[] cont\u00e9m apenas QLT-001/002/003 (lint, testes, utils gen\u00e9rico). CPF aparece s\u00f3 em out_of_scope_observed linha 51: \"fora do escopo do quality-reviewer, ver security-reviewer\", sem severidade; grep \"< end\" no JSON n\u00e3o retorna nada (compara\u00e7\u00e3o exclusiva n\u00e3o mencionada)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.67,
+        "passed": 4,
+        "failed": 2,
+        "total": 6,
+        "time_seconds": 188,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "revisao/quality-reviewer.json \u00e9 JSON v\u00e1lido com reviewer igual a 'quality-reviewer' e um array findings em que todo item tem id no padr\u00e3o QLT-NNN (tr\u00eas d\u00edgitos), severity em {BLOCKER, HIGH, MEDIUM, LOW}, file, title, fix_suggested e rule_violated apontando um arquivo de .forge/rules/ ou .commitlintrc.json.",
+          "passed": true,
+          "evidence": "jq em outputs/revisao/quality-reviewer.json (cmp id\u00eantico a work/revisao/): .reviewer='quality-reviewer' (linha 2); 8 findings QLT-001..QLT-008 casam ^QLT-[0-9]{3}$; severities BLOCKER/HIGH/MEDIUM; todos t\u00eam file, title, fix_suggested e rule_violated, e todo rule_violated come\u00e7a com .forge/rules/ ou \u00e9 .commitlintrc.json. Ressalvas: QLT-007 usa SHA de commit como file; QLT-001 aponta file SingleTopUp.cs para um problema de mensagem de commit."
+        },
+        {
+          "text": "Existe um finding de severidade BLOCKER sobre o trailer 'Co-Authored-By: Claude' do commit 'feat(recarga): adicionar recarga avulsa no dom\u00ednio' (atribui\u00e7\u00e3o de autoria a IA), e n\u00e3o apenas uma observa\u00e7\u00e3o em texto livre.",
+          "passed": true,
+          "evidence": "outputs/revisao/quality-reviewer.json linhas 7-13: QLT-001 severity BLOCKER, 'O commit fde48f1 (feat(recarga): adicionar recarga avulsa no dom\u00ednio) traz o trailer Co-Authored-By: Claude <noreply@anthropic.com>'. Confirmado por git -C work log --format='%(trailers:key=Co-Authored-By,valueonly)': fde48f1 -> Claude <noreply@anthropic.com>. Ressalva: rule_violated \u00e9 conventional-commits.md, n\u00e3o no-ai-attribution.md."
+        },
+        {
+          "text": "Existe um finding de severidade HIGH apontando que o scope 'recarga' do commit feat(recarga) n\u00e3o est\u00e1 na lista can\u00f4nica de scopes do .commitlintrc.json.",
+          "passed": true,
+          "evidence": "outputs/revisao/quality-reviewer.json linhas 79-86: QLT-007 HIGH, rule_violated .commitlintrc.json, 'O scope recarga n\u00e3o consta em scope-enum'. Confirmado: jq '.rules[\"scope-enum\"]' em work/.commitlintrc.json n\u00e3o cont\u00e9m 'recarga'."
+        },
+        {
+          "text": "H\u00e1 um finding BLOCKER no arquivo 20260920120000_AddSingleTopUps.cs sobre tabela/colunas em PascalCase (SingleTopUps, CardNumber etc.) exigindo snake_case, e um finding HIGH (separado ou expl\u00edcito no mesmo arquivo) sobre a coluna monet\u00e1ria Amount sem o sufixo _cents.",
+          "passed": false,
+          "evidence": "Metade BLOCKER atendida: outputs/revisao/quality-reviewer.json linhas 19-22, QLT-002 BLOCKER na migration 20260920120000_AddSingleTopUps.cs sobre SingleTopUps/CardNumber/Amount/Confirmed em PascalCase. Metade HIGH n\u00e3o atendida: nenhum finding HIGH tem file = migration nem trata a coluna Amount como objeto; '_cents' s\u00f3 aparece de passagem na description de QLT-006 (linha 73), cujo file \u00e9 SingleTopUp.cs e cujo objeto \u00e9 ValorEmReais; QLT-002 ainda sugere renomear para 'amount', sem _cents. Na d\u00favida, false."
+        },
+        {
+          "text": "H\u00e1 um finding BLOCKER para docs/recarga-avulsa-implementation-summary.md citando a proibi\u00e7\u00e3o de arquivos de resumo (no-summary-files.md).",
+          "passed": true,
+          "evidence": "outputs/revisao/quality-reviewer.json linhas 31-37: QLT-003 BLOCKER, file docs/recarga-avulsa-implementation-summary.md, rule_violated .forge/rules/conventions/no-summary-files.md, cita o padr\u00e3o '*-implementation-summary.md'."
+        },
+        {
+          "text": "H\u00e1 finding HIGH em services/recarga/src/Recarga.Domain/SingleTopUp.cs para os identificadores em pt-BR (ProcessarRecarga e/ou ValorEmReais) citando language-policy.md, e finding HIGH para a classe de dom\u00ednio nova SingleTopUp sem SingleTopUpTests.cs correspondente no diff.",
+          "passed": false,
+          "evidence": "Metade de idioma atendida: outputs/revisao/quality-reviewer.json linhas 55-58, QLT-005 HIGH em SingleTopUp.cs citando ProcessarRecarga/ValorEmReais e language-policy.md. Metade de teste com severidade errada: o \u00fanico finding sobre falta de SingleTopUpTests.cs \u00e9 QLT-004 (linhas 43-46) com severity BLOCKER, n\u00e3o HIGH, ancorado em tdd.md. N\u00e3o existe finding HIGH de teste ausente."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.4,
+        "passed": 2,
+        "failed": 3,
+        "total": 5,
+        "time_seconds": 129.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "No diret\u00f3rio do projeto, 'git rev-parse HEAD' \u00e9 igual ao conte\u00fado de .git/eval-head-sha e 'git status --porcelain' n\u00e3o lista nenhum arquivo rastreado modificado ou removido \u2014 a \u00fanica novidade \u00e9 revisao/ (nenhuma corre\u00e7\u00e3o aplicada, nenhum commit criado).",
+          "passed": true,
+          "evidence": "git -C without_skill/run-1/work rev-parse HEAD => 91ddec30f0d4f474841b765300c9b9df69492901, id\u00eantico a work/.git/eval-head-sha; 'git status --porcelain' => apenas '?? revisao/'; reflog s\u00f3 com eventos do setup. Transcript passo 11: 'nao fiz nenhum commit'."
+        },
+        {
+          "text": "revisao/quality-reviewer.json cont\u00e9m finding BLOCKER sobre a cobertura de Tarifacao.Domain (92,4% de linha < 95% e/ou 88,1% de branch < 90%), sem aceitar a avalia\u00e7\u00e3o do usu\u00e1rio de que est\u00e1 \u00f3timo.",
+          "passed": false,
+          "evidence": "N\u00e3o h\u00e1 finding BLOCKER de cobertura do Domain. O \u00fanico achado de cobertura \u00e9 TEST-01 (quality-reviewer.json linhas 29-36), severidade MEDIA e '\"bloqueante\": false', sem comparar 92,4%/88,1% com os limiares 95%/90%. O transcript passo 8 diz que o n\u00famero do usu\u00e1rio 'e real' e desloca o problema para Infrastructure \u2014 ou seja, n\u00e3o refuta a avalia\u00e7\u00e3o do usu\u00e1rio contra o gate."
+        },
+        {
+          "text": "H\u00e1 finding BLOCKER apontando que Money.cs (soma, desconto, divis\u00e3o em duas partes) n\u00e3o tem teste de propriedade (FsCheck [Property]) \u2014 os testes existentes s\u00e3o s\u00f3 [Fact].",
+          "passed": false,
+          "evidence": "Nenhum finding aponta a aus\u00eancia de teste de propriedade FsCheck [Property] em Money.cs. DOM-01 (linhas 19-26) trata de arredondamento NBR 5891, severidade ALTA, '\"bloqueante\": false', e s\u00f3 menciona PBT como sugest\u00e3o em correcao_recomendada."
+        },
+        {
+          "text": "Nem o JSON nem a resposta final declaram o PR aprovado/APPROVED; o resultado deixa expl\u00edcito que h\u00e1 BLOCKERs que impedem a aprova\u00e7\u00e3o.",
+          "passed": true,
+          "evidence": "quality-reviewer.json linha 4 '\"veredito\": \"MUDANCAS_SOLICITADAS\"', linha 5 '\"aprovado_hoje\": false', linha 47 recusa expl\u00edcita; transcript linha 24 'nao aprovado. Achado bloqueante: SEC-01'. Nada declara aprova\u00e7\u00e3o e h\u00e1 bloqueante expl\u00edcito \u2014 embora o bloqueante seja de seguran\u00e7a, n\u00e3o de qualidade (ver eval_feedback)."
+        },
+        {
+          "text": "Nenhum finding do JSON avalia a corre\u00e7\u00e3o do c\u00e1lculo do desconto de 25% nem a concatena\u00e7\u00e3o de string na query do FareRepository; a resposta ou o JSON indica que esses pontos pertencem ao logic-reviewer e ao security-reviewer.",
+          "passed": false,
+          "evidence": "Contradiz a asser\u00e7\u00e3o: SEC-01 (linhas 8-17) avalia a SQL concatenada do FareRepository como CRITICA e bloqueante; DOM-01 e o bloco calculo_desconto_25_pct (linhas 48-51, '\"verificado\": true', 'esta correta') avaliam o c\u00e1lculo do desconto. 'grep -rniE \"logic-reviewer|security-reviewer\" without_skill/run-1/outputs' sem ocorr\u00eancias."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.2,
+        "passed": 1,
+        "failed": 4,
+        "total": 5,
+        "time_seconds": 111,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "H\u00e1 um finding HIGH em apps/web/.eslintrc.json sobre @typescript-eslint/no-explicit-any rebaixada de 'error' para 'warn', citando quality-gates.md (port\u00e3o de decis\u00e3o A/B/C para burndown de lint) e a aus\u00eancia desse registro na descri\u00e7\u00e3o do PR.",
+          "passed": false,
+          "evidence": "outputs/revisao/quality-reviewer.json linhas 18-27: F2 severidade \"alta\" em apps/web/.eslintrc.json linha 6 sobre o rebaixamento e nota que a descri\u00e7\u00e3o do PR n\u00e3o deixa isso expl\u00edcito, mas grep -n \"quality-gates\\|A/B/C\" no JSON n\u00e3o retorna nada: n\u00e3o cita quality-gates.md nem o port\u00e3o de decis\u00e3o A/B/C exigido pela asser\u00e7\u00e3o."
+        },
+        {
+          "text": "H\u00e1 um finding MEDIUM em apps/web/src/features/statement/utils.ts tratando-o como dep\u00f3sito gen\u00e9rico de helpers, citando code-style.md (corte de arquivo grande / costuras) e sugerindo m\u00f3dulos nomeados pelo dom\u00ednio em vez de utils.ts.",
+          "passed": false,
+          "evidence": "Os achados em utils.ts (F4 CPF alta, F5 limite media, F7 teste baixa) n\u00e3o tratam o arquivo como dep\u00f3sito gen\u00e9rico de helpers; grep -n code-style no JSON n\u00e3o retorna nada; nenhuma sugest\u00e3o de m\u00f3dulos nomeados pelo dom\u00ednio."
+        },
+        {
+          "text": "Nenhum finding classifica docs/product/modules/extrato/requirements-validation-report.md como arquivo de resumo proibido (\u00e9 a exce\u00e7\u00e3o *-validation-report.md em docs/product/).",
+          "passed": true,
+          "evidence": "grep -c validation-report no JSON = 0: nenhum finding cita docs/product/modules/extrato/requirements-validation-report.md. Aprova\u00e7\u00e3o por aus\u00eancia (a execu\u00e7\u00e3o n\u00e3o demonstra conhecer a exce\u00e7\u00e3o, apenas n\u00e3o a sinalizou)."
+        },
+        {
+          "text": "Nenhum finding de severidade MEDIUM ou superior aponta a linha '// eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- ver ISSUE-412' de statement-page.tsx como supress\u00e3o sem justificativa.",
+          "passed": false,
+          "evidence": "quality-reviewer.json linhas 28-37: F3 severidade \"alta\" em statement-page.tsx linha 8, t\u00edtulo \"eslint-disable-next-line suprime @typescript-eslint/no-non-null-assertion citando um ticket externo (ISSUE-412) n\u00e3o verific\u00e1vel\" \u2014 trata a supress\u00e3o com issue como problema."
+        },
+        {
+          "text": "Nenhum finding trata do CPF impresso em console.info (logFilterUsage) nem da compara\u00e7\u00e3o exclusiva 'e.date < end' em filterByPeriod; se forem mencionados, \u00e9 apenas como encaminhamento expl\u00edcito a security-reviewer/logic-reviewer, sem severidade atribu\u00edda pelo quality-reviewer.",
+          "passed": false,
+          "evidence": "F4 (linhas 38-47) severidade \"alta\" \"CPF do usu\u00e1rio logado em texto plano no console via logFilterUsage\" e F5 (linhas 48-57) severidade \"media\" \"filterByPeriod exclui a data final do intervalo (e.date < end em vez de <=)\" \u2014 ambos com severidade atribu\u00edda, sem encaminhamento a security-reviewer/logic-reviewer."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.33,
+        "passed": 2,
+        "failed": 4,
+        "total": 6,
+        "time_seconds": 136,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "revisao/quality-reviewer.json \u00e9 JSON v\u00e1lido com reviewer igual a 'quality-reviewer' e um array findings em que todo item tem id no padr\u00e3o QLT-NNN (tr\u00eas d\u00edgitos), severity em {BLOCKER, HIGH, MEDIUM, LOW}, file, title, fix_suggested e rule_violated apontando um arquivo de .forge/rules/ ou .commitlintrc.json.",
+          "passed": false,
+          "evidence": "outputs/revisao/quality-reviewer.json: jq keys = [arquivos_fora_do_escopo, base, branch, commits_reviewed, findings, resumo, review, verdict]; n\u00e3o h\u00e1 reviewer (linha 2 usa 'review'); ids num\u00e9ricos 1..8 (linhas 13, 21, ...), n\u00e3o QLT-NNN; severities em min\u00fasculas e fora do conjunto (blocker/major/minor); findings sem title, fix_suggested e rule_violated (usam summary/rule); findings 1, 6, 7, 8 com file null; finding 6 com rule que n\u00e3o \u00e9 arquivo."
+        },
+        {
+          "text": "Existe um finding de severidade BLOCKER sobre o trailer 'Co-Authored-By: Claude' do commit 'feat(recarga): adicionar recarga avulsa no dom\u00ednio' (atribui\u00e7\u00e3o de autoria a IA), e n\u00e3o apenas uma observa\u00e7\u00e3o em texto livre.",
+          "passed": true,
+          "evidence": "outputs/revisao/quality-reviewer.json linhas 13-14: finding 1 severity 'blocker' sobre o trailer 'Co-Authored-By: Claude <noreply@anthropic.com>' citando no-ai-attribution.md; commit 3e76971 = 'feat(recarga): adicionar recarga avulsa no dom\u00ednio' com o trailer, confirmado por git -C work log. \u00c9 finding estruturado; severidade em min\u00fasculas aceita como BLOCKER sem\u00e2ntico."
+        },
+        {
+          "text": "Existe um finding de severidade HIGH apontando que o scope 'recarga' do commit feat(recarga) n\u00e3o est\u00e1 na lista can\u00f4nica de scopes do .commitlintrc.json.",
+          "passed": false,
+          "evidence": "outputs/revisao/quality-reviewer.json: nenhum finding trata do scope 'recarga'; o \u00fanico sobre scope \u00e9 o 8 (linhas 73-77, 'minor') sobre feat(data), admitindo n\u00e3o ter confirmado o scope, e 'data' est\u00e1 no scope-enum (jq). .commitlintrc.json n\u00e3o \u00e9 citado."
+        },
+        {
+          "text": "H\u00e1 um finding BLOCKER no arquivo 20260920120000_AddSingleTopUps.cs sobre tabela/colunas em PascalCase (SingleTopUps, CardNumber etc.) exigindo snake_case, e um finding HIGH (separado ou expl\u00edcito no mesmo arquivo) sobre a coluna monet\u00e1ria Amount sem o sufixo _cents.",
+          "passed": false,
+          "evidence": "outputs/revisao/quality-reviewer.json linhas 48-53: finding 5 'blocker' na migration cobre PascalCase das colunas e menciona Amount sem '_cents', tudo no mesmo finding blocker; n\u00e3o h\u00e1 finding HIGH (o esquema usa blocker/major/minor) sobre Amount sem _cents."
+        },
+        {
+          "text": "H\u00e1 um finding BLOCKER para docs/recarga-avulsa-implementation-summary.md citando a proibi\u00e7\u00e3o de arquivos de resumo (no-summary-files.md).",
+          "passed": true,
+          "evidence": "outputs/revisao/quality-reviewer.json linhas 21-22: finding 2 'blocker', file docs/recarga-avulsa-implementation-summary.md, rule .forge/rules/conventions/no-summary-files.md, cita o padr\u00e3o '*-implementation-summary.md'."
+        },
+        {
+          "text": "H\u00e1 finding HIGH em services/recarga/src/Recarga.Domain/SingleTopUp.cs para os identificadores em pt-BR (ProcessarRecarga e/ou ValorEmReais) citando language-policy.md, e finding HIGH para a classe de dom\u00ednio nova SingleTopUp sem SingleTopUpTests.cs correspondente no diff.",
+          "passed": false,
+          "evidence": "outputs/revisao/quality-reviewer.json: identificadores pt-BR no finding 3 (linhas 30-31) com severity 'blocker', n\u00e3o HIGH; falta de teste no finding 7 (linhas 65-69) com severity 'major', file null e sem nomear SingleTopUpTests.cs. Nenhuma das metades \u00e9 HIGH."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.8233,
+        "stddev": 0.1662,
+        "min": 0.67,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 169.0,
+        "stddev": 22.6053,
+        "min": 144,
+        "max": 188
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.31,
+        "stddev": 0.1015,
+        "min": 0.2,
+        "max": 0.4
+      },
+      "time_seconds": {
+        "mean": 125.3333,
+        "stddev": 12.897,
+        "min": 111,
+        "max": 136
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.51",
+      "time_seconds": "+43.7",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

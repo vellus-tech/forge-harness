@@ -1,0 +1,199 @@
+#!/usr/bin/env bash
+# forge verify (deterministic half, W2.2) — verifies an active change:
+#   1. status must be implementing|implemented (chain states with code done)
+#   2. tasks.md must have zero open entries ([ ] / [-] / [!])
+#   3. runs the checks declared in .forge/FORGE.md frontmatter (runtime: test/
+#      typecheck/lint) with a 300s timeout each; raw output goes to /tmp, only
+#      the tail is meant to be read (§17.6)
+#   4. writes verification.yaml (§10.10) with commit + per-check status
+# It does NOT transition status — /forge:verify runs the HITL gate and then
+# spec-transition.sh <id> verified.
+# Output: "OK <id> (...)" or "FAIL (...)". Exit 1 on any failed check/open task.
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="${FORGE_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
+# LDG-0014: fonte ÚNICA de leitura do bloco runtime: e de execução de check com teto de tempo —
+# antes deste fix, spec-verify.sh mantinha cópia própria (get_runtime/run_check) enquanto
+# run-gates.sh já usava lib/forge-runtime.sh, e as duas cópias divergiam na norma mais importante
+# (gate declarado com script ausente: aqui virava WARN+skip; lá já reprovava). Ver lib/
+# forge-runtime.sh para forge_get_runtime/forge_run_gate/forge_runtime_gates.
+. "$SCRIPT_DIR/lib/forge-runtime.sh"
+
+ID="${1:-}"
+[ -n "$ID" ] || { echo "FAIL (usage: spec-verify.sh <change-id>)"; exit 2; }
+DIR="$ROOT/.forge/specs/active/$ID"
+MAN="$DIR/manifest.yaml"
+[ -f "$MAN" ] || { echo "FAIL (no active change: $ID)"; exit 1; }
+STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+bash "$SCRIPT_DIR/budget-preflight.sh" --stage verify --change "$ID" --outputs "verification.yaml,evidence/runs/*/run-manifest.json" || true
+
+STATUS="$(awk -F': ' '$1=="status"{print $2; exit}' "$MAN")"
+case "$STATUS" in implementing|implemented) ;; *) echo "FAIL (status '$STATUS' — verify runs on implementing|implemented)"; exit 1 ;; esac
+TYPE="$(awk -F': ' '$1=="type"{print $2; exit}' "$MAN")"
+
+fail=0
+notes=""
+
+# ── tasks complete? ───────────────────────────────────────────────────────────
+if [ -f "$DIR/tasks.md" ]; then
+  open="$(grep -cE '^\s*- \[( |-|!)\] ' "$DIR/tasks.md" || true)"
+  if [ "$open" -gt 0 ]; then
+    notes="$open open task(s) in tasks.md"
+    fail=1
+  fi
+else
+  notes="tasks.md missing"
+  fail=1
+fi
+
+# ── checks from FORGE.md runtime: block ──────────────────────────────────────
+CHECKS_YAML=""
+run_check() { # run_check <name> <command>
+  local name="$1" cmd="$2" log="/tmp/forge-verify-$ID-$1.log" status
+  if forge_run_gate "$name" "$cmd" "$log" "$ROOT"; then
+    status="passed"
+  else
+    status="failed"; fail=1
+  fi
+  echo "  $name: $status (log: $log)"
+  CHECKS_YAML="$CHECKS_YAML    - name: $name\n      command: \"$cmd\"\n      status: $status\n"
+}
+
+for check in test typecheck lint; do
+  cmd="$(forge_get_runtime "$check" "$ROOT" || true)"
+  [ -n "$cmd" ] && run_check "$check" "$cmd"
+done
+
+# ── gates declared in FORGE.md runtime: gates (REQ-15/TASK-17, design.md §2.6) ──
+# forge_runtime_gates_phase (lib/forge-runtime.sh) é a MESMA extração usada por run-gates.sh,
+# filtrada para a fase "source" — CSV escalar numa única linha (ex.: "gates: check-authz,
+# check-observability") OU block-sequence YAML, ambas com fase "source" implícita quando não
+# declaram outra (issue #82). /forge:verify roda ANTES do artefato implantável existir — a
+# mesma razão pela qual os hooks e o fechamento de wave só executam gates de source hoje — então
+# um gate declarado com `phase: pre-deploy`/`post-deploy` é ignorado aqui de propósito (não é
+# lacuna: rodar um gate de artefato publicado contra a árvore de fontes, sem artefato nenhum,
+# só produziria FAIL sistemático de algo que não é o defeito do change). Ausência de "gates:" ⇒
+# nada roda (compat retroativa, no-op por padrão). Script declarado e AUSENTE em disco REPROVA
+# (LDG-0014) — era WARN+skip só aqui, silêncio verde para um pré-requisito faltando, enquanto
+# run-gates.sh já reprovava o mesmo cenário; as duas cópias divergiam justamente na norma que
+# mais importa. "MISSING" é a mesma palavra e a mesma forma de mensagem que run-gates.sh usa, de
+# propósito — um só vocabulário para os dois caminhos.
+while IFS= read -r gate; do
+  [ -n "$gate" ] || continue
+  gate_script="$SCRIPT_DIR/${gate}.sh"
+  if [ -f "$gate_script" ]; then
+    run_check "$gate" "bash '$gate_script' '$ID'"
+  else
+    echo "  $gate: MISSING ($gate_script não existe)"
+    notes="${notes:+$notes; }gate '$gate' declarado em runtime.gates mas $gate_script não existe"
+    fail=1
+  fi
+done < <(forge_runtime_gates_phase source "$ROOT")
+[ -n "$CHECKS_YAML" ] || echo "  (no checks declared in FORGE.md runtime: — skipping check phase)"
+
+# ── spec-delta.yaml (§10.4): esqueleto nasce AQUI, não no improviso do archive ──
+# Determinista e best-effort: gera/atualiza o scaffold a partir dos REQ-NN + manifest
+# (nunca sobrescreve um delta já autorado). A autoria semântica é do /forge:verify
+# (verify.md §2.5) — marcadores <scaffold: ...> bloqueiam o pré-flight do archive.
+if command -v node >/dev/null 2>&1 && [ -f "$SCRIPT_DIR/lib/spec-delta-scaffold.mjs" ]; then
+  scaffold_out="$(node "$SCRIPT_DIR/lib/spec-delta-scaffold.mjs" "$DIR" "$ROOT" 2>&1 || true)"
+  echo "  spec-delta: $scaffold_out"
+  # cópia bash de SCAFFOLD_MARKERS_RE (canônico: lib/scaffold-markers.mjs) — manter em sincronia
+  if [ -f "$DIR/spec-delta.yaml" ] && grep -qE '<scaffold:|<capability-kebab>|REQ-XXX-' "$DIR/spec-delta.yaml"; then
+    echo "  WARN: spec-delta.yaml ainda tem placeholders de scaffold — preencha os payloads na fase verify (verify.md §2.5) antes do archive"
+  fi
+fi
+
+# ── red-first (rule testing/regression-red-first.md) — replay real, não presumido ──────────
+# Só para type:bugfix. A prova mora na EXECUÇÃO, não no artefato: `red-evidence.sh ensure` roda
+# SEMPRE, sem atalho por campo algum do JSON. Duas heurísticas anteriores foram removidas por
+# serem circulares — ler replayed_at/replay_head do próprio artefato, e consultar um cache local
+# cuja chave o autor também computa (ver ADR-0003, adendas 1 e 2). Evidência waived não dispara
+# execução: é política própria, não observação de Red pendente.
+# Teto de tempo próprio (perl alarm, defesa em profundidade — Furo 3): o motor JS já limita cada
+# execução de teste a --timeout segundos, mas isso não impede /forge:verify de pendurar se o
+# próprio processo node travar por outro motivo (lock de worktree, etc.).
+RED_FIRST_YAML=""
+if [ "$TYPE" = "bugfix" ]; then
+  RED_JSON="$DIR/evidence/red/red-evidence.json"
+  if [ -f "$RED_JSON" ] && [ -f "$SCRIPT_DIR/red-evidence.sh" ]; then
+    _redfirst_status() { node -e "try{const d=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'));process.stdout.write(d.status||'')}catch{process.stdout.write('')}" "$RED_JSON"; }
+    if perl -e 'alarm 600; exec @ARGV' -- bash -c "FORGE_ROOT='$ROOT' bash '$SCRIPT_DIR/red-evidence.sh' ensure '$ID'" >"/tmp/forge-verify-$ID-red-replay.log" 2>&1; then :; fi
+    echo "  red-first ensure: log em /tmp/forge-verify-$ID-red-replay.log"
+    red_status="$(_redfirst_status)"
+    if [ "$red_status" != "observed" ] && [ "$red_status" != "waived" ]; then
+      fail=1
+      notes="${notes:+$notes; }red-first: evidência não resolvida (status: ${red_status:-desconhecido}) — rode /forge:red replay ou /forge:red waive"
+    fi
+    # item 4 (Onda D) — o rc do check ESTÁTICO (que corrobora 'observed' contra o cache local e
+    # reaplica a política do waiver) precisa PROPAGAR: um achado bloqueante do red-first reprova
+    # o verify (rule: "não rebaixáveis por modo de operação, nem em yolo"). O `|| true` antigo
+    # descartava o rc e deixava o CONFLICT gravado só como texto informativo em verification.yaml
+    # — o verify saía OK mesmo com a forja sentada no red_first.findings.
+    red_check_rc=0
+    red_check_out="$(FORGE_ROOT="$ROOT" bash "$SCRIPT_DIR/check-red-first.sh" check "$ID" 2>&1)" || red_check_rc=$?
+    if [ "$red_check_rc" -ne 0 ]; then
+      fail=1
+      notes="${notes:+$notes; }red-first: check-red-first reprovou — $red_check_out"
+    fi
+    RED_FIRST_YAML="$(node -e "
+      const status = process.argv[1] || 'pending';
+      const raw = process.argv[2] || '';
+      const findings = raw.split('\n').map((s) => s.trim()).filter(Boolean);
+      const lines = ['  red_first:', '    status: ' + status, '    evidence_path: \"evidence/red/red-evidence.json\"', '    findings:'];
+      for (const f of findings) lines.push('      - ' + JSON.stringify(f));
+      process.stdout.write(lines.join('\n') + '\n');
+    " "${red_status:-pending}" "$red_check_out")"
+  fi
+fi
+
+# ── verification.yaml (§10.10) ───────────────────────────────────────────────
+COMMIT="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo "unversioned")"
+AT="$(date +%Y-%m-%dT%H:%M:%S%z | sed 's/\([0-9][0-9]\)$/:\1/')"
+{
+  printf 'verification:\n'
+  printf '  commit: "%s"\n' "$COMMIT"
+  printf '  verified_at: "%s"\n' "$AT"
+  printf '  checks:\n'
+  if [ -n "$CHECKS_YAML" ]; then
+    printf '%b' "$CHECKS_YAML"
+  else
+    printf '%s\n' '    - name: none' '      command: "(no checks declared in FORGE.md runtime)"' '      status: skipped'
+  fi
+  printf '  evidence:\n'
+  printf '    - verification.md\n'
+  [ -z "$RED_FIRST_YAML" ] || printf '%s' "$RED_FIRST_YAML"
+} > "$DIR/verification.yaml"
+
+RM_STATUS="passed"
+[ "$fail" -eq 0 ] || RM_STATUS="failed"
+# Evidence write is advisory, never blocking: REQ-05 blocks on an INCOMPLETE CONTRACT, not on I/O
+# failure writing the manifest itself (disk-full/permission writing run-manifest.json must not
+# abort a verify whose verification.yaml was already written successfully above).
+bash "$SCRIPT_DIR/run-manifest.sh" write \
+  --stage verify \
+  --change "$ID" \
+  --status "$RM_STATUS" \
+  --started-at "$STARTED_AT" \
+  --inputs "manifest.yaml,tasks.md,traceability.yaml" \
+  --outputs "verification.yaml" \
+  --command "spec-verify::spec-verify.sh $ID::$RM_STATUS" \
+  --runner local \
+  --profile standard \
+  --budget-class medium \
+  --expected-runs 1 \
+  --estimated-timeout-s 300 \
+  --uses-llm false \
+  --uses-subagent false >/dev/null || true
+if ! contract_out="$(bash "$SCRIPT_DIR/validate-stage-contract.sh" check --stage verify --change "$ID" 2>&1)"; then
+  echo "FAIL (stage contract invalid: $contract_out)"
+  exit 1
+fi
+
+if [ "$fail" -eq 0 ]; then
+  echo "OK $ID (verification.yaml written)"
+else
+  echo "FAIL (${notes:-check(s) failed — see /tmp/forge-verify-$ID-*.log})"
+  exit 1
+fi

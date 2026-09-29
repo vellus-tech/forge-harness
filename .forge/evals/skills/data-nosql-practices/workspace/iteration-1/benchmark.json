@@ -1,0 +1,323 @@
+{
+  "metadata": {
+    "skill_name": "data-nosql-practices",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-28T19:58:57Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.75,
+        "passed": 3,
+        "failed": 1,
+        "total": 4,
+        "time_seconds": 127,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta final (ou o arquivo que o agente gravar) declara explicitamente CONFLITO/diverg\u00eancia com a rule do projeto, citando data-governance.md ou data-cache.md e a regra de que Redis nunca \u00e9 fonte de verdade \u2014 s\u00f3 alertar sobre 'risco de perda de dados do AOF' sem citar a rule n\u00e3o conta",
+          "passed": true,
+          "evidence": "design-saldo-redis.md \u00a74 'Julgamento \u2014 CONFLITO (bloqueante)' e t\u00edtulo 'CONFLITO (n\u00e3o implementar sem decis\u00e3o)'; \u00a72 cita `.forge/rules/data/data-governance.md` com o trecho literal 'Cache/performance, dado deriv\u00e1vel e descart\u00e1vel \u2192 Redis/Memcache (nunca fonte de verdade)' e a best-practices ('Redis nunca \u00e9 fonte de verdade (`data-governance.md`, `data-cache.md`)'); tabela de posi\u00e7\u00f5es em conflito com fonte e autoridade de cada lado."
+        },
+        {
+          "text": "Nenhum arquivo gravado pelo agente cont\u00e9m o desenho de chaves/estruturas do Redis como armazenamento prim\u00e1rio do saldo (esquema de chaves de saldo com INCRBY como fonte do saldo e LPUSH como extrato persistente); se docs/design-saldo-redis.md existir, ele registra o conflito ou o Redis apenas como cache derivado de um store dur\u00e1vel",
+          "passed": true,
+          "evidence": "O \u00fanico arquivo gravado (docs/design-saldo-redis.md, id\u00eantico em work/ e outputs/) n\u00e3o cont\u00e9m esquema de chaves de saldo com INCRBY nem extrato em LPUSH; \u00a76 declara 'este run n\u00e3o produziu o desenho de chaves/comandos Redis como fonte de verdade'. O \u00fanico esbo\u00e7o \u00e9 Mongo como fonte de verdade (cole\u00e7\u00f5es saldo-cartao/extrato-cartao) com Redis s\u00f3 como cache 'tenant:{tenantId}:saldo:cartao:{cardId}', TTL curto, 'nunca escrito diretamente pelo validador sem passar pelo MongoDB primeiro'."
+        },
+        {
+          "text": "A resposta indica MongoDB com transa\u00e7\u00e3o multi-documento e write concern majority (e topologia P-S-S) como o store dur\u00e1vel do saldo pela regra da casa, ou o relacional mediante ADR, em vez de sugerir Postgres/DynamoDB/outro banco como escolha livre",
+          "passed": false,
+          "evidence": "Parcial: o documento indica MongoDB como store pela rule, com 'withTransaction (multi-documento: saldo + extrato), write concern majority' (\u00a75 op\u00e7\u00e3o 1 e \u00a76), e 'ou PostgreSQL, se um ADR do projeto optar por SQL' (\u00a74). Por\u00e9m a topologia P-S-S, que a asser\u00e7\u00e3o lista explicitamente, n\u00e3o aparece em nenhum ponto de outputs/ (grep por 'P-S-S', 'primary', 'secund', 'r\u00e9plica' s\u00f3 encontra 'consist\u00eancia entre r\u00e9plicas' ao falar do Redis). Na d\u00favida, reprovado."
+        },
+        {
+          "text": "A resposta devolve a decis\u00e3o ao usu\u00e1rio/orquestrador (pede confirma\u00e7\u00e3o ou decis\u00e3o expl\u00edcita) e menciona que n\u00e3o existe ADR sobre o store do saldo, sugerindo registr\u00e1-lo (/forge:adr ou equivalente), em vez de seguir implementando",
+          "passed": true,
+          "evidence": "\u00a71 e \u00a74: 'Nenhum ADR sobre o store do saldo est\u00e1 registrado em .forge/product/current/adr/' e 'n\u00e3o h\u00e1 ADR aceito que abra exce\u00e7\u00e3o'; \u00a75 registra a escala\u00e7\u00e3o com op\u00e7\u00f5es (1 aplicar rule, 2 'Abrir ADR', 3 'Block \u2014 n\u00e3o prosseguir at\u00e9 decis\u00e3o humana') e o t\u00edtulo manda 'n\u00e3o implementar sem decis\u00e3o'; transcript passo 10-11: o protocolo manda parar e escalar, sem desenhar as chaves. A escala\u00e7\u00e3o foi simulada no arquivo por falta de HITL no ambiente, o que \u00e9 aceit\u00e1vel aqui porque a resposta n\u00e3o segue implementando."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.67,
+        "passed": 4,
+        "failed": 2,
+        "total": 6,
+        "time_seconds": 158,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "docs/revisao-nosql.md cita os ids N-01, N-07, N-21, N-20, N-23 e N-18 do cat\u00e1logo, cada um com a localiza\u00e7\u00e3o arquivo:linha correta (faturaRepositorio.ts:28, faturaRepositorio.ts:18, faturaRepositorio.ts:7 ou :17, transferirCredito.ts:15, transferirCredito.ts:30, mongod.conf:5); descri\u00e7\u00e3o gen\u00e9rica sem id N-xx ou sem linha n\u00e3o conta",
+          "passed": false,
+          "evidence": "docs/revisao-nosql.md (id\u00eantico a outputs/revisao-nosql.md) cita N-07 em faturaRepositorio.ts:18, N-21 em faturaRepositorio.ts:1,7,17, N-20 em transferirCredito.ts:15 e N-18 em infra/mongod.conf:5, mas N-01 nunca aparece como achado (s\u00f3 como refer\u00eancia de desenho no item 6: 'bucket/cap, como em N-01'); o $push sem teto em faturaRepositorio.ts:28 foi omitido, embora o transcript registre que o scan.sh reportou N-01. N-23 \u00e9 citado com o intervalo transferirCredito.ts:13-36, n\u00e3o :30. Dois dos seis ids exigidos falham."
+        },
+        {
+          "text": "O relat\u00f3rio N\u00c3O classifica como defeito o writeConcern { w: 1 } de test/seed.ts (reconhece que \u00e9 seed de teste descart\u00e1vel) nem o $lookup de src/relatorios/fechamentoNoturno.ts (job noturno fora do caminho quente), e ao mesmo tempo classifica como achado o $lookup de src/api/extratoHandler.ts:12 (caminho quente de ~1.800 req/s)",
+          "passed": true,
+          "evidence": "Se\u00e7\u00e3o 'Itens verificados sem achado': '$lookup em fechamentoNoturno.ts:11 (N-04) \u2014 aceit\u00e1vel: \u00e9 o job noturno em r\u00e9plica secund\u00e1ria, fora do caminho de requisi\u00e7\u00e3o' e 'writeConcern: { w: 1 } em test/seed.ts:12 (N-07) \u2014 aceit\u00e1vel: seed de teste de integra\u00e7\u00e3o, dado descart\u00e1vel'. Achado 6: '$lookup no caminho quente do extrato ... (N-04)' em src/api/extratoHandler.ts:8-15 (intervalo que cont\u00e9m a linha 12), 'Endpoint chamado a ~1.800 req/s'."
+        },
+        {
+          "text": "O relat\u00f3rio aponta em transferirCredito.ts o write skew (N-22): a transa\u00e7\u00e3o l\u00ea o saldo no documento de saldos e escreve s\u00f3 em lancamentos, ent\u00e3o duas transfer\u00eancias concorrentes passam as duas; a corre\u00e7\u00e3o proposta \u00e9 update condicional no documento de conten\u00e7\u00e3o (filtro saldoCentavos >= valor com $inc, conferindo matchedCount) ou campo de vers\u00e3o no filtro \u2014 citar s\u00f3 'condi\u00e7\u00e3o de corrida' ou 'usar transa\u00e7\u00e3o' n\u00e3o conta, porque o c\u00f3digo j\u00e1 usa transa\u00e7\u00e3o",
+          "passed": true,
+          "evidence": "Achado 1 '(N-22, alto)' em transferirCredito.ts:17-28: 'l\u00ea o saldo em saldos ... e a transa\u00e7\u00e3o s\u00f3 grava em lancamentos', 'Duas transfer\u00eancias concorrentes ... as duas passam ... e as duas commitam, porque a transa\u00e7\u00e3o MongoDB s\u00f3 detecta conflito de escrita no mesmo documento'; corre\u00e7\u00e3o: updateOne({ _id: origem, tenant, saldoCentavos: { $gte: valor } }, { $inc: { saldoCentavos: -valor } }) 'com matchedCount === 0 abortando a transa\u00e7\u00e3o'."
+        },
+        {
+          "text": "O relat\u00f3rio aponta que buscarPorCliente em faturaRepositorio.ts consulta a cole\u00e7\u00e3o sem filtro de tenant e classifica isso como viola\u00e7\u00e3o bloqueante/CONFLITO da rule data-transactional-nosql.md (filtro de tenant obrigat\u00f3rio no reposit\u00f3rio ou interceptor), sugerindo tamb\u00e9m \u00edndice composto come\u00e7ando por tenant",
+          "passed": true,
+          "evidence": "Achado 2 (em 'Achados que bloqueiam o PR'): buscarPorCliente em faturaRepositorio.ts:23-25 sem tenant; 'data-transactional-nosql.md classifica acesso a cole\u00e7\u00e3o multi-tenant sem filtro de tenant como \"conflito bloqueante\"', corre\u00e7\u00e3o com filtro { tenant, clienteId, status } e interceptor. O \u00edndice composto por tenant aparece de forma fraca, fora do achado, em 'N\u00e3o coberto': 'o c\u00f3digo n\u00e3o declara nenhuma cria\u00e7\u00e3o de \u00edndice, nem para { tenant: 1, ... } (exigido pela regra)'; aceito como sugest\u00e3o do \u00edndice, mas \u00e9 lim\u00edtrofe."
+        },
+        {
+          "text": "A corre\u00e7\u00e3o proposta para a transfer\u00eancia inclui as tr\u00eas coisas: readConcern snapshot (ou majority) no lugar de local, writeConcern majority, e session.withTransaction (ou la\u00e7o pr\u00f3prio de retry do commitTransaction em UnknownTransactionCommitResult separado do retry de TransientTransactionError)",
+          "passed": true,
+          "evidence": "Achado 3: recomenda 'readConcern: \"snapshot\" (n\u00e3o s\u00f3 majority no commit) e readPreference: \"primary\"'; achado 7 (N-23): 'recomenda session.withTransaction(fn, op\u00e7\u00f5es), que o driver j\u00e1 cobre com os dois retries'. writeConcern majority j\u00e1 est\u00e1 no c\u00f3digo (transferirCredito.ts:15) e o relat\u00f3rio o cita e o mant\u00e9m ('n\u00e3o s\u00f3 majority no commit'); n\u00e3o prop\u00f5e explicitamente, pois n\u00e3o h\u00e1 o que trocar. Aprova\u00e7\u00e3o condicionada a essa leitura."
+        },
+        {
+          "text": "O relat\u00f3rio tem uma entrada por regra examinada com status expl\u00edcito (achado, OK/limpo ou n\u00e3o verificado), inclusive regras sem ocorr\u00eancia como N-08 ou N-13, e declara como n\u00e3o verificado pela varredura est\u00e1tica ao menos um item de runtime (N-02 $indexStats, N-05 analyzeShardKey, tamanho real de documento com $bsonSize ou topologia via rs.conf())",
+          "passed": false,
+          "evidence": "H\u00e1 entradas para N-04, N-07, N-18, N-20, N-21, N-22, N-23 e uma lista limpa 'N-06, N-08, N-09, N-10 (DynamoDB), N-11, N-13 (Cassandra), N-15, N-17 (Neo4j), N-19: sem ocorr\u00eancia'; a se\u00e7\u00e3o 'N\u00e3o coberto' declara runtime n\u00e3o verificado (analyzeShardKey, sh.status(), $indexStats, rs.conf()). Por\u00e9m o cat\u00e1logo tem N-01..N-23 e faltam entradas com status para N-01 (que o pr\u00f3prio scanner reportou como FOUND e o relat\u00f3rio n\u00e3o registra nem como achado nem como descartado), N-02, N-03, N-05, N-12, N-14 e N-16 como ids. N\u00e3o \u00e9 'uma entrada por regra'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6,
+        "passed": 3,
+        "failed": 2,
+        "total": 5,
+        "time_seconds": 209,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Em services/validacoes/infra/dynamodb.tf final, a tabela validacoes-catraca n\u00e3o tem mais hash_key = \"data_validacao\" (nem outra chave s\u00f3 de data ou status), e a nova partition key inclui o cart\u00e3o (e o tenant) de forma alinhada ao hist\u00f3rico por cart\u00e3o; o design justifica pela concentra\u00e7\u00e3o de toda a escrita do dia numa parti\u00e7\u00e3o",
+          "passed": false,
+          "evidence": "dynamodb.tf final: hash_key = \"cartao_id\", range_key = \"validacao_sk\". N\u00e3o \u00e9 mais data_validacao, e o design justifica: 'toda a escrita do rush ca\u00eda numa parti\u00e7\u00e3o f\u00edsica s\u00f3, muito acima do teto de 1.000 WCU/s'. Mas a partition key n\u00e3o inclui o tenant, que a asser\u00e7\u00e3o exige com '(e o tenant)' e que o expected_output exemplifica como TENANT#t#CARTAO#id. O tenant aparece s\u00f3 na chave do GSI (tenant_status_shard). Por isso a asser\u00e7\u00e3o falha."
+        },
+        {
+          "text": "No dynamodb.tf final nenhum GSI tem projection_type = \"ALL\" (usa KEYS_ONLY ou INCLUDE), e em historicoCartao.ts final nenhuma chamada com IndexName de GSI tem ConsistentRead: true; o design afirma que GSI s\u00f3 oferece leitura eventual",
+          "passed": true,
+          "evidence": "dynamodb.tf: GSI 'por-tenant-status' com projection_type = \"INCLUDE\" e non_key_attributes, sem nenhum \"ALL\". historicoCartao.ts: a \u00fanica QueryCommand com IndexName (pendentes) n\u00e3o tem ConsistentRead; ConsistentRead: true aparece s\u00f3 em historicoCartao(), que consulta a tabela base sem IndexName. O design diz: \"GSI s\u00f3 oferece leitura eventual\" (se\u00e7\u00e3o Consist\u00eancia, N-11)."
+        },
+        {
+          "text": "historicoCartao.ts final n\u00e3o usa ScanCommand (usa QueryCommand pela chave do cart\u00e3o), e services/validacoes/scripts/backfill/reprocessarTarifas.ts continua com o ScanCommand paralelo (o agente n\u00e3o o trata como antipattern, reconhecendo que Scan em migra\u00e7\u00e3o offline \u00e9 o uso certo)",
+          "passed": true,
+          "evidence": "historicoCartao.ts importa s\u00f3 QueryCommand, e historicoCartao() faz QueryCommand com KeyConditionExpression 'cartao_id = :c AND validacao_sk >= :corte'. reprocessarTarifas.ts ficou id\u00eantico ao commit inicial (git status: n\u00e3o modificado) e mant\u00e9m ScanCommand com Segment/TotalSegments. O design diz: 'Scan numa migra\u00e7\u00e3o offline \u00e9 o uso certo ... julgamento manual confirma que n\u00e3o \u00e9 antipattern aqui'."
+        },
+        {
+          "text": "registrarValidacao.ts final n\u00e3o cont\u00e9m list_append; as passagens do cart\u00e3o viram um item por valida\u00e7\u00e3o sob a mesma partition key com sort key ordenada (ou bucket por per\u00edodo), e o design menciona o limite de 400 KB do item",
+          "passed": true,
+          "evidence": "registrarValidacao.ts final: s\u00f3 PutCommand (import sem UpdateCommand). A string list_append aparece apenas no coment\u00e1rio que explica a remo\u00e7\u00e3o ('era list_append sem teto, N-09'), n\u00e3o em nenhuma opera\u00e7\u00e3o. Cada valida\u00e7\u00e3o vira um item com PK cartao_id e SK validacao_sk = `${em}#${validacaoId}`, ordenada por instante. O design cita 'N-09: item at\u00e9 400 KB'. Observa\u00e7\u00e3o: pela leitura literal, a asser\u00e7\u00e3o falharia por causa do coment\u00e1rio; o grader aplicou a inten\u00e7\u00e3o."
+        },
+        {
+          "text": "docs/design-validacoes.md registra que a troca da partition key n\u00e3o pode ser feita in place e exige criar tabela nova e copiar/migrar os itens j\u00e1 existentes em homologa\u00e7\u00e3o",
+          "passed": false,
+          "evidence": "O design diz apenas, num 'ponto de aten\u00e7\u00e3o fora do escopo' do backfill: 'o backfill ... precisa ser adaptado para a nova chave ... ou os 40M itens de homologa\u00e7\u00e3o precisam ser migrados para o novo esquema de chave \u2014 chave de parti\u00e7\u00e3o \u00e9 decis\u00e3o de migra\u00e7\u00e3o no DynamoDB (n\u00e3o muda in-place)'. Ele n\u00e3o registra que \u00e9 preciso criar uma tabela nova, e a migra\u00e7\u00e3o aparece como alternativa ('ou') a adaptar o script. O dynamodb.tf mant\u00e9m name = \"validacoes-catraca\" com hash_key trocado, sem mencionar que o apply destr\u00f3i e recria a tabela. A evid\u00eancia \u00e9 parcial e impl\u00edcita, por isso falha."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 4,
+        "total": 4,
+        "time_seconds": 78,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta final (ou o arquivo que o agente gravar) declara explicitamente CONFLITO/diverg\u00eancia com a rule do projeto, citando data-governance.md ou data-cache.md e a regra de que Redis nunca \u00e9 fonte de verdade \u2014 s\u00f3 alertar sobre 'risco de perda de dados do AOF' sem citar a rule n\u00e3o conta",
+          "passed": false,
+          "evidence": "N\u00e3o h\u00e1 men\u00e7\u00e3o a data-governance.md, data-cache.md nem \u00e0 regra 'Redis nunca \u00e9 fonte de verdade' em outputs/. A se\u00e7\u00e3o 'Risco a decidir' s\u00f3 alerta sobre perda de at\u00e9 ~1s com appendfsync everysec e aus\u00eancia de ADR, exatamente o caso que a asser\u00e7\u00e3o declara que n\u00e3o conta. Transcript passo 4 confirma que o racioc\u00ednio foi s\u00f3 de risco de AOF."
+        },
+        {
+          "text": "Nenhum arquivo gravado pelo agente cont\u00e9m o desenho de chaves/estruturas do Redis como armazenamento prim\u00e1rio do saldo (esquema de chaves de saldo com INCRBY como fonte do saldo e LPUSH como extrato persistente); se docs/design-saldo-redis.md existir, ele registra o conflito ou o Redis apenas como cache derivado de um store dur\u00e1vel",
+          "passed": false,
+          "evidence": "docs/design-saldo-redis.md entrega o desenho vetado: 'saldo:{tenant}:{card_id} -> String (centavos)', 'INCRBY saldo:{tenant}:{card_id} -{valor_centavos}', 'LPUSH extrato:{tenant}:{card_id}', bloco MULTI/EXEC e tabela de comandos, com Redis como \u00fanico store ('Sigo abaixo desenhando chaves e comandos como pedido')."
+        },
+        {
+          "text": "A resposta indica MongoDB com transa\u00e7\u00e3o multi-documento e write concern majority (e topologia P-S-S) como o store dur\u00e1vel do saldo pela regra da casa, ou o relacional mediante ADR, em vez de sugerir Postgres/DynamoDB/outro banco como escolha livre",
+          "passed": false,
+          "evidence": "MongoDB n\u00e3o \u00e9 mencionado em nenhum arquivo de outputs/. O documento s\u00f3 sugere genericamente 'adicionando um banco dur\u00e1vel como source of truth' ou 'armazenamento dur\u00e1vel e consult\u00e1vel', sem transa\u00e7\u00e3o multi-documento, write concern majority nem P-S-S."
+        },
+        {
+          "text": "A resposta devolve a decis\u00e3o ao usu\u00e1rio/orquestrador (pede confirma\u00e7\u00e3o ou decis\u00e3o expl\u00edcita) e menciona que n\u00e3o existe ADR sobre o store do saldo, sugerindo registr\u00e1-lo (/forge:adr ou equivalente), em vez de seguir implementando",
+          "passed": false,
+          "evidence": "Menciona que 'n\u00e3o h\u00e1 nenhum ADR registrado' e recomenda registrar um ('o ADR \u00e9 bloqueante antes de produ\u00e7\u00e3o'), mas n\u00e3o devolve a decis\u00e3o ao usu\u00e1rio: segue entregando o desenho completo ('Sigo abaixo desenhando chaves e comandos como pedido'), contrariando o 'em vez de seguir implementando' da asser\u00e7\u00e3o."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.17,
+        "passed": 1,
+        "failed": 5,
+        "total": 6,
+        "time_seconds": 117,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "docs/revisao-nosql.md cita os ids N-01, N-07, N-21, N-20, N-23 e N-18 do cat\u00e1logo, cada um com a localiza\u00e7\u00e3o arquivo:linha correta (faturaRepositorio.ts:28, faturaRepositorio.ts:18, faturaRepositorio.ts:7 ou :17, transferirCredito.ts:15, transferirCredito.ts:30, mongod.conf:5); descri\u00e7\u00e3o gen\u00e9rica sem id N-xx ou sem linha n\u00e3o conta",
+          "passed": false,
+          "evidence": "outputs/revisao-nosql.md n\u00e3o cita nenhum id N-xx do cat\u00e1logo e os achados indicam s\u00f3 o arquivo (ex.: 'Arquivo: src/repositorios/faturaRepositorio.ts'), sem arquivo:linha."
+        },
+        {
+          "text": "O relat\u00f3rio N\u00c3O classifica como defeito o writeConcern { w: 1 } de test/seed.ts (reconhece que \u00e9 seed de teste descart\u00e1vel) nem o $lookup de src/relatorios/fechamentoNoturno.ts (job noturno fora do caminho quente), e ao mesmo tempo classifica como achado o $lookup de src/api/extratoHandler.ts:12 (caminho quente de ~1.800 req/s)",
+          "passed": false,
+          "evidence": "test/seed.ts e o $lookup de fechamentoNoturno.ts n\u00e3o s\u00e3o classificados como defeito (o item 3 critica o filtro de data, n\u00e3o o $lookup), mas o $lookup de extratoHandler.ts n\u00e3o \u00e9 classificado como achado de join no caminho quente: o item 4 trata de mismatch de tipo de _id e o item 5 s\u00f3 pede \u00edndice em { carteira: 1 } para o foreignField. Falta a terceira condi\u00e7\u00e3o."
+        },
+        {
+          "text": "O relat\u00f3rio aponta em transferirCredito.ts o write skew (N-22): a transa\u00e7\u00e3o l\u00ea o saldo no documento de saldos e escreve s\u00f3 em lancamentos, ent\u00e3o duas transfer\u00eancias concorrentes passam as duas; a corre\u00e7\u00e3o proposta \u00e9 update condicional no documento de conten\u00e7\u00e3o (filtro saldoCentavos >= valor com $inc, conferindo matchedCount) ou campo de vers\u00e3o no filtro \u2014 citar s\u00f3 'condi\u00e7\u00e3o de corrida' ou 'usar transa\u00e7\u00e3o' n\u00e3o conta, porque o c\u00f3digo j\u00e1 usa transa\u00e7\u00e3o",
+          "passed": true,
+          "evidence": "Item 2: 'Duas transa\u00e7\u00f5es concorrentes que debitam a mesma carteira de origem podem ambas ler o mesmo saldoOrigem ... ambas passarem no if ... sem que o MongoDB acuse write conflict', porque s\u00f3 escreve em lancamentos; corre\u00e7\u00e3o 'findOneAndUpdate({ tenant, carteira: origem, saldoCentavos: { $gte: valorCentavos } }, { $inc: { saldoCentavos: -valorCentavos } }, { session }) \u2014 se n\u00e3o encontrar documento, \u00e9 saldo insuficiente'. Mecanismo e corre\u00e7\u00e3o corretos, sem o r\u00f3tulo N-22."
+        },
+        {
+          "text": "O relat\u00f3rio aponta que buscarPorCliente em faturaRepositorio.ts consulta a cole\u00e7\u00e3o sem filtro de tenant e classifica isso como viola\u00e7\u00e3o bloqueante/CONFLITO da rule data-transactional-nosql.md (filtro de tenant obrigat\u00f3rio no reposit\u00f3rio ou interceptor), sugerindo tamb\u00e9m \u00edndice composto come\u00e7ando por tenant",
+          "passed": false,
+          "evidence": "Item 1 aponta buscarPorCliente sem tenant como 'bloqueador' e sugere \u00edndice { tenant: 1, clienteId: 1, status: 1 }, mas n\u00e3o cita a rule data-transactional-nosql.md nem classifica como viola\u00e7\u00e3o/CONFLITO de rule do projeto; a asser\u00e7\u00e3o exige a vincula\u00e7\u00e3o \u00e0 rule."
+        },
+        {
+          "text": "A corre\u00e7\u00e3o proposta para a transfer\u00eancia inclui as tr\u00eas coisas: readConcern snapshot (ou majority) no lugar de local, writeConcern majority, e session.withTransaction (ou la\u00e7o pr\u00f3prio de retry do commitTransaction em UnknownTransactionCommitResult separado do retry de TransientTransactionError)",
+          "passed": false,
+          "evidence": "Nenhuma proposta de readConcern snapshot/majority (o texto s\u00f3 menciona que a leitura \u00e9 'local') e nenhuma men\u00e7\u00e3o a withTransaction; h\u00e1 s\u00f3 a observa\u00e7\u00e3o de que falta 'la\u00e7o de retry para TransientTransactionError / UnknownTransactionCommitResult', sem separar os dois retries."
+        },
+        {
+          "text": "O relat\u00f3rio tem uma entrada por regra examinada com status expl\u00edcito (achado, OK/limpo ou n\u00e3o verificado), inclusive regras sem ocorr\u00eancia como N-08 ou N-13, e declara como n\u00e3o verificado pela varredura est\u00e1tica ao menos um item de runtime (N-02 $indexStats, N-05 analyzeShardKey, tamanho real de documento com $bsonSize ou topologia via rs.conf())",
+          "passed": false,
+          "evidence": "O relat\u00f3rio \u00e9 organizado por achado livre (itens 1 a 8 e 'O que est\u00e1 correto'), sem entrada por regra do cat\u00e1logo, sem N-08/N-13 e sem declarar como n\u00e3o verificado pela varredura est\u00e1tica $indexStats, analyzeShardKey, $bsonSize ou rs.conf()."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.4,
+        "passed": 2,
+        "failed": 3,
+        "total": 5,
+        "time_seconds": 190,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Em services/validacoes/infra/dynamodb.tf final, a tabela validacoes-catraca n\u00e3o tem mais hash_key = \"data_validacao\" (nem outra chave s\u00f3 de data ou status), e a nova partition key inclui o cart\u00e3o (e o tenant) de forma alinhada ao hist\u00f3rico por cart\u00e3o; o design justifica pela concentra\u00e7\u00e3o de toda a escrita do dia numa parti\u00e7\u00e3o",
+          "passed": false,
+          "evidence": "dynamodb.tf final: hash_key = \"cartaoId\", range_key = \"sk\". N\u00e3o \u00e9 mais data_validacao, e o design justifica: 'concentrando os ~12.000 registros/s de pico numa \u00fanica parti\u00e7\u00e3o l\u00f3gica'. Mas a partition key n\u00e3o inclui o tenant, exigido por '(e o tenant)'. O tenant aparece s\u00f3 em gsi1_pk. Por isso a asser\u00e7\u00e3o falha."
+        },
+        {
+          "text": "No dynamodb.tf final nenhum GSI tem projection_type = \"ALL\" (usa KEYS_ONLY ou INCLUDE), e em historicoCartao.ts final nenhuma chamada com IndexName de GSI tem ConsistentRead: true; o design afirma que GSI s\u00f3 oferece leitura eventual",
+          "passed": false,
+          "evidence": "dynamodb.tf final: o GSI 'pendentes-por-tenant' ainda tem projection_type = \"ALL\". S\u00f3 essa parte j\u00e1 reprova a asser\u00e7\u00e3o. As outras duas se cumprem: pendentes() n\u00e3o usa ConsistentRead, e o design diz 'GSIs no DynamoDB n\u00e3o suportam ConsistentRead'."
+        },
+        {
+          "text": "historicoCartao.ts final n\u00e3o usa ScanCommand (usa QueryCommand pela chave do cart\u00e3o), e services/validacoes/scripts/backfill/reprocessarTarifas.ts continua com o ScanCommand paralelo (o agente n\u00e3o o trata como antipattern, reconhecendo que Scan em migra\u00e7\u00e3o offline \u00e9 o uso certo)",
+          "passed": true,
+          "evidence": "historicoCartao.ts importa s\u00f3 QueryCommand, e historicoCartao() faz Query com 'cartaoId = :c AND sk >= :de'. reprocessarTarifas.ts ficou id\u00eantico ao commit inicial e mant\u00e9m o ScanCommand paralelo. O design e o transcript mant\u00eam o backfill sem trat\u00e1-lo como antipattern ('Continua funcionando sem altera\u00e7\u00e3o com a chave nova'). O reconhecimento de que Scan offline \u00e9 o uso certo fica impl\u00edcito: ele valida a compatibilidade, n\u00e3o a adequa\u00e7\u00e3o do Scan. A parte verific\u00e1vel passa."
+        },
+        {
+          "text": "registrarValidacao.ts final n\u00e3o cont\u00e9m list_append; as passagens do cart\u00e3o viram um item por valida\u00e7\u00e3o sob a mesma partition key com sort key ordenada (ou bucket por per\u00edodo), e o design menciona o limite de 400 KB do item",
+          "passed": true,
+          "evidence": "registrarValidacao.ts final: s\u00f3 PutCommand. list_append aparece apenas no coment\u00e1rio que explica a remo\u00e7\u00e3o. Cada valida\u00e7\u00e3o vira um item com PK cartaoId e SK `${timestampIso}#${validacaoId}`. O design diz: 'arriscava estourar o limite de 400 KB por item do DynamoDB'."
+        },
+        {
+          "text": "docs/design-validacoes.md registra que a troca da partition key n\u00e3o pode ser feita in place e exige criar tabela nova e copiar/migrar os itens j\u00e1 existentes em homologa\u00e7\u00e3o",
+          "passed": false,
+          "evidence": "O design, em 'Decis\u00f5es em aberto, item 2', diz: 'Terraform n\u00e3o faz altera\u00e7\u00e3o de hash_key/range_key in-place \u2014 qualquer apply com essa mudan\u00e7a for\u00e7a destrui\u00e7\u00e3o e recria\u00e7\u00e3o da tabela'. Ou seja, registra que a troca n\u00e3o \u00e9 in place e que a tabela precisa ser recriada. Mas recomenda 'tratar os ~40 milh\u00f5es de itens de homologa\u00e7\u00e3o como dado de teste descart\u00e1vel' em vez de copi\u00e1-los ou migr\u00e1-los, o que contradiz a segunda metade da asser\u00e7\u00e3o. Por isso falha."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.6733,
+        "stddev": 0.0751,
+        "min": 0.6,
+        "max": 0.75
+      },
+      "time_seconds": {
+        "mean": 164.6667,
+        "stddev": 41.4045,
+        "min": 127,
+        "max": 209
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.19,
+        "stddev": 0.2007,
+        "min": 0.0,
+        "max": 0.4
+      },
+      "time_seconds": {
+        "mean": 128.3333,
+        "stddev": 56.8536,
+        "min": 78,
+        "max": 190
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.48",
+      "time_seconds": "+36.3",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

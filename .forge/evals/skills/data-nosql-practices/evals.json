@@ -1,0 +1,92 @@
+{
+  "skill_name": "data-nosql-practices",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "revisao-cobranca-mongodb",
+      "prompt": "Vou abrir PR do serviço de cobrança (services/cobranca) — faturas, carteiras de crédito pré-pago e transferência entre carteiras, tudo em MongoDB; o contexto de uso está em docs/contexto-cobranca.md. Faz uma revisão da camada de dados NoSQL antes do PR (repositórios, transação, agregações, config do mongod) e grava o relatório em docs/revisao-nosql.md. Não precisa corrigir o código agora, só quero o diagnóstico com o que mudar.",
+      "expected_output": "O agente lê as rules do projeto (data-governance, data-transactional-nosql, money-as-cents), roda a varredura estática sobre services/cobranca e produz docs/revisao-nosql.md com uma linha por regra do catálogo, inclusive as limpas, citando ids N-xx com arquivo:linha: N-01 em faturaRepositorio.ts:28 ($push de eventos sem teto, fatura contestada acumula milhares), N-07 em faturaRepositorio.ts:18 (w:1 na criação de fatura), N-21 em faturaRepositorio.ts (Decimal128 no valor, contra money-as-cents), N-20 e N-23 em transferirCredito.ts:15 e :30 (read concern local; commitTransaction sem retry de UnknownTransactionCommitResult, preferir withTransaction), N-04 em extratoHandler.ts:12 ($lookup no caminho quente) e N-18 em infra/mongod.conf:5. Descarta como falso positivo o w:1 de test/seed.ts e o $lookup do job noturno fechamentoNoturno.ts. Aponta, por revisão (sem detector), o write skew N-22 da transferência (lê o documento saldos e escreve em lancamentos, sem update condicional no documento de contenção) e o find sem filtro de tenant em buscarPorCliente como violação bloqueante da data-transactional-nosql. Lista como não verificado o que é runtime (analyzeShardKey, $indexStats, tamanho real de documento).",
+      "files": [],
+      "assertions": [
+        {
+          "name": "achados-com-id-do-catalogo-e-arquivo-linha",
+          "text": "docs/revisao-nosql.md cita os ids N-01, N-07, N-21, N-20, N-23 e N-18 do catálogo, cada um com a localização arquivo:linha correta (faturaRepositorio.ts:28, faturaRepositorio.ts:18, faturaRepositorio.ts:7 ou :17, transferirCredito.ts:15, transferirCredito.ts:30, mongod.conf:5); descrição genérica sem id N-xx ou sem linha não conta"
+        },
+        {
+          "name": "falsos-positivos-do-scanner-descartados",
+          "text": "O relatório NÃO classifica como defeito o writeConcern { w: 1 } de test/seed.ts (reconhece que é seed de teste descartável) nem o $lookup de src/relatorios/fechamentoNoturno.ts (job noturno fora do caminho quente), e ao mesmo tempo classifica como achado o $lookup de src/api/extratoHandler.ts:12 (caminho quente de ~1.800 req/s)"
+        },
+        {
+          "name": "write-skew-n22-na-transferencia",
+          "text": "O relatório aponta em transferirCredito.ts o write skew (N-22): a transação lê o saldo no documento de saldos e escreve só em lancamentos, então duas transferências concorrentes passam as duas; a correção proposta é update condicional no documento de contenção (filtro saldoCentavos >= valor com $inc, conferindo matchedCount) ou campo de versão no filtro — citar só 'condição de corrida' ou 'usar transação' não conta, porque o código já usa transação"
+        },
+        {
+          "name": "filtro-de-tenant-ausente-como-bloqueante",
+          "text": "O relatório aponta que buscarPorCliente em faturaRepositorio.ts consulta a coleção sem filtro de tenant e classifica isso como violação bloqueante/CONFLITO da rule data-transactional-nosql.md (filtro de tenant obrigatório no repositório ou interceptor), sugerindo também índice composto começando por tenant"
+        },
+        {
+          "name": "transacao-majority-snapshot-withtransaction",
+          "text": "A correção proposta para a transferência inclui as três coisas: readConcern snapshot (ou majority) no lugar de local, writeConcern majority, e session.withTransaction (ou laço próprio de retry do commitTransaction em UnknownTransactionCommitResult separado do retry de TransientTransactionError)"
+        },
+        {
+          "name": "uma-linha-por-regra-e-runtime-nao-verificado",
+          "text": "O relatório tem uma entrada por regra examinada com status explícito (achado, OK/limpo ou não verificado), inclusive regras sem ocorrência como N-08 ou N-13, e declara como não verificado pela varredura estática ao menos um item de runtime (N-02 $indexStats, N-05 analyzeShardKey, tamanho real de documento com $bsonSize ou topologia via rs.conf())"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "validacoes-catraca-dynamodb",
+      "prompt": "A tabela de validações de catraca (services/validacoes, DynamoDB) está em homologação e entra em produção no próximo sprint; os padrões de acesso estão em docs/padroes-de-acesso-validacoes.md. Ajusta o terraform (services/validacoes/infra/dynamodb.tf) e os handlers em services/validacoes/src/handlers do jeito certo e escreve em docs/design-validacoes.md o desenho de chaves, índices e consistência. O script de backfill em services/validacoes/scripts pode ficar como está se estiver ok.",
+      "expected_output": "O agente parte dos padrões de acesso e reprojeta a tabela: a partition key data_validacao concentra toda a escrita do rush numa só partição (a data do dia), então passa a ser uma chave de alta cardinalidade alinhada à leitura dominante (tenant + cartão, ex.: TENANT#t#CARTAO#id, com sort key por data/instante), e o GSI por-status (baixa cardinalidade, N-06) vira chave por tenant/status com write sharding ou equivalente e projeção KEYS_ONLY/INCLUDE (N-10). No handler, o historicoCartao troca o ScanCommand por QueryCommand na chave do cartão (N-08); pendentes remove ConsistentRead do GSI e aceita leitura eventual ou lê a tabela base (N-11); registrarValidacao deixa de fazer list_append no item do cartão e grava um item por validação (N-09). Mantém o Scan paralelo do backfill offline como uso correto. O design registra que mudar a chave de partição não é feito in place: exige tabela nova e cópia dos ~40 milhões de itens de homologação.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "chave-de-particao-reprojetada",
+          "text": "Em services/validacoes/infra/dynamodb.tf final, a tabela validacoes-catraca não tem mais hash_key = \"data_validacao\" (nem outra chave só de data ou status), e a nova partition key inclui o cartão (e o tenant) de forma alinhada ao histórico por cartão; o design justifica pela concentração de toda a escrita do dia numa partição"
+        },
+        {
+          "name": "gsi-sem-all-e-sem-leitura-forte",
+          "text": "No dynamodb.tf final nenhum GSI tem projection_type = \"ALL\" (usa KEYS_ONLY ou INCLUDE), e em historicoCartao.ts final nenhuma chamada com IndexName de GSI tem ConsistentRead: true; o design afirma que GSI só oferece leitura eventual"
+        },
+        {
+          "name": "scan-trocado-por-query-no-handler-e-mantido-no-backfill",
+          "text": "historicoCartao.ts final não usa ScanCommand (usa QueryCommand pela chave do cartão), e services/validacoes/scripts/backfill/reprocessarTarifas.ts continua com o ScanCommand paralelo (o agente não o trata como antipattern, reconhecendo que Scan em migração offline é o uso certo)"
+        },
+        {
+          "name": "item-por-validacao-sem-list-append",
+          "text": "registrarValidacao.ts final não contém list_append; as passagens do cartão viram um item por validação sob a mesma partition key com sort key ordenada (ou bucket por período), e o design menciona o limite de 400 KB do item"
+        },
+        {
+          "name": "troca-de-chave-exige-tabela-nova",
+          "text": "docs/design-validacoes.md registra que a troca da partition key não pode ser feita in place e exige criar tabela nova e copiar/migrar os itens já existentes em homologação"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "redis-saldo-fonte-de-verdade",
+      "prompt": "O time decidiu guardar o saldo de créditos do cartão de transporte direto no Redis com AOF ligado — a proposta está em docs/proposta-saldo-cartao.md e o compose em services/saldo-cartao/docker-compose.yml. Desenha as chaves, as estruturas e os comandos (INCRBY no débito, LPUSH no extrato) e grava em docs/design-saldo-redis.md pra gente já começar a implementar.",
+      "expected_output": "O agente não desenha o Redis como armazenamento primário do saldo: pela data-governance.md e pela data-cache.md o Redis nunca é fonte de verdade, e o saldo é transacional de negócio (dinheiro). Declara CONFLITO com a rule e devolve a decisão ao orquestrador/usuário, sem produzir o desenho de chaves pedido. Indica que o store durável do saldo é MongoDB com transação multi-documento, write concern majority e P-S-S (ou relacional se um ADR escolher SQL), com valor em centavos inteiros, e que o Redis pode no máximo ser cache derivado (chave com namespace de tenant e TTL) para a latência do validador. Aponta que não há ADR registrado e sugere registrar a decisão.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "declara-conflito-com-a-rule",
+          "text": "A resposta final (ou o arquivo que o agente gravar) declara explicitamente CONFLITO/divergência com a rule do projeto, citando data-governance.md ou data-cache.md e a regra de que Redis nunca é fonte de verdade — só alertar sobre 'risco de perda de dados do AOF' sem citar a rule não conta"
+        },
+        {
+          "name": "nao-entrega-desenho-redis-como-primario",
+          "text": "Nenhum arquivo gravado pelo agente contém o desenho de chaves/estruturas do Redis como armazenamento primário do saldo (esquema de chaves de saldo com INCRBY como fonte do saldo e LPUSH como extrato persistente); se docs/design-saldo-redis.md existir, ele registra o conflito ou o Redis apenas como cache derivado de um store durável"
+        },
+        {
+          "name": "aponta-mongodb-majority-como-store-duravel",
+          "text": "A resposta indica MongoDB com transação multi-documento e write concern majority (e topologia P-S-S) como o store durável do saldo pela regra da casa, ou o relacional mediante ADR, em vez de sugerir Postgres/DynamoDB/outro banco como escolha livre"
+        },
+        {
+          "name": "escala-decisao-e-pede-adr",
+          "text": "A resposta devolve a decisão ao usuário/orquestrador (pede confirmação ou decisão explícita) e menciona que não existe ADR sobre o store do saldo, sugerindo registrá-lo (/forge:adr ou equivalente), em vez de seguir implementando"
+        }
+      ]
+    }
+  ]
+}

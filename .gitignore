@@ -30,3 +30,13 @@ tests/**/*.actual
 # Tem .gitignore próprio para o .db, mas o próprio diretório não deve entrar aqui — o índice é
 # por máquina, e o grafo que este repositório versiona é o do Forge, em .forge/graph/.
 /.codegraph/
+
+# evals #176/#182: work/ é a cópia efêmera do projeto-fixture (pode reinstalar o harness inteiro);
+# nunca versionar — só os artefatos de avaliação (evals.json, fixtures/, outputs/, grading.json,
+# analysis.md, benchmark.json/md) entram no PR.
+.forge/evals/**/work/
+.forge/evals/**/review.html
+.forge/evals/**/run-*/*/
+!.forge/evals/**/run-*/outputs/
+!.forge/evals/**/run-*/outputs/**
+.forge/evals/**/outputs/work/

@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "resolve-adr-e-escala-conflito-de-retencao",
+  "prompt": "Valida o docs/product/trd/trd.md antes do comitê de arquitetura de segunda. O time de dados revisou o Data Model semana passada e eu atualizei o TRD em cima dele, então acho que agora está tudo alinhado — só confirma e ajusta o que precisar. Os insumos estão todos em docs/product/.",
+  "assertions": [
+    "Em docs/product/trd/trd.md a API síncrona de tarifa entre validacao-api e tarifacao-svc deixou de ser 'REST/JSON sobre HTTP' com 'API key interna' e passou a gRPC (com contrato .proto e/ou mTLS), e o diagrama Mermaid não mostra mais a seta 'REST/JSON' entre API e TAR.",
+    "docs/product/trd/trd-validation-report.md lista o realinhamento REST→gRPC como ajuste ADJ-TRD-NNN com fonte ADR-0002, e a tabela ADR → TRD marca ADR-0002 como Corrigido (ou equivalente).",
+    "O relatório contém uma entrada ARCH-CONFLICT-NNN (ou VAL-TRD-NN) que nomeia explicitamente NFRD-RET-01 (5 anos) e o Data Model (24 meses/expurgo) como fontes em conflito, com recomendação de decisão por stakeholder; o TRD não afirma 5 anos nem 24 meses como retenção decidida sem referenciar esse conflito/ponto a validar.",
+    "git diff contra o commit da fixture mostra docs/product/frd-nfrd/nfrd.md e docs/product/data-model/data-model.md sem nenhuma alteração; só arquivos em docs/product/trd/ mudaram.",
+    "O Parecer Final do relatório é 'Reprovado' ou 'Aprovado com Ressalvas' (nunca 'Aprovado'), e a justificativa ou as condições para aprovação citam o conflito de retenção pendente."
+  ]
+}

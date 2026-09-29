@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "estorno-parcial-pagamentos-diff-principal",
+  "prompt": "Estou na branch feature/estorno-parcial do serviço de pagamentos (base: develop). O code-evaluator vai consolidar as revisões antes do PR e preciso da parte de arquitetura: revisa o diff develop..HEAD em services/pagamentos quanto a Clean Architecture, DDD tático, regra de dependência entre os .csproj e contratos públicos. Não mexe no código. Grava o resultado em review/arch-reviewer.json, no formato que o code-evaluator consome.",
+  "assertions": [
+    "review/arch-reviewer.json é JSON válido com \"reviewer\": \"arch-reviewer\" e array \"findings\"; todo finding tem id no padrão ^ARCH-\\d{3}$, severity em {BLOCKER, HIGH, MEDIUM, LOW}, \"category\": \"arch\" e os campos file, rule_violated e confidence preenchidos",
+    "Há finding BLOCKER com file terminando em Pagamentos.Domain/Pagamentos.Domain.csproj (ProjectReference para Pagamentos.Infrastructure) E finding BLOCKER em Pagamentos.Domain/Aggregates/Estorno.cs pelo `using MassTransit`",
+    "Há finding com severity BLOCKER (não HIGH/MEDIUM) em ValueObjects/ValorMonetario.cs pelo setter público do objeto de valor E finding BLOCKER em Events/EstornarPagamento.cs pelo nome imperativo do Domain Event",
+    "Há findings HIGH para pelo menos três de: agregado Estorno sem construtor privado/factory Create+Reconstitute; interface IEstornoRepository fora do Domain; rota `api/Estornos` sem versão /api/v1; ausência de projeto Pagamentos.Architecture.Tests (NetArchTest)",
+    "Nenhum finding trata do `Math.Round(valor, 1)` / arredondamento de centavos em SolicitarEstornoParcialHandler.cs (lógica é escopo do logic-reviewer)",
+    "`git -C <alvo> status --porcelain -- services/` sai vazio: o revisor não editou nenhum arquivo do serviço"
+  ]
+}

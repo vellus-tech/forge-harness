@@ -1,0 +1,3 @@
+# Contexto da liquidação
+
+O cluster RabbitMQ de produção já está no 4.3, em Khepri, com três nós. A fila `liquidacao.lancamentos` é quorum com Single Active Consumer porque os lançamentos de uma mesma conta de lojista (débito, estorno, ajuste) precisam chegar ao banco liquidante na ordem em que foram gerados; o liquidante recusa estorno de lançamento que ele ainda não recebeu. A API do banco liquidante fica indisponível algumas vezes por semana, por janelas de 1 a 15 minutos, e hoje o consumidor rejeita a mensagem sem requeue quando isso acontece. Não há DLX configurada. Volume: cerca de 40 mil lançamentos por dia, pico de 30 por segundo.

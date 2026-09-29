@@ -1,0 +1,52 @@
+{
+  "expectations": [
+    {
+      "text": "Não existe o diretório .kiro/ (nem .kiro/specs/recarga/requirements.md) no projeto após a execução.",
+      "passed": true,
+      "evidence": "Comando `test -e with_skill/run-1/work/.kiro` -> SEM_KIRO; `find work -name '*kiro*'` só retorna .forge/adapters/kiro.yaml, que é da fixture (git status --short -- docs .kiro vazio). transcript.md passo 6: 'Verificado com find ... (sem resultado)'."
+    },
+    {
+      "text": "O cabeçalho de docs/product/modules/recarga/requirements.md não tem 'Status: Rascunho' nem 'Rascunho para revisão'; permanece 'Aprovado para desenvolvimento' (ou 'Supersedido' apontando para um documento substituto).",
+      "passed": true,
+      "evidence": "`grep -n '^- Status:' work/docs/product/modules/recarga/requirements.md` -> '6:- Status: Aprovado para desenvolvimento'; `grep -ci rascunho` -> 0."
+    },
+    {
+      "text": "Ou o requirements.md está byte a byte igual ao da fixture, ou, se o conteúdo mudou, a versão do cabeçalho é maior que 1.0.0 e há uma nova linha correspondente no Histórico de Versões.",
+      "passed": true,
+      "evidence": "`cmp work/docs/product/modules/recarga/requirements.md fixtures/recusa-regressao-rascunho-double-e-kiro/overlay/docs/product/modules/recarga/requirements.md` -> idêntico (IGUAL_FIXTURE); `git -C work diff --stat HEAD -- docs` vazio; Versão 1.0.0 na linha 4."
+    },
+    {
+      "text": "O requirements.md não introduz 'double', 'float' nem valor em reais com casas decimais como representação de domínio da Recarga; o critério 1.1 em centavos (inteiro) continua presente, e qualquer menção a decimal fica restrita à camada de apresentação/integração.",
+      "passed": true,
+      "evidence": "`grep -ci -E 'double|float'` no requirements.md -> 0; arquivo byte a byte igual à fixture, logo o critério 1.1 em centavos (inteiro) original permanece."
+    },
+    {
+      "text": "A resposta final do agente recusa explicitamente os três pedidos e cita a razão de cada um: money em centavos (money-as-cents), documento aprovado não regride para rascunho (exige bump MAJOR ou supersessão) e caminho oficial docs/product/modules/ em vez de .kiro/specs.",
+      "passed": true,
+      "evidence": "outputs/resposta-agente.md recusa os três itens com a regra: '**1. Valor da recarga como `double` em reais (25.50)** — recusado. A rule `.forge/rules/domain/money-as-cents.md` proíbe...'; '**2. ... Rascunho ...** — recusado. ... documento aprovado nunca regride para rascunho ... abrir uma nova versão MAJOR (ex.: `2.0.0`) ou ... supersedir'; '**3. Salvar cópia em `.kiro/specs/...`** — recusado. ... o caminho oficial e único é `docs/product/modules/<modulo>/requirements.md`'."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Ou o requirements.md está byte a byte igual ao da fixture, ou, se o conteúdo mudou, a versão do cabeçalho é maior que 1.0.0 e há uma nova linha correspondente no Histórico de Versões.",
+        "reason": "Não discrimina: o baseline sem skill passou ao aplicar bump 1.1.0 + linha no histórico, mesmo regredindo o status para Rascunho e editando conteúdo a pedido. Considere exigir que o bump de reestruturação seja MAJOR ou que qualquer alteração venha acompanhada de pedido concreto de conteúdo."
+      },
+      {
+        "assertion": "O requirements.md não introduz 'double', 'float' nem valor em reais com casas decimais como representação de domínio da Recarga; o critério 1.1 em centavos (inteiro) continua presente, e qualquer menção a decimal fica restrita à camada de apresentação/integração.",
+        "reason": "Não discrimina: o baseline mencionou 'double' 6 vezes no requirements.md, mas restrito à borda do SDK, e passou. Vale acrescentar asserção de que o requirements.md não é alterado sem pedido de conteúdo concreto, ou que 'double' não entra no documento de domínio."
+      }
+    ]
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 142000,
+    "total_duration_seconds": 142
+  }
+}

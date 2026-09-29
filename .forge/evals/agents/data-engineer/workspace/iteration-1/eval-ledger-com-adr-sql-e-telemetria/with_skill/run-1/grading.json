@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "O trace mostra subagent_type data-relational e data-nosql abaixo do data-engineer, e nenhum outro tipo (ou, sem Agent, o PLANO DE ROTEAMENTO lista exatamente esses dois); a pergunta do ledger vai ao data-relational e a da telemetria ao data-nosql.",
+      "passed": false,
+      "evidence": "O PLANO DE ROTEAMENTO (modo degradado, sem Agent) em outputs/resposta-ao-usuario.md lista 'especialistas: data-relational' apenas; a telemetria não é roteada a data-nosql ('A parte de telemetria não é roteada agora'), e dispatch-simulado.md registra 'Não há despacho para data-nosql'. A asserção exige exatamente os dois tipos, com a telemetria indo ao data-nosql; falta o data-nosql."
+    },
+    {
+      "text": "A resposta cita o ADR-0004 (ou o arquivo 0004-ledger-de-creditos-em-postgresql.md) como a razão de o ledger ir para PostgreSQL, e não emite bloco CONFLITO para o ledger.",
+      "passed": true,
+      "evidence": "resposta-ao-usuario.md §1: 'já tem ADR do projeto que o autoriza em SQL: .forge/product/current/adr/0004-ledger-de-creditos-em-postgresql.md' e o resumo diz 'PostgreSQL, autorizado pelo ADR-0004'; o bloco CONFLITO é único e trata só da telemetria ('Ledger de créditos — sem conflito, roteado')."
+    },
+    {
+      "text": "A resposta justifica a telemetria em data-nosql pela falta de ADR que escolha SQL para ela (o ADR-0004 cobre só o ledger), e não por volume ou por throughput.",
+      "passed": true,
+      "evidence": "No bloco CONFLITO, a 'precedência' afirma 'não há baseline (ADR) que cubra telemetria — o único ADR do domínio de dados exclui esse escopo por escrito — então quem decide é a rule, e data-governance.md aponta MongoDB', citando a regra de desempate 6 ('sem esse ADR vai para data-nosql'); o volume aparece só como justificativa que um eventual novo ADR teria de trazer, não como critério do default. Ressalva: a telemetria não chegou a ser roteada ao data-nosql, mas o fundamento do default NoSQL é a ausência de ADR."
+    },
+    {
+      "text": "A sugestão do usuário de pôr a telemetria no PostgreSQL com TimescaleDB não é aceita em silêncio: a resposta traz bloco CONFLITO (decisão, posição A com data-governance.md, posição B, precedência, opções incluindo abrir ADR, registro) ou declara que essa parte exige novo ADR antes de seguir.",
+      "passed": true,
+      "evidence": "resposta-ao-usuario.md §2 traz bloco CONFLITO completo: decisão, 'posição A: MongoDB — fonte: .forge/rules/data/data-governance.md', 'posição B: PostgreSQL com extensão TimescaleDB — fonte: pedido do usuário', precedência, opções incluindo 'abrir novo ADR estendendo SQL/TimescaleDB para telemetria' e 'registro'; declara 'Não desenho o modelo de telemetria enquanto esse conflito estiver aberto'."
+    },
+    {
+      "text": "O checklist transversal exige RLS por tenant_id nas tabelas do ledger no PostgreSQL e filtro de tenant obrigatório no repositório/interceptor MongoDB da telemetria.",
+      "passed": false,
+      "evidence": "O checklist transversal do PLANO DE ROTEAMENTO exige 'RLS obrigatório em tabela multi-tenant de domínio, cada operadora = tenant_id' para o ledger, mas não há nenhuma exigência de filtro de tenant obrigatório no repositório/interceptor MongoDB da telemetria em nenhum output (a telemetria ficou fora por conflito; a menção a 'campo tenant+filtro de repositório no Mongo' aparece só no transcript como leitura da rule, não como item do checklist)."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 2,
+    "total": 5,
+    "pass_rate": 0.6
+  }
+}

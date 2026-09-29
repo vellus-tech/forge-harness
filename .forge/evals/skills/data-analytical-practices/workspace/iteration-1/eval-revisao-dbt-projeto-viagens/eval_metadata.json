@@ -1,0 +1,12 @@
+{
+  "eval_id": 1,
+  "eval_name": "revisao-dbt-projeto-viagens",
+  "prompt": "Vou abrir PR do projeto dbt de bilhetagem que está em analytics/ (staging, intermediate, marts, snapshots e os DDLs do lakehouse em analytics/ddl/). Faz uma revisão analítica completa antes do PR — modelagem, incremental, marts, snapshots e particionamento das tabelas — e grava o relatório em docs/revisao-analitico.md. Não precisa corrigir os arquivos, só quero o diagnóstico com o que mudar.",
+  "assertions": [
+    "docs/revisao-analitico.md cita os ids A-10, A-12, A-08, A-14 e A-06 do catálogo, e cada um vem acompanhado da localização arquivo:linha correta (fct_viagens.sql:10, dim_linha.sql:3, int_viagens_diarias.sql:1, snap_linhas.yml:9, gold_receita_linha.sql:9 ou :11); descrição genérica sem id ou sem linha não conta",
+    "O relatório NÃO classifica como antipattern o PARTITIONED BY (days(ts_embarque)) de ddl/silver_embarques.sql (o trata como particionamento oculto legítimo do Iceberg ou não o menciona como problema) e NÃO acusa int_validacoes.sql de incremental sem unique_key (reconhece que microbatch com event_time/lookback dispensa unique_key ou não o lista como problema)",
+    "A correção proposta para snap_linhas.yml é trocar invalidate_hard_deletes por hard_deletes com valor explícito (invalidate ou new_record), mencionando que o parâmetro antigo foi substituído no dbt 1.9; apenas 'remover a linha' ou 'revisar' não conta",
+    "O relatório aponta que fct_viagens.sql converte valor_tarifa_centavos para numeric(12,2)/100 e que isso diverge da rule .forge/rules/domain/money-as-cents.md (medida monetária em inteiro na menor unidade também no warehouse)",
+    "O relatório tem uma entrada por regra examinada com status explícito (achado, limpo/OK ou não verificado), e declara como não verificado pela varredura estática ao menos um item de runtime ou ferramenta do catálogo (A-01 grão, A-11 teste de chave de grão ou A-09 contrato), em vez de dar o projeto por aprovado nesses pontos"
+  ]
+}

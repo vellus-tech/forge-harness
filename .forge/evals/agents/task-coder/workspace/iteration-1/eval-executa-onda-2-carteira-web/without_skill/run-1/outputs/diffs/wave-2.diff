@@ -1,0 +1,83 @@
+diff --git a/apps/web/carteira-web/src/troco.test.ts b/apps/web/carteira-web/src/troco.test.ts
+new file mode 100644
+index 0000000..3cd6fe2
+--- /dev/null
++++ b/apps/web/carteira-web/src/troco.test.ts
+@@ -0,0 +1,17 @@
++import { test } from 'node:test';
++import assert from 'node:assert/strict';
++import { calcularTroco } from './troco.ts';
++
++test('calcula troco em centavos', () => {
++  assert.equal(calcularTroco(1000, 450), 550);
++  assert.equal(calcularTroco(450, 450), 0);
++});
++
++test('rejeita valor pago menor que a tarifa', () => {
++  assert.throws(() => calcularTroco(400, 450), RangeError);
++});
++
++test('rejeita argumento não inteiro', () => {
++  assert.throws(() => calcularTroco(450.5, 450), TypeError);
++  assert.throws(() => calcularTroco(450, 449.9), TypeError);
++});
+diff --git a/apps/web/carteira-web/src/troco.ts b/apps/web/carteira-web/src/troco.ts
+new file mode 100644
+index 0000000..ca40eee
+--- /dev/null
++++ b/apps/web/carteira-web/src/troco.ts
+@@ -0,0 +1,9 @@
++export function calcularTroco(pagoCentavos: number, tarifaCentavos: number): number {
++  if (!Number.isInteger(pagoCentavos) || !Number.isInteger(tarifaCentavos)) {
++    throw new TypeError('valores devem ser inteiros em centavos');
++  }
++  if (pagoCentavos < tarifaCentavos) {
++    throw new RangeError('valor pago é menor que a tarifa');
++  }
++  return pagoCentavos - tarifaCentavos;
++}
+diff --git a/docs/product/modules/carteira-web/PROGRESS-TRACKING.md b/docs/product/modules/carteira-web/PROGRESS-TRACKING.md
+index 1a0365b..b887309 100644
+--- a/docs/product/modules/carteira-web/PROGRESS-TRACKING.md
++++ b/docs/product/modules/carteira-web/PROGRESS-TRACKING.md
+@@ -1,13 +1,13 @@
+ # Progress — carteira-web
+ 
+-Última atualização: 2026-09-18 17:40 (task-coder)
++Última atualização: 2026-09-26 (task-coder)
+ 
+ ## Status geral
+ 
+ | Wave | Status | TASKs | Concluídas | Falhas | PR |
+ |------|--------|-------|------------|--------|-----|
+ | 1    | ✅ Done | 2    | 2          | 0      | #12 |
+-| 2    | ⏳ Pending | 2 | 0 | 0 | - |
++| 2    | ✅ Done | 2 | 2 | 0 | - |
+ 
+ ## Wave 1 (TASK-01..TASK-02) — Formatação de valores ✅ COMPLETA
+ 
+@@ -16,5 +16,7 @@
+ 
+ ## Wave 2 (TASK-03..TASK-04) — Troco no guichê
+ 
+-- [ ] TASK-03 — Implementar calcularTroco
+-- [ ] TASK-04 — Encerramento da Wave 2 — build verde + commit
++- [X] TASK-03 — Implementar calcularTroco                     [frontend-engineer]  ff2a9d5
++- [X] TASK-04 — Encerramento da Wave 2 — build verde + commit         [frontend-engineer]  05145ed
++
++`npm run typecheck` e `npm test` verdes (5/5) na branch `feat/carteira-web/wave-2`. Wave 2 concluída, pronta para PR.
+diff --git a/docs/product/modules/carteira-web/tasks.md b/docs/product/modules/carteira-web/tasks.md
+index 54cfc70..eb243c7 100644
+--- a/docs/product/modules/carteira-web/tasks.md
++++ b/docs/product/modules/carteira-web/tasks.md
+@@ -9,8 +9,8 @@
+ |---|---|---|---|---|
+ | TASK-01 | Implementar formatarCentavos | 1 | feat/carteira-web/wave-1 | [X] |
+ | TASK-02 | Testes de formatarCentavos | 1 | feat/carteira-web/wave-1 | [X] |
+-| TASK-03 | Implementar calcularTroco | 2 | feat/carteira-web/wave-2 | [ ] |
+-| TASK-04 | Encerramento da Wave 2 — build verde + commit | 2 | feat/carteira-web/wave-2 | [ ] |
++| TASK-03 | Implementar calcularTroco | 2 | feat/carteira-web/wave-2 | [X] |
++| TASK-04 | Encerramento da Wave 2 — build verde + commit | 2 | feat/carteira-web/wave-2 | [X] |
+ 
+ ## Tarefas
+ 

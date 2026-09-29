@@ -1,0 +1,29 @@
+approvals:
+  - gate: requirements_reviewed
+    decision: approve
+    decided_by: "Carlos Menezes"
+    decided_at: "2026-09-18T09:40:00-03:00"
+    commit: "a19e3d0"
+  - gate: design_reviewed
+    decision: approve
+    autonomous: true
+    reason: "design.md cobre REQ-01..04 e INV-01..02 com PBT-01..02; decisões ancoradas em ADR-0004; sem NEEDS CLARIFICATION"
+    decided_by: "forge-yolo (opus, high)"
+    decided_at: "2026-09-24T14:05:00-03:00"
+    commit: "b72c410"
+  - gate: tasks_reviewed
+    decision: review
+    autonomous: true
+    reason: "REQ-04 (relatório CSV de divergências) não é rastreado por nenhuma TASK; TASK-05 sem DoD"
+    decided_by: "forge-yolo (opus, high)"
+    decided_at: "2026-09-25T10:20:00-03:00"
+    iteration: 1
+    commit: "c03f5e1"
+  - gate: tasks_reviewed
+    decision: review
+    autonomous: true
+    reason: "DoD da TASK-05 corrigido; REQ-04 continua sem TASK — a tabela de rastreabilidade o lista mas aponta para TASK-04, que só persiste divergências"
+    decided_by: "forge-yolo (opus, high)"
+    decided_at: "2026-09-25T15:48:00-03:00"
+    iteration: 2
+    commit: "d8a61b7"

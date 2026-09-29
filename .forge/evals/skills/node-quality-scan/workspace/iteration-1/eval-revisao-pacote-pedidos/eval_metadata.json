@@ -1,0 +1,12 @@
+{
+  "eval_id": 1,
+  "eval_name": "revisao-pacote-pedidos",
+  "prompt": "Estou na branch feat/listagem-pedidos do nosso monorepo da loja. Mexi só no packages/pedidos (listagem por status e a rota da nota fiscal). Antes de abrir a PR, faz um code review de qualidade das minhas mudanças e salva o relatório em outputs/revisao-pedidos.md.",
+  "assertions": [
+    "outputs/revisao-pedidos.md contém uma linha para cada uma das 11 regras do scanner (empty-catch, floating-promise, sync-fs-blocking, sql-interpolation, new-pg-client, process-env-direct, date-now, explicit-any, generic-name, mutable-module-state, single-impl-interface), incluindo as que não acharam nada marcadas como OK/limpas.",
+    "O relatório informa o resultado do node-baseline.sh --check (PASS/OK ou FAIL, com a origem: config na raiz do monorepo) em posição anterior à lista de regras do scan.",
+    "Nenhum achado do relatório aponta para packages/notificacoes (EmailManager.ts tem empty-catch, floating-promise, sync-fs, any, generic-name e export let pré-existentes em main, fora do diff).",
+    "O relatório aponta sql-interpolation como defeito em packages/pedidos/src/rotas.ts:15 (ou src/rotas.ts:15), com recomendação de placeholder parametrizado ($1).",
+    "Todo achado FOUND listado no relatório (sync-fs-blocking, sql-interpolation, empty-catch, process-env-direct, generic-name) vem acompanhado de arquivo:linha; nenhum achado aparece só com descrição genérica."
+  ]
+}

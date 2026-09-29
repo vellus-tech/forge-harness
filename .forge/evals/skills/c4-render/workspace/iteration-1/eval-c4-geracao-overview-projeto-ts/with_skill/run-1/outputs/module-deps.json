@@ -1,0 +1,24 @@
+{
+  "granularity": "project",
+  "modules": [
+    "src/billing",
+    "src/ledger",
+    "src/notifications",
+    "src/shared"
+  ],
+  "edges": [
+    {
+      "from": "src/billing",
+      "to": "src/shared",
+      "count": 1
+    },
+    {
+      "from": "src/ledger",
+      "to": "src/shared",
+      "count": 1
+    }
+  ],
+  "cycles": [],
+  "layer_violations": [],
+  "layer_violations_by_pair": {}
+}

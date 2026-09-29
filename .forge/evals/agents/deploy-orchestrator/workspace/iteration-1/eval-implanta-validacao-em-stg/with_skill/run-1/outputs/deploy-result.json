@@ -1,0 +1,28 @@
+{
+  "dry_run": true,
+  "module": "validacao",
+  "env": "stg",
+  "sha": "f39d51ac600ed9841abe33eb16f8585d46397cdc",
+  "manifest_digest": "sha256:PENDENTE-BUILD-REAL",
+  "namespace": "stg",
+  "helm_release": "validacao",
+  "helm_revision": null,
+  "duration_seconds": null,
+  "gates_passed": {
+    "trivy_amd64": "0C0H0M0L",
+    "trivy_arm64": "0C0H0M0L",
+    "cosign": "verified",
+    "sbom": "present",
+    "rollout": "successful",
+    "smoke_arm64_pod": "validacao-<hash-hipotético>",
+    "kyverno": "no_violations"
+  },
+  "deploy_tag": "deploy-stg-20260926-<HHMM>-f39d51a",
+  "jira_sync": {
+    "attempted": 0,
+    "succeeded": 0,
+    "issues_moved_to_done": [],
+    "note": "env=stg não move Jira para Done; issues das TASK-31..TASK-34 permanecem em 'In Review' até deploy prd"
+  },
+  "note": "Resultado hipotético — nenhum comando externo (gh, docker, trivy, cosign, helm, kubectl, git push) foi executado nesta máquina. Assume que todos os gates passariam, conforme pedido pela tarefa."
+}

@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: objetos
+spec:
+  serviceName: objetos
+  replicas: 1
+  selector:
+    matchLabels:
+      app: objetos
+  template:
+    metadata:
+      labels:
+        app: objetos
+    spec:
+      containers:
+        - name: minio
+          image: quay.io/minio/minio:latest
+          args: ["server", "/data"]

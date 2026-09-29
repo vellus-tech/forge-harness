@@ -1,0 +1,40 @@
+{
+  "expectations": [
+    {
+      "text": "Existe docs/product/modules/tarifacao/requirements.md (e nenhum diretório .kiro/ foi criado), e o campo Status do cabeçalho é 'Rascunho' ou 'Rascunho para revisão' — não 'Aprovado para desenvolvimento', apesar de o prompt sugerir deixá-lo 'pronto para o time de desenvolvimento'.",
+      "passed": true,
+      "evidence": "Arquivo existe (`find with_skill/run-1/work/docs -type f` lista docs/product/modules/tarifacao/requirements.md; cópia em outputs/). `find with_skill/run-1/work -name '.kiro*'` retornou vazio. requirements.md:7 '- Status: Rascunho para revisão'; histórico linha 14 com o mesmo status. Transcript §5 justifica explicitamente a recusa de 'Aprovado para desenvolvimento'."
+    },
+    {
+      "text": "O documento contém o cabeçalho com linhas 'Versão:', 'Data:' (YYYY-MM-DD) e 'Status:', uma tabela 'Histórico de Versões' com colunas Versão/Data/Status/Descrição da alteração, as seções numeradas '## 1. Visão Geral' até '## 10. Referências cruzadas' incluindo '## 4. Lista canônica de ...' (ex.: perfis tarifários) e '## 9. Fora do escopo do MVP' listando tarifa por linha/distância e bilhete único mensal.",
+      "passed": true,
+      "evidence": "requirements.md:5-8 '- Versão: 0.1.0', '- Data: 2026-09-26', '- Status: Rascunho para revisão', '- Referência pai: ...'; :10-14 '## Histórico de Versões' com cabeçalho '| Versão | Data | Status | Descrição da alteração |'. `grep -nE '^## '` retorna '## 1. Visão Geral' (:16) até '## 10. Referências cruzadas' (:337), incluindo ':50 ## 4. Lista canônica de Perfis Tarifários' e ':332 ## 9. Fora do escopo do MVP' com ':334 Tarifa diferenciada por linha ou por distância' e ':335 Bilhete único mensal'."
+    },
+    {
+      "text": "Os requisitos funcionais usam o cabeçalho '### Req N — <título>' com numeração contínua sem furos e cada um tem tabela com Prioridade (Must/Should/Could), Origem apontando para docs/product/prd-tarifacao.md (ou uma RN-0x específica) e Módulo 'tarifacao', além de critérios de aceite numerados 'N.1'.",
+      "passed": true,
+      "evidence": "`grep -nE '^### Req'` retorna Req 1..Req 7 contínuos (:61,80,99,117,136,154,172), cada um com tabela '| **Prioridade** | Must |', '| **Origem** | PRD § 2, RN-0x |' (RN-01..RN-06 específicas, :68,87,106,124,143,161,179) e '| **Módulo** | tarifacao |'; critérios numerados '1.1'..'7.4' (ex.: :73 '- 1.1 Para uma Validação...')."
+    },
+    {
+      "text": "O requirements.md não contém 'tarifa_regra', 'NUMERIC', 'POST /v1/tarifas/calcular' nem 'decimal.js' como requisito — as notas técnicas do PRD ficaram fora (ou são mencionadas só como assunto do design.md).",
+      "passed": true,
+      "evidence": "`grep -nE 'tarifa_regra|NUMERIC|POST /v1/tarifas/calcular|decimal\\.js' requirements.md` sem ocorrências (exit 1). Transcript §5 registra que as notas técnicas do PRD foram descartadas para o design.md."
+    },
+    {
+      "text": "O documento expressa valores monetários em centavos (ex.: Tarifa Base de 485 centavos) e exige arredondamento pela NBR 5891 (meio-para-par / ToEven) para a meia tarifa e a integração, sem propor float, double ou decimal para o cálculo de domínio.",
+      "passed": true,
+      "evidence": "RNF 4 (:254-273) exige normativamente dinheiro de domínio como inteiro em centavos (:269 'RNF-4.1 ... expresso como inteiro em centavos (`amountInCents`)'), veda float/double (:270 'RNF-4.2') e exige NBR 5891 ToEven para arredondamento de 50% (:271 'RNF-4.3 ... (ex.: 50% de um valor ímpar de centavos) segue a NBR 5891 (arredondamento bancário, ToEven)'); PBT-01 (:284) aplica isso à meia tarifa e à Integração Temporal ('Tarifa Base vigente em centavos ... arredondada conforme NBR 5891'). Nenhuma proposta de float/double/decimal. Ressalva: os valores concretos aparecem em reais (:74 'R$ 4,85') e o caso 485 → 242 não é explicitado; a asserção cita 485 centavos apenas como exemplo."
+    },
+    {
+      "text": "A seção '## 7. Property-Based Testing' contém ao menos um '### PBT-NN' com linha 'Mapeia para:' citando Req específicos e um 'Tipo:' da lista do agente (ex.: não acúmulo de benefícios, valor nunca acima da Tarifa Base); e docs/product/modules/tarifacao/README.md foi atualizado na linha do requirements.md com o status e a versão do novo documento (não está mais 'Não iniciado').",
+      "passed": true,
+      "evidence": "':275 ## 7. Property-Based Testing' com '### PBT-01' (:277), ':279 **Mapeia para:** Req 2, Req 4', ':280 **Tipo:** Invariante matemática' (tipo presente na lista do agente, template/.forge/agents/specifications/requirements-writer.md:189); PBT-02 cobre não acúmulo de benefícios (Mapeia para Req 6). README.md:28 '| requirements.md | Rascunho para revisão | 0.1.0 | 2026-09-26 |' (na fixture era 'Não iniciado', overlay README.md:9)."
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1.0
+  }
+}

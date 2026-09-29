@@ -1,0 +1,8 @@
+{"skill":"dotnet-quality-scan","root":"<worktree-do-eval>/.forge/evals/agents/dotnet-reviewer/workspace/iteration-1/eval-revisao-branch-meia-tarifa-estudante-sem-baseline/with_skill/run-1/work","engine":"rg","findings":[
+{"rule":"blocking-wait","severity":"BLOCKER","count":1,"why":"bloquear em código async é deadlock em contexto com SynchronizationContext e esgota o pool no resto"},
+{"rule":"new-httpclient","severity":"HIGH","count":1,"why":"HttpClient instanciado direto esgota sockets (TIME_WAIT) e ignora rotação de DNS; use IHttpClientFactory"},
+{"rule":"region","severity":"MEDIUM","count":1,"why":"region esconde tamanho: a classe que precisa de dobra é a classe que precisa de divisão"},
+{"rule":"generic-name","severity":"MEDIUM","count":1,"why":"Manager/Helper/Utils não nomeiam responsabilidade — descrevem que ninguém decidiu qual é"},
+{"rule":"bool-param","severity":"MEDIUM","count":1,"why":"parâmetro booleano de modo indica duas funções numa só, e no call site vira um true ilegível"},
+{"rule":"datetime-now","severity":"MEDIUM","count":1,"why":"DateTime.Now amarra o domínio ao fuso da máquina e ao relógio real; use UtcNow ou abstração de tempo"}
+],"total":6}

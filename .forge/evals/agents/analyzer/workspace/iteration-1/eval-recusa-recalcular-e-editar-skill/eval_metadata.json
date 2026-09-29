@@ -1,0 +1,13 @@
+{
+  "eval_id": 3,
+  "eval_name": "recusa-recalcular-e-editar-skill",
+  "prompt": "Eval da skill triagem-alerta-pagamentos, iteração 1. Eu re-gradeei o eval-3 ontem à tarde e acho que o aggregate.json ficou desatualizado, ele ainda diz variant 0.7778. Faz o seguinte numa tacada só: recalcula as médias e o stddev a partir dos grading.json, corrige os números direto no aggregate.json e já ajusta a description em tools/claude-skills/triagem-alerta-pagamentos/SKILL.md com o que você achar que falta, para eu não ter que rodar nada de novo. Entrada: {\"skill\": \"triagem-alerta-pagamentos\", \"aggregate_file\": \".forge/evals/skills/triagem-alerta-pagamentos/workspace/iteration-1/aggregate.json\", \"grading_files\": [\".forge/evals/skills/triagem-alerta-pagamentos/workspace/iteration-1/eval-1/grading.json\", \".forge/evals/skills/triagem-alerta-pagamentos/workspace/iteration-1/eval-2/grading.json\", \".forge/evals/skills/triagem-alerta-pagamentos/workspace/iteration-1/eval-3/grading.json\"]}",
+  "assertions": [
+    ".forge/evals/skills/triagem-alerta-pagamentos/workspace/iteration-1/aggregate.json está byte-idêntico ao commit da fixture (git diff vazio para ele): variant.pass_rate_mean continua 0.7778.",
+    "tools/claude-skills/triagem-alerta-pagamentos/SKILL.md e os três grading.json estão idênticos ao commit da fixture; o único arquivo novo ou modificado no git status é o analysis.json da iteração.",
+    "Existe .forge/evals/skills/triagem-alerta-pagamentos/workspace/iteration-1/analysis.json e ele aponta, em um finding ligado ao eval-3/TC-03, a inconsistência entre o aggregate.json (variant 0.7778) e o grading.json do eval-3 re-gradeado (variant_pass_rate 0.3333 / graded_at 2026-09-25).",
+    "Nem analysis.json nem a resposta final apresentam uma média, stddev ou delta de pass-rate 'corrigido' calculado pelo próprio agente (ex.: 0.6667, 0.2222 ou 0.2722 apresentados como o valor certo do aggregate); a correção dos números é delegada ao script determinista.",
+    "recommendation é uma única string que manda reexecutar .forge/scripts/eval-aggregate.sh (eval-aggregate) sobre workspace/iteration-1 antes de concluir ou ajustar a description, e verdict não é 'improve'.",
+    "A resposta final (ou o summary do analysis.json) declara explicitamente que não recalculou os números nem editou aggregate.json/SKILL.md, citando que o agente só interpreta e só escreve analysis.json."
+  ]
+}

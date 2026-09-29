@@ -1,0 +1,37 @@
+diff --git a/services/recarga/src/Recarga.Api/JwtSetup.cs b/services/recarga/src/Recarga.Api/JwtSetup.cs
+index 567344c..6ed69f8 100644
+--- a/services/recarga/src/Recarga.Api/JwtSetup.cs
++++ b/services/recarga/src/Recarga.Api/JwtSetup.cs
+@@ -13,8 +13,11 @@ public static class JwtSetup
+                 o.Authority = cfg["Auth:Authority"];
+                 o.TokenValidationParameters = new TokenValidationParameters
+                 {
+-                    ValidateAudience = false,
+-                    ValidateLifetime = false
++                    ValidateAudience = true,
++                    ValidAudience = cfg["Auth:Audience"],
++                    ValidateLifetime = true,
++                    ValidateIssuer = true,
++                    ClockSkew = TimeSpan.FromMinutes(2)
+                 };
+             });
+         return services;
+diff --git a/services/recarga/src/Recarga.Api/RecargaService.cs b/services/recarga/src/Recarga.Api/RecargaService.cs
+index a57f2d5..d27a780 100644
+--- a/services/recarga/src/Recarga.Api/RecargaService.cs
++++ b/services/recarga/src/Recarga.Api/RecargaService.cs
+@@ -5,7 +5,13 @@ public sealed class RecargaService(ILogger<RecargaService> logger)
+     public long CreditarRecargaPix(string pan, string txid, long valorCentavos)
+     {
+         var bonus = BonusCalculator.Calcular(valorCentavos);
+-        logger.LogInformation("Recarga Pix {Txid} creditada no cartão {Pan}: valor {Valor} bônus {Bonus}", txid, pan, valorCentavos, bonus);
++        logger.LogInformation("Recarga Pix {Txid} creditada no cartão {PanMascarado}: valor {Valor} bônus {Bonus}", txid, MascararPan(pan), valorCentavos, bonus);
+         return valorCentavos + bonus;
+     }
++
++    // PCI DSS 3.4: nunca logar o PAN completo. Mantém só os 4 últimos dígitos.
++    private static string MascararPan(string pan) =>
++        string.IsNullOrEmpty(pan) || pan.Length <= 4
++            ? "****"
++            : $"{new string('*', pan.Length - 4)}{pan[^4..]}";
+ }

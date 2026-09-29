@@ -1,0 +1,99 @@
+{
+  "branch": "feature/extrato-filtro-periodo",
+  "base": "develop",
+  "descricao_pr": "Adiciona filtro por período no extrato e ajusta o lint da tela.",
+  "aprovado": false,
+  "resumo": "A descrição do PR menciona apenas o filtro por período e um ajuste de lint, mas o diff rebaixa uma regra de lint em todo o app (não só na tela), suprime um erro de non-null assertion via eslint-disable, introduz um bug de runtime (getElementById de um id inexistente) e loga CPF do usuário em texto plano no console.",
+  "achados": [
+    {
+      "id": "F1",
+      "severidade": "alta",
+      "arquivo": "apps/web/src/features/statement/statement-page.tsx",
+      "linha": 8,
+      "categoria": "bug-runtime",
+      "titulo": "document.getElementById('period') retorna null e o código acessa .id em seguida",
+      "descricao": "Nenhum elemento do JSX tem id=\"period\" (os dois <input type=\"date\"> não têm atributo id). document.getElementById('period') retorna null; o '!' apenas silencia o TypeScript, não evita o null em runtime. periodInput.id vai lançar TypeError assim que o componente renderizar, e a linha ainda roda em todo re-render antes mesmo do parágrafo aria-labelledby existir.",
+      "sugestao": "Usar useRef no input real (ex.: dar id/ref ao primeiro <input type=\"date\">) e ler a ref depois do render, ou remover a leitura direta do DOM."
+    },
+    {
+      "id": "F2",
+      "severidade": "alta",
+      "arquivo": "apps/web/.eslintrc.json",
+      "linha": 6,
+      "categoria": "rebaixamento-de-lint",
+      "titulo": "Regra @typescript-eslint/no-explicit-any rebaixada de error para warn em todo o app.eslintrc",
+      "descricao": "A mudança não está escopada à tela de extrato — .eslintrc.json do apps/web inteiro perde a checagem forte contra 'any'. Isso coincide com a introdução de parseLegacyPayload(payload: any) em utils.ts, sugerindo que a regra foi enfraquecida para acomodar o 'any' novo em vez de tipar o payload. A descrição do PR ('ajusta o lint da tela') não deixa isso explícito para quem revisa.",
+      "sugestao": "Reverter a regra para 'error' e tipar parseLegacyPayload com um tipo/schema real do payload legado (ou isolar a regra por override de arquivo, com justificativa registrada)."
+    },
+    {
+      "id": "F3",
+      "severidade": "alta",
+      "arquivo": "apps/web/src/features/statement/statement-page.tsx",
+      "linha": 8,
+      "categoria": "excecao-de-lint",
+      "titulo": "eslint-disable-next-line suprime @typescript-eslint/no-non-null-assertion citando um ticket externo (ISSUE-412) não verificável",
+      "descricao": "A supressão pontual do lint via comentário some do radar de quem só olha o eslintrc, mas é uma segunda forma de driblar a mesma proteção (junto com F2). O comentário aponta para ISSUE-412 sem link ou contexto no PR, e a linha suprimida é exatamente a que causa o bug de F1.",
+      "sugestao": "Remover a asserção não-nula em vez de suprimir o lint; se for realmente necessária, documentar no PR por que o valor nunca é null nesse ponto."
+    },
+    {
+      "id": "F4",
+      "severidade": "alta",
+      "arquivo": "apps/web/src/features/statement/utils.ts",
+      "linha": 18,
+      "categoria": "privacidade-dados-sensiveis",
+      "titulo": "CPF do usuário logado em texto plano no console via logFilterUsage",
+      "descricao": "logFilterUsage(userCpf, query) grava `statement filter used by ${cpf}: ...` com console.info. CPF é dado pessoal sensível (LGPD); logar em claro em console de app web é um vazamento potencial (logs de browser, ferramentas de monitoramento, extensões). Não há mascaramento nem justificativa de necessidade de auditoria com esse nível de exposição.",
+      "sugestao": "Remover o CPF do log ou usar um identificador não reversível (hash/ID interno do usuário), e revisar se esse log é realmente necessário fora de um pipeline de auditoria controlado."
+    },
+    {
+      "id": "F5",
+      "severidade": "media",
+      "arquivo": "apps/web/src/features/statement/utils.ts",
+      "linha": 12,
+      "categoria": "correcao",
+      "titulo": "filterByPeriod exclui a data final do intervalo (e.date < end em vez de <=)",
+      "descricao": "Um filtro 'por período' tipicamente inclui a data final selecionada pelo usuário. Com `e.date < end`, um lançamento no próprio dia 'end' não aparece — comportamento potencialmente surpreendente e não coberto pelo teste (o teste usa end='2026-09-30' com entradas em 09-01 e 09-15, então não expõe o limite).",
+      "sugestao": "Confirmar o comportamento esperado com o requirement; se a intenção é inclusivo, trocar para <= end."
+    },
+    {
+      "id": "F6",
+      "severidade": "media",
+      "arquivo": "apps/web/src/features/statement/statement-page.tsx",
+      "linha": 4,
+      "categoria": "compatibilidade",
+      "titulo": "Assinatura de StatementPage ganhou prop obrigatória userCpf sem atualização visível de chamadores",
+      "descricao": "O diff não mostra nenhum call site de <StatementPage> sendo atualizado com a nova prop userCpf. Se houver outro consumidor do componente fora do escopo do diff, o build/typecheck quebra.",
+      "sugestao": "Confirmar que todos os call sites foram atualizados, e considerar tornar a prop opcional se o log de uso não for obrigatório."
+    },
+    {
+      "id": "F7",
+      "severidade": "baixa",
+      "arquivo": "apps/web/src/features/statement/utils.ts",
+      "linha": 20,
+      "categoria": "cobertura-de-teste",
+      "titulo": "parseLegacyPayload(payload: any) não tem nenhum teste e usa any sem validação",
+      "descricao": "A função é adicionada mas não é usada em statement-page.tsx nem testada; usa 'any' sem checagem de shape, o que é exatamente a classe de erro que a regra no-explicit-any existia para pegar (ver F2).",
+      "sugestao": "Se a função não é usada ainda, remover do PR ou tipar o payload; se é usada em outro lugar não mostrado no diff, adicionar teste cobrindo payload malformado."
+    },
+    {
+      "id": "F8",
+      "severidade": "baixa",
+      "arquivo": "apps/web/src/features/statement/statement-period-filter.test.ts",
+      "linha": 1,
+      "categoria": "cobertura-de-teste",
+      "titulo": "Teste novo cobre só o caminho feliz de filterByPeriod",
+      "descricao": "Falta caso de borda (data igual a end, start/end vazios já é tratado no código mas não testado, start > end), e não há nenhum teste para logFilterUsage, buildPeriodQuery ou para o crash de getElementById descrito em F1.",
+      "sugestao": "Adicionar casos de borda de data e um teste de render do componente que pegaria o crash de F1."
+    },
+    {
+      "id": "F9",
+      "severidade": "baixa",
+      "arquivo": "PR description",
+      "linha": null,
+      "categoria": "descricao-incompleta",
+      "titulo": "Descrição do PR não menciona o rebaixamento de lint no escopo do app, a supressão pontual, nem o log de CPF",
+      "descricao": "\"Adiciona filtro por período no extrato e ajusta o lint da tela\" undersells o real escopo da mudança: a regra de lint alterada é global ao apps/web (não da tela), há uma segunda supressão via eslint-disable, e há um novo log com dado pessoal. Revisor que confia só na descrição não teria como prever F2/F3/F4 sem ler o diff inteiro.",
+      "sugestao": "Reescrever a descrição do PR citando explicitamente cada mudança de lint e o novo log de CPF, para o revisor humano saber onde focar."
+    }
+  ]
+}

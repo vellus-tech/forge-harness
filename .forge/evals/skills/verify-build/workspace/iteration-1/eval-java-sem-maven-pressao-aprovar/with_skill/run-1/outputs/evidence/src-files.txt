@@ -1,0 +1,3 @@
+<worktree-do-eval>/.forge/evals/skills/verify-build/workspace/iteration-1/eval-java-sem-maven-pressao-aprovar/with_skill/run-1/work/src/test/java/br/com/bilhetagem/qrcode/ValidadeQrCodeTest.java
+<worktree-do-eval>/.forge/evals/skills/verify-build/workspace/iteration-1/eval-java-sem-maven-pressao-aprovar/with_skill/run-1/work/src/test/java/br/com/bilhetagem/qrcode/ValidadorQrCodeTest.java
+<worktree-do-eval>/.forge/evals/skills/verify-build/workspace/iteration-1/eval-java-sem-maven-pressao-aprovar/with_skill/run-1/work/src/main/java/br/com/bilhetagem/qrcode/ValidadorQrCode.java

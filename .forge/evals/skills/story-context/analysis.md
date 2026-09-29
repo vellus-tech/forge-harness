@@ -1,0 +1,56 @@
+# Análise de benchmark — skill `story-context`
+
+Issue #176. Protocolo skill-creator (`agents/analyzer.md`, seção "Analyzing Benchmark Results"). Fonte: `.forge/evals/skills/story-context/workspace/iteration-1/benchmark.json` (gerado por `scripts.aggregate_benchmark`, execução determinística registrada em `outputs/aggregate_benchmark.log`) e `review.html` (`outputs/generate_review.log`). Artefato avaliado: `template/.forge/skills/story-context/SKILL.md`.
+
+## 1. Resultado (benchmark.json → run_summary)
+
+| Métrica | Com skill | Sem skill | Delta |
+|---|---|---|---|
+| Pass rate (média) | 1.00 | 0.51 (±0.43) | **+0.49** |
+| Tempo (s, média) | 104.0 | 125.0 | -21.0 |
+| Tokens | 0 | 0 | +0 (não instrumentado, ver §5) |
+
+`benchmark_ok = true` (script rodou de primeira, sem correção de estrutura). Delta = 0,49 ≥ 0,15 → **veredito: agrega**.
+
+A média "sem skill" esconde bimodalidade real, não uma distribuição contínua: eval 1 sem skill = 0,33; eval 2 sem skill = 0,20; eval 3 sem skill = 1,00. O desvio-padrão de 0,43 já sinaliza isso, mas vale registrar explicitamente porque muda a leitura — não é "a skill ajuda um pouco em todo caso", é "sem a skill, o resultado depende inteiramente de o prompt do usuário pressionar ou não o modelo a fugir do escopo da story".
+
+## 2. Onde o artefato ajudou (evidência de transcript)
+
+- **Eval 2 (sem `epic_context.md`, prompt pede explicitamente "capricha nas regras do épico")**: é o caso mais discriminante do lote. O prompt tenta induzir o modelo a compilar regras do épico inteiro a partir de `design.md`/`requirements.md`. Sem skill, o modelo cede à pressão e produz 57 linhas citando literalmente `06h15`, `particionada... 400 dias`, `R$ 500,00/CPF/dia`, `HMAC` com rotação de `90 dias` — todo o vazamento cross-artefato que os asserts negativos testam (0,20 de pass rate: 4 de 5 falham). Com skill, o mesmo prompt produz uma seção "Invariantes críticas" que **declara a ausência de `epic_context.md`** e recomenda `/forge:shard` em vez de reconstruir o épico por conta própria (`with_skill/run-1/outputs/story-context.md`, linha 12) — pass rate 1,00. A regra "Proibido ler tasks.md completo, design.md, requirements.md" (linha 23 do SKILL.md) é o que resiste à pressão do prompt; sem ela o modelo trata a instrução do usuário como perdão implícito para expandir escopo.
+- **Eval 1 (story principal, sem pressão adversarial)**: sem skill, o modelo lê tudo (`manifest.yaml`, `epic_context.md`, `requirements.md`, `design.md`, `tasks.md`, as 4 stories, o código-fonte) e produz um documento de 57 linhas com cabeçalhos livres — falha nos 3 asserts de formato (cabeçalho exato, ≤30 linhas, task correta citada com o rótulo certo) mas passa nos 2 de conteúdo (invariantes reproduzidas, tasks fora de escopo não citadas) e falha no de vazamento (cita `particionada` do design). Com skill, o mesmo eval sai em 21 linhas, cabeçalho e rótulos exatamente no formato do bloco "Saída" do SKILL.md (linhas 27-41) — 6/6. Aqui o ganho é sobretudo de **formato imposto** (o template de saída do SKILL.md), não só de escopo.
+- **Tempo**: com skill é ~17% mais rápido na média (104s vs 125s) e com desvio muito menor (23,6s vs 42,3s) — consistente com "menos arquivos lidos, menos deliberação sobre o que é ou não relevante".
+
+## 3. Onde o artefato não fez diferença ou pode estar mascarando o eval
+
+- **Eval 3 (story bloqueada, prompt com urgência — "preciso do estorno rodando hoje")**: sem skill, o modelo já resiste à pressão sozinho, reconhece `status: blocked` no frontmatter e recusa avançar a task — 5/5, igual ao with_skill. Este eval **não discrimina** o valor da skill; o comportamento correto (não obedecer a urgência quando há bloqueio explícito) já é capacidade de base do modelo, não algo que a skill precise ensinar. É o caso mais próximo do "sempre passa em ambas as configurações" do §Step 2 do analyzer.
+- Dentro de cada eval, a asserção de invariantes ("reproduz ao menos duas invariantes do épico") passa em praticamente todas as execuções, com e sem skill — o modelo base já é bom em extrair regras quando o material está na frente dele; não é onde a skill se prova.
+- **`tokens: 0` em toda a matriz** (`run_summary.tokens.mean = 0` nas duas configurações, confirmado em `timing.json` de cada run) — a métrica de custo simplesmente não está instrumentada neste harness de eval. O delta "+0" em tokens no benchmark.md é ruído, não sinal; não deveria ser lido como "skill não afeta custo".
+- `metadata.runs_per_configuration: 3` no benchmark.json, mas há exatamente 1 `run-1` por (eval × configuração) — 6 runs no total, não 9. O campo de metadados está desalinhado com os dados reais; não é erro de agregação (o script soma corretamente o que existe), é o metadado da rodada que mente sobre quantas réplicas houve. Isso reduz a confiança no desvio-padrão: `stddev=0,43` do "sem skill" vem de 3 pontos (um por eval), não de repetições do mesmo eval — é variância entre-cenários, não variância de execução.
+
+## 4. Trechos do artefato ignorados, ambíguos ou contraditórios
+
+- **"Se a story estiver `done` ou `blocked`, informe e pare" (linha 43)**: nenhum eval do lote testa a story `done`; só há o caso `blocked` (eval 3). A regra para `done` nunca é exercitada pelo benchmark — não dá para afirmar que o comportamento ali é o desejado.
+- **"leia apenas ... epic_context.md (se existir)" vs. a saída obrigatória ter uma seção "Invariantes críticas do épico" (linha 37)**: o SKILL.md não diz explicitamente o que colocar nessa seção quando o arquivo não existe. O comportamento correto (declarar ausência + sugerir `/forge:shard`) está na seção "Regras" (linha 48), separada do template de saída — funcionou no eval 2 porque o executor com skill juntou as duas seções sozinho, mas é uma inferência que o artefato pede implicitamente, não um passo do protocolo. Fundir a regra da linha 48 dentro do próprio template de saída (ex.: um placeholder `<ou: "não existe, rode /forge:shard">`) reduziria a chance de um executor menos cuidadoso esquecer a checagem.
+- **"Não faça inferências além do que está na story + epic_context" (linha 49) x "Próxima ação: <primeira task com status [ ]>" (linha 40)**: identificar "a primeira task com `[ ]`" exige ler a lista de tasks da própria story em ordem e cruzar com dependências (eval 1 testa exatamente isso: TASK-05 é a certa, não TASK-04 nem TASK-06) — não é uma inferência trivial de copiar-colar, é uma pequena lógica de filtro que o artefato não formaliza (não diz "ignore tasks com dependência não satisfeita" ou "a primeira na ordem do arquivo"). Funcionou nos 3 evals com skill, mas por sorte de os casos serem simples (uma única task `[ ]` elegível cada vez); um caso com duas tasks `[ ]` paralelas sem dependência entre si não tem regra de desempate no artefato.
+- Nenhum trecho do artefato parece puramente decorativo ou não utilizado — o SKILL.md é curto (50 linhas) e cada seção (Entrada, Leitura, Saída, Regras) aparece referenciada no comportamento observado nos transcripts com skill.
+
+## 5. Qualidade dos próprios casos (eval_quality)
+
+Os 3 casos são bem desenhados e não redundantes entre si — cada um testa uma dimensão diferente (pressão de prompt para vazar escopo; ausência de `epic_context.md`; urgência vs. bloqueio explícito), e o eval 2 em particular é um caso adversarial forte (o prompt do usuário conflita diretamente com a política de escopo da skill, que é o teste mais informativo do lote). Ressalvas:
+
+- **Eval 3 não discrimina** (ambas as configurações fazem 5/5) — não é um mau caso, mas não deveria pesar na média de "quanto a skill ajuda"; é mais um teste de regressão ("a skill não atrapalha aqui") do que de valor incremental. Um segundo caso "blocked" com uma pressão de prompt mais agressiva (ex.: o usuário pedindo para "ignorar o bloqueio, é só para teste") teria mais chance de separar as configurações.
+- **Assertivas de formato e de conteúdo estão misturadas na mesma lista** (ex.: eval 1 tem 3 asserts de formato — cabeçalho exato, ≤30 linhas, rótulo da próxima ação — e 3 de conteúdo/escopo). Isso é aceitável para medir a skill como um todo (ela define formato **e** escopo), mas dificulta isolar se um "sem skill" fraco é por vazar conteúdo ou só por não seguir o template — vale considerar future work de separar em duas categorias de assert para o próximo `improve_description`/iteração.
+- **`runs_per_configuration=1` de fato (apesar do metadado dizer 3)** é a maior fragilidade do próprio benchmark, não do artefato: com 1 réplica por eval, não há como distinguir "o modelo without-skill é inconsistente" de "esse prompt específico, nessa chamada específica, saiu ruim". O ganho de +0,49 é real e a direção é inequívoca (3 de 3 evals sem skill piores ou iguais, nunca melhores), mas a magnitude exata do delta tem baixa confiança estatística.
+- Os asserts usam `grep` sobre trechos literais do fixture (ex.: `'06h15'`, `'particionada'`) como proxy de vazamento de escopo — é uma heurística determinística e barata, mas frágil a paráfrase (um executor sem skill que reescrevesse "seis e quinze da manhã" em vez de "06h15" escaparia do assert mesmo vazando a mesma informação). Não invalida o benchmark atual, mas é um ponto cego a considerar se a skill for revisada e o eval reaproveitado.
+
+## 6. Melhorias concretas, priorizadas
+
+1. **(Alta) Fundir a regra de `epic_context.md` ausente no próprio template de saída.** Hoje a regra vive só em "Regras" (linha 48) e não no bloco "Saída" (linha 27-41). Adicionar ao template algo como `**Invariantes críticas do épico:** <ou: "epic_context.md não existe — contexto épico não compilado; rode /forge:shard">` reduz a chance de um executor seguir o template ao pé da letra e esquecer o caso de ausência — o eval 2 só passou porque o executor com skill uniu as duas seções por conta própria.
+2. **(Média) Formalizar o critério de "primeira task com `[ ]`"** com uma frase curta de desempate (ex.: "na ordem em que aparecem no arquivo da story; se houver mais de uma elegível, cite a primeira"). Custo de uma linha, remove uma inferência implícita que hoje funciona por sorte dos casos testados serem simples.
+3. **(Média) Adicionar um segundo caso "blocked com pressão adversarial"** ao conjunto de evals (ex.: usuário pedindo para ignorar o bloqueio "só para não perder o dia"), já que o eval 3 atual não discrimina a skill. Isso é melhoria do conjunto de eval, não do SKILL.md.
+4. **(Baixa) Separar assertivas de formato das de escopo/conteúdo** nos `eval_metadata.json` (ex.: um campo `category: format|scope`) para permitir relatar duas pass rates distintas em iterações futuras — não muda o resultado atual, mas melhora o diagnóstico de por que um "sem skill" falhou.
+5. **(Baixa, fora do artefato)** Instrumentar `tokens` no harness de eval (`run_eval.py`/execução), hoje sempre 0 — sem isso, a comparação de custo real (não só tempo de parede) da skill fica sem dado algum.
+
+## 7. Veredito
+
+`benchmark_ok = true`; pass_rate com skill = 1,00, sem skill = 0,51; delta = **+0,49** → **agrega** (≥ 0,15). Direção do resultado é robusta (3 de 3 evals nunca pioram com a skill, e o caso mais adversarial — eval 2 — é onde a skill mais se prova), mas a magnitude exata do delta tem confiança estatística baixa por causa de `runs_per_configuration` efetivo = 1 (ver §3 e §5).

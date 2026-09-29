@@ -1,0 +1,74 @@
+{
+  "expectations": [
+    {
+      "text": "review/python-reviewer.json é JSON válido com a chave `reviewer` igual a \"python-reviewer\" e uma lista `findings` em que todo item tem `id`, `severity` (BLOCKER|HIGH|MEDIUM|LOW), `category`, `file`, `line` numérico e `description` — não é um markdown livre nem um JSON com outro formato",
+      "passed": false,
+      "evidence": "Checagem por comando: jq -c '{r:.reviewer, ok:([.findings[] | (has(\"id\") and has(\"category\") and has(\"description\") and (.line|type==\"number\") and (.severity|IN(\"BLOCKER\",\"HIGH\",\"MEDIUM\",\"LOW\")))] | all)}' <review>. Resultado em outputs/python-reviewer.json: reviewer=\"python-reviewer\", mas ok=false. Nenhum dos 9 findings tem `id`, `category` ou `description`: o executor usou `scenario`/`recommendation` e acrescentou as chaves de topo `target`/`summary`. As severidades estão fora do enum (\"critical\",\"high\",\"medium\",\"low\" em minúsculas, e \"critical\" não existe no contrato). É um JSON com outro formato."
+    },
+    {
+      "text": "Há um finding com file app/recargas/router.py e line 24 (ou intervalo que inclua 24) apontando `requests.post` síncrono dentro da rota `async def criar_recarga` como chamada bloqueante no event loop, sugerindo cliente assíncrono (ex.: httpx.AsyncClient, já no pyproject) ou execução fora do loop",
+      "passed": true,
+      "evidence": "Finding nas linhas 20-26: file app/recargas/router.py, line 24, severity high. Cenário: \"O endpoint é `async def`, mas usa `requests.post` (bloqueante)... trava a event loop\"; recomendação: \"Usar um cliente HTTP assíncrono (ex.: `httpx.AsyncClient`)... ou... threadpool (`run_in_executor`)\". A linha confere com o grep no HEAD (24)."
+    },
+    {
+      "text": "Há um finding com severidade BLOCKER ou HIGH em app/recargas/router.py linha 23 apontando que `settings.gateway_api_key` é escrito no log",
+      "passed": true,
+      "evidence": "Finding nas linhas 13-19: file app/recargas/router.py, line 23, severity \"high\", cenário \"`logger.info(...)` grava `settings.gateway_api_key` em texto claro no log\". Arquivo e linha conferem (grep no HEAD devolve 23) e o nível é HIGH, embora grafado em minúsculas; o descasamento de enum já foi cobrado na asserção 1."
+    },
+    {
+      "text": "Há um finding sobre GET /recargas/{recarga_id} (router.py, linhas 33 a 40) apontando que a consulta não filtra por `usuario_id` (acesso a recarga de outro usuário) E que não existe teste de ownership para o endpoint em tests/",
+      "passed": false,
+      "evidence": "O finding de IDOR (linhas 41-47, router.py line 39, dentro de 33-40) aponta a ausência de filtro por `usuario_id`, mas não diz nada sobre falta de teste de ownership. Isso só aparece num finding separado, em tests/test_recargas.py line 7 (linhas 62-68: \"Não há teste... para IDOR\"). A asserção exige um finding sobre o GET com as duas coisas (E); como estão separadas e o finding do GET não cita teste, falha pelo critério estrito."
+    },
+    {
+      "text": "Há um finding em alembic/versions/0002_valor_em_centavos.py (linhas 10-11) que cita `schema-evolution` (em `rule_violated` ou na descrição) e aponta a remoção de `valor` com criação de `valor_centavos` NOT NULL no mesmo passo como mudança destrutiva sem expand/backfill/contract ou com perda dos valores existentes",
+      "passed": false,
+      "evidence": "Finding nas linhas 6-12: file alembic/versions/0002_valor_em_centavos.py, line 10, severity critical. Descreve bem o drop de `valor` seguido de add NOT NULL sem backfill e a perda do dado financeiro, mas não cita `schema-evolution` em lugar nenhum, e não existe campo `rule_violated`. jq sobre description/scenario/rule_violated casando \"schema-evolution\" devolve 0. A asserção exige essa citação."
+    },
+    {
+      "text": "Nenhum finding tem `file` apontando para app/legado/relatorio.py (o SQL por f-string pré-existente fora do diff não entra na revisão), e `git -C <alvo> status --porcelain -- app/ alembic/ tests/` sai vazio",
+      "passed": true,
+      "evidence": "jq '[.findings[]|select(.file|test(\"legado\"))]|length' devolve 0. `git -C without_skill/run-1/work status --porcelain -- app/ alembic/ tests/` sai vazio (rc=0). Transcript, passo 6/Decisões: abriu app/legado/relatorio.py só para confirmar que está fora do diff e não o reportou."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 3,
+    "total": 6,
+    "pass_rate": 0.5
+  },
+  "timing": {
+    "executor_duration_seconds": 179,
+    "total_duration_seconds": 179
+  },
+  "claims": [
+    {
+      "claim": "Validou o JSON com python3 json.load",
+      "type": "process",
+      "verified": true,
+      "evidence": "jq lê o arquivo sem erro; o JSON é válido, mas o formato diverge do contrato"
+    },
+    {
+      "claim": "Sete achados (transcript passo 8)",
+      "type": "factual",
+      "verified": false,
+      "evidence": "o arquivo tem 9 findings (jq length=9)"
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Há um finding com file app/recargas/router.py e line 24 (ou intervalo que inclua 24) apontando `requests.post` síncrono dentro da rota `async def criar_recarga` como chamada bloqueante no event loop, sugerindo cliente assíncrono (ex.: httpx.AsyncClient, já no pyproject) ou execução fora do loop",
+        "reason": "Na configuração com a skill, a asserção separou bem o finding certo com âncora errada (line 20 em vez de 24). Mas a asserção 2 e a 3 derrubam o mesmo defeito sistemático (deslocamento de -4 linhas) duas vezes. Vale uma asserção própria de precisão de âncora (todas as `line` batem com o grep no HEAD) para não contar o mesmo erro em dobro nas asserções de conteúdo."
+      },
+      {
+        "assertion": "Há um finding sobre GET /recargas/{recarga_id} (router.py, linhas 33 a 40) apontando que a consulta não filtra por `usuario_id` (acesso a recarga de outro usuário) E que não existe teste de ownership para o endpoint em tests/",
+        "reason": "O critério de um único finding com as duas metades (filtro + teste) penaliza quem reporta a falta de teste num finding próprio em tests/, que é uma organização legítima. Sugiro aceitar a ausência de teste de ownership em qualquer finding."
+      },
+      {
+        "reason": "Nenhuma asserção cobre o payload `dict[str, Any]` sem justificativa, que está no expected_output. As duas configurações reportaram esse ponto, então hoje ele não discrimina, mas continua descoberto."
+      }
+    ],
+    "overall": "As asserções de contrato (1) e de citação de regra (5) são as que realmente discriminam a skill. As de conteúdo com âncora de linha (2, 3) punem com rigor um erro de linha real, que é relevante para o code-evaluator."
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "skill": "chargeback-resposta",
+  "cases": [
+    {
+      "id": "TC-01",
+      "prompt": "Monte a resposta à disputa 7719203 da Mastercard (reason code 4837, transação de R$ 1.249,00 em 2026-08-30, bilhete mensal de transporte com uso registrado em 14 validações).",
+      "expectations": [
+        "Identificou o reason code 4837 como fraude sem autorização do portador",
+        "Anexou como evidência o histórico das 14 validações do bilhete",
+        "Informou o prazo de resposta de 2026-10-14"
+      ],
+      "output_A": "Seguindo a skill chargeback-resposta, preparei a contestação da disputa 7719203. Recomendo aceitar o chargeback, pois o valor é baixo e o custo operacional de contestar supera o ganho. Nenhuma evidência adicional necessária.",
+      "output_B": "Disputa 7719203 (Mastercard, reason code 4837 — fraude, portador nega ter autorizado). Evidências a anexar: comprovante da transação de 2026-08-30 e o histórico das 14 validações do bilhete mensal, que demonstram uso contínuo pelo portador. Prazo para resposta: 2026-10-14."
+    },
+    {
+      "id": "TC-02",
+      "prompt": "Monte a resposta à disputa 7720518 da Visa (reason code 13.1, mercadoria não recebida, cartão recarregável entregue por correio em 2026-09-02).",
+      "expectations": [
+        "Identificou o reason code 13.1 como mercadoria/serviço não recebido",
+        "Incluiu o comprovante de entrega dos Correios como evidência",
+        "Informou o prazo de resposta"
+      ],
+      "output_A": "Disputa 7720518 (Visa, reason code 13.1 — mercadoria não recebida). Evidências: comprovante de entrega dos Correios, código de rastreio QB512873940BR, entregue em 2026-09-02 às 14h12 com assinatura do destinatário. Prazo de resposta: 2026-10-08.",
+      "output_B": "Disputa 7720518 (Visa, reason code 13.1 — mercadoria não recebida). Evidências: comprovante de entrega dos Correios. Prazo de resposta: 2026-10-08."
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+# Gates — TASK-02 (2026-09-validacao-pan)
+
+## Gates declarados no runtime (.forge/scripts/run-gates.sh)
+  (nenhum gate declarado em runtime.gates do FORGE.md — nada a executar)
+  NO-GATES (exit 0)
+
+Como runtime.gates está vazio no FORGE.md deste projeto, não há gate automatizado
+cadastrado para este change. Verificação de aceite feita manualmente abaixo.
+
+## Critério de aceite (smoke)
+Comando: node bin/validar-pan.js 4111111111111112
+Esperado: exit code 2 (PAN de teste com dígito verificador Luhn inválido — NÃO é
+o caso de sucesso, o smoke prova rejeição, não passagem).
+
+Resultado observado:
+  $ node bin/validar-pan.js 4111111111111112
+  PAN inválido (Luhn)
+  $ echo $?
+  2
+
+PASS — bin/validar-pan.js já implementa o contrato corretamente (comentário no
+topo do arquivo documenta os códigos de saída: 0 válido, 2 inválido, 64 uso
+incorreto). Nenhum ajuste de código foi necessário.
+
+## Verificações complementares
+- node --check bin/validar-pan.js -> sintaxe OK
+- PAN válido de controle (4111111111111111, Luhn correto) -> exit 0, "PAN válido"
+- Uso incorreto (argumento não numérico) -> exit 64, mensagem de uso em stderr
+- config/bins.yaml (TASK-01) -> presente, 2 BINs (visa/mastercard), tokenizavel: true
+- docs/fluxo-tokenizacao.md -> presente, contém diagrama mermaid (flowchart LR)
+  descrevendo Luhn -> válido? -> tokeniza (sim) / rejeita com código 2 (não).
+  Consistente com o comportamento observado do CLI.
+
+## Veredito agregado
+TASK-02: PASS (critério de aceite — exit 2 para PAN Luhn-inválido — confirmado
+por execução direta; nenhum gate automatizado estava cadastrado para o change,
+então a verificação foi manual, registrada aqui).

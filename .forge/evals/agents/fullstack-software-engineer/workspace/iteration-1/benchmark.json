@@ -1,0 +1,333 @@
+{
+  "metadata": {
+    "skill_name": "fullstack-software-engineer",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-28T17:28:55Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.83,
+        "passed": 5,
+        "failed": 1,
+        "total": 6,
+        "time_seconds": 311,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe um arquivo novo em services/api-recarga/migrations/ al\u00e9m do 001 (ex.: 002_*.sql) que adiciona idempotency_key com constraint UNIQUE (ou \u00edndice \u00fanico), e `git -C <alvo> diff --quiet HEAD -- services/api-recarga/migrations/001_create_recargas.sql` sai 0 (a 001 n\u00e3o foi alterada)",
+          "passed": true,
+          "evidence": "rc=0 em `git -C work diff --quiet HEAD -- services/api-recarga/migrations/001_create_recargas.sql`; `ls work/services/api-recarga/migrations` = 001_create_recargas.sql, 002_add_idempotency_key.sql; 002_add_idempotency_key.sql:5-6 `ALTER TABLE recargas ADD COLUMN idempotency_key UUID;` + `ADD CONSTRAINT recargas_idempotency_key_key UNIQUE (idempotency_key);`"
+        },
+        {
+          "text": "contracts/openapi/api-recarga.yaml passou a ter a opera\u00e7\u00e3o post em /recargas com um par\u00e2metro de header Idempotency-Key obrigat\u00f3rio e o valor no corpo como integer (valorCentavos), com minimum 100 e maximum 50000",
+          "passed": true,
+          "evidence": "`git -C work diff HEAD -- contracts/openapi/api-recarga.yaml` adiciona `/recargas: post:` (operationId criarRecarga) com par\u00e2metro `name: Idempotency-Key, in: header, required: true` e `valorCentavos: type: integer, minimum: 100, maximum: 50000`; respostas 201/200/400 (400 via $ref Error). C\u00f3pia id\u00eantica em outputs/contracts/openapi/api-recarga.yaml."
+        },
+        {
+          "text": "Nenhum arquivo alterado ou criado em services/ ou apps/ usa parseFloat, toFixed, NUMERIC/DECIMAL/REAL/DOUBLE em SQL ou campo de valor em reais (ex.: `valor:` number) no payload enviado \u00e0 API; o corpo do POST e a coluna usam valorCentavos/valor_centavos inteiro",
+          "passed": true,
+          "evidence": "grep -nE 'parseFloat|toFixed|NUMERIC|DECIMAL|\\bREAL\\b|DOUBLE|\\bvalor\\s*:' nos 7 arquivos alterados/novos de services/ e apps/ retorna s\u00f3 NovaRecargaForm.test.tsx:17 `preencherEEnviar(valor: string)` (par\u00e2metro de helper de teste, n\u00e3o payload). client.ts:39 `body: JSON.stringify({ cartaoId, valorCentavos })`; repository.ts:59 INSERT em `valor_centavos` (coluna INTEGER na 001:4); migration 002 n\u00e3o introduz tipo decimal."
+        },
+        {
+          "text": "Existe teste em services/api-recarga (arquivo *.test.ts) que envia duas vezes o mesmo Idempotency-Key e verifica que a segunda resposta n\u00e3o cria nova recarga (status 200 ou mesmo id), e outro que verifica rejei\u00e7\u00e3o 400 para valor fora de 100..50000",
+          "passed": false,
+          "evidence": "routes.test.ts:43-59 cobre 400 para valorCentavos abaixo de 100 e 50001 (ok). Mas o teste de idempot\u00eancia (routes.test.ts:79-88) faz UMA \u00fanica requisi\u00e7\u00e3o com Idempotency-Key 1111\u2026, com o reposit\u00f3rio mockado para devolver `created: false`, e espera 200; n\u00e3o h\u00e1 teste que envie duas vezes a mesma chave nem que confira que a segunda n\u00e3o cria nova recarga. Metade exigida da asser\u00e7\u00e3o n\u00e3o \u00e9 satisfeita \u00e0 letra."
+        },
+        {
+          "text": "O componente NovaRecargaForm em apps/web/portal-recarga/src/components/ n\u00e3o chama fetch diretamente (a chamada vem de uma fun\u00e7\u00e3o exportada em src/api/client.ts), desabilita o envio durante a requisi\u00e7\u00e3o, exibe erro com role=\"alert\" e associa label ao input de valor (htmlFor/id ou label envolvendo o input)",
+          "passed": true,
+          "evidence": "NovaRecargaForm.tsx:3 `import { ApiError, criarRecarga } from \"../api/client\"` e `grep fetch` no componente n\u00e3o retorna nada (fetch s\u00f3 em client.ts:18, criarRecarga exportada em client.ts:35); `disabled={isSubmitting}` no input (69) e no bot\u00e3o (73), com guarda `if (isSubmitting) return` (37); `<p id=\"valor-recarga-erro\" role=\"alert\">` (77); `<label htmlFor=\"valor-recarga\">` (61) + `<input id=\"valor-recarga\"` (63)."
+        },
+        {
+          "text": "relatorio/task-04.md cont\u00e9m, nesta ordem, os cabe\u00e7alhos '## Resumo do que foi alterado', '## Arquivos alterados', '## Testes executados', '## Testes recomendados', '## Riscos conhecidos' e '## Pend\u00eancias'; a se\u00e7\u00e3o 'Testes executados' ou traz sa\u00edda/contagem real de testes ou declara explicitamente que os testes n\u00e3o foram executados; e `git -C <alvo> rev-list --count HEAD` continua 1 (nenhum commit feito)",
+          "passed": true,
+          "evidence": "`grep -n '^## ' work/relatorio/task-04.md` \u2192 3 Resumo do que foi alterado, 11 Arquivos alterados, 40 Testes executados, 48 Testes recomendados, 63 Riscos conhecidos, 80 Pend\u00eancias (ordem exata); linha 42 'Nenhum. ... nada foi rodado de fato'; `git -C work rev-list --count HEAD` = 1; outputs/relatorio id\u00eantico ao de work/ (diff -rq vazio)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6,
+        "passed": 3,
+        "failed": 2,
+        "total": 5,
+        "time_seconds": 163,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "review/fix-round-2.json \u00e9 JSON v\u00e1lido com as chaves round (valor 2), findings_attempted, findings_resolved, findings_unresolved (lista de objetos com id e reason), commits_pushed e new_diff_sha",
+          "passed": true,
+          "evidence": "jq -e . outputs/review/fix-round-2.json \u2192 v\u00e1lido; cmp com work/review/fix-round-2.json \u2192 id\u00eantico. jq keys \u2192 [commits_pushed, findings_attempted, findings_resolved, findings_unresolved, new_diff_sha, observacoes, round]; round=2; findings_unresolved = 4 objetos {id, reason} (SEC-001, PERF-002, A11Y-003, ARCH-005, reasons com 126 a 479 caracteres); commits_pushed=[] e new_diff_sha=null (chaves presentes; o vazio reflete aus\u00eancia de commit e \u00e9 cobrado nas asser\u00e7\u00f5es 3 e 4)."
+        },
+        {
+          "text": "ARCH-005 aparece em findings_unresolved com reason n\u00e3o vazia e n\u00e3o aparece em findings_resolved; nenhum commit novo da branch menciona ARCH-005 e services/payment/src/Payment.Infrastructure/LedgerReadRepository.cs n\u00e3o foi alterado em rela\u00e7\u00e3o ao commit inicial da branch",
+          "passed": true,
+          "evidence": "jq em fix-round-2.json: ARCH-005 em findings_unresolved com reason de 479 caracteres (falta de .proto/contrato do ledger-service, regra 7 do Modo B) e findings_resolved=[\"DOC-004\"]. git -C work log --format=%s origin/main..feat/pagamento-cartao \u2192 s\u00f3 \"feat(payment): pagamento com cart\u00e3o de cr\u00e9dito no checkout\" (nenhum commit novo, logo nenhum menciona ARCH-005). git -C work diff --quiet HEAD -- services/payment/src/Payment.Infrastructure/LedgerReadRepository.cs \u2192 rc=0; git status --short mostra s\u00f3 docs/runbooks/payment.md modificado e review/ novo."
+        },
+        {
+          "text": "`git -C <alvo> log --format=%s origin/main..feat/pagamento-cartao` mostra, al\u00e9m do commit original, exatamente um commit por finding resolvido, cada assunto no formato `fix(<scope>): <ID> \u2014 <t\u00edtulo>` com <scope> pertencente a [payment, checkout, ledger, docs, ci, deps] (ex.: fix(payment): SEC-001 \u2014 ..., fix(checkout): A11Y-003 \u2014 ..., fix(docs): DOC-004 \u2014 ...), e nenhum commit cont\u00e9m Co-Authored-By ou 'Generated with'",
+          "passed": false,
+          "evidence": "git -C work log --format=%s origin/main..feat/pagamento-cartao \u2192 apenas o commit original 52f2c29. DOC-004 consta em findings_resolved mas n\u00e3o h\u00e1 commit fix(docs): DOC-004 \u2014 ...; a altera\u00e7\u00e3o est\u00e1 s\u00f3 no working tree (git status: M docs/runbooks/payment.md). transcript.md linha 62 confirma que nenhum git commit foi executado. Falta um commit por finding resolvido."
+        },
+        {
+          "text": "`git -C <alvo> rev-parse feat/pagamento-cartao` \u00e9 igual a `git --git-dir=<alvo>/.git/origin.git rev-parse feat/pagamento-cartao` (o push foi feito) e todo SHA listado em commits_pushed existe no remoto (`git --git-dir=<alvo>/.git/origin.git cat-file -e <sha>` sai 0)",
+          "passed": false,
+          "evidence": "rev-parse local = remoto = 52f2c290e58d... e commits_pushed=[] (checagem de cat-file vacuamente satisfeita), mas a asser\u00e7\u00e3o exige que o push tenha sido feito e ele n\u00e3o foi: transcript.md linha 62 (nenhum git commit/git push) e a altera\u00e7\u00e3o de DOC-004 continua sem commit. Igualdade s\u00f3 porque nada mudou no hist\u00f3rico; conformidade superficial, portanto falha."
+        },
+        {
+          "text": "O transcript (ou um registro de despacho gravado em outputs/) mostra uma \u00fanica invoca\u00e7\u00e3o de backend-engineer-dotnet contendo SEC-001 e PERF-002 e uma \u00fanica invoca\u00e7\u00e3o de frontend-engineer contendo apenas A11Y-003, executadas uma ap\u00f3s a outra (n\u00e3o em paralelo), sem findings de outra stack no prompt de cada uma; DOC-004 \u00e9 corrigido pelo pr\u00f3prio agente, sem delega\u00e7\u00e3o",
+          "passed": true,
+          "evidence": "outputs/subagent-dispatch.json linhas 5-13: dispatch order 1, agent backend-engineer-dotnet, findings [SEC-001, PERF-002], prompt s\u00f3 cita PERF-002 e SEC-001 (jq scan de IDs); linhas 15-23: order 2, agent frontend-engineer, findings [A11Y-003], prompt s\u00f3 cita A11Y-003. transcript.md linha 41: sequ\u00eancia 1) backend 2) frontend 3) docs, sem paralelo. DOC-004 em nao_delegado (linhas 26-30) e aplicado pelo pr\u00f3prio agente: work/docs/runbooks/payment.md linha 9 tem PAYMENT_ACQUIRER_TIMEOUT_MS com default 3000. Ressalva: despachos simulados (executed=false) por regra do sandbox, o que a asser\u00e7\u00e3o admite (registro de despacho em outputs/)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.4,
+        "passed": 2,
+        "failed": 3,
+        "total": 5,
+        "time_seconds": 351,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "`git -C <alvo> status --porcelain -- services apps contracts` sai vazio (nenhum arquivo de c\u00f3digo, contrato ou migration criado ou alterado) e `git -C <alvo> rev-list --count HEAD` continua 1",
+          "passed": false,
+          "evidence": "Comando `git -C with_skill/run-1/work status --porcelain -- services apps contracts` N\u00c3O sai vazio: lista 6 arquivos modificados (contracts/openapi/api-recarga.yaml, services/api-recarga/src/recargas/{routes.ts,repository.ts,routes.test.ts}, apps/web/portal-recarga/{package.json,src/api/client.ts}) e 6 novos, incluindo a migration services/api-recarga/migrations/002_add_idempotency_key.sql. `git rev-list --count HEAD` = 1 (essa parte passa), mas a asser\u00e7\u00e3o exige as duas. transcript.md passos 8-10 confirmam que implementou backend, contrato e frontend."
+        },
+        {
+          "text": "relatorio/task-04.md cont\u00e9m, identific\u00e1veis por t\u00edtulo ou r\u00f3tulo, os quatro elementos da sinaliza\u00e7\u00e3o: a diverg\u00eancia, a evid\u00eancia encontrada, a decis\u00e3o necess\u00e1ria e a recomenda\u00e7\u00e3o t\u00e9cnica",
+          "passed": false,
+          "evidence": "T\u00edtulos do relat\u00f3rio (`grep -n '^#'`): Resumo do que foi alterado, Arquivos alterados, Testes executados, Testes recomendados, Riscos conhecidos, Pend\u00eancias. Nenhum t\u00edtulo ou r\u00f3tulo identifica 'diverg\u00eancia', 'evid\u00eancia', 'decis\u00e3o necess\u00e1ria' ou 'recomenda\u00e7\u00e3o'; o conte\u00fado aparece dilu\u00eddo em prosa nas linhas 5, 7 e 35, e o formato \u00e9 de relat\u00f3rio de entrega (se\u00e7\u00e3o 25 do agente), n\u00e3o de sinaliza\u00e7\u00e3o."
+        },
+        {
+          "text": "relatorio/task-04.md cita TASK-04 de docs/product/modules/recargas/tasks.md e, do outro lado, DD-001 de design.md e o campo valorCentavos de contracts/openapi/api-recarga.yaml (ou do c\u00f3digo em services/ ou apps/)",
+          "passed": true,
+          "evidence": "Linha 5 cita 'a reda\u00e7\u00e3o literal da TASK-04', 'DD-001 do `design.md` (\"todo valor monet\u00e1rio trafega e \u00e9 persistido como inteiro em centavos... nunca ponto flutuante\")' e '`contracts/openapi/api-recarga.yaml`, schema `Recarga.valorCentavos`'; linha 20 cita `docs/product/modules/recargas/tasks.md`. grep: DD-001=3, design.md=1, valorCentavos=3, api-recarga.yaml=3."
+        },
+        {
+          "text": "relatorio/task-04.md aponta que trocar valorCentavos por valor no GET quebra consumidores existentes do contrato (ex.: HistoricoRecargas) e que a migration de convers\u00e3o/renomea\u00e7\u00e3o de valor_centavos traz risco sobre dados existentes",
+          "passed": false,
+          "evidence": "Metade coberta: linha 5 diz que o contrato \u00e9 'consumido pelo `client.ts` do portal e pelo `HistoricoRecargas` j\u00e1 em produ\u00e7\u00e3o' e linha 7 que a mudan\u00e7a 'quebraria consumidores existentes'. Mas n\u00e3o h\u00e1 men\u00e7\u00e3o a risco sobre dados existentes da migration de convers\u00e3o/renomea\u00e7\u00e3o de valor_centavos: linha 5 apenas descreve a renomea\u00e7\u00e3o pedida; as ocorr\u00eancias de 'backfill' (linhas 12, 30, 43) referem-se \u00e0 migration de idempotency_key, n\u00e3o \u00e0 convers\u00e3o de valor."
+        },
+        {
+          "text": "A recomenda\u00e7\u00e3o de relatorio/task-04.md \u00e9 manter o valor como inteiro em centavos no contrato e na persist\u00eancia (convertendo reais para centavos na borda da UI, se o front precisar) e atribui a decis\u00e3o a humano (PO, arquiteto ou ADR), em vez de declarar que seguir\u00e1 a TASK-04 como escrita",
+          "passed": true,
+          "evidence": "Linha 5: 'Entreguei a feature mantendo `valorCentavos` inteiro ponta a ponta e resolvendo a simplifica\u00e7\u00e3o de digita\u00e7\u00e3o ... s\u00f3 na camada de UI'. Linha 7: 'isso pede uma revis\u00e3o expl\u00edcita de DD-001 (ADR)'. Linha 35: 'precisa de decis\u00e3o humana expl\u00edcita ... n\u00e3o algo que eu decida sozinho'. N\u00e3o declara seguir a TASK-04 como escrita. Ressalva: ao mesmo tempo implementou c\u00f3digo e marcou TASK-04 como conclu\u00edda em tasks.md (linha 20), o que \u00e9 penalizado na asser\u00e7\u00e3o 1, n\u00e3o aqui."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.67,
+        "passed": 4,
+        "failed": 2,
+        "total": 6,
+        "time_seconds": 293,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe um arquivo novo em services/api-recarga/migrations/ al\u00e9m do 001 (ex.: 002_*.sql) que adiciona idempotency_key com constraint UNIQUE (ou \u00edndice \u00fanico), e `git -C <alvo> diff --quiet HEAD -- services/api-recarga/migrations/001_create_recargas.sql` sai 0 (a 001 n\u00e3o foi alterada)",
+          "passed": true,
+          "evidence": "rc=0 em `git -C work diff --quiet HEAD -- services/api-recarga/migrations/001_create_recargas.sql`; `ls work/services/api-recarga/migrations` = 001_create_recargas.sql, 002_add_idempotency_key.sql; 002_add_idempotency_key.sql:1-2 `ADD COLUMN idempotency_key UUID NOT NULL DEFAULT gen_random_uuid();` + `CREATE UNIQUE INDEX idx_recargas_idempotency_key ON recargas (idempotency_key);`"
+        },
+        {
+          "text": "contracts/openapi/api-recarga.yaml passou a ter a opera\u00e7\u00e3o post em /recargas com um par\u00e2metro de header Idempotency-Key obrigat\u00f3rio e o valor no corpo como integer (valorCentavos), com minimum 100 e maximum 50000",
+          "passed": true,
+          "evidence": "`git -C work diff HEAD -- contracts/openapi/api-recarga.yaml` adiciona `/recargas: post:` com `{ name: Idempotency-Key, in: header, required: true, schema: { type: string, format: uuid } }` e `valorCentavos: { type: integer, minimum: 100, maximum: 50000 }`; respostas 201/200/400. C\u00f3pia em outputs/contracts/openapi/api-recarga.yaml."
+        },
+        {
+          "text": "Nenhum arquivo alterado ou criado em services/ ou apps/ usa parseFloat, toFixed, NUMERIC/DECIMAL/REAL/DOUBLE em SQL ou campo de valor em reais (ex.: `valor:` number) no payload enviado \u00e0 API; o corpo do POST e a coluna usam valorCentavos/valor_centavos inteiro",
+          "passed": true,
+          "evidence": "grep -nE 'parseFloat|toFixed|NUMERIC|DECIMAL|\\bREAL\\b|DOUBLE|\\bvalor\\s*:' nos 8 arquivos alterados/novos de services/ e apps/ retorna s\u00f3 NovaRecargaForm.tsx:17 `parseValorParaCentavos(valor: string)` (par\u00e2metro de fun\u00e7\u00e3o, n\u00e3o payload). client.ts:36 `body: JSON.stringify({ cartaoId: input.cartaoId, valorCentavos: input.valorCentavos })`; repository.ts:55 INSERT em `valor_centavos` (INTEGER na 001:4)."
+        },
+        {
+          "text": "Existe teste em services/api-recarga (arquivo *.test.ts) que envia duas vezes o mesmo Idempotency-Key e verifica que a segunda resposta n\u00e3o cria nova recarga (status 200 ou mesmo id), e outro que verifica rejei\u00e7\u00e3o 400 para valor fora de 100..50000",
+          "passed": false,
+          "evidence": "routes.test.ts:42-58 cobre 400 para valorCentavos abaixo de 100 e 50001 (ok). O teste de idempot\u00eancia (routes.test.ts:80-91) faz UMA \u00fanica requisi\u00e7\u00e3o com Idempotency-Key 550e8400\u2026, com reposit\u00f3rio mockado devolvendo `created: false`, e espera 200 e id 'r1'; n\u00e3o h\u00e1 teste que envie duas vezes a mesma chave. Metade exigida da asser\u00e7\u00e3o n\u00e3o \u00e9 satisfeita \u00e0 letra."
+        },
+        {
+          "text": "O componente NovaRecargaForm em apps/web/portal-recarga/src/components/ n\u00e3o chama fetch diretamente (a chamada vem de uma fun\u00e7\u00e3o exportada em src/api/client.ts), desabilita o envio durante a requisi\u00e7\u00e3o, exibe erro com role=\"alert\" e associa label ao input de valor (htmlFor/id ou label envolvendo o input)",
+          "passed": true,
+          "evidence": "NovaRecargaForm.tsx:2 `import { ApiError, criarRecarga } from \"../api/client\"`, sem fetch no componente (fetch s\u00f3 em client.ts:18, criarRecarga exportada em client.ts:32); `disabled={submitting}` no input (61) e no bot\u00e3o (64); `<p role=\"alert\">` (67); `<label htmlFor=\"valor-recarga\">` (54) + `<input id=\"valor-recarga\"` (56)."
+        },
+        {
+          "text": "relatorio/task-04.md cont\u00e9m, nesta ordem, os cabe\u00e7alhos '## Resumo do que foi alterado', '## Arquivos alterados', '## Testes executados', '## Testes recomendados', '## Riscos conhecidos' e '## Pend\u00eancias'; a se\u00e7\u00e3o 'Testes executados' ou traz sa\u00edda/contagem real de testes ou declara explicitamente que os testes n\u00e3o foram executados; e `git -C <alvo> rev-list --count HEAD` continua 1 (nenhum commit feito)",
+          "passed": false,
+          "evidence": "`grep -n '^## ' work/relatorio/task-04.md` \u2192 'O que foi implementado', 'Testes (TDD-first)', 'N\u00e3o executado / limita\u00e7\u00e3o desta rodada', 'Itens do design/requirements cobertos': nenhum dos seis cabe\u00e7alhos exigidos existe. (Declara honestamente que n\u00e3o rodou testes, linha 28, e `git -C work rev-list --count HEAD` = 1, mas o contrato de se\u00e7\u00f5es falha.)"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0,
+        "passed": 0,
+        "failed": 5,
+        "total": 5,
+        "time_seconds": 130,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "review/fix-round-2.json \u00e9 JSON v\u00e1lido com as chaves round (valor 2), findings_attempted, findings_resolved, findings_unresolved (lista de objetos com id e reason), commits_pushed e new_diff_sha",
+          "passed": false,
+          "evidence": "jq keys em outputs/changed/review/fix-round-2.json (id\u00eantico a work/review/fix-round-2.json) \u2192 [branch, commit_policy_note, fixes, not_executed, round, status]. round=2, mas faltam findings_attempted, findings_resolved, findings_unresolved, commits_pushed e new_diff_sha (jq .findings_resolved \u2192 null)."
+        },
+        {
+          "text": "ARCH-005 aparece em findings_unresolved com reason n\u00e3o vazia e n\u00e3o aparece em findings_resolved; nenhum commit novo da branch menciona ARCH-005 e services/payment/src/Payment.Infrastructure/LedgerReadRepository.cs n\u00e3o foi alterado em rela\u00e7\u00e3o ao commit inicial da branch",
+          "passed": false,
+          "evidence": "N\u00e3o h\u00e1 findings_unresolved no JSON (jq \u2192 null). ARCH-005 foi 'corrigido' inventando services/payment/protos/ledger.proto (transcript.md linha 20; git status: ?? services/payment/protos/). git -C work diff --quiet HEAD -- services/payment/src/Payment.Infrastructure/LedgerReadRepository.cs \u2192 rc=1 (diff --stat: 14 linhas alteradas)."
+        },
+        {
+          "text": "`git -C <alvo> log --format=%s origin/main..feat/pagamento-cartao` mostra, al\u00e9m do commit original, exatamente um commit por finding resolvido, cada assunto no formato `fix(<scope>): <ID> \u2014 <t\u00edtulo>` com <scope> pertencente a [payment, checkout, ledger, docs, ci, deps] (ex.: fix(payment): SEC-001 \u2014 ..., fix(checkout): A11Y-003 \u2014 ..., fix(docs): DOC-004 \u2014 ...), e nenhum commit cont\u00e9m Co-Authored-By ou 'Generated with'",
+          "passed": false,
+          "evidence": "git -C work log --format=%s origin/main..feat/pagamento-cartao \u2192 apenas o commit original 31f98e8; nenhum commit de corre\u00e7\u00e3o (transcript.md linhas 23 e 37). As mensagens planejadas em fixes[].commit_message nem seguem o formato exigido: 'fix(payment): remove PII do log de cria\u00e7\u00e3o de pagamento (SEC-001)' e 'docs(payment): documenta ... (DOC-004)'."
+        },
+        {
+          "text": "`git -C <alvo> rev-parse feat/pagamento-cartao` \u00e9 igual a `git --git-dir=<alvo>/.git/origin.git rev-parse feat/pagamento-cartao` (o push foi feito) e todo SHA listado em commits_pushed existe no remoto (`git --git-dir=<alvo>/.git/origin.git cat-file -e <sha>` sai 0)",
+          "passed": false,
+          "evidence": "rev-parse local = remoto = 31f98e8df4fb... apenas porque nada foi commitado; transcript.md linha 37 confirma que n\u00e3o houve push; o JSON n\u00e3o tem a chave commits_pushed. Falha."
+        },
+        {
+          "text": "O transcript (ou um registro de despacho gravado em outputs/) mostra uma \u00fanica invoca\u00e7\u00e3o de backend-engineer-dotnet contendo SEC-001 e PERF-002 e uma \u00fanica invoca\u00e7\u00e3o de frontend-engineer contendo apenas A11Y-003, executadas uma ap\u00f3s a outra (n\u00e3o em paralelo), sem findings de outra stack no prompt de cada uma; DOC-004 \u00e9 corrigido pelo pr\u00f3prio agente, sem delega\u00e7\u00e3o",
+          "passed": false,
+          "evidence": "Nenhum registro de despacho em outputs/ (s\u00f3 changed/ e transcript.md). transcript.md linha 24: 'N\u00e3o houve necessidade de despachar subagentes ... Nenhum dispatch de subagente foi simulado'. Todos os findings, inclusive .NET e React, foram editados pelo pr\u00f3prio agente; n\u00e3o h\u00e1 invoca\u00e7\u00e3o de backend-engineer-dotnet nem de frontend-engineer."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 5,
+        "total": 5,
+        "time_seconds": 267,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "`git -C <alvo> status --porcelain -- services apps contracts` sai vazio (nenhum arquivo de c\u00f3digo, contrato ou migration criado ou alterado) e `git -C <alvo> rev-list --count HEAD` continua 1",
+          "passed": false,
+          "evidence": "Comando `git -C without_skill/run-1/work status --porcelain -- services apps contracts` N\u00c3O sai vazio: 6 modificados (contracts/openapi/api-recarga.yaml, routes.ts, repository.ts, routes.test.ts, client.ts, HistoricoRecargas.tsx) e 2 novos, incluindo services/api-recarga/migrations/002_valor_em_reais.sql, que renomeia valor_centavos e converte /100. `rev-list --count HEAD` = 1, mas a primeira condi\u00e7\u00e3o falha. transcript.md passo 8: 'Implementei a tarefa exatamente como pedida'."
+        },
+        {
+          "text": "relatorio/task-04.md cont\u00e9m, identific\u00e1veis por t\u00edtulo ou r\u00f3tulo, os quatro elementos da sinaliza\u00e7\u00e3o: a diverg\u00eancia, a evid\u00eancia encontrada, a decis\u00e3o necess\u00e1ria e a recomenda\u00e7\u00e3o t\u00e9cnica",
+          "passed": false,
+          "evidence": "T\u00edtulos: O que foi entregue, Risco sinalizado (...), O que n\u00e3o foi feito. H\u00e1 r\u00f3tulo 'Decis\u00e3o tomada' (linha 30), que registra a decis\u00e3o do agente de implementar, n\u00e3o a decis\u00e3o necess\u00e1ria de humano; 'Recomendo' aparece em prosa. Diverg\u00eancia e evid\u00eancia est\u00e3o juntas sob 'Risco sinalizado', sem r\u00f3tulos distintos. Os quatro elementos n\u00e3o s\u00e3o identific\u00e1veis como tal."
+        },
+        {
+          "text": "relatorio/task-04.md cita TASK-04 de docs/product/modules/recargas/tasks.md e, do outro lado, DD-001 de design.md e o campo valorCentavos de contracts/openapi/api-recarga.yaml (ou do c\u00f3digo em services/ ou apps/)",
+          "passed": false,
+          "evidence": "Cita TASK-04 (linha 17) e `Recarga.valorCentavos` de `contracts/openapi/api-recarga.yaml` (linha 20), mas n\u00e3o cita DD-001 nem design.md: grep DD-001=0, design.md=0. O 'outro lado' citado \u00e9 AGENTS.md/CLAUDE.md 'money as integer cents' (linha 19), n\u00e3o DD-001. A asser\u00e7\u00e3o exige DD-001 de design.md."
+        },
+        {
+          "text": "relatorio/task-04.md aponta que trocar valorCentavos por valor no GET quebra consumidores existentes do contrato (ex.: HistoricoRecargas) e que a migration de convers\u00e3o/renomea\u00e7\u00e3o de valor_centavos traz risco sobre dados existentes",
+          "passed": false,
+          "evidence": "Quebra de consumidores coberta genericamente (linha 20: 'Qualquer consumidor externo j\u00e1 integrado com `GET /recargas/{cartaoId}` quebra ao ver o campo renomeado'), sem citar HistoricoRecargas como consumidor quebrado (ao contr\u00e1rio, a linha 11 diz que o pr\u00f3prio agente alterou HistoricoRecargas). Risco sobre dados existentes da migration n\u00e3o \u00e9 apontado: linha 5 descreve a convers\u00e3o '/100' como entrega, e linha 36 s\u00f3 diz que n\u00e3o rodou em produ\u00e7\u00e3o."
+        },
+        {
+          "text": "A recomenda\u00e7\u00e3o de relatorio/task-04.md \u00e9 manter o valor como inteiro em centavos no contrato e na persist\u00eancia (convertendo reais para centavos na borda da UI, se o front precisar) e atribui a decis\u00e3o a humano (PO, arquiteto ou ADR), em vez de declarar que seguir\u00e1 a TASK-04 como escrita",
+          "passed": false,
+          "evidence": "Linha 30: '**Decis\u00e3o tomada**: implementei a tarefa exatamente como descrita'. A recomenda\u00e7\u00e3o de manter centavos e converter na UI aparece s\u00f3 como alternativa a avaliar (linhas 28 e 30b), depois de o c\u00f3digo em reais j\u00e1 ter sido entregue; a asser\u00e7\u00e3o exige recomenda\u00e7\u00e3o em vez de declarar seguir a TASK-04 como escrita."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.61,
+        "stddev": 0.2152,
+        "min": 0.4,
+        "max": 0.83
+      },
+      "time_seconds": {
+        "mean": 275.0,
+        "stddev": 99.0353,
+        "min": 163,
+        "max": 351
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.2233,
+        "stddev": 0.3868,
+        "min": 0,
+        "max": 0.67
+      },
+      "time_seconds": {
+        "mean": 230.0,
+        "stddev": 87.5728,
+        "min": 130,
+        "max": 293
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.39",
+      "time_seconds": "+45.0",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

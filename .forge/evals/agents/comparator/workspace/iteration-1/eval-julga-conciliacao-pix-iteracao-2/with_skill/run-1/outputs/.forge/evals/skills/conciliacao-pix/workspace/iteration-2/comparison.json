@@ -1,0 +1,30 @@
+{
+  "skill": "conciliacao-pix",
+  "judged_blind": true,
+  "cases": [
+    {
+      "id": "TC-01",
+      "winner": "A",
+      "confidence": "high",
+      "a_expectations_met": 3,
+      "b_expectations_met": 1,
+      "rationale": "A lista as três divergências pelo endToEndId ('E2E...A41 (R$ 150,00), E2E...B07 (R$ 187,40), E2E...C93 (R$ 75,50)'), fecha o total em 'R$ 412,90' e exclui corretamente o estorno parcial ('o E2E...D77 é estorno parcial com devolução registrada no pedido 88213, por isso não entra como divergência'). B identifica as mesmas três transações mas erra ao incluir o E2E...D77 como divergente ('além do E2E...D77, cujo valor não bate com o pedido 88213'), o que contraria a expectativa de não marcá-lo, e por isso soma um total incorreto ('Total das divergências: R$ 389,40')."
+    },
+    {
+      "id": "TC-02",
+      "winner": "B",
+      "confidence": "high",
+      "a_expectations_met": 1,
+      "b_expectations_met": 3,
+      "rationale": "A separa por adquirente mas usa tarifa incorreta para a Stone ('Stone: 1,20% sobre R$ 1,8 mi') em vez de 0,99%, não compara com o contratado e conclui 'Todas as adquirentes dentro da faixa de mercado; nenhuma ação necessária', deixando de sinalizar a Rede. B separa por adquirente, usa a tarifa contratada correta da Stone ('Stone: cobrado 0,99%, contratado 0,99% (ok)') e sinaliza a Rede acima do contrato ('Rede: cobrado 1,45%, contratado 1,20% — ACIMA DO CONTRATO, diferença estimada de R$ 2.250,00 no mês; sugiro contestar')."
+    },
+    {
+      "id": "TC-03",
+      "winner": "tie",
+      "confidence": "high",
+      "a_expectations_met": 2,
+      "b_expectations_met": 2,
+      "rationale": "Ambos informam '17 transações pendentes' e 'R$ 3.918,20' com redação quase idêntica ('No fechamento de 2026-09-25 ficaram 17 transações pendentes de liquidação, somando R$ 3.918,20' em A vs 'Fechamento de 2026-09-25: 17 transações pendentes de liquidação, total de R$ 3.918,20' em B); nenhum dos dois cita o motivo predominante (janela de manutenção do PSP), então os dois atendem o mesmo subconjunto de expectativas com qualidade equivalente."
+    }
+  ]
+}

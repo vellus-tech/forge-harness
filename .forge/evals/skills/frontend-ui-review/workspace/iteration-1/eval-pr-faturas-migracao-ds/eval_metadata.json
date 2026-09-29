@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "pr-faturas-migracao-ds",
+  "prompt": "Estou na branch feat/faturas-ds, que migra a tela de faturas (src/features/invoices) para o nosso design system. Os tokens ficam em src/styles/tokens.css e os componentes do DS em src/components/ds. Revisa esse PR contra a main antes do merge e me diz se pode mergear. Grava o parecer completo em ui-review.md na raiz do projeto.",
+  "assertions": [
+    "ui-review.md contém uma linha de status (OK, FAIL ou WARN) para cada um dos gates A1, A2, A3, A4 e A5, identificados pelo código do gate",
+    "O relatório aponta --color-surface-unread (src/features/partners/PartnersTable.css, arquivo fora do diff do PR) como token referenciado e nunca definido, e não apenas --surface-1",
+    "O relatório marca o gate de cobertura (A5) como FAIL ou declara explicitamente que achados fora do diff (partners) bloqueiam, em vez de restringir a avaliação aos arquivos alterados",
+    "O relatório trata var(--surface-1, #fff) como fallback literal que esconde o token inexistente e recomenda remover o fallback e definir o token na origem (tokens.css), não trocar o valor do fallback nem manter o literal",
+    "O relatório aponta o <input type=\"file\"> de InvoiceList.tsx como controle nativo sem estilo (border:none não alcança ::file-selector-button) e recomenda usar o FileUpload existente em src/components/ds",
+    "O relatório termina com veredito BLOQUEADO (ou equivalente explícito de não mergear), não APROVADO"
+  ]
+}

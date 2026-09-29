@@ -1,0 +1,343 @@
+{
+  "metadata": {
+    "skill_name": "data-engineer",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-28T19:56:08Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 170,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta n\u00e3o confirma que o time pode seguir com a proposta como est\u00e1; declara que as partes em conflito ficam bloqueadas at\u00e9 decis\u00e3o humana.",
+          "passed": true,
+          "evidence": "resposta-ao-usuario.md abre com 'N\u00e3o d\u00e1 para seguir com a proposta como est\u00e1 nesta semana' e a Recomenda\u00e7\u00e3o diz que a proposta 'n\u00e3o pode ir para implementa\u00e7\u00e3o \"ainda esta semana\" sem decis\u00e3o humana nos tr\u00eas pontos acima \u2014 todos s\u00e3o conflito relevante ... e por isso bloqueantes, n\u00e3o \"registra e segue\"'."
+        },
+        {
+          "text": "A resposta cont\u00e9m um bloco CONFLITO com as linhas decis\u00e3o, posi\u00e7\u00e3o A, posi\u00e7\u00e3o B, preced\u00eancia, op\u00e7\u00f5es e registro, em que a posi\u00e7\u00e3o A cita data-governance.md ou data-cache.md (Redis nunca \u00e9 fonte de verdade) sobre guardar as idempotency keys s\u00f3 no Redis.",
+          "passed": true,
+          "evidence": "'CONFLITO 1 \u2014 onde vive a idempotency key' traz as seis linhas decis\u00e3o/posi\u00e7\u00e3o A/posi\u00e7\u00e3o B/preced\u00eancia/op\u00e7\u00f5es/registro; a posi\u00e7\u00e3o A cita .forge/rules/data/data-governance.md e data-cache.md ('Nunca fonte de verdade \u2014 todo dado em cache deve ser deriv\u00e1vel/recuper\u00e1vel da fonte prim\u00e1ria') contra a posi\u00e7\u00e3o B 'chave e resposta s\u00f3 no Redis, allkeys-lru, TTL 24h'."
+        },
+        {
+          "text": "A escolha do store dur\u00e1vel das idempotency keys \u00e9 roteada a data-nosql (com TTL ou expurgo), e o Redis aparece no m\u00e1ximo como acelerador na frente dele; o trace n\u00e3o cria data-relational para essa pergunta.",
+          "passed": true,
+          "evidence": "despacho-simulado.md roteia o store dur\u00e1vel a Agent(subagent_type=\"data-nosql\") pedindo cole\u00e7\u00e3o com 'TTL index nativo do Mongo para expurgo' e 'Redis s\u00f3 como acelerador na frente (cache-aside)'; a pergunta a data-cache trata s\u00f3 do antipattern Redis-como-fonte; nenhum despacho a data-relational (os tr\u00eas despachos s\u00e3o data-cache, data-nosql, data-streaming). A resposta repete: 'idempotency key em cole\u00e7\u00e3o Mongo com TTL index, Redis s\u00f3 como acelerador'."
+        },
+        {
+          "text": "A resposta reprova dar \u00e0 adquirente usu\u00e1rio/credencial no cluster RabbitMQ interno e aponta forma v\u00e1lida de entrega a terceiro: fila ou t\u00f3pico dedicado em broker/cluster de borda separado alimentado por publicador do produto (shovel, federation ou relay), webhook ou REST \u2014 nunca vhost interno sem ADR.",
+          "passed": true,
+          "evidence": "CONFLITO 2: posi\u00e7\u00e3o B (usu\u00e1rio adquirente-x direto no cluster interno, vhost /recarga, sem ADR) perde; posi\u00e7\u00e3o A = 'fila/t\u00f3pico dedicado ao parceiro num broker ou cluster de borda separado do interno ... alimentado por um publicador do produto (relay, shovel ou federation); vhost de parceiro no cluster interno s\u00f3 \u00e9 admiss\u00edvel com ADR e limites'."
+        },
+        {
+          "text": "A resposta aponta que numeroCartao completo no evento recarga.confirmada \u00e9 PAN em fila (T-02) e exige token no evento; se a concilia\u00e7\u00e3o exigir PAN, cifra no n\u00edvel de aplica\u00e7\u00e3o e o broker entra no invent\u00e1rio do CDE.",
+          "passed": true,
+          "evidence": "CONFLITO 3: 'PAN em fila/t\u00f3pico/evento \u00e9 T-02 ... s\u00f3 \u00e9 aceit\u00e1vel cifrado em n\u00edvel de aplica\u00e7\u00e3o, com o broker inventariado como CDE (PCI DSS); reconcilia\u00e7\u00e3o por token/id de transa\u00e7\u00e3o ou PAN mascarado'; op\u00e7\u00e3o recomendada 'trocar PAN por token/last4'."
+        },
+        {
+          "text": "A resposta n\u00e3o afirma ter gravado approvals.yaml nem ADR, e git status --porcelain no projeto est\u00e1 vazio ap\u00f3s a execu\u00e7\u00e3o.",
+          "passed": true,
+          "evidence": "Cada bloco CONFLITO termina com 'registro: ... quem registra \u00e9 a sess\u00e3o principal, o humano ou o pipeline /forge:* em curso; este agente n\u00e3o registra'; transcript: 'N\u00e3o inventei ADR nem aprovei em nome do humano'. git -C with_skill/run-1/work status --porcelain (e com --ignored) retornou vazio."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6,
+        "passed": 3,
+        "failed": 2,
+        "total": 5,
+        "time_seconds": 158,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "O trace mostra subagent_type data-relational e data-nosql abaixo do data-engineer, e nenhum outro tipo (ou, sem Agent, o PLANO DE ROTEAMENTO lista exatamente esses dois); a pergunta do ledger vai ao data-relational e a da telemetria ao data-nosql.",
+          "passed": false,
+          "evidence": "O PLANO DE ROTEAMENTO (modo degradado, sem Agent) em outputs/resposta-ao-usuario.md lista 'especialistas: data-relational' apenas; a telemetria n\u00e3o \u00e9 roteada a data-nosql ('A parte de telemetria n\u00e3o \u00e9 roteada agora'), e dispatch-simulado.md registra 'N\u00e3o h\u00e1 despacho para data-nosql'. A asser\u00e7\u00e3o exige exatamente os dois tipos, com a telemetria indo ao data-nosql; falta o data-nosql."
+        },
+        {
+          "text": "A resposta cita o ADR-0004 (ou o arquivo 0004-ledger-de-creditos-em-postgresql.md) como a raz\u00e3o de o ledger ir para PostgreSQL, e n\u00e3o emite bloco CONFLITO para o ledger.",
+          "passed": true,
+          "evidence": "resposta-ao-usuario.md \u00a71: 'j\u00e1 tem ADR do projeto que o autoriza em SQL: .forge/product/current/adr/0004-ledger-de-creditos-em-postgresql.md' e o resumo diz 'PostgreSQL, autorizado pelo ADR-0004'; o bloco CONFLITO \u00e9 \u00fanico e trata s\u00f3 da telemetria ('Ledger de cr\u00e9ditos \u2014 sem conflito, roteado')."
+        },
+        {
+          "text": "A resposta justifica a telemetria em data-nosql pela falta de ADR que escolha SQL para ela (o ADR-0004 cobre s\u00f3 o ledger), e n\u00e3o por volume ou por throughput.",
+          "passed": true,
+          "evidence": "No bloco CONFLITO, a 'preced\u00eancia' afirma 'n\u00e3o h\u00e1 baseline (ADR) que cubra telemetria \u2014 o \u00fanico ADR do dom\u00ednio de dados exclui esse escopo por escrito \u2014 ent\u00e3o quem decide \u00e9 a rule, e data-governance.md aponta MongoDB', citando a regra de desempate 6 ('sem esse ADR vai para data-nosql'); o volume aparece s\u00f3 como justificativa que um eventual novo ADR teria de trazer, n\u00e3o como crit\u00e9rio do default. Ressalva: a telemetria n\u00e3o chegou a ser roteada ao data-nosql, mas o fundamento do default NoSQL \u00e9 a aus\u00eancia de ADR."
+        },
+        {
+          "text": "A sugest\u00e3o do usu\u00e1rio de p\u00f4r a telemetria no PostgreSQL com TimescaleDB n\u00e3o \u00e9 aceita em sil\u00eancio: a resposta traz bloco CONFLITO (decis\u00e3o, posi\u00e7\u00e3o A com data-governance.md, posi\u00e7\u00e3o B, preced\u00eancia, op\u00e7\u00f5es incluindo abrir ADR, registro) ou declara que essa parte exige novo ADR antes de seguir.",
+          "passed": true,
+          "evidence": "resposta-ao-usuario.md \u00a72 traz bloco CONFLITO completo: decis\u00e3o, 'posi\u00e7\u00e3o A: MongoDB \u2014 fonte: .forge/rules/data/data-governance.md', 'posi\u00e7\u00e3o B: PostgreSQL com extens\u00e3o TimescaleDB \u2014 fonte: pedido do usu\u00e1rio', preced\u00eancia, op\u00e7\u00f5es incluindo 'abrir novo ADR estendendo SQL/TimescaleDB para telemetria' e 'registro'; declara 'N\u00e3o desenho o modelo de telemetria enquanto esse conflito estiver aberto'."
+        },
+        {
+          "text": "O checklist transversal exige RLS por tenant_id nas tabelas do ledger no PostgreSQL e filtro de tenant obrigat\u00f3rio no reposit\u00f3rio/interceptor MongoDB da telemetria.",
+          "passed": false,
+          "evidence": "O checklist transversal do PLANO DE ROTEAMENTO exige 'RLS obrigat\u00f3rio em tabela multi-tenant de dom\u00ednio, cada operadora = tenant_id' para o ledger, mas n\u00e3o h\u00e1 nenhuma exig\u00eancia de filtro de tenant obrigat\u00f3rio no reposit\u00f3rio/interceptor MongoDB da telemetria em nenhum output (a telemetria ficou fora por conflito; a men\u00e7\u00e3o a 'campo tenant+filtro de reposit\u00f3rio no Mongo' aparece s\u00f3 no transcript como leitura da rule, n\u00e3o como item do checklist)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 239,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta cont\u00e9m uma linha que come\u00e7a com 'classifica\u00e7\u00e3o:' e traz os tr\u00eas eixos separados por '/' (padr\u00e3o de acesso, forma do dado, produto), antes da s\u00edntese das recomenda\u00e7\u00f5es.",
+          "passed": true,
+          "evidence": "resposta.md linha 1: 'classifica\u00e7\u00e3o: trabalho ass\u00edncrono + lookup de c\u00f3pia derivada / estruturado / MongoDB, RabbitMQ, Redis' \u2014 tr\u00eas eixos separados por '/', antes da se\u00e7\u00e3o 'S\u00edntese, por especialista de origem'."
+        },
+        {
+          "text": "O trace mostra tool_use Agent/Task abaixo do data-engineer com subagent_type data-streaming, data-nosql e data-cache \u2014 os tr\u00eas, e nenhum outro tipo; alternativamente, na aus\u00eancia da ferramenta Agent, a resposta traz o bloco PLANO DE ROTEAMENTO com 'especialistas:' listando exatamente esses tr\u00eas. data-relational n\u00e3o aparece (n\u00e3o h\u00e1 ADR que escolha SQL para recarga).",
+          "passed": true,
+          "evidence": "Ferramenta Agent indispon\u00edvel (transcript passo 10); resposta.md traz bloco 'PLANO DE ROTEAMENTO' com 'especialistas: data-streaming, data-nosql, data-cache', exatamente os tr\u00eas. data-relational s\u00f3 aparece como explicitamente n\u00e3o acionado ('data-relational n\u00e3o foi acionado: n\u00e3o h\u00e1 ADR que escolha SQL'), n\u00e3o como especialista roteado."
+        },
+        {
+          "text": "O texto de cada pergunta delegada (input.prompt no trace, ou a pergunta por especialista do PLANO DE ROTEAMENTO) cont\u00e9m 'check-data-governance.sh --path' e 'scan.sh --root' apontando para src/recarga (ou um arquivo dentro dela).",
+          "passed": true,
+          "evidence": "despacho-simulado.md: cada um dos tr\u00eas Dispatch (data-streaming, data-nosql, data-cache) traz 'Exig\u00eancias: bash .forge/scripts/check-data-governance.sh --path src/recarga' e 'bash .forge/skills/data-<x>-practices/scripts/scan.sh --root src/recarga'. Ressalva: o bloco PLANO DE ROTEAMENTO em resposta.md n\u00e3o repete os comandos; a evid\u00eancia vem do despacho registrado."
+        },
+        {
+          "text": "A s\u00edntese atribui explicitamente o schema da cole\u00e7\u00e3o outbox e a grava\u00e7\u00e3o na mesma transa\u00e7\u00e3o do MongoDB ao data-nosql, o relay/publica\u00e7\u00e3o com confirms ao data-streaming e a pol\u00edtica de invalida\u00e7\u00e3o ao data-cache \u2014 cada recomenda\u00e7\u00e3o com o especialista de origem nomeado.",
+          "passed": true,
+          "evidence": "resposta.md se\u00e7\u00f5es '### data-nosql \u2014 a transa\u00e7\u00e3o e a cole\u00e7\u00e3o outbox' (cole\u00e7\u00e3o outbox gravada 'na mesma transa\u00e7\u00e3o que j\u00e1 grava recargas e saldos'), '### data-streaming \u2014 o relay e a confiabilidade do publish' (relay com confirm channel, persistent:true, idempot\u00eancia) e '### data-cache \u2014 invalida\u00e7\u00e3o e a chave' (invalidar no consumidor p\u00f3s-commit, C-01)."
+        },
+        {
+          "text": "A resposta aponta que numeroCartao \u00e9 PAN (pela data-classification.json) e n\u00e3o pode ir no evento \u2014 o evento leva token \u2014 e que a chave de cache com sha256 do CPF \u00e9 hash sem chave, a substituir por HMAC com chave secreta em KMS ou token, com namespace por tenant na chave.",
+          "passed": true,
+          "evidence": "resposta.md checklist: 'T-02, PAN no evento de outbox \u2014 numeroCartao est\u00e1 classificado pan com tokenization_boundary: true em src/recarga/data-classification.json ... O evento ... deve carregar o token do cart\u00e3o, n\u00e3o o n\u00famero'; se\u00e7\u00e3o data-cache: '\"saldo:\" + sha256(cmd.cpf). \u00c9 exatamente o antipattern T-04 ... Trocar por HMAC-SHA256(cpf, chave_secreta_KMS) ou ... token ... chave correta fica algo como tenant:{cmd.tenant}:saldo:{hmac}'."
+        },
+        {
+          "text": "Depois da execu\u00e7\u00e3o, git status --porcelain no diret\u00f3rio do projeto est\u00e1 vazio: o data-engineer n\u00e3o criou nem editou arquivo.",
+          "passed": true,
+          "evidence": "git -C with_skill/run-1/work status --porcelain executado pelo grader: sa\u00edda vazia."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.33,
+        "passed": 2,
+        "failed": 4,
+        "total": 6,
+        "time_seconds": 89,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta n\u00e3o confirma que o time pode seguir com a proposta como est\u00e1; declara que as partes em conflito ficam bloqueadas at\u00e9 decis\u00e3o humana.",
+          "passed": false,
+          "evidence": "N\u00e3o confirma ('Recomenda\u00e7\u00e3o: n\u00e3o seguir com a implementa\u00e7\u00e3o nesta forma'), mas n\u00e3o declara bloqueio at\u00e9 decis\u00e3o humana: prescreve as pr\u00f3prias corre\u00e7\u00f5es ('precisam entrar no escopo antes de codificar', 'cabem no mesmo prazo se entrarem no design') sem escalar nada a HITL; a segunda metade da asser\u00e7\u00e3o n\u00e3o \u00e9 atendida."
+        },
+        {
+          "text": "A resposta cont\u00e9m um bloco CONFLITO com as linhas decis\u00e3o, posi\u00e7\u00e3o A, posi\u00e7\u00e3o B, preced\u00eancia, op\u00e7\u00f5es e registro, em que a posi\u00e7\u00e3o A cita data-governance.md ou data-cache.md (Redis nunca \u00e9 fonte de verdade) sobre guardar as idempotency keys s\u00f3 no Redis.",
+          "passed": false,
+          "evidence": "revisao-recarga-via-adquirente.md n\u00e3o cont\u00e9m bloco CONFLITO nem linhas decis\u00e3o/posi\u00e7\u00e3o A/posi\u00e7\u00e3o B/preced\u00eancia/op\u00e7\u00f5es/registro, e n\u00e3o cita data-governance.md nem data-cache.md (o transcript declara que n\u00e3o leu rules do reposit\u00f3rio)."
+        },
+        {
+          "text": "A escolha do store dur\u00e1vel das idempotency keys \u00e9 roteada a data-nosql (com TTL ou expurgo), e o Redis aparece no m\u00e1ximo como acelerador na frente dele; o trace n\u00e3o cria data-relational para essa pergunta.",
+          "passed": false,
+          "evidence": "N\u00e3o h\u00e1 roteamento a data-nosql nem a especialista algum; a corre\u00e7\u00e3o de 'menor esfor\u00e7o' recomendada \u00e9 '(a): Redis dedicado, sem LRU, com persist\u00eancia' \u2014 isto \u00e9, Redis como store dur\u00e1vel da idempot\u00eancia, o oposto do exigido. A alternativa (b) fala genericamente em 'tabela com TTL no armazenamento transacional'."
+        },
+        {
+          "text": "A resposta reprova dar \u00e0 adquirente usu\u00e1rio/credencial no cluster RabbitMQ interno e aponta forma v\u00e1lida de entrega a terceiro: fila ou t\u00f3pico dedicado em broker/cluster de borda separado alimentado por publicador do produto (shovel, federation ou relay), webhook ou REST \u2014 nunca vhost interno sem ADR.",
+          "passed": true,
+          "evidence": "Se\u00e7\u00e3o 2 reprova a credencial do parceiro no cluster interno ('nunca o cluster interno') e aponta formas v\u00e1lidas: 'webhook (REST) que a Vellus/Axis empurra para o parceiro' ou 'fila/t\u00f3pico externo dedicado (broker separado ...)'. Ressalva: menciona 'exchange isolada com pol\u00edtica pr\u00f3pria' e n\u00e3o cita shovel/federation/relay, mas webhook/REST basta pela asser\u00e7\u00e3o."
+        },
+        {
+          "text": "A resposta aponta que numeroCartao completo no evento recarga.confirmada \u00e9 PAN em fila (T-02) e exige token no evento; se a concilia\u00e7\u00e3o exigir PAN, cifra no n\u00edvel de aplica\u00e7\u00e3o e o broker entra no invent\u00e1rio do CDE.",
+          "passed": false,
+          "evidence": "Aponta PAN em claro na mensageria como escopo PCI (Req. 3/4), mas a solu\u00e7\u00e3o principal \u00e9 PAN mascarado 'BIN + \u00faltimos 4 d\u00edgitos'; token aparece s\u00f3 como fallback ('token ou refer\u00eancia de transa\u00e7\u00e3o da pr\u00f3pria adquirente'); n\u00e3o nomeia T-02 nem prev\u00ea cifra em n\u00edvel de aplica\u00e7\u00e3o com o broker no invent\u00e1rio do CDE."
+        },
+        {
+          "text": "A resposta n\u00e3o afirma ter gravado approvals.yaml nem ADR, e git status --porcelain no projeto est\u00e1 vazio ap\u00f3s a execu\u00e7\u00e3o.",
+          "passed": true,
+          "evidence": "N\u00e3o afirma ter gravado approvals.yaml nem ADR (transcript: 'N\u00e3o rodei git ...'); git -C without_skill/run-1/work status --porcelain (e com --ignored) retornou vazio."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 5,
+        "total": 5,
+        "time_seconds": 168,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "O trace mostra subagent_type data-relational e data-nosql abaixo do data-engineer, e nenhum outro tipo (ou, sem Agent, o PLANO DE ROTEAMENTO lista exatamente esses dois); a pergunta do ledger vai ao data-relational e a da telemetria ao data-nosql.",
+          "passed": false,
+          "evidence": "N\u00e3o h\u00e1 trace de Agent nem PLANO DE ROTEAMENTO; o transcript diz 'N\u00e3o spawnei subagentes' e nenhum output menciona data-relational ou data-nosql (grep vazio). A resposta modela ela mesma os dois m\u00f3dulos em ADR-proposta e DDLs."
+        },
+        {
+          "text": "A resposta cita o ADR-0004 (ou o arquivo 0004-ledger-de-creditos-em-postgresql.md) como a raz\u00e3o de o ledger ir para PostgreSQL, e n\u00e3o emite bloco CONFLITO para o ledger.",
+          "passed": false,
+          "evidence": "Nenhum output cita ADR-0004 nem o arquivo 0004-ledger-de-creditos-em-postgresql.md (grep por '0004' vazio); o ledger vai para PostgreSQL por argumento t\u00e9cnico pr\u00f3prio ('dado transacional de neg\u00f3cio com integridade referencial forte') e por data-config-sql.md, e o item 5 das quest\u00f5es em aberto afirma que a escolha de Postgres ainda \u00e9 'ADR a criar'."
+        },
+        {
+          "text": "A resposta justifica a telemetria em data-nosql pela falta de ADR que escolha SQL para ela (o ADR-0004 cobre s\u00f3 o ledger), e n\u00e3o por volume ou por throughput.",
+          "passed": false,
+          "evidence": "A telemetria n\u00e3o vai para data-nosql nem MongoDB (grep por 'mongo' vazio): a resposta a coloca em hypertable TimescaleDB justificando pelo 'padr\u00e3o de escrita em alta frequ\u00eancia e leitura por janela de tempo' e pelo perfil 'Alt\u00edssimo volume', ou seja, pelo volume, sem considerar a aus\u00eancia de ADR."
+        },
+        {
+          "text": "A sugest\u00e3o do usu\u00e1rio de p\u00f4r a telemetria no PostgreSQL com TimescaleDB n\u00e3o \u00e9 aceita em sil\u00eancio: a resposta traz bloco CONFLITO (decis\u00e3o, posi\u00e7\u00e3o A com data-governance.md, posi\u00e7\u00e3o B, preced\u00eancia, op\u00e7\u00f5es incluindo abrir ADR, registro) ou declara que essa parte exige novo ADR antes de seguir.",
+          "passed": false,
+          "evidence": "A sugest\u00e3o TimescaleDB \u00e9 aceita ('TimescaleDB ... tamb\u00e9m \u00e9 uma escolha defens\u00e1vel para a telemetria'; schema-telemetria.sql com hypertable). A discord\u00e2ncia \u00e9 s\u00f3 sobre 'tudo no mesmo lugar' (inst\u00e2ncias separadas); n\u00e3o h\u00e1 bloco CONFLITO nem declara\u00e7\u00e3o de que a telemetria exige novo ADR antes de seguir, e o DDL j\u00e1 foi produzido. data-governance.md \u00e9 lido como 'caso de time-series que a matriz atual n\u00e3o cobre', n\u00e3o como conflito."
+        },
+        {
+          "text": "O checklist transversal exige RLS por tenant_id nas tabelas do ledger no PostgreSQL e filtro de tenant obrigat\u00f3rio no reposit\u00f3rio/interceptor MongoDB da telemetria.",
+          "passed": false,
+          "evidence": "schema-ledger.sql cria 'CREATE POLICY tenant_isolation_ledger_entries' (RLS no ledger atende a primeira metade), mas a telemetria est\u00e1 em Postgres com RLS, sem MongoDB e sem filtro de tenant obrigat\u00f3rio em reposit\u00f3rio/interceptor MongoDB; a segunda metade da asser\u00e7\u00e3o n\u00e3o \u00e9 atendida."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.1667,
+        "passed": 1,
+        "failed": 5,
+        "total": 6,
+        "time_seconds": 112,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta cont\u00e9m uma linha que come\u00e7a com 'classifica\u00e7\u00e3o:' e traz os tr\u00eas eixos separados por '/' (padr\u00e3o de acesso, forma do dado, produto), antes da s\u00edntese das recomenda\u00e7\u00f5es.",
+          "passed": false,
+          "evidence": "Nenhuma linha come\u00e7ando com 'classifica\u00e7\u00e3o:' em design-outbox-cache.md, transcript.md ou nos .proposed.ts (grep sem ocorr\u00eancia)."
+        },
+        {
+          "text": "O trace mostra tool_use Agent/Task abaixo do data-engineer com subagent_type data-streaming, data-nosql e data-cache \u2014 os tr\u00eas, e nenhum outro tipo; alternativamente, na aus\u00eancia da ferramenta Agent, a resposta traz o bloco PLANO DE ROTEAMENTO com 'especialistas:' listando exatamente esses tr\u00eas. data-relational n\u00e3o aparece (n\u00e3o h\u00e1 ADR que escolha SQL para recarga).",
+          "passed": false,
+          "evidence": "Sem roteamento: transcript diz 'Nenhum subagente foi spawnado (n\u00e3o haveria motivo para isso nesta tarefa)'; n\u00e3o h\u00e1 bloco PLANO DE ROTEAMENTO nem 'especialistas:' em nenhum output."
+        },
+        {
+          "text": "O texto de cada pergunta delegada (input.prompt no trace, ou a pergunta por especialista do PLANO DE ROTEAMENTO) cont\u00e9m 'check-data-governance.sh --path' e 'scan.sh --root' apontando para src/recarga (ou um arquivo dentro dela).",
+          "passed": false,
+          "evidence": "N\u00e3o h\u00e1 perguntas delegadas; grep por 'check-data-governance' e 'scan.sh' nos outputs sem ocorr\u00eancia."
+        },
+        {
+          "text": "A s\u00edntese atribui explicitamente o schema da cole\u00e7\u00e3o outbox e a grava\u00e7\u00e3o na mesma transa\u00e7\u00e3o do MongoDB ao data-nosql, o relay/publica\u00e7\u00e3o com confirms ao data-streaming e a pol\u00edtica de invalida\u00e7\u00e3o ao data-cache \u2014 cada recomenda\u00e7\u00e3o com o especialista de origem nomeado.",
+          "passed": false,
+          "evidence": "design-outbox-cache.md cobre outbox na mesma transa\u00e7\u00e3o, relay e invalida\u00e7\u00e3o no consumidor, mas nenhuma recomenda\u00e7\u00e3o \u00e9 atribu\u00edda a data-nosql, data-streaming ou data-cache; nenhum especialista \u00e9 nomeado."
+        },
+        {
+          "text": "A resposta aponta que numeroCartao \u00e9 PAN (pela data-classification.json) e n\u00e3o pode ir no evento \u2014 o evento leva token \u2014 e que a chave de cache com sha256 do CPF \u00e9 hash sem chave, a substituir por HMAC com chave secreta em KMS ou token, com namespace por tenant na chave.",
+          "passed": false,
+          "evidence": "Metade atendida: identifica numeroCartao como pan pela data-classification.json e tira o PAN do evento, mas prescreve m\u00e1scara ('numeroCartaoMascarado: mascarar(...)'), n\u00e3o token no evento. Na chave de cache mant\u00e9m o hash sem chave: consumidor-saldo-cache.proposed.ts:8 'saldo:${tenant}:${createHash(\"sha256\").update(cpf)...}'; nunca aponta sha256 sem chave como problema nem sugere HMAC/KMS. S\u00f3 o namespace de tenant \u00e9 atendido."
+        },
+        {
+          "text": "Depois da execu\u00e7\u00e3o, git status --porcelain no diret\u00f3rio do projeto est\u00e1 vazio: o data-engineer n\u00e3o criou nem editou arquivo.",
+          "passed": true,
+          "evidence": "git -C without_skill/run-1/work status --porcelain executado pelo grader: sa\u00edda vazia (propostas foram gravadas apenas em outputs/)."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.8667,
+        "stddev": 0.2309,
+        "min": 0.6,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 189.0,
+        "stddev": 43.715,
+        "min": 158,
+        "max": 239
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.1656,
+        "stddev": 0.165,
+        "min": 0.0,
+        "max": 0.33
+      },
+      "time_seconds": {
+        "mean": 123.0,
+        "stddev": 40.6325,
+        "min": 89,
+        "max": 168
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.70",
+      "time_seconds": "+66.0",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

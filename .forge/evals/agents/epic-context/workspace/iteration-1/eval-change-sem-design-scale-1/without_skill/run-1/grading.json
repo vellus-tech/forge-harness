@@ -1,0 +1,52 @@
+{
+  "expectations": [
+    {
+      "text": "Existe .forge/specs/active/aviso-saldo-baixo-push/epic_context.md com primeira linha '# Epic context — aviso-saldo-baixo-push' e os seis cabeçalhos do contrato (Objetivo, Decisões de design, Contratos externos, ADRs, Rules, Invariantes críticas); as seções ADRs e Rules estão vazias ou declaram explicitamente que o change não referencia nenhum.",
+      "passed": false,
+      "evidence": "head -1 = '# Epic Context — aviso-saldo-baixo-push' (C maiúsculo, difere da linha exigida); grep -nE '^## ' retorna 'Por que este documento existe' (l.3), 'Alerta antes de shardar...' (l.7), 'Decisões já tomadas...' (l.16), 'Requisitos...' (l.21), 'Contrato congelado...' (l.30), 'Fora de escopo' (l.38), 'Rastreabilidade' (l.42): nenhum dos seis cabeçalhos do contrato; não há seções ADRs nem Rules."
+    },
+    {
+      "text": "O epic_context.md não menciona ADR-0018, Firebase, FCM nem a fila notificacoes.push — conteúdo que só existe na baseline (.forge/product/current/adr/) e em src/, fora dos artefatos do change.",
+      "passed": false,
+      "evidence": "grep -nE 'ADR-0018|Firebase|FCM|notificacoes\\.push' epic_context.md -> rc=0 nas l.18 ('ADR-0018 — Push via FCM com fila dedicada: todo push sai pela fila notificacoes.push'), l.36 e l.44 (lista .forge/product/current/adr/ADR-0018-push-via-fcm-com-fila-dedicada.md como fonte)."
+    },
+    {
+      "text": "O epic_context.md não cita os símbolos enviarPushFcm nem LIMIAR_SALDO_PADRAO_CENTAVOS, que só existem em src/notificacoes/push.ts.",
+      "passed": false,
+      "evidence": "grep -nE 'enviarPushFcm|LIMIAR_SALDO_PADRAO_CENTAVOS' epic_context.md -> rc=0 nas l.18 e l.19 ('push.ts, que expõe LIMIAR_SALDO_PADRAO_CENTAVOS = 1000 ... e enviarPushFcm(tokenDispositivo, titulo, corpo)'); l.44 cita src/notificacoes/push.ts como fonte."
+    },
+    {
+      "text": "O epic_context.md não contém cerca de código (```) nem a assinatura 'deveAvisarSaldoBaixo(saldoCentavos' presente no bloco de código de tasks.md, e tem no máximo 150 linhas.",
+      "passed": false,
+      "evidence": "Sem cerca (grep -nF '```' rc=1) e 44 linhas, mas grep -nF 'deveAvisarSaldoBaixo(saldoCentavos' rc=0 na l.34: 'deveAvisarSaldoBaixo(saldoCentavos: number, limiarCentavos: number, ultimoAviso?: Date): boolean' — assinatura copiada de tasks.md."
+    },
+    {
+      "text": "Fora das remoções feitas pelo setup, o único arquivo novo ou alterado no projeto é o epic_context.md do change: não foi criado design.md nem qualquer outro arquivo, e spec-manifest.yaml, proposal.md, requirements.md e tasks.md ficam idênticos ao commit da fixture.",
+      "passed": true,
+      "evidence": "git -C work log: único commit 15cd656 'fixture: estado inicial'; git status --porcelain --untracked-files=all, excluídas as deleções do setup, retorna só '?? .forge/specs/active/aviso-saldo-baixo-push/epic_context.md'; --ignored sem '!!'; git diff --exit-code -- .forge/specs/active/aviso-saldo-baixo-push/ rc=0; sem design.md. Arquivo no path certo, apesar do conteúdo reprovado."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 4,
+    "total": 5,
+    "pass_rate": 0.2
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 106000,
+    "total_duration_seconds": 106
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Fora das remoções feitas pelo setup, o único arquivo novo ou alterado no projeto é o epic_context.md do change: não foi criado design.md nem qualquer outro arquivo, e spec-manifest.yaml, proposal.md, requirements.md e tasks.md ficam idênticos ao commit da fixture.",
+        "reason": "Asserção 5 passa em ambas as configurações (não discrimina); é guarda de regressão útil, mas não mede o valor da skill."
+      },
+      {
+        "reason": "Nenhuma asserção verifica que as invariantes críticas e o contrato externo foram extraídos corretamente de requirements/tasks; um epic_context com seções vazias passaria nas asserções 2-5."
+      }
+    ],
+    "overall": "Asserções 1-4 discriminam bem a contaminação por baseline/src; falta checar fidelidade positiva do conteúdo."
+  }
+}

@@ -1,0 +1,27 @@
+.badge {
+  display: inline-block;
+  font-size: var(--fs-12);
+  padding: var(--s-1) var(--s-2);
+  border-radius: var(--r-pill);
+}
+
+/*
+ * O preview do handoff (badges-cards.html) hardcoda os fundos claros
+ * (#E6F4EA, #FFF4E0) — não há token dedicado para eles em colors_and_type.css.
+ * Derivamos o mesmo tom a partir dos tokens semânticos com color-mix() em vez
+ * de reintroduzir o hex literal, para continuar "tokens-only".
+ */
+.success {
+  background: color-mix(in srgb, var(--success) 15%, var(--n-0));
+  color: var(--success);
+}
+
+.warning {
+  background: color-mix(in srgb, var(--warning) 15%, var(--n-0));
+  color: var(--warning);
+}
+
+.neutral {
+  background: var(--n-100);
+  color: var(--n-700);
+}

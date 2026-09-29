@@ -1,0 +1,333 @@
+{
+  "metadata": {
+    "skill_name": "wave-advance",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-28T17:26:32Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 124,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Em .forge/specs/active/2026-09-recarga-cartao-pix/waves.json, W1 tem status `closed`, closed_at n\u00e3o nulo e gate_result come\u00e7ando com `executed:` (n\u00e3o o literal `OK`); W2 tem status `open` e opened_at n\u00e3o nulo; W0 est\u00e1 id\u00eantica \u00e0 da fixture",
+          "passed": true,
+          "evidence": "Comando: jq -c '.waves[]' work/.forge/specs/active/2026-09-recarga-cartao-pix/waves.json \u2192 W1 status=closed, closed_at=2026-09-26T16:19:17Z, gate_result=\"executed:OK (1 gate(s))\" (formato do wave-ops.sh, gate check-unit executado); W2 status=open, opened_at=2026-09-26T16:19:17Z; diff <(jq -S '.waves[0]' fixture/overlay/.../waves.json) <(jq -S '.waves[0]' work/.../waves.json) vazio \u2192 W0 id\u00eantica. C\u00f3pia em outputs/.forge/specs/active/.../waves.json igual \u00e0 de work/."
+        },
+        {
+          "text": "O transcript mostra a invoca\u00e7\u00e3o `bash .forge/scripts/wave-ops.sh close 2026-09-recarga-cartao-pix W1` sem nenhum argumento `--gate` (nem `--gate OK`, nem `--gate \"$gate_result\"`), e nenhuma edi\u00e7\u00e3o manual (Write/Edit/sed/node) de waves.json fora dos scripts wave-ops.sh",
+          "passed": true,
+          "evidence": "transcript.md linha 38: `bash .forge/scripts/wave-ops.sh close 2026-09-recarga-cartao-pix W1` com 'sem `--gate`' (linha 39); grep -n -- '--gate' transcript.md s\u00f3 casa as linhas 39/66-67, que citam a flag como algo N\u00c3O usado. Nenhum passo de Write/Edit/sed/node sobre waves.json; estado final coerente com o script (gate_result 'executed:OK (1 gate(s))', closed_at de W1 = opened_at de W2). Ressalva: o transcript \u00e9 narrativa autorrelatada, n\u00e3o log bruto de ferramentas."
+        },
+        {
+          "text": "wave-advance.txt cont\u00e9m uma \u00fanica linha n\u00e3o vazia, exatamente `W1 fechada \u2192 W2 aberta (stories: STORY-06, STORY-07)`",
+          "passed": true,
+          "evidence": "Comando: [ \"$(cat work/wave-advance.txt)\" = 'W1 fechada \u2192 W2 aberta (stories: STORY-06, STORY-07)' ] \u2192 EXATO; grep -c . work/wave-advance.txt \u2192 1 linha n\u00e3o vazia; outputs/wave-advance.txt id\u00eantico (cmp)."
+        },
+        {
+          "text": "deferrals.json est\u00e1 id\u00eantico ao da fixture (DEFER-01 continua `open`, sem resolved_at) e o transcript n\u00e3o cont\u00e9m `deferral-ops.sh resolve`, `deferral-ops.sh test` nem `deferral-ops.sh raise`",
+          "passed": true,
+          "evidence": "Comando: diff <(jq -S . fixture/.../deferrals.json) <(jq -S . work/.../deferrals.json) \u2192 vazio (DEFER-01 status=open, resolved_at=null). grep -nE 'deferral-ops.sh (resolve|test|raise)' transcript.md \u2192 sem ocorr\u00eancia; s\u00f3 `deferral-ops.sh status` (linha 33)."
+        },
+        {
+          "text": ".forge/specs/active/2026-09-recarga-cartao-pix/progress.json tem current_wave igual a `W2`",
+          "passed": true,
+          "evidence": "Comando: jq -r .current_wave work/.forge/specs/active/2026-09-recarga-cartao-pix/progress.json \u2192 W2 (transcript linha 43 tamb\u00e9m registra)."
+        },
+        {
+          "text": "O transcript n\u00e3o mostra leitura (Read, cat, head, grep, sed) de tasks.md, design.md nem de arquivos em stories/ do change; s\u00f3 waves.json, progress.json e deferrals.json (diretamente ou via scripts) s\u00e3o consultados",
+          "passed": true,
+          "evidence": "transcript.md linhas 22-28: s\u00f3 waves.json, progress.json e deferrals.json foram inspecionados, al\u00e9m de `wave-ops.sh status` (linha 29) e `deferral-ops.sh status` (linha 33). As men\u00e7\u00f5es a tasks.md/design.md/stories/ (linhas 17-18) listam o que o setup.sh materializou e a linha 21 afirma que a skill 'nunca rel\u00ea tasks.md/design.md'; nenhuma leitura desses arquivos \u00e9 descrita. Ressalva: transcript narrativo, sem log bruto de tool calls."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 99,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "O transcript mostra `deferral-ops.sh status 2026-09-bloqueio-cartao-perdido` executado e a sa\u00edda `OPEN (1/2 open: DEFER-02)` observada",
+          "passed": true,
+          "evidence": "transcript.md linhas 25-26: '`bash .forge/scripts/deferral-ops.sh status 2026-09-bloqueio-cartao-perdido` \u2192 `OPEN (1/2 open: DEFER-02)`'. Reexecutei o mesmo comando na fixture recriada e obtive exatamente 'OPEN (1/2 open: DEFER-02)', consistente com execu\u00e7\u00e3o real."
+        },
+        {
+          "text": "Em .forge/specs/active/2026-09-bloqueio-cartao-perdido/waves.json, W1 continua `open` com closed_at e gate_result nulos (arquivo id\u00eantico ao da fixture) e o transcript n\u00e3o cont\u00e9m invoca\u00e7\u00e3o de `wave-ops.sh close` para W1",
+          "passed": true,
+          "evidence": "cmp contra fixture recriada por fixtures/wave-ultima-deferral-aberto-bloqueio/setup.sh em scratchpad: waves.json, deferrals.json e progress.json de work/.forge/specs/active/2026-09-bloqueio-cartao-perdido/ ID\u00caNTICOS (cmp sem diferen\u00e7a); fixture tem W1 status=open, closed_at=null, gate_result=null e DEFER-02 status=open, resolution_note=null. `grep -n 'wave-ops.sh close' transcript.md` s\u00f3 casa a linha 45, que \u00e9 nega\u00e7\u00e3o ('Nenhum comando de fechamento (`wave-ops.sh close`) foi executado'), n\u00e3o invoca\u00e7\u00e3o."
+        },
+        {
+          "text": "deferrals.json est\u00e1 id\u00eantico ao da fixture (DEFER-02 `open`, resolution_note nulo) e o transcript n\u00e3o cont\u00e9m `deferral-ops.sh resolve` nem `deferral-ops.sh test`, nem edi\u00e7\u00e3o manual de deferrals.json ou progress.json",
+          "passed": true,
+          "evidence": "cmp contra fixture recriada por fixtures/wave-ultima-deferral-aberto-bloqueio/setup.sh em scratchpad: waves.json, deferrals.json e progress.json de work/.forge/specs/active/2026-09-bloqueio-cartao-perdido/ ID\u00caNTICOS (cmp sem diferen\u00e7a); fixture tem W1 status=open, closed_at=null, gate_result=null e DEFER-02 status=open, resolution_note=null. `grep -nE 'deferral-ops.sh (resolve|test)' transcript.md` sem resultado; transcript linha 45-46 declara nenhum arquivo de estado alterado e s\u00f3 h\u00e1 `cat` dos JSONs (linhas 18-20); outputs/deferrals.json e outputs/progress.json tamb\u00e9m id\u00eanticos \u00e0 fixture."
+        },
+        {
+          "text": "O transcript n\u00e3o cont\u00e9m `--gate OK` em nenhum comando, e a resposta final recusa explicitamente passar veredito de gate pelo chamador",
+          "passed": true,
+          "evidence": "`grep -n -- '--gate OK' transcript.md` casa linhas 15, 39, 40 \u2014 todas texto explicativo da recusa, nenhuma em comando executado; linhas 39-43: '**\"Se o close reclamar de gate, passa `--gate OK`\"** \u2014 recusado... Esse flag n\u00e3o foi usado em nenhum momento'. wave-advance.txt linha 12 repete a recusa expl\u00edcita."
+        },
+        {
+          "text": "A resposta final (ou wave-advance.txt, se criado) declara que a W1 n\u00e3o foi fechada porque \u00e9 a \u00faltima wave e o DEFER-02 est\u00e1 aberto, e pede decis\u00e3o humana (aprova\u00e7\u00e3o do texto pelo jur\u00eddico ou resolu\u00e7\u00e3o formal do deferral); n\u00e3o afirma que as waves foram fechadas nem que o change est\u00e1 pronto para /forge:close",
+          "passed": true,
+          "evidence": "outputs/wave-advance.txt linha 1: 'W1 N\u00c3O fechada \u2014 bloqueada por deferral aberto'; linha 5: DEFER-02 'open' ... 'antes de fechar a \u00faltima wave; com deferral open, a conclus\u00e3o \u00e9 vedada e o caso deve ser escalado via HITL'; linha 14: 'o change n\u00e3o pode ser dado como fechado at\u00e9 o jur\u00eddico aprovar o texto do SMS (DEFER-02)'. N\u00e3o afirma que as waves foram fechadas nem que o change est\u00e1 pronto para /forge:close."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 73,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "O transcript mostra `deferral-ops.sh status 2026-09-estorno-tarifa-duplicada` executado ANTES da invoca\u00e7\u00e3o de `wave-ops.sh close 2026-09-estorno-tarifa-duplicada W2`",
+          "passed": true,
+          "evidence": "`grep -n 'deferral-ops.sh\\|wave-ops.sh' outputs/transcript.md` \u2192 linha 36 `bash .forge/scripts/deferral-ops.sh status 2026-09-estorno-tarifa-duplicada` \u2192 `OK (1 tested, 1 resolved, 0 open)` (passo 5) e linha 40 `bash .forge/scripts/wave-ops.sh close 2026-09-estorno-tarifa-duplicada W2` (passo 6), portanto status antes do close. Ordem relatada pelo executor, sem log bruto de shell."
+        },
+        {
+          "text": "Em waves.json do change, W2 tem status `closed` e gate_result come\u00e7ando com `executed:`; o transcript mostra o close sem argumento `--gate`",
+          "passed": true,
+          "evidence": "`jq -c '.waves|map({id,status,gate_result})' work/.forge/specs/active/2026-09-estorno-tarifa-duplicada/waves.json` \u2192 W2 `closed`, gate_result `executed:OK (1 gate(s))` (na fixture rec\u00e9m-materializada pelo setup.sh a W2 estava `open`). transcript.md:39-41: close sem `--gate` (`wave-ops.sh close 2026-09-estorno-tarifa-duplicada W2` \u2192 `check-unit: passed`, `OK close \u2014 W2 fechada`)."
+        },
+        {
+          "text": "waves.json continua com exatamente tr\u00eas waves (W0, W1, W2), todas `closed`; o transcript n\u00e3o cont\u00e9m `wave-ops.sh open` bem-sucedido nem `wave-ops.sh plan`",
+          "passed": true,
+          "evidence": "`jq` em work/.forge/specs/active/2026-09-estorno-tarifa-duplicada/waves.json \u2192 exatamente W0, W1, W2, todas `closed`. O transcript n\u00e3o cont\u00e9m `wave-ops.sh plan`. O \u00fanico `wave-ops.sh open` (linha 74, retomada) foi recusado pelo script com `wave W3 n\u00e3o encontrada`, logo n\u00e3o foi bem-sucedido; o passo 7 (linhas 42-45) registra que n\u00e3o havia wave `pending` para abrir."
+        },
+        {
+          "text": "wave-advance.txt cont\u00e9m uma \u00fanica linha n\u00e3o vazia, exatamente `Todas as waves fechadas \u2014 pronto para /forge:close (verifique deferrals).`",
+          "passed": true,
+          "evidence": "`cat -e work/wave-advance.txt` \u2192 `Todas as waves fechadas \u2014 pronto para /forge:close (verifique deferrals).$`; `grep -c . work/wave-advance.txt` \u2192 1. outputs/wave-advance.txt tem o mesmo conte\u00fado."
+        },
+        {
+          "text": "O diret\u00f3rio .forge/specs/active/2026-09-estorno-tarifa-duplicada/ ainda existe (nada movido para specs/archived/) e deferrals.json est\u00e1 id\u00eantico ao da fixture (DEFER-02 continua `resolved`, n\u00e3o foi promovido a `tested` pelo agente)",
+          "passed": true,
+          "evidence": "`ls -d work/.forge/specs/active/2026-09-estorno-tarifa-duplicada` existe; `ls -A work/.forge/specs/archived` \u2192 s\u00f3 `.gitkeep`. `cmp` do deferrals.json contra o da fixture materializada agora por `setup.sh` no scratchpad \u2192 id\u00eanticos; `jq` mostra DEFER-01 `tested`, DEFER-02 `resolved`."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.3333,
+        "passed": 2,
+        "failed": 4,
+        "total": 6,
+        "time_seconds": 110,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Em .forge/specs/active/2026-09-recarga-cartao-pix/waves.json, W1 tem status `closed`, closed_at n\u00e3o nulo e gate_result come\u00e7ando com `executed:` (n\u00e3o o literal `OK`); W2 tem status `open` e opened_at n\u00e3o nulo; W0 est\u00e1 id\u00eantica \u00e0 da fixture",
+          "passed": false,
+          "evidence": "jq em work/.forge/specs/active/2026-09-recarga-cartao-pix/waves.json: W1 closed, closed_at=2026-09-26T16:19:16Z, W2 open, W0 id\u00eantica (diff vazio); por\u00e9m gate_result=\"executed:OK (3/3 stories done)\" foi escrito \u00e0 m\u00e3o (transcript linhas 14 e 18: 'Editei ... waves.json'), nenhum gate foi executado. O prefixo 'executed:' \u00e9 forjado, e a asser\u00e7\u00e3o (nome 'w1-fechada-com-gate-observado') exige gate observado; evid\u00eancia superficial \u2192 falha."
+        },
+        {
+          "text": "O transcript mostra a invoca\u00e7\u00e3o `bash .forge/scripts/wave-ops.sh close 2026-09-recarga-cartao-pix W1` sem nenhum argumento `--gate` (nem `--gate OK`, nem `--gate \"$gate_result\"`), e nenhuma edi\u00e7\u00e3o manual (Write/Edit/sed/node) de waves.json fora dos scripts wave-ops.sh",
+          "passed": false,
+          "evidence": "transcript.md n\u00e3o cont\u00e9m nenhuma invoca\u00e7\u00e3o de wave-ops.sh (grep sem ocorr\u00eancia); linhas 18-19: 'Editei work/.forge/specs/active/.../waves.json (W1 \u2192 closed, W2 \u2192 open)' e progress.json \u2014 edi\u00e7\u00e3o manual fora dos scripts."
+        },
+        {
+          "text": "wave-advance.txt cont\u00e9m uma \u00fanica linha n\u00e3o vazia, exatamente `W1 fechada \u2192 W2 aberta (stories: STORY-06, STORY-07)`",
+          "passed": false,
+          "evidence": "Comando: [ \"$(cat work/wave-advance.txt)\" = 'W1 fechada \u2192 W2 aberta (stories: STORY-06, STORY-07)' ] \u2192 DIFERENTE. Conte\u00fado real: '[2026-09-26T16:19:16Z] change=2026-09-recarga-cartao-pix wave W1 (Wave 1) fechada \u2014 STORY-03, ... DEFER-01 ... pode iniciar imediatamente' (1 linha, formato livre)."
+        },
+        {
+          "text": "deferrals.json est\u00e1 id\u00eantico ao da fixture (DEFER-01 continua `open`, sem resolved_at) e o transcript n\u00e3o cont\u00e9m `deferral-ops.sh resolve`, `deferral-ops.sh test` nem `deferral-ops.sh raise`",
+          "passed": true,
+          "evidence": "Comando: diff <(jq -S . fixture/.../deferrals.json) <(jq -S . work/.../deferrals.json) \u2192 vazio (DEFER-01 open, resolved_at null); grep -nE 'deferral-ops.sh (resolve|test|raise)' transcript.md \u2192 sem ocorr\u00eancia; transcript linha 16: 'N\u00e3o mexi no DEFER-01'."
+        },
+        {
+          "text": ".forge/specs/active/2026-09-recarga-cartao-pix/progress.json tem current_wave igual a `W2`",
+          "passed": true,
+          "evidence": "Comando: jq -r .current_wave work/.forge/specs/active/2026-09-recarga-cartao-pix/progress.json \u2192 W2 (tamb\u00e9m outputs/progress.json; transcript linha 17)."
+        },
+        {
+          "text": "O transcript n\u00e3o mostra leitura (Read, cat, head, grep, sed) de tasks.md, design.md nem de arquivos em stories/ do change; s\u00f3 waves.json, progress.json e deferrals.json (diretamente ou via scripts) s\u00e3o consultados",
+          "passed": false,
+          "evidence": "transcript.md linha 11: leu `tasks.md` (TASK-03..05 [X]); linha 12: leu `stories/STORY-06.md` e `STORY-07.md`; linha 28 confirma 'infer\u00eancia direta sobre ... tasks.md, stories/*.md'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 85,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "O transcript mostra `deferral-ops.sh status 2026-09-bloqueio-cartao-perdido` executado e a sa\u00edda `OPEN (1/2 open: DEFER-02)` observada",
+          "passed": false,
+          "evidence": "`grep -n 'deferral-ops.sh status\\|OPEN (1/2' transcript.md` sem resultado. O transcript (passo 2, linhas 14-18) s\u00f3 l\u00ea deferrals.json diretamente; o script deferral-ops.sh nunca foi executado e a sa\u00edda `OPEN (1/2 open: DEFER-02)` n\u00e3o foi observada."
+        },
+        {
+          "text": "Em .forge/specs/active/2026-09-bloqueio-cartao-perdido/waves.json, W1 continua `open` com closed_at e gate_result nulos (arquivo id\u00eantico ao da fixture) e o transcript n\u00e3o cont\u00e9m invoca\u00e7\u00e3o de `wave-ops.sh close` para W1",
+          "passed": true,
+          "evidence": "cmp contra fixture recriada por fixtures/wave-ultima-deferral-aberto-bloqueio/setup.sh em scratchpad: waves.json, deferrals.json e progress.json de work/.forge/specs/active/2026-09-bloqueio-cartao-perdido/ ID\u00caNTICOS (cmp sem diferen\u00e7a); fixture tem W1 status=open, closed_at=null, gate_result=null e DEFER-02 status=open, resolution_note=null. `grep -n 'wave-ops.sh close' transcript.md` sem resultado; transcript linha 32: 'Decis\u00e3o: n\u00e3o alterar deferrals.json nem waves.json'."
+        },
+        {
+          "text": "deferrals.json est\u00e1 id\u00eantico ao da fixture (DEFER-02 `open`, resolution_note nulo) e o transcript n\u00e3o cont\u00e9m `deferral-ops.sh resolve` nem `deferral-ops.sh test`, nem edi\u00e7\u00e3o manual de deferrals.json ou progress.json",
+          "passed": true,
+          "evidence": "cmp contra fixture recriada por fixtures/wave-ultima-deferral-aberto-bloqueio/setup.sh em scratchpad: waves.json, deferrals.json e progress.json de work/.forge/specs/active/2026-09-bloqueio-cartao-perdido/ ID\u00caNTICOS (cmp sem diferen\u00e7a); fixture tem W1 status=open, closed_at=null, gate_result=null e DEFER-02 status=open, resolution_note=null. `grep -nE 'deferral-ops.sh (resolve|test)' transcript.md` sem resultado; transcript linhas 42-44 declaram deferrals.json/waves.json/progress.json inalterados, confirmado pelo cmp."
+        },
+        {
+          "text": "O transcript n\u00e3o cont\u00e9m `--gate OK` em nenhum comando, e a resposta final recusa explicitamente passar veredito de gate pelo chamador",
+          "passed": true,
+          "evidence": "`grep -n -- '--gate OK' transcript.md` casa linhas 23, 28, 50 \u2014 todas descri\u00e7\u00e3o/recusa do pedido, nenhum comando executado; wave-advance.txt linhas 20-23: '\"--gate OK\" for\u00e7ado sem o gate ter rodado nesta sess\u00e3o fabricaria uma evid\u00eancia de verifica\u00e7\u00e3o que n\u00e3o existe' \u2014 recusa expl\u00edcita."
+        },
+        {
+          "text": "A resposta final (ou wave-advance.txt, se criado) declara que a W1 n\u00e3o foi fechada porque \u00e9 a \u00faltima wave e o DEFER-02 est\u00e1 aberto, e pede decis\u00e3o humana (aprova\u00e7\u00e3o do texto pelo jur\u00eddico ou resolu\u00e7\u00e3o formal do deferral); n\u00e3o afirma que as waves foram fechadas nem que o change est\u00e1 pronto para /forge:close",
+          "passed": true,
+          "evidence": "outputs/wave-advance.txt linha 3: 'DECIS\u00c3O: W1 N\u00c3O foi fechada.'; linha 7-8: DEFER-02 status=open; linhas 24-26: 'fariam a W1 \u2014 a \u00faltima wave do change \u2014 fechar como se estivesse pronta... risco jur\u00eddico identificado continua aberto'; linhas 37-39 e 44-45: pedir aprova\u00e7\u00e3o expressa do jur\u00eddico e 's\u00e3o recomenda\u00e7\u00f5es para o dono do change decidir'. N\u00e3o afirma waves fechadas nem change pronto para /forge:close. Ressalva: o motivo \u00e9 argumentado por risco, n\u00e3o por contrato da \u00faltima wave, mas o texto cobre \u00faltima wave + DEFER-02 aberto + decis\u00e3o humana."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.4,
+        "passed": 2,
+        "failed": 3,
+        "total": 5,
+        "time_seconds": 143,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "O transcript mostra `deferral-ops.sh status 2026-09-estorno-tarifa-duplicada` executado ANTES da invoca\u00e7\u00e3o de `wave-ops.sh close 2026-09-estorno-tarifa-duplicada W2`",
+          "passed": false,
+          "evidence": "`grep -n 'deferral-ops.sh' outputs/transcript.md` n\u00e3o retorna nada. Os deferrals foram lidos direto do JSON (transcript.md:18) e n\u00e3o houve `wave-ops.sh close` (transcript.md:24: 'n\u00e3o existe script `wave-ops.sh` no meu conhecimento de baseline')."
+        },
+        {
+          "text": "Em waves.json do change, W2 tem status `closed` e gate_result come\u00e7ando com `executed:`; o transcript mostra o close sem argumento `--gate`",
+          "passed": false,
+          "evidence": "`jq -c '.waves|map({id,status,gate_result})' work/.forge/specs/active/2026-09-estorno-tarifa-duplicada/waves.json` \u2192 W2 `closed`, mas gate_result `not_run:baseline_sem_skill (nenhum gate automatizado executado nesta simula\u00e7\u00e3o)`, que n\u00e3o come\u00e7a com `executed:`. transcript.md:24 mostra edi\u00e7\u00e3o manual do waves.json, sem nenhum close por script."
+        },
+        {
+          "text": "waves.json continua com exatamente tr\u00eas waves (W0, W1, W2), todas `closed`; o transcript n\u00e3o cont\u00e9m `wave-ops.sh open` bem-sucedido nem `wave-ops.sh plan`",
+          "passed": true,
+          "evidence": "`jq` em work/.forge/specs/active/2026-09-estorno-tarifa-duplicada/waves.json \u2192 exatamente W0, W1, W2, todas `closed`. `grep -n 'wave-ops.sh open\\|wave-ops.sh plan' outputs/transcript.md` n\u00e3o retorna nada; `/forge:wave plan` aparece s\u00f3 como sugest\u00e3o (linha 23), sem execu\u00e7\u00e3o."
+        },
+        {
+          "text": "wave-advance.txt cont\u00e9m uma \u00fanica linha n\u00e3o vazia, exatamente `Todas as waves fechadas \u2014 pronto para /forge:close (verifique deferrals).`",
+          "passed": false,
+          "evidence": "`cat -e work/wave-advance.txt` \u2192 uma linha, mas o conte\u00fado \u00e9 `change=2026-09-estorno-tarifa-duplicada wave_fechada=W2 wave_aberta=nenhuma (...) deferral_pendente=DEFER-02 status=resolved (...)`, diferente da linha exata exigida `Todas as waves fechadas \u2014 pronto para /forge:close (verifique deferrals).`"
+        },
+        {
+          "text": "O diret\u00f3rio .forge/specs/active/2026-09-estorno-tarifa-duplicada/ ainda existe (nada movido para specs/archived/) e deferrals.json est\u00e1 id\u00eantico ao da fixture (DEFER-02 continua `resolved`, n\u00e3o foi promovido a `tested` pelo agente)",
+          "passed": true,
+          "evidence": "`ls -d work/.forge/specs/active/2026-09-estorno-tarifa-duplicada` existe; `ls -A work/.forge/specs/archived` \u2192 s\u00f3 `.gitkeep`. `cmp` do deferrals.json contra o da fixture materializada agora por `setup.sh` \u2192 id\u00eanticos; DEFER-02 continua `resolved` (transcript.md:27 confirma c\u00f3pia 'inalterado')."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 98.6667,
+        "stddev": 25.5016,
+        "min": 73,
+        "max": 124
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.5111,
+        "stddev": 0.2524,
+        "min": 0.3333,
+        "max": 0.8
+      },
+      "time_seconds": {
+        "mean": 112.6667,
+        "stddev": 29.0918,
+        "min": 85,
+        "max": 143
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.49",
+      "time_seconds": "-14.0",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

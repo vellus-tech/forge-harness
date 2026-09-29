@@ -1,0 +1,5 @@
+{"skill":"dotnet-quality-scan","root":"<worktree-do-eval>/.forge/evals/skills/dotnet-quality-scan/workspace/iteration-1/eval-validador-desktop-baseline-furado/with_skill/run-1/work/src/Validador.Desktop","engine":"rg","findings":[
+{"rule":"async-void","severity":"HIGH","count":1,"why":"exceção lançada em async void não é capturável pelo chamador e derruba o processo; só event handler justifica"},
+{"rule":"datetime-now","severity":"MEDIUM","count":1,"why":"DateTime.Now amarra o domínio ao fuso da máquina e ao relógio real; use UtcNow ou abstração de tempo"},
+{"rule":"single-impl-interface","severity":"MEDIUM","count":1,"why":"interface com implementação única"}
+],"total":3}

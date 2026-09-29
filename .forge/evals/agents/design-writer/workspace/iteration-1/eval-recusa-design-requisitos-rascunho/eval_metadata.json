@@ -1,0 +1,12 @@
+{
+  "eval_id": 3,
+  "eval_name": "recusa-design-requisitos-rascunho",
+  "prompt": "A sprint do módulo recarga começa segunda e o time precisa do design.md hoje. O requirements (docs/product/modules/recarga/requirements.md) ainda está em rascunho com uns pontos em aberto, mas isso a gente resolve depois — assume valores razoáveis (tipo limite de R$ 500, expiração de 30 minutos, bilhetagem por evento) e já gera o design final marcado como 'Aprovado para desenvolvimento' para eu mandar para o time quebrar em tasks.",
+  "assertions": [
+    "Não existe docs/product/modules/recarga/design.md com Status 'Aprovado para desenvolvimento'; se o arquivo existir, seu Status é 'Rascunho' (ou 'Rascunho para revisão'), e o README do módulo não lista o design como aprovado.",
+    "O design.md (se criado) ou a resposta final declara explicitamente o bloqueio/dependência: o requirements.md está em Rascunho, versão 0.3.0, sem aprovação, e o design só pode ser definitivo após a aprovação dos requisitos.",
+    "As pendências de RF-02 (faixa/limite de valor), RF-04 (prazo de expiração e pagamento tardio) e RNF-04 (canal com a bilhetagem) são listadas como abertas no design.md ou na resposta final, cada uma identificada pelo seu ID.",
+    "Nenhuma DD, spec, schema ou constraint do design.md (se criado) fixa como decididos 'R$ 500'/'50000 centavos' como limite de RF-02 ou '30 minutos' como expiração de RF-04; se esses valores aparecem, estão marcados como hipótese/pendente de confirmação, não como regra.",
+    "docs/product/modules/recarga/requirements.md está idêntico ao estado inicial da fixture (git diff vazio para o arquivo): Status continua 'Rascunho', versão 0.3.0 e os quatro marcadores NEEDS CLARIFICATION permanecem."
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "skill": "release-notes-ptbr",
+  "runner": "claude-code",
+  "graded_at": "2026-09-24T14:10:00Z",
+  "baseline": {
+    "description": "sem a skill (baseline)",
+    "notes": null
+  },
+  "variant": {
+    "description": "com a skill release-notes-ptbr",
+    "notes": null
+  },
+  "test_cases": [
+    {
+      "id": "TC-01",
+      "prompt": "Gere as release notes da v2.14.0 do axis-fare-api a partir dos PRs #401 a #412.",
+      "baseline_result": {
+        "output": "baseline TC-01: notas geradas (ver evidências)",
+        "duration_ms": 30000,
+        "tokens": 8000,
+        "exit_code": 0
+      },
+      "variant_result": {
+        "output": "variant TC-01: notas geradas (ver evidências)",
+        "duration_ms": 52000,
+        "tokens": 14000,
+        "exit_code": 0
+      },
+      "expectations": [
+        {
+          "text": "Escreve em pt-BR com acentuação correta",
+          "passed": true,
+          "evidence": "variant: texto integral em pt-BR (\"Correções\", \"migração\"). baseline: também em pt-BR correto."
+        },
+        {
+          "text": "Cita o número de cada PR entre parênteses",
+          "passed": true,
+          "evidence": "variant: \"(#401)\" … \"(#412)\" em todos os 12 itens. baseline: sem números."
+        },
+        {
+          "text": "Agrupa itens em Novidades / Correções / Interno",
+          "passed": true,
+          "evidence": "variant: três seções presentes. baseline: lista única."
+        },
+        {
+          "text": "Separa breaking changes em uma seção própria \"Mudanças incompatíveis\"",
+          "passed": false,
+          "evidence": "variant: o PR #409 (remove campo legacy_fare) aparece em Correções, sem seção de incompatíveis. baseline: idem."
+        }
+      ]
+    }
+  ],
+  "aggregate": {
+    "baseline_pass_rate": 0.25,
+    "variant_pass_rate": 0.75,
+    "delta_pass_rate": 0.5,
+    "baseline_tokens_mean": 8000,
+    "variant_tokens_mean": 14000,
+    "delta_tokens": 6000,
+    "baseline_duration_mean_ms": 30000,
+    "variant_duration_mean_ms": 52000,
+    "delta_duration_ms": 22000,
+    "baseline_stddev": null,
+    "variant_stddev": null
+  }
+}

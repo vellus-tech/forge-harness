@@ -1,0 +1,8 @@
+replicaCount: 4
+image:
+  repository: ghcr.io/recarga
+  digest: ""
+deployment:
+  strategy: rolling
+env:
+  AMBIENTE: prd

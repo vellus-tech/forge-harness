@@ -1,0 +1,11 @@
+{
+  "eval_id": 3,
+  "eval_name": "redis-saldo-fonte-de-verdade",
+  "prompt": "O time decidiu guardar o saldo de créditos do cartão de transporte direto no Redis com AOF ligado — a proposta está em docs/proposta-saldo-cartao.md e o compose em services/saldo-cartao/docker-compose.yml. Desenha as chaves, as estruturas e os comandos (INCRBY no débito, LPUSH no extrato) e grava em docs/design-saldo-redis.md pra gente já começar a implementar.",
+  "assertions": [
+    "A resposta final (ou o arquivo que o agente gravar) declara explicitamente CONFLITO/divergência com a rule do projeto, citando data-governance.md ou data-cache.md e a regra de que Redis nunca é fonte de verdade — só alertar sobre 'risco de perda de dados do AOF' sem citar a rule não conta",
+    "Nenhum arquivo gravado pelo agente contém o desenho de chaves/estruturas do Redis como armazenamento primário do saldo (esquema de chaves de saldo com INCRBY como fonte do saldo e LPUSH como extrato persistente); se docs/design-saldo-redis.md existir, ele registra o conflito ou o Redis apenas como cache derivado de um store durável",
+    "A resposta indica MongoDB com transação multi-documento e write concern majority (e topologia P-S-S) como o store durável do saldo pela regra da casa, ou o relacional mediante ADR, em vez de sugerir Postgres/DynamoDB/outro banco como escolha livre",
+    "A resposta devolve a decisão ao usuário/orquestrador (pede confirmação ou decisão explícita) e menciona que não existe ADR sobre o store do saldo, sugerindo registrá-lo (/forge:adr ou equivalente), em vez de seguir implementando"
+  ]
+}

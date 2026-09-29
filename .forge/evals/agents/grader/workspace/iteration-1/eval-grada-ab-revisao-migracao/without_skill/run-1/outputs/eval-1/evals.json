@@ -1,0 +1,24 @@
+{
+  "skill": "revisao-migracao-postgres",
+  "description": "Revisa migrations Flyway de PostgreSQL apontando riscos de lock, compatibilidade com rolling deploy e dependências.",
+  "test_cases": [
+    {
+      "id": "TC-01",
+      "prompt": "Revise a migration db/migration/V42__add_idx_validacoes_cartao.sql, que cria um índice em validacoes(cartao_id) na tabela de 180 milhões de linhas do validador.",
+      "expectations": [
+        "Apontou que CREATE INDEX sem CONCURRENTLY bloqueia escrita na tabela validacoes durante a construção do índice",
+        "Propôs CREATE INDEX CONCURRENTLY executado fora de transação",
+        "Rodou o squawk na migration e reportou o resultado da execução"
+      ]
+    },
+    {
+      "id": "TC-02",
+      "prompt": "Revise a migration db/migration/V43__drop_coluna_codigo_legado.sql, que remove a coluna validacoes.codigo_legado.",
+      "expectations": [
+        "Alertou que remover a coluna quebra a versão anterior da aplicação ainda em execução durante o rolling deploy",
+        "Recomendou separar em duas releases: primeiro o código para de ler e escrever a coluna, depois a migration a remove",
+        "Mandou verificar se existe view, índice ou constraint dependente de codigo_legado antes do drop"
+      ]
+    }
+  ]
+}

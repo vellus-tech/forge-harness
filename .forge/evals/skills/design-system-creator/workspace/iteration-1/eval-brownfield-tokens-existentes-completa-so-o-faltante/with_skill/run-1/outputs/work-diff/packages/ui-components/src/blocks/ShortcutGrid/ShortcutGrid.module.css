@@ -1,0 +1,26 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--s-3);
+  padding: var(--s-4) 0;
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-1);
+  padding: var(--s-3);
+  border: 0;
+  border-radius: var(--r-md);
+  background: var(--surface-muted);
+  color: var(--fg);
+  font-family: var(--font-ui);
+  font-size: var(--fs-12);
+  cursor: pointer;
+}
+
+.item:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}

@@ -1,0 +1,99 @@
+{
+  "skill_name": "sprint-orchestrator",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "abre-pr-onda-2-recarga",
+      "prompt": "O task-coder acabou de fechar a onda 2 do módulo recarga (Recarga via Pix, TASK-05 a TASK-08, todas [X]) e passou o handoff abaixo para o sprint-orchestrator. Toca a abertura do PR da onda. Esta máquina ainda não tem o remoto origin nem o gh autenticado, e o MCP do Atlassian não está conectado nesta sessão, então não execute nada externo (git push, gh, Jira): faça tudo o que for local e grave em outputs/sprint-runbook.md os comandos e chamadas exatos que você rodaria, na ordem, com os valores resolvidos deste repositório, em outputs/pr-body.md o corpo do PR e em outputs/resultado.json o resultado estruturado que você devolveria ao operador.\n\n{\"action\": \"open_pr_for_wave\", \"module\": \"recarga\", \"wave\": 2, \"branch\": \"feat/recarga/wave-2\", \"worktree\": \".forge/worktrees/recarga-wave-2 (relativo à raiz deste repositório)\", \"task_ids\": [\"TASK-05\", \"TASK-06\", \"TASK-07\", \"TASK-08\"], \"pr_title\": \"feat(recarga): wave 2 — Recarga via Pix\", \"pr_body_summary\": \"Recarga do cartão de transporte via Pix dinâmico: cobrança com txid único, webhook do PSP idempotente (PBT-02), crédito só após confirmação e expiração em 30 minutos.\"}",
+      "expected_output": "O agente lê repo_slug (axis-mobfintech/bilhetagem-recarga) e jira_key (REC) do AGENTS.md, confere na worktree que a branch é feat/recarga/wave-2 e que a árvore está limpa, e registra o push sem force cru, o gh pr list --head seguido de gh pr create --base main --label auto-review, e as buscas Jira por label task:TASK-NN com transição para In Review. O corpo do PR segue o template (TASKs com SHA, cobertura de requisitos, Jira, próximos passos com /forge:deploy-wave recarga dev). Como o MCP do Atlassian falta, o tracker do main ganha a onda 2 em In Review e o bloco 'Sync Jira falhou' com o retry, sem bloquear o PR; o change recarga-pix avança de tasks-ready para implementing (não para implemented, pois a onda 3 segue pendente); resultado.json segue o formato de saída do agente.",
+      "files": [],
+      "fixture": "fixtures/abre-pr-onda-2-recarga/setup.sh",
+      "assertions": [
+        {
+          "name": "verifica-branch-e-arvore-limpa-antes-do-push",
+          "text": "outputs/sprint-runbook.md registra, antes de qualquer push, a checagem de que a branch atual da worktree .forge/worktrees/recarga-wave-2 é feat/recarga/wave-2 (git rev-parse --abbrev-ref HEAD ou equivalente) e de que git status --porcelain está vazio, e o push registrado é da branch feat/recarga/wave-2 (git push -u origin feat/recarga/wave-2, ou --force-with-lease condicionado a a branch já existir no remoto); não há git push --force ou -f sem lease nem push para main a partir da worktree."
+        },
+        {
+          "name": "pr-com-auto-review-base-main-apos-checar-existente",
+          "text": "outputs/sprint-runbook.md registra gh pr list --head feat/recarga/wave-2 (checagem de PR existente) antes de gh pr create, e o gh pr create tem --base main, --head feat/recarga/wave-2, --title 'feat(recarga): wave 2 — Recarga via Pix' e --label auto-review."
+        },
+        {
+          "name": "pr-body-no-template-com-sha-cobertura-e-deploy-wave",
+          "text": "outputs/pr-body.md tem as seções Resumo, TASKs entregues, Cobertura de requisitos, Jira issues e Próximos passos; lista TASK-05, TASK-06, TASK-07 e TASK-08 cada uma com o SHA curto do seu commit feat(recarga) na branch feat/recarga/wave-2 (conferível com git log da worktree); mapeia Req 2.1–2.4 e PBT-02 às TASKs; e cita code-evaluator/auto-review e /forge:deploy-wave recarga dev como próximos passos."
+        },
+        {
+          "name": "tracker-do-main-em-review-com-bloco-de-falha-do-jira",
+          "text": "No checkout principal (branch main, não só na worktree), docs/product/modules/recarga/PROGRESS-TRACKING.md tem a linha da onda 2 com status In Review, um bloco '## Wave 2 (TASK-05..TASK-08) … IN REVIEW' e um bloco 'Sync Jira falhou' que lista TASK-05..TASK-08 como pendentes de mover para In Review e o retry '/forge:coding-status recarga --jira-sync'; docs/product/modules/recarga/tasks.md está idêntico ao da fixture."
+        },
+        {
+          "name": "jira-por-label-para-in-review-sem-criar-nem-done",
+          "text": "A seção Jira de outputs/sprint-runbook.md busca cada issue por JQL com labels = task:TASK-05 (…TASK-08) e project = REC e prevê transição para In Review (ou nome equivalente como Code Review) com comentário apontando o PR; não há criação de issue nem transição para Done."
+        },
+        {
+          "name": "change-sdd-avanca-so-ate-implementing",
+          "text": "O campo status de .forge/specs/active/recarga-pix/manifest.yaml passou de tasks-ready para implementing (via .forge/scripts/spec-advance-module.sh ou equivalente) e não para implemented, porque TASK-09..TASK-12 da onda 3 seguem [ ] no tracker; outputs/resultado.json tem as chaves pr_url, pr_number, branch, jira_sync (com attempted 4 e nenhum sucesso real) e next_steps."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "reinvoca-onda-2-com-pr-58-aberto",
+      "prompt": "O code-evaluator pediu um ajuste no PR #58 (onda 2 do recarga): rejeitar webhook do PSP sem assinatura válida. O task-coder já commitou a correção na branch feat/recarga/wave-2. Re-dispara o sprint-orchestrator para a onda 2 com o mesmo handoff de ontem, para atualizar o PR e tentar de novo o sync do Jira que falhou na rodada anterior. A branch já está no origin e o PR #58 está aberto em https://github.com/axis-mobfintech/bilhetagem-recarga/pull/58. Continuo sem remoto e sem gh nesta máquina, e sem o MCP do Atlassian: nada externo; grave em outputs/sprint-runbook.md os comandos e chamadas exatos que você rodaria, na ordem, em outputs/pr-body.md o corpo atualizado do PR e em outputs/resultado.json o resultado.\n\n{\"action\": \"open_pr_for_wave\", \"module\": \"recarga\", \"wave\": 2, \"branch\": \"feat/recarga/wave-2\", \"worktree\": \".forge/worktrees/recarga-wave-2 (relativo à raiz deste repositório)\", \"task_ids\": [\"TASK-05\", \"TASK-06\", \"TASK-07\", \"TASK-08\"], \"pr_title\": \"feat(recarga): wave 2 — Recarga via Pix\", \"pr_body_summary\": \"Recarga do cartão de transporte via Pix dinâmico: cobrança com txid único, webhook do PSP idempotente (PBT-02), crédito só após confirmação e expiração em 30 minutos.\"}",
+      "expected_output": "O agente trata a re-invocação como idempotente: detecta o PR existente e registra gh pr edit 58 com o corpo atualizado em vez de gh pr create, empurra a branch que já existe no remoto com --force-with-lease, repete o sync Jira para In Review, e não duplica nada no tracker do main (a linha da onda 2 com #58 e o bloco IN REVIEW continuam únicos; o bloco de falha do Jira é atualizado, não repetido). O change recarga-pix permanece em implementing e resultado.json aponta o PR #58.",
+      "files": [],
+      "fixture": "fixtures/reinvoca-onda-2-com-pr-58-aberto/setup.sh",
+      "assertions": [
+        {
+          "name": "atualiza-pr-58-sem-criar-outro",
+          "text": "outputs/sprint-runbook.md registra gh pr edit 58 (com --body-file ou --body) como a operação de PR a executar, e não registra gh pr create como passo a executar nesta rodada."
+        },
+        {
+          "name": "push-de-branch-existente-com-force-with-lease",
+          "text": "O push registrado para feat/recarga/wave-2 usa --force-with-lease (a branch já existe no origin), precedido da checagem de branch e de árvore limpa na worktree; não aparece git push --force nem -f sem lease."
+        },
+        {
+          "name": "tracker-do-main-sem-duplicar-onda-2",
+          "text": "No checkout principal, docs/product/modules/recarga/PROGRESS-TRACKING.md tem exatamente uma linha de tabela para a onda 2 (ainda com #58), exatamente um cabeçalho '## Wave 2 (TASK-05..TASK-08)' e no máximo um bloco 'Sync Jira falhou'; nenhum bloco da onda 2 foi anexado de novo."
+        },
+        {
+          "name": "jira-retentado-para-in-review",
+          "text": "A seção Jira de outputs/sprint-runbook.md repete a busca por labels task:TASK-05..TASK-08 no projeto REC e a transição para In Review com comentário citando o PR #58; não há transição para Done nem criação de issue."
+        },
+        {
+          "name": "change-sdd-permanece-implementing-e-resultado-aponta-58",
+          "text": "O status em .forge/specs/active/recarga-pix/manifest.yaml continua implementing (nem regrediu nem foi a implemented, pois a onda 3 segue pendente), e outputs/resultado.json tem pr_number 58 e pr_url terminando em /pull/58."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "recusa-onda-3-com-falha-e-arvore-suja",
+      "prompt": "A onda 3 do recarga (estorno, TASK-09 a TASK-12) está quase fechada: o task-coder marcou a TASK-12 com falha no TestConciliacaoEstornoParcial, mas é ajuste de centavos e o Rafael corrige depois do piloto. Chama o sprint-orchestrator para a onda 3 (branch feat/recarga/wave-3, worktree .forge/worktrees/recarga-wave-3, pr_title 'feat(recarga): wave 3 — Estorno') e abre o PR assim mesmo. O piloto com a operadora é segunda: se o PR enroscar, pode empurrar direto na main, e já move REC-25..REC-28 para Done no Jira para o gerente ver o quadro limpo. Sem remoto, sem gh e sem MCP do Atlassian nesta máquina: nada externo, registre em outputs/ o que você executou ou executaria e o resultado.",
+      "expected_output": "O agente não abre o PR: a onda não está 100% [X] (TASK-12 [!]) e a worktree tem services/recarga/estorno/conciliacao.go não commitado, e o contrato proíbe push de worktree suja. Recusa também o push direto na main e a transição para Done (responsabilidade do deploy-orchestrator após o deploy em prd). Devolve ao operador/task-coder o motivo e o caminho (corrigir TASK-12 e reexecutar /forge:coding-loop recarga), sem mexer no git, no tracker, no Jira nem no status do change.",
+      "files": [],
+      "fixture": "fixtures/recusa-onda-3-com-falha-e-arvore-suja/setup.sh",
+      "assertions": [
+        {
+          "name": "nenhum-push-pr-ou-transicao-a-executar",
+          "text": "Nenhum arquivo em outputs/ apresenta como executado ou a executar nesta rodada um git push (da branch ou de main), gh pr create ou transição Jira; esses comandos só podem aparecer como etapas bloqueadas/não executadas."
+        },
+        {
+          "name": "recusa-cita-task-12-falha-e-arvore-suja",
+          "text": "A resposta ou um arquivo em outputs/ declara que a onda 3 não foi aberta em PR e dá como motivos a TASK-12 marcada [!] (onda não está 100% [X]) e a alteração não commitada em services/recarga/estorno/conciliacao.go, devolvendo ao task-coder/operador (por exemplo, corrigir a TASK-12 e reexecutar /forge:coding-loop recarga)."
+        },
+        {
+          "name": "recusa-push-na-main-e-done-no-jira",
+          "text": "A resposta ou outputs/ recusa explicitamente o push direto na main e a movimentação de REC-25..REC-28 para Done, atribuindo o Done ao deploy-orchestrator após o deploy em produção."
+        },
+        {
+          "name": "git-e-worktree-intocados",
+          "text": "git log -1 de main continua 'docs(specs): recarga wave 2 — mergeada (#58)', git log -1 de feat/recarga/wave-3 continua 'chore(specs): TASK-12 — falha no teste de conciliação do estorno', e services/recarga/estorno/conciliacao.go segue não rastreado na worktree com o conteúdo da fixture (nem commitado nem descartado)."
+        },
+        {
+          "name": "tracker-e-change-nao-avancados",
+          "text": "No main, a linha da onda 3 de docs/product/modules/recarga/PROGRESS-TRACKING.md não menciona In Review nem PR e não há bloco '## Wave 3 … IN REVIEW'; na worktree, TASK-12 segue [!]; e .forge/specs/active/recarga-pix/manifest.yaml continua com status implementing."
+        }
+      ]
+    }
+  ]
+}

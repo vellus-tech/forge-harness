@@ -1,0 +1,45 @@
+{
+  "verdict": "REJECTED",
+  "exit_code": 1,
+  "rounds_executed": 0,
+  "branch": "fix/tarifa-arredondamento-meia",
+  "base": "main",
+  "final_diff_sha": "b199643ec05f0e36fd198f956e02372d9294c0d8",
+  "pr_number": 61,
+  "change_id": "fix-arredondamento-meia",
+  "change_type": "bugfix",
+  "phase_stopped_at": "1.3 check-red-first (cheap gate, sem LLM)",
+  "findings": [
+    {
+      "id": "RED-001",
+      "reviewer": "code-evaluator (cheap gate 1.3)",
+      "severity": "BLOCKER",
+      "category": "process",
+      "file": ".forge/specs/active/fix-arredondamento-meia/evidence/red/red-evidence.json",
+      "line": 4,
+      "title": "Red-first: evidência ausente/pendente para change bugfix",
+      "description": "O change fix-arredondamento-meia é do tipo bugfix e o diff toca services/tarifa/tarifa/calculo.py, mas evidence/red/red-evidence.json está com status 'pending' (test_path, test_id, command, base_commit e failure_pattern todos null). O script .forge/scripts/check-red-first.sh check fix-arredondamento-meia retornou CONFLICT: \"status 'pending' — Red ainda não observado nem dispensado (item 1, rule testing/regression-red-first.md)\". A afirmação do autor de que 'o teste de regressão já está no commit e passa' é verdadeira (test_regressao_meia_impar_arredonda_para_cima existe em services/tarifa/tests/test_calculo.py e passa), mas isso não substitui a evidência Red-first: o protocolo exige que o teste tenha sido observado falhando ANTES da correção (via /forge:red record + /forge:red replay), gravado em red-evidence.json, ou dispensado explicitamente via /forge:red waive --reason <motivo>. Sem isso não há prova de que o teste de fato reproduzia o bug (poderia estar mal escrito e passar mesmo sem a correção).",
+      "fix_suggested": "Rodar /forge:red record para declarar test_path=services/tarifa/tests/test_calculo.py::CalcularTarifaTest::test_regressao_meia_impar_arredonda_para_cima, test_id, command (ex.: python3 -m unittest services.tarifa.tests.test_calculo.CalcularTarifaTest.test_regressao_meia_impar_arredonda_para_cima), base_commit=7b7bf77 (pré-fix) e failure_pattern; em seguida /forge:red replay para converter a declaração em evidência 'observed'. Se o Red for genuinamente inviável, usar /forge:red waive --reason <non-behavioral|no-test-infra|external-unreproducible|hotfix-under-incident> com nota justificando.",
+      "rule_violated": ".forge/rules/testing/regression-red-first.md (item 1)",
+      "confidence": "high"
+    }
+  ],
+  "rounds_history": [],
+  "gates_checked": {
+    "1.1_verify_build": {
+      "status": "PASS",
+      "detail": "python3 -m unittest discover em services/tarifa/tests: 5 testes, todos OK, incluindo o teste de regressão test_regressao_meia_impar_arredonda_para_cima (calcular_tarifa(495, meia=True) == 248)."
+    },
+    "1.2_verify_diff_claims": {
+      "status": "PASS_SEM_BLOQUEIO",
+      "detail": "Claim do usuário ('o teste de regressão já está no commit e passa') confirmado: arquivo services/tarifa/tests/test_calculo.py contém o teste no diff main..HEAD e ele passa. Claim de 'uma linha' também confere: única linha de produção alterada é services/tarifa/tarifa/calculo.py (base_centavos // 2 -> (base_centavos + 1) // 2)."
+    },
+    "1.3_check_red_first": {
+      "status": "BLOCKER",
+      "detail": "bash .forge/scripts/check-red-first.sh check fix-arredondamento-meia -> exit 1, CONFLICT: evidence status 'pending'. Pipeline interrompido aqui — reviewers (Fase 2) NÃO foram acionados, conforme o agente manda ('pule reviewers e vá direto para Fase 5')."
+    }
+  },
+  "reviewers_invoked": [],
+  "reviewers_skipped_reason": "Fase 1.3 (cheap gate check-red-first) retornou BLOCKER antes do fan-out; protocolo do code-evaluator manda pular Fase 2 e ir direto para Fase 5 com REJECTED, evitando gastar tokens com 5+ reviewers Opus/Sonnet em um bugfix sem Red observado.",
+  "pr_comment_path": "outputs/pr-comment.md"
+}

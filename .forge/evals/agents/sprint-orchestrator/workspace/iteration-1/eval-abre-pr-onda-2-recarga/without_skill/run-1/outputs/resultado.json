@@ -1,0 +1,48 @@
+{
+  "action": "open_pr_for_wave",
+  "status": "simulated_no_external_calls",
+  "module": "recarga",
+  "wave": 2,
+  "branch": "feat/recarga/wave-2",
+  "worktree": ".forge/worktrees/recarga-wave-2",
+  "task_ids": ["TASK-05", "TASK-06", "TASK-07", "TASK-08"],
+  "pr_title": "feat(recarga): wave 2 — Recarga via Pix",
+  "pr_body_path": "outputs/pr-body.md",
+  "would_run": {
+    "git_remote_add": "git remote add origin git@github.com:axis-mobfintech/bilhetagem-recarga.git",
+    "gh_auth_login": "gh auth login --hostname github.com --git-protocol ssh --web",
+    "git_push": "git -C .forge/worktrees/recarga-wave-2 push -u origin feat/recarga/wave-2",
+    "gh_pr_create": "gh pr create --repo axis-mobfintech/bilhetagem-recarga --base main --head feat/recarga/wave-2 --title \"feat(recarga): wave 2 — Recarga via Pix\" --body-file outputs/pr-body.md",
+    "jira_transitions": ["REC-21", "REC-22", "REC-23", "REC-24"],
+    "jira_target_status": "In Review"
+  },
+  "blockers": [
+    "sem remoto origin configurado no repositório",
+    "gh não autenticado nesta máquina",
+    "MCP Atlassian não conectado nesta sessão"
+  ],
+  "unresolved": [
+    "IDs REC-21..24 são inferidos por continuidade da onda 1 (REC-17..20); não confirmados no Jira real"
+  ],
+  "artifacts_reviewed": {
+    "wave2_commits": ["ad7cfe5", "cd5f313", "598fbe6", "3c70e95"],
+    "changed_files": [
+      "services/recarga/pix/cobranca.go",
+      "services/recarga/pix/webhook.go",
+      "services/recarga/pix/credito.go",
+      "services/recarga/pix/expiracao.go",
+      "docs/product/modules/recarga/PROGRESS-TRACKING.md"
+    ],
+    "progress_tracking": "onda 2 100% [X], PR coluna vazia"
+  },
+  "would_dispatch_subagents": [
+    {
+      "agent": "sprint-orchestrator",
+      "model": "sonnet",
+      "prompt_summary": "publicar feat/recarga/wave-2, abrir PR com outputs/pr-body.md e sincronizar REC-21..24 para In Review via MCP Atlassian",
+      "dispatched": false,
+      "reason": "instrução explícita da rodada de eval proíbe spawn de subagentes"
+    }
+  ],
+  "next_human_action": "revisar outputs/sprint-runbook.md, confirmar IDs Jira reais, então executar os comandos manualmente ou reautorizar a automação"
+}

@@ -1,0 +1,333 @@
+{
+  "metadata": {
+    "skill_name": "design-system-creator",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-28T17:24:31Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 786,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "packages/design-tokens/src/css/tokens.css \u00e9 byte a byte id\u00eantico ao da fixture (fixtures/brownfield-tokens-existentes-completa-so-o-faltante/overlay/packages/design-tokens/src/css/tokens.css), inclusive o coment\u00e1rio 'rotaviva-tokens: ... fonte can\u00f4nica v1.2.0', e packages/design-tokens/package.json continua com \"version\": \"1.2.0\" (git diff vazio para esses dois arquivos).",
+          "passed": true,
+          "evidence": "`cmp overlay/packages/design-tokens/src/css/tokens.css work/.../tokens.css` \u2192 CMP_OK; tokens.css:3 '/* rotaviva-tokens: espelho de colors_and_type.css do handoff \u2014 revisado em 2026-09-10, fonte can\u00f4nica v1.2.0 */'; package.json:3 '\"version\": \"1.2.0\"'; `git -C work diff --stat HEAD -- <os dois arquivos>` vazio; `git status --porcelain` n\u00e3o lista packages/design-tokens."
+        },
+        {
+          "text": "docs/product/design-system/tokens.md mant\u00e9m a linha de Hist\u00f3rico de Vers\u00f5es '1.2.0 | 2026-09-10' e a frase 'O pacote `@rotaviva/design-tokens` vence em caso de diverg\u00eancia'; qualquer mudan\u00e7a \u00e9 apenas acr\u00e9scimo (git diff do arquivo sem linhas removidas).",
+          "passed": true,
+          "evidence": "`grep -n` em work/docs/product/design-system/tokens.md: :13 '| 1.2.0 | 2026-09-10 | Time de produto | ...' e :15 'O pacote `@rotaviva/design-tokens` vence em caso de diverg\u00eancia com este documento.'; `git -C work diff --stat HEAD -- docs/product/design-system/tokens.md` vazio."
+        },
+        {
+          "text": "packages/ui-components/src/blocks/ cont\u00e9m AppHeader, BalanceCard, TripRow, ShortcutGrid e BottomNav, cada um com <Nome>.tsx, <Nome>.module.css, <Nome>.stories.tsx cujo title come\u00e7a com 'Blocos/' e <Nome>.test.tsx que chama runA11y.",
+          "passed": true,
+          "evidence": "La\u00e7o `[ -f blocks/<Nome>/<Nome>.{tsx,module.css,stories.tsx,test.tsx} ]` sem nenhum MISSING para os 5 blocos; titles: AppHeader.stories.tsx:5 'Blocos/AppHeader', BalanceCard.stories.tsx:5, TripRow.stories.tsx:5, ShortcutGrid.stories.tsx:6, BottomNav.stories.tsx:5 (todos 'Blocos/<Nome>'); `grep -c 'runA11y('` = 1 em cada <Nome>.test.tsx. Testes n\u00e3o executados (pnpm install bloqueado, ver outputs/build-verify-simulado.md)."
+        },
+        {
+          "text": "HomeScreen e RechargeScreen existem como stories sob packages/ui-components/src/patterns/ com title come\u00e7ando por 'Padr\u00f5es/', h\u00e1 um componente PhoneFrame em patterns/, e packages/ui-components/src/index.ts n\u00e3o importa nem reexporta nada de patterns/.",
+          "passed": true,
+          "evidence": "src/patterns/ cont\u00e9m HomeScreen.stories.tsx:6 'Padr\u00f5es/HomeScreen', RechargeScreen.stories.tsx:6 'Padr\u00f5es/RechargeScreen' (e RechargeFlow.stories.tsx:28 'Padr\u00f5es/Fluxo de recarga'); PhoneFrame.tsx:4 'export function PhoneFrame'; `grep -n 'patterns\\|screens' src/index.ts` s\u00f3 acha o coment\u00e1rio da linha 19 ('patterns/ ... \u00e9 intencionalmente N\u00c3O exportado aqui'), nenhum import/export."
+        },
+        {
+          "text": "docs/product/design-system/design-system.md, components.md e accessibility.md foram criados com Vers\u00e3o, Data, Status e Hist\u00f3rico de Vers\u00f5es, components.md cita os cinco blocos; o branch atual \u00e9 feat/design-system/rotaviva-ui-kit e main continua com 1 commit s\u00f3.",
+          "passed": false,
+          "evidence": "Docs OK: design-system.md, components.md e accessibility.md t\u00eam Vers\u00e3o 0.1.0 (l.5), Data 2026-09-26 (l.6), Status 'Rascunho para revis\u00e3o' (l.7) e '## Hist\u00f3rico de Vers\u00f5es' (l.9); components.md cita os cinco blocos (`grep -c` \u2265 2 para cada). Mas o branch falha: `git -C work branch --show-current` = 'main', `git branch -a` s\u00f3 lista main; transcript.md:59 'n\u00e3o troquei de branch em work/. O reposit\u00f3rio permanece em main.' (`git rev-list --count main` = 1)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.67,
+        "passed": 4,
+        "failed": 2,
+        "total": 6,
+        "time_seconds": 571,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "No projeto de sa\u00edda, `git branch --show-current` retorna feat/design-system/rotaviva-ui-kit e tanto main quanto o branch de feature t\u00eam exatamente 1 commit (o inicial da fixture): o trabalho ficou n\u00e3o-commitado e main n\u00e3o recebeu nada.",
+          "passed": false,
+          "evidence": "`git -C with_skill/run-1/work branch --show-current` \u2192 `main`; `git rev-parse --verify -q feat/design-system/rotaviva-ui-kit` rc=1 (branch inexistente); `git rev-list --count main` = 1 (2867d1c) e `git status --short` mostra `?? CHANGELOG.md docs/ packages/` (n\u00e3o-commitado, main intacto). O branch de feature n\u00e3o existe; transcript.md:35 e :98 admitem 'N\u00e3o executado' / 'nenhuma criada (regra do run)'. Nota: as regras do harness proibiam git checkout, o que torna esta asser\u00e7\u00e3o insatisfaz\u00edvel no ambiente."
+        },
+        {
+          "text": "packages/design-tokens/src/css/tokens.css existe, sua primeira regra CSS (ignorando coment\u00e1rios e linhas em branco) \u00e9 o @import de fonts.googleapis.com com Sora e Manrope, define --brand: #0F9D8A, e nem ele nem nenhum outro arquivo sob packages/ cont\u00e9m #7A3CF0 (roxo descartado no chat) ou #FF4000 (marca do exemplo da skill).",
+          "passed": true,
+          "evidence": "work/packages/design-tokens/src/css/tokens.css existe (1215 bytes, id\u00eantico a outputs/deliverables/...); primeira linha n\u00e3o-coment\u00e1rio: `@import url('https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Manrope:wght@400;500;600&display=swap');`; linha 5 `--brand: #0F9D8A;`; `diff -q` contra design-handoff/.../project/colors_and_type.css = id\u00eantico; `grep -rniE '#7A3CF0|#FF4000' work/packages` rc=1 (vazio)."
+        },
+        {
+          "text": "Nenhum package.json (raiz ou packages/*) declara tailwindcss, @radix-ui/*, styled-components ou @emotion/*; cada primitivo em packages/ui-components/src/components/<Nome>/ tem <Nome>.module.css, e nenhum arquivo *.module.css sob packages/ui-components cont\u00e9m literal de cor hexadecimal (grep -E '#[0-9a-fA-F]{3,8}\\b' vazio).",
+          "passed": false,
+          "evidence": "Depend\u00eancias OK: `grep -nE 'tailwind|@radix-ui|styled-components|@emotion' package.json packages/*/package.json` rc=1. Os 5 primitivos (Badge, Button, Card, Eyebrow, Input) t\u00eam <Nome>.module.css. Mas `find packages/ui-components -name '*.module.css' | xargs grep -nE '#[0-9a-fA-F]{3,8}\\b'` rc=0: packages/ui-components/src/components/Badge/Badge.module.css:11 `background: #E6F4EA;` e :16 `background: #FFF4E0;` \u2014 hex literal fora de token, grep n\u00e3o \u00e9 vazio."
+        },
+        {
+          "text": "packages/icons/src/Icon.tsx declara IconSize exatamente como a uni\u00e3o 16 | 20 | 24 | 32 | 40 | 48; o componente de mark da marca referencia um PNG via new URL('../assets/...png', import.meta.url) e n\u00e3o cont\u00e9m <svg> nem <path>; packages/icons/assets/ cont\u00e9m os PNGs rotaviva-mark-* copiados do handoff.",
+          "passed": true,
+          "evidence": "packages/icons/src/Icon.tsx:8 `export type IconSize = 16 | 20 | 24 | 32 | 40 | 48;`; packages/icons/src/RotavivaMark.tsx:4-6 `new URL('../assets/brand/rotaviva-mark-{teal,black,white}.png', import.meta.url).href`; `grep -nE '<svg|<path' RotavivaMark.tsx` sem ocorr\u00eancia; packages/icons/assets/brand/rotaviva-mark-{black,teal,white}.png presentes e `cmp` contra design-handoff/.../project/assets/brand/ = id\u00eanticos (os tr\u00eas)."
+        },
+        {
+          "text": "packages/ui-components/.storybook/preview.tsx importa @rotaviva/design-tokens/css e define storySort na ordem Fundamentos, Componentes, Blocos, Padr\u00f5es; packages/ui-components/vite.config.ts fixa thresholds de coverage lines 80, branches 75, functions 80; e packages/ui-components/src/index.ts n\u00e3o exporta nada de patterns/.",
+          "passed": true,
+          "evidence": "packages/ui-components/.storybook/preview.tsx:2 `import '@rotaviva/design-tokens/css';` e :16 `order: ['Fundamentos', [...], 'Componentes', 'Blocos', 'Padr\u00f5es']`; vite.config.ts:26-28 `lines: 80, branches: 75, functions: 80`; src/index.ts exporta s\u00f3 ./components/*, ./blocks/* e reexports de @rotaviva/icons (linhas 2-17); a \u00fanica men\u00e7\u00e3o a patterns \u00e9 o coment\u00e1rio da linha 19 ('N\u00c3O \u00e9 exportado aqui')."
+        },
+        {
+          "text": "Existem os quatro arquivos docs/product/design-system/{design-system,tokens,components,accessibility}.md, cada um com Vers\u00e3o, Data, Status e Hist\u00f3rico de Vers\u00f5es; design-system.md afirma explicitamente que a stack n\u00e3o usa Tailwind nem Radix e que n\u00e3o h\u00e1 camada/modo dark nos tokens; accessibility.md registra o contraste da marca sobre branco (~3.4:1) como limite para texto normal, reservando-a a CTA curto/texto grande/\u00edcone.",
+          "passed": true,
+          "evidence": "Os 4 arquivos existem em work/docs/product/design-system/ (id\u00eanticos a outputs/deliverables/docs, `diff -rq` vazio), cada um com contagens Vers\u00e3o=2, Data=2, Status=2, 'Hist\u00f3rico de Vers\u00f5es'=1. design-system.md:39 'Proibido Tailwind, Radix ou CSS-in-JS' e :49-51 '## Modo escuro \u2014 N\u00e3o existe nesta vers\u00e3o ... tokens.css n\u00e3o tem camada [data-theme=\"dark\"]'. accessibility.md:36-42 '--brand (#0F9D8A) sobre branco mede ~3.4:1 ... suficiente para texto grande ... \u00edcones ... CTAs curtos ... N\u00e3o \u00e9 suficiente para texto corrido normal'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 63,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "O projeto de sa\u00edda n\u00e3o tem diret\u00f3rio packages/, nem docs/product/design-system/, nem tailwind.config.* ou postcss.config.*, e o package.json raiz \u00e9 id\u00eantico ao da fixture (git status --porcelain vazio, desconsiderando arquivos do pr\u00f3prio runner).",
+          "passed": true,
+          "evidence": "Rodado em with_skill/run-1: find work -not -path '*/.git/*' \\( -name packages -o -path '*/docs/product/design-system' -o -name 'tailwind.config.*' -o -name 'postcss.config.*' \\) | wc -l \u2192 0; git -C work status --porcelain \u2192 vazio; git -C work diff HEAD -- package.json | wc -l \u2192 0. Transcript linha 35: 'N\u00e3o editei nada em `work/` al\u00e9m do que o `setup.sh` j\u00e1 deixou'."
+        },
+        {
+          "text": "main segue com exatamente 1 commit, n\u00e3o foi criado nenhum branch novo (git branch lista s\u00f3 main) e n\u00e3o houve push.",
+          "passed": true,
+          "evidence": "Rodado em with_skill/run-1: git -C work rev-list --count main \u2192 1; git -C work branch -a \u2192 '* main' apenas; git -C work remote -v \u2192 vazio (sem remote, push imposs\u00edvel); ls work/.git/refs \u2192 heads, tags (sem refs/remotes). Transcript linha 34: 'N\u00e3o criei branch de feature ainda'."
+        },
+        {
+          "text": "A resposta final pede o link de handoff do Claude Design no formato https://api.anthropic.com/v1/design/h/<id> (ou o bundle exportado de claude.ai/design) como pr\u00e9-requisito para come\u00e7ar, em vez de derivar cores de mem\u00f3ria ou chutar um hex para 'verde-petr\u00f3leo'.",
+          "passed": true,
+          "evidence": "assistant_response.md linha 5: 'Preciso que voc\u00ea me passe o link de handoff do Claude Design (ou o arquivo baixado) antes de eu come\u00e7ar', citando `https://api.anthropic.com/v1/design/h/<id>`; linha 13: '\u00e9 de l\u00e1 que sai o verde-petr\u00f3leo exato, n\u00e3o da minha mem\u00f3ria'. grep -E '#[0-9a-fA-F]{6}' assistant_response.md \u2192 0 ocorr\u00eancias (nenhum hex chutado)."
+        },
+        {
+          "text": "A resposta final diz explicitamente que o design system \u00e9 feito em CSS Modules + tokens (CSS custom properties), sem Tailwind e sem Radix, ou pede decis\u00e3o expl\u00edcita sobre esse conflito \u2014 n\u00e3o aceita Tailwind/Radix em sil\u00eancio.",
+          "passed": true,
+          "evidence": "assistant_response.md linha 7: 'O design-system-creator fixa **CSS Modules + tokens (CSS custom properties)** \u2014 sem Tailwind, sem Radix, sem CSS-in-JS'; linha 14 pede confirma\u00e7\u00e3o expl\u00edcita e trata Tailwind/Radix como decis\u00e3o de arquitetura \u00e0 parte. grep -c 'CSS Modules' \u2192 2."
+        },
+        {
+          "text": "A resposta final recusa trabalhar/commitar na main e indica o branch de feature feat/design-system/rotaviva-ui-kit (ou equivalente feat/design-system/<slug>-ui-kit) como destino.",
+          "passed": true,
+          "evidence": "assistant_response.md linha 9: 'N\u00e3o vou trabalhar nem commitar no `main`'; linha 15: 'o trabalho vai para um branch `feat/design-system/rotaviva-ui-kit`, n\u00e3o para o `main`'. grep -c 'feat/design-system' \u2192 2."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.4,
+        "passed": 2,
+        "failed": 3,
+        "total": 5,
+        "time_seconds": 295,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "packages/design-tokens/src/css/tokens.css \u00e9 byte a byte id\u00eantico ao da fixture (fixtures/brownfield-tokens-existentes-completa-so-o-faltante/overlay/packages/design-tokens/src/css/tokens.css), inclusive o coment\u00e1rio 'rotaviva-tokens: ... fonte can\u00f4nica v1.2.0', e packages/design-tokens/package.json continua com \"version\": \"1.2.0\" (git diff vazio para esses dois arquivos).",
+          "passed": true,
+          "evidence": "`cmp` contra a fixture \u2192 CMP_OK; tokens.css:3 mant\u00e9m 'rotaviva-tokens: ... fonte can\u00f4nica v1.2.0'; package.json:3 '\"version\": \"1.2.0\"'; `git -C work diff --stat HEAD -- <os dois arquivos>` vazio."
+        },
+        {
+          "text": "docs/product/design-system/tokens.md mant\u00e9m a linha de Hist\u00f3rico de Vers\u00f5es '1.2.0 | 2026-09-10' e a frase 'O pacote `@rotaviva/design-tokens` vence em caso de diverg\u00eancia'; qualquer mudan\u00e7a \u00e9 apenas acr\u00e9scimo (git diff do arquivo sem linhas removidas).",
+          "passed": true,
+          "evidence": "work/docs/product/design-system/tokens.md:13 '| 1.2.0 | 2026-09-10 | ...' e :15 'O pacote `@rotaviva/design-tokens` vence em caso de diverg\u00eancia com este documento.'; `git diff --stat HEAD` do arquivo vazio."
+        },
+        {
+          "text": "packages/ui-components/src/blocks/ cont\u00e9m AppHeader, BalanceCard, TripRow, ShortcutGrid e BottomNav, cada um com <Nome>.tsx, <Nome>.module.css, <Nome>.stories.tsx cujo title come\u00e7a com 'Blocos/' e <Nome>.test.tsx que chama runA11y.",
+          "passed": false,
+          "evidence": "`ls src/blocks` \u2192 arquivos planos AppHeader.tsx, BalanceCard.tsx, BottomNav.tsx, ShortcutGrid.tsx, TripRow.tsx; la\u00e7o de exist\u00eancia reportou MISSING para <Nome>.module.css, <Nome>.stories.tsx e <Nome>.test.tsx dos 5 blocos; `grep -rn 'runA11y\\|stories' packages/ui-components` sem resultado."
+        },
+        {
+          "text": "HomeScreen e RechargeScreen existem como stories sob packages/ui-components/src/patterns/ com title come\u00e7ando por 'Padr\u00f5es/', h\u00e1 um componente PhoneFrame em patterns/, e packages/ui-components/src/index.ts n\u00e3o importa nem reexporta nada de patterns/.",
+          "passed": false,
+          "evidence": "`ls src/patterns` \u2192 No such file or directory; sem PhoneFrame; telas em src/screens/ sem stories, e src/index.ts:12-13 reexporta publicamente HomeScreen e RechargeScreen de './screens/\u2026' \u2014 contr\u00e1rio a 'padr\u00f5es s\u00f3 no Storybook'."
+        },
+        {
+          "text": "docs/product/design-system/design-system.md, components.md e accessibility.md foram criados com Vers\u00e3o, Data, Status e Hist\u00f3rico de Vers\u00f5es, components.md cita os cinco blocos; o branch atual \u00e9 feat/design-system/rotaviva-ui-kit e main continua com 1 commit s\u00f3.",
+          "passed": false,
+          "evidence": "Os tr\u00eas docs t\u00eam Vers\u00e3o/Data/Status (l.5-7), mas `grep -n 'Hist\u00f3rico de Vers\u00f5es'` s\u00f3 acha design-system.md:9; components.md e accessibility.md n\u00e3o t\u00eam a se\u00e7\u00e3o. Branch: `git -C work branch --show-current` = 'main', nenhum feat/design-system/rotaviva-ui-kit; transcript n\u00e3o menciona branch."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 6,
+        "total": 6,
+        "time_seconds": 307,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "No projeto de sa\u00edda, `git branch --show-current` retorna feat/design-system/rotaviva-ui-kit e tanto main quanto o branch de feature t\u00eam exatamente 1 commit (o inicial da fixture): o trabalho ficou n\u00e3o-commitado e main n\u00e3o recebeu nada.",
+          "passed": false,
+          "evidence": "`git -C without_skill/run-1/work branch --show-current` \u2192 `main`; `git rev-parse --verify -q feat/design-system/rotaviva-ui-kit` rc=1 (branch inexistente); `git rev-list --count main` = 1 (03a24d6); `git status --short` mostra ` M package.json`, `?? docs/`, `?? packages/`. Sem branch de feature (o transcript n\u00e3o menciona cri\u00e1-lo)."
+        },
+        {
+          "text": "packages/design-tokens/src/css/tokens.css existe, sua primeira regra CSS (ignorando coment\u00e1rios e linhas em branco) \u00e9 o @import de fonts.googleapis.com com Sora e Manrope, define --brand: #0F9D8A, e nem ele nem nenhum outro arquivo sob packages/ cont\u00e9m #7A3CF0 (roxo descartado no chat) ou #FF4000 (marca do exemplo da skill).",
+          "passed": false,
+          "evidence": "`ls work/packages/design-tokens/src/css/tokens.css` \u2192 No such file or directory. O arquivo foi gravado em packages/design-tokens/src/tokens.css (caminho diferente do exigido), embora nele a linha 1 seja o @import Sora/Manrope e a linha 5 `--brand: #0F9D8A;` e `grep -rniE '#7A3CF0|#FF4000' packages` seja vazio. Caminho exigido ausente \u2192 falha."
+        },
+        {
+          "text": "Nenhum package.json (raiz ou packages/*) declara tailwindcss, @radix-ui/*, styled-components ou @emotion/*; cada primitivo em packages/ui-components/src/components/<Nome>/ tem <Nome>.module.css, e nenhum arquivo *.module.css sob packages/ui-components cont\u00e9m literal de cor hexadecimal (grep -E '#[0-9a-fA-F]{3,8}\\b' vazio).",
+          "passed": false,
+          "evidence": "Deps OK (`grep -nE 'tailwind|@radix-ui|styled-components|@emotion'` rc=1), mas `ls packages/ui-components/src/components` \u2192 No such file or directory; primitivos em src/primitives/{Button,Badge,Card,Input}.tsx com um \u00fanico primitives.css global; `find packages/ui-components -name '*.module.css' | wc -l` = 0. Sem CSS Modules por primitivo."
+        },
+        {
+          "text": "packages/icons/src/Icon.tsx declara IconSize exatamente como a uni\u00e3o 16 | 20 | 24 | 32 | 40 | 48; o componente de mark da marca referencia um PNG via new URL('../assets/...png', import.meta.url) e n\u00e3o cont\u00e9m <svg> nem <path>; packages/icons/assets/ cont\u00e9m os PNGs rotaviva-mark-* copiados do handoff.",
+          "passed": false,
+          "evidence": "packages/icons n\u00e3o existe (`ls packages/icons/src` e `packages/icons/assets` \u2192 No such file or directory). Os PNGs de marca foram copiados para packages/ui-components/src/assets/brand/, n\u00e3o para packages/icons/assets/; n\u00e3o h\u00e1 Icon.tsx nem IconSize."
+        },
+        {
+          "text": "packages/ui-components/.storybook/preview.tsx importa @rotaviva/design-tokens/css e define storySort na ordem Fundamentos, Componentes, Blocos, Padr\u00f5es; packages/ui-components/vite.config.ts fixa thresholds de coverage lines 80, branches 75, functions 80; e packages/ui-components/src/index.ts n\u00e3o exporta nada de patterns/.",
+          "passed": false,
+          "evidence": "N\u00e3o existem packages/ui-components/.storybook/preview.tsx nem packages/ui-components/vite.config.ts (grep \u2192 No such file or directory); n\u00e3o h\u00e1 Storybook, storySort nem thresholds de coverage. src/index.ts n\u00e3o tem patterns/, mas as demais cl\u00e1usulas falham."
+        },
+        {
+          "text": "Existem os quatro arquivos docs/product/design-system/{design-system,tokens,components,accessibility}.md, cada um com Vers\u00e3o, Data, Status e Hist\u00f3rico de Vers\u00f5es; design-system.md afirma explicitamente que a stack n\u00e3o usa Tailwind nem Radix e que n\u00e3o h\u00e1 camada/modo dark nos tokens; accessibility.md registra o contraste da marca sobre branco (~3.4:1) como limite para texto normal, reservando-a a CTA curto/texto grande/\u00edcone.",
+          "passed": false,
+          "evidence": "Os 4 arquivos existem em work/docs/product/design-system/, mas nenhum tem Vers\u00e3o/Data/Status/Hist\u00f3rico de Vers\u00f5es (contagens 0/0/0/0 nos quatro). design-system.md n\u00e3o menciona Tailwind, Radix, dark nem escuro (`grep -niE 'tailwind|radix|dark|escuro'` vazio; s\u00f3 diz 'tema claro apenas nesta vers\u00e3o'). accessibility.md:5 registra o ~3.4:1 abaixo de 4.5:1 para texto normal com restri\u00e7\u00e3o a CTA curto e \u00edcone-a\u00e7\u00e3o \u2014 essa cl\u00e1usula passaria, mas as demais falham."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6,
+        "passed": 3,
+        "failed": 2,
+        "total": 5,
+        "time_seconds": 93,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "O projeto de sa\u00edda n\u00e3o tem diret\u00f3rio packages/, nem docs/product/design-system/, nem tailwind.config.* ou postcss.config.*, e o package.json raiz \u00e9 id\u00eantico ao da fixture (git status --porcelain vazio, desconsiderando arquivos do pr\u00f3prio runner).",
+          "passed": true,
+          "evidence": "Rodado em without_skill/run-1: find work -not -path '*/.git/*' \\( -name packages -o -path '*/docs/product/design-system' -o -name 'tailwind.config.*' -o -name 'postcss.config.*' \\) | wc -l \u2192 0; git -C work status --porcelain \u2192 vazio; git -C work diff HEAD -- package.json | wc -l \u2192 0. Transcript linha 46: 'N\u00e3o alterei nada em `work/`'; package.json id\u00eantico ao de with_skill/run-1/work (diff vazio)."
+        },
+        {
+          "text": "main segue com exatamente 1 commit, n\u00e3o foi criado nenhum branch novo (git branch lista s\u00f3 main) e n\u00e3o houve push.",
+          "passed": true,
+          "evidence": "Rodado em without_skill/run-1: git -C work rev-list --count main \u2192 1; git -C work branch -a \u2192 '* main' apenas; git -C work remote -v \u2192 vazio (sem remote, push imposs\u00edvel); ls work/.git/refs \u2192 heads, tags (sem refs/remotes)."
+        },
+        {
+          "text": "A resposta final pede o link de handoff do Claude Design no formato https://api.anthropic.com/v1/design/h/<id> (ou o bundle exportado de claude.ai/design) como pr\u00e9-requisito para come\u00e7ar, em vez de derivar cores de mem\u00f3ria ou chutar um hex para 'verde-petr\u00f3leo'.",
+          "passed": true,
+          "evidence": "response.md linha 5: 'Preciso do link do handoff do Claude Design (ou de um export/arquivo com os tokens) para prosseguir', citando `https://api.anthropic.com/v1/design/h/<id>` e afirmando que 'Verde-petr\u00f3leo n\u00e3o \u00e9 suficiente para derivar uma paleta'. grep -E '#[0-9a-fA-F]{6}' response.md \u2192 0 ocorr\u00eancias."
+        },
+        {
+          "text": "A resposta final diz explicitamente que o design system \u00e9 feito em CSS Modules + tokens (CSS custom properties), sem Tailwind e sem Radix, ou pede decis\u00e3o expl\u00edcita sobre esse conflito \u2014 n\u00e3o aceita Tailwind/Radix em sil\u00eancio.",
+          "passed": false,
+          "evidence": "response.md linha 9: 'Tailwind + Radix \u00e9 uma escolha razo\u00e1vel e comum ... n\u00e3o vejo nada neste repo ... que contradiga isso'; linha 11 planeja 'packages/ui-components (Tailwind + Radix)'. grep -c 'CSS Modules' response.md \u2192 0. A 'confirma\u00e7\u00e3o r\u00e1pida' \u00e9 sobre o time conhecer a stack, n\u00e3o sobre um conflito com CSS Modules + tokens; na pr\u00e1tica aceita Tailwind/Radix."
+        },
+        {
+          "text": "A resposta final recusa trabalhar/commitar na main e indica o branch de feature feat/design-system/rotaviva-ui-kit (ou equivalente feat/design-system/<slug>-ui-kit) como destino.",
+          "passed": false,
+          "evidence": "response.md linha 7 recusa commitar na main (metade satisfeita), mas o destino indicado \u00e9 'branch `feature/<change-id>`, PR para `develop`', n\u00e3o feat/design-system/rotaviva-ui-kit nem feat/design-system/<slug>-ui-kit. grep -c 'feat/design-system' response.md \u2192 0. Sem cr\u00e9dito parcial."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.8233,
+        "stddev": 0.1662,
+        "min": 0.67,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 473.3333,
+        "stddev": 371.2632,
+        "min": 63,
+        "max": 786
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.3333,
+        "stddev": 0.3055,
+        "min": 0.0,
+        "max": 0.6
+      },
+      "time_seconds": {
+        "mean": 231.6667,
+        "stddev": 120.2387,
+        "min": 93,
+        "max": 307
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.49",
+      "time_seconds": "+241.7",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

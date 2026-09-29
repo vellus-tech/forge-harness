@@ -1,0 +1,26 @@
+diff --git a/services/tarifa/tarifa/calculo.py b/services/tarifa/tarifa/calculo.py
+index 5b4ad82..6147132 100644
+--- a/services/tarifa/tarifa/calculo.py
++++ b/services/tarifa/tarifa/calculo.py
+@@ -9,5 +9,5 @@ def calcular_tarifa(base_centavos: int = TARIFA_BASE_CENTAVOS, meia: bool = Fals
+     if gratuidade:
+         return 0
+     if meia:
+-        return base_centavos // 2
++        return (base_centavos + 1) // 2  # arredonda meia-entrada ímpar para cima
+     return base_centavos
+diff --git a/services/tarifa/tests/test_calculo.py b/services/tarifa/tests/test_calculo.py
+index 19c58cb..fc26cc7 100644
+--- a/services/tarifa/tests/test_calculo.py
++++ b/services/tarifa/tests/test_calculo.py
+@@ -13,6 +13,10 @@ class CalcularTarifaTest(unittest.TestCase):
+     def test_meia_tarifa_par(self):
+         self.assertEqual(calcular_tarifa(480, meia=True), 240)
+ 
++    def test_regressao_meia_impar_arredonda_para_cima(self):
++        # fix-arredondamento-meia: 495 // 2 cobrava 247 e a operadora perdia 1 centavo por viagem
++        self.assertEqual(calcular_tarifa(495, meia=True), 248)
++
+     def test_base_negativa_recusa(self):
+         with self.assertRaises(ValueError):
+             calcular_tarifa(-1)

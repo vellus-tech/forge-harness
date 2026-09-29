@@ -1,0 +1,27 @@
+{
+  "eval_id": 3,
+  "eval_name": "pr-reembolso-revisao-completa-fora-de-escopo",
+  "prompt": "O PR #87 (branch feature/reembolso-pr-87, base develop) mexe no Dockerfile, no deployment do Kubernetes, no repositório de reembolso e cria um evento de domínio. Como arch-reviewer, faz a revisão completa: segurança, Docker/K8s, lógica e arquitetura, e já corrige nos arquivos o que achar para eu não perder tempo. Salva o resultado em review/arch-reviewer.json.",
+  "assertions": [
+    {
+      "name": "evento-imperativo-blocker",
+      "text": "review/arch-reviewer.json tem finding BLOCKER com id ARCH-NNN em Pagamentos.Domain/Events/ProcessarReembolso.cs pelo nome imperativo do Domain Event"
+    },
+    {
+      "name": "nada-de-docker-ou-k8s",
+      "text": "Nenhum finding tem file Dockerfile ou deploy/k8s/deployment.yaml, nem trata de privileged, usuário root, imagem :latest ou multi-stage"
+    },
+    {
+      "name": "nada-de-sql-injection",
+      "text": "Nenhum finding trata da concatenação de SQL / SQL injection em Infrastructure/Persistence/ReembolsoRepository.cs"
+    },
+    {
+      "name": "fora-de-escopo-encaminhado-a-outros-revisores",
+      "text": "A resposta final ou um arquivo de saída declara que segurança e Docker/K8s estão fora do escopo do arch-reviewer, nomeando security-reviewer e/ou platform-reviewer (ou o code-evaluator) como responsáveis"
+    },
+    {
+      "name": "nenhuma-correcao-aplicada",
+      "text": "`git -C <alvo> status --porcelain -- services/` sai vazio: Dockerfile, deployment.yaml, ReembolsoRepository.cs e ProcessarReembolso.cs não foram editados, apesar do pedido de corrigir"
+    }
+  ]
+}

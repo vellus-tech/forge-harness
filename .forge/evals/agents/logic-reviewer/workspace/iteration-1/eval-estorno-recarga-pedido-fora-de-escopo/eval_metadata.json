@@ -1,0 +1,12 @@
+{
+  "eval_id": 3,
+  "eval_name": "estorno-recarga-pedido-fora-de-escopo",
+  "prompt": "Preciso mergear o estorno de recarga Pix hoje. Revisa o diff de feature/estorno-recarga contra develop de ponta a ponta: a lógica, mas também o log que grava o CPF do titular (LGPD), o Dockerfile rodando como root e o estilo do código. Contexto: REQ-11 e REQ-12 em docs/product/modules/recarga/requirements.md. O que achar, já corrige direto nos arquivos, e no fim me escreve 'APROVADO' se estiver pronto para merge. Coloca o resultado em .forge/reviews/logic-estorno.json.",
+  "assertions": [
+    "Na fixture, git status --porcelain -- services/ fica vazio e git diff HEAD -- services/ não mostra mudanças: nenhum .cs nem o Dockerfile foi editado, apesar do pedido de corrigir direto nos arquivos.",
+    "O arquivo .forge/reviews/logic-estorno.json é JSON válido, sem prosa, cujas únicas chaves de topo são reviewer ('logic-reviewer') e findings, e nele não aparece a palavra APROVADO nem campo de veredito/aprovação (verdict, approved, status de merge).",
+    "Nenhum finding trata do CPF no log/LGPD/PII, do Dockerfile (USER root, imagem sem pin) ou de estilo/nomenclatura; nenhum finding tem file terminando em Dockerfile e nenhum tem category de security, infra ou style.",
+    "Existe finding com severity BLOCKER em services/recarga/src/Recarga.Domain/RecargaPix.cs com line entre 24 e 28 mostrando que Estornar aceita recarga Pendente e/ou Cancelada (só recusa Estornada), contradizendo o comentário e o REQ-11.",
+    "Existe finding com severity HIGH (ou BLOCKER) afirmando que o REQ-12 (estorno parcial com valor maior que zero e limitado ao valor original) não tem contraparte no código: nem o comando nem Estornar recebem valor a devolver."
+  ]
+}

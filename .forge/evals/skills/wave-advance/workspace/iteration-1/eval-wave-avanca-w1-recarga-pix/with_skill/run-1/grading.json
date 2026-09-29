@@ -1,0 +1,52 @@
+{
+  "expectations": [
+    {
+      "text": "Em .forge/specs/active/2026-09-recarga-cartao-pix/waves.json, W1 tem status `closed`, closed_at não nulo e gate_result começando com `executed:` (não o literal `OK`); W2 tem status `open` e opened_at não nulo; W0 está idêntica à da fixture",
+      "passed": true,
+      "evidence": "Comando: jq -c '.waves[]' work/.forge/specs/active/2026-09-recarga-cartao-pix/waves.json → W1 status=closed, closed_at=2026-09-26T16:19:17Z, gate_result=\"executed:OK (1 gate(s))\" (formato do wave-ops.sh, gate check-unit executado); W2 status=open, opened_at=2026-09-26T16:19:17Z; diff <(jq -S '.waves[0]' fixture/overlay/.../waves.json) <(jq -S '.waves[0]' work/.../waves.json) vazio → W0 idêntica. Cópia em outputs/.forge/specs/active/.../waves.json igual à de work/."
+    },
+    {
+      "text": "O transcript mostra a invocação `bash .forge/scripts/wave-ops.sh close 2026-09-recarga-cartao-pix W1` sem nenhum argumento `--gate` (nem `--gate OK`, nem `--gate \"$gate_result\"`), e nenhuma edição manual (Write/Edit/sed/node) de waves.json fora dos scripts wave-ops.sh",
+      "passed": true,
+      "evidence": "transcript.md linha 38: `bash .forge/scripts/wave-ops.sh close 2026-09-recarga-cartao-pix W1` com 'sem `--gate`' (linha 39); grep -n -- '--gate' transcript.md só casa as linhas 39/66-67, que citam a flag como algo NÃO usado. Nenhum passo de Write/Edit/sed/node sobre waves.json; estado final coerente com o script (gate_result 'executed:OK (1 gate(s))', closed_at de W1 = opened_at de W2). Ressalva: o transcript é narrativa autorrelatada, não log bruto de ferramentas."
+    },
+    {
+      "text": "wave-advance.txt contém uma única linha não vazia, exatamente `W1 fechada → W2 aberta (stories: STORY-06, STORY-07)`",
+      "passed": true,
+      "evidence": "Comando: [ \"$(cat work/wave-advance.txt)\" = 'W1 fechada → W2 aberta (stories: STORY-06, STORY-07)' ] → EXATO; grep -c . work/wave-advance.txt → 1 linha não vazia; outputs/wave-advance.txt idêntico (cmp)."
+    },
+    {
+      "text": "deferrals.json está idêntico ao da fixture (DEFER-01 continua `open`, sem resolved_at) e o transcript não contém `deferral-ops.sh resolve`, `deferral-ops.sh test` nem `deferral-ops.sh raise`",
+      "passed": true,
+      "evidence": "Comando: diff <(jq -S . fixture/.../deferrals.json) <(jq -S . work/.../deferrals.json) → vazio (DEFER-01 status=open, resolved_at=null). grep -nE 'deferral-ops.sh (resolve|test|raise)' transcript.md → sem ocorrência; só `deferral-ops.sh status` (linha 33)."
+    },
+    {
+      "text": ".forge/specs/active/2026-09-recarga-cartao-pix/progress.json tem current_wave igual a `W2`",
+      "passed": true,
+      "evidence": "Comando: jq -r .current_wave work/.forge/specs/active/2026-09-recarga-cartao-pix/progress.json → W2 (transcript linha 43 também registra)."
+    },
+    {
+      "text": "O transcript não mostra leitura (Read, cat, head, grep, sed) de tasks.md, design.md nem de arquivos em stories/ do change; só waves.json, progress.json e deferrals.json (diretamente ou via scripts) são consultados",
+      "passed": true,
+      "evidence": "transcript.md linhas 22-28: só waves.json, progress.json e deferrals.json foram inspecionados, além de `wave-ops.sh status` (linha 29) e `deferral-ops.sh status` (linha 33). As menções a tasks.md/design.md/stories/ (linhas 17-18) listam o que o setup.sh materializou e a linha 21 afirma que a skill 'nunca relê tasks.md/design.md'; nenhuma leitura desses arquivos é descrita. Ressalva: transcript narrativo, sem log bruto de tool calls."
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1.0
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Em .forge/specs/active/2026-09-recarga-cartao-pix/waves.json, W1 tem status `closed`, closed_at não nulo e gate_result começando com `executed:` (não o literal `OK`); W2 tem status `open` e opened_at não nulo; W0 está idêntica à da fixture",
+        "reason": "A checagem literal por prefixo `executed:` é satisfeita por string forjada à mão (without_skill gravou 'executed:OK (3/3 stories done)'); exigir o formato exato `executed:OK (N gate(s))` ou evidência de execução do check-unit no transcript tornaria a asserção discriminante."
+      },
+      {
+        "reason": "Os transcripts são narrativas autorrelatadas; as asserções de 'não fez X' (close sem --gate, não ler tasks.md) dependem da honestidade do executor. Capturar log bruto de tool calls tornaria-as verificáveis."
+      }
+    ],
+    "overall": "Asserções 3 e 6 discriminam bem; a 5 e a 4 passam também no baseline (não discriminam)."
+  }
+}

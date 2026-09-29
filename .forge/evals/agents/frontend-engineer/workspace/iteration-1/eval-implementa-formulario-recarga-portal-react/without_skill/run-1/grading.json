@@ -1,0 +1,90 @@
+{
+  "expectations": [
+    {
+      "text": "Algum arquivo novo em apps/web/portal-passageiro/src/ (fora de arquivos .tsx de componente) chama POST /v1/recargas enviando o campo `amountCents` como número inteiro e o header `Idempotency-Key`; nenhum arquivo .tsx novo contém `fetch(` nem chamada direta a `request(`",
+      "passed": true,
+      "evidence": "outputs/apps/web/portal-passageiro/src/services/rechargeService.ts:18-21 chama request('/v1/recargas', {method:'POST', headers:{'Idempotency-Key': idempotencyKey}, body: JSON.stringify({cardId, amountCents})}); amountCents = Math.round(...*100) (RechargeForm.tsx:53-58). `grep -rnE \"fetch\\(|request\\(\" --include='*.tsx' outputs` sem ocorrência (rc=1). `cmp` confirma outputs/ idênticos a work/."
+    },
+    {
+      "text": "A mutação de recarga não configura retry maior que zero (retry ausente com default de mutation, `retry: false` ou `retry: 0`), e um teste novo verifica que o botão de envio fica desabilitado (ou aria-busy) enquanto a requisição está pendente",
+      "passed": true,
+      "evidence": "RechargeForm.tsx:73-87 useMutation sem retry (default 0); único retry é `mutations: { retry: false }` no QueryClient do teste (RechargeForm.test.tsx:11). RechargeForm.test.tsx:62-82 mantém a promessa pendente, clica em Recarregar e verifica `expect(submitButton).toBeDisabled()` (:77), depois `toHaveBeenCalledTimes(1)` (:81)."
+    },
+    {
+      "text": "O(s) teste(s) novo(s) em src/features/recharge/ cobrem, em casos distintos: valor fora da faixa R$ 5,00–R$ 500,00 com erro exibido sem chamar a API, erro 422 exibindo a `message` retornada (ex.: LIMITE_DIARIO_EXCEDIDO), e sucesso exibindo o `status` retornado",
+      "passed": true,
+      "evidence": "Três casos distintos em RechargeForm.test.tsx: :35-45 digita '1', alerta 'entre R$ 5,00 e R$ 500,00' e spy não chamado; :47-60 rejeita com `new HttpError(422, {code:'LIMITE_DIARIO_EXCEDIDO', message:'Limite diário excedido.'})` e espera o alerta com essa message (exercita RechargeForm.tsx:81-83); :21-33 sucesso CONFIRMED com `findByText(/Confirmada/)`, regex sensível a maiúscula que casa só 'Status: Confirmada' (RechargeForm.tsx:98), não 'Recarga confirmada.'. Ressalva: testes nunca executados (TASK-03.md:30)."
+    },
+    {
+      "text": "Todo `var(--x)` nos arquivos de estilo novos de src/features/recharge/ referencia um token definido em packages/ui/src/tokens.css, nenhum usa fallback literal (`var(--x, #...)`) e nenhum contém cor literal (#hex, rgb(, hsl()",
+      "passed": true,
+      "evidence": "Loop sobre `grep -oE 'var\\(--[a-z0-9-]+'` em RechargeForm.module.css: 14 tokens distintos, todos definidos em packages/ui/src/tokens.css (nenhum INDEFINIDO). `grep -nE '#[0-9a-fA-F]{3,8}|rgb\\(|hsl\\(|var\\(--[a-z0-9-]+ *,'` sem ocorrência (rc=1)."
+    },
+    {
+      "text": "docs/entregas/TASK-03.md menciona o token `--surface-1` usado em HistoryPage.module.css como não definido em tokens.css (token fantasma / gate A1 ou varredura da superfície inteira), registrado como pendência ou achado",
+      "passed": false,
+      "evidence": "`grep -c -- --surface-1 outputs/docs/entregas/TASK-03.md` = 0. O relatório não menciona o token fantasma de HistoryPage.module.css:6 (`var(--surface-1, #fff)`); o transcript (passo 4) só cita HistoryPage.tsx/.test.tsx e não houve varredura da superfície."
+    },
+    {
+      "text": "docs/entregas/TASK-03.md contém, nesta ordem, as seções `## Resumo do que foi alterado`, `## Arquivos alterados`, `## Testes executados`, `## Testes recomendados`, `## Riscos conhecidos`, `## Impacto visual/UX` e `## Pendências`; se não existe node_modules no alvo, a seção Testes executados diz explicitamente que os testes não foram executados e lista os comandos a rodar; e `git rev-list --count HEAD` continua 1",
+      "passed": false,
+      "evidence": "`grep -n '^## '` em TASK-03.md mostra só '## O que foi entregue', '## Cobertura dos requisitos', '## Decisões e trade-offs', '## O que não foi feito' — nenhuma das sete seções. Atendido mas insuficiente: declara não ter rodado testes (:30) sem inventar resultado; `git -C work rev-list --count HEAD` = 1; `ls work/node_modules` → No such file."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 2,
+    "total": 6,
+    "pass_rate": 0.67
+  },
+  "timing": {
+    "executor_duration_seconds": 220,
+    "total_duration_seconds": 220
+  },
+  "claims": [
+    {
+      "claim": "Idempotency-Key mantida após 422 até o usuário mudar o valor e reenviar (TASK-03.md:25)",
+      "type": "quality",
+      "verified": false,
+      "evidence": "RechargeForm.tsx:62/78 só regenera a chave em onSuccess; mudar o valor após 422 reusa a chave com payload diferente, o que pelo contrato gera 409."
+    },
+    {
+      "claim": "Testes não executados",
+      "type": "process",
+      "verified": true,
+      "evidence": "TASK-03.md:30 declara; `ls work/node_modules` → No such file."
+    },
+    {
+      "claim": "Nenhum commit feito",
+      "type": "process",
+      "verified": true,
+      "evidence": "`git -C work rev-list --count HEAD` = 1; arquivos novos aparecem como ?? no status."
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [
+      "Testes escritos mas não executados"
+    ],
+    "needs_review": [],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "docs/entregas/TASK-03.md contém, nesta ordem, as seções `## Resumo do que foi alterado`, `## Arquivos alterados`, `## Testes executados`, `## Testes recomendados`, `## Riscos conhecidos`, `## Impacto visual/UX` e `## Pendências`; se não existe node_modules no alvo, a seção Testes executados diz explicitamente que os testes não foram executados e lista os comandos a rodar; e `git rev-list --count HEAD` continua 1",
+        "reason": "A condição `git rev-list --count HEAD` depende de work/ sobreviver; a execução with_skill removeu work/ (142 MB de node_modules) e a asserção fica inverificável. O protocolo do executor deveria gravar `git -C work rev-list --count HEAD` e `git -C work status --short` em outputs/ antes de qualquer limpeza."
+      },
+      {
+        "assertion": "O(s) teste(s) novo(s) em src/features/recharge/ cobrem, em casos distintos: valor fora da faixa R$ 5,00–R$ 500,00 com erro exibido sem chamar a API, erro 422 exibindo a `message` retornada (ex.: LIMITE_DIARIO_EXCEDIDO), e sucesso exibindo o `status` retornado",
+        "reason": "Sucesso 'exibindo o status retornado' passa com um matcher que casa qualquer status; exigir que o teste use um status não padrão (PENDING_PAYMENT) ou verifique o rótulo específico torna a asserção discriminante."
+      },
+      {
+        "reason": "Nenhuma asserção cobre a política de Idempotency-Key entre tentativas: without_skill mantém a mesma chave após 422 e só regenera após sucesso, de modo que reenviar com valor alterado reusa a chave com payload diferente (409 pelo contrato), contrariando o que o próprio relatório afirma. Uma asserção sobre regeneração da chave quando o payload muda pegaria isso."
+      },
+      {
+        "reason": "with_skill afirma ter rodado 6 testes verdes, mas o ambiente foi apagado; sem log bruto em outputs/ a alegação de execução real é inverificável. Exigir o log do runner em outputs/ quando o relatório declarar execução."
+      }
+    ],
+    "overall": "Asserções bem desenhadas e em sua maioria discriminantes (token fantasma e sete seções separaram as configurações); os pontos fracos são a dependência de work/ para a checagem git e o matcher de status de sucesso."
+  }
+}

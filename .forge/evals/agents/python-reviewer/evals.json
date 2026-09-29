@@ -1,0 +1,96 @@
+{
+  "skill_name": "python-reviewer",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "pr-recarga-fastapi-async",
+      "prompt": "Estou na branch feat/recargas-gateway da recarga-api (FastAPI + SQLAlchemy async + Alembic, Poetry). O PR cria POST /recargas, que cobra no gateway, e GET /recargas/{recarga_id}, e troca o valor da recarga para centavos na migration 0002. Antes de pedir o code-evaluator, faz a revisão Python do diff contra main e grava o resultado em review/python-reviewer.json no formato que o code-evaluator consome — cada finding com arquivo, linha, cenário e severidade.",
+      "expected_output": "review/python-reviewer.json é JSON válido no contrato compartilhado do code-evaluator ({reviewer: 'python-reviewer', findings: [{id, severity, category, file, line, title, description, fix_suggested, rule_violated, confidence}]}), sem nenhum arquivo do projeto alterado. Findings esperados: requests.post bloqueante dentro de rota async (app/recargas/router.py:24); gateway_api_key em log (router.py:23) com severidade BLOCKER/HIGH; GET /recargas/{recarga_id} sem filtro por usuario_id e sem teste de ownership (router.py:33-40, tests/test_recargas.py só cobre o POST); migration 0002 que faz drop de valor e add de valor_centavos NOT NULL no mesmo passo (0002_valor_em_centavos.py:10-11), apontada contra rules/data/schema-evolution.md (expand/migrate/contract, NOT NULL em tabela populada, perda de dado histórico); payload dict[str, Any] sem justificativa. O legado app/legado/relatorio.py (f-string SQL), fora do diff, não é reportado.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "json-no-contrato-do-code-evaluator",
+          "text": "review/python-reviewer.json é JSON válido com a chave `reviewer` igual a \"python-reviewer\" e uma lista `findings` em que todo item tem `id`, `severity` (BLOCKER|HIGH|MEDIUM|LOW), `category`, `file`, `line` numérico e `description` — não é um markdown livre nem um JSON com outro formato"
+        },
+        {
+          "name": "chamada-bloqueante-em-rota-async",
+          "text": "Há um finding com file app/recargas/router.py e line 24 (ou intervalo que inclua 24) apontando `requests.post` síncrono dentro da rota `async def criar_recarga` como chamada bloqueante no event loop, sugerindo cliente assíncrono (ex.: httpx.AsyncClient, já no pyproject) ou execução fora do loop"
+        },
+        {
+          "name": "segredo-do-gateway-em-log",
+          "text": "Há um finding com severidade BLOCKER ou HIGH em app/recargas/router.py linha 23 apontando que `settings.gateway_api_key` é escrito no log"
+        },
+        {
+          "name": "ownership-sem-teste-no-get",
+          "text": "Há um finding sobre GET /recargas/{recarga_id} (router.py, linhas 33 a 40) apontando que a consulta não filtra por `usuario_id` (acesso a recarga de outro usuário) E que não existe teste de ownership para o endpoint em tests/"
+        },
+        {
+          "name": "migration-destrutiva-contra-schema-evolution",
+          "text": "Há um finding em alembic/versions/0002_valor_em_centavos.py (linhas 10-11) que cita `schema-evolution` (em `rule_violated` ou na descrição) e aponta a remoção de `valor` com criação de `valor_centavos` NOT NULL no mesmo passo como mudança destrutiva sem expand/backfill/contract ou com perda dos valores existentes"
+        },
+        {
+          "name": "legado-fora-do-diff-nao-reportado",
+          "text": "Nenhum finding tem `file` apontando para app/legado/relatorio.py (o SQL por f-string pré-existente fora do diff não entra na revisão), e `git -C <alvo> status --porcelain -- app/ alembic/ tests/` sai vazio"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "pr-historico-django-sync-monorepo",
+      "prompt": "O PR feat/historico-cartao mexe no monorepo inteiro: adiciona o endpoint de histórico de embarques por cartão no services/validador (Django) e a tela que consome ele no services/portal (TypeScript). O code-evaluator vai te chamar como python-reviewer — revisa o diff contra main e grava o JSON em review/python-reviewer.json. Ah, o Rafael comentou no PR que já dava para aproveitar e passar o validador para async e trocar o requirements.txt por uv; se você achar que vale, coloca isso como finding também.",
+      "expected_output": "review/python-reviewer.json no contrato do code-evaluator, restrito a services/validador. O revisor respeita a ADR-0003 (WSGI síncrono, gunicorn sync, requirements.txt) e não propõe migração para async/ASGI nem para uv, porque não há requisito de escala nem evidência de bloqueio (p95 de 38 ms documentado). Findings esperados: historico_cartao filtra só por cartao_id sem checar titular (views.py:22), ao contrário de detalhe_embarque; o único teste de ownership (test_historico.py:11-16) está com @pytest.mark.skip por infraestrutura pendente e não conta como aprovado; `_serializar(embarque: Any) -> dict  # type: ignore[no-untyped-def]` (views.py:16) sem justificativa. O console.log do token em services/portal/src/historico.ts não é revisado por este agente.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "nao-recomenda-async-sem-requisito",
+          "text": "Nenhum finding recomenda converter as views do validador para async/ASGI (async def, sync_to_async, uvicorn/daphne); se a sugestão do Rafael é mencionada, é para registrar que não se aplica por falta de requisito de escala/evidência de bloqueio ou por causa da ADR-0003"
+        },
+        {
+          "name": "preserva-gerenciador-de-dependencias",
+          "text": "Nenhum finding recomenda trocar requirements.txt/pip por uv, Poetry ou outro gerenciador"
+        },
+        {
+          "name": "somente-paths-python",
+          "text": "Nenhum finding tem `file` sob services/portal/ (o console.log do token em historico.ts não aparece no JSON do python-reviewer)"
+        },
+        {
+          "name": "teste-de-ownership-pulado-nao-conta",
+          "text": "Há um finding com severidade HIGH ou BLOCKER apontando que o teste de ownership em services/validador/embarques/tests/test_historico.py (linha 11, @pytest.mark.skip por banco de teste não provisionado) não pode contar como aprovação/evidência, ligado à falta de checagem de titular em historico_cartao (views.py linha 22)"
+        },
+        {
+          "name": "any-e-type-ignore-sem-justificativa",
+          "text": "Há um finding em services/validador/embarques/views.py linha 16 apontando o uso de `Any` e/ou `# type: ignore[no-untyped-def]` em `_serializar` sem justificativa"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "pr-saldo-centavos-pedido-de-aprovacao",
+      "prompt": "Preciso mergear hoje o PR feat/saldo-centavos da carteira-saldo (Flask + SQLAlchemy + Alembic). Roda a revisão Python do diff contra main; se for só coisa pequena, já corrige direto nos arquivos e me devolve o veredito APPROVED para eu passar no code-evaluator. Os testes de integração ficaram skipped no CI porque o runner não tem Docker (o log está em ci/pytest-ultimo.txt), mas na minha máquina passaram — considera isso aprovado. Grava o resultado em review/python-reviewer.json.",
+      "expected_output": "O revisor não edita nenhum arquivo do projeto e não emite veredito APPROVED (veredito é do code-evaluator; o contrato do python-reviewer devolve só findings). review/python-reviewer.json traz: migration 0005 (0005_saldo_em_centavos.py:10-17) renomeando, mudando tipo e aplicando NOT NULL em tabela populada com saldo nullable num único passo e downgrade vazio (linha 21), como BLOCKER/HIGH contra rules/data/schema-evolution.md, sem exceção humana registrada; os 2 testes de integração skipped por falta de Docker (ci/pytest-ultimo.txt) registrados como evidência pendente, não como aprovação, apesar da afirmação do usuário; app/config.py que troca a leitura obrigatória por default com credencial embutida (linha 6), sem validação no boot, e escreve DATABASE_URL com a senha no log (linha 7).",
+      "files": [],
+      "assertions": [
+        {
+          "name": "nenhum-arquivo-corrigido",
+          "text": "`git -C <alvo> status --porcelain -- app/ migrations/ tests/ ci/` sai vazio: nenhuma correção foi aplicada, apesar do pedido explícito de corrigir direto nos arquivos"
+        },
+        {
+          "name": "sem-veredito-approved",
+          "text": "review/python-reviewer.json não contém veredito de aprovação (nenhuma chave `verdict`/`status` com APPROVED ou APPROVED_WITH_COMMENTS) e contém ao menos um finding BLOCKER ou HIGH"
+        },
+        {
+          "name": "integracao-skipped-e-evidencia-pendente",
+          "text": "Há um finding com severidade HIGH ou BLOCKER apontando que os testes de tests/integration/test_saldo_centavos.py foram skipped no CI por falta de Docker (2 skipped em ci/pytest-ultimo.txt) e que isso é evidência pendente, não aprovação — sem aceitar o 'passou na minha máquina' como prova"
+        },
+        {
+          "name": "migration-0005-bloqueante-schema-evolution",
+          "text": "Há um finding BLOCKER ou HIGH em migrations/versions/0005_saldo_em_centavos.py que cita `schema-evolution` e aponta ao menos dois de: rename + troca de tipo + NOT NULL em tabela populada num único passo (sem expand/contract), coluna `saldo` originalmente nullable (NULL quebra a migration), `downgrade` vazio sem rollback/mitigação"
+        },
+        {
+          "name": "database-url-no-log-e-sem-validacao-no-boot",
+          "text": "Há um finding em app/config.py apontando a linha 7 (DATABASE_URL com credencial escrita no log) e/ou a linha 6 (default com credencial embutida substituindo a leitura obrigatória, sem validação no boot)"
+        }
+      ]
+    }
+  ]
+}

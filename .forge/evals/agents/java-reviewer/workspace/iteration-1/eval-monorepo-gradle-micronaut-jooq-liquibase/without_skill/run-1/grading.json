@@ -1,0 +1,42 @@
+{
+  "expectations": [
+    {
+      "text": "Todos os findings de .forge/reviews/java-reviewer.json têm arquivo sob services/tarifa-api/ (ou build/settings Gradle); nenhum finding aponta web/src/api/tarifa.ts, apesar do console.log do token no diff",
+      "passed": true,
+      "evidence": "`jq -r '.findings[]|\"\\(.file):\\(.line)\"' without_skill/run-1/outputs/java-reviewer.json` lista 5 findings, todos sob services/tarifa-api/ (TarifaRepository.java:23 e :20; 002-valor-integracao.yaml:6; TarifaService.java:17 e :16); `grep -v '^services/tarifa-api/'` retorna vazio (rc=1); nenhum aponta web/src/api/tarifa.ts. `cmp` confirma outputs/java-reviewer.json idêntico a work/.forge/reviews/java-reviewer.json. Ressalva: a transcrição afirma ter gravado em `services/tarifa-api/.forge/reviews/`, caminho que não existe (`ls` falha); o arquivo real está em work/.forge/reviews/."
+    },
+    {
+      "text": "Nenhum finding recomenda migrar para Spring/Spring Boot, JPA/Hibernate, Flyway ou Maven (pom.xml); se o relatório menciona a stack, é para reconhecer Micronaut/jOOQ/Liquibase/Gradle ou a ADR-0004",
+      "passed": true,
+      "evidence": "`grep -inE 'spring|jpa|hibernate|flyway|maven|pom\\.xml|jdbctemplate' without_skill/run-1/outputs/java-reviewer.json` sem ocorrências (rc=1). `stack_suggestion` recomenda campos tipados do jOOQ via plugin nu.studer.jooq já presente no build.gradle.kts; a sugestão de @Transactional(readOnly = true) em TarifaService.java:16 não troca a stack."
+    },
+    {
+      "text": "Há finding em services/tarifa-api/src/main/java/br/com/axis/tarifa/TarifaRepository.java, linha 23, apontando a concatenação de linha/modal em condition(...) como SQL interpolado e sugerindo a DSL tipada ou bind de parâmetros do jOOQ (não JPA/JdbcTemplate)",
+      "passed": true,
+      "evidence": "Finding em services/tarifa-api/src/main/java/br/com/axis/tarifa/TarifaRepository.java com `\"line\": 23` (confere com `cat -n`: `.where(condition(\"linha = '\" + linha + \"' AND modal = '\" + modal + \"'\"))`), cenário \"monta a cláusula WHERE por concatenação de string ... o texto não passa por bind parameter\", categoria sql-injection; `stack_suggestion`: \"Trocar DSL.condition(String) por campos tipados do jOOQ (ex.: TARIFA.LINHA.eq(linha).and(TARIFA.MODAL.eq(modal)) ...)\". Nenhuma menção a JPA/JdbcTemplate."
+    },
+    {
+      "text": "Há finding em services/tarifa-api/src/main/resources/db/changelog/002-valor-integracao.yaml (linha entre 6 e 13) apontando o addColumn NOT NULL sem default/backfill em tabela populada e referenciando rules/data/schema-evolution.md ou a sequência expand → backfill → contract",
+      "passed": false,
+      "evidence": "Há finding em 002-valor-integracao.yaml `\"line\": 6` (dentro de 6–13) apontando NOT NULL sem defaultValueNumeric nem changeSet de backfill em tabela com linhas, mas `grep -inE 'schema-evolution|expand|contract' without_skill/run-1/outputs/java-reviewer.json` não retorna nada (rc=1): não referencia rules/data/schema-evolution.md nem a sequência expand → backfill → contract, requisito explícito da asserção."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 1,
+    "total": 4,
+    "pass_rate": 0.75
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Há finding em services/tarifa-api/src/main/java/br/com/axis/tarifa/TarifaRepository.java, linha 23, apontando a concatenação de linha/modal em condition(...) como SQL interpolado e sugerindo a DSL tipada ou bind de parâmetros do jOOQ (não JPA/JdbcTemplate)",
+        "reason": "Exigir linha exata 23 é frágil: com_skill apontou a linha 19 (vazia) para o mesmo defeito; a asserção discrimina precisão de linha, não detecção. Considere intervalo 20–24 se a intenção for detecção, ou mantenha 23 se a precisão de linha for requisito do contrato de findings."
+      },
+      {
+        "reason": "Nenhuma asserção cobre a sanidade das linhas dos demais findings (com_skill aponta 002-valor-integracao.yaml:1 para ausência de testes) nem o caminho real de gravação do relatório (a transcrição sem_skill declara services/tarifa-api/.forge/reviews/, que não existe)."
+      }
+    ],
+    "overall": "A asserção 4 é a mais discriminante (exige a regra do harness); as asserções 1 e 2 passam em ambas as configurações e não separam com/sem skill neste caso."
+  }
+}

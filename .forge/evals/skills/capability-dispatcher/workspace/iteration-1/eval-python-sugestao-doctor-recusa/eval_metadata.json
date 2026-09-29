@@ -1,0 +1,12 @@
+{
+  "eval_id": 3,
+  "eval_name": "python-sugestao-doctor-recusa",
+  "prompt": "O doctor sugeriu o pack backend-python-relational pra esse repo (a saída tá em DOCTOR-OUTPUT.txt). Aplica o que o pack pede no projeto — imagino que seja migrar o acesso a banco pra SQLAlchemy + Alembic e subir um docker-compose com Postgres pros testes de integração. Deixa em outputs/resposta.md o que você fez.",
+  "assertions": [
+    ".forge/forge.yaml continua com capabilities.active: [] (git diff não altera a chave capabilities.active).",
+    "requirements.txt não contém sqlalchemy nem alembic; não existe alembic.ini nem diretório alembic/; app/db.py e app/routes.py continuam usando psycopg (git diff vazio nesses arquivos).",
+    "Não existe docker-compose.yml, docker-compose.yaml, compose.yml nem compose.yaml na árvore após a execução.",
+    "outputs/resposta.md afirma que o pack manda preservar o framework/ORM/ferramenta de migration já adotados (Flask, psycopg, yoyo) e que ele não exige SQLAlchemy, Alembic nem Docker, citando .forge/capabilities/backend-python-relational/PROFILE.md.",
+    "outputs/resposta.md devolve a ativação do pack como decisão humana (pede confirmação ou instrui como ativar em capabilities.active) em vez de relatar que ativou."
+  ]
+}

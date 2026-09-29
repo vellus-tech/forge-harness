@@ -1,0 +1,89 @@
+{
+  "reviewer": "platform-reviewer",
+  "findings": [
+    {
+      "id": "PLAT-001",
+      "severity": "BLOCKER",
+      "category": "platform",
+      "file": "deploy/k8s/deployment-prd.yaml",
+      "line": 15,
+      "title": "Imagem em prd-* referenciada por tag mutável, sem digest pinned",
+      "description": "deployment-prd.yaml aponta para '123456789012.dkr.ecr.sa-east-1.amazonaws.com/validacao:1.8.0' por tag, não por digest. Regra de plataforma exige imagem com digest pinned em qualquer namespace prd-*: a tag pode ser sobrescrita no ECR após o deploy (re-push do mesmo tag), quebrando reprodutibilidade e rastreabilidade de supply chain, e o rollout não fica imune a um push acidental de outra imagem sob a mesma tag.",
+      "fix_suggested": "Resolver a tag 1.8.0 para o digest sha256 correspondente no momento do deploy (ex.: via 'aws ecr describe-images' ou saída do passo de build/push da pipeline) e referenciar 'validacao@sha256:<digest>' no manifest de prd. Mesmo a imagem já publicada, o manifest deve fixar o digest, não a tag.",
+      "rule_violated": ".forge/rules/architecture/docker-image-security.md",
+      "confidence": "high"
+    },
+    {
+      "id": "PLAT-002",
+      "severity": "HIGH",
+      "category": "platform",
+      "file": "deploy/k8s/deployment-prd.yaml",
+      "line": 5,
+      "title": "Namespace prd-validacao sem NetworkPolicy",
+      "description": "Existe networkpolicy-stg.yaml para stg-validacao, mas nenhum NetworkPolicy equivalente foi criado para prd-validacao. Produção fica sem isolamento de rede padrão-negado, numa aplicação que processa dados de cartão (captura de tarifa no adquirente).",
+      "fix_suggested": "Criar deploy/k8s/networkpolicy-prd.yaml análogo ao de stg, com Egress explícito liberando apenas o destino do adquirente (ver PLAT-003) e demais egress necessários (DNS, telemetria).",
+      "rule_violated": ".forge/rules/architecture/docker-image-security.md",
+      "confidence": "high"
+    },
+    {
+      "id": "PLAT-003",
+      "severity": "HIGH",
+      "category": "platform",
+      "file": "deploy/k8s/networkpolicy-stg.yaml",
+      "line": 7,
+      "title": "NetworkPolicy em stg nega todo Egress, sem exceção para o adquirente externo",
+      "description": "A policy declara 'policyTypes: [Ingress, Egress]' sem nenhuma regra 'egress:', o que em NetworkPolicy do Kubernetes significa negar 100% do tráfego de saída do pod. O novo AdquirenteClient faz POST HTTPS para 'https://api.adquirente.example/v2/capturas' — essa chamada será bloqueada em stg-validacao assim que a policy for aplicada, quebrando a funcionalidade que a própria branch introduz.",
+      "fix_suggested": "Adicionar bloco 'egress' com regra liberando saída para o CIDR/hostname do adquirente na porta 443 (e para DNS/kube-dns), antes de aplicar a policy em stg. Replicar a mesma regra ao criar o NetworkPolicy de prd (PLAT-002).",
+      "rule_violated": ".forge/rules/architecture/docker-image-security.md",
+      "confidence": "high"
+    },
+    {
+      "id": "PLAT-004",
+      "severity": "HIGH",
+      "category": "platform",
+      "file": "deploy/k8s/deployment-prd.yaml",
+      "line": 5,
+      "title": "Nenhum Pod Security Standard aplicado ao namespace prd-validacao",
+      "description": "O Deployment define securityContext no Pod/container, mas não há evidência (no diff) de rótulo de Pod Security Standard (ex.: 'pod-security.kubernetes.io/enforce: restricted') no namespace prd-validacao. Para prd-*, a ausência de PSS/PSP aplicado ao namespace é exigida como HIGH independentemente do securityContext do workload.",
+      "fix_suggested": "Aplicar o label 'pod-security.kubernetes.io/enforce: restricted' (e 'audit'/'warn' se fizer parte do padrão do cluster) no manifest do Namespace prd-validacao, versionado junto com o Deployment.",
+      "rule_violated": ".forge/rules/architecture/docker-image-security.md",
+      "confidence": "medium"
+    },
+    {
+      "id": "PLAT-005",
+      "severity": "HIGH",
+      "category": "platform",
+      "file": "services/validacao/src/Validacao.Infrastructure/DependencyInjection.cs",
+      "line": 11,
+      "title": "AdquirenteClient registrado sem Polly (retry, circuit breaker, timeout)",
+      "description": "'AddHttpClient<AdquirenteClient>()' não anexa nenhuma policy de resiliência. A chamada em AdquirenteClient.CapturarAsync para o adquirente é uma integração externa crítica (captura de tarifa em cartão); sem retry, sem circuit breaker e sem timeout explícito, uma falha transitória do adquirente vira falha imediata da validação de embarque, e uma indisponibilidade prolongada do adquirente não é isolada (sem circuit breaker), podendo esgotar threads/conexões do serviço.",
+      "fix_suggested": "Anexar policies Polly ao HttpClient tipado: 'AddHttpClient<AdquirenteClient>().AddPolicyHandler(retryPolicy).AddPolicyHandler(circuitBreakerPolicy)' e configurar 'Timeout' explícito (ex.: 'AddPolicyHandler(Policy.TimeoutAsync<HttpResponseMessage>(...))'), não confiando no timeout default do HttpClient/framework.",
+      "rule_violated": ".forge/rules/architecture/observability.md",
+      "confidence": "high"
+    },
+    {
+      "id": "PLAT-006",
+      "severity": "HIGH",
+      "category": "platform",
+      "file": "services/validacao/src/Validacao.Infrastructure/Adquirente/AdquirenteClient.cs",
+      "line": 15,
+      "title": "Chamada de captura ao adquirente sem chave de idempotência",
+      "description": "'CapturarAsync' faz POST para '/v2/capturas' enviando 'TransacaoId' apenas no corpo, sem um header de idempotência (ex.: 'Idempotency-Key'). Combinado com a ausência de retry hoje (PLAT-005) e a adição futura de retry, um reenvio automático ou uma nova tentativa manual após timeout pode gerar duas capturas de tarifa para a mesma transação.",
+      "fix_suggested": "Enviar 'TransacaoId' (ou um UUID derivado dele) como header 'Idempotency-Key' na requisição, e confirmar com o adquirente que o endpoint '/v2/capturas' deduplica por essa chave antes de habilitar qualquer retry automático.",
+      "rule_violated": ".forge/rules/architecture/observability.md",
+      "confidence": "medium"
+    },
+    {
+      "id": "PLAT-007",
+      "severity": "MEDIUM",
+      "category": "platform",
+      "file": "deploy/k8s/deployment-stg.yaml",
+      "line": 15,
+      "title": "Imagem em stg também referenciada por tag mutável",
+      "description": "deployment-stg.yaml usa a mesma tag 'validacao:1.8.0' (não é BLOCKER em stg pela regra, que é específica de prd-*, mas é a mesma prática arriscada: a tag pode ser sobrescrita no ECR sem que o manifest mude).",
+      "fix_suggested": "Padronizar deploy por digest também em stg, para manter paridade com prd e evitar drift entre o que foi testado em stg e o que sobe em prd.",
+      "rule_violated": ".forge/rules/architecture/docker-image-security.md",
+      "confidence": "medium"
+    }
+  ]
+}

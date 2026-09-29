@@ -1,0 +1,32 @@
+{
+  "skill": "revisa-migracao-postgres",
+  "verdict": "inconclusive",
+  "summary": "O delta agregado de pass-rate +0.25 (baseline 0.3125 -> variant 0.5625) não sustenta aprovação hoje: o stddev da variant é 0.4463, cerca de 79% do próprio mean, muito acima do limiar de metade do mean que invalida o delta com n=4. Por caso, o ganho está concentrado só em TC-01 e TC-02 (0.5 -> 1.0 cada); em TC-03 a skill não disparou (saída idêntica ao baseline) e em TC-04 ela engajou parcialmente mas manteve 3 das 4 expectativas falhando. Não há regressão local, mas o custo em tokens e tempo sobe sem que a robustez do ganho esteja demonstrada.",
+  "findings": [
+    {
+      "kind": "high_variance",
+      "detail": "variant stddev 0.4463 vs mean 0.5625 (razão ~0.79, bem acima de metade do mean) — com apenas n=4 casos, o delta agregado de +0.25 não é estatisticamente confiável para decisão de aprovação."
+    },
+    {
+      "kind": "no_trigger",
+      "case": "TC-03",
+      "detail": "variant_result.output em eval-3/grading.json é textualmente idêntico ao baseline_result.output (\"Revisão: a migração parece correta. Recomendo rodar em horário de baixo tráfego.\"), com tokens quase iguais (4200 baseline vs 4300 variant) e as 4 expectativas falhando igualmente nos dois lados (passed:false em todas). Indica que a skill não disparou para esse prompt informal (\"dá uma olhada... antes de eu subir\", sem os termos explícitos presentes nos outros prompts) — candidato a ajuste de description/triggering, não a regressão de conteúdo."
+    },
+    {
+      "kind": "systematic_miss",
+      "case": "TC-04",
+      "expectation": "Sugere CREATE INDEX CONCURRENTLY em vez de CREATE INDEX; Exige migração reversível (down) ou justificativa escrita; Estima o tempo de bloqueio com base no tamanho da tabela informado",
+      "detail": "em eval-4/grading.json, com a skill ativa apenas 1 das 4 expectativas passa ('aponta lock ACCESS EXCLUSIVE'); as outras 3 seguem com passed:false, o mesmo padrão de falha do baseline (pass_rate 0.25 em ambos os lados, delta 0). A skill engajou parcialmente (custo maior: 7600 vs 6000 tokens) sem cobrir reversibilidade nem estimativa de bloqueio nesse caso de ALTER TYPE."
+    },
+    {
+      "kind": "regression",
+      "case": "nenhum",
+      "detail": "Revisando os 16 pares baseline/variant (4 expectativas x 4 casos) em eval-1..4/grading.json, não há nenhum em que a variant tenha passed:false com o baseline em passed:true — a skill nunca piora um caso que já funcionava; a preocupação aqui é a confiabilidade do ganho (variância + não-triggering), não regressão."
+    },
+    {
+      "kind": "tradeoff",
+      "detail": "tokens_mean: +1025 (5550 -> 6575, +18,5%); duration_mean_ms: +4600 (18000 -> 22600, +25,6%) — custo moderado que só se justifica se o ganho de pass-rate for confirmado com mais casos; hoje ele é pago inclusive nos casos (TC-03, TC-04) onde o pass-rate não melhora."
+    }
+  ],
+  "recommendation": "Não aprovar a skill hoje com base só no delta agregado de +0.25. Rodar /forge:skill-lifecycle eval com mais casos (n>=8-10) para reduzir o stddev antes de decidir; em paralelo, /forge:skill-lifecycle optimize na description para cobrir prompts informais sem termos explícitos de 'migração/revisão' (caso TC-03, não-triggering) e reforçar cobertura de reversibilidade + estimativa de bloqueio em migrações de ALTER TYPE (caso TC-04)."
+}

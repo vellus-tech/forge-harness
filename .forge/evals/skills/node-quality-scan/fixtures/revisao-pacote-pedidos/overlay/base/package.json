@@ -1,0 +1,6 @@
+{
+  "name": "loja-monorepo",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "devDependencies": { "eslint": "^9.8.0", "typescript-eslint": "^8.0.0", "typescript": "^5.5.0" }
+}

@@ -1,0 +1,59 @@
+{
+  "expectations": [
+    {
+      "text": "Não existe diretório .kiro/ (nem .kiro/specs/validador-offline/tasks.md) no projeto após a execução.",
+      "passed": true,
+      "evidence": "`find with_skill/run-1/work -name .kiro` → sem resultado; `git -C with_skill/run-1/work status --porcelain | grep -v '^ D'` → vazio (só deleções intencionais da fixture); outputs/ não contém .kiro. resposta-ao-usuario.md:22 'Nenhum caminho `.kiro/specs` foi tocado.' Ressalva: work/ reaproveitado de 26/09 (transcript.md:5-7)."
+    },
+    {
+      "text": "Nenhum tasks.md em qualquer caminho do projeto tem Status 'Aprovado para desenvolvimento', e o README do módulo não passou a listar tasks.md como aprovado.",
+      "passed": true,
+      "evidence": "`find with_skill/run-1/work -name tasks.md -not -path '*/.git/*' | xargs grep -ln 'Aprovado para desenvolvimento'` → rc=1, nenhum tasks.md existe. README.md do módulo linha 11: '| tasks.md | — | Não iniciado | — |'; git status não o lista como modificado. resposta-ao-usuario.md:10 'Não posso marcar como \"Aprovado para desenvolvimento\"'."
+    },
+    {
+      "text": "A resposta final do agente (ou o próprio tasks.md, se criado) registra explicitamente um bloqueio/pendência pela ausência de docs/product/modules/validador-offline/design.md e indica produzir o design antes do plano definitivo.",
+      "passed": true,
+      "evidence": "resposta-ao-usuario.md:7 '**`design.md` não existe** — o README do módulo (`docs/product/modules/validador-offline/README.md`) mostra `design.md` como \"Não iniciado\"'; linha 18 'Peça ao @rafael-costa para materializar o `design.md` do validador-offline ... Uso `/forge:design`'; linha 19 'Assim que `design.md` existir ... volto e gero o `tasks.md`'. relatorio-tasks-writer.md:13 '**Bloqueado.**' e :22 design.md 'antes de qualquer `tasks.md` real poder existir'."
+    },
+    {
+      "text": "Se existir docs/product/modules/validador-offline/tasks.md, seu Status é 'Rascunho' ou 'Rascunho para revisão' e o documento declara que depende do design.md ainda inexistente; se não existir, a asserção passa.",
+      "passed": true,
+      "evidence": "Passa pela cláusula condicional: `ls with_skill/run-1/work/docs/product/modules/validador-offline/` → apenas README.md e requirements.md. Passagem vacua (relatorio-tasks-writer.md:13 confirma que nenhum tasks.md foi criado)."
+    },
+    {
+      "text": "A resposta final do agente recusa ou corrige explicitamente o caminho .kiro/specs, indicando docs/product/modules/validador-offline/ como caminho oficial.",
+      "passed": true,
+      "evidence": "resposta-ao-usuario.md:3 'não vou salvar nada em `.kiro/specs/`'; linha 9 '`.kiro/specs/validador-offline/tasks.md` não é o caminho deste projeto — a estrutura oficial deste harness é `docs/product/modules/<modulo>/tasks.md`'. O caminho do módulo aparece literalmente na linha 7 (`docs/product/modules/validador-offline/README.md`). Passa com ressalva: o caminho oficial é dado em forma genérica <modulo>, não literal."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Se existir docs/product/modules/validador-offline/tasks.md, seu Status é 'Rascunho' ou 'Rascunho para revisão' e o documento declara que depende do design.md ainda inexistente; se não existir, a asserção passa.",
+        "reason": "Passa vacuamente nas duas configurações (nenhuma criou docs/product/modules/validador-offline/tasks.md); não discrimina neste par. Para testar a ramificação do rascunho, criar um caso próprio em que o design.md exista em 'Rascunho para revisão'."
+      },
+      {
+        "assertion": "A resposta final do agente recusa ou corrige explicitamente o caminho .kiro/specs, indicando docs/product/modules/validador-offline/ como caminho oficial.",
+        "reason": "O with_skill cita o caminho oficial em forma genérica (docs/product/modules/<modulo>/tasks.md) e o caminho do módulo só via README; a asserção deveria dizer se a forma genérica basta, para não depender do julgamento do grader."
+      },
+      {
+        "reason": "As asserções 1 e 2 dependem de inspecionar run-1/work/, não outputs/; o eval deveria declarar isso. Além disso, o work/ do with_skill não foi recriado nesta rodada (transcript.md:5-7: setup.sh reportou 'FAIL (.forge já existe...)' e o run reaproveitou o work/ de 26/09), então a ausência de .kiro/ é do work/ reaproveitado; o setup.sh deveria limpar work/ antes de materializar a fixture."
+      },
+      {
+        "reason": "O without_skill tem .t0 de 28/09 13:58 (1790614716) mas outputs/, work/ e timing.json de 26/09 15:33-15:34: a saída avaliada é de uma execução anterior, não da rodada que regravou o .t0. Convém o orquestrador reexecutar ou confirmar que a saída antiga vale."
+      }
+    ],
+    "overall": "Asserções 1, 2, 3 e 5 discriminam bem (with_skill 5/5, without_skill 1/5); a 4 é vacua neste par."
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 96000,
+    "total_duration_seconds": 96
+  }
+}

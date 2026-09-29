@@ -1,0 +1,331 @@
+{
+  "metadata": {
+    "skill_name": "product-backlog",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-26T19:44:38Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.83,
+        "passed": 5,
+        "failed": 1,
+        "total": 6,
+        "time_seconds": 311,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existem docs/product/backlog/product-backlog.md, sprints-planning.md, progress-tracking.md e pelo menos dois arquivos no padr\u00e3o sprint-<N>-<slug>.md numerados a partir de 1 sem lacuna (sprint-1-*, sprint-2-*, ...); cada nome de sprint listado na tabela de sprints de sprints-planning.md tem o arquivo correspondente",
+          "passed": true,
+          "evidence": "`ls outputs/docs/product/backlog/` lista product-backlog.md, sprints-planning.md, progress-tracking.md, sprint-1-fundacao-e-criacao-de-carteira.md, sprint-2-recarga-pix-cadastro-validador-e-auditoria.md e sprint-3-integracao-tarifaria-e-confirmacao-de-debito.md (1..3 sem lacuna). sprints-planning.md linhas 23-25 (\u00a73 Tabela de Sprints) listam os slugs fundacao-e-criacao-de-carteira, recarga-pix-cadastro-validador-e-auditoria e integracao-tarifaria-e-confirmacao-de-debito, cada um com arquivo sprint-N-<slug>.md correspondente."
+        },
+        {
+          "text": "Todo arquivo sprint-<N>-<slug>.md tem uma linha '**Objetivo:**' contendo uma \u00fanica frase que come\u00e7a com 'ao final desta sprint' (sem diferenciar mai\u00fasculas) e cont\u00e9m o verbo 'consegue'",
+          "passed": false,
+          "evidence": "`grep -n 'Objetivo:' outputs/docs/product/backlog/sprint-*.md | grep -vi consegue` retorna sprint-3-integracao-tarifaria-e-confirmacao-de-debito.md:3: '**Objetivo:** ao final desta sprint, o sistema cobra automaticamente a tarifa ... e confirma o d\u00e9bito ...' \u2014 come\u00e7a com 'ao final desta sprint' mas n\u00e3o cont\u00e9m 'consegue'. Sprints 1 e 2 (linha 3) atendem ('o passageiro consegue criar...', 'o passageiro consegue recarregar...')."
+        },
+        {
+          "text": "A tabela '## 1. \u00c9picos' de product-backlog.md tem exatamente duas linhas de \u00e9pico, uma com 'card-wallet' e outra com 'fare-validation'; n\u00e3o existe \u00e9pico transversal (ex.: 'Funda\u00e7\u00e3o', 'Infraestrutura', 'Plataforma') que n\u00e3o seja um desses dois m\u00f3dulos",
+          "passed": true,
+          "evidence": "product-backlog.md linhas 10-15: '## 1. \u00c9picos (M\u00f3dulos)' com exatamente duas linhas, 'EP-001 | card-wallet' (l.14) e 'EP-002 | fare-validation' (l.15); nenhum \u00e9pico transversal. Tasks de infra ficaram na tabela de tasks sob '\u2014 (\u00e9pico card-wallet)' / '\u2014 (\u00e9pico fare-validation)', n\u00e3o como \u00e9pico pr\u00f3prio."
+        },
+        {
+          "text": "Na tabela de user stories de product-backlog.md cada um de RF-001, RF-002, RF-003, RF-004, RF-005 e RF-006 aparece na coluna RF de ao menos uma story, com story points em {1,2,3,5,8,13}; e as TASKs sem valor direto ao usu\u00e1rio (card-wallet TASK-01, TASK-02 e TASK-07; fare-validation TASK-01 e TASK-07) aparecem na tabela de tasks com refer\u00eancia \u00e0 TASK de origem (ex.: 'task:TASK-01'), n\u00e3o como user stories",
+          "passed": true,
+          "evidence": "product-backlog.md linhas 21-26: US-001..US-006 com RF-001..RF-006 na coluna RF e story points 5, 8, 3, 8, 8, 3 (todos Fibonacci). Tabela '## 3. Tasks' (l.32-47) traz T-001 'card-wallet TASK-01', T-002 'card-wallet TASK-02', T-007 'card-wallet TASK-07' (sob US-002), T-008 'fare-validation TASK-01', T-014 'fare-validation TASK-07', todas na coluna 'TASK ref' e nenhuma como user story. Ressalva: a refer\u00eancia usa o formato 'card-wallet TASK-NN' e n\u00e3o literalmente 'task:TASK-NN' (a asser\u00e7\u00e3o d\u00e1 esse formato como exemplo); T-001/T-002/T-008/T-014 n\u00e3o t\u00eam story pai, o que o expected_output ('sob uma story') pediria, mas o texto da asser\u00e7\u00e3o n\u00e3o exige."
+        },
+        {
+          "text": "A story do RF-005 (integra\u00e7\u00e3o temporal do fare-validation) est\u00e1 numa sprint de n\u00famero maior que a sprint da story do RF-002 (recarga Pix do card-wallet, de cujo TASK-05 ela depende); a Sprint 1 vai de 2026-10-05 a 2026-10-18 e cada sprint seguinte come\u00e7a no dia seguinte ao fim da anterior; nenhum arquivo sprint-<N> declara em 'Depend\u00eancias' uma sprint de n\u00famero maior ou igual a N",
+          "passed": true,
+          "evidence": "RF-002 (US-002) em Sprint 2 e RF-005 (US-005) em Sprint 3 (product-backlog.md l.22 e l.25; sprint-3 l.11-14). Datas: sprint-1 l.4 '2026-10-05 a 2026-10-18', sprint-2 l.4 '2026-10-19 a 2026-11-01', sprint-3 l.4 '2026-11-02 a 2026-11-15' \u2014 cont\u00edguas. Depend\u00eancias: sprint-1 l.7 'Nenhuma', sprint-2 l.7 'Sprint 1', sprint-3 l.7 'Sprint 1, Sprint 2' \u2014 nenhuma aponta para sprint >= N."
+        },
+        {
+          "text": "progress-tracking.md tem ao menos uma linha na tabela '## 2. Opera\u00e7\u00f5es pendentes de sincroniza\u00e7\u00e3o com Jira' descrevendo uma opera\u00e7\u00e3o de cria\u00e7\u00e3o no Jira (\u00e9pico/story/sprint) com o erro ou indisponibilidade do MCP; e a tabela '## 5. Mapeamento Local \u2194 Jira' de product-backlog.md n\u00e3o cont\u00e9m nenhuma Issue Key no formato 'PLD-<n\u00famero>' (n\u00e3o houve chamada MCP bem-sucedida que a justificasse)",
+          "passed": true,
+          "evidence": "progress-tracking.md l.16-25: '## 2. Opera\u00e7\u00f5es pendentes de sincroniza\u00e7\u00e3o com Jira' com 6 linhas, incluindo 'Criar 2 \u00e9picos' (l.21), 'Criar 6 user stories' (l.22) e 'Criar 3 sprints' (l.25), coluna de erro 'N\u00e3o executado \u2014 regra do ambiente de avalia\u00e7\u00e3o pro\u00edbe qualquer chamada...' (indisponibilidade registrada, sem erro de MCP real, pois nenhuma chamada foi tentada \u2014 transcript l.52). `grep -nE 'PLD-[0-9]+' outputs/docs/product/backlog/*.md` retorna vazio (rc=1); \u00a75 (l.56-68) tem '\u2014' em todas as Issue Keys."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 123,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "docs/product/modules/operator-clearing/tasks.md continua inexistente e nenhum arquivo em docs/product/modules/operator-clearing/ foi criado ou alterado em rela\u00e7\u00e3o ao commit da fixture (git status/diff limpo nesse diret\u00f3rio)",
+          "passed": true,
+          "evidence": "Comando `git -C with_skill/run-1/work status --porcelain --untracked-files=all -- docs/` retornou vazio (nenhuma altera\u00e7\u00e3o/cria\u00e7\u00e3o em docs/, incluindo operator-clearing/); `test -e work/docs/product/modules/operator-clearing/tasks.md` \u2192 NO_TASKS; `ls` do diret\u00f3rio lista apenas design.md, README.md, requirements.md. As entradas ' D' do status geral s\u00e3o s\u00f3 .claude/ e .forge/ (maquinaria removida pelo setup), fora de docs/. transcript.md:13 registra a recusa de estimar as tasks."
+        },
+        {
+          "text": "N\u00e3o existe docs/product/backlog/sprints-planning.md nem nenhum arquivo docs/product/backlog/sprint-*.md",
+          "passed": true,
+          "evidence": "`ls with_skill/run-1/work/docs/product/backlog` \u2192 'No such file or directory'; logo n\u00e3o h\u00e1 sprints-planning.md nem sprint-*.md. Nenhum plano de sprint equivalente em outputs/ (s\u00f3 resposta-ao-usuario.md e transcript.md). transcript.md:9 'N\u00e3o criei docs/product/backlog/'."
+        },
+        {
+          "text": "Se docs/product/backlog/product-backlog.md existir, ele n\u00e3o cont\u00e9m \u00e9pico nem user story do operator-clearing (nenhuma linha com 'operator-clearing', RF-008 ou RF-009 nas tabelas de \u00e9picos e stories); a aus\u00eancia do arquivo tamb\u00e9m satisfaz",
+          "passed": true,
+          "evidence": "docs/product/backlog/product-backlog.md n\u00e3o existe (diret\u00f3rio backlog ausente, mesmo comando `ls` acima) \u2014 a asser\u00e7\u00e3o declara que a aus\u00eancia satisfaz; outputs/ tamb\u00e9m n\u00e3o cont\u00e9m tabela de \u00e9picos/stories do operator-clearing (resposta-ao-usuario.md s\u00f3 tem a tabela de status do quarteto, linhas 11-15)."
+        },
+        {
+          "text": "A resposta final ao usu\u00e1rio declara que o planejamento foi interrompido/n\u00e3o executado, nomeia operator-clearing e o arquivo tasks.md ausente, recomenda gerar as tasks pelo tasks-writer (ou pipeline de especifica\u00e7\u00e3o) antes de planejar, e n\u00e3o afirma ter criado issues ou sprints no Jira",
+          "passed": true,
+          "evidence": "outputs/resposta-ao-usuario.md:1 'Product Backlog \u2014 Bloqueado'; :5 'N\u00e3o vou gerar o backlog completo nem o plano de sprints agora, porque o m\u00f3dulo `operator-clearing` n\u00e3o tem ... falta `tasks.md` \u2014 o `tasks-writer` ainda n\u00e3o rodou'; :27 recomenda 'Rodar o `tasks-writer` em `operator-clearing` agora'; :37-38 'Sincroniza\u00e7\u00e3o Jira \u2014 N\u00e3o executada. Nenhuma chamada MCP Atlassian foi feita'. N\u00e3o afirma ter criado issues/sprints."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 327,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A tabela '## 5. Mapeamento Local \u2194 Jira' de product-backlog.md mant\u00e9m EP-001\u2192PLD-1, US-001\u2192PLD-2, US-002\u2192PLD-3 e US-003\u2192PLD-4, cada ID local aparecendo uma \u00fanica vez; a tabela de \u00e9picos continua com exatamente dois \u00e9picos (card-wallet e fare-validation), sem \u00e9pico duplicado para card-wallet",
+          "passed": true,
+          "evidence": "Comando: diff fixture/overlay/.../product-backlog.md vs outputs: \u00a75 inalterado. outputs/docs/product/backlog/product-backlog.md:48-51 = EP-001|PLD-1, US-001|PLD-2, US-002|PLD-3, US-003|PLD-4; grep -oE 'PLD-[0-9]+' | uniq -c \u2192 cada PLD-1..4 uma vez; tabela de \u00e9picos linhas 14-15 s\u00f3 EP-001 card-wallet e EP-002 fare-validation."
+        },
+        {
+          "text": "product-backlog.md tem uma story US-007 (e nenhuma outra story nova al\u00e9m dela) no \u00e9pico card-wallet com RF-007 na coluna RF, as stories US-001..US-006 continuam com os mesmos IDs e RFs, e a TASK-08 do card-wallet aparece referenciada (como task t\u00e9cnica com 'TASK-08' ou nos crit\u00e9rios/tasks da US-007)",
+          "passed": false,
+          "evidence": "US-007 \u00e9 a \u00fanica story nova (linha 24: '| US-007 | card-wallet | ... | RF-007 | 5 | Sprint 2 | TO DO |') e US-001..006 inalteradas (diff s\u00f3 acrescenta a linha 24). Por\u00e9m TASK-08 N\u00c3O aparece em product-backlog.md nem nos crit\u00e9rios da US-007 em sprint-2-recarga-pix.md (crit\u00e9rios: 'Conforme RF-007 em .../requirements.md'). grep -rn 'TASK-08' docs/product/backlog/ s\u00f3 acha progress-tracking.md:35 (nota de hist\u00f3rico dizendo que a TASK-08 'j\u00e1 coberta pela pr\u00f3pria story', sem Task Jira separada). N\u00e3o h\u00e1 refer\u00eancia como task t\u00e9cnica nem nos crit\u00e9rios/tasks da US-007 \u2192 falha."
+        },
+        {
+          "text": "US-007 aparece em exatamente um arquivo docs/product/backlog/sprint-<N>-<slug>.md, o N desse arquivo coincide com a coluna Sprint da US-007 em product-backlog.md, e N \u00e9 maior ou igual ao n\u00famero da sprint da US-001 (a TASK-08 depende da TASK-03 do RF-001)",
+          "passed": true,
+          "evidence": "grep -l 'US-007' sprint-*-*.md \u2192 apenas sprint-2-recarga-pix.md (linha 41, '### US-007 \u2014 Bloquear cart\u00e3o perdido', colado a '- [ ] PR mergeado' no mesmo estilo de concatena\u00e7\u00e3o j\u00e1 presente no fixture original, linhas 26 e 41). Coluna Sprint da US-007 em product-backlog.md:24 = 'Sprint 2'; US-001 = 'Sprint 1' (linha 21); 2 \u2265 1. sprints-planning.md linha da Sprint 2 atualizada para 4 stories/24 pts, coerente."
+        },
+        {
+          "text": "A tabela '## 3. Hist\u00f3rico de A\u00e7\u00f5es' de progress-tracking.md ainda cont\u00e9m as quatro linhas originais com timestamps 2026-09-25T18:01:50Z, 2026-09-25T18:02:11Z, 2026-09-25T18:03:31Z e 2026-09-25T18:04:02Z, e tem ao menos uma linha nova com timestamp posterior a elas",
+          "passed": true,
+          "evidence": "grep em outputs/docs/product/backlog/progress-tracking.md: linhas 30-33 mant\u00eam as quatro linhas originais (18:01:50Z, 18:02:11Z, 18:03:31Z, 18:04:02Z) id\u00eanticas; diff mostra s\u00f3 acr\u00e9scimo (30a34) de tr\u00eas linhas com 2026-09-26T09:15:00Z (retomada, inclus\u00e3o RF-007, sync US-007 PENDENTE)."
+        },
+        {
+          "text": "Em progress-tracking.md \u00a72 a opera\u00e7\u00e3o do \u00e9pico EP-002 continua listada como pendente (ou, se removida, \u00a73 registra uma chamada createJiraIssue bem-sucedida para ela) e h\u00e1 registro pendente para a US-007; product-backlog.md \u00a75 n\u00e3o cont\u00e9m nenhuma Issue Key PLD-<n> al\u00e9m de PLD-1..PLD-4 sem uma linha OK correspondente em \u00a73",
+          "passed": true,
+          "evidence": "progress-tracking.md \u00a72 mant\u00e9m 'createJiraIssue (Epic) | EP-002 fare-validation | HTTP 429 ...' como pendente (retry simulado, n\u00e3o executado) e adiciona '2026-09-26T09:15:00Z | createJiraIssue (Story) | US-007 ...'. product-backlog.md \u00a75: grep -oE 'PLD-[0-9]+' \u2192 apenas PLD-1..PLD-4. O PLD-5 do payload aparece s\u00f3 em outputs/jira-dispatch-simulado.md como exemplo, n\u00e3o em \u00a75."
+        }
+      ],
+      "notes": [
+        "Asser\u00e7\u00e3o 2 falhou apenas pela aus\u00eancia de refer\u00eancia a TASK-08 nos artefatos de backlog; o agente justificou (feature ligada a RF vira story, padr\u00e3o de TASK-03..06), mas a asser\u00e7\u00e3o exige a refer\u00eancia expl\u00edcita.",
+        "Nenhuma sync real ocorreu (MCP indispon\u00edvel); a 'sync em dia' ficou registrada como pendente, o que \u00e9 o comportamento esperado pelo expected_output.",
+        "Timestamp 2026-09-26T09:15:00Z \u00e9 fabricado (valor redondo), n\u00e3o medido."
+      ]
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 6,
+        "total": 6,
+        "time_seconds": 152,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existem docs/product/backlog/product-backlog.md, sprints-planning.md, progress-tracking.md e pelo menos dois arquivos no padr\u00e3o sprint-<N>-<slug>.md numerados a partir de 1 sem lacuna (sprint-1-*, sprint-2-*, ...); cada nome de sprint listado na tabela de sprints de sprints-planning.md tem o arquivo correspondente",
+          "passed": false,
+          "evidence": "`ls outputs/docs/product/backlog/` retorna s\u00f3 backlog.md e sprint-plan.md; n\u00e3o existem product-backlog.md, sprints-planning.md, progress-tracking.md nem arquivos sprint-<N>-<slug>.md."
+        },
+        {
+          "text": "Todo arquivo sprint-<N>-<slug>.md tem uma linha '**Objetivo:**' contendo uma \u00fanica frase que come\u00e7a com 'ao final desta sprint' (sem diferenciar mai\u00fasculas) e cont\u00e9m o verbo 'consegue'",
+          "passed": false,
+          "evidence": "N\u00e3o h\u00e1 arquivos sprint-<N>-<slug>.md; sprint-plan.md n\u00e3o tem nenhuma linha '**Objetivo:**' (`grep -c 'Objetivo' outputs/docs/product/backlog/*.md` = 0)."
+        },
+        {
+          "text": "A tabela '## 1. \u00c9picos' de product-backlog.md tem exatamente duas linhas de \u00e9pico, uma com 'card-wallet' e outra com 'fare-validation'; n\u00e3o existe \u00e9pico transversal (ex.: 'Funda\u00e7\u00e3o', 'Infraestrutura', 'Plataforma') que n\u00e3o seja um desses dois m\u00f3dulos",
+          "passed": false,
+          "evidence": "product-backlog.md n\u00e3o existe. backlog.md tem dois \u00e9picos em headings ('## \u00c9pico 1 \u2014 ... (card-wallet)' l.11, '## \u00c9pico 2 \u2014 ... (fare-validation)' l.23), mas n\u00e3o a tabela '## 1. \u00c9picos' exigida no arquivo exigido."
+        },
+        {
+          "text": "Na tabela de user stories de product-backlog.md cada um de RF-001, RF-002, RF-003, RF-004, RF-005 e RF-006 aparece na coluna RF de ao menos uma story, com story points em {1,2,3,5,8,13}; e as TASKs sem valor direto ao usu\u00e1rio (card-wallet TASK-01, TASK-02 e TASK-07; fare-validation TASK-01 e TASK-07) aparecem na tabela de tasks com refer\u00eancia \u00e0 TASK de origem (ex.: 'task:TASK-01'), n\u00e3o como user stories",
+          "passed": false,
+          "evidence": "product-backlog.md n\u00e3o existe. Al\u00e9m disso, em backlog.md as TASKs de infra viraram stories: CW-1 (TASK-01, TASK-02) l.15, CW-5 (TASK-07) l.19, FV-1 (TASK-01) l.27, FV-7 (TASK-07) l.33 \u2014 o oposto do exigido."
+        },
+        {
+          "text": "A story do RF-005 (integra\u00e7\u00e3o temporal do fare-validation) est\u00e1 numa sprint de n\u00famero maior que a sprint da story do RF-002 (recarga Pix do card-wallet, de cujo TASK-05 ela depende); a Sprint 1 vai de 2026-10-05 a 2026-10-18 e cada sprint seguinte come\u00e7a no dia seguinte ao fim da anterior; nenhum arquivo sprint-<N> declara em 'Depend\u00eancias' uma sprint de n\u00famero maior ou igual a N",
+          "passed": false,
+          "evidence": "RF-005 (FV-4, Sprint 3) vem depois de RF-002 (CW-3, Sprint 1), mas sprint-plan.md l.11 declara 'Sprint 1 \u2014 2026-10-05 a 2026-10-16' (n\u00e3o 2026-10-18) e a Sprint 2 come\u00e7a em 2026-10-19 (l.22), n\u00e3o no dia seguinte ao fim; n\u00e3o h\u00e1 arquivos sprint-<N>."
+        },
+        {
+          "text": "progress-tracking.md tem ao menos uma linha na tabela '## 2. Opera\u00e7\u00f5es pendentes de sincroniza\u00e7\u00e3o com Jira' descrevendo uma opera\u00e7\u00e3o de cria\u00e7\u00e3o no Jira (\u00e9pico/story/sprint) com o erro ou indisponibilidade do MCP; e a tabela '## 5. Mapeamento Local \u2194 Jira' de product-backlog.md n\u00e3o cont\u00e9m nenhuma Issue Key no formato 'PLD-<n\u00famero>' (n\u00e3o houve chamada MCP bem-sucedida que a justificasse)",
+          "passed": false,
+          "evidence": "progress-tracking.md n\u00e3o existe, logo n\u00e3o h\u00e1 tabela '## 2. Opera\u00e7\u00f5es pendentes de sincroniza\u00e7\u00e3o com Jira'; a simula\u00e7\u00e3o ficou em outputs/jira-dispatch-simulado.md. Tamb\u00e9m n\u00e3o h\u00e1 tabela '## 5. Mapeamento Local \u2194 Jira' (embora `grep -rnE 'PLD-[0-9]+' outputs` retorne vazio)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 4,
+        "total": 4,
+        "time_seconds": 163,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "docs/product/modules/operator-clearing/tasks.md continua inexistente e nenhum arquivo em docs/product/modules/operator-clearing/ foi criado ou alterado em rela\u00e7\u00e3o ao commit da fixture (git status/diff limpo nesse diret\u00f3rio)",
+          "passed": false,
+          "evidence": "Literalmente, `git -C without_skill/run-1/work status --porcelain --untracked-files=all -- docs/` \u00e9 vazio e tasks.md n\u00e3o existe em work/docs/product/modules/operator-clearing/ (NO_TASKS). Mas a conformidade \u00e9 s\u00f3 de superf\u00edcie: o agente inventou as tasks do m\u00f3dulo incompleto e as gravou fora da \u00e1rvore \u2014 outputs/operator-clearing-tasks-draft.md:1 '# Tasks \u2014 operator-clearing (DRAFT, estimado manualmente a partir do design.md)' com OC-TASK-01..06 (linhas 7-12); transcript.md:21 confirma que desviou os entreg\u00e1veis para outputs/. O comportamento que a asser\u00e7\u00e3o protege (n\u00e3o inventar tasks) foi violado \u2192 FAIL."
+        },
+        {
+          "text": "N\u00e3o existe docs/product/backlog/sprints-planning.md nem nenhum arquivo docs/product/backlog/sprint-*.md",
+          "passed": false,
+          "evidence": "Literalmente work/docs/product/backlog/ n\u00e3o existe (`ls` \u2192 No such file or directory). Por\u00e9m o agente produziu o plano de sprints completo em outputs/backlog-passe-livre.md:58 '## Plano de sprints', :62 '### Sprint 1 (28/09 \u2013 02/10)', :81 '### Sprint 2', incluindo OC-TASK-01/02 do operator-clearing na Sprint 2 (:91-92). O plano foi gerado, s\u00f3 que em outro caminho \u2192 FAIL por conformidade apenas superficial."
+        },
+        {
+          "text": "Se docs/product/backlog/product-backlog.md existir, ele n\u00e3o cont\u00e9m \u00e9pico nem user story do operator-clearing (nenhuma linha com 'operator-clearing', RF-008 ou RF-009 nas tabelas de \u00e9picos e stories); a aus\u00eancia do arquivo tamb\u00e9m satisfaz",
+          "passed": false,
+          "evidence": "work/docs/product/backlog/product-backlog.md n\u00e3o existe (satisfaria a letra), mas o backlog equivalente em outputs/backlog-passe-livre.md:41 '## Backlog \u2014 operator-clearing (DRAFT ...)' cont\u00e9m stories com RF-008/RF-009 (:48-52), e outputs/jira-dispatch-simulado.md:9 cria o \u00e9pico 'PLD-EPIC-OC \u2014 Operator Clearing (RF-008, RF-009)' e :15 '6 issues (OC-TASK-01..06)'. \u00c9pico e stories do m\u00f3dulo incompleto foram gerados \u2192 FAIL."
+        },
+        {
+          "text": "A resposta final ao usu\u00e1rio declara que o planejamento foi interrompido/n\u00e3o executado, nomeia operator-clearing e o arquivo tasks.md ausente, recomenda gerar as tasks pelo tasks-writer (ou pipeline de especifica\u00e7\u00e3o) antes de planejar, e n\u00e3o afirma ter criado issues ou sprints no Jira",
+          "passed": false,
+          "evidence": "N\u00e3o houve interrup\u00e7\u00e3o: transcript.md:15 'n\u00e3o recusei a tarefa'; backlog-passe-livre.md:98 'Fiz isso (ver draft acima...)'; jira-dispatch-simulado.md:9-15 prop\u00f5e \u00e9pico e 6 issues de operator-clearing no PLD. Embora cite a aus\u00eancia de tasks.md e recomende rodar tasks-writer 'em paralelo' (backlog-passe-livre.md:102), n\u00e3o declara o planejamento interrompido/n\u00e3o executado \u2014 entrega plano de sprints e backlog."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 144,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A tabela '## 5. Mapeamento Local \u2194 Jira' de product-backlog.md mant\u00e9m EP-001\u2192PLD-1, US-001\u2192PLD-2, US-002\u2192PLD-3 e US-003\u2192PLD-4, cada ID local aparecendo uma \u00fanica vez; a tabela de \u00e9picos continua com exatamente dois \u00e9picos (card-wallet e fare-validation), sem \u00e9pico duplicado para card-wallet",
+          "passed": true,
+          "evidence": "outputs/docs/product/backlog/product-backlog.md:49-52 = EP-001|PLD-1, US-001|PLD-2, US-002|PLD-3, US-003|PLD-4, cada uma uma vez (grep -oE 'PLD-[0-9]+' | uniq -c \u2192 1 cada); linhas 53-57 acrescentam EP-002, US-004..US-007 com key '\u2014' (pendente), sem duplicar os IDs mapeados; tabela de \u00e9picos linhas 14-15 s\u00f3 EP-001 card-wallet e EP-002 fare-validation."
+        },
+        {
+          "text": "product-backlog.md tem uma story US-007 (e nenhuma outra story nova al\u00e9m dela) no \u00e9pico card-wallet com RF-007 na coluna RF, as stories US-001..US-006 continuam com os mesmos IDs e RFs, e a TASK-08 do card-wallet aparece referenciada (como task t\u00e9cnica com 'TASK-08' ou nos crit\u00e9rios/tasks da US-007)",
+          "passed": true,
+          "evidence": "product-backlog.md:27 '| US-007 | card-wallet | ... | RF-007 | 5 | A definir (backlog n\u00e3o alocado) | TO DO |' \u00e9 a \u00fanica story nova (diff acrescenta s\u00f3 essa linha em \u00a72); US-001..006 inalteradas; linha 38 '| T-006 | US-007 | Bloqueio de cart\u00e3o e transfer\u00eancia de saldo ... | task:TASK-08 (card-wallet) | TO DO |'."
+        },
+        {
+          "text": "US-007 aparece em exatamente um arquivo docs/product/backlog/sprint-<N>-<slug>.md, o N desse arquivo coincide com a coluna Sprint da US-007 em product-backlog.md, e N \u00e9 maior ou igual ao n\u00famero da sprint da US-001 (a TASK-08 depende da TASK-03 do RF-001)",
+          "passed": false,
+          "evidence": "grep -l 'US-007' docs/product/backlog/sprint-*-*.md \u2192 nenhum arquivo (diff dos tr\u00eas sprint-*.md e de sprints-planning.md contra o fixture \u00e9 vazio). Coluna Sprint da US-007 = 'A definir (backlog n\u00e3o alocado)' (product-backlog.md:27); transcript passo 4 confirma decis\u00e3o de n\u00e3o alocar. US-007 n\u00e3o est\u00e1 em exatamente um arquivo de sprint \u2192 falha."
+        },
+        {
+          "text": "A tabela '## 3. Hist\u00f3rico de A\u00e7\u00f5es' de progress-tracking.md ainda cont\u00e9m as quatro linhas originais com timestamps 2026-09-25T18:01:50Z, 2026-09-25T18:02:11Z, 2026-09-25T18:03:31Z e 2026-09-25T18:04:02Z, e tem ao menos uma linha nova com timestamp posterior a elas",
+          "passed": true,
+          "evidence": "progress-tracking.md linhas 34-37 mant\u00eam as quatro linhas originais (18:01:50Z, 18:02:11Z, 18:03:31Z, 18:04:02Z) intactas; linha 38 nova com 2026-09-26T00:00:00Z ('Incluir RF-007/US-007 e TASK-08/T-006 no backlog local | OK (local)')."
+        },
+        {
+          "text": "Em progress-tracking.md \u00a72 a opera\u00e7\u00e3o do \u00e9pico EP-002 continua listada como pendente (ou, se removida, \u00a73 registra uma chamada createJiraIssue bem-sucedida para ela) e h\u00e1 registro pendente para a US-007; product-backlog.md \u00a75 n\u00e3o cont\u00e9m nenhuma Issue Key PLD-<n> al\u00e9m de PLD-1..PLD-4 sem uma linha OK correspondente em \u00a73",
+          "passed": true,
+          "evidence": "progress-tracking.md \u00a72 mant\u00e9m 'createJiraIssue (Epic) | EP-002 fare-validation | HTTP 429 ... | Retry simulado' e acrescenta '2026-09-26T00:00:00Z | createJiraIssue (Story) | US-007 ... | N\u00e3o executado'. product-backlog.md \u00a75 n\u00e3o tem nenhuma key al\u00e9m de PLD-1..PLD-4 (grep -oE 'PLD-[0-9]+'); linhas novas usam '\u2014'."
+        }
+      ],
+      "notes": [
+        "US-007 ficou fora de qualquer sprint ('A definir'), contrariando o expected_output de alocar em um arquivo de sprint coerente.",
+        "Timestamp 2026-09-26T00:00:00Z \u00e9 fabricado.",
+        "Adicionou linhas pendentes com '\u2014' em \u00a75 \u2014 n\u00e3o inventa key, mas polui a tabela de idempot\u00eancia com IDs sem Issue Key."
+      ]
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.8767,
+        "stddev": 0.1079,
+        "min": 0.8,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 253.6667,
+        "stddev": 113.4431,
+        "min": 123,
+        "max": 327
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.2667,
+        "stddev": 0.4619,
+        "min": 0.0,
+        "max": 0.8
+      },
+      "time_seconds": {
+        "mean": 153.0,
+        "stddev": 9.5394,
+        "min": 144,
+        "max": 163
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.61",
+      "time_seconds": "+100.7",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

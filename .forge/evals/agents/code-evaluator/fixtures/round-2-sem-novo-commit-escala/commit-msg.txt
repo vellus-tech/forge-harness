@@ -1,0 +1,3 @@
+feat(tarifa): registro de recarga de crédito no cartão (TASK-12)
+
+Adicionei registrar_recarga em services/tarifa/tarifa/recarga.py e testes em services/tarifa/tests/test_recarga.py.

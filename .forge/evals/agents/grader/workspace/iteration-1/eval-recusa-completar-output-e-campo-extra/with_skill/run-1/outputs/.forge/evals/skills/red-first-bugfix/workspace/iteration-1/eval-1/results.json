@@ -1,0 +1,37 @@
+{
+  "skill": "red-first-bugfix",
+  "test_cases": [
+    {
+      "id": "TC-01",
+      "prompt": "Corrija o bug: a tarifa de integração é cobrada duas vezes quando o passageiro valida o cartão de novo em menos de 60 segundos.",
+      "baseline_result": {
+        "output": "Corrigi o cálculo em TarifaIntegracaoService.kt adicionando a verificação da janela de 60 segundos antes de debitar a integração. Agora a segunda validação dentro da janela não gera nova cobrança.",
+        "duration_ms": 21000,
+        "tokens": 400,
+        "exit_code": 0
+      },
+      "variant_result": {
+        "output": "Criei TarifaIntegracaoServiceTest com o caso `cobra integracao uma unica vez dentro da janela de 60s`.\nRodei ./gradlew test --tests TarifaIntegracaoServiceTest: FAILED — expected 1 cobrança, but was 2.\nDepois apliquei a correção em TarifaIntegracaoService.kt e o teste passou.",
+        "duration_ms": 45000,
+        "tokens": 900,
+        "exit_code": 0
+      }
+    },
+    {
+      "id": "TC-02",
+      "prompt": "Corrija o bug: o saldo do cartão fica negativo depois de um estorno parcial de recarga.",
+      "baseline_result": {
+        "output": "Ajustei EstornoService.kt para limitar o valor estornado ao saldo disponível do cartão. O saldo não fica mais negativo após estorno parcial.",
+        "duration_ms": 19000,
+        "tokens": 380,
+        "exit_code": 0
+      },
+      "variant_result": {
+        "output": "Vou começar escrevendo o teste de regressão para o estorno parcial em EstornoServiceTest, antes de mexer no EstornoService.kt.\n[runner] timeout após 120s — execução interrompida",
+        "duration_ms": 120000,
+        "tokens": null,
+        "exit_code": 124
+      }
+    }
+  ]
+}

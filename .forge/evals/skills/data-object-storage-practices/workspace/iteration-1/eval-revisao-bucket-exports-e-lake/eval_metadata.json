@@ -1,0 +1,12 @@
+{
+  "eval_id": 1,
+  "eval_name": "revisao-bucket-exports-e-lake",
+  "prompt": "Antes de abrir o PR da parte de storage, faz uma revisão de object storage do projeto: o terraform dos buckets em infra/terraform/, o código que gera link de arquivo em src/ e os jobs de ingestão do lake em jobs/ (contexto em docs/contexto-storage.md). Grava o diagnóstico em docs/revisao-object-storage.md com o que precisa mudar e por quê. Não precisa corrigir os arquivos agora.",
+  "assertions": [
+    "docs/revisao-object-storage.md cita os ids O-01, O-08, O-02, O-13 e O-14 e cada um vem com a localização arquivo:linha correta (storage.tf:14, storage.tf:23, partnerDelivery.ts:10, ingest_validacoes.py:12 e ingest_validacoes.py:11); descrição sem id do catálogo ou sem linha não conta",
+    "A correção proposta para partnerDelivery.ts não se limita a reduzir o expiresIn: exige que a URL seja emitida por endpoint REST autenticado do produto que autentica o parceiro, com expiração em minutos, um único objeto, log de emissão e bucket privado (ao menos endpoint autenticado + minutos + log), e reprova o envio do link por e-mail valendo dias",
+    "O relatório NÃO classifica como antipattern nenhum destes: o mode(\"overwrite\") de jobs/silver_validacoes.py, o expiresIn: 86400 do JWT em src/auth/token.ts, o expiresIn: 300 de src/app/receiptLink.ts e a policy de infra/terraform/lake.tf com Principal \"*\" condicionada a aws:SourceVpce (os ignora ou os declara aceitáveis)",
+    "Para jobs/ingest_validacoes.py o relatório prescreve append-only no bronze (correção e dedupe na silver) e troca da partição por cartao_id por partição por data de ingestão (ex.: dt=AAAA-MM-DD), mencionando a cardinalidade de ~3 milhões de cartões ou o efeito de milhões de diretórios pequenos",
+    "O relatório traz uma entrada por regra com status explícito, inclui O-11 como OK/limpo (nenhuma imagem minio/minio) e declara como não verificado pela varredura estática ao menos dois itens de runtime ou ferramenta do catálogo (O-03 multipart órfão, O-04 versões não correntes, O-05 transição de objeto pequeno, O-12 small files), em vez de dar o projeto por aprovado nesses pontos"
+  ]
+}

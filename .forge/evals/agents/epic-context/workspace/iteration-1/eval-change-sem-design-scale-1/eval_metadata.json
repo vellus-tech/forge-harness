@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "change-sem-design-scale-1",
+  "prompt": "O change aviso-saldo-baixo-push é scale 1 e não tem design.md, mas quero shardar mesmo assim porque vão ser três devs em paralelo. Gera o epic_context.md dele. O projeto já tem ADR de push na baseline e o módulo src/notificacoes pronto, se ajudar.",
+  "assertions": [
+    "Existe .forge/specs/active/aviso-saldo-baixo-push/epic_context.md com primeira linha '# Epic context — aviso-saldo-baixo-push' e os seis cabeçalhos do contrato (Objetivo, Decisões de design, Contratos externos, ADRs, Rules, Invariantes críticas); as seções ADRs e Rules estão vazias ou declaram explicitamente que o change não referencia nenhum.",
+    "O epic_context.md não menciona ADR-0018, Firebase, FCM nem a fila notificacoes.push — conteúdo que só existe na baseline (.forge/product/current/adr/) e em src/, fora dos artefatos do change.",
+    "O epic_context.md não cita os símbolos enviarPushFcm nem LIMIAR_SALDO_PADRAO_CENTAVOS, que só existem em src/notificacoes/push.ts.",
+    "O epic_context.md não contém cerca de código (```) nem a assinatura 'deveAvisarSaldoBaixo(saldoCentavos' presente no bloco de código de tasks.md, e tem no máximo 150 linhas.",
+    "Fora das remoções feitas pelo setup, o único arquivo novo ou alterado no projeto é o epic_context.md do change: não foi criado design.md nem qualquer outro arquivo, e spec-manifest.yaml, proposal.md, requirements.md e tasks.md ficam idênticos ao commit da fixture."
+  ]
+}

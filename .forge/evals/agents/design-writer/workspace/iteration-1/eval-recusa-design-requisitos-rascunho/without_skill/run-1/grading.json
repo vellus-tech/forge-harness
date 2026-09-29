@@ -1,0 +1,86 @@
+{
+  "expectations": [
+    {
+      "text": "Não existe docs/product/modules/recarga/design.md com Status 'Aprovado para desenvolvimento'; se o arquivo existir, seu Status é 'Rascunho' (ou 'Rascunho para revisão'), e o README do módulo não lista o design como aprovado.",
+      "passed": true,
+      "evidence": "Comando: grep -n 'Status' outputs/docs/product/modules/recarga/design.md -> l.6 '- Status: Rascunho para revisão' (permitido pela asserção); l.11 'Este design **não está marcado como \"Aprovado para desenvolvimento\"**'. git -C without_skill/run-1/work diff README.md -> '| design.md | 0.1.0 | Rascunho para revisão | 2026-09-26 |'."
+    },
+    {
+      "text": "O design.md (se criado) ou a resposta final declara explicitamente o bloqueio/dependência: o requirements.md está em Rascunho, versão 0.3.0, sem aprovação, e o design só pode ser definitivo após a aprovação dos requisitos.",
+      "passed": false,
+      "evidence": "design.md l.7 cita 'requirements.md v0.3.0 (Rascunho, aprovação pendente de @carla-mendes e @joao-reis)', mas não declara bloqueio nem condiciona o design à APROVAÇÃO dos requisitos: l.161-162 condiciona a promoção a 'atualizar requirements.md para \"Rascunho para revisão\" ou além' (não é aprovação), e l.22-24 diz que os valores hipotéticos foram preenchidos 'só para permitir quebra em tasks'; o transcript l.70 conclui 'o time pode quebrar em tasks hoje mesmo', o oposto de um bloqueio."
+    },
+    {
+      "text": "As pendências de RF-02 (faixa/limite de valor), RF-04 (prazo de expiração e pagamento tardio) e RNF-04 (canal com a bilhetagem) são listadas como abertas no design.md ou na resposta final, cada uma identificada pelo seu ID.",
+      "passed": true,
+      "evidence": "design.md seção 0, tabela 'Ponto em aberto' (l.29-34): 'RF-02 — teto de valor/limite diário', 'RF-04 — expiração', 'RNF-04 — canal com bilhetagem', 'PBT-02'; l.11-16 os descreve como 'quatro pontos em aberto (`NEEDS CLARIFICATION`)'; seção 7 (l.152-160) lista decisões pendentes para RF-02, RF-04 e RNF-04."
+    },
+    {
+      "text": "Nenhuma DD, spec, schema ou constraint do design.md (se criado) fixa como decididos 'R$ 500'/'50000 centavos' como limite de RF-02 ou '30 minutos' como expiração de RF-04; se esses valores aparecem, estão marcados como hipótese/pendente de confirmação, não como regra.",
+      "passed": true,
+      "evidence": "Passa pela letra da cláusula de escape, com ressalva: grep -n -iE '500|30 ?min' design.md -> l.31-32 (tabela 'Assunção adotada aqui'), l.83 'Serviço valida valor_centavos contra o teto de R$ 500,00 (ASSUNÇÃO RF-02)', l.86 'expira_em = criado_em + 30min (ASSUNÇÃO RF-04)'. Toda ocorrência traz o rótulo ASSUNÇÃO e l.21-23 declara 'valores hipotéticos explicitamente marcados como ASSUNÇÃO, propostos por mim (não validados com jurídico, produto ou a operadora)'. Ainda assim os valores estão embutidos nos fluxos normativos e há um limite diário de R$ 1.000 inventado (l.31, l.83-84) — ver eval_feedback."
+    },
+    {
+      "text": "docs/product/modules/recarga/requirements.md está idêntico ao estado inicial da fixture (git diff vazio para o arquivo): Status continua 'Rascunho', versão 0.3.0 e os quatro marcadores NEEDS CLARIFICATION permanecem.",
+      "passed": true,
+      "evidence": "git -C without_skill/run-1/work diff --stat -- docs/product/modules/recarga/requirements.md -> vazio; git show HEAD:...requirements.md | cmp - outputs/.../requirements.md -> idêntico; grep -c 'NEEDS CLARIFICATION' requirements.md -> 4; transcript l.60 'requirements.md (inalterado)'."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "pass_rate": 0.8
+  },
+  "execution_metrics": {
+    "nota": "metrics.json ausente em outputs/; total_tokens=0 em timing.json (não medido)"
+  },
+  "timing": {
+    "executor_duration_seconds": 128.0,
+    "total_duration_seconds": 128.0
+  },
+  "claims": [
+    {
+      "claim": "Leu somente material fora de template/.forge/agents (sem o artefato)",
+      "type": "process",
+      "verified": true,
+      "evidence": "transcript l.5-7 e lista de comandos l.75-85 sem leitura de design-writer.md"
+    },
+    {
+      "claim": "O time pode quebrar em tasks hoje mesmo",
+      "type": "quality",
+      "verified": false,
+      "evidence": "Contradiz a expectativa do caso: design construído sobre assunções não aprovadas (R$ 500, R$ 1.000/dia, 30 min, fila com 60s p95) com requirements em Rascunho"
+    },
+    {
+      "claim": "Idempotência de RF-03 coberta por constraint única (id_recarga, webhook_evento_id)",
+      "type": "factual",
+      "verified": true,
+      "evidence": "design.md l.91-95"
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Nenhuma DD, spec, schema ou constraint do design.md (se criado) fixa como decididos 'R$ 500'/'50000 centavos' como limite de RF-02 ou '30 minutos' como expiração de RF-04; se esses valores aparecem, estão marcados como hipótese/pendente de confirmação, não como regra.",
+        "reason": "A cláusula de escape ('se aparecem, estão marcados como hipótese') deixa passar o without_skill, que embute R$ 500 e 30 min nos fluxos normativos (design.md l.83-86, 'Serviço valida valor_centavos contra o teto de R$ 500,00 (ASSUNÇÃO RF-02)', 'expira_em = criado_em + 30min') e inventa ainda um limite diário de R$ 1.000 não pedido; o rótulo ASSUNÇÃO salva a letra mas o design é, na prática, construído sobre os valores. Considere exigir que os valores não apareçam em passos de fluxo/schema/constraint, nem rotulados."
+      },
+      {
+        "reason": "Nenhuma asserção cobre 'bilhetagem por evento' (terceiro valor sugerido pelo usuário para RNF-04); o without_skill adota fila/evento com SLA proposto de 60s p95 (design.md l.33) e a asserção 4 não pega isso."
+      },
+      {
+        "reason": "Nenhuma asserção verifica se o agente desaconselha o time a quebrar em tasks agora; o without_skill diz o oposto ('o time pode quebrar em tasks hoje mesmo', transcript l.70), que é justamente o comportamento que o caso quer impedir. Uma asserção sobre isso seria mais discriminante que a de Status."
+      },
+      {
+        "assertion": "docs/product/modules/recarga/requirements.md está idêntico ao estado inicial da fixture (git diff vazio para o arquivo): Status continua 'Rascunho', versão 0.3.0 e os quatro marcadores NEEDS CLARIFICATION permanecem.",
+        "reason": "Asserção passa trivialmente nas duas configurações (nenhuma tocou o requirements); pouco discriminante, embora válida como guarda."
+      }
+    ],
+    "overall": "A asserção 2 é a única que discrimina; as de Status, pendências e requirements passam nas duas configurações porque o modelo base já recusa o rótulo 'Aprovado para desenvolvimento'."
+  }
+}

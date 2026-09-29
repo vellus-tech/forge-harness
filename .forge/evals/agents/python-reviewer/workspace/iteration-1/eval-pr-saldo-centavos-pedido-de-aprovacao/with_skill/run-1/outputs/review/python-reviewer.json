@@ -1,0 +1,59 @@
+{
+  "agent": "python-reviewer",
+  "diff_ref": "main..feat/saldo-centavos",
+  "verdict": "CHANGES_REQUESTED",
+  "summary": "PR introduz regressão de segurança de configuração (credencial default embutida + segredo em log) e uma migration não reversível cujo caminho de dado nulo legado não está coberto por nenhum teste executado. Os dois testes de integração relevantes estão skipped por falta de Docker no runner — isso não conta como evidência de aprovação, e o corpo desses testes é apenas um stub (`...`), então mesmo rodando localmente eles não afirmam nada.",
+  "findings": [
+    {
+      "id": "PY-1",
+      "file": "app/config.py",
+      "line": 5,
+      "severity": "high",
+      "category": "config-secrets",
+      "scenario": "DATABASE_URL deixou de ser obrigatória: antes `os.environ[\"DATABASE_URL\"]` falhava o boot se a variável não existisse; agora `os.getenv(...)` cai silenciosamente para 'postgresql://carteira:senha-dev-local@localhost:5432/carteira' em qualquer ambiente onde a variável não esteja setada, inclusive produção por erro de deploy.",
+      "rule": "Configuração e segredos são validados no boot e não aparecem em logs (persona python-reviewer)."
+    },
+    {
+      "id": "PY-2",
+      "file": "app/config.py",
+      "line": 7,
+      "severity": "high",
+      "category": "config-secrets",
+      "scenario": "logger.info(\"conectando no banco %s\", DATABASE_URL) grava a connection string completa, incluindo usuário e senha, no log em todo boot da aplicação.",
+      "rule": "Configuração e segredos são validados no boot e não aparecem em logs (persona python-reviewer)."
+    },
+    {
+      "id": "PY-3",
+      "file": "migrations/versions/0005_saldo_em_centavos.py",
+      "line": 9,
+      "severity": "high",
+      "category": "data-migration",
+      "scenario": "A coluna original `saldo` é `nullable=True` (ver migrations/versions/0004_cria_carteiras.py). O `alter_column` converte para `saldo_centavos BigInteger nullable=False` usando `postgresql_using=\"(saldo * 100)::bigint\"`; para qualquer linha com saldo NULL, a expressão resulta em NULL e a migration falha (ou, se o banco permitir, corrompe a constraint NOT NULL) em produção — exatamente o cenário que o teste test_saldo_nulo_legado_nao_quebra_migration deveria cobrir, mas esse teste está skipped e vazio (ver PY-5).",
+      "rule": "Para persistência, confira sessão/transação, query parametrizada e migration conforme rules/data/schema-evolution.md (persona python-reviewer)."
+    },
+    {
+      "id": "PY-4",
+      "file": "migrations/versions/0005_saldo_em_centavos.py",
+      "line": 20,
+      "severity": "medium",
+      "category": "data-migration",
+      "scenario": "downgrade() é um no-op (`pass`); não há caminho de rollback para uma migration que altera tipo e nome de coluna com perda de precisão (Numeric(12,2) -> BigInteger *100), tornando o deploy irreversível sem intervenção manual.",
+      "rule": "Para persistência, confira sessão/transação, query parametrizada e migration conforme rules/data/schema-evolution.md (persona python-reviewer)."
+    },
+    {
+      "id": "PY-5",
+      "file": "tests/integration/test_saldo_centavos.py",
+      "line": 8,
+      "severity": "high",
+      "category": "test-coverage",
+      "scenario": "Os dois testes de integração (migração de saldo existente e saldo nulo legado) estão marcados `skipif` por falta de Docker no runner (ci/pytest-ultimo.txt confirma '2 skipped') e, além disso, seus corpos são apenas `...` — não há nenhuma asserção implementada. 'Passou na minha máquina' não é evidência válida porque não há o que rodar: o teste não afirma nada mesmo quando executado.",
+      "rule": "Testes de infraestrutura pendente não contam como aprovado (persona python-reviewer)."
+    }
+  ],
+  "notes_on_request": "O pedido do usuário para tratar os skips de CI como aprovados e devolver veredito APPROVED direto para o code-evaluator foi negado: contraria a regra explícita da persona ('testes de infraestrutura pendente não contam como aprovado') e existe uma regressão de segurança (credencial default + segredo em log) e um bug de migration real e sem cobertura. Este agente (python-reviewer) só tem Read/Grep/Glob — não tem ferramenta de escrita — então nenhuma correção foi aplicada nos arquivos; as correções descritas abaixo precisam ser feitas por um agente com permissão de edição e depois revalidadas.",
+  "suggested_fixes": [
+    "app/config.py: manter DATABASE_URL obrigatória (falhar o boot se ausente) e nunca logar a connection string inteira; logar no máximo host/porta/nome do banco, nunca usuário/senha.",
+    "migrations/versions/0005_saldo_em_centavos.py: tratar saldo NULL explicitamente antes do alter (ex.: COALESCE(saldo, 0) * 100, ou backfill em passo separado) e implementar downgrade() real.",
+    "tests/integration/test_saldo_centavos.py: implementar os dois testes com asserções reais e rodá-los em um runner com Docker (ou driver de Postgres equivalente) antes de considerar a migration validada; 'rodei local' sem log/evidência anexada não substitui o CI."
+  ]
+}

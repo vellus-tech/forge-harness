@@ -1,0 +1,47 @@
+openapi: 3.0.3
+info:
+  title: tarifa-service
+  version: 0.1.0
+paths:
+  /v1/tarifas/{linhaId}:
+    get:
+      summary: Consulta a tarifa vigente da linha
+      parameters:
+        - name: linhaId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Tarifa vigente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tarifa"
+        "404":
+          description: Linha sem tarifa cadastrada
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+components:
+  schemas:
+    Tarifa:
+      type: object
+      required: [linhaId, valorCentavos]
+      properties:
+        linhaId:
+          type: string
+          format: uuid
+        valorCentavos:
+          type: integer
+          format: int64
+    ProblemDetails:
+      type: object
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }

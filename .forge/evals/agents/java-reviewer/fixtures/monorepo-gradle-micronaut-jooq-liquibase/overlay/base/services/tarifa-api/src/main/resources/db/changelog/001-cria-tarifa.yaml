@@ -1,0 +1,12 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-cria-tarifa
+      author: tarifa-api
+      changes:
+        - createTable:
+            tableName: tarifa
+            columns:
+              - column: { name: id, type: BIGINT, autoIncrement: true, constraints: { primaryKey: true } }
+              - column: { name: linha, type: VARCHAR(10), constraints: { nullable: false } }
+              - column: { name: modal, type: VARCHAR(10), constraints: { nullable: false } }
+              - column: { name: valor_centavos, type: BIGINT, constraints: { nullable: false } }

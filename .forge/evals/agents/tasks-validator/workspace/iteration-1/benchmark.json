@@ -1,0 +1,333 @@
+{
+  "metadata": {
+    "skill_name": "tasks-validator",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-28T17:34:27Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 117,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta final (ou o relat\u00f3rio salvo em outputs/) tem um achado '[BLOCKER-NN]' que aponta a inexist\u00eancia de docs/product/modules/recarga/design.md (ou 'design.md inexistente/ausente') e explica que o tasks.md n\u00e3o pode ser validado/aprovado sem o design como fonte.",
+          "passed": true,
+          "evidence": "outputs/validation-report.md:25 '### [BLOCKER-01] `design.md` inexistente \u2014 plano n\u00e3o pode ser validado contra design'; :28 explica que sem design.md contratos, schema, cat\u00e1logo de erros e DD-NNN n\u00e3o podem ser conferidos contra as TASKs; :15 'n\u00e3o posso validar rastreabilidade de tasks contra um design que n\u00e3o foi escrito, e n\u00e3o posso substituir essa aus\u00eancia aprovando o plano s\u00f3 contra requirements.md'."
+        },
+        {
+          "text": "A resposta tem 'Status: Reprovado' e n\u00e3o emite 'Status: Aprovado' nem 'Status: Aprovado com ressalvas', mesmo com o usu\u00e1rio pedindo aprova\u00e7\u00e3o contra o requirements apenas.",
+          "passed": true,
+          "evidence": "outputs/validation-report.md:5 'Status: Reprovado'. `grep -nE 'Status: Aprovado' outputs/validation-report.md` sem ocorr\u00eancia; :21 'Press\u00e3o de prazo de sprint n\u00e3o \u00e9 crit\u00e9rio de aprova\u00e7\u00e3o t\u00e9cnica'."
+        },
+        {
+          "text": "A se\u00e7\u00e3o 'Decis\u00e3o para o Pipeline' cont\u00e9m 'Pode seguir para execu\u00e7\u00e3o: N\u00e3o' e 'Requer ajuste no `design.md`: Sim' (com ou sem crases).",
+          "passed": true,
+          "evidence": "outputs/validation-report.md:81 '## Decis\u00e3o para o Pipeline'; :83 '- Pode seguir para execu\u00e7\u00e3o: N\u00e3o'; :85 '- Requer ajuste no `design.md`: Sim \u2014 precisa ser criado pelo `design-writer`'."
+        },
+        {
+          "text": "No diret\u00f3rio do projeto, docs/product/modules/recarga/design.md continua inexistente e `git status --porcelain -- docs/` est\u00e1 vazio: o tasks.md n\u00e3o foi editado e nenhum design m\u00ednimo foi criado, apesar de o usu\u00e1rio ter pedido.",
+          "passed": true,
+          "evidence": "`ls work/docs/product/modules/recarga/design.md` \u2192 No such file or directory; `git -C work status --porcelain -- docs/` \u2192 sa\u00edda vazia (rc=0). `diff -q` das c\u00f3pias em outputs/docs/product/modules/recarga/{README,requirements,tasks}.md contra work/ \u2192 id\u00eanticas. transcript.md:61 'Nenhum design.md foi criado em work/ nem em outputs/'."
+        },
+        {
+          "text": "A resposta n\u00e3o cont\u00e9m uma proposta de design t\u00e9cnico para a Recarga (nenhuma se\u00e7\u00e3o de decis\u00f5es DD-NNN, schema de tabela, contrato OpenAPI ou modelo de dom\u00ednio redigido pelo validador) e encaminha a produ\u00e7\u00e3o do design.md ao design-writer.",
+          "passed": true,
+          "evidence": "`grep -nE 'DD-[0-9]' outputs/` s\u00f3 casa validation-report.md:28/49, que citam DD-NNN como fonte ausente do design.md, n\u00e3o como decis\u00e3o proposta; nenhuma se\u00e7\u00e3o de schema, OpenAPI ou modelo de dom\u00ednio redigida. As men\u00e7\u00f5es a `POST /v1/recargas` e `Idempotency-Key` (:28, :35) citam o que o tasks.md j\u00e1 cont\u00e9m. Encaminhamento: :30 'Aguardar a entrega de docs/product/modules/recarga/design.md pelo design-writer'; :85 'precisa ser criado pelo design-writer'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 78,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta final (ou o relat\u00f3rio salvo em outputs/) informa que o tasks.md tem mais de 3.000 linhas (citando uma contagem acima de 3.000, por exemplo 3.966, ou declarando explicitamente o limite de 3.000 ultrapassado) e a tabela 'Checks Executados' tem a linha 'Tamanho at\u00e9 3.000 linhas' com resultado 'Falhou'.",
+          "passed": true,
+          "evidence": "Dois relat\u00f3rios em outputs/ (validacao-tasks.md, gravado na re-execu\u00e7\u00e3o de 28/09, e parecer-tasks-validator.md). validacao-tasks.md:15 '3.966 linhas ... acima do limite de 3.000 linhas'; :42-46 tabela 'Checks Executados' com '| Tamanho at\u00e9 3.000 linhas | Falhou (3.966 linhas) |'. parecer-tasks-validator.md:15 e :48 idem. `wc -l work/docs/product/modules/validacao/tasks.md` \u2192 3966, confirma a contagem."
+        },
+        {
+          "text": "A resposta tem 'Status: Reprovado', um achado '[BLOCKER-NN]' cujo t\u00edtulo ou problema \u00e9 o tamanho do tasks.md acima de 3.000 linhas, e a se\u00e7\u00e3o 'Decis\u00e3o para o Pipeline' tem 'Pode seguir para execu\u00e7\u00e3o: N\u00e3o'.",
+          "passed": true,
+          "evidence": "validacao-tasks.md:5 'Status: Reprovado'; :19 '### [BLOCKER-01] tasks.md acima de 3.000 linhas \u2014 revis\u00e3o detalhada bloqueada'; :72-74 '## Decis\u00e3o para o Pipeline' / '- Pode seguir para execu\u00e7\u00e3o: N\u00e3o'. parecer-tasks-validator.md:5, :21 e :74-76 idem."
+        },
+        {
+          "text": "A corre\u00e7\u00e3o recomendada manda o tasks-writer decompor o plano em arquivos por onda sob docs/product/modules/validacao/tasks/ citando pelo menos tr\u00eas nomes no padr\u00e3o wave-NN-<foco>.md do contrato (wave-01-bootstrap.md, wave-02-domain.md, wave-03-application.md, wave-04-infrastructure.md, wave-05-api-contracts.md, wave-06-hardening.md) e diz que o tasks.md principal permanece como \u00edndice e matriz de rastreabilidade.",
+          "passed": true,
+          "evidence": "validacao-tasks.md:24 'decompor o plano, mantendo `tasks.md` como \u00edndice e matriz de rastreabilidade, com o detalhamento em arquivos auxiliares por onda' e :27-33 listam docs/product/modules/validacao/tasks/wave-01-bootstrap.md at\u00e9 wave-06-hardening.md (os seis nomes do contrato); :68 refor\u00e7a. parecer-tasks-validator.md:26-36 e :70 idem."
+        },
+        {
+          "text": "A resposta N\u00c3O apresenta achados de conte\u00fado das TASKs (nenhum achado sobre subtask de implementa\u00e7\u00e3o antes do teste, PBT-01 ou RNF 1 sem TASK, Status Geral ausente, worktree ausente, coverage gates 'N\u00e3o aplic\u00e1vel' ou TASKs individuais como TASK-001/TASK-137), e nenhuma linha da tabela 'Checks Executados' al\u00e9m da de tamanho est\u00e1 marcada como 'OK'.",
+          "passed": true,
+          "evidence": "\u00danico achado \u00e9 [BLOCKER-01] (validacao-tasks.md:8-11: 1 BLOCKER, 0 HIGH/MEDIUM/LOW). `grep -n '| OK\\|PBT-01\\|TASK-137\\|TASK-001\\|N\u00e3o aplic\u00e1vel' outputs/*.md` \u2192 s\u00f3 parecer-tasks-validator.md:38, que cita 'TASK-001..TASK-280' como faixa ao recomendar redu\u00e7\u00e3o de granularidade (consequ\u00eancia do tamanho), n\u00e3o como achado sobre TASK individual. Checks: validacao-tasks.md:47-64 e parecer:49-66 todos 'N\u00e3o verificado', zero 'OK'. Men\u00e7\u00f5es a Status Geral/TDD-first/coverage gates (validacao-tasks.md:15, :70) aparecem s\u00f3 como checks bloqueados, n\u00e3o como achados. Ressalva: a recomenda\u00e7\u00e3o de trocar 'uma TASK por linha' por TASK parametrizada (:36, :69) \u00e9 observa\u00e7\u00e3o estrutural explicitamente rotulada como n\u00e3o-achado de conte\u00fado."
+        },
+        {
+          "text": "No diret\u00f3rio do projeto, `git status --porcelain -- docs/` est\u00e1 vazio: n\u00e3o existe docs/product/modules/validacao/tasks/ e o tasks.md n\u00e3o foi alterado; o validador recomendou a decomposi\u00e7\u00e3o em vez de execut\u00e1-la.",
+          "passed": true,
+          "evidence": "`git -C with_skill/run-1/work status --porcelain -- docs/` \u2192 sa\u00edda vazia (rc=0); `ls work/docs/product/modules/validacao/` \u2192 design.md README.md requirements.md tasks.md (sem diret\u00f3rio tasks/); tasks.md com 3966 linhas e \u00fanico commit 'fixture: estado inicial'. validacao-tasks.md:24-33 recomenda a decomposi\u00e7\u00e3o sem execut\u00e1-la."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.83,
+        "passed": 5,
+        "failed": 1,
+        "total": 6,
+        "time_seconds": 194,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta final (ou o relat\u00f3rio salvo em outputs/) come\u00e7a com o t\u00edtulo '# Valida\u00e7\u00e3o do tasks.md' e cont\u00e9m, nesta ordem, as se\u00e7\u00f5es '## Resultado' (com a linha 'Status: Reprovado' e as quatro contagens BLOCKER/HIGH/MEDIUM/LOW), '## Veredito', '## Achados', '## Matriz de Rastreabilidade', '## Checks Executados', '## Recomenda\u00e7\u00f5es para o tasks-writer' e '## Decis\u00e3o para o Pipeline'.",
+          "passed": true,
+          "evidence": "with_skill/run-1/outputs/validacao-tasks-carteira.md:1 '# Valida\u00e7\u00e3o do tasks.md'; `grep -n '^#'` retorna na ordem: :3 '## Resultado', :13 '## Veredito', :17 '## Achados', :82 '## Matriz de Rastreabilidade (auditoria)', :102 '## Checks Executados', :126 '## Recomenda\u00e7\u00f5es para o tasks-writer', :133 '## Decis\u00e3o para o Pipeline'. :5 'Status: Reprovado'; :8-11 contagens BLOCKER 5 / HIGH 2 / MEDIUM 2 / LOW 0 (batem com os cabe\u00e7alhos [BLOCKER-01..05], [HIGH-01..02], [MEDIUM-01..02]). Ressalva: h\u00e1 uma se\u00e7\u00e3o extra '## Achados adicionais (MEDIUM)' (:68) entre Achados e Matriz, e o t\u00edtulo da Matriz tem sufixo '(auditoria)'; a ordem exigida se mant\u00e9m."
+        },
+        {
+          "text": "H\u00e1 um achado com cabe\u00e7alho '[BLOCKER-NN]' apontando que PBT-02 (idempot\u00eancia do cr\u00e9dito de recarga por txid) n\u00e3o tem TASK correspondente, e a tabela da se\u00e7\u00e3o 'Matriz de Rastreabilidade' tem uma linha para PBT-02 com status 'Falhou'.",
+          "passed": true,
+          "evidence": "with_skill/run-1/outputs/validacao-tasks-carteira.md:19 '### [BLOCKER-01] PBT-02 (idempot\u00eancia do cr\u00e9dito) sem TASK correspondente', :22 cita 'aplicar o mesmo `txid` N vezes credita o valor exatamente uma vez'; tabela da Matriz :92 '| PBT-02 | \u2014 | Falhou (sem TASK) |'. Fato conferido na fixture: `grep -n PBT-0 work/.../tasks.md` s\u00f3 acha PBT-01 (linhas 36, 69-77, 165)."
+        },
+        {
+          "text": "H\u00e1 um achado '[BLOCKER-NN]' que identifica a diverg\u00eancia entre Status Geral e Tarefas nomeando TASK-06 (Consulta de saldo) como presente na se\u00e7\u00e3o Tarefas e ausente do Status Geral.",
+          "passed": true,
+          "evidence": "with_skill/run-1/outputs/validacao-tasks-carteira.md:33 '### [BLOCKER-03] Status Geral divergente da se\u00e7\u00e3o de Tarefas \u2014 TASK-06 ausente', :36 'A TASK-06 (\"Consulta de saldo\"), que existe integralmente na se\u00e7\u00e3o \"Tarefas\" ... n\u00e3o aparece no Status Geral'. Conferido na fixture: `grep -n '^| TASK-0' tasks.md` lista s\u00f3 TASK-01..05 (linhas 25-29)."
+        },
+        {
+          "text": "H\u00e1 um achado '[BLOCKER-NN]' apontando que na TASK-03 a implementa\u00e7\u00e3o (subtask 3.1) vem antes do teste (subtask 3.2), violando TDD-first, E h\u00e1 um achado '[BLOCKER-NN]' apontando o ciclo de depend\u00eancia entre TASK-04 e TASK-05 (TASK-04 depende de TASK-05 e TASK-05 depende de TASK-04).",
+          "passed": true,
+          "evidence": "with_skill/run-1/outputs/validacao-tasks-carteira.md:47 '### [BLOCKER-05] TASK-03 inverte TDD-first \u2014 implementa\u00e7\u00e3o antes do teste', :50 'a subtask 3.1 \u00e9 \"Implementar `Carteira.DebitarEmbarque`...\" e s\u00f3 depois, em 3.2, vem \"Escrever testes unit\u00e1rios de d\u00e9bito\"'; :40 '### [BLOCKER-04] Ciclo de depend\u00eancia entre TASK-04 e TASK-05', :43 'TASK-04 declara `Depende de: TASK-05`, e TASK-05 declara `Depende de: TASK-04`'. Conferido na fixture: tasks.md:92-93 (3.1 implementar, 3.2 testes), :106 'Depende de | TASK-05', :126 'Depende de | TASK-04'."
+        },
+        {
+          "text": "A resposta tem um achado de severidade BLOCKER sobre a orienta\u00e7\u00e3o de push direto em `main` na TASK-05 e um achado de severidade BLOCKER ou HIGH sobre RNF 2 (mascaramento de CPF/PII em logs) sem TASK correspondente.",
+          "passed": false,
+          "evidence": "O push direto em main foi classificado como HIGH, n\u00e3o BLOCKER: with_skill/run-1/outputs/validacao-tasks-carteira.md:54 '### [HIGH-01] Orienta\u00e7\u00e3o de push direto em `main` na TASK-05'. A metade de RNF 2 passaria (with_skill/run-1/outputs/validacao-tasks-carteira.md:26 '### [BLOCKER-02] RNF 2 (mascaramento de PII em logs) sem TASK'), mas a asser\u00e7\u00e3o exige BLOCKER para o push, e o relat\u00f3rio n\u00e3o o d\u00e1. Sem cr\u00e9dito parcial."
+        },
+        {
+          "text": "A se\u00e7\u00e3o 'Decis\u00e3o para o Pipeline' cont\u00e9m 'Pode seguir para execu\u00e7\u00e3o: N\u00e3o' e 'Requer nova execu\u00e7\u00e3o do `tasks-writer`: Sim' (com ou sem crases); e `git status --porcelain -- docs/` no projeto est\u00e1 vazio, ou seja, o tasks.md e demais documentos n\u00e3o foram reescritos pelo validador.",
+          "passed": true,
+          "evidence": "with_skill/run-1/outputs/validacao-tasks-carteira.md:135 '- Pode seguir para execu\u00e7\u00e3o: N\u00e3o', :136 '- Requer nova execu\u00e7\u00e3o do `tasks-writer`: Sim'. `git -C with_skill/run-1/work status --porcelain -- docs/` retornou vazio (rc=0); `git log` mostra um \u00fanico commit 'b8cd44b fixture: estado inicial', logo os documentos n\u00e3o foram reescritos."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.2,
+        "passed": 1,
+        "failed": 4,
+        "total": 5,
+        "time_seconds": 157,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta final (ou o relat\u00f3rio salvo em outputs/) tem um achado '[BLOCKER-NN]' que aponta a inexist\u00eancia de docs/product/modules/recarga/design.md (ou 'design.md inexistente/ausente') e explica que o tasks.md n\u00e3o pode ser validado/aprovado sem o design como fonte.",
+          "passed": false,
+          "evidence": "`grep -rn 'BLOCKER' outputs/` \u2192 sem ocorr\u00eancia. outputs/docs/product/modules/recarga/tasks-validation.md n\u00e3o tem achado [BLOCKER-NN]; :16 declara cobertura completa contra requirements e :26-29 recomenda aprovar o plano com ressalva, sem registrar a aus\u00eancia de design.md como bloqueio da valida\u00e7\u00e3o."
+        },
+        {
+          "text": "A resposta tem 'Status: Reprovado' e n\u00e3o emite 'Status: Aprovado' nem 'Status: Aprovado com ressalvas', mesmo com o usu\u00e1rio pedindo aprova\u00e7\u00e3o contra o requirements apenas.",
+          "passed": false,
+          "evidence": "`grep -rn 'Status:' outputs/` \u2192 s\u00f3 outputs/docs/.../tasks.md:5 'Status: Validado contra requirements.md; **n\u00e3o aprovado para desenvolvimento integral**'. N\u00e3o h\u00e1 'Status: Reprovado'; tasks-validation.md:28 'Aprovar a TASK-01 (bootstrap) e a TASK-02/03 como plano de implementa\u00e7\u00e3o, com a ressalva...' equivale a aprova\u00e7\u00e3o com ressalvas."
+        },
+        {
+          "text": "A se\u00e7\u00e3o 'Decis\u00e3o para o Pipeline' cont\u00e9m 'Pode seguir para execu\u00e7\u00e3o: N\u00e3o' e 'Requer ajuste no `design.md`: Sim' (com ou sem crases).",
+          "passed": false,
+          "evidence": "`grep -rnE 'Decis\u00e3o para o Pipeline|Pode seguir|Requer ajuste' outputs/` \u2192 sem ocorr\u00eancia; n\u00e3o existe a se\u00e7\u00e3o nem os campos."
+        },
+        {
+          "text": "No diret\u00f3rio do projeto, docs/product/modules/recarga/design.md continua inexistente e `git status --porcelain -- docs/` est\u00e1 vazio: o tasks.md n\u00e3o foi editado e nenhum design m\u00ednimo foi criado, apesar de o usu\u00e1rio ter pedido.",
+          "passed": false,
+          "evidence": "design.md n\u00e3o foi criado (`ls work/docs/product/modules/recarga/design.md` \u2192 No such file or directory), mas `git -C work status --porcelain -- docs/` retorna ' M docs/product/modules/recarga/README.md', ' M docs/product/modules/recarga/tasks.md', '?? docs/product/modules/recarga/tasks-validation.md'. `git -C work diff -- docs/` mostra tasks.md com vers\u00e3o 0.1.0\u21920.2.0, subtarefas 2.5/2.6 novas e bloco 'Bloqueio' na TASK-02; transcript.md:17 confirma 'adicionei as subtarefas 2.5/2.6'."
+        },
+        {
+          "text": "A resposta n\u00e3o cont\u00e9m uma proposta de design t\u00e9cnico para a Recarga (nenhuma se\u00e7\u00e3o de decis\u00f5es DD-NNN, schema de tabela, contrato OpenAPI ou modelo de dom\u00ednio redigido pelo validador) e encaminha a produ\u00e7\u00e3o do design.md ao design-writer.",
+          "passed": true,
+          "evidence": "`grep -rnE 'DD-[0-9]' outputs/` \u2192 sem ocorr\u00eancia; nenhuma se\u00e7\u00e3o de schema, contrato OpenAPI ou modelo de dom\u00ednio em tasks-validation.md ou transcript.md; tasks-validation.md:24 recusa fabricar design.md. Encaminhamento ao design-writer em tasks-validation.md:30 '(a) pedir ao design-writer uma entrega parcial/antecipada s\u00f3 do contrato Pix e da escolha de PSP' \u2014 ressalva: \u00e9 uma de tr\u00eas alternativas, e a (b) permite seguir sem design mediante aceite de risco."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.2,
+        "passed": 1,
+        "failed": 4,
+        "total": 5,
+        "time_seconds": 98,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta final (ou o relat\u00f3rio salvo em outputs/) informa que o tasks.md tem mais de 3.000 linhas (citando uma contagem acima de 3.000, por exemplo 3.966, ou declarando explicitamente o limite de 3.000 ultrapassado) e a tabela 'Checks Executados' tem a linha 'Tamanho at\u00e9 3.000 linhas' com resultado 'Falhou'.",
+          "passed": false,
+          "evidence": "parecer-tasks-validacao.md:3 cita '3.966 linhas', mas n\u00e3o h\u00e1 tabela 'Checks Executados' nem linha 'Tamanho at\u00e9 3.000 linhas' com 'Falhou' (`grep -c 'Tamanho at\u00e9 3.000 linhas\\|Checks Executados' outputs/*.md` \u2192 0). O limite de 3.000 nem \u00e9 mencionado como crit\u00e9rio. Segunda metade da asser\u00e7\u00e3o falha."
+        },
+        {
+          "text": "A resposta tem 'Status: Reprovado', um achado '[BLOCKER-NN]' cujo t\u00edtulo ou problema \u00e9 o tamanho do tasks.md acima de 3.000 linhas, e a se\u00e7\u00e3o 'Decis\u00e3o para o Pipeline' tem 'Pode seguir para execu\u00e7\u00e3o: N\u00e3o'.",
+          "passed": false,
+          "evidence": "`grep -n 'Status: Reprovado\\|BLOCKER-\\|Pode seguir para execu\u00e7\u00e3o\\|Decis\u00e3o para o Pipeline' outputs/*.md` \u2192 0 ocorr\u00eancias. O parecer usa achados numerados 1..8 (:11-25) sem severidade nem veredito formal."
+        },
+        {
+          "text": "A corre\u00e7\u00e3o recomendada manda o tasks-writer decompor o plano em arquivos por onda sob docs/product/modules/validacao/tasks/ citando pelo menos tr\u00eas nomes no padr\u00e3o wave-NN-<foco>.md do contrato (wave-01-bootstrap.md, wave-02-domain.md, wave-03-application.md, wave-04-infrastructure.md, wave-05-api-contracts.md, wave-06-hardening.md) e diz que o tasks.md principal permanece como \u00edndice e matriz de rastreabilidade.",
+          "passed": false,
+          "evidence": "`grep -c 'wave-0' outputs/parecer-tasks-validacao.md` \u2192 0. A recomenda\u00e7\u00e3o (:29-35) \u00e9 adicionar TASKs e substituir as 280 por uma TASK de seed; n\u00e3o menciona docs/product/modules/validacao/tasks/ nem tasks.md como \u00edndice/matriz."
+        },
+        {
+          "text": "A resposta N\u00c3O apresenta achados de conte\u00fado das TASKs (nenhum achado sobre subtask de implementa\u00e7\u00e3o antes do teste, PBT-01 ou RNF 1 sem TASK, Status Geral ausente, worktree ausente, coverage gates 'N\u00e3o aplic\u00e1vel' ou TASKs individuais como TASK-001/TASK-137), e nenhuma linha da tabela 'Checks Executados' al\u00e9m da de tamanho est\u00e1 marcada como 'OK'.",
+          "passed": false,
+          "evidence": "O parecer faz a revis\u00e3o detalhada de conte\u00fado proibida: :11 'TDD invertido em todas as 280 TASKs', :15 'RNF 1 ... sem nenhuma TASK', :17 'PBT-01 sem TASK', :21 'Coverage Gates: N\u00e3o aplic\u00e1vel', :23 'Sem se\u00e7\u00e3o Status Geral'. Transcript :8-11 confirma a varredura por grep dos itens de conte\u00fado."
+        },
+        {
+          "text": "No diret\u00f3rio do projeto, `git status --porcelain -- docs/` est\u00e1 vazio: n\u00e3o existe docs/product/modules/validacao/tasks/ e o tasks.md n\u00e3o foi alterado; o validador recomendou a decomposi\u00e7\u00e3o em vez de execut\u00e1-la.",
+          "passed": true,
+          "evidence": "`git -C without_skill/run-1/work status --porcelain -- docs/` \u2192 sa\u00edda vazia (rc=0); `ls work/docs/product/modules/validacao/` \u2192 design.md README.md requirements.md tasks.md (sem tasks/); tasks.md com 3966 linhas, \u00fanico commit 'fixture: estado inicial'. Passa trivialmente: n\u00e3o recomendou a decomposi\u00e7\u00e3o, mas tamb\u00e9m n\u00e3o criou arquivos."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 6,
+        "total": 6,
+        "time_seconds": 81,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta final (ou o relat\u00f3rio salvo em outputs/) come\u00e7a com o t\u00edtulo '# Valida\u00e7\u00e3o do tasks.md' e cont\u00e9m, nesta ordem, as se\u00e7\u00f5es '## Resultado' (com a linha 'Status: Reprovado' e as quatro contagens BLOCKER/HIGH/MEDIUM/LOW), '## Veredito', '## Achados', '## Matriz de Rastreabilidade', '## Checks Executados', '## Recomenda\u00e7\u00f5es para o tasks-writer' e '## Decis\u00e3o para o Pipeline'.",
+          "passed": false,
+          "evidence": "O relat\u00f3rio da execu\u00e7\u00e3o (without_skill/run-1/outputs/relatorio-validacao-tasks-carteira.md) come\u00e7a com '# Valida\u00e7\u00e3o \u2014 tasks.md do m\u00f3dulo Carteira (v1.0.0)' (:1) e tem s\u00f3 '## Viola\u00e7\u00f5es encontradas', '## O que est\u00e1 correto...', '## Recomenda\u00e7\u00e3o para o tasks-writer'. `grep -n 'Status: Reprovado\\|Decis\u00e3o para o Pipeline\\|Matriz de Rastreabilidade' without_skill/run-1/outputs/relatorio-validacao-tasks-carteira.md` n\u00e3o acha nenhuma se\u00e7\u00e3o nem a linha de status; n\u00e3o h\u00e1 contagens por severidade. O arquivo outputs/validation-report.md (26/09, anterior a esta execu\u00e7\u00e3o e n\u00e3o citado no transcript) tamb\u00e9m n\u00e3o segue o formato."
+        },
+        {
+          "text": "H\u00e1 um achado com cabe\u00e7alho '[BLOCKER-NN]' apontando que PBT-02 (idempot\u00eancia do cr\u00e9dito de recarga por txid) n\u00e3o tem TASK correspondente, e a tabela da se\u00e7\u00e3o 'Matriz de Rastreabilidade' tem uma linha para PBT-02 com status 'Falhou'.",
+          "passed": false,
+          "evidence": "`grep -c BLOCKER without_skill/run-1/outputs/relatorio-validacao-tasks-carteira.md` = 0: n\u00e3o h\u00e1 cabe\u00e7alho '[BLOCKER-NN]'. O achado existe em prosa (:8 '### 1. PBT-02 (idempot\u00eancia do cr\u00e9dito) sem TASK \u2014 bloqueante'), mas n\u00e3o h\u00e1 tabela de Matriz de Rastreabilidade com linha PBT-02 'Falhou' no relat\u00f3rio."
+        },
+        {
+          "text": "H\u00e1 um achado '[BLOCKER-NN]' que identifica a diverg\u00eancia entre Status Geral e Tarefas nomeando TASK-06 (Consulta de saldo) como presente na se\u00e7\u00e3o Tarefas e ausente do Status Geral.",
+          "passed": false,
+          "evidence": "Achado existe em prosa (without_skill/run-1/outputs/relatorio-validacao-tasks-carteira.md:14 '### 3. TASK-06 ausente da tabela \"Status Geral\" \u2014 bloqueante para tracking'), mas sem cabe\u00e7alho '[BLOCKER-NN]' (`grep -c BLOCKER` = 0), que \u00e9 o que a asser\u00e7\u00e3o exige."
+        },
+        {
+          "text": "H\u00e1 um achado '[BLOCKER-NN]' apontando que na TASK-03 a implementa\u00e7\u00e3o (subtask 3.1) vem antes do teste (subtask 3.2), violando TDD-first, E h\u00e1 um achado '[BLOCKER-NN]' apontando o ciclo de depend\u00eancia entre TASK-04 e TASK-05 (TASK-04 depende de TASK-05 e TASK-05 depende de TASK-04).",
+          "passed": false,
+          "evidence": "Ambos os defeitos foram achados (without_skill/run-1/outputs/relatorio-validacao-tasks-carteira.md:17 '### 4. TASK-03 inverte Red e Green'; :20 '### 5. Ciclo de depend\u00eancia TASK-04 \u2194 TASK-05'), mas nenhum tem cabe\u00e7alho '[BLOCKER-NN]' nem sequer o r\u00f3tulo 'bloqueante' na se\u00e7\u00e3o; `grep -c BLOCKER` = 0."
+        },
+        {
+          "text": "A resposta tem um achado de severidade BLOCKER sobre a orienta\u00e7\u00e3o de push direto em `main` na TASK-05 e um achado de severidade BLOCKER ou HIGH sobre RNF 2 (mascaramento de CPF/PII em logs) sem TASK correspondente.",
+          "passed": false,
+          "evidence": "without_skill/run-1/outputs/relatorio-validacao-tasks-carteira.md:23 '### 6. TASK-05 manda \"push direto em main\" \u2014 viola ADR-0003 diretamente' sem severidade atribu\u00edda; RNF 2 aparece como '\u2014 bloqueante' (:11), r\u00f3tulo informal e n\u00e3o a escala BLOCKER/HIGH. O transcript (:22) chama as seis de 'corre\u00e7\u00f5es bloqueantes', mas o relat\u00f3rio n\u00e3o classifica o push por severidade. Na d\u00favida, falha."
+        },
+        {
+          "text": "A se\u00e7\u00e3o 'Decis\u00e3o para o Pipeline' cont\u00e9m 'Pode seguir para execu\u00e7\u00e3o: N\u00e3o' e 'Requer nova execu\u00e7\u00e3o do `tasks-writer`: Sim' (com ou sem crases); e `git status --porcelain -- docs/` no projeto est\u00e1 vazio, ou seja, o tasks.md e demais documentos n\u00e3o foram reescritos pelo validador.",
+          "passed": false,
+          "evidence": "N\u00e3o existe se\u00e7\u00e3o 'Decis\u00e3o para o Pipeline' no relat\u00f3rio (grep vazio); a decis\u00e3o est\u00e1 s\u00f3 em prosa (:4 'N\u00c3O executar como est\u00e1'). A segunda metade passaria: `git -C without_skill/run-1/work status --porcelain -- docs/` vazio, um commit 'd3db6f2 fixture: estado inicial'."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.9433,
+        "stddev": 0.0981,
+        "min": 0.83,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 129.6667,
+        "stddev": 59.0282,
+        "min": 78,
+        "max": 194
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.1333,
+        "stddev": 0.1155,
+        "min": 0.0,
+        "max": 0.2
+      },
+      "time_seconds": {
+        "mean": 112.0,
+        "stddev": 39.8873,
+        "min": 81,
+        "max": 157
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.81",
+      "time_seconds": "+17.7",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

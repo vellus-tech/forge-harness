@@ -1,0 +1,61 @@
+{
+  "skill": "triagem-alerta-pagamentos",
+  "runner": "claude-code",
+  "graded_at": "2026-09-24T14:10:00Z",
+  "baseline": {
+    "description": "sem a skill (baseline)",
+    "notes": null
+  },
+  "variant": {
+    "description": "com a skill triagem-alerta-pagamentos",
+    "notes": null
+  },
+  "test_cases": [
+    {
+      "id": "TC-02",
+      "prompt": "PagerDuty disparou timeout no gateway Rede, p99 de 4s. O que faço?",
+      "baseline_result": {
+        "output": "baseline TC-02",
+        "duration_ms": 16000,
+        "tokens": 5200,
+        "exit_code": 0
+      },
+      "variant_result": {
+        "output": "variant TC-02",
+        "duration_ms": 19000,
+        "tokens": 6400,
+        "exit_code": 0
+      },
+      "expectations": [
+        {
+          "text": "Classifica a severidade do alerta (SEV1–SEV4) com justificativa",
+          "passed": true,
+          "evidence": "variant: atendeu. Ver saída TC-02."
+        },
+        {
+          "text": "Identifica o adquirente afetado pelo código de resposta",
+          "passed": false,
+          "evidence": "variant: não atendeu. Ver saída TC-02."
+        },
+        {
+          "text": "Propõe o próximo passo do runbook citando a seção",
+          "passed": true,
+          "evidence": "variant: atendeu. Ver saída TC-02."
+        }
+      ]
+    }
+  ],
+  "aggregate": {
+    "baseline_pass_rate": 0.6666666666666666,
+    "variant_pass_rate": 0.6666666666666666,
+    "delta_pass_rate": 0,
+    "baseline_tokens_mean": 5200,
+    "variant_tokens_mean": 6400,
+    "delta_tokens": 1200,
+    "baseline_duration_mean_ms": 16000,
+    "variant_duration_mean_ms": 19000,
+    "delta_duration_ms": 3000,
+    "baseline_stddev": null,
+    "variant_stddev": null
+  }
+}

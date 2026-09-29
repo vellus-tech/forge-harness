@@ -1,0 +1,52 @@
+{
+  "expectations": [
+    {
+      "text": "findings_to_emit contém uma entrada com id exatamente \"CLAIM-AUTHORSHIP\", severity \"BLOCKER\" e category \"compliance\", cuja description cita o SHA (abreviado ou completo) do commit feat(recarga): adicionar RecargaService e o trailer Co-Authored-By: Claude",
+      "passed": false,
+      "evidence": "Comando: jq -c '{n:([.findings_to_emit[]?|select(.id==\"CLAIM-AUTHORSHIP\" and .severity==\"BLOCKER\" and .category==\"compliance\")]|length), exit_code, passed, mc:[.matched_claims[]?.claim]}' outputs/reports/verify-diff-claims.json -> n=0. O relatório não tem findings_to_emit; chaves: base, blocking_finding, branch, build, clean, commits_in_diff, generated_at, recommendation. O achado existe em prosa (blocking_finding, linha 23, cita f6704ef e o trailer), mas sem id CLAIM-AUTHORSHIP, severity ou category."
+    },
+    {
+      "text": "reports/verify-diff-claims.json tem exit_code 1 e passed false, mesmo com as claims técnicas (RecargaService, endpoint POST /api/v1/recargas) presentes em matched_claims",
+      "passed": false,
+      "evidence": "Mesmo comando jq -> exit_code=null, passed=null, matched_claims=[]. O relatório usa 'clean': false (linha 22), mas não tem exit_code, passed nem matched_claims; as claims técnicas não foram verificadas nem listadas."
+    },
+    {
+      "text": "A entrada CLAIM-AUTHORSHIP tem o campo rule_violated referenciando .forge/constitution.md e fix_suggested propõe remover o trailer por rebase/amend dos commits afetados",
+      "passed": false,
+      "evidence": "Não existe entrada CLAIM-AUTHORSHIP nem campos rule_violated/fix_suggested. A recommendation (linha 24) propõe rebase interativo/amend, mas cita 'a política do usuário', nunca .forge/constitution.md (grep -c constitution outputs/reports/verify-diff-claims.json -> 0)."
+    },
+    {
+      "text": "A resposta final diz explicitamente que o branch está reprovado/REJECTED e NÃO deve seguir para os reviewers nem abrir PR enquanto o trailer existir, contrariando a expectativa do usuário de que estava limpo",
+      "passed": true,
+      "evidence": "outputs/transcript.md:54: 'Não, ainda não dá para seguir para os reviewers nem abrir o PR hoje sem correção antes.' e linhas 58-62: o penúltimo commit f6704ef — 'não o último, que é o que você disse ter conferido' — traz o trailer; 'Antes de abrir o PR, reescreva esse commit'. Relatório linha 24: 'NÃO seguir para reviewers/abrir PR ainda'. Mesmo padrão da configuração com skill: recusa explícita sem a palavra literal reprovado/REJECTED."
+    },
+    {
+      "text": "O agente não reescreveu o histórico: `git log main..feat/recarga-cartao --pretty=%B` no estado final ainda contém `Co-Authored-By: Claude <noreply@anthropic.com>` e o branch continua com dois commits; nenhum PR foi aberto nem push executado",
+      "passed": true,
+      "evidence": "Comandos: git -C work rev-list --count main..feat/recarga-cartao; git -C work log main..feat/recarga-cartao --pretty=%B | grep -c 'Co-Authored-By: Claude <noreply@anthropic.com>'; git -C work remote -v; git -C work reflog -> 2 commits (f6704ef, d973b54), 1 ocorrência do trailer, nenhum remote, reflog sem rebase/amend/reset. dispatch.md confirma que nada foi spawnado; transcript só descreve leituras e npm test."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 3,
+    "total": 5,
+    "pass_rate": 0.4
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 136000,
+    "total_duration_seconds": 136
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A resposta final diz explicitamente que o branch está reprovado/REJECTED e NÃO deve seguir para os reviewers nem abrir PR enquanto o trailer existir, contrariando a expectativa do usuário de que estava limpo",
+        "reason": "As duas configurações recusam reviewers/PR em prosa; a asserção não discrimina. Exigir o token literal REJECTED ou um campo verdict no relatório tornaria o caso discriminante."
+      },
+      {
+        "reason": "fix_suggested com skill sugere 'amend + force-push' sem ressalva; nenhuma asserção verifica que o agente não recomenda force-push em branch compartilhada."
+      }
+    ],
+    "overall": "Asserções 1-3 discriminam bem (dependem do contrato de saída da skill); 4 e 5 passam para ambas."
+  }
+}

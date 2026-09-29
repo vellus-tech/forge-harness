@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "docs/revisao-analitico.md cita os ids A-10, A-12, A-08, A-14 e A-06 do catálogo, e cada um vem acompanhado da localização arquivo:linha correta (fct_viagens.sql:10, dim_linha.sql:3, int_viagens_diarias.sql:1, snap_linhas.yml:9, gold_receita_linha.sql:9 ou :11); descrição genérica sem id ou sem linha não conta",
+      "passed": false,
+      "evidence": "O relatório não cita nenhum id do catálogo (A-10, A-12, A-08, A-14, A-06 ausentes). Além disso, localiza o source() direto em 'models/marts/fct_viagens.sql:9', quando o correto é a linha 10; select * de dim_linha não é apontado."
+    },
+    {
+      "text": "O relatório NÃO classifica como antipattern o PARTITIONED BY (days(ts_embarque)) de ddl/silver_embarques.sql (o trata como particionamento oculto legítimo do Iceberg ou não o menciona como problema) e NÃO acusa int_validacoes.sql de incremental sem unique_key (reconhece que microbatch com event_time/lookback dispensa unique_key ou não o lista como problema)",
+      "passed": false,
+      "evidence": "Item 2 (linha 15): 'Nenhum modelo incremental declara `unique_key` (`int_viagens_diarias.sql`, `int_validacoes.sql`)'; item 7 (linha 27): 'sem `unique_key` a estratégia microbatch ainda pode duplicar'. Acusa int_validacoes de incremental sem unique_key. (O days() do Iceberg não é classificado como problema, mas a segunda metade da asserção falha.)"
+    },
+    {
+      "text": "A correção proposta para snap_linhas.yml é trocar invalidate_hard_deletes por hard_deletes com valor explícito (invalidate ou new_record), mencionando que o parâmetro antigo foi substituído no dbt 1.9; apenas 'remover a linha' ou 'revisar' não conta",
+      "passed": false,
+      "evidence": "O transcript diz que a config de snap_linhas, com invalidate_hard_deletes: true, 'em si é correta'. O único ponto do relatório sobre o snapshot (item 12, linha 39) é o acoplamento a stg_linhas. Não há proposta de migrar para hard_deletes nem menção ao dbt 1.9."
+    },
+    {
+      "text": "O relatório aponta que fct_viagens.sql converte valor_tarifa_centavos para numeric(12,2)/100 e que isso diverge da rule .forge/rules/domain/money-as-cents.md (medida monetária em inteiro na menor unidade também no warehouse)",
+      "passed": false,
+      "evidence": "Item 10 (linha 35) menciona `cast(v.valor_tarifa_centavos as numeric(12,2)) / 100`, mas só como P2 de legibilidade/ordem de arredondamento e recomenda manter a conversão para numeric. Não cita a rule money-as-cents nem aponta divergência com a convenção de inteiro em centavos."
+    },
+    {
+      "text": "O relatório tem uma entrada por regra examinada com status explícito (achado, limpo/OK ou não verificado), e declara como não verificado pela varredura estática ao menos um item de runtime ou ferramenta do catálogo (A-01 grão, A-11 teste de chave de grão ou A-09 contrato), em vez de dar o projeto por aprovado nesses pontos",
+      "passed": false,
+      "evidence": "Relatório organizado por severidade P0/P1/P2, sem entrada por regra, sem status limpo/OK e sem nenhum item declarado 'não verificado' pela varredura estática (nenhuma varredura foi rodada). Testes ausentes aparecem como achado P0, não como item não verificado do catálogo."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 5,
+    "total": 5,
+    "pass_rate": 0.0
+  }
+}

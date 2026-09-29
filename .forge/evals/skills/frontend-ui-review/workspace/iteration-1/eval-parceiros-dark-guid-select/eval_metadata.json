@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "parceiros-dark-guid-select",
+  "prompt": "No crm-web o dark mode da tela de parceiros (src/features/partners) está estranho, com a tabela clara no meio da tela escura, e a coluna BU mostra uns códigos tipo bbbbbbbb-1111-... em vez do nome da unidade. Faz uma revisão de UI dessa tela e me diz o que eu preciso corrigir no front. Tokens em src/styles/tokens.css. Salva a revisão em ui-review.md.",
+  "assertions": [
+    "O relatório identifica --surface-2 (PartnersPage.css) como token referenciado e nunca definido em tokens.css e o liga ao defeito do dark mode",
+    "O relatório não classifica --progress como token fantasma a corrigir: reconhece que é injetado em runtime via style inline (allowlist) e o separa de --surface-2",
+    "O relatório classifica a BU exibida como UUID como dado cru vazando por falta de fonte id->nome no backend (endpoint/contrato de API) e o encaminha como tarefa de backend, em vez de propor apenas truncar, formatar ou estilizar o UUID no front",
+    "O relatório aponta que o DS não tem primitivo Select, cita que mais de uma tela (partners e users) improvisa <select> nativo, e encaminha a criação do primitivo ao dono do design system separado das correções locais da tela",
+    "ui-review.md traz o bloco de gates determinísticos com status por gate (A1 a A5) e uma linha final de veredito APROVADO ou BLOQUEADO, com BLOQUEADO neste caso"
+  ]
+}

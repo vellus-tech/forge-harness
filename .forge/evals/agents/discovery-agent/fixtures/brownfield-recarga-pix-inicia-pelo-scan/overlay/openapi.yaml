@@ -1,0 +1,15 @@
+openapi: 3.0.3
+info:
+  title: recarga-api
+  version: 1.4.0
+paths:
+  /cartoes/{numero}/saldo:
+    get:
+      summary: Consulta o saldo do cartão
+      responses:
+        "200": { description: Saldo atual }
+  /recargas:
+    post:
+      summary: Registra uma recarga feita em posto de venda ou totem
+      responses:
+        "201": { description: Recarga registrada }

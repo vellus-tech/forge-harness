@@ -1,0 +1,29 @@
+approvals:
+  - gate: requirements_reviewed
+    decision: approve
+    autonomous: true
+    reason: "REQ-01..03 testáveis, sem NEEDS CLARIFICATION, escopo igual ao proposal §2"
+    decided_by: "forge-yolo (opus, high)"
+    decided_at: "2026-09-10T11:02:00-03:00"
+    commit: "11ab9c2"
+  - gate: design_reviewed
+    decision: approve
+    autonomous: true
+    reason: "INV-01 (QR expira em 60 s) com PBT-01; assinatura Ed25519 ancorada no ADR-0007"
+    decided_by: "forge-yolo (opus, high)"
+    decided_at: "2026-09-12T16:30:00-03:00"
+    commit: "2c0d8e4"
+  - gate: tasks_reviewed
+    decision: approve
+    autonomous: true
+    reason: "REQ-01..03 e PBT-01 rastreados a TASK-01..06, DoD por task"
+    decided_by: "forge-yolo (opus, high)"
+    decided_at: "2026-09-15T09:15:00-03:00"
+    commit: "3e71f05"
+  - gate: implementation_verified
+    decision: approve
+    autonomous: true
+    reason: "verification.yaml com test/lint/build passed; REQ-01..03 conferidos contra EmbarqueQrValidator.cs e testes"
+    decided_by: "forge-yolo (opus, high)"
+    decided_at: "2026-09-25T18:40:00-03:00"
+    commit: "4a9b6d1"

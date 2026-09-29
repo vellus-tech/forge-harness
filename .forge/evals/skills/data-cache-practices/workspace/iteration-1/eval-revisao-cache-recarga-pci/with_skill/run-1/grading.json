@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "O relatório aponta RecargaCacheService.java:30 (ou guardarParaRetentativa) como C-15 e/ou T-01, afirma que o CVV é dado sensível de autenticação que não pode ser armazenado após a autorização (citando PCI DSS 3.3.1 ou equivalente), e prescreve NÃO guardar PAN/CVV (token do provedor ou nova coleta na retentativa); propor apenas TTL menor, cifrar o valor ou mascarar o log como correção suficiente reprova",
+      "passed": true,
+      "evidence": "revisao-cache-recarga.md §4 'CRÍTICO — CVV gravado em Redis para retentativa (T-01 + C-15...)' sobre guardarParaRetentativa (linha 29-31, FOUND C-15 em :30 no scan-output.log); cita 'PCI DSS 3.3.1 — SAD (CVV/CVC/track) nunca é armazenado após a autorização, nem por curto prazo, nem cifrado'; prescreve 'reapresentar o fluxo de coleta do cartão ao usuário, ou usar um token efêmero de single-use do adquirente/gateway' e afirma 'Isto não é ajuste de TTL ou de namespace'. Ressalva: §6 diz 'remover CVV (e idealmente PAN)', mas a correção prescrita não guarda nenhum dos dois e não propõe cifrar nem encurtar TTL."
+    },
+    {
+      "text": "O bind 0.0.0.0 de deploy/k8s/redis-recarga-configmap.yaml é classificado como C-17 (aviso: exposição depende de controle fora do arquivo) e não como C-11/Redis exposto sem autenticação, e a recomendação inclui NetworkPolicy (ou controle de rede equivalente no namespace) e TLS",
+      "passed": true,
+      "evidence": "§4 'C-17 (bind em todas as interfaces com autenticação)': bind 0.0.0.0 com requirepass (configmap linha 9/11) 'tira o achado de C-11 ... e o classifica como C-17', tabela marca C-11 'OK' e C-17 'aviso'; pede confirmar 'NetworkPolicy que só permite tráfego de entrada dos pods do recarga-java na porta 6379 do namespace recarga' e '(c) TLS entre cliente e Redis — não há tls-port'."
+    },
+    {
+      "text": "O relatório NÃO recomenda adicionar expiração ao Caffeine de RecargaCacheService.java:14 como se estivesse sem TTL: ou o omite dos achados, ou registra que o FOUND C-08 é falso positivo porque expireAfterWrite e maximumSize estão nas linhas seguintes do builder",
+      "passed": true,
+      "evidence": "§4 'C-08 (cache local sem TTL) — falso positivo confirmado': expireAfterWrite(Duration.ofSeconds(30)) na linha 16 e maximumSize(10_000) no mesmo builder; 'Sem ação — achado descartado'. §5: 'C-08 ... falso positivo do scanner — código conforme'."
+    },
+    {
+      "text": "O transcript mostra check-data-governance.sh rodando sobre o path Java e o relatório registra o resultado universo-vazio como não verificado (o verificador não lê .java), sem apresentá-lo como aprovação de PAN/PII nem como conflito",
+      "passed": true,
+      "evidence": "transcript.md passo 6: 'bash .forge/scripts/check-data-governance.sh --path work/services' (path do recarga-java) com log em outputs/check-data-governance-services.log mostrando 'FAIL data-governance/universo-vazio — 0 arquivo(s) examinado(s)'; relatório §3: 'Por instrução da skill, isso é \"não verificado\", não \"limpo\"', sem tratar como aprovação nem conflito. Ressalva: o relatório atribui o vazio à falta de data-classification.json, quando a causa real é o coletor não incluir .java (lib/check-data-governance.mjs, exts .go/.kt/.ts/.rego/.py); a classificação exigida (não verificado) está correta, a explicação da causa não."
+    },
+    {
+      "text": "O relatório não conclui que o serviço está aprovado/pronto para o pentest com base no exit 0 da varredura; deixa explícito que os FOUND de severidade aviso (C-15 em particular) são achados a tratar antes do pentest",
+      "passed": true,
+      "evidence": "Relatório não declara o serviço aprovado; eleva o FOUND C-15 de 'aviso' para crítico ('Elevo o achado de \"aviso\" para crítico') e §6 lista '1. Bloqueante — remover CVV ... do Redis' e '2. Confirmar isolamento de rede do Redis' (C-17, aviso) como itens para a semana do pentest; transcript registra 'Exit code 0 (sem achado alto)' sem concluir aprovação."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  }
+}

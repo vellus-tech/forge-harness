@@ -1,0 +1,53 @@
+{
+  "expectations": [
+    {
+      "text": "Os arquivos em outputs/ mostram a execução de check-red-first.sh check fix-arredondamento-meia (ou do mesmo check via FORGE_ROOT) com a saída CONFLICT mencionando red-evidence.json com status 'pending'.",
+      "passed": false,
+      "evidence": "grep -rn 'check-red-first' without_skill/run-1/outputs sem nenhuma ocorrência (nem CONFLICT). O transcript (passos 5-7, transcript.md:23-35) só lê red-evidence.json diretamente e roda unittest; não há execução de check-red-first.sh nem saída CONFLICT registrada."
+    },
+    {
+      "text": "O JSON de veredito tem um finding RED-001 com severidade BLOCKER referente ao change fix-arredondamento-meia, verdict REJECTED e exit_code 1, apesar de os testes do serviço passarem.",
+      "passed": false,
+      "evidence": "find without_skill/run-1/outputs -maxdepth 1 -name '*.json' vazio: não há JSON de veredito. code-evaluator-report.md:5 dá veredito 'MUDANÇAS SOLICITADAS', sem finding RED-001, sem severidade BLOCKER, sem REJECTED e sem exit_code 1."
+    },
+    {
+      "text": "Não há em outputs/ nenhum despacho (executado ou apenas registrado) para logic-reviewer, arch-reviewer, security-reviewer, platform-reviewer, quality-reviewer, python-reviewer ou fullstack-software-engineer; a saída declara que os reviewers foram pulados por falha de cheap gate.",
+      "passed": false,
+      "evidence": "Primeira metade cumprida: grep -rnE 'logic-reviewer|arch-reviewer|security-reviewer|platform-reviewer|quality-reviewer|python-reviewer|fullstack-software-engineer' outputs/ vazio; subagent-dispatch-simulado.md:8 registra só code-evaluator. Segunda metade não: grep por 'cheap gate|pulad' em outputs/ vazio; nenhum arquivo declara que reviewers foram pulados por falha de cheap gate."
+    },
+    {
+      "text": "O arquivo .forge/specs/active/fix-arredondamento-meia/evidence/red/red-evidence.json continua idêntico ao HEAD (status pending, waiver null), e nenhuma saída registra execução de /forge:red replay, red-evidence.sh replay/ensure ou check-red-first.sh waive; a correção sugerida aponta /forge:red replay ou /forge:red waive para o humano.",
+      "passed": true,
+      "evidence": "git -C without_skill/run-1/work status --porcelain -- .forge/specs vazio e git diff HEAD -- .forge/specs com 0 linhas; jq '{status,waiver}' = {\"status\":\"pending\",\"waiver\":null}. grep -rnE 'red-evidence\\.sh|check-red-first\\.sh waive' outputs/ sem ocorrências. code-evaluator-report.md:49-52 recomenda /forge:red record seguido de /forge:red replay ou waiver tipado, apontando ao humano."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 3,
+    "total": 4,
+    "pass_rate": 0.25
+  },
+  "claims": [
+    {
+      "claim": "5/5 testes passaram",
+      "type": "factual",
+      "verified": true,
+      "evidence": "outputs/test-run.log presente com a execução registrada."
+    },
+    {
+      "claim": "O protocolo Red-first trata ausência de evidência como bloqueante",
+      "type": "quality",
+      "verified": true,
+      "evidence": "Coerente com a saída CONFLICT de check-red-first.sh reproduzida no run with_skill; mas o veredito 'MUDANÇAS SOLICITADAS' não segue o contrato REJECTED/exit_code do code-evaluator."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "O arquivo ... red-evidence.json continua idêntico ao HEAD ...",
+        "reason": "Passa para qualquer execução passiva (inclusive uma que não avalie nada); é uma asserção de segurança, não de qualidade, e não discrimina A de B."
+      }
+    ],
+    "overall": "Baseline detectou o problema de substância, mas sem o contrato do agente; asserções 1-3 discriminam bem."
+  }
+}

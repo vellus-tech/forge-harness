@@ -1,0 +1,13 @@
+{
+  "_comentario": "RASCUNHO ilustrativo do efeito da policy Terraform (aws_iam_policy_document.deny_delete_bronze) sobre bronze/liquidacao/ — não aplicado. O prefixo com CHD fica fora do deny-DeleteObject geral porque usa expiração por ciclo de vida + crypto-shredding (chave do KMS do CDE) como mecanismo de descarte seguro, e não a exclusão explícita de objeto. Um statement IAM não combina Resource e NotResource; como o bucket só guarda bronze/, NotResource sozinho já restringe a negação a todo o bucket exceto o prefixo de liquidação.",
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DenyDeleteObjectBronzeExcetoCHD",
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": ["s3:DeleteObject", "s3:DeleteObjectVersion"],
+      "NotResource": ["arn:aws:s3:::lake-pagamentos/bronze/liquidacao/*"]
+    }
+  ]
+}

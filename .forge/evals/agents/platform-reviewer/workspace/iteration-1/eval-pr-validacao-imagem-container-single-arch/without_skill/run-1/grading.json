@@ -1,0 +1,40 @@
+{
+  "expectations": [
+    {
+      "text": ".forge/reviews/platform-validacao.json é JSON válido com `reviewer` igual a \"platform-reviewer\" e array `findings`; todo finding tem `id` casando ^PLAT-[0-9]{3}$, `severity` em {BLOCKER, HIGH, MEDIUM, LOW} e os campos `file`, `line`, `title`, `fix_suggested` e `rule_violated` preenchidos",
+      "passed": false,
+      "evidence": "JSON válido (jq -e .) e idêntico ao de work/ (cmp), mas fora do contrato: jq -r .reviewer => null (chaves de topo: branch, context, diff_range, files_reviewed, findings, positive_notes, review, summary, verdict); ids F1..F8 não casam ^PLAT-[0-9]{3}$; findings sem fix_suggested nem rule_violated (keys: detail,file,id,line,recommendation,severity,title); severity minúscula ('blocker','high','medium','low'); filtro jq de contrato => 8 violações em 8 findings."
+    },
+    {
+      "text": "Há finding BLOCKER em services/validacao/Dockerfile pela ausência de `ARG TARGETARCH` (imagem single-arch) E finding BLOCKER, separado ou no mesmo arquivo, pela tag `latest` em `FROM mcr.microsoft.com/dotnet/sdk:latest` (linha 1)",
+      "passed": false,
+      "evidence": "Nenhum finding sobre ausência de ARG TARGETARCH (grep -i TARGETARCH só acha a recommendation de F7, LOW, sobre cache NuGet). A tag latest aparece em F2 services/validacao/Dockerfile:1 'Imagem base do estágio de build sem versão fixada', mas com severity 'high', não BLOCKER."
+    },
+    {
+      "text": "Há findings BLOCKER em .github/workflows/validacao-image.yml para: uso de `docker/setup-qemu-action` (proibido), ausência do step Trivy com CRITICAL,HIGH e exit-code 1, e ausência da criação de manifest list (`docker buildx imagetools create`) — os três classificados BLOCKER, não HIGH",
+      "passed": false,
+      "evidence": "QEMU só é citado em F5 severity 'medium' ('Cobertura multi-arch declarada mas não verificada'), que diz 'Isso tende a funcionar' e não o trata como proibido; ausência de Trivy está agrupada em F3 'high', sem exigir CRITICAL,HIGH/exit-code 1; não há finding de ausência de `imagetools create` (F5 só recomenda `imagetools inspect`). Nenhum dos três é BLOCKER."
+    },
+    {
+      "text": "A ausência de HEALTHCHECK no Dockerfile está classificada como MEDIUM (não HIGH nem BLOCKER) e a ausência de USER non-root está classificada como HIGH; ausência de Cosign e de Syft SBOM por digest no workflow aparece como HIGH",
+      "passed": false,
+      "evidence": "Não há finding de HEALTHCHECK (grep -i healthcheck no JSON => nada); USER/root é F6 'medium', não HIGH; Cosign e SBOM aparecem só agrupados em F3 'high' ('Nenhum scan de vulnerabilidade, SBOM ou assinatura'), sem menção a Syft nem a digest — a parte de HEALTHCHECK MEDIUM e USER HIGH falha."
+    },
+    {
+      "text": "O campo `rule_violated` do finding de ARG TARGETARCH (ou de QEMU) cita o caminho .forge/rules/architecture/docker-multi-arch.md",
+      "passed": false,
+      "evidence": "Nenhum finding possui o campo rule_violated (jq keys dos findings); não há finding de ARG TARGETARCH e o de QEMU (F5) não cita .forge/rules/architecture/docker-multi-arch.md."
+    },
+    {
+      "text": "Nenhum finding do JSON tem como assunto o log de `{Pan}`/`{Cpf}` em services/validacao/src/Validacao.Api/Program.cs (PII em log é escopo do security-reviewer), e `git -C <alvo> status --porcelain -- services/ .github/` sai vazio",
+      "passed": false,
+      "evidence": "F1 severity 'blocker' em services/validacao/src/Validacao.Api/Program.cs:29 'PAN e CPF em texto claro no log estruturado' — exatamente o achado fora de escopo. (git -C without_skill/run-1/work status --porcelain -- services/ .github/ saiu vazio, mas a primeira metade falha.)"
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 6,
+    "total": 6,
+    "pass_rate": 0.0
+  }
+}

@@ -1,0 +1,1 @@
+change=2026-09-estorno-tarifa-duplicada wave_fechada=W2 wave_aberta=nenhuma (W2 é a última wave definida em waves.json; sem W3 no plano e sem stories além de STORY-06 em tasks.md) deferral_pendente=DEFER-02 status=resolved (aguardando confirmação/registro de teste antes de "tested")

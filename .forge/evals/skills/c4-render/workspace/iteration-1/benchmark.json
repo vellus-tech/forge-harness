@@ -1,0 +1,333 @@
+{
+  "metadata": {
+    "skill_name": "c4-render",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-26T19:15:31Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 421,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Em .forge/graph/c4/c1-context.md o r\u00f3tulo do n\u00f3 do sistema cont\u00e9m 'Pagamentos Core' e 'PCI DSS' e N\u00c3O cont\u00e9m '.', '\u2014' nem '\u2013' dentro de [\"...\"].",
+          "passed": true,
+          "evidence": "outputs/c4/c1-context.md:8 (id\u00eantico a work/.forge/graph/c4/c1-context.md, diff sem diferen\u00e7a): sys[\"Pagamentos Core v1 4 0 - PCI DSS 4 0 1\"]. Comando grep -oE '\\[\"[^\"]*\"\\]' <arquivo> | grep -cE '[.\u2014\u2013]' retornou 0 r\u00f3tulos com ponto/travess\u00e3o."
+        },
+        {
+          "text": "Em .forge/graph/c4/c2-container.md existem r\u00f3tulos contendo 'Billing' (com 'faturas') e 'Ledger' (com 'lan\u00e7amentos' ou 'lancamentos'), e nenhum r\u00f3tulo entre [\"...\"] do bloco Mermaid cont\u00e9m '.', '\u2014' ou '\u2013'.",
+          "passed": true,
+          "evidence": "outputs/c4/c2-container.md:8-9: c0[\"Billing - faturas e impostos v2 1\"] e c1[\"Ledger - lan\u00e7amentos cont\u00e1beis\"]. Comando grep -oE '\\[\"[^\"]*\"\\]' <arquivo> | grep -cE '[.\u2014\u2013]' sobre o C2 retornou 0 r\u00f3tulos com ponto/travess\u00e3o (c2/c3 s\u00e3o 'src/notifications (1)' e 'src/shared (1)', sem ponto)."
+        },
+        {
+          "text": "Os r\u00f3tulos curados persistem no estado final dos arquivos: c2-container.md n\u00e3o voltou a exibir 'src/billing (2)' como r\u00f3tulo do container de billing (sinal de que c4.sh foi re-executado depois da edi\u00e7\u00e3o e apagou a curadoria).",
+          "passed": true,
+          "evidence": "grep -c 'src/billing (2)' outputs/c4/c2-container.md = 0; estado final em work/.forge/graph/c4/c2-container.md \u00e9 id\u00eantico ao de outputs (diff vazio) e mant\u00e9m o r\u00f3tulo curado. transcript.md:38-42: regenerou s\u00f3 o overview via overview-gen.mjs e 'Deliberadamente n\u00e3o rodei c4.sh completo de novo'."
+        },
+        {
+          "text": "As arestas do C2 continuam exatamente as do grafo: o bloco Mermaid de c2-container.md tem as mesmas duas rela\u00e7\u00f5es originais (billing -> shared e ledger -> shared) e nenhuma aresta nova.",
+          "passed": true,
+          "evidence": "grep -nE -- '-->' outputs/c4/c2-container.md retorna s\u00f3 as linhas 12 'c0 --> c3' e 13 'c1 --> c3' (c0=Billing, c1=Ledger, c3=src/shared). transcript.md:36-37 afirma que as rela\u00e7\u00f5es n\u00e3o foram tocadas. Ressalva: o C2 original n\u00e3o est\u00e1 versionado no fixture (git status: '?? .forge/graph/'), ent\u00e3o a igualdade com o original \u00e9 inferida pelo gerador determin\u00edstico e pela converg\u00eancia com a outra configura\u00e7\u00e3o, que tem as mesmas duas arestas."
+        },
+        {
+          "text": "A resposta final explica que o texto literal pedido n\u00e3o foi usado porque labels Mermaid do harness n\u00e3o podem conter ponto nem travess\u00e3o (conven\u00e7\u00e3o de labels), mostrando a forma adaptada \u2014 em vez de aplicar silenciosamente ou de gravar o texto literal.",
+          "passed": true,
+          "evidence": "transcript.md:26-28 explica que o texto literal 'viola a conven\u00e7\u00e3o inegoci\u00e1vel da skill (ela existe para n\u00e3o quebrar o parser Mermaid)' e mostra as formas adaptadas nas linhas 29-35; se\u00e7\u00e3o 'Diverg\u00eancia sinalizada' (linhas 52-58) repete o motivo ('pontos e em-dash quebram o parser') e a regra de sanitiza\u00e7\u00e3o. Ressalva: redigido como 'Em uma execu\u00e7\u00e3o real eu reportaria isso ao usu\u00e1rio', n\u00e3o como mensagem final dirigida ao usu\u00e1rio, mas o conte\u00fado exigido est\u00e1 presente e n\u00e3o foi aplica\u00e7\u00e3o silenciosa."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 355,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe .forge/graph/graph.json no alvo, com n\u00f3s para src/billing/invoice.service.ts e src/ledger/journal.repo.ts (evid\u00eancia de que o grafo foi garantido via .forge/scripts/graph.sh, e n\u00e3o substitu\u00eddo por leitura manual do reposit\u00f3rio).",
+          "passed": true,
+          "evidence": "`jq -r '.nodes[]|(.id // .path)' with_skill/run-1/work/.forge/graph/graph.json` lista src/billing/invoice.service.ts e src/ledger/journal.repo.ts (5 n\u00f3s); `.forge/graph/report.md` registra 'Engine: native (zero-dep) \u00b7 Nodes: 5 \u00b7 Edges: 3', e o transcript.md (passo 4) cita `bash .forge/scripts/graph.sh build` com sa\u00edda 'OK .forge/graph/graph.json (5 nodes, 3 edges; 5 summaries stale)'. C\u00f3pia tamb\u00e9m em outputs/graph.json."
+        },
+        {
+          "text": "Existem .forge/graph/c4/c1-context.md, .forge/graph/c4/c2-container.md e ao menos um .forge/graph/c4/c3-component-*.md, cada um com bloco ```mermaid contendo 'flowchart'.",
+          "passed": true,
+          "evidence": "`ls with_skill/run-1/work/.forge/graph/c4` mostra c1-context.md, c2-container.md e quatro c3-component-src-{billing,ledger,notifications,shared}.md; `grep -c '```mermaid'` e `grep -c flowchart` retornam 1 e 1 em cada um dos seis arquivos (ex.: c3-component-src-billing.md linha 6 '```mermaid', linha 7 'flowchart TD'). C\u00f3pias em outputs/graph/c4/."
+        },
+        {
+          "text": "Existe .forge/graph/overview.html e ele embute os diagramas (cont\u00e9m 'class=\"mermaid\"' ou equivalente e referencia os n\u00edveis C1/C2/C3).",
+          "passed": true,
+          "evidence": "Existe with_skill/run-1/work/.forge/graph/overview.html (7418 bytes, c\u00f3pia em outputs/overview.html); `grep -c 'class=\"mermaid\"'` = 6; `grep -oE 'C1|C2|C3'` encontra C1 (1), C2 (1) e C3 (7). Transcript passo 5: 'OK overview.html (C4 + 0 capabilities + 0 active change(s))'."
+        },
+        {
+          "text": "A resposta final ao usu\u00e1rio cita o caminho .forge/graph/overview.html e N\u00c3O cont\u00e9m bloco ```mermaid, a palavra-chave 'flowchart' nem marca\u00e7\u00e3o HTML do overview colada (regra \u00a717.6: apontar arquivos, n\u00e3o colar).",
+          "passed": true,
+          "evidence": "outputs/resposta-final-simulada.md linha 6 cita '`.forge/graph/overview.html` \u2014 abra este arquivo no navegador'; `grep -nE '```mermaid|flowchart|<html|<div' outputs/resposta-final-simulada.md` n\u00e3o retorna nada (rc=1). Ressalva: a resposta \u00e9 simulada em arquivo, n\u00e3o a mensagem real de chat."
+        },
+        {
+          "text": "Em todos os .md de .forge/graph/c4/, nenhum r\u00f3tulo entre [\"...\"] no bloco Mermaid cont\u00e9m '.', '\u2014' ou '\u2013' (ex.: aparece 'invoice service ts', nunca 'invoice.service.ts').",
+          "passed": true,
+          "evidence": "`grep -ohE '\\[\"[^\"]*\"\\]' with_skill/run-1/work/.forge/graph/c4/*.md | grep -E '[.\u2014\u2013]'` retorna vazio (rc=1); r\u00f3tulos \u00fanicos incluem 'invoice service ts', 'journal repo ts', 'money ts', 'src/shared: money ts', 'Pagamentos Core' \u2014 nenhum com ponto ou travess\u00e3o."
+        },
+        {
+          "text": "N\u00e3o foi criado arquivo de diagrama fora de .forge/graph/ (ex.: docs/architecture.md, ARCHITECTURE.md, *.mmd na raiz ou em docs/): git status do alvo n\u00e3o lista arquivo novo contendo 'mermaid' fora de .forge/graph/.",
+          "passed": true,
+          "evidence": "`git -C with_skill/run-1/work status --porcelain` lista apenas '?? .forge/graph/'; nenhum docs/, ARCHITECTURE.md ou *.mmd novo. Transcript (Decis\u00f5es): n\u00e3o alterou nem criou diagramas \u00e0 m\u00e3o."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6,
+        "passed": 3,
+        "failed": 2,
+        "total": 5,
+        "time_seconds": 439,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "O bloco Mermaid de .forge/graph/c4/c2-container.md n\u00e3o cont\u00e9m aresta de billing para ledger nem de billing para notifications; as \u00fanicas rela\u00e7\u00f5es continuam billing -> shared e ledger -> shared (c0 --> c3 e c1 --> c3 na numera\u00e7\u00e3o gerada).",
+          "passed": true,
+          "evidence": "Comando: grep -nE -- '-->' work/.forge/graph/c4/c2-container.md \u2192 linhas 12 'c0 --> c3' e 13 'c1 --> c3' apenas (c0=src/billing, c3=src/shared, c1=src/ledger); outputs/c4/c2-container.md id\u00eantico (linhas 8-13). Nenhuma aresta billing->ledger (c0-->c1) nem billing->notifications (c0-->c2)."
+        },
+        {
+          "text": "No reposit\u00f3rio alvo, 'git log --all --name-only' n\u00e3o lista nenhum caminho sob .forge/graph/c4/ nem .forge/graph/overview.html, e 'git ls-files .forge/graph/c4 .forge/graph/overview.html' \u00e9 vazio.",
+          "passed": true,
+          "evidence": "Comando: git -C run-1/work log --all --name-only --oneline | grep -E 'graph/(c4|overview)' casa s\u00f3 '.forge/commands/graph/c4.md' (comando do harness, fora de .forge/graph/c4/); git log --all tem um \u00fanico commit (6e904e6 chore: projeto pagamentos-core com harness Forge); 'git ls-files .forge/graph/c4 .forge/graph/overview.html' vazio; git status --porcelain = '?? .forge/graph/'. O commit foi s\u00f3 proposto em outputs/despacho-simulado.md:14-15, n\u00e3o executado."
+        },
+        {
+          "text": "A resposta (ou o transcript) mostra evid\u00eancia de consulta ao grafo \u2014 sa\u00edda de 'graph.sh query'/'graph.sh path' ou leitura de .forge/graph/graph.json \u2014 constatando que n\u00e3o existe import de src/billing para src/ledger/src/notifications.",
+          "passed": false,
+          "evidence": "Nenhuma consulta ao grafo: grep por 'graph.json' e 'graph.sh query/path' em outputs/*.md n\u00e3o acha leitura/consulta; transcript.md:6-13 mostra leitura de c2-container.md (render, n\u00e3o o grafo) e do c\u00f3digo-fonte em work/src/. A verifica\u00e7\u00e3o foi no c\u00f3digo, n\u00e3o em graph.sh query/path nem em graph.json."
+        },
+        {
+          "text": "A resposta final recusa ou suspende a inclus\u00e3o das setas, dizendo que o diagrama deriva do grafo de c\u00f3digo e n\u00e3o deve exibir rela\u00e7\u00f5es que o grafo n\u00e3o tem, e oferece um caminho alternativo (ex.: registrar como rela\u00e7\u00e3o pretendida/ADR ou implementar e regenerar).",
+          "passed": true,
+          "evidence": "resposta-ao-usuario.md:3 recusa as setas citando 'Estrutura vem do grafo (determinista) [...] n\u00e3o invente rela\u00e7\u00f5es que o grafo n\u00e3o tem'; :15 oferece apontar a chamada real e re-rodar graph.sh update + c4.sh; :16 diz que a depend\u00eancia entra no diagrama quando o c\u00f3digo existir."
+        },
+        {
+          "text": "A resposta final explica que overview.html e .forge/graph/c4/ s\u00e3o artefatos gerados de visualiza\u00e7\u00e3o, fora do commit, a regenerar a partir do grafo \u2014 em vez de simplesmente commitar ou ignorar o pedido sem justificativa.",
+          "passed": false,
+          "evidence": "Oposto do esperado: resposta-ao-usuario.md:18 diz que os diagramas e o overview.html 'podem ir para o commit exatamente como est\u00e3o \u2014 isso eu fa\u00e7o com prazer', e despacho-simulado.md:14 prop\u00f5e 'git add .forge/graph/c4/ .forge/graph/overview.html'. N\u00e3o explica que s\u00e3o artefatos gerados fora do commit."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.4,
+        "passed": 2,
+        "failed": 3,
+        "total": 5,
+        "time_seconds": 418,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Em .forge/graph/c4/c1-context.md o r\u00f3tulo do n\u00f3 do sistema cont\u00e9m 'Pagamentos Core' e 'PCI DSS' e N\u00c3O cont\u00e9m '.', '\u2014' nem '\u2013' dentro de [\"...\"].",
+          "passed": false,
+          "evidence": "outputs/c4/c1-context.md:8: sys[\"Pagamentos Core v1.4.0 \u2014 PCI DSS 4.0.1\"] \u2014 cont\u00e9m '.' e '\u2014'. Comando grep -oE '\\[\"[^\"]*\"\\]' <arquivo> | grep -cE '[.\u2014\u2013]' retornou 1. transcript.md:25 confirma uso deliberado do em-dash U+2014."
+        },
+        {
+          "text": "Em .forge/graph/c4/c2-container.md existem r\u00f3tulos contendo 'Billing' (com 'faturas') e 'Ledger' (com 'lan\u00e7amentos' ou 'lancamentos'), e nenhum r\u00f3tulo entre [\"...\"] do bloco Mermaid cont\u00e9m '.', '\u2014' ou '\u2013'.",
+          "passed": false,
+          "evidence": "outputs/c4/c2-container.md:8-9: c0[\"Billing \u2014 faturas e impostos (v2.1) (2)\"] e c1[\"Ledger \u2014 lan\u00e7amentos cont\u00e1beis (1)\"]. Os r\u00f3tulos Billing/faturas e Ledger/lan\u00e7amentos existem, mas o comando grep -oE '\\[\"[^\"]*\"\\]' <arquivo> | grep -cE '[.\u2014\u2013]' retornou 2 r\u00f3tulos com ponto/travess\u00e3o."
+        },
+        {
+          "text": "Os r\u00f3tulos curados persistem no estado final dos arquivos: c2-container.md n\u00e3o voltou a exibir 'src/billing (2)' como r\u00f3tulo do container de billing (sinal de que c4.sh foi re-executado depois da edi\u00e7\u00e3o e apagou a curadoria).",
+          "passed": true,
+          "evidence": "grep -c 'src/billing (2)' outputs/c4/c2-container.md = 0; work/.forge/graph/c4/c2-container.md id\u00eantico a outputs (diff vazio). transcript.md:26: 'N\u00e3o regenerei o grafo (graph.sh build) nem o c4.sh novamente ap\u00f3s a edi\u00e7\u00e3o manual'. O overview foi editado \u00e0 m\u00e3o (transcript.md:17), n\u00e3o por regenera\u00e7\u00e3o."
+        },
+        {
+          "text": "As arestas do C2 continuam exatamente as do grafo: o bloco Mermaid de c2-container.md tem as mesmas duas rela\u00e7\u00f5es originais (billing -> shared e ledger -> shared) e nenhuma aresta nova.",
+          "passed": true,
+          "evidence": "grep -nE -- '-->' outputs/c4/c2-container.md retorna s\u00f3 'c0 --> c3' (linha 12) e 'c1 --> c3' (linha 13); transcript.md:16 afirma que as arestas n\u00e3o foram tocadas. Mesma ressalva: o C2 original n\u00e3o est\u00e1 versionado no fixture ('?? .forge/graph/')."
+        },
+        {
+          "text": "A resposta final explica que o texto literal pedido n\u00e3o foi usado porque labels Mermaid do harness n\u00e3o podem conter ponto nem travess\u00e3o (conven\u00e7\u00e3o de labels), mostrando a forma adaptada \u2014 em vez de aplicar silenciosamente ou de gravar o texto literal.",
+          "passed": false,
+          "evidence": "transcript.md:25 diz o oposto: 'Usei o caractere de travess\u00e3o \"\u2014\" ... exatamente como o usu\u00e1rio digitou ... para bater literalmente com o r\u00f3tulo pedido'. Gravou o texto literal; n\u00e3o h\u00e1 men\u00e7\u00e3o a conven\u00e7\u00e3o de labels Mermaid nem forma adaptada."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 6,
+        "total": 6,
+        "time_seconds": 485,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe .forge/graph/graph.json no alvo, com n\u00f3s para src/billing/invoice.service.ts e src/ledger/journal.repo.ts (evid\u00eancia de que o grafo foi garantido via .forge/scripts/graph.sh, e n\u00e3o substitu\u00eddo por leitura manual do reposit\u00f3rio).",
+          "passed": false,
+          "evidence": "`ls without_skill/run-1/work/.forge/graph` \u2192 'No such file or directory'. O transcript (passos 3-4) mostra leitura manual via find/cat dos .ts, sem graph.sh; n\u00e3o h\u00e1 graph.json em outputs/."
+        },
+        {
+          "text": "Existem .forge/graph/c4/c1-context.md, .forge/graph/c4/c2-container.md e ao menos um .forge/graph/c4/c3-component-*.md, cada um com bloco ```mermaid contendo 'flowchart'.",
+          "passed": false,
+          "evidence": "`ls without_skill/run-1/work/.forge/graph/c4` \u2192 'No such file or directory'. Os diagramas foram escritos em docs/architecture/c4-*.mmd em sintaxe C4Context/C4Container/C4Component (head de c4-context.mmd: 'C4Context'), n\u00e3o em .forge/graph/c4/*.md com flowchart."
+        },
+        {
+          "text": "Existe .forge/graph/overview.html e ele embute os diagramas (cont\u00e9m 'class=\"mermaid\"' ou equivalente e referencia os n\u00edveis C1/C2/C3).",
+          "passed": false,
+          "evidence": "N\u00e3o existe .forge/graph/overview.html; o HTML foi gerado em without_skill/run-1/work/docs/architecture/overview.html (grep -c mermaid = 7), caminho diferente do exigido."
+        },
+        {
+          "text": "A resposta final ao usu\u00e1rio cita o caminho .forge/graph/overview.html e N\u00c3O cont\u00e9m bloco ```mermaid, a palavra-chave 'flowchart' nem marca\u00e7\u00e3o HTML do overview colada (regra \u00a717.6: apontar arquivos, n\u00e3o colar).",
+          "passed": false,
+          "evidence": "A resposta no transcript.md ('Resposta que eu daria ao usu\u00e1rio') aponta `docs/architecture/overview.html`, n\u00e3o `.forge/graph/overview.html`. N\u00e3o cola Mermaid/HTML, mas falha na parte do caminho exigido."
+        },
+        {
+          "text": "Em todos os .md de .forge/graph/c4/, nenhum r\u00f3tulo entre [\"...\"] no bloco Mermaid cont\u00e9m '.', '\u2014' ou '\u2013' (ex.: aparece 'invoice service ts', nunca 'invoice.service.ts').",
+          "passed": false,
+          "evidence": "N\u00e3o h\u00e1 nenhum .md em .forge/graph/c4/ (diret\u00f3rio inexistente), logo n\u00e3o h\u00e1 evid\u00eancia positiva; al\u00e9m disso c4-context.mmd linha 2 cont\u00e9m 'Pagamentos Core \u2014 Diagrama de Contexto' com travess\u00e3o. Na d\u00favida, passed=false."
+        },
+        {
+          "text": "N\u00e3o foi criado arquivo de diagrama fora de .forge/graph/ (ex.: docs/architecture.md, ARCHITECTURE.md, *.mmd na raiz ou em docs/): git status do alvo n\u00e3o lista arquivo novo contendo 'mermaid' fora de .forge/graph/.",
+          "passed": false,
+          "evidence": "`git -C without_skill/run-1/work status --porcelain` lista '?? docs/'; docs/architecture/ cont\u00e9m c4-context.mmd, c4-container.mmd, c4-component.mmd e overview.html (`grep -rl mermaid docs` \u2192 overview.html). Diagramas avulsos fora de .forge/graph/, exatamente o que a asser\u00e7\u00e3o pro\u00edbe."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6,
+        "passed": 3,
+        "failed": 2,
+        "total": 5,
+        "time_seconds": 195,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "O bloco Mermaid de .forge/graph/c4/c2-container.md n\u00e3o cont\u00e9m aresta de billing para ledger nem de billing para notifications; as \u00fanicas rela\u00e7\u00f5es continuam billing -> shared e ledger -> shared (c0 --> c3 e c1 --> c3 na numera\u00e7\u00e3o gerada).",
+          "passed": true,
+          "evidence": "Comando: grep -nE -- '-->' work/.forge/graph/c4/c2-container.md \u2192 linhas 12 'c0 --> c3' e 13 'c1 --> c3' apenas; transcript.md:39-40 registra que n\u00e3o editou c2-container.md. Sem arestas billing->ledger nem billing->notifications."
+        },
+        {
+          "text": "No reposit\u00f3rio alvo, 'git log --all --name-only' n\u00e3o lista nenhum caminho sob .forge/graph/c4/ nem .forge/graph/overview.html, e 'git ls-files .forge/graph/c4 .forge/graph/overview.html' \u00e9 vazio.",
+          "passed": true,
+          "evidence": "Comando: git -C run-1/work log --all --name-only --oneline | grep -E 'graph/(c4|overview)' casa s\u00f3 '.forge/commands/graph/c4.md' (comando do harness, fora de .forge/graph/c4/); git log --all tem um \u00fanico commit (beb0d51 chore: projeto pagamentos-core com harness Forge); 'git ls-files .forge/graph/c4 .forge/graph/overview.html' vazio; git status --porcelain = '?? .forge/graph/'. transcript.md:52 confirma que n\u00e3o rodou git add/commit."
+        },
+        {
+          "text": "A resposta (ou o transcript) mostra evid\u00eancia de consulta ao grafo \u2014 sa\u00edda de 'graph.sh query'/'graph.sh path' ou leitura de .forge/graph/graph.json \u2014 constatando que n\u00e3o existe import de src/billing para src/ledger/src/notifications.",
+          "passed": false,
+          "evidence": "Sem consulta ao grafo: transcript.md:17-28 mostra cat do c\u00f3digo em src/ e grep por imports, n\u00e3o graph.sh query/path. graph.json s\u00f3 aparece como c\u00f3pia em outputs/c4-inalterado/ (transcript.md:65-66), sem evid\u00eancia de leitura para constatar a aus\u00eancia de imports. resposta-ao-usuario.md:3 cita c2-container.md, que \u00e9 o render, n\u00e3o o grafo."
+        },
+        {
+          "text": "A resposta final recusa ou suspende a inclus\u00e3o das setas, dizendo que o diagrama deriva do grafo de c\u00f3digo e n\u00e3o deve exibir rela\u00e7\u00f5es que o grafo n\u00e3o tem, e oferece um caminho alternativo (ex.: registrar como rela\u00e7\u00e3o pretendida/ADR ou implementar e regenerar).",
+          "passed": true,
+          "evidence": "resposta-ao-usuario.md:5,7 recusa ('N\u00e3o vou inventar essas rela\u00e7\u00f5es no diagrama'), dizendo que as setas descreveriam o sistema desejado e n\u00e3o o do reposit\u00f3rio; :10 fala do 'C2 gerado automaticamente' e do 'diagrama derivado de c\u00f3digo'; alternativas em :9 (implementar e regenerar o C2 a partir do grafo) e :10 (ADR/nota de planejado)."
+        },
+        {
+          "text": "A resposta final explica que overview.html e .forge/graph/c4/ s\u00e3o artefatos gerados de visualiza\u00e7\u00e3o, fora do commit, a regenerar a partir do grafo \u2014 em vez de simplesmente commitar ou ignorar o pedido sem justificativa.",
+          "passed": false,
+          "evidence": "A recusa do commit (resposta-ao-usuario.md:13; transcript.md:41-44) \u00e9 justificada por o diagrama estar 'incorreto', n\u00e3o por overview.html e .forge/graph/c4/ serem artefatos gerados de visualiza\u00e7\u00e3o, fora do commit, a regenerar. A resposta n\u00e3o traz essa explica\u00e7\u00e3o."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.8667,
+        "stddev": 0.2309,
+        "min": 0.6,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 405.0,
+        "stddev": 44.2267,
+        "min": 355,
+        "max": 439
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.3333,
+        "stddev": 0.3055,
+        "min": 0.0,
+        "max": 0.6
+      },
+      "time_seconds": {
+        "mean": 366.0,
+        "stddev": 151.8321,
+        "min": 195,
+        "max": 485
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.53",
+      "time_seconds": "+39.0",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

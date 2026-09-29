@@ -1,0 +1,103 @@
+{
+  "reviewer": "quality-reviewer",
+  "branch": "feature/recarga-avulsa",
+  "base": "develop",
+  "findings": [
+    {
+      "id": "QLT-001",
+      "severity": "BLOCKER",
+      "category": "quality",
+      "file": "services/recarga/src/Recarga.Domain/SingleTopUp.cs",
+      "line": null,
+      "title": "Co-autoria de IA no commit — proibido pelo CLAUDE.md global",
+      "description": "O commit fde48f1 ('feat(recarga): adicionar recarga avulsa no domínio') traz o trailer 'Co-Authored-By: Claude <noreply@anthropic.com>'. O CLAUDE.md global proíbe qualquer texto de coautoria gerada por IA em commits, PRs ou issues.",
+      "fix_suggested": "Reescrever a mensagem do commit removendo o trailer de coautoria antes de abrir o PR.",
+      "rule_violated": ".forge/rules/conventions/conventional-commits.md",
+      "confidence": "high"
+    },
+    {
+      "id": "QLT-002",
+      "severity": "BLOCKER",
+      "category": "quality",
+      "file": "services/recarga/src/Recarga.Infrastructure/Migrations/20260920120000_AddSingleTopUps.cs",
+      "line": null,
+      "title": "Tabela e colunas em PascalCase — viola convenção snake_case do PostgreSQL",
+      "description": "A migration cria a tabela 'SingleTopUps' com colunas 'CardNumber', 'Amount' e 'Confirmed', todas em PascalCase. A convenção do projeto para PostgreSQL exige snake_case (ex.: 'single_top_ups', 'card_number', 'amount', 'confirmed').",
+      "fix_suggested": "Ajustar os nomes de tabela e colunas para snake_case, ou configurar a naming convention do EF Core (Npgsql.EntityFrameworkCore.PostgreSQL snake_case naming) para o projeto inteiro.",
+      "rule_violated": ".forge/rules/conventions/database-naming.md",
+      "confidence": "high"
+    },
+    {
+      "id": "QLT-003",
+      "severity": "BLOCKER",
+      "category": "quality",
+      "file": "docs/recarga-avulsa-implementation-summary.md",
+      "line": null,
+      "title": "Arquivo de resumo de implementação proibido",
+      "description": "O commit b6af43a adiciona 'docs/recarga-avulsa-implementation-summary.md', que casa com o padrão proibido '*-implementation-summary.md'. O arquivo ainda afirma 'Todos os itens da task foram concluídos', o que é falso: não há nenhum teste para o código novo (ver QLT-007).",
+      "fix_suggested": "Remover o arquivo do PR. Se o resumo for necessário para comunicação, mantê-lo fora do repositório (PR description, Jira, liaison), nunca como arquivo versionado do tipo *-summary.md.",
+      "rule_violated": ".forge/rules/conventions/no-summary-files.md",
+      "confidence": "high"
+    },
+    {
+      "id": "QLT-004",
+      "severity": "BLOCKER",
+      "category": "quality",
+      "file": "services/recarga/src/Recarga.Domain/SingleTopUp.cs",
+      "line": 12,
+      "title": "Aritmética financeira nova sem nenhum teste (muito menos PBT)",
+      "description": "'ProcessarRecarga' converte decimal (reais) para long (centavos) via cast direto '(long)(valorEmReais * 100)', que trunca em vez de arredondar e pode gerar erro de centavo. Não existe nenhum teste para 'SingleTopUp' — nem exemplo-based, nem property-based (FsCheck [Property]) — apesar de ser código monetário novo.",
+      "fix_suggested": "Criar 'SingleTopUpTests.cs' com testes de exemplo e, por ser aritmética monetária, ao menos um teste de propriedade cobrindo arredondamento e limites (valores com fração de centavo, valores muito grandes, zero, negativos).",
+      "rule_violated": ".forge/rules/testing/tdd.md",
+      "confidence": "high"
+    },
+    {
+      "id": "QLT-005",
+      "severity": "HIGH",
+      "category": "quality",
+      "file": "services/recarga/src/Recarga.Domain/SingleTopUp.cs",
+      "line": 9,
+      "title": "Identifiers em pt-BR misturados com classe em inglês — viola language-policy.md",
+      "description": "A classe 'SingleTopUp' está em inglês, mas o método 'ProcessarRecarga' e a propriedade 'ValorEmReais' estão em pt-BR — mistura de idiomas no mesmo tipo. A classe irmã 'Card.cs', já existente no mesmo módulo, usa identifiers inteiramente em inglês ('Credit', 'BalanceCents', 'Number'), confirmando que essa é a convenção vigente do projeto (AGENTS.md: 'identifiers in English').",
+      "fix_suggested": "Renomear para 'ProcessTopUp(decimal amountInReais)' e a propriedade para algo como 'AmountCents' (ver QLT-006 sobre representar o valor em centavos inteiros).",
+      "rule_violated": ".forge/rules/conventions/language-policy.md",
+      "confidence": "high"
+    },
+    {
+      "id": "QLT-006",
+      "severity": "HIGH",
+      "category": "quality",
+      "file": "services/recarga/src/Recarga.Domain/SingleTopUp.cs",
+      "line": 8,
+      "title": "Valor monetário modelado como decimal em reais, não como inteiro em centavos",
+      "description": "A propriedade 'ValorEmReais' (decimal) representa dinheiro em reais fracionários. A convenção do projeto (AGENTS.md: 'money as integer cents') e o próprio 'Card.cs' vizinho ('BalanceCents', long) exigem que dinheiro seja representado como inteiro em centavos. A coluna correspondente na migration ('Amount', decimal) repete o mesmo problema e ainda carece do sufixo '_cents'.",
+      "fix_suggested": "Substituir 'ValorEmReais' (decimal) por um campo inteiro em centavos (ex.: 'AmountCents', long), recebendo a conversão já em centavos na borda (API/apresentação), não dentro do domínio.",
+      "rule_violated": ".forge/rules/conventions/database-naming.md",
+      "confidence": "high"
+    },
+    {
+      "id": "QLT-007",
+      "severity": "HIGH",
+      "category": "quality",
+      "file": "fde48f1c795cac25ceae54c3a49698f83b9e832d",
+      "line": null,
+      "title": "Scope de commit fora da lista canônica do .commitlintrc.json",
+      "description": "O commit fde48f1 usa 'feat(recarga): ...'. O scope 'recarga' não consta em scope-enum de '.commitlintrc.json' (domain, application, infrastructure, server, data, tests, docs, adr, specs, ci, deps, infra, security, release).",
+      "fix_suggested": "Usar um scope canônico, por exemplo 'feat(domain): adicionar recarga avulsa no domínio'.",
+      "rule_violated": ".commitlintrc.json",
+      "confidence": "high"
+    },
+    {
+      "id": "QLT-008",
+      "severity": "MEDIUM",
+      "category": "quality",
+      "file": "services/recarga/src/Recarga.Infrastructure/Migrations/20260920120000_AddSingleTopUps.cs",
+      "line": null,
+      "title": "Coluna booleana sem prefixo is_/has_/can_",
+      "description": "A coluna 'Confirmed' é booleana e não segue o prefixo exigido para booleanos em banco de dados ('is_confirmed', por exemplo), além de estar em PascalCase (ver QLT-002).",
+      "fix_suggested": "Renomear para 'is_confirmed' (já respeitando snake_case).",
+      "rule_violated": ".forge/rules/conventions/database-naming.md",
+      "confidence": "medium"
+    }
+  ]
+}

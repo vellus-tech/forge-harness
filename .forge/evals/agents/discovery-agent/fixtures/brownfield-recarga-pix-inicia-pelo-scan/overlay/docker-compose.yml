@@ -1,0 +1,10 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: recarga
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local}
+  api:
+    build: ./src/Recarga.Api
+    ports: ["8080:8080"]
+    depends_on: [db]

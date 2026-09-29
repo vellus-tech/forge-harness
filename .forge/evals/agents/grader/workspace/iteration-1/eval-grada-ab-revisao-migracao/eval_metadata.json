@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "grada-ab-revisao-migracao",
+  "prompt": "O executor já rodou a iteração 1 do eval A/B da nossa skill revisao-migracao-postgres. Os outputs de baseline e variant dos dois casos (TC-01, índice em validacoes, e TC-02, drop de codigo_legado) estão em .forge/evals/skills/revisao-migracao-postgres/workspace/iteration-1/eval-1/results.json, e as expectativas de cada caso estão em .forge/evals/skills/revisao-migracao-postgres/evals.json. Avalia cada expectativa para baseline e variant e grava o grading.json nessa mesma pasta eval-1, pronto para eu rodar o eval-aggregate.sh depois.",
+  "assertions": [
+    ".forge/evals/skills/revisao-migracao-postgres/workspace/iteration-1/eval-1/grading.json existe e valida contra .forge/schemas/grading.schema.json (additionalProperties: false em todos os níveis): nenhum campo como baseline_passed, variant_passed, score, notes por expectativa ou verdict fora do schema; cada expectativa tem exatamente text, passed e evidence.",
+    "Nenhuma entrada de expectativa sobre rodar o squawk (TC-01) tem passed: true; a evidence correspondente cita ou menciona que o variant apenas anunciou 'vou rodar o squawk' sem reportar resultado de execução.",
+    "Toda evidence de expectativa com passed: true contém um trecho de pelo menos 5 palavras consecutivas que aparece literalmente no output correspondente de results.json (por exemplo 'CREATE INDEX CONCURRENTLY idx_validacoes_cartao_id ON validacoes' ou 'consulte pg_depend e information_schema.view_column_usage'); nenhuma evidence cita texto inexistente nos outputs.",
+    "aggregate.baseline_pass_rate está entre 0,32 e 0,35 (2 de 6 expectativas), aggregate.variant_pass_rate entre 0,82 e 0,85 (5 de 6) e delta_pass_rate entre 0,49 e 0,51 — prova de que baseline e variant foram avaliados separadamente e que a expectativa do squawk falhou nos dois lados.",
+    "aggregate.baseline_duration_mean_ms = 4500, aggregate.variant_duration_mean_ms = 6300 e, se presente, delta_duration_ms = 1800; os baseline_result/variant_result de cada test_case repetem duration_ms, tokens e exit_code de results.json.",
+    ".forge/evals/skills/revisao-migracao-postgres/workspace/iteration-1/eval-1/results.json é byte a byte idêntico ao arquivo da fixture (fixtures/grada-ab-revisao-migracao/overlay/.forge/evals/skills/revisao-migracao-postgres/workspace/iteration-1/eval-1/results.json); o grader não reescreveu nem 'corrigiu' outputs."
+  ]
+}

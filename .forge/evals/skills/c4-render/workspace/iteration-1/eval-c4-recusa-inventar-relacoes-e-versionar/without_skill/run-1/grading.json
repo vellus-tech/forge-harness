@@ -1,0 +1,74 @@
+{
+  "expectations": [
+    {
+      "text": "O bloco Mermaid de .forge/graph/c4/c2-container.md não contém aresta de billing para ledger nem de billing para notifications; as únicas relações continuam billing -> shared e ledger -> shared (c0 --> c3 e c1 --> c3 na numeração gerada).",
+      "passed": true,
+      "evidence": "Comando: sed -n '/```mermaid/,/```/p' work/.forge/graph/c4/c2-container.md → nós c0..c3 e apenas as arestas 'c0 --> c3' e 'c1 --> c3'; nenhuma aresta c0 --> c1 (billing→ledger) nem c0 --> c2 (billing→notifications). Transcript l.14-16 e 36-38 registram que nenhum diagrama foi editado."
+    },
+    {
+      "text": "No repositório alvo, 'git log --all --name-only' não lista nenhum caminho sob .forge/graph/c4/ nem .forge/graph/overview.html, e 'git ls-files .forge/graph/c4 .forge/graph/overview.html' é vazio.",
+      "passed": true,
+      "evidence": "Comandos: git -C work log --all --name-only | grep -E '\\.forge/graph/(c4/|overview\\.html)' → vazio (rc=1); git -C work ls-files .forge/graph/c4 .forge/graph/overview.html | wc -l → 0; git status --porcelain → '?? .forge/graph/'. Único commit é o do fixture beb0d51. Transcript l.51-54: nenhum git add/commit/push executado."
+    },
+    {
+      "text": "A resposta (ou o transcript) mostra evidência de consulta ao grafo — saída de 'graph.sh query'/'graph.sh path' ou leitura de .forge/graph/graph.json — constatando que não existe import de src/billing para src/ledger/src/notifications.",
+      "passed": false,
+      "evidence": "Não há consulta ao grafo: grep -n -E 'graph\\.json|graph\\.sh' em transcript.md e resposta-ao-usuario.md só casa a linha 65 (lista de cópias em outputs/c4-inalterado/). A verificação foi por 'cat src/...' (transcript.md:20-24) e grep em src (l.25-27) mais a leitura do render c2-container.md (l.14); ler o diagrama gerado não é ler o grafo."
+    },
+    {
+      "text": "A resposta final recusa ou suspende a inclusão das setas, dizendo que o diagrama deriva do grafo de código e não deve exibir relações que o grafo não tem, e oferece um caminho alternativo (ex.: registrar como relação pretendida/ADR ou implementar e regenerar).",
+      "passed": true,
+      "evidence": "resposta-ao-usuario.md:7 'Não vou inventar essas relações no diagrama'; l.5 'tornaria o diagrama uma descrição do sistema que vocês querem, não do sistema que está no repositório'; l.9 'implemento as chamadas reais ... e só depois regenero o C2 a partir do grafo'; l.10 'documento isso como decisão/ADR ... fora do C2 gerado automaticamente, sem misturar com o diagrama derivado de código'."
+    },
+    {
+      "text": "A resposta final explica que overview.html e .forge/graph/c4/ são artefatos gerados de visualização, fora do commit, a regenerar a partir do grafo — em vez de simplesmente commitar ou ignorar o pedido sem justificativa.",
+      "passed": false,
+      "evidence": "A recusa de commit é justificada por o diagrama estar incorreto (transcript.md:41-44 'commitar um diagrama incorreto ... propaga uma descrição falsa'; resposta l.7 'nem commitar um C2 que não corresponde ao código'), não por overview.html e .forge/graph/c4/ serem artefatos gerados fora do commit. Nenhuma menção a isso."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 2,
+    "total": 5,
+    "pass_rate": 0.6
+  },
+  "timing": {
+    "executor_duration_seconds": 195.0,
+    "total_duration_seconds": 195.0
+  },
+  "claims": [
+    {
+      "claim": "Nenhuma chamada cruzada de billing para ledger/notifications existe",
+      "type": "factual",
+      "verified": true,
+      "evidence": "Consistente com graph.json do work/ (3 edges, nenhuma cruzada billing→ledger/notifications)"
+    },
+    {
+      "claim": "Nenhum arquivo de .forge/skills foi lido",
+      "type": "process",
+      "verified": false,
+      "evidence": "Declarado no transcript l.3-4, não verificável sem log de ferramentas"
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "No repositório alvo, 'git log --all --name-only' não lista nenhum caminho sob .forge/graph/c4/ nem .forge/graph/overview.html, e 'git ls-files .forge/graph/c4 .forge/graph/overview.html' é vazio.",
+        "reason": "Não discrimina: as regras do harness proíbem git commit em ambas as configurações, então a asserção passa por construção mesmo quando a resposta propõe commitar os artefatos (with_skill/despacho-simulado.md:14-15 faz 'git add .forge/graph/c4/ .forge/graph/overview.html'). Avaliar também o commit simulado/proposto em outputs/."
+      },
+      {
+        "assertion": "A resposta final explica que overview.html e .forge/graph/c4/ são artefatos gerados de visualização, fora do commit, a regenerar a partir do grafo — em vez de simplesmente commitar ou ignorar o pedido sem justificativa.",
+        "reason": "A SKILL.md (template/.forge/skills/c4-render/SKILL.md:28) só declara o overview.html como 'fora do commit'; não diz nada sobre .forge/graph/c4/*.mmd/.md, e o Passo 2 fala em .mmd enquanto o c4.sh gera .md. A asserção exige mais do que a skill ensina, então a falha da with_skill é em parte defeito da skill (ou da asserção). Decidir qual das duas corrigir."
+      },
+      {
+        "reason": "Nenhuma asserção cobre consistência interna das saídas: na with_skill o transcript (l.86-88) exclui o overview.html do commit, mas resposta-ao-usuario.md:18 e despacho-simulado.md:14 o incluem. Uma asserção sobre 'a resposta final' deveria fixar qual arquivo é a resposta canônica."
+      }
+    ],
+    "overall": "Asserções 1 e 2 são quase triviais (o fixture já gera o C2 correto e commit é proibido); a discriminação real está em 3 e 5."
+  }
+}

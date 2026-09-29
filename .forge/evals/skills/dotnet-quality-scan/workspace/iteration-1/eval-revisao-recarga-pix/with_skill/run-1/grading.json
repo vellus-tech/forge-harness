@@ -1,0 +1,83 @@
+{
+  "expectations": [
+    {
+      "text": "revisao-qualidade.md cita pelo ID todas as 11 regras do scanner (async-void, blocking-wait, new-httpclient, region, generic-name, bool-param, empty-catch, datetime-now, sql-interpolation, mutable-static, single-impl-interface), e as que não acharam nada no escopo (ao menos async-void, region, generic-name, bool-param e mutable-static) aparecem marcadas como OK/limpas, não omitidas.",
+      "passed": true,
+      "evidence": "Comando: for id in <11 IDs>; grep -c -- $id outputs/revisao-qualidade.md → todos ≥1 (async-void:1, blocking-wait:2, new-httpclient:2, region:1, generic-name:2, bool-param:1, empty-catch:2, datetime-now:2, sql-interpolation:2, mutable-static:1, single-impl-interface:2). Linhas 17-27 trazem uma linha por regra: 'OK async-void [HIGH] — nenhuma ocorrência' (l.17), 'OK region' (l.20), 'OK generic-name' (l.21), 'OK bool-param' (l.22), 'OK mutable-static' (l.26)."
+    },
+    {
+      "text": "revisao-qualidade.md não reporta nenhum achado de src/Legacy.Relatorios (nem RelatorioManager, PedidoHelper, #region, UltimoLote ou o parâmetro bool detalhado), que está fora do diff main...feature/recarga-pix; region, generic-name, bool-param e mutable-static não aparecem como FOUND.",
+      "passed": true,
+      "evidence": "Comando: grep -nE 'Legacy|RelatorioManager|PedidoHelper|#region|UltimoLote|detalhado' outputs/revisao-qualidade.md → nenhuma linha; grep -nE 'FOUND (region|generic-name|bool-param|mutable-static)' → nenhuma linha. A única alusão ao legado é a l.85 ('os relatórios/legado ... não foi tocado'), que declara exclusão de escopo, não achado. O scan foi rodado com --root src/Recarga (outputs/scan-output.txt, l.1)."
+    },
+    {
+      "text": "Cada achado listado em revisao-qualidade.md traz caminho e número de linha, incluindo pelo menos RecargaController.cs:23 (.Result), RecargaController.cs:29 (catch vazio), PixGatewayClient.cs:14 (new HttpClient), PixGatewayClient.cs:15 (.Wait()), PixGatewayClient.cs:20 (FromSqlRaw interpolado) e RecargaPix.cs:10 (DateTime.Now).",
+      "passed": false,
+      "evidence": "Os seis pares exigidos estão presentes (grep -noE: PixGatewayClient.cs:20 l.31, RecargaController.cs:29 l.39, RecargaController.cs:23 l.51, PixGatewayClient.cs:15 l.52, PixGatewayClient.cs:14 l.55, RecargaPix.cs:10 l.63), mas a asserção exige que CADA achado listado traga caminho e linha, e o achado single-impl-interface (l.71, '`ISaldoService` / `SaldoService`') não traz arquivo nem linha; os três achados da seção 4 (l.79-81: validação de valor, idempotência, responsabilidade dupla) também não trazem arquivo:linha. Na dúvida, falha."
+    },
+    {
+      "text": "revisao-qualidade.md registra que a auditoria da camada de build (dotnet-baseline.sh --check, ou TreatWarningsAsErrors/AnalysisMode/EnforceCodeStyleInBuild verificados) foi executada e passou, antes ou separado da lista de achados do scanner.",
+      "passed": true,
+      "evidence": "l.11: '`bash .forge/scripts/dotnet-baseline.sh --root . --check` — `PASS`', na seção 1 'Baseline de build', antes da seção 2 do scanner. Reexecutei o mesmo comando em with_skill/run-1/work (modo check, somente leitura): última linha 'PASS dotnet-baseline (brownfield (7 arquivos .cs))', e git status continuou só com '?? revisao-qualidade.md'."
+    },
+    {
+      "text": "revisao-qualidade.md trata o GetAwaiter().GetResult() em Recarga.Seed/Program.cs:8 (Main síncrono de ferramenta de linha de comando) como exceção aceitável ou não-defeito, enquanto classifica o .Result em RecargaController.cs:23 como defeito — ou seja, os três achados de blocking-wait não recebem o mesmo veredito.",
+      "passed": true,
+      "evidence": "l.53: 'Recarga.Seed/Program.cs:8 — ...GetAwaiter().GetResult() dentro de Main de uma ferramenta de linha de comando ... Essa é a exceção legítima ... Eu não pediria mudança aqui ... não é bloqueador'; l.51: 'RecargaController.cs:23 — ...Result ... Isso é exatamente o cenário que a regra existe para pegar ... A correção é trivial'. Vereditos distintos entre as três ocorrências."
+    },
+    {
+      "text": "git -C <alvo> status --porcelain não mostra nenhum arquivo .cs modificado; o único arquivo novo ou alterado é revisao-qualidade.md (a revisão não reescreveu o código).",
+      "passed": true,
+      "evidence": "Comando: git -C with_skill/run-1/work status --porcelain → apenas '?? revisao-qualidade.md'; filtrado por '\\.cs$' → 0 linhas. HEAD permanece em 72ea9f2 (feat(recarga)), branch feature/recarga-pix. diff outputs/revisao-qualidade.md work/revisao-qualidade.md → idênticos."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 1,
+    "total": 6,
+    "pass_rate": 0.83
+  },
+  "timing": {
+    "total_duration_seconds": 170
+  },
+  "claims": [
+    {
+      "claim": "baseline --check PASS",
+      "type": "factual",
+      "verified": true,
+      "evidence": "Reexecutado em work/: 'PASS dotnet-baseline (brownfield (7 arquivos .cs))'."
+    },
+    {
+      "claim": "a revisão cobre o que o compilador não reprova (l.7)",
+      "type": "quality",
+      "verified": false,
+      "evidence": "O projeto nem compilaria: RecargaDbContext indefinido e sem pacote EF Core; projetos fora do Recarga.sln. O com-skill não detectou."
+    },
+    {
+      "claim": "scan.sh achou 8 achados",
+      "type": "factual",
+      "verified": true,
+      "evidence": "scan-output.txt: 3 blocking-wait + 5 FOUND de 1 ocorrência = 8; última linha 'FAIL dotnet-quality-scan (8 achado(s)...)'."
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Cada achado listado em revisao-qualidade.md traz caminho e número de linha, incluindo pelo menos RecargaController.cs:23 (.Result), RecargaController.cs:29 (catch vazio), PixGatewayClient.cs:14 (new HttpClient), PixGatewayClient.cs:15 (.Wait()), PixGatewayClient.cs:20 (FromSqlRaw interpolado) e RecargaPix.cs:10 (DateTime.Now).",
+        "reason": "O scanner não emite linha para single-impl-interface (scan-output.txt mostra só 'ISaldoService'), então a leitura literal de 'cada achado' penaliza a configuração que segue a skill por uma limitação da própria ferramenta. Sugestão: restringir a exigência aos achados com linha no scanner, ou exigir arquivo de declaração da interface."
+      },
+      {
+        "reason": "Nenhuma asserção cobre defeitos fora do scanner que existem de fato no fixture: verifiquei em work/ que RecargaDbContext é referenciado (PixGatewayClient.cs:8,10) mas não é definido em lugar nenhum, que Recarga.Api.csproj não tem PackageReference de EF Core e que Recarga.sln não contém nenhuma linha com 'Recarga' (grep -c → 0). O sem-skill apontou tudo isso; o com-skill afirmou (l.7) que o baseline 'passa' e que a revisão 'cobre o que o compilador não reprova', sugerindo que o código compila. Vale uma asserção sobre isso ou corrigir o fixture para compilar."
+      },
+      {
+        "reason": "O sem-skill citou a rule do repositório money-as-cents (valor decimal em cobrança) e a ausência de [Authorize] no endpoint financeiro; o com-skill não. Se essas rules do .forge fazem parte do contrato de revisão, falta asserção que as cubra."
+      }
+    ],
+    "overall": "As asserções discriminam bem a aderência ao protocolo da skill (IDs, arquivo:linha, baseline, exceção do Main), mas nenhuma mede se a revisão capturou os defeitos que só a leitura do diff revela; o sem-skill encontrou defeitos reais de compilação que o com-skill não viu."
+  }
+}

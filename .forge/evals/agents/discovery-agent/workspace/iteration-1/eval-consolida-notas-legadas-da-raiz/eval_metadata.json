@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "consolida-notas-legadas-da-raiz",
+  "prompt": "A gente começou o discovery do patio-digital em março e ficou um discovery-notes.md na raiz do repo, meio largado. Já adianto que vai ser uso interno sem cobrança e que a TI da Viação Norte quer PWA com React. Retoma o discovery a partir daí.",
+  "assertions": [
+    "Existe docs/discovery/discovery-notes.md, e ele cita o arquivo legado discovery-notes.md da raiz na tabela 0.1 do Workspace Scan e incorpora o fato legado sobre os fiscais de pátio que anotam em prancheta a saída dos ônibus (ex.: menção a 'prancheta' ou 'fiscal de pátio').",
+    "docs/discovery/discovery-notes.md não contém nenhuma das expressões 'a definir', 'talvez', 'possivelmente', 'aparentemente' (busca sem distinção de maiúsculas), embora o legado as use; a dúvida app nativo vs PWA, se registrada, aparece como Ponto a validar (linha VAL-xxx na seção 7) e não como fato.",
+    "A resposta final do agente faz exatamente uma pergunta ao usuário e ela é a Q1 (problema), podendo citar o conteúdo legado como contexto; o agente não trata Q1/Q2 como já respondidas nem avança para Q3 ou blocos posteriores.",
+    "Em docs/discovery/discovery-notes.md, as subseções 3.1 Modelo, 3.2 Planos, 4.1 Stack e 4.2 Plataforma não trazem 'uso interno', 'sem cobrança', 'PWA' ou 'React' como resposta registrada (menções em 0.2/0.3 como contexto do scan, ou em 7 como ponto a validar, são aceitas).",
+    "O arquivo oficial segue a estrutura obrigatória: contém os títulos '## 0. Workspace Scan', '## 1. Visão', '## 2. Funcionalidades', '## 3. Monetização', '## 4. Técnico', '## 5. Contexto', '## 6. Decisões Registradas', '## 7. Pontos a Validar' e '## 8. Resumo Final do Discovery', e o cabeçalho tem Status 'Em discovery'."
+  ]
+}

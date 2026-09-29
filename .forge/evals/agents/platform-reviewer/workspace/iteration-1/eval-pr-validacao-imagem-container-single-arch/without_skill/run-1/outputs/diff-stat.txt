@@ -1,0 +1,4 @@
+ .github/workflows/validacao-image.yml           | 28 +++++++++++++++++++++++++
+ services/validacao/Dockerfile                   | 11 ++++++++++
+ services/validacao/src/Validacao.Api/Program.cs |  2 +-
+ 3 files changed, 40 insertions(+), 1 deletion(-)

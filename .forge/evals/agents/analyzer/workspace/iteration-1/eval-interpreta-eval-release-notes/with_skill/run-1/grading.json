@@ -1,0 +1,40 @@
+{
+  "expectations": [
+    {
+      "text": "Existe .forge/evals/skills/release-notes-ptbr/workspace/iteration-1/analysis.json, JSON válido, com as chaves skill, verdict, summary, findings (array) e recommendation, e verdict é um de improve, neutral, regress ou inconclusive.",
+      "passed": true,
+      "evidence": "Comando: jq -r '.findings[]|.kind' e jq '.recommendation|type' em with_skill/run-1/work/.forge/evals/skills/release-notes-ptbr/workspace/iteration-1/analysis.json -> JSON válido, skill 'release-notes-ptbr', verdict 'inconclusive' (no enum), findings array de 5 itens, recommendation string; cmp com outputs/analysis.json -> idênticos."
+    },
+    {
+      "text": "findings contém um item com kind 'regression' cujo case identifica TC-02 ou eval-2 e cujo detail menciona a expectativa de citar o número do PR (baseline passou, variant falhou).",
+      "passed": true,
+      "evidence": "outputs/analysis.json findings[0]: kind 'regression', case 'TC-02', detail \"Expectativa 'Cita o número de cada PR entre parênteses': baseline passou (citou '(#377)'), variant falhou (citou apenas '(hotfix)')\". Confere com work/.../eval-2/grading.json (evidence 'variant: citou apenas \"(hotfix)\" sem o número #377. baseline: citava \"(#377)\"')."
+    },
+    {
+      "text": "findings contém um item com kind 'systematic_miss' cujo campo expectation (ou detail) nomeia a expectativa de separar breaking changes/mudanças incompatíveis em seção própria e registra que falha em 3 de 3 casos.",
+      "passed": true,
+      "evidence": "outputs/analysis.json findings[1]: kind 'systematic_miss', expectation 'Separa breaking changes em uma seção própria \"Mudanças incompatíveis\"', detail 'Falha em 3/3 casos (TC-01, TC-02, TC-03), com e sem a skill'."
+    },
+    {
+      "text": "analysis.json cita o custo da variant com os valores literais do aggregate.json — delta de tokens 5200 (ou tokens_mean 8000→13200) e/ou delta de duração 18666.7 ms — e todo valor de pass-rate citado (0.4167, 0.6667, 0.25, 0.1179) coincide com o aggregate.json, sem média ou stddev recalculados com valor diferente.",
+      "passed": true,
+      "evidence": "Comando: grep -o sobre work/.../analysis.json -> '5200' (1x), '13200' (1x), '18666,7' (1x), '0,4167', '0,6667', '0,25', '0,1179'. findings[2] (cost_tradeoff): 'Tokens: baseline 8000 → variant 13200 (+5200, +65%). Duração: baseline 31000ms → variant 49666,7ms (+18666,7ms, +60%)'; aggregate.json: tokens_mean 8000/13200, delta.tokens 5200, delta.duration_ms 18666.7, pass_rate_mean 0.4167/0.6667, variant stddev 0.1179, delta 0.25 — coincidem (vírgula decimal é formatação pt-BR). 0,75→0,5 vem de eval-2/grading.json, não é média recalculada; percentuais (+65%, +60%, ~17,7%) são razões derivadas, não média/stddev divergentes."
+    },
+    {
+      "text": "recommendation é uma única string (não lista) que nomeia uma ação concreta — um comando como /forge:skill-lifecycle optimize ou uma alteração específica no SKILL.md/description (ex.: instruir a seção de mudanças incompatíveis ou a citação do número do PR em hotfix).",
+      "passed": true,
+      "evidence": "jq '.recommendation|type' -> 'string' (não array). Nomeia ações concretas: 'Editar tools/claude-skills/release-notes-ptbr/SKILL.md para adicionar um passo explícito de detecção de breaking changes ... e a seção obrigatória Mudanças incompatíveis' e 'rodar /forge:skill-lifecycle eval novamente'. Ressalva do grader: a string enumera três passos (1..3), o que dilui a 'recomendação única' do protocolo (analyzer.md:68), mas o critério literal da asserção (string única, ação concreta) é atendido."
+    },
+    {
+      "text": "git status no projeto mostra como único arquivo novo ou modificado o analysis.json; SKILL.md, evals.json, aggregate.json e os três grading.json permanecem idênticos ao commit da fixture.",
+      "passed": true,
+      "evidence": "Comando: git -C with_skill/run-1/work status --porcelain --untracked-files=all -> única linha ' M .forge/evals/skills/release-notes-ptbr/workspace/iteration-1/analysis.json'; git -C with_skill/run-1/work diff --stat 63247d0 (commit original da fixture) -> só analysis.json, logo SKILL.md, evals.json, aggregate.json e eval-{1,2,3}/grading.json idênticos à fixture. Ressalva do grader: o work/ foi re-materializado em 2026-09-28 por cima do work/ anterior e o setup.sh commitou um analysis.json de uma execução prévia (commit 6c84b8b); o transcript (passo 3) reconhece o arquivo e afirma não tê-lo usado como atalho, e o conteúdo final difere na redação. É risco de contaminação a registrar, mas não viola o critério literal da asserção."
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1.0
+  }
+}

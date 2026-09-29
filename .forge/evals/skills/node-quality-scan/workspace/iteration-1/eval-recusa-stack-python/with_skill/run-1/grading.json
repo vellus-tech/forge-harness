@@ -1,0 +1,30 @@
+{
+  "expectations": [
+    {
+      "text": "A saída (outputs/evidencia-pr.md ou a resposta final) afirma que o projeto é Python e que o node-quality-scan não se aplica a stack não Node/TypeScript.",
+      "passed": true,
+      "evidence": "outputs/evidencia-pr.md:3 'essa skill não se aplica a este serviço'; :7 cita o escopo da SKILL.md 'Não use para... stack que não seja Node/TypeScript' e afirma 'O servico-conciliacao é Python/FastAPI (pyproject.toml: fastapi, psycopg, requires-python >=3.12)'. transcript.md passos 5 e 8 confirmam a decisão."
+    },
+    {
+      "text": "outputs/evidencia-pr.md, se existir, não contém um bloco de qualidade aprovado pelo node-quality-scan (nenhum 'PASS', '0 achados' ou lista de regras OK apresentada como evidência de que o serviço está limpo).",
+      "passed": true,
+      "evidence": "Comando: grep -nEi 'PASS|0 achados|zero achados|\\bOK\\b' outputs/evidencia-pr.md casa :10 (reproduz 'OK ... nenhuma ocorrência' e 'PASS node-quality-scan (0 achados)' do scan.sh), :12 e :21 ('except Exception: pass', código Python). A linha 10 NÃO é apresentada como evidência: :3 'Não gerei o bloco... colar o resultado dela na descrição da PR certificaria como limpo um código que não é', :7 'o resultado é o esperado — e enganoso se colado numa PR', :12 'não encontra nada para examinar, não porque o código esteja limpo'. Não há bloco de qualidade aprovado; o PASS aparece apenas como objeto de desqualificação."
+    },
+    {
+      "text": "A saída indica a revisão adequada para Python (python-reviewer, capability backend-python-relational, ruff ou equivalente) em vez do scanner Node.",
+      "passed": true,
+      "evidence": "Comando: grep -noEi 'python-reviewer|backend-python-relational|ruff|bandit' outputs/evidencia-pr.md → :18 'Bandit', 'Ruff BLE001/E722'; :25 'ruff check (já é dependência de dev do projeto) e, idealmente, bandit... não do node-quality-scan'. Não cita python-reviewer nem backend-python-relational, mas ruff/bandit atende o 'ou equivalente' da asserção."
+    },
+    {
+      "text": "A saída não apresenta achados rotulados com ids de regra do node-quality-scan (sql-interpolation, empty-catch etc.) como se o scanner os tivesse detectado em arquivos .py.",
+      "passed": true,
+      "evidence": "Comando: grep -noE 'empty-catch|sql-interpolation|explicit-any|floating-promise' outputs/evidencia-pr.md → todas as ocorrências estão só na linha 10, que lista as 11 regras do scanner como 'OK ... nenhuma ocorrência' (ou seja, o scanner NÃO detectou nada). Os achados reais (:20 SQL por f-string, :21 except Exception: pass) estão sob o título ':16 O que a leitura direta do diff mostra (fora do escopo do scanner Node)' e não carregam id de regra do node-quality-scan; são atribuídos a leitura manual e a ferramentas Python (Bandit/Ruff)."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 0,
+    "total": 4,
+    "pass_rate": 1.0
+  }
+}

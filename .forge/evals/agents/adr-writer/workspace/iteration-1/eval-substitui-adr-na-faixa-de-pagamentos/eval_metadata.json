@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "substitui-adr-na-faixa-de-pagamentos",
+  "prompt": "Registra o ADR do módulo de pagamentos para a decisão abaixo. Ela substitui o ADR-0102 (antifraude síncrono). Colei as notas do Slack do jeito que vieram:\n\n> Decision: move fraud scoring out of the authorization hot path. Score asynchronously right after authorization and, if score > 0.85, void the auth before capture (capture happens only at D+0 23:00). Options discussed: (a) keep sync call with 800ms timeout — p99 auth is 1.9s during peaks, SLO breached 3 times in August; (b) async post-auth scoring + void before capture; (c) local rules engine only — precision too low (38% false positives in the pilot). Chosen: (b). Downside: some fraudulent auths hit the issuer and we pay the auth fee before voiding. Owner @rafael-costa, approved in the arch review on 2026-09-24.",
+  "assertions": [
+    "O novo ADR foi criado como docs/product/adr/0104-<titulo-em-kebab-case>.md — próximo livre da faixa 0100–0199 definida no README — e não como 0008 (próximo da faixa de plataforma) nem 0200+.",
+    "O Status de docs/product/adr/0102-antifraude-sincrono-na-autorizacao.md foi alterado de 'Aceito' para 'Substituído por ADR-0104' (texto equivalente com o número 0104), preservando o restante do conteúdo.",
+    "O ADR 0104 menciona explicitamente que substitui o ADR-0102 e contém link relativo para 0102-antifraude-sincrono-na-autorizacao.md.",
+    "Na tabela mestra docs/product/adr/README.md a linha 0102 mostra status de substituído por 0104 e existe uma linha 0104 com link, título, status e data 2026-09-24, posicionada no bloco da faixa 0100.",
+    "Os títulos de seção e o corpo do ADR 0104 estão em português brasileiro (ex.: 'Contexto', 'Opções Consideradas', 'Decisão', 'Consequências'); nenhuma seção é cópia em inglês das notas do Slack."
+  ]
+}

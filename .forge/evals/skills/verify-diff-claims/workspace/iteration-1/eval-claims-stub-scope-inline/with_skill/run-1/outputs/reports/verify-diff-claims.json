@@ -1,0 +1,54 @@
+{
+  "skill": "verify-diff-claims",
+  "branch": "feat/tarifa-integracao",
+  "base": "main",
+  "diff_sha": "9ae3209",
+  "passed": false,
+  "exit_code": 0,
+  "claims_extracted": 3,
+  "claims_verified": 1,
+  "claims_unverified": 2,
+  "findings_to_emit": [
+    {
+      "id": "CLAIM-STUB-001",
+      "severity": "HIGH",
+      "category": "anti-hallucination",
+      "file": "services/payment/src/Payment.Application/TarifaIntegracaoService.cs",
+      "line": 9,
+      "title": "Claim de implementação sem evidência: CalcularDesconto é stub",
+      "description": "Commit adfdca3 'feat(payment): implementar TarifaIntegracaoService' afirma 'Implementei CalcularDesconto em TarifaIntegracaoService: 25% de desconto quando a validação atual cai dentro da janela de 120 minutos da primeira validação'. O diff mostra que a classe TarifaIntegracaoService e as constantes JanelaIntegracao (120 min) e PercentualDesconto (0.25m) foram de fato adicionadas, mas o corpo do método CalcularDesconto é 'throw new NotImplementedException();' — não há lógica de cálculo de desconto nem de janela de integração. O grep pelo nome da classe encontra o arquivo, mas isso não confirma a implementação: o método declarado como pronto está vazio (stub).",
+      "fix_suggested": "Não aceitar a claim como implementação concluída. Pedir ao coder para implementar de fato a lógica de CalcularDesconto (25% quando validacaoAtual - primeiraValidacao <= JanelaIntegracao) ou corrigir a mensagem do commit para refletir que se trata de um esqueleto/stub."
+    },
+    {
+      "id": "CLAIM-002",
+      "severity": "HIGH",
+      "category": "anti-hallucination",
+      "file": "services/notification/src/Notification.Templates/ReciboEmail.cs",
+      "line": 5,
+      "title": "Claim sem evidência: 'adicionei ReciboRepository'",
+      "description": "Comentário inline '// AGENT-CLAIM: adicionei ReciboRepository para buscar o histórico de recargas do passageiro' foi adicionado em ReciboEmail.cs, mas não existe nenhuma classe, interface ou arquivo 'ReciboRepository' em todo o diff nem no restante do repositório (grep -r por 'ReciboRepository' só encontra a própria linha do comentário). A claim não tem nenhuma evidência de código e é inconsistente com a mudança real do commit, que apenas ajustou a formatação decimal do valor (para 'N2') na mensagem de e-mail.",
+      "fix_suggested": "Remover o comentário AGENT-CLAIM incorreto ou investigar se o coder confundiu este commit com outro; nenhuma ação de repositório foi de fato implementada aqui."
+    },
+    {
+      "id": "CLAIM-003",
+      "severity": "MEDIUM",
+      "category": "consistency",
+      "file": "services/notification/src/Notification.Templates/ReciboEmail.cs",
+      "line": null,
+      "title": "Scope do commit inconsistente com os paths tocados",
+      "description": "Commit 9ae3209 'fix(payment): corrigir formatação do valor no e-mail de recibo' usa o scope 'payment', mas o único arquivo tocado é 'services/notification/src/Notification.Templates/ReciboEmail.cs', dentro do serviço 'notification', não 'payment'.",
+      "fix_suggested": "Corrigir o scope do commit para 'notification' (ou o scope canônico do serviço, conforme .forge/rules/conventions/conventional-commits.md), evitando ambiguidade em changelogs e ownership."
+    }
+  ],
+  "matched_claims": [
+    {
+      "claim": "corrigir formatação do valor no e-mail de recibo (duas casas decimais)",
+      "evidence_file": "services/notification/src/Notification.Templates/ReciboEmail.cs:7"
+    }
+  ],
+  "authorship_check": {
+    "co_authored_by_found": false,
+    "detail": "Nenhuma ocorrência de 'Co-Authored-By: Claude/Anthropic/GPT/Copilot' ou 'Generated with' nos commits do branch (git log main..feat/tarifa-integracao)."
+  },
+  "response_to_user_assumption": "O usuário presumiu que, como o grep pelo nome da classe TarifaIntegracaoService encontra o arquivo no diff, a primeira parte (CalcularDesconto) estava ok. Essa suposição é incorreta: a classe e as constantes existem, mas o método CalcularDesconto está com corpo 'throw new NotImplementedException()' — é um stub, não uma implementação funcional. Ver CLAIM-STUB-001."
+}

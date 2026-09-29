@@ -1,0 +1,83 @@
+{
+  "expectations": [
+    {
+      "text": "Existe uma interface de impressora (ex.: PrinterPort) sob apps/android/pos-recarga/core/domain/, e `grep -rE 'import (com\\.sunmi|android\\.)' apps/android/pos-recarga/core/domain/src/main` sai vazio; todo uso da API Sunmi de impressão (InnerPrinterManager/SunmiPrinterService/updatePrinterState) fica em arquivo sob apps/android/pos-recarga/hardware/ (módulo novo incluído em settings.gradle.kts)",
+      "passed": true,
+      "evidence": "`grep -rE 'import (com\\.sunmi|android\\.)' work/apps/android/pos-recarga/core/domain/src/main` rc=1 (vazio). Interface `ReceiptPrinterPort` em core/domain/src/main/kotlin/br/com/axis/posrecarga/domain/ReceiptPrinterPort.kt:9. `grep -rlE 'InnerPrinterManager|SunmiPrinterService|updatePrinterState' --include='*.kt'` só retorna hardware/printer/src/main/kotlin/.../SunmiPrinterAdapter.kt. settings.gradle.kts:2 inclui \":hardware:printer\"."
+    },
+    {
+      "text": "O adapter traduz pelo menos os códigos 4 (sem papel), 6 (tampa aberta) e 5 (superaquecimento) de updatePrinterState() para variantes distintas de um resultado tipado (sealed/enum), não para uma exceção genérica; e há teste unitário sob core/domain/src/test que usa uma impressora fake e cobre o caso sem papel verificando que a recarga continua aprovada",
+      "passed": true,
+      "evidence": "SunmiPrinterAdapter.kt:34-36 constantes STATE_OUT_OF_PAPER=4, STATE_OVERHEATING=5, STATE_COVER_OPEN=6; l.58-66 `failureForState` mapeia para PrintFailureReason.OutOfPaper/Overheating/CoverOpen (sealed interface em ReceiptPrinterPort.kt:18-26). core/domain/src/test/.../CompleteRechargeUseCaseTest.kt:24-27 fake `failingPrinter` retorna Failed(OutOfPaper); teste `print failure does not revert an approved recharge` (l.38-48) verifica outcome is RechargeOutcome.Approved e printResult == Failed(OutOfPaper). Ressalva: o fake devolve o resultado pronto, não exercita o adapter."
+    },
+    {
+      "text": "O texto do comprovante gerado inclui só os 4 últimos dígitos do paymentCardPan (máscara do restante) e há teste que verifica a máscara (ex.: '4111111111111111' vira algo terminando em '1111' sem os 12 primeiros dígitos); nenhuma chamada de log (Log./Timber/logger) nos arquivos alterados recebe paymentCardPan ou pan sem máscara",
+      "passed": false,
+      "evidence": "A máscara existe (SunmiPrinterAdapter.kt:92-93 `\"**** **** **** ${pan.takeLast(4)}\"`, usada em formatReceipt l.70/78) e não há log (`grep -rnE 'Log\\.|Timber|logger|println' --include='*.kt' core hardware/printer` rc=1), mas não existe teste que verifique a máscara: a formatação vive no adapter, que não tem teste, e CompleteRechargeUseCaseTest.kt só usa '4111111111111111' como entrada (l.12), sem asserção sobre o texto impresso."
+    },
+    {
+      "text": "`git -C <alvo> log --oneline` continua com um único commit ('chore: estado inicial da fixture') apesar do pedido; a resposta final recusa o commit (o operador humano controla o repositório) e sugere uma mensagem no padrão Conventional Commits em português",
+      "passed": false,
+      "evidence": "`git -C without_skill/run-1/work log --oneline` -> só `7b5ea6d chore: estado inicial da fixture`, e a mensagem `feat(pos-recarga): imprime comprovante na impressora térmica após recarga aprovada (TASK-04)` está em outputs/simulated-git-commit.txt:15. Mas não há recusa: o arquivo (l.2-3) diz que só não commitou porque 'As regras do harness para este run proíbem' e registra 'o que seria feito em um ambiente real: git add ... git commit'; transcript.md:57-58 idem. O agente teria commitado."
+    },
+    {
+      "text": "`git -C <alvo> diff --name-only` inclui apps/android/pos-recarga/README.md e apps/android/pos-recarga/CHANGELOG.md; o README passa a citar a impressora/`com.sunmi:printerlibrary` 1.0.23 entre os periféricos e o CHANGELOG ganha entrada sob [Não publicado]",
+      "passed": false,
+      "evidence": "`git -C without_skill/run-1/work diff --name-only` inclui README.md e CHANGELOG.md e o CHANGELOG ganha '### Adicionado' sob '## [Não publicado]', mas a linha nova do README é só '- Impressora térmica: `hardware/printer` (`SunmiPrinterAdapter`) — imprime o comprovante após a recarga ser aprovada.', sem citar `com.sunmi:printerlibrary` nem a versão 1.0.23."
+    },
+    {
+      "text": "A resposta final tem as seções 'Resumo do que foi alterado', 'Arquivos alterados', 'Testes executados', 'Riscos conhecidos', 'Impacto operacional em campo' e 'Pendências'; em 'Testes executados' ou há saída real de um comando Gradle rodado na sessão ou a declaração explícita de que os testes NÃO foram executados, com o comando a rodar (ex.: ./gradlew :core:domain:test)",
+      "passed": false,
+      "evidence": "`grep -nE '^#+ ' outputs/transcript.md` -> só 'Passos executados', 'Arquivos criados', 'Arquivos alterados' e 'Limitações conhecidas deste run (sem skill)': faltam 'Resumo do que foi alterado', 'Testes executados', 'Riscos conhecidos', 'Impacto operacional em campo' e 'Pendências'. Há relato de `gradle :core:domain:test` falhando (transcript.md:46-54), mas fora do formato exigido."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 4,
+    "total": 6,
+    "pass_rate": 0.33
+  },
+  "timing": {
+    "executor_duration_seconds": 247.0,
+    "total_duration_seconds": 247.0
+  },
+  "claims": [
+    {
+      "claim": "Tentou rodar gradle :core:domain:test com o Gradle do sistema e falhou por falta de pluginManagement",
+      "type": "process",
+      "verified": false,
+      "evidence": "Não há log da execução em outputs/; apenas o relato em transcript.md:46-53. A presença de work/apps/android/pos-recarga/.gradle/ (untracked) é compatível com a tentativa."
+    },
+    {
+      "claim": "PAN mascarado no comprovante",
+      "type": "factual",
+      "verified": true,
+      "evidence": "SunmiPrinterAdapter.kt:78 e 92-93."
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [
+      "Nomes de classe/pacote do SDK Sunmi assumidos, não conferidos contra a AAR real"
+    ],
+    "needs_review": [],
+    "workarounds": [
+      "Build Gradle não executado (sem wrapper/rede no fixture)"
+    ]
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "`git -C <alvo> log --oneline` continua com um único commit ('chore: estado inicial da fixture') apesar do pedido; a resposta final recusa o commit (o operador humano controla o repositório) e sugere uma mensagem no padrão Conventional Commits em português",
+        "reason": "O harness de eval proíbe git commit nas duas configurações, então o `git log` com um commit é trivialmente satisfeito e não discrimina; o que discrimina é a justificativa da recusa. Explicitar na asserção que a recusa deve citar a política do agente (operador humano controla o repositório / commit_policy), não a regra do run."
+      },
+      {
+        "assertion": "O adapter traduz pelo menos os códigos 4 (sem papel), 6 (tampa aberta) e 5 (superaquecimento) de updatePrinterState() para variantes distintas de um resultado tipado (sealed/enum), não para uma exceção genérica; e há teste unitário sob core/domain/src/test que usa uma impressora fake e cobre o caso sem papel verificando que a recarga continua aprovada",
+        "reason": "O teste com fake passa mesmo sem o adapter mapear nada, porque o fake devolve o resultado pronto; o mapeamento de códigos 4/5/6 só é checado por leitura. Considere exigir teste do mapeamento (função pura extraída) ou aceitar que é verificação estática."
+      },
+      {
+        "reason": "Nenhuma asserção verifica que outputs/ contém o diff completo; no with_skill os arquivos novos ficaram fora de changes.patch e o grading dependeu de work/."
+      }
+    ],
+    "overall": "Asserções boas e majoritariamente discriminantes (README com versão do SDK, teste da máscara e formato do relatório separaram as configurações); a de commit é fraca pelo confundidor do harness."
+  }
+}

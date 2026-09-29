@@ -1,0 +1,333 @@
+{
+  "metadata": {
+    "skill_name": "story-context",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-26T19:17:51Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 130,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "outputs/story-context.md diz explicitamente que epic_context.md n\u00e3o existe ou que o contexto \u00e9pico n\u00e3o foi compilado.",
+          "passed": true,
+          "evidence": "outputs/story-context.md:12: \"`epic_context.md` n\u00e3o existe em `.forge/specs/active/2026-09-recarga-pix/` (contexto \u00e9pico ainda n\u00e3o foi compilado)\". Comando: grep -nEi 'epic_context|compilad' outputs/story-context.md \u2192 linha 12. Confirmado tamb\u00e9m que o arquivo realmente n\u00e3o existe (test -e work/.forge/specs/active/2026-09-recarga-pix/epic_context.md \u2192 rc=1), ent\u00e3o o aviso \u00e9 verdadeiro."
+        },
+        {
+          "text": "outputs/story-context.md (ou a resposta final) sugere rodar /forge:shard para compilar o contexto \u00e9pico.",
+          "passed": true,
+          "evidence": "outputs/story-context.md:12: \"Rode `/forge:shard` para ger\u00e1-lo antes de confiar em regras cross-story\". Comando: grep -n 'forge:shard' outputs/story-context.md \u2192 linha 12."
+        },
+        {
+          "text": "outputs/story-context.md n\u00e3o cont\u00e9m nenhum destes trechos que s\u00f3 existem em design.md, requirements.md ou outras stories: '06h15', '400 dias', 'particionada', '90 dias', 'centavos', 'HMAC', 'R$ 500'.",
+          "passed": true,
+          "evidence": "Comando: grep -nE '06h15|400 dias|particionada|90 dias|centavos|HMAC|R\\$ 500' outputs/story-context.md \u2192 sem ocorr\u00eancias (rc=1). Transcript passo 6 declara que n\u00e3o leu design.md/requirements.md/tasks.md nem STORY-01/02/04; o conte\u00fado do arquivo (14 linhas) s\u00f3 traz Goal/Tasks/Status da STORY-03, coerente com a declara\u00e7\u00e3o."
+        },
+        {
+          "text": "Ap\u00f3s a execu\u00e7\u00e3o, .forge/specs/active/2026-09-recarga-pix/epic_context.md continua inexistente e `git status --porcelain -- .forge/specs` sai vazio (manifest e stories intactos).",
+          "passed": true,
+          "evidence": "test -e work/.forge/specs/active/2026-09-recarga-pix/epic_context.md \u2192 rc=1 (inexistente); git -C work status --porcelain -- .forge/specs | wc -l \u2192 0 (vazio; HEAD 42e6922 'chore(spec): 2026-09-recarga-pix fatiado em stories')."
+        },
+        {
+          "text": "A linha de Pr\u00f3xima a\u00e7\u00e3o cita TASK-07 e o arquivo tem no m\u00e1ximo 30 linhas.",
+          "passed": true,
+          "evidence": "outputs/story-context.md:14: \"**Pr\u00f3xima a\u00e7\u00e3o:** TASK-07 \u2014 Job de concilia\u00e7\u00e3o di\u00e1ria com extrato CNAB do PSP.\"; wc -l < outputs/story-context.md \u2192 14 (\u2264 30)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 84,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "outputs/story-context.md declara que STORY-04 est\u00e1 bloqueada (status blocked).",
+          "passed": true,
+          "evidence": "outputs/story-context.md:4 '**Status:** blocked' e linha 15 '**Pr\u00f3xima a\u00e7\u00e3o:** BLOQUEADA \u2014 n\u00e3o implementar. O frontmatter da story registra `status: blocked` ... (ticket OPS-812)'."
+        },
+        {
+          "text": "`git status --porcelain` fora de outputs/ sai vazio: nenhum arquivo criado ou modificado em src/ (em particular src/recarga/estorno.ts e src/recarga/limite-cpf.ts n\u00e3o existem) nem em qualquer outro caminho versionado.",
+          "passed": true,
+          "evidence": "`git -C with_skill/run-1/work status --porcelain` saiu vazio; `ls work/src/recarga` lista apenas webhook-signature.ts (estorno.ts e limite-cpf.ts n\u00e3o existem); `git log` mostra s\u00f3 o commit do fixture 4a54a9d."
+        },
+        {
+          "text": "stories/STORY-04.md continua com 'status: blocked' no frontmatter (git diff vazio no arquivo).",
+          "passed": true,
+          "evidence": "`git -C work diff -- .forge/specs/active/2026-09-recarga-pix/stories/STORY-04.md` vazio; frontmatter mant\u00e9m 'status: blocked' (linha 5 do arquivo)."
+        },
+        {
+          "text": "outputs/story-context.md n\u00e3o indica TASK-09 nem TASK-10 como pr\u00f3xima a\u00e7\u00e3o a executar agora (n\u00e3o h\u00e1 linha 'Pr\u00f3xima a\u00e7\u00e3o' apontando uma task para iniciar).",
+          "passed": true,
+          "evidence": "outputs/story-context.md:15 '**Pr\u00f3xima a\u00e7\u00e3o:** BLOQUEADA \u2014 n\u00e3o implementar ... nenhuma TASK foi iniciada.' TASK-09/TASK-10 aparecem s\u00f3 na lista de tasks (linhas 8-9), n\u00e3o como a\u00e7\u00e3o a iniciar."
+        },
+        {
+          "text": "outputs/story-context.md n\u00e3o cont\u00e9m trechos exclusivos de design.md/requirements.md como '400 dias', 'particionada', '06h15' ou '90 dias'.",
+          "passed": true,
+          "evidence": "`grep -nE '400 dias|particionada|06h15|90 dias' outputs/story-context.md` sem ocorr\u00eancias (esses termos existem s\u00f3 em design.md do fixture). Transcript linha 5 registra que design.md/requirements.md/tasks.md n\u00e3o foram lidos."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 98,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "outputs/story-context.md cont\u00e9m a linha de cabe\u00e7alho '## Context \u2014 STORY-02' e os r\u00f3tulos Goal, Status, Depends on, 'Tasks desta story', 'Invariantes cr\u00edticas do \u00e9pico' e 'Pr\u00f3xima a\u00e7\u00e3o' (em negrito ou n\u00e3o), nessa ordem.",
+          "passed": true,
+          "evidence": "grep -n em with_skill/run-1/outputs/story-context.md: linha 1 '## Context \u2014 STORY-02', l.3 '**Goal:**', l.4 '**Status:** in-progress', l.5 '**Depends on:** STORY-01', l.7 '**Tasks desta story:**', l.12 '**Invariantes cr\u00edticas do \u00e9pico:**', l.19 '**Pr\u00f3xima a\u00e7\u00e3o:**' \u2014 todos presentes e em ordem crescente de linha."
+        },
+        {
+          "text": "outputs/story-context.md tem no m\u00e1ximo 30 linhas (wc -l <= 30).",
+          "passed": true,
+          "evidence": "wc -l < outputs/story-context.md = 21 (<= 30); transcript passo 6 tamb\u00e9m registra 21 linhas."
+        },
+        {
+          "text": "A linha de Pr\u00f3xima a\u00e7\u00e3o cita TASK-05 (primeira task com [ ] na story) e n\u00e3o TASK-04 (j\u00e1 [X]) nem TASK-06.",
+          "passed": true,
+          "evidence": "Linha 19: '**Pr\u00f3xima a\u00e7\u00e3o:** TASK-05 \u2014 Handler POST /webhooks/psp/pix idempotente por txid (`src/recarga/webhook.ts`).' N\u00e3o cita TASK-04 nem TASK-06; na fixture STORY-02.md l.29-31 TASK-04 \u00e9 [X] e TASK-05 \u00e9 a primeira [ ]."
+        },
+        {
+          "text": "A se\u00e7\u00e3o de invariantes reproduz ao menos duas invariantes de epic_context.md (por exemplo: n\u00e3o creditar saldo antes do webhook confirmado com assinatura v\u00e1lida; valores em centavos inteiros; idempot\u00eancia por txid; CPF n\u00e3o logado em claro).",
+          "passed": true,
+          "evidence": "Linhas 13-16 reproduzem as quatro invariantes do epic_context.md: 'Nunca creditar saldo antes do webhook de liquida\u00e7\u00e3o confirmado e com assinatura v\u00e1lida', 'Valores sempre em centavos inteiros', 'Idempot\u00eancia por txid', 'Payload do webhook nunca \u00e9 logado com CPF em claro'. L.17 (ADR-0007 e secrets.md) tamb\u00e9m consta em epic_context.md l.25-26."
+        },
+        {
+          "text": "outputs/story-context.md n\u00e3o menciona TASK-01, TASK-02, TASK-03, TASK-07, TASK-08, TASK-09 nem TASK-10.",
+          "passed": true,
+          "evidence": "grep -nE 'TASK-(01|02|03|07|08|09|10)\\b' outputs/story-context.md \u2192 sem ocorr\u00eancias; s\u00f3 TASK-04/05/06 aparecem (l.8-10, l.19)."
+        },
+        {
+          "text": "outputs/story-context.md n\u00e3o cont\u00e9m nenhum destes trechos que s\u00f3 existem em design.md/requirements.md/tasks.md/STORY-04: '400 dias', 'particionada', '06h15', '90 dias', 'R$ 500', 'CNAB'.",
+          "passed": true,
+          "evidence": "grep -nE '400 dias|particionada|06h15|90 dias|R\\$ 500|CNAB' outputs/story-context.md \u2192 sem ocorr\u00eancias. Transcript passo 5 declara leitura apenas de STORY-02.md e epic_context.md."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.2,
+        "passed": 1,
+        "failed": 4,
+        "total": 5,
+        "time_seconds": 131,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "outputs/story-context.md diz explicitamente que epic_context.md n\u00e3o existe ou que o contexto \u00e9pico n\u00e3o foi compilado.",
+          "passed": false,
+          "evidence": "Comando: grep -nEi 'epic_context|compilad' outputs/story-context.md \u2192 sem ocorr\u00eancias (rc=1). O arquivo nunca menciona a aus\u00eancia de epic_context.md; ao contr\u00e1rio, apresenta (linha 22-24) uma se\u00e7\u00e3o de regras do \u00e9pico reconstru\u00edda de proposal/requirements/design como se o contexto estivesse dispon\u00edvel."
+        },
+        {
+          "text": "outputs/story-context.md (ou a resposta final) sugere rodar /forge:shard para compilar o contexto \u00e9pico.",
+          "passed": false,
+          "evidence": "Comando: grep -n 'forge:shard' outputs/story-context.md outputs/transcript.md \u2192 sem ocorr\u00eancias. Nenhuma sugest\u00e3o de /forge:shard no arquivo nem no transcript."
+        },
+        {
+          "text": "outputs/story-context.md n\u00e3o cont\u00e9m nenhum destes trechos que s\u00f3 existem em design.md, requirements.md ou outras stories: '06h15', '400 dias', 'particionada', '90 dias', 'centavos', 'HMAC', 'R$ 500'.",
+          "passed": false,
+          "evidence": "Comando: grep -nE '06h15|400 dias|particionada|90 dias|centavos|HMAC|R\\$ 500' outputs/story-context.md \u2192 rc=0, ocorr\u00eancias nas linhas 26 ('06h15 America/Sao_Paulo'), 30 ('particionada por m\u00eas, reten\u00e7\u00e3o de 400 dias', 'centavos'), 38 ('R$ 500,00/CPF/dia'), 42 ('chave HMAC', 'rota\u00e7\u00e3o a cada 90 dias') e 48 ('HMAC-SHA256'). Linha 57 lista design.md/requirements.md/STORY-01/02/04 como fontes."
+        },
+        {
+          "text": "Ap\u00f3s a execu\u00e7\u00e3o, .forge/specs/active/2026-09-recarga-pix/epic_context.md continua inexistente e `git status --porcelain -- .forge/specs` sai vazio (manifest e stories intactos).",
+          "passed": true,
+          "evidence": "test -e work/.forge/specs/active/2026-09-recarga-pix/epic_context.md \u2192 rc=1 (inexistente); git -C work status --porcelain -- .forge/specs | wc -l \u2192 0 (vazio; HEAD fac2967). A execu\u00e7\u00e3o s\u00f3 leu specs, n\u00e3o escreveu."
+        },
+        {
+          "text": "A linha de Pr\u00f3xima a\u00e7\u00e3o cita TASK-07 e o arquivo tem no m\u00e1ximo 30 linhas.",
+          "passed": false,
+          "evidence": "Comando: grep -n 'Pr\u00f3xima' outputs/story-context.md \u2192 sem ocorr\u00eancias; n\u00e3o h\u00e1 linha de Pr\u00f3xima a\u00e7\u00e3o. wc -l \u2192 57 linhas, acima do limite de 30. Falha nas duas condi\u00e7\u00f5es."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 80,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "outputs/story-context.md declara que STORY-04 est\u00e1 bloqueada (status blocked).",
+          "passed": true,
+          "evidence": "outputs/story-context.md:5 'Status declarado no arquivo: **blocked**' e linha 9 '... marcada como bloqueada no frontmatter (`status: blocked`)' citando OPS-812."
+        },
+        {
+          "text": "`git status --porcelain` fora de outputs/ sai vazio: nenhum arquivo criado ou modificado em src/ (em particular src/recarga/estorno.ts e src/recarga/limite-cpf.ts n\u00e3o existem) nem em qualquer outro caminho versionado.",
+          "passed": true,
+          "evidence": "`git -C without_skill/run-1/work status --porcelain` retorna apenas '?? outputs/' (nada fora de outputs/); `ls work/src/recarga` lista apenas webhook-signature.ts; `git log` s\u00f3 o commit do fixture e1232fd."
+        },
+        {
+          "text": "stories/STORY-04.md continua com 'status: blocked' no frontmatter (git diff vazio no arquivo).",
+          "passed": true,
+          "evidence": "`git -C work diff -- .forge/specs/active/2026-09-recarga-pix/stories/STORY-04.md` vazio; frontmatter mant\u00e9m 'status: blocked'."
+        },
+        {
+          "text": "outputs/story-context.md n\u00e3o indica TASK-09 nem TASK-10 como pr\u00f3xima a\u00e7\u00e3o a executar agora (n\u00e3o h\u00e1 linha 'Pr\u00f3xima a\u00e7\u00e3o' apontando uma task para iniciar).",
+          "passed": true,
+          "evidence": "outputs/story-context.md n\u00e3o tem linha 'Pr\u00f3xima a\u00e7\u00e3o'; se\u00e7\u00e3o Recomenda\u00e7\u00e3o (linha 28) diz 'N\u00e3o iniciar TASK-10 (estorno Pix) hoje' e apresenta como op\u00e7\u00f5es escalar OPS-812 ou adiantar TASK-06 como decis\u00e3o do time, sem apontar task para iniciar agora."
+        },
+        {
+          "text": "outputs/story-context.md n\u00e3o cont\u00e9m trechos exclusivos de design.md/requirements.md como '400 dias', 'particionada', '06h15' ou '90 dias'.",
+          "passed": true,
+          "evidence": "`grep -nE '400 dias|particionada|06h15|90 dias' outputs/story-context.md` sem ocorr\u00eancias. Obs.: leu STORY-02.md e manifest.yaml (transcript linha 11), mas n\u00e3o design/requirements/tasks.md (transcript linha 13)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.33,
+        "passed": 2,
+        "failed": 4,
+        "total": 6,
+        "time_seconds": 164,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "outputs/story-context.md cont\u00e9m a linha de cabe\u00e7alho '## Context \u2014 STORY-02' e os r\u00f3tulos Goal, Status, Depends on, 'Tasks desta story', 'Invariantes cr\u00edticas do \u00e9pico' e 'Pr\u00f3xima a\u00e7\u00e3o' (em negrito ou n\u00e3o), nessa ordem.",
+          "passed": false,
+          "evidence": "Cabe\u00e7alho \u00e9 '# Contexto \u2014 STORY-02: Confirma\u00e7\u00e3o do Pix por webhook e cr\u00e9dito no cart\u00e3o' (l.1); grep '## Context \u2014 STORY-02' \u2192 sem ocorr\u00eancia. R\u00f3tulos Goal, Status, Depends on, 'Tasks desta story', 'Invariantes cr\u00edticas do \u00e9pico' e 'Pr\u00f3xima a\u00e7\u00e3o' ausentes (grep -nE sem nenhum casamento); usa se\u00e7\u00f5es livres ('O que a story entrega', 'De quem ela depende', 'Por onde come\u00e7ar')."
+        },
+        {
+          "text": "outputs/story-context.md tem no m\u00e1ximo 30 linhas (wc -l <= 30).",
+          "passed": false,
+          "evidence": "wc -l < outputs/story-context.md = 56 (> 30)."
+        },
+        {
+          "text": "A linha de Pr\u00f3xima a\u00e7\u00e3o cita TASK-05 (primeira task com [ ] na story) e n\u00e3o TASK-04 (j\u00e1 [X]) nem TASK-06.",
+          "passed": false,
+          "evidence": "N\u00e3o existe linha de Pr\u00f3xima a\u00e7\u00e3o (grep 'Pr\u00f3xima a\u00e7\u00e3o' vazio). A se\u00e7\u00e3o 'Por onde come\u00e7ar' (l.41-46) come\u00e7a por reler webhook-signature.ts (entreg\u00e1vel da TASK-04) e cita TASK-05 e TASK-06 como passos 2 e 3, sem apontar uma \u00fanica pr\u00f3xima a\u00e7\u00e3o."
+        },
+        {
+          "text": "A se\u00e7\u00e3o de invariantes reproduz ao menos duas invariantes de epic_context.md (por exemplo: n\u00e3o creditar saldo antes do webhook confirmado com assinatura v\u00e1lida; valores em centavos inteiros; idempot\u00eancia por txid; CPF n\u00e3o logado em claro).",
+          "passed": true,
+          "evidence": "Linhas 30-33 reproduzem as quatro invariantes de epic_context.md (sem cr\u00e9dito antes do webhook confirmado e com assinatura v\u00e1lida; centavos inteiros; idempot\u00eancia por txid; CPF n\u00e3o logado em claro)."
+        },
+        {
+          "text": "outputs/story-context.md n\u00e3o menciona TASK-01, TASK-02, TASK-03, TASK-07, TASK-08, TASK-09 nem TASK-10.",
+          "passed": true,
+          "evidence": "grep -nE 'TASK-(01|02|03|07|08|09|10)\\b' outputs/story-context.md \u2192 sem ocorr\u00eancias (apesar de ter lido tasks.md completo, transcript passo 7)."
+        },
+        {
+          "text": "outputs/story-context.md n\u00e3o cont\u00e9m nenhum destes trechos que s\u00f3 existem em design.md/requirements.md/tasks.md/STORY-04: '400 dias', 'particionada', '06h15', '90 dias', 'R$ 500', 'CNAB'.",
+          "passed": false,
+          "evidence": "l.39: 'Persist\u00eancia: `recharge_ledger` particionada por m\u00eas...' \u2014 'particionada' s\u00f3 existe em design.md l.9 da fixture. Transcript passos 6-8 confirmam leitura de requirements.md, design.md, tasks.md completo e STORY-01..04; l.7 ainda cita REQ-02 e \u00a73 do design."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 104.0,
+        "stddev": 23.5797,
+        "min": 84,
+        "max": 130
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.51,
+        "stddev": 0.4293,
+        "min": 0.2,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 125.0,
+        "stddev": 42.3202,
+        "min": 80,
+        "max": 164
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.49",
+      "time_seconds": "-21.0",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

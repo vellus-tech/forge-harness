@@ -1,0 +1,57 @@
+{
+  "expectations": [
+    {
+      "text": "Existem docs/product/ddd/context-map/README.md, relations.md, patterns.md e diagram.md; diagram.md contém um bloco ```mermaid com flowchart e relations.md é uma tabela com as colunas Origem, Destino, Tipo de Relação, Padrão DDD e Contrato",
+      "passed": false,
+      "evidence": "`ls outputs/docs/product/ddd/context-map` → 'No such file or directory'. A execução gravou um arquivo único outputs/docs/product/ddd/03-context-map.md; não existem README.md, relations.md, patterns.md nem diagram.md no caminho exigido."
+    },
+    {
+      "text": "Existem os diretórios docs/product/ddd/subdomains/core, subdomains/supporting, subdomains/generic, bounded-contexts, context-map e diagrams; cada subdomínio tem README em subdomains/<core|supporting|generic>/<slug-kebab-case>/README.md (não um arquivo único listando todos) e cada bounded context tem docs/product/ddd/bounded-contexts/<slug>/README.md com as seções numeradas do Bounded Context Canvas (inclui '## 12. Dados Próprios')",
+      "passed": false,
+      "evidence": "`ls` de outputs/docs/product/ddd/subdomains, ddd/bounded-contexts e ddd/diagrams → 'No such file or directory'. Os subdomínios estão num arquivo único ddd/01-subdominios.md e os bounded contexts em ddd/02-bounded-contexts.md, justamente o formato que a asserção exclui; não há README por BC nem seção '## 12. Dados Próprios'."
+    },
+    {
+      "text": "docs/product/ddd/diagrams/index.html existe, carrega mermaid.min.js de CDN, tem três abas/painéis para C4 Level 1, 2 e 3 com blocos class=\"mermaid\" não vazios, e o <title> contém 'Tarifa Viva' (lido do project_display do AGENTS.md), sem o placeholder literal '${project_display}'; os três arquivos c4-level-1-system-context.md, c4-level-2-containers.md e c4-level-3-components.md existem com Mermaid",
+      "passed": false,
+      "evidence": "`ls outputs/docs/product/ddd/diagrams` → 'No such file or directory'. Existe ddd/c4/index.html (title 'Tarifa Viva — Diagramas C4', mermaid@10/dist/mermaid.min.js, 3 blocos class=\"mermaid\"), mas no caminho errado, e os diagramas são ddd/c4/c1-contexto.mmd, c2-containers.mmd e c3-componentes-embarque.mmd, não os três c4-level-*.md exigidos."
+    },
+    {
+      "text": "docs/product/glossary/ubiquitous-language.md tem uma seção '## <Bounded Context>' por contexto e o termo 'Validação'/'Validation' aparece com definições distintas em pelo menos dois contextos (ato de embarque no validador vs aprovação antifraude da recarga) ou é explicitamente marcado como ambíguo — não há uma única definição global do termo",
+      "passed": false,
+      "evidence": "`ls outputs/docs/product/glossary` → 'No such file or directory'; o arquivo exigido não existe. O conteúdo equivalente em ddd/04-glossario.md é substantivamente correto (linha 8 '## 1. Alerta de termo colidente: \"validação\"', distinguindo DecisaoDeEmbarque de AutorizacaoDePagamento, e seções por contexto), mas a asserção nomeia o caminho contratual e ele está ausente."
+    },
+    {
+      "text": "docs/product/ddd/context-map/patterns.md ou relations.md registra 'Anti-Corruption Layer' na relação entre o contexto de embarque e o firmware/sincronização do fornecedor ValidaBus, citando a instabilidade do modelo (TEC-03) como justificativa",
+      "passed": false,
+      "evidence": "patterns.md e relations.md não existem (sem diretório ddd/context-map). O conteúdo aparece em ddd/03-context-map.md linha 51 ('Frota de Validadores → Embarque | Anticorruption Layer (ACL) ... instável entre firmwares (TEC-03)'), substantivamente correto, mas fora dos arquivos que a asserção exige."
+    },
+    {
+      "text": "docs/product/data-model/data-model.md contém a tabela '## Controle de Versão' com linha v1.0, uma 'Data Ownership Matrix' em que cada tabela/collection (snake_case) tem exatamente um Dono da Escrita, e uma seção de Fronteiras de Persistência com coluna Permitido? (Sim/Não) e Forma Correta",
+      "passed": false,
+      "evidence": "`ls outputs/docs/product/data-model` → 'No such file or directory'. O equivalente ddd/07-data-model-ownership.md tem '## Controle de Versão' com v1.0 (linhas 3 e 6), mas organiza as tabelas por seção de dono ('## 2. Embarque (dono: `embarque-svc`)'), sem 'Data Ownership Matrix' nem coluna 'Dono da Escrita'; `grep -n 'Permitido\\|Forma Correta'` sem ocorrência, portanto não há seção de Fronteiras de Persistência no formato exigido."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 6,
+    "total": 6,
+    "pass_rate": 0.0
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 482000,
+    "total_duration_seconds": 482
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "docs/product/glossary/ubiquitous-language.md tem uma seção '## <Bounded Context>' por contexto e o termo 'Validação'/'Validation' aparece com definições distintas em pelo menos dois contextos (ato de embarque no validador vs aprovação antifraude da recarga) ou é explicitamente marcado como ambíguo — não há uma única definição global do termo",
+        "reason": "Sem a skill, o glossário desambiguou 'validação' corretamente em ddd/04-glossario.md, e o context map citou ACL com TEC-03; falhou só pelo caminho. As asserções 4 e 5 medem o contrato de caminho, não a qualidade de domínio. Vale separar uma asserção de conteúdo, agnóstica de caminho, para o delta A/B não ser só de layout."
+      },
+      {
+        "reason": "Nenhuma asserção cobre a classificação de subdomínios que o expected_output descreve (wallet e clearing como Supporting). Com a skill, passenger-wallet e settlement saíram como Core e passaram em tudo."
+      }
+    ],
+    "overall": "As asserções discriminam bem a aderência à árvore contratual, mas quase não medem o conteúdo de domínio."
+  }
+}

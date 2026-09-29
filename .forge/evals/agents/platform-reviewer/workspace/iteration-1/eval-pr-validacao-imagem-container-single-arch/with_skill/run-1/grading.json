@@ -1,0 +1,40 @@
+{
+  "expectations": [
+    {
+      "text": ".forge/reviews/platform-validacao.json é JSON válido com `reviewer` igual a \"platform-reviewer\" e array `findings`; todo finding tem `id` casando ^PLAT-[0-9]{3}$, `severity` em {BLOCKER, HIGH, MEDIUM, LOW} e os campos `file`, `line`, `title`, `fix_suggested` e `rule_violated` preenchidos",
+      "passed": true,
+      "evidence": "Comando: jq -e . with_skill/run-1/outputs/.forge/reviews/platform-validacao.json => válido; cmp com work/.forge/reviews/platform-validacao.json => idênticos; jq -r .reviewer => 'platform-reviewer'; 15 findings; filtro jq de contrato (id ^PLAT-[0-9]{3}$, severity em {BLOCKER,HIGH,MEDIUM,LOW}, file/line/title/fix_suggested/rule_violated não vazios) => 0 violações."
+    },
+    {
+      "text": "Há finding BLOCKER em services/validacao/Dockerfile pela ausência de `ARG TARGETARCH` (imagem single-arch) E finding BLOCKER, separado ou no mesmo arquivo, pela tag `latest` em `FROM mcr.microsoft.com/dotnet/sdk:latest` (linha 1)",
+      "passed": true,
+      "evidence": "PLAT-002 BLOCKER services/validacao/Dockerfile:1 'Dockerfile sem `ARG TARGETARCH` — viola multi-arch'; PLAT-001 BLOCKER services/validacao/Dockerfile:1 'Estágio build usa tag `latest` (`dotnet/sdk:latest`)'. sed -n 1p work/services/validacao/Dockerfile => 'FROM mcr.microsoft.com/dotnet/sdk:latest AS build'."
+    },
+    {
+      "text": "Há findings BLOCKER em .github/workflows/validacao-image.yml para: uso de `docker/setup-qemu-action` (proibido), ausência do step Trivy com CRITICAL,HIGH e exit-code 1, e ausência da criação de manifest list (`docker buildx imagetools create`) — os três classificados BLOCKER, não HIGH",
+      "passed": true,
+      "evidence": "No workflow (grep confirma setup-qemu-action@v3 na linha 16): PLAT-009 BLOCKER '`docker/setup-qemu-action` usado em CI — proibido'; PLAT-011 BLOCKER 'Workflow sem etapa de scan Trivy antes do push', description cita 'severity: CRITICAL,HIGH' e 'exit-code: 1'; PLAT-014 BLOCKER 'Sem etapa explícita de criação de manifest list', description cita 'docker buildx imagetools create'. Os três BLOCKER (também PLAT-010 BLOCKER por falta de matriz de runners nativos)."
+    },
+    {
+      "text": "A ausência de HEALTHCHECK no Dockerfile está classificada como MEDIUM (não HIGH nem BLOCKER) e a ausência de USER non-root está classificada como HIGH; ausência de Cosign e de Syft SBOM por digest no workflow aparece como HIGH",
+      "passed": true,
+      "evidence": "PLAT-007 MEDIUM 'Dockerfile sem `HEALTHCHECK`'; PLAT-005 HIGH 'Estágio runtime roda como root (sem `USER` não-root)'; PLAT-012 HIGH 'Sem assinatura Cosign da imagem por digest'; PLAT-013 HIGH 'Sem geração de SBOM (Syft) por digest'."
+    },
+    {
+      "text": "O campo `rule_violated` do finding de ARG TARGETARCH (ou de QEMU) cita o caminho .forge/rules/architecture/docker-multi-arch.md",
+      "passed": true,
+      "evidence": "jq: PLAT-002 (ARG TARGETARCH) e PLAT-009 (QEMU) têm rule_violated = '.forge/rules/architecture/docker-multi-arch.md'."
+    },
+    {
+      "text": "Nenhum finding do JSON tem como assunto o log de `{Pan}`/`{Cpf}` em services/validacao/src/Validacao.Api/Program.cs (PII em log é escopo do security-reviewer), e `git -C <alvo> status --porcelain -- services/ .github/` sai vazio",
+      "passed": true,
+      "evidence": "grep -niE 'pan|cpf|Program\\.cs' no JSON => única ocorrência na linha 188, dentro de `out_of_scope_observed` ('fora do escopo de platform-reviewer (→ security)'), não em findings[]; nenhum finding tem file Program.cs. transcript.md §8 registra a exclusão consciente. git -C with_skill/run-1/work status --porcelain -- services/ .github/ => saída vazia (rc=0)."
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1.0
+  }
+}

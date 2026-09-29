@@ -1,0 +1,74 @@
+{
+  "expectations": [
+    {
+      "text": "O consumer do ViagemValidada foi criado sob src/Cashback.Worker/ (ou outro projeto existente em src/); não existe no alvo diretório services/ nem apps/backend/ criado pela entrega.",
+      "passed": true,
+      "evidence": "Consumer em outputs/src/Cashback.Worker/Consumers/ViagemValidadaConsumer.cs:8 (projeto existente src/Cashback.Worker); `git -C work status --short` mostra '?? src/Cashback.Worker/Consumers/ViagemValidadaConsumer.cs'. `find without_skill/run-1 -type d \\( -name services -o -path '*apps/backend*' \\) -not -path '*/.git/*'` retornou vazio."
+    },
+    {
+      "text": "O POST /v1/creditos feito pelo CarteiraClient (ou pelo consumer) envia o header Idempotency-Key com valor derivado do eventoId do ViagemValidada, e qualquer política de retry adicionada (Polly, resilience handler ou retry do MassTransit) só se aplica a essa chamada com a chave presente; não há retry sobre o POST sem Idempotency-Key.",
+      "passed": true,
+      "evidence": "outputs/src/Cashback.Infrastructure/Carteira/CarteiraClient.cs:18 POST /v1/creditos, linha 22 Headers.Add(\"Idempotency-Key\", idempotencyKey); consumer deriva $\"cashback-viagem-{evento.EventoId}\" (ViagemValidadaConsumer.cs:22-25). Retry Polly de 5 tentativas via AddPolicyHandler só no HttpClient tipado de CarteiraClient (Program.cs:10-15, 40-46), cujo único método é o POST com chave; sem UseMessageRetry. Ressalva: a chave não é validada contra vazio, mas o único chamador sempre a deriva do eventoId."
+    },
+    {
+      "text": "entrega.md explica que o retry de 5 tentativas pedido não foi aplicado às cegas porque o crédito na carteira não é idempotente e pode ser efetivado mesmo com timeout, citando Idempotency-Key e/ou deduplicação como condição.",
+      "passed": true,
+      "evidence": "outputs/entrega.md:13-15 'não é idempotente por padrão ... pode ter sido efetivado mesmo com timeout no cliente' e 'Um retry de 5 tentativas sobre um POST não idempotente, sem chave de deduplicação, multiplicaria créditos ... sem ela, o retry pedido é o próprio mecanismo do bug', condicionando à chave derivada do EventoId (linha 9 e 17)."
+    },
+    {
+      "text": "Existe em tests/ um teste que entrega o mesmo ViagemValidada (mesmo eventoId) duas vezes e verifica que o crédito é solicitado uma única vez ou sempre com a mesma Idempotency-Key.",
+      "passed": false,
+      "evidence": "O único teste novo é outputs/tests/Cashback.UnitTests/CarteiraClientTests.cs:9-27, que chama CreditarAsync uma vez e verifica o header; não há teste que entregue o mesmo ViagemValidada duas vezes. entrega.md:28 admite: 'Não há teste automatizado do fluxo completo do consumidor MassTransit'."
+    },
+    {
+      "text": "contracts/asyncapi/cashback.yaml passa a descrever o evento ViagemValidada consumido (canal/exchange bilhetagem.viagens) com payload contendo eventoId, passageiroId, tarifaCentavos e correlationId.",
+      "passed": false,
+      "evidence": "outputs/ não contém contracts/ (`grep ... outputs/contracts/asyncapi/cashback.yaml` → 'No such file or directory'); work/contracts/asyncapi/cashback.yaml segue na versão 0.3.0 com só o canal cashback.creditado (linhas 4-16), e `git -C work status --short` não lista contracts/. Sem ViagemValidada/bilhetagem.viagens."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 2,
+    "total": 5,
+    "pass_rate": 0.6
+  },
+  "timing": {
+    "executor_duration_seconds": 473.0,
+    "total_duration_seconds": 473.0
+  },
+  "claims": [
+    {
+      "claim": "dotnet test — 3/3 testes passando",
+      "type": "process",
+      "verified": false,
+      "evidence": "Só afirmado em entrega.md:35 e transcript.md:18; não reexecutado pelo grader, sem log em outputs/."
+    },
+    {
+      "claim": "Retry cobre timeout (TaskCanceledException) e 5xx",
+      "type": "factual",
+      "verified": true,
+      "evidence": "Program.cs:41-46 HandleTransientHttpError().Or<TaskCanceledException>().WaitAndRetryAsync(retryCount: 5, ...)."
+    },
+    {
+      "claim": "Uso de git stash no work/ durante a execução",
+      "type": "process",
+      "verified": true,
+      "evidence": "transcript.md:17 descreve git stash push/apply/drop no repositório da fixture; não afeta as asserções."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "reason": "O expected_output pede propagação de correlationId nos logs e nenhuma asserção cobre isso; nas duas configurações o consumer não loga correlationId (with_skill só loga EventoId no ramo de tarifa zero, ViagemValidadaConsumer.cs:30-33; without_skill não loga nada)."
+      },
+      {
+        "assertion": "O POST /v1/creditos feito pelo CarteiraClient (ou pelo consumer) envia o header Idempotency-Key com valor derivado do eventoId do ViagemValidada, e qualquer política de retry adicionada (Polly, resilience handler ou retry do MassTransit) só se aplica a essa chamada com a chave presente; não há retry sobre o POST sem Idempotency-Key.",
+        "reason": "A asserção passa quando o único método do HttpClient tipado é o POST com chave, mas não distingue fail-fast (with_skill: ThrowIfNullOrWhiteSpace) de chave aceita vazia (without_skill). Vale exigir validação da chave ou um teste que prove que a mesma chave é reenviada em cada tentativa do retry."
+      },
+      {
+        "reason": "O expected_output fala em deduplicar pelo eventoId antes de creditar; nenhuma asserção separa dedup local de delegação total à Idempotency-Key da carteira (janela de 72 h). Nenhuma das duas execuções tem dedup local."
+      }
+    ],
+    "overall": "A asserção de teste de reentrega é a mais discriminante e ambas falharam nela; a do AsyncAPI separa bem as configurações. Faltam asserções para correlationId em log e para o formato de relatório."
+  }
+}

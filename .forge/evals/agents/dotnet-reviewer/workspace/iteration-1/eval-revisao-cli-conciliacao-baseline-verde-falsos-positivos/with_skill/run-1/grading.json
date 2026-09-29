@@ -1,0 +1,75 @@
+{
+  "expectations": [
+    {
+      "text": "review/resumo.md registra que o baseline de build (dotnet-baseline.sh --check) passou, e nenhum finding em review/dotnet-review.json tem id ou title DOTNET-BASELINE.",
+      "passed": true,
+      "evidence": "review/resumo.md:5 'O baseline de build está verde (`dotnet-baseline.sh --check`: ...)'; transcript.md:9 registra 'PASS dotnet-baseline'. `jq -r '.findings[].title' dotnet-review.json | grep -i baseline` não retorna nada (findings: teste, ConciliadoEm, parsing CSV); o PASS aparece só no campo baseline_check (linha 5 do JSON), não como finding."
+    },
+    {
+      "text": "Nenhum finding em review/dotnet-review.json aponta tools/Conciliacao.Cli/Program.cs linha 30 (o GetAwaiter().GetResult() no Main síncrono), e review/resumo.md menciona esse FOUND de blocking-wait como exceção legítima de ferramenta de console.",
+      "passed": true,
+      "evidence": "`jq -r '.findings[]|\"\\(.file) \\(.line)\"'` → ConciliadorTests.cs 18, Conciliador.cs 14, Program.cs 43; nenhum em Program.cs:30. resumo.md:7: '`blocking-wait` em `Program.cs:30` (`.GetAwaiter().GetResult()`) está dentro do `Main` síncrono de uma ferramenta de console — é exatamente a exceção legítima documentada da regra'."
+    },
+    {
+      "text": "Nenhum finding em review/dotnet-review.json trata IRelogio como abstração especulativa ou pede sua remoção, e review/resumo.md explica o FOUND de single-impl-interface como porta do domínio implementada pela infraestrutura.",
+      "passed": true,
+      "evidence": "Nenhum finding cita IRelogio (grep em .findings vazio); dotnet-review.json:17 classifica single-impl-interface como 'OK (exceção legítima)'. resumo.md:7: '`single-impl-interface` em `IRelogio` é porta de arquitetura hexagonal deliberada (o próprio arquivo comenta que é a fronteira entre domínio e infraestrutura), não abstração especulativa'."
+    },
+    {
+      "text": "Nenhum finding em review/dotnet-review.json trata de using não usado (using System.Text em Conciliador.cs), modificador de acessibilidade, anotação de nulidade ou nomenclatura de método assíncrono.",
+      "passed": true,
+      "evidence": "Os 3 findings são: teste tautológico (ConciliadorTests.cs), semântica do campo ConciliadoEm (Conciliador.cs:14) e parsing de CSV sem validação (Program.cs:43). Nenhum trata de using System.Text, modificador de acesso, nulidade ou sufixo Async; resumo.md:5 declara explicitamente que esses itens ficam com o compilador."
+    },
+    {
+      "text": "Há um finding com file terminando em tests/Conciliacao.Testes/ConciliadorTests.cs e line 19 (Assert.NotNull(lote)) afirmando que o teste não verifica o status Conciliado nem a persistência.",
+      "passed": false,
+      "evidence": "Finding existe em file 'tests/Conciliacao.Testes/ConciliadorTests.cs' e a descrição diz que não confere lote.Status nem repositorio.Salvos, mas aponta line 18 (dotnet-review.json:23), que no código é a linha em branco; o Assert.NotNull(lote) está na linha 19 (`git show feature/conciliacao-cli:tests/Conciliacao.Testes/ConciliadorTests.cs | cat -n`). A asserção exige line 19: falha pela letra."
+    },
+    {
+      "text": "Há um finding em src/Conciliacao.Dominio/Conciliador.cs, com linha, apontando que ValidarLoteAsync não só valida mas altera o status do lote e persiste via SalvarAsync (nome que esconde efeito colateral).",
+      "passed": false,
+      "evidence": "Nenhum finding trata ValidarLoteAsync como nome que esconde efeito colateral. O único finding em Conciliador.cs (linha 14, dotnet-review.json:30-34) é sobre ConciliadoEm ser preenchido em lote divergente; não menciona que ValidarLoteAsync altera Status e persiste via SalvarAsync. resumo.md:13 também só fala de ConciliadoEm."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 2,
+    "total": 6,
+    "pass_rate": 0.67
+  },
+  "claims": [
+    {
+      "claim": "dotnet-baseline.sh --check retornou PASS",
+      "type": "process",
+      "verified": true,
+      "evidence": "transcript.md:9 registra PASS dotnet-baseline; resumo.md:5 e dotnet-review.json:5 coerentes"
+    },
+    {
+      "claim": "scan acusou 2 FOUND (blocking-wait Program.cs:30, single-impl-interface IRelogio)",
+      "type": "factual",
+      "verified": true,
+      "evidence": "transcript.md:10; git show feature/conciliacao-cli:tools/Conciliacao.Cli/Program.cs linha 30 contém .GetAwaiter().GetResult()"
+    },
+    {
+      "claim": "finding do teste está na linha 18",
+      "type": "factual",
+      "verified": false,
+      "evidence": "git show feature/conciliacao-cli:tests/Conciliacao.Testes/ConciliadorTests.cs | cat -n: linha 18 é em branco; Assert.NotNull(lote) é a linha 19"
+    },
+    {
+      "claim": "ConciliadoEm está na linha 14 de Conciliador.cs",
+      "type": "factual",
+      "verified": false,
+      "evidence": "lote.ConciliadoEm = relogio.AgoraUtc está na linha 13; a linha 14 é await lotes.SalvarAsync"
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Há um finding com file terminando em tests/Conciliacao.Testes/ConciliadorTests.cs e line 19",
+        "reason": "Exigência de linha exata é rígida; um off-by-one derruba um finding semanticamente correto. Considere tolerância ±1 ou deixe explícito que a linha exata é parte do contrato."
+      }
+    ],
+    "overall": "Asserção 6 (ValidarLoteAsync) discrimina bem: nenhuma das duas configurações a satisfaz."
+  }
+}

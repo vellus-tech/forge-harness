@@ -1,0 +1,64 @@
+diff --git a/.github/workflows/validacao-image.yml b/.github/workflows/validacao-image.yml
+new file mode 100644
+index 0000000..ea45803
+--- /dev/null
++++ b/.github/workflows/validacao-image.yml
+@@ -0,0 +1,28 @@
++name: validacao-image
++
++on:
++  push:
++    branches: [develop]
++    paths: ["services/validacao/**"]
++
++jobs:
++  build:
++    runs-on: ubuntu-latest
++    permissions:
++      contents: read
++      id-token: write
++    steps:
++      - uses: actions/checkout@v4
++      - uses: docker/setup-qemu-action@v3
++      - uses: docker/setup-buildx-action@v3
++      - uses: aws-actions/configure-aws-credentials@v4
++        with:
++          role-to-assume: ${{ vars.ECR_PUSH_ROLE }}
++          aws-region: sa-east-1
++      - uses: aws-actions/amazon-ecr-login@v2
++      - uses: docker/build-push-action@v6
++        with:
++          context: services/validacao
++          platforms: linux/amd64,linux/arm64
++          push: true
++          tags: ${{ vars.ECR_REGISTRY }}/validacao:${{ github.sha }}
+diff --git a/services/validacao/Dockerfile b/services/validacao/Dockerfile
+new file mode 100644
+index 0000000..1799534
+--- /dev/null
++++ b/services/validacao/Dockerfile
+@@ -0,0 +1,11 @@
++FROM mcr.microsoft.com/dotnet/sdk:latest AS build
++WORKDIR /src
++COPY src/ ./src/
++RUN --mount=type=cache,target=/root/.nuget/packages \
++    dotnet publish src/Validacao.Api/Validacao.Api.csproj -c Release -o /app/publish
++
++FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS runtime
++WORKDIR /app
++COPY --from=build /app/publish .
++EXPOSE 8080
++ENTRYPOINT ["dotnet", "Validacao.Api.dll"]
+diff --git a/services/validacao/src/Validacao.Api/Program.cs b/services/validacao/src/Validacao.Api/Program.cs
+index 187c8b6..996cd23 100644
+--- a/services/validacao/src/Validacao.Api/Program.cs
++++ b/services/validacao/src/Validacao.Api/Program.cs
+@@ -26,7 +26,7 @@ app.MapHealthChecks("/health/ready");
+ 
+ app.MapPost("/embarques/validar", (ValidarEmbarqueRequest req, ILogger<Program> logger) =>
+ {
+-    logger.LogInformation("Embarque recebido na linha {Linha}", req.Linha);
++    logger.LogInformation("Embarque recebido na linha {Linha} cartão {Pan} CPF {Cpf}", req.Linha, req.Pan, req.Cpf);
+     return Results.Ok(new { aprovado = true });
+ });
+ 

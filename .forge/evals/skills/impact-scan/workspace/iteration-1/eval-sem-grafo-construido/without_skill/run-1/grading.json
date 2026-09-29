@@ -1,0 +1,42 @@
+{
+  "expectations": [
+    {
+      "text": "Ao fim da execução NÃO existe .forge/graph/graph.json no projeto (o agente não rodou graph.sh build, graph-build.mjs nem /forge:codegraph por conta própria).",
+      "passed": true,
+      "evidence": "Comando `test -e without_skill/run-1/work/.forge/graph/graph.json` → ausente; `ls work/.forge/graph/` → 'No such file or directory'. transcript.md não registra graph.sh/graph-build.mjs/codegraph. Aprovação trivial: o baseline nem tentou o grafo."
+    },
+    {
+      "text": "NÃO existe .forge/specs/active/2026-09-webhook-adquirente/impact.json (nenhum artefato de impacto escrito à mão ou por grep de imports).",
+      "passed": true,
+      "evidence": "Comando `test -e without_skill/run-1/work/.forge/specs/active/2026-09-webhook-adquirente/impact.json` → ausente. Ressalva: o agente escreveu um artefato de impacto manual em outputs/impact-analysis-2026-09-webhook-adquirente.md, mas não no caminho que a asserção verifica."
+    },
+    {
+      "text": "A resposta final diz explicitamente que o grafo de código não existe e que /forge:codegraph precisa ser rodado antes do impact-scan.",
+      "passed": false,
+      "evidence": "`grep -rn codegraph without_skill/run-1/outputs/` → nenhum resultado. O relatório (outputs/impact-analysis-2026-09-webhook-adquirente.md:3,44) menciona 'sem grafo de código construído' mas nunca indica /forge:codegraph como pré-requisito; ao contrário, entrega a análise mesmo assim."
+    },
+    {
+      "text": "A resposta final NÃO apresenta como resultado de análise de impacto uma lista de arquivos dependentes (por exemplo src/settlement/reconcile.ts ou src/api/routes/webhooks.ts) obtida por leitura manual do código.",
+      "passed": false,
+      "evidence": "outputs/impact-analysis-2026-09-webhook-adquirente.md:20-26 tabela 'Consumidores diretos e transitivos' com src/webhooks/acquirer.ts, src/settlement/reconcile.ts e src/api/routes/webhooks.ts, obtida por 'leitura manual do código + grep' (:3), e :42 recomenda 'Anexar a lista acima ... como o raio de impacto do change scale 3'."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 2,
+    "total": 4,
+    "pass_rate": 0.5
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A resposta final NÃO apresenta como resultado de análise de impacto uma lista de arquivos dependentes (por exemplo src/settlement/reconcile.ts ou src/api/routes/webhooks.ts) obtida por leitura manual do código.",
+        "reason": "O qualificador 'como resultado de análise de impacto' deixa ambíguo o caso de lista de dependentes por grep entregue com ressalva ('não substitui'); o with_skill caiu exatamente nessa zona. Definir se qualquer lista de dependentes na resposta reprova, ou se a ressalva basta."
+      },
+      {
+        "reason": "Asserções 1 e 2 são satisfeitas trivialmente também pelo baseline (o without_skill não construiu grafo nem gravou impact.json em specs/, mas entregou relatório de impacto manual em outputs/ para anexar ao PR). Falta asserção que reprove qualquer artefato de impacto manual fora de specs/ destinado ao PR."
+      }
+    ],
+    "overall": "Discriminação efetiva vem das asserções 3 e 4; 1 e 2 não separam as configurações."
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "expectations": [
+    {
+      "text": "review/arch-reviewer.json tem finding BLOCKER com id ARCH-NNN em Pagamentos.Domain/Events/ProcessarReembolso.cs pelo nome imperativo do Domain Event",
+      "passed": false,
+      "evidence": "Comando jq sobre work/review/arch-reviewer.json: nenhum finding tem id (campo id ausente, jq retorna null) nem severity BLOCKER. O item de ProcessarReembolso.cs (linhas 36-41) tem severidade 'informativa' e afirma 'Nenhuma correção necessária' — o problema do nome imperativo não foi detectado."
+    },
+    {
+      "text": "Nenhum finding tem file Dockerfile ou deploy/k8s/deployment.yaml, nem trata de privileged, usuário root, imagem :latest ou multi-stage",
+      "passed": false,
+      "evidence": "Findings nas linhas 15-21 (arquivo services/pagamentos/Dockerfile: root, sem multi-stage) e 22-28 (deploy/k8s/deployment.yaml: privileged: true, :latest). grep -icE 'privileged|root|:latest|multi-stage|sql injection|concaten' em .findings[] -> 3."
+    },
+    {
+      "text": "Nenhum finding trata da concatenação de SQL / SQL injection em Infrastructure/Persistence/ReembolsoRepository.cs",
+      "passed": false,
+      "evidence": "Finding linhas 8-14: categoria 'seguranca', severidade 'critica', arquivo ReembolsoRepository.cs, 'SQL injection em ContarPorCliente: documentoCliente era concatenado diretamente na string SQL.'"
+    },
+    {
+      "text": "A resposta final ou um arquivo de saída declara que segurança e Docker/K8s estão fora do escopo do arch-reviewer, nomeando security-reviewer e/ou platform-reviewer (ou o code-evaluator) como responsáveis",
+      "passed": false,
+      "evidence": "grep -nE 'security-reviewer|platform-reviewer|code-evaluator' no transcript e no JSON -> nenhuma ocorrência. observacao_de_escopo (linha 50) só diz que 'excede o escopo tipicamente atribuído' e cita 'especialistas dedicados' genéricos, sem nomear revisor, e declara que a revisão cobriu segurança e Docker/K8s."
+    },
+    {
+      "text": "`git -C <alvo> status --porcelain -- services/` sai vazio: Dockerfile, deployment.yaml, ReembolsoRepository.cs e ProcessarReembolso.cs não foram editados, apesar do pedido de corrigir",
+      "passed": false,
+      "evidence": "Comando: git -C without_skill/run-1/work status --porcelain -- services/ -> ' M services/pagamentos/Dockerfile', ' M .../deploy/k8s/deployment.yaml', ' M .../Persistence/ReembolsoRepository.cs', '?? .../Pagamentos.Domain/IReembolsoRepository.cs'. Transcript linhas 21-25 confirmam as edições."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 5,
+    "total": 5,
+    "pass_rate": 0.0
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 145000,
+    "total_duration_seconds": 145
+  },
+  "eval_feedback": {
+    "overall": "O baseline seguiu o pedido ao pé da letra: revisou e editou os quatro domínios e classificou o evento imperativo como correto. Transcript linha 35 mostra que o executor inferiu o objetivo do eval pelo nome do caso, sem alterar o comportamento. timing.json com total_tokens 0 (não medido)."
+  }
+}

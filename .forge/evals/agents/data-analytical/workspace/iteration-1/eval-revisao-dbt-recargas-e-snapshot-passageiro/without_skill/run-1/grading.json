@@ -1,0 +1,40 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta cita os ids A-08, A-10, A-12 e A-14, e cada um vem acompanhado da localização no formato arquivo:linha correspondente: stg_recargas.sql:1 para A-08, fct_recargas.sql:3 para A-10 e A-12, snap_passageiro.yml:8 para A-14",
+      "passed": false,
+      "evidence": "parecer.md não cita nenhum id do catálogo (A-08, A-10, A-12, A-14 ausentes) nem usa o formato arquivo:linha; os achados referem apenas o caminho do arquivo (ex.: 'models/marts/fct_recargas.sql'). SELECT * e invalidate_hard_deletes legado nem são apontados como achado."
+    },
+    {
+      "text": "A resposta aponta que o snapshot snap_passageiro rastreia atributos pessoais (nome, email, telefone) em SCD2 e recomenda tirá-los do snapshot para uma tabela mutável/SCD1 eliminável ligada por chave substituta ou token (citar o id A-16 é suficiente, mas não obrigatório se a recomendação estiver explícita)",
+      "passed": false,
+      "evidence": "O parecer não aponta nome/email/telefone como dado pessoal no SCD2 nem recomenda tirá-los do snapshot; o único item sobre snap_passageiro (achado 6) sugere o oposto, incluir `tenant_id` em check_cols."
+    },
+    {
+      "text": "A resposta aponta `cast(valor as numeric(12,2)) as valor_reais` em stg_recargas.sql como violação da regra de valor monetário em inteiro na menor unidade (money-as-cents) e propõe coluna inteira em centavos (bigint/integer), não decimal",
+      "passed": false,
+      "evidence": "Achado 4 menciona `numeric(12,2)` e diz que 'o padrão mais seguro é manter o valor como inteiro em centavos (valor_centavos)', mas classifica como 'Ponto de atenção ... Não é bloqueante', não enquadra como violação da regra money-as-cents, e o trecho corrigido do achado 2 mantém `cast(valor as numeric(12,2)) as valor_reais` e o do achado 1 mantém `valor_reais` — a proposta concreta continua decimal."
+    },
+    {
+      "text": "A correção proposta para stg_recargas.sql inclui unique_key na chave de grão (recarga_id) E uma janela de lookback no filtro incremental (ou microbatch com event_time e lookback), não apenas unique_key",
+      "passed": true,
+      "evidence": "Correção do achado 2 traz `unique_key='recarga_id'`, `incremental_strategy='merge'` e lookback `dateadd('minute', -30, max(criado_em))` no filtro incremental."
+    },
+    {
+      "text": "O transcript mostra a execução de `.forge/scripts/check-data-governance.sh --path analytics` e a resposta diz que PAN/PII não foi verificado por esse verificador (universo vazio: nenhum arquivo do tipo que ele lê), sem declarar o projeto aprovado ou limpo quanto a dado sensível",
+      "passed": false,
+      "evidence": "transcript.md não mostra execução de `.forge/scripts/check-data-governance.sh` (o baseline declara não ter rodado nenhum comando além da leitura) e o parecer não menciona PAN/PII nem universo vazio."
+    },
+    {
+      "text": "`git -C <alvo> status --porcelain` sai vazio ao fim da execução: o agente entregou as correções na resposta e não editou nem criou arquivo no alvo",
+      "passed": true,
+      "evidence": "`git -C without_skill/run-1/work status --porcelain` executado pelo grader retornou vazio (rc=0). parecer: 'Nenhum arquivo foi alterado — a aplicação das correções é do task-coder'."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 4,
+    "total": 6,
+    "pass_rate": 0.33
+  }
+}

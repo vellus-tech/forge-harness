@@ -1,0 +1,69 @@
+{
+  "expectations": [
+    {
+      "text": "Não existe docs/product/modules/diagrams/compliance-pci-dss.md; docs/product/modules/diagrams/compliance-flows.md existe e sua tabela 'Compliance Aplicável' marca PCI DSS como 'Não' com motivo citando a ausência de dados de cartão/pagamento.",
+      "passed": true,
+      "evidence": "`ls outputs/docs/product/modules/diagrams/compliance-pci-dss.md` → 'No such file or directory' (rc=1). outputs/docs/product/modules/diagrams/compliance-flows.md:11 → '| PCI DSS | Não | NFR-03 e o PRD declaram explicitamente que o produto não trata dados de cartão nem movimenta dinheiro | Não criado |', dentro da seção '## 2. Compliance Aplicável' (linha 7)."
+    },
+    {
+      "text": "Existe docs/product/modules/diagrams/compliance-lgpd.md cuja tabela de dados pessoais lista CPF, CNH e telefone do motorista com módulo dono jornada-api, e a retenção de 5 anos após o desligamento do NFR-01.",
+      "passed": true,
+      "evidence": "outputs/docs/product/modules/diagrams/compliance-lgpd.md:9-13, tabela 'Dados Pessoais Identificados': CPF, CNH e Telefone do motorista, todos com Módulo Dono 'jornada-api' e Retenção '5 anos após o desligamento (NFR-01)'."
+    },
+    {
+      "text": "Existem as pastas docs/product/modules/escalas-api/ e docs/product/modules/publicador-escala-worker/, ambas com README cuja Classificação aponta o bounded context 'Programação de Escalas'; em docs/product/modules/README.md a seção 'Relação Bounded Context x Módulo' associa Programação de Escalas aos dois módulos, e não há pasta chamada programacao-de-escalas.",
+      "passed": true,
+      "evidence": "Pastas escalas-api/ e publicador-escala-worker/ existem (`ls -d */`); escalas-api/README.md:13 e publicador-escala-worker/README.md:13 → '| Bounded Context Relacionado | Programação de Escalas |' dentro de '## 2. Classificação'; README.md:68-72 '## 5. Relação Bounded Context x Módulo' → '| Programação de Escalas | escalas-api, publicador-escala-worker |'; `find . -name 'programacao-de-escalas*'` sem resultado."
+    },
+    {
+      "text": "docs/product/modules/notificacao-motoristas/README.md tem na tabela de Classificação o Tipo de Módulo igual a 'Ponto a Validar' (não Worker, CronJob nem BFF), e há um item VAL-MOD-NN (no README do módulo ou no índice) descrevendo a decisão pendente entre worker próprio e rota no BFF do painel.",
+      "passed": true,
+      "evidence": "notificacao-motoristas/README.md:11 → '| Tipo de Módulo | Ponto a Validar — candidatos documentados no DDD: Worker próprio (CronJob/Worker) ou rota dentro de um BFF do painel do despachante. Este documento não escolhe entre as duas opções. |'; linha 187 → '| VAL-MOD-01 | O comitê ainda não decidiu se este módulo é um worker próprio ou uma rota dentro do painel-despachante-bff...'; também no índice README.md:122. Observação: o valor do Tipo cita 'Worker' como candidato, mas o valor declarado é 'Ponto a Validar'."
+    },
+    {
+      "text": "Em docs/product/modules/escalas-api/README.md a consulta de escala do motorista (FR-02) não aparece com caminho HTTP definido como fato (ex.: GET /v1/escalas/...) sem marcação; o endpoint está como 'Ponto a Validar' na tabela de APIs ou há um VAL-MOD-NN explícito sobre o endpoint não definido.",
+      "passed": true,
+      "evidence": "escalas-api/README.md:70 → '| GET | /escalas/hoje (Ponto a Validar — FR-02 registra que \"o endpoint ainda não definido pela equipe de integração\") |' — caminho aparece mas marcado como Ponto a Validar, não como fato; e escalas-api/README.md:202 → '| VAL-MOD-03 | FR-02 não define o endpoint nem o canal de consumo pelo motorista...'. Ressalva: a coluna Consumidores da mesma linha remete a VAL-MOD-01 (referência cruzada errada; o correto seria VAL-MOD-03)."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "executor_duration_seconds": 594,
+    "total_duration_seconds": 594
+  },
+  "claims": [
+    {
+      "claim": "PCI DSS marcado como Não aplicável em todos os módulos e compliance-pci-dss.md não criado",
+      "type": "factual",
+      "verified": true,
+      "evidence": "compliance-flows.md:11 e ausência do arquivo confirmada por ls"
+    },
+    {
+      "claim": "Nenhum módulo painel-despachante-bff foi criado",
+      "type": "factual",
+      "verified": true,
+      "evidence": "`ls -d */` lista só os 5 módulos do Solution Module Map + diagrams/; README.md:58"
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Em docs/product/modules/escalas-api/README.md a consulta de escala do motorista (FR-02) não aparece com caminho HTTP definido como fato (ex.: GET /v1/escalas/...) sem marcação; o endpoint está como 'Ponto a Validar' na tabela de APIs ou há um VAL-MOD-NN explícito sobre o endpoint não definido.",
+        "reason": "A parte negativa (sem endpoint inventado) é satisfeita trivialmente por quem simplesmente omite a tabela de APIs; e a parte positiva aceita um caminho concreto desde que anotado 'Ponto a Validar' (with_skill escreveu GET /escalas/hoje). Considere exigir que o VAL-MOD citado no endpoint seja o que trata do endpoint (with_skill referenciou VAL-MOD-01 na linha, o errado)."
+      },
+      {
+        "assertion": "docs/product/modules/notificacao-motoristas/README.md tem na tabela de Classificação o Tipo de Módulo igual a 'Ponto a Validar' (não Worker, CronJob nem BFF), e há um item VAL-MOD-NN (no README do módulo ou no índice) descrevendo a decisão pendente entre worker próprio e rota no BFF do painel.",
+        "reason": "'Ponto a Validar' como prefixo seguido de 'Worker próprio (CronJob/Worker)' passa; se a intenção é que o campo não mencione tipos candidatos, a asserção deveria dizer isso."
+      },
+      {
+        "reason": "Nenhuma asserção verifica a correção das referências NFR (without_skill atribuiu a retenção LGPD ao NFR-02) nem a existência do módulo painel-despachante-web, que está no expected_output."
+      }
+    ],
+    "overall": "Asserções discriminam bem formato do module-generator (Classificação, VAL-MOD, diagrams/), o que explica o 5/0; parte delas mede aderência ao template mais do que o julgamento, já que o baseline acertou o conteúdo (não decidiu o tipo, não inventou endpoint, isolou PII)."
+  }
+}

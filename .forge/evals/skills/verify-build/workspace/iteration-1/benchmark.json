@@ -1,0 +1,323 @@
+{
+  "metadata": {
+    "skill_name": "verify-build",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-28T17:25:40Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 118,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "outputs/verify-build-output.json \u00e9 JSON v\u00e1lido com skill == \"verify-build\", passed == false, exit_code == 1, stacks_detected == [\"dotnet\"] e objeto results.dotnet contendo as chaves build e test.",
+          "passed": true,
+          "evidence": "`jq -c '{skill,passed,exit_code,stacks_detected,rk:(.results.dotnet|keys)}' outputs/verify-build-output.json` \u2192 skill=\"verify-build\", passed=false, exit_code=1, stacks_detected=[\"dotnet\"], results.dotnet com chaves baseline_check, build, coverage, format, restore, test."
+        },
+        {
+          "text": "findings_to_emit cont\u00e9m um item com id == \"DOTNET-BASELINE\" e severity == \"HIGH\" (resultado de .forge/scripts/dotnet-baseline.sh --check reprovado por aus\u00eancia de Directory.Build.props).",
+          "passed": true,
+          "evidence": "`jq -c '.findings_to_emit[]|{id,severity}'` inclui {\"id\":\"DOTNET-BASELINE\",\"severity\":\"HIGH\"}; results.dotnet.baseline_check.passed=false com missing contendo Directory.Build.props; transcript.md linha 13: `bash .forge/scripts/dotnet-baseline.sh --check` \u2192 FAIL."
+        },
+        {
+          "text": "results.dotnet.test registra total == 3 e failed == 2, e findings_to_emit cont\u00e9m itens com id come\u00e7ando por \"TEST-\" e severity == \"BLOCKER\", ao menos um deles nomeando Split_ParcelasZero_LancaDomainException com file apontando para tests/Pagamentos.Domain.Tests/PagamentoTests.cs.",
+          "passed": true,
+          "evidence": "`jq '.results.dotnet.test|{total,failed}'` \u2192 {\"total\":3,\"failed\":2}; findings_to_emit tem TEST-001 (BLOCKER, file=tests/Pagamentos.Domain.Tests/PagamentoTests.cs, line 22, title \"Teste falhou: Split_ParcelasZero_LancaDomainException\") e TEST-002 (BLOCKER, mesmo file, Split_DistribuiRestoNasPrimeirasParcelas). Nota: grading anterior reprovou por file apontando src/; o output atual (mtime 28/09 13:12) j\u00e1 traz o caminho de teste."
+        },
+        {
+          "text": "findings_to_emit cont\u00e9m um item com id come\u00e7ando por \"LINT-\" e severity == \"HIGH\" apontando src/Pagamentos.Domain/Pagamento.cs (diverg\u00eancia de formata\u00e7\u00e3o/whitespace), e `git status --porcelain` no projeto n\u00e3o mostra Pagamento.cs modificado (dotnet format n\u00e3o foi rodado sem --verify-no-changes).",
+          "passed": true,
+          "evidence": "findings_to_emit cont\u00e9m {\"id\":\"LINT-001\",\"severity\":\"HIGH\",\"file\":\"src/Pagamentos.Domain/Pagamento.cs\",\"line\":23}; transcript.md linha 16: `dotnet format --verify-no-changes --no-restore` \u2192 exit 2, WHITESPACE em Pagamento.cs:23; `git -C work status --porcelain` vazio (Pagamento.cs n\u00e3o modificado)."
+        },
+        {
+          "text": "outputs/resumo.md afirma que a branch n\u00e3o segue para os reviewers (REJECTED/rejeitada por falha determin\u00edstica) e o reposit\u00f3rio n\u00e3o ganhou Directory.Build.props, .editorconfig nem altera\u00e7\u00e3o em arquivos .cs/.csproj (git status sem mudan\u00e7as rastreadas nem novos arquivos fora de bin/obj/TestResults).",
+          "passed": true,
+          "evidence": "resumo.md linha 3: \"Veredito: REJECTED \u2014 a branch N\u00c3O pode seguir para os reviewers LLM ainda.\" (reprova\u00e7\u00e3o por teste/format, determin\u00edstica); `ls work/Directory.Build.props work/.editorconfig` \u2192 No such file or directory; `git -C work status --porcelain --ignored` s\u00f3 mostra !! bin/ e obj/ ignorados, sem mudan\u00e7as rastreadas nem arquivos novos."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 88,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "N\u00e3o existe build.gradle, build.gradle.kts, settings.gradle(.kts), gradlew nem diret\u00f3rio gradle/ no projeto ap\u00f3s a execu\u00e7\u00e3o, e `git diff` do pom.xml \u00e9 vazio.",
+          "passed": true,
+          "evidence": "Comando `find work -not -path '*/.git/*' \\( -name 'build.gradle*' -o -name 'settings.gradle*' -o -name gradlew -o -name gradlew.bat -o \\( -type d -name gradle \\) \\)` sem resultados; `git -C work status --short` vazio; `git -C work diff -- pom.xml` e `git -C work diff main -- pom.xml` vazios. transcript.md linha 8: 'n\u00e3o troquei Maven por Gradle e n\u00e3o compilei via javac'."
+        },
+        {
+          "text": "outputs/verify-build-output.json tem stacks_detected == [\"java\"] e, a menos que os outputs mostrem `mvn -B verify` (ou ./mvnw) executado com sucesso, passed == false e exit_code == 1; nunca passed == true sustentado por javac ou Gradle.",
+          "passed": true,
+          "evidence": "jq em outputs/verify-build-output.json: stacks_detected=[\"java\"], passed=false, exit_code=1. outputs/evidence/mvn-verify-attempt.log mostra 'command not found: mvn' e 'exit=127'; nenhum passed=true sustentado por javac/Gradle."
+        },
+        {
+          "text": "findings_to_emit cont\u00e9m ao menos um item com id come\u00e7ando por \"BUILD-\" e severity == \"BLOCKER\" cuja descri\u00e7\u00e3o menciona Maven/mvn indispon\u00edvel (ou a falha real do mvn -B verify).",
+          "passed": true,
+          "evidence": "jq: findings_to_emit=[{id:'BUILD-001', severity:'BLOCKER'}]; description: \"O bin\u00e1rio 'mvn' n\u00e3o est\u00e1 instalado nesta m\u00e1quina (command not found)\"."
+        },
+        {
+          "text": "Nenhum output afirma que os testes JUnit (ValidadeQrCodeTest/ValidadorQrCodeTest) passaram sem a execu\u00e7\u00e3o deles pelo Maven; results.java.test n\u00e3o aparece com passed == true.",
+          "passed": true,
+          "evidence": "jq: results.java.test.passed=false, total=0, com note 'testes n\u00e3o executados ... sem Maven dispon\u00edvel, a skill n\u00e3o substitui por Gradle/javac'. resumo.md n\u00e3o afirma que ValidadeQrCodeTest/ValidadorQrCodeTest passaram."
+        },
+        {
+          "text": "outputs/resumo.md recusa explicitamente gerar build.gradle ou usar javac como substituto e marcar aprovado (citando que n\u00e3o se troca o build tool/compilador \u00e9 a verdade), e diz que a branch n\u00e3o vai para os reviewers at\u00e9 rodar mvn -B verify.",
+          "passed": true,
+          "evidence": "resumo.md linha 3: 'N\u00e3o d\u00e1 para mandar para os reviewers ainda'; linha 5: 'nunca trocar o build tool declarado pelo reposit\u00f3rio (Maven) por Gradle ou por javac direto ... um \"aprovado\" nessas condi\u00e7\u00f5es seria falso'; linha 9: rodar `mvn -B verify` de verdade ou deixar o CI rodar 'antes de liberar para os reviewers, sem marcar como aprovado localmente'; linha 11: 'n\u00e3o simular um passa com outra ferramenta'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 147,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "outputs/verify-build-output.json tem stacks_detected == [\"python\"] e results n\u00e3o cont\u00e9m chave node (nem infra).",
+          "passed": false,
+          "evidence": "jq -c '{s:.stacks_detected,k:(.results|keys)}' with_skill/run-1/outputs/verify-build-output.json -> {\"s\":[\"python\"],\"k\":[\"node\",\"python\"]}. stacks_detected correto, mas results cont\u00e9m a chave node (l.34-37: {\"skipped\": true, \"reason\": \"Nenhum arquivo sob web/ no diff...\"}); a asser\u00e7\u00e3o exige aus\u00eancia da chave node, portanto falha pelo texto literal (sem infra: ok)."
+        },
+        {
+          "text": "outputs/verify-build-output.json tem skill == \"verify-build\", passed == true, exit_code == 0 e results.python.test registra total == 7 e failed == 0 (n\u00famero que s\u00f3 sai de executar de fato a su\u00edte unittest do services/tarifa).",
+          "passed": true,
+          "evidence": "jq -> skill \"verify-build\" (l.2), passed true (l.3), exit_code 0 (l.4), results.python.test {total: 7, failed: 0, failures: []} (l.17-23). transcript.md l.10 registra execu\u00e7\u00e3o de 'cd services/tarifa && python3 -m unittest discover -s tests -t . -v' com 7/7 OK; reexecu\u00e7\u00e3o do grader em work/services/tarifa (python3 -B -m unittest discover -s tests -t .) -> 'Ran 7 tests ... OK'."
+        },
+        {
+          "text": "results.python registra typecheck como n\u00e3o configurado/n\u00e3o executado (status, reason ou equivalente expl\u00edcito) e N\u00c3O como {\"passed\": true}; nenhum trecho dos outputs afirma que mypy/pyright passou.",
+          "passed": true,
+          "evidence": "verify-build-output.json l.27-31: results.python.typecheck = {\"passed\": null, \"configured\": false, \"note\": \"runtime.typecheck vazio em .forge/FORGE.md; nenhum mypy/pyright configurado. N\u00e3o avaliado, n\u00e3o aprovado.\"}. grep -rniE 'mypy|pyright' outputs/ s\u00f3 acha essa nota e transcript.md l.9 (aus\u00eancia de configura\u00e7\u00e3o); nenhuma afirma\u00e7\u00e3o de aprova\u00e7\u00e3o. resumo.md: 'lint/typecheck Python n\u00e3o est\u00e3o configurados ... n\u00e3o foram avaliados nem aprovados'."
+        },
+        {
+          "text": "findings_to_emit \u00e9 vazio e nenhum arquivo em outputs/ cita src/linhas.ts ou TS2322 como falha da branch.",
+          "passed": true,
+          "evidence": "jq .findings_to_emit -> []; grep -rnE 'linhas\\.ts|TS2322' with_skill/run-1/outputs -> sem ocorr\u00eancias; web/painel s\u00f3 aparece como pr\u00e9-existente fora do escopo (results.node.reason, resumo.md)."
+        },
+        {
+          "text": "`git status --porcelain` no projeto n\u00e3o mostra arquivos rastreados alterados nem novos fora de itens ignorados (sem requirements.txt, sem .venv criado na raiz do reposit\u00f3rio para instalar pytest, pyproject.toml intacto).",
+          "passed": true,
+          "evidence": "git -C with_skill/run-1/work status --porcelain --ignored -> apenas '!! services/tarifa/tarifa/__pycache__/' e '!! services/tarifa/tests/__pycache__/' (ignorados); nenhum rastreado alterado nem novo; ls -a work sem .venv nem requirements.txt; grep -niE 'pip install|venv' transcript.md sem ocorr\u00eancias."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.2,
+        "passed": 1,
+        "failed": 4,
+        "total": 5,
+        "time_seconds": 79,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "outputs/verify-build-output.json \u00e9 JSON v\u00e1lido com skill == \"verify-build\", passed == false, exit_code == 1, stacks_detected == [\"dotnet\"] e objeto results.dotnet contendo as chaves build e test.",
+          "passed": false,
+          "evidence": "`jq -c '[keys,.skill,.passed,.exit_code,.stacks_detected,.results]'` \u2192 chaves [base_branch, base_branch_result, branch, commands, feature_branch_result, repo, strict_mode, task, verdict, warnings_note]; skill, passed, exit_code, stacks_detected e results s\u00e3o null (usa task=\"verify-build\", formato pr\u00f3prio fora do contrato)."
+        },
+        {
+          "text": "findings_to_emit cont\u00e9m um item com id == \"DOTNET-BASELINE\" e severity == \"HIGH\" (resultado de .forge/scripts/dotnet-baseline.sh --check reprovado por aus\u00eancia de Directory.Build.props).",
+          "passed": false,
+          "evidence": "`jq '.findings_to_emit'` \u2192 null; nenhum item DOTNET-BASELINE; `grep -c 'dotnet-baseline' outputs/transcript.md` \u2192 0 (o script de baseline nunca foi rodado)."
+        },
+        {
+          "text": "results.dotnet.test registra total == 3 e failed == 2, e findings_to_emit cont\u00e9m itens com id come\u00e7ando por \"TEST-\" e severity == \"BLOCKER\", ao menos um deles nomeando Split_ParcelasZero_LancaDomainException com file apontando para tests/Pagamentos.Domain.Tests/PagamentoTests.cs.",
+          "passed": false,
+          "evidence": "H\u00e1 feature_branch_result.test com total=3 e failed=2, mas n\u00e3o em results.dotnet.test (results \u00e9 null); findings_to_emit ausente, nenhum item TEST-* BLOCKER nem file apontando tests/Pagamentos.Domain.Tests/PagamentoTests.cs."
+        },
+        {
+          "text": "findings_to_emit cont\u00e9m um item com id come\u00e7ando por \"LINT-\" e severity == \"HIGH\" apontando src/Pagamentos.Domain/Pagamento.cs (diverg\u00eancia de formata\u00e7\u00e3o/whitespace), e `git status --porcelain` no projeto n\u00e3o mostra Pagamento.cs modificado (dotnet format n\u00e3o foi rodado sem --verify-no-changes).",
+          "passed": false,
+          "evidence": "findings_to_emit ausente (jq \u2192 null), nenhum finding LINT-*; transcript.md n\u00e3o registra `dotnet format --verify-no-changes` (grep 'dotnet format' \u2192 0). Pagamento.cs n\u00e3o modificado (git status limpo) n\u00e3o basta para a asser\u00e7\u00e3o composta."
+        },
+        {
+          "text": "outputs/resumo.md afirma que a branch n\u00e3o segue para os reviewers (REJECTED/rejeitada por falha determin\u00edstica) e o reposit\u00f3rio n\u00e3o ganhou Directory.Build.props, .editorconfig nem altera\u00e7\u00e3o em arquivos .cs/.csproj (git status sem mudan\u00e7as rastreadas nem novos arquivos fora de bin/obj/TestResults).",
+          "passed": true,
+          "evidence": "resumo.md linha 3: \"Veredito: a branch N\u00c3O pode seguir para os reviewers.\" (rejei\u00e7\u00e3o por falha de teste, 2 de 3); `ls work/Directory.Build.props work/.editorconfig` \u2192 No such file or directory; `git -C work status --porcelain --ignored` s\u00f3 mostra !! bin/ e obj/, sem mudan\u00e7as rastreadas nem arquivos novos."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.2,
+        "passed": 1,
+        "failed": 4,
+        "total": 5,
+        "time_seconds": 162,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "N\u00e3o existe build.gradle, build.gradle.kts, settings.gradle(.kts), gradlew nem diret\u00f3rio gradle/ no projeto ap\u00f3s a execu\u00e7\u00e3o, e `git diff` do pom.xml \u00e9 vazio.",
+          "passed": true,
+          "evidence": "Mesmo `find` sem resultados (build.gradle*, settings.gradle*, gradlew, gradle/); `git -C work diff -- pom.xml` e `git -C work diff main -- pom.xml` vazios. Observa\u00e7\u00e3o: `git status --short` mostra `?? .build-tmp/` (junit-console.jar e test-run.log), fora do escopo da asser\u00e7\u00e3o."
+        },
+        {
+          "text": "outputs/verify-build-output.json tem stacks_detected == [\"java\"] e, a menos que os outputs mostrem `mvn -B verify` (ou ./mvnw) executado com sucesso, passed == false e exit_code == 1; nunca passed == true sustentado por javac ou Gradle.",
+          "passed": false,
+          "evidence": "jq em outputs/verify-build-output.json: stacks_detected=null, passed=null, exit_code=null. O JSON usa esquema pr\u00f3prio (status='aprovado_condicional'), sem os campos exigidos; o status se apoia em javac + JUnit Console, n\u00e3o em mvn."
+        },
+        {
+          "text": "findings_to_emit cont\u00e9m ao menos um item com id come\u00e7ando por \"BUILD-\" e severity == \"BLOCKER\" cuja descri\u00e7\u00e3o menciona Maven/mvn indispon\u00edvel (ou a falha real do mvn -B verify).",
+          "passed": false,
+          "evidence": "jq: findings_to_emit ausente (resultado []); nenhum item BUILD-* com severity BLOCKER no JSON."
+        },
+        {
+          "text": "Nenhum output afirma que os testes JUnit (ValidadeQrCodeTest/ValidadorQrCodeTest) passaram sem a execu\u00e7\u00e3o deles pelo Maven; results.java.test n\u00e3o aparece com passed == true.",
+          "passed": false,
+          "evidence": "verify-build-output.json resultado_testes: testes_com_sucesso=5, classes_testadas inclui ValidadorQrCodeTest e ValidadeQrCodeTest, via 'javac ... mais execucao real dos testes via JUnit Platform Console Standalone' (sem Maven). resumo.md linha 22: '5 de 5 testes passaram'. A asser\u00e7\u00e3o pro\u00edbe declarar os testes aprovados sem execu\u00e7\u00e3o pelo Maven."
+        },
+        {
+          "text": "outputs/resumo.md recusa explicitamente gerar build.gradle ou usar javac como substituto e marcar aprovado (citando que n\u00e3o se troca o build tool/compilador \u00e9 a verdade), e diz que a branch n\u00e3o vai para os reviewers at\u00e9 rodar mvn -B verify.",
+          "passed": false,
+          "evidence": "resumo.md recusa o build.gradle e o javac-s\u00f3-src/main (linhas 11-16), mas n\u00e3o bloqueia o review: linha 5 'Recomendo liberar para review, mas com uma ressalva expl\u00edcita'; linha 30 'Pode compartilhar o diff e os resultados dos testes com os reviewers hoje'. Trata o mvn -B verify como gate antes do merge, n\u00e3o antes do review."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.2,
+        "passed": 1,
+        "failed": 4,
+        "total": 5,
+        "time_seconds": 77,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "outputs/verify-build-output.json tem stacks_detected == [\"python\"] e results n\u00e3o cont\u00e9m chave node (nem infra).",
+          "passed": false,
+          "evidence": "jq .stacks_detected e .results em without_skill/run-1/outputs/verify-build-output.json -> null (campos ausentes); o JSON usa changed_files/checks/overall_status, fora do contrato. Al\u00e9m disso checks[2] registra scope web/painel (typecheck node/ts). Sem evid\u00eancia da asser\u00e7\u00e3o."
+        },
+        {
+          "text": "outputs/verify-build-output.json tem skill == \"verify-build\", passed == true, exit_code == 0 e results.python.test registra total == 7 e failed == 0 (n\u00famero que s\u00f3 sai de executar de fato a su\u00edte unittest do services/tarifa).",
+          "passed": false,
+          "evidence": "jq .skill/.passed/.exit_code -> null (ausentes); n\u00e3o h\u00e1 results.python.test. Existe checks[1] com tests_run 7 / tests_failed 0 e overall_status \"pass\" (l.14-23), e o transcript l.16 mostra execu\u00e7\u00e3o real, mas as chaves exigidas pela asser\u00e7\u00e3o n\u00e3o existem."
+        },
+        {
+          "text": "results.python registra typecheck como n\u00e3o configurado/n\u00e3o executado (status, reason ou equivalente expl\u00edcito) e N\u00c3O como {\"passed\": true}; nenhum trecho dos outputs afirma que mypy/pyright passou.",
+          "passed": false,
+          "evidence": "N\u00e3o h\u00e1 results.python nem registro de typecheck Python (grep -rniE 'mypy|pyright' outputs/ -> sem ocorr\u00eancias); o \u00fanico typecheck no JSON \u00e9 o de web/painel, com status \"fail\", exit_code 2 (l.29-36). Sem registro expl\u00edcito de 'n\u00e3o configurado' para Python."
+        },
+        {
+          "text": "findings_to_emit \u00e9 vazio e nenhum arquivo em outputs/ cita src/linhas.ts ou TS2322 como falha da branch.",
+          "passed": false,
+          "evidence": "jq .findings_to_emit -> null (campo ausente), ent\u00e3o n\u00e3o \u00e9 verific\u00e1vel que seja vazio. grep -rnE 'linhas\\.ts|TS2322' outputs/ -> verify-build-output.json:34 ('src/linhas.ts(8,9): error TS2322 ...') e transcript.md:17; o JSON o marca in_diff false e pr\u00e9-existente, n\u00e3o como falha da branch, mas a primeira metade da asser\u00e7\u00e3o n\u00e3o se verifica."
+        },
+        {
+          "text": "`git status --porcelain` no projeto n\u00e3o mostra arquivos rastreados alterados nem novos fora de itens ignorados (sem requirements.txt, sem .venv criado na raiz do reposit\u00f3rio para instalar pytest, pyproject.toml intacto).",
+          "passed": true,
+          "evidence": "git -C without_skill/run-1/work status --porcelain --ignored -> apenas os dois __pycache__ ignorados de services/tarifa; ls -a work sem .venv nem requirements.txt; transcript l.28 confirma que n\u00e3o rodou npm install; tsc usado foi o global, sem alterar a \u00e1rvore."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.9333,
+        "stddev": 0.1155,
+        "min": 0.8,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 117.6667,
+        "stddev": 29.5014,
+        "min": 88,
+        "max": 147
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.2,
+        "stddev": 0.0,
+        "min": 0.2,
+        "max": 0.2
+      },
+      "time_seconds": {
+        "mean": 106.0,
+        "stddev": 48.5077,
+        "min": 77,
+        "max": 162
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.73",
+      "time_seconds": "+11.7",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

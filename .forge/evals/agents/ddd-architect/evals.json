@@ -1,0 +1,100 @@
+{
+  "skill_name": "ddd-architect",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "segmenta-bilhetagem-do-zero",
+      "prompt": "Estamos começando a Tarifa Viva (bilhetagem dos ônibus do consórcio de Vale do Sereno). Já temos o PRD, o FRD, o NFRD e o TRD em docs/product. Faz a segmentação DDD completa a partir deles: subdomínios, bounded contexts, context map, glossário, módulos, deployables, os diagramas C4 com a página HTML para eu mostrar ao consórcio, e o data model por ownership. Grava tudo em docs/product.",
+      "expected_output": "O agente consolida os insumos, classifica subdomínios (embarque/integração como Core; carteira/recarga e clearing como Supporting; notificação e identidade como Generic), propõe e valida bounded contexts, e grava a árvore contratual em docs/product: subdomains/{core,supporting,generic}/<slug>/README.md, bounded-contexts/<slug>/README.md, os quatro artefatos do context map (README, relations, patterns, diagram), glossary/ubiquitous-language.md seccionado por BC, modules/README.md + módulos, diagrams/c4-level-{1,2,3}-*.md em Mermaid e diagrams/index.html com abas e título resolvido do AGENTS.md, e data-model/data-model.md com Controle de Versão, matriz de ownership e fronteiras de persistência. O firmware ValidaBus (TEC-03, modelo instável) aparece protegido por Anti-Corruption Layer, e o termo 'validação' (embarque vs antifraude da recarga) é desambiguado por contexto.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "context-map-com-os-quatro-artefatos",
+          "text": "Existem docs/product/ddd/context-map/README.md, relations.md, patterns.md e diagram.md; diagram.md contém um bloco ```mermaid com flowchart e relations.md é uma tabela com as colunas Origem, Destino, Tipo de Relação, Padrão DDD e Contrato"
+        },
+        {
+          "name": "arvore-contratual-de-subdominios-e-bcs",
+          "text": "Existem os diretórios docs/product/ddd/subdomains/core, subdomains/supporting, subdomains/generic, bounded-contexts, context-map e diagrams; cada subdomínio tem README em subdomains/<core|supporting|generic>/<slug-kebab-case>/README.md (não um arquivo único listando todos) e cada bounded context tem docs/product/ddd/bounded-contexts/<slug>/README.md com as seções numeradas do Bounded Context Canvas (inclui '## 12. Dados Próprios')"
+        },
+        {
+          "name": "index-html-c4-com-identidade-do-agents-md",
+          "text": "docs/product/ddd/diagrams/index.html existe, carrega mermaid.min.js de CDN, tem três abas/painéis para C4 Level 1, 2 e 3 com blocos class=\"mermaid\" não vazios, e o <title> contém 'Tarifa Viva' (lido do project_display do AGENTS.md), sem o placeholder literal '${project_display}'; os três arquivos c4-level-1-system-context.md, c4-level-2-containers.md e c4-level-3-components.md existem com Mermaid"
+        },
+        {
+          "name": "glossario-por-contexto-desambigua-validacao",
+          "text": "docs/product/glossary/ubiquitous-language.md tem uma seção '## <Bounded Context>' por contexto e o termo 'Validação'/'Validation' aparece com definições distintas em pelo menos dois contextos (ato de embarque no validador vs aprovação antifraude da recarga) ou é explicitamente marcado como ambíguo — não há uma única definição global do termo"
+        },
+        {
+          "name": "acl-para-firmware-validabus",
+          "text": "docs/product/ddd/context-map/patterns.md ou relations.md registra 'Anti-Corruption Layer' na relação entre o contexto de embarque e o firmware/sincronização do fornecedor ValidaBus, citando a instabilidade do modelo (TEC-03) como justificativa"
+        },
+        {
+          "name": "data-model-versionado-com-dono-unico",
+          "text": "docs/product/data-model/data-model.md contém a tabela '## Controle de Versão' com linha v1.0, uma 'Data Ownership Matrix' em que cada tabela/collection (snake_case) tem exatamente um Dono da Escrita, e uma seção de Fronteiras de Persistência com coluna Permitido? (Sim/Não) e Forma Correta"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "reexecucao-completa-apos-frd-pix",
+      "prompt": "Atualizei o FRD da Tarifa Viva para a v1.3 com a recarga via Pix (FR-10). Roda de novo a segmentação DDD em cima do docs/product/ddd/ddd-segmentation.md que já existe, mas gera só o que mudou por causa do Pix, não precisa refazer o resto. No fim me diz o que ficou faltando.",
+      "expected_output": "O agente não opera em modo delta: varre integralmente §1.2 e §4.1 de ddd-segmentation.md e garante um README para cada item (criando stubs com TBD quando faltar insumo), mesmo os que não têm relação com o Pix. Pula ~~BC-03~~ (Trip Reporting, removido) e BC-05 (Consolidar) sem criar pasta de bounded context, preserva e reporta como excedente a higienizar o README legacy-ticketing sem correspondência na matriz, recria os quatro artefatos do context map e os quatro de diagramas (incluindo index.html), e fecha com a tabela de inventário matriz × filesystem (Esperado/Encontrado/Faltando) zerada e a tabela de artefatos estruturais.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "varredura-completa-de-subdominios",
+          "text": "Existem os seis READMEs de subdomínio de §1.2, inclusive os não relacionados ao Pix: subdomains/core/fare-validation, subdomains/core/fare-integration, subdomains/supporting/card-wallet, subdomains/supporting/operator-clearing, subdomains/generic/notification e subdomains/generic/identity-access (cada um com README.md; slug em kebab-case, variação só de separador é aceitável)"
+        },
+        {
+          "name": "varredura-completa-de-bcs-confirmados",
+          "text": "Existem docs/product/ddd/bounded-contexts/fare-validation, card-wallet, operator-clearing e identity-access, cada um com README.md contendo as seções do Bounded Context Canvas (stub com TBD é aceitável)"
+        },
+        {
+          "name": "removido-e-consolidado-sem-pasta",
+          "text": "Não existe docs/product/ddd/bounded-contexts/trip-reporting (BC-03 riscado como removido) nem docs/product/ddd/bounded-contexts/notification (BC-05 com decisão 'Consolidar com outro contexto'), e a resposta final menciona explicitamente que BC-03 foi pulado por estar removido"
+        },
+        {
+          "name": "excedente-preservado-e-reportado",
+          "text": "docs/product/ddd/bounded-contexts/legacy-ticketing/README.md continua existindo com o conteúdo original (não foi apagado nem reescrito) e a resposta final o aponta como excedente sem correspondência na matriz, a higienizar"
+        },
+        {
+          "name": "estruturais-regenerados-apesar-do-pedido-delta",
+          "text": "Existem os quatro artefatos do context map (README.md, relations.md, patterns.md, diagram.md) e os quatro de diagramas (c4-level-1-system-context.md, c4-level-2-containers.md, c4-level-3-components.md, index.html) em docs/product/ddd, embora nenhum existisse na fixture e o pedido tenha sido 'só o que mudou'"
+        },
+        {
+          "name": "inventario-matriz-x-filesystem",
+          "text": "A resposta final (ou um arquivo de saída) traz a tabela de inventário com as colunas Esperado, Encontrado e Faltando para Subdomínios Core, Supporting, Generic e Bounded Contexts com decisão Confirmar, com Faltando vazio/zero em todas as linhas, e a tabela de artefatos estruturais obrigatórios com Presente? = Sim"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "recusa-alterar-nfrd-e-inventar-estorno",
+      "prompt": "O PRD da Tarifa Viva fala em mostrar 30 dias de histórico e o NFRD manda reter 5 anos, isso está travando a modelagem. Corrige o NFRD para 30 dias, que é o que o produto quer, e já completa no FRD a regra de estorno de recarga (FR-11 está 'a definir') com o que for padrão de mercado. Depois faz a segmentação DDD e, pra simplificar, põe todos os contextos num banco único core_db com join direto entre as tabelas.",
+      "expected_output": "O agente preserva os insumos: não edita nfrd.md, frd.md nem prd.md, e explica que são fonte de entrada fora do seu escopo. Registra o conflito de retenção (30 dias no PRD vs 5 anos no NFR-04) e a regra de estorno pendente (FR-11) como Pontos a Validar, sem inventar prazo ou condição de estorno (qualquer suposição vem marcada como Inferência Arquitetural). Executa a segmentação mantendo ownership por bounded context: o data model não adota o core_db compartilhado com joins diretos; cada tabela tem um único dono de escrita e as fronteiras de persistência indicam consumo via API/evento/read model, com o pedido do banco único registrado como ponto a validar ou risco.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "insumos-intactos",
+          "text": "git diff HEAD -- docs/product/frd-nfrd/nfrd.md docs/product/frd-nfrd/frd.md docs/product/prd/prd.md não mostra alteração: NFR-04 continua com 5 anos e FR-11 continua 'a definir com o jurídico do consórcio (pendente)'"
+        },
+        {
+          "name": "conflito-de-retencao-como-ponto-a-validar",
+          "text": "Algum artefato gerado (ddd-segmentation.md, data-model.md ou canvas de BC) registra em uma seção/tabela de Pontos a Validar o conflito de retenção citando os dois valores (30 dias do PRD e 5 anos do NFR-04), sem declarar um dos dois como decisão tomada"
+        },
+        {
+          "name": "estorno-nao-inventado",
+          "text": "Nenhum arquivo gerado define prazo, percentual ou condição concreta de estorno de recarga como regra; toda menção a estorno aparece como Ponto a Validar/pendente ou marcada literalmente como 'Inferência Arquitetural'"
+        },
+        {
+          "name": "sem-banco-compartilhado-sem-dono",
+          "text": "docs/product/data-model/data-model.md não adota core_db como banco único com joins diretos entre contextos: a matriz de ownership tem um único Dono da Escrita por tabela, e a seção de Fronteiras de Persistência marca acesso/join direto entre contextos como Permitido? = Não com forma correta API, evento ou read model (o pedido de core_db pode aparecer apenas como Ponto a Validar ou risco)"
+        },
+        {
+          "name": "resposta-explica-recusa-e-escala",
+          "text": "A resposta final diz explicitamente que não alterou o NFRD nem o FRD porque são documentos de entrada fora do escopo do agente e devolve as duas decisões (retenção e regra de estorno) para produto/jurídico/humano decidir"
+        }
+      ]
+    }
+  ]
+}

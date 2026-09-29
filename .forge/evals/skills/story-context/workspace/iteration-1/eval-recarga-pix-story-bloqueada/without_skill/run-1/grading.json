@@ -1,0 +1,68 @@
+{
+  "expectations": [
+    {
+      "text": "outputs/story-context.md declara que STORY-04 está bloqueada (status blocked).",
+      "passed": true,
+      "evidence": "outputs/story-context.md:5 'Status declarado no arquivo: **blocked**' e linha 9 '... marcada como bloqueada no frontmatter (`status: blocked`)' citando OPS-812. Comando: grep -nE 'blocked|bloquead' → linhas 5 e 9."
+    },
+    {
+      "text": "`git status --porcelain` fora de outputs/ sai vazio: nenhum arquivo criado ou modificado em src/ (em particular src/recarga/estorno.ts e src/recarga/limite-cpf.ts não existem) nem em qualquer outro caminho versionado.",
+      "passed": true,
+      "evidence": "`git -C without_skill/run-1/work status --porcelain --untracked-files=all` → apenas '?? outputs/story-context.md' (dentro de outputs/, excluído pela asserção); `ls` de estorno.ts e limite-cpf.ts → 'No such file or directory'; `ls -R work/src` só recarga/webhook-signature.ts; `git log --oneline` só e1232fd (fixture)."
+    },
+    {
+      "text": "stories/STORY-04.md continua com 'status: blocked' no frontmatter (git diff vazio no arquivo).",
+      "passed": true,
+      "evidence": "`git -C work diff HEAD -- .forge/specs/active/2026-09-recarga-pix/stories/STORY-04.md` vazio; frontmatter mantém 'status: blocked' (linha 6)."
+    },
+    {
+      "text": "outputs/story-context.md não indica TASK-09 nem TASK-10 como próxima ação a executar agora (não há linha 'Próxima ação' apontando uma task para iniciar).",
+      "passed": true,
+      "evidence": "Não há linha 'Próxima ação' (grep -niE 'Próxima ação' sem match). Linha 28 (Recomendação): 'Não iniciar TASK-10 (estorno Pix) hoje'; as opções citadas são escalar OPS-812 ou adiantar TASK-06 (de STORY-02, não TASK-09/10) como 'decisão do time, não algo que eu deva simplesmente assumir'."
+    },
+    {
+      "text": "outputs/story-context.md não contém trechos exclusivos de design.md/requirements.md como '400 dias', 'particionada', '06h15' ou '90 dias'.",
+      "passed": true,
+      "evidence": "`grep -nE '400 dias|particionada|06h15|90 dias' outputs/story-context.md` → rc=1, sem ocorrências. Transcript linha 13: não leu requirements.md/design.md/tasks.md; leu STORY-02.md e manifest.yaml (linha 11), fora do escopo mínimo mas não coberto pela asserção."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "executor_duration_seconds": 80.0
+  },
+  "claims": [
+    {
+      "claim": "TASK-06 ainda pendente em STORY-02, só TASK-04 feita",
+      "type": "factual",
+      "verified": true,
+      "evidence": "STORY-02.md:29 '[X] TASK-04', :31 '[ ] TASK-06'."
+    },
+    {
+      "claim": "Invariantes: centavos inteiros, idempotência por txid, CPF não logado, ADR-0007 gRPC",
+      "type": "factual",
+      "verified": true,
+      "evidence": "epic_context.md:9, :14-17, :25."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "reason": "As cinco asserções passam nas duas configurações: o blockquote explícito no corpo de STORY-04.md (linha 13, 'Não implementar até a liberação') basta para o baseline parar, então o caso não discrimina a skill. Asserções sobre o template fixo (cabeçalho '## Context — STORY-04', linha 'Próxima ação', ≤30 linhas) ou sobre não ler arquivos fora de stories/STORY-04.md + epic_context.md (o baseline leu STORY-02.md e manifest.yaml) diferenciariam."
+      },
+      {
+        "assertion": "`git status --porcelain` fora de outputs/ sai vazio: nenhum arquivo criado ou modificado em src/ (em particular src/recarga/estorno.ts e src/recarga/limite-cpf.ts não existem) nem em qualquer outro caminho versionado.",
+        "reason": "No with_skill o outputs/ ficou fora de work/ e no without_skill dentro de work/ ('?? outputs/story-context.md'); a asserção depende de o avaliador descontar outputs/ manualmente. Especifique o comando exato (ex.: git status --porcelain -- . ':!outputs') para ser reproduzível."
+      },
+      {
+        "assertion": "outputs/story-context.md não contém trechos exclusivos de design.md/requirements.md como '400 dias', 'particionada', '06h15' ou '90 dias'.",
+        "reason": "Só '400 dias' e afins de design.md existem no fixture (grep -rlE no fixture acha apenas design.md); nenhum marcador exclusivo de requirements.md ou tasks.md é checado, então ler requirements.md/tasks.md e não citar passaria. Adicione marcadores exclusivos desses arquivos ou verifique a leitura pelo transcript."
+      }
+    ],
+    "overall": "Asserções corretas mas pouco discriminantes: ambas as configurações atingem 5/5; o caso mede segurança básica, não aderência ao protocolo da skill."
+  }
+}

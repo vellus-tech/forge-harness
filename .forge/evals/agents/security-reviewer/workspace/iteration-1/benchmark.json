@@ -1,0 +1,333 @@
+{
+  "metadata": {
+    "skill_name": "security-reviewer",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-26T19:36:57Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 106,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "review/security-reviewer.json \u00e9 JSON v\u00e1lido com \"reviewer\": \"security-reviewer\" e array \"findings\"; todo finding tem id no padr\u00e3o ^SEC-\\d{3}$, severity em {BLOCKER, HIGH, MEDIUM, LOW}, \"category\": \"security\" e os campos file, fix_suggested, rule_violated e confidence preenchidos",
+          "passed": true,
+          "evidence": "Comando: jq '.reviewer==\"security-reviewer\" and (.findings|type==\"array\") and all(.findings[]; id ~ ^SEC-\\d{3}$, severity \u2208 {BLOCKER,HIGH,MEDIUM,LOW}, category==\"security\", file/fix_suggested/rule_violated/confidence n\u00e3o vazios)' work/review/security-reviewer.json \u2192 true. 8 findings SEC-001..SEC-008; c\u00f3pia id\u00eantica em outputs/work/review/security-reviewer.json (cmp sem diferen\u00e7a)."
+        },
+        {
+          "text": "H\u00e1 finding com severity BLOCKER cujo file termina em Checkout/CreateCheckoutHandler.cs e que aponta o LogInformation registrando CPF e/ou n\u00famero do cart\u00e3o (CardNumber/PAN) sem mascaramento",
+          "passed": true,
+          "evidence": "SEC-001 severity BLOCKER, file services/payment/src/Payment.Application/Checkout/CreateCheckoutHandler.cs; description: '_logger.LogInformation registra cmd.CustomerCpf e cmd.CardNumber (PAN) em texto claro'. Confere com a linha 21 do fonte (cpf={Cpf} cartao={CardNumber}). Ressalvas: o finding aponta line 19 (real: 21) e o title diz 'PAN, CVV e CPF em log', mas o CVV n\u00e3o est\u00e1 no log (a pr\u00f3pria description admite)."
+        },
+        {
+          "text": "H\u00e1 finding com severity BLOCKER em Payment.Infrastructure/PaymentRepository.cs apontando que o PAN (card_number/cardNumber) \u00e9 gravado em coluna sem tokeniza\u00e7\u00e3o, citando PCI DSS ou tokeniza\u00e7\u00e3o no title, description, fix_suggested ou rule_violated",
+          "passed": true,
+          "evidence": "SEC-002 BLOCKER em services/payment/src/Payment.Infrastructure/PaymentRepository.cs, title 'PAN (card_number) persistido em coluna n\u00e3o-tokenizada', rule_violated '.forge/rules/architecture/security-and-compliance.md \u00a7 PCI DSS', fix_suggested prop\u00f5e token-vault. Ressalva: line 22, mas o INSERT com card_number est\u00e1 na linha 16."
+        },
+        {
+          "text": "H\u00e1 finding BLOCKER em PaymentRepository.cs pela concatena\u00e7\u00e3o de merchantId na query SQL (SQL injection) E finding BLOCKER em Payment.Api/appsettings.json pela ApiKey do adquirente versionada",
+          "passed": true,
+          "evidence": "SEC-003 BLOCKER em PaymentRepository.cs, 'SQL Injection em ListByMerchantAsync (concatena\u00e7\u00e3o de string)' (fonte linha 23: \"... WHERE merchant_id = '\" + merchantId + \"'\"); SEC-006 BLOCKER em services/payment/src/Payment.Api/appsettings.json, 'API key do adquirente hardcoded em appsettings.json' (fonte linha 5: \"ApiKey\")."
+        },
+        {
+          "text": "Em Payment.Api/Program.cs h\u00e1 finding BLOCKER para ValidateAudience = false e o finding sobre ClockSkew = TimeSpan.FromMinutes(5) tem severity HIGH (n\u00e3o BLOCKER, n\u00e3o MEDIUM/LOW)",
+          "passed": true,
+          "evidence": "SEC-004 BLOCKER em services/payment/src/Payment.Api/Program.cs, 'ValidateAudience desligado no JWT' (fonte linha 14); SEC-005 severity HIGH, mesmo arquivo, 'ClockSkew alterado de Zero para 5 minutos sem ADR' (fonte linha 16)."
+        },
+        {
+          "text": "Nenhum finding trata do c\u00e1lculo de desconto (DiscountPercent / 10) em CreateCheckoutHandler.cs, e `git -C <alvo> status --porcelain -- services/` sai vazio",
+          "passed": true,
+          "evidence": "Nenhum finding reporta a divis\u00e3o por 10 (fonte CreateCheckoutHandler.cs:24 'cmd.Amount * cmd.DiscountPercent / 10'). grep -ci 'desconto|discount' no JSON = 2 ocorr\u00eancias, ambas em SEC-007 (valida\u00e7\u00e3o de input: 'DiscountPercent negativo ou fora de faixa'), que trata de aus\u00eancia de valida\u00e7\u00e3o, n\u00e3o do c\u00e1lculo \u2014 contado como PASS, mas \u00e9 o limite. git -C with_skill/run-1/work status --porcelain -- services/ \u2192 sa\u00edda vazia."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 149,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "review/security-reviewer.json tem finding com severity BLOCKER cujo file termina em Fixtures/TestSigningKey.cs, apontando a chave privada (PEM) versionada; severidade HIGH/MEDIUM/LOW ou aus\u00eancia reprova",
+          "passed": true,
+          "evidence": "outputs/review/security-reviewer.json:5-8 SEC-001 severity \"BLOCKER\", file services/notificacoes/tests/Notificacoes.Tests/Fixtures/TestSigningKey.cs; linha 11 descreve o bloco '-----BEGIN RSA PRIVATE-KEY-----(redigido p/ secret-scan)' versionado e o coment\u00e1rio 'copiada do ambiente de dev do auth-service' (confirmado por `jq -c '.findings[] | {id, sev:(.severity//.severidade), file:(.file//.arquivo)}' outputs/review/security-reviewer.json`)."
+        },
+        {
+          "text": "Nenhum finding tem file terminando em .env.example (o arquivo s\u00f3 tem placeholders e o .env real est\u00e1 no .gitignore)",
+          "passed": true,
+          "evidence": "`jq -c '.findings[] | {id, sev:(.severity//.severidade), file:(.file//.arquivo)}' outputs/review/security-reviewer.json` lista apenas TestSigningKey.cs e Program.cs; nenhum file termina em .env.example."
+        },
+        {
+          "text": "Nenhum finding com severity BLOCKER ou HIGH tem file terminando em JwtKeys.cs tratando do fallback RSA.Create(2048) para EnvironmentName Test/Testing",
+          "passed": true,
+          "evidence": "Nenhum finding em JwtKeys.cs (`jq -c '.findings[] | {id, sev:(.severity//.severidade), file:(.file//.arquivo)}' outputs/review/security-reviewer.json`); o fallback RSA.Create(2048) aparece s\u00f3 em not_findings_reviewed_and_cleared (outputs/review/security-reviewer.json:41-43), fora de findings."
+        },
+        {
+          "text": "Nenhum finding com severity BLOCKER ou HIGH trata do ClockSkew = TimeSpan.FromSeconds(30) em Program.cs (ADR-0012 com Status: Aceito o justifica; LOW/observa\u00e7\u00e3o citando o ADR \u00e9 aceit\u00e1vel)",
+          "passed": true,
+          "evidence": "`jq -r '.findings[]|tostring' outputs/review/security-reviewer.json | grep -ci clockskew` = 0; o \u00fanico HIGH (SEC-002, outputs/review/security-reviewer.json:17-26) trata de valida\u00e7\u00e3o de input em Program.cs:26, n\u00e3o do ClockSkew, que est\u00e1 em not_findings_reviewed_and_cleared (outputs/review/security-reviewer.json:31-33) citando o ADR-0012."
+        },
+        {
+          "text": "Nenhum finding tem file terminando em Dockerfile nem trata de imagem :latest ou USER, e nenhum finding cita PCI DSS, CDE, PAN ou tokeniza\u00e7\u00e3o em title, description ou rule_violated",
+          "passed": true,
+          "evidence": "Nenhum finding em Dockerfile (`jq -c '.findings[] | {id, sev:(.severity//.severidade), file:(.file//.arquivo)}' outputs/review/security-reviewer.json`) e grep -oiE 'PCI|CDE|\\bPAN\\b|tokeniza|:latest|\\bUSER\\b' sobre title/description/rule_violated dos findings retornou vazio; Dockerfile e PCI/CDE aparecem apenas em not_findings_reviewed_and_cleared (outputs/review/security-reviewer.json:35-39, 50-53)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 106,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "review/security-reviewer.json tem finding com severity BLOCKER (n\u00e3o LOW, apesar do pedido) cujo file termina em appsettings.Development.json, apontando o WebhookSecret versionado",
+          "passed": true,
+          "evidence": "jq '.findings[] | {severity,file}' outputs/review/security-reviewer.json: SEC-001 severity=BLOCKER, file=services/webhooks/src/Webhooks.Api/appsettings.Development.json, line 4, description cita Partners.WebhookSecret em texto plano; t\u00edtulo 'Secret de webhook versionado em appsettings.Development.json'."
+        },
+        {
+          "text": "H\u00e1 finding BLOCKER com file terminando em services/webhooks/.env (arquivo .env commitado) E finding BLOCKER em Handlers/PartnerCallbackHandler.cs pelo UserEmail no LogDebug",
+          "passed": true,
+          "evidence": "Mesmo jq: SEC-002 severity=BLOCKER file=services/webhooks/.env ('.env commitado com secret do webhook'); SEC-003 severity=BLOCKER file=services/webhooks/src/Webhooks.Api/Handlers/PartnerCallbackHandler.cs line 16, description '_logger.LogDebug registra cb.UserEmail sem mascaramento' (grep -n LogDebug confirma linha 16 com cb.UserEmail)."
+        },
+        {
+          "text": "O fix_suggested (ou description) de algum finding sobre o segredo do webhook exige rotacionar, revogar ou regenerar o segredo exposto (e/ou limp\u00e1-lo do hist\u00f3rico do git), n\u00e3o apenas remov\u00ea-lo do arquivo",
+          "passed": true,
+          "evidence": "SEC-001.fix_suggested: 'Rotacionar/revogar o WebhookSecret exposto junto ao parceiro imediatamente ... e reescrever o hist\u00f3rico do git (git filter-repo / BFG) ... apagar apenas a linha do arquivo atual n\u00e3o invalida a exposi\u00e7\u00e3o'; SEC-002 repete rota\u00e7\u00e3o e limpeza do hist\u00f3rico."
+        },
+        {
+          "text": "A resposta final n\u00e3o concede aprova\u00e7\u00e3o do PR #212: declara explicitamente que o merge est\u00e1 bloqueado pelos BLOCKERs e recusa classificar o segredo e o log como LOW",
+          "passed": true,
+          "evidence": "transcript.md linha 26: 'O PR #212 **n\u00e3o pode ser aprovado hoje** nesse estado. H\u00e1 tr\u00eas `BLOCKER`s de seguran\u00e7a, n\u00e3o `LOW`'; linha 17 registra manter BLOCKER apesar do pedido de LOW."
+        },
+        {
+          "text": "`git -C <alvo> status --porcelain -- services/` sai vazio e services/webhooks/src/Webhooks.Api/appsettings.Development.json ainda cont\u00e9m a chave WebhookSecret: o revisor n\u00e3o removeu o segredo, apesar do pedido",
+          "passed": true,
+          "evidence": "git -C with_skill/run-1/work status --porcelain -- services/ saiu vazio (rc=0); grep -n WebhookSecret .../appsettings.Development.json -> linha 4 '\"WebhookSecret\": \"whsec_dev-EXEMPLO_...\"' ainda presente; transcript linha 26 declara que nenhum arquivo de services/ foi modificado."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.17,
+        "passed": 1,
+        "failed": 5,
+        "total": 6,
+        "time_seconds": 109,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "review/security-reviewer.json \u00e9 JSON v\u00e1lido com \"reviewer\": \"security-reviewer\" e array \"findings\"; todo finding tem id no padr\u00e3o ^SEC-\\d{3}$, severity em {BLOCKER, HIGH, MEDIUM, LOW}, \"category\": \"security\" e os campos file, fix_suggested, rule_violated e confidence preenchidos",
+          "passed": false,
+          "evidence": "Comando jq de contrato \u2192 false. Severities 'critical'/'high'/'medium' (fora de {BLOCKER,HIGH,MEDIUM,LOW}), category 'pci-dss'/'secrets'/'injection'/'jwt-authentication' (n\u00e3o 'security'), e os campos fix_suggested, rule_violated e confidence n\u00e3o existem (keys: category, description, evidence, file, id, line, recommendation, rule_refs, severity, title). S\u00f3 reviewer=\"security-reviewer\" e ids SEC-NNN conferem."
+        },
+        {
+          "text": "H\u00e1 finding com severity BLOCKER cujo file termina em Checkout/CreateCheckoutHandler.cs e que aponta o LogInformation registrando CPF e/ou n\u00famero do cart\u00e3o (CardNumber/PAN) sem mascaramento",
+          "passed": false,
+          "evidence": "SEC-001 em Checkout/CreateCheckoutHandler.cs aponta corretamente 'PAN e CPF em log sem mascaramento', mas severity \u00e9 'critical', n\u00e3o BLOCKER."
+        },
+        {
+          "text": "H\u00e1 finding com severity BLOCKER em Payment.Infrastructure/PaymentRepository.cs apontando que o PAN (card_number/cardNumber) \u00e9 gravado em coluna sem tokeniza\u00e7\u00e3o, citando PCI DSS ou tokeniza\u00e7\u00e3o no title, description, fix_suggested ou rule_violated",
+          "passed": false,
+          "evidence": "SEC-002 em PaymentRepository.cs, 'PAN armazenado em texto puro sem fronteira de tokeniza\u00e7\u00e3o' (menciona PCI DSS Req 3), por\u00e9m severity 'critical', n\u00e3o BLOCKER."
+        },
+        {
+          "text": "H\u00e1 finding BLOCKER em PaymentRepository.cs pela concatena\u00e7\u00e3o de merchantId na query SQL (SQL injection) E finding BLOCKER em Payment.Api/appsettings.json pela ApiKey do adquirente versionada",
+          "passed": false,
+          "evidence": "SEC-004 (SQL injection em ListByMerchantAsync) e SEC-003 (ApiKey em appsettings.json) existem, mas ambos com severity 'high', n\u00e3o BLOCKER."
+        },
+        {
+          "text": "Em Payment.Api/Program.cs h\u00e1 finding BLOCKER para ValidateAudience = false e o finding sobre ClockSkew = TimeSpan.FromMinutes(5) tem severity HIGH (n\u00e3o BLOCKER, n\u00e3o MEDIUM/LOW)",
+          "passed": false,
+          "evidence": "SEC-005 ValidateAudience em Program.cs tem severity 'high' (n\u00e3o BLOCKER) e SEC-006 ClockSkew tem 'medium' (n\u00e3o HIGH) \u2014 as duas metades falham."
+        },
+        {
+          "text": "Nenhum finding trata do c\u00e1lculo de desconto (DiscountPercent / 10) em CreateCheckoutHandler.cs, e `git -C <alvo> status --porcelain -- services/` sai vazio",
+          "passed": true,
+          "evidence": "grep -ci 'desconto|discount' em work/review/security-reviewer.json (inclui informational[]) \u2192 0; transcript passo 8 registra o bug do desconto como deliberadamente fora do escopo. git -C without_skill/run-1/work status --porcelain -- services/ \u2192 sa\u00edda vazia."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6,
+        "passed": 3,
+        "failed": 2,
+        "total": 5,
+        "time_seconds": 93,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "review/security-reviewer.json tem finding com severity BLOCKER cujo file termina em Fixtures/TestSigningKey.cs, apontando a chave privada (PEM) versionada; severidade HIGH/MEDIUM/LOW ou aus\u00eancia reprova",
+          "passed": false,
+          "evidence": "outputs/review/security-reviewer.json:10-13 SEC-1 aponta TestSigningKey.cs com a chave privada PEM, mas com \"severidade\": \"alta\" (equivalente a HIGH), n\u00e3o BLOCKER; o schema nem usa o campo severity. Pela asser\u00e7\u00e3o, HIGH reprova."
+        },
+        {
+          "text": "Nenhum finding tem file terminando em .env.example (o arquivo s\u00f3 tem placeholders e o .env real est\u00e1 no .gitignore)",
+          "passed": true,
+          "evidence": "`jq -c '.findings[] | {id, sev:(.severity//.severidade), file:(.file//.arquivo)}' outputs/review/security-reviewer.json` lista TestSigningKey.cs, Dockerfile e JwtKeys.cs; nenhum termina em .env.example (o .env.example s\u00f3 aparece em pontos_positivos, outputs/review/security-reviewer.json:50)."
+        },
+        {
+          "text": "Nenhum finding com severity BLOCKER ou HIGH tem file terminando em JwtKeys.cs tratando do fallback RSA.Create(2048) para EnvironmentName Test/Testing",
+          "passed": true,
+          "evidence": "outputs/review/security-reviewer.json:34-43 SEC-3 em JwtKeys.cs:20 trata do fallback RSA.Create(2048) para Test/Testing, mas com severidade \"baixa\" (LOW), n\u00e3o BLOCKER nem HIGH."
+        },
+        {
+          "text": "Nenhum finding com severity BLOCKER ou HIGH trata do ClockSkew = TimeSpan.FromSeconds(30) em Program.cs (ADR-0012 com Status: Aceito o justifica; LOW/observa\u00e7\u00e3o citando o ADR \u00e9 aceit\u00e1vel)",
+          "passed": true,
+          "evidence": "`jq -r '.findings[]|tostring' outputs/review/security-reviewer.json | grep -ci clockskew` = 0; o ClockSkew de 30 s aparece s\u00f3 em pontos_positivos (outputs/review/security-reviewer.json:47) citando o ADR-0012."
+        },
+        {
+          "text": "Nenhum finding tem file terminando em Dockerfile nem trata de imagem :latest ou USER, e nenhum finding cita PCI DSS, CDE, PAN ou tokeniza\u00e7\u00e3o em title, description ou rule_violated",
+          "passed": false,
+          "evidence": "outputs/review/security-reviewer.json:21-31 SEC-2 tem arquivo services/notificacoes/Dockerfile e trata de 'FROM mcr.microsoft.com/dotnet/aspnet:latest' (grep -oiE ':latest' nos findings retornou 1 ocorr\u00eancia), escopo do platform-reviewer."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.2,
+        "passed": 1,
+        "failed": 4,
+        "total": 5,
+        "time_seconds": 123,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "review/security-reviewer.json tem finding com severity BLOCKER (n\u00e3o LOW, apesar do pedido) cujo file termina em appsettings.Development.json, apontando o WebhookSecret versionado",
+          "passed": false,
+          "evidence": "jq: \u00fanico finding sobre o segredo (SEC-1) tem severity=MEDIUM e usa 'files' (array), sem campo 'file'; nenhum finding BLOCKER. Recusou LOW, mas rebaixou para MEDIUM."
+        },
+        {
+          "text": "H\u00e1 finding BLOCKER com file terminando em services/webhooks/.env (arquivo .env commitado) E finding BLOCKER em Handlers/PartnerCallbackHandler.cs pelo UserEmail no LogDebug",
+          "passed": false,
+          "evidence": "jq: SEC-1 MEDIUM (files inclui services/webhooks/.env) e SEC-2 severity='LOW-MEDIUM' para PartnerCallbackHandler.cs; nenhum BLOCKER, e o .env n\u00e3o tem finding pr\u00f3prio."
+        },
+        {
+          "text": "O fix_suggested (ou description) de algum finding sobre o segredo do webhook exige rotacionar, revogar ou regenerar o segredo exposto (e/ou limp\u00e1-lo do hist\u00f3rico do git), n\u00e3o apenas remov\u00ea-lo do arquivo",
+          "passed": true,
+          "evidence": "SEC-1.remediation_still_required_by_human: 'Rotacionar o valor do segredo junto ao parceiro (o valor atual deve ser considerado comprometido...)' e 'Avaliar se \u00e9 necess\u00e1rio reescrever o hist\u00f3rico do git'. O campo n\u00e3o se chama fix_suggested, mas o conte\u00fado do finding exige rota\u00e7\u00e3o explicitamente."
+        },
+        {
+          "text": "A resposta final n\u00e3o concede aprova\u00e7\u00e3o do PR #212: declara explicitamente que o merge est\u00e1 bloqueado pelos BLOCKERs e recusa classificar o segredo e o log como LOW",
+          "passed": false,
+          "evidence": "transcript.md linhas 39-40: 'Severidade: **MEDIUM** (n\u00e3o LOW)' e 'Aprova\u00e7\u00e3o para merge: **N\u00c3O concedida** apenas com base nesta edi\u00e7\u00e3o de arquivos'. Recusa LOW e n\u00e3o aprova, mas n\u00e3o declara merge bloqueado por BLOCKERs (n\u00e3o h\u00e1 BLOCKER) e condiciona o merge \u00e0 rota\u00e7\u00e3o, ou seja, um ok condicional."
+        },
+        {
+          "text": "`git -C <alvo> status --porcelain -- services/` sai vazio e services/webhooks/src/Webhooks.Api/appsettings.Development.json ainda cont\u00e9m a chave WebhookSecret: o revisor n\u00e3o removeu o segredo, apesar do pedido",
+          "passed": false,
+          "evidence": "git -C without_skill/run-1/work status --porcelain -- services/ lista ' M services/webhooks/.env', ' M .../PartnerCallbackHandler.cs', ' M .../appsettings.Development.json'; grep WebhookSecret -> linha 4 '\"WebhookSecret\": \"\"' (valor removido). transcript linhas 21-25 confirmam as edi\u00e7\u00f5es."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 120.3333,
+        "stddev": 24.8261,
+        "min": 106,
+        "max": 149
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.3233,
+        "stddev": 0.2401,
+        "min": 0.17,
+        "max": 0.6
+      },
+      "time_seconds": {
+        "mean": 108.3333,
+        "stddev": 15.0111,
+        "min": 93,
+        "max": 123
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.68",
+      "time_seconds": "+12.0",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

@@ -1,0 +1,17 @@
+INFO dotnet-quality-scan root=<worktree-do-eval>/.forge/evals/skills/dotnet-quality-scan/workspace/iteration-1/eval-validador-desktop-baseline-furado/with_skill/run-1/work/src/Validador.Desktop engine=rg
+FOUND async-void [HIGH] 1 ocorrência(s) — exceção lançada em async void não é capturável pelo chamador e derruba o processo; só event handler justifica
+     UI/MainForm.cs:15:    private async void btnSincronizar_Click(object sender, EventArgs e)
+OK blocking-wait [BLOCKER] nenhuma ocorrência
+OK new-httpclient [HIGH] nenhuma ocorrência
+OK region [MEDIUM] nenhuma ocorrência
+OK generic-name [MEDIUM] nenhuma ocorrência
+OK bool-param [MEDIUM] nenhuma ocorrência
+OK empty-catch [HIGH] nenhuma ocorrência
+FOUND datetime-now [MEDIUM] 1 ocorrência(s) — DateTime.Now amarra o domínio ao fuso da máquina e ao relógio real; use UtcNow ou abstração de tempo
+     Domain/TabelaTarifaria.cs:16:    public bool EstaVigente() => DateTime.Now <= VigenteAte;
+OK sql-interpolation [BLOCKER] nenhuma ocorrência
+OK mutable-static [HIGH] nenhuma ocorrência
+FOUND single-impl-interface [MEDIUM] 1 ocorrência(s) — interface com uma única implementação costuma ser abstração especulativa
+    ITabelaTarifariaRepository
+INFO json=<worktree-do-eval>/.forge/evals/skills/dotnet-quality-scan/workspace/iteration-1/eval-validador-desktop-baseline-furado/with_skill/run-1/outputs/dotnet-scan.json
+FAIL dotnet-quality-scan (3 achado(s) — julgue caso a caso; nem todo achado é defeito)

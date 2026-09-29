@@ -1,0 +1,47 @@
+{
+  "expectations": [
+    {
+      "text": "outputs/validacao-validacao.md afirma que docs/product/modules/validacao/requirements.md não existe e que por isso a validação foi interrompida (não executada).",
+      "passed": false,
+      "evidence": "outputs/validacao-validacao.md não interrompe a validação: executa o checklist completo (linhas 61-74, 'Checks Executados') e emite 6 achados. Única menção próxima é a linha 22 ('para o pipeline este requirements simplesmente não existe'), que não declara a inexistência de docs/product/modules/validacao/requirements.md como motivo de interrupção. `grep -niE 'interromp|inexistente'` no parecer: 0 ocorrências."
+    },
+    {
+      "text": "O parecer identifica docs/specs/ como estrutura legada/não oficial e indica docs/product/modules/validacao/requirements.md (ou docs/product/modules/<modulo>/) como o único caminho oficial, sem recomendar manter as specs em docs/specs/ nem em .kiro/specs/.",
+      "passed": true,
+      "evidence": "Linha 15: 'um caminho legado que este projeto não usa. A estrutura oficial de especificação aqui é `docs/product/modules/<modulo>/requirements.md`, operada pelo `requirements-writer`, pelo `/forge:specs-loop`'; linha 22: '`docs/specs/` é um layout intermediário/legado (mesma família do `.kiro/specs/`) que não é reconhecido'. Nenhuma recomendação de manter specs em docs/specs/ ou .kiro/specs/ (linha 78 manda apagar docs/specs/validacao/). Ressalva: recomenda mover o conteúdo legado para o caminho oficial (linhas 24 e 78), o que o expected_output desaconselha, mas a asserção não cobre."
+    },
+    {
+      "text": "O parecer não contém tabela Checks Executados com resultados OK nem achados sobre o conteúdo de docs/specs/validacao/requirements.md (por exemplo, sobre o Req 1, critérios 1.1/1.2 ou as seções ausentes desse arquivo) apresentados como validação do módulo.",
+      "passed": false,
+      "evidence": "O parecer valida o conteúdo do arquivo legado como se fosse o alvo: tabela 'Checks Executados' (linhas 61-74) com 5 linhas '| OK' (`grep -c '| OK'` = 5; ex.: linha 70 'Critérios de aceite | OK para os dois critérios existentes'), BLOCKER-02 sobre seções ausentes (linhas 26-31), BLOCKER-03 sobre o Req 1 (linhas 33-38) e HIGH-02 sobre cobertura funcional (linhas 47-52)."
+    },
+    {
+      "text": "Nenhum trecho do parecer declara 'Status: Aprovado' ou 'Aprovado com ressalvas' nem 'Pode seguir para design.md: Sim'; a saída diz que o design-writer não pode ser liberado e encaminha a geração do requirements pelo requirements-writer (ou /forge:specs-loop) em docs/product/modules/validacao/.",
+      "passed": true,
+      "evidence": "`grep -ciE 'Status: Aprovado|Aprovado com ressalvas|design\\.md`?: Sim'` = 0. Linha 5 'Status: Reprovado'; linha 15 'Não recomendo liberar o `design-writer` para o módulo Validação hoje'; linha 84 'Pode seguir para `design.md`: Não'; linha 86 'Requer nova execução do `requirements-writer`: Sim'; linha 24 aponta `docs/product/modules/validacao/requirements.md` e reexecução do fluxo padrão (`requirements-writer`)."
+    },
+    {
+      "text": "git status --porcelain -- docs/ está vazio ao fim da execução: docs/product/modules/validacao/requirements.md não foi criado e docs/specs/validacao/ não foi movido, copiado nem alterado.",
+      "passed": true,
+      "evidence": "`git -C with_skill/run-1/work status --porcelain -- docs/` retornou vazio (rc=0); `ls work/docs/product/modules/validacao/` = só README.md; `docs/specs/validacao/` mantém NOTA.md e requirements.md. Transcript linha 20: 'Nenhum arquivo em `work/` foi alterado'. (Observação: o status global mostra ' D .claude/agents/...' fora de docs/, produto da própria fixture, fora do escopo da asserção.)"
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 2,
+    "total": 5,
+    "pass_rate": 0.6
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "outputs/validacao-validacao.md afirma que docs/product/modules/validacao/requirements.md não existe e que por isso a validação foi interrompida (não executada).",
+        "reason": "Nenhuma das configurações passou; vale conferir se a especificação do requirements-validator de fato manda interromper quando o alvo oficial não existe, ou se a asserção exige comportamento que o artefato não prescreve."
+      },
+      {
+        "reason": "Nenhuma asserção cobre a recomendação de mover/copiar o conteúdo legado para o caminho oficial (expected_output proíbe), que o with_skill fez nas linhas 24 e 78."
+      }
+    ],
+    "overall": "Asserções 1 e 3 discriminam bem; asserção 5 é satisfeita trivialmente pelas duas configurações por ser um agente somente leitura."
+  }
+}

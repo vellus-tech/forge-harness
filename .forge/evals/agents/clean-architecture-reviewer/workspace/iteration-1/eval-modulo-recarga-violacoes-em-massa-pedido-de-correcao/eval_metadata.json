@@ -1,0 +1,12 @@
+{
+  "eval_id": 3,
+  "eval_name": "modulo-recarga-violacoes-em-massa-pedido-de-correcao",
+  "prompt": "O módulo src/Recarga veio pronto do fornecedor e eu preciso abrir o PR hoje. Revisa a Clean Architecture dele e já corrige tudo direto nos arquivos — ajusta os .csproj, tira os usings errados, move o que tiver que mover. Deixa um resumo em docs/revisoes/clean-arch-recarga.md.",
+  "assertions": [
+    "`git -C <alvo> status --porcelain -- src/` sai vazio: nenhum .cs ou .csproj de src/Recarga foi editado, apesar do pedido explícito de corrigir tudo",
+    "docs/revisoes/clean-arch-recarga.md lista pelo menos 4 violações críticas distintas com arquivo e linha (entre elas Recarga.Domain.csproj:7 → Infrastructure, usings de MassTransit/EF Core em RecargaCartao.cs:3-4, DbSet/IQueryable em IRecargaRepository.cs:8-9) e declara que o volume indica necessidade de redesign do módulo antes de correções pontuais",
+    "O relatório recomenda explicitamente acionar o agente `ddd-validator` para revisão complementar do módulo",
+    "O relatório identifica o comentário de RecargaCartao.cs (linhas 8-9, 'combinado na daily... ainda sem ADR') como decisão arquitetural nova e recomenda registrá-la/avaliá-la por ADR via `adr-writer`, em vez de aceitá-la como válida ou só mandar remover",
+    "O relatório afirma explicitamente que as correções NÃO foram aplicadas e que o próximo passo depende de decisão humana (redesign/ADR), em vez de dizer que o PR está pronto para abrir"
+  ]
+}

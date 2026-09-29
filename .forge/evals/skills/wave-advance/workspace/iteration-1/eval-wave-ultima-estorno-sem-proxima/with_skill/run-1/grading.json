@@ -1,0 +1,51 @@
+{
+  "expectations": [
+    {
+      "text": "O transcript mostra `deferral-ops.sh status 2026-09-estorno-tarifa-duplicada` executado ANTES da invocação de `wave-ops.sh close 2026-09-estorno-tarifa-duplicada W2`",
+      "passed": true,
+      "evidence": "`grep -n 'deferral-ops.sh\\|wave-ops.sh' outputs/transcript.md` → linha 36 `bash .forge/scripts/deferral-ops.sh status 2026-09-estorno-tarifa-duplicada` → `OK (1 tested, 1 resolved, 0 open)` (passo 5) e linha 40 `bash .forge/scripts/wave-ops.sh close 2026-09-estorno-tarifa-duplicada W2` (passo 6), portanto status antes do close. Ordem relatada pelo executor, sem log bruto de shell."
+    },
+    {
+      "text": "Em waves.json do change, W2 tem status `closed` e gate_result começando com `executed:`; o transcript mostra o close sem argumento `--gate`",
+      "passed": true,
+      "evidence": "`jq -c '.waves|map({id,status,gate_result})' work/.forge/specs/active/2026-09-estorno-tarifa-duplicada/waves.json` → W2 `closed`, gate_result `executed:OK (1 gate(s))` (na fixture recém-materializada pelo setup.sh a W2 estava `open`). transcript.md:39-41: close sem `--gate` (`wave-ops.sh close 2026-09-estorno-tarifa-duplicada W2` → `check-unit: passed`, `OK close — W2 fechada`)."
+    },
+    {
+      "text": "waves.json continua com exatamente três waves (W0, W1, W2), todas `closed`; o transcript não contém `wave-ops.sh open` bem-sucedido nem `wave-ops.sh plan`",
+      "passed": true,
+      "evidence": "`jq` em work/.forge/specs/active/2026-09-estorno-tarifa-duplicada/waves.json → exatamente W0, W1, W2, todas `closed`. O transcript não contém `wave-ops.sh plan`. O único `wave-ops.sh open` (linha 74, retomada) foi recusado pelo script com `wave W3 não encontrada`, logo não foi bem-sucedido; o passo 7 (linhas 42-45) registra que não havia wave `pending` para abrir."
+    },
+    {
+      "text": "wave-advance.txt contém uma única linha não vazia, exatamente `Todas as waves fechadas — pronto para /forge:close (verifique deferrals).`",
+      "passed": true,
+      "evidence": "`cat -e work/wave-advance.txt` → `Todas as waves fechadas — pronto para /forge:close (verifique deferrals).$`; `grep -c . work/wave-advance.txt` → 1. outputs/wave-advance.txt tem o mesmo conteúdo."
+    },
+    {
+      "text": "O diretório .forge/specs/active/2026-09-estorno-tarifa-duplicada/ ainda existe (nada movido para specs/archived/) e deferrals.json está idêntico ao da fixture (DEFER-02 continua `resolved`, não foi promovido a `tested` pelo agente)",
+      "passed": true,
+      "evidence": "`ls -d work/.forge/specs/active/2026-09-estorno-tarifa-duplicada` existe; `ls -A work/.forge/specs/archived` → só `.gitkeep`. `cmp` do deferrals.json contra o da fixture materializada agora por `setup.sh` no scratchpad → idênticos; `jq` mostra DEFER-01 `tested`, DEFER-02 `resolved`."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "O transcript mostra `deferral-ops.sh status 2026-09-estorno-tarifa-duplicada` executado ANTES da invocação de `wave-ops.sh close 2026-09-estorno-tarifa-duplicada W2`",
+        "reason": "A ordem só é verificável no transcript narrativo, que o próprio executor escreve. Um log bruto de comandos (ou carimbo de tempo gravado pelo deferral-ops.sh) tornaria a asserção à prova de relato inventado."
+      },
+      {
+        "assertion": "waves.json continua com exatamente três waves (W0, W1, W2), todas `closed`; o transcript não contém `wave-ops.sh open` bem-sucedido nem `wave-ops.sh plan`",
+        "reason": "'wave-ops.sh open bem-sucedido' exige julgamento: o with_skill rodou `wave-ops.sh open … W3` na retomada e recebeu `wave W3 não encontrada`. Vale explicitar que tentativa recusada pelo script é aceitável, ou proibir a tentativa."
+      },
+      {
+        "reason": "Nenhuma asserção exige que o fechamento venha do script (gate realmente executado). Uma asserção explícita (gate_result sem `not_run`/`[simulado]` e close via wave-ops.sh) separaria melhor edição manual de JSON."
+      }
+    ],
+    "overall": "As asserções discriminam bem (5/5 contra 2/5). As de número 1 e 2 dependem do transcript autodeclarado."
+  }
+}

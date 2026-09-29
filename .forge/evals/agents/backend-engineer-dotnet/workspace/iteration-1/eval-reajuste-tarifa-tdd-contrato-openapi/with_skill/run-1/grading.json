@@ -1,0 +1,59 @@
+{
+  "expectations": [
+    {
+      "text": "Existe em services/tarifa-service/tests/Tarifa.UnitTests/ um teste novo que exercita o reajuste de TarifaLinha com os exemplos da TASK-03: 430 com 1250 bp resultando em 484, 420 com 1250 bp resultando em 472 (empate half-even) e 5001 bp rejeitado.",
+      "passed": true,
+      "evidence": "outputs/services/tarifa-service/tests/Tarifa.UnitTests/TarifaLinhaTests.cs: métodos novos (git -C with_skill/run-1/work diff mostra +40 linhas) Reajustar_rounds_up_when_fraction_is_above_half (L15-24: new TarifaLinha(...,430).Reajustar(1250) → Assert.Equal(484, resultado.ValorNovoCentavos)), Reajustar_rounds_half_to_even_on_exact_tie (L27-36: 420, 1250 → 472) e Reajustar_rejects_percentual_above_5000_bp (L39-44: Assert.Throws<ArgumentOutOfRangeException>(() => tarifa.Reajustar(5001))). Transcript L35-53 registra Red (4 erros CS1061) e depois 5/5 verdes."
+    },
+    {
+      "text": "O código de reajuste adicionado em services/tarifa-service/src/Tarifa.Domain/ não declara nem converte valor monetário para double, float ou decimal (grep por 'double', 'float', 'decimal' e 'Math.Round(' com double nos arquivos alterados do Domain não encontra uso para dinheiro); o valor novo é long em centavos.",
+      "passed": true,
+      "evidence": "grep -rnE \"double|float|decimal|Math\\.Round\\(\" outputs/services/tarifa-service/src/Tarifa.Domain/ → rc=1, nenhuma ocorrência (também zero em todo src/). TarifaLinha.cs L4 record struct ReajusteTarifa(long ValorAnteriorCentavos, long ValorNovoCentavos); L43-53 aritmética em long com Math.DivRem e desempate half-even manual (restoDobrado == 10000 && quociente % 2 != 0)."
+    },
+    {
+      "text": "contracts/openapi/tarifa-service.yaml contém o path /v1/tarifas/{linhaId}/reajustes com operação post, requestBody com percentualBp e resposta com valorAnteriorCentavos e valorNovoCentavos, além de resposta 422.",
+      "passed": true,
+      "evidence": "outputs/contracts/openapi/tarifa-service.yaml (idêntico a work/, cmp): L29 \"/v1/tarifas/{linhaId}/reajustes:\", L30 \"post:\", requestBody → ReajusteTarifaRequest com L80 \"percentualBp:\" (int32, 1..5000), resposta 200 → ReajusteTarifaResponse com L93 valorAnteriorCentavos e L96 valorNovoCentavos (int64), L58 \"422\" com ProblemDetails."
+    },
+    {
+      "text": "entrega.md menciona dotnet-baseline.sh e registra que o baseline de build (Directory.Build.props/TreatWarningsAsErrors) está ausente, como pendência ou lacuna com --apply; e nenhum arquivo do alvo contém '<TreatWarningsAsErrors>false', '<NoWarn>' ou '#pragma warning disable' introduzido pela entrega.",
+      "passed": true,
+      "evidence": "entrega.md L54-59 (seção Pendências): \"`bash .forge/scripts/dotnet-baseline.sh --check` reporta `Directory.Build.props`, `.editorconfig` e `Directory.Packages.props` ausentes ... (`TreatWarningsAsErrors`, ...) não está materializada ... reportando em vez de aplicar `--apply`\". Transcript L27-28 confirma execução com --root services/tarifa-service --check → FAIL. grep -rnE \"<TreatWarningsAsErrors>false|<NoWarn>|#pragma warning disable\" em work/ (*.cs, *.csproj, *.props, *.targets, excluindo bin/obj/.git) → rc=1; ls Directory.Build.props na raiz e no serviço → inexistente (nada criado para desligar warnings)."
+    },
+    {
+      "text": "entrega.md contém os seis cabeçalhos '## Resumo do que foi alterado', '## Arquivos alterados', '## Testes executados', '## Testes recomendados', '## Riscos conhecidos' e '## Pendências'; a seção Testes executados cita o comando dotnet efetivamente rodado com o resultado, ou declara explicitamente que não executou e qual comando deve ser rodado.",
+      "passed": true,
+      "evidence": "grep -c \"^## <título>$\" outputs/entrega.md retorna 1 para cada um dos seis cabeçalhos (L3, L14, L29, L37, L46, L52). Testes executados (L31-35) cita `dotnet test` em services/tarifa-service com Red (4 erros de compilação) e depois 5 de 5 aprovados, além de `dotnet build` em Tarifa.sln com 0 erros; coerente com transcript L90-95."
+    },
+    {
+      "text": "services/tarifa-service/CHANGELOG.md tem, sob [Unreleased], uma entrada nova sobre o reajuste de tarifa por percentual.",
+      "passed": false,
+      "evidence": "outputs/services/tarifa-service/CHANGELOG.md L3 \"## [Unreleased]\" seguido imediatamente de L5 \"## [0.2.0] - 2026-09-26\"; a entrada do reajuste (L9-12) está sob [0.2.0], não sob [Unreleased]. awk extraindo o bloco [Unreleased] → 0 linhas não vazias. entrega.md L26 confirma: \"CHANGELOG.md — entrada `0.2.0`\"."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 1,
+    "total": 6,
+    "pass_rate": 0.83
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "teste-unitario-com-empate-half-even-472",
+        "reason": "A fixture já traz TarifaLinhaTests.cs com um teste; 'teste novo' é satisfeito por métodos [Fact] novos no arquivo existente (git diff mostra +40/+39 linhas). A asserção não distingue teste que roda de teste que só compila; os dois transcripts alegam dotnet test verde e bin/obj existem no work/, mas o grader não reexecutou dotnet test."
+      },
+      {
+        "assertion": "changelog-do-servico-atualizado",
+        "reason": "Discriminante real: with_skill criou seção [0.2.0] datada e deixou [Unreleased] vazio; a asserção exige [Unreleased]. Vale confirmar se a convenção do agente (Keep a Changelog com release no bump de contrato) conflita com a asserção ou se é regressão do agente."
+      },
+      {
+        "reason": "Nenhuma asserção cobre o handler da Application nem o endpoint na Api (status 200/404/422 efetivamente mapeados em Program.cs); ambos os runs os produziram, mas um run que só alterasse Domain e YAML passaria em 4 de 6."
+      },
+      {
+        "reason": "Asserção de baseline só checa ausência de supressão de warnings em arquivos do alvo; como o baseline está ausente, não há o que desligar, e o without_skill passa nessa metade trivialmente. A parte discriminante é a menção em entrega.md."
+      }
+    ],
+    "overall": "Com skill: 5/6; falha só no CHANGELOG (entrada sob [0.2.0], [Unreleased] vazio). Sem skill: 4/6; falha no formato de entrega.md (nenhum dos seis cabeçalhos) e na lacuna de baseline (dotnet-baseline.sh nem rodado nem mencionado)."
+  }
+}

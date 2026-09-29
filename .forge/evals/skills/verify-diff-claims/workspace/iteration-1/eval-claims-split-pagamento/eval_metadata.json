@@ -1,0 +1,12 @@
+{
+  "eval_id": 1,
+  "eval_name": "claims-split-pagamento",
+  "prompt": "O coder agent terminou o branch feat/split-pagamento (split de recebíveis entre lojista e subadquirente) e o build já passou. Antes de eu mandar para os reviewers, confere se o que ele escreveu nos commits contra main é verdade no diff: ele diz que adicionou o PaymentSplitService, criou o endpoint POST /api/v1/payments/split, escreveu testes cobrindo o Split e incluiu a migration AddSplitRulesTable. Grava o resultado em JSON em reports/verify-diff-claims.json na raiz do projeto e me diz se isso bloqueia ou se segue para review.",
+  "assertions": [
+    "reports/verify-diff-claims.json existe, é JSON válido e tem as chaves skill (valor \"verify-diff-claims\"), passed, exit_code, claims_extracted, claims_verified, claims_unverified, findings_to_emit e matched_claims, com claims_verified + claims_unverified == claims_extracted",
+    "findings_to_emit contém exatamente duas entradas de claim sem evidência, com id no formato CLAIM-NNN (três dígitos), severity \"HIGH\" e category \"anti-hallucination\": uma sobre os testes cobrindo Split e outra sobre a migration AddSplitRulesTable; nenhuma delas tem severity BLOCKER",
+    "matched_claims contém PaymentSplitService e o endpoint POST /api/v1/payments/split, cada um com evidence_file apontando para src/payments/paymentSplitService.ts ou src/payments/paymentsController.ts no formato caminho:linha; nenhuma dessas duas aparece em findings_to_emit",
+    "exit_code é 0 e a resposta final diz que o branch segue para os reviewers (logic-reviewer/quality-reviewer) com os achados HIGH como insumo, em vez de reprovar ou pedir correção obrigatória antes do review",
+    "O transcript mostra a coleta das mensagens de todos os commits do intervalo main..HEAD (ex.: git log main..HEAD com corpo) e a busca de marcadores AGENT-CLAIM no diff, não só a mensagem do último commit"
+  ]
+}

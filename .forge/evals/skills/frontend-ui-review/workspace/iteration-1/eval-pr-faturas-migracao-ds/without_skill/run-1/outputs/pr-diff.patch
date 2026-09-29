@@ -1,0 +1,43 @@
+diff --git a/src/features/invoices/InvoiceList.css b/src/features/invoices/InvoiceList.css
+new file mode 100644
+index 0000000..bad3ba4
+--- /dev/null
++++ b/src/features/invoices/InvoiceList.css
+@@ -0,0 +1,8 @@
++.invoice-list { padding: var(--space-4); }
++.invoice-card {
++  background: var(--surface-1, #fff);
++  color: var(--text-primary);
++  border: 1px solid var(--border-subtle);
++  border-radius: var(--radius-md);
++}
++.invoice-upload { border: none; }
+diff --git a/src/features/invoices/InvoiceList.tsx b/src/features/invoices/InvoiceList.tsx
+index cb2f36b..08de003 100644
+--- a/src/features/invoices/InvoiceList.tsx
++++ b/src/features/invoices/InvoiceList.tsx
+@@ -1,3 +1,22 @@
+-export function InvoiceList() {
+-  return <div>faturas (legado)</div>;
++import { Button } from '../../components/ds';
++import './InvoiceList.css';
++
++type Invoice = { id: string; number: string; amount: number; status: 'paid' | 'open' };
++
++export function InvoiceList({ invoices, onUpload }: { invoices: Invoice[]; onUpload: (f: File | null) => void }) {
++  return (
++    <section className="invoice-list">
++      <header className="invoice-list__header">
++        <h2>Faturas</h2>
++        <input type="file" className="invoice-upload" onChange={(e) => onUpload(e.target.files?.[0] ?? null)} />
++        <Button>Nova fatura</Button>
++      </header>
++      {invoices.map((inv) => (
++        <article key={inv.id} className="invoice-card">
++          <span>{inv.number}</span>
++          <strong>{inv.amount.toFixed(2)}</strong>
++        </article>
++      ))}
++    </section>
++  );
+ }

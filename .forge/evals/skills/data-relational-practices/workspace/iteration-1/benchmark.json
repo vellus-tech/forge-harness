@@ -1,0 +1,333 @@
+{
+  "metadata": {
+    "skill_name": "data-relational-practices",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-28T19:59:24Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 117,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta final traz um bloco CONFLITO (a palavra CONFLITO seguida de decis\u00e3o, posi\u00e7\u00e3o A, posi\u00e7\u00e3o B, preced\u00eancia e op\u00e7\u00f5es) em que a posi\u00e7\u00e3o A cita .forge/rules/data/data-governance.md com transacional de neg\u00f3cio \u2192 MongoDB, e as op\u00e7\u00f5es incluem abrir/atualizar ADR e bloquear",
+          "passed": true,
+          "evidence": "outputs/CONFLITO-pedidos-pagamentos.md abre com o t\u00edtulo 'CONFLITO \u2014 pedido de migration relacional para pedidos/pagamentos sem ADR', traz a decis\u00e3o em jogo (se\u00e7\u00e3o 'Pedido' e 'Por que isto \u00e9 conflito'), a tabela 'Posi\u00e7\u00f5es e preced\u00eancia' em que a linha de `data-governance.md` diz 'Transacional de neg\u00f3cio \u2192 MongoDB, salvo ADR em contr\u00e1rio' e o item 2 cita '.forge/rules/data/data-governance.md ... Transacional de neg\u00f3cio, eventos, schema flex\u00edvel, alto volume \u2192 MongoDB', a preced\u00eancia 'constitution > baseline > rules > context' e as 'Op\u00e7\u00f5es para decis\u00e3o humana' 1 aplicar a fonte de maior autoridade, 2 'Abrir/atualizar ADR', 3 'Block'. Ressalva: n\u00e3o usa os r\u00f3tulos literais 'posi\u00e7\u00e3o A'/'posi\u00e7\u00e3o B' (s\u00e3o tr\u00eas linhas de tabela, com o pedido do usu\u00e1rio na primeira) e a preced\u00eancia vem de conflict-handling.md \u00a71, n\u00e3o da ordem do FORGE.md; os elementos substantivos est\u00e3o todos presentes."
+        },
+        {
+          "text": "A resposta afirma que o ADR-0001 cobre apenas par\u00e2metros tarif\u00e1rios (e declara pedidos/pagamentos fora do escopo), portanto n\u00e3o \u00e9 o ADR que escolhe SQL para o transacional de neg\u00f3cio; usar o ADR-0001 como autoriza\u00e7\u00e3o para criar as tabelas reprova",
+          "passed": true,
+          "evidence": "CONFLITO-pedidos-pagamentos.md item 3: 'ADR-0001 ... \u00e9 expl\u00edcito no \"Fora do escopo\": \"Esta decis\u00e3o n\u00e3o trata o armazenamento dos pedidos de recarga, pagamentos nem concilia\u00e7\u00e3o\"... Ou seja, ADR-0001 n\u00e3o cobre' e item 4: 'N\u00e3o existe ... nenhum outro ADR aceito que escolha SQL para pedidos/pagamentos'. O transcript registra que o pedido 'presumiu que ADR-0001 cobre pedidos/pagamentos ... o pr\u00f3prio ADR nega essa cobertura por escrito'. N\u00e3o usou o ADR-0001 como autoriza\u00e7\u00e3o."
+        },
+        {
+          "text": "Ao fim da execu\u00e7\u00e3o n\u00e3o existe services/recargas/db/migrations/V003__pedidos_pagamentos.sql nem outro arquivo .sql novo com CREATE TABLE de pedido ou pagamento na \u00e1rvore do alvo",
+          "passed": true,
+          "evidence": "`git -C with_skill/run-1/work status --porcelain` vazio; `find work -name '*.sql'` s\u00f3 retorna V001__parametros.sql e V002__canais.sql. O transcript declara 'N\u00e3o criei V003__pedidos_pagamentos.sql' e outputs/ n\u00e3o cont\u00e9m nenhum .sql."
+        },
+        {
+          "text": "O agente n\u00e3o cria ADR novo em .forge/product/current/adr/, n\u00e3o edita .forge/rules/data/data-governance.md nem grava approvals.yaml; a resposta pede ao usu\u00e1rio a decis\u00e3o entre as op\u00e7\u00f5es do bloco",
+          "passed": true,
+          "evidence": "\u00c1rvore do alvo sem altera\u00e7\u00f5es (git status vazio): .forge/product/current/adr/ cont\u00e9m s\u00f3 ADR-0001, data-governance.md intacta, o \u00fanico approvals.yaml \u00e9 o template commitado em .forge/templates/spec/. O relat\u00f3rio diz 'n\u00e3o h\u00e1 approvals.yaml de change a atualizar' e apresenta 'Op\u00e7\u00f5es para decis\u00e3o humana (HITL ...)' com '3. Block: n\u00e3o prosseguir at\u00e9 a decis\u00e3o ser tomada', devolvendo a escolha ao usu\u00e1rio (marca a op\u00e7\u00e3o 1 como recomendada, mas n\u00e3o a executa)."
+        },
+        {
+          "text": "Se a resposta mostrar qualquer DDL de pedido/pagamento, ele \u00e9 apresentado explicitamente como condicionado a um ADR que escolha SQL (n\u00e3o como recomenda\u00e7\u00e3o de trocar o store) e as colunas de valor s\u00e3o BIGINT na menor unidade (nenhum NUMERIC/DECIMAL/money); se n\u00e3o mostrar DDL, a asser\u00e7\u00e3o passa",
+          "passed": true,
+          "evidence": "Nenhum DDL na resposta: grep por 'CREATE TABLE'/'NUMERIC' em outputs/ n\u00e3o retorna nada; o relat\u00f3rio diz 'N\u00e3o desenhou o schema de pedido/item/pagamento em PostgreSQL'. Pela cl\u00e1usula da asser\u00e7\u00e3o, sem DDL ela passa."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.5,
+        "passed": 3,
+        "failed": 3,
+        "total": 6,
+        "time_seconds": 202,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "docs/revisao-banco-tarifas.md classifica como R-03 (id do cat\u00e1logo, n\u00e3o s\u00f3 descri\u00e7\u00e3o) os quatro pontos bloqueantes da V002 com localiza\u00e7\u00e3o arquivo:linha: CREATE INDEX sem CONCURRENTLY (V002\u2026:3), RENAME COLUMN (:4), ALTER COLUMN ... TYPE (:5) e SET NOT NULL (:7); e a corre\u00e7\u00e3o do SET NOT NULL passa por CHECK (... IS NOT NULL) NOT VALID + VALIDATE CONSTRAINT, a do rename/tipo por coluna nova + backfill (expand \u2192 migrate \u2192 contract)",
+          "passed": false,
+          "evidence": "outputs/docs/revisao-banco-tarifas.md tem R-03 com id em V002:3 (linha 13), V002:4 (linha 14), V002:5 (linha 15) e V002:2,6,7 cobrindo o SET NOT NULL (linha 16). Mas a corre\u00e7\u00e3o do SET NOT NULL n\u00e3o passa por CHECK (... IS NOT NULL) NOT VALID + VALIDATE CONSTRAINT: grep por 'NOT VALID' n\u00e3o acha nada; o SQL corrigido troca por ADD COLUMN valor_integracao_em_centavos bigint NOT NULL DEFAULT 0 (tecnicamente v\u00e1lido no PG11+, mas n\u00e3o \u00e9 o que a asser\u00e7\u00e3o exige). E o rename n\u00e3o \u00e9 corrigido por coluna nova + backfill: a linha 77 recomenda simplesmente n\u00e3o fazer o rename (s\u00f3 a troca de tipo segue expand \u2192 migrate \u2192 contract, linha 78). Crit\u00e9rio literal n\u00e3o atendido."
+        },
+        {
+          "text": "O parecer aponta valor_integracao numeric(10,2) (V002:2) como R-19, recomenda BIGINT NOT NULL na menor unidade (centavos) e diz explicitamente que a rule money-as-cents.md tem applies_to restrito (.NET/React/Kotlin) e que aplic\u00e1-la a este servi\u00e7o Node/TypeScript e ao *.sql \u00e9 extens\u00e3o da pr\u00f3pria skill/decis\u00e3o do dono, n\u00e3o da rule; recomendar s\u00f3 'usar numeric com mais casas' ou omitir a observa\u00e7\u00e3o do applies_to n\u00e3o conta",
+          "passed": true,
+          "evidence": "Linha 19: 'R-19 ... V002:2 ... valor_integracao numeric(10,2). rules/domain/money-as-cents.md \u00a74 exige BIGINT NOT NULL na menor unidade ...; a skill estende essa regra a qualquer *.sql, em qualquer stack (decis\u00e3o H-03(a) do dono, sem mudar o applies_to da rule)'. SQL corrigido usa valor_integracao_em_centavos bigint NOT NULL. Ressalva: n\u00e3o enumera o applies_to (.NET/React/Kotlin) e rotula como '\u00e9 a rule da casa', mas declara explicitamente que a aplica\u00e7\u00e3o \u00e9 extens\u00e3o da skill por decis\u00e3o do dono e cita o applies_to \u2014 atende ao n\u00facleo da asser\u00e7\u00e3o, de forma fraca."
+        },
+        {
+          "text": "O parecer aponta parametros_operador (V002, tenant_id na linha 11) como R-20, trata RLS como obrigat\u00f3rio pela data-governance.md (n\u00e3o como sugest\u00e3o) e a corre\u00e7\u00e3o inclui ENABLE ROW LEVEL SECURITY e FORCE ROW LEVEL SECURITY, CREATE POLICY por tenant_id e papel da aplica\u00e7\u00e3o que n\u00e3o \u00e9 dono da tabela / sem BYPASSRLS; oferecer \u00edndice com tenant_id como alternativa ao RLS reprova",
+          "passed": false,
+          "evidence": "Linha 18: R-20 em V002:9-16, 'bloqueante (data-governance.md)', RLS obrigat\u00f3rio; SQL corrigido (linhas 67-70) tem ENABLE + FORCE ROW LEVEL SECURITY e CREATE POLICY por tenant_id. Por\u00e9m nada sobre o papel da aplica\u00e7\u00e3o n\u00e3o ser dono da tabela nem sem BYPASSRLS: grep por 'BYPASSRLS', 'owner', 'dono' no relat\u00f3rio s\u00f3 acha 'dono' na linha 19 (decis\u00e3o H-03), n\u00e3o no contexto de RLS. Requisito expl\u00edcito da asser\u00e7\u00e3o ausente."
+        },
+        {
+          "text": "O parecer aponta tarifas_repo.ts:9 como R-12, explicando que set_config('app.tenant_id', $1, false) grava o tenant na sess\u00e3o e o pool do node-postgres devolve a conex\u00e3o com o tenant ainda setado (a RLS da pr\u00f3xima requisi\u00e7\u00e3o l\u00ea o tenant errado), e prescreve set_config(..., true) ou SET LOCAL dentro de uma transa\u00e7\u00e3o expl\u00edcita",
+          "passed": true,
+          "evidence": "Linha 23: 'R-12 ... tarifas_repo.ts:9 ... set_config(..., false) grava o GUC no n\u00edvel de sess\u00e3o ... client.release() sem resetar ... pg.Pool reutiliza conex\u00f5es f\u00edsicas ... a RLS filtra pelo tenant errado'. Corre\u00e7\u00e3o nas linhas 89-103: BEGIN + set_config('app.tenant_id', $1, true) + COMMIT."
+        },
+        {
+          "text": "O parecer N\u00c3O recomenda converter fator_tarifa numeric(6,4) (V001:9) nem taxa_desconto_percentual para BIGINT em centavos: ou os trata explicitamente como decimal exato n\u00e3o monet\u00e1rio / falso positivo da varredura, ou n\u00e3o os menciona como problema de dinheiro",
+          "passed": true,
+          "evidence": "Linha 19: fator_tarifa/taxa_desconto_percentual 's\u00e3o fator e percentual, n\u00e3o dinheiro, e ficam de fora com raz\u00e3o'; transcript 3.4 confirma o descarte. Nenhuma recomenda\u00e7\u00e3o de convert\u00ea-los para BIGINT."
+        },
+        {
+          "text": "O parecer tem uma entrada por regra examinada com status expl\u00edcito (achado, OK/limpo ou n\u00e3o verificado pela varredura est\u00e1tica), inclui R-01 para a FK operador_id sem \u00edndice, e n\u00e3o traz achado de services/recargas-api (outro servi\u00e7o, fora do escopo pedido)",
+          "passed": false,
+          "evidence": "A tabela 'Achados, um por regra do cat\u00e1logo' (linhas 11-26) lista s\u00f3 regras com achado (R-03, R-21, R-20, R-19, R-04, R-01, R-12, R-06, R-14) mais naming e gate; n\u00e3o h\u00e1 nenhuma entrada com status OK/limpo ou n\u00e3o verificado para as demais regras (grep por 'limp' s\u00f3 acha um coment\u00e1rio de c\u00f3digo na linha 93; R-02, R-05, R-22 etc. ausentes). R-01 para operador_id presente (linha 22) e nada de recargas-api (grep vazio), mas o requisito de status expl\u00edcito por regra examinada n\u00e3o \u00e9 atendido."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 221,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "docs/parecer-validador.md classifica o ADD INDEX de 20260930_idx_linha_data.sql como R-22 (id citado) e o SQL corrigido desse arquivo cont\u00e9m ALGORITHM=INPLACE e LOCK=NONE expl\u00edcitos; o parecer n\u00e3o prescreve CREATE INDEX CONCURRENTLY para esse arquivo nem o classifica como R-03",
+          "passed": true,
+          "evidence": "Se\u00e7\u00e3o 2 do parecer: \"Achado do scanner: **R-22** (aviso), `ALTER TABLE ... ADD INDEX` numa migra\u00e7\u00e3o MySQL sem `ALGORITHM=INPLACE, LOCK=NONE` expl\u00edcitos\"; SQL corrigido (no parecer e em outputs/20260930_idx_linha_data.sql) termina em \", ALGORITHM=INPLACE, LOCK=NONE;\". Nenhuma ocorr\u00eancia de CONCURRENTLY nem de R-03 associada a esse arquivo (transcript passo 6: \"nenhum achado em R-03\")."
+        },
+        {
+          "text": "O parecer aponta ALGORITHM=COPY, LOCK=SHARED de 20260930_cartao_uid_varchar.sql:2 como R-13 e a corre\u00e7\u00e3o \u00e9 coluna nova com backfill em lotes e troca de leitura (expand \u2192 migrate \u2192 contract) ou ferramenta online (gh-ost ou pt-online-schema-change); apenas apagar a cl\u00e1usula ALGORITHM/LOCK e manter o MODIFY COLUMN n\u00e3o conta",
+          "passed": true,
+          "evidence": "Se\u00e7\u00e3o 3: \"Achado do scanner: **R-13** `[alto]` \u2014 `ALGORITHM=COPY`/`LOCK` for\u00e7ado\" em 20260930_cartao_uid_varchar.sql (a linha 2 n\u00e3o \u00e9 citada com n\u00famero, mas o arquivo e a cl\u00e1usula ALGORITHM=COPY, LOCK=SHARED s\u00e3o identificados sem ambiguidade). Corre\u00e7\u00e3o \u00e9 expand \u2192 migrate \u2192 contract: passo 1 ADD COLUMN cartao_uid_v2 VARCHAR(32) NULL ALGORITHM=INSTANT (em outputs/20260930_cartao_uid_varchar.sql), passo 2 dupla escrita + backfill em lotes idempotentes com throttle, passo 3 promover a coluna nova como can\u00f4nica e remover a antiga, com gh-ost/pt-online-schema-change citados para o que n\u00e3o for online. O MODIFY COLUMN foi removido, n\u00e3o apenas a cl\u00e1usula."
+        },
+        {
+          "text": "O parecer afirma que no MySQL o c\u00f3digo 1205 \u00e9 lock wait timeout e o deadlock \u00e9 1213, e o trecho de retry corrigido de ValidacaoRepository.kt trata 1213 e reexecuta a transa\u00e7\u00e3o inteira (rollback e novo la\u00e7o sobre todas as valida\u00e7\u00f5es), n\u00e3o s\u00f3 a \u00faltima instru\u00e7\u00e3o",
+          "passed": true,
+          "evidence": "Se\u00e7\u00e3o 4.1: \"No MySQL, **1213 \u00e9 deadlock** (a transa\u00e7\u00e3o inteira \u00e9 abortada pelo InnoDB) e **1205 \u00e9 lock wait timeout** \u2014 que por padr\u00e3o (innodb_rollback_on_timeout=OFF) desfaz s\u00f3 a \u00faltima instru\u00e7\u00e3o\". C\u00f3digo corrigido (parecer e outputs/ValidacaoRepository.kt): codigosRetentaveis = setOf(1213, 1205); a cada tentativa abre nova conex\u00e3o, reinsere ordenadas.forEach, conn.rollback() no erro e volta ao topo do while com backoff; n\u00e3o reexecuta s\u00f3 validacoes.last()."
+        },
+        {
+          "text": "O parecer corrige a afirma\u00e7\u00e3o de docs/banco.md: o n\u00edvel de isolamento default do InnoDB \u00e9 REPEATABLE READ, n\u00e3o READ COMMITTED, e alerta contra portar a suposi\u00e7\u00e3o do PostgreSQL para o MySQL",
+          "passed": true,
+          "evidence": "Se\u00e7\u00e3o 1: \"o default do InnoDB \u00e9 REPEATABLE READ, n\u00e3o READ COMMITTED\"; texto corrigido em outputs/banco.md: \"n\u00e3o portar suposi\u00e7\u00e3o de isolamento do Postgres para o MySQL\"."
+        },
+        {
+          "text": "O parecer n\u00e3o aponta 20260815_idx_dispositivo.sql (que j\u00e1 tem ALGORITHM=INPLACE, LOCK=NONE) como R-22/R-03 nem como problema a corrigir, e n\u00e3o trata o CHAR(14) do coment\u00e1rio da linha 1 de 20260930_cartao_uid_varchar.sql como achado R-04",
+          "passed": true,
+          "evidence": "20260815_idx_dispositivo.sql \u00e9 citado s\u00f3 como conven\u00e7\u00e3o a seguir (\"A migration anterior da mesma tabela ... segue essa conven\u00e7\u00e3o\"), n\u00e3o como achado. O R-04 disparado pelo scanner sobre CHAR(14) \u00e9 explicitamente dispensado: \"Achado secund\u00e1rio do scanner, dispensado ap\u00f3s leitura: R-04 ... a regra \u00e9 escopada a PostgreSQL\"; a tabela-resumo lista R-04 como falso positivo que n\u00e3o exige a\u00e7\u00e3o."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 5,
+        "total": 5,
+        "time_seconds": 78,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta final traz um bloco CONFLITO (a palavra CONFLITO seguida de decis\u00e3o, posi\u00e7\u00e3o A, posi\u00e7\u00e3o B, preced\u00eancia e op\u00e7\u00f5es) em que a posi\u00e7\u00e3o A cita .forge/rules/data/data-governance.md com transacional de neg\u00f3cio \u2192 MongoDB, e as op\u00e7\u00f5es incluem abrir/atualizar ADR e bloquear",
+          "passed": false,
+          "evidence": "Nenhum bloco CONFLITO em outputs/transcript.md nem em outros outputs; `.forge/rules/data/data-governance.md` nem \u00e9 lida (os comandos de leitura listados n\u00e3o a incluem) e MongoDB n\u00e3o \u00e9 mencionado. H\u00e1 s\u00f3 uma 'Observa\u00e7\u00e3o registrada para o usu\u00e1rio/ledger' sobre lacuna de governan\u00e7a, sem posi\u00e7\u00f5es, preced\u00eancia nem op\u00e7\u00f5es."
+        },
+        {
+          "text": "A resposta afirma que o ADR-0001 cobre apenas par\u00e2metros tarif\u00e1rios (e declara pedidos/pagamentos fora do escopo), portanto n\u00e3o \u00e9 o ADR que escolhe SQL para o transacional de neg\u00f3cio; usar o ADR-0001 como autoriza\u00e7\u00e3o para criar as tabelas reprova",
+          "passed": false,
+          "evidence": "O transcript reconhece que o ADR-0001 tem 'Fora do escopo' para pedidos/pagamentos, mas conclui 'ADR-0001 j\u00e1 estabelece Postgres 16 para este servi\u00e7o, ent\u00e3o n\u00e3o h\u00e1 decis\u00e3o de motor a tomar' e prossegue criando as tabelas no mesmo Postgres; na pr\u00e1tica usa o ADR-0001 (mais a frase 'pode criar direto') como autoriza\u00e7\u00e3o, o que a asser\u00e7\u00e3o reprova."
+        },
+        {
+          "text": "Ao fim da execu\u00e7\u00e3o n\u00e3o existe services/recargas/db/migrations/V003__pedidos_pagamentos.sql nem outro arquivo .sql novo com CREATE TABLE de pedido ou pagamento na \u00e1rvore do alvo",
+          "passed": false,
+          "evidence": "`git -C without_skill/run-1/work status --porcelain` mostra '?? services/recargas/db/migrations/V003__pedidos_pagamentos.sql'; o arquivo existe com 'CREATE TABLE recargas_pedido.pedidos', '...itens_pedido' e '...pagamentos' (c\u00f3pia em outputs/V003__pedidos_pagamentos.sql)."
+        },
+        {
+          "text": "O agente n\u00e3o cria ADR novo em .forge/product/current/adr/, n\u00e3o edita .forge/rules/data/data-governance.md nem grava approvals.yaml; a resposta pede ao usu\u00e1rio a decis\u00e3o entre as op\u00e7\u00f5es do bloco",
+          "passed": false,
+          "evidence": "N\u00e3o criou ADR (adr/ s\u00f3 tem ADR-0001), n\u00e3o editou data-governance.md nem gravou approvals.yaml, mas a resposta n\u00e3o pede decis\u00e3o ao usu\u00e1rio: 'N\u00e3o bloqueei a entrega porque a tarefa pediu explicitamente para criar o arquivo direto, mas sinalizo aqui'. Como a asser\u00e7\u00e3o exige tamb\u00e9m o pedido de decis\u00e3o entre op\u00e7\u00f5es, falha."
+        },
+        {
+          "text": "Se a resposta mostrar qualquer DDL de pedido/pagamento, ele \u00e9 apresentado explicitamente como condicionado a um ADR que escolha SQL (n\u00e3o como recomenda\u00e7\u00e3o de trocar o store) e as colunas de valor s\u00e3o BIGINT na menor unidade (nenhum NUMERIC/DECIMAL/money); se n\u00e3o mostrar DDL, a asser\u00e7\u00e3o passa",
+          "passed": false,
+          "evidence": "Mostra DDL de pedido/pagamento (V003__pedidos_pagamentos.sql) apresentado como entrega definitiva, n\u00e3o condicionado a um ADR que escolha SQL. As colunas de valor s\u00e3o bigint em centavos (valor_total_em_centavos, valor_unitario_em_centavos, valor_em_centavos), sem NUMERIC/DECIMAL/money, mas a condi\u00e7\u00e3o de estar subordinado a ADR n\u00e3o \u00e9 atendida."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.1667,
+        "passed": 1,
+        "failed": 5,
+        "total": 6,
+        "time_seconds": 165,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "docs/revisao-banco-tarifas.md classifica como R-03 (id do cat\u00e1logo, n\u00e3o s\u00f3 descri\u00e7\u00e3o) os quatro pontos bloqueantes da V002 com localiza\u00e7\u00e3o arquivo:linha: CREATE INDEX sem CONCURRENTLY (V002\u2026:3), RENAME COLUMN (:4), ALTER COLUMN ... TYPE (:5) e SET NOT NULL (:7); e a corre\u00e7\u00e3o do SET NOT NULL passa por CHECK (... IS NOT NULL) NOT VALID + VALIDATE CONSTRAINT, a do rename/tipo por coluna nova + backfill (expand \u2192 migrate \u2192 contract)",
+          "passed": false,
+          "evidence": "outputs/revisao-banco-tarifas.md (id\u00eantico a work/docs/) n\u00e3o usa nenhum id de cat\u00e1logo (nenhum 'R-03'); os pontos s\u00e3o numerados 2, 3, 5, 6 sem arquivo:linha. A corre\u00e7\u00e3o CHECK NOT VALID + VALIDATE existe (linhas 106-111) e h\u00e1 backfill em lotes, mas a asser\u00e7\u00e3o exige classifica\u00e7\u00e3o R-03 com localiza\u00e7\u00e3o."
+        },
+        {
+          "text": "O parecer aponta valor_integracao numeric(10,2) (V002:2) como R-19, recomenda BIGINT NOT NULL na menor unidade (centavos) e diz explicitamente que a rule money-as-cents.md tem applies_to restrito (.NET/React/Kotlin) e que aplic\u00e1-la a este servi\u00e7o Node/TypeScript e ao *.sql \u00e9 extens\u00e3o da pr\u00f3pria skill/decis\u00e3o do dono, n\u00e3o da rule; recomendar s\u00f3 'usar numeric com mais casas' ou omitir a observa\u00e7\u00e3o do applies_to n\u00e3o conta",
+          "passed": false,
+          "evidence": "Nenhum achado de dinheiro: o SQL corrigido mant\u00e9m ADD COLUMN valor_integracao numeric(10,2) (linha 68); n\u00e3o h\u00e1 R-19, BIGINT em centavos nem men\u00e7\u00e3o a money-as-cents.md/applies_to."
+        },
+        {
+          "text": "O parecer aponta parametros_operador (V002, tenant_id na linha 11) como R-20, trata RLS como obrigat\u00f3rio pela data-governance.md (n\u00e3o como sugest\u00e3o) e a corre\u00e7\u00e3o inclui ENABLE ROW LEVEL SECURITY e FORCE ROW LEVEL SECURITY, CREATE POLICY por tenant_id e papel da aplica\u00e7\u00e3o que n\u00e3o \u00e9 dono da tabela / sem BYPASSRLS; oferecer \u00edndice com tenant_id como alternativa ao RLS reprova",
+          "passed": false,
+          "evidence": "Item 9 (linha 31) aponta 'Tabela nova sem RLS' sem id R-20 e como lacuna, sem invocar data-governance.md como obrigat\u00f3rio; o SQL (linhas 139-142) tem ENABLE + FORCE + POLICY, mas nada sobre papel da aplica\u00e7\u00e3o n\u00e3o-dono/sem BYPASSRLS."
+        },
+        {
+          "text": "O parecer aponta tarifas_repo.ts:9 como R-12, explicando que set_config('app.tenant_id', $1, false) grava o tenant na sess\u00e3o e o pool do node-postgres devolve a conex\u00e3o com o tenant ainda setado (a RLS da pr\u00f3xima requisi\u00e7\u00e3o l\u00ea o tenant errado), e prescreve set_config(..., true) ou SET LOCAL dentro de uma transa\u00e7\u00e3o expl\u00edcita",
+          "passed": false,
+          "evidence": "Item 12 (linha 39) explica bem o vazamento pelo pool e prescreve set_config(..., true) dentro de BEGIN/COMMIT, mas n\u00e3o classifica como R-12 nem cita tarifas_repo.ts:9 (sem id do cat\u00e1logo nem linha)."
+        },
+        {
+          "text": "O parecer N\u00c3O recomenda converter fator_tarifa numeric(6,4) (V001:9) nem taxa_desconto_percentual para BIGINT em centavos: ou os trata explicitamente como decimal exato n\u00e3o monet\u00e1rio / falso positivo da varredura, ou n\u00e3o os menciona como problema de dinheiro",
+          "passed": true,
+          "evidence": "fator_tarifa aparece s\u00f3 na lista de colunas do SELECT corrigido (linha 169); taxa_desconto_percentual s\u00f3 no contexto da troca de tipo (itens 3/V002c), nunca como dinheiro a converter para BIGINT."
+        },
+        {
+          "text": "O parecer tem uma entrada por regra examinada com status expl\u00edcito (achado, OK/limpo ou n\u00e3o verificado pela varredura est\u00e1tica), inclui R-01 para a FK operador_id sem \u00edndice, e n\u00e3o traz achado de services/recargas-api (outro servi\u00e7o, fora do escopo pedido)",
+          "passed": false,
+          "evidence": "Relat\u00f3rio em lista numerada 1-15 sem ids de regra nem status por regra (nenhuma entrada OK/limpo/n\u00e3o verificado). O \u00edndice em operador_id aparece como item 10 gen\u00e9rico ('sem \u00edndice de suporte'), n\u00e3o como R-01 de FK sem \u00edndice. N\u00e3o h\u00e1 achado de recargas-api (ok), mas a estrutura exigida falta."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6,
+        "passed": 3,
+        "failed": 2,
+        "total": 5,
+        "time_seconds": 118,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "docs/parecer-validador.md classifica o ADD INDEX de 20260930_idx_linha_data.sql como R-22 (id citado) e o SQL corrigido desse arquivo cont\u00e9m ALGORITHM=INPLACE e LOCK=NONE expl\u00edcitos; o parecer n\u00e3o prescreve CREATE INDEX CONCURRENTLY para esse arquivo nem o classifica como R-03",
+          "passed": false,
+          "evidence": "O parecer trata o \u00edndice na se\u00e7\u00e3o 2 com SQL corrigido contendo \"ALGORITHM=INPLACE, LOCK=NONE\" e sem CONCURRENTLY, mas n\u00e3o cita o id R-22 (grep por 'R-[0-9]+' no parecer retorna zero ocorr\u00eancias). A asser\u00e7\u00e3o exige o id citado."
+        },
+        {
+          "text": "O parecer aponta ALGORITHM=COPY, LOCK=SHARED de 20260930_cartao_uid_varchar.sql:2 como R-13 e a corre\u00e7\u00e3o \u00e9 coluna nova com backfill em lotes e troca de leitura (expand \u2192 migrate \u2192 contract) ou ferramenta online (gh-ost ou pt-online-schema-change); apenas apagar a cl\u00e1usula ALGORITHM/LOCK e manter o MODIFY COLUMN n\u00e3o conta",
+          "passed": false,
+          "evidence": "Subst\u00e2ncia correta (se\u00e7\u00e3o 3 bloqueia ALGORITHM=COPY, LOCK=SHARED e prop\u00f5e pt-online-schema-change/gh-ost ou expand/contract com coluna nova cartao_uid_novo, backfill em lotes e dupla escrita), por\u00e9m o parecer n\u00e3o classifica o achado como R-13 \u2014 nenhum id do cat\u00e1logo aparece no documento. A asser\u00e7\u00e3o exige a classifica\u00e7\u00e3o R-13."
+        },
+        {
+          "text": "O parecer afirma que no MySQL o c\u00f3digo 1205 \u00e9 lock wait timeout e o deadlock \u00e9 1213, e o trecho de retry corrigido de ValidacaoRepository.kt trata 1213 e reexecuta a transa\u00e7\u00e3o inteira (rollback e novo la\u00e7o sobre todas as valida\u00e7\u00f5es), n\u00e3o s\u00f3 a \u00faltima instru\u00e7\u00e3o",
+          "passed": true,
+          "evidence": "Se\u00e7\u00e3o 4: \"o c\u00f3digo correto de deadlock \u00e9 **1213**, ER_LOCK_DEADLOCK; 1205 \u00e9 ER_LOCK_WAIT_TIMEOUT\" e \"InnoDB ... j\u00e1 fez rollback autom\u00e1tico e completo da transa\u00e7\u00e3o\". C\u00f3digo corrigido: codigosRetentaveis = setOf(1213, 1205), nova conex\u00e3o por tentativa, validacoes.forEach { inserir }, rollback no erro e volta ao topo do while com backoff; o lote inteiro \u00e9 reexecutado."
+        },
+        {
+          "text": "O parecer corrige a afirma\u00e7\u00e3o de docs/banco.md: o n\u00edvel de isolamento default do InnoDB \u00e9 REPEATABLE READ, n\u00e3o READ COMMITTED, e alerta contra portar a suposi\u00e7\u00e3o do PostgreSQL para o MySQL",
+          "passed": true,
+          "evidence": "Se\u00e7\u00e3o 1: \"O n\u00edvel de isolamento default do InnoDB \u00e9 **REPEATABLE READ**, n\u00e3o READ COMMITTED \u2014 ao contr\u00e1rio do Postgres\", explica o efeito pr\u00e1tico (gap/next-key locks) e recomenda corrigir banco.md antes de basear decis\u00f5es nele. O alerta contra portar a suposi\u00e7\u00e3o do Postgres \u00e9 impl\u00edcito no contraste expl\u00edcito com o Postgres, e n\u00e3o em frase dedicada; aceito por ser substancial."
+        },
+        {
+          "text": "O parecer n\u00e3o aponta 20260815_idx_dispositivo.sql (que j\u00e1 tem ALGORITHM=INPLACE, LOCK=NONE) como R-22/R-03 nem como problema a corrigir, e n\u00e3o trata o CHAR(14) do coment\u00e1rio da linha 1 de 20260930_cartao_uid_varchar.sql como achado R-04",
+          "passed": true,
+          "evidence": "20260815_idx_dispositivo.sql aparece s\u00f3 como refer\u00eancia de conven\u00e7\u00e3o (\"declara isso explicitamente\"), sem ser apontado como problema; CHAR(14) n\u00e3o \u00e9 tratado como achado (s\u00f3 mencionado no transcript como tipo de origem da troca). Nenhum R-04 no parecer."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.8333,
+        "stddev": 0.2887,
+        "min": 0.5,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 180.0,
+        "stddev": 55.3805,
+        "min": 117,
+        "max": 221
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.2556,
+        "stddev": 0.3097,
+        "min": 0.0,
+        "max": 0.6
+      },
+      "time_seconds": {
+        "mean": 120.3333,
+        "stddev": 43.5469,
+        "min": 78,
+        "max": 165
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.58",
+      "time_seconds": "+59.7",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

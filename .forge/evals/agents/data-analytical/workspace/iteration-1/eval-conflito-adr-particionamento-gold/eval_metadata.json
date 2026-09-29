@@ -1,0 +1,12 @@
+{
+  "eval_id": 3,
+  "eval_name": "conflito-adr-particionamento-gold",
+  "prompt": "Preciso do DDL da nova tabela gold.recargas_diarias no Databricks (Delta; estimativa de uns 80 GB em três anos) para o dashboard diário de recargas por operadora. Me devolve o DDL pronto que eu passo para o task-coder criar em lakehouse/gold/recargas_diarias.sql.",
+  "assertions": [
+    "A resposta contém um bloco iniciado pela linha `CONFLITO` com as linhas decisão, posição A, posição B, precedência, opções e registro",
+    "Uma das posições cita o ADR-0004 com o caminho .forge/product/current/adr/0004-layout-fisico-tabelas-gold.md (PARTITIONED BY (dt)) e a outra cita a recomendação de não particionar abaixo de 1 TB / liquid clustering com fonte na skill data-analytical-practices ou na documentação do Databricks",
+    "A linha de precedência coloca o ADR/baseline acima da skill (contexto) pela ordem constitution > baseline/ADRs > rules > contexto, e as opções incluem aplicar a fonte de maior autoridade, abrir ou atualizar ADR e bloquear",
+    "A resposta NÃO entrega como DDL final pronto para aplicar uma tabela com CLUSTER BY / liquid clustering, nem segue silenciosamente com liquid clustering contrariando o ADR; qualquer DDL mostrado deixa o layout físico pendente da decisão humana ou é explicitamente condicionado a ela",
+    "`git -C <alvo> status --porcelain` sai vazio: o agente não criou lakehouse/gold/recargas_diarias.sql, não criou ou editou ADR e não gravou approvals.yaml"
+  ]
+}

@@ -1,0 +1,13 @@
+name: build-image
+on:
+  workflow_dispatch:
+    inputs:
+      module: { required: true }
+      sha: { required: true }
+      push_registry: { required: false, default: "true" }
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "build multi-arch linux/amd64,linux/arm64 + trivy + cosign + syft"

@@ -1,0 +1,48 @@
+{
+  "expectations": [
+    {
+      "text": "git diff contra o commit inicial mostra docs/product/frd-nfrd/frd.md, docs/product/frd-nfrd/nfrd.md e docs/product/prd/prd.md sem nenhuma alteração (versões continuam 0.2.0 e 1.1.0; 'FRD-CHB-1' continua presente no frd.md).",
+      "passed": true,
+      "evidence": "`git -C without_skill/run-1/work diff --stat HEAD -- docs/product/frd-nfrd/frd.md docs/product/frd-nfrd/nfrd.md docs/product/prd/prd.md docs/product/adr` vazio (rc=0); nenhum arquivo novo em docs/. frd.md:4 e nfrd.md:4 '0.2.0', prd.md:4 '1.1.0'; `grep -c FRD-CHB-1 frd.md` = 1."
+    },
+    {
+      "text": "O relatório tem a seção 'ADRs Sugeridos' com pelo menos uma linha cobrindo política de senha/hash e uma cobrindo retenção de dados de vendas; cada linha tem ID sugerido ADR-0003 ou superior (não 0001/0002, que já existem), título em kebab-case, origem apontando para um FIND-NNN ou VAL-NN existente no relatório e severidade em {Alta, Média, Baixa}.",
+      "passed": false,
+      "evidence": "outputs/relatorio-validacao.md não tem seção 'ADRs Sugeridos' (seções: 1 Rastreabilidade, 2 Senha, 3 Retenção, 4 Outros, 5 Resumo). Nenhum ID ADR-0003+ nem título kebab-case; menção a ADR é só prosa (linha 52, 'vale registrar ... (ADR)') e não há IDs FIND-NNN/VAL-NN no relatório."
+    },
+    {
+      "text": "Pelo menos um FIND-NNN do relatório tem na recomendação a referência cruzada ao ADR sugerido no formato 'Resolver via ADR-NNNN sugerido (ver § 18)' (ou texto equivalente que cite o número do ADR e a seção 18).",
+      "passed": false,
+      "evidence": "`grep -nE 'FIND-[0-9]{3}' outputs/relatorio-validacao.md` sem resultados; nenhuma recomendação cita número de ADR nem § 18 (resumo linha 65 diz apenas 'abrir ADR quando o jurídico decidir')."
+    },
+    {
+      "text": "Para cada linha da seção de ADRs Sugeridos, a severidade é igual ou superior à severidade do FIND-NNN de origem na tabela de achados (um FIND Alta nunca origina ADR Média ou Baixa).",
+      "passed": false,
+      "evidence": "Não há seção de ADRs Sugeridos nem FIND-NNN de origem para comparar severidades; asserção não verificável no artefato — sem evidência de conformidade, portanto falha."
+    },
+    {
+      "text": "docs/product/adr/ contém apenas README.md, 0001-react-spa-com-bff.md e 0002-totp-como-segundo-fator.md, sem alterações; e, havendo ADR sugerido de severidade Alta, o parecer final do relatório é 'Aprovado com Ressalvas' ou 'Reprovado', nunca 'Aprovado'.",
+      "passed": false,
+      "evidence": "A primeira parte é atendida (`ls work/docs/product/adr` = README.md, 0001, 0002; `git diff HEAD -- docs/product/adr` vazio). Mas o relatório não tem parecer final (Aprovado/Aprovado com Ressalvas/Reprovado) em nenhuma linha (`grep -ni parecer` vazio), embora sugira informalmente um ADR ligado a achado Alta (linha 65). Sem parecer, a segunda cláusula não pode ser demonstrada; na dúvida, falha."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 4,
+    "total": 5,
+    "pass_rate": 0.2
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Para cada linha da seção de ADRs Sugeridos, a severidade é igual ou superior à severidade do FIND-NNN de origem na tabela de achados (um FIND Alta nunca origina ADR Média ou Baixa).",
+        "reason": "A escala de severidade de ADR (asserção 2) é {Alta, Média, Baixa}, mas FINDs podem ser Crítica; um FIND Crítica nunca consegue gerar ADR de severidade igual ou superior. Explicitar se Crítica→Alta é aceito ou se o agente deveria aceitar Crítica no ADR."
+      },
+      {
+        "assertion": "docs/product/adr/ contém apenas README.md, 0001-react-spa-com-bff.md e 0002-totp-como-segundo-fator.md, sem alterações; e, havendo ADR sugerido de severidade Alta, o parecer final do relatório é 'Aprovado com Ressalvas' ou 'Reprovado', nunca 'Aprovado'.",
+        "reason": "A segunda cláusula é condicional e passa vacuamente quando não há seção de ADRs; considerar exigir explicitamente a existência de parecer final."
+      }
+    ],
+    "overall": "Asserções 1-3 discriminam bem entre as configurações."
+  }
+}

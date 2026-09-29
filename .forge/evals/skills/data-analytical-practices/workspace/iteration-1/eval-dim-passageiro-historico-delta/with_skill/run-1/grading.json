@@ -1,0 +1,51 @@
+{
+  "expectations": [
+    {
+      "text": "Em analytics/snapshots/snap_passageiro.sql final, check_cols (ou a lista de colunas rastreadas) não contém nome, email, telefone nem cpf, e docs/design-dim-passageiro.md descreve que os atributos pessoais ficam numa tabela SCD1 (mutável/eliminável) separada, ligada por chave substituta ou token",
+      "passed": false,
+      "evidence": "Metade cumprida: o snap_passageiro.sql final não tem check_cols (strategy='timestamp') e o select só traz id_passageiro, categoria_tarifaria, atualizado_em, sem nome/email/telefone/cpf; o design diz que os campos pessoais 'continuam em stg_passageiros (SCD1, mutável)'. Mas a ligação exigida por chave substituta ou token não existe: o comentário do snapshot diz 'ligada por id_passageiro quando necessário', e o próprio design chama id_passageiro de 'chave natural'. A chave substituta discutida no design (id_passageiro_sk) é para a fato x dimensão SCD2, não para a tabela de PII. Na dúvida, reprova."
+    },
+    {
+      "text": "docs/design-dim-passageiro.md afirma que o DELETE/MERGE da eliminação do titular não basta no Delta por causa do time travel e prescreve VACUUM (ou retenção de time travel menor que o prazo de 15 dias do DPO); mencionar só 'apagar o registro' não conta",
+      "passed": false,
+      "evidence": "O design (seção 'Eliminação do titular (A-15)') prescreve só DELETE/UPDATE em stg_passageiros e diz expressamente que 'o prazo de 15 dias do DPO e o VACUUM/time travel da própria stg_passageiros (se ela for Delta) não foram cobertos porque não estavam no escopo desta mudança'. A menção condicional ('se stg_passageiros for tabela Delta [...] o mesmo raciocínio do A-15 [...] se aplica') não afirma que o DELETE não basta nem prescreve VACUUM; é uma ressalva adiada, não uma prescrição. A fixture declara Delta em docs/contexto-lakehouse.md, então a condição nem precisava ficar em aberto."
+    },
+    {
+      "text": "analytics/ddl/gold_fct_recargas.sql final não tem PARTITIONED BY (data_recarga) e usa CLUSTER BY (liquid clustering) — e o design justifica pelo limiar de ~1 TB do Databricks frente aos ~300 GB da tabela",
+      "passed": true,
+      "evidence": "gold_fct_recargas.sql final: 'USING DELTA' seguido de 'CLUSTER BY (data_recarga, cod_canal);', sem cláusula PARTITIONED BY (a única ocorrência do texto é no comentário da linha 3, que explica por que não usar). O design, seção 'Databricks (fonte, Delta)', justifica: '~300 GB hoje [...] O limiar do Databricks é não particionar abaixo de 1 TB; liquid clustering é recomendado [...]'. outputs/ idêntico a work/ (diff sem diferença)."
+    },
+    {
+      "text": "O design trata o BigQuery com limiar próprio nomeado (ordem de ~10 GB por partição, ou clustering quando a partição diária ficaria pequena) e não aplica ao BigQuery o limiar de 1 TB do Databricks nem aplica ao Databricks o critério do BigQuery",
+      "passed": true,
+      "evidence": "O design, seção 'BigQuery (réplica da parceira)', abre com 'Os limiares de particionamento são por produto e não se transferem entre eles' e usa o limiar próprio do BigQuery: 'preferir clustering quando o particionamento deixaria menos de ~10 GB por partição', com base nos ~40 GB da réplica. O limiar de 1 TB só aparece na seção Databricks, e o critério de 10 GB só na seção BigQuery. Recomendação (partição mensal + clustering) fica pendente de alinhamento com a parceira, o que não atrapalha a asserção."
+    },
+    {
+      "text": "analytics/snapshots/snap_passageiro.sql final não contém invalidate_hard_deletes e contém hard_deletes com valor explícito (invalidate ou new_record)",
+      "passed": true,
+      "evidence": "snap_passageiro.sql final (outputs/ igual a work/): a linha 11 é hard_deletes='invalidate', e grep por 'invalidate_hard_deletes' não acha nenhuma ocorrência no arquivo."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 2,
+    "total": 5,
+    "pass_rate": 0.6
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Em analytics/snapshots/snap_passageiro.sql final, check_cols (ou a lista de colunas rastreadas) não contém nome, email, telefone nem cpf, e docs/design-dim-passageiro.md descreve que os atributos pessoais ficam numa tabela SCD1 (mutável/eliminável) separada, ligada por chave substituta ou token",
+        "reason": "A asserção junta duas exigências (PII fora do check_cols e ligação por chave substituta/token). Com o eval mudando para strategy=timestamp, a primeira metade passa sem check_cols nenhum. Vale separar em duas asserções, ou aceitar explicitamente a ausência de colunas pessoais no select, para o sinal não depender da interpretação do grader."
+      },
+      {
+        "assertion": "docs/design-dim-passageiro.md afirma que o DELETE/MERGE da eliminação do titular não basta no Delta por causa do time travel e prescreve VACUUM (ou retenção de time travel menor que o prazo de 15 dias do DPO); mencionar só 'apagar o registro' não conta",
+        "reason": "Boa discriminação: o with_skill citou A-15, mas adiou o VACUUM. Convém manter a exigência de prescrição afirmativa, sem aceitar ressalva condicional."
+      },
+      {
+        "reason": "Falta asserção sobre a chave substituta na fato (A-02), justamente o ponto em que o with_skill registrou pendência. Outra sugestão é checar que o DDL de BigQuery, quando existir, não copia PARTITION BY diário sem justificar pelo volume."
+      }
+    ],
+    "overall": "As asserções 3 a 5 são verificáveis por grep e discriminam bem entre as configurações; as asserções 1 e 2 dependem de leitura atenta e foram as que separaram a skill do resultado ideal."
+  }
+}

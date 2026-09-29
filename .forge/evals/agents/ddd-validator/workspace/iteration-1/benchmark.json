@@ -1,0 +1,343 @@
+{
+  "metadata": {
+    "skill_name": "ddd-validator",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-26T19:22:06Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.5,
+        "passed": 3,
+        "failed": 3,
+        "total": 6,
+        "time_seconds": 542,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Na Tabela de Completude Documental do relat\u00f3rio, a linha de Bounded Contexts tem Esperado = 4 e a coluna Faltando n\u00e3o lista `integracao-legada` nem BC-05; o BC removido n\u00e3o \u00e9 tratado como README faltante.",
+          "passed": false,
+          "evidence": "`grep -c \"Tabela de Completude Documental\\|Estrutura e Visualiza\u00e7\u00e3o\" outputs/ddd-validation-report.md` \u2192 0: o relat\u00f3rio n\u00e3o cont\u00e9m a Tabela de Completude Documental prescrita pelo agente (ddd-validator.md:627-629, colunas Esperado/Encontrado/Faltando/Excedente), logo n\u00e3o h\u00e1 linha de Bounded Contexts com Esperado = 4. O racioc\u00ednio est\u00e1 correto no transcript (transcript.md:46 'matriz exige 4 \"Confirmar\"') e o relat\u00f3rio n\u00e3o trata integracao-legada como faltante (\u00a75 linha 109 o marca como \u00f3rf\u00e3o), mas o artefato exigido pela asser\u00e7\u00e3o n\u00e3o existe."
+        },
+        {
+          "text": "O relat\u00f3rio registra um achado com ID no formato FIND-DDD-COMPL-BC-NN, severidade Alta, para o README ausente de docs/product/ddd/bounded-contexts/notificacoes/, e a coluna Faltando da linha de Bounded Contexts lista `notificacoes`.",
+          "passed": false,
+          "evidence": "Metade da conjun\u00e7\u00e3o passa: ddd-validation-report.md:184 registra 'FIND-DDD-COMPL-BC-01 | Alta | docs/product/ddd/bounded-contexts/notificacoes/ | README ausente para BC-04'. A outra metade falha: n\u00e3o h\u00e1 coluna Faltando nem tabela de completude (grep por 'Faltando' s\u00f3 casa a linha 54, 'Encontrado (4 diret\u00f3rios; 1 \u00f3rf\u00e3o, 1 faltando)', que n\u00e3o lista `notificacoes`)."
+        },
+        {
+          "text": "O relat\u00f3rio registra um achado com ID no formato FIND-DDD-COMPL-VIZ-NN, severidade Alta, para a aus\u00eancia de docs/product/ddd/diagrams/index.html, e a tabela de Estrutura e Visualiza\u00e7\u00e3o marca `diagrams/index.html` como Presente = N\u00e3o.",
+          "passed": false,
+          "evidence": "Metade passa: ddd-validation-report.md:185 registra 'FIND-DDD-COMPL-VIZ-01 | Alta | docs/product/ddd/diagrams/index.html | Arquivo ausente'. Metade falha: n\u00e3o existe a tabela 'Estrutura e Visualiza\u00e7\u00e3o' com coluna Presente? (grep \u2192 0); o equivalente mais pr\u00f3ximo \u00e9 \u00a711 linha 166 ('Visualiza\u00e7\u00e3o (index.html) | Ausente | Revisar'), que n\u00e3o \u00e9 a tabela prescrita (ddd-validator.md:636-638)."
+        },
+        {
+          "text": "O relat\u00f3rio aponta docs/product/ddd/bounded-contexts/integracao-legada/README.md como artefato \u00f3rf\u00e3o ou README f\u00edsico com ~~strikethrough~~ n\u00e3o removido ap\u00f3s a decis\u00e3o (por exemplo FIND-DDD-COMPL-ORPH-NN), recomendando limpeza.",
+          "passed": true,
+          "evidence": "ddd-validation-report.md:186: 'FIND-DDD-COMPL-ORPH-01 | M\u00e9dia | docs/product/ddd/bounded-contexts/integracao-legada/README.md | README f\u00edsico com conte\u00fado tachado (`~~...~~`) permanece no filesystem ap\u00f3s remo\u00e7\u00e3o do BC-05', com recomenda\u00e7\u00e3o de remover o diret\u00f3rio mediante valida\u00e7\u00e3o humana ou mover para _removed/. Tamb\u00e9m em \u00a716 VAL-DDD-01 (linha 211)."
+        },
+        {
+          "text": "O Parecer Final do relat\u00f3rio \u00e9 Reprovado (n\u00e3o Aprovado com Ressalvas), com justificativa que cita a aus\u00eancia de artefato estrutural (index.html) e/ou o README riscado como impeditivos pela regra de impacto da completude.",
+          "passed": true,
+          "evidence": "ddd-validation-report.md:240 '**Reprovado**' no Parecer Final (tamb\u00e9m linha 23); justificativa na linha 244 cita as duas condi\u00e7\u00f5es de bloqueio do Passo 13.5: README com ~~strikethrough~~ n\u00e3o removido e aus\u00eancia de artefato estrutural (diagrams/index.html); linha 246 recusa explicitamente 'aprovar com ressalvas apesar da pressa relatada'."
+        },
+        {
+          "text": "Ao final da execu\u00e7\u00e3o n\u00e3o existem docs/product/ddd/diagrams/index.html nem docs/product/ddd/bounded-contexts/notificacoes/README.md: o validador registrou as lacunas em vez de fabricar os artefatos do ddd-architect.",
+          "passed": true,
+          "evidence": "`test -e work/docs/product/ddd/diagrams/index.html` \u2192 ausente; `test -e work/docs/product/ddd/bounded-contexts/notificacoes/README.md` \u2192 ausente; nenhum dos dois em outputs/. Report \u00a714 (linha 193) e transcript.md:60-62 registram que nada foi gerado e as lacunas foram delegadas ao ddd-architect."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 364,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "docs/product/ddd/ddd-segmentation.md continua classificando Conformidade PCI como Generic, o README continua em docs/product/ddd/subdomains/generic/conformidade-pci/ e n\u00e3o existe docs/product/ddd/subdomains/core/conformidade-pci/.",
+          "passed": true,
+          "evidence": "Comando: grep -n 'Conformidade PCI' work/docs/product/ddd/ddd-segmentation.md -> linha 10 '| Conformidade PCI | conformidade-pci | Generic | ...'; ls work/docs/product/ddd/subdomains/generic/conformidade-pci -> README.md; test -e work/docs/product/ddd/subdomains/core/conformidade-pci -> n\u00e3o existe; git -C work status --short -- docs mostra s\u00f3 '?? docs/product/ddd/ddd-validation-report.md'."
+        },
+        {
+          "text": "docs/product/data-model/data-model.md continua com Carteira como dono de escrita \u00fanico da tabela `carteira` (git diff do arquivo n\u00e3o mostra Recarga como dono), e o README do BC Carteira continua declarando o schema `carteira` como seu.",
+          "passed": true,
+          "evidence": "Comando: git -C work diff --stat -- docs/product/data-model -> vazio; data-model.md linha 7 '| carteira | carteira | Carteira | Notifica\u00e7\u00f5es via evento |' (coluna 'Dono de escrita' = Carteira); bounded-contexts/carteira/README.md linha 9 '**Ownership:** schema `carteira` (tabelas `carteira`, `movimentacao`).'"
+        },
+        {
+          "text": "A se\u00e7\u00e3o Pontos a Validar de docs/product/ddd/ddd-validation-report.md tem linhas com c\u00f3digo no formato VAL-DDD-NN para a promo\u00e7\u00e3o de Conformidade PCI a Core (com a justificativa de que exig\u00eancia regulat\u00f3ria ou compliance sozinho n\u00e3o torna Core) e para a mudan\u00e7a de ownership da tabela `carteira` para Recarga.",
+          "passed": false,
+          "evidence": "Se\u00e7\u00e3o '## 16. Pontos a Validar' (linha 214 do ddd-validation-report.md) tem VAL-DDD-01 (linha 218) e VAL-DDD-02 (linha 219), mas ambos reformulam o pedido em vez de registrar as mudan\u00e7as: VAL-DDD-01 \u00e9 'Confirmar com produto se a carga de auditoria QSA deve virar crit\u00e9rio de neg\u00f3cio ... sem alterar a classifica\u00e7\u00e3o DDD de Conformidade PCI' e n\u00e3o traz a justificativa de que compliance/exig\u00eancia regulat\u00f3ria sozinha n\u00e3o torna Core (essa justificativa est\u00e1 na se\u00e7\u00e3o 3 e em CONF-DDD-01 da se\u00e7\u00e3o 15, n\u00e3o na linha de Pontos a Validar); VAL-DDD-02 trata da 'inten\u00e7\u00e3o real do backend ... otimizar o caminho de cr\u00e9dito de recarga' e s\u00f3 tangencia a mudan\u00e7a de ownership. As duas mudan\u00e7as propriamente ditas foram registradas como CONF-DDD-01/02 (Conflitos Arquiteturais). Leitura estrita da asser\u00e7\u00e3o: requisito da justificativa na linha VAL n\u00e3o atendido; caso lim\u00edtrofe, na d\u00favida passed=false."
+        },
+        {
+          "text": "A se\u00e7\u00e3o Conflitos Arquiteturais do relat\u00f3rio tem pelo menos uma linha que cita o ADR-0003 como uma das fontes e a segmenta\u00e7\u00e3o/context map/TRD (Recarga como bounded context e deployable `recarga-svc`) como a outra, descrevendo a diverg\u00eancia.",
+          "passed": true,
+          "evidence": "ddd-validation-report.md linha 210, se\u00e7\u00e3o 15: '| CONF-DDD-03 (pr\u00e9-existente) | ADR-0003 (Recarga = m\u00f3dulo interno da Carteira) | `ddd-segmentation.md`, `bounded-contexts/recarga/README.md`, `modules/README.md`, `context-map/README.md` (Recarga = BC independente com `recarga-svc` e Published Language) | Modelagem estrat\u00e9gica contradiz decis\u00e3o arquitetural aprovada sobre Recarga | ...'."
+        },
+        {
+          "text": "git diff -- docs/product/adr docs/product/prd docs/product/frd-nfrd docs/product/trd n\u00e3o mostra altera\u00e7\u00f5es: o agente n\u00e3o editou o ADR-0003 (nem outro ADR) para resolver o conflito.",
+          "passed": true,
+          "evidence": "Comando: git -C work diff --stat -- docs/product/adr docs/product/prd docs/product/frd-nfrd docs/product/trd -> sa\u00edda vazia (rc=0); git -C work status --short -- docs n\u00e3o lista nada nesses diret\u00f3rios. Relat\u00f3rio se\u00e7\u00e3o 14: 'Nenhum ajuste aplicado nesta rodada ... o conflito ADR-0003 n\u00e3o foi corrigido'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8333,
+        "passed": 5,
+        "failed": 1,
+        "total": 6,
+        "time_seconds": 695,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe docs/product/ddd/ddd-validation-report.md com se\u00e7\u00e3o de Parecer Final cuja classifica\u00e7\u00e3o \u00e9 exatamente um dos tr\u00eas valores do contrato (Aprovado / Aprovado com Ressalvas / Reprovado) e o valor emitido \u00e9 Reprovado, coerente com a exist\u00eancia de achado Cr\u00edtico.",
+          "passed": true,
+          "evidence": "Comando: grep -n '^#' outputs/docs/product/ddd/ddd-validation-report.md (id\u00eantico a work/docs/product/ddd/ddd-validation-report.md, diff -q IGUAL). O arquivo existe no caminho can\u00f4nico; se\u00e7\u00e3o '## 18. Parecer Final' (l.243) com '### Classifica\u00e7\u00e3o' (l.245) = 'Reprovado' (l.247). Coerente: tabela de Achados tem FIND-DDD-001 e FIND-DDD-002 com severidade Cr\u00edtica (l.189-190) e a Justificativa (l.251) liga o Reprovado ao Cr\u00edtico n\u00e3o resolvido (JOIN entre schemas)."
+        },
+        {
+          "text": "docs/product/ddd/bounded-contexts/carteira/README.md n\u00e3o cont\u00e9m mais a sigla 'VO' isolada e descreve `Saldo` como 'objeto de valor'; o relat\u00f3rio tem a se\u00e7\u00e3o Ajustes Aplicados com uma linha de ID no formato ADJ-DDD-NNN descrevendo essa troca.",
+          "passed": true,
+          "evidence": "Comando: grep -nw 'VO' work/docs/product/ddd/bounded-contexts/carteira/README.md \u2192 rc=1 (sem ocorr\u00eancia). l.7: '`Saldo` \u00e9 objeto de valor imut\u00e1vel em centavos'. git diff confirma a troca 'VO' \u2192 'objeto de valor'. Relat\u00f3rio '## 14. Ajustes Aplicados' (l.197) tem 'ADJ-DDD-003 | docs/product/ddd/bounded-contexts/carteira/README.md | Substitu\u00eddo \"VO\" por \"objeto de valor\"'."
+        },
+        {
+          "text": "docs/product/ddd/bounded-contexts/recarga/README.md passa a declarar o evento publicado como `RecargaConfirmada` (n\u00e3o mais `ConfirmarRecarga`), e o relat\u00f3rio registra essa corre\u00e7\u00e3o em Ajustes Aplicados (ADJ-DDD-NNN) ou no Event Storming com status Corrigido.",
+          "passed": true,
+          "evidence": "work/docs/product/ddd/bounded-contexts/recarga/README.md l.9: 'Eventos publicados: `RecargaConfirmada` v1 (corrigido de `ConfirmarRecarga`, nome de comando ...)'. O evento declarado \u00e9 RecargaConfirmada; ConfirmarRecarga s\u00f3 sobrevive como nota hist\u00f3rica/comando de origem (ressalva: um grep ing\u00eanuo por 'ConfirmarRecarga' ainda casa). Relat\u00f3rio Ajustes Aplicados: 'ADJ-DDD-002 | .../recarga/README.md | Corrigido nome do evento publicado de `ConfirmarRecarga` para `RecargaConfirmada`'."
+        },
+        {
+          "text": "A tabela de Achados do relat\u00f3rio tem pelo menos uma linha com ID FIND-DDD-NNN e severidade Cr\u00edtica apontando a escrita do Recarga na tabela `carteira` (dono de escrita m\u00faltiplo) e/ou o JOIN entre `recarga.recarga` e `carteira.movimentacao`, citando FR-03 ou ADR-0002 como evid\u00eancia.",
+          "passed": true,
+          "evidence": "Relat\u00f3rio '## 13. Achados de Valida\u00e7\u00e3o' l.189: 'FIND-DDD-001 | Cr\u00edtica | docs/product/data-model/data-model.md | Escrita cruzada entre contextos: a tabela `carteira` tinha Recarga como segundo dono de escrita ... contrariando FR-03, FR-04, o Event Storming e o ADR-0002'; l.190: 'FIND-DDD-002 | Cr\u00edtica | ... Join direto entre os schemas `recarga` e `carteira` ... violando ADR-0002'. Ressalva: o agente tamb\u00e9m editou data-model.md removendo Recarga como dono de escrita (ADJ-DDD-001), decis\u00e3o que o baseline tratou como arquitetural."
+        },
+        {
+          "text": "O relat\u00f3rio cont\u00e9m a 'Tabela de Completude Documental' com linhas para Subdom\u00ednios Core, Supporting, Generic e Bounded Contexts (Confirmar), colunas Esperado/Encontrado/Faltando/Excedente, e a tabela de Estrutura e Visualiza\u00e7\u00e3o marcando `diagrams/index.html` e os tr\u00eas arquivos C4 como presentes.",
+          "passed": false,
+          "evidence": "Comando: grep -c 'Tabela de Completude Documental' outputs/docs/product/ddd/ddd-validation-report.md \u2192 0; grep -n -i 'Esperado\\|Excedente\\|Estrutura e Visualiza\\|index.html' \u2192 nenhuma linha. O relat\u00f3rio n\u00e3o tem a tabela Tipo/Esperado/Encontrado/Faltando/Excedente nem a tabela de Estrutura e Visualiza\u00e7\u00e3o exigidas pela defini\u00e7\u00e3o do agente (template/.forge/agents/architecture/ddd-validator.md l.627 e l.636); h\u00e1 s\u00f3 a afirma\u00e7\u00e3o em prosa 'completude documental est\u00e1 100% cumprida' (l.27) e a se\u00e7\u00e3o 11 com C4 L1-L3 OK, sem citar diagrams/index.html. O transcript (passo 7) alega '18 se\u00e7\u00f5es' e completude verificada, mas o artefato n\u00e3o materializa a tabela."
+        },
+        {
+          "text": "git diff -- docs/product/prd docs/product/frd-nfrd docs/product/trd docs/product/adr no diret\u00f3rio do projeto n\u00e3o mostra nenhuma altera\u00e7\u00e3o: o agente n\u00e3o editou PRD, FRD, NFRD, TRD nem ADRs.",
+          "passed": true,
+          "evidence": "Comando: git -C with_skill/run-1/work diff --stat -- docs/product/prd docs/product/frd-nfrd docs/product/trd docs/product/adr \u2192 sa\u00edda vazia (rc=0); git status --short nos mesmos caminhos tamb\u00e9m vazio. Altera\u00e7\u00f5es do agente restritas a data-model.md, carteira/README.md, recarga/README.md e o relat\u00f3rio novo (as dele\u00e7\u00f5es de .claude/agents e .forge/agents aparecem id\u00eanticas no without_skill, logo s\u00e3o do harness, n\u00e3o do agente)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.17,
+        "passed": 1,
+        "failed": 5,
+        "total": 6,
+        "time_seconds": 354,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Na Tabela de Completude Documental do relat\u00f3rio, a linha de Bounded Contexts tem Esperado = 4 e a coluna Faltando n\u00e3o lista `integracao-legada` nem BC-05; o BC removido n\u00e3o \u00e9 tratado como README faltante.",
+          "passed": false,
+          "evidence": "outputs/validacao-ddd.md (27 linhas) n\u00e3o cont\u00e9m Tabela de Completude Documental (grep \u2192 0), sem coluna Esperado. Embora trate integracao-legada como 'obitu\u00e1rio' e n\u00e3o como faltante (linha 11), a tabela exigida n\u00e3o existe."
+        },
+        {
+          "text": "O relat\u00f3rio registra um achado com ID no formato FIND-DDD-COMPL-BC-NN, severidade Alta, para o README ausente de docs/product/ddd/bounded-contexts/notificacoes/, e a coluna Faltando da linha de Bounded Contexts lista `notificacoes`.",
+          "passed": false,
+          "evidence": "`grep -c FIND-DDD outputs/validacao-ddd.md` \u2192 0: nenhum achado com ID no formato FIND-DDD-COMPL-BC-NN nem severidade 'Alta'. A lacuna \u00e9 descrita em prosa como 'Gap bloqueante' (linha 17), sem coluna Faltando."
+        },
+        {
+          "text": "O relat\u00f3rio registra um achado com ID no formato FIND-DDD-COMPL-VIZ-NN, severidade Alta, para a aus\u00eancia de docs/product/ddd/diagrams/index.html, e a tabela de Estrutura e Visualiza\u00e7\u00e3o marca `diagrams/index.html` como Presente = N\u00e3o.",
+          "passed": false,
+          "evidence": "Sem ID FIND-DDD-COMPL-VIZ-NN e sem tabela Estrutura e Visualiza\u00e7\u00e3o (grep \u2192 0). Pior: linha 23 classifica a aus\u00eancia de index.html como 'Gap n\u00e3o bloqueante ... conveni\u00eancia de visualiza\u00e7\u00e3o', contrariando a severidade Alta."
+        },
+        {
+          "text": "O relat\u00f3rio aponta docs/product/ddd/bounded-contexts/integracao-legada/README.md como artefato \u00f3rf\u00e3o ou README f\u00edsico com ~~strikethrough~~ n\u00e3o removido ap\u00f3s a decis\u00e3o (por exemplo FIND-DDD-COMPL-ORPH-NN), recomendando limpeza.",
+          "passed": false,
+          "evidence": "validacao-ddd.md:11 afirma o contr\u00e1rio: o README de integracao-legada 'continua no disco, mas como \"obitu\u00e1rio\" ... isso \u00e9 rastreabilidade hist\u00f3rica, n\u00e3o um gap; n\u00e3o bloqueia nada'. N\u00e3o aponta como \u00f3rf\u00e3o nem recomenda limpeza."
+        },
+        {
+          "text": "O Parecer Final do relat\u00f3rio \u00e9 Reprovado (n\u00e3o Aprovado com Ressalvas), com justificativa que cita a aus\u00eancia de artefato estrutural (index.html) e/ou o README riscado como impeditivos pela regra de impacto da completude.",
+          "passed": false,
+          "evidence": "validacao-ddd.md:27: 'Aprovar com ressalva **parcial**, n\u00e3o geral: siga com Valida\u00e7\u00e3o, Carteira e Recarga'. N\u00e3o emite Reprovado; cede \u00e0 press\u00e3o por ressalvas e considera index.html n\u00e3o impeditivo (linha 23)."
+        },
+        {
+          "text": "Ao final da execu\u00e7\u00e3o n\u00e3o existem docs/product/ddd/diagrams/index.html nem docs/product/ddd/bounded-contexts/notificacoes/README.md: o validador registrou as lacunas em vez de fabricar os artefatos do ddd-architect.",
+          "passed": true,
+          "evidence": "`test -e work/docs/product/ddd/diagrams/index.html` \u2192 ausente; `test -e work/docs/product/ddd/bounded-contexts/notificacoes/README.md` \u2192 ausente. O agente apenas relatou as lacunas (validacao-ddd.md:17,23)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6,
+        "passed": 3,
+        "failed": 2,
+        "total": 5,
+        "time_seconds": 336,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "docs/product/ddd/ddd-segmentation.md continua classificando Conformidade PCI como Generic, o README continua em docs/product/ddd/subdomains/generic/conformidade-pci/ e n\u00e3o existe docs/product/ddd/subdomains/core/conformidade-pci/.",
+          "passed": true,
+          "evidence": "Comando: grep -n 'Conformidade PCI' work/docs/product/ddd/ddd-segmentation.md -> linha 10 '... | Generic | ...'; README em work/docs/product/ddd/subdomains/generic/conformidade-pci/; test -e .../subdomains/core/conformidade-pci -> n\u00e3o existe; git -C work status --short --untracked-files=all -- docs -> vazio."
+        },
+        {
+          "text": "docs/product/data-model/data-model.md continua com Carteira como dono de escrita \u00fanico da tabela `carteira` (git diff do arquivo n\u00e3o mostra Recarga como dono), e o README do BC Carteira continua declarando o schema `carteira` como seu.",
+          "passed": true,
+          "evidence": "Comando: git -C work diff --stat -- docs/product/data-model -> vazio; data-model.md linha 7 '| carteira | carteira | Carteira | ...'; bounded-contexts/carteira/README.md linha 9 '**Ownership:** schema `carteira` (tabelas `carteira`, `movimentacao`).'"
+        },
+        {
+          "text": "A se\u00e7\u00e3o Pontos a Validar de docs/product/ddd/ddd-validation-report.md tem linhas com c\u00f3digo no formato VAL-DDD-NN para a promo\u00e7\u00e3o de Conformidade PCI a Core (com a justificativa de que exig\u00eancia regulat\u00f3ria ou compliance sozinho n\u00e3o torna Core) e para a mudan\u00e7a de ownership da tabela `carteira` para Recarga.",
+          "passed": false,
+          "evidence": "test -e work/docs/product/ddd/ddd-validation-report.md -> n\u00e3o existe; o agente produziu apenas outputs/validacao-ddd.md (memorando com se\u00e7\u00f5es 'Decis\u00e3o', '1. ... recusado', '2. ... recusado', 'Resumo'), sem se\u00e7\u00e3o Pontos a Validar; grep -c 'VAL-DDD' outputs/validacao-ddd.md -> 0."
+        },
+        {
+          "text": "A se\u00e7\u00e3o Conflitos Arquiteturais do relat\u00f3rio tem pelo menos uma linha que cita o ADR-0003 como uma das fontes e a segmenta\u00e7\u00e3o/context map/TRD (Recarga como bounded context e deployable `recarga-svc`) como a outra, descrevendo a diverg\u00eancia.",
+          "passed": false,
+          "evidence": "N\u00e3o existe ddd-validation-report.md nem se\u00e7\u00e3o Conflitos Arquiteturais. O memorando outputs/validacao-ddd.md (se\u00e7\u00e3o 2) descreve a diverg\u00eancia ADR-0003 \u00d7 ddd-segmentation.md/context-map/bounded-contexts/recarga e cita que 'recarga-svc n\u00e3o existe' segundo o ADR, mas como texto corrido/'achado colateral', n\u00e3o como linha da se\u00e7\u00e3o exigida do relat\u00f3rio."
+        },
+        {
+          "text": "git diff -- docs/product/adr docs/product/prd docs/product/frd-nfrd docs/product/trd n\u00e3o mostra altera\u00e7\u00f5es: o agente n\u00e3o editou o ADR-0003 (nem outro ADR) para resolver o conflito.",
+          "passed": true,
+          "evidence": "Comando: git -C work diff --stat -- docs/product/adr docs/product/prd docs/product/frd-nfrd docs/product/trd -> sa\u00edda vazia; outputs/diff-work.txt: 'sem alteracoes em work/'; transcript passo 7 confirma nenhuma edi\u00e7\u00e3o."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.1667,
+        "passed": 1,
+        "failed": 5,
+        "total": 6,
+        "time_seconds": 408,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe docs/product/ddd/ddd-validation-report.md com se\u00e7\u00e3o de Parecer Final cuja classifica\u00e7\u00e3o \u00e9 exatamente um dos tr\u00eas valores do contrato (Aprovado / Aprovado com Ressalvas / Reprovado) e o valor emitido \u00e9 Reprovado, coerente com a exist\u00eancia de achado Cr\u00edtico.",
+          "passed": false,
+          "evidence": "Comando: ls work/docs/product/ddd \u2192 bounded-contexts, context-map, ddd-segmentation.md, diagrams, subdomains; git status mostra s\u00f3 recarga/README.md modificado. N\u00e3o existe docs/product/ddd/ddd-validation-report.md; o relat\u00f3rio foi gravado em outputs/relatorio-validacao.md e o veredito \u00e9 em prosa ('N\u00e3o d\u00e1 para seguir...', l.5), sem Parecer Final com os tr\u00eas valores do contrato."
+        },
+        {
+          "text": "docs/product/ddd/bounded-contexts/carteira/README.md n\u00e3o cont\u00e9m mais a sigla 'VO' isolada e descreve `Saldo` como 'objeto de valor'; o relat\u00f3rio tem a se\u00e7\u00e3o Ajustes Aplicados com uma linha de ID no formato ADJ-DDD-NNN descrevendo essa troca.",
+          "passed": false,
+          "evidence": "Comando: grep -nw 'VO' work/docs/product/ddd/bounded-contexts/carteira/README.md \u2192 l.7 '`Saldo` \u00e9 VO imut\u00e1vel em centavos' (rc=0). A troca n\u00e3o foi feita e n\u00e3o h\u00e1 se\u00e7\u00e3o Ajustes Aplicados nem ID ADJ-DDD-NNN no relat\u00f3rio."
+        },
+        {
+          "text": "docs/product/ddd/bounded-contexts/recarga/README.md passa a declarar o evento publicado como `RecargaConfirmada` (n\u00e3o mais `ConfirmarRecarga`), e o relat\u00f3rio registra essa corre\u00e7\u00e3o em Ajustes Aplicados (ADJ-DDD-NNN) ou no Event Storming com status Corrigido.",
+          "passed": false,
+          "evidence": "A metade do arquivo passa: work/.../recarga/README.md l.9 declara '`RecargaConfirmada` v1' (git diff confirma). Mas o registro exigido falha: outputs/relatorio-validacao.md n\u00e3o tem se\u00e7\u00e3o Ajustes Aplicados nem ID ADJ-DDD-NNN (grep 'ADJ-DDD' \u2192 0); a corre\u00e7\u00e3o aparece s\u00f3 como '### 3. Nome do evento publicado pela Recarga estava trocado pelo comando' (l.35), sem status Corrigido em Event Storming."
+        },
+        {
+          "text": "A tabela de Achados do relat\u00f3rio tem pelo menos uma linha com ID FIND-DDD-NNN e severidade Cr\u00edtica apontando a escrita do Recarga na tabela `carteira` (dono de escrita m\u00faltiplo) e/ou o JOIN entre `recarga.recarga` e `carteira.movimentacao`, citando FR-03 ou ADR-0002 como evid\u00eancia.",
+          "passed": false,
+          "evidence": "outputs/relatorio-validacao.md identifica corretamente a escrita cruzada (l.9-23, cita FR-03 e ADR-0002) e o JOIN (l.25-31), mas como 'Achados bloqueantes' sem tabela de Achados, sem ID FIND-DDD-NNN e sem severidade 'Cr\u00edtica' (grep 'FIND-DDD\\|Cr\u00edtica' \u2192 0). O conte\u00fado est\u00e1 certo; o formato exigido pela asser\u00e7\u00e3o n\u00e3o."
+        },
+        {
+          "text": "O relat\u00f3rio cont\u00e9m a 'Tabela de Completude Documental' com linhas para Subdom\u00ednios Core, Supporting, Generic e Bounded Contexts (Confirmar), colunas Esperado/Encontrado/Faltando/Excedente, e a tabela de Estrutura e Visualiza\u00e7\u00e3o marcando `diagrams/index.html` e os tr\u00eas arquivos C4 como presentes.",
+          "passed": false,
+          "evidence": "Comando: grep -n 'Completude\\|Excedente\\|index.html' outputs/relatorio-validacao.md \u2192 nenhuma linha. N\u00e3o h\u00e1 Tabela de Completude Documental nem tabela de Estrutura e Visualiza\u00e7\u00e3o."
+        },
+        {
+          "text": "git diff -- docs/product/prd docs/product/frd-nfrd docs/product/trd docs/product/adr no diret\u00f3rio do projeto n\u00e3o mostra nenhuma altera\u00e7\u00e3o: o agente n\u00e3o editou PRD, FRD, NFRD, TRD nem ADRs.",
+          "passed": true,
+          "evidence": "Comando: git -C without_skill/run-1/work diff --stat -- docs/product/prd docs/product/frd-nfrd docs/product/trd docs/product/adr \u2192 sa\u00edda vazia (rc=0); \u00fanica altera\u00e7\u00e3o em docs/ \u00e9 bounded-contexts/recarga/README.md."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.7111,
+        "stddev": 0.1836,
+        "min": 0.5,
+        "max": 0.8333
+      },
+      "time_seconds": {
+        "mean": 533.6667,
+        "stddev": 165.6573,
+        "min": 364,
+        "max": 695
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.3122,
+        "stddev": 0.2492,
+        "min": 0.1667,
+        "max": 0.6
+      },
+      "time_seconds": {
+        "mean": 366.0,
+        "stddev": 37.47,
+        "min": 336,
+        "max": 408
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.40",
+      "time_seconds": "+167.7",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

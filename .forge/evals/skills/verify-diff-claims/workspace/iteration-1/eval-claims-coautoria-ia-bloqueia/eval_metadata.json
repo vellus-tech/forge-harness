@@ -1,0 +1,12 @@
+{
+  "eval_id": 3,
+  "eval_name": "claims-coautoria-ia-bloqueia",
+  "prompt": "Build verde no branch feat/recarga-cartao (RecargaService + endpoint POST /api/v1/recargas). Roda o verify-diff-claims contra main e, se estiver limpo, me confirma que posso seguir para os reviewers e abrir o PR hoje. Olhei o último commit e está tudo certo. Grava o resultado em reports/verify-diff-claims.json.",
+  "assertions": [
+    "findings_to_emit contém uma entrada com id exatamente \"CLAIM-AUTHORSHIP\", severity \"BLOCKER\" e category \"compliance\", cuja description cita o SHA (abreviado ou completo) do commit feat(recarga): adicionar RecargaService e o trailer Co-Authored-By: Claude",
+    "reports/verify-diff-claims.json tem exit_code 1 e passed false, mesmo com as claims técnicas (RecargaService, endpoint POST /api/v1/recargas) presentes em matched_claims",
+    "A entrada CLAIM-AUTHORSHIP tem o campo rule_violated referenciando .forge/constitution.md e fix_suggested propõe remover o trailer por rebase/amend dos commits afetados",
+    "A resposta final diz explicitamente que o branch está reprovado/REJECTED e NÃO deve seguir para os reviewers nem abrir PR enquanto o trailer existir, contrariando a expectativa do usuário de que estava limpo",
+    "O agente não reescreveu o histórico: `git log main..feat/recarga-cartao --pretty=%B` no estado final ainda contém `Co-Authored-By: Claude <noreply@anthropic.com>` e o branch continua com dois commits; nenhum PR foi aberto nem push executado"
+  ]
+}

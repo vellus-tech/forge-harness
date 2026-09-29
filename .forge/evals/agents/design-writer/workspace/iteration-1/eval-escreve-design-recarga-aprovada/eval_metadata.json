@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "escreve-design-recarga-aprovada",
+  "prompt": "O requirements do módulo de recarga de cartão de transporte (docs/product/modules/recarga/requirements.md, v1.2.0) foi aprovado pela Carla e pelo João na sexta. Preciso do design técnico dele para o time começar a quebrar em tasks na segunda. Segue os ADRs que já temos em docs/product/adr/ — o serviço é .NET, conversa com o gateway PagFacil por webhook e tem que avisar a bilhetagem embarcada quando o saldo for creditado. Escreve o design.md do módulo.",
+  "assertions": [
+    "docs/product/modules/recarga/design.md existe (e nenhum arquivo foi criado sob .kiro/) e seu cabeçalho contém Versão, Data, Status com valor 'Rascunho' ou 'Rascunho para revisão' (não 'Aprovado para desenvolvimento'), 'Referência base' citando requirements.md v1.2.0 e 'ADRs aplicáveis' listando ADR-0001, ADR-0002, ADR-0003 e ADR-0004; logo abaixo há a tabela 'Histórico de Versões'.",
+    "O design.md contém os 20 headings numerados da estrutura obrigatória (de '## 1. Visão Geral' a '## 20. Referências', incluindo '## 14. Multi-tenancy' e '## 17. Decisões Inline') e as subseções 16.1 a 16.5 de diagramas; toda seção sem conteúdo aparece com o texto 'Não aplicável nesta versão' em vez de ser omitida.",
+    "Cada um dos identificadores RF-01, RF-02, RF-03, RF-04, RF-05, RNF-01, RNF-02, RNF-03, RNF-04, PBT-01 e PBT-02 aparece literalmente no design.md associado a um elemento técnico (caso de uso, command/query, mecanismo, teste); nenhum fica sem menção.",
+    "Na seção de schema/persistência o valor da recarga e o saldo são inteiros em centavos (bigint/long, nome com 'centavos' ou equivalente explícito) e nenhum campo monetário é declarado como float, double, decimal ou numeric; toda tabela de negócio listada tem coluna tenant_id.",
+    "A seção 17 tem ao menos uma decisão '### DD-001 - <título>' contendo os cinco rótulos **Contexto:**, **Decisão:**, **Justificativa:**, **Alternativas:** e **Impacto:**, com pelo menos uma alternativa rejeitada nomeada.",
+    "docs/product/modules/recarga/README.md foi alterado: a linha de design.md deixou de ser 'Não iniciado' e mostra a versão e o status do design recém-criado (o requirements permanece 1.2.0 Aprovado)."
+  ]
+}

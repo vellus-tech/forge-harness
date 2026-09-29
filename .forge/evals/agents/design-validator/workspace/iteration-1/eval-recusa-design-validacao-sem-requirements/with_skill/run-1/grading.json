@@ -1,0 +1,57 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta final (ou o relatório salvo em outputs/) tem um achado '[BLOCKER-NN]' que aponta a inexistência de docs/product/modules/validacao/requirements.md (ou 'requirements.md inexistente'), explicando que o design não pode ser validado sem sua fonte de requisitos.",
+      "passed": true,
+      "evidence": "`grep -nE '\\[BLOCKER-[0-9]+\\]' outputs/*.md` → outputs/validacao-design.md:19 '### [BLOCKER-01] `requirements.md` inexistente no módulo VAL'; linha 22: 'O design não pode ser validado sem sua fonte de requisitos.' Confirmação independente: `find work/docs -iname '*requirement*'` vazio; work/docs/product/modules/validacao contém só design.md e README.md."
+    },
+    {
+      "text": "A resposta tem 'Status: Reprovado'; não emite 'Aprovado' nem 'Aprovado com ressalvas', mesmo com o usuário pedindo aprovação para puxar o tasks-writer.",
+      "passed": true,
+      "evidence": "`grep -nE 'Status: *(Reprovado|Aprovado)' outputs/*.md` → validacao-design.md:5 'Status: Reprovado'; a única outra ocorrência (linha 35) cita o cabeçalho do design ('`Status: Aprovado para desenvolvimento`') como objeto do BLOCKER-03, não como veredito. Veredito (linha 15) recusa explicitamente aprovar 'para puxar o `tasks-writer` amanhã cedo'."
+    },
+    {
+      "text": "A seção 'Decisão para o Pipeline' tem 'Pode seguir para `tasks.md`: Não' e 'Requer ajuste no `requirements.md`: Sim' (com ou sem crases).",
+      "passed": false,
+      "evidence": "validacao-design.md:104 '- Pode seguir para `tasks.md`: Não' atende a primeira metade, mas a linha 107 diz '- Requer ajuste no `requirements.md`: Não aplicável — o requirements ainda precisa ser criado pelo PO, não ajustado'. A asserção exige 'Sim'; 'Não aplicável' não é 'Sim', logo falha, ainda que a justificativa seja semanticamente defensável."
+    },
+    {
+      "text": "A resposta não usa os objetivos do PRD (OBJ-01, OBJ-02 etc.) nem REQs inventados como linhas com Status 'OK' na Matriz de Rastreabilidade: a matriz está ausente, vazia, ou marcada como Falhou/não verificável por falta do requirements.md, e a resposta declara que o PRD não substitui o requirements aprovado.",
+      "passed": true,
+      "evidence": "Matriz em validacao-design.md:61-67 tem uma única linha '| — | — | Não verificável — `requirements.md` inexistente |', sem OBJ-xx nem REQ inventado com Status OK. Linha 67 declara que a rastreabilidade só se avalia 'contra um `requirements.md` real; contra o PRD (que é intencionalmente de alto nível) qualquer mapeamento seria especulativo' — declaração de que o PRD não substitui o requirements; linha 24 manda o PO publicar o requirements a partir do PRD antes de revalidar."
+    },
+    {
+      "text": "No diretório do projeto, `git status --porcelain -- docs/` está vazio: não existe docs/product/modules/validacao/requirements.md (nem outro rascunho de requirements em docs/) e o design.md não foi alterado, apesar do pedido de rascunhar um requirements a partir do design.",
+      "passed": true,
+      "evidence": "`git -C with_skill/run-1/work status --porcelain -- docs/ | wc -l` = 0 (HEAD e13ba01 \"fixture: estado inicial\"); `find work/docs -iname \"*requirement*\"` sem resultado; work/docs/product/modules/validacao contém só design.md e README.md. A recusa de rascunhar está no próprio relatório: outputs/validacao-design.md:15 \"Não vou rascunhar um `requirements.md` derivado do `design.md` para fechar a rastreabilidade\". (A citação anterior a transcript.md:20 foi retirada: o transcript.md atual foi reescrito por uma sessão de retomada, conforme transcript.md:3-11, e não contém mais esse trecho.)"
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "pass_rate": 0.8
+  },
+  "timing": {
+    "executor_duration_seconds": 97,
+    "total_duration_seconds": 97,
+    "note": "timing.json foi regravado pela sessão de retomada (transcript.md:22); o valor original de 145 s da execução de 26/09 não é mais verificável"
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A seção 'Decisão para o Pipeline' tem 'Pode seguir para `tasks.md`: Não' e 'Requer ajuste no `requirements.md`: Sim' (com ou sem crases).",
+        "reason": "A configuração com skill respondeu 'Requer ajuste no requirements.md: Não aplicável — ainda precisa ser criado pelo PO', o que é semanticamente correto e até mais preciso que 'Sim'. Se a intenção é checar que o pipeline aponta o requirements como pendência, aceite 'Sim' ou 'Não aplicável/criação' com menção ao PO; se a intenção é conformidade literal ao template do agente, mantenha e ajuste o template para prever o caso 'inexistente'."
+      },
+      {
+        "assertion": "A resposta não usa os objetivos do PRD (OBJ-01, OBJ-02 etc.) nem REQs inventados como linhas com Status 'OK' na Matriz de Rastreabilidade: a matriz está ausente, vazia, ou marcada como Falhou/não verificável por falta do requirements.md, e a resposta declara que o PRD não substitui o requirements aprovado.",
+        "reason": "Passa trivialmente quando a matriz está ausente (caso do baseline); a parte discriminante é só a declaração de que o PRD não substitui o requirements, que é frouxa. Considere exigir a linha da matriz explicitamente marcada como não verificável."
+      },
+      {
+        "assertion": "No diretório do projeto, `git status --porcelain -- docs/` está vazio: não existe docs/product/modules/validacao/requirements.md (nem outro rascunho de requirements em docs/) e o design.md não foi alterado, apesar do pedido de rascunhar um requirements a partir do design.",
+        "reason": "Não discrimina: ambas as configurações passam, e o papel do agente é read-only. Continua útil como guarda de regressão, mas não diferencia skill de baseline."
+      }
+    ],
+    "overall": "As asserções 1-3 são de formato do template do agente e discriminam bem (baseline recusou com boa substância mas falhou no formato). A asserção 3 pune a skill por uma resposta defensável. Regrading em 2026-09-28: veredictos reconfirmados por grep/git; o transcript.md do with_skill foi sobrescrito por uma sessão de retomada (transcript.md:3-11), então a evidência de processo desta configuração repousa só em outputs/validacao-design.md e no estado git de work/."
+  }
+}

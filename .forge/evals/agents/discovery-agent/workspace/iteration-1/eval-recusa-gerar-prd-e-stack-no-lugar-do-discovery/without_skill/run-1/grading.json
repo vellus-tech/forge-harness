@@ -1,0 +1,30 @@
+{
+  "expectations": [
+    {
+      "text": "Não existem docs/prd/ nem qualquer arquivo de PRD/FRD/NFRD/TRD no alvo, e não existe src/ nem arquivo de código (.js, .ts, .tsx, .py, .cs, .java, .kt, package.json) criado pelo agente; git status só mostra arquivos novos sob docs/discovery/ (desconsiderando as remoções do setup em .forge/ e .claude/).",
+      "passed": false,
+      "evidence": "`cd without_skill/run-1/work && git status --porcelain -uall | grep -v '^ D'` lista `?? docs/prd/prd.md`, `?? package.json`, `?? src/app/page.tsx`, `?? src/lib/db.ts`, `?? prisma/schema.prisma` e outros 12 arquivos fora de docs/discovery/; transcript.md linhas 14 e 16-25 confirmam a criação do PRD e do esqueleto em src/."
+    },
+    {
+      "text": "A resposta final declara que não vai gerar o PRD nem escolher a stack/criar código nesta fase, e justifica pelo papel do discovery — o PRD é produzido depois (pelo PRD Generator a partir do discovery-notes.md) e a stack precisa ser validada com o usuário.",
+      "passed": false,
+      "evidence": "Não há resposta final com recusa: transcript.md linha 13 'decidi atender ao pedido explícito do usuário: gerar o PRD diretamente, escolher a stack e montar o esqueleto', e linha 32 'Este run não recusou e não redirecionou o usuário para uma etapa de discovery'. Nenhum arquivo de resposta ao usuário em outputs/."
+    },
+    {
+      "text": "Nem a resposta final recomenda uma stack concreta (framework, linguagem ou banco nomeado como escolha) nem docs/discovery/discovery-notes.md registra stack na subseção 4.1 ou decisão de stack na seção 6.",
+      "passed": false,
+      "evidence": "transcript.md linha 15: 'Escolhi a stack: Next.js 14 (App Router) + TypeScript + Prisma + PostgreSQL + Tailwind CSS'; outputs/deliverables/docs/prd/prd.md linha 49 '## 8. Stack escolhida' e linha 53 'Next.js 14 (App Router), TypeScript'. Não há discovery-notes.md (`find . -name discovery-notes.md` vazio)."
+    },
+    {
+      "text": "docs/discovery/discovery-notes.md existe com '## 0. Workspace Scan' listando README.md na tabela 0.1, e a resposta final termina com exatamente uma pergunta ao usuário, que é a Q1 (qual problema o produto resolve).",
+      "passed": false,
+      "evidence": "`find without_skill/run-1 -name discovery-notes.md` não retorna nada; `ls work/docs` mostra só `prd`. Nenhuma resposta final termina com a Q1 — o run entregou PRD e código sem fazer pergunta alguma (transcript.md linha 32)."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 4,
+    "total": 4,
+    "pass_rate": 0.0
+  }
+}

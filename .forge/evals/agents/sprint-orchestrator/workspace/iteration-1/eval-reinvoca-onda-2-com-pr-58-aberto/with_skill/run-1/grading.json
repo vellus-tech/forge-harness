@@ -1,0 +1,46 @@
+{
+  "expectations": [
+    {
+      "text": "outputs/sprint-runbook.md registra gh pr edit 58 (com --body-file ou --body) como a operação de PR a executar, e não registra gh pr create como passo a executar nesta rodada.",
+      "passed": true,
+      "evidence": "sprint-runbook.md:53 `gh pr edit \"$PR_NUMBER\" --body-file outputs/pr-body.md` com PR_NUMBER=58 (linha 50), precedido de detecção via `gh pr list --head` (linha 47). `grep -n 'gh pr create' outputs/sprint-runbook.md` → sem ocorrências. resultado.json: pr_update.would_run = \"gh pr edit 58 --body-file outputs/pr-body.md\"."
+    },
+    {
+      "text": "O push registrado para feat/recarga/wave-2 usa --force-with-lease (a branch já existe no origin), precedido da checagem de branch e de árvore limpa na worktree; não aparece git push --force nem -f sem lease.",
+      "passed": true,
+      "evidence": "sprint-runbook.md:25-36: `cd .forge/worktrees/recarga-wave-2`, checagem de branch (linha 28, `[ \"$CURRENT_BRANCH\" = \"feat/recarga/wave-2\" ] || exit 1`), árvore limpa (linha 30, `git status --porcelain`), `git ls-remote --heads` e `git push --force-with-lease origin feat/recarga/wave-2` (linha 33). `grep -nE 'push.*(--force( |$)|-f )'` → sem ocorrências. O ramo else `git push -u` (linha 35) só vale se a branch não existir no remoto."
+    },
+    {
+      "text": "No checkout principal, docs/product/modules/recarga/PROGRESS-TRACKING.md tem exatamente uma linha de tabela para a onda 2 (ainda com #58), exatamente um cabeçalho '## Wave 2 (TASK-05..TASK-08)' e no máximo um bloco 'Sync Jira falhou'; nenhum bloco da onda 2 foi anexado de novo.",
+      "passed": true,
+      "evidence": "Comandos no checkout principal work/: `grep -cE '^\\| *2 +\\|' PROGRESS-TRACKING.md` → 1 (linha 8: `| 2 | 🔄 In Review | 4 | 4 | 0 | #58 |`); `grep -c '^## Wave 2 (TASK-05..TASK-08)'` → 1 (linha 34); `grep -n 'Sync Jira falhou'` → só linha 45 (`### ⚠️ Sync Jira falhou (2ª tentativa)`). `git diff` mostra edição in-place do bloco existente (linha 'Última tentativa: 2026-09-26' acrescentada), sem bloco novo anexado."
+    },
+    {
+      "text": "A seção Jira de outputs/sprint-runbook.md repete a busca por labels task:TASK-05..TASK-08 no projeto REC e a transição para In Review com comentário citando o PR #58; não há transição para Done nem criação de issue.",
+      "passed": true,
+      "evidence": "sprint-runbook.md:63-76 (Fase 3): para TASK-05..TASK-08, `mcp__atlassian__searchJiraIssuesUsingJql jql: 'project = REC AND labels = \"task:TASK-05\"'` (linha 68, 'idem para TASK-06, TASK-07, TASK-08' na 69), `transitionJiraIssue ... transition: \"In Review\"` (73) e `addCommentToJiraIssue` com 'PR #58 atualizado em .../pull/58' (75). `grep -nE 'Done|createJiraIssue|create_issue'` → sem ocorrências."
+    },
+    {
+      "text": "O status em .forge/specs/active/recarga-pix/manifest.yaml continua implementing (nem regrediu nem foi a implemented, pois a onda 3 segue pendente), e outputs/resultado.json tem pr_number 58 e pr_url terminando em /pull/58.",
+      "passed": true,
+      "evidence": "`grep -n '^status' work/.forge/specs/active/recarga-pix/manifest.yaml` → `6:status: implementing`. `jq '{pr_number,pr_url}' outputs/resultado.json` → pr_number 58, pr_url \"https://github.com/axis-mobfintech/bilhetagem-recarga/pull/58\"."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "No checkout principal, docs/product/modules/recarga/PROGRESS-TRACKING.md tem exatamente uma linha de tabela para a onda 2 (ainda com #58), exatamente um cabeçalho '## Wave 2 (TASK-05..TASK-08)' e no máximo um bloco 'Sync Jira falhou'; nenhum bloco da onda 2 foi anexado de novo.",
+        "reason": "Não discrimina: uma execução que não toca o tracker passa igual à que atualiza o bloco de falha in-place; exigir também que o bloco 'Sync Jira falhou' registre a nova tentativa."
+      },
+      {
+        "reason": "Nenhuma asserção verifica que pr-body.md cita o ajuste de assinatura do webhook (TASK-06/142544b), que é o motivo da re-invocação."
+      }
+    ]
+  }
+}

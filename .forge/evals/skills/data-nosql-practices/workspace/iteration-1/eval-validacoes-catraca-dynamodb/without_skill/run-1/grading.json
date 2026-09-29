@@ -1,0 +1,78 @@
+{
+  "expectations": [
+    {
+      "text": "Em services/validacoes/infra/dynamodb.tf final, a tabela validacoes-catraca não tem mais hash_key = \"data_validacao\" (nem outra chave só de data ou status), e a nova partition key inclui o cartão (e o tenant) de forma alinhada ao histórico por cartão; o design justifica pela concentração de toda a escrita do dia numa partição",
+      "passed": false,
+      "evidence": "dynamodb.tf final: hash_key = \"cartaoId\", range_key = \"sk\". Não é mais data_validacao, e o design justifica: 'concentrando os ~12.000 registros/s de pico numa única partição lógica'. Mas a partition key não inclui o tenant, exigido por '(e o tenant)'. O tenant aparece só em gsi1_pk. Por isso a asserção falha."
+    },
+    {
+      "text": "No dynamodb.tf final nenhum GSI tem projection_type = \"ALL\" (usa KEYS_ONLY ou INCLUDE), e em historicoCartao.ts final nenhuma chamada com IndexName de GSI tem ConsistentRead: true; o design afirma que GSI só oferece leitura eventual",
+      "passed": false,
+      "evidence": "dynamodb.tf final: o GSI 'pendentes-por-tenant' ainda tem projection_type = \"ALL\". Só essa parte já reprova a asserção. As outras duas se cumprem: pendentes() não usa ConsistentRead, e o design diz 'GSIs no DynamoDB não suportam ConsistentRead'."
+    },
+    {
+      "text": "historicoCartao.ts final não usa ScanCommand (usa QueryCommand pela chave do cartão), e services/validacoes/scripts/backfill/reprocessarTarifas.ts continua com o ScanCommand paralelo (o agente não o trata como antipattern, reconhecendo que Scan em migração offline é o uso certo)",
+      "passed": true,
+      "evidence": "historicoCartao.ts importa só QueryCommand, e historicoCartao() faz Query com 'cartaoId = :c AND sk >= :de'. reprocessarTarifas.ts ficou idêntico ao commit inicial e mantém o ScanCommand paralelo. O design e o transcript mantêm o backfill sem tratá-lo como antipattern ('Continua funcionando sem alteração com a chave nova'). O reconhecimento de que Scan offline é o uso certo fica implícito: ele valida a compatibilidade, não a adequação do Scan. A parte verificável passa."
+    },
+    {
+      "text": "registrarValidacao.ts final não contém list_append; as passagens do cartão viram um item por validação sob a mesma partition key com sort key ordenada (ou bucket por período), e o design menciona o limite de 400 KB do item",
+      "passed": true,
+      "evidence": "registrarValidacao.ts final: só PutCommand. list_append aparece apenas no comentário que explica a remoção. Cada validação vira um item com PK cartaoId e SK `${timestampIso}#${validacaoId}`. O design diz: 'arriscava estourar o limite de 400 KB por item do DynamoDB'."
+    },
+    {
+      "text": "docs/design-validacoes.md registra que a troca da partition key não pode ser feita in place e exige criar tabela nova e copiar/migrar os itens já existentes em homologação",
+      "passed": false,
+      "evidence": "O design, em 'Decisões em aberto, item 2', diz: 'Terraform não faz alteração de hash_key/range_key in-place — qualquer apply com essa mudança força destruição e recriação da tabela'. Ou seja, registra que a troca não é in place e que a tabela precisa ser recriada. Mas recomenda 'tratar os ~40 milhões de itens de homologação como dado de teste descartável' em vez de copiá-los ou migrá-los, o que contradiz a segunda metade da asserção. Por isso falha."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 3,
+    "total": 5,
+    "pass_rate": 0.4
+  },
+  "timing": {
+    "executor_duration_seconds": 190,
+    "total_duration_seconds": 190
+  },
+  "claims": [
+    {
+      "claim": "Execução sem consultar skills do repositório",
+      "type": "process",
+      "verified": true,
+      "evidence": "O transcript declara isso, e nenhuma referência a catálogo N-xx aparece nas saídas."
+    },
+    {
+      "claim": "Backfill segue funcionando com a chave nova",
+      "type": "quality",
+      "verified": true,
+      "evidence": "O script usa LastEvaluatedKey de forma opaca e não referencia nomes de chave."
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Em services/validacoes/infra/dynamodb.tf final, a tabela validacoes-catraca não tem mais hash_key = \"data_validacao\" (nem outra chave só de data ou status), e a nova partition key inclui o cartão (e o tenant) de forma alinhada ao histórico por cartão; o design justifica pela concentração de toda a escrita do dia numa partição",
+        "reason": "O parêntese '(e o tenant)' decide o veredito e nenhuma das duas configurações pôs o tenant na partition key da tabela base (ambas usaram só o cartão). Se o tenant é obrigatório, a asserção deveria dizer isso sem parêntese; se não é (cartão já tem cardinalidade alta e o isolamento por tenant pode estar só no GSI), o parêntese deveria sair. Do jeito que está, a asserção não discrimina."
+      },
+      {
+        "assertion": "registrarValidacao.ts final não contém list_append; as passagens do cartão viram um item por validação sob a mesma partition key com sort key ordenada (ou bucket por período), e o design menciona o limite de 400 KB do item",
+        "reason": "Lida ao pé da letra ('não contém list_append'), a asserção reprova as duas configurações, porque ambas citam list_append num comentário que explica a remoção. O grader aplicou a intenção (nenhuma operação list_append no código). Convém reescrever como 'nenhuma UpdateExpression usa list_append'."
+      },
+      {
+        "assertion": "docs/design-validacoes.md registra que a troca da partition key não pode ser feita in place e exige criar tabela nova e copiar/migrar os itens já existentes em homologação",
+        "reason": "Nenhuma asserção verifica o risco operacional mais concreto do caso: trocar hash_key mantendo name = \"validacoes-catraca\" faz o terraform apply destruir e recriar a tabela com os ~40 milhões de itens. A configuração without_skill registrou esse risco explicitamente; a with_skill manteve o mesmo nome sem mencionar a destruição. Vale uma asserção sobre isso (tabela com nome novo/versão, ou lifecycle/prevent_destroy, ou o risco documentado)."
+      },
+      {
+        "reason": "Nenhuma asserção cobre o write sharding do GSI por tenant/status, que o expected_output pede. A with_skill fez (TENANT#t#STATUS#s#SHARD#n); a without_skill usou GSI esparso com PK = tenant e sem shard. Hoje essa diferença real não pesa na nota."
+      }
+    ],
+    "overall": "As asserções são específicas e verificáveis nos arquivos, mas duas dependem de detalhes (parêntese do tenant, menção literal em comentário) que as tornam frágeis ou pouco discriminantes, e o risco de destruição da tabela pelo Terraform não é coberto."
+  }
+}

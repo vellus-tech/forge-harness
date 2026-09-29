@@ -1,0 +1,82 @@
+{
+  "review": "platform-deploy-validacao",
+  "branch": "feat/deploy-validacao-adquirente",
+  "base": "main",
+  "diff_range": "main..753e901",
+  "files_reviewed": [
+    "deploy/k8s/deployment-prd.yaml",
+    "deploy/k8s/deployment-stg.yaml",
+    "deploy/k8s/networkpolicy-stg.yaml",
+    "services/validacao/Dockerfile",
+    "services/validacao/src/Validacao.Infrastructure/Adquirente/AdquirenteClient.cs",
+    "services/validacao/src/Validacao.Infrastructure/DependencyInjection.cs"
+  ],
+  "findings": [
+    {
+      "id": "PF-1",
+      "severity": "high",
+      "area": "network-policy",
+      "file": "deploy/k8s/networkpolicy-stg.yaml",
+      "summary": "NetworkPolicy de staging é default-deny total (Ingress+Egress) sem nenhuma regra de exceção, o que bloqueia inclusive o egress do próprio pod para o adquirente que este PR acabou de integrar.",
+      "recommendation": "Adicionar regras de egress explícitas liberando DNS (porta 53) e HTTPS (porta 443) para o host do adquirente antes de aplicar a policy, ou validar em cluster de staging que a chamada HTTP não falha por bloqueio de rede."
+    },
+    {
+      "id": "PF-2",
+      "severity": "high",
+      "area": "network-policy",
+      "file": "deploy/k8s/deployment-prd.yaml",
+      "summary": "Não existe networkpolicy-prd.yaml — produção fica sem isolamento de rede (default-allow do namespace) enquanto staging recebeu a policy, criando divergência de postura de segurança entre os ambientes.",
+      "recommendation": "Criar a NetworkPolicy equivalente para o namespace prd-validacao, com as mesmas regras de egress necessárias para o adquirente e para observabilidade (OTLP)."
+    },
+    {
+      "id": "PF-3",
+      "severity": "high",
+      "area": "release-process",
+      "file": "deploy/k8s/deployment-stg.yaml",
+      "summary": "Os manifests de stg e prd apontam para a mesma tag mutável (validacao:1.8.0) publicada diretamente no ECR, sem evidência de gate de promoção entre staging e produção nem de pipeline validando a imagem antes do rollout em prd.",
+      "recommendation": "Promover a imagem de stg para prd por pipeline com aprovação humana e smoke test em stg antes de aplicar o mesmo digest em produção; referenciar a imagem por digest sha256 em vez de tag mutável, para garantir que o que foi validado é exatamente o que sobe."
+    },
+    {
+      "id": "PF-4",
+      "severity": "medium",
+      "area": "build-integration",
+      "file": "services/validacao/src/Validacao.Api/Validacao.Api.csproj",
+      "summary": "Validacao.Api.csproj não tem ProjectReference para Validacao.Infrastructure, e Program.cs nunca chama AddInfrastructure(). O AdquirenteClient introduzido neste diff não é compilado no binário publicado pelas imagens de stg/prd — a funcionalidade de captura de tarifa descrita na tarefa não está de fato presente no artefato que está sendo implantado.",
+      "recommendation": "Adicionar a ProjectReference em Validacao.Api.csproj e invocar builder.Services.AddInfrastructure() em Program.cs antes do publish; sem isso, o deploy não entrega a funcionalidade pretendida."
+    },
+    {
+      "id": "PF-5",
+      "severity": "medium",
+      "area": "configuration",
+      "file": "services/validacao/src/Validacao.Infrastructure/Adquirente/AdquirenteClient.cs",
+      "summary": "A URL do adquirente (https://api.adquirente.example/v2/capturas) está hardcoded no código-fonte, sem diferenciação entre staging (sandbox do adquirente) e produção, e sem passar por appsettings/variável de ambiente/secret.",
+      "recommendation": "Externalizar o endpoint via configuração (appsettings por ambiente ou variável de ambiente injetada no Deployment), permitindo apontar para sandbox em stg e endpoint real em prd sem alterar código."
+    },
+    {
+      "id": "PF-6",
+      "severity": "medium",
+      "area": "resilience",
+      "file": "services/validacao/src/Validacao.Infrastructure/DependencyInjection.cs",
+      "summary": "AddHttpClient<AdquirenteClient>() é registrado sem timeout, retry ou circuit breaker (ex.: Polly). EnsureSuccessStatusCode() propaga exceção não tratada em caso de falha do adquirente, sem política de resiliência para uma dependência externa crítica de pagamento.",
+      "recommendation": "Configurar Timeout explícito no HttpClient e adicionar política de retry com backoff exponencial e circuit breaker via Polly (AddResilienceHandler/AddPolicyHandler), dado que a captura no adquirente é caminho crítico de cobrança."
+    },
+    {
+      "id": "PF-7",
+      "severity": "low",
+      "area": "security",
+      "file": "services/validacao/src/Validacao.Infrastructure/Adquirente/AdquirenteClient.cs",
+      "summary": "A chamada ao adquirente não inclui nenhum mecanismo visível de autenticação (API key, OAuth, mTLS). Se a integração real do adquirente exigir autenticação, ela está ausente do código deste diff.",
+      "recommendation": "Confirmar com o time do adquirente o mecanismo de autenticação exigido e implementá-lo (header assinado, mTLS ou client credentials), evitando expor a rota de captura sem controle de acesso."
+    },
+    {
+      "id": "PF-8",
+      "severity": "low",
+      "area": "supply-chain",
+      "file": "services/validacao/Dockerfile",
+      "summary": "Bump do runtime base de 8.0.7-alpine para 8.0.8-alpine sem referência a CVE corrigido ou changelog no diff/commit, dificultando auditoria do motivo do bump.",
+      "recommendation": "Registrar no corpo do commit/PR o motivo do bump (ex.: CVE-XXXX-XXXXX corrigido no patch), mesmo sendo um bump de patch de baixo risco."
+    }
+  ],
+  "overall_recommendation": "block",
+  "overall_rationale": "PF-1 e PF-3 indicam que o deploy, como está, provavelmente falha em staging (egress bloqueado) e pula o gate de promoção stg→prd que a plataforma exige antes de produção; PF-4 indica que a funcionalidade de captura no adquirente sequer está no binário publicado. Recomenda-se corrigir esses três pontos antes de prosseguir com o deploy."
+}

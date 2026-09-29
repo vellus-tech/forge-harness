@@ -1,0 +1,32 @@
+{
+  "skill": "conciliacao-pix",
+  "iteration": 2,
+  "judged_at": "2026-09-26T00:00:00Z",
+  "method": "julgamento cego (A/B) por leitura das expectativas em comparator-input.json, sem acesso a skill ou protocolo do skill-creator",
+  "cases": [
+    {
+      "id": "TC-01",
+      "winner": "A",
+      "confidence": "alta",
+      "rationale": "A identifica exatamente as 3 transações sem pedido correspondente (E2E...A41, E2E...B07, E2E...C93), soma a divergência em R$ 412,90 e explicitamente não trata E2E...D77 como divergência por ser estorno parcial com devolução registrada no pedido 88213 — bate com as 3 expectativas. B inclui E2E...D77 como divergência (contradiz a expectativa de não marcá-lo), chega a um total diferente (R$ 389,40, incorreto) e recomenda abertura de chamado para 4 itens em vez de 3."
+    },
+    {
+      "id": "TC-02",
+      "winner": "B",
+      "confidence": "alta",
+      "rationale": "B usa a tarifa contratada de 0,99% para a Stone (bate com o realizado, sem divergência) e sinaliza corretamente que a Rede cobrou 1,45% contra 1,20% contratado, acima do contrato, com estimativa de diferença e sugestão de contestação — bate com as 3 expectativas. A usa 1,20% como tarifa da Stone (não é a contratada de 0,99% citada na expectativa) e conclui que todas as adquirentes estão dentro da faixa de mercado, sem sinalizar a divergência da Rede — não bate com a expectativa central do caso."
+    },
+    {
+      "id": "TC-03",
+      "winner": "tie",
+      "confidence": "média",
+      "rationale": "Ambas as saídas acertam os dois números objetivos (17 transações pendentes, R$ 3.918,20), mas nenhuma das duas lista o motivo predominante (PSP em janela de manutenção), que é a terceira expectativa do caso. Como as duas falham no mesmo ponto e são equivalentes no restante, não há vencedor claro neste caso."
+    }
+  ],
+  "summary": {
+    "A_wins": 1,
+    "B_wins": 1,
+    "ties": 1,
+    "note": "Amostra pequena (3 casos) e o rótulo A/B está anonimizado neste caderno — não é possível, sem o mapeamento externo, dizer qual lado corresponde à execução com ou sem a skill."
+  }
+}

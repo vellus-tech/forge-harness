@@ -1,0 +1,12 @@
+{
+  "name": "@rotaviva/icons",
+  "version": "0.1.0",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" }
+  },
+  "scripts": { "build": "tsc -p tsconfig.build.json" },
+  "peerDependencies": { "react": ">=18" },
+  "devDependencies": { "@types/react": "^18.3.0", "typescript": "^5.6.0" }
+}

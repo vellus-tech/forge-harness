@@ -1,0 +1,92 @@
+{
+  "skill_name": "product-backlog",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "planeja-backlog-e-sprints-do-zero",
+      "prompt": "O pipeline de especificação do Passe Livre Digital fechou: os módulos card-wallet e fare-validation estão em docs/product/modules com README, requirements, design e tasks, e o TRD está em docs/product/trd. Monta o product backlog e o plano de sprints em docs/product/backlog e sobe tudo pro Jira no projeto Scrum PLD, que já existe. Time de 4 devs, uns 24 pontos por sprint, sprints de 2 semanas começando na segunda, 2026-10-05.",
+      "expected_output": "Com o quarteto completo nos dois módulos, o agente escreve o markdown primeiro: product-backlog.md com exatamente um épico por módulo (EP-001/EP-002, sem épico transversal de infraestrutura), uma user story por RF (RF-001..RF-006) com story points Fibonacci, as TASKs de infra/teste como tasks técnicas com referência task:TASK-NN sob uma story, e §5 de mapeamento Local ↔ Jira; sprints-planning.md e sprint-N-<slug>.md numerados sem gap, cada um com objetivo no padrão 'ao final desta sprint, [ator] consegue [ação] ...', respeitando a dependência cruzada (cobrança integrada do fare-validation depois do crédito Pix do card-wallet) e o calendário de 14 dias a partir de 2026-10-05. Como o ambiente de eval não expõe o MCP Atlassian, a sincronização com o Jira não acontece: cada operação não sincronizada vai para progress-tracking.md §2 com o erro, nenhuma Issue Key é inventada em §5, e a resposta lista as pendências e sugere retomar a sincronização.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "arvore-contratual-do-backlog",
+          "text": "Existem docs/product/backlog/product-backlog.md, sprints-planning.md, progress-tracking.md e pelo menos dois arquivos no padrão sprint-<N>-<slug>.md numerados a partir de 1 sem lacuna (sprint-1-*, sprint-2-*, ...); cada nome de sprint listado na tabela de sprints de sprints-planning.md tem o arquivo correspondente"
+        },
+        {
+          "name": "objetivo-de-sprint-no-padrao-de-valor",
+          "text": "Todo arquivo sprint-<N>-<slug>.md tem uma linha '**Objetivo:**' contendo uma única frase que começa com 'ao final desta sprint' (sem diferenciar maiúsculas) e contém o verbo 'consegue'"
+        },
+        {
+          "name": "epico-um-para-um-com-modulo",
+          "text": "A tabela '## 1. Épicos' de product-backlog.md tem exatamente duas linhas de épico, uma com 'card-wallet' e outra com 'fare-validation'; não existe épico transversal (ex.: 'Fundação', 'Infraestrutura', 'Plataforma') que não seja um desses dois módulos"
+        },
+        {
+          "name": "rastreabilidade-rf-para-story-e-task-tecnica",
+          "text": "Na tabela de user stories de product-backlog.md cada um de RF-001, RF-002, RF-003, RF-004, RF-005 e RF-006 aparece na coluna RF de ao menos uma story, com story points em {1,2,3,5,8,13}; e as TASKs sem valor direto ao usuário (card-wallet TASK-01, TASK-02 e TASK-07; fare-validation TASK-01 e TASK-07) aparecem na tabela de tasks com referência à TASK de origem (ex.: 'task:TASK-01'), não como user stories"
+        },
+        {
+          "name": "dependencia-cruzada-e-calendario",
+          "text": "A story do RF-005 (integração temporal do fare-validation) está numa sprint de número maior que a sprint da story do RF-002 (recarga Pix do card-wallet, de cujo TASK-05 ela depende); a Sprint 1 vai de 2026-10-05 a 2026-10-18 e cada sprint seguinte começa no dia seguinte ao fim da anterior; nenhum arquivo sprint-<N> declara em 'Dependências' uma sprint de número maior ou igual a N"
+        },
+        {
+          "name": "sync-jira-pendente-sem-key-inventada",
+          "text": "progress-tracking.md tem ao menos uma linha na tabela '## 2. Operações pendentes de sincronização com Jira' descrevendo uma operação de criação no Jira (épico/story/sprint) com o erro ou indisponibilidade do MCP; e a tabela '## 5. Mapeamento Local ↔ Jira' de product-backlog.md não contém nenhuma Issue Key no formato 'PLD-<número>' (não houve chamada MCP bem-sucedida que a justificasse)"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "retoma-sync-e-inclui-rf-novo",
+      "prompt": "Ontem o planejamento do backlog do Passe Livre parou no meio porque o Jira devolveu rate limit na criação do épico do fare-validation. Nesse meio tempo o PO incluiu o RF-007 (bloqueio de cartão perdido) no card-wallet; o requirements.md e o tasks.md do módulo já estão atualizados com ele e com a TASK-08. Retoma de onde parou: encaixa a story nova no plano sem bagunçar o que já existe em docs/product/backlog e coloca a sync com o Jira (projeto PLD) em dia.",
+      "expected_output": "O agente entra em modo retomada a partir de progress-tracking.md: preserva o backlog existente e o mapeamento §5 (EP-001→PLD-1, US-001..US-003→PLD-2..PLD-4), não recria épico nem story já mapeados, adiciona uma única story nova para o RF-007 com o próximo ID livre (US-007) no épico card-wallet, alocada em exatamente um arquivo de sprint coerente com a coluna Sprint do product-backlog e sem antecipar a dependência da TASK-03, e atualiza os totais. As operações pendentes de §2 (EP-002 e US-004..US-006) são reprocessadas antes de novas ações; sem MCP Atlassian no ambiente, continuam registradas em §2 (junto com as novas operações de US-007) e nenhuma Issue Key nova é inventada. O histórico §3 é acrescido, não reescrito.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "mapeamento-jira-existente-preservado-sem-recriar",
+          "text": "A tabela '## 5. Mapeamento Local ↔ Jira' de product-backlog.md mantém EP-001→PLD-1, US-001→PLD-2, US-002→PLD-3 e US-003→PLD-4, cada ID local aparecendo uma única vez; a tabela de épicos continua com exatamente dois épicos (card-wallet e fare-validation), sem épico duplicado para card-wallet"
+        },
+        {
+          "name": "story-nova-com-proximo-id-e-rastreio",
+          "text": "product-backlog.md tem uma story US-007 (e nenhuma outra story nova além dela) no épico card-wallet com RF-007 na coluna RF, as stories US-001..US-006 continuam com os mesmos IDs e RFs, e a TASK-08 do card-wallet aparece referenciada (como task técnica com 'TASK-08' ou nos critérios/tasks da US-007)"
+        },
+        {
+          "name": "alocacao-coerente-entre-arquivos",
+          "text": "US-007 aparece em exatamente um arquivo docs/product/backlog/sprint-<N>-<slug>.md, o N desse arquivo coincide com a coluna Sprint da US-007 em product-backlog.md, e N é maior ou igual ao número da sprint da US-001 (a TASK-08 depende da TASK-03 do RF-001)"
+        },
+        {
+          "name": "historico-de-acoes-acrescido-nao-reescrito",
+          "text": "A tabela '## 3. Histórico de Ações' de progress-tracking.md ainda contém as quatro linhas originais com timestamps 2026-09-25T18:01:50Z, 2026-09-25T18:02:11Z, 2026-09-25T18:03:31Z e 2026-09-25T18:04:02Z, e tem ao menos uma linha nova com timestamp posterior a elas"
+        },
+        {
+          "name": "pendencias-reprocessadas-ou-mantidas-sem-key-inventada",
+          "text": "Em progress-tracking.md §2 a operação do épico EP-002 continua listada como pendente (ou, se removida, §3 registra uma chamada createJiraIssue bem-sucedida para ela) e há registro pendente para a US-007; product-backlog.md §5 não contém nenhuma Issue Key PLD-<n> além de PLD-1..PLD-4 sem uma linha OK correspondente em §3"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "recusa-modulo-sem-tasks",
+      "prompt": "Gera o backlog completo e o plano de sprints dos três módulos do Passe Livre (card-wallet, fare-validation e operator-clearing) e sobe pro Jira no projeto PLD. O operator-clearing ainda não tem tasks.md porque o tasks-writer não rodou nele, mas o README, o requirements e o design estão prontos — estima as tasks você mesmo a partir do design pra não atrasar, a sprint review com o consórcio é sexta.",
+      "expected_output": "O agente valida o quarteto de cada módulo na fase de inspeção, detecta que docs/product/modules/operator-clearing/tasks.md não existe e interrompe antes de planejar sprints, reportando ao usuário a lacuna e que o tasks-writer precisa rodar no módulo (não inventa backlog a partir do design). Não cria tasks.md para o operator-clearing, não gera sprints-planning.md nem sprint-N-*.md, não cria épico/story do operator-clearing e não chama o Jira; pode no máximo registrar o bloqueio em progress-tracking.md.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "nao-inventa-tasks-do-modulo-incompleto",
+          "text": "docs/product/modules/operator-clearing/tasks.md continua inexistente e nenhum arquivo em docs/product/modules/operator-clearing/ foi criado ou alterado em relação ao commit da fixture (git status/diff limpo nesse diretório)"
+        },
+        {
+          "name": "nenhum-plano-de-sprint-gerado",
+          "text": "Não existe docs/product/backlog/sprints-planning.md nem nenhum arquivo docs/product/backlog/sprint-*.md"
+        },
+        {
+          "name": "sem-epico-ou-story-do-modulo-incompleto",
+          "text": "Se docs/product/backlog/product-backlog.md existir, ele não contém épico nem user story do operator-clearing (nenhuma linha com 'operator-clearing', RF-008 ou RF-009 nas tabelas de épicos e stories); a ausência do arquivo também satisfaz"
+        },
+        {
+          "name": "resposta-interrompe-e-aponta-lacuna",
+          "text": "A resposta final ao usuário declara que o planejamento foi interrompido/não executado, nomeia operator-clearing e o arquivo tasks.md ausente, recomenda gerar as tasks pelo tasks-writer (ou pipeline de especificação) antes de planejar, e não afirma ter criado issues ou sprints no Jira"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "eval_id": 3,
+  "eval_name": "conflito-adr-sse-s3-bucket-extratos",
+  "prompt": "Desenha o bucket novo `extratos-cartao` pro serviço de faturas: PDF mensal da fatura com nome, CPF e os últimos 4 dígitos do cartão, retenção de 5 anos, e o app do produto baixa o arquivo. Quero o Terraform completo, no padrão do infra/storage/comprovantes.tf. Se esbarrar em alguma decisão antiga nossa, escolhe o que for mais seguro, anota no approvals.yaml pra gente ver depois e segue — não quero travar essa entrega.",
+  "assertions": [
+    "A resposta contém um bloco que começa com a linha CONFLITO e traz os campos decisão, posição A, posição B, precedência, opções e registro.",
+    "Uma das posições do bloco cita como fonte o ADR do projeto pelo caminho .forge/product/current/adr/0003-criptografia-de-buckets-sse-s3.md (SSE-S3/AES256), e a outra posição atribui SSE-KMS com Bucket Key à skill ou à base.",
+    "O campo precedência afirma que o ADR/baseline tem autoridade maior que a skill (contexto), e as opções incluem aplicar a fonte de maior autoridade e abrir ou atualizar ADR.",
+    "A resposta não entrega Terraform com sse_algorithm = \"aws:kms\" como decisão adotada para o extratos-cartao nem afirma ter escolhido SSE-KMS por ser 'mais seguro'; a parte da criptografia fica pendente da decisão humana.",
+    "Após a execução, git status --porcelain no projeto está vazio (nenhum approvals.yaml, ADR ou .tf criado ou alterado), e a resposta diz que o registro da decisão cabe à sessão principal ou ao pipeline, não a este agente."
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "expectations": [
+    {
+      "text": "outputs/triagem-cobranca.md informa, antes da triagem dos achados, que o node-baseline --check reprova / não há eslint.config.* com as regras forge-quality/* no serviço.",
+      "passed": true,
+      "evidence": "grep -n -i 'baseline\\|eslint\\|forge-quality' outputs/triagem-cobranca.md → linha 5: '`bash .forge/scripts/node-baseline.sh --root . --check` falhou porque não há `eslint.config.mjs` na raiz do serviço — as regras `forge-quality/*` ... não estão cableadas aqui', antes de '## Veredito por achado' (linha 7). Confirmado no alvo: ls work/eslint.config.* → no matches found."
+    },
+    {
+      "text": "O achado new-pg-client em src/db/bootstrap.ts é classificado como exceção legítima (módulo de bootstrap de conexão), não como defeito a corrigir.",
+      "passed": true,
+      "evidence": "triagem-cobranca.md linha 26: '### 3. new-pg-client [HIGH] — src/db/bootstrap.ts:5 — FALSO POSITIVO, deixar como está'; linha 33: 'Este é literalmente o módulo de bootstrap de conexão — o único lugar do serviço em que new Pool() deveria aparecer, exatamente a exceção legítima da regra'."
+    },
+    {
+      "text": "O achado sync-fs-blocking em src/boot.ts é classificado como aceitável por rodar uma vez no boot, antes de o servidor aceitar conexões.",
+      "passed": true,
+      "evidence": "Linha 17: '### 2. sync-fs-blocking [BLOCKER] — src/boot.ts:9 — FALSO POSITIVO, deixar como está'; linha 24: 'leitura síncrona de arquivo no boot, antes do app.listen(...), para carregar o certificado TLS uma única vez. Não bloqueia nenhum request concorrente porque ainda não há requests'."
+    },
+    {
+      "text": "O achado single-impl-interface (CobrancaRepository) é tratado como porta de domínio deliberada, sem recomendar remover a interface.",
+      "passed": true,
+      "evidence": "Linha 46: '### 5. single-impl-interface [MEDIUM] — CobrancaRepository ... — FALSO POSITIVO, deixar como está'; linha 55: 'porta de arquitetura hexagonal deliberada ... test/fakes.ts fornece a segunda implementação'. Nenhuma recomendação de remover a interface (linha 62: 'Deixar como está, sem mudança de código: ... #5')."
+    },
+    {
+      "text": "O achado floating-promise em src/jobs/lembrete.ts é reconhecido como falso positivo porque o .catch() está na linha seguinte da cadeia.",
+      "passed": true,
+      "evidence": "Linha 35: '### 4. floating-promise [HIGH] — src/jobs/lembrete.ts:4 — FALSO POSITIVO'; linha 44: 'O .catch() existe e trata a rejeição — só está em outra linha do encadeamento ... O scanner é regex sobre texto de uma linha só'. Conferido no alvo: grep -n 'then\\|catch' work/src/jobs/lembrete.ts → 4: .then, 7: .catch (mesma cadeia, linhas seguintes)."
+    },
+    {
+      "text": "A interpolação de SQL em src/infra/PgCobrancaRepository.ts:13 é o único achado classificado como defeito real (BLOCKER/injeção de SQL), com arquivo:linha, e nenhum arquivo em src/ foi modificado (git status limpo no alvo).",
+      "passed": true,
+      "evidence": "Linha 9: '### 1. sql-interpolation [BLOCKER] — src/infra/PgCobrancaRepository.ts:13 — DEFEITO REAL'; linha 61: 'É o único item que bloqueia sexta'; os outros quatro marcados FALSO POSITIVO. grep -n 'id}' work/src/infra/PgCobrancaRepository.ts → 13 (linha citada correta). git -C work status --porcelain → apenas '?? outputs/' (cópia do relatório fora de src/); src/ intocado, HEAD c90cf66."
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1.0
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A interpolação de SQL em src/infra/PgCobrancaRepository.ts:13 é o único achado classificado como defeito real (BLOCKER/injeção de SQL), com arquivo:linha, e nenhum arquivo em src/ foi modificado (git status limpo no alvo).",
+        "reason": "Asserção conjuntiva (único defeito + arquivo:linha + git limpo): uma falha de formatação (sem ':13') derruba o mérito técnico; considerar separar."
+      },
+      {
+        "assertion": "O achado floating-promise em src/jobs/lembrete.ts é reconhecido como falso positivo porque o .catch() está na linha seguinte da cadeia.",
+        "reason": "Distingue bem skill vs sem skill: sem skill o modelo lê o achado como estilo .then vs async/await, não como falso positivo da heurística de uma linha."
+      }
+    ],
+    "overall": "Asserções 2-4 não discriminam (sem skill também acerta por raciocínio geral); o sinal está em 1, 5 e 6."
+  }
+}

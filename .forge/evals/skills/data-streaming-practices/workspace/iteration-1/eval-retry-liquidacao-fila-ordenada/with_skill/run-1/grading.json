@@ -1,0 +1,75 @@
+{
+  "expectations": [
+    {
+      "text": "docs/design-retry-liquidacao.md afirma que retry atrasado (delayed-retry nativo, fila de espera ou DLX de volta) tira a mensagem da ordem e deixa as seguintes da mesma conta passarem, o que conflita com o Single Active Consumer da fila liquidacao.lancamentos (cita RMQ-AP-26 ou descreve o mesmo efeito explicitamente)",
+      "passed": true,
+      "evidence": "design-retry-liquidacao.md §'Pedido original': 'O delayed retry nativo — e, pela mesma razão, uma fila de espera com TTL e DLX de volta — tira a mensagem da fila principal enquanto ela aguarda. Nesse intervalo, as mensagens seguintes da fila são entregues e processadas normalmente, ou seja, passam na frente da que está em retry. Numa fila que promete ordem isso quebra a garantia [...] é o antipattern RMQ-AP-26', ligado explicitamente ao Single Active Consumer da liquidacao.lancamentos."
+    },
+    {
+      "text": "Na infra/rabbitmq/definitions.json final, a policy/argumentos de liquidacao.lancamentos NÃO têm delayed-retry-type diferente de disabled; se o agente ainda assim ligou o retry nativo nessa fila, só passa se o design e a resposta final registrarem explicitamente a quebra de ordem como decisão pendente do usuário",
+      "passed": true,
+      "evidence": "definitions.json final (outputs/ idêntico a work/infra/rabbitmq/definitions.json): arguments de liquidacao.lancamentos = {x-queue-type: quorum, x-single-active-consumer: true}; policy definition = {delivery-limit, max-length, overflow, dead-letter-exchange, dead-letter-strategy}. Nenhuma chave delayed-retry-*; grep por 'delayed' em work/infra e work/src só acha o comentário do consumidor explicando por que NÃO usa delayed-retry-type."
+    },
+    {
+      "text": "O design explica que o retry nativo do 4.3 calcula o atraso como min(delayed-retry-min × delivery-count, delayed-retry-max), linear com teto e sem jitter, e que por isso não reproduz os patamares 5s/30s/5min pedidos",
+      "passed": false,
+      "evidence": "O design só diz, de passagem, que 'o retry nativo (que não estamos usando) é linear e sem jitter'. Não apresenta a fórmula min(delayed-retry-min × delivery-count, delayed-retry-max) nem explica que, por ser linear com teto, o mecanismo nativo não reproduz os patamares 5s/30s/5min pedidos; a rejeição do nativo é justificada só pela quebra de ordem. Evidência insuficiente para a asserção."
+    },
+    {
+      "text": "A policy de liquidacao.lancamentos em infra/rabbitmq/definitions.json final contém dead-letter-exchange, dead-letter-strategy igual a at-least-once e overflow igual a reject-publish (na definition da policy, não em arguments da fila), e o design aponta que delivery-limit sem DLX descarta a mensagem em silêncio (RMQ-AP-23)",
+      "passed": true,
+      "evidence": "Policy 'liquidacao-lancamentos'.definition contém 'dead-letter-exchange': 'liquidacao.dlx', 'dead-letter-strategy': 'at-least-once', 'overflow': 'reject-publish' (em definition, não em arguments da fila). Design §Topologia: 'RMQ-AP-23 (delivery-limit sem DLX [...] sem DLX, a mensagem que estoura esse limite [...] é descartada sem deixar rastro)'."
+    },
+    {
+      "text": "Nenhum arquivo final (definitions.json, enabled_plugins, consumidor ou design) introduz exchange do tipo x-delayed-message nem habilita rabbitmq_delayed_message_exchange",
+      "passed": true,
+      "evidence": "Nenhum exchange do tipo x-delayed-message em definitions.json (tipos: topic e direct); não há enabled_plugins no work/; consumidor e design não habilitam rabbitmq_delayed_message_exchange (o design só cita RMQ-AP-17 nas fontes)."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "pass_rate": 0.8
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 204000,
+    "total_duration_seconds": 204
+  },
+  "claims": [
+    {
+      "claim": "dead-letter-strategy at-least-once exige a feature flag stream_queue",
+      "type": "factual",
+      "verified": true,
+      "evidence": "Consistente com a documentação do RabbitMQ sobre at-least-once dead-lettering (requer overflow reject-publish e a feature flag stream_queue); não verificado contra doc nesta avaliação além do conhecimento do grader."
+    },
+    {
+      "claim": "scan.sh pós-patch deu o mesmo resultado limpo",
+      "type": "process",
+      "verified": false,
+      "evidence": "outputs/deteccao.txt mostra a seção pós-patch truncada (só D-AP-04/05, SCH-AP-01, T-02); não dá para confirmar que todas as regras continuaram OK."
+    },
+    {
+      "claim": "Retry no consumidor 'com teto'",
+      "type": "quality",
+      "verified": false,
+      "evidence": "O consumidor tenta para sempre em ErroTransitorio (for(;;) com espera máxima de 5min+jitter); o 'teto' é só do intervalo, não do número de tentativas. Não há parking nem marcação da chave ao estourar teto, e o delivery-limit não conta porque a mensagem nunca é devolvida."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Na infra/rabbitmq/definitions.json final, a policy/argumentos de liquidacao.lancamentos NÃO têm delayed-retry-type diferente de disabled; se o agente ainda assim ligou o retry nativo nessa fila, só passa se o design e a resposta final registrarem explicitamente a quebra de ordem como decisão pendente do usuário",
+        "reason": "Passa trivialmente para quem simplesmente não conhece o recurso (caso without_skill): não discrimina entendimento do conflito ordem×retry nativo. Considere exigir, junto, que o design justifique a não-adoção pela quebra de ordem."
+      },
+      {
+        "reason": "Nenhuma asserção verifica o 'com teto' do retry no consumidor nem a marcação da chave/parking ao estourar o teto, que estão no expected_output. O with_skill tenta para sempre em ErroTransitorio e passaria em tudo mesmo assim."
+      },
+      {
+        "reason": "Nenhuma asserção verifica que a DLX não ficou duplicada em x-arguments (o without_skill a pôs só em arguments) nem o jitter no consumidor; a 4 cobre parcialmente o primeiro ponto."
+      }
+    ],
+    "overall": "Asserções 1, 3 e 4 são discriminantes; a 2 e a 5 passam por omissão. Falta cobrir o teto de tentativas e a marcação da chave."
+  }
+}

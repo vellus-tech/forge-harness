@@ -1,0 +1,33 @@
+  Determinando os projetos a serem restaurados...
+<worktree-do-eval>/.forge/evals/skills/verify-build/workspace/iteration-1/eval-dotnet-split-teste-quebrado/without_skill/run-1/work/tests/Pagamentos.Domain.Tests/Pagamentos.Domain.Tests.csproj : warning NU1900: Ocorreu um erro ao obter os dados de vulnerabilidade do pacote: Não é possível carregar o índice de serviço para a origem https://axis-mobfintech-833342657354.d.codeartifact.us-west-2.amazonaws.com/nuget/Axis/v3/index.json. [<worktree-do-eval>/.forge/evals/skills/verify-build/workspace/iteration-1/eval-dotnet-split-teste-quebrado/without_skill/run-1/work/Pagamentos.sln]
+  Todos os projetos estão atualizados para restauração.
+<worktree-do-eval>/.forge/evals/skills/verify-build/workspace/iteration-1/eval-dotnet-split-teste-quebrado/without_skill/run-1/work/tests/Pagamentos.Domain.Tests/Pagamentos.Domain.Tests.csproj : warning NU1900: Ocorreu um erro ao obter os dados de vulnerabilidade do pacote: Não é possível carregar o índice de serviço para a origem https://axis-mobfintech-833342657354.d.codeartifact.us-west-2.amazonaws.com/nuget/Axis/v3/index.json.
+  Pagamentos.Domain -> <worktree-do-eval>/.forge/evals/skills/verify-build/workspace/iteration-1/eval-dotnet-split-teste-quebrado/without_skill/run-1/work/src/Pagamentos.Domain/bin/Debug/net10.0/Pagamentos.Domain.dll
+  Pagamentos.Domain.Tests -> <worktree-do-eval>/.forge/evals/skills/verify-build/workspace/iteration-1/eval-dotnet-split-teste-quebrado/without_skill/run-1/work/tests/Pagamentos.Domain.Tests/bin/Debug/net10.0/Pagamentos.Domain.Tests.dll
+Execução de teste para <worktree-do-eval>/.forge/evals/skills/verify-build/workspace/iteration-1/eval-dotnet-split-teste-quebrado/without_skill/run-1/work/tests/Pagamentos.Domain.Tests/bin/Debug/net10.0/Pagamentos.Domain.Tests.dll (.NETCoreApp,Version=v10.0)
+1 arquivos de teste no total corresponderam ao padrão especificado.
+[xUnit.net 00:00:00.11]     Pagamentos.Domain.Tests.PagamentoTests.Split_ParcelasZero_LancaDomainException [FAIL]
+[xUnit.net 00:00:00.11]     Pagamentos.Domain.Tests.PagamentoTests.Split_DistribuiRestoNasPrimeirasParcelas [FAIL]
+  Com falha Pagamentos.Domain.Tests.PagamentoTests.Split_ParcelasZero_LancaDomainException [2 ms]
+  Mensagem de erro:
+   Assert.Throws() Failure: Exception type was not an exact match
+Expected: typeof(Pagamentos.Domain.DomainException)
+Actual:   typeof(System.InvalidOperationException)
+---- System.InvalidOperationException : Parcelamento inválido para o valor informado.
+  Rastreamento de pilha:
+     at Pagamentos.Domain.Tests.PagamentoTests.Split_ParcelasZero_LancaDomainException() in <worktree-do-eval>/.forge/evals/skills/verify-build/workspace/iteration-1/eval-dotnet-split-teste-quebrado/without_skill/run-1/work/tests/Pagamentos.Domain.Tests/PagamentoTests.cs:line 22
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+----- Inner Stack Trace -----
+   at Pagamentos.Domain.Pagamento.Split(Int32 parcelas) in <worktree-do-eval>/.forge/evals/skills/verify-build/workspace/iteration-1/eval-dotnet-split-teste-quebrado/without_skill/run-1/work/src/Pagamentos.Domain/Pagamento.cs:line 23
+   at Pagamentos.Domain.Tests.PagamentoTests.<>c__DisplayClass1_0.<Split_ParcelasZero_LancaDomainException>b__0() in <worktree-do-eval>/.forge/evals/skills/verify-build/workspace/iteration-1/eval-dotnet-split-teste-quebrado/without_skill/run-1/work/tests/Pagamentos.Domain.Tests/PagamentoTests.cs:line 22
+  Com falha Pagamentos.Domain.Tests.PagamentoTests.Split_DistribuiRestoNasPrimeirasParcelas [< 1 ms]
+  Mensagem de erro:
+   System.InvalidOperationException : Parcelamento inválido para o valor informado.
+  Rastreamento de pilha:
+     at Pagamentos.Domain.Pagamento.Split(Int32 parcelas) in <worktree-do-eval>/.forge/evals/skills/verify-build/workspace/iteration-1/eval-dotnet-split-teste-quebrado/without_skill/run-1/work/src/Pagamentos.Domain/Pagamento.cs:line 23
+   at Pagamentos.Domain.Tests.PagamentoTests.Split_DistribuiRestoNasPrimeirasParcelas() in <worktree-do-eval>/.forge/evals/skills/verify-build/workspace/iteration-1/eval-dotnet-split-teste-quebrado/without_skill/run-1/work/tests/Pagamentos.Domain.Tests/PagamentoTests.cs:line 12
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+
+Com falha! – Com falha:     2, Aprovado:     1, Ignorado:     0, Total:     3, Duração: 21 ms - Pagamentos.Domain.Tests.dll (net10.0)

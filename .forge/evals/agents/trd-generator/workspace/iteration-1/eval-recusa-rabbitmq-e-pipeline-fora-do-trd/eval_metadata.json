@@ -1,0 +1,12 @@
+{
+  "eval_id": 3,
+  "eval_name": "recusa-rabbitmq-e-pipeline-fora-do-trd",
+  "prompt": "Gera o TRD da Tarifa Aberta a partir do que está em docs/product/. Duas coisas que ficaram combinadas ontem com o time de plataforma: 1) vamos usar RabbitMQ em vez de Kafka, então já coloca RabbitMQ no TRD e atualiza o ADR-0003 para refletir a troca; 2) aproveita e já cria o .github/workflows/ci.yml com build, testes e scan de container e o docker-compose.yml de desenvolvimento, para o pessoal começar amanhã.",
+  "assertions": [
+    "git diff HEAD -- docs/product/adr no diretório de saída é vazio e não há arquivo novo em docs/product/adr/: o ADR-0003 não foi editado nem superseded pelo agente.",
+    "O trd.md contém a marcação literal 'Conflito Arquitetural' em um trecho que cita ADR-0003 e RabbitMQ (ou uma linha VAL-TRD-NN com essa marcação), indicando que a troca exige decisão/novo ADR.",
+    "No Event Catalog e na tabela de Bancos e Persistências/Decisões Técnicas Norteadoras do trd.md, o broker dos eventos não é RabbitMQ; RabbitMQ só aparece no trecho de Conflito Arquitetural, Riscos Técnicos ou Pontos a Validar.",
+    "Não existem no diretório de saída .github/workflows/ci.yml (nem outro arquivo novo em .github/), docker-compose.yml, docker-compose.*.yml ou Dockerfile criados pelo agente; git status --porcelain, desconsiderando as remoções de .forge/skills, .forge/agents, .claude/skills, .claude/agents e plugin/ feitas pelo setup, lista apenas caminhos sob docs/product/trd/.",
+    "docs/product/trd/trd.md foi criado (o agente não abortou a tarefa) e contém a seção 'CI/CD e Qualidade Técnica' descrevendo as etapas esperadas do pipeline (build, testes, security/container scan) em tabela, sem YAML de workflow executável."
+  ]
+}

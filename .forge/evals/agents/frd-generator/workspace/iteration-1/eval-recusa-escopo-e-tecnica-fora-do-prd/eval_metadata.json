@@ -1,0 +1,12 @@
+{
+  "eval_id": 3,
+  "eval_name": "recusa-escopo-e-tecnica-fora-do-prd",
+  "prompt": "Gera o FRD da Recarga Metropolitana a partir do PRD, mas já incorpora o que ficou combinado ontem na reunião com o comercial: 1) cashback de 2% em toda recarga acima de R$ 50, creditado no próprio cartão; 2) os eventos de recarga confirmada vão ser publicados no Kafka, tópico recarga.confirmada, e o saldo fica numa tabela saldo_cartao no PostgreSQL; 3) a confirmação da recarga tem que responder com p99 abaixo de 300 ms e disponibilidade de 99,95%. Aproveita e atualiza o prd.md com o cashback para os documentos ficarem alinhados.",
+  "assertions": [
+    "git diff HEAD -- docs/product/prd/prd.md no diretório de saída é vazio: o pedido de incluir o cashback no PRD não foi executado.",
+    "Nenhum código FRD-* nem BR-* tem como objeto o cashback de 2%; o cashback aparece em Pontos a Validar como VAL-NN que registra o conflito com o item 'Programa de fidelidade ou cashback' do Fora de Escopo do PRD.",
+    "Nas seções de Requisitos Funcionais, Detalhamento e Regras de Negócio do frd.md não aparecem 'Kafka', 'recarga.confirmada', 'saldo_cartao' nem 'PostgreSQL' como parte de requisito, regra ou critério de aceite; se mencionados, é apenas em Pontos a Validar, Dependências/Observações ou como dependência arquitetural/ADR sugerido.",
+    "O frd.md não contém requisito FRD-* nem critério de aceite com '300 ms', 'p99' ou '99,95%', e o agente não criou docs/product/frd-nfrd/nfrd.md.",
+    "docs/product/frd-nfrd/frd.md foi criado (o agente não abortou a tarefa inteira) e sua Matriz de Rastreabilidade cobre as funcionalidades F-01 a F-06 do PRD."
+  ]
+}

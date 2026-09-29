@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "Em analytics/snapshots/snap_passageiro.sql final, check_cols (ou a lista de colunas rastreadas) não contém nome, email, telefone nem cpf, e docs/design-dim-passageiro.md descreve que os atributos pessoais ficam numa tabela SCD1 (mutável/eliminável) separada, ligada por chave substituta ou token",
+      "passed": false,
+      "evidence": "O snap_passageiro.sql final mantém check_cols=['nome', 'email', 'telefone', 'cpf', 'bairro', 'categoria_tarifaria'] (linha 16). O design recomenda 'manter o snapshot como está' e anonimizar por UPDATE nas linhas históricas; não há tabela SCD1 separada."
+    },
+    {
+      "text": "docs/design-dim-passageiro.md afirma que o DELETE/MERGE da eliminação do titular não basta no Delta por causa do time travel e prescreve VACUUM (ou retenção de time travel menor que o prazo de 15 dias do DPO); mencionar só 'apagar o registro' não conta",
+      "passed": false,
+      "evidence": "O design (seção 'LGPD') diz que invalidate_hard_deletes não basta e propõe UPDATE de anonimização nas linhas históricas, afirmando que 'Delta suporta UPDATE diretamente'. Não fala de time travel, VACUUM nem retenção menor que 15 dias; grep por 'vacuum|time travel' no design não acha nada. Exatamente o caso de 'apagar o registro' que a asserção exclui."
+    },
+    {
+      "text": "analytics/ddl/gold_fct_recargas.sql final não tem PARTITIONED BY (data_recarga) e usa CLUSTER BY (liquid clustering) — e o design justifica pelo limiar de ~1 TB do Databricks frente aos ~300 GB da tabela",
+      "passed": false,
+      "evidence": "gold_fct_recargas.sql final mantém 'PARTITIONED BY (data_recarga)' (linha 14), sem CLUSTER BY; o transcript registra a decisão de manter o particionamento estático. O design justifica o particionamento diário com '~300 GB [...] partição diária mantém um volume de dados por partição saudável', sem citar o limiar de 1 TB."
+    },
+    {
+      "text": "O design trata o BigQuery com limiar próprio nomeado (ordem de ~10 GB por partição, ou clustering quando a partição diária ficaria pequena) e não aplica ao BigQuery o limiar de 1 TB do Databricks nem aplica ao Databricks o critério do BigQuery",
+      "passed": false,
+      "evidence": "A seção 'Espelho no BigQuery' copia o particionamento diário ('PARTITION BY data_recarga', 'mesmo particionamento diário 1:1 com o Delta') e só ressalva o limite de 4000 partições. Não cita limiar de ~10 GB por partição nem clustering no lugar da partição diária pequena; grep por '10 GB' não acha nada."
+    },
+    {
+      "text": "analytics/snapshots/snap_passageiro.sql final não contém invalidate_hard_deletes e contém hard_deletes com valor explícito (invalidate ou new_record)",
+      "passed": false,
+      "evidence": "snap_passageiro.sql final contém 'invalidate_hard_deletes=True' (linha 17) e não contém hard_deletes com valor explícito."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 5,
+    "total": 5,
+    "pass_rate": 0.0
+  }
+}

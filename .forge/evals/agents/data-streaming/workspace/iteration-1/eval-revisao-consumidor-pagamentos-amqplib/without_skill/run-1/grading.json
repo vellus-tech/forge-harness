@@ -1,0 +1,56 @@
+{
+  "expectations": [
+    {
+      "text": "O transcript mostra a execução de `bash .forge/skills/data-streaming-practices/scripts/scan.sh` com `--root` para os paths afetados (src e infra) e de `bash .forge/scripts/check-data-governance.sh --path` para eles, e a resposta usa a saída do scanner (achados FOUND) em vez de só ler o código",
+      "passed": false,
+      "evidence": "transcript.md não registra execução de scan.sh nem de check-data-governance.sh; passos 4-6 são 'Localizados os arquivos alvo', 'Leitura integral dos quatro arquivos' e análise por 'conhecimento próprio'. Nenhum FOUND na resposta."
+    },
+    {
+      "text": "A resposta identifica `ch.nack(msg)` como a causa do laço citando o id RMQ-AP-10 e a localização src/consumidor.js:14, e explica que o requeue é true por padrão no amqplib e que basic.nack com requeue não conta para o delivery-limit da quorum queue",
+      "passed": false,
+      "evidence": "diagnostico.md identifica 'ch.nack(msg) sem argumentos equivale a ... requeue: true por padrão', mas não cita o id RMQ-AP-10 nem src/consumidor.js:14, trata noAck: true como 'Causa raiz' e não diz que basic.nack não conta para o delivery-limit — pelo contrário, nota-quorum-queue.md afirma que delivery-limit 'corta o laço de redelivery em definitivo, mesmo se o código do consumidor voltar a ter algum bug de requeue'."
+    },
+    {
+      "text": "A resposta aponta o `noAck: true` com o id RMQ-AP-01 e a localização src/consumidor.js:16, e a policy `ha-mode` com o id RMQ-AP-06 e a localização infra/rabbitmq/policy.json (linha 6 ou 7), dizendo que o espelhamento clássico foi removido no RabbitMQ 4.0 e propondo quorum queue",
+      "passed": false,
+      "evidence": "diagnostico.md aponta noAck: true e ha-mode/ha-sync-mode 'removido do RabbitMQ a partir da série 4.0' e propõe quorum queue, mas não cita os ids RMQ-AP-01 nem RMQ-AP-06 nem localização arquivo:linha (src/consumidor.js:16, policy.json:6-7)."
+    },
+    {
+      "text": "A resposta aponta, em src/pagamentos.js, o UPDATE no PostgreSQL seguido de `ch.publish` sem transação comum como dual write, citando o id OBX-AP-01 (ou nomeando explicitamente o antipattern de dual write), e recomenda outbox transacional com relay",
+      "passed": false,
+      "evidence": "Nenhuma menção a dual write, outbox ou OBX-AP-01 em diagnostico.md ou nos trechos; pagamentos.trecho-corrigido.js mantém db.query UPDATE seguido de ch.publish sem transação comum. O único comentário sobre pagamentos.js é conexão AMQP duplicada e idempotência do publish."
+    },
+    {
+      "text": "O trecho corrigido proposto combina ack manual depois do efeito, nack/reject sem requeue (requeue false) ou retry atrasado, `delivery-limit` definido junto com uma DLX (dead-letter-exchange) — nunca delivery-limit sem DLX — e prefetch explícito",
+      "passed": false,
+      "evidence": "consumidor.corrigido.js tem ack após o efeito, prefetch(1) e nack(msg, false, false) para ErroPermanente, e policy.corrigida.json tem delivery-limit 5 com dead-letter-exchange; porém o ramo de erro transitório faz 'ch.nack(msg, false, true)' — requeue imediato, sem retry atrasado — que é o mecanismo do laço e, como basic.nack não conta para o delivery-limit da quorum queue, não é contido pela policy. O trecho não satisfaz 'nack/reject sem requeue ou retry atrasado'."
+    },
+    {
+      "text": "Ao fim da execução, `git status --porcelain` no diretório da fixture está vazio: a correção veio só como trecho na resposta",
+      "passed": true,
+      "evidence": "Medido pelo grader: 'git -C without_skill/run-1/work status --porcelain' retornou saída vazia; os trechos corrigidos estão só em outputs/ (consumidor.corrigido.js, policy.corrigida.json, pagamentos.trecho-corrigido.js)."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 5,
+    "total": 6,
+    "pass_rate": 0.17
+  },
+  "timing": {
+    "executor_duration_seconds": 131
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Ao fim da execução, `git status --porcelain` no diretório da fixture está vazio: a correção veio só como trecho na resposta",
+        "reason": "A asserção exige git status --porcelain vazio, mas o run with_skill precisa instalar agente e skill em work/.forge (setup.sh os remove de propósito), o que sempre gera '?? .forge/agents/' e '?? .forge/skills/'. Restringir a verificação a src/ e infra/ (git status --porcelain -- src infra) ou instalar o artefato fora da árvore versionada, para a asserção medir o que pretende: se a correção foi escrita nos arquivos revisados."
+      },
+      {
+        "assertion": "O trecho corrigido proposto combina ack manual depois do efeito, nack/reject sem requeue (requeue false) ou retry atrasado, `delivery-limit` definido junto com uma DLX (dead-letter-exchange) — nunca delivery-limit sem DLX — e prefetch explícito",
+        "reason": "Não exige explicitamente a ausência de nack com requeue=true no caminho de erro transitório; um trecho pode ter requeue=false num ramo e requeue=true no outro e ainda reintroduzir o laço. Vale deixar explícito."
+      }
+    ],
+    "overall": "Asserções 2 a 4 são discriminantes (ids e arquivo:linha só aparecem com a skill; dual write só com revisão guiada). A asserção 6 penaliza a configuração com skill por um artefato do próprio desenho do eval."
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "expectations": [
+    {
+      "text": "Existe docs/discovery/discovery-notes.md, e ele cita o arquivo legado discovery-notes.md da raiz na tabela 0.1 do Workspace Scan e incorpora o fato legado sobre os fiscais de pátio que anotam em prancheta a saída dos ônibus (ex.: menção a 'prancheta' ou 'fiscal de pátio').",
+      "passed": false,
+      "evidence": "ls without_skill/run-1/work/docs -> 'No such file or directory'; docs/discovery/discovery-notes.md não existe. O agente reescreveu in-place o legado (outputs/discovery-notes.md, sem tabela 0.1). Transcript linha 29: 'Optei por atualizar o discovery-notes.md existente em vez de criar um documento novo'."
+    },
+    {
+      "text": "docs/discovery/discovery-notes.md não contém nenhuma das expressões 'a definir', 'talvez', 'possivelmente', 'aparentemente' (busca sem distinção de maiúsculas), embora o legado as use; a dúvida app nativo vs PWA, se registrada, aparece como Ponto a validar (linha VAL-xxx na seção 7) e não como fato.",
+      "passed": false,
+      "evidence": "Arquivo oficial inexistente (sem saída no caminho exigido). Mesmo no arquivo produzido, grep -niE 'a definir|talvez|possivelmente|aparentemente' without_skill/run-1/outputs/discovery-notes.md casa linhas 11 e 19 ('possivelmente'), e a dúvida nativo vs PWA foi dada como fato na linha 15 ('**Confirmado:** PWA com React... a favor de PWA'), sem VAL-xxx."
+    },
+    {
+      "text": "A resposta final do agente faz exatamente uma pergunta ao usuário e ela é a Q1 (problema), podendo citar o conteúdo legado como contexto; o agente não trata Q1/Q2 como já respondidas nem avança para Q3 ou blocos posteriores.",
+      "passed": false,
+      "evidence": "grep -c '?' without_skill/run-1/outputs/transcript.md = 0; transcript linha 31: 'Não fiz perguntas de esclarecimento de volta ao usuário'. Não há Q1."
+    },
+    {
+      "text": "Em docs/discovery/discovery-notes.md, as subseções 3.1 Modelo, 3.2 Planos, 4.1 Stack e 4.2 Plataforma não trazem 'uso interno', 'sem cobrança', 'PWA' ou 'React' como resposta registrada (menções em 0.2/0.3 como contexto do scan, ou em 7 como ponto a validar, são aceitas).",
+      "passed": false,
+      "evidence": "Arquivo oficial inexistente. No arquivo produzido, linha 15 (Stack) '**Confirmado:** PWA com React' e linha 25 (Monetização) '**Confirmado:** uso interno, sem cobrança' registrados como resposta."
+    },
+    {
+      "text": "O arquivo oficial segue a estrutura obrigatória: contém os títulos '## 0. Workspace Scan', '## 1. Visão', '## 2. Funcionalidades', '## 3. Monetização', '## 4. Técnico', '## 5. Contexto', '## 6. Decisões Registradas', '## 7. Pontos a Validar' e '## 8. Resumo Final do Discovery', e o cabeçalho tem Status 'Em discovery'.",
+      "passed": false,
+      "evidence": "Arquivo oficial inexistente; grep -nE '^## ' without_skill/run-1/outputs/discovery-notes.md mostra só '## Problema', '## Usuário', '## Stack', '## Monetização', '## Lacunas que continuam abertas...', '## Próximos passos sugeridos': nenhuma das seções 0-8 nem cabeçalho de Status."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 5,
+    "total": 5,
+    "pass_rate": 0.0
+  },
+  "timing": {
+    "total_duration_seconds": 68
+  },
+  "claims": [
+    {
+      "claim": "Preservei Problema e Usuário sem alteração",
+      "type": "process",
+      "verified": true,
+      "evidence": "outputs/discovery-notes.md linhas 7 e 11 iguais ao legado linhas 5 e 9 (git show HEAD:discovery-notes.md)."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "docs/discovery/discovery-notes.md não contém nenhuma das expressões 'a definir', 'talvez', 'possivelmente', 'aparentemente' (busca sem distinção de maiúsculas), embora o legado as use; a dúvida app nativo vs PWA, se registrada, aparece como Ponto a validar (linha VAL-xxx na seção 7) e não como fato.",
+        "reason": "A busca literal pune citar as expressões do legado entre aspas no Workspace Scan; vale explicitar no texto se menção atribuída ao legado é aceitável ou também proibida."
+      },
+      {
+        "reason": "Nenhuma asserção verifica que o legado da raiz foi preservado (não apagado/reescrito); o with_skill o editou com nota de cabeçalho e o without_skill o reescreveu por completo, e isso não é discriminado."
+      }
+    ],
+    "overall": "Asserções discriminam bem: baseline falha em todas; with_skill passa nas estruturais (caminho oficial, estrutura) e falha nas de disciplina de condução (Q1, não adiantar respostas, linguagem proibida)."
+  }
+}

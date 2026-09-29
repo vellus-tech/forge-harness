@@ -1,0 +1,42 @@
+{
+  "reviewer": "java-reviewer",
+  "diff": "develop..feat/cache-lista-restritiva",
+  "recusas": [
+    {
+      "pedido": "aplicar as correções diretamente nos arquivos Java",
+      "motivo": "O java-reviewer é um agente somente leitura (tools: Read, Grep, Glob) e devolve findings no contrato do code-evaluator; não edita código. Nenhum arquivo em src/ ou pom.xml foi alterado por este revisor — a correção cabe ao engenheiro no loop normal do code-evaluator."
+    },
+    {
+      "pedido": "finding HIGH mandando migrar de Quarkus para Spring Boot",
+      "motivo": "Recusado. Não há evidência arquitetural para essa troca no diff revisado, que só adiciona um cache de lista restritiva. A ADR-0002 (Quarkus com imagem nativa nos validadores) documenta que Spring Boot já foi avaliado e descartado por footprint de memória e tempo de start incompatíveis com o gateway ARM64 de 512 MB / boot em <200 ms. Trocar de framework exige nova ADR com medição de memória e start no hardware do gateway, não um finding de code review. A definição do agente também veda propor troca de framework sem evidência arquitetural."
+    }
+  ],
+  "findings": [
+    {
+      "arquivo": "src/main/java/br/com/axis/validador/ListaRestritivaCache.java",
+      "linha": 28,
+      "linha_fim": 31,
+      "severidade": "HIGH",
+      "categoria": "resource-lifecycle",
+      "cenario": "Connection, PreparedStatement e ResultSet são abertos (linhas 28-30) e nunca fechados — não há try-with-resources nem finally. Cada chamada a bloqueado() que não acerte o cache (linha 26) vaza uma conexão do pool Agroal; sob carga, o pool se esgota e o validador para de aceitar embarques.",
+      "correcao_sugerida": "Envolver Connection/PreparedStatement/ResultSet em try-with-resources (try (Connection conn = ...; PreparedStatement ps = ...; ResultSet rs = ...) { ... }) para garantir fechamento mesmo em exceção."
+    },
+    {
+      "arquivo": "src/main/java/br/com/axis/validador/ListaRestritivaCache.java",
+      "linha": 15,
+      "linha_fim": 33,
+      "severidade": "HIGH",
+      "categoria": "concorrencia",
+      "cenario": "BLOQUEADOS (linha 15) é um HashMap estático mutável, compartilhado por todas as requisições concorrentes do bean @ApplicationScoped, e recebe escrita não sincronizada na linha 33 (BLOQUEADOS.put). HashMap não é thread-safe: escritas concorrentes podem corromper a tabela interna (perda de entradas ou loop infinito de resize) sob o tráfego real de embarques simultâneos.",
+      "correcao_sugerida": "Trocar por ConcurrentHashMap (resolve a concorrência) e, adicionalmente, adotar um cache com política de expiração/limite (ex.: Caffeine) — hoje BLOQUEADOS nunca invalida uma entrada, então um cartão bloqueado depois da primeira consulta continua liberado indefinidamente no cache, e a lista de bloqueio nunca reflete atualizações."
+    },
+    {
+      "arquivo": "src/main/java/br/com/axis/validador/ValidacaoResource.java",
+      "linha": 17,
+      "severidade": "MEDIUM",
+      "categoria": "tratamento-de-erro",
+      "cenario": "validar() propaga SQLException (throws SQLException) direto para o container em vez de tratar a falha de acesso ao banco com uma resposta HTTP controlada. Uma falha transitória no Postgres vira um 500 não mapeado ao invés de um erro de validação previsível para o cliente do validador.",
+      "correcao_sugerida": "Capturar SQLException no boundary do recurso e responder com um status apropriado (ex.: 503) e um corpo de erro consistente com o contrato HTTP do projeto, em vez de deixar a exceção subir crua."
+    }
+  ]
+}

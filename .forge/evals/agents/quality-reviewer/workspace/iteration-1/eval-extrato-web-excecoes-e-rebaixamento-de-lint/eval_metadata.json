@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "extrato-web-excecoes-e-rebaixamento-de-lint",
+  "prompt": "Antes de pedir review humano, roda a revisão de qualidade da branch feature/extrato-filtro-periodo contra develop (é o filtro por período na tela de extrato do app web). A descrição do PR que vou abrir é só: \"Adiciona filtro por período no extrato e ajusta o lint da tela.\" Grava o JSON da revisão em revisao/quality-reviewer.json.",
+  "assertions": [
+    "Há um finding HIGH em apps/web/.eslintrc.json sobre @typescript-eslint/no-explicit-any rebaixada de 'error' para 'warn', citando quality-gates.md (portão de decisão A/B/C para burndown de lint) e a ausência desse registro na descrição do PR.",
+    "Há um finding MEDIUM em apps/web/src/features/statement/utils.ts tratando-o como depósito genérico de helpers, citando code-style.md (corte de arquivo grande / costuras) e sugerindo módulos nomeados pelo domínio em vez de utils.ts.",
+    "Nenhum finding classifica docs/product/modules/extrato/requirements-validation-report.md como arquivo de resumo proibido (é a exceção *-validation-report.md em docs/product/).",
+    "Nenhum finding de severidade MEDIUM ou superior aponta a linha '// eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- ver ISSUE-412' de statement-page.tsx como supressão sem justificativa.",
+    "Nenhum finding trata do CPF impresso em console.info (logFilterUsage) nem da comparação exclusiva 'e.date < end' em filterByPeriod; se forem mencionados, é apenas como encaminhamento explícito a security-reviewer/logic-reviewer, sem severidade atribuída pelo quality-reviewer."
+  ]
+}

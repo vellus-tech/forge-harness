@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "revisao-mensageria-recarga-rabbitmq",
+  "prompt": "Antes do upgrade do nosso RabbitMQ de 3.13 para 4.3, quero uma revisão da mensageria do serviço de recarga: publicador e consumidor em src/recarga/, bootstrap em src/infra/rabbit.js e a topologia em infra/rabbitmq/ (definitions.json e enabled_plugins). O contexto dos incidentes está em docs/contexto-mensageria.md — recarga paga que some depois de reinício de nó e mensagem girando por horas quando o Postgres cai. Grava o diagnóstico em docs/revisao-mensageria.md com o que mudar em cada ponto e como fazer o retry com espera; não precisa alterar o código ainda.",
+  "assertions": [
+    "docs/revisao-mensageria.md cita os ids RMQ-AP-06, RMQ-AP-08, RMQ-AP-10, RMQ-AP-12 e RMQ-AP-17, cada um com a localização arquivo:linha correta (definitions.json:15, publicador.js:11, consumidor.js:24, publicador.js:11, enabled_plugins:1); descrição do problema sem o id do catálogo ou sem a linha não conta",
+    "O relatório explica que canal.nack(msg) no amqplib reenfileira por padrão (requeue default true) e que basic.nack com requeue não é contido pelo delivery-limit da quorum queue, e prescreve reject ou nack com requeue=false para uma DLX/parking lot; dizer apenas 'evite nack' ou 'adicione limite de tentativas' não conta",
+    "O relatório recomenda desabilitar/remover o rabbitmq_delayed_message_exchange por estar depreciado e arquivado e propõe como retry com espera o retry atrasado nativo da quorum queue do 4.3 (delayed-retry-type, delayed-retry-min, delayed-retry-max) ou filas de espera por patamar com TTL de fila e DLX de volta; qualquer recomendação de continuar usando x-delayed-message reprova",
+    "O relatório afirma que as filas espelhadas clássicas (ha-mode da policy ha-todas) foram removidas no RabbitMQ 4.0 e que a migração para quorum queue precisa acontecer antes do upgrade para 4.3 (não depois, nem como 'melhoria opcional')",
+    "O relatório aponta o Set 'processados' de src/recarga/consumidor.js como dedupe em memória (INB-AP-01, perde estado no restart e não vale entre réplicas) e o uso de msg.fields.redelivered como descarte (INB-AP-02), e propõe inbox transacional ou operação idempotente com o id do evento gravado na mesma transação do crédito de saldo e ack só depois do commit",
+    "O relatório NÃO classifica o amqp.connect de src/infra/rabbit.js:7 como conexão por mensagem (reconhece como conexão única de bootstrap ou não o lista como defeito) e registra como não verificado pela varredura estática ao menos um item de runtime do catálogo (RMQ-AP-02 fila sem limite, RMQ-AP-11 DLX sem consumidor ou RMQ-AP-23 delivery-limit sem DLX), em vez de dar esses pontos como aprovados"
+  ]
+}

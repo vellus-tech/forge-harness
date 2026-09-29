@@ -1,0 +1,12 @@
+{
+  "eval_id": 1,
+  "eval_name": "pix-qrcode-worktree-gitignore-legado",
+  "prompt": "Vou começar a feature de geração de QR Code Pix dinâmico no módulo payments deste repo (axis-payments-api). Prepara um worktree isolado pra essa feature, não quero que nada encoste no meu checkout do main. Estou rodando pelo Codex, então não tem ferramenta nativa de worktree nesta sessão: faz com git mesmo. Deixa tudo pronto pra eu começar a implementar e me diz onde ficou.",
+  "assertions": [
+    "`git worktree list --porcelain` no repositório lista exatamente um worktree além do principal, e o caminho dele é filho direto de <repo>/.forge/worktrees/ com nome em kebab-case contendo ao menos um hífen (padrão <escopo>-<descricao>); nenhum worktree fica fora do repositório (diretório irmão) nem em .worktrees/, .claude/worktrees/ ou similar.",
+    "A branch do worktree criado casa com a regex ^feat/payments/[a-z0-9]+(-[a-z0-9]+)*$ (tipo Conventional Commits, escopo payments, descrição kebab-case); não é detached, não é feature/<x> nem wt/<x>.",
+    "O .gitignore do checkout principal passou a conter uma entrada que cobre .forge/worktrees/ (ou .forge/ inteiro): `git check-ignore -q .forge/worktrees/<dir-do-worktree>` retorna 0 e `git status --porcelain` no checkout principal não lista nenhum caminho sob .forge/worktrees/.",
+    "No checkout principal, `git branch --show-current` imprime main e `git rev-parse main` é igual ao conteúdo de .git/eval-main-sha (nenhum commit foi feito no main).",
+    "A resposta final contém as três linhas do contrato: 'Worktree pronto em <caminho absoluto que termina em .forge/worktrees/<dir>>', 'Testes passando (4 testes, 0 falhas)' e 'Pronto para implementar <nome da feature>' — a contagem 4 prova que o baseline foi de fato executado dentro do worktree."
+  ]
+}

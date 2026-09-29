@@ -1,0 +1,333 @@
+{
+  "metadata": {
+    "skill_name": "frontend-ui-review",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-26T19:15:15Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 411,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "ui-review.md n\u00e3o declara a tela padronizada nem veredito APROVADO, e n\u00e3o recomenda fechar o ticket UI-231",
+          "passed": true,
+          "evidence": "with_skill/run-1/outputs/work/ui-review.md:16 'Veredito: BLOQUEADO' e 'Recomendo N\u00c3O fechar o ticket UI-231'; `grep -nE 'APROVADO|Aprovado|fechar'` s\u00f3 casa a linha 16 (BLOQUEADO/N\u00c3O fechar). Arquivo id\u00eantico a with_skill/run-1/work/ui-review.md (diff vazio)."
+        },
+        {
+          "text": "O relat\u00f3rio constata que o arquivo de tokens (@acme/design-tokens/tokens.css) n\u00e3o est\u00e1 dispon\u00edvel no projeto (pacote n\u00e3o instalado, sem arquivo de tokens local) e que sem essa lista n\u00e3o \u00e9 poss\u00edvel julgar tokens definidos",
+          "passed": true,
+          "evidence": "with_skill/run-1/outputs/work/ui-review.md:4 '[BLOQ] A0 fonte da verdade \u2014 arquivo de tokens n\u00e3o localizado (sem `node_modules`, sem `tokens.css` no reposit\u00f3rio); `@acme/design-tokens` \u00e9 depend\u00eancia declarada mas nunca instalada/vendorizada'; linha 12: 'Sem a fonte da verdade, \u00e9 imposs\u00edvel diferenciar \"token real do DS\" de \"token fantasma\"'. Confirmado por `find ... -name node_modules -o -name '*token*'` sem resultado."
+        },
+        {
+          "text": "O relat\u00f3rio n\u00e3o marca A1/phantom-tokens como OK: registra-o como FAIL, bloqueado ou n\u00e3o execut\u00e1vel por falta da fonte de tokens",
+          "passed": true,
+          "evidence": "with_skill/run-1/outputs/work/ui-review.md:5 '[N/A] A1 phantom-tokens \u2014 n\u00e3o execut\u00e1vel sem A0'; transcript.md:32-33 registra `scan-phantom-tokens.py` retornando exit 2 'arquivo de tokens n\u00e3o encontrado'. Ressalva menor: a linha 5 diz '6 tokens' e lista 8 (o CSS tem 8 `var(--...)` distintos por grep)."
+        },
+        {
+          "text": "O relat\u00f3rio pede explicitamente o pr\u00e9-requisito para concluir a auditoria (instalar o pacote @acme/design-tokens ou fornecer o tokens.css) e rodar de novo o scan de tokens fantasma",
+          "passed": true,
+          "evidence": "with_skill/run-1/outputs/work/ui-review.md:12 'Recomenda\u00e7\u00e3o: instalar as depend\u00eancias (`npm ci`) e rodar `scan-phantom-tokens.py` contra o `tokens.css` real antes de qualquer veredito'; linha 16: 'at\u00e9: (1) instalar `@acme/design-tokens` e localizar/gerar o `tokens.css` real, (2) rodar A1 (`scan-phantom-tokens.py`) contra ele e confirmar 0 fantasmas'."
+        },
+        {
+          "text": "O relat\u00f3rio aponta que os testes de SettingsPage.test.tsx s\u00f3 verificam estrutura (renderiza, toHaveClass) e n\u00e3o provam o tema (valor computado de estilo em light e dark), portanto testes verdes n\u00e3o sustentam a padroniza\u00e7\u00e3o",
+          "passed": true,
+          "evidence": "with_skill/run-1/outputs/work/ui-review.md:13 'MEDIUM \u00b7 SettingsPage.test.tsx:7-9 \u00b7 Os tr\u00eas testes s\u00f3 verificam estrutura (`toHaveClass`, texto presente), nunca o valor computado de estilo por tema. Testes verdes aqui n\u00e3o provam padroniza\u00e7\u00e3o' e recomenda `getComputedStyle` em light e dark. Conferido no fixture: SettingsPage.test.tsx:6-8 s\u00f3 usa toBeInTheDocument/toHaveClass."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 207,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "O relat\u00f3rio identifica --surface-2 (PartnersPage.css) como token referenciado e nunca definido em tokens.css e o liga ao defeito do dark mode",
+          "passed": true,
+          "evidence": "outputs/ui-review.md:5 '[FAIL] A1 phantom-tokens \u2014 1 n\u00e3o definido (--surface-2)' e :23-29 liga --surface-2 (PartnersPage.css:1) ao 'tabela clara na tela escura'. Conferido: fixture PartnersPage.css:1 'background: var(--surface-2)' e `grep -c surface-2 src/styles/tokens.css` = 0."
+        },
+        {
+          "text": "O relat\u00f3rio n\u00e3o classifica --progress como token fantasma a corrigir: reconhece que \u00e9 injetado em runtime via style inline (allowlist) e o separa de --surface-2",
+          "passed": true,
+          "evidence": "outputs/ui-review.md:58-62 achado 5 LOW '--progress ... n\u00e3o \u00e9 bug': 'PartnersPage.tsx:19 injeta --progress via style inline' (conferido na fixture, linha 19), 'caso leg\u00edtimo de token fantasma (inje\u00e7\u00e3o em runtime)', scan re-rodado com allowlist '--progress' (comando em :15) para isolar --surface-2. Transcript passo 7 confirma a separa\u00e7\u00e3o."
+        },
+        {
+          "text": "O relat\u00f3rio classifica a BU exibida como UUID como dado cru vazando por falta de fonte id->nome no backend (endpoint/contrato de API) e o encaminha como tarefa de backend, em vez de propor apenas truncar, formatar ou estilizar o UUID no front",
+          "passed": true,
+          "evidence": "outputs/ui-review.md:34-40 achado 2 'GUID cru na coluna BU \u2014 achado de backend, n\u00e3o de CSS': cita src/api/partners.ts:1 'N\u00e3o existe endpoint de BU id -> nome', 'Nenhum ajuste de CSS ou componente resolve isso', 'Encaminhar como tarefa de backend/API'. N\u00e3o prop\u00f5e truncar/estilizar (`grep -n truncar` sem ocorr\u00eancia)."
+        },
+        {
+          "text": "O relat\u00f3rio aponta que o DS n\u00e3o tem primitivo Select, cita que mais de uma tela (partners e users) improvisa <select> nativo, e encaminha a cria\u00e7\u00e3o do primitivo ao dono do design system separado das corre\u00e7\u00f5es locais da tela",
+          "passed": true,
+          "evidence": "outputs/ui-review.md:48-56 achado 4: 'DS (src/components/ds/index.ts) s\u00f3 exp\u00f5e Button, Input, Card, Badge \u2014 n\u00e3o h\u00e1 Select' (conferido na fixture), cita PartnersPage.tsx:8 e UsersPage.tsx:4 (conferidos), 'j\u00e1 s\u00e3o 2 telas', 'Encaminhar ao dono do DS como item de plataforma', separado da mitiga\u00e7\u00e3o local. Gate A4 WARN em :8."
+        },
+        {
+          "text": "ui-review.md traz o bloco de gates determin\u00edsticos com status por gate (A1 a A5) e uma linha final de veredito APROVADO ou BLOQUEADO, com BLOQUEADO neste caso",
+          "passed": true,
+          "evidence": "`grep -cE '^\\[(OK|FAIL|WARN)\\] +A[1-5]' outputs/ui-review.md` = 5 (linhas 5-9, A1 FAIL, A2 OK, A3 OK, A4 WARN, A5 FAIL); linha 76 'Veredito: **BLOQUEADO**'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 108,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "ui-review.md cont\u00e9m uma linha de status (OK, FAIL ou WARN) para cada um dos gates A1, A2, A3, A4 e A5, identificados pelo c\u00f3digo do gate",
+          "passed": true,
+          "evidence": "grep -nE '(OK|FAIL|WARN).*A[1-5]' outputs/ui-review.md retorna as linhas 8-12: '[FAIL] A1 phantom-tokens', '[FAIL] A2 hardcoded-color', '[WARN] A3 fallback-literal', '[WARN] A4 controles-nativos', '[FAIL] A5 cobertura (superf\u00edcie inteira)'."
+        },
+        {
+          "text": "O relat\u00f3rio aponta --color-surface-unread (src/features/partners/PartnersTable.css, arquivo fora do diff do PR) como token referenciado e nunca definido, e n\u00e3o apenas --surface-1",
+          "passed": true,
+          "evidence": "outputs/ui-review.md:21-24: '`--color-surface-unread` referenciado em `src/features/partners/PartnersTable.css:2` e tamb\u00e9m nunca definido. N\u00e3o \u00e9 deste PR...'; --surface-1 tratado separadamente na linha 17."
+        },
+        {
+          "text": "O relat\u00f3rio marca o gate de cobertura (A5) como FAIL ou declara explicitamente que achados fora do diff (partners) bloqueiam, em vez de restringir a avalia\u00e7\u00e3o aos arquivos alterados",
+          "passed": true,
+          "evidence": "outputs/ui-review.md:12 '[FAIL] A5 cobertura (superf\u00edcie inteira)' e :59 '### A5 \u2014 Cobertura da superf\u00edcie inteira (bloqueante)'; linha 5 declara gates rodados 'sobre a superf\u00edcie inteira do app, n\u00e3o s\u00f3 o diff'. Ressalva: :113 diz que partners 'n\u00e3o \u00e9 motivo para bloquear especificamente este PR', mas o gate A5 est\u00e1 marcado FAIL, o que satisfaz a asser\u00e7\u00e3o."
+        },
+        {
+          "text": "O relat\u00f3rio trata var(--surface-1, #fff) como fallback literal que esconde o token inexistente e recomenda remover o fallback e definir o token na origem (tokens.css), n\u00e3o trocar o valor do fallback nem manter o literal",
+          "passed": true,
+          "evidence": "outputs/ui-review.md:35-41: fallback 'mascarando o bug do A1', 'o contrato quebrado ficou invis\u00edvel'; recomenda\u00e7\u00e3o 'trocar var(--surface-1, #fff) por var(--surface-raised) (o token ... j\u00e1 definido em tokens.css) e remover o fallback \u2014 ... n\u00e3o cair num literal'; repetido em :71 e :109 ('sem fallback'). Ressalva: resolve pelo token existente em tokens.css em vez de criar --surface-1 l\u00e1, mas remove o fallback e ancora na origem, sem trocar valor nem manter literal."
+        },
+        {
+          "text": "O relat\u00f3rio aponta o <input type=\"file\"> de InvoiceList.tsx como controle nativo sem estilo (border:none n\u00e3o alcan\u00e7a ::file-selector-button) e recomenda usar o FileUpload existente em src/components/ds",
+          "passed": true,
+          "evidence": "outputs/ui-review.md:45-48: 'InvoiceList.tsx:11 usa <input type=\"file\" ...>' e '`border: none` no `<input>` n\u00e3o alcan\u00e7a o pseudo-elemento `::file-selector-button`'; :57 recomenda 'substituir o <input type=\"file\"> cru por <FileUpload ... />' de src/components/ds (:51)."
+        },
+        {
+          "text": "O relat\u00f3rio termina com veredito BLOQUEADO (ou equivalente expl\u00edcito de n\u00e3o mergear), n\u00e3o APROVADO",
+          "passed": true,
+          "evidence": "outputs/ui-review.md:103 '## Veredito: BLOQUEADO' e :106-107 'N\u00e3o recomendo mergear feat/faturas-ds na main'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 5,
+        "total": 5,
+        "time_seconds": 369,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "ui-review.md n\u00e3o declara a tela padronizada nem veredito APROVADO, e n\u00e3o recomenda fechar o ticket UI-231",
+          "passed": false,
+          "evidence": "without_skill/run-1/outputs/ui-review.md:7 '**Aprovado.** A tela est\u00e1 padronizada no design system da Acme e pode fechar a UI-231.' (casado por `grep -nE 'APROVADO|Aprovado|fechar'`)."
+        },
+        {
+          "text": "O relat\u00f3rio constata que o arquivo de tokens (@acme/design-tokens/tokens.css) n\u00e3o est\u00e1 dispon\u00edvel no projeto (pacote n\u00e3o instalado, sem arquivo de tokens local) e que sem essa lista n\u00e3o \u00e9 poss\u00edvel julgar tokens definidos",
+          "passed": false,
+          "evidence": "without_skill/run-1/outputs/ui-review.md:18 registra que n\u00e3o h\u00e1 node_modules nem arquivo de tokens versionado e que n\u00e3o conseguiu confirmar os nomes, mas classifica isso como 'Ressalva registrada (n\u00e3o bloqueante)' (linha 16) e aprova 'na conven\u00e7\u00e3o de nomenclatura' \u2014 contradiz a segunda metade da asser\u00e7\u00e3o (sem a lista n\u00e3o \u00e9 poss\u00edvel julgar tokens definidos); linha 13 ainda trata `main.tsx` importando tokens.css como 'fonte de aplica\u00e7\u00e3o' suficiente."
+        },
+        {
+          "text": "O relat\u00f3rio n\u00e3o marca A1/phantom-tokens como OK: registra-o como FAIL, bloqueado ou n\u00e3o execut\u00e1vel por falta da fonte de tokens",
+          "passed": false,
+          "evidence": "Nenhuma men\u00e7\u00e3o a A1, phantom-tokens ou scan de tokens fantasma (`grep -nE 'tokens\\.css|scan|phantom|fantasma|A1' without_skill/run-1/outputs/ui-review.md` s\u00f3 casa a linha 13, sobre o import em main.tsx). A verifica\u00e7\u00e3o de tokens foi tratada como ressalva n\u00e3o bloqueante, n\u00e3o como FAIL/bloqueado."
+        },
+        {
+          "text": "O relat\u00f3rio pede explicitamente o pr\u00e9-requisito para concluir a auditoria (instalar o pacote @acme/design-tokens ou fornecer o tokens.css) e rodar de novo o scan de tokens fantasma",
+          "passed": false,
+          "evidence": "without_skill/run-1/outputs/ui-review.md:20 s\u00f3 sugere de forma opcional ('Se quiser blindar isso antes de fechar o ticket, o pr\u00f3ximo passo seria rodar `npm install && npm test`...') e conclui que 'n\u00e3o h\u00e1 nada que aponte para desvio'; n\u00e3o \u00e9 pr\u00e9-requisito para concluir e n\u00e3o menciona rodar o scan de tokens fantasma."
+        },
+        {
+          "text": "O relat\u00f3rio aponta que os testes de SettingsPage.test.tsx s\u00f3 verificam estrutura (renderiza, toHaveClass) e n\u00e3o provam o tema (valor computado de estilo em light e dark), portanto testes verdes n\u00e3o sustentam a padroniza\u00e7\u00e3o",
+          "passed": false,
+          "evidence": "without_skill/run-1/outputs/ui-review.md:14 apenas descreve que os testes cobrem t\u00edtulo e classes e aceita os 'tr\u00eas testes como verdes'; `grep -ci 'dark|computad|getComputedStyle|tema'` = 0 no relat\u00f3rio. A observa\u00e7\u00e3o de que n\u00e3o h\u00e1 asser\u00e7\u00e3o de valor computado aparece s\u00f3 em transcript.md:13, n\u00e3o no ui-review.md, e n\u00e3o \u00e9 usada para negar a padroniza\u00e7\u00e3o."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.4,
+        "passed": 2,
+        "failed": 3,
+        "total": 5,
+        "time_seconds": 177,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "O relat\u00f3rio identifica --surface-2 (PartnersPage.css) como token referenciado e nunca definido em tokens.css e o liga ao defeito do dark mode",
+          "passed": true,
+          "evidence": "outputs/ui-review.md:10 achado 1 'Cr\u00edtico': PartnersPage.css:1 usa var(--surface-2), 'Esse token n\u00e3o existe em src/styles/tokens.css', ligado ao sintoma 'tabela clara no meio da tela escura'. Transcript passo 7 (grep surface-2)."
+        },
+        {
+          "text": "O relat\u00f3rio n\u00e3o classifica --progress como token fantasma a corrigir: reconhece que \u00e9 injetado em runtime via style inline (allowlist) e o separa de --surface-2",
+          "passed": false,
+          "evidence": "`grep -c -- '--progress' outputs/ui-review.md` = 0: o relat\u00f3rio n\u00e3o menciona --progress nem a inje\u00e7\u00e3o em runtime via style inline; n\u00e3o h\u00e1 reconhecimento nem separa\u00e7\u00e3o de --surface-2. Omiss\u00e3o n\u00e3o satisfaz 'reconhece que \u00e9 injetado em runtime'."
+        },
+        {
+          "text": "O relat\u00f3rio classifica a BU exibida como UUID como dado cru vazando por falta de fonte id->nome no backend (endpoint/contrato de API) e o encaminha como tarefa de backend, em vez de propor apenas truncar, formatar ou estilizar o UUID no front",
+          "passed": true,
+          "evidence": "outputs/ui-review.md:13-16 achado 2 'Cr\u00edtico, depende do backend': 'n\u00e3o \u00e9 um bug de CSS/estilo: o front n\u00e3o tem de onde tirar o nome', cita partners.ts 'N\u00e3o existe endpoint de BU id -> nome', 'Pedir ao time de backend um campo bu_name ... (mudan\u00e7a de contrato)'. Ressalva: :17 prop\u00f5e truncar o UUID como paliativo, mas n\u00e3o 'apenas' truncar; a solu\u00e7\u00e3o principal \u00e9 backend."
+        },
+        {
+          "text": "O relat\u00f3rio aponta que o DS n\u00e3o tem primitivo Select, cita que mais de uma tela (partners e users) improvisa <select> nativo, e encaminha a cria\u00e7\u00e3o do primitivo ao dono do design system separado das corre\u00e7\u00f5es locais da tela",
+          "passed": false,
+          "evidence": "outputs/ui-review.md:23-25 achado 4 'M\u00e9dio', 'N\u00e3o \u00e9 exatamente um bug, mas \u00e9 uma inconsist\u00eancia': cita a falta de Select no DS, mas trata como inconsist\u00eancia local de PartnersPage; a men\u00e7\u00e3o a UsersPage s\u00f3 aparece no resumo :36 e o encaminhamento \u00e9 'avaliar um componente Select' / 'registrar ... como item de backlog', sem endere\u00e7ar o dono do design system (`grep -n 'dono do' outputs/ui-review.md` = 0). Na d\u00favida, falha."
+        },
+        {
+          "text": "ui-review.md traz o bloco de gates determin\u00edsticos com status por gate (A1 a A5) e uma linha final de veredito APROVADO ou BLOQUEADO, com BLOQUEADO neste caso",
+          "passed": false,
+          "evidence": "`grep -cE '^\\[(OK|FAIL|WARN)\\] +A[1-5]' outputs/ui-review.md` = 0 e `grep -n '^Veredito'` = sem ocorr\u00eancia: n\u00e3o h\u00e1 bloco de gates A1-A5 nem linha de veredito APROVADO/BLOQUEADO."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.33,
+        "passed": 2,
+        "failed": 4,
+        "total": 6,
+        "time_seconds": 78,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "ui-review.md cont\u00e9m uma linha de status (OK, FAIL ou WARN) para cada um dos gates A1, A2, A3, A4 e A5, identificados pelo c\u00f3digo do gate",
+          "passed": false,
+          "evidence": "grep -nE '(OK|FAIL|WARN).*A[1-5]' outputs/ui-review.md e grep -n 'A5' n\u00e3o retornam nada: o relat\u00f3rio \u00e9 prosa livre sem c\u00f3digos de gate nem linhas de status."
+        },
+        {
+          "text": "O relat\u00f3rio aponta --color-surface-unread (src/features/partners/PartnersTable.css, arquivo fora do diff do PR) como token referenciado e nunca definido, e n\u00e3o apenas --surface-1",
+          "passed": true,
+          "evidence": "outputs/ui-review.md:25: '`PartnersTable.css` referencia `var(--color-surface-unread)`, que tamb\u00e9m n\u00e3o existe em `tokens.css` ... em arquivo n\u00e3o tocado por este PR', al\u00e9m do --surface-1 na linha 13."
+        },
+        {
+          "text": "O relat\u00f3rio marca o gate de cobertura (A5) como FAIL ou declara explicitamente que achados fora do diff (partners) bloqueiam, em vez de restringir a avalia\u00e7\u00e3o aos arquivos alterados",
+          "passed": false,
+          "evidence": "N\u00e3o h\u00e1 gate A5 (grep -n 'A5' vazio) e outputs/ui-review.md:25 afirma explicitamente o oposto: partners 'n\u00e3o bloqueia este merge', 'citado apenas para contexto'; :9 restringe o escopo ao diff de 2 arquivos."
+        },
+        {
+          "text": "O relat\u00f3rio trata var(--surface-1, #fff) como fallback literal que esconde o token inexistente e recomenda remover o fallback e definir o token na origem (tokens.css), n\u00e3o trocar o valor do fallback nem manter o literal",
+          "passed": false,
+          "evidence": "outputs/ui-review.md:13 descreve o efeito do fallback ('o fallback #fff \u00e9 sempre aplicado'), mas a corre\u00e7\u00e3o \u00e9 s\u00f3 'trocar --surface-1 por --surface', sem recomendar remover o fallback literal; :29 repete '--surface-1 \u2192 --surface'. N\u00e3o trata o fallback como m\u00e1scara do contrato nem pede sua remo\u00e7\u00e3o."
+        },
+        {
+          "text": "O relat\u00f3rio aponta o <input type=\"file\"> de InvoiceList.tsx como controle nativo sem estilo (border:none n\u00e3o alcan\u00e7a ::file-selector-button) e recomenda usar o FileUpload existente em src/components/ds",
+          "passed": false,
+          "evidence": "outputs/ui-review.md:15 aponta o input nativo e recomenda <FileUpload label=\"Anexar fatura\" .../>, mas o argumento \u00e9 acessibilidade (sem <label>) e 'ajuste visual ad hoc'; grep 'file-selector-button' s\u00f3 casa a frase sobre o FileUpload estilizar o pseudo-elemento, nunca afirma que border:none n\u00e3o alcan\u00e7a ::file-selector-button nem que o controle fica sem estilo. Na d\u00favida, falha."
+        },
+        {
+          "text": "O relat\u00f3rio termina com veredito BLOQUEADO (ou equivalente expl\u00edcito de n\u00e3o mergear), n\u00e3o APROVADO",
+          "passed": true,
+          "evidence": "outputs/ui-review.md:5 'N\u00e3o recomendo merge no estado atual' e :29 'Bloquear o merge at\u00e9 corrigir os dois achados bloqueantes' \u2014 equivalente expl\u00edcito de n\u00e3o mergear."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 242.0,
+        "stddev": 154.5024,
+        "min": 108,
+        "max": 411
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.2433,
+        "stddev": 0.2136,
+        "min": 0.0,
+        "max": 0.4
+      },
+      "time_seconds": {
+        "mean": 208.0,
+        "stddev": 147.9561,
+        "min": 78,
+        "max": 369
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.76",
+      "time_seconds": "+34.0",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

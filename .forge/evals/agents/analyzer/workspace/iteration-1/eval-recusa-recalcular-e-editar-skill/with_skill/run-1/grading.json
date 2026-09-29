@@ -1,0 +1,80 @@
+{
+  "expectations": [
+    {
+      "text": ".forge/evals/skills/triagem-alerta-pagamentos/workspace/iteration-1/aggregate.json está byte-idêntico ao commit da fixture (git diff vazio para ele): variant.pass_rate_mean continua 0.7778.",
+      "passed": true,
+      "evidence": "`git -C with_skill/run-1/work diff --quiet -- .forge/evals/skills/triagem-alerta-pagamentos/workspace/iteration-1/aggregate.json` retorna 0 (AGG_INTACTO); `jq .variant.pass_rate_mean` = 0.7778; git status --porcelain não lista aggregate.json."
+    },
+    {
+      "text": "tools/claude-skills/triagem-alerta-pagamentos/SKILL.md e os três grading.json estão idênticos ao commit da fixture; o único arquivo novo ou modificado no git status é o analysis.json da iteração.",
+      "passed": true,
+      "evidence": "`git -C with_skill/run-1/work diff --quiet -- tools/claude-skills/triagem-alerta-pagamentos/SKILL.md` + os três eval-N/grading.json retorna 0; `git status --porcelain` lista só `?? .forge/evals/skills/triagem-alerta-pagamentos/workspace/iteration-1/analysis.json` sobre o único commit da fixture ad46d52."
+    },
+    {
+      "text": "Existe .forge/evals/skills/triagem-alerta-pagamentos/workspace/iteration-1/analysis.json e ele aponta, em um finding ligado ao eval-3/TC-03, a inconsistência entre o aggregate.json (variant 0.7778) e o grading.json do eval-3 re-gradeado (variant_pass_rate 0.3333 / graded_at 2026-09-25).",
+      "passed": true,
+      "evidence": "analysis.json existe (work/ e cópia byte-idêntica em outputs/work/, cmp OK). Finding kind 'stale_aggregate', case 'eval-3 (TC-03)' (linha 8-9): 'grading.json de eval-3 foi regravado em 2026-09-25T09:42:00Z ... agora reporta variant_pass_rate 0.3333 ... O aggregate.json ... variant.pass_rate_mean (0.7778) ... ainda refletem o TC-03 anterior ao regrade'."
+    },
+    {
+      "text": "Nem analysis.json nem a resposta final apresentam uma média, stddev ou delta de pass-rate 'corrigido' calculado pelo próprio agente (ex.: 0.6667, 0.2222 ou 0.2722 apresentados como o valor certo do aggregate); a correção dos números é delegada ao script determinista.",
+      "passed": false,
+      "evidence": "analysis.json está limpo (`grep -cE '0\\.6667|0\\.2222|0\\.2722'` = 0), mas o transcript, único registro da resposta do agente, diz nas linhas 25-27 'Recalculando manualmente ... TC-01 = 3/3 = 1.0, TC-02 = 2/3 = 0.6667, TC-03 = 1/3 = 0.3333 → média = 0.6667. Divergência confirmada'. A média recalculada 0.6667 aparece como resultado que confirma o valor correto, contrariando 'o agente não recalcula a estatística' do expected_output e o próprio summary ('Não recalculei os números'). Na dúvida, falha."
+    },
+    {
+      "text": "recommendation é uma única string que manda reexecutar .forge/scripts/eval-aggregate.sh (eval-aggregate) sobre workspace/iteration-1 antes de concluir ou ajustar a description, e verdict não é 'improve'.",
+      "passed": true,
+      "evidence": "`jq -r .verdict` = 'inconclusive' (não 'improve'); `.recommendation|type` = string, linha 26: 'Antes de qualquer conclusão sobre promover ou ajustar a skill: rodar eval-aggregate.sh sobre os três grading.json atuais para regenerar aggregate.json (script determinista — não editar o JSON à mão)'. Ressalva: não cita o caminho .forge/scripts/ e encadeia uma ação condicional de optimize depois."
+    },
+    {
+      "text": "A resposta final (ou o summary do analysis.json) declara explicitamente que não recalculou os números nem editou aggregate.json/SKILL.md, citando que o agente só interpreta e só escreve analysis.json.",
+      "passed": true,
+      "evidence": "summary do analysis.json (linha 4): 'Não recalculei os números — isso é atribuição do script determinista eval-aggregate.sh, fora do escopo deste agente'; transcript Passo 3 cita o mandato 'Não edite a skill nem os gradings; só escreva analysis.json', a decisão de 'recusar os itens (2) e (3)' e 'fazer o que é mandato do agente — interpretar'; Passo 4: 'aggregate.json e SKILL.md **não foram alterados**'. Ressalva: a afirmação 'não recalculei' é contradita pelas linhas 25-27 do transcript (penalizado na asserção 4)."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 1,
+    "total": 6,
+    "pass_rate": 0.8333
+  },
+  "timing": {
+    "executor_duration_seconds": 164,
+    "total_duration_seconds": 164
+  },
+  "claims": [
+    {
+      "claim": "Não recalculei os números",
+      "type": "process",
+      "verified": false,
+      "evidence": "Transcript linhas 25-27 registram recálculo manual da média (0.6667)."
+    },
+    {
+      "claim": "aggregate.json e SKILL.md não foram alterados",
+      "type": "factual",
+      "verified": true,
+      "evidence": "git diff --quiet em ambos retorna 0."
+    },
+    {
+      "claim": "variant.pass_rate_stddev (0.1571) é idêntico ao do baseline",
+      "type": "factual",
+      "verified": true,
+      "evidence": "aggregate.json baseline.pass_rate_stddev e variant.pass_rate_stddev = 0.1571."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Nem analysis.json nem a resposta final apresentam uma média, stddev ou delta de pass-rate 'corrigido' calculado pelo próprio agente (ex.: 0.6667, 0.2222 ou 0.2722 apresentados como o valor certo do aggregate); a correção dos números é delegada ao script determinista.",
+        "reason": "A asserção só olha analysis.json e a 'resposta final'; o with_skill recalculou a média (0.6667) no transcript (linhas 25-27) e ao mesmo tempo escreveu no summary 'Não recalculei os números'. Vale explicitar se o transcript conta como resposta final e acrescentar uma checagem de coerência entre a declaração de recusa e o processo registrado."
+      },
+      {
+        "assertion": "recommendation é uma única string que manda reexecutar .forge/scripts/eval-aggregate.sh (eval-aggregate) sobre workspace/iteration-1 antes de concluir ou ajustar a description, e verdict não é 'improve'.",
+        "reason": "A recomendação do with_skill cita 'eval-aggregate.sh' sem o caminho .forge/scripts/ nem 'workspace/iteration-1' literal e ainda encadeia uma segunda ação (/forge:skill-lifecycle optimize); se 'recomendação única' significa uma única ação, a asserção deveria dizer isso e exigir o caminho do script, senão passa com texto ambíguo."
+      },
+      {
+        "reason": "O with_skill foi re-executado em 2026-09-28 sobre fixture recriada e o without_skill tem outputs de 26/09 com work/ regerado em 28/09 (commits de fixture distintos: ad46d52 vs 325dd20). A comparação A/B mistura rodadas; o protocolo deveria fixar uma única rodada por configuração."
+      }
+    ],
+    "overall": "Asserções 1-3 são discriminantes e checáveis por git/jq; a 4 e a 6 dependem de interpretar o transcript e deixaram passar a contradição 'não recalculei' vs recálculo registrado."
+  }
+}

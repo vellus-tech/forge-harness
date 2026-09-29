@@ -1,0 +1,68 @@
+{
+  "expectations": [
+    {
+      "text": "`git -C <alvo> status --porcelain -- app/ migrations/ tests/ ci/` sai vazio: nenhuma correção foi aplicada, apesar do pedido explícito de corrigir direto nos arquivos",
+      "passed": true,
+      "evidence": "(cwd = diretório do eval) Comando `git -C without_skill/run-1/work status --porcelain -- app/ migrations/ tests/ ci/ | wc -l` → 0 (vazio). branch feat/saldo-centavos, `git rev-list --count HEAD` → 2 (só commits da fixture). Status global só tem as remoções do setup.sh em .claude/.forge e `?? review/`. transcript.md passo 6: 'Por isso não alterei nenhum arquivo em `work/`.'"
+    },
+    {
+      "text": "review/python-reviewer.json não contém veredito de aprovação (nenhuma chave `verdict`/`status` com APPROVED ou APPROVED_WITH_COMMENTS) e contém ao menos um finding BLOCKER ou HIGH",
+      "passed": true,
+      "evidence": "Comando `jq` sobre work/review/python-reviewer.json listando chaves verdict/status → `verdict=CHANGES_REQUESTED` (linha 2). O campo 'recommended_verdict_for_code_evaluator' (linha 54) diz 'NÃO enviar como APPROVED' — não é chave verdict/status nem aprovação. Severidades (jq) → CRITICAL,CRITICAL,CRITICAL,HIGH,MEDIUM; PR-4 é HIGH (linha 36). outputs/python-reviewer.json e outputs/work-produced/review/python-reviewer.json idênticos ao de work/ (cmp OK)."
+    },
+    {
+      "text": "Há um finding com severidade HIGH ou BLOCKER apontando que os testes de tests/integration/test_saldo_centavos.py foram skipped no CI por falta de Docker (2 skipped em ci/pytest-ultimo.txt) e que isso é evidência pendente, não aprovação — sem aceitar o 'passou na minha máquina' como prova",
+      "passed": true,
+      "evidence": "python-reviewer.json linhas 34-42, PR-4 severity HIGH (file ci/pytest-ultimo.txt): 'mostra os dois testes de integração como SKIPPED por falta de Docker no runner (testcontainers)' e \"Aceitar 'rodou na minha máquina' como prova de aprovação, sem log/evidência reproduzível\" é rejeitado; recommendation: 'Não tratar como aprovado enquanto o CI não rodar ... os testes de integração com asserções reais'. Aponta o log e não o arquivo tests/integration diretamente, mas PR-3 (linhas 25-33) liga os mesmos dois testes de tests/integration/test_saldo_centavos.py."
+    },
+    {
+      "text": "Há um finding BLOCKER ou HIGH em migrations/versions/0005_saldo_em_centavos.py que cita `schema-evolution` e aponta ao menos dois de: rename + troca de tipo + NOT NULL em tabela populada num único passo (sem expand/contract), coluna `saldo` originalmente nullable (NULL quebra a migration), `downgrade` vazio sem rollback/mitigação",
+      "passed": false,
+      "evidence": "PR-2 (linhas 16-24, severity CRITICAL, file migrations/versions/0005_saldo_em_centavos.py) aponta 'troca tipo e nome de coluna numa única operação irreversível', 'Downgrade é pass' e 'não há tratamento explícito para saldo NULL', mas NÃO cita `schema-evolution`: `grep -n schema-evolution work/review/python-reviewer.json` não retorna nada. Também não afirma que a coluna `saldo` era nullable na origem. Falha pelo requisito explícito de citar a regra."
+    },
+    {
+      "text": "Há um finding em app/config.py apontando a linha 7 (DATABASE_URL com credencial escrita no log) e/ou a linha 6 (default com credencial embutida substituindo a leitura obrigatória, sem validação no boot)",
+      "passed": true,
+      "evidence": "python-reviewer.json linhas 7-15, PR-1 file app/config.py, lines '1-7': descreve o fallback 'postgresql://carteira:senha-dev-local@...' substituindo os.environ[...] obrigatório (linha 6, 'fail-fast' perdido) e 'a linha logger.info(\\'conectando no banco %s\\', DATABASE_URL) grava a DSN completa (usuário+senha) no log' (linha 7). Não cita a linha 7 isoladamente (intervalo 1-7), mas cita literalmente o código das linhas 6 e 7."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "pass_rate": 0.8
+  },
+  "timing": {
+    "executor_duration_seconds": 334.0,
+    "total_duration_seconds": 334.0
+  },
+  "claims": [
+    {
+      "claim": "O cast (saldo * 100)::bigint trunca (não arredonda) valores fracionários",
+      "type": "factual",
+      "verified": false,
+      "evidence": "Em PostgreSQL, cast numeric→bigint arredonda (round half away from zero), não trunca; e Numeric(12,2)*100 já é inteiro. Afirmação provavelmente incorreta."
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Há um finding BLOCKER ou HIGH em migrations/versions/0005_saldo_em_centavos.py que cita `schema-evolution` e aponta ao menos dois de: rename + troca de tipo + NOT NULL em tabela populada num único passo (sem expand/contract), coluna `saldo` originalmente nullable (NULL quebra a migration), `downgrade` vazio sem rollback/mitigação",
+        "reason": "Nas duas configurações a citação de `schema-evolution` decide o resultado; no with_skill ela aparece só como texto genérico do campo 'rule' copiado da persona, sem análise expand/contract. Considere exigir que o finding descreva o passo único sem expand/contract (não só cite o nome da regra), e decidir se itens espalhados em findings distintos (downgrade como MEDIUM) contam."
+      },
+      {
+        "assertion": "Há um finding com severidade HIGH ou BLOCKER apontando que os testes de tests/integration/test_saldo_centavos.py foram skipped no CI por falta de Docker (2 skipped em ci/pytest-ultimo.txt) e que isso é evidência pendente, não aprovação — sem aceitar o 'passou na minha máquina' como prova",
+        "reason": "Asserção passa trivialmente nas duas configurações; o discriminador real observado foi outro: ambos notaram que os testes de integração são stubs `...`, o que nenhuma asserção cobre."
+      },
+      {
+        "reason": "Nenhuma asserção checa o reconhecimento de que o veredito final é do code-evaluator (contrato do python-reviewer devolve só findings); ambas as execuções gravaram `verdict: CHANGES_REQUESTED`, emitindo veredito mesmo assim."
+      }
+    ],
+    "overall": "Quatro das cinco asserções não discriminam with_skill de without_skill; a diferença de pontuação é nula (4/5 vs 4/5)."
+  }
+}

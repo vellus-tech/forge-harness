@@ -1,0 +1,6 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://db-interno:5432/cadastro
+    username: cadastro_app
+    hikari:
+      maximum-pool-size: 20

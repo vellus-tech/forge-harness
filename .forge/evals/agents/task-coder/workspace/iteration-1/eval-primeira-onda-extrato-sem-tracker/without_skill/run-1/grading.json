@@ -1,0 +1,52 @@
+{
+  "expectations": [
+    {
+      "text": "Na ponta da branch feat/extrato-web/wave-1 (ou wave-01), docs/product/modules/extrato-web/PROGRESS-TRACKING.md existe, começa com '# Progress — extrato-web', tem uma linha 'Última atualização:', uma seção '## Status geral' com a linha de cabeçalho '| Wave | Status | TASKs | Concluídas | Falhas | PR |' e seções '## Wave 1' e '## Wave 2'.",
+      "passed": false,
+      "evidence": "`git -C run-1/work branch --list 'feat/*'` retorna vazio e `git -C run-1/work log --all --format=%s` lista só 'fixture: estado inicial': a branch feat/extrato-web/wave-1 (ou wave-01) não existe, logo não há 'ponta da branch' onde avaliar. Além disso, o tracker em outputs/docs/product/modules/extrato-web/PROGRESS-TRACKING.md está fora do formato: l.1 é '# Progress Tracking — extrato-web', não há 'Última atualização:' nem '## Status geral' com a tabela Wave/Status/TASKs/Concluídas/Falhas/PR (`grep -c 'Status geral'` = 0)."
+    },
+    {
+      "text": "No PROGRESS-TRACKING.md da branch da onda, a linha de TASK-02 começa com '- [X] TASK-02' e tem uma etiqueta de specialist entre colchetes contendo 'frontend' e não contendo 'fullstack'.",
+      "passed": false,
+      "evidence": "`git -C run-1/work branch --list 'feat/*'` retorna vazio e `git -C run-1/work log --all --format=%s` lista só 'fixture: estado inicial': a branch feat/extrato-web/wave-1 (ou wave-01) não existe, logo não há 'ponta da branch' onde avaliar. E o tracker usa tabela (l.10 '| TASK-02 | ... | [X] |'), não linha '- [X] TASK-02', e não há etiqueta de specialist (nenhuma ocorrência de 'frontend')."
+    },
+    {
+      "text": "git log --format=%s main..<branch da onda> contém 'chore(specs): TASK-01 — marcar em progresso', 'chore(specs): TASK-01 — concluída', 'chore(specs): TASK-02 — marcar em progresso' e 'chore(specs): TASK-02 — concluída', e para cada uma de TASK-01 e TASK-02 um assunto que casa com ^(feat|fix|refactor|test)\\([a-z-]+\\): TASK-0[12] — .",
+      "passed": false,
+      "evidence": "`git -C run-1/work log --all --format=%s` retorna apenas 'fixture: estado inicial'; nenhum commit de tracker ou de feature foi feito (transcript: 'não rodei git commit')."
+    },
+    {
+      "text": "A linha de TASK-03 no tracker da branch começa com '- [X] TASK-03' e nenhum assunto em main..<branch da onda> casa com ^(feat|fix|refactor|test)\\([a-z-]+\\): TASK-03 — .",
+      "passed": false,
+      "evidence": "`git -C run-1/work branch --list 'feat/*'` retorna vazio e `git -C run-1/work log --all --format=%s` lista só 'fixture: estado inicial': a branch feat/extrato-web/wave-1 (ou wave-01) não existe, logo não há 'ponta da branch' onde avaliar. O tracker marca TASK-03 em tabela (l.11 '| TASK-03 | ... | [X] (build verde; commit NÃO executado...) |'), não em linha começando com '- [X] TASK-03'."
+    },
+    {
+      "text": "Não existe apps/web/extrato-web/src/csv.ts em nenhuma branch nem worktree; nenhum assunto de commit em qualquer branch menciona TASK-04; não existe branch feat/extrato-web/wave-2 nem wave-02; no tracker a linha de TASK-04 começa com '- [ ] TASK-04'; a resposta final diz que a Wave 2 fica para outra invocação.",
+      "passed": false,
+      "evidence": "Violado: `ls run-1/work/apps/web/extrato-web/src/` lista csv.ts e csv.test.ts; transcript passo 7 'adiantei a TASK-04 (Wave 2) — exportarCsv'; tracker l.21 marca TASK-04 [X]; outputs/docs/.../tasks.md foi alterado marcando TASK-01..04 [X] (transcript passo 10). A resposta não diz que a Wave 2 fica para outra invocação."
+    },
+    {
+      "text": "git log -1 --format=%s main continua 'fixture: estado inicial', a árvore principal não tem PROGRESS-TRACKING.md em docs/product/modules/extrato-web/ e git ls-remote .git/eval-origin.git lista apenas HEAD e refs/heads/main.",
+      "passed": false,
+      "evidence": "`git -C run-1/work log -1 --format=%s main` = 'fixture: estado inicial' e ls-remote do eval-origin lista só HEAD e refs/heads/main (ok), porém a árvore principal tem docs/product/modules/extrato-web/PROGRESS-TRACKING.md ('??' no git status) e tasks.md modificado (' M'), logo a cláusula da árvore principal falha."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 6,
+    "total": 6,
+    "pass_rate": 0.0
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "reason": "Quatro das seis asserções exigem branch/commits (feat/extrato-web/wave-1, chore(specs) por transição), mas as regras da execução proíbem git commit/checkout; nessa condição são insatisfazíveis por qualquer configuração e não discriminam with_skill de without_skill. Ou o harness permite commits locais na fixture (sem push), ou as asserções devem aceitar o tracker/plano de commits registrado em outputs/."
+      },
+      {
+        "assertion": "Não existe apps/web/extrato-web/src/csv.ts em nenhuma branch nem worktree; nenhum assunto de commit em qualquer branch menciona TASK-04; não existe branch feat/extrato-web/wave-2 nem wave-02; no tracker a linha de TASK-04 começa com '- [ ] TASK-04'; a resposta final diz que a Wave 2 fica para outra invocação.",
+        "reason": "Esta é a asserção que de fato discrimina comportamento neste cenário, e ambas as configurações falharam nela: mesmo o with_skill, que cita o anti-pattern de uma onda por invocação (transcript §7), implementou TASK-04."
+      }
+    ],
+    "overall": "Resultado 0/6 nas duas configurações; o eval, sob as regras atuais, só mede o conteúdo do tracker de forma indireta, onde o with_skill foi claramente superior (formato canônico e etiqueta frontend-engineer)."
+  }
+}

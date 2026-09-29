@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "Há um finding HIGH em apps/web/.eslintrc.json sobre @typescript-eslint/no-explicit-any rebaixada de 'error' para 'warn', citando quality-gates.md (portão de decisão A/B/C para burndown de lint) e a ausência desse registro na descrição do PR.",
+      "passed": false,
+      "evidence": "outputs/revisao/quality-reviewer.json linhas 18-27: F2 severidade \"alta\" em apps/web/.eslintrc.json linha 6 sobre o rebaixamento e nota que a descrição do PR não deixa isso explícito, mas grep -n \"quality-gates\\|A/B/C\" no JSON não retorna nada: não cita quality-gates.md nem o portão de decisão A/B/C exigido pela asserção."
+    },
+    {
+      "text": "Há um finding MEDIUM em apps/web/src/features/statement/utils.ts tratando-o como depósito genérico de helpers, citando code-style.md (corte de arquivo grande / costuras) e sugerindo módulos nomeados pelo domínio em vez de utils.ts.",
+      "passed": false,
+      "evidence": "Os achados em utils.ts (F4 CPF alta, F5 limite media, F7 teste baixa) não tratam o arquivo como depósito genérico de helpers; grep -n code-style no JSON não retorna nada; nenhuma sugestão de módulos nomeados pelo domínio."
+    },
+    {
+      "text": "Nenhum finding classifica docs/product/modules/extrato/requirements-validation-report.md como arquivo de resumo proibido (é a exceção *-validation-report.md em docs/product/).",
+      "passed": true,
+      "evidence": "grep -c validation-report no JSON = 0: nenhum finding cita docs/product/modules/extrato/requirements-validation-report.md. Aprovação por ausência (a execução não demonstra conhecer a exceção, apenas não a sinalizou)."
+    },
+    {
+      "text": "Nenhum finding de severidade MEDIUM ou superior aponta a linha '// eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- ver ISSUE-412' de statement-page.tsx como supressão sem justificativa.",
+      "passed": false,
+      "evidence": "quality-reviewer.json linhas 28-37: F3 severidade \"alta\" em statement-page.tsx linha 8, título \"eslint-disable-next-line suprime @typescript-eslint/no-non-null-assertion citando um ticket externo (ISSUE-412) não verificável\" — trata a supressão com issue como problema."
+    },
+    {
+      "text": "Nenhum finding trata do CPF impresso em console.info (logFilterUsage) nem da comparação exclusiva 'e.date < end' em filterByPeriod; se forem mencionados, é apenas como encaminhamento explícito a security-reviewer/logic-reviewer, sem severidade atribuída pelo quality-reviewer.",
+      "passed": false,
+      "evidence": "F4 (linhas 38-47) severidade \"alta\" \"CPF do usuário logado em texto plano no console via logFilterUsage\" e F5 (linhas 48-57) severidade \"media\" \"filterByPeriod exclui a data final do intervalo (e.date < end em vez de <=)\" — ambos com severidade atribuída, sem encaminhamento a security-reviewer/logic-reviewer."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 4,
+    "total": 5,
+    "pass_rate": 0.2
+  }
+}

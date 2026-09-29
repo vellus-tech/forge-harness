@@ -1,0 +1,64 @@
+{
+  "expectations": [
+    {
+      "text": "O transcript mostra `check-data-governance.sh --path` sobre src/main (ou subpaths) com saída `universo-vazio`, e a resposta diz explicitamente que PAN/PII não foi verificado por esse verificador (projeto Java), sem apresentar esse resultado como aprovação, como 'limpo' nem como conflito",
+      "passed": false,
+      "evidence": "transcript.md 'Comandos executados' lista apenas date, mkdir, setup.sh, find e cat; não há `check-data-governance.sh` nem saída `universo-vazio`. A resposta não menciona o verificador."
+    },
+    {
+      "text": "A resposta cita o id T-02 para o campo `pan` com a localização src/main/resources/avro/PagamentoAprovado.avsc:7 e recomenda substituí-lo por token, dizendo que fila, DLQ ou tópico são armazenamento persistente (escopo PCI)",
+      "passed": false,
+      "evidence": "A resposta recomenda substituir o PAN por token/últimos 4 dígitos e diz que ele 'fica persistido em qualquer broker/log/dead-letter' com ampliação do escopo PCI, mas não cita o id T-02 nem a localização `PagamentoAprovado.avsc:7`."
+    },
+    {
+      "text": "A resposta trata `nomeTitular` e `cpfTitular` como dado pessoal (LGPD) e recomenda removê-los ou pseudonimizá-los com chave substituta ou HMAC com chave em KMS, e não com hash sem chave",
+      "passed": true,
+      "evidence": "revisao-schema-pagamento-aprovado.md: 'CPF e nome do titular são dados pessoais (LGPD)'; recomendação: 'remover `cpfTitular`/`nomeTitular`, substituindo por `pagamentoId`/`clienteId` como referência'. A remoção satisfaz a disjunção e não há recomendação de hash sem chave. Ressalva: o item 1 da lista final fala só em 'PAN completo e CPF', omitindo o nome; não menciona HMAC nem KMS."
+    },
+    {
+      "text": "A resposta aponta `valor` como double no schema e no publicador (`doubleValue()`) e recomenda inteiro (long/int64) em centavos, citando a rule money-as-cents do projeto",
+      "passed": false,
+      "evidence": "A resposta não menciona o campo `valor`, `doubleValue()`, centavos nem a rule money-as-cents."
+    },
+    {
+      "text": "A resposta cita o id RMQ-AP-28 para o application.yml sem `default-requeue-rejected: false` e explica que, no Spring AMQP, a exceção no listener volta a mensagem à fila em laço por padrão",
+      "passed": false,
+      "evidence": "A resposta não cita RMQ-AP-28 nem `default-requeue-rejected`; sobre `acknowledge-mode: auto` afirma que a falha 'pode resultar em perda silenciosa do evento', o oposto do comportamento padrão do Spring AMQP (requeue em laço), que não é explicado."
+    },
+    {
+      "text": "A resposta conclui que o schema não deve ser registrado como está, e `git status --porcelain` na fixture está vazio ao fim",
+      "passed": true,
+      "evidence": "Resposta direta: 'Não, não registre o schema como está.' `git -C without_skill/run-1/work status --porcelain` rodado pelo grader retorna vazio; toplevel é o próprio work/ (commit 'fixture: estado inicial')."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 4,
+    "total": 6,
+    "pass_rate": 0.33
+  },
+  "execution_metrics": {
+    "output_chars": 7122,
+    "transcript_chars": 4137
+  },
+  "timing": {
+    "executor_duration_seconds": 75
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A resposta aponta `valor` como double no schema e no publicador (`doubleValue()`) e recomenda inteiro (long/int64) em centavos, citando a rule money-as-cents do projeto",
+        "reason": "A rule money-as-cents.md tem applies_to [backend-dotnet, frontend-react, android-kotlin], sem backend-java; um agente que lê a rule corretamente pode afastá-la, como o with_skill fez. Convém a asserção aceitar a recomendação pelo princípio da rule, ou a fixture incluir backend-java no applies_to, para não punir leitura correta."
+      },
+      {
+        "assertion": "O transcript mostra `check-data-governance.sh --path` sobre src/main (ou subpaths) com saída `universo-vazio`, e a resposta diz explicitamente que PAN/PII não foi verificado por esse verificador (projeto Java), sem apresentar esse resultado como aprovação, como 'limpo' nem como conflito",
+        "reason": "A asserção não distingue --path src de --path src/main; ambos dão universo-vazio. Se o path importa, dizer explicitamente."
+      },
+      {
+        "assertion": "A resposta trata `nomeTitular` e `cpfTitular` como dado pessoal (LGPD) e recomenda removê-los ou pseudonimizá-los com chave substituta ou HMAC com chave em KMS, e não com hash sem chave",
+        "reason": "A disjunção 'remover ou pseudonimizar com chave' deixa passar qualquer resposta que só diga 'remover'; se o objetivo é discriminar o conhecimento de HMAC/KMS, exigir a menção explícita."
+      }
+    ],
+    "overall": "Asserções 1, 2 e 5 discriminam bem entre as configurações; a 3 e a 6 passam nas duas."
+  }
+}

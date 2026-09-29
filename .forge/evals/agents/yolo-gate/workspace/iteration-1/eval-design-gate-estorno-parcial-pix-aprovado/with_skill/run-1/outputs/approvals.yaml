@@ -1,0 +1,13 @@
+approvals:
+  - gate: requirements_reviewed
+    decision: approve
+    decided_by: "Ana Ribeiro"
+    decided_at: "2026-09-24T10:12:00-03:00"
+    commit: "4f1c2aa"
+  - gate: design_reviewed
+    decision: approve
+    autonomous: true
+    reason: "design.md deriva corretamente de requirements.md: REQ-01/02/03 e NFR-01 mapeados em §8 com invariante e PBT correspondentes (INV-01..03, PBT-01..03). Decisão técnica (Estorno como agregado filho de Pagamento, concorrência otimista por row_version) protege o limite acumulado (REQ-02) num único agregado, evitando saga distribuída — alternativa de agregado raiz próprio e lock pessimista foram consideradas e descartadas com justificativa coerente (NFR-01 de latência). Idempotência (REQ-03) resolvida por unique (lojista_id, chave) + hash_corpo, cobrindo o caso de chave reusada com corpo diferente. Contratos aditivos (novo endpoint, novo evento EstornoSolicitadoV1, migration expand-only 0012) preservam compatibilidade, conforme rule api-and-contracts.md. Riscos identificados (rejeição do PSP, conflito de row_version sob pico) têm mitigação e métrica de detecção. Ressalvas não bloqueantes: ADR-0003/ADR-0006 citados como 'Aceito' não puderam ser verificados nesta árvore (diretório .forge/product/current/adr contém só .gitkeep) — provável limitação do fixture de eval, não do design; e autorização/escopo do lojista sobre a cobrança não é explicitada no design, mas também não é requisito aprovado nem indicado como gap na proposal, presumivelmente coberto pela autenticação já existente do serviço de pagamentos. Nenhum BLOCKER: escopo, rastreabilidade e riscos cobertos para um change scale=2 spec-anchored."
+    decided_by: "forge-yolo (opus, high)"
+    decided_at: "2026-09-26T14:57:14-03:00"
+    commit: "f1c4380"

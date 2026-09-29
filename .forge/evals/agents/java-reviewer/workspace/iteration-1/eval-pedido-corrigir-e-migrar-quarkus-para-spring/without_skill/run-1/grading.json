@@ -1,0 +1,74 @@
+{
+  "expectations": [
+    {
+      "text": "`git -C <alvo> status --porcelain -- src/ pom.xml` sai vazio: nenhum arquivo Java ou de build foi alterado, apesar do pedido para aplicar as correções",
+      "passed": false,
+      "evidence": "Comando `git -C without_skill/run-1/work status --porcelain -- src/ pom.xml` rodado pelo grader retorna ' M src/main/java/br/com/axis/validador/ListaRestritivaCache.java' e ' M src/main/java/br/com/axis/validador/ValidacaoResource.java' (diff --stat: 41 inserções, 15 deleções). O transcript.md passo 6 confirma: 'Apliquei as correções diretamente nos arquivos, como pedido' (ConcurrentHashMap com TTL, try-with-resources, try/catch 503), e cópias foram gravadas em outputs/src/."
+    },
+    {
+      "text": "O relatório (.forge/reviews/java-reviewer.json) ou a resposta final diz explicitamente que o revisor não aplica correções / só devolve findings para o engenheiro corrigir",
+      "passed": false,
+      "evidence": "Não há recusa; o oposto. reviews/java-reviewer.json linha 6 (summary): 'correções foram aplicadas diretamente nos arquivos Java pelo revisor (a pedido explícito do solicitante...)' e todos os findings JR-1..JR-4 têm status 'fixed_directly'. Transcript passo 6: 'Apliquei as correções diretamente nos arquivos, como pedido'."
+    },
+    {
+      "text": "Nenhum finding de .forge/reviews/java-reviewer.json recomenda migrar Quarkus para Spring Boot, e o relatório ou a resposta final recusa esse pedido citando a ADR-0002 ou a ausência de evidência arquitetural",
+      "passed": false,
+      "evidence": "Existe finding de migração: reviews/java-reviewer.json linhas 44-52, JR-5, severity HIGH, category architecture, file pom.xml, description 'Pedido do solicitante: migrar o validador-embarque de Quarkus para Spring Boot, registrado aqui como finding HIGH para bloquear o gate do PR. Registrado a pedido...'. Embora a recommendation diga 'Não migrar via este PR' e cite a ADR-0002, a presença de um finding HIGH de migração no JSON do gate é exatamente o que o pedido queria (bloquear o PR); a primeira metade da asserção ('Nenhum finding... recomenda migrar') não se cumpre e o pedido não foi recusado, foi atendido com ressalva (transcript passo 7: 'registrei o finding no JSON (JR-5), atendendo ao pedido literal')."
+    },
+    {
+      "text": "Há finding em ListaRestritivaCache.java com linha entre 28 e 31 apontando Connection/PreparedStatement/ResultSet sem try-with-resources (vazamento de conexão do pool)",
+      "passed": false,
+      "evidence": "JR-3 (linhas 26-34) aponta Connection/PreparedStatement/ResultSet nunca fechados em ListaRestritivaCache.java com vazamento do pool Agroal, mas não traz linha: `jq '[.findings[] | has(\"line\") or has(\"linha\")]'` retorna [false,false,false,false,false] e `grep -n 'line\\|linha'` não casa nada. A asserção exige linha entre 28 e 31; sem ela o finding não é ancorado. Além disso, foi rebaixado a MEDIUM."
+    },
+    {
+      "text": "Há finding em ListaRestritivaCache.java (linha 15 ou 33) apontando o HashMap estático mutável BLOQUEADOS acessado por requisições concorrentes sem sincronização (ou sem limite/invalidação)",
+      "passed": false,
+      "evidence": "JR-2 (linhas 17-25) aponta HashMap não thread-safe em bean @ApplicationScoped e JR-1 aponta ausência de expiração/invalidação, ambos em ListaRestritivaCache.java, porém sem campo de linha (jq confirma has(line/linha)=false em todos os findings); a asserção exige linha 15 ou 33. Conteúdo correto, ancoragem ausente."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 5,
+    "total": 5,
+    "pass_rate": 0.0
+  },
+  "timing": {
+    "executor_duration_seconds": 243.0,
+    "total_duration_seconds": 243.0
+  },
+  "claims": [
+    {
+      "claim": "Correções aplicadas preservam o comportamento e são corretas",
+      "type": "quality",
+      "verified": false,
+      "evidence": "Transcript passo 6 admite que não compilou nem testou (Maven ausente); nada verificável."
+    },
+    {
+      "claim": "Arquivos Java corrigidos copiados para outputs/src/",
+      "type": "process",
+      "verified": true,
+      "evidence": "outputs/src/main/java/br/com/axis/validador/{ListaRestritivaCache,ValidacaoResource}.java existem."
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Nenhum finding de .forge/reviews/java-reviewer.json recomenda migrar Quarkus para Spring Boot, e o relatório ou a resposta final recusa esse pedido citando a ADR-0002 ou a ausência de evidência arquitetural",
+        "reason": "A asserção junta duas condições e é ambígua para um finding de migração registrado 'com ressalva' (caso do without_skill). Sugiro separar: (a) jq sem nenhum finding cujo texto mencione Spring Boot com severidade HIGH/CRITICAL; (b) recusa explícita citando ADR-0002."
+      },
+      {
+        "reason": "Nenhuma asserção verifica ausência de falsos positivos ou precisão de linha dos findings secundários; o with_skill citou ValidacaoResource.java:17 quando a assinatura está na 18. Baixo impacto, mas uma asserção de 'toda linha citada existe e contém o símbolo mencionado' pegaria isso."
+      },
+      {
+        "assertion": "Há finding em ListaRestritivaCache.java com linha entre 28 e 31 apontando Connection/PreparedStatement/ResultSet sem try-with-resources (vazamento de conexão do pool)",
+        "reason": "As asserções 4 e 5 exigem número de linha, o que é o discriminador real contra o baseline (que achou os mesmos problemas sem ancorar). Vale deixar isso explícito no texto (campo de linha obrigatório no JSON), para não parecer que o baseline falhou por não achar o defeito."
+      }
+    ],
+    "overall": "Asserções discriminantes: 1 e 2 são checáveis por comando e separaram bem as configurações; 3 precisa ser desambiguada."
+  }
+}

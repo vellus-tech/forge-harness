@@ -1,0 +1,65 @@
+{
+  "expectations": [
+    {
+      "text": "Existe docs/product/frd-nfrd/nfrd.md e `git diff --exit-code -- docs/product/prd/prd.md docs/discovery/discovery-notes.md` sai com código 0 (nenhum arquivo de entrada foi alterado).",
+      "passed": false,
+      "evidence": "`test -f without_skill/run-1/work/docs/product/frd-nfrd/nfrd.md` rc=1 — o executor gravou em docs/product/nfrd/nfrd.md (transcript passo 4: 'usei o padrão irmão do PRD (docs/product/nfrd/)'). O `git diff --exit-code` dos insumos sai rc=0, mas a primeira condição falha."
+    },
+    {
+      "text": "O nfrd.md contém uma seção 'Decisão por Categoria' com uma tabela em que aparecem as 14 categorias PERF, DISP, ESC, RES, SEG, PRIV, COMP, OBS, AUD, INT, USA, MAN, POR e OPS, cada uma com decisão explícita Sim/Não; toda linha 'Não' tem justificativa não vazia.",
+      "passed": false,
+      "evidence": "`grep -n 'Decisão por Categoria' without_skill/run-1/outputs/docs/product/nfrd/nfrd.md` sem resultado (rc=1); o documento só tem seções 2-8 por tema (Desempenho, Disponibilidade, Segurança, Auditoria/LGPD, Confiabilidade, Observabilidade, Escalabilidade), sem decisão Sim/Não para as 14 categorias."
+    },
+    {
+      "text": "Todos os requisitos seguem o formato de ID NFR-<CAT>-NN (ex.: NFR-PERF-01) e cada um tem, na sua tabela, os campos Meta, Método de medição e Fonte de dados preenchidos (nenhum vazio ou só com '—').",
+      "passed": false,
+      "evidence": "IDs fora dos 14 códigos: NFR-AVAIL-01..05 (without_skill/run-1/outputs/docs/product/nfrd/nfrd.md:20-24), NFR-SEC-01..06 (28-33), NFR-AUDIT-01..03 (37-39), NFR-REL-01..03 (43-45), NFR-SCALE-01 (54); requisitos são bullets em prosa sem campos Meta, Método de medição e Fonte de dados (`grep -n 'Meta\\|Método de medição\\|Fonte de dados'` sem resultado)."
+    },
+    {
+      "text": "Existe um NFR de latência de validação com meta em percentil explícito (p95 ≤ 500 ms, rastreado a KPI-01) e um NFR de disponibilidade de 99,5% com janela mensal explícita, rastreado a R-04.",
+      "passed": true,
+      "evidence": "without_skill/run-1/outputs/docs/product/nfrd/nfrd.md:13 NFR-PERF-01 'no máximo 500 ms no percentil 95 ... Rastreabilidade: PRD KPI-01'; without_skill/run-1/outputs/docs/product/nfrd/nfrd.md:20 NFR-AVAIL-01 '99,5% de disponibilidade mensal ... Rastreabilidade: PRD R-04'."
+    },
+    {
+      "text": "A premissa do PRD 'portal e app rápidos e fáceis de usar' não vira texto vago: há ao menos um NFR com meta numérica para o portal ou app cuja Origem está marcada literalmente 'Proposto pelo NFRD — validar com produto' (ou 'Inferência Não Funcional'), e a seção 'Pontos a Validar' traz o item correspondente com quem decide.",
+      "passed": false,
+      "evidence": "Nenhum NFR para portal/app com meta de usabilidade/rapidez; `grep 'Proposto pelo NFRD\\|Inferência Não Funcional\\|Pontos a Validar' without_skill/run-1/outputs/docs/product/nfrd/nfrd.md` sem resultado; a premissa do PRD §8 não é tratada (seção 10 'Questões em aberto' não a cita)."
+    },
+    {
+      "text": "O nfrd.md tem a seção 'Matriz de Rastreabilidade PRD → NFRD' com linhas para KPI-01, KPI-03, R-01, R-02, R-03 e R-04; o resumo final da resposta tem a seção 'ADRs Sugeridos' (tabela com ID sugerido, Título, Origem NFR, Severidade e Justificativa, ou a frase 'Nenhum ADR sugerido nesta geração.'), e nenhum arquivo foi criado em docs/product/adr/.",
+      "passed": false,
+      "evidence": "Não há seção 'Matriz de Rastreabilidade PRD → NFRD' (há '## 9. Rastreabilidade (matriz resumo)' em without_skill/run-1/outputs/docs/product/nfrd/nfrd.md:56, sem linhas para KPI-03 como item isolado da matriz — há sim NFR-AVAIL-03 → KPI-03 — mas o título exigido não existe); não há seção 'ADRs Sugeridos' no transcript nem em outputs (`grep ADRs Sugeridos` rc=1). Nenhum ADR criado (docs/product/adr inexistente), mas as demais condições falham."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 5,
+    "total": 6,
+    "pass_rate": 0.1667
+  },
+  "timing": {
+    "executor_duration_seconds": 110,
+    "total_duration_seconds": 110
+  },
+  "claims": [
+    {
+      "claim": "Cada requisito é testável e traz sua fonte",
+      "type": "quality",
+      "verified": false,
+      "evidence": "NFR-REL-03 ('detectar e alertar corrupção ou desatualização crítica') e NFR-SEC-05 não têm limiar mensurável"
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Todos os requisitos seguem o formato de ID NFR-<CAT>-NN (ex.: NFR-PERF-01) e cada um tem, na sua tabela, os campos Meta, Método de medição e Fonte de dados preenchidos (nenhum vazio ou só com '—').",
+        "reason": "A asserção aceita qualquer texto não vazio em Meta; no with_skill, 6 NFRs (RES-02, AUD-03, USA-01, OPS-01, OPS-03, e DISP-02 parcialmente) têm Meta sem valor numérico ('RTO e RPO numéricos — Proposto pelo NFRD — validar com produto'), o que passa a asserção mas não é meta verificável. Considerar exigir valor numérico/limiar na Meta."
+      },
+      {
+        "assertion": "A premissa do PRD 'portal e app rápidos e fáceis de usar' não vira texto vago: há ao menos um NFR com meta numérica para o portal ou app cuja Origem está marcada literalmente 'Proposto pelo NFRD — validar com produto' (ou 'Inferência Não Funcional'), e a seção 'Pontos a Validar' traz o item correspondente com quem decide.",
+        "reason": "A asserção exige marcador na Origem e meta numérica; o with_skill pôs o marcador na Meta e deixou a meta sem número. Vale decidir se o marcador na Meta é aceitável, mas a ausência de número é falha substantiva."
+      }
+    ],
+    "overall": "Asserções discriminam bem (5/6 vs 1/6); a de metas preenchidas é branda demais."
+  }
+}

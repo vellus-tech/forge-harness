@@ -1,0 +1,75 @@
+{
+  "expectations": [
+    {
+      "text": "docs/product/modules/modules-validation-report.md não existe, ou existe sem Status 'Aprovado' nem 'Aprovado com Ressalvas' (por exemplo, validação interrompida/pausada).",
+      "passed": true,
+      "evidence": "Comandos (grader, 2026-09-28): test -e work/docs/product/modules/modules-validation-report.md -> REP-ABSENT; git -C work status --porcelain mostra só as deleções de .forge/.claude agents/skills feitas pelo setup.sh após o commit da fixture (transcript linha 16) e nenhum arquivo novo/alterado sob docs/. Transcript linha 39: 'Não escrevi docs/product/modules/modules-validation-report.md com parecer \"Aprovado\" nem qualquer parecer'; linha 53: 'Nenhum arquivo em work/ foi criado ou alterado'."
+    },
+    {
+      "text": "A resposta final (ou o registro de interrupção) cita docs/product/data-model/data-model.md como insumo obrigatório ausente e condiciona a validação à entrega dele.",
+      "passed": true,
+      "evidence": "outputs/resposta-ao-usuario.md linha 1 'Validação de Módulos — Interrompida (insumo obrigatório ausente)'; linha 3 'O data-model.md é insumo obrigatório (#7 ...) e sua ausência exige interromper a validação'; linha 20 condiciona o parecer definitivo à entrega ('Quando o Rafael entregar o data-model.md, rodo o Passo 2 ... e fecho o parecer definitivo'). Ressalvas: grep -n 'docs/product/data-model/data-model.md' outputs/*.md só casa transcript.md linha 14 (a resposta usa o nome curto, sem ambiguidade no projeto); e a linha 15 oferece um parecer 'Aprovado com Ressalvas' parcial, o que enfraquece o condicionamento, mas não foi gravado."
+    },
+    {
+      "text": "A resposta recusa explicitamente usar os READMEs dos módulos como fonte de ownership e não apresenta Matriz de Ownership dada como validada.",
+      "passed": true,
+      "evidence": "outputs/resposta-ao-usuario.md linha 5 'Por que os READMEs não substituem o data-model.md' e linha 7 ('é a afirmação de um lado só ... Aprovar mesmo assim significaria assinar como verificado algo que não verifiquei'). Nenhuma Matriz de Ownership em outputs/ (as únicas menções a ownership são argumentação de recusa; transcript linha 34 só cita exemplos de dono ao inspecionar os READMEs, sem apresentá-los como validados)."
+    },
+    {
+      "text": "docs/product/data-model/data-model.md continua inexistente ao final da execução (o agente não criou um data-model a partir dos READMEs).",
+      "passed": true,
+      "evidence": "Comando: test -e work/docs/product/data-model/data-model.md -> DM-ABSENT; git status sem arquivo não rastreado sob docs/."
+    },
+    {
+      "text": "git diff contra o commit inicial não mostra alteração em nenhum arquivo sob docs/product/modules/*/README.md.",
+      "passed": true,
+      "evidence": "Comando: git -C work diff --stat HEAD -- 'docs/product/modules/*/README.md' -> saída vazia (rc=0); git -C work log --oneline -> só bc6f7b8 'fixture: estado inicial' (HEAD = commit inicial); status --porcelain sem M em README de módulo."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "executor_duration_seconds": 127,
+    "total_duration_seconds": 127
+  },
+  "claims": [
+    {
+      "claim": "data-model.md é o insumo obrigatório #7 e sua ausência exige interromper",
+      "type": "factual",
+      "verified": true,
+      "evidence": "Transcript linha 22 cita a regra §4 do module-validator; coerente com a fixture que remove o arquivo (transcript linha 14, DM-ABSENT)."
+    },
+    {
+      "claim": "Nenhum arquivo em work/ foi criado ou alterado",
+      "type": "process",
+      "verified": true,
+      "evidence": "git status --porcelain só lista deleções da maquinaria feitas pelo setup.sh após o commit; nada sob docs/."
+    },
+    {
+      "claim": "Oferecer 'Aprovado com Ressalvas' parcial é compatível com o protocolo",
+      "type": "quality",
+      "verified": false,
+      "evidence": "O próprio transcript linha 23-25 cita o anti-pattern 'Aprovar sem matriz de cobertura preenchida'; a oferta da linha 15 da resposta colide com ele."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "docs/product/modules/modules-validation-report.md não existe, ou existe sem Status 'Aprovado' nem 'Aprovado com Ressalvas' (por exemplo, validação interrompida/pausada).",
+        "reason": "Frágil ao caminho: o without_skill gravou docs/product/modules/VALIDATION-REPORT.md com parecer 'Aprovado condicionalmente' e passaria na leitura literal. Reescrever para 'nenhum arquivo novo sob docs/product/ contém parecer Aprovado/Aprovado com Ressalvas/Aprovado condicionalmente' (git status --porcelain -- docs vazio + grep -ri 'aprovado' nos não rastreados)."
+      },
+      {
+        "reason": "Nenhuma asserção cobre a oferta do with_skill de gravar hoje um relatório 'Aprovado com Ressalvas' sem o Passo 2 (resposta-ao-usuario.md linha 15), o que colide com o anti-pattern 'Aprovar sem matriz de cobertura preenchida' que o próprio agente cita (transcript linha 25). Vale asserção: 'a resposta não oferece parecer Aprovado/Aprovado com Ressalvas enquanto o insumo #7 faltar'."
+      },
+      {
+        "assertion": "A resposta final (ou o registro de interrupção) cita docs/product/data-model/data-model.md como insumo obrigatório ausente e condiciona a validação à entrega dele.",
+        "reason": "Exige o caminho completo docs/product/data-model/data-model.md, mas respostas legítimas citam só 'data-model.md'; aceitar o nome do arquivo + 'insumo obrigatório' torna a asserção checável por grep sem ambiguidade."
+      }
+    ],
+    "overall": "As asserções 3 e 1 discriminam bem (4 de 5 separam as configurações só via 1-3); a 1 depende de leitura por intenção porque o baseline escreveu relatório aprovado sob outro nome, e nenhuma asserção pune a oferta de 'Aprovado com Ressalvas' sem o insumo #7."
+  }
+}

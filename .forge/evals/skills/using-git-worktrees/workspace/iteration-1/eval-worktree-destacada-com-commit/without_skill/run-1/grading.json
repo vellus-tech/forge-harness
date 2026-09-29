@@ -1,0 +1,84 @@
+{
+  "expectations": [
+    {
+      "text": "`git worktree list --porcelain` no repositório lista exatamente dois worktrees: o principal e <repo>/.forge/worktrees/agent-tarifa-noturna (nenhum worktree aninhado ou adicional foi criado).",
+      "passed": true,
+      "evidence": "Comando: git -C without_skill/run-1/work worktree list --porcelain | grep -c '^worktree ' → 2; entradas: work (refs/heads/main) e work/.forge/worktrees/agent-tarifa-noturna (refs/heads/agent-tarifa-noturna). Coerente com outputs/git-worktree-list-final.txt linhas 1-2."
+    },
+    {
+      "text": "Em .forge/worktrees/agent-tarifa-noturna, `git symbolic-ref -q HEAD` retorna 0 (HEAD não está mais destacado) e o nome da branch casa com ^(feat|fix)/[a-z0-9-]+/[a-z0-9]+(-[a-z0-9]+)*$ e não começa com wt/.",
+      "passed": false,
+      "evidence": "Comando: git -C without_skill/run-1/work/.forge/worktrees/agent-tarifa-noturna symbolic-ref -q HEAD → refs/heads/agent-tarifa-noturna, rc=0 (HEAD não destacado), mas o nome 'agent-tarifa-noturna' NÃO casa com ^(feat|fix)/[a-z0-9-]+/[a-z0-9]+(-[a-z0-9]+)*$ (grep -Eq → regex-fail). Transcript linha 21: 'git switch -c agent-tarifa-noturna'."
+    },
+    {
+      "text": "O SHA gravado em .git/eval-detached-sha é ancestral (ou igual) da ponta da branch nova: `git merge-base --is-ancestor $(cat .git/eval-detached-sha) <branch>` retorna 0, e src/fare/night.js existe no worktree — o commit feito em HEAD destacado não foi abandonado.",
+      "passed": true,
+      "evidence": "Comando: git -C without_skill/run-1/work merge-base --is-ancestor $(cat without_skill/run-1/work/.git/eval-detached-sha) agent-tarifa-noturna → rc=0 (SHA 9b1c102 = ponta da branch, igual a outputs/git-log-final.txt linha 1); test -f .../agent-tarifa-noturna/src/fare/night.js → existe."
+    },
+    {
+      "text": "No checkout principal, `git branch --show-current` imprime main e `git rev-parse main` é igual ao conteúdo de .git/eval-main-sha.",
+      "passed": true,
+      "evidence": "Comandos: git -C without_skill/run-1/work branch --show-current → main; git -C without_skill/run-1/work rev-parse main → 3efbf571fb2fc575903007a9f6505ae40bb29697, idêntico a cat without_skill/run-1/work/.git/eval-main-sha."
+    },
+    {
+      "text": "A resposta final diz que a worktree já era um workspace isolado e estava com HEAD destacado, cita ao menos uma consequência do contrato (não há o que empurrar / não admite PR / o rastro morre com a árvore) e informa o nome da branch criada.",
+      "passed": false,
+      "evidence": "Resposta final (transcript linhas 29-33) diz que a worktree estava em 'HEAD destacado' e informa a branch 'agent-tarifa-noturna', mas a consequência citada é o risco de o commit virar órfão e ser coletado pelo GC após um checkout (linha 31), não uma consequência do contrato (nada a empurrar / não admite PR / rastro morre com a árvore); 'push/pull normais' aparece só no passo 7 (linha 21), fora da resposta final. Também não afirma que a worktree já era um workspace isolado (nenhuma checagem git-dir vs git-common-dir no transcript)."
+    },
+    {
+      "text": "A resposta final contém 'Testes passando (3 testes, 0 falhas)' (ou texto equivalente com exatamente 3 testes e 0 falhas), provando que o baseline rodou dentro da worktree.",
+      "passed": false,
+      "evidence": "Transcript linha 25: 'Não rodei npm test/npm install nem qualquer build'; a resposta final (linhas 29-33) não contém contagem de testes. Sem baseline observado."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 3,
+    "total": 6,
+    "pass_rate": 0.5
+  },
+  "timing": {
+    "executor_duration_seconds": 93.0,
+    "total_duration_seconds": 93.0
+  },
+  "claims": [
+    {
+      "claim": "Commit 9b1c102 preservado e branch criada sem mudar arquivos",
+      "type": "factual",
+      "verified": true,
+      "evidence": "git log em work/ mostra 9b1c102 (HEAD -> agent-tarifa-noturna); outputs/git-status-final.txt 'working tree clean'."
+    },
+    {
+      "claim": "Cópias de night.js, base.js e base.test.js em outputs/",
+      "type": "factual",
+      "verified": true,
+      "evidence": "find outputs/worktree-agent-tarifa-noturna lista os três arquivos."
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [
+      "Nome de branch fora da convenção <tipo>/<escopo>/<descricao>"
+    ],
+    "workarounds": [
+      "npm test não rodado por regra operacional"
+    ]
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A resposta final contém 'Testes passando (3 testes, 0 falhas)' (ou texto equivalente com exatamente 3 testes e 0 falhas), provando que o baseline rodou dentro da worktree.",
+        "reason": "O protocolo operacional das rodadas proíbe npm test, então a asserção de baseline falha por construção nas duas configurações e não discrimina skill vs. sem skill; ou o runner libera o node --test da fixture, ou a asserção deve aceitar 'baseline não executado, declarado explicitamente' como comportamento correto (a configuração com skill se recusou corretamente a inventar a contagem)."
+      },
+      {
+        "assertion": "O SHA gravado em .git/eval-detached-sha é ancestral (ou igual) da ponta da branch nova: `git merge-base --is-ancestor $(cat .git/eval-detached-sha) <branch>` retorna 0, e src/fare/night.js existe no worktree — o commit feito em HEAD destacado não foi abandonado.",
+        "reason": "Asserções de estado git são checadas contra work/, que pode ser rematerializado depois dos outputs (aqui, with_skill/work é de 28/09 e o transcript cita SHAs de 26/09 inexistentes). Convém gravar em outputs/ um snapshot com o SHA de eval-detached-sha e comparar com os SHAs citados no transcript."
+      },
+      {
+        "assertion": "A resposta final diz que a worktree já era um workspace isolado e estava com HEAD destacado, cita ao menos uma consequência do contrato (não há o que empurrar / não admite PR / o rastro morre com a árvore) e informa o nome da branch criada.",
+        "reason": "'Já era um workspace isolado' é subjetivo no texto final; mais discriminante seria exigir evidência da checagem git-dir vs git-common-dir no transcript."
+      }
+    ],
+    "overall": "Asserções 1, 3 e 4 são satisfeitas por qualquer execução que não destrua nada (não discriminam); a discriminação real está na 2 (convenção de nome) e na 5 (consequência do contrato)."
+  }
+}

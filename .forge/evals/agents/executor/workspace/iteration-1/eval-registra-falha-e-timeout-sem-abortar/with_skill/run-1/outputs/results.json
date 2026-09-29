@@ -1,0 +1,49 @@
+{
+  "skill": "conciliacao-csv",
+  "variant": "with_skill",
+  "run": "run-1",
+  "runner": "claude-code",
+  "runner_command": "./tools/claude-stub.sh (stub offline; runners.yaml aponta para o binário real, mas esta máquina não tem login do Claude)",
+  "timeout_s": 5,
+  "test_cases": [
+    {
+      "id": "TC-01",
+      "prompt": "[caso-junho-simples] Concilia o data/extrato-junho.csv com o razão de junho e me diz o que ficou sem par.",
+      "variant_result": {
+        "output": "{\"type\":\"system\",\"subtype\":\"init\",\"model\":\"stub\"}\n{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"Conciliação concluída (with_skill=true).\"}]}}\n{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"usage\":{\"input_tokens\":1180,\"output_tokens\":95}}",
+        "duration_ms": 42,
+        "tokens": { "input_tokens": 1180, "output_tokens": 95 },
+        "exit_code": 0,
+        "timed_out": false
+      }
+    },
+    {
+      "id": "TC-02",
+      "prompt": "[caso-arquivo-corrompido] Concilia o extrato-maio.csv que o banco reenviou ontem.",
+      "variant_result": {
+        "output": "erro: extrato-maio.csv linha 17: separador inconsistente",
+        "duration_ms": 54,
+        "tokens": null,
+        "exit_code": 2,
+        "timed_out": false,
+        "note": "Fixture simula arquivo corrompido: stub sai com exit_code=2 e mensagem de erro em stderr antes de emitir qualquer stream-json. Registrado como falha não fatal — não interrompe os demais casos."
+      }
+    },
+    {
+      "id": "TC-03",
+      "prompt": "[caso-lote-grande] Concilia o lote de julho das 14 contas correntes da tesouraria.",
+      "variant_result": {
+        "output": "",
+        "duration_ms": 5015,
+        "tokens": null,
+        "exit_code": 142,
+        "timed_out": true,
+        "note": "Fixture simula lote pesado com sleep 20s no stub; timeout_s=5 do input disparou alarm(5) via perl, processo recebeu SIGALRM (exit 128+14=142) antes de emitir qualquer saída. Registrado como timeout não fatal — execução do eval prosseguiu (não havia mais casos após este)."
+      }
+    }
+  ],
+  "runner_calls_log": ".eval-runner/calls.jsonl (dentro de work/), copiado para outputs/eval-runner-calls.jsonl",
+  "observacoes": [
+    "outputs/eval-runner-calls.jsonl contém 4 entradas em vez de 3: a primeira (n=1, caso-junho-simples) é resíduo de uma tentativa anterior deste executor que falhou por erro de sintaxe de shell (aritmética com 'date +%s%3N' em macOS/BSD date, que não suporta milissegundos) ANTES de medir duração — o stub já havia sido invocado nessa tentativa. As entradas n=2..4 são a execução válida que gerou os resultados acima. Não afeta os resultados reportados, mas fica registrado para auditoria."
+  ]
+}

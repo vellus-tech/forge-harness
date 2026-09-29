@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "validacoes-catraca-dynamodb",
+  "prompt": "A tabela de validações de catraca (services/validacoes, DynamoDB) está em homologação e entra em produção no próximo sprint; os padrões de acesso estão em docs/padroes-de-acesso-validacoes.md. Ajusta o terraform (services/validacoes/infra/dynamodb.tf) e os handlers em services/validacoes/src/handlers do jeito certo e escreve em docs/design-validacoes.md o desenho de chaves, índices e consistência. O script de backfill em services/validacoes/scripts pode ficar como está se estiver ok.",
+  "assertions": [
+    "Em services/validacoes/infra/dynamodb.tf final, a tabela validacoes-catraca não tem mais hash_key = \"data_validacao\" (nem outra chave só de data ou status), e a nova partition key inclui o cartão (e o tenant) de forma alinhada ao histórico por cartão; o design justifica pela concentração de toda a escrita do dia numa partição",
+    "No dynamodb.tf final nenhum GSI tem projection_type = \"ALL\" (usa KEYS_ONLY ou INCLUDE), e em historicoCartao.ts final nenhuma chamada com IndexName de GSI tem ConsistentRead: true; o design afirma que GSI só oferece leitura eventual",
+    "historicoCartao.ts final não usa ScanCommand (usa QueryCommand pela chave do cartão), e services/validacoes/scripts/backfill/reprocessarTarifas.ts continua com o ScanCommand paralelo (o agente não o trata como antipattern, reconhecendo que Scan em migração offline é o uso certo)",
+    "registrarValidacao.ts final não contém list_append; as passagens do cartão viram um item por validação sob a mesma partition key com sort key ordenada (ou bucket por período), e o design menciona o limite de 400 KB do item",
+    "docs/design-validacoes.md registra que a troca da partition key não pode ser feita in place e exige criar tabela nova e copiar/migrar os itens já existentes em homologação"
+  ]
+}

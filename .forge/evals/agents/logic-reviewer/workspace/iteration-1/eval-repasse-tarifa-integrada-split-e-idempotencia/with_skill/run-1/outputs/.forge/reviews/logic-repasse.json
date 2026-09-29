@@ -1,0 +1,89 @@
+{
+  "reviewer": "logic-reviewer",
+  "findings": [
+    {
+      "id": "LGC-001",
+      "severity": "BLOCKER",
+      "category": "logic",
+      "file": "services/tarifacao/src/Tarifacao.Application/Repasse/RegistrarRepasseHandler.cs",
+      "line": 16,
+      "title": "Comentário promete checagem de idempotência que o código não faz — alucinação semântica",
+      "description": "O comentário na linha 16 diz \"se a chave já foi processada, devolve o repasse existente (REQ-4)\", mas o método nunca chama IRepasseRepository.ObterPorChaveAsync (declarado na interface mas não usado em nenhum ponto do diff). O handler sempre gera um Guid novo (linha 17) e sempre grava um novo repasse, independentemente da ChaveIdempotencia recebida. Dois POSTs com a mesma chave criam dois repasses distintos, violando REQ-4 diretamente.",
+      "fix_suggested": "Antes de gerar o Guid, chamar `await _repositorio.ObterPorChaveAsync(comando.ChaveIdempotencia, ct)`; se existir, retornar o id encontrado sem gravar novamente. Adicionar teste que reenvia a mesma chave duas vezes e assere que só um repasse foi persistido.",
+      "rule_violated": "docs/product/modules/tarifacao/requirements.md (REQ-4)",
+      "confidence": "high"
+    },
+    {
+      "id": "LGC-002",
+      "severity": "BLOCKER",
+      "category": "logic",
+      "file": "services/tarifacao/src/Tarifacao.Domain/Repasse/RepasseTarifa.cs",
+      "line": 11,
+      "title": "Split arredonda cada parte independentemente — soma pode divergir do total (viola PBT-02)",
+      "description": "Cada parte é calculada com `Math.Round(tarifaTotal / operadoras, 2, ...)` isoladamente, sem estratégia de residual. Para tarifaTotal=10.00 e operadoras=3: cada parte = Math.Round(3.333..., 2) = 3.33, soma = 9.99 != 10.00. REQ-3 exige soma exata com o centavo residual atribuído à primeira operadora, e PBT-02 exige `sum(Dividir(total, n)) == total` para qualquer total >= 0 e n entre 1 e 5 — essa implementação quebra a propriedade para o caso trivial acima.",
+      "fix_suggested": "Implementar a estratégia de residual descrita em nbr-5891-rounding.md: calcular base = total / n (arredondado) e residual = total - base*n, somando o residual à primeira parte. Trabalhar em centavos inteiros (ver LGC-003), não em decimal, para eliminar erro de representação.",
+      "rule_violated": "docs/product/modules/tarifacao/requirements.md (REQ-3, PBT-02); .forge/rules/domain/nbr-5891-rounding.md",
+      "confidence": "high"
+    },
+    {
+      "id": "LGC-003",
+      "severity": "BLOCKER",
+      "category": "logic",
+      "file": "services/tarifacao/src/Tarifacao.Domain/Repasse/RepasseTarifa.cs",
+      "line": 6,
+      "title": "Valores monetários em decimal no domínio — viola money-as-cents.md",
+      "description": "`Dividir` recebe e retorna `decimal` (tarifaTotal, partes), e RegistrarRepasseCommand/IRepasseRepository propagam `decimal TarifaTotal` e `decimal[] partes` por toda a cadeia (Domain → Application → persistência). A rule money-as-cents.md exige `long` em centavos em todo código de domínio financeiro, com `decimal`/`float`/`double` proibidos. O uso de decimal aqui é exatamente o anti-pattern documentado e é a causa raiz do erro de soma do LGC-002.",
+      "fix_suggested": "Trocar `decimal` por `long` (centavos) em RepasseTarifa.Dividir, RegistrarRepasseCommand.TarifaTotal, IRepasseRepository.SalvarAsync e nos testes. Converter para exibição (R$) apenas na camada de apresentação.",
+      "rule_violated": ".forge/rules/domain/money-as-cents.md",
+      "confidence": "high"
+    },
+    {
+      "id": "LGC-004",
+      "severity": "BLOCKER",
+      "category": "logic",
+      "file": "services/tarifacao/src/Tarifacao.Domain/Repasse/RepasseTarifa.cs",
+      "line": 11,
+      "title": "MidpointRounding.AwayFromZero em cálculo financeiro — viola NBR 5891",
+      "description": "nbr-5891-rounding.md exige `MidpointRounding.ToEven` (arredondamento bancário) em toda operação de divisão monetária; `AwayFromZero` está explicitamente listado como anti-pattern. O diff usa AwayFromZero na linha 11.",
+      "fix_suggested": "Trocar para `MidpointRounding.ToEven`, dentro da reescrita do split para centavos inteiros com residual (LGC-002/LGC-003) — nesse desenho o arredondamento ocorre uma única vez sobre `total / n` em centavos, não por parte.",
+      "rule_violated": ".forge/rules/domain/nbr-5891-rounding.md",
+      "confidence": "high"
+    },
+    {
+      "id": "LGC-005",
+      "severity": "HIGH",
+      "category": "test-coverage",
+      "file": "services/tarifacao/tests/Tarifacao.Tests/RepasseTarifaTests.cs",
+      "line": 8,
+      "title": "PBT-02 obrigatória (FsCheck) ausente — único teste cobre apenas caso divisível sem resto",
+      "description": "requirements.md marca PBT-02 como \"Obrigatória, com FsCheck\". O diff só adiciona um [Fact] com tarifaTotal=3.00 e 3 operadoras — divisão exata, sem resto, que não exercita a regra do centavo residual nem detecta o bug de LGC-002. Não há nenhum teste de propriedade no diff.",
+      "fix_suggested": "Adicionar [Property] com FsCheck cobrindo total >= 0 e operadoras entre 1 e 5, assertando sum(Dividir(total, n)) == total, incluindo casos não divisíveis (ex.: 10.00/3, 10.01/3).",
+      "rule_violated": "docs/product/modules/tarifacao/requirements.md (PBT-02)",
+      "confidence": "high"
+    },
+    {
+      "id": "LGC-006",
+      "severity": "HIGH",
+      "category": "test-coverage",
+      "file": "services/tarifacao/tests/Tarifacao.Tests/RepasseTarifaTests.cs",
+      "line": 1,
+      "title": "Nenhum teste para REQ-4 (idempotência)",
+      "description": "O diff não inclui nenhum teste para RegistrarRepasseHandler nem para o cenário de reenvio com a mesma ChaveIdempotencia. Dado que REQ-4 é o segundo requirement explicitamente listado no contexto da revisão, a ausência total de teste é uma lacuna de cobertura em path crítico, coerente com o bug de LGC-001 não ter sido pego antes do PR.",
+      "fix_suggested": "Adicionar teste (com repositório fake/in-memory) que chama Handle duas vezes com a mesma ChaveIdempotencia e assere que o segundo retorno é igual ao primeiro e que SalvarAsync foi chamado uma única vez.",
+      "rule_violated": "docs/product/modules/tarifacao/requirements.md (REQ-4)",
+      "confidence": "high"
+    },
+    {
+      "id": "LGC-007",
+      "severity": "MEDIUM",
+      "category": "logic",
+      "file": "services/tarifacao/src/Tarifacao.Application/Abstractions/IRepasseRepository.cs",
+      "line": 5,
+      "title": "ObterPorChaveAsync declarado mas nunca chamado — dead code que mascara a ausência de idempotência",
+      "description": "O método existe na interface (e presumivelmente numa implementação SqlRepasseRepository fora do diff), sugerindo que a intenção de checar a chave existia, mas nenhum caller o invoca. Isso reforça o achado LGC-001: a peça estava desenhada, só não foi ligada ao handler.",
+      "fix_suggested": "Ligar o método ao fluxo do handler (ver fix de LGC-001) ou remover a assinatura se a estratégia de idempotência mudar para constraint de banco.",
+      "rule_violated": "docs/product/modules/tarifacao/requirements.md (REQ-4)",
+      "confidence": "medium"
+    }
+  ]
+}

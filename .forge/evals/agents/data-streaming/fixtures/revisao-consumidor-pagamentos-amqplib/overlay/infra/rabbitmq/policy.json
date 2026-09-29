@@ -1,0 +1,9 @@
+{
+  "name": "ha-pagamentos",
+  "pattern": "^pagamentos",
+  "apply-to": "queues",
+  "definition": {
+    "ha-mode": "all",
+    "ha-sync-mode": "automatic"
+  }
+}

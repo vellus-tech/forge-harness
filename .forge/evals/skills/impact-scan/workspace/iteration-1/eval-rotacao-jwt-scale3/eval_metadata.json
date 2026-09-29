@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "rotacao-jwt-scale3",
+  "prompt": "Terminei a implementação do change 2026-09-rotacao-jwt (scale 3, mexe em src/auth/jwt.ts e src/auth/index.ts para rotacionar a chave por kid). O grafo já foi construído ontem com /forge:codegraph. Antes de eu pedir o archive, roda a análise de impacto desse change e me diz quais partes da API ficam expostas pela mudança no JWT.",
+  "assertions": [
+    "Existe .forge/specs/active/2026-09-rotacao-jwt/impact.json e `node .forge/scripts/lib/impact-freshness.mjs .forge/specs/active/2026-09-rotacao-jwt .` imprime exatamente 'fresh'.",
+    "O campo impacted do impact.json contém src/api/server.ts, src/api/routes/payments.ts, src/api/routes/users.ts, src/middleware/auth.ts e src/middleware/rate-limit.ts, e NÃO contém src/billing/invoice.ts nem src/utils/logger.ts (dependências, não dependentes).",
+    "O sha256 de .forge/graph/graph.json ao fim da execução é igual ao valor gravado pelo setup em .git/eval-graph.sha256 (o grafo não foi reconstruído nem atualizado).",
+    "Existe /tmp/impact-scan.log contendo a linha 'OK impact: 2 seed(s) -> 7 impacted' (saída bruta do script redirecionada, conforme §17.6).",
+    "A resposta final contém uma linha no formato 'Impact scan: <n> arquivos tocados → <m> módulos afetados', uma linha de 'Módulos de alto risco' que cita src/middleware/, e a confirmação de que impact.json foi gravado com freshness OK.",
+    "A resposta final NÃO reproduz a lista bruta indentada de todos os 7 caminhos impactados emitida pelo script (no máximo os módulos de alto risco são nomeados)."
+  ]
+}

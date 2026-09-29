@@ -1,0 +1,57 @@
+{
+  "expectations": [
+    {
+      "text": "outputs/plan.md cita o caminho .forge/capabilities/backend-node-postgres/PROFILE.md como orientação carregada e não declara ter carregado PROFILE.md de outro pack (dotnet, java ou python).",
+      "passed": false,
+      "evidence": "grep -n 'capabilities/backend-node-postgres/PROFILE.md' outputs/plan.md -> sem ocorrências. A linha 9 diz apenas \"segui o protocolo do `capability-dispatcher`: li apenas o `PROFILE.md` desse pack\" (pack `backend-node-postgres`), sem citar o caminho; o caminho completo só aparece em outputs/transcript.md linha 7, que não é o plan.md exigido. grep -nE 'dotnet|java|python' plan.md -> sem ocorrências (a segunda metade seria satisfeita). Na dúvida sobre a exigência literal do caminho, passed=false."
+    },
+    {
+      "text": "outputs/plan.md referencia explicitamente rules/data/schema-evolution.md e rules/testing/change-test-contract.md (por caminho ou nome de arquivo) e classifica a alteração de schema como compatível, expandida ou excepcional.",
+      "passed": true,
+      "evidence": "grep -n 'schema-evolution' plan.md -> linhas 9, 19, 47; grep -n 'change-test-contract' -> linhas 9, 52, 58. Linha 19: \"Duas peças, ambas na fase **expand** do fluxo de `schema-evolution.md` (adicionar sem remover nada do caminho antigo)\" classifica a mudança como expandida."
+    },
+    {
+      "text": "A seção de verificação de outputs/plan.md lista `node-baseline.sh --check` (e/ou o scan.sh de node-quality-scan) antes de lint, build ou vitest do projeto.",
+      "passed": false,
+      "evidence": "Seção 'Verificação' (linhas 67-79): linha 70 `tsc -p .`, linha 71 `vitest run`, linha 73 `bash .forge/scripts/node-baseline.sh --check` — o baseline vem DEPOIS de typecheck e vitest. grep -nE 'quality-scan|scan\\.sh' plan.md -> sem ocorrências; node-quality-scan não é citado."
+    },
+    {
+      "text": "outputs/plan.md classifica critérios do pack/rules em três categorias explícitas equivalentes a aplicado, não aplicável e pendente por infraestrutura, e o teste de integração da migration contra Postgres real aparece como pendente (não como aprovado e não substituído por mock do banco).",
+      "passed": false,
+      "evidence": "grep -nE 'não aplic|nao aplic' plan.md -> sem ocorrências. A verificação tem só duas categorias: 'Provável agora' (linha 69) e 'Não provável agora, fica como evidência pendente declarada (nunca \"aprovado\")' (linha 75); a linha 60 lista apenas 'Aplicáveis a esta mudança', sem categoria de não aplicável. O teste de integração contra Postgres real está corretamente pendente (linhas 62, 76-77) e a linha 65 recusa mock do pg.Pool, mas falta a terceira categoria explícita."
+    },
+    {
+      "text": "outputs/plan.md prevê um teste negativo de autorização/ownership (estorno de pagamento de outro merchant deve falhar) para o POST /payments/:id/refunds.",
+      "passed": true,
+      "evidence": "plan.md linha 63: \"teste negativo de ownership (merchant B tentando estornar pagamento de merchant A recebe 404, não vaza existência)\"; linha 52 reforça o filtro `id AND merchant_id = $2`."
+    },
+    {
+      "text": "Nenhum arquivo em src/, migrations/ ou package.json foi alterado (git diff vazio nesses caminhos) e outputs/plan.md não propõe comandos npm install/yarn nem troca de pnpm, ORM ou framework.",
+      "passed": true,
+      "evidence": "git -C <cfg>/run-1/work diff --stat HEAD -- src migrations package.json -> saída vazia; git status --porcelain de work/ mostra só remoções de .forge/skills, .forge/agents, .claude/skills, .claude/agents (feitas pelo setup.sh do fixture, idênticas no without_skill) e '?? outputs/', nada em src/, migrations/ ou package.json. grep -nE 'npm install|yarn|prisma|typeorm|knex|sequelize|express' plan.md -> sem ocorrências; linha 9 declara seguir 'Fastify + pg (client Pool cru, sem ORM) + zod + vitest + node-pg-migrate' e 'nunca substitua o package manager do projeto'."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 3,
+    "total": 6,
+    "pass_rate": 0.5
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Nenhum arquivo em src/, migrations/ ou package.json foi alterado (git diff vazio nesses caminhos) e outputs/plan.md não propõe comandos npm install/yarn nem troca de pnpm, ORM ou framework.",
+        "reason": "Não discriminante: passou nas duas configurações porque a tarefa já proíbe implementar; mede a instrução do prompt, não a skill."
+      },
+      {
+        "assertion": "outputs/plan.md prevê um teste negativo de autorização/ownership (estorno de pagamento de outro merchant deve falhar) para o POST /payments/:id/refunds.",
+        "reason": "Não discriminante: o GET existente e o it.todo do fixture já sugerem o teste negativo de ownership; as duas configurações o planejaram."
+      },
+      {
+        "assertion": "outputs/plan.md cita o caminho .forge/capabilities/backend-node-postgres/PROFILE.md como orientação carregada e não declara ter carregado PROFILE.md de outro pack (dotnet, java ou python).",
+        "reason": "A exigência de citar o caminho literal é frágil: with_skill identifica o PROFILE.md do pack pelo nome e o caminho completo está no transcript. Decidir se o critério é o caminho literal ou a identificação inequívoca do pack e explicitar isso no texto."
+      }
+    ],
+    "overall": "As asserções 2, 3 e 4 são as que discriminam; with_skill falhou 3 e 4 por ordem da verificação e ausência de categoria 'não aplicável', o que indica que a skill ainda não está sendo seguida no passo de verify."
+  }
+}

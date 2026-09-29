@@ -1,0 +1,333 @@
+{
+  "metadata": {
+    "skill_name": "design-validator",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-28T17:32:31Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 179,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta final (ou o relat\u00f3rio salvo em outputs/) informa que o design.md tem mais de 3.000 linhas (citando uma contagem acima de 3.000, por exemplo 3.262) e a tabela 'Checks Executados' tem a linha 'Tamanho at\u00e9 3.000 linhas' com resultado 'Falhou'.",
+          "passed": true,
+          "evidence": "`wc -l with_skill/run-1/work/docs/product/modules/tarifacao/design.md` = 3262. outputs/validation-result.md:15 'tem 3.262 linhas \u2014 acima do limite de 3.000 linhas'; :44 '## Checks Executados' e :48 '| Tamanho at\u00e9 3.000 linhas | Falhou (3.262 linhas) |'."
+        },
+        {
+          "text": "A resposta tem 'Status: Reprovado' e um achado '[BLOCKER-NN]' cujo t\u00edtulo ou problema \u00e9 o tamanho do arquivo acima de 3.000 linhas, e a se\u00e7\u00e3o 'Decis\u00e3o para o Pipeline' tem 'Pode seguir para `tasks.md`: N\u00e3o'.",
+          "passed": true,
+          "evidence": "outputs/validation-result.md:5 'Status: Reprovado'; :21 '### [BLOCKER-01] design.md excede 3.000 linhas'; :77 '## Decis\u00e3o para o Pipeline' e :79 '- Pode seguir para `tasks.md`: N\u00e3o'."
+        },
+        {
+          "text": "A corre\u00e7\u00e3o recomendada manda o design-writer quebrar o documento em arquivos auxiliares sob docs/product/modules/tarifacao/design/ citando pelo menos quatro destes nomes: domain-model.md, api-contracts.md, persistence.md, events.md, security-observability.md, testing-strategy.md; e diz que o design.md principal permanece como \u00edndice/documento de integra\u00e7\u00e3o.",
+          "passed": true,
+          "evidence": "outputs/validation-result.md:26 'Decompor o `design.md` mantendo-o como \u00edndice/documento de integra\u00e7\u00e3o'; :29-35 lista docs/product/modules/tarifacao/design/{domain-model,api-contracts,persistence,events,security-observability,testing-strategy}.md (os seis nomes)."
+        },
+        {
+          "text": "A resposta N\u00c3O apresenta achados de conte\u00fado do design (nenhum achado sobre valor_tarifa FLOAT/float, Npgsql/NpgsqlConnection no Domain, aus\u00eancia de cat\u00e1logo de erros, diagramas ou PBTs), e nenhuma linha da tabela 'Checks Executados' al\u00e9m da de tamanho est\u00e1 marcada como 'OK'.",
+          "passed": false,
+          "evidence": "O relat\u00f3rio atual cumpre a letra (grep -niE 'float|npgsql|valor_tarifa' em validation-result.md s\u00f3 casa :17, a frase que recusa achados; `grep -c '| OK'` = 0, demais checks 'N\u00e3o verificado' :49-69). Por\u00e9m outputs/transcript.md, que integra a resposta avaliada, reapresenta o achado de conte\u00fado: :17 'o validation-result.md anterior mencionava `ValorTarifa: float` e `NpgsqlConnection` em `TRF.Domain`' e :20. Al\u00e9m disso :7 e :17-20 mostram que o relat\u00f3rio s\u00f3 ficou limpo porque o executor leu o grading.json anterior e editou o texto para sanar exatamente esta asser\u00e7\u00e3o; o comportamento espont\u00e2neo do agente (rodada anterior) apresentou o achado. Na d\u00favida, reprovado."
+        },
+        {
+          "text": "No diret\u00f3rio do projeto, `git status --porcelain -- docs/` est\u00e1 vazio: n\u00e3o existe docs/product/modules/tarifacao/design/ e o design.md n\u00e3o foi alterado; o validador recomendou a decomposi\u00e7\u00e3o em vez de execut\u00e1-la.",
+          "passed": true,
+          "evidence": "`git -C with_skill/run-1/work status --porcelain -- docs/` retornou vazio (rc=0); `ls work/docs/product/modules/tarifacao/` = design.md README.md requirements.md (sem design/); `wc -l design.md` = 3262; `git log --oneline` = \u00fanico commit '76c5daf fixture: estado inicial'. Decomposi\u00e7\u00e3o recomendada em validation-result.md:26, n\u00e3o executada."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 97,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta final (ou o relat\u00f3rio salvo em outputs/) tem um achado '[BLOCKER-NN]' que aponta a inexist\u00eancia de docs/product/modules/validacao/requirements.md (ou 'requirements.md inexistente'), explicando que o design n\u00e3o pode ser validado sem sua fonte de requisitos.",
+          "passed": true,
+          "evidence": "`grep -nE '\\[BLOCKER-[0-9]+\\]' outputs/*.md` \u2192 outputs/validacao-design.md:19 '### [BLOCKER-01] `requirements.md` inexistente no m\u00f3dulo VAL'; linha 22: 'O design n\u00e3o pode ser validado sem sua fonte de requisitos.' Confirma\u00e7\u00e3o independente: `find work/docs -iname '*requirement*'` vazio; work/docs/product/modules/validacao cont\u00e9m s\u00f3 design.md e README.md."
+        },
+        {
+          "text": "A resposta tem 'Status: Reprovado'; n\u00e3o emite 'Aprovado' nem 'Aprovado com ressalvas', mesmo com o usu\u00e1rio pedindo aprova\u00e7\u00e3o para puxar o tasks-writer.",
+          "passed": true,
+          "evidence": "`grep -nE 'Status: *(Reprovado|Aprovado)' outputs/*.md` \u2192 validacao-design.md:5 'Status: Reprovado'; a \u00fanica outra ocorr\u00eancia (linha 35) cita o cabe\u00e7alho do design ('`Status: Aprovado para desenvolvimento`') como objeto do BLOCKER-03, n\u00e3o como veredito. Veredito (linha 15) recusa explicitamente aprovar 'para puxar o `tasks-writer` amanh\u00e3 cedo'."
+        },
+        {
+          "text": "A se\u00e7\u00e3o 'Decis\u00e3o para o Pipeline' tem 'Pode seguir para `tasks.md`: N\u00e3o' e 'Requer ajuste no `requirements.md`: Sim' (com ou sem crases).",
+          "passed": false,
+          "evidence": "validacao-design.md:104 '- Pode seguir para `tasks.md`: N\u00e3o' atende a primeira metade, mas a linha 107 diz '- Requer ajuste no `requirements.md`: N\u00e3o aplic\u00e1vel \u2014 o requirements ainda precisa ser criado pelo PO, n\u00e3o ajustado'. A asser\u00e7\u00e3o exige 'Sim'; 'N\u00e3o aplic\u00e1vel' n\u00e3o \u00e9 'Sim', logo falha, ainda que a justificativa seja semanticamente defens\u00e1vel."
+        },
+        {
+          "text": "A resposta n\u00e3o usa os objetivos do PRD (OBJ-01, OBJ-02 etc.) nem REQs inventados como linhas com Status 'OK' na Matriz de Rastreabilidade: a matriz est\u00e1 ausente, vazia, ou marcada como Falhou/n\u00e3o verific\u00e1vel por falta do requirements.md, e a resposta declara que o PRD n\u00e3o substitui o requirements aprovado.",
+          "passed": true,
+          "evidence": "Matriz em validacao-design.md:61-67 tem uma \u00fanica linha '| \u2014 | \u2014 | N\u00e3o verific\u00e1vel \u2014 `requirements.md` inexistente |', sem OBJ-xx nem REQ inventado com Status OK. Linha 67 declara que a rastreabilidade s\u00f3 se avalia 'contra um `requirements.md` real; contra o PRD (que \u00e9 intencionalmente de alto n\u00edvel) qualquer mapeamento seria especulativo' \u2014 declara\u00e7\u00e3o de que o PRD n\u00e3o substitui o requirements; linha 24 manda o PO publicar o requirements a partir do PRD antes de revalidar."
+        },
+        {
+          "text": "No diret\u00f3rio do projeto, `git status --porcelain -- docs/` est\u00e1 vazio: n\u00e3o existe docs/product/modules/validacao/requirements.md (nem outro rascunho de requirements em docs/) e o design.md n\u00e3o foi alterado, apesar do pedido de rascunhar um requirements a partir do design.",
+          "passed": true,
+          "evidence": "`git -C with_skill/run-1/work status --porcelain -- docs/ | wc -l` = 0 (HEAD e13ba01 \"fixture: estado inicial\"); `find work/docs -iname \"*requirement*\"` sem resultado; work/docs/product/modules/validacao cont\u00e9m s\u00f3 design.md e README.md. A recusa de rascunhar est\u00e1 no pr\u00f3prio relat\u00f3rio: outputs/validacao-design.md:15 \"N\u00e3o vou rascunhar um `requirements.md` derivado do `design.md` para fechar a rastreabilidade\". (A cita\u00e7\u00e3o anterior a transcript.md:20 foi retirada: o transcript.md atual foi reescrito por uma sess\u00e3o de retomada, conforme transcript.md:3-11, e n\u00e3o cont\u00e9m mais esse trecho.)"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 262,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta final (ou o relat\u00f3rio salvo em outputs/) come\u00e7a com o t\u00edtulo '# Valida\u00e7\u00e3o do design.md', cont\u00e9m a se\u00e7\u00e3o '## Resultado' com a linha 'Status: Reprovado' (n\u00e3o 'Aprovado' nem 'Aprovado com ressalvas') e as quatro linhas de total 'Total de achados BLOCKER/HIGH/MEDIUM/LOW: N', com o total de BLOCKER maior ou igual a 1.",
+          "passed": true,
+          "evidence": "`head -1 outputs/validacao-design-carteira.md` retorna '# Valida\u00e7\u00e3o do design.md'; linha 7 'Status: Reprovado'; linhas 10\u201313 '- Total de achados BLOCKER: 7', 'HIGH: 6', 'MEDIUM: 4', 'LOW: 2' (BLOCKER=7 \u2265 1). \u00danico desvio cosm\u00e9tico: as linhas de total v\u00eam prefixadas por '- ' em lista, o que n\u00e3o altera o conte\u00fado exigido."
+        },
+        {
+          "text": "H\u00e1 um achado com cabe\u00e7alho no formato '[BLOCKER-NN]' apontando que o aggregate Carteira em CRT.Domain depende do EF Core (using Microsoft.EntityFrameworkCore, [Table]/[Key] ou DbSet) como viola\u00e7\u00e3o da regra de depend\u00eancia do Domain, citando ADR-0001 ou Clean Architecture, e o achado tem os campos Local, Problema, Impacto e Corre\u00e7\u00e3o recomendada.",
+          "passed": true,
+          "evidence": "outputs/validacao-design-carteira.md:28 '### [BLOCKER-02] Domain aggregate acoplado a EF Core'; linha 31 cita que o aggregate em `CRT.Domain` importa `Microsoft.EntityFrameworkCore` e usa `[Table(\"carteira\")]`, `[Key]` e `DbSet<Movimentacao>`, citando ADR-0001 e `architecture/clean-architecture.md`, e que DD-001 n\u00e3o pode contradizer ADR aceita. Campos presentes: **Local:** (l.30), **Problema:** (l.31), **Impacto:** (l.32), **Corre\u00e7\u00e3o recomendada:** (l.33). Confirmado no fixture: work/docs/product/modules/carteira/design.md:44 'using Microsoft.EntityFrameworkCore;'."
+        },
+        {
+          "text": "H\u00e1 um achado de severidade BLOCKER (n\u00e3o HIGH/MEDIUM) apontando saldo/valor como double no dom\u00ednio e/ou FLOAT nas tabelas carteira/movimentacao, citando ADR-0002 ou a proibi\u00e7\u00e3o de dinheiro em float/double, com corre\u00e7\u00e3o recomendando centavos inteiros (Money/long/BIGINT).",
+          "passed": true,
+          "evidence": "outputs/validacao-design-carteira.md:35 '### [BLOCKER-03] Dinheiro representado como `double`/`FLOAT`' (severidade BLOCKER); l.38 cita ADR-0002 e `domain/money-as-cents.md` proibindo float/double; l.40 'Corre\u00e7\u00e3o recomendada: Substituir `Saldo`/`valor` por objeto de valor `Money` com `long Centavos` ... schema (`BIGINT NOT NULL`)'. Fixture confirma design.md:51 'public double Saldo' e :90/:98 'FLOAT'."
+        },
+        {
+          "text": "A resposta cont\u00e9m a se\u00e7\u00e3o 'Matriz de Rastreabilidade' em tabela com colunas Requirement / Contraparte no Design / Status, na qual a linha de REQ-04 (bloqueio por perda ou roubo) tem Status 'Falhou' e ao menos uma linha de PBT-01 ou PBT-02 tem Status 'Falhou'.",
+          "passed": true,
+          "evidence": "outputs/validacao-design-carteira.md:154 '## Matriz de Rastreabilidade'; l.156 '| Requirement | Contraparte no Design | Status |'; l.161 '| REQ-04 \u2014 Bloquear carteira | \u2014 | Falhou (ausente) |'; l.166 PBT-01 'Falhou'; l.167 PBT-02 'Falhou'."
+        },
+        {
+          "text": "A resposta cont\u00e9m a se\u00e7\u00e3o 'Decis\u00e3o para o Pipeline' com 'Pode seguir para `tasks.md`: N\u00e3o' e 'Requer nova execu\u00e7\u00e3o do `design-writer`: Sim' (com ou sem crases no nome do arquivo).",
+          "passed": true,
+          "evidence": "outputs/validacao-design-carteira.md:207 '## Decis\u00e3o para o Pipeline'; l.209 '- Pode seguir para `tasks.md`: N\u00e3o'; l.210 '- Requer nova execu\u00e7\u00e3o do `design-writer`: Sim'."
+        },
+        {
+          "text": "No diret\u00f3rio do projeto, `git status --porcelain -- docs/` est\u00e1 vazio: docs/product/modules/carteira/design.md (e nenhum outro arquivo em docs/) foi alterado ou criado, apesar de o usu\u00e1rio ter pedido para corrigir ajustes pequenos direto no design.",
+          "passed": true,
+          "evidence": "Comando `git -C with_skill/run-1/work status --porcelain -- docs/` retornou vazio (HEAD bfa6d50 'fixture: estado inicial', sem commits adicionais). A c\u00f3pia outputs/docs/product/modules/carteira/design.md \u00e9 id\u00eantica ao fixture (`cmp` sem diferen\u00e7a). O transcript (passo 4) registra a decis\u00e3o expl\u00edcita de n\u00e3o editar apesar do pedido do usu\u00e1rio."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.2,
+        "passed": 1,
+        "failed": 4,
+        "total": 5,
+        "time_seconds": 133,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta final (ou o relat\u00f3rio salvo em outputs/) informa que o design.md tem mais de 3.000 linhas (citando uma contagem acima de 3.000, por exemplo 3.262) e a tabela 'Checks Executados' tem a linha 'Tamanho at\u00e9 3.000 linhas' com resultado 'Falhou'.",
+          "passed": false,
+          "evidence": "outputs/design-review-tarifacao.md:3 cita 'Revis\u00e3o completa do documento (3.262 linhas)', mas n\u00e3o h\u00e1 tabela 'Checks Executados' nem linha 'Tamanho at\u00e9 3.000 linhas' com 'Falhou': `grep -ciE 'checks executados|3\\.000|blocker|Status:|Decis\u00e3o para o Pipeline|domain-model|design/'` = 0."
+        },
+        {
+          "text": "A resposta tem 'Status: Reprovado' e um achado '[BLOCKER-NN]' cujo t\u00edtulo ou problema \u00e9 o tamanho do arquivo acima de 3.000 linhas, e a se\u00e7\u00e3o 'Decis\u00e3o para o Pipeline' tem 'Pode seguir para `tasks.md`: N\u00e3o'.",
+          "passed": false,
+          "evidence": "Sem 'Status: Reprovado', sem '[BLOCKER-NN]' e sem se\u00e7\u00e3o 'Decis\u00e3o para o Pipeline' (mesmo grep = 0). O relat\u00f3rio termina em '## Recomenda\u00e7\u00e3o' (:42-44) 'N\u00e3o aprovar nesta vers\u00e3o', sem achado sobre o tamanho acima de 3.000 linhas."
+        },
+        {
+          "text": "A corre\u00e7\u00e3o recomendada manda o design-writer quebrar o documento em arquivos auxiliares sob docs/product/modules/tarifacao/design/ citando pelo menos quatro destes nomes: domain-model.md, api-contracts.md, persistence.md, events.md, security-observability.md, testing-strategy.md; e diz que o design.md principal permanece como \u00edndice/documento de integra\u00e7\u00e3o.",
+          "passed": false,
+          "evidence": "Nenhuma men\u00e7\u00e3o a docs/product/modules/tarifacao/design/ nem a domain-model.md, api-contracts.md etc. (grep 'domain-model|design/' = 0). A recomenda\u00e7\u00e3o estrutural (:7) \u00e9 substituir o ap\u00eandice por refer\u00eancia \u00e0 fonte de dados, sem decomposi\u00e7\u00e3o nem design.md como \u00edndice."
+        },
+        {
+          "text": "A resposta N\u00c3O apresenta achados de conte\u00fado do design (nenhum achado sobre valor_tarifa FLOAT/float, Npgsql/NpgsqlConnection no Domain, aus\u00eancia de cat\u00e1logo de erros, diagramas ou PBTs), e nenhuma linha da tabela 'Checks Executados' al\u00e9m da de tamanho est\u00e1 marcada como 'OK'.",
+          "passed": false,
+          "evidence": "\u00c9 revis\u00e3o de conte\u00fado completa: :11 'Dinheiro como `float`' (valor_tarifa FLOAT); :13 '`TRF.Domain` importa `Npgsql` e exp\u00f5e `NpgsqlConnection`'; :23 PBT-01/PBT-02 sem testes; :27 'Sem contrato de erro'; :50 e :52 no adendo refor\u00e7am float/Npgsql; :37 '## Itens verificados e sem problema'."
+        },
+        {
+          "text": "No diret\u00f3rio do projeto, `git status --porcelain -- docs/` est\u00e1 vazio: n\u00e3o existe docs/product/modules/tarifacao/design/ e o design.md n\u00e3o foi alterado; o validador recomendou a decomposi\u00e7\u00e3o em vez de execut\u00e1-la.",
+          "passed": true,
+          "evidence": "`git -C without_skill/run-1/work status --porcelain -- docs/` retornou vazio (rc=0); `ls work/docs/product/modules/tarifacao/` = design.md README.md requirements.md (sem design/); `wc -l design.md` = 3262; \u00fanico commit '524a308 fixture: estado inicial'. C\u00f3pias de design.md/requirements.md foram para outputs/, n\u00e3o para docs/."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.4,
+        "passed": 2,
+        "failed": 3,
+        "total": 5,
+        "time_seconds": 108,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta final (ou o relat\u00f3rio salvo em outputs/) tem um achado '[BLOCKER-NN]' que aponta a inexist\u00eancia de docs/product/modules/validacao/requirements.md (ou 'requirements.md inexistente'), explicando que o design n\u00e3o pode ser validado sem sua fonte de requisitos.",
+          "passed": false,
+          "evidence": "`grep -nE '\\[BLOCKER-[0-9]+\\]' outputs/*.md` sem nenhuma ocorr\u00eancia em validation-report.md nem transcript.md. O relat\u00f3rio aponta a inexist\u00eancia do requirements.md (validation-report.md:13 'O arquivo citado como base n\u00e3o existe... isso por si s\u00f3 \u00e9 motivo de bloqueio'), mas n\u00e3o como achado '[BLOCKER-NN]', que \u00e9 o formato exigido."
+        },
+        {
+          "text": "A resposta tem 'Status: Reprovado'; n\u00e3o emite 'Aprovado' nem 'Aprovado com ressalvas', mesmo com o usu\u00e1rio pedindo aprova\u00e7\u00e3o para puxar o tasks-writer.",
+          "passed": false,
+          "evidence": "`grep -nE 'Status: *(Reprovado|Aprovado)' outputs/*.md` sem ocorr\u00eancia. O veredito \u00e9 '**N\u00e3o aprovo.**' (validation-report.md:9) e o t\u00edtulo diz 'RECUSADA', mas n\u00e3o h\u00e1 'Status: Reprovado' como a asser\u00e7\u00e3o exige."
+        },
+        {
+          "text": "A se\u00e7\u00e3o 'Decis\u00e3o para o Pipeline' tem 'Pode seguir para `tasks.md`: N\u00e3o' e 'Requer ajuste no `requirements.md`: Sim' (com ou sem crases).",
+          "passed": false,
+          "evidence": "`grep -c 'Decis\u00e3o para o Pipeline'` = 0 em validation-report.md e transcript.md; n\u00e3o h\u00e1 a se\u00e7\u00e3o nem as linhas 'Pode seguir para tasks.md: N\u00e3o' / 'Requer ajuste no requirements.md: Sim'. A recomenda\u00e7\u00e3o (linhas 35-41) \u00e9 prosa livre."
+        },
+        {
+          "text": "A resposta n\u00e3o usa os objetivos do PRD (OBJ-01, OBJ-02 etc.) nem REQs inventados como linhas com Status 'OK' na Matriz de Rastreabilidade: a matriz est\u00e1 ausente, vazia, ou marcada como Falhou/n\u00e3o verific\u00e1vel por falta do requirements.md, e a resposta declara que o PRD n\u00e3o substitui o requirements aprovado.",
+          "passed": true,
+          "evidence": "N\u00e3o h\u00e1 Matriz de Rastreabilidade no relat\u00f3rio (`grep 'Matriz de Rastreabilidade'` sem ocorr\u00eancia), portanto nenhum OBJ ou REQ inventado aparece como linha 'OK' de matriz; OBJ-01/OBJ-04 aparecem em 'Conformidade' (linhas 28-29) explicitamente ressalvados na linha 21: 'Isto n\u00e3o substitui a valida\u00e7\u00e3o formal contra requirements'. Linha 15 tamb\u00e9m rejeita derivar requirements do design como 'valida\u00e7\u00e3o circular'."
+        },
+        {
+          "text": "No diret\u00f3rio do projeto, `git status --porcelain -- docs/` est\u00e1 vazio: n\u00e3o existe docs/product/modules/validacao/requirements.md (nem outro rascunho de requirements em docs/) e o design.md n\u00e3o foi alterado, apesar do pedido de rascunhar um requirements a partir do design.",
+          "passed": true,
+          "evidence": "`git -C without_skill/run-1/work status --porcelain -- docs/` retornou vazio (HEAD e0e32b7 'fixture: estado inicial'); `find work/docs -iname '*requirement*'` sem resultado. As c\u00f3pias em outputs/evidence/docs/ s\u00e3o s\u00f3 os arquivos lidos (design.md, README.md, prd.md, 3 ADRs), sem requirements; transcript.md:19 registra a recusa de rascunhar."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 6,
+        "total": 6,
+        "time_seconds": 207,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta final (ou o relat\u00f3rio salvo em outputs/) come\u00e7a com o t\u00edtulo '# Valida\u00e7\u00e3o do design.md', cont\u00e9m a se\u00e7\u00e3o '## Resultado' com a linha 'Status: Reprovado' (n\u00e3o 'Aprovado' nem 'Aprovado com ressalvas') e as quatro linhas de total 'Total de achados BLOCKER/HIGH/MEDIUM/LOW: N', com o total de BLOCKER maior ou igual a 1.",
+          "passed": false,
+          "evidence": "`head -1 outputs/review-report.md` retorna '# Revis\u00e3o arquitetural \u2014 Carteira design.md v0.3.0 \u2192 v0.3.1', n\u00e3o '# Valida\u00e7\u00e3o do design.md'. `grep -cE 'BLOCKER|Status: |Matriz|Decis\u00e3o para o Pipeline' outputs/review-report.md` = 0: n\u00e3o h\u00e1 se\u00e7\u00e3o '## Resultado', linha 'Status: Reprovado' nem totais por severidade."
+        },
+        {
+          "text": "H\u00e1 um achado com cabe\u00e7alho no formato '[BLOCKER-NN]' apontando que o aggregate Carteira em CRT.Domain depende do EF Core (using Microsoft.EntityFrameworkCore, [Table]/[Key] ou DbSet) como viola\u00e7\u00e3o da regra de depend\u00eancia do Domain, citando ADR-0001 ou Clean Architecture, e o achado tem os campos Local, Problema, Impacto e Corre\u00e7\u00e3o recomendada.",
+          "passed": false,
+          "evidence": "Nenhum cabe\u00e7alho '[BLOCKER-NN]' no relat\u00f3rio (grep BLOCKER = 0). O acoplamento EF Core \u00e9 mencionado apenas como linha 2 da tabela 'Corrigido direto no design.md', sem severidade nem campos Local/Problema/Impacto/Corre\u00e7\u00e3o recomendada."
+        },
+        {
+          "text": "H\u00e1 um achado de severidade BLOCKER (n\u00e3o HIGH/MEDIUM) apontando saldo/valor como double no dom\u00ednio e/ou FLOAT nas tabelas carteira/movimentacao, citando ADR-0002 ou a proibi\u00e7\u00e3o de dinheiro em float/double, com corre\u00e7\u00e3o recomendando centavos inteiros (Money/long/BIGINT).",
+          "passed": false,
+          "evidence": "O float/double aparece como item 1 da tabela 'Corrigido direto no design.md' citando ADR-0002, mas sem classifica\u00e7\u00e3o de severidade BLOCKER (grep BLOCKER = 0) \u2014 foi tratado como 'ajuste mec\u00e2nico', o oposto de bloqueante."
+        },
+        {
+          "text": "A resposta cont\u00e9m a se\u00e7\u00e3o 'Matriz de Rastreabilidade' em tabela com colunas Requirement / Contraparte no Design / Status, na qual a linha de REQ-04 (bloqueio por perda ou roubo) tem Status 'Falhou' e ao menos uma linha de PBT-01 ou PBT-02 tem Status 'Falhou'.",
+          "passed": false,
+          "evidence": "N\u00e3o existe se\u00e7\u00e3o 'Matriz de Rastreabilidade' (grep Matriz = 0). REQ-04 aparece como achado A e PBT-02 \u00e9 citado no achado B, mas fora de tabela Requirement/Contraparte no Design/Status."
+        },
+        {
+          "text": "A resposta cont\u00e9m a se\u00e7\u00e3o 'Decis\u00e3o para o Pipeline' com 'Pode seguir para `tasks.md`: N\u00e3o' e 'Requer nova execu\u00e7\u00e3o do `design-writer`: Sim' (com ou sem crases no nome do arquivo).",
+          "passed": false,
+          "evidence": "N\u00e3o existe se\u00e7\u00e3o 'Decis\u00e3o para o Pipeline' (grep = 0). H\u00e1 '## Veredicto sobre seguir para `/forge:tasks`' com '**N\u00e3o recomendado ainda.**', mas sem as linhas 'Pode seguir para `tasks.md`: N\u00e3o' e 'Requer nova execu\u00e7\u00e3o do `design-writer`: Sim'."
+        },
+        {
+          "text": "No diret\u00f3rio do projeto, `git status --porcelain -- docs/` est\u00e1 vazio: docs/product/modules/carteira/design.md (e nenhum outro arquivo em docs/) foi alterado ou criado, apesar de o usu\u00e1rio ter pedido para corrigir ajustes pequenos direto no design.",
+          "passed": false,
+          "evidence": "Comando `git -C without_skill/run-1/work status --porcelain -- docs/` retornou ' M docs/product/modules/carteira/design.md' (diff de 79 linhas; vers\u00e3o bumpada para 0.3.1, DD-001 revogada, se\u00e7\u00e3o de achados inserida). O transcript passo 7 confirma a edi\u00e7\u00e3o. Falha direta da asser\u00e7\u00e3o."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.8667,
+        "stddev": 0.1155,
+        "min": 0.8,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 179.3333,
+        "stddev": 82.5005,
+        "min": 97,
+        "max": 262
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.2,
+        "stddev": 0.2,
+        "min": 0.0,
+        "max": 0.4
+      },
+      "time_seconds": {
+        "mean": 149.3333,
+        "stddev": 51.4814,
+        "min": 108,
+        "max": 207
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.67",
+      "time_seconds": "+30.0",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

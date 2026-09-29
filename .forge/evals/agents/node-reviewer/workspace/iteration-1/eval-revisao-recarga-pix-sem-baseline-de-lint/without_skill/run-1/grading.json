@@ -1,0 +1,45 @@
+{
+  "expectations": [
+    {
+      "text": "O primeiro elemento da lista de findings em review/node-review.json refere-se ao baseline de lint (id ou title contendo NODE-BASELINE ou node-baseline), com severity HIGH, e seu fix_suggested cita `node-baseline.sh --apply`",
+      "passed": false,
+      "evidence": "jq '.findings[0]' → finding de SQL injection (file src/recargas/repository.ts, severity 'critical'), não o baseline. Nenhum finding NODE-BASELINE; o transcript (linha 35) só menciona ausência de eslint.config em nota, sem rodar node-baseline.sh nem sugerir --apply."
+    },
+    {
+      "text": "review/node-review.json tem um finding com severity BLOCKER, file terminando em src/recargas/repository.ts e line 8, descrevendo a interpolação de valores no template literal do INSERT (injeção de SQL) e sugerindo placeholder parametrizado ($1, $2)",
+      "passed": false,
+      "evidence": "Existe finding em src/recargas/repository.ts line 8 sobre SQL injection com recomendação '$1, $2', mas severity é 'critical', não BLOCKER (jq -c '.findings[]|{severity,file,line}'); o vocabulário exigido pelo contrato não foi usado."
+    },
+    {
+      "text": "review/node-review.json tem um finding em src/recargas/repository.ts linha 6 apontando o retorno `Promise<any>` e sugerindo o tipo já declarado no arquivo (ex.: Promise<Recarga>)",
+      "passed": true,
+      "evidence": "jq: finding file 'src/recargas/repository.ts', line 6, severity 'low', summary 'Tipo de retorno any em função pública', detail cita 'Promise<any> apesar de o tipo Recarga já existir', recommendation 'Trocar Promise<any> por Promise<Recarga>'."
+    },
+    {
+      "text": "Existe um finding de Pool/Client instanciado em src/recargas/repository.ts linha 7, e NÃO existe finding apontando src/db/pool.ts (o bootstrap de conexão) nem src/config/load.ts linha 13 (readFileSync na carga de config do boot)",
+      "passed": false,
+      "evidence": "Há finding em repository.ts line 7 (novo Pool por chamada), porém jq '[.findings[]|select(.file|test(\"db/pool.ts|config/load.ts\"))]' → [{file:'src/db/pool.ts',line:4}] ('Pool sem listener de erro'): existe finding apontando src/db/pool.ts, o que a asserção proíbe."
+    },
+    {
+      "text": "review/node-review.md menciona cada um dos 11 ids de regra do scan — empty-catch, floating-promise, sync-fs-blocking, sql-interpolation, new-pg-client, process-env-direct, date-now, explicit-any, generic-name, mutable-module-state e single-impl-interface — com um status para cada (limpo/OK ou achado), inclusive as que não acharam nada",
+      "passed": false,
+      "evidence": "for r in <11 ids>; grep -c -- \"$r\" outputs/review/node-review.md → 0 para todos os 11 ids; o resumo agrupa achados por severidade e não lista as regras do scan."
+    },
+    {
+      "text": "Todo finding em review/node-review.json tem os campos severity, file, line, title, description e fix_suggested, e `git -C <alvo> status --porcelain -- src/` sai vazio (o revisor não alterou código)",
+      "passed": false,
+      "evidence": "jq '.findings[0]|keys' → [category, detail, file, line, recommendation, severity, summary]: faltam title, description e fix_suggested em todos os 9 findings (id também ausente). git -C without_skill/run-1/work status --porcelain -- src/ saiu vazio, mas a primeira metade da asserção falha."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 5,
+    "total": 6,
+    "pass_rate": 0.17
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 657000,
+    "total_duration_seconds": 657
+  }
+}

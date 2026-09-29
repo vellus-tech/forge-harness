@@ -1,0 +1,66 @@
+{
+  "expectations": [
+    {
+      "text": "docs/parecer-validador.md classifica o ADD INDEX de 20260930_idx_linha_data.sql como R-22 (id citado) e o SQL corrigido desse arquivo contém ALGORITHM=INPLACE e LOCK=NONE explícitos; o parecer não prescreve CREATE INDEX CONCURRENTLY para esse arquivo nem o classifica como R-03",
+      "passed": true,
+      "evidence": "Seção 2 do parecer: \"Achado do scanner: **R-22** (aviso), `ALTER TABLE ... ADD INDEX` numa migração MySQL sem `ALGORITHM=INPLACE, LOCK=NONE` explícitos\"; SQL corrigido (no parecer e em outputs/20260930_idx_linha_data.sql) termina em \", ALGORITHM=INPLACE, LOCK=NONE;\". Nenhuma ocorrência de CONCURRENTLY nem de R-03 associada a esse arquivo (transcript passo 6: \"nenhum achado em R-03\")."
+    },
+    {
+      "text": "O parecer aponta ALGORITHM=COPY, LOCK=SHARED de 20260930_cartao_uid_varchar.sql:2 como R-13 e a correção é coluna nova com backfill em lotes e troca de leitura (expand → migrate → contract) ou ferramenta online (gh-ost ou pt-online-schema-change); apenas apagar a cláusula ALGORITHM/LOCK e manter o MODIFY COLUMN não conta",
+      "passed": true,
+      "evidence": "Seção 3: \"Achado do scanner: **R-13** `[alto]` — `ALGORITHM=COPY`/`LOCK` forçado\" em 20260930_cartao_uid_varchar.sql (a linha 2 não é citada com número, mas o arquivo e a cláusula ALGORITHM=COPY, LOCK=SHARED são identificados sem ambiguidade). Correção é expand → migrate → contract: passo 1 ADD COLUMN cartao_uid_v2 VARCHAR(32) NULL ALGORITHM=INSTANT (em outputs/20260930_cartao_uid_varchar.sql), passo 2 dupla escrita + backfill em lotes idempotentes com throttle, passo 3 promover a coluna nova como canônica e remover a antiga, com gh-ost/pt-online-schema-change citados para o que não for online. O MODIFY COLUMN foi removido, não apenas a cláusula."
+    },
+    {
+      "text": "O parecer afirma que no MySQL o código 1205 é lock wait timeout e o deadlock é 1213, e o trecho de retry corrigido de ValidacaoRepository.kt trata 1213 e reexecuta a transação inteira (rollback e novo laço sobre todas as validações), não só a última instrução",
+      "passed": true,
+      "evidence": "Seção 4.1: \"No MySQL, **1213 é deadlock** (a transação inteira é abortada pelo InnoDB) e **1205 é lock wait timeout** — que por padrão (innodb_rollback_on_timeout=OFF) desfaz só a última instrução\". Código corrigido (parecer e outputs/ValidacaoRepository.kt): codigosRetentaveis = setOf(1213, 1205); a cada tentativa abre nova conexão, reinsere ordenadas.forEach, conn.rollback() no erro e volta ao topo do while com backoff; não reexecuta só validacoes.last()."
+    },
+    {
+      "text": "O parecer corrige a afirmação de docs/banco.md: o nível de isolamento default do InnoDB é REPEATABLE READ, não READ COMMITTED, e alerta contra portar a suposição do PostgreSQL para o MySQL",
+      "passed": true,
+      "evidence": "Seção 1: \"o default do InnoDB é REPEATABLE READ, não READ COMMITTED\"; texto corrigido em outputs/banco.md: \"não portar suposição de isolamento do Postgres para o MySQL\"."
+    },
+    {
+      "text": "O parecer não aponta 20260815_idx_dispositivo.sql (que já tem ALGORITHM=INPLACE, LOCK=NONE) como R-22/R-03 nem como problema a corrigir, e não trata o CHAR(14) do comentário da linha 1 de 20260930_cartao_uid_varchar.sql como achado R-04",
+      "passed": true,
+      "evidence": "20260815_idx_dispositivo.sql é citado só como convenção a seguir (\"A migration anterior da mesma tabela ... segue essa convenção\"), não como achado. O R-04 disparado pelo scanner sobre CHAR(14) é explicitamente dispensado: \"Achado secundário do scanner, dispensado após leitura: R-04 ... a regra é escopada a PostgreSQL\"; a tabela-resumo lista R-04 como falso positivo que não exige ação."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 221000,
+    "total_duration_seconds": 221
+  },
+  "claims": [
+    {
+      "claim": "Correção de banco.md aplicada em outputs/banco.md.patch",
+      "type": "factual",
+      "verified": false,
+      "evidence": "Não existe outputs/banco.md.patch; o arquivo gravado é outputs/banco.md."
+    },
+    {
+      "claim": "R-21 é falso positivo de engine (lock_timeout é GUC do Postgres)",
+      "type": "quality",
+      "verified": true,
+      "evidence": "Julgamento razoável; MySQL tem lock_wait_timeout de sessão, mas não é o lock_timeout do R-21."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "docs/parecer-validador.md classifica o ADD INDEX de 20260930_idx_linha_data.sql como R-22 (id citado) e o SQL corrigido desse arquivo contém ALGORITHM=INPLACE e LOCK=NONE explícitos; o parecer não prescreve CREATE INDEX CONCURRENTLY para esse arquivo nem o classifica como R-03",
+        "reason": "As asserções 1 e 2 medem o id do catálogo; sem a skill a substância (INPLACE/NONE, expand-contract/gh-ost) saiu correta e a diferença A/B fica só na nomenclatura R-xx. Vale uma asserção separada de substância para distinguir vocabulário de qualidade técnica."
+      },
+      {
+        "reason": "Nenhuma asserção cobre o ponto que as duas execuções acharam: o retry original reexecuta só validacoes.last() e comita, perdendo linhas silenciosamente; é o bug mais grave do caso."
+      }
+    ],
+    "overall": "Asserções 3-5 não discriminam (passam nas duas configurações)."
+  }
+}

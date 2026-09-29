@@ -1,0 +1,66 @@
+{
+  "skill": "revisa-migracao-postgres",
+  "runner": "claude-code",
+  "graded_at": "2026-09-24T14:10:00Z",
+  "baseline": {
+    "description": "sem a skill (baseline)",
+    "notes": null
+  },
+  "variant": {
+    "description": "com a skill revisa-migracao-postgres",
+    "notes": null
+  },
+  "test_cases": [
+    {
+      "id": "TC-03",
+      "prompt": "dá uma olhada no V87__recria_fk_operadora.sql antes de eu subir, tabela viagens tem uns 60 mi",
+      "baseline_result": {
+        "output": "Revisão: a migração parece correta. Recomendo rodar em horário de baixo tráfego.",
+        "duration_ms": 12000,
+        "tokens": 4200,
+        "exit_code": 0
+      },
+      "variant_result": {
+        "output": "Revisão: a migração parece correta. Recomendo rodar em horário de baixo tráfego.",
+        "duration_ms": 12400,
+        "tokens": 4300,
+        "exit_code": 0
+      },
+      "expectations": [
+        {
+          "text": "Aponta o lock ACCESS EXCLUSIVE causado pelo ALTER TABLE",
+          "passed": false,
+          "evidence": "variant: saída idêntica à do baseline, sem menção a lock."
+        },
+        {
+          "text": "Sugere CREATE INDEX CONCURRENTLY em vez de CREATE INDEX",
+          "passed": false,
+          "evidence": "variant: idem, sem menção a índice."
+        },
+        {
+          "text": "Exige migração reversível (down) ou justificativa escrita",
+          "passed": false,
+          "evidence": "variant: idem, sem menção a down."
+        },
+        {
+          "text": "Estima o tempo de bloqueio com base no tamanho da tabela informado",
+          "passed": false,
+          "evidence": "variant: idem, sem estimativa."
+        }
+      ]
+    }
+  ],
+  "aggregate": {
+    "baseline_pass_rate": 0,
+    "variant_pass_rate": 0,
+    "delta_pass_rate": 0,
+    "baseline_tokens_mean": 4200,
+    "variant_tokens_mean": 4300,
+    "delta_tokens": 100,
+    "baseline_duration_mean_ms": 12000,
+    "variant_duration_mean_ms": 12400,
+    "delta_duration_ms": 400,
+    "baseline_stddev": null,
+    "variant_stddev": null
+  }
+}

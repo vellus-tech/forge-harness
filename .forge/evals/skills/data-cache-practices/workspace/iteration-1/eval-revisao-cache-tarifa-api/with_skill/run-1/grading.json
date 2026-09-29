@@ -1,0 +1,71 @@
+{
+  "expectations": [
+    {
+      "text": "docs/revisao-cache.md cita os ids C-02, C-09, C-10, C-11 e C-16 do catálogo, cada um com a localização arquivo:linha correta (tarifaCache.ts:23, tarifaCache.ts:46, redis.conf:5 e/ou :6, redis.conf:4, redis.tf:21); descrição genérica sem id do catálogo ou sem linha não conta",
+      "passed": true,
+      "evidence": "Tabela 'Resumo por regra' de revisao-cache.md: 'C-02 ... tarifaCache.ts:23', 'C-09 ... tarifaCache.ts:46', 'C-10 ... redis.conf:5, redis.conf:6', 'C-11 ... redis.conf:4', 'C-16 ... redis.tf:21'. Linhas conferidas contra os fixtures (redis.keys na 46, protected-mode no na 4, maxmemory 0/noeviction nas 5-6, 0.0.0.0/0 na 21)."
+    },
+    {
+      "text": "O relatório NÃO lista getParametros / tarifaCache.ts:32 como escrita sem TTL a corrigir por falta de expiração: ou o omite dos achados, ou o registra explicitamente como falso positivo do detector porque o redis.expire vem na linha 33 (sugerir SET com EX para tornar atômico é aceitável)",
+      "passed": false,
+      "evidence": "O relatório lista tarifaCache.ts:32 como achado C-02 na tabela ('C-02 — escrita sem TTL | FOUND ... tarifaCache.ts:23, tarifaCache.ts:32'), sob o título '### 2. Duas escritas sem TTL — bloqueante' e no item 2 dos bloqueantes. Embora o corpo diga 'não é ausência de TTL' e sugira { EX }, não o registra como falso positivo do detector; ao contrário, confirma o FOUND do scanner e o eleva a bloqueante. Na dúvida, falha."
+    },
+    {
+      "text": "O relatório aponta que atualizarTarifa apaga a chave (redis.del) antes da transação no banco, identifica isso como C-01 ou como invalidação na ordem errada, e prescreve gravar a origem, confirmar o commit e só então remover a chave",
+      "passed": true,
+      "evidence": "Seção 'Verificados e limpos': 'Invalidação em atualizarTarifa (tarifaCache.ts:37-43): faz DEL da chave antes da transação no banco ... é o antipattern C-01 do catálogo por definição textual' e 'o time deve considerar mover o DEL para depois do await db.transaction(...) concluir'. Ressalva: rebaixado a observação não bloqueante, dentro da seção de itens limpos, e com frase contraditória ('não é um dos IDs C-01 a C-17'); a asserção não exige severidade."
+    },
+    {
+      "text": "O relatório aponta a chave `linhas:grupo:${grupoId}` (getLinhasDoGrupo) como sem namespace de tenant, em violação da .forge/rules/data/data-cache.md (formato tenant:{id}:...), tratando-a como risco de vazamento cross-tenant e não como questão de estilo",
+      "passed": true,
+      "evidence": "'### 1. Vazamento cross-tenant em linhas:grupo:{grupoId} — bloqueante': cita data-cache.md ('cache sem namespace de tenant é vetor de vazamento cross-tenant = conflito bloqueante') e prescreve 'tenant:${tenantId}:linhas:grupo:${grupoId}'."
+    },
+    {
+      "text": "O relatório tem entrada explícita para regras sem achado (ao menos C-08, C-15 e C-17 como OK/limpas) e declara como não verificado pela análise estática ao menos um item de runtime do catálogo (C-05 chave quente, C-06 chave grande, C-12/C-14, hit ratio ou política efetiva via CONFIG GET), em vez de dar esses pontos por aprovados",
+      "passed": false,
+      "evidence": "Parte das regras limpas atendida (tabela: 'C-08 ... OK', 'C-15 ... OK', 'C-17 ... OK'), mas o relatório não declara como não verificado nenhum item de runtime do catálogo: não há menção a chave quente (C-05), chave grande (C-06), C-12/C-14, hit ratio ou política efetiva via CONFIG GET. O único 'não verificável estaticamente' é degradação graciosa, que não é item de runtime listado na asserção."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 2,
+    "total": 5,
+    "pass_rate": 0.6
+  },
+  "claims": [
+    {
+      "claim": "scan.sh reportou C-02 em :23,32, C-09 :46, C-10 :5,6, C-11 :4, C-16 :21 e C-08/C-15/C-17 limpos",
+      "type": "process",
+      "verified": false,
+      "evidence": "Afirmado no transcript; saída bruta do scan.sh não foi preservada em outputs/. Coerente com os fixtures."
+    },
+    {
+      "claim": "getTarifa usa EX em tarifaCache.ts:15",
+      "type": "factual",
+      "verified": false,
+      "evidence": "O set com EX está na linha 14 do fixture; erro menor de linha."
+    },
+    {
+      "claim": "C-01 'não é um dos IDs C-01 a C-17' e ao mesmo tempo 'é o antipattern C-01'",
+      "type": "quality",
+      "verified": false,
+      "evidence": "Autocontradição no relatório."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "O relatório aponta a chave `linhas:grupo:${grupoId}` (getLinhasDoGrupo) como sem namespace de tenant, em violação da .forge/rules/data/data-cache.md (formato tenant:{id}:...), tratando-a como risco de vazamento cross-tenant e não como questão de estilo",
+        "reason": "Exigir citação literal da data-cache.md penaliza o baseline por não conhecer a rule, não por errar o diagnóstico; o without_skill tratou o vazamento cross-tenant como bloqueante. Vale separar 'identifica o risco' de 'ancora na rule'."
+      },
+      {
+        "reason": "Nenhuma asserção cobre que o ElastiCache gerenciado não lê redis.conf (achado correto do without_skill: sem aws_elasticache_parameter_group os C-10/C-11 do redis.conf não têm efeito na instância real) nem a ausência de auth_token no redis.tf, que é o C-11 efetivo em produção."
+      },
+      {
+        "assertion": "O relatório aponta que atualizarTarifa apaga a chave (redis.del) antes da transação no banco, identifica isso como C-01 ou como invalidação na ordem errada, e prescreve gravar a origem, confirmar o commit e só então remover a chave",
+        "reason": "Não exige severidade: o with_skill passou mesmo rebaixando o C-01 a 'observação não bloqueante' dentro da seção 'Verificados e limpos'. Considerar exigir que não seja listado como limpo."
+      }
+    ],
+    "overall": "Asserções discriminam bem (with 3/5 vs without 1/5); a de runtime não verificado derrubou as duas configurações."
+  }
+}

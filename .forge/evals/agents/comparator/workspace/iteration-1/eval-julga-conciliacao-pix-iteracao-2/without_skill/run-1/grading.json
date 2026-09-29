@@ -1,0 +1,66 @@
+{
+  "expectations": [
+    {
+      "text": "Existe .forge/evals/skills/conciliacao-pix/workspace/iteration-2/comparison.json, JSON válido, com \"skill\": \"conciliacao-pix\", \"judged_blind\": true e um array cases com exatamente os ids TC-01, TC-02 e TC-03, cada um com os campos id, winner, confidence, a_expectations_met, b_expectations_met e rationale.",
+      "passed": false,
+      "evidence": "Não existe comparison.json: `find without_skill/run-1/outputs/.forge -type f` lista só comparator-input.json e comparator-result.json. O arquivo produzido (comparator-result.json) não tem judged_blind nem a_expectations_met/b_expectations_met nos casos (chaves: id, winner, confidence, rationale). Transcript passo 6: 'Escrevi o veredito em .../comparator-result.json'."
+    },
+    {
+      "text": "winner é \"A\" em TC-01, \"B\" em TC-02 e \"tie\" em TC-03 (valores exatamente nessa grafia do enum \"A\" | \"B\" | \"tie\").",
+      "passed": false,
+      "evidence": "Em comparator-result.json os valores são \"A\" (TC-01), \"B\" (TC-02) e \"tie\" (TC-03), corretos, mas a asserção é sobre o comparison.json, que não existe; o consumidor (eval-aggregate.sh) não encontraria o veredito no nome contratado. Na dúvida, falha — registro que o julgamento em si acertou os vencedores."
+    },
+    {
+      "text": "a_expectations_met/b_expectations_met são 3/1 em TC-01, 1/3 em TC-02 e 2/2 em TC-03.",
+      "passed": false,
+      "evidence": "Campos a_expectations_met/b_expectations_met ausentes em comparator-result.json (e comparison.json não existe). O transcript descreve as contagens em prosa ('A bate com as 3 expectativas'), mas não há registro no artefato."
+    },
+    {
+      "text": "Em cada um dos três casos, o rationale contém ao menos um trecho entre aspas copiado literalmente de output_A e ao menos um copiado literalmente de output_B (ex.: 'R$ 412,90' e 'R$ 389,40' em TC-01; '1,20%' e '0,99%' em TC-02), verificável por busca de substring na entrada.",
+      "passed": false,
+      "evidence": "comparator-result.json: rationale de TC-01 menciona R$ 412,90 e R$ 389,40 sem aspas; TC-02 e TC-03 parafraseiam ('B usa a tarifa contratada de 0,99%...') sem nenhum trecho entre aspas copiado de output_A/output_B. Além disso, não é o comparison.json exigido."
+    },
+    {
+      "text": "confidence de cada caso é \"high\", \"medium\" ou \"low\", e nenhum campo do comparison.json contém as palavras baseline, variant, with-skill ou equivalente que atribua origem a A ou B.",
+      "passed": false,
+      "evidence": "confidence = \"alta\" (TC-01, TC-02) e \"média\" (TC-03), fora do enum high|medium|low. Não há palavras baseline/variant/with-skill; o summary.note fala em 'com ou sem a skill' apenas para dizer que não é possível atribuir, o que não é palpite de origem — mas a asserção falha pelo enum."
+    },
+    {
+      "text": "Desconsiderando as remoções de .forge/skills, .forge/agents, .claude/skills, .claude/agents e plugin/ feitas pelo setup, git status --porcelain mostra apenas comparison.json como arquivo novo; comparator-input.json está intacto (git diff vazio).",
+      "passed": false,
+      "evidence": "`git -C without_skill/run-1/work status --porcelain` filtrado mostra apenas `?? .forge/evals/skills/conciliacao-pix/workspace/iteration-2/comparator-result.json`; comparison.json não foi criado. comparator-input.json está intacto (git diff vazio, cmp idêntico), mas a asserção exige comparison.json como o arquivo novo."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 6,
+    "total": 6,
+    "pass_rate": 0.0
+  },
+  "claims": [
+    {
+      "claim": "Resultado gravado dentro de work/ e replicado em outputs/",
+      "type": "process",
+      "verified": true,
+      "evidence": "comparator-result.json presente em work/ e outputs/"
+    },
+    {
+      "claim": "Julgamento dos três casos correto (A, B, empate)",
+      "type": "quality",
+      "verified": true,
+      "evidence": "winners corretos em comparator-result.json, mas sem contagens e fora do nome/esquema contratado"
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "confidence de cada caso é \"high\", \"medium\" ou \"low\", e nenhum campo do comparison.json contém as palavras baseline, variant, with-skill ou equivalente que atribua origem a A ou B.",
+        "reason": "A lista de palavras proibidas é em inglês; um rationale com 'sem skill'/'com a skill' ou 'versão nova' passaria. Vale incluir equivalentes em português."
+      },
+      {
+        "reason": "Nenhuma asserção verifica a confidence de TC-03 frente a 'outputs equivalentes' nem penaliza confidence high em caso de empate; e nenhuma checa que o rationale do empate justifica a equivalência (o expected_output fala em 'empate legítimo')."
+      }
+    ],
+    "overall": "Asserções discriminam bem o contrato de saída (nome do arquivo, enum, contagens, citações). A execução sem o agente acertou os vencedores mas falhou no contrato inteiro, o que mostra que o ganho do agente é de formato/contrato, não de julgamento."
+  }
+}

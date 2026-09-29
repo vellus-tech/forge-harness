@@ -1,0 +1,1 @@
+sem alteracoes em work/ — as duas mudancas propostas foram recusadas, ver validacao-ddd.md

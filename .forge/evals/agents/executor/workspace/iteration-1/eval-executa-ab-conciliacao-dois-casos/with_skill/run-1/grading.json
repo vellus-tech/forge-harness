@@ -1,0 +1,76 @@
+{
+  "expectations": [
+    {
+      "text": ".forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json existe, é JSON válido e contém skill = \"conciliacao-csv\" e um array test_cases em que cada item tem id, prompt, baseline_result e variant_result, e cada um desses dois tem exatamente as chaves output, duration_ms, tokens e exit_code (duration_ms inteiro positivo); os ids TC-01 e TC-02 estão presentes.",
+      "passed": true,
+      "evidence": "`jq -e . work/.forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json` → válido; `jq -c '{skill, ids:[.test_cases[].id], keys:[.test_cases[]|keys], bk:[...]}'` → skill=\"conciliacao-csv\", ids [\"TC-01\",\"TC-02\"], cada item com [baseline_result,id,prompt,variant_result], e os 4 subobjetos com exatamente [duration_ms,exit_code,output,tokens]; duration_ms = 79/73/75/81 (tipo number, inteiros positivos); exit_code 0 nos quatro. Chaves de topo só [skill,test_cases]. outputs/results.json é cópia byte a byte (`cmp` sem diferença)."
+    },
+    {
+      "text": ".eval-runner/calls.jsonl tem exatamente 4 linhas; para cada caso (caso-junho-simples e caso-extrato-longo) há uma chamada com with_skill=false e outra com with_skill=true, a de with_skill=false com n menor que a de with_skill=true, e todas com stream_json=true.",
+      "passed": true,
+      "evidence": "`cat work/.eval-runner/calls.jsonl` → 4 linhas: n=1 caso-junho-simples with_skill=false, n=2 caso-junho-simples with_skill=true, n=3 caso-extrato-longo with_skill=false, n=4 caso-extrato-longo with_skill=true, todas stream_json=true. Linhas são escritas pelo próprio stub (work/tools/claude-stub.sh linhas 19-21), que detecta with_skill pelo conteúdo do prompt, então a ordem baseline→variant é prova externa ao agente. Ressalva de processo: transcript.md linha 23 registra que o agente apagou o calls.jsonl da tentativa anterior antes de reexecutar (arquivo de runtime não rastreado)."
+    },
+    {
+      "text": "Em .forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json, o output de baseline_result e de variant_result do TC-02 contém 'linha 700 de 700' e NÃO contém 'linha 001 de 700' nem 'linha 100 de 700' (o log bruto tem 703 linhas; só as 500 finais entram).",
+      "passed": true,
+      "evidence": "`jq -r '.test_cases[]|select(.id==\"TC-02\")|.baseline_result.output' work/.forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json` e o mesmo para variant_result: grep 'linha 700 de 700' → 1, 'linha 001 de 700' → 0, 'linha 100 de 700' → 0, 'linha 204 de 700' → 1, `wc -l` → 500 em ambos. `diff` do output contra `tail -500 outputs/logs/tc02-baseline.log` e `tail -500 outputs/logs/tc02-variant.log` → idênticos; os logs brutos têm 703 linhas (`wc -l`)."
+    },
+    {
+      "text": "Em .forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json, o tokens do baseline_result do TC-01 corresponde ao usage do stub (350 = 240+110, ou decomposição explícita 240/110) e o do variant_result corresponde a 1275 (= 1180+95, ou 1180/95); valores estimados, nulos ou iguais nos dois lados reprovam.",
+      "passed": true,
+      "evidence": "`jq '.test_cases[]|select(.id==\"TC-01\")'` em work/.forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json: baseline_result.tokens={input_tokens:240,output_tokens:110} e variant_result.tokens={input_tokens:1180,output_tokens:95}, iguais ao evento result de outputs/logs/tc01-baseline.log e tc01-variant.log (`\"usage\":{\"input_tokens\":240,\"output_tokens\":110}` / `1180`/`95`); valores distintos entre braços, não nulos."
+    },
+    {
+      "text": "Nenhum grading.json, comparison.json ou analysis.json foi criado sob .forge/evals/skills/conciliacao-csv/, e results.json não tem chaves como passed, score, nota, winner, vencedor ou verdict.",
+      "passed": true,
+      "evidence": "`find work/.forge/evals/skills \\( -name grading.json -o -name comparison.json -o -name analysis.json \\)` → vazio (só existe results.json sob conciliacao-csv/workspace/iteration-1). `grep -Eo '\"(passed|score|nota|winner|vencedor|verdict)\"' work/.forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json | wc -l` → 0."
+    },
+    {
+      "text": "git diff e git status do alvo não mostram alteração em skills-dev/ nem em data/ (o SKILL.md e o CSV continuam byte a byte iguais ao commit da fixture).",
+      "passed": true,
+      "evidence": "`git -C work diff --quiet HEAD -- skills-dev data` → rc=0; `git -C work status --porcelain -- skills-dev data | wc -l` → 0. As deleções no status geral (.claude/agents/...) vêm do setup.sh da fixture e estão fora de skills-dev/ e data/."
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "executor_duration_seconds": 177.0,
+    "total_duration_seconds": 177.0
+  },
+  "claims": [
+    {
+      "claim": "Ordem de execução TC-01 baseline → TC-01 variant → TC-02 baseline → TC-02 variant",
+      "type": "process",
+      "verified": true,
+      "evidence": "calls.jsonl n=1..4 nessa ordem, gerado pelo stub."
+    },
+    {
+      "claim": "Tail-500 conferido por grep antes de fechar a run",
+      "type": "process",
+      "verified": true,
+      "evidence": "Reproduzido pelo grader com diff contra tail -500 dos logs brutos."
+    },
+    {
+      "claim": "work/ tem ~6,0 MB",
+      "type": "factual",
+      "verified": false,
+      "evidence": "Não medido pelo grader; irrelevante para as asserções."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "reason": "Esta é uma reexecução (retomada) sobre work/ preexistente: o agente apagou work/.eval-runner/calls.jsonl antes de rodar e deixou em outputs/logs/ os logs eval-variant-TC-0*.log da tentativa de 26/09. Nenhuma asserção exige work/ recém-criado pela fixture; recomenda-se que o harness recrie work/ do zero a cada run para que calls.jsonl seja prova limpa."
+      },
+      {
+        "assertion": "Nenhum grading.json, comparison.json ou analysis.json foi criado sob .forge/evals/skills/conciliacao-csv/, e results.json não tem chaves como passed, score, nota, winner, vencedor ou verdict.",
+        "reason": "Passa trivialmente quando nada é gravado no eval_dir (como no without_skill); só discrimina em conjunto com a asserção 1."
+      }
+    ],
+    "overall": "Asserções 1-4 são discriminantes e verificáveis por comando; 5 e 6 são guardas fracas isoladamente."
+  }
+}

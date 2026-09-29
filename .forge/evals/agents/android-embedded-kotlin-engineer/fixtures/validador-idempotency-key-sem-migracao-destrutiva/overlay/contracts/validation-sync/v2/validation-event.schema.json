@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "validation-sync/v2/validation-event",
+  "title": "ValidationEvent v2",
+  "type": "object",
+  "required": ["event_id", "device_id", "card_uid", "route_id", "fare_cents", "validated_at", "idempotency_key"],
+  "properties": {
+    "event_id": {"type": "string"},
+    "device_id": {"type": "string"},
+    "card_uid": {"type": "string"},
+    "route_id": {"type": "string"},
+    "fare_cents": {"type": "integer", "minimum": 0},
+    "validated_at": {"type": "integer"},
+    "idempotency_key": {"type": "string", "minLength": 16, "description": "Estável por evento: o backend descarta reenvios com a mesma chave. Reenvio do mesmo evento DEVE repetir a mesma chave."}
+  },
+  "additionalProperties": false
+}

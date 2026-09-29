@@ -1,0 +1,9 @@
+{
+  "change_id": "2026-09-recarga-cartao-pix",
+  "created_at": "2026-09-14T13:02:11.000Z",
+  "waves": [
+    { "id": "W0", "name": "Foundation", "depends_on": [], "stories": ["STORY-01", "STORY-02"], "status": "closed", "opened_at": "2026-09-14T13:05:00Z", "closed_at": "2026-09-18T20:41:07Z", "gate_result": "executed:OK (1 gate(s))" },
+    { "id": "W1", "name": "Wave 1", "depends_on": ["W0"], "stories": ["STORY-03", "STORY-04", "STORY-05"], "status": "open", "opened_at": "2026-09-19T11:12:30Z", "closed_at": null, "gate_result": null },
+    { "id": "W2", "name": "Wave 2", "depends_on": ["W1"], "stories": ["STORY-06", "STORY-07"], "status": "pending", "opened_at": null, "closed_at": null, "gate_result": null }
+  ]
+}

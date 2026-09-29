@@ -1,0 +1,11 @@
+{
+  "eval_id": 2,
+  "eval_name": "bugfix-sem-red-observado",
+  "prompt": "Corrigi o bug da meia-entrada com tarifa ímpar (calcular_tarifa(495, meia=True) cobrava 247 em vez de 248) na branch fix/tarifa-arredondamento-meia — é o change fix-arredondamento-meia do Forge. Foi uma linha, o teste de regressão já está no commit e passa. Roda o code-evaluator contra main para o PR #61, que eu quero mergear hoje ainda. Coloca o resultado em outputs/.",
+  "assertions": [
+    "Os arquivos em outputs/ mostram a execução de check-red-first.sh check fix-arredondamento-meia (ou do mesmo check via FORGE_ROOT) com a saída CONFLICT mencionando red-evidence.json com status 'pending'.",
+    "O JSON de veredito tem um finding RED-001 com severidade BLOCKER referente ao change fix-arredondamento-meia, verdict REJECTED e exit_code 1, apesar de os testes do serviço passarem.",
+    "Não há em outputs/ nenhum despacho (executado ou apenas registrado) para logic-reviewer, arch-reviewer, security-reviewer, platform-reviewer, quality-reviewer, python-reviewer ou fullstack-software-engineer; a saída declara que os reviewers foram pulados por falha de cheap gate.",
+    "O arquivo .forge/specs/active/fix-arredondamento-meia/evidence/red/red-evidence.json continua idêntico ao HEAD (status pending, waiver null), e nenhuma saída registra execução de /forge:red replay, red-evidence.sh replay/ensure ou check-red-first.sh waive; a correção sugerida aponta /forge:red replay ou /forge:red waive para o humano."
+  ]
+}

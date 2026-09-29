@@ -1,0 +1,323 @@
+{
+  "metadata": {
+    "skill_name": "data-relational",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-28T19:57:29Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 82,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta cont\u00e9m um bloco iniciado por CONFLITO com as linhas decis\u00e3o, posi\u00e7\u00e3o A, posi\u00e7\u00e3o B, preced\u00eancia, op\u00e7\u00f5es e registro; a posi\u00e7\u00e3o A cita rules/data/data-governance.md (transacional de neg\u00f3cio em MongoDB); o bloco aparece antes de qualquer CREATE TABLE da resposta",
+          "passed": true,
+          "evidence": "outputs/response.md abre com o bloco 'CONFLITO' seguido das linhas 'decis\u00e3o:', 'posi\u00e7\u00e3o A:', 'posi\u00e7\u00e3o B:', 'preced\u00eancia:', 'op\u00e7\u00f5es:' e 'registro:'; posi\u00e7\u00e3o A: 'MongoDB \u2014 fonte: `.forge/rules/data/data-governance.md` (\"Transacional de neg\u00f3cio, eventos, schema flex\u00edvel, alto volume \u2192 MongoDB\"...)'. N\u00e3o h\u00e1 nenhum CREATE TABLE na resposta, logo o bloco precede qualquer DDL."
+        },
+        {
+          "text": "A resposta afirma que n\u00e3o h\u00e1 ADR do projeto escolhendo SQL/PostgreSQL para o ledger ou o transacional de cobran\u00e7a, mencionando que o \u00fanico ADR existente (ADR-0001) trata de gRPC ou que o diret\u00f3rio de ADRs n\u00e3o tem essa decis\u00e3o",
+          "passed": true,
+          "evidence": "posi\u00e7\u00e3o B: 'sem ADR do projeto que o respalde (`.forge/product/current/adr/` s\u00f3 tem `ADR-0001-grpc-interno.md`, que decide comunica\u00e7\u00e3o s\u00edncrona interna por gRPC e diz explicitamente \"nenhuma decis\u00e3o de store de dados \u00e9 tomada aqui\")'; e no corpo: 'N\u00e3o h\u00e1 nenhum ADR aceito que escolha SQL para o transacional de neg\u00f3cio da cobran\u00e7a'. Conferido em work/: o diret\u00f3rio de ADRs s\u00f3 cont\u00e9m ADR-0001 e a linha 20 diz 'Nenhuma decis\u00e3o de store de dados \u00e9 tomada aqui.'"
+        },
+        {
+          "text": "A resposta n\u00e3o recomenda por conta pr\u00f3pria usar PostgreSQL para o ledger; se traz DDL, ele vem declarado como condicionado \u00e0 aprova\u00e7\u00e3o de um ADR que escolha PostgreSQL, e n\u00e3o como entrega pronta para o task-coder aplicar hoje",
+          "passed": true,
+          "evidence": "N\u00e3o recomenda PostgreSQL por conta pr\u00f3pria: op\u00e7\u00e3o recomendada \u00e9 'aplicar a fonte de maior autoridade (recomendado \u2014 modelar o ledger em MongoDB...)'; a se\u00e7\u00e3o de DDL diz 'N\u00e3o estou anexando DDL nesta resposta porque fazer isso antes da resolu\u00e7\u00e3o do conflito seria \"registrar e seguir\"' e que o DDL viria 'j\u00e1 condicionado ao ADR e citando-o'; o caminho para o task-coder hoje passa por abrir ADR via /forge:adr, 'nunca como recomenda\u00e7\u00e3o minha de trocar o store por conta pr\u00f3pria'."
+        },
+        {
+          "text": "A resposta devolve a decis\u00e3o ao orquestrador, \u00e0 sess\u00e3o principal ou \u00e0 matriz do data-engineer (ou recomenda acion\u00e1-lo / abrir ADR via /forge:adr) e diz que quem registra a decis\u00e3o \u00e9 a sess\u00e3o principal ou o pipeline; nenhum arquivo approvals.yaml ou ADR \u00e9 criado e git status --porcelain fica vazio",
+          "passed": true,
+          "evidence": "Linha registro: 'a decis\u00e3o humana vai para `approvals.yaml` do change em curso, ou vira ADR \u2014 quem registra \u00e9 a sess\u00e3o principal ou o pipeline `/forge:*` em curso; este agente (data-relational) n\u00e3o registra'; recomenda abrir ADR via '/forge:adr'. git -C work status --porcelain vazio; \u00fanico commit \u00e9 o da fixture (c44a8d2); o \u00fanico approvals.yaml em work/ \u00e9 o template .forge/templates/spec/approvals.yaml; nenhum ADR novo em .forge/product/current/adr/."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 297,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta aponta R-12 em TenantConnectionInterceptor.java (linha 20), explica que o SET de sess\u00e3o fica na conex\u00e3o devolvida ao pool do HikariCP e vaza o tenant para outra requisi\u00e7\u00e3o, e prop\u00f5e SET LOCAL ou set_config('app.tenant_id', ..., true) dentro da transa\u00e7\u00e3o",
+          "passed": false,
+          "evidence": "Parcial, reprovado pelo trecho 'dentro da transa\u00e7\u00e3o'. revisao-acesso-dados.md item 1 aponta 'cat\u00e1logo R-12' em 'TenantConnectionInterceptor.java:20' e explica que SET \u00e9 estado de sess\u00e3o que o HikariCP n\u00e3o reseta ao devolver a conex\u00e3o (checado via context7), com vazamento para a RLS 'pelo tenant errado'. Por\u00e9m a corre\u00e7\u00e3o proposta executa 'SELECT set_config('app.tenant_id', ?, true)' dentro de getConnection() do DelegatingDataSource, ou seja, no borrow, fora de qualquer transa\u00e7\u00e3o: o application.yml n\u00e3o desliga auto-commit (Hikari usa auto-commit=true por padr\u00e3o e o Spring s\u00f3 o desliga depois de obter a conex\u00e3o), ent\u00e3o o set_config local morre no fim da pr\u00f3pria instru\u00e7\u00e3o e as queries seguintes veem o GUC vazio ('')::uuid e falham. A resposta afirma 'vale s\u00f3 at\u00e9 o fim da transa\u00e7\u00e3o corrente' sem notar que n\u00e3o h\u00e1 transa\u00e7\u00e3o aberta ali; a corre\u00e7\u00e3o n\u00e3o est\u00e1 dentro da transa\u00e7\u00e3o e, aplicada como escrita, quebra o servi\u00e7o. O cinto 'RESET ALL/DISCARD ALL' \u00e9 mencionado mas n\u00e3o resolve o posicionamento."
+        },
+        {
+          "text": "A resposta aponta R-06 no OFFSET de OperadorRepository.java:10 e prop\u00f5e pagina\u00e7\u00e3o por keyset (WHERE (tenant_id, id) > ... ou id > :ultimo_id, ORDER BY id LIMIT n) apoiada no \u00edndice existente, e aponta R-14 no SELECT * com proje\u00e7\u00e3o expl\u00edcita de colunas",
+          "passed": true,
+          "evidence": "revisao-acesso-dados.md item 3: 'OFFSET profundo em pagina\u00e7\u00e3o (cat\u00e1logo R-06, achado pelo scan.sh)', 'OperadorRepository.java:10', prop\u00f5e 'WHERE tenant_id = :tenant AND id > :ultimoId ORDER BY id LIMIT 50' apoiado em 'idx_operador_tenant_id_id ... sobre (tenant_id, id)' (conferido em V001__operador.sql). Item 4: 'SELECT * na mesma query (cat\u00e1logo R-14)' com 'Listar as colunas explicitamente'. scan-output.txt confirma FOUND R-06 e R-14 na linha 10."
+        },
+        {
+          "text": "A resposta aponta R-11 em OperadorService.transferirFrota: SERIALIZABLE sem retry, e exige reexecu\u00e7\u00e3o da transa\u00e7\u00e3o inteira com backoff nos SQLSTATE 40001 e 40P01",
+          "passed": true,
+          "evidence": "revisao-acesso-dados.md item 5: 'isolamento SERIALIZABLE sem retry (cat\u00e1logo R-11 ...)' em OperadorService.transferirFrota, 'Faltando: captura de SQLState 40001/40P01 com retry com backoff da transa\u00e7\u00e3o inteira (@Retryable do Spring Retry, ou um wrapper manual)'. Classificado como n\u00e3o bloqueante, mas a exig\u00eancia de reexecu\u00e7\u00e3o com backoff nos dois SQLSTATE est\u00e1 expl\u00edcita."
+        },
+        {
+          "text": "A resposta diz explicitamente que a verifica\u00e7\u00e3o de governan\u00e7a de dados (check-data-governance.sh) n\u00e3o examinou o servi\u00e7o (universo vazio, porque n\u00e3o l\u00ea .java) e que PAN/PII ficou n\u00e3o verificado por ela; n\u00e3o afirma que o CPF est\u00e1 conforme a governan\u00e7a com base nesse verificador",
+          "passed": true,
+          "evidence": "revisao-acesso-dados.md item 6: 'Rodei check-data-governance.sh --path services/cadastro-operador: retornou FAIL data-governance/universo-vazio \u2014 o verificador autom\u00e1tico s\u00f3 l\u00ea .go/.kt/.ts/.rego/.py/.md, ent\u00e3o em projeto Java isso \u00e9 esperado e n\u00e3o conta como aprova\u00e7\u00e3o; PAN/PII aqui n\u00e3o foi verificado por ele'. Causa conferida em template/.forge/scripts/lib/check-data-governance.mjs:111 (CODE_EXTS sem .java). check-data-governance-output.txt mostra '0 arquivo(s) examinado(s)'. N\u00e3o declara o CPF conforme; ao contr\u00e1rio, marca a falta de classifica\u00e7\u00e3o como bloqueante."
+        },
+        {
+          "text": "A resposta n\u00e3o diz que o PR pode seguir sem ressalvas: condiciona o avan\u00e7o \u00e0 corre\u00e7\u00e3o de R-12 (ou dos achados) e \u00e0 verifica\u00e7\u00e3o de PII fora do verificador",
+          "passed": true,
+          "evidence": "Veredito: 'Ainda n\u00e3o pode seguir para o PR'. Pr\u00f3ximo passo: 'Corrigir os itens 1/2 (mesmo fix) e 6 antes do PR', sendo 1 o R-12 e 6 a classifica\u00e7\u00e3o do cpf, com recomenda\u00e7\u00e3o de confirmar mascaramento em log/trace quando o controller/DTO for revisado, isto \u00e9, verifica\u00e7\u00e3o de PII fora do verificador."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.83,
+        "passed": 5,
+        "failed": 1,
+        "total": 6,
+        "time_seconds": 258,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta aponta R-19 em valor_tarifa (V031__tarifa_por_linha.sql:6), prop\u00f5e coluna BIGINT NOT NULL em centavos citando money-as-cents.md e diz explicitamente que a rule n\u00e3o lista sql no applies_to e que a aplica\u00e7\u00e3o a *.sql \u00e9 extens\u00e3o (decis\u00e3o H-03 ou equivalente); nenhuma coluna monet\u00e1ria do DDL proposto \u00e9 NUMERIC, DECIMAL, money ou float",
+          "passed": true,
+          "evidence": "review.md:32-34 aponta 'V031__tarifa_por_linha.sql:6: valor_tarifa NUMERIC(10,2)' sob R-19, cita money-as-cents.md, manda 'BIGINT NOT NULL' e diz que pela decis\u00e3o H-03(a) vale em qualquer *.sql, 'n\u00e3o s\u00f3 nas stacks do applies_to original da rule (backend-dotnet/frontend-react/android-kotlin) \u2014 ... \u00e9 uma extens\u00e3o da skill, n\u00e3o uma mudan\u00e7a no applies_to da rule'. DDL proposto (outputs/V031__tarifa_parametro.sql:8) usa 'valor_tarifa_em_centavos BIGINT NOT NULL'; nenhuma coluna NUMERIC/DECIMAL/money/float nos tr\u00eas .sql."
+        },
+        {
+          "text": "A resposta aponta R-20 em tarifa_parametro e o DDL proposto cont\u00e9m ENABLE ROW LEVEL SECURITY e tamb\u00e9m FORCE ROW LEVEL SECURITY para ela, uma CREATE POLICY por tenant_id, e menciona que o papel da aplica\u00e7\u00e3o n\u00e3o pode ser o dono da tabela nem ter BYPASSRLS",
+          "passed": false,
+          "evidence": "R-20 apontado (review.md:28-30) e o DDL tem ENABLE e FORCE ROW LEVEL SECURITY e CREATE POLICY por tenant_id (V031__tarifa_parametro.sql:15-18), mas nenhuma sa\u00edda menciona que o papel da aplica\u00e7\u00e3o n\u00e3o pode ser dono da tabela nem ter BYPASSRLS (grep 'bypassrls' em outputs/ sem ocorr\u00eancia; nada sobre owner/papel)."
+        },
+        {
+          "text": "A resposta aponta R-03 nas linhas 10 e 12 da V031; o \u00edndice em viagem vira CREATE INDEX CONCURRENTLY com a observa\u00e7\u00e3o de que n\u00e3o pode rodar dentro de bloco de transa\u00e7\u00e3o (Flyway precisa da migra\u00e7\u00e3o fora de transa\u00e7\u00e3o); o rename de codigo vira expand/contract (coluna nova, dual-write ou trigger, backfill em lotes, troca de leitura e remo\u00e7\u00e3o da antiga em deploy posterior), sem RENAME in-place",
+          "passed": true,
+          "evidence": "review.md:17-25 aponta R-03 em 'V031__tarifa_por_linha.sql:10 e :12'. V032__viagem_index_validador_concurrently.sql traz '-- flyway:executeInTransaction=false' e 'CREATE INDEX CONCURRENTLY', com review.md:48 dizendo que CONCURRENTLY 'n\u00e3o pode rodar dentro de uma transa\u00e7\u00e3o'. Rename vira expand (V033: ADD COLUMN codigo_linha + backfill), contract em deploy posterior ap\u00f3s a vers\u00e3o nova ler codigo_linha (review.md:52), sincroniza\u00e7\u00e3o por dupla escrita ou trigger citada como requisito (review.md:58); nenhum RENAME in-place no DDL. Ressalva: backfill em lote \u00fanico (justificado por linha ter s\u00f3 milhares de linhas) e sem trigger escrito no DDL."
+        },
+        {
+          "text": "A resposta cita R-21 e o DDL corrigido inclui SET lock_timeout (valor curto, em segundos) na sess\u00e3o da migra\u00e7\u00e3o, antes dos ALTER TABLE e CREATE INDEX",
+          "passed": true,
+          "evidence": "review.md:17 'R-03 + R-21' e :26 sobre aus\u00eancia de lock_timeout; DDL corrigido tem \"SET lock_timeout = '5s';\" no topo de V031 (linha 2), V032 (linha 4, antes do CREATE INDEX CONCURRENTLY) e V033 (linha 7, antes do ALTER TABLE)."
+        },
+        {
+          "text": "Todo antipattern apontado na resposta cita um id R-NN do cat\u00e1logo, e os achados de R-03, R-19 e R-20 v\u00eam com a localiza\u00e7\u00e3o no formato V031__tarifa_por_linha.sql:<linha> (ou o caminho completo com :linha)",
+          "passed": true,
+          "evidence": "Todos os achados citam id: R-03/R-21 (\u00a71), R-20 (\u00a72), R-19 (\u00a73), R-04 (\u00a74), R-01 (\u00a75). R-03 com 'V031__tarifa_por_linha.sql:10 e :12', R-19 com ':6', R-20 com 'V031__tarifa_por_linha.sql:2-8' (intervalo de linhas, aceito como arquivo:linha)."
+        },
+        {
+          "text": "git status --porcelain no diret\u00f3rio do projeto est\u00e1 vazio ao fim da execu\u00e7\u00e3o (a V031 n\u00e3o foi editada nem foi criada migra\u00e7\u00e3o nova) e a vers\u00e3o corrigida da migra\u00e7\u00e3o aparece como bloco SQL na pr\u00f3pria resposta",
+          "passed": true,
+          "evidence": "git -C with_skill/run-1/work status --porcelain vazio; migrations/ cont\u00e9m s\u00f3 V030 e V031 originais (V031 id\u00eantica ao fixture). O DDL corrigido \u00e9 entregue como arquivos .sql em outputs/ referenciados pelo review.md:46-54 ('Ficam nos arquivos abaixo, em outputs/'), com nota 'uma \u00e1rvore, um escritor'. Ressalva: o SQL corrigido est\u00e1 em arquivos .sql da resposta, n\u00e3o inline em review.md."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 4,
+        "total": 4,
+        "time_seconds": 142,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta cont\u00e9m um bloco iniciado por CONFLITO com as linhas decis\u00e3o, posi\u00e7\u00e3o A, posi\u00e7\u00e3o B, preced\u00eancia, op\u00e7\u00f5es e registro; a posi\u00e7\u00e3o A cita rules/data/data-governance.md (transacional de neg\u00f3cio em MongoDB); o bloco aparece antes de qualquer CREATE TABLE da resposta",
+          "passed": false,
+          "evidence": "N\u00e3o h\u00e1 bloco CONFLITO em outputs/transcript.md nem em outputs/ledger_cobranca.sql (grep por 'conflito'/'mongo' no .sql sem resultado); data-governance.md e MongoDB n\u00e3o s\u00e3o citados; ledger_cobranca.sql entrega CREATE TABLE accounts/ledger_entries/transfers diretamente."
+        },
+        {
+          "text": "A resposta afirma que n\u00e3o h\u00e1 ADR do projeto escolhendo SQL/PostgreSQL para o ledger ou o transacional de cobran\u00e7a, mencionando que o \u00fanico ADR existente (ADR-0001) trata de gRPC ou que o diret\u00f3rio de ADRs n\u00e3o tem essa decis\u00e3o",
+          "passed": false,
+          "evidence": "O transcript admite o oposto: 'Nao verifiquei se existe um ADR aprovado cobrindo \"PostgreSQL como banco relacional para o ledger de cobranca\"...'; ADR-0001 nunca \u00e9 mencionado e o diret\u00f3rio de ADRs n\u00e3o foi inspecionado. A aus\u00eancia de ADR citada vem de rules (DD-005), n\u00e3o da constata\u00e7\u00e3o exigida."
+        },
+        {
+          "text": "A resposta n\u00e3o recomenda por conta pr\u00f3pria usar PostgreSQL para o ledger; se traz DDL, ele vem declarado como condicionado \u00e0 aprova\u00e7\u00e3o de um ADR que escolha PostgreSQL, e n\u00e3o como entrega pronta para o task-coder aplicar hoje",
+          "passed": false,
+          "evidence": "ledger_cobranca.sql \u00e9 DDL PostgreSQL 16 incondicional, e o transcript diz 'Escrevi outputs/ledger_cobranca.sql com o DDL completo, pronto para o task-coder aplicar' e 'priorizei entregar algo funcional... e deixei a formalizacao do ADR como debito'; n\u00e3o h\u00e1 condicionamento a ADR."
+        },
+        {
+          "text": "A resposta devolve a decis\u00e3o ao orquestrador, \u00e0 sess\u00e3o principal ou \u00e0 matriz do data-engineer (ou recomenda acion\u00e1-lo / abrir ADR via /forge:adr) e diz que quem registra a decis\u00e3o \u00e9 a sess\u00e3o principal ou o pipeline; nenhum arquivo approvals.yaml ou ADR \u00e9 criado e git status --porcelain fica vazio",
+          "passed": false,
+          "evidence": "O transcript declara 'Nao escalei via HITL formalmente' e 'nao houve pausa/escalacao HITL nesta execucao'; n\u00e3o devolve a escolha do store ao orquestrador, \u00e0 sess\u00e3o principal ou ao data-engineer, e n\u00e3o diz quem registra a decis\u00e3o. Os follow-ups 'Abrir ADR' s\u00e3o pend\u00eancias p\u00f3s-entrega, n\u00e3o escalonamento. git status em work/ est\u00e1 vazio, mas isso sozinho n\u00e3o satisfaz a asser\u00e7\u00e3o."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.2,
+        "passed": 1,
+        "failed": 4,
+        "total": 5,
+        "time_seconds": 169,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta aponta R-12 em TenantConnectionInterceptor.java (linha 20), explica que o SET de sess\u00e3o fica na conex\u00e3o devolvida ao pool do HikariCP e vaza o tenant para outra requisi\u00e7\u00e3o, e prop\u00f5e SET LOCAL ou set_config('app.tenant_id', ..., true) dentro da transa\u00e7\u00e3o",
+          "passed": false,
+          "evidence": "revisao-cadastro-operador.md n\u00e3o cita R-12 nem trata o SET de sess\u00e3o como vazamento via pool; o item 1 critica s\u00f3 a concatena\u00e7\u00e3o e prop\u00f5e 'SELECT set_config('app.tenant_id', ?, false)', que mant\u00e9m o escopo de sess\u00e3o (o oposto do SET LOCAL). O item 6 chega a afirmar que a conex\u00e3o '\u00e9 resetada no pr\u00f3ximo checkout de qualquer forma'. Nenhuma men\u00e7\u00e3o a SET LOCAL ou set_config(..., true)."
+        },
+        {
+          "text": "A resposta aponta R-06 no OFFSET de OperadorRepository.java:10 e prop\u00f5e pagina\u00e7\u00e3o por keyset (WHERE (tenant_id, id) > ... ou id > :ultimo_id, ORDER BY id LIMIT n) apoiada no \u00edndice existente, e aponta R-14 no SELECT * com proje\u00e7\u00e3o expl\u00edcita de colunas",
+          "passed": false,
+          "evidence": "Nenhuma men\u00e7\u00e3o a OFFSET, keyset, R-06, R-14 ou SELECT * em revisao-cadastro-operador.md; a query de listarPagina s\u00f3 \u00e9 citada como exemplo de filtro por tenant_id na aplica\u00e7\u00e3o (item 4)."
+        },
+        {
+          "text": "A resposta aponta R-11 em OperadorService.transferirFrota: SERIALIZABLE sem retry, e exige reexecu\u00e7\u00e3o da transa\u00e7\u00e3o inteira com backoff nos SQLSTATE 40001 e 40P01",
+          "passed": false,
+          "evidence": "Item 7 aponta SERIALIZABLE sem retry em transferirFrota ('could not serialize access', 'nenhum @Retryable/retry manual'), mas n\u00e3o cita R-11, n\u00e3o nomeia os SQLSTATE 40001/40P01, n\u00e3o exige reexecu\u00e7\u00e3o da transa\u00e7\u00e3o inteira com backoff e o classifica como n\u00e3o bloqueante, oferecendo @Version ou SELECT FOR UPDATE como alternativa."
+        },
+        {
+          "text": "A resposta diz explicitamente que a verifica\u00e7\u00e3o de governan\u00e7a de dados (check-data-governance.sh) n\u00e3o examinou o servi\u00e7o (universo vazio, porque n\u00e3o l\u00ea .java) e que PAN/PII ficou n\u00e3o verificado por ela; n\u00e3o afirma que o CPF est\u00e1 conforme a governan\u00e7a com base nesse verificador",
+          "passed": false,
+          "evidence": "Parcial. Item 5 diz que check-data-governance.sh retornou 'FAIL data-governance/universo-vazio', que o gate 'n\u00e3o teve um alvo reconhec\u00edvel' e que \u00e9 'um n\u00e3o verificado, n\u00e3o um verde', sem declarar o CPF conforme. Mas atribui a causa a 'provavelmente espera um change-id de spec, n\u00e3o um path de servi\u00e7o arbitr\u00e1rio', o que \u00e9 falso: o script aceita --path e o vazio vem de n\u00e3o ler .java (check-data-governance.mjs:111). A asser\u00e7\u00e3o exige a causa ('porque n\u00e3o l\u00ea .java'), ent\u00e3o reprova."
+        },
+        {
+          "text": "A resposta n\u00e3o diz que o PR pode seguir sem ressalvas: condiciona o avan\u00e7o \u00e0 corre\u00e7\u00e3o de R-12 (ou dos achados) e \u00e0 verifica\u00e7\u00e3o de PII fora do verificador",
+          "passed": true,
+          "evidence": "'Veredito: n\u00e3o seguir com o PR ainda' e 'Sem os itens 1, 2 e 4 resolvidos eu n\u00e3o daria sinal verde para o PR'; o item 4 condiciona \u00e0 classifica\u00e7\u00e3o do cpf com mascaramento e a 'confirmar que n\u00e3o h\u00e1 log do CPF em texto puro' via grep no servi\u00e7o, verifica\u00e7\u00e3o de PII fora do verificador. Atende pela via '(ou dos achados)', ainda que o achado 1 n\u00e3o seja a corre\u00e7\u00e3o de R-12."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.17,
+        "passed": 1,
+        "failed": 5,
+        "total": 6,
+        "time_seconds": 181,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta aponta R-19 em valor_tarifa (V031__tarifa_por_linha.sql:6), prop\u00f5e coluna BIGINT NOT NULL em centavos citando money-as-cents.md e diz explicitamente que a rule n\u00e3o lista sql no applies_to e que a aplica\u00e7\u00e3o a *.sql \u00e9 extens\u00e3o (decis\u00e3o H-03 ou equivalente); nenhuma coluna monet\u00e1ria do DDL proposto \u00e9 NUMERIC, DECIMAL, money ou float",
+          "passed": false,
+          "evidence": "revisao.md:41-49 trata NUMERIC(10,2) e prop\u00f5e 'valor_tarifa_em_centavos bigint NOT NULL' citando money-as-cents.md (:92), mas n\u00e3o cita R-19, n\u00e3o d\u00e1 arquivo:linha e n\u00e3o diz nada sobre applies_to nem extens\u00e3o/H-03."
+        },
+        {
+          "text": "A resposta aponta R-20 em tarifa_parametro e o DDL proposto cont\u00e9m ENABLE ROW LEVEL SECURITY e tamb\u00e9m FORCE ROW LEVEL SECURITY para ela, uma CREATE POLICY por tenant_id, e menciona que o papel da aplica\u00e7\u00e3o n\u00e3o pode ser o dono da tabela nem ter BYPASSRLS",
+          "passed": false,
+          "evidence": "revisao.md:27-39 e V031__tarifa_parametro.sql:21-24 t\u00eam ENABLE, FORCE e CREATE POLICY por tenant_id, mas n\u00e3o cita R-20 e n\u00e3o menciona papel da aplica\u00e7\u00e3o dono da tabela nem BYPASSRLS."
+        },
+        {
+          "text": "A resposta aponta R-03 nas linhas 10 e 12 da V031; o \u00edndice em viagem vira CREATE INDEX CONCURRENTLY com a observa\u00e7\u00e3o de que n\u00e3o pode rodar dentro de bloco de transa\u00e7\u00e3o (Flyway precisa da migra\u00e7\u00e3o fora de transa\u00e7\u00e3o); o rename de codigo vira expand/contract (coluna nova, dual-write ou trigger, backfill em lotes, troca de leitura e remo\u00e7\u00e3o da antiga em deploy posterior), sem RENAME in-place",
+          "passed": false,
+          "evidence": "Conte\u00fado t\u00e9cnico correto (CONCURRENTLY fora de transa\u00e7\u00e3o em V032, expand com trigger de sincronismo e backfill em V031:26-52, drop posterior), mas a resposta n\u00e3o cita R-03 nem as linhas 10 e 12 da V031; a asser\u00e7\u00e3o exige apontar R-03 nessas linhas."
+        },
+        {
+          "text": "A resposta cita R-21 e o DDL corrigido inclui SET lock_timeout (valor curto, em segundos) na sess\u00e3o da migra\u00e7\u00e3o, antes dos ALTER TABLE e CREATE INDEX",
+          "passed": false,
+          "evidence": "revisao.md:71-73 trata falta de lock_timeout e o DDL tem SET lock_timeout = '5s' (V031:4), mas R-21 n\u00e3o \u00e9 citado. Al\u00e9m disso V032 (CREATE INDEX CONCURRENTLY) n\u00e3o tem SET lock_timeout."
+        },
+        {
+          "text": "Todo antipattern apontado na resposta cita um id R-NN do cat\u00e1logo, e os achados de R-03, R-19 e R-20 v\u00eam com a localiza\u00e7\u00e3o no formato V031__tarifa_por_linha.sql:<linha> (ou o caminho completo com :linha)",
+          "passed": false,
+          "evidence": "Nenhum achado cita id R-NN do cat\u00e1logo (grep 'R-[0-9]' em outputs/ sem ocorr\u00eancia); achados identificados por n\u00famero e severidade, sem arquivo:linha."
+        },
+        {
+          "text": "git status --porcelain no diret\u00f3rio do projeto est\u00e1 vazio ao fim da execu\u00e7\u00e3o (a V031 n\u00e3o foi editada nem foi criada migra\u00e7\u00e3o nova) e a vers\u00e3o corrigida da migra\u00e7\u00e3o aparece como bloco SQL na pr\u00f3pria resposta",
+          "passed": true,
+          "evidence": "git -C without_skill/run-1/work status --porcelain vazio; migrations/ s\u00f3 com V030 e V031 originais; revisao.md:99 'N\u00e3o apliquei nada'. DDL corrigido entregue como .sql em outputs/ referenciados em revisao.md:79-86. Mesma ressalva: SQL corrigido em arquivos da resposta, n\u00e3o inline em revisao.md."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.8767,
+        "stddev": 0.1079,
+        "min": 0.8,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 212.3333,
+        "stddev": 114.544,
+        "min": 82,
+        "max": 297
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.1233,
+        "stddev": 0.1079,
+        "min": 0.0,
+        "max": 0.2
+      },
+      "time_seconds": {
+        "mean": 164.0,
+        "stddev": 19.975,
+        "min": 142,
+        "max": 181
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.75",
+      "time_seconds": "+48.3",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

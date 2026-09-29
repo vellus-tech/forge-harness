@@ -1,0 +1,9 @@
+# Resposta ao integrador RotaCard — acesso aos exports de conciliação
+
+Olá, time RotaCard. Obrigado pelo detalhamento das três opções — nenhuma delas nós conseguimos oferecer, porque todas dão acesso direto ao nosso bucket de produção a uma conta externa (usuário IAM com chave de acesso, bucket policy liberando a conta AWS de vocês, ou URL pré-assinada de um prefixo inteiro por dias). Isso vale para qualquer parceiro, não é uma exceção sua: nossa política de segurança não admite credencial, policy/ACL ou URL de múltiplos objetos de longa duração para terceiros sobre bucket interno.
+
+O caminho que conseguimos suportar é: vocês chamam nossa API REST pública de parceiros (`api.bilhetagem.example/v1/parceiros`), já autenticada por OAuth2 client credentials — a mesma credencial que vocês já usam hoje. Vamos publicar um endpoint autenticado nessa API que, para cada arquivo do dia (`exports/rotacard/AAAA-MM-DD.csv`), devolve uma URL pré-assinada de um único objeto nomeado, válida por poucos minutos, com emissão registrada em log do nosso lado. Vocês chamam o endpoint uma vez por arquivo que precisam baixar e usam a URL na hora — sem renovação semanal manual, sem chave de acesso para guardar.
+
+Sobre o prazo: o endpoint de emissão de URL é trabalho de API (não é uma mudança de infraestrutura do bucket) e não temos como entregar até sexta-feira com segurança — pedimos alinhamento de uma nova data com o time técnico de vocês esta semana. Se a automação diária for urgente antes disso, podemos, como paliativo transitório e com prazo definido de descomissionamento, gerar manualmente as URLs pré-assinadas de curta duração para os arquivos do dia e enviar por canal seguro, enquanto o endpoint fica pronto.
+
+Ficamos à disposição para uma call ainda esta semana para alinhar o contrato do endpoint (payload, autenticação, formato da resposta) e evitar qualquer atraso desnecessário.

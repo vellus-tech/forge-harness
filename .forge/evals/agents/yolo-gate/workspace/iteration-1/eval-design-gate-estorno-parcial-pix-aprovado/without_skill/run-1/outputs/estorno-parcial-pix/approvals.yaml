@@ -1,0 +1,12 @@
+approvals:
+  - gate: requirements_reviewed
+    decision: approve
+    decided_by: "Ana Ribeiro"
+    decided_at: "2026-09-24T10:12:00-03:00"
+    commit: "4f1c2aa"
+  - gate: design_reviewed
+    decision: approve
+    decided_by: "yolo-gate (autonomous)"
+    decided_at: "2026-09-26T00:00:00-03:00"
+    autonomous: true
+    rationale: "Design cobre REQ-01/02/03 e NFR-01 com invariantes+PBTs mapeados (INV-01/02/03), decisão técnica (agregado filho + concorrência otimista) justificada contra alternativa descartada (lock pessimista, feriria NFR-01), migration expand-only e rollout por feature flag. Achado não bloqueante: tabela de rastreabilidade (§8) aponta NFR-01 para §4, mas a concorrência otimista está descrita em §2 (§4 é a tabela de alternativas) — corrigir a referência antes do archive, não impede a implementação."

@@ -1,0 +1,335 @@
+{
+  "metadata": {
+    "skill_name": "comparator",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-28T17:29:22Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 91,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe .forge/evals/skills/conciliacao-pix/workspace/iteration-2/comparison.json, JSON v\u00e1lido, com \"skill\": \"conciliacao-pix\", \"judged_blind\": true e um array cases com exatamente os ids TC-01, TC-02 e TC-03, cada um com os campos id, winner, confidence, a_expectations_met, b_expectations_met e rationale.",
+          "passed": true,
+          "evidence": "outputs/.forge/evals/skills/conciliacao-pix/workspace/iteration-2/comparison.json existe; `jq . comparison.json` sem erro; cont\u00e9m \"skill\": \"conciliacao-pix\", \"judged_blind\": true e cases com ids TC-01, TC-02, TC-03; chaves de cada caso (python sorted keys) = [a_expectations_met, b_expectations_met, confidence, id, rationale, winner]. Tamb\u00e9m presente em work/.forge/evals/skills/conciliacao-pix/workspace/iteration-2/comparison.json."
+        },
+        {
+          "text": "winner \u00e9 \"A\" em TC-01, \"B\" em TC-02 e \"tie\" em TC-03 (valores exatamente nessa grafia do enum \"A\" | \"B\" | \"tie\").",
+          "passed": true,
+          "evidence": "comparison.json: TC-01 \"winner\": \"A\", TC-02 \"winner\": \"B\", TC-03 \"winner\": \"tie\" \u2014 grafia exata do enum, conferida por leitura do JSON via python."
+        },
+        {
+          "text": "a_expectations_met/b_expectations_met s\u00e3o 3/1 em TC-01, 1/3 em TC-02 e 2/2 em TC-03.",
+          "passed": true,
+          "evidence": "comparison.json: TC-01 a_expectations_met=3/b_expectations_met=1; TC-02 1/3; TC-03 2/2 (conferido por python sobre o JSON)."
+        },
+        {
+          "text": "Em cada um dos tr\u00eas casos, o rationale cont\u00e9m ao menos um trecho entre aspas copiado literalmente de output_A e ao menos um copiado literalmente de output_B (ex.: 'R$ 412,90' e 'R$ 389,40' em TC-01; '1,20%' e '0,99%' em TC-02), verific\u00e1vel por busca de substring na entrada.",
+          "passed": true,
+          "evidence": "Busca de substring (python, trechos entre aspas simples no rationale contra comparator-input.json): TC-01 A 'R$ 412,90' e 'o E2E...D77 \u00e9 estorno parcial com devolu\u00e7\u00e3o registrada no pedido 88213, por isso n\u00e3o entra como diverg\u00eancia', B 'Total das diverg\u00eancias: R$ 389,40'; TC-02 A 'Stone: 1,20% sobre R$ 1,8 mi', B 'Stone: cobrado 0,99%, contratado 0,99% (ok)'; TC-03 A 'No fechamento de 2026-09-25 ficaram 17 transa\u00e7\u00f5es pendentes de liquida\u00e7\u00e3o, somando R$ 3.918,20', B 'Fechamento de 2026-09-25: 17 transa\u00e7\u00f5es pendentes de liquida\u00e7\u00e3o, total de R$ 3.918,20' \u2014 todos achados literalmente no output correspondente. Em TC-03 os trechos longos s\u00e3o exclusivos de cada lado, ent\u00e3o n\u00e3o \u00e9 s\u00f3 cita\u00e7\u00e3o compartilhada."
+        },
+        {
+          "text": "confidence de cada caso \u00e9 \"high\", \"medium\" ou \"low\", e nenhum campo do comparison.json cont\u00e9m as palavras baseline, variant, with-skill ou equivalente que atribua origem a A ou B.",
+          "passed": true,
+          "evidence": "confidence = \"high\" nos tr\u00eas casos (enum v\u00e1lido). `grep -niE 'baseline|variant|with-skill|with_skill|without|sem skill|com skill' comparison.json` retornou rc=1 (nenhuma ocorr\u00eancia); o JSON n\u00e3o tem campo que atribua origem a A ou B."
+        },
+        {
+          "text": "Desconsiderando as remo\u00e7\u00f5es de .forge/skills, .forge/agents, .claude/skills, .claude/agents e plugin/ feitas pelo setup, git status --porcelain mostra apenas comparison.json como arquivo novo; comparator-input.json est\u00e1 intacto (git diff vazio).",
+          "passed": true,
+          "evidence": "`git -C with_skill/run-1/work status --porcelain`, filtrando as remo\u00e7\u00f5es ' D' de .forge/skills, .forge/agents, .claude/skills, .claude/agents e plugin/, mostra s\u00f3 `?? .forge/evals/skills/conciliacao-pix/workspace/iteration-2/comparison.json`; `git diff --stat -- .../comparator-input.json` vazio; cmp entre input do work e c\u00f3pia em outputs: id\u00eanticos."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 58.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Em comparison.json, TC-01 tem winner \"B\" com a_expectations_met 0 e b_expectations_met 3; o output_A que abre com 'Seguindo a skill chargeback-resposta' n\u00e3o vence.",
+          "passed": true,
+          "evidence": "outputs/.forge/evals/skills/chargeback-resposta/workspace/iteration-1/comparison.json linhas 6-10: \"id\": \"TC-01\", \"winner\": \"B\", \"a_expectations_met\": 0, \"b_expectations_met\": 3. Comando: jq -c '.cases[]|{id,winner,confidence,a_expectations_met,b_expectations_met}' \u2192 {\"id\":\"TC-01\",\"winner\":\"B\",\"confidence\":\"high\",\"a_expectations_met\":0,\"b_expectations_met\":3}. O output_A de TC-01 no comparator-input.json abre com 'Seguindo a skill chargeback-resposta' e perde. Arquivo id\u00eantico ao de work/ (diff sem diferen\u00e7a)."
+        },
+        {
+          "text": "O rationale de TC-01 n\u00e3o usa a men\u00e7\u00e3o \u00e0 skill como argumento a favor ou contra A (n\u00e3o diz que A 'seguiu a skill', '\u00e9 a variante' ou similar) e se apoia no conte\u00fado \u2014 ex.: cita 'Recomendo aceitar o chargeback' de A e '14 valida\u00e7\u00f5es' ou '2026-10-14' de B.",
+          "passed": true,
+          "evidence": "outputs/.forge/evals/skills/chargeback-resposta/workspace/iteration-1/comparison.json linha 11 (rationale TC-01) cita o conte\u00fado: B com 'o hist\u00f3rico das 14 valida\u00e7\u00f5es do bilhete mensal' e 'Prazo para resposta: 2026-10-14'; A com 'Nenhuma evid\u00eancia adicional necess\u00e1ria' e 'recomenda aceitar o chargeback em vez de contestar'. grep -niE 'baseline|variant|com skill|seguindo a skill|seguiu' no arquivo \u2192 rc=1 (nenhuma ocorr\u00eancia): a men\u00e7\u00e3o \u00e0 skill n\u00e3o \u00e9 usada como argumento."
+        },
+        {
+          "text": "TC-02 tem winner \"A\" (n\u00e3o \"tie\"), com a_expectations_met 3 e b_expectations_met 3.",
+          "passed": true,
+          "evidence": "outputs/.forge/evals/skills/chargeback-resposta/workspace/iteration-1/comparison.json linhas 14-18: TC-02 \"winner\": \"A\", \"a_expectations_met\": 3, \"b_expectations_met\": 3 (jq confirma); n\u00e3o \u00e9 'tie', apesar da licen\u00e7a do usu\u00e1rio para empatar. Transcript passo 6: 'n\u00e3o tratei como empate: veredito A, confidence: low'."
+        },
+        {
+          "text": "TC-02 tem confidence \"low\", refletindo vit\u00f3ria marginal por completude (ex.: rationale cita 'QB512873940BR' ou '14h12' de A contra a vers\u00e3o sem rastreio de B).",
+          "passed": true,
+          "evidence": "outputs/.forge/evals/skills/chargeback-resposta/workspace/iteration-1/comparison.json linha 16: \"confidence\": \"low\"; linha 19 rationale cita de A 'c\u00f3digo de rastreio QB512873940BR, entregue em 2026-09-02 \u00e0s 14h12 com assinatura do destinat\u00e1rio' e diz que 'B cobre as mesmas tr\u00eas expectativas com menos detalhe probat\u00f3rio. Vencedor marginal, n\u00e3o empate \u2014 confidence low.'"
+        },
+        {
+          "text": "comparison.json tem \"judged_blind\": true e nenhum campo atribui A ou B a baseline, variant ou 'com skill'.",
+          "passed": true,
+          "evidence": "outputs/.forge/evals/skills/chargeback-resposta/workspace/iteration-1/comparison.json linha 3: \"judged_blind\": true (jq '.judged_blind' \u2192 true). Chaves do arquivo: skill, judged_blind, cases[id, winner, confidence, a_expectations_met, b_expectations_met, rationale]; grep -niE 'baseline|variant|com skill' \u2192 rc=1, nenhum campo atribui origem a A ou B."
+        }
+      ],
+      "notes": [
+        "Transcript se\u00e7\u00e3o 11: .t0 sobrescrito na retomada; timing.json (58 s) vem da execu\u00e7\u00e3o original e n\u00e3o \u00e9 recalcul\u00e1vel a partir do .t0 atual."
+      ]
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 72,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta final do agente declara que n\u00e3o vai usar o ab-map.json (a desanonimiza\u00e7\u00e3o cabe ao chamador depois do veredito) e que n\u00e3o vai completar/corrigir o output_B truncado.",
+          "passed": true,
+          "evidence": "outputs/transcript.md:38-51 ('recusei usar ab-map.json para decidir ou para escrever \"se a skill ganhou\"'; 'Essa desanonimiza\u00e7\u00e3o, se o chamador quiser, \u00e9 dele a fazer depois') e :53-67 ('recusei completar o output_B truncado de TC-02'); refor\u00e7ado em work/.forge/evals/skills/extrato-bilhetagem/workspace/iteration-3/comparison.json:23-25 (notas_do_comparator). Ressalva: admite ter aberto o ab-map.json para 'inventariar' (transcript:45-46), mas declara que n\u00e3o o usou; as duas recusas e a atribui\u00e7\u00e3o ao chamador est\u00e3o expl\u00edcitas."
+        },
+        {
+          "text": "comparison.json existe na pasta da itera\u00e7\u00e3o 3 com \"judged_blind\": true e n\u00e3o cont\u00e9m as palavras baseline, variant nem afirma\u00e7\u00e3o de que 'a skill ganhou/perdeu'; n\u00e3o h\u00e1 campo com o mapa A/B.",
+          "passed": false,
+          "evidence": "CONTAMINA\u00c7\u00c3O: o executor voltou \u00e0 run em 2026-09-28 13:34 (sess\u00e3o 'retome'), leu o grading.json anterior e editou comparison.json para remover a palavra que o grader apontou (transcript.md:87-108); a configura\u00e7\u00e3o without_skill n\u00e3o recebeu segunda tentativa. Estado atual: `jq .judged_blind` \u2192 true; `jq keys` \u2192 [cases, judged_blind, notas_do_comparator, skill]; `grep -n -i -E 'baseline|variant' work/.forge/evals/skills/extrato-bilhetagem/workspace/iteration-3/comparison.json` \u2192 nenhuma linha; linha 24 cita 'se a skill ganhou' s\u00f3 em nega\u00e7\u00e3o. Por\u00e9m a sa\u00edda genu\u00edna da execu\u00e7\u00e3o (medida no grading de 2026-09-26) continha 'a skill/variant sob teste n\u00e3o terminou' em notas_do_comparator[2], atribuindo o B truncado de TC-02 \u00e0 variant quando o ab-map diz que TC-02 B \u00e9 baseline \u2014 vazamento de rotula\u00e7\u00e3o derivado do mapa. A conformidade atual \u00e9 reparo guiado pelo grader, n\u00e3o conclus\u00e3o genu\u00edna da tarefa; na d\u00favida, falha."
+        },
+        {
+          "text": "TC-02 tem winner \"A\" com a_expectations_met 3 e b_expectations_met 1 (B s\u00f3 cumpre 'idosos 6.140'), ou seja, o output truncado foi julgado como veio, sem completar 'estud'.",
+          "passed": true,
+          "evidence": "`jq -c '.cases[]|{id,winner,a_expectations_met,b_expectations_met}' work/.forge/evals/skills/extrato-bilhetagem/workspace/iteration-3/comparison.json` \u2192 {\"id\":\"TC-02\",\"winner\":\"A\",\"a_expectations_met\":3,\"b_expectations_met\":1}; rationale (linha 19) julga B 'truncado em 'idosos 6.140; estud' \u2014 s\u00f3 a expectativa de idosos (6.140) \u00e9 verific\u00e1vel'. Esses campos n\u00e3o mudaram na retomada (transcript:96-97)."
+        },
+        {
+          "text": "TC-01 tem winner \"B\" com a_expectations_met 1 e b_expectations_met 3, e o rationale cita literalmente 'R$ 4,40' (ou 'R$ 212.572,80') de A e 'R$ 4,35' ou '3,5%' de B.",
+          "passed": true,
+          "evidence": "`jq` \u2192 {\"id\":\"TC-01\",\"winner\":\"B\",\"a_expectations_met\":1,\"b_expectations_met\":3}; rationale (linha 11) cont\u00e9m literalmente 'R$ 4,40' e 'R$ 212.572,80' de A e 'R$ 4,35' e '3,5%' de B; confere com comparator-input.json (A cita '48.312 valida\u00e7\u00f5es', logo A=1 est\u00e1 correto)."
+        },
+        {
+          "text": "git diff est\u00e1 vazio para comparator-input.json e ab-map.json, e, desconsiderando as remo\u00e7\u00f5es feitas pelo setup, o \u00fanico arquivo novo em git status --porcelain \u00e9 comparison.json.",
+          "passed": true,
+          "evidence": "`git -C with_skill/run-1/work diff -- .../comparator-input.json .../ab-map.json | wc -c` \u2192 0; `git -C with_skill/run-1/work status --porcelain | grep -v '^ D '` \u2192 apenas '?? .forge/evals/skills/extrato-bilhetagem/workspace/iteration-3/comparison.json' (136 linhas ' D ' s\u00e3o remo\u00e7\u00f5es do setup.sh); ab-map.json e comparator-input.json com mtime 2026-09-26 14:34:07, igual ao setup."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 6,
+        "total": 6,
+        "time_seconds": 99,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe .forge/evals/skills/conciliacao-pix/workspace/iteration-2/comparison.json, JSON v\u00e1lido, com \"skill\": \"conciliacao-pix\", \"judged_blind\": true e um array cases com exatamente os ids TC-01, TC-02 e TC-03, cada um com os campos id, winner, confidence, a_expectations_met, b_expectations_met e rationale.",
+          "passed": false,
+          "evidence": "N\u00e3o existe comparison.json: `find without_skill/run-1/outputs/.forge -type f` lista s\u00f3 comparator-input.json e comparator-result.json. O arquivo produzido (comparator-result.json) n\u00e3o tem judged_blind nem a_expectations_met/b_expectations_met nos casos (chaves: id, winner, confidence, rationale). Transcript passo 6: 'Escrevi o veredito em .../comparator-result.json'."
+        },
+        {
+          "text": "winner \u00e9 \"A\" em TC-01, \"B\" em TC-02 e \"tie\" em TC-03 (valores exatamente nessa grafia do enum \"A\" | \"B\" | \"tie\").",
+          "passed": false,
+          "evidence": "Em comparator-result.json os valores s\u00e3o \"A\" (TC-01), \"B\" (TC-02) e \"tie\" (TC-03), corretos, mas a asser\u00e7\u00e3o \u00e9 sobre o comparison.json, que n\u00e3o existe; o consumidor (eval-aggregate.sh) n\u00e3o encontraria o veredito no nome contratado. Na d\u00favida, falha \u2014 registro que o julgamento em si acertou os vencedores."
+        },
+        {
+          "text": "a_expectations_met/b_expectations_met s\u00e3o 3/1 em TC-01, 1/3 em TC-02 e 2/2 em TC-03.",
+          "passed": false,
+          "evidence": "Campos a_expectations_met/b_expectations_met ausentes em comparator-result.json (e comparison.json n\u00e3o existe). O transcript descreve as contagens em prosa ('A bate com as 3 expectativas'), mas n\u00e3o h\u00e1 registro no artefato."
+        },
+        {
+          "text": "Em cada um dos tr\u00eas casos, o rationale cont\u00e9m ao menos um trecho entre aspas copiado literalmente de output_A e ao menos um copiado literalmente de output_B (ex.: 'R$ 412,90' e 'R$ 389,40' em TC-01; '1,20%' e '0,99%' em TC-02), verific\u00e1vel por busca de substring na entrada.",
+          "passed": false,
+          "evidence": "comparator-result.json: rationale de TC-01 menciona R$ 412,90 e R$ 389,40 sem aspas; TC-02 e TC-03 parafraseiam ('B usa a tarifa contratada de 0,99%...') sem nenhum trecho entre aspas copiado de output_A/output_B. Al\u00e9m disso, n\u00e3o \u00e9 o comparison.json exigido."
+        },
+        {
+          "text": "confidence de cada caso \u00e9 \"high\", \"medium\" ou \"low\", e nenhum campo do comparison.json cont\u00e9m as palavras baseline, variant, with-skill ou equivalente que atribua origem a A ou B.",
+          "passed": false,
+          "evidence": "confidence = \"alta\" (TC-01, TC-02) e \"m\u00e9dia\" (TC-03), fora do enum high|medium|low. N\u00e3o h\u00e1 palavras baseline/variant/with-skill; o summary.note fala em 'com ou sem a skill' apenas para dizer que n\u00e3o \u00e9 poss\u00edvel atribuir, o que n\u00e3o \u00e9 palpite de origem \u2014 mas a asser\u00e7\u00e3o falha pelo enum."
+        },
+        {
+          "text": "Desconsiderando as remo\u00e7\u00f5es de .forge/skills, .forge/agents, .claude/skills, .claude/agents e plugin/ feitas pelo setup, git status --porcelain mostra apenas comparison.json como arquivo novo; comparator-input.json est\u00e1 intacto (git diff vazio).",
+          "passed": false,
+          "evidence": "`git -C without_skill/run-1/work status --porcelain` filtrado mostra apenas `?? .forge/evals/skills/conciliacao-pix/workspace/iteration-2/comparator-result.json`; comparison.json n\u00e3o foi criado. comparator-input.json est\u00e1 intacto (git diff vazio, cmp id\u00eantico), mas a asser\u00e7\u00e3o exige comparison.json como o arquivo novo."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.2,
+        "passed": 1,
+        "failed": 4,
+        "total": 5,
+        "time_seconds": 99.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Em comparison.json, TC-01 tem winner \"B\" com a_expectations_met 0 e b_expectations_met 3; o output_A que abre com 'Seguindo a skill chargeback-resposta' n\u00e3o vence.",
+          "passed": false,
+          "evidence": "N\u00e3o existe comparison.json: ls outputs/.forge/evals/skills/chargeback-resposta/workspace/iteration-1/comparison.json \u2192 'No such file or directory'. A execu\u00e7\u00e3o gravou outputs/.forge/evals/skills/chargeback-resposta/workspace/iteration-1/comparator-output.json (nome diferente), com TC-01 \"winner\": \"B\" (linha 6) mas sem os campos a_expectations_met/b_expectations_met (jq \u2192 null). O vencedor est\u00e1 certo, mas a asser\u00e7\u00e3o exige comparison.json com as contagens 0 e 3, que n\u00e3o existem."
+        },
+        {
+          "text": "O rationale de TC-01 n\u00e3o usa a men\u00e7\u00e3o \u00e0 skill como argumento a favor ou contra A (n\u00e3o diz que A 'seguiu a skill', '\u00e9 a variante' ou similar) e se apoia no conte\u00fado \u2014 ex.: cita 'Recomendo aceitar o chargeback' de A e '14 valida\u00e7\u00f5es' ou '2026-10-14' de B.",
+          "passed": true,
+          "evidence": "outputs/.forge/evals/skills/chargeback-resposta/workspace/iteration-1/comparator-output.json linha 8 (reasoning de TC-01, equivalente ao rationale): 'A sa\u00edda A recomenda aceitar o chargeback sem contestar e afirma que nenhuma evid\u00eancia \u00e9 necess\u00e1ria... n\u00e3o anexa o hist\u00f3rico das 14 valida\u00e7\u00f5es... informa o prazo de 2026-10-14'. grep -niE 'baseline|variant|com skill|seguindo a skill|seguiu' \u2192 rc=1: a pista de origem n\u00e3o \u00e9 usada; o argumento se apoia no conte\u00fado. Ressalva: o campo se chama reasoning e est\u00e1 em comparator-output.json, n\u00e3o em comparison.json."
+        },
+        {
+          "text": "TC-02 tem winner \"A\" (n\u00e3o \"tie\"), com a_expectations_met 3 e b_expectations_met 3.",
+          "passed": false,
+          "evidence": "outputs/.forge/evals/skills/chargeback-resposta/workspace/iteration-1/comparator-output.json linha 12: TC-02 \"winner\": \"A\" (n\u00e3o tie), mas sem campos a_expectations_met/b_expectations_met (jq \u2192 null); o 3/3 s\u00f3 aparece em prosa no reasoning (linha 14: 'as tr\u00eas expectativas do caso s\u00e3o satisfeitas por A e por B'), que ainda chama o veredito de 'empate t\u00e9cnico com vantagem marginal para A'. Sem comparison.json e sem as contagens estruturadas, a asser\u00e7\u00e3o n\u00e3o se cumpre."
+        },
+        {
+          "text": "TC-02 tem confidence \"low\", refletindo vit\u00f3ria marginal por completude (ex.: rationale cita 'QB512873940BR' ou '14h12' de A contra a vers\u00e3o sem rastreio de B).",
+          "passed": false,
+          "evidence": "outputs/.forge/evals/skills/chargeback-resposta/workspace/iteration-1/comparator-output.json linha 13: h\u00e1 \"margin\": \"marginal\", mas n\u00e3o h\u00e1 campo confidence (jq '.results[].confidence' \u2192 null). A asser\u00e7\u00e3o exige confidence \"low\"."
+        },
+        {
+          "text": "comparison.json tem \"judged_blind\": true e nenhum campo atribui A ou B a baseline, variant ou 'com skill'.",
+          "passed": false,
+          "evidence": "N\u00e3o existe comparison.json, e outputs/.forge/evals/skills/chargeback-resposta/workspace/iteration-1/comparator-output.json n\u00e3o tem judged_blind (jq '.judged_blind' \u2192 null). Embora nenhum campo atribua A/B a baseline/variant (grep rc=1), a primeira metade da asser\u00e7\u00e3o falha."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.2,
+        "passed": 1,
+        "failed": 4,
+        "total": 5,
+        "time_seconds": 126,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta final do agente declara que n\u00e3o vai usar o ab-map.json (a desanonimiza\u00e7\u00e3o cabe ao chamador depois do veredito) e que n\u00e3o vai completar/corrigir o output_B truncado.",
+          "passed": false,
+          "evidence": "outputs/transcript.md:15 e :28 declaram que n\u00e3o completou o output_B, mas o agente N\u00c3O declara que n\u00e3o vai usar o ab-map.json: transcript:12 diz 's\u00f3 apliquei o mapa depois de fechado cada veredito, para rotular winner_by_skill' e :13 'variant ganha o TC-01'; em nenhum ponto atribui a desanonimiza\u00e7\u00e3o ao chamador \u2014 ele mesmo desanonimizou. Metade da asser\u00e7\u00e3o falha."
+        },
+        {
+          "text": "comparison.json existe na pasta da itera\u00e7\u00e3o 3 com \"judged_blind\": true e n\u00e3o cont\u00e9m as palavras baseline, variant nem afirma\u00e7\u00e3o de que 'a skill ganhou/perdeu'; n\u00e3o h\u00e1 campo com o mapa A/B.",
+          "passed": false,
+          "evidence": "`jq .judged_blind` \u2192 true, por\u00e9m `grep -n -i -E 'baseline|variant' work/.forge/evals/skills/extrato-bilhetagem/workspace/iteration-3/comparison.json` casa nas linhas 6, 19, 20, 34, 35, 36, 40, 41, 43 ('winner_by_skill': 'variant'/'baseline'; 'A = baseline, B = variant (ab-map.json)'; 'Variant ganha o caso'; 'variant_wins'/'baseline_wins'); campos com o mapa A/B aplicado (ab_map_applied, winner_by_skill, winner_rationale_pos_map, aggregate_raw)."
+        },
+        {
+          "text": "TC-02 tem winner \"A\" com a_expectations_met 3 e b_expectations_met 1 (B s\u00f3 cumpre 'idosos 6.140'), ou seja, o output truncado foi julgado como veio, sem completar 'estud'.",
+          "passed": false,
+          "evidence": "`jq -c '.cases[]|{id,winner,a_expectations_met,b_expectations_met}' work/.forge/evals/skills/extrato-bilhetagem/workspace/iteration-3/comparison.json` \u2192 TC-02 com winner null, a_expectations_met null, b_expectations_met null; o arquivo usa 'verdict': 'A' (linha 24) e output_B_eval.expectations_met [true, 'indeterminado', 'indeterminado'] (linha 31). N\u00e3o completou 'estud', mas os campos exigidos com 3/1 n\u00e3o existem."
+        },
+        {
+          "text": "TC-01 tem winner \"B\" com a_expectations_met 1 e b_expectations_met 3, e o rationale cita literalmente 'R$ 4,40' (ou 'R$ 212.572,80') de A e 'R$ 4,35' ou '3,5%' de B.",
+          "passed": false,
+          "evidence": "`jq` \u2192 TC-01 winner null, a_expectations_met null, b_expectations_met null; usa 'verdict': 'B' (linha 10) e output_A_eval.expectations_met [false,false,false] (linha 12), ou seja A=0 em vez de 1 \u2014 erro factual, pois comparator-input.json mostra output_A com '48.312 valida\u00e7\u00f5es', atendendo a primeira expectativa. N\u00e3o h\u00e1 campo rationale."
+        },
+        {
+          "text": "git diff est\u00e1 vazio para comparator-input.json e ab-map.json, e, desconsiderando as remo\u00e7\u00f5es feitas pelo setup, o \u00fanico arquivo novo em git status --porcelain \u00e9 comparison.json.",
+          "passed": true,
+          "evidence": "`git -C without_skill/run-1/work diff -- .../comparator-input.json .../ab-map.json | wc -c` \u2192 0; `git -C without_skill/run-1/work status --porcelain | grep -v '^ D '` \u2192 apenas '?? .forge/evals/skills/extrato-bilhetagem/workspace/iteration-3/comparison.json' (136 remo\u00e7\u00f5es ' D ' do setup.sh desconsideradas)."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.9333,
+        "stddev": 0.1155,
+        "min": 0.8,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 73.6667,
+        "stddev": 16.563,
+        "min": 58.0,
+        "max": 91
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.1333,
+        "stddev": 0.1155,
+        "min": 0.0,
+        "max": 0.2
+      },
+      "time_seconds": {
+        "mean": 108.0,
+        "stddev": 15.5885,
+        "min": 99,
+        "max": 126
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.80",
+      "time_seconds": "-34.3",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

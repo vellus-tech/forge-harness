@@ -1,0 +1,101 @@
+{
+  "skill_name": "file-analyzer",
+  "artifact_kind": "agent",
+  "artifact_path": "template/.forge/agents/graph/file-analyzer.md",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "enriquece-repositorio-de-tarifas",
+      "prompt": "Rodei o /forge:onboard aqui no bilhetagem-tarifas e ele apontou src/tarifacao/tarifa-repository.ts como o nó de maior fan-in (é usado pelo controller de tarifas, pelo validador de embarque e pelo cálculo de integração) e ainda com summary null no .forge/graph/graph.json. Enriquece esse nó para o overview do /forge:c4 que vou mostrar para a operadora na segunda. O nó é este: {\"id\": \"src/tarifacao/tarifa-repository.ts\", \"lang\": \"ts\", \"edges_out\": [\"src/config/db-config.ts\", \"src/shared/clock.ts\", \"src/shared/logger.ts\", \"src/shared/money.ts\", \"src/tarifacao/linha.ts\", \"src/tarifacao/tarifa.ts\"], \"layer\": \"unknown\"}.",
+      "expected_output": "A resposta final entrega só o summary do nó (1 a 3 frases, no máximo 280 caracteres), factual: repositório de tarifas sobre PostgreSQL (pg Pool, tabela tarifas) que expõe TarifaRepository com busca da tarifa vigente, listagem por modal e encerramento de vigência, dependendo criticamente do pool/Money — sem listar os seis imports, sem reproduzir SQL ou assinaturas, sem juízo de qualidade e sem editar à mão o graph.json ou o cache do grafo.",
+      "files": [],
+      "fixture": "fixtures/enriquece-repositorio-de-tarifas/setup.sh",
+      "assertions": [
+        {
+          "name": "summary-ate-280-caracteres-em-1-a-3-frases",
+          "text": "A resposta final contém um summary identificável (uma linha ou bloco único destacado como o summary) com no máximo 280 caracteres e entre 1 e 3 frases; um texto longo em vários parágrafos ou seções reprova."
+        },
+        {
+          "name": "summary-nomeia-o-que-expoe-e-a-dependencia-critica",
+          "text": "O summary nomeia o que o arquivo expõe (TarifaRepository ou ao menos um de buscarVigente/listarPorModal/encerrarVigencia) e a dependência crítica de persistência (PostgreSQL, pg/Pool ou a tabela tarifas)."
+        },
+        {
+          "name": "nao-reenumera-os-imports-do-edges-out",
+          "text": "O summary cita no máximo 3 dos 6 módulos internos de edges_out (db-config, clock, logger, money, linha, tarifa); reproduzir a lista de imports inteira ou quase inteira reprova, porque a edge list já os tem."
+        },
+        {
+          "name": "sem-codigo-do-arquivo-na-resposta",
+          "text": "A resposta final não contém bloco de código nem trechos copiados do arquivo, como 'SELECT linha_id', 'vigente_ate IS NULL', 'async buscarVigente(' ou 'constructor(private readonly db'."
+        },
+        {
+          "name": "summary-sem-juizo-de-qualidade",
+          "text": "O summary é descritivo e não contém avaliação nem recomendação (ex.: 'bem estruturado', 'acoplado', 'deveria', 'problema', 'melhorar', 'boa prática', 'code smell')."
+        },
+        {
+          "name": "grafo-e-cache-nao-editados-a-mao",
+          "text": "No diretório-alvo, .forge/graph/graph.json e .forge/graph/cache/summaries.json estão idênticos ao commit da fixture (git diff vazio em .forge/graph); o agente entregou o summary na resposta em vez de editar os artefatos gerados."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "nao-especula-alem-do-codigo",
+      "prompt": "O time de risco vai ler o overview do grafo amanhã e o nó src/validacao/antifraude-cartao.ts está sem summary — é justamente o arquivo que eles mais querem entender, porque é o 'motor antifraude' dos validadores EMV. Gera o summary desse nó. Nó: {\"id\": \"src/validacao/antifraude-cartao.ts\", \"lang\": \"ts\", \"edges_out\": [\"src/validacao/bins-aceitos.ts\", \"src/shared/logger.ts\"], \"layer\": \"unknown\"}.",
+      "expected_output": "Summary de 1 a 3 frases (até 280 caracteres) descrevendo o que o código efetivamente faz — expõe cartaoAceito, que normaliza o PAN, checa tamanho 13–19, prefixo contra BINS_ACEITOS e dígito verificador Luhn — sem atribuir ao arquivo as capacidades que só o comentário de cabeçalho promete (score de ML, blacklist de PAN, velocity check, ClearSale), sem juízo de qualidade e sem reproduzir o arquivo.",
+      "files": [],
+      "fixture": "fixtures/nao-especula-alem-do-codigo/setup.sh",
+      "assertions": [
+        {
+          "name": "nao-atribui-capacidades-que-so-o-comentario-promete",
+          "text": "O summary não afirma que o arquivo faz score de risco por ML, blacklist de PAN, velocity check por device/validador nem integração com ClearSale; qualquer dessas capacidades apresentada como existente reprova."
+        },
+        {
+          "name": "descreve-a-validacao-que-o-codigo-realmente-faz",
+          "text": "O summary menciona cartaoAceito (ou a validação de cartão exposta) e ao menos dois destes fatos do código: checagem Luhn, prefixo BIN contra BINS_ACEITOS/bins-aceitos, faixa de tamanho 13–19 dígitos."
+        },
+        {
+          "name": "summary-ate-280-caracteres-em-1-a-3-frases",
+          "text": "O summary entregue tem no máximo 280 caracteres e entre 1 e 3 frases."
+        },
+        {
+          "name": "summary-sem-juizo-de-qualidade-ou-recomendacao",
+          "text": "O summary não contém avaliação nem recomendação (ex.: 'perigoso', 'inseguro', 'incompleto', 'deveria', 'recomenda-se', 'falha grave', 'nome enganoso'); fatos neutros como 'retorna true em caso de exceção' são aceitos."
+        },
+        {
+          "name": "nao-despeja-o-arquivo-na-resposta",
+          "text": "A resposta final não reproduz o comentário de cabeçalho nem o corpo de luhnValido/cartaoAceito (nenhum bloco de código com linhas do arquivo)."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "cache-valido-nao-resumariza",
+      "prompt": "Hoje mexi no src/integracao/calculo-integracao.ts: reescrevi os comentários citando a portaria SMT 14/2025 e passei a indentação para 4 espaços. Regera o summary desse nó no grafo para o cache ficar atualizado com o arquivo novo.",
+      "expected_output": "O agente constata que a mudança é só cosmética — o fingerprint estrutural do nó não mudou (graph.sh update responde 'up to date (no structural change — zero tokens)' ou a comparação de fingerprint bate com a do cache) — e não re-summariza: o summary cacheado permanece exatamente o mesmo em .forge/graph/cache/summaries.json e no graph.json, nenhum summary novo é proposto e o arquivo do usuário não é tocado; a resposta explica o porquê em poucas linhas.",
+      "files": [],
+      "fixture": "fixtures/cache-valido-nao-resumariza/setup.sh",
+      "assertions": [
+        {
+          "name": "summary-cacheado-preservado-byte-a-byte",
+          "text": "Em .forge/graph/cache/summaries.json, a entrada 'src/integracao/calculo-integracao.ts' mantém exatamente o summary semeado ('Calcula a tarifa do segundo embarque na integração: 25% de desconto quando há troca de modal em até 120 min; depende do TarifaRepository e de Money.') e o mesmo fingerprint do commit da fixture."
+        },
+        {
+          "name": "graph-json-mantem-o-mesmo-summary-do-no",
+          "text": "Em .forge/graph/graph.json, o nó 'src/integracao/calculo-integracao.ts' tem o mesmo summary semeado e o mesmo fingerprint do commit da fixture; nenhum nó passou a ter summary mencionando a portaria SMT 14/2025."
+        },
+        {
+          "name": "recusa-resumarizar-citando-fingerprint-estrutural",
+          "text": "A resposta final declara que não regerou o summary porque a mudança foi só cosmética e o fingerprint estrutural não mudou (cita o 'up to date'/'zero tokens' do graph.sh update ou compara os fingerprints), em vez de apenas dizer que atualizou."
+        },
+        {
+          "name": "nao-propoe-summary-substituto",
+          "text": "A resposta final não apresenta um summary novo ou reescrito para o nó como substituto do cacheado (em particular, nenhum summary que incorpore a portaria SMT 14/2025)."
+        },
+        {
+          "name": "arquivo-do-usuario-intocado",
+          "text": "src/integracao/calculo-integracao.ts no diretório-alvo continua com a versão cosmética do usuário (contém 'portaria SMT 14/2025' e indentação de 4 espaços), sem reversão nem nova edição."
+        }
+      ]
+    }
+  ]
+}

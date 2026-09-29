@@ -1,0 +1,46 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta recusa ou desaconselha particionar gold.viagens por dia e operadora e justifica com o limiar do Databricks de não particionar tabelas abaixo de 1 TB (menção explícita a 1 TB)",
+      "passed": true,
+      "evidence": "recomendacao.md, 'Resposta direta': 'Não troque PARTITIONED BY (operadora_id, linha_id) por PARTITIONED BY (data_validacao, operadora_id)... O limiar do Databricks é não particionar abaixo de 1 TB' — recusa explícita com menção literal a 1 TB e ao tamanho de ~50 GB."
+    },
+    {
+      "text": "A resposta propõe liquid clustering (CLUSTER BY) com validado_em (ou coluna de data derivada dela) e operadora_id, e mostra o DDL ou ALTER TABLE correspondente na resposta",
+      "passed": true,
+      "evidence": "recomendacao.md, item 1 de 'O que resolve': 'CREATE TABLE gold.viagens (...) USING DELTA CLUSTER BY (validado_em, operadora_id)' e 'ALTER TABLE gold.viagens CLUSTER BY (validado_em, operadora_id)' — liquid clustering nas duas colunas de filtro, com DDL/ALTER na resposta (o CREATE abrevia as colunas com '(...)', mas a cláusula CLUSTER BY está completa)."
+    },
+    {
+      "text": "A resposta aponta o `PARTITIONED BY (operadora_id, linha_id)` existente como A-06 (partição estilo Hive manual) citando lakehouse/gold/viagens.sql:13",
+      "passed": true,
+      "evidence": "recomendacao.md: 'PARTITIONED BY no DDL já é particionamento Hive declarado à mão (A-06): o scanner confirmou o achado na linha atual (lakehouse/gold/viagens.sql:13)'; checklist repete 'A-06 encontrado (scan.sh, lakehouse/gold/viagens.sql:13)'. Conferido no fixture: linha 13 é 'PARTITIONED BY (operadora_id, linha_id);'."
+    },
+    {
+      "text": "Sobre services/validador, a resposta diz que a varredura analítica não examinou nenhum arquivo do domínio (NADA-EXAMINADO / sem .sql ou .yml) e NÃO afirma que o serviço está limpo, sem achados ou aprovado",
+      "passed": false,
+      "evidence": "O scan.sh nunca foi rodado só sobre services/validador: o transcript mostra uma única varredura com '--root lakehouse/gold/viagens.sql --root services/validador', que dá 'ARQUIVOS-VARRIDOS 1' e FOUND A-06, logo nunca aparece NADA-EXAMINADO para o serviço. A resposta não diz que a varredura analítica não examinou arquivo do domínio (sem .sql/.yml); ao contrário, afirma 'Não há achado de particionamento/path a reportar em services/validador — nada a examinar além do stub' e o transcript registra 'Sem achado de governança em services/validador', formulação que equivale a 'sem achados' baseada em leitura manual, não no reconhecimento de universo vazio do detector."
+    },
+    {
+      "text": "A resposta informa que o check-data-governance não verificou PAN/PII em lakehouse/gold (universo vazio), em vez de omitir o resultado ou tratá-lo como aprovação",
+      "passed": false,
+      "evidence": "O transcript (seção 3) registra 'FAIL data-governance/universo-vazio — 0 arquivo(s) examinado(s)' e interpreta como 'não verificado', mas a resposta ao usuário (recomendacao.md) omite esse resultado: o item 'Dado pessoal' do checklist diz apenas 'Não verificado contra classificação formal' referindo-se à ausência de data-classification.json e conclui por leitura das colunas ('cartao_sk é chave substituta... não PAN/CPF em claro'), sem informar que o check-data-governance não examinou nenhum arquivo em lakehouse/gold. Além disso o check foi rodado em --path lakehouse/gold/viagens.sql, não no diretório lakehouse/gold."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 2,
+    "total": 5,
+    "pass_rate": 0.6
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "nada-examinado-nao-e-limpo",
+        "reason": "Cenário depende de o agente rodar scan.sh com --root services/validador isolado; quando o agente junta as duas raízes numa única chamada, o NADA-EXAMINADO nunca aparece. Vale explicitar no protocolo do agente uma chamada por path, ou afrouxar a asserção para 'reconhece que não há arquivo do domínio analítico'."
+      },
+      {
+        "reason": "Nenhuma asserção verifica 'Nenhum arquivo é alterado' do expected_output; o baseline gerou DDL de reparticionamento em outputs/ (não na árvore). git status do work/ está limpo nas duas configurações — conferido pelo grader."
+      }
+    ]
+  }
+}

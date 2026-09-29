@@ -1,0 +1,96 @@
+{
+  "skill_name": "data-relational-practices",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "revisao-migracoes-tarifas-config",
+      "prompt": "A V002 do serviço tarifas-config (services/tarifas-config/migrations/V002__integracao_e_parametros.sql) sobe no deploy de quinta com o serviço no ar, e junto vai a mudança no repositório src/repositorios/tarifas_repo.ts. Faz uma revisão de banco do serviço antes do deploy — migrações e acesso a dados — e grava o parecer em docs/revisao-banco-tarifas.md. Não mexe nos arquivos, só quero o diagnóstico com o que mudar e o SQL corrigido.",
+      "expected_output": "O agente lê as rules do projeto (data-governance.md, data-config-sql.md, money-as-cents.md), roda a varredura relacional só sobre services/tarifas-config (não varre services/recargas-api) e grava docs/revisao-banco-tarifas.md com uma linha por regra do catálogo, inclusive as limpas, citando ids e arquivo:linha: R-03 em V002:3 (índice sem CONCURRENTLY numa tabela de ~40 milhões de linhas), V002:4 (rename in-place), V002:5 (troca de tipo) e V002:7 (SET NOT NULL sem CHECK NOT VALID/VALIDATE); R-21 (sem lock_timeout); R-19 em V002:2 (valor_integracao numeric(10,2)), com BIGINT NOT NULL em centavos e a observação de que a money-as-cents.md não declara applies_to para esta stack/SQL e a extensão é recomendação da própria skill (decisão H-03); R-20 em V002:11 (parametros_operador multi-tenant sem RLS), com ENABLE e FORCE ROW LEVEL SECURITY, policy por tenant_id e papel da aplicação sem BYPASSRLS; R-04 em V002:10 e V002:15 (serial, timestamp sem fuso); R-01 para operador_id REFERENCES operadores sem índice; R-12 em tarifas_repo.ts:9 (set_config(..., false) vaza o tenant pelo pool) com correção set_config(..., true) ou SET LOCAL dentro de transação; R-06 e R-14 em tarifas_repo.ts:11. Descarta como falso positivo o FOUND de R-19 em V001:9 (fator_tarifa é multiplicador, não dinheiro). A correção das migrações segue expand → migrate → contract com backfill em lotes.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "r03-com-id-e-arquivo-linha",
+          "text": "docs/revisao-banco-tarifas.md classifica como R-03 (id do catálogo, não só descrição) os quatro pontos bloqueantes da V002 com localização arquivo:linha: CREATE INDEX sem CONCURRENTLY (V002…:3), RENAME COLUMN (:4), ALTER COLUMN ... TYPE (:5) e SET NOT NULL (:7); e a correção do SET NOT NULL passa por CHECK (... IS NOT NULL) NOT VALID + VALIDATE CONSTRAINT, a do rename/tipo por coluna nova + backfill (expand → migrate → contract)"
+        },
+        {
+          "name": "dinheiro-bigint-com-extensao-declarada",
+          "text": "O parecer aponta valor_integracao numeric(10,2) (V002:2) como R-19, recomenda BIGINT NOT NULL na menor unidade (centavos) e diz explicitamente que a rule money-as-cents.md tem applies_to restrito (.NET/React/Kotlin) e que aplicá-la a este serviço Node/TypeScript e ao *.sql é extensão da própria skill/decisão do dono, não da rule; recomendar só 'usar numeric com mais casas' ou omitir a observação do applies_to não conta"
+        },
+        {
+          "name": "rls-enable-force-na-tabela-nova",
+          "text": "O parecer aponta parametros_operador (V002, tenant_id na linha 11) como R-20, trata RLS como obrigatório pela data-governance.md (não como sugestão) e a correção inclui ENABLE ROW LEVEL SECURITY e FORCE ROW LEVEL SECURITY, CREATE POLICY por tenant_id e papel da aplicação que não é dono da tabela / sem BYPASSRLS; oferecer índice com tenant_id como alternativa ao RLS reprova"
+        },
+        {
+          "name": "tenant-vaza-pelo-pool",
+          "text": "O parecer aponta tarifas_repo.ts:9 como R-12, explicando que set_config('app.tenant_id', $1, false) grava o tenant na sessão e o pool do node-postgres devolve a conexão com o tenant ainda setado (a RLS da próxima requisição lê o tenant errado), e prescreve set_config(..., true) ou SET LOCAL dentro de uma transação explícita"
+        },
+        {
+          "name": "fator-tarifa-nao-e-dinheiro",
+          "text": "O parecer NÃO recomenda converter fator_tarifa numeric(6,4) (V001:9) nem taxa_desconto_percentual para BIGINT em centavos: ou os trata explicitamente como decimal exato não monetário / falso positivo da varredura, ou não os menciona como problema de dinheiro"
+        },
+        {
+          "name": "escopo-e-linha-por-regra",
+          "text": "O parecer tem uma entrada por regra examinada com status explícito (achado, OK/limpo ou não verificado pela varredura estática), inclui R-01 para a FK operador_id sem índice, e não traz achado de services/recargas-api (outro serviço, fora do escopo pedido)"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "validador-legado-mysql",
+      "prompt": "O validador-legado roda em MySQL 8.4, não em Postgres (contexto em services/validador-legado/docs/banco.md). Tenho duas migrations novas em services/validador-legado/db/migrations — o índice por linha e data e a troca do tipo do cartao_uid — e mexi no retry de deadlock do ValidacaoRepository.kt. Revisa tudo antes de eu subir e escreve o parecer em docs/parecer-validador.md, com o SQL e o trecho de retry corrigidos.",
+      "expected_output": "O agente reconhece o dialeto MySQL e não aplica receita de PostgreSQL. Classifica o índice novo (20260930_idx_linha_data.sql:2) como R-22, não como R-03, e prescreve ALGORITHM=INPLACE, LOCK=NONE explícitos, sem CREATE INDEX CONCURRENTLY. Aponta ALGORITHM=COPY, LOCK=SHARED (20260930_cartao_uid_varchar.sql:2) como R-13 numa tabela de ~180 milhões de linhas com escrita contínua, corrigindo com coluna nova + backfill em lotes (expand → migrate → contract) ou ferramenta de schema change online (gh-ost, pt-online-schema-change). No retry, aponta R-11: no MySQL o 1205 é lock wait timeout (desfaz só a instrução por padrão) e o deadlock é 1213, que desfaz a transação inteira; o retry tem de incluir 1213 e reexecutar a transação toda, não só a última instrução. Corrige a premissa de docs/banco.md: o default do InnoDB é REPEATABLE READ. Não acusa a migração já aplicada 20260815_idx_dispositivo.sql, que tem ALGORITHM=INPLACE, LOCK=NONE.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "indice-mysql-e-r22-com-algorithm-lock",
+          "text": "docs/parecer-validador.md classifica o ADD INDEX de 20260930_idx_linha_data.sql como R-22 (id citado) e o SQL corrigido desse arquivo contém ALGORITHM=INPLACE e LOCK=NONE explícitos; o parecer não prescreve CREATE INDEX CONCURRENTLY para esse arquivo nem o classifica como R-03"
+        },
+        {
+          "name": "copy-forcado-r13-com-expand-contract",
+          "text": "O parecer aponta ALGORITHM=COPY, LOCK=SHARED de 20260930_cartao_uid_varchar.sql:2 como R-13 e a correção é coluna nova com backfill em lotes e troca de leitura (expand → migrate → contract) ou ferramenta online (gh-ost ou pt-online-schema-change); apenas apagar a cláusula ALGORITHM/LOCK e manter o MODIFY COLUMN não conta"
+        },
+        {
+          "name": "retry-1213-transacao-inteira",
+          "text": "O parecer afirma que no MySQL o código 1205 é lock wait timeout e o deadlock é 1213, e o trecho de retry corrigido de ValidacaoRepository.kt trata 1213 e reexecuta a transação inteira (rollback e novo laço sobre todas as validações), não só a última instrução"
+        },
+        {
+          "name": "innodb-default-repeatable-read",
+          "text": "O parecer corrige a afirmação de docs/banco.md: o nível de isolamento default do InnoDB é REPEATABLE READ, não READ COMMITTED, e alerta contra portar a suposição do PostgreSQL para o MySQL"
+        },
+        {
+          "name": "sem-falso-positivo-no-que-esta-certo",
+          "text": "O parecer não aponta 20260815_idx_dispositivo.sql (que já tem ALGORITHM=INPLACE, LOCK=NONE) como R-22/R-03 nem como problema a corrigir, e não trata o CHAR(14) do comentário da linha 1 de 20260930_cartao_uid_varchar.sql como achado R-04"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "pedidos-pagamentos-sem-adr",
+      "prompt": "Cria a migration services/recargas/db/migrations/V003__pedidos_pagamentos.sql com as tabelas de pedido de recarga, itens do pedido e pagamento (valor, status, gateway, NSU, data). O serviço já usa Postgres para os parâmetros (ADR-0001), então aproveita o mesmo banco e segue o padrão das migrations que já existem. Pode criar o arquivo direto.",
+      "expected_output": "O agente reconhece que pedido e pagamento são transacional de negócio e que a rules/data/data-governance.md atribui isso ao MongoDB; o ADR-0001 escolhe PostgreSQL só para parâmetros tarifários e declara pedidos e pagamentos fora do escopo, então não há ADR que escolha SQL para o transacional. Em vez de criar o DDL, para e devolve o bloco CONFLITO (decisão; posição A com a data-governance.md; posição B com o pedido/skill; precedência pela ordem do FORGE.md; opções aplicar a fonte de maior autoridade, abrir ADR ou bloquear), não cria V003__pedidos_pagamentos.sql, não escreve ADR nem altera rule por conta própria e pede a decisão humana. Se mostrar DDL ilustrativo, ele vem condicionado a um ADR que escolha SQL e com dinheiro em BIGINT na menor unidade.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "bloco-conflito-com-data-governance",
+          "text": "A resposta final traz um bloco CONFLITO (a palavra CONFLITO seguida de decisão, posição A, posição B, precedência e opções) em que a posição A cita .forge/rules/data/data-governance.md com transacional de negócio → MongoDB, e as opções incluem abrir/atualizar ADR e bloquear"
+        },
+        {
+          "name": "adr-0001-nao-autoriza",
+          "text": "A resposta afirma que o ADR-0001 cobre apenas parâmetros tarifários (e declara pedidos/pagamentos fora do escopo), portanto não é o ADR que escolhe SQL para o transacional de negócio; usar o ADR-0001 como autorização para criar as tabelas reprova"
+        },
+        {
+          "name": "migration-nao-criada",
+          "text": "Ao fim da execução não existe services/recargas/db/migrations/V003__pedidos_pagamentos.sql nem outro arquivo .sql novo com CREATE TABLE de pedido ou pagamento na árvore do alvo"
+        },
+        {
+          "name": "decisao-fica-com-humano",
+          "text": "O agente não cria ADR novo em .forge/product/current/adr/, não edita .forge/rules/data/data-governance.md nem grava approvals.yaml; a resposta pede ao usuário a decisão entre as opções do bloco"
+        },
+        {
+          "name": "ddl-ilustrativo-condicionado-e-em-centavos",
+          "text": "Se a resposta mostrar qualquer DDL de pedido/pagamento, ele é apresentado explicitamente como condicionado a um ADR que escolha SQL (não como recomendação de trocar o store) e as colunas de valor são BIGINT na menor unidade (nenhum NUMERIC/DECIMAL/money); se não mostrar DDL, a asserção passa"
+        }
+      ]
+    }
+  ]
+}

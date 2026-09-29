@@ -1,0 +1,66 @@
+/* rotaviva-ui-components: primitivos e blocos, sobre os tokens de @rotaviva/design-tokens.
+   Anatomia de botão/input/badge/card replicada de design-handoff/rotaviva-design-system/project/preview/*.html. */
+@import '@rotaviva/design-tokens/css';
+
+/* primitivos: Button */
+.btn { font-family: var(--font-ui); font-size: var(--fs-16); padding: var(--s-3) var(--s-6); border-radius: var(--r-pill); border: 0; transition: transform var(--dur-fast) var(--ease-out); cursor: pointer; }
+.btn:active { transform: scale(0.96); }
+.btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn.primary { background: var(--brand); color: var(--n-0); }
+.btn.secondary { background: var(--brand-soft); color: var(--n-900); }
+.btn.ghost { background: transparent; color: var(--n-700); }
+.btn.danger { background: var(--danger); color: var(--n-0); }
+.btn.sm { padding: var(--s-2) var(--s-4); font-size: var(--fs-14); }
+.btn.icon-only { padding: var(--s-2); border-radius: var(--r-md); background: transparent; color: var(--n-700); }
+
+/* primitivos: Input */
+.field { display: flex; flex-direction: column; gap: var(--s-1); font-family: var(--font-ui); }
+.field .label { font-size: var(--fs-14); color: var(--fg); }
+.input { height: 48px; padding: 0 var(--s-4); border: 1px solid var(--n-300); border-radius: var(--r-md); font-family: var(--font-ui); font-size: var(--fs-16); }
+.input:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.input[aria-invalid='true'] { border-color: var(--danger); }
+.hint { font-size: var(--fs-12); color: var(--fg-muted); }
+.hint.error { color: var(--danger); }
+
+/* primitivos: Badge */
+.badge { font-size: var(--fs-12); padding: var(--s-1) var(--s-2); border-radius: var(--r-pill); font-family: var(--font-ui); }
+.badge.success { background: #e6f4ea; color: var(--success); }
+.badge.warning { background: #fff4e0; color: var(--warning); }
+.badge.neutral { background: var(--n-100); color: var(--n-700); }
+
+/* primitivos: Card */
+.card { background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-1); padding: var(--s-6); }
+.eyebrow { font-family: var(--font-ui); font-size: var(--fs-12); letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-muted); }
+
+/* blocos: AppHeader */
+.app-header { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-4) var(--s-4); font-family: var(--font-ui); }
+.app-header img { height: 28px; width: auto; }
+.app-header span { flex: 1; font-size: var(--fs-16); color: var(--fg); }
+
+/* blocos: BalanceCard */
+.balance-card h2 { font-family: var(--font-display); font-size: var(--fs-28); margin: var(--s-1) 0; color: var(--fg); }
+.balance-card small { color: var(--fg-muted); }
+
+/* blocos: TripRow */
+.trip-row { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-3) 0; font-family: var(--font-ui); list-style: none; border-bottom: 1px solid var(--n-100); }
+.trip-row .icon { color: var(--fg-muted); flex-shrink: 0; }
+.trip-row strong { display: block; font-size: var(--fs-14); color: var(--fg); }
+.trip-row small { color: var(--fg-muted); font-size: var(--fs-12); }
+.trip-row > span:nth-last-child(2) { margin-left: auto; font-size: var(--fs-14); color: var(--fg); }
+
+/* blocos: ShortcutGrid */
+.shortcut-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-3); }
+.shortcut-grid button { display: flex; flex-direction: column; align-items: center; gap: var(--s-1); background: var(--surface-muted); border: 0; border-radius: var(--r-md); padding: var(--s-3); font-family: var(--font-ui); font-size: var(--fs-12); color: var(--fg); cursor: pointer; }
+.shortcut-grid button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+/* blocos: BottomNav */
+.bottom-nav { display: flex; justify-content: space-around; padding: var(--s-3) var(--s-2); border-top: 1px solid var(--n-100); font-family: var(--font-ui); font-size: var(--fs-12); }
+.bottom-nav a { color: var(--fg-muted); cursor: pointer; }
+.bottom-nav a[aria-current='page'] { color: var(--brand); font-weight: 600; }
+.bottom-nav a:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+/* telas */
+.screen { max-width: 420px; margin: 0 auto; padding: var(--s-4); display: flex; flex-direction: column; gap: var(--s-6); font-family: var(--font-ui); background: var(--surface-muted); min-height: 100vh; box-sizing: border-box; }
+.screen h1 { font-family: var(--font-display); font-size: var(--fs-20); color: var(--fg); margin: 0; }
+.trip-list { display: flex; flex-direction: column; gap: 0; padding: 0; margin: 0; }

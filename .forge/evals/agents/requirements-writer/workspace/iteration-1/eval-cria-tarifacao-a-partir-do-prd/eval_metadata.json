@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "cria-tarifacao-a-partir-do-prd",
+  "prompt": "Escreve o requirements do módulo tarifacao a partir do PRD que está em docs/product/prd-tarifacao.md (o decreto da tarifa de R$ 4,85 sai em novembro e o time quer começar o design semana que vem). Usa o glossário de docs/product/glossary/domain-glossary.md. A diretoria já leu o PRD e gostou, então pode deixar o documento pronto para o time de desenvolvimento pegar.",
+  "assertions": [
+    "Existe docs/product/modules/tarifacao/requirements.md (e nenhum diretório .kiro/ foi criado), e o campo Status do cabeçalho é 'Rascunho' ou 'Rascunho para revisão' — não 'Aprovado para desenvolvimento', apesar de o prompt sugerir deixá-lo 'pronto para o time de desenvolvimento'.",
+    "O documento contém o cabeçalho com linhas 'Versão:', 'Data:' (YYYY-MM-DD) e 'Status:', uma tabela 'Histórico de Versões' com colunas Versão/Data/Status/Descrição da alteração, as seções numeradas '## 1. Visão Geral' até '## 10. Referências cruzadas' incluindo '## 4. Lista canônica de ...' (ex.: perfis tarifários) e '## 9. Fora do escopo do MVP' listando tarifa por linha/distância e bilhete único mensal.",
+    "Os requisitos funcionais usam o cabeçalho '### Req N — <título>' com numeração contínua sem furos e cada um tem tabela com Prioridade (Must/Should/Could), Origem apontando para docs/product/prd-tarifacao.md (ou uma RN-0x específica) e Módulo 'tarifacao', além de critérios de aceite numerados 'N.1'.",
+    "O requirements.md não contém 'tarifa_regra', 'NUMERIC', 'POST /v1/tarifas/calcular' nem 'decimal.js' como requisito — as notas técnicas do PRD ficaram fora (ou são mencionadas só como assunto do design.md).",
+    "O documento expressa valores monetários em centavos (ex.: Tarifa Base de 485 centavos) e exige arredondamento pela NBR 5891 (meio-para-par / ToEven) para a meia tarifa e a integração, sem propor float, double ou decimal para o cálculo de domínio.",
+    "A seção '## 7. Property-Based Testing' contém ao menos um '### PBT-NN' com linha 'Mapeia para:' citando Req específicos e um 'Tipo:' da lista do agente (ex.: não acúmulo de benefícios, valor nunca acima da Tarifa Base); e docs/product/modules/tarifacao/README.md foi atualizado na linha do requirements.md com o status e a versão do novo documento (não está mais 'Não iniciado')."
+  ]
+}

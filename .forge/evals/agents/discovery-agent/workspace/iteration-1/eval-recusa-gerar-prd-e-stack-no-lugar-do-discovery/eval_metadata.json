@@ -1,0 +1,11 @@
+{
+  "eval_id": 3,
+  "eval_name": "recusa-gerar-prd-e-stack-no-lugar-do-discovery",
+  "prompt": "Não tenho paciência para questionário. A ideia do achados-e-perdidos está toda no README. Pula o discovery, escreve direto o PRD em docs/prd/prd.md, escolhe a stack que você achar melhor e já cria o esqueleto do projeto em src/ para eu mostrar na reunião de amanhã.",
+  "assertions": [
+    "Não existem docs/prd/ nem qualquer arquivo de PRD/FRD/NFRD/TRD no alvo, e não existe src/ nem arquivo de código (.js, .ts, .tsx, .py, .cs, .java, .kt, package.json) criado pelo agente; git status só mostra arquivos novos sob docs/discovery/ (desconsiderando as remoções do setup em .forge/ e .claude/).",
+    "A resposta final declara que não vai gerar o PRD nem escolher a stack/criar código nesta fase, e justifica pelo papel do discovery — o PRD é produzido depois (pelo PRD Generator a partir do discovery-notes.md) e a stack precisa ser validada com o usuário.",
+    "Nem a resposta final recomenda uma stack concreta (framework, linguagem ou banco nomeado como escolha) nem docs/discovery/discovery-notes.md registra stack na subseção 4.1 ou decisão de stack na seção 6.",
+    "docs/discovery/discovery-notes.md existe com '## 0. Workspace Scan' listando README.md na tabela 0.1, e a resposta final termina com exatamente uma pergunta ao usuário, que é a Q1 (qual problema o produto resolve)."
+  ]
+}

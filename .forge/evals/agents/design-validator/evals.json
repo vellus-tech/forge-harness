@@ -1,0 +1,101 @@
+{
+  "skill_name": "design-validator",
+  "artifact_kind": "agent",
+  "artifact_path": "template/.forge/agents/specifications/design-validator.md",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "valida-design-carteira-com-violacoes",
+      "prompt": "O design-writer terminou a v0.3.0 do design da Carteira (docs/product/modules/carteira/design.md) em cima do requirements v1.2.0 que já está aprovado. Antes de eu mandar o tasks-writer quebrar isso em tasks para a sprint, faz a revisão arquitetural do design contra o requirements, os ADRs em docs/product/adr e as rules. Se forem só ajustes pequenos, já corrige direto no design.md para a gente não perder um ciclo; o que for maior me aponta. Preciso saber se dá para seguir para tasks.",
+      "expected_output": "O agente responde no formato obrigatório ('# Validação do design.md', Resultado com Status e totais por severidade, Veredito, Achados com IDs [SEVERIDADE-NN] e campos Local/Problema/Impacto/Correção recomendada, Matriz de Rastreabilidade, Checks Executados, Recomendações para o design-writer e Decisão para o Pipeline). Emite Reprovado com BLOCKERs para o Domain dependendo do EF Core (using Microsoft.EntityFrameworkCore, [Table], DbSet no aggregate, contra ADR-0001 e ainda legitimado pela DD-001), para saldo/valor em double/FLOAT (contra ADR-0002) e para o REQ-04 (bloqueio por perda/roubo) sem contraparte técnica; aponta PBT-01/PBT-02 ignorados e o evento carteira.debitada sem versão/correlation_id e o consumidor sem idempotência. Decide que não pode seguir para tasks.md e que requer nova execução do design-writer. Não edita o design.md, mesmo com o pedido de corrigir ajustes pequenos: o validador audita e recomenda, não reescreve.",
+      "files": [],
+      "fixture": "fixtures/valida-design-carteira-com-violacoes/setup.sh",
+      "assertions": [
+        {
+          "name": "formato-contratual-com-status-reprovado",
+          "text": "A resposta final (ou o relatório salvo em outputs/) começa com o título '# Validação do design.md', contém a seção '## Resultado' com a linha 'Status: Reprovado' (não 'Aprovado' nem 'Aprovado com ressalvas') e as quatro linhas de total 'Total de achados BLOCKER/HIGH/MEDIUM/LOW: N', com o total de BLOCKER maior ou igual a 1."
+        },
+        {
+          "name": "domain-acoplado-ao-ef-core-como-blocker",
+          "text": "Há um achado com cabeçalho no formato '[BLOCKER-NN]' apontando que o aggregate Carteira em CRT.Domain depende do EF Core (using Microsoft.EntityFrameworkCore, [Table]/[Key] ou DbSet) como violação da regra de dependência do Domain, citando ADR-0001 ou Clean Architecture, e o achado tem os campos Local, Problema, Impacto e Correção recomendada."
+        },
+        {
+          "name": "dinheiro-em-ponto-flutuante-como-blocker-com-adr-0002",
+          "text": "Há um achado de severidade BLOCKER (não HIGH/MEDIUM) apontando saldo/valor como double no domínio e/ou FLOAT nas tabelas carteira/movimentacao, citando ADR-0002 ou a proibição de dinheiro em float/double, com correção recomendando centavos inteiros (Money/long/BIGINT)."
+        },
+        {
+          "name": "matriz-marca-req04-e-pbts-como-falhou",
+          "text": "A resposta contém a seção 'Matriz de Rastreabilidade' em tabela com colunas Requirement / Contraparte no Design / Status, na qual a linha de REQ-04 (bloqueio por perda ou roubo) tem Status 'Falhou' e ao menos uma linha de PBT-01 ou PBT-02 tem Status 'Falhou'."
+        },
+        {
+          "name": "decisao-para-o-pipeline-bloqueia-tasks",
+          "text": "A resposta contém a seção 'Decisão para o Pipeline' com 'Pode seguir para `tasks.md`: Não' e 'Requer nova execução do `design-writer`: Sim' (com ou sem crases no nome do arquivo)."
+        },
+        {
+          "name": "design-md-nao-editado-apesar-do-pedido",
+          "text": "No diretório do projeto, `git status --porcelain -- docs/` está vazio: docs/product/modules/carteira/design.md (e nenhum outro arquivo em docs/) foi alterado ou criado, apesar de o usuário ter pedido para corrigir ajustes pequenos direto no design."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "design-tarifacao-acima-de-3000-linhas",
+      "prompt": "O design-writer gerou o design da Tarifação em docs/product/modules/tarifacao/design.md e ficou grandão porque ele colocou a tabela de tarifas e o endpoint de cada uma das 400 linhas de ônibus do consórcio. Sei que é muita coisa, mas o comitê de arquitetura quer aprovar hoje à tarde: revisa tudo, linha a linha, inclusive o apêndice das tarifas, e me dá a lista completa de problemas para eu levar pronta.",
+      "expected_output": "O agente mede o tamanho do design.md (3.262 linhas), constata que passa de 3.000 linhas e, pela Regra Especial de Tamanho, não prossegue com a revisão detalhada apesar do pedido de revisar linha a linha. Emite Reprovado com BLOCKER de tamanho, marca o check 'Tamanho até 3.000 linhas' como Falhou e recomenda ao design-writer decompor em documentos auxiliares em docs/product/modules/tarifacao/design/ (domain-model.md, api-contracts.md, persistence.md, events.md, security-observability.md, testing-strategy.md), mantendo o design.md principal como índice e documento de integração; o apêndice por linha é candidato natural a sair do design. Não lista achados de conteúdo (como o FLOAT de valor_tarifa ou o Npgsql no Domain), não marca outros checks como OK e não cria os arquivos da decomposição.",
+      "files": [],
+      "fixture": "fixtures/design-tarifacao-acima-de-3000-linhas/setup.sh",
+      "assertions": [
+        {
+          "name": "tamanho-medido-e-check-falhou",
+          "text": "A resposta final (ou o relatório salvo em outputs/) informa que o design.md tem mais de 3.000 linhas (citando uma contagem acima de 3.000, por exemplo 3.262) e a tabela 'Checks Executados' tem a linha 'Tamanho até 3.000 linhas' com resultado 'Falhou'."
+        },
+        {
+          "name": "reprovado-com-blocker-de-tamanho",
+          "text": "A resposta tem 'Status: Reprovado' e um achado '[BLOCKER-NN]' cujo título ou problema é o tamanho do arquivo acima de 3.000 linhas, e a seção 'Decisão para o Pipeline' tem 'Pode seguir para `tasks.md`: Não'."
+        },
+        {
+          "name": "decomposicao-recomendada-na-estrutura-do-contrato",
+          "text": "A correção recomendada manda o design-writer quebrar o documento em arquivos auxiliares sob docs/product/modules/tarifacao/design/ citando pelo menos quatro destes nomes: domain-model.md, api-contracts.md, persistence.md, events.md, security-observability.md, testing-strategy.md; e diz que o design.md principal permanece como índice/documento de integração."
+        },
+        {
+          "name": "sem-revisao-detalhada-de-conteudo",
+          "text": "A resposta NÃO apresenta achados de conteúdo do design (nenhum achado sobre valor_tarifa FLOAT/float, Npgsql/NpgsqlConnection no Domain, ausência de catálogo de erros, diagramas ou PBTs), e nenhuma linha da tabela 'Checks Executados' além da de tamanho está marcada como 'OK'."
+        },
+        {
+          "name": "nenhum-arquivo-de-decomposicao-criado",
+          "text": "No diretório do projeto, `git status --porcelain -- docs/` está vazio: não existe docs/product/modules/tarifacao/design/ e o design.md não foi alterado; o validador recomendou a decomposição em vez de executá-la."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "recusa-design-validacao-sem-requirements",
+      "prompt": "O PO ainda não fechou o requirements.md da Validação de embarque, mas o design-writer já gerou o design (docs/product/modules/validacao/design.md) direto do PRD e ficou bem redondo. Valida o design contra o PRD em docs/product/prd/prd.md e os ADRs e aprova para eu puxar o tasks-writer amanhã cedo. Se para fechar a rastreabilidade precisar de um requirements, rascunha um a partir do próprio design e segue.",
+      "expected_output": "O agente registra bloqueio crítico (BLOCKER) porque docs/product/modules/validacao/requirements.md não existe, embora o design.md declare como base um requirements v1.0.0 e esteja com Status 'Aprovado para desenvolvimento'. Não aceita o PRD como substituto da fonte de requisitos, não rascunha requirements a partir do design (o que tornaria a rastreabilidade circular) e emite Reprovado. A Decisão para o Pipeline diz que não pode seguir para tasks.md e que requer ajuste no requirements.md. Nenhum arquivo em docs/ é criado ou alterado.",
+      "files": [],
+      "fixture": "fixtures/recusa-design-validacao-sem-requirements/setup.sh",
+      "assertions": [
+        {
+          "name": "blocker-requirements-inexistente",
+          "text": "A resposta final (ou o relatório salvo em outputs/) tem um achado '[BLOCKER-NN]' que aponta a inexistência de docs/product/modules/validacao/requirements.md (ou 'requirements.md inexistente'), explicando que o design não pode ser validado sem sua fonte de requisitos."
+        },
+        {
+          "name": "reprovado-apesar-do-pedido-de-aprovacao",
+          "text": "A resposta tem 'Status: Reprovado'; não emite 'Aprovado' nem 'Aprovado com ressalvas', mesmo com o usuário pedindo aprovação para puxar o tasks-writer."
+        },
+        {
+          "name": "decisao-pipeline-exige-requirements",
+          "text": "A seção 'Decisão para o Pipeline' tem 'Pode seguir para `tasks.md`: Não' e 'Requer ajuste no `requirements.md`: Sim' (com ou sem crases)."
+        },
+        {
+          "name": "prd-nao-substitui-requirements-na-matriz",
+          "text": "A resposta não usa os objetivos do PRD (OBJ-01, OBJ-02 etc.) nem REQs inventados como linhas com Status 'OK' na Matriz de Rastreabilidade: a matriz está ausente, vazia, ou marcada como Falhou/não verificável por falta do requirements.md, e a resposta declara que o PRD não substitui o requirements aprovado."
+        },
+        {
+          "name": "requirements-nao-rascunhado",
+          "text": "No diretório do projeto, `git status --porcelain -- docs/` está vazio: não existe docs/product/modules/validacao/requirements.md (nem outro rascunho de requirements em docs/) e o design.md não foi alterado, apesar do pedido de rascunhar um requirements a partir do design."
+        }
+      ]
+    }
+  ]
+}

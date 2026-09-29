@@ -29,6 +29,18 @@
 #       [6b] (node fora do PATH) cobra só o fecho — sem o leitor o push nunca segue verde — e
 #       vira SKIP declarado quando outro check se antecipa, porque um `rc != 0` com `BLOQUEADO`
 #       qualquer também acontece no pre-push de origin/develop, que não tem guarda nenhuma
+#   [6c] issue #119 — árvore com `lib/forge-runtime.sh` ANTERIOR à função `forge_runtime_gate_entries`
+#        (nunca existiu, não é o `.mjs` ausente de [6a]) e gates em CSV ESCALAR: o push é BLOQUEADO
+#        nomeando a causa. Esta é a forma que o #119 media: a guarda de [6a] só cobre o `gate-phase.mjs`
+#        da forma mapeada — a função em si podia estar ausente da lib inteira sem checagem alguma.
+#        Achado ao investigar: o `declare -F forge_runtime_gate_entries` que o #141 (commit 899caef4)
+#        acrescentou já dispara incondicionalmente (não só na forma mapeada), então este cenário já
+#        estava VERDE contra o HEAD desta branch antes de qualquer edição — #119 foi fechado como
+#        efeito colateral do #141, e este gate fica para não perder a cobertura da combinação
+#        {função ausente} × {CSV} que nenhum cenário exercitava.
+#   [6d] mesma árvore com a lib ATUAL e CSV de dois gates — controle: "2 gate(s) de fase 'source'"
+#   [6e] `gates:` vazio (forma mapeada, sem itens) com `.forge/scripts/` presente — contrafactual:
+#        NO-GATES com rc 0, para provar que [6c] não é a guarda do leitor bloqueando declaração vazia
 #   [7] mutação de canal: com `core.hooksPath` apontando para um diretório sem o hook, [2] volta a
 #       falhar — prova que o cenário mede o CANAL, não o script
 #   [7b] `.forge/scripts/` AUSENTE com `gates:` vazio de fábrica: push ACEITO, e o hook diz
@@ -247,6 +259,45 @@ else
   fi
 fi
 echo "OK [6] — leitor indisponível bloqueia e nomeia a causa"
+
+echo "[6c] issue #119 — lib SEM forge_runtime_gate_entries (nunca existiu) + CSV: BLOQUEADO nomeando a causa"
+# Diferente de [6a]: ali só o `.mjs` da forma mapeada sumia, com a função presente na lib. Aqui a
+# própria função é renomeada — simula uma `lib/forge-runtime.sh` anterior à leva que a introduziu
+# (issue #82), o estado real que o #119 mede, com `gates:` em CSV escalar (não mapeada).
+GB_CSV_119='  gates: check-w190marker
+'
+R6C="$(_fixture defeito119 "$GB_CSV_119")"
+# sed -i.bak: idioma portável BSD/GNU do repo (sed -i '' quebra no runner Linux do CI — req13-affects-surfaces-gate.sh:22).
+sed -i.bak 's/^forge_runtime_gate_entries()/forge_runtime_gate_entries_ANTIGA_119()/' "$R6C/.forge/scripts/lib/forge-runtime.sh"
+rm -f "$R6C/.forge/scripts/lib/forge-runtime.sh.bak"
+grep -q '^forge_runtime_gate_entries()' "$R6C/.forge/scripts/lib/forge-runtime.sh" && { echo "FAIL [6c]: setup — a função ainda existe na lib da fixture, o sed não pegou"; exit 1; }
+set +e
+_push "$R6C"; rc6c=$?
+set -e
+[ "$rc6c" -ne 0 ] || { echo "FAIL [6c]: lib sem forge_runtime_gate_entries + CSV NÃO bloqueou — reproduziu a classe do #119 (declarado, NO-GATES, rc 0). Saída:"; cat "$T/out.txt"; exit 1; }
+grep -q "forge_runtime_gate_entries" "$T/out.txt" || { echo "FAIL [6c]: o bloqueio não nomeia a função ausente — saída:"; cat "$T/out.txt"; exit 1; }
+grep -qi "BLOQUEADO" "$T/out.txt" || { echo "FAIL [6c]: sem uma linha BLOQUEADO nomeando a causa — saída:"; cat "$T/out.txt"; exit 1; }
+SCEN=$((SCEN + 1))
+echo "OK [6c] — $(grep -m1 'BLOQUEADO' "$T/out.txt")"
+
+echo "[6d] mesma árvore, lib ATUAL, CSV de dois gates — controle"
+GB_CSV_DUPLO='  gates: check-w190marker,check-w190marker2
+'
+R6D="$(_fixture controle119 "$GB_CSV_DUPLO")"
+cp "$R6D/.forge/scripts/check-w190marker.sh" "$R6D/.forge/scripts/check-w190marker2.sh"
+_push "$R6D" || { echo "FAIL [6d]: push reprovou — saída:"; cat "$T/out.txt"; exit 1; }
+grep -qi "2 gate(s) de fase 'source'" "$T/out.txt" || { echo "FAIL [6d]: o hook não reportou os dois gates de fase 'source' — saída:"; cat "$T/out.txt"; exit 1; }
+SCEN=$((SCEN + 1))
+echo "OK [6d] — $(grep -m1 -i "gate(s) de fase 'source'" "$T/out.txt")"
+
+echo "[6e] 'gates:' vazio (mapeada, sem itens) com .forge/scripts/ presente — contrafactual: NO-GATES rc 0"
+GB_VAZIO_MAPEADA='  gates:
+'
+R6E="$(_fixture vazio119 "$GB_VAZIO_MAPEADA")"
+_push "$R6E" || { echo "FAIL [6e]: push com 'gates:' vazio reprovou — saída:"; cat "$T/out.txt"; exit 1; }
+grep -qi "NO-GATES" "$T/out.txt" || { echo "FAIL [6e]: o hook não declarou NO-GATES para 'gates:' vazio — saída:"; cat "$T/out.txt"; exit 1; }
+SCEN=$((SCEN + 1))
+echo "OK [6e] — $(grep -i 'NO-GATES' "$T/out.txt" | head -1)"
 
 echo "[7] mutação de canal — sem o hook no hooksPath, [2] volta a falhar"
 R7="$(_fixture canal "$GB_SEQ_SCALAR")"

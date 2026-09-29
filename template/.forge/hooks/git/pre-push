@@ -569,6 +569,13 @@ if [ "$_pp_so_delecao" != 1 ]; then
     # chamada mais abaixo seria "command not found" sob `set -u`, engolida em silêncio pelo `|| true`
     # e indistinguível de zero gate declarado (issue #49). Confere a API antes de confiar nela, e
     # troca para a lib do tronco quando ela for compatível e a local não for.
+    #
+    # Este `declare -F` roda incondicionalmente aqui — ANTES de olhar se `gates:` é CSV escalar ou
+    # forma mapeada — e é o que fecha a issue #119 (árvore com lib anterior à função + `gates:` em
+    # CSV imprimia "NO-GATES — 0 gate(s)" com rc 0, porque a guarda de leitor mais abaixo só olhava
+    # a forma mapeada). tests/w190-pre-push-gate-reader-gate.sh[6c] prova a combinação {função
+    # ausente} × {CSV} por mutação: removendo este bloco, o cenário volta a reproduzir a saída
+    # exata do #119.
     if ! declare -F forge_runtime_gate_entries >/dev/null 2>&1; then
       _rt_trunk="${HOOK_FORGE_DIR:+$HOOK_FORGE_DIR/scripts/lib/forge-runtime.sh}"
       if [ -n "$_rt_trunk" ] && [ "$_rt_trunk" != "$RUNTIME_LIB" ] && [ -f "$_rt_trunk" ] \

@@ -57,7 +57,7 @@ while IFS= read -r f; do
   case "${f#$TARGET/}" in
     .forge/scripts/lib/heavy-mutex.sh|.forge/scripts/heavy-run.sh|.forge/scripts/check-heavy-mutex.sh) continue ;;
     template/.forge/scripts/lib/heavy-mutex.sh|template/.forge/scripts/heavy-run.sh|template/.forge/scripts/check-heavy-mutex.sh) continue ;;
-    tests/w151-heavy-mutex-gate.sh) continue ;;
+    tests/w151-heavy-mutex-gate.sh|tests/w251-heavy-mutex-posse-gate.sh) continue ;;
   esac
 
   # 1. Caminho de lock derivado de variável do chamador — o defeito 1 codificado. Mede INTENÇÃO,

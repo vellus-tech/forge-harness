@@ -618,7 +618,7 @@
         "heavy_mutex": {
           "type": "object",
           "additionalProperties": false,
-          "description": "Serialização de carga pesada entre repositórios da MESMA máquina (issue #52). O lock mora em /tmp por caminho fixo, nunca em $TMPDIR: no macOS o TMPDIR é por usuário E por contexto de invocação, então um lock ancorado nele particiona a exclusão em tantos conjuntos quantos forem os contextos, e cada um serializa consigo mesmo achando que serializa com todos. Default desligado: o harness é publicado no npm e chegar serializando o pre-push de repositórios não relacionados é como um gate vira --no-verify de hábito.",
+          "description": "Serialização de carga pesada entre repositórios da MESMA máquina (issue #52). Default de root: /tmp por caminho fixo. O token literal ${TMPDIR:-/tmp} também é aceito em root, nunca avaliado — existe só para convergir com um protocolo legado durante a migração de um host inteiro; usado fora desse fim ele volta a particionar a exclusão, porque no macOS o TMPDIR é por usuário E por contexto de invocação. Default desligado: o harness é publicado no npm e chegar serializando o pre-push de repositórios não relacionados é como um gate vira --no-verify de hábito.",
           "properties": {
             "enabled": {
               "type": "boolean",
@@ -631,13 +631,18 @@
             },
             "root": {
               "type": "string",
-              "pattern": "^/",
-              "description": "Raiz ABSOLUTA onde o lock é criado. Default /tmp. Precedência: FORGE_HEAVY_MUTEX_ROOT > este campo > /tmp. A variável de ambiente é a via de ISOLAMENTO deliberado; esta chave é a via de CONVERGÊNCIA, para um host onde vários repositórios já se serializam por um protocolo legado poder migrar UM de cada vez. Sem ela a migração é atômica sobre o conjunto: o primeiro a migrar parte a exclusão de todos os outros, e cada lado adquire o próprio lock com sucesso acreditando estar protegido."
+              "pattern": "^(?:|\\$\\{TMPDIR:-/tmp\\}|/.*)$",
+              "description": "Raiz ABSOLUTA onde o lock é criado. Default /tmp; \"\" tem o mesmo efeito de omitir a chave — o leitor trata os dois como \"usar o default\". Precedência: FORGE_HEAVY_MUTEX_ROOT > este campo > /tmp. A variável de ambiente é a via de ISOLAMENTO deliberado; esta chave é a via de CONVERGÊNCIA, para um host onde vários repositórios já se serializam por um protocolo legado poder migrar UM de cada vez. Sem ela a migração é atômica sobre o conjunto: o primeiro a migrar parte a exclusão de todos os outros, e cada lado adquire o próprio lock com sucesso acreditando estar protegido."
             },
             "timeout_s": {
               "type": "integer",
               "minimum": 0,
               "description": "Teto de espera na fila, em SEGUNDOS. Precedência: FORGE_HEAVY_MUTEX_TIMEOUT_S > este campo > 1800. 0 é válido e significa recusa de imediato — não é erro. A unidade importa: o alias de compatibilidade AXIS_HEAVY_SUITE_WAIT é em minutos, e escrever aqui um valor pensado em minutos dá um teto 60 vezes menor que o pretendido."
+            },
+            "stale_after_s": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Teto de POSSE, em SEGUNDOS (issue #137) — OPT-IN. Ausente significa DESLIGADO: sem esta chave (e sem FORGE_HEAVY_MUTEX_STALE_AFTER_S), a recuperação de posse continua agindo só sobre dono morto e sobre beneficiário morto (issue #144), nunca sobre dono vivo por idade. Precedência: FORGE_HEAVY_MUTEX_STALE_AFTER_S > este campo > desligado. 0 é válido nos dois degraus e também desliga. O valor declarado é RESPEITADO como está, mesmo que ultrapasse o teto de espera menos a reserva de encerramento (graça + poll) — nesse caso o efeito é só um AVISO com os três números (declarado, teto de espera, reserva), nunca um rebaixamento silencioso: encerrar antes do que o consumidor declarou poder durar seria mudança de semântica em dado declarado."
             }
           }
         },

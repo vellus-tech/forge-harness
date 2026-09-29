@@ -392,7 +392,13 @@ _heavy_enabled() {
 if [ "$_pp_so_delecao" != 1 ] && [ -n "$HEAVY_LIB" ] && _heavy_enabled; then
   # shellcheck disable=SC1090
   . "$HEAVY_LIB"
-  forge_heavy_mutex_acquire --label "pre-push de $(basename "$ROOT")" || exit $?
+  # Beneficiário (issue #144): o `git push` que invocou este hook é o processo pai dele no momento
+  # desta chamada (medido em bancada, §2.4 da onda L2). Declarado por VARIÁVEL DE AMBIENTE, nunca
+  # por flag nova: este hook, vindo do tronco via hooksPath, pode carregar a biblioteca de uma
+  # WORKTREE com versão anterior (#141), e uma lib de v0.15.0 recusa flag desconhecida com rc 64
+  # (heavy-mutex.sh:745 daquela versão) — o que mataria o push. A lib antiga simplesmente ignora a
+  # variável, então o caminho por ambiente é seguro nos dois sentidos.
+  FORGE_HEAVY_MUTEX_BENEFICIARY="$PPID" forge_heavy_mutex_acquire --label "pre-push de $(basename "$ROOT")" || exit $?
   forge_heavy_mutex_arm_trap
 fi
 

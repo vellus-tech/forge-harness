@@ -140,6 +140,11 @@ heavy_mutex:
   enabled: false
   resource: forge-heavy-suite
   timeout_s: 1800
+  # stale_after_s: <segundos> — OPT-IN (issue #137), ausente = DESLIGADO. Sem esta chave, dono vivo
+  # nunca é reclamado por idade (só por morte, e só por beneficiário morto — issue #144). Declare
+  # só quando souber quanto tempo a SUA suíte pesada legitimamente dura: o valor é respeitado como
+  # está, mesmo que ultrapasse o teto de espera menos a reserva de encerramento — nesse caso o
+  # harness avisa com os três números, sem rebaixar.
 
 # Tronco à frente do remoto (issue #67). No `pre-push`, mede com `git ls-remote` — nunca por
 # `refs/remotes/*`, que é réplica local e pode estar desatualizada NAS DUAS DIREÇÕES — quantos

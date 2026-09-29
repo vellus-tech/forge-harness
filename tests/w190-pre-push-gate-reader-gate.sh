@@ -267,7 +267,9 @@ echo "[6c] issue #119 — lib SEM forge_runtime_gate_entries (nunca existiu) + C
 GB_CSV_119='  gates: check-w190marker
 '
 R6C="$(_fixture defeito119 "$GB_CSV_119")"
-sed -i '' 's/^forge_runtime_gate_entries()/forge_runtime_gate_entries_ANTIGA_119()/' "$R6C/.forge/scripts/lib/forge-runtime.sh"
+# sed -i.bak: idioma portável BSD/GNU do repo (sed -i '' quebra no runner Linux do CI — req13-affects-surfaces-gate.sh:22).
+sed -i.bak 's/^forge_runtime_gate_entries()/forge_runtime_gate_entries_ANTIGA_119()/' "$R6C/.forge/scripts/lib/forge-runtime.sh"
+rm -f "$R6C/.forge/scripts/lib/forge-runtime.sh.bak"
 grep -q '^forge_runtime_gate_entries()' "$R6C/.forge/scripts/lib/forge-runtime.sh" && { echo "FAIL [6c]: setup — a função ainda existe na lib da fixture, o sed não pegou"; exit 1; }
 set +e
 _push "$R6C"; rc6c=$?

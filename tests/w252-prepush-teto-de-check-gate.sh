@@ -35,7 +35,7 @@ cen() { EXAMINADOS=$((EXAMINADOS + 1)); }
 
 [ -f "$HOOK_SRC" ] || { echo "FAIL [0]: $HOOK_SRC não existe"; exit 1; }
 
-T="$(mktemp -d "${TMPDIR:-/tmp}/forge-w251.XXXXXX")" || { echo "FAIL [0]: mktemp -d falhou"; exit 1; }
+T="$(mktemp -d "${TMPDIR:-/tmp}/forge-w252.XXXXXX")" || { echo "FAIL [0]: mktemp -d falhou"; exit 1; }
 trap 'rm -rf "$T"' EXIT
 
 # ── fixture ───────────────────────────────────────────────────────────────────────────────────
@@ -182,4 +182,4 @@ echo "[5] SENTINELA — $EXAMINADOS/$DECLARADOS cenários examinados"
 [ "$EXAMINADOS" -eq "$DECLARADOS" ] || { echo "FAIL [5]: $EXAMINADOS/$DECLARADOS cenários examinados — universo vazio não é ausência de defeito"; exit 1; }
 echo "OK [5]"
 
-echo "PASS w251-prepush-teto-de-check-gate"
+echo "PASS w252-prepush-teto-de-check-gate"

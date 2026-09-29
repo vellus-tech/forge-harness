@@ -25,7 +25,7 @@ unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY G
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LIB="$WS/template/.forge/scripts/lib/heavy-mutex.sh"
-T="$(mktemp -d /tmp/forge-w251.XXXXXX)"
+T="$(mktemp -d /tmp/forge-w253.XXXXXX)"
 
 PIDFILE="$T/fixture-pids"
 : > "$PIDFILE"
@@ -257,12 +257,12 @@ FM
 scenario "[12] canal real: pre-push com beneficiário MORTO -> push PASSA, carga executa"
 BOX="$(newbox)"; R12="$(mk_real_repo "$BOX")"
 H12="$(sleeper)"; D12="$(dead_pid)"
-mk_lock "$BOX/w251res.lock" "$H12"
-echo "$D12" > "$BOX/w251res.lock/beneficiary"; tok_of "$D12" > "$BOX/w251res.lock/beneficiary_token"
+mk_lock "$BOX/w253res.lock" "$H12"
+echo "$D12" > "$BOX/w253res.lock/beneficiary"; tok_of "$D12" > "$BOX/w253res.lock/beneficiary_token"
 MARK12="$BOX/mark12"; : > "$MARK12"
 sha12="$(git -C "$R12" rev-parse HEAD 2>/dev/null)"
 out12="$(cd "$R12" && printf 'refs/heads/main %s refs/heads/main 0000000000000000000000000000000000000000\n' "$sha12" | \
-  FORGE_ROOT="$R12" FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w251res \
+  FORGE_ROOT="$R12" FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w253res \
   FORGE_HEAVY_MUTEX_STALE_AFTER_S=0 FORGE_HEAVY_MUTEX_STALE_GRACE_S=1 FORGE_HEAVY_MUTEX_TIMEOUT_S=15 \
   MARK="$MARK12" bash "$R12/.forge/hooks/git/pre-push" origin "file://$R12" 2>&1)"; rc12=$?
 [ "$rc12" -eq 0 ] || { echo "FAIL [12]: o push não passou com o beneficiário morto (rc $rc12): $out12"; exit 1; }
@@ -272,12 +272,12 @@ echo "OK [12]"
 scenario "[13] canal real, contrapositiva: pre-push com beneficiário VIVO -> push BLOQUEADO"
 BOX="$(newbox)"; R13="$(mk_real_repo "$BOX")"
 H13="$(sleeper)"; B13="$(sleeper)"
-mk_lock "$BOX/w251res.lock" "$H13"
-echo "$B13" > "$BOX/w251res.lock/beneficiary"; tok_of "$B13" > "$BOX/w251res.lock/beneficiary_token"
+mk_lock "$BOX/w253res.lock" "$H13"
+echo "$B13" > "$BOX/w253res.lock/beneficiary"; tok_of "$B13" > "$BOX/w253res.lock/beneficiary_token"
 MARK13="$BOX/mark13"; : > "$MARK13"
 sha13="$(git -C "$R13" rev-parse HEAD 2>/dev/null)"
 out13="$(cd "$R13" && printf 'refs/heads/main %s refs/heads/main 0000000000000000000000000000000000000000\n' "$sha13" | \
-  FORGE_ROOT="$R13" FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w251res \
+  FORGE_ROOT="$R13" FORGE_HEAVY_MUTEX_ROOT="$BOX" FORGE_HEAVY_MUTEX_RESOURCE=w253res \
   FORGE_HEAVY_MUTEX_STALE_AFTER_S=0 FORGE_HEAVY_MUTEX_TIMEOUT_S=2 \
   MARK="$MARK13" bash "$R13/.forge/hooks/git/pre-push" origin "file://$R13" 2>&1)"; rc13=$?
 [ "$rc13" -ne 0 ] || { echo "FAIL [13]: o push passou com o beneficiário VIVO — recolheu posse legítima: $out13"; exit 1; }
@@ -420,11 +420,11 @@ perl -0pi -e 's/FORGE_HEAVY_MUTEX_BENEFICIARY="\$PPID" //' "$HOOK"
 cmp -s "$HOOK" "$HOOK_ORIG" && { echo "FAIL [mutação M4]: a mutação foi NO-OP no pre-push"; cp "$HOOK_ORIG" "$HOOK"; exit 1; }
 BOXm4="$(newbox)"; Rm4="$(mk_real_repo "$BOXm4")"
 Hm4="$(sleeper)"; Dm4="$(dead_pid)"
-mk_lock "$BOXm4/w251res.lock" "$Hm4"
-echo "$Dm4" > "$BOXm4/w251res.lock/beneficiary"; tok_of "$Dm4" > "$BOXm4/w251res.lock/beneficiary_token"
+mk_lock "$BOXm4/w253res.lock" "$Hm4"
+echo "$Dm4" > "$BOXm4/w253res.lock/beneficiary"; tok_of "$Dm4" > "$BOXm4/w253res.lock/beneficiary_token"
 shm4="$(git -C "$Rm4" rev-parse HEAD 2>/dev/null)"
 outm4="$(cd "$Rm4" && printf 'refs/heads/main %s refs/heads/main 0000000000000000000000000000000000000000\n' "$shm4" | \
-  FORGE_ROOT="$Rm4" FORGE_HEAVY_MUTEX_ROOT="$BOXm4" FORGE_HEAVY_MUTEX_RESOURCE=w251res \
+  FORGE_ROOT="$Rm4" FORGE_HEAVY_MUTEX_ROOT="$BOXm4" FORGE_HEAVY_MUTEX_RESOURCE=w253res \
   FORGE_HEAVY_MUTEX_STALE_AFTER_S=0 FORGE_HEAVY_MUTEX_TIMEOUT_S=2 \
   bash "$Rm4/.forge/hooks/git/pre-push" origin "file://$Rm4" 2>&1)"; rcm4=$?
 kill -9 "$Hm4" 2>/dev/null
@@ -435,12 +435,12 @@ echo "M4 matou [12] como esperado (canal: sem a declaração no hook, o benefici
 # RECONTROLE — reexecuta [12] contra o hook restaurado; tem de voltar a rc 0.
 BOXm4r="$(newbox)"; Rm4r="$(mk_real_repo "$BOXm4r")"
 Hm4r="$(sleeper)"; Dm4r="$(dead_pid)"
-mk_lock "$BOXm4r/w251res.lock" "$Hm4r"
-echo "$Dm4r" > "$BOXm4r/w251res.lock/beneficiary"; tok_of "$Dm4r" > "$BOXm4r/w251res.lock/beneficiary_token"
+mk_lock "$BOXm4r/w253res.lock" "$Hm4r"
+echo "$Dm4r" > "$BOXm4r/w253res.lock/beneficiary"; tok_of "$Dm4r" > "$BOXm4r/w253res.lock/beneficiary_token"
 shm4r="$(git -C "$Rm4r" rev-parse HEAD 2>/dev/null)"
 MARKm4r="$BOXm4r/markm4r"; : > "$MARKm4r"
 outm4r="$(cd "$Rm4r" && printf 'refs/heads/main %s refs/heads/main 0000000000000000000000000000000000000000\n' "$shm4r" | \
-  FORGE_ROOT="$Rm4r" FORGE_HEAVY_MUTEX_ROOT="$BOXm4r" FORGE_HEAVY_MUTEX_RESOURCE=w251res \
+  FORGE_ROOT="$Rm4r" FORGE_HEAVY_MUTEX_ROOT="$BOXm4r" FORGE_HEAVY_MUTEX_RESOURCE=w253res \
   FORGE_HEAVY_MUTEX_STALE_AFTER_S=0 FORGE_HEAVY_MUTEX_STALE_GRACE_S=1 FORGE_HEAVY_MUTEX_TIMEOUT_S=15 \
   MARK="$MARKm4r" bash "$Rm4r/.forge/hooks/git/pre-push" origin "file://$Rm4r" 2>&1)"; rcm4r=$?
 [ "$rcm4r" -eq 0 ] || { echo "FAIL [recontrole M4]: depois de restaurar o hook, [12] deveria voltar a passar (rc 0) e não passou: $outm4r"; exit 1; }
@@ -453,4 +453,4 @@ GATE_ELAPSED=$(( $(date +%s) - GATE_START ))
 [ "$GATE_ELAPSED" -le "$GATE_BUDGET_S" ] \
   || { echo "FAIL [orçamento]: a suíte levou ${GATE_ELAPSED}s, acima do teto declarado de ${GATE_BUDGET_S}s"; exit 1; }
 echo "OK heavy-mutex-posse/universo — $SCENARIOS_RUN cenário(s) executado(s) de $DECLARADOS declarado(s)"
-echo "PASS w251-heavy-mutex-posse ($SCENARIOS_RUN cenário(s) + 3 mutações, ${GATE_ELAPSED}s de ${GATE_BUDGET_S}s)"
+echo "PASS w253-heavy-mutex-posse ($SCENARIOS_RUN cenário(s) + 3 mutações, ${GATE_ELAPSED}s de ${GATE_BUDGET_S}s)"

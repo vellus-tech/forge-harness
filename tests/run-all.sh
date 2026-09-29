@@ -243,6 +243,16 @@ if [ "${#GATES[@]}" -gt 0 ]; then
   for g in "${GATES[@]}"; do
     run_one "$(basename "$g")" gate bash "$g"
   done
+else
+  # VACUIDADE (LDG-0181): sem esta guarda a árvore sem gate algum atravessava o laço vazio e
+  # publicava "OK — suíte 100% verde" com rc 0 — aprovar por não ter olhado nada. Piso de 1 gate,
+  # porque a suíte deste repositório nunca é vazia por construção: zero gates é sintoma de padrão de
+  # descoberta quebrado ou de árvore errada, e isso é "não verificado" (rc 3), não reprovação de
+  # alvo algum. O runner do TEMPLATE decide o contrário de propósito (zero testes = rc 0 com
+  # `nada a rodar`), porque é distribuído sem teste e o pre-push o executa em todo consumidor.
+  unverified=$((unverified + 1)); unverified_names+=("nenhum gate encontrado (vacuidade)")
+  printf '  \033[35m⚠\033[0m nenhum gate encontrado\n'
+  printf '      não verificado (vacuidade) — a suíte não examinou gate algum\n'
 fi
 
 echo "-- suítes bats (${#BATS_SUITES[@]}) --"

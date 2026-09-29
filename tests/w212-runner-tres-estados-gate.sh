@@ -20,7 +20,7 @@
 # reproduz exatamente os observáveis medidos na especificação (§3.3) de forma determinista, sem
 # depender da versão instalada nem tornar o gate vermelho numa máquina sem bats.
 #
-# CENÁRIOS (denominador fixo 27 — exceção legítima da invariante 14, e a divergência é o achado):
+# CENÁRIOS (denominador fixo 28 — exceção legítima da invariante 14, e a divergência é o achado):
 #   [1] existe um terceiro desfecho alcançável — o runner classifica por algo além de zero/não-zero
 #   [2] gate que passa é contado em PASS e marcado com o marcador de passagem
 #   [3] gate que reprova imprimindo FAIL é contado em FAIL
@@ -54,12 +54,15 @@
 #       falso-vermelho que esta onda existe para eliminar, e a fixture é a linha literal do w51
 #  [26] linha de reprovação INDENTADA (saída de sub-alvo) ainda agrava a morte por sinal — a
 #       contra-direção de [25], que impede a correção de virar falso-verde
-#  [27] SENTINELA — o gate examinou exatamente 27 cenários
+#  [27] VACUIDADE (LDG-0181) — árvore sem gate algum não sai verde: o resumo publica UNVERIFIED=1,
+#       a lista NÃO VERIFICADOS: nomeia o motivo `vacuidade`, e o rc é 3. O `--list` vazio continua
+#       rc 0 (listar não é verificar; o [23] cobre)
+#  [28] SENTINELA — o gate examinou exatamente 28 cenários
 set -uo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$WS/tests/run-all.sh"
-DECLARADO=27
+DECLARADO=28
 EXAMINADOS=0
 cen() { EXAMINADOS=$((EXAMINADOS + 1)); }
 
@@ -414,7 +417,7 @@ roda "$I_"; I_OUT="$OUT"; I_RC="$RC"
 
 J="$(mkbench runJ)" || exit 1
 rm -f "$J/tests/validators.bats" "$J/tests/snapshot/claude-contract.bats"
-roda "$J"; J_OUT="$OUT"
+roda "$J"; J_OUT="$OUT"; J_RC="$RC"
 J_LIST="$J/lista.txt"
 ( cd "$J" && PATH="$J/bin:$PATH" bash "$J/tests/run-all.sh" --list ) > "$J_LIST" 2>&1
 J_LIST_RC=$?
@@ -476,9 +479,25 @@ bloco "$A_OUT" 'FALHARAM:' | grep -qx 'a11-indent-gate.sh'
 exige $? "a11-indent-gate.sh ausente da lista FALHARAM: — achado real escondido atrás de 'não verificado'"
 echo "OK [26]"
 
-echo "[27] sentinela — cenários examinados contra o denominador declarado"; cen
+echo "[27] árvore sem gate algum não sai verde — vacuidade é não verificado (LDG-0181)"; cen
+# A bancada J é a mesma do [23]: zero gate e zero suíte .bats. Antes desta asserção o runner
+# atravessava a árvore vazia publicando PASS=0 FAIL=0 SKIP=0 UNVERIFIED=0 e "OK — suíte 100% verde",
+# rc 0 — aprovar por não ter olhado nada. O piso é 1 gate: a suíte deste repositório nunca é vazia
+# por construção, então zero gates é sintoma de padrão de descoberta quebrado ou árvore errada.
+[ "$(parcela "$J_OUT" UNVERIFIED)" = "1" ]
+exige $? "sem gate algum o resumo não publicou UNVERIFIED=1: $(sem_ansi "$J_OUT" | grep '^PASS=')"
+bloco "$J_OUT" 'NÃO VERIFICADOS:' | grep -q 'vacuidade'
+exige $? "a lista NÃO VERIFICADOS: não nomeia o motivo 'vacuidade': $(bloco "$J_OUT" 'NÃO VERIFICADOS:')"
+[ "$J_RC" -eq 3 ]
+exige $? "rc=$J_RC sem gate algum — a árvore vazia saiu com o rc de verde ou de reprovação, esperado 3"
+sem_ansi "$J_OUT" | grep -q 'suíte 100% verde'
+[ $? -ne 0 ]
+exige $? "sem gate algum o runner ainda anunciou 'suíte 100% verde'"
+echo "OK [27]"
+
+echo "[28] sentinela — cenários examinados contra o denominador declarado"; cen
 [ "$EXAMINADOS" = "$DECLARADO" ]
 exige $? "examinou $EXAMINADOS cenário(s), declarou $DECLARADO"
-echo "OK [27] — $EXAMINADOS/$DECLARADO cenários examinados"
+echo "OK [28] — $EXAMINADOS/$DECLARADO cenários examinados"
 
 echo "OK"

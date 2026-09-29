@@ -75,6 +75,10 @@ pass=0; fail=0; failed=""
 run_one() {  # run_one <arquivo> <comando...>
   local nome="$1"; shift
   local antes="" rc_sentinela=0 alvo_ok=0
+  # Anúncio ANTES de rodar (issue #135): silêncio durante os minutos que um teste pesado leva é
+  # indistinguível de travamento. A linha ✓/✗ abaixo já diz o resultado; esta diz que o teste
+  # COMEÇOU, o que falta quando o único sinal é o resultado final.
+  printf '  -> %s\n' "$nome"
   # `antes="$(arvore_snapshot ...)"` herdaria o rc 3 da biblioteca; `arvore_retrato` devolve sempre
   # rc 0 e carrega o estado no VALOR, que é o que impede a morte muda sob `set -e` no adotante.
   if [ "$SENTINELA" -eq 1 ]; then antes="$(arvore_retrato "$REPO")"; else rc_sentinela=3; fi

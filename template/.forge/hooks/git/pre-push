@@ -314,8 +314,22 @@ gate_deps_ready() {  # gate_deps_ready <cmd> — false quando o gate depende de 
   return 0
 }
 
+# ── teto opt-in de tempo (issue #135) ────────────────────────────────────────────────────────
+# `forge_run_gate` (lib/forge-runtime.sh) já tinha teto — 300s via `perl -e "alarm ...; exec
+# @ARGV"` — mas só para os gates de runtime.gates. `run_check`, usado para typecheck/test/
+# harness-tests (o caminho MAIS caro do hook), não tinha nenhum: um consumidor mediu ~8min
+# acumulados em quatro testes pesados sem uma única linha de saída (a saída vai para um log e só
+# é impressa no fim), e cinco tentativas de diagnóstico concluíram "deadlock" quando era custo
+# acumulado.
+#
+# NÃO reusa os 300s de `forge_run_gate` como default (DA-11): a própria #135 mediu suíte legítima
+# de consumidor em ~470s só em quatro testes, e suítes de mais de dez minutos existem em campo —
+# um default mataria pushes hoje verdes. `FORGE_PREPUSH_CHECK_TIMEOUT_S` não tem valor de fábrica:
+# AUSENTE significa DESLIGADO, e o comportamento é byte a byte o de antes da #135.
+FORGE_PREPUSH_CHECK_TIMEOUT_S="${FORGE_PREPUSH_CHECK_TIMEOUT_S:-}"
+
 run_check() {  # run_check <label> <cmd>
-  local label="$1" cmd="$2" log
+  local label="$1" cmd="$2" log rc
   [ -n "$cmd" ] || { echo "pre-push: $label não definido — skip"; return 0; }
   if ! gate_deps_ready "$cmd"; then
     echo "pre-push: $label PULADO — node_modules/ ausente (rode 'pnpm install' ou deixe para /forge:verify)"
@@ -324,8 +338,25 @@ run_check() {  # run_check <label> <cmd>
   # NB: o template do mktemp precisa TERMINAR nos X (BSD/macOS falha com sufixo após o X, ex.:
   # `-XXXXXX.log`). Sem sufixo de extensão — é um arquivo de log temporário efêmero.
   log="$(mktemp "${TMPDIR:-/tmp}/forge-prepush-XXXXXX")"
-  if (cd "$ROOT" && eval "$cmd") >"$log" 2>&1; then
+  if [ -n "$FORGE_PREPUSH_CHECK_TIMEOUT_S" ] && command -v perl >/dev/null 2>&1; then
+    # Mesmo mecanismo de forge_run_gate (L3 §3.4) — `exec` substitui o `bash -c` no lugar do
+    # `perl`, então o alarme chega ao processo que de fato roda `$cmd`, nunca ao `perl` já saído.
+    perl -e "alarm $FORGE_PREPUSH_CHECK_TIMEOUT_S; exec @ARGV" -- bash -c "cd '$ROOT' && $cmd" >"$log" 2>&1
+    rc=$?
+  else
+    (cd "$ROOT" && eval "$cmd") >"$log" 2>&1
+    rc=$?
+  fi
+  if [ "$rc" -eq 0 ]; then
     echo "pre-push: $label OK"
+  elif [ "$rc" -eq 142 ] && [ -n "$FORGE_PREPUSH_CHECK_TIMEOUT_S" ]; then
+    # 142 = 128 + SIGALRM(14): o próprio contrato do `perl -e "alarm ...; exec @ARGV"` acima.
+    # Nomeia QUAL check e QUANTO — nunca morre calado (issue #135). "não reprovado" no texto é
+    # deliberado: um teto estourado não é o mesmo desfecho que uma asserção reprovada (LDG-0181
+    # dará ao runner interno um terceiro estado equivalente; aqui o hook só tem rc≠0 para expressar
+    # os dois, e a mensagem é o que evita colapsá-los na cabeça de quem lê).
+    echo "pre-push BLOQUEADO: $label excedeu o teto de ${FORGE_PREPUSH_CHECK_TIMEOUT_S}s (morto por teto, não reprovado)"
+    exit 1
   else
     echo "pre-push BLOQUEADO: $label falhou — tail:"
     tail -20 "$log"

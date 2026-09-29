@@ -42,15 +42,65 @@ argument-hint: "[--no-backup] [--overwrite-drift]"
    reconcilia adapters ativos (`sync-adapters --adapter all`), garante `core.hooksPath` e o bloco
    managed do `.gitignore`, re-materializa o plugin `/forge:*` (se claude ativo), e roda o `doctor`.
 
-4. **Garanta o `core.hooksPath` absoluto.** O `update` já o grava apontando para `<tronco>/.forge/hooks/git` e migra o valor legado relativo (`.forge/hooks/git`), preservando um `hooksPath` customizado de verdade. Absoluto porque `core.hooksPath` vive no `.git/config` comum e um valor relativo é resolvido por cada worktree contra a própria árvore, que carrega a cópia antiga dos hooks. Confirme no fim:
+4. **Rode a suíte de guarda do consumidor e trie cada reprovação contra a versão pré-upgrade.**
+   Revisão de diff não substitui execução: num overlay que reescreve arquivos inteiros, o diff
+   mostra bem o que mudou e mal o que sumiu (guarda de segurança removida, ordem invertida,
+   argumento perdido — nada disso aparece como linha vermelha num `git diff`, só como reprovação
+   de teste). Upgrade sem essa execução **não é declarado concluído**:
+
+   ```bash
+   bash .forge/scripts/tests/run-all.sh
+   ```
+
+   Rode também os checks declarados em `runtime.test`/`runtime.gates` do `FORGE.md`, se houver, além
+   da suíte acima.
+
+   Toda reprovação (rc 1) é comparada contra a versão do arquivo antes do commit do overlay —
+   `git show HEAD:<path>` (o commit anterior ao do update) ou, se já não houver histórico limpo, o
+   backup em `<git-dir>/forge-backups/` — e o `<git-dir>` é resolvido com
+   `git rev-parse --git-dir`, nunca assumido como `.git/`: numa worktree linked, `.git` é um
+   **arquivo** que aponta para o git-dir real, o mesmo cuidado de `bin/forge.mjs` ao localizar o
+   backup. Classifique cada reprovação numa de três classes, com remediação distinta:
+
+   - **Regressão** — o overlay quebrou um comportamento que a versão pré-upgrade tinha certo.
+     Remediação: restaure o comportamento e, se a causa é do template (não de customização local),
+     leve o achado ao upstream do `forge-harness`.
+   - **Evolução legítima do template** — o teste do consumidor ainda espera o comportamento
+     antigo, e o novo é o correto. Remediação: mescle o teste ao comportamento novo — **nunca**
+     reverta o overlay para fazer o teste antigo passar de novo.
+   - **Fixture desatualizada** — o teste compara um literal com um valor que o overlay mudou, e o
+     valor antigo não é mais o certo em lugar nenhum. Remediação: atualize a fixture, **nunca**
+     afrouxe a asserção.
+
+   **Critério de desempate antes de chamar algo de "fixture desatualizada":** quando a reprovação
+   é um literal comparado ao valor novo que o código produz, conte quem mais consome o valor
+   antigo em código de produção:
+
+   ```bash
+   git grep -n -- '<valor antigo>' -- . ':!tests' ':!**/*test*'
+   ```
+
+   Se o valor antigo ainda vive em código de produção que o overlay não tocou, o teste está
+   certo e quem mudou é que está errado — é regressão, não fixture desatualizada. Só realinhe o
+   literal depois que os demais consumidores do mesmo contrato tiverem sido realinhados junto (o
+   mecanismo da issue #75: um mutex com dois nomes de lock adquiridos por processos diferentes foi
+   "corrigido" trocando o literal do teste, e o defeito voltou a rodar sem ninguém notar).
+
+   **Alvo com desfecho NÃO VERIFICADO (rc 3, ver LDG-0181)** — morto por sinal, dependência
+   ausente ou árvore não medida — é reexecutado **isoladamente** antes de qualquer classificação.
+   Nunca classifique um alvo não verificado como regressão direto: um gate morto por sinal não é
+   um gate que reprovou, e tratá-lo como regressão esconde a causa real (ambiente, dependência,
+   timeout) atrás de uma remediação que não se aplica.
+
+5. **Garanta o `core.hooksPath` absoluto.** O `update` já o grava apontando para `<tronco>/.forge/hooks/git` e migra o valor legado relativo (`.forge/hooks/git`), preservando um `hooksPath` customizado de verdade. Absoluto porque `core.hooksPath` vive no `.git/config` comum e um valor relativo é resolvido por cada worktree contra a própria árvore, que carrega a cópia antiga dos hooks. Confirme no fim:
 
    ```bash
    git config --get core.hooksPath   # tem de ser caminho absoluto, terminando em /.forge/hooks/git
    ```
 
-5. **Meça a propagação para os worktrees existentes.** O `doctor` (que o `update` roda no fim) lista, por worktree linkado, quantos arquivos de maquinaria divergem do tronco e quantos commits aquele worktree está à frente. Use a tabela para decidir: sincronize primeiro os que estão com **zero commits à frente** (rebase/merge do tronco é trivial ali) e escale os que estão muito à frente ou em `HEAD` destacado, onde a sincronização é decisão de quem tem o contexto da branch.
+6. **Meça a propagação para os worktrees existentes.** O `doctor` (que o `update` roda no fim) lista, por worktree linkado, quantos arquivos de maquinaria divergem do tronco e quantos commits aquele worktree está à frente. Use a tabela para decidir: sincronize primeiro os que estão com **zero commits à frente** (rebase/merge do tronco é trivial ali) e escale os que estão muito à frente ou em `HEAD` destacado, onde a sincronização é decisão de quem tem o contexto da branch.
 
-6. **Resuma** o resultado: o que foi atualizado, o que foi preservado (specs/baseline), o estado do `core.hooksPath`, a divergência dos worktrees e o backup. Se o update imprimiu `PRESERVADO (deriva local)` ou `PRESERVADO (sem lock para provar)`, liste cada caminho com a versão pendente em `.forge/cache/template-pendente/` e peça ao usuário a decisão por arquivo (seção abaixo); nunca rode `--overwrite-drift` sem esse aceite explícito.
+7. **Resuma** o resultado: o que foi atualizado, o que foi preservado (specs/baseline), o estado do `core.hooksPath`, a divergência dos worktrees e o backup. **Liste cada reprovação da suíte (passo 4) com a classe atribuída** — regressão, evolução legítima do template ou fixture desatualizada — e a remediação aplicada; "suíte verde depois do upgrade" não pode ser obtido realinhando testes sem esse registro. Se o update imprimiu `PRESERVADO (deriva local)` ou `PRESERVADO (sem lock para provar)`, liste cada caminho com a versão pendente em `.forge/cache/template-pendente/` e peça ao usuário a decisão por arquivo (seção abaixo); nunca rode `--overwrite-drift` sem esse aceite explícito.
    O backup fica em `.git/forge-backups/` e não precisa ser removido para rodar gates: fora da árvore, ele não é varrido por `--path` nem aparece em `git status`. Antes ele vivia em `.forge.bak-N` e era varrido pelos próprios gates, bloqueando o primeiro push após o upgrade por conteúdo que era cópia do repositório (issue #76).
 
 ## Divergências deliberadas de maquinaria (issues #101/#131)

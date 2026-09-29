@@ -234,8 +234,8 @@ grep -q "; 0 reprovando" <<<"$out4c" || { echo "FAIL [4] recontrole: esperava '0
 echo "OK [4] recontrole — nova cópia do original (nunca escrito) volta a 0 reprovando"
 
 echo "[5] LDG-0190 — 'ledger-ops.sh add --origin' fora do enum do schema reprova ANTES de escrever"
-LG="$WS/template/.forge/scripts/ledger-ops.sh"
-[ -f "$LG" ] || { echo "FAIL: arquivo esperado ausente: $LG"; exit 1; }
+LG_REAL="$WS/template/.forge/scripts/ledger-ops.sh"
+[ -f "$LG_REAL" ] || { echo "FAIL: arquivo esperado ausente: $LG_REAL"; exit 1; }
 
 _run_to5() { # _run_to5 <segundos> -- <cmd...> — teto de tempo (macOS não tem `timeout` por padrão)
   local secs="$1"; shift
@@ -247,6 +247,12 @@ _run_to5() { # _run_to5 <segundos> -- <cmd...> — teto de tempo (macOS não tem
 # toca $LEDGER (o ledger real do projeto).
 T5="$(mktemp -d "${TMPDIR:-/tmp}/forge-w202-ldg0190.XXXXXX")"
 trap 'rm -rf "$T5"' EXIT
+# w213: a mutação abaixo (com restauração) NUNCA pode mirar a árvore rastreada real — um kill -9
+# entre a mutação e a restauração deixaria o ledger-ops.sh REAL corrompido. Copia a árvore inteira
+# de scripts/ (ledger-ops.sh sourceia lib/arg-guards.sh por caminho relativo ao próprio script),
+# nunca só o arquivo isolado.
+cp -R "$WS/template/.forge" "$T5/dotforge-sandbox"
+LG="$T5/dotforge-sandbox/scripts/ledger-ops.sh"
 git -C "$T5" init -q
 _run_to5 20 -- git -C "$T5" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
 LF5="$T5/.forge/ledger/ledger.json"

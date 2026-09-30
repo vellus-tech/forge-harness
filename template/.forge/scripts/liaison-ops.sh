@@ -922,14 +922,17 @@ status)
   if [ -n "$channel" ]; then
     ch_dir="$LIAISON_DIR/$channel"
     [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado" >&2; exit 1; }
-    node - "$LIBDIR" "$ch_dir" "$channel" <<'NODEEOF'
+    self="$(_read_self)"
+    now_wall="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    node - "$LIBDIR" "$ch_dir" "$channel" "$self" "$now_wall" <<'NODEEOF'
 const { readFileSync, readdirSync, existsSync } = require('fs');
 const { join } = require('path');
 const { pathToFileURL } = require('url');
 (async () => {
-  const [, , lib, chDir, channel] = process.argv;
+  const [, , lib, chDir, channel, self, nowWall] = process.argv;
   const { mergeLogs, formatSkew } = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
   const { readQuarantinedPositions, findMissingLocalBlobs } = await import(pathToFileURL(join(lib, 'liaison-import.mjs')).href);
+  const { unpublishedCount } = await import(pathToFileURL(join(lib, 'liaison-publish.mjs')).href);
   const logDir = join(chDir, 'log');
   const files = existsSync(logDir) ? readdirSync(logDir).filter((f) => f.endsWith('.jsonl')) : [];
   const all = [];
@@ -960,7 +963,25 @@ const { pathToFileURL } = require('url');
   // classe de dano que a issue descreve ("sem aparecer em nenhuma medição de rodada").
   const missingBlobs = findMissingLocalBlobs(chDir);
   const missingBlobsBit = missingBlobs.length ? ` · ${missingBlobs.length} body_ref sem blob local` : '';
-  console.log(`LIAISON/${channel}: ${Object.keys(threads).length} thread(s) · ${unread} não lida(s) · ${quarantined.length} em quarentena${posBit}${skewBit}${diag}${missingBlobsBit}`);
+  // issue #109: mensagens PRÓPRIAS `send`adas mas nunca `sync`adas não apareciam em NENHUMA
+  // medição parada — só um `sync` bem-sucedido (ou seu ausência) revelava o defeito. `self` pode
+  // vir vazio (canal aberto sem `open` local, ou config ausente) — sem identidade não há "log
+  // próprio" a medir, então o bit fica ausente em vez de arriscar um remetente errado.
+  let pubBit = '';
+  if (self) {
+    const { count, publishedAt } = unpublishedCount({ chDir, self });
+    if (count > 0) {
+      let timeBit = '';
+      if (publishedAt) {
+        const elapsedMs = Date.parse(nowWall) - Date.parse(publishedAt);
+        // DA-23: a distância é contra published_at (carimbo do push), NUNCA contra created_at
+        // (data do HEAD do commit) — só entra quando o cálculo faz sentido (não-negativo).
+        if (Number.isFinite(elapsedMs) && elapsedMs >= 0) timeBit = ` (há ${formatSkew(elapsedMs)})`;
+      }
+      pubBit = ` · ${count} própria(s) não publicada(s)${timeBit}`;
+    }
+  }
+  console.log(`LIAISON/${channel}: ${Object.keys(threads).length} thread(s) · ${unread} não lida(s) · ${quarantined.length} em quarentena${posBit}${skewBit}${diag}${missingBlobsBit}${pubBit}`);
   const sh = (v) => (v ? String(v).slice(0, 12) : '?');
   for (const p of pos) console.log(`  ! quarentena por divergência: ${p.sender}@seq=${p.seq} — recebida ${p.msg_id || '?'}/${sh(p.content_sha)}, conhecida ${p.known_msg_id || '?'}/${sh(p.known_content_sha)} (conflicts/${p.file})`);
   for (const c of clockSkews) console.log(`  ! created_at incoerente: ${c.msg_id} (${c.sender}, thread ${c.thread_id}) tem created_at ${c.created_at}, ${formatSkew(c.behind_ms)} ANTES de ${c.in_reply_to} (${c.ref_created_at}) que ela responde — relógio de parede da origem, ou duas cópias do mesmo log escrevendo em paralelo`);
@@ -974,19 +995,24 @@ NODEEOF
     while IFS= read -r d; do [ -n "$d" ] && channels+=("$(basename "$d")"); done \
       < <(find "$LIAISON_DIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | LC_ALL=C sort)
     if [ "${#channels[@]}" -eq 0 ]; then echo "LIAISON: self=${self:-?} · 0 canal(is)"; exit 0; fi
-    node - "$LIBDIR" "$LIAISON_DIR" "${channels[*]}" "$self" <<'NODEEOF'
+    now_wall="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    node - "$LIBDIR" "$LIAISON_DIR" "${channels[*]}" "$self" "$now_wall" <<'NODEEOF'
 const { readFileSync, readdirSync, existsSync } = require('fs');
 const { join } = require('path');
 const { pathToFileURL } = require('url');
 (async () => {
-  const [, , lib, liaisonDir, channelsRaw, self] = process.argv;
+  const [, , lib, liaisonDir, channelsRaw, self, nowWall] = process.argv;
   const { mergeLogs, formatSkew } = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
   const { readQuarantinedPositions, findMissingLocalBlobs } = await import(pathToFileURL(join(lib, 'liaison-import.mjs')).href);
+  const { unpublishedCount } = await import(pathToFileURL(join(lib, 'liaison-publish.mjs')).href);
   const channels = channelsRaw.split(' ').filter(Boolean);
   const positions = [];
   const skews = [];
   const missingBlobs = [];
-  let threadsTotal = 0, unreadTotal = 0, quarantinedTotal = 0;
+  let threadsTotal = 0, unreadTotal = 0, quarantinedTotal = 0, unpublishedTotal = 0;
+  // Entre canais, "(há Xmin)" mostra o publish MAIS ATRASADO (o pior caso é o que precisa de
+  // ação primeiro) — nunca uma média, que esconderia justamente o canal mais parado.
+  let oldestPublishedAt = null;
   for (const channel of channels) {
     const chDir = join(liaisonDir, channel);
     const logDir = join(chDir, 'log');
@@ -1009,11 +1035,27 @@ const { pathToFileURL } = require('url');
       const idx = cur ? threads[id].order.indexOf(cur) : -1;
       unreadTotal += threads[id].order.length - (idx + 1);
     }
+    if (self) {
+      const { count, publishedAt } = unpublishedCount({ chDir, self });
+      unpublishedTotal += count;
+      if (count > 0 && publishedAt) {
+        if (!oldestPublishedAt || Date.parse(publishedAt) < Date.parse(oldestPublishedAt)) oldestPublishedAt = publishedAt;
+      }
+    }
   }
   const posBit = positions.length ? ` · ${positions.length} posição(ões) retida(s) por divergência` : '';
   const skewBit = skews.length ? ` · ${skews.length} created_at incoerente(s)` : '';
   const missingBlobsBit = missingBlobs.length ? ` · ${missingBlobs.length} body_ref sem blob local` : '';
-  console.log(`LIAISON: self=${self || '?'} · ${channels.length} canal(is) · ${threadsTotal} thread(s) · ${unreadTotal} não lida(s) · ${quarantinedTotal} em quarentena${posBit}${skewBit}${missingBlobsBit}`);
+  let pubBit = '';
+  if (unpublishedTotal > 0) {
+    let timeBit = '';
+    if (oldestPublishedAt) {
+      const elapsedMs = Date.parse(nowWall) - Date.parse(oldestPublishedAt);
+      if (Number.isFinite(elapsedMs) && elapsedMs >= 0) timeBit = ` (há ${formatSkew(elapsedMs)})`;
+    }
+    pubBit = ` · ${unpublishedTotal} própria(s) não publicada(s)${timeBit}`;
+  }
+  console.log(`LIAISON: self=${self || '?'} · ${channels.length} canal(is) · ${threadsTotal} thread(s) · ${unreadTotal} não lida(s) · ${quarantinedTotal} em quarentena${posBit}${skewBit}${missingBlobsBit}${pubBit}`);
   const sh = (v) => (v ? String(v).slice(0, 12) : '?');
   for (const p of positions) console.log(`  ! quarentena por divergência em ${p.channel}: ${p.sender}@seq=${p.seq} — recebida ${p.msg_id || '?'}/${sh(p.content_sha)}, conhecida ${p.known_msg_id || '?'}/${sh(p.known_content_sha)}`);
   for (const c of skews) console.log(`  ! created_at incoerente em ${c.channel}: ${c.msg_id} (${c.sender}) tem created_at ${c.created_at}, ${formatSkew(c.behind_ms)} ANTES de ${c.in_reply_to} (${c.ref_created_at}) que ela responde`);
@@ -1330,6 +1372,22 @@ sync)
 
   if [ "$do_push" -eq 1 ]; then
     t_push || { echo "FAIL: push pelo transporte $LIAISON_T_KIND" >&2; exit 1; }
+    # issue #109: grava a marca d'água de publicação SÓ depois de t_push retornar rc 0. O log
+    # local, neste ponto, já é a união publicada no hub (_dir_push_union em
+    # lib/transports/_common.sh copia de volta) — então o último msg_id do log próprio É o que
+    # está publicado, sem precisar reconsultar o transporte. published_at é wall clock de
+    # propósito (DA-23): created_at é a data do HEAD, e mediria "publicada há dias" para uma
+    # mensagem cujo push acabou de acontecer.
+    now_wall="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    node - "$LIBDIR" "$ch_dir" "$LIAISON_SELF" "$now_wall" <<'NODEEOF'
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, chDir, self, nowWall] = process.argv;
+  const { markPublished } = await import(pathToFileURL(join(lib, 'liaison-publish.mjs')).href);
+  markPublished({ chDir, self, nowWall });
+})();
+NODEEOF
   fi
 
   if [ "$do_pull" -eq 0 ]; then

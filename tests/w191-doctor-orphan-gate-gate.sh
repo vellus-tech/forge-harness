@@ -27,6 +27,19 @@
 #   [7] contador de controle: universo de check-*.sh vazio REPROVA o cenário, não aprova
 #   [8] mutação: apagar a consulta a runtime.gates faz [2] e [3] reprovarem; restaurar volta a
 #       passar, com cmp verificado
+#
+# Issue #153 — cópia de `.forge` de outro consumidor é upgrade parcial disfarçado. Estende este
+# MESMO gate (não cria um novo) com dois checks novos do doctor: lib órfã em scripts/lib/ e
+# divergência entre forge.yaml:template_version e o cabeçalho do machinery.lock.
+#
+#   [9] consumidor recém-criado por `init` (cópia integral de template/.forge/scripts): ZERO
+#       linhas de lib órfã — controle contra falso-positivo em api-surface.mjs/pbt.mjs/transports
+#   [10] lib sem invocador (positiva): o doctor nomeia o arquivo
+#   [11] contrafactual: lib sourceada por um script legítimo NÃO é nomeada, e o script que a
+#        sourceia entra na contagem de "examinados" só pelo lado do universo, não como invocador
+#        de si mesmo
+#   [12] versão divergente entre forge.yaml e machinery.lock: o doctor nomeia as DUAS versões
+#   [13] versão idêntica: sem linha de divergência (contrafactual do 12)
 set -uo pipefail
 # Isolamento git (LDG-0201): GIT_DIR herdado do ambiente faria os comandos git abaixo
 # obedecerem ao repositório de quem invocou o gate, e não ao repositório sintético criado aqui.
@@ -201,5 +214,76 @@ cmp -s "$D2/.forge/scripts/doctor.sh" "$T/doctor.orig" || { echo "FAIL [8]: rest
 _mut_ok || { echo "FAIL [8]: recontrole — depois da restauração [2]/[3] não voltaram a passar"; exit 1; }
 rm -f "$MUT"
 echo "OK [8] — mutou, reprovou, restaurou (cmp ok), voltou a passar"
+
+# ── issue #153 — mkfull: cópia INTEGRAL de template/.forge/scripts (+ hooks), como um `init` de
+# verdade entregaria a um consumidor novo. mkfix acima copia só 3 libs (as que o cruzamento de
+# gate precisa) — insuficiente para o controle [9], que precisa do UNIVERSO real de scripts/lib
+# (as 79+ libs do template, incluindo api-surface.mjs/pbt.mjs/transports) para provar que a
+# isenção declarada no doctor não deixa passar falso-positivo em produção.
+mkfull() { # mkfull <nome>
+  local name="$1"
+  local d="$T/$name"
+  mkdir -p "$d"
+  cp -R "$WS/template/.forge" "$d/.forge"
+  git init -q "$d"; git -C "$d" config user.email t@t; git -C "$d" config user.name t
+  printf '# %s\n' "$name" > "$d/AGENTS.md"
+  ( cd "$d" && ln -sf AGENTS.md CLAUDE.md )
+  git -C "$d" config core.hooksPath "$d/.forge/hooks/git"
+  printf '%s\n' "$d"
+}
+
+echo "[9] consumidor recém-criado por init (cópia integral de scripts/lib): zero linhas de lib órfã"
+D9="$(mkfull init-limpo)"
+out9="$(roda "$D9")"
+grep -qE "harness: libs: [0-9]+ arquivo\(s\) em scripts/lib/ examinado\(s\), 0 órfã" <<<"$out9" \
+  || { echo "FAIL [9]: consumidor recém-criado por init acusou lib órfã — falso-positivo em api-surface.mjs/pbt.mjs/transports não foi resolvido. Saída:"; grep "harness: libs" <<<"$out9"; exit 1; }
+grep -qE '^\s*!\s*harness: libs:' <<<"$out9" \
+  && { echo "FAIL [9]: linha de lib órfã (marcador '!') presente num consumidor recém-criado. Saída:"; grep "harness: libs" <<<"$out9"; exit 1; }
+echo "OK [9] — $(grep -E 'harness: libs:' <<<"$out9")"
+
+echo "[10] lib sem invocador (positiva): o doctor nomeia o arquivo"
+D10="$(mkfix libs-orfas "$GB_VAZIO")"
+printf '#!/usr/bin/env bash\necho zz\n' > "$D10/.forge/scripts/lib/zz-orfa.sh"
+out10="$(roda "$D10")"
+grep -qE '^\s*!\s*harness: libs:.*zz-orfa\.sh' <<<"$out10" \
+  || { echo "FAIL [10]: o doctor não nomeou 'zz-orfa.sh' como lib órfã. Saída:"; grep "harness: libs" <<<"$out10"; exit 1; }
+echo "OK [10] — $(grep -E 'harness: libs:' <<<"$out10")"
+
+echo "[11] contrafactual: lib sourceada por um script legítimo não é nomeada"
+D11="$(mkfix libs-usadas "$GB_VAZIO")"
+printf '#!/usr/bin/env bash\n. "$(dirname "$0")/lib/zz-usada.sh"\n' > "$D11/.forge/scripts/zz-user.sh"
+printf '#!/usr/bin/env bash\necho usada\n' > "$D11/.forge/scripts/lib/zz-usada.sh"
+out11="$(roda "$D11")"
+grep -qE 'harness: libs:.*zz-usada\.sh' <<<"$out11" \
+  && { echo "FAIL [11]: lib SOURCEADA por script legítimo foi nomeada como órfã ('zz-usada.sh'). Saída:"; grep "harness: libs" <<<"$out11"; exit 1; }
+grep -qE "harness: libs: [0-9]+ arquivo\(s\)" <<<"$out11" \
+  || { echo "FAIL [11]: sem o contador — asserção negativa sem sinal positivo não prova nada. Saída:"; echo "$out11"; exit 1; }
+echo "OK [11] — $(grep -E 'harness: libs:' <<<"$out11")"
+
+echo "[12] versão divergente entre forge.yaml e machinery.lock: o doctor nomeia as duas"
+D12="$(mkfix versao-divergente "$GB_VAZIO")"
+mkdir -p "$D12/.forge/cache"
+printf '# forge machinery.lock — sha256 dos arquivos do template v0.9.0 (última aplicação).\n' \
+  > "$D12/.forge/cache/machinery.lock"
+out12="$(roda "$D12")"
+tv_yaml_v="$(grep -m1 -E '^\s*template_version:' "$D12/.forge/forge.yaml" | sed -E 's/^[^:]*:[[:space:]]*"?([^"[:space:]]*)"?.*/\1/')"
+[ -n "$tv_yaml_v" ] || { echo "FAIL [12]: fixture sem template_version em forge.yaml — precondição quebrada"; exit 1; }
+grep -qE "harness: versão:.*$tv_yaml_v.*0\.9\.0|harness: versão:.*0\.9\.0.*$tv_yaml_v" <<<"$out12" \
+  || { echo "FAIL [12]: o doctor não nomeou as duas versões (forge.yaml=$tv_yaml_v, lock=0.9.0). Saída:"; grep "harness: versão" <<<"$out12"; exit 1; }
+grep -qE '^\s*!\s*harness: versão:' <<<"$out12" \
+  || { echo "FAIL [12]: divergência de versão não gerou linha de aviso ('!'). Saída:"; grep "harness: versão" <<<"$out12"; exit 1; }
+echo "OK [12] — $(grep -E 'harness: versão:' <<<"$out12")"
+
+echo "[13] versão idêntica: sem linha de divergência (contrafactual do 12)"
+D13="$(mkfix versao-igual "$GB_VAZIO")"
+mkdir -p "$D13/.forge/cache"
+printf '# forge machinery.lock — sha256 dos arquivos do template v%s (última aplicação).\n' "$tv_yaml_v" \
+  > "$D13/.forge/cache/machinery.lock"
+out13="$(roda "$D13")"
+grep -qE '^\s*!\s*harness: versão:' <<<"$out13" \
+  && { echo "FAIL [13]: versão idêntica entre forge.yaml e machinery.lock gerou aviso de divergência indevido. Saída:"; grep "harness: versão" <<<"$out13"; exit 1; }
+grep -qE '^\s*✓\s*harness: versão:' <<<"$out13" \
+  || { echo "FAIL [13]: sem o contrafactual positivo (✓) confirmando que o cruzamento rodou e concluiu igualdade. Saída:"; grep "harness: versão" <<<"$out13"; exit 1; }
+echo "OK [13] — $(grep -E 'harness: versão:' <<<"$out13")"
 
 echo "PASS w191-doctor-orphan-gate"

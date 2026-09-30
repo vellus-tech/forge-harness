@@ -16,8 +16,12 @@ jobs:
     # sozinhos), e o w239 (revisão da DH-1, com PBT de 75 casos cada um chamando `node forge.mjs
     # update`) sozinho levou 5,7min nessa execução — acrescentar o w250 (43s) bastou para estourar
     # 25min duas vezes seguidas (24m49s e 24m53s de execução real) sem nenhum gate reprovando.
-    # 35min dá margem sobre a variação já medida sem mascarar um hang de verdade.
-    timeout-minutes: 35
+    # 35min deu margem sobre a variação medida em 2026-09-28. Medido de novo em 2026-09-30, PR
+    # #218 (Bloco D, 166 gates — 14 a mais desde o ajuste anterior): "PASS=166 FAIL=0 ... OK —
+    # suíte 100% verde" em 2021s (33m41s) de execução real, cancelado pelo teto de 35min logo
+    # depois de imprimir o resultado (checkout+setup+node consomem o resto da margem). 45min dá
+    # folga real sobre o crescimento observado sem mascarar um hang de verdade.
+    timeout-minutes: 45
     steps:
       # fetch-depth: 0 é obrigatório — o motor deriva a árvore pré-correção do histórico
       # (ancestry, revert sintetizado ou enxerto do teste). Com o checkout raso padrão não há

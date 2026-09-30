@@ -24,6 +24,9 @@ else
 fi
 
 cmd="${1:-}"; shift || true
+case "$cmd" in
+  -h|--help|help) echo "Usage: wave-ops.sh plan|open|close|status <change-id> [args...]"; exit 0 ;;
+esac
 change_id="${1:-}"; shift || true
 
 if [ -z "$cmd" ] || [ -z "$change_id" ]; then

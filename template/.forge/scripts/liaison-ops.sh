@@ -106,6 +106,9 @@ CONFIG="$LIAISON_DIR/liaison.yaml"
 TPL="$(cd "$SCRIPT_DIR/.." && pwd)/templates/liaison/CHANNEL.md"
 
 cmd="${1:-}"; shift || true
+case "$cmd" in
+  -h|--help|help) echo "Usage: liaison-ops.sh open|thread|send|inbox|read|ack|status|export|import|conflicts|peer|peer-path|transport|sync|render [args...]"; exit 0 ;;
+esac
 [ -n "$cmd" ] || { echo "Usage: liaison-ops.sh open|thread|send|inbox|read|ack|status|export|import|conflicts|peer|peer-path|transport|sync|render [args...]" >&2; exit 1; }
 
 _git_date() { git -C "$ROOT" log -1 --format=%cI 2>/dev/null || echo ""; }

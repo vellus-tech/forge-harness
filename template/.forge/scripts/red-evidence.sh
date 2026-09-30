@@ -60,6 +60,9 @@ _manifest_is_defect_fixing() {
 }
 
 CMD="${1:-}"; shift || true
+case "$CMD" in
+  -h|--help|help) echo "Usage: red-evidence.sh record|replay|status|waive|init <change-id> [...] | ci"; exit 0 ;;
+esac
 
 # `ci` é o único subcomando SEM change-id, e a exceção é deliberada (LDG-0004): quem escolhe o
 # escopo tem de ser o estado do repositório, não quem invoca. Um `ci --change X` devolveria ao

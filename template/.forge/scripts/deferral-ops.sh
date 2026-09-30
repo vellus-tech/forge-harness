@@ -24,6 +24,9 @@ else
 fi
 
 cmd="${1:-}"; shift || true
+case "$cmd" in
+  -h|--help|help) echo "Usage: deferral-ops.sh raise|resolve|test|status <change-id> [args...]"; exit 0 ;;
+esac
 change_id="${1:-}"; shift || true
 
 [ -n "$cmd" ] && [ -n "$change_id" ] || {

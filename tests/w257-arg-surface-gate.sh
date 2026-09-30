@@ -26,6 +26,20 @@
 # Propriedade PBT (enumeração exaustiva, não amostragem): para cada subcomando e cada par (F, G)
 # do seu conjunto de flags com valor (G pode repetir F quando o conjunto tem um elemento só),
 # `cmd --F --G` sai rc≠0 citando G.
+#
+# Extensão (issue #136) — `--help`/`-h` caía no ramo de comando desconhecido (rc 1, stderr) em vez
+# de imprimir o usage com rc 0. Universo DERIVADO por glob (`template/.forge/scripts/*-ops.sh` mais
+# `red-evidence.sh`), nunca uma lista escrita à mão — hoje são liaison-ops.sh, ledger-ops.sh,
+# wave-ops.sh, deferral-ops.sh, pentest-ops.sh e red-evidence.sh; se o template ganhar outro
+# `*-ops.sh`, o glob o inclui sem editar este gate.
+#
+#  [H]   para cada script do universo derivado: `--help` e `-h` como primeiro argumento saem rc 0
+#        com "usage" (ou "uso:", convenção já usada por pentest-ops.sh/run-all.sh) em stdout; e
+#        `comando-que-nao-existe` continua rc≠0 (contrafactual, comportamento pré-existente).
+#  [HP]  propriedade PBT — a própria varredura do universo derivado (glob), não uma lista fixa: o
+#        contador de controle de lib/gate-universe.sh reprova se o universo vier vazio.
+#  [HM]  mutação — remover o ramo de help de UM script (ledger-ops.sh) faz A LINHA DAQUELE script
+#        falhar isoladamente, com os demais scripts do universo continuando OK.
 set -euo pipefail
 # Isolamento git (LDG-0201): GIT_DIR herdado do ambiente faria os comandos git abaixo obedecerem ao
 # repositório de quem invoca o gate, não ao repositório sintético criado aqui.
@@ -250,6 +264,100 @@ cp "$LOORIG" "$LO"
 cmp -s "$LO" "$LOORIG" || { echo "FAIL [M]: restauração de liaison-ops.sh não bateu byte a byte"; exit 1; }
 _scn_m_rejects || { echo "FAIL [M]: recontrole — inbox --thread --show não voltou a reprovar depois da restauração"; exit 1; }
 echo "OK [M] — mutação reintroduziu o defeito isoladamente; restauração e recontrole OK"
+
+# =================================================================================================
+# [H]/[HP] — issue #136: `--help`/`-h` no universo DERIVADO (glob), com contrafactual e universo.
+# =================================================================================================
+echo "== [H] --help/-h no universo derivado de *-ops.sh + red-evidence.sh =="
+
+# shellcheck source=/dev/null
+. "$WS/template/.forge/scripts/lib/gate-universe.sh"
+
+# Opera sobre a cópia SANDBOX em $T (já copiada de $WS/template/.forge acima, linha ~49) — nunca
+# sobre a árvore rastreada real, mesmo para o teste de mutação [HM]: mutar e restaurar o arquivo
+# real correria risco de deixar o mutante gravado se o processo morrer no meio.
+help_universe=()
+for f in "$T"/.forge/scripts/*-ops.sh "$T/.forge/scripts/red-evidence.sh"; do
+  [ -f "$f" ] || continue
+  help_universe+=("$f")
+done
+
+_help_check_script() { # _help_check_script <path-do-script> — 1 se ESTE script está conforme
+  local script="$1" name bad=0 out rc
+  name="$(basename "$script")"
+  for flag in --help -h; do
+    set +e
+    out="$(_run_to 20 -- env FORGE_ROOT="$T" bash "$script" "$flag" 2>&1)"; rc=$?
+    set -e
+    if [ "$rc" -ne 0 ]; then
+      echo "FAIL [H]: $name $flag devolveu rc=$rc (esperado 0) — got: $out"; bad=1
+    elif ! grep -qiE 'usage|uso:' <<<"$out"; then
+      echo "FAIL [H]: $name $flag não imprime usage/uso em stdout — got: $out"; bad=1
+    fi
+  done
+  set +e
+  out="$(_run_to 20 -- env FORGE_ROOT="$T" bash "$script" comando-que-nao-existe 2>&1)"; rc=$?
+  set -e
+  if [ "$rc" -eq 0 ]; then
+    echo "FAIL [H]: $name comando-que-nao-existe devolveu rc=0 (contrafactual quebrado) — got: $out"; bad=1
+  fi
+  if [ "$bad" -eq 0 ]; then
+    echo "OK [H] — $name: --help/-h rc 0 com usage, comando-que-nao-existe rc≠0"
+    return 0
+  fi
+  return 1
+}
+
+h_fails=0
+for f in "${help_universe[@]}"; do
+  _help_check_script "$f" || h_fails=$((h_fails + 1))
+done
+[ "$h_fails" -eq 0 ] || { echo "FAIL [H]: $h_fails de ${#help_universe[@]} script(s) do universo reprovaram acima"; exit 1; }
+
+echo "== [HP] propriedade PBT — a própria varredura sobre o universo derivado =="
+forge_universe_check "w257/help-arg-surface" "${#help_universe[@]}" "script(s) *-ops.sh + red-evidence.sh" "template/.forge/scripts (glob)" "$WS" \
+  || { echo "FAIL [HP]: universo de scripts --help vazio aprovaria em silêncio"; exit 1; }
+echo "OK [HP] — ${#help_universe[@]} script(s) examinado(s) no universo derivado"
+
+# =================================================================================================
+# [HM] Mutação — remover o ramo de help de UM script (ledger-ops.sh) falha só a linha DAQUELE script.
+# =================================================================================================
+echo "== [HM] mutação — remoção do ramo --help/-h/help de ledger-ops.sh =="
+LEDGER="$T/.forge/scripts/ledger-ops.sh"
+LEDGERORIG="$T/ledger-ops.orig"
+cp "$LEDGER" "$LEDGERORIG"
+
+_help_check_script "$LEDGER" >/dev/null 2>&1 || { echo "FAIL [HM]: pré-condição — ledger-ops.sh não passa em [H] antes da mutação"; exit 1; }
+
+perl -0pi -e 's/case "\$cmd" in\n  -h\|--help\|help\) echo "Usage: ledger-ops\.sh add\|update\|note\|resolve\|promote\|harvest\|render\|status\|list \[args\.\.\.\]"; exit 0 ;;\nesac\n//' "$LEDGER"
+cmp -s "$LEDGER" "$LEDGERORIG" && { echo "FAIL [HM]: perl não alterou ledger-ops.sh — regex não casou"; exit 1; }
+
+hm_ledger_ok=1
+_help_check_script "$LEDGER" >/tmp/forge-w257-hm-ledger.log 2>&1 && hm_ledger_ok=0
+if [ "$hm_ledger_ok" -eq 0 ]; then
+  echo "FAIL [HM]: ledger-ops.sh AINDA passa em [H] depois de remover o ramo de help — mutação não muta nada"
+  cp "$LEDGERORIG" "$LEDGER"
+  exit 1
+fi
+echo "OK [HM] — a mutação faz a linha de ledger-ops.sh falhar (log: /tmp/forge-w257-hm-ledger.log)"
+
+# isolamento do defeito: os DEMAIS scripts do universo continuam OK com ledger-ops.sh mutado
+hm_others_bad=0
+for f in "${help_universe[@]}"; do
+  [ "$(basename "$f")" = "ledger-ops.sh" ] && continue
+  _help_check_script "$f" >/dev/null 2>&1 || hm_others_bad=$((hm_others_bad + 1))
+done
+if [ "$hm_others_bad" -ne 0 ]; then
+  cp "$LEDGERORIG" "$LEDGER"
+  echo "FAIL [HM]: $hm_others_bad outro(s) script(s) do universo reprovaram junto — a mutação não isolou o defeito em ledger-ops.sh"
+  exit 1
+fi
+echo "OK [HM] — os demais $((${#help_universe[@]} - 1)) script(s) do universo continuam OK com ledger-ops.sh mutado"
+
+cp "$LEDGERORIG" "$LEDGER"
+cmp -s "$LEDGER" "$LEDGERORIG" || { echo "FAIL [HM]: restauração de ledger-ops.sh não bateu byte a byte"; exit 1; }
+_help_check_script "$LEDGER" >/dev/null 2>&1 || { echo "FAIL [HM]: recontrole — ledger-ops.sh não voltou a passar em [H] depois da restauração"; exit 1; }
+echo "OK [HM] — recontrole: ledger-ops.sh volta a passar em [H] depois da restauração"
 
 # ── sentinela do repositório real: nada vazou do sandbox ───────────────────────────────────────
 arvore_sentinela_fim "$WS" "$REPO_SNAPSHOT_BEFORE" "w257-arg-surface" tudo || exit $?

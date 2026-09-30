@@ -114,6 +114,9 @@ TPL="$(cd "$SCRIPT_DIR/.." && pwd)/templates/ledger/LEDGER.md"
 OUT="$LEDGER_DIR/LEDGER.md"
 
 cmd="${1:-}"; shift || true
+case "$cmd" in
+  -h|--help|help) echo "Usage: ledger-ops.sh add|update|note|resolve|promote|harvest|render|status|list [args...]"; exit 0 ;;
+esac
 [ -n "$cmd" ] || { echo "Usage: ledger-ops.sh add|update|note|resolve|promote|harvest|render|status|list [args...]" >&2; exit 1; }
 
 _git_date() { git -C "$ROOT" log -1 --format=%cI 2>/dev/null || echo ""; }

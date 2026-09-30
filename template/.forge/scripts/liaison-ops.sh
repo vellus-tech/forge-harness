@@ -781,7 +781,15 @@ const { pathToFileURL } = require('url');
           nowWall: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'), strict: false,
         });
       }
-    } catch { /* o ack já está publicado; o cursor é conveniência, nunca desfaz a publicação */ }
+    } catch (e) {
+      // issue #108: o catch ficava vazio e o `OK ack` saía como se o cursor tivesse avançado — o
+      // efeito colateral falhava em silêncio. O ack em si é um ato de protocolo já PUBLICADO (a
+      // escrita em `targetFile` acima já aconteceu); reportar falha aqui reprovaria um ato que
+      // funcionou por causa de um efeito colateral que não é o ato. Por isso WARN em stderr com
+      // rc 0, nunca `process.exit(1)`.
+      const motivo = (e && e.message) ? e.message : String(e);
+      console.error(`WARN: ack publicado, mas o cursor não avançou (${motivo})`);
+    }
   }
   process.stdout.write(msgId);
 })();

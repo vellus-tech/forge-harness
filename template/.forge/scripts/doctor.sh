@@ -455,9 +455,18 @@ EOF_CHG
   fi
 
   if [ -d "$ROOT/.forge/liaison" ] && [ -f "$ROOT/.forge/scripts/liaison-ops.sh" ]; then
-    liaison_line="$(FORGE_ROOT="$ROOT" bash "$ROOT/.forge/scripts/liaison-ops.sh" status 2>/dev/null || true)"
-    if [ -n "$liaison_line" ] && [ "$liaison_line" != "LIAISON: não inicializado" ]; then
-      info "harness: ${liaison_line}"
+    # issue #108: `2>/dev/null || true` engolia rc≠0 do `status` E o estado de erro — a seção de
+    # liaison inteira sumia do doctor sem dizer que a leitura falhou, indistinguível de "nada a
+    # reportar". Agora rc≠0 nomeia a falha com `✗` (sinaliza que o PRÓPRIO diagnóstico quebrou,
+    # não o estado do canal — por isso não toca MISSING_DIAG, que continua reservado à maquinaria
+    # do harness em si).
+    liaison_out="$(FORGE_ROOT="$ROOT" bash "$ROOT/.forge/scripts/liaison-ops.sh" status 2>&1)"
+    liaison_rc=$?
+    if [ "$liaison_rc" -ne 0 ]; then
+      liaison_first_err="$(printf '%s\n' "$liaison_out" | head -n1)"
+      miss "harness: LIAISON: status falhou — ${liaison_first_err:-erro desconhecido (rc $liaison_rc)}"
+    elif [ -n "$liaison_out" ] && [ "$liaison_out" != "LIAISON: não inicializado" ]; then
+      info "harness: ${liaison_out}"
       conflicts="$(find "$ROOT/.forge/liaison" -mindepth 3 -maxdepth 3 -path '*/conflicts/*' -name '*.json' 2>/dev/null | wc -l | tr -d ' ')"
       if [ "${conflicts:-0}" -gt 0 ]; then
         info "harness: liaison — $conflicts conflito(s) registrado(s) em conflicts/ (decisão humana; ver /forge:liaison)"

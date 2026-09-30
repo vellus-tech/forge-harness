@@ -336,12 +336,18 @@ _write_body_blob() {  # _write_body_blob <ch_dir> <body_file>
 const { readFileSync, writeFileSync, existsSync } = require('fs');
 const { join, basename } = require('path');
 const { pathToFileURL } = require('url');
+const { createHash } = require('crypto');
 (async () => {
   const [, , lib, file, blobsDir] = process.argv;
   const M = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
   const buf = readFileSync(file);
   if (buf.length > M.BLOB_MAX_BYTES) { console.error(`blob excede ${M.BLOB_MAX_BYTES} bytes (${buf.length})`); process.exit(1); }
-  const sha = M.sha256Hex(buf.toString('binary'));
+  // Issue #117: nome do blob é o sha256 dos BYTES do arquivo, nunca do texto. Antes disto,
+  // `M.sha256Hex(buf.toString('binary'))` interpretava o buffer como latin1, produzia uma string
+  // JS e a reidratava em UTF-8 antes de hashear — para todo byte acima de 0x7F (qualquer conteúdo
+  // acentuado) o resultado diverge de `shasum -a 256` do arquivo real. `createHash` sobre o
+  // BUFFER, sem conversão de texto no meio, é o único caminho que hasheia os bytes reais.
+  const sha = createHash('sha256').update(buf).digest('hex');
   const safeBase = basename(file).replace(/[^A-Za-z0-9._-]/g, '_');
   const name = `${sha}-${safeBase}`;
   const dest = join(blobsDir, name);

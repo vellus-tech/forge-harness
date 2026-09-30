@@ -289,6 +289,26 @@ grep -q "$MSG5B" <<<"$out5b" \
   || { echo "FAIL [5b]: o aviso não nomeia a mensagem $MSG5B: $out5b"; exit 1; }
 echo "OK [5b]"
 
+echo "[5c] achado da correção do #117: blob de conteúdo acentuado (bytes > 0x7F) nomeado pela fórmula NOVA (sha256 real dos bytes) recupera corretamente — a verificação em liaison-import.mjs usava a fórmula ANTIGA (latin1) e rejeitaria como sha-mismatch"
+printf 'não, ação — acentuação de propósito para o cenario 5c (#117)\n' > "$T/corpo-acentuado-5c.md"
+LG pp send ch --thread t1 --kind note --subject "acentuado 5c" --body-file "$T/corpo-acentuado-5c.md" >/dev/null \
+  || { echo "FAIL [5c]: send"; exit 1; }
+LG pp sync ch >/dev/null || { echo "FAIL [5c]: sync pp"; exit 1; }
+LG qq sync ch >/dev/null || { echo "FAIL [5c]: sync qq (conhecer a mensagem)"; exit 1; }
+read -r MSG5C BLOB5C <<< "$(last_pp_msg_and_blob)"
+[ -n "$BLOB5C" ] || { echo "FAIL [5c]: não foi possível nomear o blob da mensagem recém-enviada"; exit 1; }
+[ -f "$QQ_BLOBS/$BLOB5C" ] || { echo "FAIL [5c]: pré-condição — qq deveria ter $BLOB5C depois do sync"; exit 1; }
+rm -f "$QQ_BLOBS/$BLOB5C"
+out5c="$(LG qq sync ch 2>&1)"; rc5c=$?
+[ "$rc5c" -eq 0 ] || { echo "FAIL [5c]: sync reprovou (rc $rc5c): $out5c"; exit 1; }
+[ -f "$QQ_BLOBS/$BLOB5C" ] \
+  || { echo "FAIL [5c]: blob acentuado NÃO foi recuperado — a verificação de sha rejeitou um blob legítimo. Saída: $out5c"; exit 1; }
+cmp -s "$QQ_BLOBS/$BLOB5C" "$HUB_BLOBS/$BLOB5C" \
+  || { echo "FAIL [5c]: blob recuperado não é byte-idêntico ao do hub"; exit 1; }
+grep -qi "recuperad" <<<"$out5c" \
+  || { echo "FAIL [5c]: sync não reportou 'recuperado' para o blob acentuado: $out5c"; exit 1; }
+echo "OK [5c]"
+
 echo "[6] o 'status' conta e nomeia body_ref sem blob local (por canal e agregado)"
 out6="$(LG qq status ch 2>&1)"; rc6=$?
 [ "$rc6" -eq 0 ] || { echo "FAIL [6]: status ch reprovou (rc $rc6): $out6"; exit 1; }

@@ -48,8 +48,11 @@
 #        outras cinco, e a paridade `ledger.json` ↔ `LEDGER.md` não tem gate próprio
 #   [19] `note` ANUNCIA divergência de raiz: invocado de dentro de um worktree, grava no ledger do
 #        TRONCO e emite o aviso de `forge_warn_root_divergence` (LDG-0068/LDG-0174)
-#   [20] prova de mutação: sete mutações, cada uma com controle, contrafactual EXIGIDO,
+#   [20] prova de mutação: oito mutações, cada uma com controle, contrafactual EXIGIDO,
 #        restauração por cópia conferida com `cmp` e recontrole
+#   [21] issue #103 — `resolve` repetido no mesmo id reprova (rc 1) citando o carimbo anterior,
+#        SEM escrever: `resolved_at` fica byte-idêntico ao da primeira chamada e a nota aparece
+#        exatamente uma vez; propriedade para k gerado em [2, 5] chamadas de `resolve`
 #
 # Três estados, nunca dois: `node` ausente, `git` sem commit ou fixture não montada terminam em
 # NÃO VERIFICADO com rc 3, distinto do FAIL (rc 1) e do PASS (rc 0).
@@ -58,7 +61,7 @@ set -euo pipefail
 # obedecerem ao repositório de quem invocou o gate, e não ao repositório sintético criado aqui.
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
-SCN_DECLARED=21   # [0]..[20] — contagem do PRÓPRIO gate, a única exceção legítima ao literal
+SCN_DECLARED=22   # [0]..[21] — contagem do PRÓPRIO gate, a única exceção legítima ao literal
 SCN_RUN=0
 _scn() { SCN_RUN=$((SCN_RUN + 1)); echo "$1"; }
 
@@ -507,8 +510,51 @@ set -e
 [ "$(_warn_lines "$out19list")" -eq 0 ] || { echo "FAIL [19]: 'list', porta de LEITURA, passou a avisar — o aviso virou ruído. got: $out19list"; exit 1; }
 echo "OK [19] — 'note' anuncia a divergência; 'list' segue silencioso; 'add' é o controle positivo"
 
+_scn "[21] issue #103 — 'resolve' repetido reprova sem duplicar a nota nem recarimbar"
+_lg add --type known-bug --title "alvo do resolve repetido" --detail "conteúdo de partida do alvo do #103" >/dev/null
+ID21="$(node -e 'const d=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));console.log(d.entries[d.entries.length-1].id)' "$LF")"
+_lg resolve "$ID21" --note "fechado na primeira chamada" >/dev/null
+ra21_1="$(_field_of "$ID21" resolved_at)"
+[ -n "$ra21_1" ] || { echo "FAIL [21]: a primeira chamada de 'resolve' não carimbou resolved_at"; exit 1; }
+cp "$LF" "$T/snap21-antes.json"
+set +e
+out21="$(_lg resolve "$ID21" --note "fechado na primeira chamada" 2>&1)"; rc21=$?
+set -e
+[ "$rc21" -ne 0 ] || { echo "FAIL [21]: a SEGUNDA chamada de 'resolve' no mesmo id devolveu rc=0 — deveria reprovar"; exit 1; }
+cmp -s "$LF" "$T/snap21-antes.json" || { echo "FAIL [21]: a segunda chamada de 'resolve' alterou o ledger.json mesmo reprovando"; exit 1; }
+case "$out21" in *"$ID21"*"'resolved'"*"$ra21_1"*) : ;; *) echo "FAIL [21]: a mensagem não cita o id, o status 'resolved' e o carimbo anterior ($ra21_1) — got: $out21"; exit 1 ;; esac
+[ "$(_field_of "$ID21" resolved_at)" = "$ra21_1" ] || { echo "FAIL [21]: resolved_at mudou depois da chamada reprovada"; exit 1; }
+occ21="$(node -e 'const d=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));const e=(d.entries||[]).find(x=>x.id===process.argv[2]);const s=String((e&&e.detail)||"");let n=0,i=0;for(;;){const k=s.indexOf(process.argv[3],i);if(k===-1)break;n+=1;i=k+1}console.log(n)' "$LF" "$ID21" "fechado na primeira chamada")"
+[ "$occ21" -eq 1 ] || { echo "FAIL [21]: a nota aparece $occ21 vez(es) no detail depois da chamada reprovada, esperado 1"; exit 1; }
+echo "OK [21] cenário base — segunda chamada reprova (rc=$rc21), ledger intacto, nota aparece 1 vez, resolved_at=$ra21_1"
+
+# Propriedade PBT do mesmo cenário [21] (nenhum novo _scn — a contagem do cabeçalho é sobre
+# cenários numerados, e a PBT é a segunda metade do [21]): para k gerado em [2, 5] chamadas de
+# 'resolve', a nota aparece exatamente uma vez e resolved_at é o da primeira.
+K_VALUES=(2 3 4 5)
+for k in "${K_VALUES[@]}"; do
+  _lg add --type known-bug --title "alvo PBT k=$k" --detail "conteúdo de partida k=$k" >/dev/null
+  IDK="$(node -e 'const d=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));console.log(d.entries[d.entries.length-1].id)' "$LF")"
+  NOTA_K="nota única para k=$k"
+  _lg resolve "$IDK" --note "$NOTA_K" >/dev/null
+  raK1="$(_field_of "$IDK" resolved_at)"
+  i=2
+  while [ "$i" -le "$k" ]; do
+    set +e
+    outK="$(_lg resolve "$IDK" --note "$NOTA_K" 2>&1)"; rcK=$?
+    set -e
+    [ "$rcK" -ne 0 ] || { echo "FAIL [21/PBT k=$k]: chamada $i de 'resolve' devolveu rc=0"; exit 1; }
+    i=$((i + 1))
+  done
+  raK2="$(_field_of "$IDK" resolved_at)"
+  [ "$raK1" = "$raK2" ] || { echo "FAIL [21/PBT k=$k]: resolved_at divergiu da primeira chamada ($raK1 -> $raK2) depois de $k chamadas"; exit 1; }
+  occK="$(node -e 'const d=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));const e=(d.entries||[]).find(x=>x.id===process.argv[2]);const s=String((e&&e.detail)||"");let n=0,i=0;for(;;){const k=s.indexOf(process.argv[3],i);if(k===-1)break;n+=1;i=k+1}console.log(n)' "$LF" "$IDK" "$NOTA_K")"
+  [ "$occK" -eq 1 ] || { echo "FAIL [21/PBT k=$k]: a nota aparece $occK vez(es) depois de $k chamadas, esperado 1"; exit 1; }
+done
+echo "OK [21] PBT — k em {${K_VALUES[*]}}: nota aparece 1 vez e resolved_at é o da primeira chamada em todos os casos"
+
 # =================================================================================================
-_scn "[20] prova de mutação — sete mutações, cada uma com controle, contrafactual, restauração por cmp e recontrole"
+_scn "[20] prova de mutação — oito mutações, cada uma com controle, contrafactual, restauração por cmp e recontrole"
 cp "$LG" "$T/ledger-ops.orig"
 
 # Alvos DEDICADOS de M6 e M7, criados aqui de propósito. As sondas de M1 escrevem em LDG-0002
@@ -669,6 +715,24 @@ if _p_dup_avisa m7; then echo "FAIL [20/M7]: remover o ramo do aviso NÃO silenc
 _p1_preserva m7 || { echo "FAIL [20/M7]: a mutação derrubou o append do 'note' — ela atingiu mais do que o aviso, e o contrafactual não isola o comportamento medido"; exit 1; }
 _restaura
 _p_dup_avisa rec7 || { echo "FAIL [20/M7]: recontrole — o aviso de duplicata não voltou depois da restauração"; exit 1; }
+
+# ── M8: a checagem de status repetido em 'resolve' (issue #103) ────────────────────────────────
+# Sem esta guarda, uma segunda chamada de 'resolve' no mesmo id duplica a nota no detail e
+# recarimba resolved_at com rc 0 — o defeito original da issue #103.
+_p8_resolve_repetido_recusa() { # true quando a SEGUNDA chamada de 'resolve' no mesmo id reprova
+  _lg add --type known-bug --title "alvo M8 $1" --detail "conteúdo de partida M8 $1" >/dev/null
+  local id; id="$(node -e 'const d=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));console.log(d.entries[d.entries.length-1].id)' "$LF")"
+  _lg resolve "$id" --note "fechado $1" >/dev/null
+  set +e; _lg resolve "$id" --note "fechado $1" >/dev/null 2>&1; local r=$?; set -e
+  [ "$r" -ne 0 ]
+}
+mut_n=$((mut_n + 1))
+_p8_resolve_repetido_recusa ctl8 || { echo "FAIL [20/M8]: pré-condição — [21] não reprova a segunda chamada de 'resolve' antes da mutação"; exit 1; }
+perl -0pi -e "s/if \(e\.status === 'resolved' \|\| e\.status === 'wont-fix'\) \{/if (false) {/" "$LG"
+_mutou "/M8"
+if _p8_resolve_repetido_recusa m8; then echo "FAIL [20/M8]: remover a checagem de status NÃO fez a segunda chamada de 'resolve' sair rc 0 — [21] não observa o que diz observar"; exit 1; fi
+_restaura
+_p8_resolve_repetido_recusa rec8 || { echo "FAIL [20/M8]: recontrole — [21] não voltou a reprovar a segunda chamada depois da restauração"; exit 1; }
 
 [ "$mut_n" -gt 0 ] || { echo "FAIL [20]: nenhuma mutação executada"; exit 1; }
 echo "OK [20] — $mut_n mutações produziram o contrafactual declarado; restauração por cmp e recontrole em todas"

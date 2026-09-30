@@ -30,7 +30,11 @@ Grave `analysis.md` no change com:
 ## Achados
 | ID | Severidade (BLOCKER/HIGH/MEDIUM) | Tipo (coverage/conflict/drift/risk) | Onde | Recomendação |
 ## Síntese (2-3 linhas)
+## Revisão
+Revisor: <subagente> (<modelo>) | Transcrito por: <sessão orquestradora>
 ```
+
+**Quem julga e quem grava.** Quando a análise deste comando é delegada a um subagente revisor sem permissão de escrita (ex.: `general-purpose` ou `code-reviewer` invocado só para julgar), esse subagente **nunca** tenta escrever `analysis.md` diretamente — a escrita é recusada pelo harness e força uma transcrição manual sem regra, o que já reescreveu o prompt de delegação quatro vezes seguidas numa mesma sessão. Em vez disso: o revisor delegado devolve a tabela de achados e a síntese como **texto** na resposta (exatamente no formato acima), e é a **sessão orquestradora** — nunca o subagente — quem grava `analysis.md` no change, transcrevendo esse texto sem reinterpretar os achados. O arquivo registra os dois lados na linha `## Revisão`: **quem revisou** (nome do subagente e modelo usado no julgamento) e **quem transcreveu** (a sessão orquestradora, que grava o arquivo). Alternativa descartada: dar permissão de escrita ao subagente revisor — isso junta julgamento e gravação no mesmo agente e elimina a checagem de que quem grava leu o que foi julgado.
 
 No chat: apenas o Status + contagem por severidade + próxima ação (BLOCKER → resolver antes de `/forge:implement`; sem BLOCKER → `/forge:implement` liberado). Não despeje a tabela no chat (§17.6).
 

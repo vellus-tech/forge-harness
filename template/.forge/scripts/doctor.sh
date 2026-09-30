@@ -38,12 +38,16 @@ esac
 # motivo pelo qual .forge/templates/ já é excluído da varredura. Nunca é o projeto que o autor
 # pretendia checar. Com FORGE_ROOT setado, `FORGE_ROOT=<repo> bash template/.forge/scripts/
 # doctor.sh --report` aponta para o projeto de verdade.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [ -n "${FORGE_ROOT:-}" ]; then
   ROOT="$(cd "$FORGE_ROOT" && pwd)"
 else
   ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 fi
 cd "$ROOT"
+
+# shellcheck disable=SC1091
+. "$SCRIPT_DIR/lib/scan-exclude.sh"
 
 # ── helpers ────────────────────────────────────────────────────────────────
 if [ -t 1 ]; then GREEN=$'\033[32m'; RED=$'\033[31m'; YEL=$'\033[33m'; DIM=$'\033[2m'; RST=$'\033[0m'
@@ -58,10 +62,14 @@ info()  { printf "  %s·%s %s\n" "$YEL" "$RST" "$1"; }
 warn()  { printf "  %s!%s %s\n" "$YEL" "$RST" "$1"; }
 hint()  { printf "      %s↳ %s%s\n" "$DIM" "$1" "$RST"; }
 
-# Detecta stacks por marcadores no repo (ignora node_modules/bin/obj/.git).
+# Detecta stacks por marcadores no repo. Poda a lista compartilhada de scan-exclude.sh (issue
+# #149: a lib existia mas não tinha invocador) mais `bin/`, específico deste detector para evitar
+# falso marcador dentro de artefato de build (ex.: bin/ do .NET) — `obj` já vem na lista
+# compartilhada.
 find_marker() {
-  find . \( -path ./node_modules -o -path ./.git -o -name bin -o -name obj -o -path ./dist \) -prune \
-       -o -name "$1" -print 2>/dev/null | head -1
+  local prune=()
+  forge_find_prune_args prune
+  find . "${prune[@]}" -name bin -prune -o -name "$1" -print 2>/dev/null | head -1
 }
 
 # ── Forge harness (§19.1) — roda mesmo sem stack detectada ──────────────────

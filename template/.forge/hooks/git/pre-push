@@ -484,6 +484,29 @@ if [ "$_pp_so_delecao" != 1 ]; then
   run_check "typecheck" "$(fm_field typecheck)"
   run_check "test" "$(fm_field test)"
 
+  # ── aviso de cobertura .NET (issue #106) ────────────────────────────────────────────────────
+  # `run_check "test"` acima executa `runtime.test` como TEXTO LIVRE; nada confronta esse comando
+  # com as superfícies de build REAIS da árvore. Uma árvore com `.sln`/`.csproj` RASTREADO cujo
+  # `runtime.test` não menciona `dotnet` faz a suíte .NET nunca rodar, sem aviso nenhum — medido no
+  # axis-go-cloud (24 `.sln`, `test: pnpm test`). AVISO, nunca bloqueio (DA-12): bloquear
+  # reprovaria todo push de consumidor cujo `runtime.test` chama um SCRIPT que por sua vez chama
+  # `dotnet` — a heurística por comando não vê através de script, e não há como saber o que um
+  # script faz sem executá-lo. Reconhecimento restrito à stack .NET: é a medida que o plano tem
+  # (docs/plans/2026-09-15-plano-issues-abertas.md, seção #106); bloqueio opt-in e outras stacks
+  # ficam para a Onda 8.
+  #
+  # SÓ RASTREADO (`git ls-files`), nunca a árvore de trabalho inteira: um `.sln` gerado por build
+  # e ignorado via `.gitignore` não é uma superfície que o consumidor versiona, e avisar sobre ele
+  # seria ruído — a condição de "rastreado" é o que distingue os dois cenários do gate w260.
+  _pp_dotnet_cmd="$(fm_field test)"
+  _pp_dotnet_n="$(git -C "$ROOT" ls-files -- '*.sln' '*.csproj' 2>/dev/null | wc -l | tr -d ' ')"
+  if [ "${_pp_dotnet_n:-0}" -gt 0 ]; then
+    case "$_pp_dotnet_cmd" in
+      *dotnet*) : ;;
+      *) echo "pre-push: AVISO — $_pp_dotnet_n solution(s) .NET rastreada(s) e runtime.test ('$_pp_dotnet_cmd') não invoca dotnet; a suíte .NET não roda neste gate" ;;
+    esac
+  fi
+
   # ── gates declarados em FORGE.md runtime.gates (issue #82; LDG-0150) ─────────────────────────
   # DUAS formas declaráveis, UM leitor só:
   #

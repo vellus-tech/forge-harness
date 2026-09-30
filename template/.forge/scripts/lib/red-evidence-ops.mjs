@@ -4,7 +4,8 @@
 // red-evidence.sh direto a check-red-first.sh (Onda B) — mesma política, uma fonte só.
 //
 //   record <change-dir> --test-path <p> --command <c> --failure-pattern <p> [--test-id <id>]
-//          [--fix-files a,b,c] [--setup-command <c>] [--reproduces <txt>] [--excerpt <txt>]
+//          [--fix-files a,b,c] [--setup-command <c>] [--positive-control <c>]
+//          [--reproduces <txt>] [--excerpt <txt>]
 //     Declara a intenção (test_path/command/failure_pattern/fix_files/...). NUNCA marca
 //     status:'observed' — essa transição só acontece via `replay` bem-sucedido (é o ponto
 //     central da Onda C: sem replay, a evidência é só uma declaração que o agente pode
@@ -170,6 +171,7 @@ export function applyRecord(prevData, changeId, flags) {
   if (flags['fix-files']) target.fix_files = flags['fix-files'].split(',').map((s) => s.trim()).filter(Boolean);
   if (flags['failure-pattern']) target.failure_pattern = flags['failure-pattern'];
   if (flags['setup-command']) target.setup_command = flags['setup-command'];
+  if (flags['positive-control']) target.positive_control = flags['positive-control'];
   if (flags['reproduces']) target.reproduces = flags['reproduces'];
   if (flags['excerpt']) {
     target.excerpt = flags['excerpt'];

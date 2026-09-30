@@ -51,6 +51,20 @@
 // casa com failure_pattern quando declarado; (5) a saída MENCIONA o test_id declarado — o caso
 // que falhou precisa ser o caso declarado, não uma falha histórica adjacente que por acaso casa
 // com o padrão (Furo 2). Qualquer ausência aborta com motivo nomeado — ver replay() abaixo.
+//
+// Issue #150 — uma âncora (failure_pattern) NULA ou VAZIA casava com QUALQUER falha na base
+// (matchesPattern devolvia true sem padrão nenhum), então uma base que falhasse por um motivo
+// adjacente ao defeito relatado — não o defeito em si — virava 'observed' sem prova nenhuma de
+// que ela seria capaz de ficar verde. Dois reforços, nenhum deles mexe no schema (record já
+// exige failure_pattern; um `null` só chega aqui por um artefato legado ou editado à mão):
+//   (a) matchesPattern agora recusa (devolve false) padrão nulo/vazio — a ausência de âncora
+//       nunca mais "casa com tudo"; o item (4) acima passa a distinguir "diverge do padrão
+//       declarado" (fail, ruleItem '4') de "não há padrão declarado" (not-possible, item 3 do
+//       corpo da issue: âncora que não amarra nada é defeito do TESTE).
+//   (b) positive_control (opcional, DA-13): um comando que precisa PASSAR na mesma árvore base,
+//       na mesma corrida — prova, por execução, que a base seria capaz de ficar verde antes de
+//       aceitar a falha do comando declarado como o defeito relatado. Falhando, not-possible com
+//       a saída do controle no excerpt, mesmo que o comando declarado também falhe na base.
 import { existsSync, readFileSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
@@ -466,8 +480,12 @@ function normalizeExcerpt(text, worktreeDirs = []) {
   return out;
 }
 
-function matchesPattern(output, pattern) {
-  if (!pattern) return true;
+// matchesPattern: issue #150 — padrão nulo/vazio NUNCA casa (antes devolvia `true`, o que fazia
+// qualquer falha na base — inclusive uma falha adjacente ao defeito relatado — parecer uma
+// âncora satisfeita). O chamador (replay(), abaixo) distingue essa ausência de um mismatch
+// genuíno para dar o veredito certo (not-possible vs fail item 4).
+export function matchesPattern(output, pattern) {
+  if (pattern === null || pattern === undefined || pattern === '') return false;
   try { return new RegExp(pattern).test(output); }
   catch { return output.includes(pattern); }
 }
@@ -539,6 +557,7 @@ export async function replay({ root, evidence, timeoutS = DEFAULT_TIMEOUT_S }) {
   const fixFiles = (evidence && evidence.fix_files) || [];
   const failurePattern = evidence && evidence.failure_pattern;
   const setupCommand = (evidence && evidence.setup_command) || null;
+  const positiveControl = (evidence && evidence.positive_control) || null;
 
   const replayHead = currentHeadSha(root);
   const finish = (obj) => ({ replay_head: replayHead, ...obj });
@@ -636,6 +655,31 @@ export async function replay({ root, evidence, timeoutS = DEFAULT_TIMEOUT_S }) {
       return finish({ verdict: 'not-possible', reason: `ambiente do worktree incompleto — ${baseSetup.reason} na base (declare setup_command correto ou dispense com /forge:red waive)`, strategy: effective.strategy });
     }
 
+    // ── positive_control (issue #150, opcional — DA-13) ─────────────────────────────────
+    // Roda ANTES do comando declarado, na MESMA árvore base e na mesma corrida: prova, por
+    // execução real, que a base é capaz de passar em ALGO antes de aceitar a falha do comando
+    // declarado como o defeito relatado. Falhando (ou indeterminado), not-possible — nunca deixa
+    // o comando declarado decidir sozinho quando não há prova de que a base seria capaz de ficar
+    // verde (item 3 do corpo da issue: a âncora que não amarra nada é defeito do teste).
+    if (positiveControl) {
+      const pcRun = await runTest({ cwd: baseDir, command: positiveControl, timeoutS });
+      if (pcRun.indeterminate) {
+        return finish({ verdict: 'not-possible', reason: 'positive_control com resultado indeterminado na base (sinal externo/erro de spawn)', strategy: effective.strategy });
+      }
+      if (pcRun.exitCode !== 0) {
+        const pcExcerpt = truncateExcerpt(normalizeExcerpt(pcRun.output, [baseDir, headDir]));
+        return finish({
+          verdict: 'not-possible',
+          reason: 'positive_control declarado falha na base — sem prova de que a base seria capaz de ficar verde, a falha do comando declarado não comprova o defeito relatado (item 3 do corpo da issue #150)',
+          strategy: effective.strategy,
+          // classification fica null (não 'behavioral'/'build-error'/'unknown' — nenhum descreve
+          // a falha de um positive_control, que não é o teste declarado) — só o excerpt do
+          // controle importa aqui, para o auditor ver por que a base foi recusada.
+          diagnostic: { classification: null, excerpt: pcExcerpt },
+        });
+      }
+    }
+
     const baseRun = await runTest({ cwd: baseDir, command, timeoutS });
     if (baseRun.indeterminate) {
       return finish({ verdict: 'not-possible', reason: 'ambiente do worktree incompleto — execução indeterminada na base (sinal externo/erro de spawn)', strategy: effective.strategy });
@@ -655,6 +699,17 @@ export async function replay({ root, evidence, timeoutS = DEFAULT_TIMEOUT_S }) {
       });
     }
     if (!matchesPattern(baseRun.output, failurePattern)) {
+      // issue #150 — failure_pattern ausente/vazio é distinto de um mismatch genuíno: uma âncora
+      // que não amarra nada nunca comprova o defeito relatado, então o veredito é not-possible
+      // (defeito do TESTE — precisa de /forge:red record com failure_pattern declarado), não um
+      // fail de item 4 (que pressupõe um padrão declarado que a saída real não corresponde).
+      if (!failurePattern) {
+        return finish({
+          verdict: 'not-possible',
+          reason: 'failure_pattern ausente ou vazio na evidência — uma âncora vazia aceitaria qualquer falha na base como se fosse o defeito relatado (item 3 do corpo da issue #150: a âncora que não amarra nada é defeito do TESTE, que afirma o CAMINHO da falha, não só o resultado). Declare failure_pattern com /forge:red record antes de replay',
+          strategy: effective.strategy, base: baseInfo, base_result: 'failed', diagnostic: { classification, excerpt },
+        });
+      }
       return finish({
         verdict: 'fail', ruleItem: '4',
         reason: `saída da falha diverge do failure_pattern declarado ('${failurePattern}') (item 4)`,

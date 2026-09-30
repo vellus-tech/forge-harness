@@ -25,6 +25,8 @@ Esta política se aplica a todo change em que `isDefectFixing(manifest)` é verd
 
 4. **O teste permanece na suíte depois do Green**, nomeado de forma que o próximo leitor entenda qual defeito ele guarda. Um teste de regressão anônimo é candidato natural a ser apagado no próximo refactor por parecer redundante.
 
+5. **Uma âncora que não falha na base é defeito do TESTE, não do código sob correção — o teste afirma o CAMINHO que reproduz o defeito, não só o resultado observado ao final** (issue #150). `failure_pattern` nulo, vazio ou genérico demais casa com qualquer falha adjacente na base — inclusive uma que nada tem a ver com o defeito relatado — e a mesma sensação de rigor do item 1 (Red observado) se sustenta sobre uma âncora que não amarra nada. `/forge:red replay` recusa `failure_pattern` ausente com `not-possible`, e o `positive_control` opcional (§ Verificação) prova, na mesma corrida, que a base seria capaz de ficar verde antes de aceitar a falha do comando declarado como prova do defeito.
+
 ## Verificação
 
 O item 3 não é auto-declarado — e a evidência que o registra também não é a prova. `/forge:red record` grava `evidence/red/*.json` no change: qual teste (`test_path`/`test_id`, ambos obrigatórios), com qual comando, qual padrão de falha se espera, quais arquivos a correção toca. Isso é uma **declaração de intenção verificável**, não uma observação — todo campo ali é escrito por quem está sendo verificado, então nenhum campo do artefato (incluindo metadados como `replayed_at`/`replay_head`) decide, por si, se o Red foi observado de fato.
@@ -34,6 +36,8 @@ Quem decide é a **execução**. `bash .forge/scripts/red-evidence.sh replay <ch
 `bash .forge/scripts/check-red-first.sh check` **sozinho** — o caminho usado por `pre-push` e por `doctor`, que precisam ser rápidos e não podem pagar o custo de um replay a cada invocação — não chama `ensure`. Ele confere só o que é estático: completude da declaração, classificação real do excerto (`red-classify`, não o campo `classification` auto-declarado), casamento com `failure_pattern`, e — para um waiver — que o deferral/ledger que ele referencia existe de verdade. Ele **não** confirma que um replay real aconteceu por trás de um `status: observed` — um artefato editado à mão com campos internamente consistentes passa por esse check sozinho. Isso é um limite aceito, não um descuido: a garantia real está nos dois gates que decidem de fato (verify e a transição para verified), que sempre chamam `ensure` antes de avaliar.
 
 O replay roda em worktrees git efêmeros — que só materializam o que está versionado. Repositório cuja suíte depende de dependências não versionadas (`node_modules`, `.venv`, pacotes restaurados, etc.) precisa declarar `setup_command` na evidência (ex.: `npm ci`), executado no worktree antes do teste, com o mesmo teto de tempo. Sem isso, o comando falha por ambiente incompleto — o motor distingue esse caso de uma falha comportamental real e responde com `not-possible` (rebaixável por waiver), nunca com um `FAIL` inegociável.
+
+`positive_control` (opcional, issue #150) é um comando adicional, declarado junto do resto da evidência, que precisa **passar** na mesma árvore base e na mesma corrida do teste declarado — antes de rodar o teste, o replay roda o controle na base; falhando (ou indeterminado), o veredito é `not-possible` com a saída do controle no excerto, mesmo que o teste declarado também falhe na base por um motivo aparentemente comportamental. É a prova, por execução, de que a base é capaz de ficar verde em algo — sem ela, uma base genuinamente quebrada (não só no ponto do defeito, mas por inteiro) produz uma falha comportamental real que não prova nada sobre o defeito relatado especificamente. Opcional por decisão (DA-13 do plano de issues): tornar obrigatório invalidaria evidências gravadas por escritores antigos sem o campo; a obrigatoriedade é item de roadmap.
 
 ### O limite desta norma
 
@@ -56,7 +60,9 @@ Isso fecha o ambiente e encerra de vez a tentação de reintroduzir cache local 
 - ausência de evidência de Red num change sujeito à política (§ Escopo);
 - teste que já passava na base — não reproduz nada;
 - falha na base classificada como erro de build, e não como comportamento;
-- saída da falha que não casa com o padrão declarado.
+- saída da falha que não casa com o padrão declarado;
+- `failure_pattern` ausente ou vazio na evidência (issue #150) — uma âncora vazia casaria com qualquer falha na base, inclusive uma adjacente ao defeito relatado (item 5 acima); `replay` recusa com `not-possible` em vez de aceitar por vacuidade;
+- `positive_control` declarado (§ Verificação) que falha na base (issue #150) — sem prova de que a base seria capaz de ficar verde, a falha do comando declarado não comprova o defeito relatado, mesmo classificada como comportamental.
 
 **Avisam** (sinal de qualidade, não veto):
 

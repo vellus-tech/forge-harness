@@ -112,7 +112,9 @@ NODEEOF
   ;;
 
 test)
-  deferral_id="${1:-}"; [ -n "$deferral_id" ] || { echo "FAIL: deferral-id obrigatório" >&2; exit 1; }
+  deferral_id="${1:-}"; shift || true
+  [ -n "$deferral_id" ] || { echo "FAIL: deferral-id obrigatório" >&2; exit 1; }
+  [ $# -eq 0 ] || forge_reject_unknown test "(nenhuma)" "$1"
   _init_deferrals
   result="$(node - "$df" "$deferral_id" <<'NODEEOF'
 const { readFileSync } = require('fs');
@@ -131,6 +133,7 @@ NODEEOF
   ;;
 
 status)
+  [ $# -eq 0 ] || forge_reject_unknown status "(nenhuma)" "$1"
   _init_deferrals
   node - "$df" <<'NODEEOF'
 const { readFileSync } = require('fs');

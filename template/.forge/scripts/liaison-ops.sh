@@ -360,8 +360,8 @@ open)
   _chan_ok "$channel" || { echo "FAIL: nome de canal inválido '$channel' (use [a-z0-9][a-z0-9-]*)" >&2; exit 1; }
   self_arg=""; participants=""
   while [ $# -gt 0 ]; do case "$1" in
-    --self) self_arg="$2"; shift 2 ;;
-    --participants) participants="$2"; shift 2 ;;
+    --self) forge_reject_flag_as_value open --self "${2-}" "--self, --participants"; self_arg="$2"; shift 2 ;;
+    --participants) forge_reject_flag_as_value open --participants "${2-}" "--self, --participants"; participants="$2"; shift 2 ;;
     *) _reject_unknown "open" "--self, --participants" "$1" ;;
   esac; done
   [ -n "$participants" ] || { echo "FAIL: --participants obrigatório (lista separada por vírgula)" >&2; exit 1; }
@@ -814,7 +814,7 @@ inbox)
   [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado" >&2; exit 1; }
   filter_thread=""; show_body="false"; titles_only="false"
   while [ $# -gt 0 ]; do case "$1" in
-    --thread) filter_thread="$2"; shift 2 ;;
+    --thread) forge_reject_flag_as_value inbox --thread "${2-}" "--thread, --show, --titles-only"; filter_thread="$2"; shift 2 ;;
     --show) show_body="true"; shift ;;
     --titles-only) titles_only="true"; shift ;;
     *) _reject_unknown "inbox" "--thread, --show, --titles-only" "$1" ;;
@@ -873,7 +873,7 @@ read)
   ch_dir="$LIAISON_DIR/$channel"
   [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado" >&2; exit 1; }
   upto=""
-  while [ $# -gt 0 ]; do case "$1" in --upto) upto="$2"; shift 2 ;; *) _reject_unknown "read" "--upto" "$1" ;; esac; done
+  while [ $# -gt 0 ]; do case "$1" in --upto) forge_reject_flag_as_value read --upto "${2-}" "--upto"; upto="$2"; shift 2 ;; *) _reject_unknown "read" "--upto" "$1" ;; esac; done
   [ -n "$upto" ] || { echo "FAIL: --upto <msg_id> obrigatório" >&2; exit 1; }
 
   now_wall="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -1022,7 +1022,7 @@ export)
   ch_dir="$LIAISON_DIR/$channel"
   [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado" >&2; exit 1; }
   out_dir=""
-  while [ $# -gt 0 ]; do case "$1" in --out) out_dir="$2"; shift 2 ;; *) _reject_unknown "export" "--out" "$1" ;; esac; done
+  while [ $# -gt 0 ]; do case "$1" in --out) forge_reject_flag_as_value export --out "${2-}" "--out"; out_dir="$2"; shift 2 ;; *) _reject_unknown "export" "--out" "$1" ;; esac; done
   [ -n "$out_dir" ] || { echo "FAIL: --out <dir> obrigatório" >&2; exit 1; }
   mkdir -p "$out_dir/log" "$out_dir/blobs"
   if [ -d "$ch_dir/log" ]; then find "$ch_dir/log" -type f -name '*.jsonl' -exec cp {} "$out_dir/log/" \; ; fi
@@ -1038,7 +1038,7 @@ import)
   ch_dir="$LIAISON_DIR/$channel"
   [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado (rode 'open' primeiro)" >&2; exit 1; }
   from_dir=""
-  while [ $# -gt 0 ]; do case "$1" in --from) from_dir="$2"; shift 2 ;; *) _reject_unknown "import" "--from" "$1" ;; esac; done
+  while [ $# -gt 0 ]; do case "$1" in --from) forge_reject_flag_as_value import --from "${2-}" "--from"; from_dir="$2"; shift 2 ;; *) _reject_unknown "import" "--from" "$1" ;; esac; done
   [ -n "$from_dir" ] || { echo "FAIL: --from <dir> obrigatório" >&2; exit 1; }
   [ -d "$from_dir/log" ] || { echo "FAIL: '$from_dir/log' não encontrado" >&2; exit 1; }
   [ -n "$(_read_self)" ] || { echo "FAIL: self não configurado" >&2; exit 1; }
@@ -1186,7 +1186,7 @@ peer)
   [ "$sub" = "set" ] || { echo "FAIL: uso: peer set <channel> <participante> --path <dir>" >&2; exit 1; }
   [ -n "$channel" ] && [ -n "$participant" ] || { echo "FAIL: <channel> e <participante> obrigatórios" >&2; exit 1; }
   peer_path=""
-  while [ $# -gt 0 ]; do case "$1" in --path) peer_path="$2"; shift 2 ;; *) _reject_unknown "peer set" "--path" "$1" ;; esac; done
+  while [ $# -gt 0 ]; do case "$1" in --path) forge_reject_flag_as_value "peer set" --path "${2-}" "--path"; peer_path="$2"; shift 2 ;; *) _reject_unknown "peer set" "--path" "$1" ;; esac; done
   [ -n "$peer_path" ] || { echo "FAIL: --path obrigatório" >&2; exit 1; }
   node - "$LIBDIR" "$CONFIG" "$channel" "$participant" "$peer_path" <<'NODEEOF'
 const { join } = require('path');
@@ -1241,10 +1241,10 @@ transport)
   set)
     t_kind=""; t_path=""; t_remote=""; t_branch=""
     while [ $# -gt 0 ]; do case "$1" in
-      --kind) t_kind="$2"; shift 2 ;;
-      --path) t_path="$2"; shift 2 ;;
-      --remote) t_remote="$2"; shift 2 ;;
-      --branch) t_branch="$2"; shift 2 ;;
+      --kind) forge_reject_flag_as_value "transport set" --kind "${2-}" "--kind, --path, --remote, --branch"; t_kind="$2"; shift 2 ;;
+      --path) forge_reject_flag_as_value "transport set" --path "${2-}" "--kind, --path, --remote, --branch"; t_path="$2"; shift 2 ;;
+      --remote) forge_reject_flag_as_value "transport set" --remote "${2-}" "--kind, --path, --remote, --branch"; t_remote="$2"; shift 2 ;;
+      --branch) forge_reject_flag_as_value "transport set" --branch "${2-}" "--kind, --path, --remote, --branch"; t_branch="$2"; shift 2 ;;
       *) _reject_unknown "transport set" "--kind, --path, --remote, --branch" "$1" ;;
     esac; done
     [ -n "$t_kind" ] || { echo "FAIL: --kind obrigatório (manual|fs|git|gh)" >&2; exit 1; }

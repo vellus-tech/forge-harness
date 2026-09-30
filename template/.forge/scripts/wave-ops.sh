@@ -11,6 +11,18 @@ set -euo pipefail
 FORGE_ROOT="${FORGE_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 ACTIVE="$FORGE_ROOT/.forge/specs/active"
 
+# Disciplina de parsing (issue #103, completada pela #133): flag desconhecida REPROVA e flag
+# engolida como valor de outra REPROVA. Mesmo idioma de ledger-ops.sh, deferral-ops.sh e
+# liaison-ops.sh — delegação em alvo ausente é erro, nunca silêncio.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "$SCRIPT_DIR/lib/arg-guards.sh" ]; then
+  # shellcheck source=lib/arg-guards.sh
+  . "$SCRIPT_DIR/lib/arg-guards.sh"
+else
+  echo "FAIL: wave-ops: '$SCRIPT_DIR/lib/arg-guards.sh' ausente — as guardas de flag desconhecida e de flag engolida como valor são parte do contrato deste script; rodar sem elas reabre a aceitação silenciosa de flag engolida como valor que a issue #133 fechou." >&2
+  exit 1
+fi
+
 cmd="${1:-}"; shift || true
 change_id="${1:-}"; shift || true
 
@@ -40,6 +52,7 @@ case "$cmd" in
 plan)
   # Deriva waves.json a partir de stories/ (grafo depends_on).
   # Wave 0 sempre: stories sem depends_on. Waves subsequentes respeitam topologia.
+  [ $# -eq 0 ] || forge_reject_unknown plan "(nenhuma)" "$1"
   if [ ! -d "$stories_dir" ]; then
     echo "FAIL: stories/ não existe em $spec_dir — rode /forge:shard primeiro" >&2; exit 1
   fi
@@ -104,7 +117,9 @@ NODEEOF
   ;;
 
 open)
-  wave_id="${1:-}"; [ -n "$wave_id" ] || { echo "FAIL: wave-id obrigatório" >&2; exit 1; }
+  wave_id="${1:-}"; shift || true
+  [ -n "$wave_id" ] || { echo "FAIL: wave-id obrigatório" >&2; exit 1; }
+  [ $# -eq 0 ] || forge_reject_unknown open "(nenhuma)" "$1"
   [ -f "$waves_file" ] || { echo "FAIL: waves.json não encontrado — rode wave plan primeiro" >&2; exit 1; }
   result="$(node - "$waves_file" "$wave_id" "$(_now)" <<'NODEEOF'
 const { readFileSync } = require('fs');
@@ -133,7 +148,8 @@ NODEEOF
   ;;
 
 close)
-  wave_id="${1:-}"; [ -n "$wave_id" ] || { echo "FAIL: wave-id obrigatório" >&2; exit 1; }
+  wave_id="${1:-}"; shift || true
+  [ -n "$wave_id" ] || { echo "FAIL: wave-id obrigatório" >&2; exit 1; }
   [ -f "$waves_file" ] || { echo "FAIL: waves.json não encontrado" >&2; exit 1; }
 
   # O veredito do gate é OBSERVADO aqui, não recebido do chamador.
@@ -149,7 +165,13 @@ close)
   # para que "passou nos gates", "não havia gate" e "alguém disse que passou" nunca mais se
   # confundam no waves.json.
   claimed=""
-  if [ "${2:-}" = "--gate" ]; then claimed="${3:-OK}"; fi
+  CLOSE_FLAGS="--gate"
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --gate) forge_require_value close --gate "${2-}" "$CLOSE_FLAGS"; claimed="$2"; shift 2 ;;
+      *) forge_reject_unknown close "$CLOSE_FLAGS" "$1" ;;
+    esac
+  done
 
   if [ "$claimed" = "FAIL" ]; then
     echo "FAIL: gate declarado FAIL pelo chamador — wave não pode fechar" >&2; exit 1
@@ -198,6 +220,7 @@ NODEEOF
   ;;
 
 status)
+  [ $# -eq 0 ] || forge_reject_unknown status "(nenhuma)" "$1"
   [ -f "$waves_file" ] || { echo "no waves.json"; exit 0; }
   node - "$waves_file" "$progress_file" <<'NODEEOF'
 const { readFileSync, existsSync } = require('fs');

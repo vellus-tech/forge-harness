@@ -35,6 +35,7 @@
 //
 // `trust` é carimbado aqui como 'untrusted-peer', nunca aceito do remetente.
 import { readFileSync, writeFileSync, readdirSync, existsSync, renameSync, copyFileSync, statSync, mkdirSync, unlinkSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { join, basename } from 'node:path';
 import * as M from './liaison-merge.mjs';
 
@@ -309,9 +310,16 @@ export function applyBundle({ chDir, fromDir, self }) {
       }
       const shaMatch = /^([0-9a-f]{64})-/.exec(blobName);
       if (shaMatch) {
-        const actual = M.sha256Hex(readFileSync(src).toString('binary'));
-        if (actual !== shaMatch[1]) {
-          blobsRejected.push({ msg_id: m.msg_id, kind: 'sha-mismatch', reason: `blob do hub não confere com o body_ref (esperado ${shaMatch[1]}, obtido ${actual})` });
+        // issue #117: o nome é o sha256 real dos BYTES desde a correção de `_write_body_blob`
+        // (`liaison-ops.sh`), mas nomes antigos (anteriores à correção) foram calculados do bytes
+        // convertidos para string latin1 antes do hash — divergente para qualquer byte > 0x7F. Um
+        // blob recuperado do hub pode ser nomeado por qualquer uma das duas fórmulas, então aceita
+        // as duas em vez de só a nova (que rejeitaria toda recuperação de blob antigo acentuado).
+        const buf = readFileSync(src);
+        const actualBytes = createHash('sha256').update(buf).digest('hex');
+        const actualLegacy = M.sha256Hex(buf.toString('binary'));
+        if (actualBytes !== shaMatch[1] && actualLegacy !== shaMatch[1]) {
+          blobsRejected.push({ msg_id: m.msg_id, kind: 'sha-mismatch', reason: `blob do hub não confere com o body_ref (esperado ${shaMatch[1]}, obtido ${actualBytes})` });
           continue;
         }
       }

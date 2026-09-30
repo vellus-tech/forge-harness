@@ -23,6 +23,11 @@
 #   [7] commands/waves/wave.md não descreve runtime.gates como lista plana
 #   [8] contador de controle: zero documento examinado reprova
 #   [9] mutação: alterar a Versão do contrato para um valor arbitrário faz [1] reprovar
+#   [10] #151: `testing/change-test-contract.md` ordena as três saídas para nível de teste que
+#        não pode rodar — "Criar o objeto", "Reescrever o critério", "Registrar a evidência
+#        pendente" — NA ORDEM declarada, confronto por POSIÇÃO DE LINHA (nunca por presença: as
+#        três palavras já apareciam soltas noutra ordem passaria despercebido)
+#   [11] mutação de [10]: inverter a ordem das três saídas faz o confronto de posição falhar
 set -uo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -232,5 +237,63 @@ fi
 grep -qE '(^|[^A-Za-z])phase:' "$WAVE" \
   || { echo "FAIL [7]: wave.md não diz uma palavra sobre a fase — o comando que FECHA a wave é onde o operador descobre que gate de deploy não roda ali"; exit 1; }
 echo "OK [7] — wave.md descreve as duas formas e nomeia a fase"
+
+# ── #151: ordem das três saídas em change-test-contract.md ──────────────────────────────────
+echo "[10] change-test-contract.md ordena as três saídas por POSIÇÃO DE LINHA"
+CTC="$WS/template/.forge/rules/testing/change-test-contract.md"
+_posicao_saidas() {
+  # ecoa três números de linha (criar-objeto, reescrever-criterio, evidencia-pendente), nessa
+  # ordem de VARIÁVEL — não presume que o arquivo está correto; a comparação vem depois
+  local f="$1"
+  local p1 p2 p3
+  p1="$(grep -niE 'criar o objeto' "$f" | head -1 | cut -d: -f1)"
+  p2="$(grep -niE 'reescrever o crit' "$f" | head -1 | cut -d: -f1)"
+  p3="$(grep -niE 'registrar a evid.ncia pendente' "$f" | head -1 | cut -d: -f1)"
+  printf '%s %s %s\n' "${p1:-0}" "${p2:-0}" "${p3:-0}"
+}
+read -r p1 p2 p3 <<<"$(_posicao_saidas "$CTC")"
+[ "$p1" -gt 0 ] && [ "$p2" -gt 0 ] && [ "$p3" -gt 0 ] \
+  || { echo "FAIL [10]: nem as três saídas foram encontradas (criar objeto=$p1, reescrever critério=$p2, evidência pendente=$p3)"; exit 1; }
+[ "$p1" -lt "$p2" ] && [ "$p2" -lt "$p3" ] \
+  || { echo "FAIL [10]: as três saídas não estão na ordem declarada (criar objeto:$p1, reescrever critério:$p2, evidência pendente:$p3) — a regra tem de oferecer criar o objeto ANTES de reescrever o critério, e reescrever o critério ANTES da pendência declarada"; exit 1; }
+echo "OK [10] — ordem por posição de linha: criar objeto($p1) < reescrever critério($p2) < evidência pendente($p3)"
+
+echo "[11] mutação — inverter a ordem das três saídas faz [10] reprovar"
+MUT_CTC="$T/change-test-contract.md"
+cp "$CTC" "$MUT_CTC"
+cp "$MUT_CTC" "$T/ctc.orig"
+# Inverte as linhas das três saídas numeradas (1./2./3.) trocando seu conteúdo de posição,
+# preservando o resto do arquivo intacto.
+python3 - "$MUT_CTC" <<'PYEOF' || { echo "FAIL [11]: python3 indisponível ou script quebrou — mutação não aplicada"; exit 1; }
+import re, sys
+path = sys.argv[1]
+with open(path, encoding="utf-8") as fh:
+    linhas = fh.readlines()
+idx = {}
+for i, linha in enumerate(linhas):
+    if re.search(r'criar o objeto', linha, re.I):
+        idx.setdefault('1', i)
+    elif re.search(r'reescrever o crit', linha, re.I):
+        idx.setdefault('2', i)
+    elif re.search(r'registrar a evid.ncia pendente', linha, re.I):
+        idx.setdefault('3', i)
+if len(idx) != 3:
+    sys.exit("saidas nao encontradas para mutar")
+i1, i2, i3 = idx['1'], idx['2'], idx['3']
+linhas[i1], linhas[i3] = linhas[i3], linhas[i1]
+with open(path, "w", encoding="utf-8") as fh:
+    fh.writelines(linhas)
+PYEOF
+read -r mp1 mp2 mp3 <<<"$(_posicao_saidas "$MUT_CTC")"
+if [ "$mp1" -lt "$mp2" ] && [ "$mp2" -lt "$mp3" ]; then
+  echo "FAIL [11]: a mutação não produziu inversão — o predicado de posição não é o que decide (mp1=$mp1 mp2=$mp2 mp3=$mp3)"; exit 1
+fi
+echo "OK [11] — mutação inverteu a ordem (mp1=$mp1 mp2=$mp2 mp3=$mp3), confronto por posição reprovaria"
+cp "$T/ctc.orig" "$MUT_CTC"
+cmp -s "$MUT_CTC" "$T/ctc.orig" || { echo "FAIL [11]: restauração não bateu byte a byte (cmp)"; exit 1; }
+read -r rp1 rp2 rp3 <<<"$(_posicao_saidas "$MUT_CTC")"
+[ "$rp1" -lt "$rp2" ] && [ "$rp2" -lt "$rp3" ] \
+  || { echo "FAIL [11]: recontrole — restaurado, o arquivo não voltou à ordem correta"; exit 1; }
+echo "OK [11] — recontrole: restaurado, volta à ordem correta"
 
 echo "PASS w197-normative-text-parity"

@@ -37,7 +37,7 @@ WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 . "$WS/template/.forge/scripts/lib/arvore-rastreada.sh"
 REPO_SNAPSHOT_BEFORE="$(arvore_retrato "$WS" tudo)"
 
-T="$(mktemp -d /tmp/forge-w255.XXXXXX)"
+T="$(mktemp -d /tmp/forge-w257.XXXXXX)"
 trap 'rm -rf "$T"' EXIT
 
 _run_to() { # _run_to <segundos> -- <cmd...> — teto de tempo (macOS não tem `timeout` por padrão)
@@ -91,8 +91,8 @@ _assert_ok() { # _assert_ok <label> -- <cmd...>
   return 0
 }
 
-CHAN="canal-w255"
-CH="ch-w255"
+CHAN="canal-w257"
+CH="ch-w257"
 mkdir -p "$T/.forge/specs/active/$CH"
 
 _lo open "$CHAN" --self repo-a --participants repo-a,repo-b >/dev/null
@@ -101,9 +101,9 @@ _lo open "$CHAN" --self repo-a --participants repo-a,repo-b >/dev/null
 # [1] liaison open --self --participants
 # =================================================================================================
 echo "== [1] liaison open =="
-_assert_rejects 1a --participants -- _lo open canal-w255-open1 --self --participants
-_assert_rejects 1b --self -- _lo open canal-w255-open2 --participants --self
-_assert_ok 1c -- _lo open canal-w255-open3 --self repo-a --participants repo-a,repo-c
+_assert_rejects 1a --participants -- _lo open canal-w257-open1 --self --participants
+_assert_rejects 1b --self -- _lo open canal-w257-open2 --participants --self
+_assert_ok 1c -- _lo open canal-w257-open3 --self repo-a --participants repo-a,repo-c
 
 # =================================================================================================
 # [2] liaison inbox --thread (engole --show / --titles-only)
@@ -149,13 +149,13 @@ for f in "${T_FLAGS[@]}"; do
 done
 [ "$t7_bad" -eq 0 ] || { echo "FAIL [7]: $t7_bad de $t7_n pares aceitaram flag como valor"; exit 1; }
 echo "OK [7] — $t7_n pares (4x4) recusados"
-_assert_ok 7p -- _lo transport set "$CHAN" --kind fs --path "$T/hub-w255"
+_assert_ok 7p -- _lo transport set "$CHAN" --kind fs --path "$T/hub-w257"
 
 # =================================================================================================
 # [8]-[9] deferral-ops test/status — argumento extra sem laço de parsing antes da #133
 # =================================================================================================
 echo "== [8] deferral-ops test <id> <arg extra> =="
-_dfo raise "$CH" --reason "motivo w255" >/dev/null
+_dfo raise "$CH" --reason "motivo w257" >/dev/null
 _assert_rejects 8 lixo -- _dfo test "$CH" DEFER-01 --lixo
 set +e
 _dfo resolve "$CH" DEFER-01 --note "resolvido para o teste" >/dev/null 2>&1
@@ -224,7 +224,7 @@ for f in "$WS"/template/.forge/scripts/*-ops.sh; do
   n="$(grep -cE '^\s*--[a-zA-Z0-9-]+\).*[a-zA-Z_][a-zA-Z0-9_]*="\$2"' "$f" || true)"
   total_sites=$((total_sites + n))
 done
-forge_universe_check "w255/arg-surface" "$total_sites" "sítio(s) --flag) x=\$2 em *-ops.sh" "varredura estrutural [E]" "$WS" \
+forge_universe_check "w257/arg-surface" "$total_sites" "sítio(s) --flag) x=\$2 em *-ops.sh" "varredura estrutural [E]" "$WS" \
   || { echo "FAIL [E]: universo de sítios vazio aprovaria em silêncio"; exit 1; }
 echo "OK [E] — $total_sites sítio(s) examinados no template, 0 sem guarda"
 
@@ -252,6 +252,6 @@ _scn_m_rejects || { echo "FAIL [M]: recontrole — inbox --thread --show não vo
 echo "OK [M] — mutação reintroduziu o defeito isoladamente; restauração e recontrole OK"
 
 # ── sentinela do repositório real: nada vazou do sandbox ───────────────────────────────────────
-arvore_sentinela_fim "$WS" "$REPO_SNAPSHOT_BEFORE" "w255-arg-surface" tudo || exit $?
+arvore_sentinela_fim "$WS" "$REPO_SNAPSHOT_BEFORE" "w257-arg-surface" tudo || exit $?
 
-echo "PASS w255-arg-surface"
+echo "PASS w257-arg-surface"

@@ -842,6 +842,78 @@ EOF_OL
     fi
   fi
 
+  # ── divergência de _common.sh (e demais transportes) contra machinery.lock (LDG-0153) ──────────
+  # `.forge/cache/machinery.lock` já grava o sha256 de todo arquivo de maquinaria na versão
+  # aplicada por último (bin/forge.mjs:361, `writeMachineryLock`), e `bin/forge.mjs:617-643` já usa
+  # essa mesma comparação para o WARN de drift do `update`. O doctor nunca fazia a leitura
+  # equivalente para `scripts/lib/transports/_common.sh` e os demais transportes — o consumidor só
+  # descobria o `_common.sh` divergente quando um push já tinha destruído o hub de liaison, porque
+  # ninguém tinha rodado `update` para reconciliar (ou a deriva local nunca foi declarada).
+  #
+  # INFORMATIVO POR CONSTRUÇÃO: `warn` nomeando o arquivo, nunca `MISSING_DIAG` — o mesmo padrão
+  # dos dois checks acima (libs órfã, versão), pelo mesmo motivo: a divergência pode ser legítima
+  # (consumidor que ainda não rodou `update`, ou correção local deliberada sem exceção declarada
+  # ainda). Sem `machinery.lock` não há como provar nada, e a linha diz exatamente isso — nunca um
+  # `✓`, porque "não medido" e "medido e igual" são estados diferentes (mesmo motivo do contador de
+  # controle acima: colapsar os dois ensinaria o operador a confiar num silêncio que não mediu
+  # nada). Arquivo idêntico ao lock não emite linha nenhuma (contrafactual: medir e concluir
+  # igualdade não é notícia neste check, ao contrário do check de "versão" acima, que tem ✓
+  # próprio — a diferença é intencional, ver seção LDG-0153 do plano).
+  #
+  # Exceção viva declarada em `.forge/machinery-exceptions.txt` (mecanismo da #101/#131) troca a
+  # linha de divergência pelo nome do arquivo e a razão registrada — decisão humana já feita, cobrar
+  # de novo a cada `doctor` seria ruído. Mesma leitura de formato do bloco de TEMPLATE-PENDENTE
+  # acima: corte no primeiro `#`, exatamente dois tokens antes dele, sha hex minúsculo com pelo
+  # menos 32 dígitos, prefixos `./` e `.forge/` normalizados — só a razão (texto após o `#`) é nova
+  # aqui, porque os outros consumidores desse arquivo descartam o comentário.
+  tp_dir="$ROOT/.forge/scripts/lib/transports"
+  if [ -d "$tp_dir" ]; then
+    tp_lock="$ROOT/.forge/cache/machinery.lock"
+    if [ ! -f "$tp_lock" ]; then
+      info "harness: transports: não medido: sem machinery.lock"
+    else
+      tp_sha() {
+        if have shasum; then shasum -a 256 "$1" 2>/dev/null | awk '{print $1}'
+        elif have sha256sum; then sha256sum "$1" 2>/dev/null | awk '{print $1}'
+        else echo ""
+        fi
+      }
+      while IFS= read -r tp_f; do
+        [ -n "$tp_f" ] || continue
+        tp_rel="scripts/lib/transports/$(basename "$tp_f")"
+        tp_lock_sha="$(grep -E "^[0-9a-f]{64}  ${tp_rel}\$" "$tp_lock" 2>/dev/null | awk '{print $1}' | tail -1)"
+        [ -n "$tp_lock_sha" ] || continue  # sem entrada no lock para este caminho: nada a comparar
+        tp_local_sha="$(tp_sha "$tp_f")"
+        [ -n "$tp_local_sha" ] || continue
+        [ "$tp_local_sha" = "$tp_lock_sha" ] && continue  # idêntico: sem linha (contrafactual)
+        tp_reason=""
+        if [ -f "$ROOT/.forge/machinery-exceptions.txt" ]; then
+          while IFS= read -r exc_line || [ -n "$exc_line" ]; do
+            exc_reason="${exc_line#*#}"
+            [ "$exc_reason" = "$exc_line" ] && exc_reason=""
+            exc_body="${exc_line%%#*}"
+            exc_body="${exc_body//$'\r'/}"
+            read -r exc_sha exc_rel exc_resto <<<"$exc_body" || true
+            [ -n "${exc_rel:-}" ] && [ -z "${exc_resto:-}" ] || continue
+            [[ "$exc_sha" =~ ^[0-9a-f]{32,}$ ]] || continue
+            while [ "${exc_rel#./}" != "$exc_rel" ]; do exc_rel="${exc_rel#./}"; done
+            exc_rel="${exc_rel#.forge/}"
+            if [ "$exc_rel" = "$tp_rel" ]; then
+              tp_reason="$(printf '%s' "$exc_reason" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+              break
+            fi
+          done < "$ROOT/.forge/machinery-exceptions.txt"
+        fi
+        if [ -n "$tp_reason" ]; then
+          info "harness: transports: $tp_rel diverge do machinery.lock — exceção declarada: $tp_reason"
+        else
+          warn "harness: transports: $tp_rel diverge do machinery.lock (local $tp_local_sha, lock $tp_lock_sha)"
+          hint "declare em .forge/machinery-exceptions.txt se a deriva é deliberada, ou rode npx forge-harness update"
+        fi
+      done < <(find "$tp_dir" -maxdepth 1 -type f -name '*.sh' 2>/dev/null | sort)
+    fi
+  fi
+
   # plugin /forge:* instalado no Claude Code (best-effort; puramente informativo — NUNCA
   # contribui para MISSING_DIAG/exit 1). Sintoma real que motivou o check: usuário colando o
   # CORPO dos comandos como texto porque /forge:* silenciosamente não existia (plugin nunca

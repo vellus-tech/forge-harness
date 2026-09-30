@@ -751,6 +751,97 @@ $og_name
     fi
   fi
 
+  # ── lib órfã: scripts/lib/*.{sh,mjs} que nenhum script, hook ou outra lib menciona (issue #153) ──
+  # Copiar `.forge` de outro consumidor é upgrade parcial disfarçado: o alvo herda libs que o
+  # ORIGEM usava — e cujo script/hook invocador nunca veio junto. O check de check-*.sh órfão
+  # (acima) não cobre isso: cobre gate de NOME FIXO, não biblioteca de propósito geral.
+  #
+  # INFORMATIVO POR CONSTRUÇÃO: usa `warn` e NUNCA toca MISSING_DIAG — uma lib sem invocador hoje
+  # pode ser deliberada (API que o projeto ainda vai usar), e reprovar o doctor por isso ensinaria
+  # o operador a ignorá-lo, exatamente o motivo pelo qual `check-*.sh` órfão acima também é `!`.
+  #
+  # Invocador = menção LITERAL (grep -F, texto puro, NUNCA regex — "git.sh" como regex casa
+  # "git show" por acidente, medido) do nome-base do arquivo em qualquer outro arquivo de
+  # `scripts/**` ou `hooks/**`. Hooks são extensionless (`hooks/git/post-merge`), por isso a busca
+  # não filtra por extensão. Fonte única: é a mesma prova textual que `check-*.sh` órfão já usa
+  # contra hooks — um segundo critério (import estático, AST) inventaria um segundo contrato para
+  # a mesma pergunta.
+  #
+  # Duas isenções DECLARADAS — nunca uma allowlist textual nova, e nunca um achado silenciado:
+  #   - `lib/transports/*.sh` (exceto `_common.sh`, que os outros transportes sourceiam por nome
+  #     literal): dispachados por NOME DINÂMICO em `liaison-ops.sh` ($LIBDIR/transports/
+  #     $LIAISON_T_KIND.sh) — nenhuma menção literal do basename existe por desenho. Este script
+  #     não decide o transporte ativo nem toca `liaison-ops.sh` (issue #108 trata do liaison).
+  #   - `api-surface.mjs` e `pbt.mjs`: API zero-dependência que o harness expõe para os PRÓPRIOS
+  #     gates de desenvolvimento (`tests/*.sh`, que não são copiados para o consumidor) e para
+  #     gates customizados que o projeto adotante venha a escrever. Investigado, não ignorado:
+  #     nenhum script de produção em `template/.forge/scripts` os importa hoje; a issue #153
+  #     decidiu declarar a isenção em vez de forjar um invocador artificial.
+  if [ -d "$ROOT/.forge/scripts/lib" ]; then
+    ol_total=0; ol_orfaos=""
+    while IFS= read -r ol_f; do
+      [ -n "$ol_f" ] || continue
+      ol_total=$((ol_total + 1))
+      ol_base="$(basename "$ol_f")"
+      case "$ol_f" in
+        */lib/transports/*.sh) [ "$ol_base" = "_common.sh" ] || continue ;;
+      esac
+      case "$ol_base" in
+        api-surface.mjs|pbt.mjs) continue ;;
+      esac
+      if grep -rlF -- "$ol_base" "$ROOT/.forge/scripts" "$ROOT/.forge/hooks" 2>/dev/null \
+           | grep -vxF "$ol_f" | grep -q .; then
+        continue
+      fi
+      ol_orfaos="$ol_orfaos $ol_base"
+    done <<EOF_OL
+$(find "$ROOT/.forge/scripts/lib" -type f \( -name '*.sh' -o -name '*.mjs' \) 2>/dev/null | sort)
+EOF_OL
+    ol_n=0
+    for ol_x in $ol_orfaos; do ol_n=$((ol_n + 1)); done
+    # Contador de controle SEMPRE, pelo mesmo motivo do bloco de check-*.sh órfão acima: sem ele,
+    # "examinei e estava limpo" e "não examinei nada" terminam no mesmo silêncio.
+    if [ "$ol_total" -eq 0 ]; then
+      info "harness: libs: 0 arquivo(s) em scripts/lib/ examinado(s) — nenhuma lib instalada"
+    elif [ "$ol_n" -eq 0 ]; then
+      ok "harness: libs: $ol_total arquivo(s) em scripts/lib/ examinado(s), 0 órfã(s)"
+    else
+      warn "harness: libs: $ol_total arquivo(s) em scripts/lib/ examinado(s), $ol_n órfã(s) — nenhum script, hook ou outra lib menciona:$ol_orfaos"
+      hint "cópia de .forge de outro consumidor traz lib sem o script que a usava lá — decida um invocador ou remova (ver /forge:upgrade)"
+    fi
+  fi
+
+  # ── divergência de versão: forge.yaml template_version × machinery.lock (issue #153) ──────────
+  # Copiar `.forge` de outro consumidor troca o `forge.yaml` (com o `template_version` de quem
+  # gerou a cópia) mas deixa o `machinery.lock` velho do destino — ou vice-versa. Nenhum dos dois
+  # sozinho denuncia: `forge.yaml` não sabe qual versão aplicou por último, e `machinery.lock` não
+  # sabe o que o `forge.yaml` declara. O doctor é o único ponto que lê os dois.
+  #
+  # INFORMATIVO POR CONSTRUÇÃO: `warn`, nunca `MISSING_DIAG` — o lock só é reescrito por um
+  # `update` bem-sucedido, então um consumidor recém-clonado ou que ainda não rodou `update` desde
+  # o último bump manual de `forge.yaml` tem divergência LEGÍTIMA, não corrompida.
+  tv_yaml="$ROOT/.forge/forge.yaml"
+  tv_lock="$ROOT/.forge/cache/machinery.lock"
+  if [ -f "$tv_yaml" ]; then
+    tv_declared="$(grep -m1 -E '^[[:space:]]*template_version:' "$tv_yaml" 2>/dev/null \
+      | sed -E 's/^[^:]*:[[:space:]]*"?([^"[:space:]]*)"?[[:space:]]*$/\1/')"
+    if [ -z "$tv_declared" ]; then
+      info "harness: versão: forge.yaml sem template_version — nada a comparar contra machinery.lock"
+    elif [ ! -f "$tv_lock" ]; then
+      info "harness: versão: sem machinery.lock (consumidor nunca rodou update, ou cache foi limpo) — forge.yaml declara $tv_declared, não comparado"
+    else
+      tv_locked="$(head -1 "$tv_lock" 2>/dev/null | sed -E 's/.*template v([^[:space:]]*).*/\1/')"
+      if [ -z "$tv_locked" ] || [ "$tv_locked" = "$(head -1 "$tv_lock" 2>/dev/null)" ]; then
+        info "harness: versão: machinery.lock com cabeçalho ilegível — não comparado contra forge.yaml ($tv_declared)"
+      elif [ "$tv_declared" = "$tv_locked" ]; then
+        ok "harness: versão: forge.yaml template_version ($tv_declared) confere com machinery.lock"
+      else
+        warn "harness: versão: forge.yaml declara template_version $tv_declared, machinery.lock registra $tv_locked da última aplicação"
+        hint "cópia parcial de .forge de outro consumidor, ou forge.yaml editado à mão sem rodar update — confira com: npx forge-harness update"
+      fi
+    fi
+  fi
+
   # plugin /forge:* instalado no Claude Code (best-effort; puramente informativo — NUNCA
   # contribui para MISSING_DIAG/exit 1). Sintoma real que motivou o check: usuário colando o
   # CORPO dos comandos como texto porque /forge:* silenciosamente não existia (plugin nunca

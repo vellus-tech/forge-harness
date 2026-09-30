@@ -143,6 +143,37 @@ O ensaio de campo da 0.16.0 mediu cerca de 40 consertos deliberados sobrescritos
 
 Reconcilie cada arquivo pendente com o usuário, por uma de três saídas: (1) o conserto local deve ficar — declare a exceção em `.forge/machinery-exceptions.txt` com o sha da versão pendente (`shasum -a 256 .forge/cache/template-pendente/<caminho>`) e a razão; (2) o template já cobre o conserto, ou os dois se completam — compare com `diff .forge/<caminho> .forge/cache/template-pendente/<caminho>` e incorpore à mão; se o resultado for igual à versão pendente, a reconciliação acabou: o `doctor` para de cobrar na hora, e o próximo update reconhece o arquivo como versão entregue pelo template e o atualiza (`ATUALIZADO`), sem nova versão pendente; se for uma mescla que ainda difere dela, declare também a exceção como na saída (1), senão o arquivo volta a ser deriva e pendente a cada update; (3) o template deve vencer em todos os arquivos pendentes — rode `npx forge-harness@latest update --overwrite-drift`, que sobrescreve com backup em `.git/forge-backups/` e nomeia cada um como `SOBRESCRITO (não declarado)`, sem passar por cima de exceção declarada. O diretório de pendentes é reconstruído a cada update e fica sob `.forge/cache/`, que não é versionado: um clone novo não tem `machinery.lock`, e nele a prova de intocado vem do histórico de versões publicadas — o arquivo idêntico a uma versão publicada recebe o template (`ATUALIZADO`), e só o que difere de todas aparece como `PRESERVADO (sem lock para provar)`.
 
+## Copiar `.forge` de outro repositório é upgrade parcial (issue #153)
+
+Copiar o diretório `.forge` (inteiro ou por partes: só `scripts/`, só um `commands/harness/*.md`
+que "ficou melhor" noutro projeto) de OUTRO consumidor para este repositório parece um atalho
+para adiantar o upgrade, mas é o mesmo overlay que este comando faz, sem nenhuma das garantias
+dele: sem preservar `specs/`, `product/current/`, `custom/`, `constitution.md`, `context.md`,
+`FORGE.md` do destino (que a cópia pisa ou ignora, dependendo do que foi copiado); sem atualizar
+`forge.yaml:template_version` para casar com o que chegou; sem reconciliar `machinery.lock`, que
+continua registrando a versão ANTERIOR da árvore de origem (ou nem existe, se a origem nunca
+rodou `update`); e sem trazer o script ou hook que, na origem, invocava cada lib copiada — o
+consumidor de destino herda a lib, não quem a chamava.
+
+Os dois sintomas ficam invisíveis até o `doctor` rodar (`/forge:doctor`, ou este comando no passo
+3):
+
+- **Lib órfã** — `scripts/lib/*.sh`/`*.mjs` presente e sem nenhum script, hook ou outra lib que a
+  mencione. É o rastro mais comum de uma cópia parcial: a lib veio, o invocador da origem não.
+- **Divergência de versão** — `forge.yaml:template_version` (o que a cópia trouxe, ou o que já
+  estava aqui) e a versão gravada no cabeçalho de `.forge/cache/machinery.lock` (a última
+  aplicação REAL de `update` nesta árvore) discordam. Nenhum dos dois arquivos sozinho prova
+  nada — só o cruzamento denuncia.
+
+O `doctor` nomeia os dois, sempre informativo (nunca reprova sozinho: uma lib sem invocador pode
+ser deliberada, e um clone novo sem `machinery.lock` diverge legitimamente até o primeiro
+`update`), mas nomear não é reconciliar — trate o aviso como sinal de que uma cópia manual
+aconteceu e faça o upgrade de verdade: rode este comando (passo 1–3) a partir da versão publicada
+do template, nunca copiando de outro checkout. Se a cópia manual já aconteceu e não pode ser
+desfeita, decida por arquivo copiado (seção "Divergências deliberadas de maquinaria" acima):
+declare exceção para o que deve ficar, ou rode `update` para trazer o resto ao ponto de
+convergência com o `machinery.lock` correto.
+
 ## Regras
 
 - **Nunca** rode este comando de dentro de um worktree linkado — ele recusa, e a recusa não tem flag

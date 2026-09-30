@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # check-red-first.sh (hook) — Forge pre-push: bloqueia o push de uma faixa que contenha commit
-# `fix(...)` quando algum change ATIVO type:bugfix não tiver evidência de Red resolvida
+# `fix(...)` quando algum change ATIVO sujeito ao red-first (type:bugfix ou fixes_defects
+# declarado, issue #138) não tiver evidência de Red resolvida
 # (observed|waived). Chama SÓ o check ESTÁTICO já existente (.forge/scripts/check-red-first.sh
 # check — Onda B, nunca roda teste algum, só lê evidence/red/*.json). O replay real (Onda C,
 # lib/red-replay.mjs) é caro — worktree git + execução de teste — e NUNCA roda aqui: o pre-push
@@ -123,7 +124,7 @@ _redfirst_resolve_delegated() {  # _redfirst_resolve_delegated <label> <rel-sob-
 check_red_first() {
   local line local_ref local_sha remote_ref remote_sha base failed=0
   local examined=0 skipped=0 engaged=0
-  local check_script univ_lib _rc
+  local check_script univ_lib _rc scripts_lib_dir
   local active_dir="$REPO/.forge/specs/active"
 
   # Delegação em alvo AUSENTE é erro, não no-op (issue #49, instância 4). `[ -f ] || return 0`
@@ -150,6 +151,10 @@ check_red_first() {
   fi
   # shellcheck disable=SC1090
   . "$univ_lib"
+  # issue #138 — defect-scope.mjs vive junto do check_script já delegado acima (mesma árvore,
+  # worktree ou tronco): nunca uma segunda chamada a _redfirst_resolve_delegated, que poderia
+  # resolver para uma árvore diferente da do check_script e desalinhar as duas libs.
+  scripts_lib_dir="$(dirname "$check_script")/lib"
 
   while IFS=' ' read -r local_ref local_sha remote_ref remote_sha; do
     [ -n "${local_ref:-}" ] || continue
@@ -169,12 +174,20 @@ check_red_first() {
 
     for chdir in "$active_dir"/*/; do
       [ -d "$chdir" ] || continue
-      local chid manifest type out rc
+      local chid manifest out rc
       chid="$(basename "$chdir")"
       manifest="$chdir/manifest.yaml"
       [ -f "$manifest" ] || continue
-      type="$(awk -F': ' '$1=="type"{print $2; exit}' "$manifest")"
-      [ "$type" = "bugfix" ] || continue
+      # issue #138 — predicado único (type:bugfix OU fixes_defects declarado), nunca mais awk
+      # direto sobre `type`: fixes_defects pode ser flow-style (`[D1, D2]`), que só
+      # yaml-lite.mjs parseia corretamente.
+      node --input-type=module -e "
+        import { parseYamlSubset } from '$scripts_lib_dir/yaml-lite.mjs';
+        import { isDefectFixing } from '$scripts_lib_dir/defect-scope.mjs';
+        import { readFileSync } from 'node:fs';
+        const man = parseYamlSubset(readFileSync(process.argv[1], 'utf8'));
+        process.exit(isDefectFixing(man) ? 0 : 1);
+      " "$manifest" 2>/dev/null || continue
       # Contam como EXAMINADOS os dois desfechos: o change que roda o check estático e o change
       # que o gate abriu, leu os fix_files declarados e concluiu, por critério explícito, que não
       # tem relação com o que está sendo empurrado. Esse segundo caso é cobertura — o gate olhou
@@ -207,11 +220,12 @@ check_red_first() {
   if [ "$engaged" -eq 1 ]; then
     local scope="changes ativos em .forge/specs/active, push com commit fix(...)"
     [ "$skipped" -gt 0 ] && scope="$scope; $skipped sem interseção com os fix_files declarados"
-    if ! forge_universe_check "red-first" "$examined" "change(s) type:bugfix" "$scope" "$REPO"; then
+    if ! forge_universe_check "red-first" "$examined" "change(s) sujeito(s) ao red-first" "$scope" "$REPO"; then
       {
         echo "pre-push BLOQUEADO: red-first — há commit fix(...) sendo publicado e NENHUM change"
-        echo "  ativo type:bugfix foi examinado. Abra o change (/forge:spec new --type bugfix) e"
-        echo "  registre o Red com /forge:red record + replay, ou dispense com /forge:red waive."
+        echo "  ativo sujeito ao red-first (type:bugfix ou fixes_defects declarado) foi examinado."
+        echo "  Abra o change (/forge:spec new --type bugfix) e registre o Red com /forge:red"
+        echo "  record + replay, ou dispense com /forge:red waive."
       } >&2
       failed=1
     fi

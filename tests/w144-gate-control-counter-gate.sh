@@ -76,7 +76,9 @@ mkchange "$R1" chg-bug bugfix
 out="$(printf 'refs/heads/main %s refs/heads/main %s\n' "$SHA1" "$ZERO" \
   | REPO="$R1" bash "$R1/.forge/hooks/git/lib/check-red-first.sh" 2>&1)"; rc=$?
 case "$out" in
-  *"1 change(s) type:bugfix examinado(s)"*) : ;;
+  # issue #138 — rótulo generalizou de "type:bugfix" para "sujeito(s) ao red-first" (predicado
+  # isDefectFixing cobre type:bugfix OU fixes_defects declarado).
+  *"1 change(s) sujeito(s) ao red-first examinado(s)"*) : ;;
   *) echo "FAIL [2]: contador de controle ausente com 1 change type:bugfix ativo (rc=$rc, saída: '$out')"; exit 1 ;;
 esac
 echo "OK [2]"

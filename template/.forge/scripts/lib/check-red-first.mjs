@@ -57,6 +57,7 @@ import { upsertSingleEntry } from './red-evidence-ops.mjs';
 import { checkReachability } from './red-level.mjs';
 import { applyMode } from './gate-mode.mjs';
 import { classify } from './red-classify.mjs';
+import { isDefectFixing, defectIds } from './defect-scope.mjs';
 
 const RULE_REF = 'rule testing/regression-red-first.md';
 const root = resolve(process.env.FORGE_ROOT || '.');
@@ -164,18 +165,22 @@ function ledgerEntryOf(ledgerId, changeId) {
 export function evaluateRedFirst(changeDir) {
   const man = readManifest(changeDir);
   if (!man) return { manifestError: true };
-  if (man.type !== 'bugfix') {
-    // item 3d — mudar de type após ter evidência gravada desliga toda a política red-first em
-    // silêncio (o caminho normal deste próprio bloco é `return` antes de olhar a evidência).
-    // Isso pode ser legítimo (change recategorizado bugfix -> refactor) — não trava, mas deixa
-    // rastro em vez de silêncio total. "Evidência gravada" exclui o scaffold trivial
-    // (status:'pending', recorded_at:null) que /forge:spec new cria para TODO change bugfix
-    // recém-criado — recategorizar antes de qualquer /forge:red record não é sinal de nada.
+  if (!isDefectFixing(man)) {
+    // item 3d — mudar de type (ou apagar fixes_defects) após ter evidência gravada desliga toda
+    // a política red-first em silêncio (o caminho normal deste próprio bloco é `return` antes de
+    // olhar a evidência). Isso pode ser legítimo (change recategorizado bugfix -> refactor, ou
+    // fixes_defects esvaziado) — não trava, mas deixa rastro em vez de silêncio total.
+    // "Evidência gravada" exclui o scaffold trivial (status:'pending', recorded_at:null) que
+    // /forge:spec new cria para TODO change bugfix recém-criado — recategorizar antes de
+    // qualquer /forge:red record não é sinal de nada. Issue #138: esta checagem só dispara
+    // quando `isDefectFixing` é `false` — um change `type: feature` com `fixes_defects`
+    // declarado nunca entra aqui, então o WARN de "type mudou" não se aplica a ele (a lista
+    // sozinha já basta para manter a política ligada).
     const findings = [];
     const evAfterTypeChange = loadRedEvidence(changeDir);
     if (evAfterTypeChange.exists && !evAfterTypeChange.errors.length && evAfterTypeChange.data
       && (evAfterTypeChange.data.recorded_at || evAfterTypeChange.data.status !== 'pending')) {
-      findings.push({ enforceable: false, msg: `change tem evidência de Red gravada (status: ${evAfterTypeChange.data.status}) mas type mudou para '${man.type}' — a política red-first foi desligada por essa mudança; confirme que a recategorização é legítima (item 3d, ${RULE_REF})` });
+      findings.push({ enforceable: false, msg: `change tem evidência de Red gravada (status: ${evAfterTypeChange.data.status}) mas deixou de ser sujeito ao red-first (type: '${man.type}', fixes_defects: ${JSON.stringify(man.fixes_defects ?? [])}) — a política foi desligada por essa mudança; confirme que a recategorização é legítima (item 3d, ${RULE_REF})` });
     }
     return { applicable: false, type: man.type, findings, status: null, changeId: man.id };
   }
@@ -191,7 +196,7 @@ export function evaluateRedFirst(changeDir) {
   const topStatus = deriveTopStatus(entries);
   const fullyResolved = entries.length > 0 && entries.every(resolvedEntry);
   if (!ev.exists) {
-    findings.push({ enforceable: true, msg: `${REL_PATH} ausente — change type:bugfix sem evidência de Red (item 1, ${RULE_REF}) — escaffolde com 'red-evidence.sh init ${man.id}' e grave com /forge:red record + replay, ou dispense com /forge:red waive --reason <motivo>` });
+    findings.push({ enforceable: true, msg: `${REL_PATH} ausente — change sujeito ao red-first (type:bugfix ou fixes_defects declarado) sem evidência de Red (item 1, ${RULE_REF}) — escaffolde com 'red-evidence.sh init ${man.id}' e grave com /forge:red record + replay, ou dispense com /forge:red waive --reason <motivo>` });
   } else if (ev.errors.length) {
     findings.push({ enforceable: true, msg: `${REL_PATH} inválido: ${ev.errors.join('; ')} (item 1, ${RULE_REF})` });
   } else if (ev.tampered) {
@@ -214,6 +219,26 @@ export function evaluateRedFirst(changeDir) {
     const pendingIds = entries.filter((e) => !resolvedEntry(e)).map((e) => e.id);
     const which = entries.length >= 2 && pendingIds.length ? ` — pendente(s): ${pendingIds.join(', ')}` : '';
     findings.push({ enforceable: true, msg: `${REL_PATH} status '${topStatus}' — Red ainda não observado nem dispensado (item 1, ${RULE_REF})${which} — rode /forge:red replay${idHint} ou dispense com /forge:red waive --reason <motivo>${idHint}` });
+  }
+
+  // fixes_defects (issue #138) — cobrança POR ID, independente do que os quatro ramos acima já
+  // concluíram. `fullyResolved` só enxerga as entradas que EXISTEM em entries[]; um change que
+  // declara `fixes_defects: [D1, D2]` e só registrou evidência para D1 fica `fullyResolved` se a
+  // entrada de D1 estiver resolvida — D2 nunca foi examinado e o ramo acima não tem como saber
+  // que ele deveria existir. Roda sempre que a lista é declarada, com `type` bugfix ou não, e
+  // independente de `ev.exists` (entries é [] quando não há evidência nenhuma, e o `missing`
+  // abaixo vira a lista inteira — a mensagem nomeia cada id em vez de deixar o achado genérico do
+  // item 1 acima ser o único rastro).
+  const declaredDefectIds = defectIds(man);
+  if (declaredDefectIds.length) {
+    const entryById = new Map(entries.map((e) => [e.id, e]));
+    const missingDefectIds = declaredDefectIds.filter((id) => {
+      const entry = entryById.get(id);
+      return !entry || !resolvedEntry(entry);
+    });
+    if (missingDefectIds.length) {
+      findings.push({ enforceable: true, msg: `fixes_defects declara ${declaredDefectIds.join(', ')} mas falta evidência de Red resolvida (observed|waived) para: ${missingDefectIds.join(', ')} — grave com /forge:red record --id <id> + replay, ou dispense com /forge:red waive --id <id> --reason <motivo> (fixes_defects, ${RULE_REF})` });
+    }
   }
 
   // waiver: Onda D/E, item 3a — a política de CADA um dos quatro motivos é REAPLICADA aqui a
@@ -387,7 +412,7 @@ function cmdCheck(changeDir) {
 function cmdStatus(changeDir) {
   const man = readManifest(changeDir);
   if (!man) { console.log('FAIL (manifest.yaml ausente/ilegível)'); return; }
-  if (man.type !== 'bugfix') { console.log(`OK (n/a — type: ${man.type})`); return; }
+  if (!isDefectFixing(man)) { console.log(`OK (n/a — type: ${man.type})`); return; }
   const ev = loadRedEvidence(changeDir);
   if (!ev.exists) { console.log(`MISSING (${REL_PATH} ausente)`); return; }
   if (ev.errors.length) { console.log(`INVALID (${ev.errors.join('; ')})`); return; }
@@ -595,7 +620,7 @@ function cmdWaive(changeDir, argv) {
   }
   const man = readManifest(changeDir);
   if (!man) { console.log('FAIL (manifest.yaml ausente/ilegível)'); process.exit(1); }
-  if (man.type !== 'bugfix') { console.log(`FAIL (waive só se aplica a change type:bugfix, got: ${man.type})`); process.exit(1); }
+  if (!isDefectFixing(man)) { console.log(`FAIL (waive só se aplica a change sujeito ao red-first — type:bugfix ou fixes_defects declarado, got: ${man.type})`); process.exit(1); }
   const ev = loadRedEvidence(changeDir);
   if (!ev.exists) { console.log(`FAIL (${REL_PATH} ausente — nada para dispensar; rode 'red-evidence.sh init ${man.id}' para escaffoldar em cima deste change existente)`); process.exit(1); }
   if (ev.errors.length) { console.log(`FAIL (${REL_PATH} inválido: ${ev.errors.join('; ')})`); process.exit(1); }

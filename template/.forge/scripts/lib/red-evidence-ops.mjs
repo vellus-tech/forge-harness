@@ -53,6 +53,7 @@ import {
   emptyEntry, deriveEntries, computeProjection, deriveTopStatus, nextAutoId, resolveEntryId,
 } from './red-evidence.mjs';
 import { replay as runReplay } from './red-replay.mjs';
+import { isDefectFixing } from './defect-scope.mjs';
 
 const root = resolve(process.env.FORGE_ROOT || '.');
 
@@ -77,10 +78,10 @@ function truncate(s, max = 6000) {
   return text.length <= max ? text : `…(truncado — ${text.length} chars)…\n${text.slice(-max)}`;
 }
 
-function requireBugfix(changeDir) {
+function requireDefectFixing(changeDir) {
   const man = readManifest(changeDir);
   if (!man) { console.log('FAIL (manifest.yaml ausente/ilegível)'); process.exit(1); }
-  if (man.type !== 'bugfix') { console.log(`FAIL (red-evidence só se aplica a change type:bugfix, got: ${man.type})`); process.exit(1); }
+  if (!isDefectFixing(man)) { console.log(`FAIL (red-evidence só se aplica a change sujeito ao red-first — type:bugfix ou fixes_defects declarado, got type: ${man.type})`); process.exit(1); }
   return man;
 }
 
@@ -201,7 +202,7 @@ export function applyRecord(prevData, changeId, flags) {
 }
 
 function cmdRecord(changeDir, argv) {
-  requireBugfix(changeDir);
+  requireDefectFixing(changeDir);
   const ev = requireEvidence(changeDir);
   const f = parseFlags(argv);
 
@@ -331,7 +332,7 @@ function persistReplayResult(ev, data, result, opts) {
 // roda ANTES de chamar o motor de replay — sem isso, um change ambíguo pagava worktree+execução
 // de teste só para descartar o resultado no fim.
 async function cmdReplay(changeDir, argv) {
-  requireBugfix(changeDir);
+  requireDefectFixing(changeDir);
   const ev = requireEvidence(changeDir);
   const data = ev.data;
   const f = parseFlags(argv);
@@ -406,7 +407,7 @@ async function cmdReplay(changeDir, argv) {
 async function cmdEnsure(changeDir, argv) {
   const man = readManifest(changeDir);
   if (!man) { console.log('FAIL (manifest.yaml ausente/ilegível)'); process.exit(1); }
-  if (man.type !== 'bugfix') { console.log(`OK ensure (n/a — type: ${man.type})`); return; }
+  if (!isDefectFixing(man)) { console.log(`OK ensure (n/a — type: ${man.type})`); return; }
 
   const ev = loadRedEvidence(changeDir);
   if (!ev.exists) { console.log('OK ensure (evidência ausente — nada a garantir; check-red-first cobre o item 1)'); return; }

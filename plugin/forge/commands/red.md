@@ -1,5 +1,5 @@
 ---
-description: Protocolo Red-first de correção de defeito (rule testing/regression-red-first.md) — init escaffolda a evidência num change bugfix já existente (saída para brownfield), record declara o teste que reproduz o bug (test-path, test-id, command e failure-pattern obrigatórios), replay roda o motor real (worktree git efêmero, um teste, timeout explícito) e converte a declaração em evidência observada, waive dispensa com motivo tipado quando o Red for genuinamente inviável.
+description: Protocolo Red-first de correção de defeito (rule testing/regression-red-first.md) — vale para type:bugfix ou qualquer type com fixes_defects declarado (issue #138) — init escaffolda a evidência num change já existente (saída para brownfield), record declara o teste que reproduz o defeito (test-path, test-id, command e failure-pattern obrigatórios), replay roda o motor real (worktree git efêmero, um teste, timeout explícito) e converte a declaração em evidência observada, waive dispensa com motivo tipado quando o Red for genuinamente inviável.
 argument-hint: "init|record|replay|waive|status <change-id> [flags]"
 ---
 
@@ -7,10 +7,14 @@ argument-hint: "init|record|replay|waive|status <change-id> [flags]"
 
 Argumentos: `$ARGUMENTS`. Sem subcomando, mostra `status` do change ativo.
 
-> Vale só para changes `type: bugfix`. `evidence/red/red-evidence.json` nasce em
-> `status: pending` no scaffold (`/forge:spec new --type bugfix`) — este comando é o único
-> caminho para movê-lo. Ver `.forge/rules/testing/regression-red-first.md` para a norma
-> completa e `bugfix.md §5` para o protocolo dentro do change.
+> Vale para changes sujeitos à política red-first — `type: bugfix`, **ou** qualquer outro `type`
+> que declare `fixes_defects` (lista de ids de defeito no manifest, issue #138) — predicado
+> `isDefectFixing` em `lib/defect-scope.mjs`. `evidence/red/red-evidence.json` nasce em
+> `status: pending` no scaffold quando o change é `type: bugfix` (`/forge:spec new --type
+> bugfix`); um change de outro `type` que declara `fixes_defects` depois de criado usa `init`
+> (abaixo) para escaffoldar. Este comando é o único caminho para mover a evidência. Ver
+> `.forge/rules/testing/regression-red-first.md` para a norma completa (§ Escopo) e
+> `bugfix.md §5` para o protocolo dentro do change.
 
 ## init — escaffoldar evidência num change já existente (saída para brownfield)
 
@@ -18,11 +22,14 @@ Argumentos: `$ARGUMENTS`. Sem subcomando, mostra `status` do change ativo.
 bash .forge/scripts/red-evidence.sh init <change-id>
 ```
 
-Cria `evidence/red/red-evidence.json` (`status: pending`) quando o change `type: bugfix` já
-existe mas nunca recebeu o scaffold — harness atualizado por cima de um change em andamento, ou
-o arquivo apagado à mão. É a saída correta para esse caso: `/forge:spec new --type bugfix` cria
-um change **novo**, não adiciona evidência a um já existente. Idempotente — no-op se o arquivo já
-existir; falha se o change não existir ou não for `type: bugfix`.
+Cria `evidence/red/red-evidence.json` (`status: pending`) quando o change já é sujeito à política
+red-first (`type: bugfix`, ou `fixes_defects` declarado — § Escopo da rule) mas nunca recebeu o
+scaffold — harness atualizado por cima de um change em andamento, `fixes_defects` acrescentado
+depois da criação do change, ou o arquivo apagado à mão. É a saída correta para esse caso:
+`/forge:spec new --type bugfix` cria um change **novo**, não adiciona evidência a um já existente,
+e só escaffolda automaticamente para `type: bugfix` — um `type: feature` com `fixes_defects`
+sempre passa por `init` explicitamente. Idempotente — no-op se o arquivo já existir; falha se o
+change não existir ou não satisfizer `isDefectFixing`.
 
 ## record — declarar o teste que reproduz o defeito
 
@@ -121,16 +128,17 @@ Saídas: `OK replay` (grava `observed` + `base_commit`/`classification`/`excerpt
 bash .forge/scripts/red-evidence.sh ci
 ```
 
-Varre **todo** change ativo `type: bugfix`, roda `ensure` em cada um e aplica o check estático,
-agregando o veredito num exit code. É o que o workflow `red-first.yml` executa em cada pull
-request — e é ele, não o `red-evidence.json` commitado, que decide se o Red foi observado.
+Varre **todo** change ativo sujeito à política red-first (`type: bugfix`, ou `fixes_defects`
+declarado — § Escopo da rule), roda `ensure` em cada um e aplica o check estático, agregando o
+veredito num exit code. É o que o workflow `red-first.yml` executa em cada pull request — e é
+ele, não o `red-evidence.json` commitado, que decide se o Red foi observado.
 
 Não aceita `<change-id>`, deliberadamente: quem define o escopo é o estado do repositório. Um
 `ci --change X` devolveria a quem invoca a capacidade de apontar a verificação para o change que
 lhe convém, que é o grau de controle que rodar no CI existe para tirar.
 
-Change ativo de outro tipo é ignorado e repositório sem bugfix ativo sai `0` — ausência de
-correção de defeito não é falha. O runner precisa de histórico completo (`fetch-depth: 0`) para o
+Change ativo fora da política é ignorado e repositório sem nenhum change sujeito a ela sai `0` —
+ausência de correção de defeito não é falha. O runner precisa de histórico completo (`fetch-depth: 0`) para o
 motor derivar a árvore pré-correção, e das dependências instaladas antes, porque o worktree
 efêmero nasce sem elas.
 
@@ -168,7 +176,8 @@ regra de waiver, sem reimplementação aqui.
 - `replay` é caro (worktree + execução real) — nunca roda no `pre-push` (só o check estático,
   `check-red-first.sh`). Você o invoca aqui de forma explícita; `/forge:verify` e a transição
   para `verified` (`validate-spec.mjs`) chamam o mesmo motor por baixo via `red-evidence.sh
-  ensure` — **sempre**, incondicionalmente, para todo change `type: bugfix`, sem ler `status` do
+  ensure` — **sempre**, incondicionalmente, para todo change sujeito à política (§ Escopo da
+  rule), sem ler `status` do
   artefato para decidir se executam. `ensure` não é um subcomando pensado para uso manual (por
   isso fora do `argument-hint` acima); ele existe para que nenhum `status: observed` sobreviva
   sem um replay real por trás, mesmo que o JSON tenha sido editado à mão.

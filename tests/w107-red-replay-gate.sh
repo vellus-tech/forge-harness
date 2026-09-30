@@ -276,7 +276,9 @@ set -e
 # contador: sem ele, "não examinei nada" e "examinei e não se aplica" voltariam a colapsar.
 grep -qi "pre-push BLOQUEADO: red-first" <<<"$out" && { echo "FAIL: pre-push bloqueou por red-first num push sem interseção com fix_files ($out)"; exit 1; }
 [ "$rc" -eq 0 ] || { echo "FAIL: pre-push deveria passar (push sem relação com bug-2 pendente) ($out)"; exit 1; }
-grep -q "change(s) type:bugfix examinado(s)" <<<"$out" || { echo "FAIL: pre-push não imprimiu o contador de controle do red-first (issue #49) ($out)"; exit 1; }
+# issue #138 — o rótulo do universo generalizou de "type:bugfix" para "sujeito(s) ao red-first"
+# (predicado isDefectFixing agora cobre type:bugfix OU fixes_defects declarado).
+grep -q "change(s) sujeito(s) ao red-first examinado(s)" <<<"$out" || { echo "FAIL: pre-push não imprimiu o contador de controle do red-first (issue #49) ($out)"; exit 1; }
 echo "OK [8]"
 
 echo "[8b] Onda D, item 5 — bugfix ativo SEM evidência nenhuma NÃO é isento (bloqueia mesmo sem interseção)"

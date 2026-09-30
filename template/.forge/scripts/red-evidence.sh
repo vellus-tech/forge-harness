@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # forge red-evidence (Onda C, rule testing/regression-red-first.md): CLI de
 # /forge:red — record|replay|status|waive sobre evidence/red/red-evidence.json de um change
-# type:bugfix.
+# sujeito ao red-first — type:bugfix ou, desde a issue #138, type:feature (ou qualquer outro)
+# que declare `fixes_defects` não vazio no manifest (predicado isDefectFixing, lib/defect-scope.mjs).
 #
 #   record — declara test_path/test_id/command/fix_files/... (lib/red-evidence-ops.mjs). NUNCA
 #            marca observed sozinho.
@@ -44,6 +45,20 @@ ROOT="${FORGE_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 export FORGE_ROOT="$ROOT"
 command -v node >/dev/null 2>&1 || { echo "FAIL (node >= 20 required)"; exit 1; }
 
+# _manifest_is_defect_fixing <manifest.yaml> -> "1"/"0" via lib/defect-scope.mjs (issue #138) —
+# predicado único (type:bugfix OU fixes_defects não vazio), mesmo padrão de invocação node de
+# spec-transition.sh para quick_plan. Nunca reimplementa o predicado em awk: `fixes_defects` pode
+# ser flow-style (`[D1, D2]`) ou block-style, e só yaml-lite.mjs parseia os dois de forma correta.
+_manifest_is_defect_fixing() {
+  node --input-type=module -e "
+    import { parseYamlSubset } from '$SCRIPT_DIR/lib/yaml-lite.mjs';
+    import { isDefectFixing } from '$SCRIPT_DIR/lib/defect-scope.mjs';
+    import { readFileSync } from 'node:fs';
+    const man = parseYamlSubset(readFileSync(process.argv[1], 'utf8'));
+    process.stdout.write(isDefectFixing(man) ? '1' : '0');
+  " "$1" 2>/dev/null || echo 0
+}
+
 CMD="${1:-}"; shift || true
 
 # `ci` é o único subcomando SEM change-id, e a exceção é deliberada (LDG-0004): quem escolhe o
@@ -51,7 +66,7 @@ CMD="${1:-}"; shift || true
 # autor a capacidade de apontar a verificação para o change que lhe convém — que é exatamente o
 # grau de controle que mover a execução para o CI existe para tirar.
 if [ "$CMD" = "ci" ]; then
-  [ $# -eq 0 ] || { echo "FAIL (red-evidence.sh ci não aceita argumentos — o escopo é todo change ativo type:bugfix, por construção)"; exit 1; }
+  [ $# -eq 0 ] || { echo "FAIL (red-evidence.sh ci não aceita argumentos — o escopo é todo change ativo sujeito ao red-first, por construção)"; exit 1; }
   ACTIVE_DIR="$ROOT/.forge/specs/active"
   # shellcheck disable=SC1090
   . "$SCRIPT_DIR/lib/gate-universe.sh"
@@ -62,8 +77,7 @@ if [ "$CMD" = "ci" ]; then
     [ -f "$man" ] || continue
     active=$((active + 1))
     id="$(basename "$(dirname "$man")")"
-    type="$(awk -F': ' '$1=="type"{gsub(/[" ]/,"",$2); print $2; exit}' "$man")"
-    [ "$type" = "bugfix" ] || continue
+    [ "$(_manifest_is_defect_fixing "$man")" = "1" ] || continue
     checked=$((checked + 1))
     # `ensure` executa e nunca falha o script; `check-red-first` é quem decide — a mesma divisão
     # que spec-verify.sh já usa, para não abrir uma terceira opinião sobre o mesmo artefato.
@@ -96,9 +110,9 @@ if [ "$CMD" = "ci" ]; then
     exit 0
   fi
   forge_universe_check "red-first-ci" "$active" "change(s) ativo(s)" "$ACTIVE_DIR" "$ROOT" || exit 1
-  if [ "$checked" -eq 0 ]; then echo "OK ci — $active change(s) ativo(s) examinado(s), 0 type:bugfix"; exit 0; fi
-  [ "$fail" -eq 0 ] || { echo "FAIL ci — $active change(s) ativo(s) examinado(s), $checked type:bugfix verificado(s), ao menos um sem Red observado (logs em /tmp/forge-red-ci-*.log)"; exit 1; }
-  echo "OK ci — $active change(s) ativo(s) examinado(s), $checked type:bugfix com Red observado ou dispensado"
+  if [ "$checked" -eq 0 ]; then echo "OK ci — $active change(s) ativo(s) examinado(s), 0 sujeito(s) ao red-first"; exit 0; fi
+  [ "$fail" -eq 0 ] || { echo "FAIL ci — $active change(s) ativo(s) examinado(s), $checked sujeito(s) ao red-first verificado(s), ao menos um sem Red observado (logs em /tmp/forge-red-ci-*.log)"; exit 1; }
+  echo "OK ci — $active change(s) ativo(s) examinado(s), $checked sujeito(s) ao red-first com Red observado ou dispensado"
   exit 0
 fi
 
@@ -119,7 +133,7 @@ case "$CMD" in
     MAN="$DIR/manifest.yaml"
     [ -f "$MAN" ] || { echo "FAIL (manifest.yaml ausente em $DIR)"; exit 1; }
     MTYPE="$(awk -F': ' '$1=="type"{print $2; exit}' "$MAN")"
-    [ "$MTYPE" = "bugfix" ] || { echo "FAIL (init só se aplica a change type:bugfix, got: $MTYPE)"; exit 1; }
+    [ "$(_manifest_is_defect_fixing "$MAN")" = "1" ] || { echo "FAIL (init só se aplica a change sujeito ao red-first — type:bugfix ou fixes_defects declarado, got type: $MTYPE)"; exit 1; }
     EV="$DIR/evidence/red/red-evidence.json"
     if [ -f "$EV" ]; then echo "OK init (evidence/red/red-evidence.json já existe em $CHID — nada a fazer)"; exit 0; fi
     mkdir -p "$DIR/evidence/red"

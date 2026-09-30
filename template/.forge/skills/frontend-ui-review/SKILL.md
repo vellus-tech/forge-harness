@@ -78,18 +78,27 @@ rg -n 'var\(\s*--[A-Za-z0-9_-]+\s*,\s*[#0-9rgbahsl]' <src_dir> \
    && echo "WARN fallback-literal (revisar)" || echo "OK fallback-literal"
 ```
 
-### A4 — Scan de controle nativo do browser
+### A4 — Scan de controle nativo do browser (advisory)
 `<input type="file|color|date|range">`, `<select>` etc. têm **chrome próprio** que o CSS comum não
 alcança (`::file-selector-button`, `::-webkit-color-swatch`, `::-webkit-slider-thumb`). Aplicar
 `border:none` no input não toca o pseudo-elemento interno — o botão/borda default do SO permanece.
 Todo controle nativo é ponto de fuga do DS até ser explicitamente domado **ou** encapsulado num
 componente do DS.
 
+A receita antiga (`rg 'type="color"...' | grep -v design-system`) casava o atributo sozinho,
+qualquer que fosse o CSS irmão — poder discriminante zero, sempre WARN, nunca reconhecia um
+controle já corretamente estilizado. O scanner abaixo distingue **domado** de **não domado**
+checando, para cada instância, os dois escapes da regra 12 de `design-system.md`: (1) o
+pseudo-elemento correto no CSS do próprio componente (mesmo diretório do arquivo, ou embutido nele)
+ou (2) encapsulamento em componente do design system.
+
 ```bash
-rg -n 'type="(file|color|date|time|range|checkbox|radio)"|<select\b' <src_dir> \
-   | grep -v 'design-system' \
-   && echo "WARN controles nativos — verificar estilo/encapsulamento" || echo "OK controles-nativos"
+python3 .forge/skills/frontend-ui-review/scripts/scan-native-controls.py <src_dir>
 ```
+
+Imprime `OK` por instância domada/encapsulada e `WARN` por instância crua, mais um resumo. **É
+advisory — nunca bloqueia (exit sempre 0)**: o discriminante correto reduz ruído, mas a metade
+bloqueante (fazer o WARN reprovar o merge) é decisão do consumidor, opt-in, fora desta skill.
 
 ### A5 — Gate de cobertura (superfície inteira, não o diff)
 A1/A2 têm que dar **zero no app inteiro**, não só nos arquivos alterados. Padronização é propriedade

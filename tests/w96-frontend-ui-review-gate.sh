@@ -5,15 +5,20 @@
 #   [2] fixture SEM fantasma (tudo definido) → exit 0
 #   [3] allowlist suprime token injetado em runtime → exit 0
 #   [4] artefatos presentes: SKILL.md (name correto), scanner, convenções 10-12 na rule, fiação no agent
+#   [5] A4/#140 — controle nativo DOMADO (pseudo-elemento correto no CSS irmão) → OK
+#   [6] A4/#140 — mesmo tipo de controle CRU (sem o pseudo) → WARN (contrafactual de [5])
+#   [7] A4/#140 — PBT-lite: tipo × presença do pseudo × encapsulamento no DS → OK sse um escapa presente
 set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SCAN="$WS/template/.forge/skills/frontend-ui-review/scripts/scan-phantom-tokens.py"
+SCAN_NATIVE="$WS/template/.forge/skills/frontend-ui-review/scripts/scan-native-controls.py"
 T="$(mktemp -d /tmp/forge-fe.XXXXXX)"
 trap 'rm -rf "$T"' EXIT
 
 command -v python3 >/dev/null 2>&1 || { echo "SKIP (python3 ausente)"; echo "PASS w96-frontend-ui-review-gate"; exit 0; }
 [ -f "$SCAN" ] || { echo "FAIL (scanner ausente: $SCAN)"; exit 1; }
+[ -f "$SCAN_NATIVE" ] || { echo "FAIL (scanner de controles nativos ausente: $SCAN_NATIVE)"; exit 1; }
 
 # tokens definidos
 printf ':root {\n  --surface-0: #fff;\n  --color-primary-500: #0051E6;\n}\n' > "$T/tokens.css"
@@ -61,6 +66,68 @@ python3 "$SCAN" "$T/tokens.css" "$T/src" >/dev/null; rc=$?
 set -e
 [ "$rc" -eq 1 ] || { echo "FAIL [3] (--progress deveria ser fantasma sem allowlist)"; exit 1; }
 echo "OK [3]"
+
+echo "[5] controle nativo DOMADO (pseudo-elemento correto no CSS irmão) → OK"
+mkdir -p "$T/domado"
+printf 'export const ColorPicker = () => <input type="color" />;\n' > "$T/domado/ColorPicker.tsx"
+printf 'input::-webkit-color-swatch { border: none; }\n' > "$T/domado/ColorPicker.module.css"
+set +e
+out5="$(python3 "$SCAN_NATIVE" "$T/domado")"; rc5=$?
+set -e
+[ "$rc5" -eq 0 ] || { echo "FAIL [5] (advisory nunca bloqueia; esperava exit 0, veio $rc5)"; exit 1; }
+grep -q '^OK color' <<<"$out5" || { echo "FAIL [5] (não reportou OK para o controle domado): $out5"; exit 1; }
+grep -q '^WARN' <<<"$out5" && { echo "FAIL [5] (controle domado não deveria dar WARN): $out5"; exit 1; }
+echo "OK [5]"
+
+echo "[6] mesmo tipo de controle CRU (sem o pseudo, sem DS) → WARN (contrafactual de [5])"
+mkdir -p "$T/cru"
+printf 'export const ColorPickerCru = () => <input type="color" />;\n' > "$T/cru/ColorPickerCru.tsx"
+printf '.wrapper { display: flex; }\n' > "$T/cru/ColorPickerCru.module.css"
+set +e
+out6="$(python3 "$SCAN_NATIVE" "$T/cru")"; rc6=$?
+set -e
+[ "$rc6" -eq 0 ] || { echo "FAIL [6] (advisory nunca bloqueia; esperava exit 0, veio $rc6)"; exit 1; }
+grep -q '^WARN color' <<<"$out6" || { echo "FAIL [6] (não reportou WARN para o controle cru): $out6"; exit 1; }
+grep -q '^OK color' <<<"$out6" && { echo "FAIL [6] (controle cru não deveria dar OK): $out6"; exit 1; }
+echo "OK [6]"
+
+echo "[7] PBT-lite: tipo × pseudo × encapsulamento — OK sse um dos dois escapes presente"
+# combinações: (tipo, pseudo correto?, encapsulado no DS?) -> veredito esperado
+casos=(
+  "file|::file-selector-button|não|OK"
+  "file||não|WARN"
+  "range|::-webkit-slider-thumb|não|OK"
+  "range||não|WARN"
+  "date||sim|OK"
+  "date||não|WARN"
+)
+i=0
+for caso in "${casos[@]}"; do
+  i=$((i + 1))
+  IFS='|' read -r tipo pseudo encapsulado esperado <<<"$caso"
+  dir="$T/pbt$i"
+  mkdir -p "$dir"
+  if [ "$encapsulado" = "sim" ]; then
+    printf 'import { NativeDate } from "@acme/design-system";\nexport const C = () => <input type="%s" />;\n' "$tipo" > "$dir/C.tsx"
+  else
+    printf 'export const C = () => <input type="%s" />;\n' "$tipo" > "$dir/C.tsx"
+  fi
+  if [ -n "$pseudo" ]; then
+    printf 'input%s { border: none; }\n' "$pseudo" > "$dir/C.module.css"
+  else
+    printf '.wrapper { display: flex; }\n' > "$dir/C.module.css"
+  fi
+  set +e
+  outp="$(python3 "$SCAN_NATIVE" "$dir")"; rcp=$?
+  set -e
+  [ "$rcp" -eq 0 ] || { echo "FAIL [7] caso $i (advisory nunca bloqueia; veio $rcp)"; exit 1; }
+  if [ "$esperado" = "OK" ]; then
+    grep -q "^OK $tipo" <<<"$outp" || { echo "FAIL [7] caso $i ($caso) — esperava OK: $outp"; exit 1; }
+  else
+    grep -q "^WARN $tipo" <<<"$outp" || { echo "FAIL [7] caso $i ($caso) — esperava WARN: $outp"; exit 1; }
+  fi
+done
+echo "OK [7] — ${#casos[@]} combinações conferidas"
 
 echo "[4] artefatos + fiação presentes"
 SK="$WS/template/.forge/skills/frontend-ui-review/SKILL.md"

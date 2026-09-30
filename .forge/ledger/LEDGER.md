@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**39 itens ativos** · roadmap 8 · tech-debt 22 · known-bug 9 · (94 encerrados)
+**38 itens ativos** · roadmap 8 · tech-debt 21 · known-bug 9 · (95 encerrados)
 
 ## Roadmap
 
@@ -70,8 +70,6 @@ _Encerrados: 2 (resolved 2)_
   Varredura das chaves-folha de forgeManifest/forgeFrontmatter contra scripts/, hooks/ e bin/: sdd.default_mode, sdd.default_rigor, sdd.default_scale, sdd.archive_policy, sdd.human_gate_required e quality.evals_root não têm leitor em lugar nenhum — nem em commands/, agents/ ou rules/. A ofensa é de OUTRA natureza que a das quality.require_* (LDG-0008): estas prometem um DEFAULT, cuja ausência é inofensiva, não um ENFORCEMENT, cuja ausência é afirmação falsa sobre o que o harness cobra. Varrê-las junto transformaria correção de honestidade em limpeza de schema com risco de retrocompatibilidade desproporcional. Decidir por chave, em change próprio.
 - **LDG-0152** [open] (P3) — fm_field triplicado — três leitores do frontmatter do FORGE.md
   O mesmo awk de leitura de campo escalar do bloco runtime: existe em template/.forge/hooks/git/pre-push, em handoff-gen.sh:42 e como idioma declarado em hooks/session/on-session-start.sh:11. A correção de LDG-0150 eliminou o clone do pre-push como LEITOR DE GATES (que passou a usar lib/forge-runtime.sh), mas o pre-push mantém fm_field para typecheck/test e mantém uma sonda local de presença da chave gates:. Os outros dois leem chaves escalares onde a forma mapeada não se aplica. Consolidar os três num lib é trabalho próprio: fazê-lo junto ampliaria o diff do item mais crítico da leva sem fechar risco nenhum.
-- **LDG-0153** [open] (P3) — Doctor não informa divergência do _common.sh do liaison contra o template
-  A issue #101 propunha que o doctor do consumidor informasse quando o _common.sh local diverge do que o template entrega. NÃO IMPLEMENTADO — e a justificativa registrada antes estava ERRADA em ambas as pernas, corrigida aqui. (a) 'Não há referência local contra a qual comparar' é falso: .forge/cache/machinery.lock grava o sha256 do TEMPLATE por path (bin/forge.mjs:361,384) e bin/forge.mjs:617-643 já computa exatamente essa comparação em driftWarned para imprimir o WARN de drift. O harness calcula o fato que este item dizia não ser calculável. (b) 'A divergência é transitória por construção e o próprio update é o remédio' só vale quando o template está à frente; nesta issue o template estava ATRÁS das árvores consumidoras, e o update era a doença, não o remédio. RESTRIÇÃO REAL, essa sim medida: machinery.lock só existe depois do primeiro update, então em consumidor que rodou apenas init não há referência — e é justamente nesse caso que a perda hoje é totalmente muda (rc=0, nenhum WARN). A peça cross-repositório continua fora do alcance pelo motivo já registrado (o harness não enxerga a árvore do consumidor); essa recusa NÃO cobre o check local, que é viável.
 - **LDG-0158** [open] (P3) — gate-ordinal.sh next resolve o remoto pelo CWD, não pelo repositório de --path
   Em 'next', 'git rev-parse --verify $ref' e 'git ls-tree $ref $rel/' rodam sem '-C', logo consultam o repositório do diretório corrente, enquanto o máximo LOCAL vem de --path. Com '--path' apontando para outra árvore, o ordinal devolvido mistura o remoto de um repositório com a árvore de outro — e 'rel' cai no fallback 'tests' sempre que --path está fora de ROOT, o que reforça a mistura. Não morde no uso real (--path omitido resolve para $ROOT/tests) nem em w193[4]/[5], que fazem 'cd' para a fixture antes de chamar. Correção: 'git -C $(dirname do --path resolvido)' explícito nas duas invocações, conforme a convenção do repositório.
 - **LDG-0161** [open] (P3) — template/.forge/FORGE.md e template/.forge/templates/FORGE.md divergem, e nenhum caminho gera um a partir do outro
@@ -85,7 +83,7 @@ _Encerrados: 2 (resolved 2)_
 - **LDG-0191** [open] (P3) — Lote restante de '! comando' nus sob set -e (12 linhas em 12 gates) e lacunas residuais da anti-recursão do w80 [4]
   Depois do LDG-0182 (PR #161), a varredura grep -nE '^[[:space:]]*! ' tests/*.sh | grep -v '||' ainda acha 12 linhas em 12 gates fora dos 14 revalidados pelo Bloco A: w51, w32, w211, w20, w175, w169, w163, infra-scan, gw3-data-governance, graph-deps, check-authz e changelog-merge. Cada uma precisa ser medida (mutação que deveria reprovar → rc hoje) antes de converter, porque '! ' dentro de if/while ou seguido de || na linha seguinte está vivo. Mesma frente: lacunas LOW da revisão do PR #161 no w80 [4] — zsh/dash/ksh, "$0"/${BASH_SOURCE[0]}, source/., execução direta tests/run-all.sh, e o grep com rc>1 (regex inválida) que abre o guarda em silêncio. Correção: conversão por gate com mutação e recontrole, e no [4] manter também a regex ampla de develop com filtro de comentário.
 
-_Encerrados: 39 (resolved 34 · wont-fix 5)_
+_Encerrados: 40 (resolved 35 · wont-fix 5)_
 
 ## Bugs conhecidos
 

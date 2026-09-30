@@ -2064,10 +2064,10 @@
       "id": "LDG-0153",
       "type": "tech-debt",
       "title": "Doctor não informa divergência do _common.sh do liaison contra o template",
-      "detail": "A issue #101 propunha que o doctor do consumidor informasse quando o _common.sh local diverge do que o template entrega. NÃO IMPLEMENTADO — e a justificativa registrada antes estava ERRADA em ambas as pernas, corrigida aqui. (a) 'Não há referência local contra a qual comparar' é falso: .forge/cache/machinery.lock grava o sha256 do TEMPLATE por path (bin/forge.mjs:361,384) e bin/forge.mjs:617-643 já computa exatamente essa comparação em driftWarned para imprimir o WARN de drift. O harness calcula o fato que este item dizia não ser calculável. (b) 'A divergência é transitória por construção e o próprio update é o remédio' só vale quando o template está à frente; nesta issue o template estava ATRÁS das árvores consumidoras, e o update era a doença, não o remédio. RESTRIÇÃO REAL, essa sim medida: machinery.lock só existe depois do primeiro update, então em consumidor que rodou apenas init não há referência — e é justamente nesse caso que a perda hoje é totalmente muda (rc=0, nenhum WARN). A peça cross-repositório continua fora do alcance pelo motivo já registrado (o harness não enxerga a árvore do consumidor); essa recusa NÃO cobre o check local, que é viável.",
+      "detail": "A issue #101 propunha que o doctor do consumidor informasse quando o _common.sh local diverge do que o template entrega. NÃO IMPLEMENTADO — e a justificativa registrada antes estava ERRADA em ambas as pernas, corrigida aqui. (a) 'Não há referência local contra a qual comparar' é falso: .forge/cache/machinery.lock grava o sha256 do TEMPLATE por path (bin/forge.mjs:361,384) e bin/forge.mjs:617-643 já computa exatamente essa comparação em driftWarned para imprimir o WARN de drift. O harness calcula o fato que este item dizia não ser calculável. (b) 'A divergência é transitória por construção e o próprio update é o remédio' só vale quando o template está à frente; nesta issue o template estava ATRÁS das árvores consumidoras, e o update era a doença, não o remédio. RESTRIÇÃO REAL, essa sim medida: machinery.lock só existe depois do primeiro update, então em consumidor que rodou apenas init não há referência — e é justamente nesse caso que a perda hoje é totalmente muda (rc=0, nenhum WARN). A peça cross-repositório continua fora do alcance pelo motivo já registrado (o harness não enxerga a árvore do consumidor); essa recusa NÃO cobre o check local, que é viável. — Resolvido: Fechado pelo PR #209 (trilha/ldg-0153, commit 3a958059): doctor.sh compara scripts/lib/transports/*.sh contra machinery.lock, nomeando divergências com os dois shas; sem lock, 'não medido'; exceção viva declarada troca a linha. Cenários [14]-[18] em tests/w191-doctor-orphan-gate-gate.sh.",
       "severity": null,
       "priority": "P3",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -2080,8 +2080,8 @@
         "promoted_to": null
       },
       "created_at": "2026-09-05T19:55:23-03:00",
-      "updated_at": "2026-09-06T12:15:55-03:00",
-      "resolved_at": null,
+      "updated_at": "2026-09-30T07:54:24-03:00",
+      "resolved_at": "2026-09-30T07:54:24-03:00",
       "dedup_key": "manual:LDG-0153"
     },
     {

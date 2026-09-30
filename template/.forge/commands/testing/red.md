@@ -39,6 +39,7 @@ bash .forge/scripts/red-evidence.sh record <change-id> [--id <defeito>] \
   --command "<comando que roda só esse teste>" \
   --failure-pattern "<regex ou substring esperada na falha>" \
   [--fix-files "arq1,arq2"] [--setup-command "<comando executado antes do teste no worktree>"] \
+  [--positive-control "<comando que precisa PASSAR na base>"] \
   [--reproduces "bugfix.md §1"] [--excerpt "<trecho, se já observou manualmente>"]
 ```
 
@@ -47,6 +48,17 @@ um `replay` bem-sucedido. `--test-path`, `--test-id`, `--command` e `--failure-p
 **todos obrigatórios** (schema `red-evidence/v1`): sem `test_id`, a derivação da árvore base não
 consegue ancorar no caso específico (só no arquivo de teste inteiro); sem `failure_pattern`, o
 item 4 da rule nunca fica avaliável — campo ausente seria indistinguível de "gate desligado".
+
+`--positive-control` é **opcional** (issue #150, DA-13) — um comando que precisa PASSAR na
+árvore base, na mesma corrida do teste declarado. Uma âncora (`failure_pattern`) que não falha
+na base é defeito do TESTE, não do código sob correção: o teste afirma o CAMINHO que reproduz o
+defeito, não só o resultado observado ao final — um padrão nulo, vazio ou genérico demais casa
+com qualquer falha adjacente na base, inclusive uma sem relação com o defeito relatado.
+`replay` recusa `failure_pattern` ausente/vazio com `not-possible` (rc≠0) mesmo quando o schema
+não obriga o campo (evidência legada ou editada à mão); e `positive_control`, quando declarado e
+falhando na base, também dá `not-possible` — prova, por execução, que a base seria capaz de
+ficar verde antes de aceitar a falha do comando declarado como o defeito. Não é obrigatório: a
+obrigatoriedade fica para a Onda 8, para não invalidar evidências já gravadas sem o campo.
 
 ### Vários defeitos no mesmo change (`entries[]`, issue #139)
 
@@ -117,10 +129,18 @@ declaração que qualquer agente poderia fabricar. O motor (`lib/red-replay.mjs`
    `build-error`) + saída casando com `failure_pattern` quando declarado + passagem em HEAD
    (exit 0). Qualquer ausência vira `FAIL` com o item da rule citado, e a evidência **volta**
    para `pending` (nunca fica um `observed` falso na árvore).
+4. **Recusa `failure_pattern` ausente/vazio** com `not-possible` (issue #150) — uma âncora que
+   não amarra nada casaria com qualquer falha na base, inclusive uma adjacente ao defeito
+   relatado; essa checagem roda mesmo quando o schema não obriga o campo (evidência legada ou
+   editada à mão), sem invalidar o formato para quem já gravou evidência sem ele.
+5. **Roda `positive_control`, quando declarado**, na mesma árvore base e na mesma corrida, antes
+   do comando declarado (issue #150, `--positive-control` acima) — falhando, `not-possible` com
+   a saída do controle no excerto, mesmo que o comando declarado também falhe na base.
 
 Saídas: `OK replay` (grava `observed` + `base_commit`/`classification`/`excerpt`/
 `excerpt_sha256`/`replayed_at`) · `FAIL replay (item N) — <motivo>` (volta a `pending`, exit 1)
-· `NOT-POSSIBLE replay — <motivo>` (grava `not-possible`, exit 1 — próximo passo é `waive`).
+· `NOT-POSSIBLE replay — <motivo>` (grava `not-possible`, exit 1 — próximo passo é `waive`; inclui
+`failure_pattern` ausente/vazio e `positive_control` que falha na base).
 
 ## ci — a execução de referência, num runner que o autor não controla
 

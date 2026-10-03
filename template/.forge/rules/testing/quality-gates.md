@@ -85,6 +85,14 @@ Fonte: portão de decisão adaptado do prompt 02 do `vibe-coding-toolkit` (MIT).
 - `jest-axe` obrigatório em componentes de UI (unit)
 - `@axe-core/playwright` em testes E2E
 
+## Comparação gerado × versionado
+
+Um comparador que confere um artefato GERADO (código, contrato, snapshot) contra sua contraparte VERSIONADA no repositório não pode tratar toda divergência como defeito — a divergência tem duas causas possíveis, e só uma delas é regressão: o gerador mudou legitimamente, ou o artefato versionado foi editado deliberadamente (por exemplo, para corrigir uma exposição de superfície que o gerador produzia por padrão). Medido em produção: um comparador de contrato OpenAPI bloqueou pushes por três semanas mandando regenerar por cima de edições deliberadas, uma delas a correção de uma exposição de superfície interna real.
+
+1. **Asserções de propriedade do artefato, independentes da comparação byte-a-byte.** Antes de comparar gerado × versionado, o teste verifica propriedades do artefato em si (schema válido, campos obrigatórios presentes, superfície não expõe o que não deveria) — essas asserções continuam valendo mesmo quando o versionado diverge do gerado por edição deliberada.
+2. **Mensagem de falha que NUNCA prescreve "regenerar e commitar".** Ao detectar divergência, a mensagem nomeia as DUAS causas possíveis — o gerador mudou legitimamente, ou o versionado foi editado deliberadamente — e aponta `git log -p -- <arquivo>` como o próximo passo para decidir qual delas é o caso. Uma mensagem que instrui sobrescrever o versionado com o gerado descarta por decreto a possibilidade de que a edição deliberada esteja certa.
+3. **Onde o contrato versionado é fonte da verdade, nenhum teste tem como remediação sobrescrevê-lo com o gerado** — ver `architecture/api-and-contracts.md` § Fonte da verdade e comparação gerado × versionado.
+
 ## Regressão Visual
 
 - Playwright snapshots para componentes do design system

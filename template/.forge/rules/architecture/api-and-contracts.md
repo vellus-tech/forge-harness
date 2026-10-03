@@ -74,6 +74,10 @@ DELETE /api/v1/voyage-slots/{id}
 - Contratos em `contracts/pact/`
 - PR sem contrato para nova integração é bloqueado
 
+## Fonte da verdade e comparação gerado × versionado
+
+Onde o contrato VERSIONADO é a fonte da verdade (ver Filosofia acima), nenhum teste de comparação tem como remediação sobrescrevê-lo com o artefato GERADO — uma divergência pode ser o gerador mudando legitimamente, ou o versionado tendo sido editado de propósito (inclusive para corrigir uma exposição de superfície que o gerador produzia). Regras da mensagem de falha e das asserções de propriedade: `testing/quality-gates.md` § Comparação gerado × versionado.
+
 ## Monitoramento
 
 - Erros 4xx → alertas de warning

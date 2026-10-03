@@ -21,6 +21,9 @@
 #        .module.* importado; nome do DS sombreado por binding local não envolve; template pug (ou
 #        outro lang) sai não analisado; caixa alta não tira o arquivo da varredura; :type.prop, :[k],
 #        .type viram tipo dinâmico; v-pre não compila o DS
+#   [13] A4/#140 — acesso a módulo segue a sintaxe de JS ($style.a-b e s.a-b são subtração, não classe);
+#        seletor sob :global num CSS Module é global (casa classe literal, não classe de módulo); na
+#        mesma origem, a última declaração de appearance (ou alias) para o mesmo seletor vence
 set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -344,13 +347,13 @@ expect12() {
   shift 3
   n12=$((n12 + 1)); dir="$T/n12-$n12"; mkdir -p "$dir"
   while [ "$#" -ge 2 ]; do printf '%b' "$2" > "$dir/$1"; shift 2; done
-  out="$(python3 "$SCAN_NATIVE" "$dir")" || { echo "FAIL [12] $label (advisory deve sair 0)"; exit 1; }
+  out="$(python3 "$SCAN_NATIVE" "$dir")" || { echo "FAIL [${S12:-12}] $label (advisory deve sair 0)"; exit 1; }
   if [ "$esperado" = "OK" ]; then
-    grep -q "^OK $tipo" <<<"$out" || { echo "FAIL [12] $label — esperava OK $tipo: $out"; exit 1; }
-    grep -q '^WARN' <<<"$out" && { echo "FAIL [12] $label — nenhum WARN permitido: $out"; exit 1; }
+    grep -q "^OK $tipo" <<<"$out" || { echo "FAIL [${S12:-12}] $label — esperava OK $tipo: $out"; exit 1; }
+    grep -q '^WARN' <<<"$out" && { echo "FAIL [${S12:-12}] $label — nenhum WARN permitido: $out"; exit 1; }
   else
-    grep -q "^WARN $tipo" <<<"$out" || { echo "FAIL [12] $label — esperava WARN $tipo: $out"; exit 1; }
-    grep -q '^OK ' <<<"$out" && { echo "FAIL [12] $label — nenhum OK permitido: $out"; exit 1; }
+    grep -q "^WARN $tipo" <<<"$out" || { echo "FAIL [${S12:-12}] $label — esperava WARN $tipo: $out"; exit 1; }
+    grep -q '^OK ' <<<"$out" && { echo "FAIL [${S12:-12}] $label — nenhum OK permitido: $out"; exit 1; }
   fi
   echo "  ok $label"
 }
@@ -386,6 +389,34 @@ expect12 "(m) .vue: .type" type-dinâmico WARN F.vue '<template>\n  <input .type
 expect12 "(m) .vue: v-pre em volta do DS" color WARN F.vue "${VDS}"'<template>\n  <div v-pre><DsBox><input type="color"></DsBox></div>\n</template>\n'
 expect12 "(m) .vue: DS sem v-pre envolve -> OK (positiva)" color OK F.vue "${VDS}"'<template>\n  <div><DsBox><input type="color"></DsBox></div>\n</template>\n'
 echo "OK [12] — $n12 casos conferidos"
+
+echo "[13] acesso a módulo como em JS, :global em CSS Module e cascata de appearance"
+S12=13
+n12_antes=$n12
+CHKMOD='import s from "./P.module.css";\nexport const P = () => <input type="checkbox" className={s.sw} />;\n'
+CHKLIT='export const P = () => <input type="checkbox" className="sw" />;\n'
+DASH='.color, .color-swatch { appearance: none; }\n'
+# (A) depois do ponto só vale identificador JS: $style.color-swatch / s.color-swatch é subtração, não classe
+expect12 "(A) .vue: :class=\"\$style.color-swatch\"" checkbox WARN F.vue '<template>\n  <input type="checkbox" :class="$style.color-swatch">\n</template>\n<style module>\n'"$DASH"'</style>\n'
+expect12 "(A) .tsx: className={s.color-swatch}" checkbox WARN P.tsx 'import s from "./P.module.css";\nexport const P = () => <input type="checkbox" className={s.color-swatch} />;\n' P.module.css "$DASH"
+expect12 "(A) .vue: :class=\"\$style['color-swatch']\" -> OK (positiva)" checkbox OK F.vue '<template>\n  <input type="checkbox" :class="$style['"'"'color-swatch'"'"']">\n</template>\n<style module>\n'"$DASH"'</style>\n'
+expect12 "(A) .tsx: className={s[\"color-swatch\"]} -> OK (positiva)" checkbox OK P.tsx 'import s from "./P.module.css";\nexport const P = () => <input type="checkbox" className={s["color-swatch"]} />;\n' P.module.css "$DASH"
+# (B) seletor sob :global (com ou sem parênteses, ou herdado de bloco :global { }) é global: não casa
+# classe de módulo, casa classe literal
+expect12 "(B) .module.css: :global .sw com s.sw" checkbox WARN P.tsx "$CHKMOD" P.module.css ':global .sw { appearance: none; }\n'
+expect12 "(B) .module.scss: :global { .sw } com s.sw" checkbox WARN P.tsx 'import s from "./P.module.scss";\nexport const P = () => <input type="checkbox" className={s.sw} />;\n' P.module.scss ':global {\n  .sw { appearance: none; }\n}\n'
+expect12 "(B) .vue: <style module> :global .sw com \$style.sw" checkbox WARN F.vue '<template>\n  <input type="checkbox" :class="$style.sw">\n</template>\n<style module>\n:global .sw { appearance: none; }\n</style>\n'
+expect12 "(B) .module.css: :global(.sw) com className=\"sw\" -> OK (positiva)" checkbox OK P.tsx "$CHKLIT" P.module.css ':global(.sw) { appearance: none; }\n'
+expect12 "(B) .module.scss: :global { .sw } com className=\"sw\" -> OK (positiva)" checkbox OK P.tsx "$CHKLIT" P.module.scss ':global {\n  .sw { appearance: none; }\n}\n'
+expect12 "(B) .vue: <style module> :global(.sw) com class=\"sw\" -> OK (positiva)" checkbox OK F.vue '<template>\n  <input type="checkbox" class="sw">\n</template>\n<style module>\n:global(.sw) { appearance: none; }\n</style>\n'
+expect12 "(B) .module.css: .sw local com s.sw continua OK (positiva)" checkbox OK P.tsx "$CHKMOD" P.module.css '.sw { appearance: none; }\n'
+# (C) cascata: na mesma origem, a última declaração de appearance (e aliases) para o mesmo seletor vence
+expect12 "(C) .sw{appearance:none} e depois .sw{appearance:auto}" checkbox WARN P.tsx "$CHKLIT" P.css '.sw { appearance: none; }\n.sw { appearance: auto; }\n'
+expect12 "(C) -webkit-appearance:none e depois appearance:auto (alias)" checkbox WARN P.tsx "$CHKLIT" P.css '.sw { -webkit-appearance: none; }\n.sw { appearance: auto; }\n'
+expect12 "(C) none e auto na mesma regra, auto por último" checkbox WARN P.tsx "$CHKLIT" P.css '.sw { appearance: none; -webkit-appearance: auto; }\n'
+expect12 "(C) none sobrescrito por auto dentro de @media" checkbox WARN P.tsx "$CHKLIT" P.css '.sw { appearance: none; }\n@media print {\n  .sw { appearance: auto; }\n}\n'
+expect12 "(C) auto e depois none -> OK (positiva)" checkbox OK P.tsx "$CHKLIT" P.css '.sw { appearance: auto; }\n.sw { -webkit-appearance: none; appearance: none; }\n'
+echo "OK [13] — $((n12 - n12_antes)) casos conferidos"
 
 echo "[4] artefatos + fiação presentes"
 SK="$WS/template/.forge/skills/frontend-ui-review/SKILL.md"

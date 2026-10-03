@@ -35,8 +35,13 @@
 #       class literal só com CSS global (X.css não-module, <style> sem `module`); classe de módulo
 #       (styles.x / styles["x"] quando `styles` é o default import do ./X.module.css irmão e não é
 #       redeclarado; $style.x no Vue) só com o .module.* importado (ou o <style module> do nome).
-#       Seletor sem classe (tag, atributo, pseudo solto) de um .module.* vale como global. Spread
-#       depois de className/style apaga classe e style conhecidos.
+#       Depois do ponto só identificador JS ($style.a-b é subtração; hífen só por $style['a-b']).
+#       Seletor sem classe (tag, atributo, pseudo solto) de um .module.* vale como global; seletor
+#       cujo sujeito está sob :global (:global(.x), :global .x ou bloco :global { .x {} }) é global:
+#       casa classe literal, nunca classe de módulo. Spread depois de className/style apaga classe e
+#       style conhecidos. Cascata na mesma origem: para o mesmo seletor, a última declaração de
+#       appearance (aliases -webkit-/-moz- incluídos) ou accent-color vence; sobrescrita condicional
+#       com outro valor apaga a propriedade.
 # Tudo o mais: WARN. Arquivo que o parser não lê (erro de sintaxe, interpolação de template, Node
 # ou @babel/parser ausente): WARN "não analisado", nunca OK.
 #
@@ -44,7 +49,8 @@
 # controle fica sem envoltório → WARN); clsx(...) e template com expressão não domesticam; os
 # compostos ancestrais do seletor (`.wrap` em `.wrap .sw`) não são confrontados com o DOM real;
 # .sass (sintaxe indentada) não tem regras legíveis; o envolvimento em .vue/.svelte só conta com
-# fechamento explícito da tag do DS.
+# fechamento explícito da tag do DS; a cascata só compara o mesmo seletor textual (especificidade e
+# !important não entram) e, entre arquivos da mesma origem, usa a ordem de leitura.
 import json
 import pathlib
 import re
@@ -73,7 +79,7 @@ INERT = {"", "auto", "initial", "unset", "inherit", "revert", "revert-layer"}
 
 
 def _appearance_none(decls: dict) -> bool:
-    return any(decls.get(p) == "none" for p in APPEARANCE)
+    return decls.get("appearance") == "none"
 
 
 def _accent(decls: dict) -> bool:
@@ -96,7 +102,10 @@ VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "met
 
 # ---------------------------------------------------------------- CSS (tokenizador, não regex)
 def _norm_prop(prop: str) -> str:
-    return prop.strip().lower().replace("-", "")
+    # appearance, -webkit-appearance e -moz-appearance são aliases da mesma propriedade: uma chave só,
+    # para que a última declaração (na regra ou na cascata) vença
+    key = prop.strip().lower().replace("-", "")
+    return "appearance" if key in APPEARANCE else key
 
 
 def parse_decls(chunks) -> dict:
@@ -345,10 +354,32 @@ def reaches(comp, ctrl: dict, kind: str, classes: set) -> bool:
     return comp["element"] == ctrl["tag"] or bool(comp["classes"]) or bool(comp["attrs"])
 
 
+def _sel_key(sel: str) -> str:
+    return " ".join(sel.split())
+
+
+def effective_props(rules: list) -> dict:
+    """seletor -> declarações vigentes depois da cascata dentro da mesma origem: a última declaração
+    da propriedade para o MESMO seletor vence. Sobrescrita condicional (@media...) com outro valor
+    apaga a propriedade — fora da condição vale um valor, dentro outro, e o controle não fica sempre
+    domado (fail-closed)."""
+    eff = {}
+    for selectors, decls, cond in rules:
+        for sel in selectors:
+            cur = eff.setdefault(_sel_key(sel), {})
+            for prop, val in decls.items():
+                if not cond:
+                    cur[prop] = val
+                elif cur.get(prop) != val:
+                    cur.pop(prop, None)
+    return eff
+
+
 def tamed_by_css(ctrl: dict, groups: list) -> bool:
     """groups: [(regras, classes do controle que essas regras podem nomear)]."""
     prop_ok = TAME_PROPS.get(ctrl["type"])
     for rules, classes in groups:
+        eff = effective_props(rules)
         for selectors, decls, cond in rules:
             if cond:
                 continue  # regra condicional (@media, @supports...) não doma o controle sempre
@@ -356,7 +387,7 @@ def tamed_by_css(ctrl: dict, groups: list) -> bool:
                 comp = parse_compound(subject_compound(sel))
                 if decls and reaches(comp, ctrl, "pseudo", classes):  # pseudo sem declaração não doma nada
                     return True
-                if prop_ok and prop_ok(decls) and reaches(comp, ctrl, "prop", classes):
+                if prop_ok and prop_ok(eff[_sel_key(sel)]) and reaches(comp, ctrl, "prop", classes):
                     return True
     return False
 
@@ -372,13 +403,100 @@ def css_file_rules(path: pathlib.Path) -> list:
     return parse_css(path.read_text(errors="ignore"), path.suffix in (".scss", ".less"))
 
 
+_SCOPE_KW = re.compile(r":(global|local)(?![\w-])", re.I)
+_COMBINATORS = " \t\n>+~"
+
+
+def module_scope(sel: str):
+    """CSS Modules: (seletor sem :global/:local, escopo das classes do composto-sujeito), ou None se
+    ilegível. Escopo: 'global' (toda classe do sujeito está em :global(...) ou depois de :global sem
+    parênteses — inclusive herdado de bloco `:global { }`, que a resolução de aninhamento vira
+    `:global .x`), 'local', 'misto' ou 'sem-classe'. Só classe (e id) é renomeada pelo módulo; tag,
+    atributo e pseudo não têm escopo."""
+    out, flags = [], []
+    mode, i, n = False, 0, len(sel)
+
+    def emit(text, flag):
+        out.append(text)
+        flags.extend([flag] * len(text))
+
+    while i < n:
+        m = _SCOPE_KW.match(sel, i)
+        if m:
+            flag, j = m.group(1).lower() == "global", m.end()
+            if j < n and sel[j] == "(":
+                inner, j = _read_group(sel, j, "(", ")")
+                if inner is None or _SCOPE_KW.search(inner):
+                    return None
+                emit(inner, flag)
+            else:
+                mode = flag  # :global / :local sem parênteses vale para o resto do seletor
+            i = j
+            continue
+        if sel[i] in "[(":
+            _, j = _read_group(sel, i, sel[i], "]" if sel[i] == "[" else ")")
+            if _SCOPE_KW.search(sel[i:j]):
+                return None  # :global dentro de :not(...)/:is(...): fora do que o scanner lê
+            emit(sel[i:j], mode)
+            i = j
+            continue
+        emit(sel[i], mode)
+        i += 1
+    norm = "".join(out)
+    # início do composto-sujeito: depois do último combinador de topo
+    start, depth = 0, 0
+    for k, ch in enumerate(norm):
+        if ch in "([":
+            depth += 1
+        elif ch in ")]":
+            depth = max(0, depth - 1)
+        elif depth == 0 and ch in _COMBINATORS:
+            start = k + 1
+    scopes, depth = set(), 0
+    for k in range(start, len(norm)):
+        ch = norm[k]
+        if ch in "([":
+            depth += 1
+        elif ch in ")]":
+            depth = max(0, depth - 1)
+        elif depth == 0 and ch in ".#":
+            scopes.add(flags[k])
+    scope = {frozenset(): "sem-classe", frozenset({True}): "global", frozenset({False}): "local"}.get(
+        frozenset(scopes), "misto")
+    return norm.strip(), scope
+
+
+def split_module(rules: list):
+    """regras de um CSS Module -> (regras locais, regras globais). Seletor sob :global é global: casa
+    classe literal, nunca classe do objeto do módulo; seletor sem classe continua com as locais (que já
+    valem sem classe); composto-sujeito misto (classe local e global) não casa nenhuma (fail-closed)."""
+    local, glob = [], []
+    for selectors, decls, cond in rules:
+        loc_s, glob_s = [], []
+        for sel in selectors:
+            res = module_scope(sel)
+            if res is None or res[1] == "misto":
+                continue
+            (glob_s if res[1] == "global" else loc_s).append(res[0])
+        if loc_s:
+            local.append((loc_s, decls, cond))
+        if glob_s:
+            glob.append((glob_s, decls, cond))
+    return local, glob
+
+
 def sibling_css_rules(file_path: pathlib.Path):
     """(regras globais, regras de módulo) do CSS com o nome do componente: X.css (global) e
-    X.module.css (módulo), ou equivalente .scss/.less, para X.tsx."""
+    X.module.css (módulo), ou equivalente .scss/.less, para X.tsx. Seletor sob :global no módulo vai
+    para as globais."""
     stem = file_path.stem
-    glob = [file_path.with_name(stem + ext) for ext in CSS_EXTS]
-    mod = [file_path.with_name(stem + ".module" + ext) for ext in CSS_EXTS]
-    return [r for f in glob for r in css_file_rules(f)], [r for f in mod for r in css_file_rules(f)]
+    glob = [r for ext in CSS_EXTS for r in css_file_rules(file_path.with_name(stem + ext))]
+    local = []
+    for ext in CSS_EXTS:
+        loc, g = split_module(css_file_rules(file_path.with_name(stem + ".module" + ext)))
+        local += loc
+        glob += g
+    return glob, local
 
 
 def css_groups(el: dict, global_rules: list, module_rules: list, by_object: dict) -> list:
@@ -488,7 +606,9 @@ def _binds_type(name: str) -> bool:
     return False
 
 
-_MODULE_REF = re.compile(r"^\s*([A-Za-z_$][\w$]*)\s*(?:\.\s*([A-Za-z_][\w-]*)|\[\s*(['\"])([\w-]+)\3\s*\])\s*$")
+# depois do ponto só identificador JS: `$style.color-swatch` é subtração ($style.color - swatch), não a
+# classe color-swatch; nome com hífen só por colchete e string ($style['color-swatch'])
+_MODULE_REF = re.compile(r"^\s*([A-Za-z_$][\w$]*)\s*(?:\.\s*([A-Za-z_$][\w$]*)|\[\s*(['\"])([\w-]+)\3\s*\])\s*$")
 
 
 def module_class_of(expr: str, objects) -> list:
@@ -646,7 +766,10 @@ def main() -> int:
             global_rules, module_rules = sibling_css_rules(p)
             for css in res["styles"]:
                 global_rules += parse_css(css, False)  # <style> JSX é folha global
-            by_object = {obj: css_file_rules(p.parent / src) for obj, src in res.get("modules", {}).items()}
+            # objeto do módulo nomeia só as classes locais; as de :global já estão nas globais do irmão
+            by_object = {
+                obj: split_module(css_file_rules(p.parent / src))[0] for obj, src in res.get("modules", {}).items()
+            }
             for el in res["elements"]:
                 groups = css_groups(el, global_rules, module_rules, by_object)
                 v = judge(el, groups, el["isDs"], el["insideDs"])
@@ -676,8 +799,10 @@ def main() -> int:
             if module is None:
                 global_rules += parsed
             else:
-                module_rules += parsed
-                by_object.setdefault(module, []).extend(parsed)
+                local, glob = split_module(parsed)
+                global_rules += glob
+                module_rules += local
+                by_object.setdefault(module, []).extend(local)
 
         def from_ds(e):
             return e["tag"] not in HTML_TAGS and e["norm"].split(".")[0] in ds

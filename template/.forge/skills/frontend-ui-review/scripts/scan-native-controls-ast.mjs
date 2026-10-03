@@ -12,6 +12,8 @@
 // Classe literal (className="x") e classe de módulo (styles.x, só quando o objeto é o default import do
 // ./<stem>.module.css irmão) saem separadas, com o arquivo de origem do módulo: o .py casa a primeira
 // só com CSS global e a segunda só com o .module.* importado. Spread {...p} apaga o que veio antes.
+// `styles.color-swatch` não é MemberExpression (é subtração), então nunca vira classe: com hífen, só
+// `styles["color-swatch"]`.
 import { createRequire } from "node:module";
 import path from "node:path";
 import { readFileSync } from "node:fs";
